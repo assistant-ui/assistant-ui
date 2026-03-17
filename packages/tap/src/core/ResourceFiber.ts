@@ -1,15 +1,28 @@
-import { ResourceFiber, RenderResult, Resource } from "./types";
-import { commitRender, cleanupAllEffects } from "./commit";
-import { withResourceFiber } from "./execution-context";
-import { callResourceFn } from "./callResourceFn";
+import {
+  ResourceFiber,
+  RenderResult,
+  Resource,
+  ResourceFiberRoot,
+} from "./types";
+import { commitAllEffects, cleanupAllEffects } from "./helpers/commit";
+import {
+  getDevStrictMode,
+  withResourceFiber,
+} from "./helpers/execution-context";
+import { callResourceFn } from "./helpers/callResourceFn";
+import { isDevelopment } from "./helpers/env";
 
 export function createResourceFiber<R, P>(
-  resource: Resource<R, P>,
-  scheduleRerender: () => void,
+  type: Resource<R, P>,
+  root: ResourceFiberRoot,
+  markDirty: (() => void) | undefined = undefined,
+  strictMode: "root" | "child" | null = getDevStrictMode(false),
 ): ResourceFiber<R, P> {
   return {
-    resource,
-    scheduleRerender,
+    type,
+    root,
+    markDirty,
+    devStrictMode: strictMode,
     cells: [],
     currentIndex: 0,
     renderContext: undefined,
@@ -19,26 +32,28 @@ export function createResourceFiber<R, P>(
   };
 }
 
-export function unmountResource<R, P>(fiber: ResourceFiber<R, P>): void {
-  // Clean up all effects
+export function unmountResourceFiber<R, P>(fiber: ResourceFiber<R, P>): void {
+  if (!fiber.isMounted)
+    throw new Error("Tried to unmount a fiber that is already unmounted");
+
   fiber.isMounted = false;
   cleanupAllEffects(fiber);
 }
 
-export function renderResource<R, P>(
+export function renderResourceFiber<R, P>(
   fiber: ResourceFiber<R, P>,
   props: P,
 ): RenderResult {
-  const result: RenderResult = {
-    commitTasks: [],
+  const result = {
+    effectTasks: [],
     props,
-    state: undefined,
+    output: undefined as R | undefined,
   };
 
   withResourceFiber(fiber, () => {
     fiber.renderContext = result;
     try {
-      result.state = callResourceFn(fiber.resource, props);
+      result.output = callResourceFn(fiber.type, props);
     } finally {
       fiber.renderContext = undefined;
     }
@@ -47,12 +62,19 @@ export function renderResource<R, P>(
   return result;
 }
 
-export function commitResource<R, P>(
+export function commitResourceFiber<R, P>(
   fiber: ResourceFiber<R, P>,
   result: RenderResult,
 ): void {
   fiber.isMounted = true;
-  fiber.isNeverMounted = false;
 
-  commitRender(result, fiber);
+  if (isDevelopment && fiber.isNeverMounted && fiber.devStrictMode === "root") {
+    fiber.isNeverMounted = false;
+
+    commitAllEffects(result);
+    cleanupAllEffects(fiber);
+  }
+
+  fiber.isNeverMounted = false;
+  commitAllEffects(result);
 }

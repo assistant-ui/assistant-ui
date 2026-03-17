@@ -32,10 +32,10 @@ export const registry: RegistryItem[] = [
       },
     ],
     registryDependencies: [
-      "https://r.assistant-ui.com/ai-sdk-backend",
-      "https://r.assistant-ui.com/thread",
-      "https://r.assistant-ui.com/thread-list",
+      "https://r.assistant-ui.com/ai-sdk-backend.json",
+      "https://r.assistant-ui.com/thread.json",
     ],
+    dependencies: ["@assistant-ui/react-ai-sdk"],
     meta: {
       importSpecifier: "Assistant",
       moduleSpecifier: "@/app/assistant",
@@ -52,7 +52,7 @@ export const registry: RegistryItem[] = [
         target: "app/api/chat/route.ts",
       },
     ],
-    dependencies: ["@assistant-ui/react-ai-sdk", "ai", "@ai-sdk/openai"],
+    dependencies: ["ai", "@ai-sdk/openai"],
   },
   {
     name: "thread",
@@ -61,15 +61,16 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/thread.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/thread.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: [
       "button",
-      "https://r.assistant-ui.com/attachment",
-      "https://r.assistant-ui.com/markdown-text",
-      "https://r.assistant-ui.com/tooltip-icon-button",
-      "https://r.assistant-ui.com/tool-fallback",
+      "https://r.assistant-ui.com/attachment.json",
+      "https://r.assistant-ui.com/markdown-text.json",
+      "https://r.assistant-ui.com/tooltip-icon-button.json",
+      "https://r.assistant-ui.com/tool-fallback.json",
     ],
   },
   {
@@ -79,9 +80,13 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/markdown-text.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/markdown-text.tsx",
       },
     ],
-    registryDependencies: ["https://r.assistant-ui.com/tooltip-icon-button"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/tooltip-icon-button.json",
+    ],
     dependencies: [
       "@assistant-ui/react-markdown",
       "lucide-react",
@@ -95,16 +100,51 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/reasoning.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/reasoning.tsx",
       },
     ],
     registryDependencies: [
       "collapsible",
-      "https://r.assistant-ui.com/markdown-text",
+      "https://r.assistant-ui.com/markdown-text.json",
     ],
-    dependencies: ["@assistant-ui/react", "lucide-react", "tw-shimmer"],
+    dependencies: [
+      "@assistant-ui/react",
+      "lucide-react",
+      "class-variance-authority",
+      "tw-shimmer",
+    ],
     css: {
-      "@import": "tw-shimmer",
+      '@import "tw-shimmer"': {},
     },
+  },
+  {
+    name: "message-timing",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/message-timing.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/message-timing.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: ["tooltip"],
+  },
+  {
+    name: "context-display",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/context-display.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/context-display.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "@assistant-ui/react-ai-sdk"],
+    registryDependencies: ["tooltip"],
   },
   {
     name: "thread-list",
@@ -113,12 +153,14 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/thread-list.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/thread-list.tsx",
       },
     ],
     registryDependencies: [
       "button",
       "skeleton",
-      "https://r.assistant-ui.com/tooltip-icon-button",
+      "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
   },
@@ -129,13 +171,15 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/attachment.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/attachment.tsx",
       },
     ],
     registryDependencies: [
       "dialog",
       "tooltip",
       "avatar",
-      "https://r.assistant-ui.com/tooltip-icon-button",
+      "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
     dependencies: ["@assistant-ui/react", "lucide-react", "zustand"],
   },
@@ -146,6 +190,8 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/follow-up-suggestions.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/follow-up-suggestions.tsx",
       },
     ],
     registryDependencies: [],
@@ -158,8 +204,11 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/tooltip-icon-button.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/tooltip-icon-button.tsx",
       },
     ],
+    dependencies: ["radix-ui"],
     registryDependencies: ["tooltip", "button"],
   },
   {
@@ -169,6 +218,8 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/syntax-highlighter.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/syntax-highlighter.ts",
       },
     ],
     dependencies: [
@@ -184,12 +235,14 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/assistant-modal.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/assistant-modal.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: [
-      "https://r.assistant-ui.com/thread",
-      "https://r.assistant-ui.com/tooltip-icon-button",
+      "https://r.assistant-ui.com/thread.json",
+      "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
   },
   {
@@ -199,10 +252,15 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/assistant-sidebar.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/assistant-sidebar.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react"],
-    registryDependencies: ["https://r.assistant-ui.com/thread", "resizable"],
+    registryDependencies: [
+      "resizable",
+      "https://r.assistant-ui.com/thread.json",
+    ],
   },
   {
     name: "tool-fallback",
@@ -211,10 +269,33 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/tool-fallback.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/tool-fallback.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
-    registryDependencies: ["button"],
+    registryDependencies: ["collapsible"],
+  },
+  {
+    name: "tool-group",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/tool-group.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/tool-group.tsx",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/react",
+      "lucide-react",
+      "class-variance-authority",
+    ],
+    registryDependencies: ["collapsible"],
+    css: {
+      '@import "tw-shimmer"': {},
+    },
   },
   {
     name: "shiki-highlighter",
@@ -223,6 +304,8 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/shiki-highlighter.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/shiki-highlighter.tsx",
       },
     ],
     dependencies: ["react-shiki"],
@@ -234,6 +317,8 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:component",
         path: "components/assistant-ui/mermaid-diagram.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/mermaid-diagram.tsx",
       },
     ],
     dependencies: [
@@ -243,15 +328,183 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "diff-viewer",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/diff-viewer.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/diff-viewer.tsx",
+      },
+    ],
+    dependencies: [
+      "diff",
+      "parse-diff",
+      "@assistant-ui/react-markdown",
+      "class-variance-authority",
+    ],
+  },
+  {
     name: "threadlist-sidebar",
     type: "registry:component",
     files: [
       {
         type: "registry:component",
         path: "components/assistant-ui/threadlist-sidebar.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/threadlist-sidebar.tsx",
       },
     ],
     dependencies: ["lucide-react"],
-    registryDependencies: ["sidebar", "https://r.assistant-ui.com/thread-list"],
+    registryDependencies: [
+      "sidebar",
+      "https://r.assistant-ui.com/thread-list.json",
+    ],
+  },
+  {
+    name: "quote",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/quote.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/quote.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+    registryDependencies: [],
+  },
+  {
+    name: "sources",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/sources.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/sources.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: ["https://r.assistant-ui.com/badge.json"],
+  },
+  {
+    name: "image",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/image.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/image.tsx",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/react",
+      "lucide-react",
+      "class-variance-authority",
+    ],
+    registryDependencies: [],
+  },
+  {
+    name: "file",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/file.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/file.tsx",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/react",
+      "lucide-react",
+      "class-variance-authority",
+    ],
+  },
+  {
+    name: "model-selector",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/model-selector.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/model-selector.tsx",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/react",
+      "radix-ui",
+      "lucide-react",
+      "class-variance-authority",
+    ],
+    registryDependencies: ["https://r.assistant-ui.com/select.json"],
+  },
+  {
+    name: "select",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/select.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/select.tsx",
+      },
+    ],
+    dependencies: ["radix-ui", "lucide-react", "class-variance-authority"],
+    registryDependencies: [],
+  },
+  {
+    name: "badge",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/badge.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/badge.tsx",
+      },
+    ],
+    dependencies: ["radix-ui", "class-variance-authority"],
+    registryDependencies: [],
+  },
+  {
+    name: "tabs",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/tabs.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/tabs.tsx",
+      },
+    ],
+    dependencies: ["radix-ui", "class-variance-authority"],
+    registryDependencies: [],
+  },
+  {
+    name: "accordion",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/accordion.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/accordion.tsx",
+      },
+    ],
+    dependencies: ["radix-ui", "lucide-react", "class-variance-authority"],
+    registryDependencies: [],
+  },
+  {
+    name: "heat-graph",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/heat-graph.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/heat-graph.tsx",
+      },
+    ],
+    dependencies: ["heat-graph"],
+    registryDependencies: [],
   },
 ];

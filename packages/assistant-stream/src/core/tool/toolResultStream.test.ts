@@ -71,7 +71,7 @@ describe("unstable_runPendingTools", () => {
 
       const executionTime = endTime - startTime;
 
-      expect(executionTime).toBeGreaterThanOrEqual(100);
+      expect(executionTime).toBeGreaterThanOrEqual(90); // Allow for timer imprecision
       // The execution time should be less than the sum of the delays of both tools.
       expect(executionTime).toBeLessThan(300);
 

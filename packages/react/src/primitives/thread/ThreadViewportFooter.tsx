@@ -30,7 +30,9 @@ export namespace ThreadPrimitiveViewportFooter {
  * @example
  * ```tsx
  * <ThreadPrimitive.Viewport>
- *   <ThreadPrimitive.Messages components={{ ... }} />
+ *   <ThreadPrimitive.Messages>
+ *     {() => <MyMessage />}
+ *   </ThreadPrimitive.Messages>
  *   <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
  *     <Composer />
  *   </ThreadPrimitive.ViewportFooter>

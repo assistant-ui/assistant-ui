@@ -1,0 +1,87 @@
+---
+title: ComposerRuntime
+description: Runtime for programmatically controlling the message composer.
+---
+
+The composer runtime allows you to view or edit anything related to how new information is added and sent. For instance you can use the composer runtime to read the state, add attachments, update text, send a message, etc.
+
+import { ComposerRuntime, ThreadComposerRuntime, EditComposerRuntime, ThreadComposerState } from "@/generated/typeDocs";
+
+### `useAui` (Composer Actions)
+
+Grabs the nearest composer (whether it’s the edit composer or the thread’s composer) via `useAui`:
+
+```tsx
+// Example
+import { useAui } from "@assistant-ui/react";
+
+const aui = useAui();
+
+// set the text
+aui.composer().setText("Hello from the composer");
+
+// send whatever is in the composer
+aui.composer().send();
+
+// get the current text in the composer state
+const composerState = aui.composer().getState();
+const currentText = composerState.text;
+
+```
+
+<ParametersTable {...ComposerRuntime} />
+
+
+### `useAuiState` (Thread Composer State)
+
+Access the thread’s new message composer state:
+
+```tsx
+import { useAuiState, useAui } from "@assistant-ui/react";
+
+const text = useAuiState((s) => s.composer.text);
+const isEmpty = useAuiState((s) => s.composer.isEmpty);
+
+// For actions, use useAui
+const aui = useAui();
+
+// set the text
+aui.composer().setText("Hello from the thread composer");
+
+// send whatever is in the thread composer
+aui.composer().send();
+
+```
+
+<ParametersTable {...ThreadComposerRuntime} />
+
+
+### `useAui` (Edit Composer Actions)
+
+Access edit composer actions via `useAui` from within a message component:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+const aui = useAui();
+
+// Begin editing the current message (populates the composer with its content)
+aui.message().composer().beginEdit();
+
+// Update the text and send the edit
+aui.message().composer().setText("Updated message text");
+aui.message().composer().send();
+
+// Cancel editing without saving
+aui.message().composer().cancel();
+```
+
+<ParametersTable {...EditComposerRuntime} />
+
+### `ThreadComposerState`
+
+The state of the thread composer which is the composer the user can interact with at the bottom.
+
+<ParametersTable {...ThreadComposerState} />
+
+

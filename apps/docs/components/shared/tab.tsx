@@ -30,7 +30,7 @@ const tabListVariants = cva("flex-none", {
   variants: {
     orientation: {
       horizontal: "",
-      navigation: "pb-1.5",
+      navigation: "",
     },
   },
   defaultVariants: {
@@ -43,15 +43,15 @@ const tabIndicatorVariants = cva(
   {
     variants: {
       variant: {
-        ghost: "bottom-[-6px] h-[2px] bg-foreground",
-        default: "bottom-[-6px] h-[2px] bg-primary",
-        outline: "bottom-[-6px] h-[2px] bg-foreground",
-        secondary: "bottom-[-6px] h-[2px] bg-secondary-foreground",
-        link: "bottom-[-6px] h-[2px] bg-primary",
+        ghost: "bottom-0 h-[2px] bg-foreground",
+        default: "bottom-0 h-[2px] bg-primary",
+        outline: "bottom-0 h-[2px] bg-foreground",
+        secondary: "bottom-0 h-[2px] bg-secondary-foreground",
+        link: "bottom-0 h-[2px] bg-primary",
       },
       orientation: {
-        horizontal: "bottom-[-6px] h-[2px]",
-        navigation: "-bottom-1.5 h-0.5",
+        horizontal: "bottom-0 h-[2px]",
+        navigation: "bottom-0 h-0.5",
       },
     },
     defaultVariants: {
@@ -89,11 +89,13 @@ function Tab({
   defaultActiveIndex = 0,
   variant = "ghost",
   orientation,
+  onTabChange,
   ...props
 }: React.ComponentProps<"div"> & {
   tabs: TabItem[];
   defaultActiveIndex?: number;
   variant?: "ghost" | "default" | "outline" | "secondary" | "link";
+  onTabChange?: (label: string, index: number) => void;
 } & VariantProps<typeof tabSwitcherVariants>) {
   const pathname = usePathname();
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
@@ -178,6 +180,9 @@ function Tab({
     // Only handle key events for content tabs (tabs with value)
     if (tab?.value !== undefined && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
+      if (index !== contentActiveIndex) {
+        onTabChange?.(tab.label, index);
+      }
       setContentActiveIndex(index);
     }
   };
@@ -186,6 +191,9 @@ function Tab({
     const tab = tabs[index];
     // Only set active index for content tabs (tabs with value)
     if (tab?.value !== undefined) {
+      if (index !== contentActiveIndex) {
+        onTabChange?.(tab.label, index);
+      }
       setContentActiveIndex(index);
     }
   };
@@ -206,16 +214,16 @@ function Tab({
       {...props}
     >
       <TabList orientation={resolvedOrientation}>
-        {showIndicator && (
-          <TabIndicator
-            activeStyle={activeStyle}
-            hoveredIndex={hoveredIndex}
-            hoverStyle={hoverStyle}
-            orientation={resolvedOrientation}
-            variant={variant}
-          />
-        )}
         <TabContainer>
+          {showIndicator && (
+            <TabIndicator
+              activeStyle={activeStyle}
+              hoveredIndex={hoveredIndex}
+              hoverStyle={hoverStyle}
+              orientation={resolvedOrientation}
+              variant={variant}
+            />
+          )}
           {tabs.map((tab, index) => (
             <TabItem
               index={index}
@@ -268,7 +276,7 @@ function TabList({
       data-slot="tab-list"
       {...props}
     >
-      <div className="relative">{children}</div>
+      {children}
     </div>
   );
 }
@@ -318,7 +326,10 @@ function TabIndicator({
 function TabContainer({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("relative flex items-center space-x-[6px]", className)}
+      className={cn(
+        "scrollbar-none relative flex items-center space-x-[6px] overflow-x-auto pb-2",
+        className,
+      )}
       data-slot="tab-container"
       role="tablist"
       {...props}

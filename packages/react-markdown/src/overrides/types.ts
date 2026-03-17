@@ -1,4 +1,4 @@
-import { Element } from "hast";
+import type { Element } from "hast";
 import { ComponentPropsWithoutRef, ComponentType } from "react";
 
 export type PreComponent = ComponentType<

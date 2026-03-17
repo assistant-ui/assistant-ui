@@ -19,7 +19,7 @@ export function StarPill() {
   return (
     <a
       href="https://github.com/assistant-ui/assistant-ui"
-      className="rainbow-border after:-z-10 relative inline-flex w-fit rounded-full p-px text-sm after:absolute after:inset-0 after:block after:rounded-full"
+      className="rainbow-border relative inline-flex w-fit rounded-full p-px text-sm after:absolute after:inset-0 after:-z-10 after:block after:rounded-full"
     >
       <span className="inline-flex items-center gap-1.5 rounded-full bg-background px-4 py-1.5">
         <StarIcon className="size-3.5 fill-amber-400 text-amber-500" />

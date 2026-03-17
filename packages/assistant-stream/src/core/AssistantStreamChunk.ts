@@ -64,8 +64,8 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
         | "other"
         | "unknown";
       readonly usage: {
-        readonly promptTokens: number;
-        readonly completionTokens: number;
+        readonly inputTokens: number;
+        readonly outputTokens: number;
       };
       readonly isContinued: boolean;
     }
@@ -80,8 +80,8 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
         | "other"
         | "unknown";
       readonly usage: {
-        readonly promptTokens: number;
-        readonly completionTokens: number;
+        readonly inputTokens: number;
+        readonly outputTokens: number;
       };
     }
   | {
@@ -89,6 +89,7 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
       readonly artifact?: ReadonlyJSONValue;
       readonly result: ReadonlyJSONValue;
       readonly isError: boolean;
+      readonly messages?: ReadonlyJSONValue;
     }
   | {
       readonly type: "error";

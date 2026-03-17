@@ -12,8 +12,42 @@ import { z } from "zod";
 import { remarkMermaid } from "@theguild/remark-mermaid";
 import { createFileSystemTypesCache } from "fumadocs-twoslash/cache-fs";
 import lastModified from "fumadocs-mdx/plugins/last-modified";
+import type { ShikiTransformer } from "shiki";
+
+function transformerLineNumbers(): ShikiTransformer {
+  return {
+    name: "line-numbers",
+    pre(node) {
+      node.properties["data-line-numbers"] = "";
+    },
+  };
+}
 
 export const docs = defineDocs({
+  docs: {
+    schema: frontmatterSchema.extend({
+      links: z
+        .array(
+          z.object({
+            label: z.string(),
+            url: z.string(),
+          }),
+        )
+        .optional(),
+    }),
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: metaSchema.extend({
+      description: z.string().optional(),
+    }),
+  },
+});
+
+export const tapDocs = defineDocs({
+  dir: "content/tap-docs",
   docs: {
     schema: frontmatterSchema,
     postprocess: {
@@ -40,6 +74,9 @@ export const blog = defineCollections({
     author: z.string(),
     date: z.date().optional(),
   }),
+  postprocess: {
+    includeProcessedMarkdown: true,
+  },
 });
 
 export const careers = defineCollections({
@@ -67,7 +104,7 @@ export default defineConfig({
       },
       transformers: [
         ...(rehypeCodeDefaultOptions.transformers ?? []),
-
+        transformerLineNumbers(),
         transformerMetaHighlight(),
         transformerTwoslash({
           typesCache: createFileSystemTypesCache(),

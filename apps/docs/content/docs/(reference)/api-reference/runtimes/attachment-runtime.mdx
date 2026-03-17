@@ -1,0 +1,35 @@
+---
+title: AttachmentRuntime
+description: Hooks for accessing attachment state in composer and messages.
+---
+
+import { AttachmentRuntime, AttachmentState } from "@/generated/typeDocs";
+
+### `useAuiState` (Attachment State)
+
+Access the current attachment state reactively:
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+const name = useAuiState((s) => s.attachment.name);
+const type = useAuiState((s) => s.attachment.type);
+```
+
+For imperative access and actions, use `useAui`:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+const aui = useAui();
+aui.attachment().remove();
+const state = aui.attachment().getState();
+```
+
+### Attachment Runtime
+
+<ParametersTable {...AttachmentRuntime} />
+
+### Attachment State
+
+<ParametersTable {...AttachmentState} />

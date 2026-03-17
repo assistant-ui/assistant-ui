@@ -41,8 +41,8 @@ export const createActionButton = <TProps,>(
     const callback = useActionButton(forwardedProps as TProps) ?? undefined;
     return (
       <Primitive.button
-        type="button"
         {...primitiveProps}
+        type="button"
         ref={forwardedRef}
         disabled={primitiveProps.disabled || !callback}
         onClick={composeEventHandlers(primitiveProps.onClick, callback)}

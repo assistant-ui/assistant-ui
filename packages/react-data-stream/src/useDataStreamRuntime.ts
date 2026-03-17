@@ -1,38 +1,48 @@
 "use client";
 
-import { toLanguageModelMessages } from "./converters";
+import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
+import type {
+  AssistantRuntime,
+  ChatModelAdapter,
+  ChatModelRunOptions,
+  ThreadMessage,
+} from "@assistant-ui/core";
 import {
-  type AssistantRuntime,
-  type ChatModelAdapter,
-  type ChatModelRunOptions,
-  INTERNAL,
-  type LocalRuntimeOptions,
-  type ThreadMessage,
-  type Tool,
   useLocalRuntime,
-} from "@assistant-ui/react";
-import { z } from "zod";
-import type { JSONSchema7 } from "json-schema";
+  splitLocalRuntimeOptions,
+  type LocalRuntimeOptions,
+} from "@assistant-ui/core/react";
 import {
   AssistantMessageAccumulator,
   DataStreamDecoder,
+  toToolsJSONSchema,
+  UIMessageStreamDecoder,
   unstable_toolResultStream,
 } from "assistant-stream";
 import { asAsyncIterableStream } from "assistant-stream/utils";
 
-const { splitLocalRuntimeOptions } = INTERNAL;
-
 type HeadersValue = Record<string, string> | Headers;
+
+export type DataStreamProtocol = "ui-message-stream" | "data-stream";
 
 export type UseDataStreamRuntimeOptions = {
   api: string;
+  /** Defaults to "ui-message-stream". Use "data-stream" for legacy AI SDK. */
+  protocol?: DataStreamProtocol;
+  /** Callback for data-* parts (ui-message-stream only). */
+  onData?: (data: {
+    type: string;
+    name: string;
+    data: unknown;
+    transient?: boolean;
+  }) => void;
   onResponse?: (response: Response) => void | Promise<void>;
   onFinish?: (message: ThreadMessage) => void;
   onError?: (error: Error) => void;
   onCancel?: () => void;
   credentials?: RequestCredentials;
   headers?: HeadersValue | (() => Promise<HeadersValue>);
-  body?: object;
+  body?: object | (() => Promise<object | undefined>);
   sendExtraMessageFields?: boolean;
 } & LocalRuntimeOptions;
 
@@ -42,29 +52,9 @@ type DataStreamRuntimeRequestOptions = {
   system?: string | undefined;
   runConfig?: any;
   unstable_assistantMessageId?: string;
+  threadId?: string;
+  parentId?: string | null;
   state?: any;
-};
-
-const toAISDKTools = (tools: Record<string, Tool>) => {
-  return Object.fromEntries(
-    Object.entries(tools).map(([name, tool]) => [
-      name,
-      {
-        ...(tool.description ? { description: tool.description } : undefined),
-        parameters: (tool.parameters instanceof z.ZodType
-          ? z.toJSONSchema(tool.parameters)
-          : tool.parameters) as JSONSchema7,
-      },
-    ]),
-  );
-};
-
-const getEnabledTools = (tools: Record<string, Tool>) => {
-  return Object.fromEntries(
-    Object.entries(tools).filter(
-      ([, tool]) => !tool.disabled && tool.type !== "backend",
-    ),
-  );
 };
 
 class DataStreamRuntimeAdapter implements ChatModelAdapter {
@@ -81,12 +71,19 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
     abortSignal,
     context,
     unstable_assistantMessageId,
+    unstable_threadId,
+    unstable_parentId,
     unstable_getMessage,
   }: ChatModelRunOptions) {
     const headersValue =
       typeof this.options.headers === "function"
         ? await this.options.headers()
         : this.options.headers;
+
+    const bodyValue =
+      typeof this.options.body === "function"
+        ? await this.options.body()
+        : this.options.body;
 
     abortSignal.addEventListener(
       "abort",
@@ -108,15 +105,19 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
         messages: toLanguageModelMessages(messages, {
           unstable_includeId: this.options.sendExtraMessageFields,
         }) as DataStreamRuntimeRequestOptions["messages"],
-        tools: toAISDKTools(
-          getEnabledTools(context.tools ?? {}),
+        tools: toToolsJSONSchema(
+          context.tools ?? {},
         ) as unknown as DataStreamRuntimeRequestOptions["tools"],
         ...(unstable_assistantMessageId ? { unstable_assistantMessageId } : {}),
+        ...(unstable_threadId ? { threadId: unstable_threadId } : {}),
+        ...(unstable_parentId !== undefined
+          ? { parentId: unstable_parentId }
+          : {}),
         runConfig,
         state: unstable_getMessage().metadata.unstable_state || undefined,
         ...context.callSettings,
         ...context.config,
-        ...this.options.body,
+        ...(bodyValue ?? {}),
       } satisfies DataStreamRuntimeRequestOptions),
       signal: abortSignal,
     });
@@ -131,8 +132,16 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
         throw new Error("Response body is null");
       }
 
+      const protocol = this.options.protocol ?? "ui-message-stream";
+      const decoder =
+        protocol === "ui-message-stream"
+          ? new UIMessageStreamDecoder(
+              this.options.onData ? { onData: this.options.onData } : {},
+            )
+          : new DataStreamDecoder();
+
       const stream = result.body
-        .pipeThrough(new DataStreamDecoder())
+        .pipeThrough(decoder)
         .pipeThrough(
           unstable_toolResultStream(context.tools, abortSignal, () => {
             throw new Error(

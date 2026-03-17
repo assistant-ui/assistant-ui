@@ -1,0 +1,66 @@
+---
+title: Motivation
+description: Why we built tap.
+---
+
+## React hooks are great — until your data doesn't match your UI
+
+React hooks let you colocate state and effects with the component that uses them. This works beautifully when the shape of your data matches the shape of your UI. A `<Counter>` component owns a `count` state. A `<Form>` component owns its input states. Simple.
+
+But over the lifetime of any non-trivial app, data needs to be accessed from multiple places in the UI. So you hoist state up. Then up again. Eventually, most of your state lives in a store at the root of your app — **global state**.
+
+## You can't use hooks for global state
+
+Once state is global, hooks can't manage it. You can't call `useState` in a loop for each message in a thread — that would break the rules of hooks. The very paradigm that made React so pleasant doesn't apply to your most important state.
+
+This is why state management libraries are so popular. Zustand, Jotai, Redux, MobX — they all facilitate this migration into global stores and let you efficiently access that state from anywhere in your app.
+
+## Our journey
+
+This is exactly what happened to us while building [assistant-ui](https://github.com/assistant-ui/assistant-ui).
+
+assistant-ui manages a lot of rapidly updating state: threads, messages, runtimes, composers, tool executions. We've gone through **seven rewrites** of our store implementation before arriving at tap + store.
+
+Early on, state lived in React hooks. But as the project grew, the shape of our data diverged from the shape of our UI, and state migrated upward into what we called the **Assistant Store**. Our first implementations used Observables, subscriptions, and classes. They worked, but they were painful — hard to read, hard to onboard new developers onto, and nothing like the React code surrounding it.
+
+We kept thinking: there has to be a way to write our runtime code the way we write React components.
+
+## From classes to functions
+
+Remember when Dan Abramov [refactored a class component into a functional component](https://youtu.be/V-QO-KO90iQ) at React Conf 2018 and the code just... collapsed? Fewer lines, easier to read, the same behavior expressed more directly.
+
+We wanted the same transformation for our runtime code. tap is the result — it brings `useState`, `useEffect`, `useMemo`, and the rest outside of React components and into standalone **resources**. Same rules of hooks. Same mental model. Just not tied to the UI tree.
+
+After the migration, code that used to be spread across classes with manual lifecycle management became straightforward hook-based resources.
+
+## We needed `tapEffect`
+
+Zustand, Jotai, RxJS — they're good at what they do, but none of them have a concept of **lifecycle**. There's no `useEffect`. No mount and unmount. No render and commit phases.
+
+In assistant-ui, we need all of these. We care about server-side rendering, Suspense, and knowing when things mount and unmount. By modeling our own render and commit phases (inspired by React's), we can write runtime code that naturally handles SSR, hydration, mounting, and cleanup — the same way you'd write it inside a React component.
+
+## Composable configuration
+
+tap also gave us a better way to design assistant-ui's API.
+
+Previously, configuring assistant-ui meant passing stateless objects and callback hooks into monolithic runtime hooks. With tap, we redesigned around a single hook — `useAui` — where every piece of configuration is a composable resource:
+
+```ts
+const aui = useAui({
+  cloud: AssistantCloud({ apiKey: "..." }),
+  threads: CloudThreadList({
+    thread: () => AISDKThread({
+      transport: /* ... */,
+    }),
+  }),
+});
+```
+
+Each of these — `AssistantCloud(...)`, `CloudThreadList(...)`, `AISDKThread(...)` — returns a [`ResourceElement`](/tap/docs/resources#resourceelements): a simple `{ type, props }` object that carries both the implementation and its configuration. Users can swap, compose, and nest them freely.
+
+## Architecture
+
+tap is split into two packages:
+
+- **`@assistant-ui/tap`** — The hooks engine. Zero dependencies. General-purpose and not tied to assistant-ui.
+- **`@assistant-ui/store`** — The glue between tap and React. Connects tap resources to React components via `useSyncExternalStore` and React context.

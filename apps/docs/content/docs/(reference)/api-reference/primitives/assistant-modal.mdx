@@ -1,0 +1,129 @@
+---
+title: AssistantModalPrimitive
+description: A popover chat interface for floating assistant UI in the corner of the screen.
+---
+
+A modal chat UI usually displayed in the bottom right corner of the screen.
+
+
+## Anatomy
+
+```tsx
+import { AssistantModalPrimitive } from "@assistant-ui/react";
+
+const AssistantModal = () => (
+  <AssistantModalPrimitive.Root>
+    <AssistantModalPrimitive.Trigger>
+      <FloatingAssistantButton />
+    </AssistantModalPrimitive.Trigger>
+    <AssistantModalPrimitive.Content>
+      <Thread />
+    </AssistantModalPrimitive.Content>
+  </AssistantModalPrimitive.Root>
+);
+```
+
+## API Reference
+
+### Root
+
+Contains all parts of the assistant modal.
+
+<ParametersTable
+  type="AssistantModalPrimitiveRootProps"
+  parameters={[
+    {
+      name: "defaultOpen",
+      type: "boolean",
+      default: "false",
+      description:
+        "The open state of the assistant modal when it is initially rendered. Use when you do not need to control its open state.",
+    },
+    {
+      name: "open",
+      type: "boolean",
+      description:
+        "Not recommended. The controlled open state of the assistant modal. Must be used in conjunction with onOpenChange.",
+    },
+    {
+      name: "onOpenChange",
+      type: "(open: boolean) => void",
+      description:
+        "Event handler called when the open state of the assistant modal changes.",
+    },
+    {
+      name: "modal",
+      type: "boolean",
+      default: "false",
+      description:
+        "The modality of the assistant modal. When set to true, interaction with outside elements will be disabled and only modal content will be visible to screen readers.",
+    },
+  ]}
+/>
+
+### Trigger
+
+A button that toggles the open state of the assistant modal. `AssistantModalPrimitive.Content` will position itself against this button.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="AssistantModalPrimitiveTriggerProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+| Data attribute | Values |
+| --- | --- |
+| `[data-state]` | `"open" \| "closed"` |
+
+### Anchor
+
+The anchor element that the assistant modal is attached to. Defaults to the `Trigger` element.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+### Content
+
+The component that pops out when the assistant modal is open.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+<ParametersTable
+  type="AssistantModalPrimitiveContentProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "side",
+      type: "'top' | 'right' | 'bottom' | 'left'",
+      default: "'top'",
+      description: "The side of the assistant modal to position against.",
+    },
+    {
+      name: "align",
+      type: "'start' | 'center' | 'end'",
+      default: "'end'",
+      description: "The alignment of the assistant modal to position against.",
+    },
+    {
+      name: "dissmissOnInteractOutside",
+      type: "boolean",
+      default: "false",
+      description:
+        "Dismiss the assistant modal when the user interacts outside of it.",
+    },
+    {
+      name: "portalProps",
+      type: "{ container?: HTMLElement | null; forceMount?: true }",
+      description:
+        "Props to pass to the underlying Radix UI Popover.Portal. Use container to render the modal into a specific DOM node, or forceMount to keep it mounted for animation control.",
+    },
+  ]}
+/>
+
+Refer to Radix UI's Documentation for [Popover.Content](https://www.radix-ui.com/primitives/docs/components/popover#content) for more details.

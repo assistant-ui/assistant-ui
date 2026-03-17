@@ -3,15 +3,13 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { docsTools } from "./tools/docs.js";
 import { examplesTools } from "./tools/examples.js";
 import { logger } from "./utils/logger.js";
-import { IS_PREPARE_MODE } from "./constants.js";
+import { PACKAGE_DIR } from "./constants.js";
 
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const packageJson = JSON.parse(
-  readFileSync(join(__dirname, "../package.json"), "utf-8"),
+  readFileSync(join(PACKAGE_DIR, "package.json"), "utf-8"),
 );
 
 export const server = new McpServer({
@@ -34,11 +32,6 @@ server.tool(
 
 export async function runServer() {
   try {
-    if (IS_PREPARE_MODE) {
-      logger.info("Running in preparation mode...");
-      process.exit(0);
-    }
-
     logger.info(
       `Starting assistant-ui MCP docs server v${packageJson.version}`,
     );

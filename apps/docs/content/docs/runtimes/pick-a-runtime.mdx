@@ -1,9 +1,7 @@
 ---
 title: Picking a Runtime
+description: Which runtime fits your backend? Decision guide for common setups.
 ---
-
-import { Card, Cards } from "fumadocs-ui/components/card";
-import { Callout } from "fumadocs-ui/components/callout";
 
 Choosing the right runtime is crucial for your assistant-ui implementation. This guide helps you navigate the options based on your specific needs.
 
@@ -16,6 +14,8 @@ graph TD
     B -->|LangGraph| D[Use LangGraph Runtime]
     B -->|LangServe| E[Use LangServe Runtime]
     B -->|Mastra| F[Use Mastra Runtime]
+    B -->|AG-UI Protocol| J[Use AG-UI Runtime]
+    B -->|A2A Protocol| K[Use A2A Runtime]
     B -->|Custom Backend| G{State Management?}
     G -->|Let assistant-ui handle it| H[Use LocalRuntime]
     G -->|I'll manage it myself| I[Use ExternalStoreRuntime]
@@ -45,8 +45,8 @@ For popular frameworks, we provide ready-to-use integrations built on top of our
 <Cards>
   <Card
     title="Vercel AI SDK"
-    description="For useChat and useAssistant hooks - streaming with all major providers"
-    href="/docs/runtimes/ai-sdk/use-chat"
+    description="For useChat hook - streaming with all major providers"
+    href="/docs/runtimes/ai-sdk/v6"
   />
   <Card
     title="Data Stream Protocol"
@@ -68,6 +68,16 @@ For popular frameworks, we provide ready-to-use integrations built on top of our
     description="For workflow orchestration with Mastra's ecosystem"
     href="/docs/runtimes/mastra/overview"
   />
+  <Card
+    title="AG-UI Protocol"
+    description="For backends implementing the AG-UI (Agent-User Interaction) protocol"
+    href="https://www.npmjs.com/package/@assistant-ui/react-ag-ui"
+  />
+  <Card
+    title="A2A Protocol"
+    description="For Agent-to-Agent protocol communication between AI agents"
+    href="/docs/runtimes/a2a"
+  />
 </Cards>
 
 ## Understanding Runtime Architecture
@@ -80,6 +90,8 @@ The pre-built integrations (AI SDK, LangGraph, etc.) are **not separate runtime 
 - **LangGraph Runtime** → Built on `LocalRuntime` with graph execution adapter
 - **LangServe Runtime** → Built on `LocalRuntime` with LangServe client adapter
 - **Mastra Runtime** → Built on `LocalRuntime` with workflow adapter
+- **AG-UI Runtime** → Built on `LocalRuntime` with AG-UI protocol adapter
+- **A2A Runtime** → Built on `LocalRuntime` with Agent-to-Agent protocol adapter
 
 This means you get all the benefits of `LocalRuntime` (automatic state management, built-in features) with zero configuration for your specific framework.
 
@@ -129,12 +141,11 @@ Pre-built integrations can always be replaced with a custom `LocalRuntime` or `E
 ### Vercel AI SDK with Streaming
 
 ```tsx
+import { AssistantRuntimeProvider, Thread } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 export function MyAssistant() {
-  const runtime = useChatRuntime({
-    api: "/api/chat",
-  });
+  const runtime = useChatRuntime();
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -187,11 +198,10 @@ const runtime = useExternalStoreRuntime({
 
 Explore our implementation examples:
 
-- **[AI SDK Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk)** - Vercel AI SDK with `useChatRuntime`
+- **[AI SDK v6 Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v6)** - Vercel AI SDK with `useChatRuntime`
 - **[External Store Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-external-store)** - `ExternalStoreRuntime` with custom state
 - **[Assistant Cloud Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud)** - Multi-thread with cloud persistence
 - **[LangGraph Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph)** - Agent workflows
-- **[OpenAI Assistants Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-openai-assistants)** - OpenAI Assistants API
 
 ## Common Pitfalls to Avoid
 
@@ -214,7 +224,7 @@ Explore our implementation examples:
 
 1. **Choose your runtime** based on the decision tree above
 2. **Follow the specific guide**:
-   - [AI SDK Integration](/docs/runtimes/ai-sdk/use-chat)
+   - [AI SDK Integration](/docs/runtimes/ai-sdk/v6)
    - [`LocalRuntime` Guide](/docs/runtimes/custom/local)
    - [`ExternalStoreRuntime` Guide](/docs/runtimes/custom/external-store)
    - [LangGraph Integration](/docs/runtimes/langgraph)

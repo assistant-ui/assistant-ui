@@ -1,0 +1,66 @@
+import type { FC } from "react";
+import { Text } from "ink";
+import {
+  MessagePrimitiveParts as MessagePrimitivePartsBase,
+  MessagePartComponent as MessagePartComponentBase,
+  MessagePrimitivePartByIndex as MessagePrimitivePartByIndexBase,
+  messagePartsDefaultComponents,
+} from "@assistant-ui/core/react";
+
+const inkDefaultComponents = {
+  ...messagePartsDefaultComponents,
+  Text: ({ text }: { text: string }) => <Text>{text}</Text>,
+} satisfies MessagePrimitiveParts.Props["components"];
+
+export namespace MessagePrimitiveParts {
+  export type Props = MessagePrimitivePartsBase.Props;
+}
+
+/**
+ * Renders the parts of a message with Ink-specific default components.
+ */
+export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
+  props,
+) => {
+  if ("children" in props) {
+    return (
+      <MessagePrimitivePartsBase>{props.children}</MessagePrimitivePartsBase>
+    );
+  }
+
+  const { components, ...rest } = props;
+  const merged = components
+    ? {
+        Text: components.Text ?? inkDefaultComponents.Text,
+        Image: components.Image ?? messagePartsDefaultComponents.Image,
+        Reasoning:
+          components.Reasoning ?? messagePartsDefaultComponents.Reasoning,
+        Source: components.Source ?? messagePartsDefaultComponents.Source,
+        File: components.File ?? messagePartsDefaultComponents.File,
+        Unstable_Audio:
+          components.Unstable_Audio ??
+          messagePartsDefaultComponents.Unstable_Audio,
+        ...("ChainOfThought" in components
+          ? { ChainOfThought: components.ChainOfThought }
+          : {
+              tools: components.tools,
+              data: components.data,
+              ToolGroup:
+                components.ToolGroup ?? messagePartsDefaultComponents.ToolGroup,
+              ReasoningGroup:
+                components.ReasoningGroup ??
+                messagePartsDefaultComponents.ReasoningGroup,
+            }),
+        Empty: components.Empty,
+      }
+    : inkDefaultComponents;
+
+  return <MessagePrimitivePartsBase components={merged as any} {...rest} />;
+};
+
+MessagePrimitiveParts.displayName = "MessagePrimitive.Parts";
+
+export {
+  MessagePartComponentBase as MessagePartComponent,
+  MessagePrimitivePartByIndexBase as MessagePrimitivePartByIndex,
+};

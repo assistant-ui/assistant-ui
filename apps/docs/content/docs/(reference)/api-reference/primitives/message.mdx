@@ -1,0 +1,625 @@
+---
+title: MessagePrimitive
+description: Components for rendering message content, parts, and attachments.
+---
+
+A single message in a conversation. Messages may consist of multiple parts.
+
+
+## Anatomy
+
+```tsx
+import { MessagePrimitive } from "@assistant-ui/react";
+
+const UserMessage = () => (
+  <MessagePrimitive.Root>
+    User: <MessagePrimitive.Parts />
+    <BranchPicker />
+    <ActionBar />
+  </MessagePrimitive.Root>
+);
+
+const AssistantMessage = () => (
+  <MessagePrimitive.Root>
+    Assistant: <MessagePrimitive.Parts />
+    <BranchPicker />
+    <ActionBar />
+  </MessagePrimitive.Root>
+);
+```
+
+## API Reference
+
+### Root
+
+Contains all parts of the message.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+<ParametersTable
+  type="MessagePrimitiveRootProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### Parts
+
+The content of the message. This renders a separate component for each message part.
+
+<ParametersTable
+  type="MessagePrimitivePartsProps"
+  parameters={[
+    {
+      name: "components",
+      required: false,
+      type: "MessagePartComponents",
+      description: "The components to render for each message part.",
+      children: [
+        {
+          type: "MessagePartComponents",
+          parameters: [
+            {
+              name: "Text",
+              type: "TextMessagePartComponent",
+              description:
+                "The component to render for each text message part.",
+            },
+            {
+              name: "Image",
+              type: "ImageMessagePartComponent",
+              description:
+                "The component to render for each image message part.",
+            },
+            {
+              name: "Source",
+              type: "SourceMessagePartComponent",
+              description:
+                "The component to render for each source message part.",
+            },
+            {
+              name: "File",
+              type: "FileMessagePartComponent",
+              description:
+                "The component to render for each file message part.",
+            },
+            {
+              name: "Unstable_Audio",
+              type: "Unstable_AudioMessagePartComponent",
+              description:
+                "The component to render for each audio message part.",
+            },
+            {
+              name: "Reasoning",
+              type: "ReasoningMessagePartComponent",
+              description:
+                "The component to render for each reasoning message part. Cannot be used alongside ChainOfThought.",
+            },
+            {
+              name: "tools",
+              type: "object",
+              description:
+                "Configuration for tool call rendering. Cannot be used alongside ChainOfThought.",
+              children: [
+                {
+                  parameters: [
+                    {
+                      name: "by_name",
+                      type: "Record<string, ToolCallMessagePartComponent>",
+                      description:
+                        "Map of tool names to their specific components.",
+                    },
+                    {
+                      name: "Fallback",
+                      type: "ToolCallMessagePartComponent",
+                      description:
+                        "Fallback component for tool calls not matched by by_name.",
+                    },
+                    {
+                      name: "Override",
+                      type: "ComponentType<ToolCallMessagePartProps>",
+                      description:
+                        "Override component that handles all tool calls. When set, by_name and Fallback are ignored.",
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: "data",
+              type: "object",
+              description:
+                "Configuration for data part rendering.",
+              children: [
+                {
+                  parameters: [
+                    {
+                      name: "by_name",
+                      type: "Record<string, DataMessagePartComponent>",
+                      description:
+                        "Map of data event names to their specific components.",
+                    },
+                    {
+                      name: "Fallback",
+                      type: "DataMessagePartComponent",
+                      description:
+                        "Fallback component for data events not matched by by_name.",
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: "ToolGroup",
+              type: "ComponentType<PropsWithChildren<{ startIndex: number; endIndex: number }>>",
+              description:
+                "Deprecated: This feature is still experimental and subject to change. Component for rendering grouped consecutive tool calls. When provided, consecutive tool-call message parts will be automatically grouped and wrapped with this component. Cannot be used alongside ChainOfThought.",
+              children: [
+                {
+                  type: "ToolGroupProps",
+                  parameters: [
+                    {
+                      name: "startIndex",
+                      type: "number",
+                      description: "Index of the first tool call in the group.",
+                      required: true,
+                    },
+                    {
+                      name: "endIndex",
+                      type: "number",
+                      description: "Index of the last tool call in the group.",
+                      required: true,
+                    },
+                    {
+                      name: "children",
+                      type: "ReactNode",
+                      description:
+                        "The rendered tool call components within the group.",
+                      required: true,
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: "ReasoningGroup",
+              type: "ReasoningGroupComponent",
+              description:
+                "Component for rendering grouped consecutive reasoning parts. Cannot be used alongside ChainOfThought.",
+              children: [
+                {
+                  type: "ReasoningGroupProps",
+                  parameters: [
+                    {
+                      name: "startIndex",
+                      type: "number",
+                      description: "Index of the first reasoning part in the group.",
+                      required: true,
+                    },
+                    {
+                      name: "endIndex",
+                      type: "number",
+                      description: "Index of the last reasoning part in the group.",
+                      required: true,
+                    },
+                    {
+                      name: "children",
+                      type: "ReactNode",
+                      description:
+                        "The rendered reasoning part components within the group.",
+                      required: true,
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: "ChainOfThought",
+              type: "ComponentType",
+              description:
+                "When set, groups all consecutive reasoning and tool-call parts into a single collapsible component. Mutually exclusive with Reasoning, tools, ToolGroup, and ReasoningGroup.",
+            },
+            {
+              name: "Empty",
+              type: "EmptyMessagePartComponent",
+              description:
+                "Component to render when the message has no parts, or when unstable_showEmptyOnNonTextEnd is enabled and the last part is not text or reasoning.",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: "unstable_showEmptyOnNonTextEnd",
+      required: false,
+      type: "boolean",
+      description:
+        "When enabled, shows the Empty component if the last part in the message is anything other than Text or Reasoning. Defaults to true.",
+    },
+  ]}
+/>
+
+### Quote
+
+Renders a quote block if the message has quote metadata (`message.metadata.custom.quote`). Place this above `MessagePrimitive.Parts`.
+
+```tsx
+<MessagePrimitive.Quote>
+  {({ text, messageId }) => <QuoteBlock text={text} messageId={messageId} />}
+</MessagePrimitive.Quote>
+```
+
+<ParametersTable
+  type="MessagePrimitiveQuoteProps"
+  parameters={[
+    {
+      name: "children",
+      required: true,
+      type: "(quote: QuoteInfo) => ReactNode",
+      description: "Render function called when a quote is present. Receives { text, messageId }.",
+    },
+  ]}
+/>
+
+### PartByIndex
+
+Renders a single message part at the specified index.
+
+```tsx
+<MessagePrimitive.PartByIndex
+  index={0}
+  components={{
+    Text: MyTextComponent,
+    Image: MyImageComponent
+  }}
+/>
+```
+
+<ParametersTable
+  type="MessagePrimitive.PartByIndex.Props"
+  parameters={[
+    {
+      name: "index",
+      type: "number",
+      required: true,
+      description: "The index of the message part to render.",
+    },
+    {
+      name: "components",
+      required: false,
+      type: "MessagePartComponents",
+      description: "The components to render for the message part.",
+    },
+  ]}
+/>
+
+### Attachments
+
+Renders all attachments of the message.
+
+<ParametersTable
+  type="MessagePrimitive.Attachments.Props"
+  parameters={[
+    {
+      name: "components",
+      type: "AttachmentComponents",
+      description: "The components to render for each attachment.",
+      children: [
+        {
+          type: "AttachmentComponents",
+          parameters: [
+            {
+              name: "Image",
+              type: "ComponentType",
+              description: "The component to render for image attachments.",
+            },
+            {
+              name: "Document",
+              type: "ComponentType",
+              description: "The component to render for document attachments.",
+            },
+            {
+              name: "File",
+              type: "ComponentType",
+              description: "The component to render for file attachments.",
+            },
+            {
+              name: "Attachment",
+              type: "ComponentType",
+              description: "The fallback component to render for any attachment type.",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+### AttachmentByIndex
+
+Renders a single attachment at the specified index within the message.
+
+```tsx
+<MessagePrimitive.AttachmentByIndex
+  index={0}
+  components={{
+    Image: MyImageAttachment,
+    Document: MyDocumentAttachment
+  }}
+/>
+```
+
+<ParametersTable
+  type="MessagePrimitive.AttachmentByIndex.Props"
+  parameters={[
+    {
+      name: "index",
+      type: "number",
+      required: true,
+      description: "The index of the attachment to render.",
+    },
+    {
+      name: "components",
+      type: "AttachmentComponents",
+      description: "The components to render for the attachment.",
+    },
+  ]}
+/>
+
+### useMessageQuote()
+
+A hook that returns the quote info attached to the current message, if any. Reads from `message.metadata.custom.quote`.
+
+```tsx
+import { useMessageQuote } from "@assistant-ui/react";
+
+const QuoteBlock = () => {
+  const quote = useMessageQuote();
+  if (!quote) return null;
+
+  return (
+    <div className="mb-2 flex items-start gap-1.5 text-sm italic text-muted-foreground">
+      {quote.text}
+    </div>
+  );
+};
+```
+
+**Returns:** `QuoteInfo | undefined`
+
+```typescript
+type QuoteInfo = {
+  readonly text: string;       // the quoted plain text
+  readonly messageId: string;  // the source message ID
+};
+```
+
+<Callout type="info">
+See the [Quoting guide](/docs/guides/quoting) for a complete walkthrough.
+</Callout>
+
+### Unstable_PartsGrouped
+
+Renders the parts of a message grouped by a custom grouping function. Use this component when you need to visually group related message parts together — for example, grouping parts that share a common parent ID, or collecting consecutive tool calls under a single header.
+
+The `groupingFunction` prop controls how parts are grouped. It receives the full array of message parts and must return an array of group descriptors, each with a `groupKey` (or `undefined` for ungrouped parts) and an array of `indices` into the message parts array. The optional `components.Group` component is then rendered once per group and receives the `groupKey`, `indices`, and the rendered part children.
+
+<Callout type="warn">
+This API is unstable and may change in a future release.
+</Callout>
+
+```tsx
+<MessagePrimitive.Unstable_PartsGrouped
+  groupingFunction={(parts) => {
+    const groups = new Map<string, number[]>();
+    parts.forEach((part, i) => {
+      const key = part.parentId ?? `__ungrouped_${i}`;
+      const indices = groups.get(key) ?? [];
+      indices.push(i);
+      groups.set(key, indices);
+    });
+    return Array.from(groups.entries()).map(([key, indices]) => ({
+      groupKey: key.startsWith("__ungrouped_") ? undefined : key,
+      indices,
+    }));
+  }}
+  components={{
+    Text: ({ text }) => <p>{text}</p>,
+    Group: ({ groupKey, indices, children }) => {
+      if (!groupKey) return <>{children}</>;
+      return (
+        <div className="parent-group">
+          <h4>Parent: {groupKey}</h4>
+          {children}
+        </div>
+      );
+    },
+  }}
+/>
+```
+
+<ParametersTable
+  type="MessagePrimitive.Unstable_PartsGrouped.Props"
+  parameters={[
+    {
+      name: "groupingFunction",
+      required: true,
+      type: "GroupingFunction",
+      description:
+        "A function that receives the array of message parts and returns an array of groups. Each group has a groupKey (string or undefined for ungrouped parts) and an indices array of part positions.",
+    },
+    {
+      name: "components",
+      required: false,
+      type: "object",
+      description: "The components to render for each message part type and for group wrappers.",
+      children: [
+        {
+          parameters: [
+            {
+              name: "Text",
+              type: "TextMessagePartComponent",
+              description: "The component to render for each text message part.",
+            },
+            {
+              name: "Reasoning",
+              type: "ReasoningMessagePartComponent",
+              description: "The component to render for each reasoning message part.",
+            },
+            {
+              name: "Source",
+              type: "SourceMessagePartComponent",
+              description: "The component to render for each source message part.",
+            },
+            {
+              name: "Image",
+              type: "ImageMessagePartComponent",
+              description: "The component to render for each image message part.",
+            },
+            {
+              name: "File",
+              type: "FileMessagePartComponent",
+              description: "The component to render for each file message part.",
+            },
+            {
+              name: "Unstable_Audio",
+              type: "Unstable_AudioMessagePartComponent",
+              description: "The component to render for each audio message part.",
+            },
+            {
+              name: "Empty",
+              type: "EmptyMessagePartComponent",
+              description: "Component to render when the message has no parts.",
+            },
+            {
+              name: "tools",
+              type: "object",
+              description: "Configuration for tool call rendering.",
+              children: [
+                {
+                  parameters: [
+                    {
+                      name: "by_name",
+                      type: "Record<string, ToolCallMessagePartComponent>",
+                      description: "Map of tool names to their specific components.",
+                    },
+                    {
+                      name: "Fallback",
+                      type: "ToolCallMessagePartComponent",
+                      description:
+                        "Fallback component for tool calls not matched by by_name.",
+                    },
+                    {
+                      name: "Override",
+                      type: "ComponentType<ToolCallMessagePartProps>",
+                      description:
+                        "Override component that handles all tool calls. When set, by_name and Fallback are ignored.",
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: "data",
+              type: "object",
+              description: "Configuration for data part rendering.",
+              children: [
+                {
+                  parameters: [
+                    {
+                      name: "by_name",
+                      type: "Record<string, DataMessagePartComponent>",
+                      description:
+                        "Map of data event names to their specific components.",
+                    },
+                    {
+                      name: "Fallback",
+                      type: "DataMessagePartComponent",
+                      description:
+                        "Fallback component for data events not matched by by_name.",
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              name: "Group",
+              type: "ComponentType<PropsWithChildren<{ groupKey: string | undefined; indices: number[] }>>",
+              description:
+                "Component for rendering a group of message parts. Receives the groupKey (undefined for ungrouped parts), the indices of all parts in the group, and the rendered part children.",
+              children: [
+                {
+                  type: "GroupProps",
+                  parameters: [
+                    {
+                      name: "groupKey",
+                      type: "string | undefined",
+                      description:
+                        "The group key, or undefined for ungrouped parts.",
+                      required: true,
+                    },
+                    {
+                      name: "indices",
+                      type: "number[]",
+                      description:
+                        "Array of indices of the message parts belonging to this group.",
+                      required: true,
+                    },
+                    {
+                      name: "children",
+                      type: "ReactNode",
+                      description:
+                        "The rendered message part components within the group.",
+                      required: true,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+### Unstable_PartsGroupedByParentId
+
+A convenience wrapper around `MessagePrimitive.Unstable_PartsGrouped` that groups message parts by their `parentId` field. Parts without a `parentId` appear individually at their chronological position; parts sharing the same `parentId` are collected into a single group at the position of their first occurrence.
+
+<Callout type="warn">
+This API is unstable and may change in a future release.
+</Callout>
+
+```tsx
+<MessagePrimitive.Unstable_PartsGroupedByParentId
+  components={{
+    Group: ({ groupKey, children }) => {
+      if (!groupKey) return <>{children}</>;
+      return (
+        <div className="parent-group border rounded p-4">
+          <h4>Parent ID: {groupKey}</h4>
+          {children}
+        </div>
+      );
+    },
+  }}
+/>
+```
+
+Accepts the same `components` prop as [`MessagePrimitive.Unstable_PartsGrouped`](#unstable_partsgrouped), but without a `groupingFunction` prop (the parent-ID grouping function is applied automatically).
+
+### Error
+
+Renders children only if the message has an error status.
+
+```tsx
+<MessagePrimitive.Error>
+  {/* rendered if the message has an error status */}
+  <ErrorPrimitive.Root>
+    <ErrorPrimitive.Message />
+  </ErrorPrimitive.Root>
+</MessagePrimitive.Error>
+```

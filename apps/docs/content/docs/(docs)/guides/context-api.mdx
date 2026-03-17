@@ -1,0 +1,614 @@
+---
+title: Context API
+description: Read and update assistant state to build custom components.
+---
+
+The Context API provides direct access to assistant-ui's state management system, enabling you to build custom components that integrate seamlessly with the assistant runtime.
+
+## Introduction
+
+The Context API is assistant-ui's powerful state management system that enables you to build custom components with full access to the assistant's state and capabilities. It provides:
+
+- **Reactive state access** - Subscribe to state changes with automatic re-renders
+- **Action execution** - Trigger operations like sending messages or reloading responses
+- **Event listening** - React to user interactions and system events
+- **Scope-aware design** - Components automatically know their context (message, thread, etc.)
+
+It's the foundation that powers all assistant-ui primitives. When the built-in components don't meet your needs, you can use the Context API to create custom components with the same capabilities.
+
+The Context API is backed by the runtime you provide to `<AssistantRuntimeProvider>`. This runtime acts as a unified store that manages all assistant state, handles actions, and dispatches events across your entire application.
+
+## Core Concepts
+
+### Scopes and Hierarchy
+
+assistant-ui organizes state into **scopes** - logical boundaries that provide access to relevant data and actions. Each scope corresponds to a specific part of the chat interface and automatically provides context-aware functionality.
+
+```
+🗂️  ThreadList (threads) - Manages the list of conversations
+    ├── 📄 ThreadListItem (threadListItem) - Individual thread in the list
+    └── 💬 Thread (thread) - Active conversation with messages
+        ├── 🔵 Message (message) - User or assistant message
+        │   ├── 📝 Part (part) - Content within a message (text, tool calls, etc.)
+        │   ├── 🧠 ChainOfThought (chainOfThought) - Reasoning steps within a message
+        │   │   └── 📝 Part (part) - Individual reasoning/tool-call step
+        │   ├── 📎 Attachment (attachment) - Files attached to messages
+        │   └── ✏️  Composer (composer) - Edit mode for existing messages
+        │       └── 📎 Attachment (attachment) - Files in edit mode
+        └── ✏️  Composer (composer) - New message input
+            └── 📎 Attachment (attachment) - Files being added
+
+💡 Suggestions (suggestions) - Follow-up message suggestions
+    └── 💬 Suggestion (suggestion) - Individual suggestion item
+🔧 Tools (tools) - Custom UI components for tool calls
+🧩 ModelContext (modelContext) - Model context and tool registration
+```
+
+**How scopes work:**
+
+- Scopes are **automatically determined** by where your component is rendered
+- A button inside a `<ThreadPrimitive.Messages>` automatically gets `message` scope
+- A button inside a `<ComposerPrimitive.Attachments>` automatically gets `attachment` scope
+- Child scopes can access parent scope data (e.g., a `message` component can access `thread` data)
+
+```tsx
+// Inside a message component
+function MessageButton() {
+  // ✅ Available: message scope (current message)
+  const role = useAuiState((s) => s.message.role);
+
+  // ✅ Available: thread scope (parent)
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+}
+```
+
+### State Management Model
+
+The Context API follows a predictable state management pattern:
+
+1. **State** is immutable and flows down through scopes
+2. **Actions** are methods that trigger state changes
+3. **Events** notify components of state changes and user interactions
+4. **Subscriptions** let components react to changes
+
+## Essential Hooks
+
+### useAuiState
+
+Read state reactively with automatic re-renders when values change. This hook works like Zustand's selector pattern - you provide a function that extracts the specific data you need, and your component only re-renders when that data changes.
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+// Basic usage - extract a single property
+const role = useAuiState((s) => s.message.role); // "user" | "assistant"
+const isRunning = useAuiState((s) => s.thread.isRunning); // boolean
+
+// Access nested data
+const attachmentCount = useAuiState(
+  (s) => s.composer.attachments.length,
+);
+const lastMessage = useAuiState((s) => s.thread.messages.at(-1));
+```
+
+The selector function receives all available scopes for your component's location and should return a specific value. The component re-renders only when that returned value changes.
+
+**Common patterns:**
+
+```tsx
+// Access multiple scopes
+const canSend = useAuiState(
+  (s) => !s.thread.isRunning && s.composer.text.length > 0,
+);
+
+// Compute derived state
+const messageCount = useAuiState((s) => s.thread.messages.length);
+```
+
+**Important:** Never create new objects in selectors. Return primitive values or stable references to avoid infinite re-renders.
+
+```tsx
+// ❌ Bad - creates new object every time
+const data = useAuiState((s) => ({
+  role: s.message.role,
+  content: s.message.content,
+}));
+
+// ✅ Good - returns stable values
+const role = useAuiState((s) => s.message.role);
+const content = useAuiState((s) => s.message.content);
+```
+
+### useAui
+
+Access the API instance for imperative operations and actions. Unlike `useAuiState`, this hook returns a stable object that never changes, making it perfect for event handlers and imperative operations.
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+function CustomMessageActions() {
+  const aui = useAui();
+
+  // Perform actions in event handlers
+  const handleSend = () => {
+    aui.composer().send();
+  };
+
+  const handleReload = () => {
+    aui.message().reload();
+  };
+
+  // Read state imperatively when needed
+  const handleConditionalAction = () => {
+    const { isRunning } = aui.thread().getState();
+    const { text } = aui.composer().getState();
+
+    if (!isRunning && text.length > 0) {
+      aui.composer().send();
+    }
+  };
+
+  return (
+    <div>
+      <button onClick={handleSend}>Send</button>
+      <button onClick={handleReload}>Reload</button>
+      <button onClick={handleConditionalAction}>Smart Send</button>
+    </div>
+  );
+}
+```
+
+The API object is stable and doesn't cause re-renders. Use it for:
+
+- **Triggering actions** in event handlers and callbacks
+- **Reading current state** imperatively when you don't need subscriptions
+- **Accessing nested scopes** programmatically
+- **Checking scope availability** before performing actions
+
+**Available actions by scope:**
+
+```tsx
+// Thread actions
+aui.thread().append(message);
+aui.thread().startRun(config);
+aui.thread().resumeRun(config);
+aui.thread().cancelRun();
+aui.thread().getState();
+aui.thread().message({ index: idx });
+aui.thread().message({ id: messageId });
+aui.thread().composer();
+
+// Message actions
+aui.message().reload();
+aui.message().speak();
+aui.message().stopSpeaking();
+aui.message().submitFeedback({ type: "positive" | "negative" });
+aui.message().switchToBranch({ position, branchId });
+aui.message().getState();
+aui.message().part({ index: idx });
+aui.message().part({ toolCallId });
+aui.message().composer();
+
+// Part actions
+aui.part().addToolResult(result);
+aui.part().resumeToolCall(result);
+aui.part().getState();
+
+// Composer actions
+aui.composer().send();
+aui.composer().setText(text);
+aui.composer().setRole(role);
+aui.composer().addAttachment(file); // File object
+aui.composer().addAttachment({ name, content }); // external source
+await aui.composer().clearAttachments();
+await aui.composer().reset();
+aui.composer().getState();
+
+// Attachment actions
+aui.attachment().remove();
+aui.attachment().getState();
+
+// ThreadList actions
+aui.threads().switchToNewThread();
+aui.threads().switchToThread(threadId);
+aui.threads().getState();
+
+// ThreadListItem actions
+aui.threadListItem().switchTo();
+aui.threadListItem().rename(title);
+aui.threadListItem().archive();
+aui.threadListItem().unarchive();
+aui.threadListItem().delete();
+aui.threadListItem().getState();
+
+// Suggestions actions
+aui.suggestions().getState();
+aui.suggestions().suggestion({ index: 0 });
+
+// Suggestion actions
+aui.suggestion().getState();
+
+// ChainOfThought actions
+aui.chainOfThought().getState();
+aui.chainOfThought().setCollapsed(collapsed);
+aui.chainOfThought().part({ index: 0 });
+
+// ModelContext actions
+aui.modelContext().getState();
+aui.modelContext().register(provider);
+
+// Tools actions
+aui.tools().setToolUI(toolName, render);
+aui.tools().getState();
+```
+
+### useAuiEvent
+
+Subscribe to events with automatic cleanup on unmount. This hook is perfect for reacting to user interactions, system events, or integrating with external analytics.
+
+```tsx
+import { useAuiEvent } from "@assistant-ui/react";
+
+// Listen to current scope events (most common)
+useAuiEvent("composer.send", (event) => {
+  console.log("Composer sent message in thread:", event.threadId);
+});
+
+// Listen to thread events
+useAuiEvent("thread.runStart", (event) => {
+  console.log("Run started in thread:", event.threadId);
+});
+
+// Listen to all events of a type across all scopes
+useAuiEvent({ event: "composer.send", scope: "*" }, (event) => {
+  console.log("Any composer sent a message:", event.threadId);
+});
+
+// Listen to ALL events (useful for debugging or analytics)
+useAuiEvent("*", (event) => {
+  console.log("Event occurred:", event.event, event.payload);
+});
+
+// Practical example: Track user interactions
+function AnalyticsTracker() {
+  useAuiEvent("composer.send", (event) => {
+    analytics.track("message_sent", {
+      threadId: event.threadId,
+    });
+  });
+
+  return null; // This component only tracks events
+}
+```
+
+**Event name patterns:**
+
+- Event names follow `source.action` format in camelCase (e.g., `composer.send`, `thread.runStart`)
+- Use `"*"` as the event name to listen to all events
+- The `scope` parameter controls which instances trigger the event
+
+## Working with Scopes
+
+### Available Scopes
+
+Each scope provides access to specific state and actions:
+
+- **ThreadList** (`threads`): Collection and management of threads
+- **ThreadListItem** (`threadListItem`): Individual thread in the list
+- **Thread** (`thread`): Conversation with messages
+- **Message** (`message`): Individual message (user or assistant)
+- **Part** (`part`): Content part within a message (text, tool calls, etc.)
+- **ChainOfThought** (`chainOfThought`): Reasoning steps grouped within a message
+- **Composer** (`composer`): Text input for sending or editing messages
+- **Attachment** (`attachment`): File or media attached to a message or composer
+- **Suggestions** (`suggestions`): Collection of follow-up message suggestions
+- **Suggestion** (`suggestion`): Individual follow-up suggestion
+- **Tools** (`tools`): Tool UI components
+- **ModelContext** (`modelContext`): Model context and tool registration
+
+### Scope Resolution
+
+The Context API automatically resolves the current scope based on component location:
+
+```tsx
+function MessageButton() {
+  const aui = useAui();
+
+  // Automatically uses the current message scope
+  const handleReload = () => {
+    aui.message().reload();
+  };
+
+  return <button onClick={handleReload}>Reload</button>;
+}
+```
+
+### Checking Scope Availability
+
+Before accessing a scope, check if it's available:
+
+```tsx
+const aui = useAui();
+
+// Check if message scope exists
+if (aui.message.source) {
+  // Safe to use message scope
+  const { role } = aui.message().getState();
+}
+```
+
+### Accessing Nested Scopes
+
+Navigate through the scope hierarchy programmatically:
+
+```tsx
+const aui = useAui();
+
+// Access specific message by ID or index
+const messageById = aui.thread().message({ id: "msg_123" });
+const messageByIndex = aui.thread().message({ index: 0 });
+
+// Access part by index or tool call ID
+const partByIndex = aui.message().part({ index: 0 });
+const partByToolCall = aui.message().part({ toolCallId: "call_123" });
+
+// Access attachment by index
+const attachment = aui.composer().attachment({ index: 0 }).getState();
+
+// Access thread list item by ID or index
+const threadItem = aui.threads().item({ id: "thread_123" });
+const threadByIndex = aui.threads().item({ index: 0 });
+```
+
+## Common Patterns
+
+### Conditional Rendering
+
+```tsx
+function RunIndicator() {
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+
+  if (!isRunning) return null;
+  return <div>Assistant is thinking...</div>;
+}
+```
+
+### Custom Action Buttons
+
+```tsx
+function CopyButton() {
+  const aui = useAui();
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(aui.message().getCopyText());
+  };
+
+  return <button onClick={handleCopy}>Copy</button>;
+}
+```
+
+### State-Aware Components
+
+```tsx
+function SmartComposer() {
+  const aui = useAui();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const text = useAuiState((s) => s.composer.text);
+
+  const canSend = !isRunning && text.length > 0;
+
+  return (
+    <div>
+      <textarea
+        value={text}
+        onChange={(e) => aui.composer().setText(e.target.value)}
+        disabled={isRunning}
+      />
+      <button onClick={() => aui.composer().send()} disabled={!canSend}>
+        Send
+      </button>
+    </div>
+  );
+}
+```
+
+### Event-Driven Updates
+
+```tsx
+function MessageCounter() {
+  const [sendCount, setSendCount] = useState(0);
+
+  useAuiEvent("composer.send", () => {
+    setSendCount((c) => c + 1);
+  });
+
+  return <div>Messages sent: {sendCount}</div>;
+}
+```
+
+## Advanced Topics
+
+### Resolution Dynamics
+
+When you call `aui.scope()`, the API resolves the current scope at that moment. This resolution happens each time you call the function, which matters when dealing with changing contexts:
+
+```tsx
+const aui = useAui();
+
+// Get current thread
+const thread1 = aui.thread();
+thread1.append({ role: "user", content: "Hello" });
+
+// User might switch threads here
+
+// This could be a different thread
+const thread2 = aui.thread();
+thread2.cancelRun(); // Cancels the current thread's run, not necessarily thread1's
+```
+
+For most use cases, this behavior is intuitive. In advanced scenarios where you need to track specific instances, store the resolved reference.
+
+### Performance Optimization
+
+**Selector optimization:**
+
+```tsx
+// ❌ Expensive computation in selector (runs on every store update)
+const result = useAuiState(
+  (s) => s.thread.messages.filter((m) => m.role === "user").length,
+);
+
+// ✅ Memoize expensive computations
+const messages = useAuiState((s) => s.thread.messages);
+const userCount = useMemo(
+  () => messages.filter((m) => m.role === "user").length,
+  [messages],
+);
+```
+
+**Minimize re-renders:**
+
+```tsx
+// ❌ Subscribes to entire thread state
+const thread = useAuiState((s) => s.thread);
+
+// ✅ Subscribe only to needed values
+const isRunning = useAuiState((s) => s.thread.isRunning);
+```
+
+## API Reference
+
+### Hooks
+
+| Hook                          | Purpose                    | Returns        |
+| ----------------------------- | -------------------------- | -------------- |
+| `useAuiState(selector)`       | Subscribe to state changes | Selected value |
+| `useAui()`                    | Get API instance           | API object     |
+| `useAuiEvent(event, handler)` | Subscribe to events        | void           |
+
+### Scope States
+
+| Scope          | Key State Properties                                                                             | Description                                        |
+| -------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| ThreadList     | `mainThreadId`, `newThreadId`, `threadIds`, `archivedThreadIds`, `isLoading`, `threadItems`     | Manages all available conversation threads         |
+| ThreadListItem | `id`, `title`, `status`, `remoteId`, `externalId`                                               | Individual thread metadata and status              |
+| Thread         | `isRunning`, `isLoading`, `isDisabled`, `isEmpty`, `messages`, `capabilities`, `suggestions`    | Active conversation state and message history      |
+| Message        | `role`, `content`, `status`, `attachments`, `parts`, `parentId`, `branchNumber`, `branchCount`, `isLast`, `index` | Individual message content and metadata |
+| Part           | `type`, `status`, `text`, `toolCallId`, `toolName`                                              | Content parts within messages (text, tool calls)   |
+| ChainOfThought | `parts`, `collapsed`, `status`                                                                   | Reasoning steps grouped within a message           |
+| Composer       | `text`, `role`, `attachments`, `isEmpty`, `canCancel`, `type`, `isEditing`                      | Text input state for new/edited messages           |
+| Attachment     | `id`, `type`, `name`, `contentType`, `status`                                                   | File attachments metadata and content              |
+| Suggestions    | `suggestions`                                                                                    | Collection of follow-up message suggestions        |
+| Suggestion     | `title`, `label`, `prompt`                                                                       | Individual suggestion with title, label, and prompt |
+| ModelContext   | *(empty — use `register()` / `getToolCallParams()` methods)*                                     | Model context and tool registration                |
+
+### Available Actions by Scope
+
+| Scope          | Actions                                                                                                           | Use Cases                                  |
+| -------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| ThreadList     | `switchToNewThread()`, `switchToThread(id)`, `item(selector)`, `thread("main")`, `getState()`                    | Thread navigation and creation             |
+| ThreadListItem | `switchTo()`, `rename(title)`, `archive()`, `unarchive()`, `delete()`, `getState()`                              | Thread management operations               |
+| Thread         | `append(message)`, `startRun(config)`, `resumeRun(config)`, `cancelRun()`, `reset()`, `export()`, `import(repository)`, `message(selector)`, `composer()`, `getState()` | Message handling and conversation control |
+| Message        | `reload()`, `speak()`, `stopSpeaking()`, `submitFeedback(feedback)`, `switchToBranch(options)`, `getCopyText()`, `part(selector)`, `attachment(selector)`, `composer()`, `setIsCopied(value)`, `setIsHovering(value)`, `getState()` | Message interactions and regeneration |
+| Part           | `addToolResult(result)`, `resumeToolCall(result)`, `getState()`                                                   | Tool call result handling                  |
+| ChainOfThought | `setCollapsed(collapsed)`, `part({ index })`, `getState()`                                                        | Expand/collapse reasoning steps            |
+| Composer       | `send()`, `setText(text)`, `setRole(role)`, `addAttachment(file \| attachment)`, `clearAttachments()` (async), `reset()` (async), `getState()` | Text input and message composition |
+| Attachment     | `remove()`, `getState()`                                                                                          | File management                            |
+| Suggestions    | `suggestion({ index })`, `getState()`                                                                             | Access follow-up suggestions               |
+| Suggestion     | `getState()`                                                                                                      | Read individual suggestion data            |
+| ModelContext   | `register(provider)`, `getState()`                                                                                | Register model context providers           |
+
+### Common Events
+
+| Event                         | Description                   |
+| ----------------------------- | ----------------------------- |
+| `thread.runStart`             | Assistant starts generating   |
+| `thread.runEnd`               | Assistant finishes generating |
+| `thread.initialize`           | Thread is initialized         |
+| `thread.modelContextUpdate`   | Model context is updated      |
+| `composer.send`               | Message is sent               |
+| `composer.attachmentAdd`      | Attachment added to composer  |
+| `threadListItem.switchedTo`   | Switched to a thread          |
+| `threadListItem.switchedAway` | Switched away from a thread   |
+
+## Troubleshooting
+
+### Common Errors
+
+**"Cannot access [scope] outside of [scope] context"**
+
+```tsx
+// ❌ This will throw if not inside a message component
+const role = useAuiState((s) => s.message.role);
+
+// ✅ Check scope availability first
+function SafeMessageButton() {
+  const aui = useAui();
+
+  const role = useAuiState((s) =>
+    aui.message.source !== undefined ? s.message.role : "none",
+  );
+
+  return <div>Role: {role}</div>;
+}
+```
+
+**"Maximum update depth exceeded" / Infinite re-renders**
+
+```tsx
+// ❌ Creating new objects in selectors causes infinite re-renders
+const data = useAuiState((s) => ({
+  role: s.message.role,
+  content: s.message.content, // New object every time!
+}));
+
+// ✅ Return primitive values or use separate selectors
+const role = useAuiState((s) => s.message.role);
+const content = useAuiState((s) => s.message.content);
+```
+
+**"Scope resolution failed" / Stale scope references**
+
+```tsx
+// ❌ Storing scope references can lead to stale data
+const aui = useAui();
+const thread = aui.thread(); // This reference might become stale
+
+useEffect(() => {
+  // This might reference the wrong thread if user switched
+  thread.cancelRun();
+}, [thread]);
+
+// ✅ Resolve scopes fresh each time
+const aui = useAui();
+
+useEffect(() => {
+  // Always gets the current thread
+  aui.thread().cancelRun();
+}, [aui]);
+```
+
+## Quick Reference
+
+```tsx
+// Read state
+const value = useAuiState((s) => s.scope.property);
+
+// Perform action
+const aui = useAui();
+aui.scope().action();
+
+// Listen to events
+useAuiEvent("source.event", (e) => {});
+
+// Check scope availability
+if (aui.scope.source) {
+  /* scope exists */
+}
+
+// Get state imperatively
+const state = aui.scope().getState();
+
+// Navigate scopes
+aui.thread().message({ id: "..." }).getState();
+```

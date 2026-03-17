@@ -1,0 +1,88 @@
+---
+title: AssistantSidebar
+description: Side panel chat for co-pilot experiences and inline assistance.
+---
+
+import { AssistantSidebarSample } from "@/components/docs/samples/assistant-sidebar";
+
+A resizable side panel layout with your main content on the left and a Thread chat interface on the right. Ideal for co-pilot experiences and inline assistance.
+
+<AssistantSidebarSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `assistant-sidebar`
+
+<InstallCommand shadcn={["assistant-sidebar"]} />
+
+This adds `/components/assistant-ui/assistant-sidebar.tsx` to your project, which you can adjust as needed.
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+```tsx title="/app/page.tsx" {1,6}
+import { AssistantSidebar } from "@/components/assistant-ui/assistant-sidebar";
+
+export default function Home() {
+  return (
+    <div className="h-full">
+      <AssistantSidebar>{/* your app */}</AssistantSidebar>
+    </div>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+## API Reference
+
+### AssistantSidebar
+
+A layout component that creates a resizable two-panel interface.
+
+<ParametersTable
+  type="AssistantSidebarProps"
+  parameters={[
+    {
+      name: "children",
+      type: "ReactNode",
+      description: "Content to display in the left panel (your main application).",
+    },
+  ]}
+/>
+
+The component uses `ResizablePanelGroup` from shadcn/ui internally, creating:
+- **Left panel**: Your application content (passed as `children`)
+- **Right panel**: The Thread chat interface (rendered automatically)
+- **Resize handle**: Draggable divider between panels
+
+## Customization
+
+Since this component is copied to your project at `/components/assistant-ui/assistant-sidebar.tsx`, you can customize:
+
+- Panel default sizes and min/max constraints
+- Resize handle styling
+- Thread component configuration
+
+```tsx title="/components/assistant-ui/assistant-sidebar.tsx"
+<ResizablePanelGroup direction="horizontal">
+  <ResizablePanel defaultSize={60} minSize={30}>
+    {children}
+  </ResizablePanel>
+  <ResizableHandle withHandle />
+  <ResizablePanel defaultSize={40} minSize={20}>
+    <Thread />
+  </ResizablePanel>
+</ResizablePanelGroup>
+```
+
+## Related Components
+
+- [Thread](/docs/ui/thread) - The chat interface displayed in the sidebar
+- [AssistantModal](/docs/ui/assistant-modal) - Alternative floating modal layout

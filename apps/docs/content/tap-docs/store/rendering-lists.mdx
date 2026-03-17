@@ -1,0 +1,82 @@
+---
+title: Rendering Lists
+description: How to efficiently render lists of items from store state.
+---
+
+## The pattern
+
+Rendering a list of items from store state follows a three-step pattern:
+
+1. **Subscribe to the list length** with `useAuiState` — re-renders only when items are added or removed
+2. **Memoize the element array** with `useMemo` — avoids recreating elements on unrelated re-renders
+3. **Use `RenderChildrenWithAccessor`** inside each item — defers reading item state until the child actually needs it
+
+```tsx
+import { useMemo } from "react";
+import { useAuiState, RenderChildrenWithAccessor } from "@assistant-ui/store";
+
+const TodoList = ({
+  children,
+}: {
+  children: (value: { todo: TodoState }) => ReactNode;
+}) => {
+  const length = useAuiState((s) => s.todoList.todos.length);
+
+  return useMemo(
+    () =>
+      Array.from({ length }, (_, index) => (
+        <TodoProvider key={index} index={index}>
+          <RenderChildrenWithAccessor
+            getItemState={(aui) => aui.todoList().todo({ index }).getState()}
+          >
+            {(getItem) =>
+              children({
+                get todo() {
+                  return getItem();
+                },
+              })
+            }
+          </RenderChildrenWithAccessor>
+        </TodoProvider>
+      )),
+    [length, children],
+  );
+};
+```
+
+Usage:
+
+```tsx
+<TodoList>
+  {({ todo }) => <TodoCard title={todo.title} />}
+</TodoList>
+```
+
+## Why this pattern?
+
+### Length-based subscription
+
+Subscribing to `.length` instead of the full array means the list component only re-renders when items are added or removed — not when an individual item's data changes. This is significantly cheaper than subscribing to keys or the full array.
+
+### RenderChildrenWithAccessor
+
+`RenderChildrenWithAccessor` provides a lazy accessor (`getItem`) instead of reading item state eagerly. This means:
+
+- **Deferred reads**: If the children render function never accesses the item, no subscription is created
+- **Propless memoization**: When children returns a propless component (e.g. `{() => <Todo />}`), the output is automatically memoized — it won't re-render on parent updates
+
+The `getItem` function is a getter that reads the latest state on demand. Wrap it in a lazy property (`get todo() { return getItem(); }`) so the state is only read when the consumer accesses it.
+
+## Built-in primitives
+
+All assistant-ui list primitives (Messages, Parts, Attachments, Suggestions, ThreadListItems, etc.) use this pattern internally. When using the children render function API, you get the lazy accessor behavior automatically:
+
+```tsx
+<ThreadPrimitive.Messages>
+  {({ message }) => {
+    // `message` is a lazy getter — state is read here, not above
+    if (message.role === "user") return <MyUserMessage />;
+    return <MyAssistantMessage />;
+  }}
+</ThreadPrimitive.Messages>
+```

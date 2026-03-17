@@ -1,0 +1,52 @@
+---
+title: ThreadListRuntime
+description: Runtime for accessing and managing the list of threads.
+---
+
+import { ThreadListRuntime, ThreadListState } from "@/generated/typeDocs";
+
+### `useAui` (Thread List Actions)
+
+Access thread list actions via `useAui`:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+const aui = useAui();
+
+// Switch threads
+await aui.threads().switchToNewThread();
+await aui.threads().switchToThread(threadId);
+
+// Access the main thread runtime
+const mainThread = aui.threads().main;
+
+// Access a thread by ID
+const thread = aui.threads().getById(threadId);
+
+// Access thread list items
+const mainItem = aui.threads().mainItem;
+const itemByIndex = aui.threads().getItemByIndex(0);
+const itemById = aui.threads().getItemById(threadId);
+const archivedItem = aui.threads().getArchivedItemByIndex(0);
+
+// Get current state
+const state = aui.threads().getState();
+const threadIds = state.threadIds;
+const archivedThreadIds = state.archivedThreadIds;
+```
+
+<ParametersTable {...ThreadListRuntime} />
+
+### `useAuiState` (Thread List State)
+
+Access thread list state reactively:
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+const threads = useAuiState((s) => s.threads.threadIds);
+const isLoading = useAuiState((s) => s.threads.isLoading);
+```
+
+<ParametersTable {...ThreadListState} />

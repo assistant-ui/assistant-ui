@@ -4,7 +4,7 @@ Vercel AI SDK integration for `@assistant-ui/react`.
 
 ## Features
 
-- Seamless integration with Vercel AI SDK v5
+- Seamless integration with Vercel AI SDK v6
 - Automatic system message and frontend tools forwarding via `AssistantChatTransport`
 - Support for custom transport configuration
 

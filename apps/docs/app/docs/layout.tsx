@@ -1,12 +1,11 @@
-import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import type { ReactNode } from "react";
-import { sharedDocsOptions } from "@/lib/layout.shared";
 import { source } from "@/lib/source";
+import { DocsRootLayout } from "@/components/docs/layout/docs-root-layout";
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <DocsLayout {...sharedDocsOptions} tree={source.pageTree}>
+    <DocsRootLayout tree={source.pageTree} section="Docs" sectionHref="/docs">
       {children}
-    </DocsLayout>
+    </DocsRootLayout>
   );
 }

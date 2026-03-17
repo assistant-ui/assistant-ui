@@ -1,6 +1,6 @@
 "use client";
 
-import { INTERNAL } from "@assistant-ui/react";
+import { generateId, fromThreadMessageLike } from "@assistant-ui/core/internal";
 import type {
   AddToolResultOptions,
   AppendMessage,
@@ -10,13 +10,17 @@ import type {
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
 import type { AgUiEvent } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { RunAggregator } from "./adapter/run-aggregator";
-import { toAgUiMessages, toAgUiTools } from "./adapter/conversions";
+import {
+  fromAgUiMessages,
+  toAgUiMessages,
+  toAgUiTools,
+} from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
 
 type RunConfig = NonNullable<AppendMessage["runConfig"]>;
@@ -57,6 +61,8 @@ export class AgUiThreadRuntimeCore {
   private lastRunConfig: RunConfig | undefined;
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly recordedHistoryIds = new Set<string>();
+  private _isLoading = false;
+  private _loadPromise: Promise<void> | undefined;
 
   constructor(options: CoreOptions) {
     this.agent = options.agent;
@@ -95,6 +101,44 @@ export class AgUiThreadRuntimeCore {
 
   isRunning(): boolean {
     return this.isRunningFlag;
+  }
+
+  get isLoading(): boolean {
+    return this._isLoading;
+  }
+
+  __internal_load(): Promise<void> {
+    if (this._loadPromise) return this._loadPromise;
+
+    const promise = this.history?.load() ?? Promise.resolve(null);
+
+    this._isLoading = true;
+
+    this._loadPromise = promise
+      .then(async (repo) => {
+        if (!repo) return;
+
+        const messages = repo.messages.map((item) => item.message);
+        this.applyExternalMessages(messages);
+
+        if (repo.unstable_resume) {
+          const parentId = repo.headId ?? messages.at(-1)?.id ?? null;
+          await this.startRun(parentId, this.lastRunConfig);
+        }
+      })
+      .catch((error) => {
+        this.logger.error?.("[agui] failed to load history", error);
+        this.onError?.(
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      })
+      .finally(() => {
+        this._isLoading = false;
+        this.notifyUpdate();
+      });
+
+    this.notifyUpdate();
+    return this._loadPromise;
   }
 
   async append(message: AppendMessage): Promise<void> {
@@ -145,16 +189,35 @@ export class AgUiThreadRuntimeCore {
     );
   }
 
+  findMessageIdForToolCall(toolCallId: string): string | undefined {
+    let fallbackMessageId: string | undefined;
+    for (let index = this.messages.length - 1; index >= 0; index--) {
+      const message = this.messages[index];
+      if (!message || message.role !== "assistant") continue;
+      for (const part of message.content) {
+        if (part.type !== "tool-call" || part.toolCallId !== toolCallId)
+          continue;
+        if (!("result" in part) || part.result === undefined) {
+          return message.id;
+        }
+        fallbackMessageId ??= message.id;
+      }
+    }
+    return fallbackMessageId;
+  }
+
   addToolResult(options: AddToolResultOptions): void {
     let updated = false;
+    let shouldResume = false;
     this.messages = this.messages.map((message) => {
       if (message.id !== options.messageId || message.role !== "assistant")
         return message;
-      updated = true;
       const assistant = message as ThreadAssistantMessage;
+      let matchedToolCall = false;
       const content = assistant.content.map((part) => {
         if (part.type !== "tool-call" || part.toolCallId !== options.toolCallId)
           return part;
+        matchedToolCall = true;
         return {
           ...part,
           result: options.result,
@@ -162,6 +225,26 @@ export class AgUiThreadRuntimeCore {
           isError: options.isError,
         };
       });
+      if (!matchedToolCall) return message;
+      updated = true;
+
+      if (
+        assistant.status?.type === "requires-action" &&
+        assistant.status.reason === "tool-calls" &&
+        content.every(
+          (part) =>
+            part.type !== "tool-call" ||
+            ("result" in part && part.result !== undefined),
+        )
+      ) {
+        shouldResume = true;
+        return {
+          ...assistant,
+          content,
+          status: { type: "complete" as const, reason: "unknown" as const },
+        };
+      }
+
       return {
         ...assistant,
         content,
@@ -170,6 +253,20 @@ export class AgUiThreadRuntimeCore {
 
     if (updated) {
       this.notifyUpdate();
+
+      if (shouldResume) {
+        this.persistAssistantHistory(options.messageId);
+
+        if (!this.isRunningFlag) {
+          void this.startRun(options.messageId, this.lastRunConfig).catch(
+            (error) => {
+              this.onError?.(
+                error instanceof Error ? error : new Error(String(error)),
+              );
+            },
+          );
+        }
+      }
     }
   }
 
@@ -197,7 +294,7 @@ export class AgUiThreadRuntimeCore {
     this.resetHead(parentId);
     const historicalMessages = [...this.messages];
 
-    const runId = INTERNAL.generateId();
+    const runId = generateId();
     this.pendingError = null;
     const input = this.buildRunInput(
       runId,
@@ -280,7 +377,7 @@ export class AgUiThreadRuntimeCore {
     runConfig: RunConfig | undefined,
     historyMessages: readonly ThreadMessage[] | undefined,
   ) {
-    const threadId = "main";
+    const threadId = this.agent.threadId || "main";
     const messages = toAgUiMessages(historyMessages ?? this.messages);
     const context = this.runtime?.thread.getModelContext();
     return {
@@ -313,7 +410,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   private insertAssistantPlaceholder(): string {
-    const id = INTERNAL.generateId();
+    const id = generateId();
     const assistant: ThreadAssistantMessage = {
       id,
       role: "assistant",
@@ -413,13 +510,24 @@ export class AgUiThreadRuntimeCore {
 
   private importMessagesSnapshot(rawMessages: readonly unknown[]) {
     try {
-      const converted = rawMessages.map((message) =>
-        INTERNAL.fromThreadMessageLike(
-          message as any,
-          INTERNAL.generateId(),
-          FALLBACK_USER_STATUS,
-        ),
-      );
+      const normalized = fromAgUiMessages(rawMessages);
+      const converted: ThreadMessage[] = [];
+      for (const message of normalized) {
+        try {
+          converted.push(
+            fromThreadMessageLike(
+              message as any,
+              generateId(),
+              FALLBACK_USER_STATUS,
+            ),
+          );
+        } catch (error) {
+          this.logger.error?.(
+            "[agui] failed to import message from snapshot",
+            error,
+          );
+        }
+      }
       this.applyExternalMessages(converted);
     } catch (error) {
       this.logger.error?.("[agui] failed to import messages snapshot", error);
@@ -427,9 +535,9 @@ export class AgUiThreadRuntimeCore {
   }
 
   private toThreadMessage(message: AppendMessage): ThreadMessage {
-    return INTERNAL.fromThreadMessageLike(
+    return fromThreadMessageLike(
       message as any,
-      INTERNAL.generateId(),
+      generateId(),
       FALLBACK_USER_STATUS,
     );
   }

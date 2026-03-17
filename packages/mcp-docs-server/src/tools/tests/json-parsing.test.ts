@@ -9,7 +9,7 @@ describe("JSON parsing error handling", () => {
 
   it("should provide helpful error message for invalid JSON", async () => {
     vi.spyOn(docsTools, "execute").mockResolvedValue({
-      content: [{ text: "invalid json {not valid}" }],
+      content: [{ type: "text" as const, text: "invalid json {not valid}" }],
     });
 
     await expect(

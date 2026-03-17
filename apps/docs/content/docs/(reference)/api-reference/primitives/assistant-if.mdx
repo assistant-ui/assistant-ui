@@ -1,0 +1,199 @@
+---
+title: AuiIf
+description: Conditional rendering component based on thread, message, or composer state.
+---
+
+Conditionally render children based on assistant state.
+
+
+## Anatomy
+
+```tsx
+import { AuiIf } from "@assistant-ui/react";
+
+<AuiIf condition={(s) => s.thread.isEmpty}>
+  <WelcomeScreen />
+</AuiIf>
+```
+
+## Overview
+
+`AuiIf` is a generic conditional rendering component that provides access to the full assistant state. It replaces the deprecated `ThreadPrimitive.If`, `MessagePrimitive.If`, and `ComposerPrimitive.If` components with a single, flexible API.
+
+## API Reference
+
+<ParametersTable
+  type="AuiIfProps"
+  parameters={[
+    {
+      name: "condition",
+      type: "(state: AssistantState) => boolean",
+      required: true,
+      description: "A function that receives the assistant state and returns whether to render children.",
+    },
+    {
+      name: "children",
+      type: "ReactNode",
+      description: "Content to render when the condition returns true.",
+    },
+  ]}
+/>
+
+## AssistantState
+
+The condition function receives an `AssistantState` object with the following properties:
+
+<ParametersTable
+  type="AssistantState"
+  parameters={[
+    {
+      name: "thread",
+      type: "ThreadState",
+      description: "The current thread state (always available).",
+    },
+    {
+      name: "message",
+      type: "MessageState",
+      description: "The current message state (available within a message context).",
+    },
+    {
+      name: "composer",
+      type: "ComposerState",
+      description: "The current composer state (always available).",
+    },
+    {
+      name: "part",
+      type: "PartState",
+      description: "The current message part state (available within a part context).",
+    },
+    {
+      name: "attachment",
+      type: "AttachmentState",
+      description: "The current attachment state (available within an attachment context).",
+    },
+  ]}
+/>
+
+## Examples
+
+### Thread State Conditions
+
+```tsx
+// Show welcome screen when thread is empty
+<AuiIf condition={(s) => s.thread.isEmpty}>
+  <WelcomeScreen />
+</AuiIf>
+
+// Show loading indicator while running
+<AuiIf condition={(s) => s.thread.isRunning}>
+  <LoadingSpinner />
+</AuiIf>
+
+// Conditional send/cancel button
+<AuiIf condition={(s) => !s.thread.isRunning}>
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</AuiIf>
+<AuiIf condition={(s) => s.thread.isRunning}>
+  <ComposerPrimitive.Cancel>Cancel</ComposerPrimitive.Cancel>
+</AuiIf>
+```
+
+### Message State Conditions
+
+```tsx
+// Show avatar only for assistant messages
+<AuiIf condition={(s) => s.message.role === "assistant"}>
+  <AssistantAvatar />
+</AuiIf>
+
+// Show disclaimer on last message
+<AuiIf condition={(s) => s.message.isLast}>
+  <Disclaimer />
+</AuiIf>
+
+// Toggle copy icon based on copied state
+<ActionBarPrimitive.Copy>
+  <AuiIf condition={(s) => !s.message.isCopied}>
+    <CopyIcon />
+  </AuiIf>
+  <AuiIf condition={(s) => s.message.isCopied}>
+    <CheckIcon />
+  </AuiIf>
+</ActionBarPrimitive.Copy>
+
+// Show speak/stop button based on speech state
+<AuiIf condition={(s) => s.message.speech == null}>
+  <ActionBarPrimitive.Speak>
+    <SpeakIcon />
+  </ActionBarPrimitive.Speak>
+</AuiIf>
+<AuiIf condition={(s) => s.message.speech != null}>
+  <ActionBarPrimitive.StopSpeaking>
+    <StopIcon />
+  </ActionBarPrimitive.StopSpeaking>
+</AuiIf>
+```
+
+### Composer State Conditions
+
+```tsx
+// Show placeholder when composer is empty
+<AuiIf condition={(s) => s.composer.isEmpty}>
+  <PlaceholderText />
+</AuiIf>
+
+// Show attachment preview when editing
+<AuiIf condition={(s) => s.composer.isEditing}>
+  <EditingIndicator />
+</AuiIf>
+```
+
+### Complex Conditions
+
+```tsx
+// Combine multiple conditions
+<AuiIf condition={(s) =>
+  !s.thread.isRunning && s.message.role === "assistant"
+}>
+  <ActionBar />
+</AuiIf>
+
+// Custom logic
+<AuiIf condition={(s) =>
+  s.thread.messages.length > 0 && !s.thread.isRunning
+}>
+  <FollowUpSuggestions />
+</AuiIf>
+```
+
+## Type Export
+
+You can import the `AuiIf.Condition` type for typing your condition functions:
+
+```tsx
+import { AuiIf } from "@assistant-ui/react";
+
+const isThreadEmpty: AuiIf.Condition = (s) => s.thread.isEmpty;
+
+<AuiIf condition={isThreadEmpty}>
+  <WelcomeScreen />
+</AuiIf>
+```
+
+## Migration from Deprecated Components
+
+<Callout type="warn">
+`ThreadPrimitive.If`, `MessagePrimitive.If`, and `ComposerPrimitive.If` are deprecated. Use `AuiIf` instead.
+</Callout>
+
+| Before | After |
+|--------|-------|
+| `<ThreadPrimitive.If empty>` | `<AuiIf condition={(s) => s.thread.isEmpty}>` |
+| `<ThreadPrimitive.If running>` | `<AuiIf condition={(s) => s.thread.isRunning}>` |
+| `<ThreadPrimitive.If running={false}>` | `<AuiIf condition={(s) => !s.thread.isRunning}>` |
+| `<MessagePrimitive.If user>` | `<AuiIf condition={(s) => s.message.role === "user"}>` |
+| `<MessagePrimitive.If assistant>` | `<AuiIf condition={(s) => s.message.role === "assistant"}>` |
+| `<MessagePrimitive.If copied>` | `<AuiIf condition={(s) => s.message.isCopied}>` |
+| `<MessagePrimitive.If speaking>` | `<AuiIf condition={(s) => s.message.speech != null}>` |
+| `<MessagePrimitive.If last>` | `<AuiIf condition={(s) => s.message.isLast}>` |
+| `<ComposerPrimitive.If editing>` | `<AuiIf condition={(s) => s.composer.isEditing}>` |

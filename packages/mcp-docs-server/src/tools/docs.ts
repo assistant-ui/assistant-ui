@@ -18,7 +18,7 @@ const docsInputSchema = z.object({
     .array(z.string())
     .min(1)
     .describe(
-      'Documentation paths to retrieve (e.g., ["getting-started", "api-reference/primitives/Thread"])',
+      'Documentation paths to retrieve (e.g., ["getting-started", "api-reference/primitives/thread"])',
     ),
 });
 
@@ -87,16 +87,17 @@ async function readDocumentation(docPath: string): Promise<DocResult> {
           }
         }
 
+        const content =
+          Object.keys(contents).length > 0
+            ? JSON.stringify(contents, null, 2)
+            : undefined;
         return {
           path: docPath,
           found: true,
           type: "directory",
           directories,
           files: files.map((f) => f.replace(MDX_EXTENSION, "")),
-          content:
-            Object.keys(contents).length > 0
-              ? JSON.stringify(contents, null, 2)
-              : undefined,
+          ...(content !== undefined && { content }),
         };
       }
     }
@@ -174,7 +175,7 @@ export const docsTools = {
       );
 
       if (results.length === 1) {
-        const result = results[0];
+        const result = results[0]!;
         if (result.error) {
           return formatMCPResponse({
             error: result.error,

@@ -40,4 +40,30 @@ describe("createAgUiSubscriber", () => {
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ type: "RUN_ERROR", message: "boom" });
   });
+
+  it("dispatches reasoning handlers without duplication", () => {
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => events.push(evt),
+      runId: "run",
+    });
+
+    subscriber.onReasoningMessageContentEvent?.({
+      event: { messageId: "m1", delta: "think" },
+    });
+    subscriber.onEvent?.({
+      event: {
+        type: "REASONING_MESSAGE_CONTENT",
+        messageId: "m1",
+        delta: "ignored",
+      },
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "m1",
+      delta: "think",
+    });
+  });
 });

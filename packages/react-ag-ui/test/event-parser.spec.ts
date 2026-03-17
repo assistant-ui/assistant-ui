@@ -22,6 +22,19 @@ describe("parseAgUiEvent", () => {
     expect(event).toBeNull();
   });
 
+  it("parses reasoning content with optional message id", () => {
+    const event = parseAgUiEvent({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "m-reason",
+      delta: "chain of thought",
+    });
+    expect(event).toEqual({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "m-reason",
+      delta: "chain of thought",
+    });
+  });
+
   it("falls back to RAW for unknown types", () => {
     const event = parseAgUiEvent({ type: "UNKNOWN_EVENT", foo: "bar" });
     expect(event).toEqual({

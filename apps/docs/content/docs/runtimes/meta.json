@@ -1,14 +1,19 @@
 {
-  "title": "Runtime",
+  "title": "Runtimes",
+  "description": "Backend integrations",
+  "icon": "Server",
+  "root": true,
   "pages": [
     "pick-a-runtime",
     "ai-sdk",
     "data-stream",
     "mastra",
     "langgraph",
+    "google-adk",
+    "a2a",
     "langserve",
     "external-store",
-    "custom-rest",
+
     "helicone",
     "..."
   ]

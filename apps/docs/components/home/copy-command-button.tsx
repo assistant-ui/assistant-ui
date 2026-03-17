@@ -1,14 +1,35 @@
 "use client";
 
+import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { useState } from "react";
 
-export function CopyCommandButton() {
+type AnalyticsContext = {
+  page?: string;
+  section?: string;
+  [key: string]: string | number | boolean | undefined;
+};
+
+export function CopyCommandButton({
+  command = "npx assistant-ui init",
+  analyticsContext,
+}: {
+  command?: string;
+  analyticsContext?: AnalyticsContext;
+}) {
   const [copied, setCopied] = useState(false);
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText("npx assistant-ui init");
+    const context =
+      analyticsContext &&
+      (Object.fromEntries(
+        Object.entries(analyticsContext).filter(
+          ([, value]) => value !== undefined,
+        ),
+      ) as Record<string, string | number | boolean>);
+    navigator.clipboard.writeText(command);
+    analytics.cta.npmCommandCopied(command, context);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -19,7 +40,7 @@ export function CopyCommandButton() {
       className="group inline-flex w-fit items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-3 py-1.5 font-mono text-sm transition-all hover:border-border hover:bg-muted/50"
     >
       <span className="text-muted-foreground/70">$</span>
-      <span>npx assistant-ui init</span>
+      <span>{command}</span>
       <div className="relative ml-1 flex size-4 items-center justify-center text-muted-foreground">
         <CheckIcon
           className={cn(

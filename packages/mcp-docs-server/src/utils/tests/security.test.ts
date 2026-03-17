@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sanitizePath, isValidPathCharacters } from "../security.js";
+import { sanitizePath } from "../security.js";
 
 describe("sanitizePath", () => {
   describe("should reject directory traversal attempts", () => {
@@ -80,12 +80,12 @@ describe("sanitizePath", () => {
     const validPaths = [
       { input: "getting-started", expected: "getting-started" },
       {
-        input: "api-reference/primitives/Thread",
-        expected: "api-reference/primitives/Thread",
+        input: "api-reference/primitives/thread",
+        expected: "api-reference/primitives/thread",
       },
       { input: "guides/tools", expected: "guides/tools" },
       { input: "docs/index", expected: "docs/index" },
-      { input: "examples/with-ai-sdk", expected: "examples/with-ai-sdk" },
+      { input: "examples/with-ai-sdk-v6", expected: "examples/with-ai-sdk-v6" },
       { input: "./current-dir-file", expected: "current-dir-file" },
       {
         input: "deeply/nested/path/to/file",
@@ -116,19 +116,4 @@ describe("sanitizePath", () => {
       });
     });
   }
-});
-
-describe("isValidPathCharacters", () => {
-  it("should accept valid characters", () => {
-    expect(isValidPathCharacters("valid-path_name")).toBe(true);
-    expect(isValidPathCharacters("path/to/file.md")).toBe(true);
-    expect(isValidPathCharacters("123/ABC/test")).toBe(true);
-  });
-
-  it("should reject invalid characters", () => {
-    expect(isValidPathCharacters("path with spaces")).toBe(false);
-    expect(isValidPathCharacters("path@with#special")).toBe(false);
-    expect(isValidPathCharacters("path;with;semicolons")).toBe(false);
-    expect(isValidPathCharacters("path|with|pipes")).toBe(false);
-  });
 });

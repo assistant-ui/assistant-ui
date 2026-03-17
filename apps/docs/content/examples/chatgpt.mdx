@@ -3,46 +3,103 @@ title: ChatGPT Clone
 description: Customized colors and styles for a ChatGPT look and feel
 ---
 
-import { ChatGPT } from "@/components/example/chatgpt/ChatGPT";
-import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+import { ChatGPT } from "@/components/examples/chatgpt";
 
-## Live Demo
-
-<div className="not-prose h-[700px]">
-  <DocsRuntimeProvider>
-    <ChatGPT />
-  </DocsRuntimeProvider>
+<div className="not-prose h-[600px]">
+  <ChatGPT />
 </div>
 
 ## Overview
 
-The ChatGPT Clone example demonstrates how to customize assistant-ui to match OpenAI's ChatGPT interface. This includes the characteristic green color scheme, layout structure, and interaction patterns that users are familiar with from ChatGPT.
+The ChatGPT Clone demonstrates how to customize assistant-ui to match OpenAI's ChatGPT interface. This example recreates the characteristic dark theme, rounded input design, and interaction patterns familiar to ChatGPT users.
 
 ## Features
 
-- **ChatGPT Styling**: Authentic green color scheme and visual design
-- **Sidebar Layout**: Left sidebar with conversation history and new chat button
-- **Message Formatting**: Proper message bubbles with user and assistant styling
-- **Input Design**: ChatGPT-style input field with send button
-- **Responsive Layout**: Mobile-friendly responsive design
-- **Theming**: Light and dark mode support out of the box.
+- **Dark Theme**: Authentic `#212121` background with subtle white overlays
+- **Light Mode**: Full light mode support out of the box
+- **Rounded Composer**: ChatGPT-style pill-shaped input with `bg-white/5`
+- **Attachments**: Image and file attachment support with preview thumbnails
+- **Message Layout**: User messages right-aligned, assistant messages with avatar
+- **Action Bar**: Edit, copy, and regenerate buttons on hover
+- **Branch Picker**: Navigate between message variations
 
-## Usage
+## Quick Start
 
-To create a ChatGPT-style interface:
-
-1. **Custom CSS**: Apply ChatGPT-specific color schemes and styling
-2. **Layout Structure**: Implement sidebar + main chat area layout
-3. **Component Styling**: Customize message bubbles, input field, and buttons
-4. **Theme Integration**: Ensure proper light/dark mode support
+```bash
+npx assistant-ui add thread
+```
 
 ## Code
 
-Key styling considerations for ChatGPT clone:
+The ChatGPT clone uses a dark theme with custom styling:
 
-- **Color Palette**: Use ChatGPT's signature green (#10a37f) for primary actions
-- **Typography**: Match ChatGPT's font choices and sizing
-- **Spacing**: Replicate ChatGPT's padding and margin patterns
-- **Animations**: Include subtle hover effects and transitions
+```tsx
+import {
+  AuiIf,
+  ThreadPrimitive,
+  ComposerPrimitive,
+  MessagePrimitive,
+  ActionBarPrimitive,
+} from "@assistant-ui/react";
+import { Avatar } from "radix-ui";
 
-The implementation uses custom CSS classes and Tailwind utilities to achieve the authentic ChatGPT appearance while maintaining all assistant-ui functionality.
+export const ChatGPT = () => {
+  return (
+    <ThreadPrimitive.Root className="dark flex h-full flex-col items-stretch bg-[#212121] px-4 text-foreground">
+      <ThreadPrimitive.Viewport className="flex grow flex-col gap-8 overflow-y-scroll pt-16">
+        <AuiIf condition={(s) => s.thread.isEmpty}>
+          <div className="flex grow flex-col items-center justify-center">
+            <Avatar.Root className="flex h-12 w-12 items-center justify-center rounded-3xl border border-white/15 shadow">
+              <Avatar.AvatarFallback>C</Avatar.AvatarFallback>
+            </Avatar.Root>
+            <p className="mt-4 text-white text-xl">How can I help you today?</p>
+          </div>
+        </AuiIf>
+
+        <ThreadPrimitive.Messages>
+          {({ message }) => {
+            if (message.role === "user") return <UserMessage />;
+            return <AssistantMessage />;
+          }}
+        </ThreadPrimitive.Messages>
+      </ThreadPrimitive.Viewport>
+
+      <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl items-end rounded-3xl bg-white/5 pl-2">
+        <ComposerPrimitive.Input
+          placeholder="Message ChatGPT"
+          className="h-12 max-h-40 grow resize-none bg-transparent p-3.5 text-sm text-white outline-none placeholder:text-white/50"
+        />
+        <ComposerPrimitive.Send className="m-2 flex size-8 items-center justify-center rounded-full bg-white transition-opacity disabled:opacity-10">
+          <ArrowUpIcon className="size-5 text-black [&_path]:stroke-1 [&_path]:stroke-black" />
+        </ComposerPrimitive.Send>
+      </ComposerPrimitive.Root>
+
+      <p className="p-2 text-center text-[#cdcdcd] text-xs">
+        ChatGPT can make mistakes. Check important info.
+      </p>
+    </ThreadPrimitive.Root>
+  );
+};
+```
+
+### Color Palette
+
+| Element | Color |
+|---------|-------|
+| Background | `#212121` |
+| Input background | `white/5` (5% white overlay) |
+| Text | `#eee` |
+| Muted text | `#cdcdcd`, `#b4b4b4` |
+| Send button | White with black icon |
+| Avatar border | `white/15` |
+
+### Styling Details
+
+- **Input**: `rounded-3xl` for pill shape, `max-h-40` for auto-expand
+- **Send button**: Circular with `disabled:opacity-10` for inactive state
+- **Messages**: `max-w-3xl` centered layout
+- **User messages**: Right-aligned with `bg-white/5` bubble
+
+## Source
+
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/chatgpt.tsx" />

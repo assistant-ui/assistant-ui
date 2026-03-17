@@ -1,14 +1,18 @@
 "use client";
 
-import { ChatGPT } from "@/components/example/chatgpt/ChatGPT";
-import { Claude } from "@/components/example/claude/Claude";
-import { Perplexity } from "@/components/example/perplexity/Perplexity";
-import { Shadcn } from "@/components/example/shadcn/Shadcn";
+import { ChatGPT } from "@/components/examples/chatgpt";
+import { Claude } from "@/components/examples/claude";
+import { Perplexity } from "@/components/examples/perplexity";
+import { Shadcn } from "@/components/examples/shadcn";
 import { Tab } from "@/components/shared/tab";
-import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
+import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
+import { Grok } from "@/components/examples/grok";
+import { analytics } from "@/lib/analytics";
 
 const ExampleWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="h-full overflow-hidden rounded-lg border">{children}</div>
+  <div className="not-prose h-full overflow-hidden rounded-lg border">
+    {children}
+  </div>
 );
 
 const EXAMPLE_TABS = [
@@ -43,6 +47,16 @@ const EXAMPLE_TABS = [
     ),
   },
   {
+    label: "Grok",
+    value: (
+      <ExampleWrapper>
+        <DocsRuntimeProvider>
+          <Grok />
+        </DocsRuntimeProvider>
+      </ExampleWrapper>
+    ),
+  },
+  {
     label: "Perplexity",
     value: (
       <ExampleWrapper>
@@ -61,7 +75,12 @@ const EXAMPLE_TABS = [
 export function ExampleShowcase() {
   return (
     <section>
-      <Tab tabs={EXAMPLE_TABS} className="h-[600px]" variant="ghost" />
+      <Tab
+        tabs={EXAMPLE_TABS}
+        className="h-160"
+        variant="ghost"
+        onTabChange={(label) => analytics.example.tabSwitched(label)}
+      />
     </section>
   );
 }

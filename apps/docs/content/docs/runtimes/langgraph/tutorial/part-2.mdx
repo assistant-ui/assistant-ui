@@ -1,5 +1,6 @@
 ---
 title: "Part 2: Generative UI"
+description: Display stock ticker information with generative UI components.
 ---
 
 In the previous step, we set up the frontend to connect to a LangGraph Cloud endpoint.
@@ -97,10 +98,8 @@ import { PriceSnapshotTool } from "@/components/tools/price-snapshot/PriceSnapsh
 export default function Home() {
   return (
     <div className="flex h-full flex-col">
-      <Thread
-        ...
-        tools={[PriceSnapshotTool]}
-      />
+      <PriceSnapshotTool />
+      <Thread />
     </div>
   );
 }
@@ -320,17 +319,15 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
 
 ### Bind fallback UI
 
-```tsx title="@/app/page.tsx" {1,8}
-import { ToolFallback } from "@/components/tools/ToolFallback";
-
+```tsx title="@/app/page.tsx"
 export default function Home() {
   return (
     <div className="flex h-full flex-col">
-      <Thread
-        ...
-        assistantMessage={{ components: { Text: MarkdownText, ToolFallback } }}
-      />
+      <PriceSnapshotTool />
+      <Thread />
     </div>
   );
 }
 ```
+
+The `Thread` component from `@assistant-ui/ui` already includes a built-in `ToolFallback` and `MarkdownText`, so no additional configuration is needed.

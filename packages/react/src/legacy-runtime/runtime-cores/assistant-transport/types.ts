@@ -1,6 +1,9 @@
+import type { ThreadMessage } from "@assistant-ui/core";
 import { ReadonlyJSONValue } from "assistant-stream/utils";
-import { ThreadMessage } from "../../../types";
-import { AttachmentAdapter, ThreadHistoryAdapter } from "..";
+import type {
+  AttachmentAdapter,
+  ThreadHistoryAdapter,
+} from "@assistant-ui/core";
 import { UserCommands } from "../../../augmentations";
 import type { ToolExecutionStatus } from "./useToolInvocations";
 
@@ -31,6 +34,8 @@ export type AssistantMessage = {
 export type AddMessageCommand = {
   readonly type: "add-message";
   readonly message: UserMessage | AssistantMessage;
+  readonly parentId: string | null;
+  readonly sourceId: string | null;
 };
 
 export type AddToolResultCommand = {
@@ -81,6 +86,16 @@ export type HeadersValue = Record<string, string> | Headers;
 
 export type AssistantTransportProtocol = "data-stream" | "assistant-transport";
 
+export type SendCommandsRequestBody = {
+  commands: QueuedCommand[];
+  state: unknown;
+  system: string | undefined;
+  tools: Record<string, unknown> | undefined;
+  threadId: string | null;
+  parentId?: string | null;
+  [key: string]: unknown;
+};
+
 export type AssistantTransportOptions<T> = {
   initialState: T;
   api: string;
@@ -88,7 +103,22 @@ export type AssistantTransportOptions<T> = {
   protocol?: AssistantTransportProtocol;
   converter: AssistantTransportStateConverter<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);
-  body?: object;
+  body?: object | (() => Promise<object | undefined>);
+  /**
+   * Transform the request body before it is sent to the API.
+   * Receives the fully assembled body and returns the (potentially transformed) body.
+   *
+   * @example
+   * ```ts
+   * prepareSendCommandsRequest: (body) => ({
+   *   ...body,
+   *   trackingId: crypto.randomUUID(),
+   * })
+   * ```
+   */
+  prepareSendCommandsRequest?: (
+    body: SendCommandsRequestBody,
+  ) => Record<string, unknown> | Promise<Record<string, unknown>>;
   onResponse?: (response: Response) => void;
   onFinish?: () => void;
   onError?: (
@@ -109,6 +139,9 @@ export type AssistantTransportOptions<T> = {
     updateState: (updater: (state: T) => T) => void;
     error?: Error;
   }) => void;
+  capabilities?: {
+    edit?: boolean;
+  };
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
     history?: ThreadHistoryAdapter | undefined;

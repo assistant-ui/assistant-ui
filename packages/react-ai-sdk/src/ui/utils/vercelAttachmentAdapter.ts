@@ -1,4 +1,4 @@
-import { AttachmentAdapter } from "@assistant-ui/react";
+import type { AttachmentAdapter } from "@assistant-ui/core";
 import { generateId } from "ai";
 
 const getFileDataURL = (file: File) =>
@@ -33,7 +33,7 @@ export const vercelAttachmentAdapter: AttachmentAdapter = {
       content: [
         {
           type: "file",
-          mimeType: attachment.contentType,
+          mimeType: attachment.contentType ?? "",
           filename: attachment.name,
           data: await getFileDataURL(attachment.file),
         },

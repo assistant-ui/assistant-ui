@@ -1,4 +1,4 @@
-import { AssistantCloud } from "@assistant-ui/react";
+import { AssistantCloud } from "assistant-cloud";
 import {
   useDataStreamRuntime,
   UseDataStreamRuntimeOptions,

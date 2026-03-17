@@ -3,9 +3,9 @@ import { tapEffect } from "../../hooks/tap-effect";
 import { tapState } from "../../hooks/tap-state";
 import { createTestResource, renderTest, unmountResource } from "../test-utils";
 import {
-  renderResource as renderResourceFiber,
-  commitResource,
-  unmountResource as unmountResourceFiber,
+  renderResourceFiber,
+  commitResourceFiber,
+  unmountResourceFiber,
 } from "../../core/ResourceFiber";
 
 describe("Lifecycle - Mount/Unmount", () => {
@@ -54,7 +54,7 @@ describe("Lifecycle - Mount/Unmount", () => {
     renderTest(resource, undefined);
     unmountResource(resource);
 
-    expect(order).toEqual([3, 2, 1]);
+    expect(order).toEqual([1, 2, 3]);
   });
 
   it("should preserve state across re-renders", () => {
@@ -124,14 +124,14 @@ describe("Lifecycle - Mount/Unmount", () => {
     expect(log).toEqual(["render"]);
 
     // Commit - effects will run
-    commitResource(resource, ctx);
+    commitResourceFiber(resource, ctx);
     // After commit: initial render + effects
     expect(log).toEqual(["render", "effect-1", "effect-2"]);
 
     // The setState in effect schedules a re-render
     // With the new architecture, we need to manually trigger it
     const ctx2 = renderResourceFiber(resource, undefined);
-    commitResource(resource, ctx2);
+    commitResourceFiber(resource, ctx2);
 
     // Now we should see the re-render and cleanup/re-run of effects
     expect(log).toEqual([
@@ -150,7 +150,7 @@ describe("Lifecycle - Mount/Unmount", () => {
 
     // Unmount
     unmountResourceFiber(resource);
-    expect(log).toEqual(["cleanup-2", "cleanup-1"]);
+    expect(log).toEqual(["cleanup-1", "cleanup-2"]);
   });
 
   it("should handle cleanup errors gracefully", () => {
@@ -202,7 +202,7 @@ describe("Lifecycle - Mount/Unmount", () => {
     });
 
     const ctx = renderResourceFiber(resource, undefined);
-    commitResource(resource, ctx);
+    commitResourceFiber(resource, ctx);
     unmountResourceFiber(resource);
 
     expect(effect).toHaveBeenCalledTimes(1);
