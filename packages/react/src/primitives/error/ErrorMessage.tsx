@@ -2,7 +2,7 @@
 
 import { Primitive } from "@radix-ui/react-primitive";
 import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
-import { useAuiState } from "@assistant-ui/store";
+import { useMessageError } from "@assistant-ui/core/react";
 
 export namespace ErrorPrimitiveMessage {
   export type Element = ComponentRef<typeof Primitive.span>;
@@ -13,12 +13,7 @@ export const ErrorPrimitiveMessage = forwardRef<
   ErrorPrimitiveMessage.Element,
   ErrorPrimitiveMessage.Props
 >(({ children, ...props }, forwardRef) => {
-  const error = useAuiState((s) => {
-    return s.message.status?.type === "incomplete" &&
-      s.message.status.reason === "error"
-      ? s.message.status.error
-      : undefined;
-  });
+  const error = useMessageError();
 
   if (error === undefined) return null;
 

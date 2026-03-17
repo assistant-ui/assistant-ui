@@ -1,5 +1,17 @@
 # @assistant-ui/tap
 
+## 0.5.3
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+
+## 0.5.2
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+
 ## 0.5.1
 
 ### Patch Changes

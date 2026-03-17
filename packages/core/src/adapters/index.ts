@@ -19,6 +19,10 @@ export type { FeedbackAdapter } from "./feedback";
 // Suggestion adapter
 export type { SuggestionAdapter } from "./suggestion";
 
+// Mention adapter
+export type { Unstable_MentionAdapter } from "./mention";
+export { unstable_defaultDirectiveFormatter } from "./mention";
+
 // Thread history adapters
 export type {
   ThreadHistoryAdapter,

@@ -1,7 +1,8 @@
 import { getDistinctId, posthogServer } from "@/lib/posthog-server";
 import { createPrismTracer } from "@/lib/prism-server";
-import { injectQuoteContext } from "@/lib/quote";
+import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { prismAISDK } from "@aui-x/prism";
@@ -15,6 +16,25 @@ import {
 
 export const maxDuration = 30;
 
+const ALLOWED_ORIGINS = [
+  "https://assistant-ui-expo.vercel.app",
+  "http://localhost:8081",
+];
+
+function corsHeaders(req: Request) {
+  const origin = req.headers.get("origin") ?? "";
+  if (!ALLOWED_ORIGINS.includes(origin)) return {};
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, User-Agent",
+  };
+}
+
+export async function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: corsHeaders(req) });
+}
+
 export async function POST(req: Request) {
   try {
     const rateLimitResponse = await checkRateLimit(req);
@@ -22,6 +42,15 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const { messages, tools, config } = body;
+
+    const inputError = validateGeneralChatInput(messages);
+    if (inputError) {
+      const cors = corsHeaders(req);
+      for (const [key, value] of Object.entries(cors)) {
+        inputError.headers.set(key, value);
+      }
+      return inputError;
+    }
 
     const baseModel = getModel(config?.modelName);
     const distinctId = getDistinctId(req);
@@ -53,7 +82,7 @@ export async function POST(req: Request) {
     const result = streamText({
       model: prism?.model ?? posthogModel,
       messages: prunedMessages,
-      maxOutputTokens: 15000,
+      maxOutputTokens: 4096,
       stopWhen: stepCountIs(10),
       tools: frontendTools(tools),
       onFinish: async () => {
@@ -68,7 +97,8 @@ export async function POST(req: Request) {
       },
     });
 
-    return result.toUIMessageStreamResponse({
+    const cors = corsHeaders(req);
+    const response = result.toUIMessageStreamResponse({
       // gets usage and modelId for assistant-cloud telemetry reports
       messageMetadata: ({ part }) => {
         if (part.type === "finish-step") {
@@ -84,6 +114,13 @@ export async function POST(req: Request) {
         return undefined;
       },
     });
+
+    // Append CORS headers
+    for (const [key, value] of Object.entries(cors)) {
+      response.headers.set(key, value);
+    }
+
+    return response;
   } catch (e) {
     console.error("[api/chat]", e);
     return new Response("Request failed", { status: 500 });

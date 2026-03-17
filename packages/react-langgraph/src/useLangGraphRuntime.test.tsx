@@ -1,9 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import {
-  AssistantRuntime,
-  AssistantRuntimeProvider,
-} from "@assistant-ui/react";
+import type { AssistantRuntime, AttachmentAdapter } from "@assistant-ui/core";
+import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
+import { useAui } from "@assistant-ui/store";
 import { useLangGraphRuntime, useLangGraphSend } from "./useLangGraphRuntime";
 import { mockStreamCallbackFactory } from "./testUtils";
 import { ReactNode } from "react";
@@ -290,5 +289,80 @@ describe("useLangGraphRuntime", () => {
 
     // Should not throw any errors even when events are processed without handlers
     expect(runtimeResult.current).toBeDefined();
+  });
+
+  it("serializes attachment file content in flat LangGraph format", async () => {
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const attachmentAdapter: AttachmentAdapter = {
+      accept: "application/pdf",
+      add: async ({ file }) => ({
+        id: "pending-file-1",
+        type: "document",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      remove: async () => {},
+      send: async (attachment) => ({
+        ...attachment,
+        status: { type: "complete" },
+        content: [
+          {
+            type: "file",
+            filename: attachment.name,
+            data: "ZmFrZS1wZGY=",
+            mimeType: attachment.contentType ?? "application/pdf",
+          },
+        ],
+      }),
+    };
+
+    const { result: runtimeResult } = renderHook(
+      () =>
+        useLangGraphRuntime({
+          stream: streamMock,
+          adapters: {
+            attachments: attachmentAdapter,
+          },
+        }),
+      {},
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+    await act(async () => {
+      await auiResult.current
+        .composer()
+        .addAttachment(
+          new File(["fake-pdf"], "document.pdf", { type: "application/pdf" }),
+        );
+      await auiResult.current.composer().send();
+    });
+
+    await waitFor(() => {
+      expect(streamMock).toHaveBeenCalledTimes(1);
+    });
+
+    const sentMessages = streamMock.mock.calls[0]?.[0];
+    expect(sentMessages).toMatchObject([
+      {
+        type: "human",
+        content: [
+          {
+            type: "file",
+            data: "ZmFrZS1wZGY=",
+            mime_type: "application/pdf",
+            metadata: { filename: "document.pdf" },
+            source_type: "base64",
+          },
+        ],
+      },
+    ]);
+    expect(sentMessages?.[0]?.content?.[0]).not.toHaveProperty("file");
   });
 });

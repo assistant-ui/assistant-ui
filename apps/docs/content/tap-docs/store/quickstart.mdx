@@ -11,9 +11,9 @@ Store (`@assistant-ui/store`) connects Tap resources to React with scoped, type-
 npm install @assistant-ui/store @assistant-ui/tap
 ```
 
-## Define your client types
+## Define your scope types
 
-Register your clients by augmenting the `ScopeRegistry` interface. This gives you type safety across all Store hooks.
+Register your scopes by augmenting the `ScopeRegistry` interface. This gives you type safety across all Store hooks.
 
 ```ts title="lib/store/counter-scope.ts"
 import "@assistant-ui/store";
@@ -32,7 +32,7 @@ declare module "@assistant-ui/store" {
 
 ## Create a resource
 
-Define a Tap resource that returns `ClientOutput<"counter">`. This connects the resource's methods to the client type you just registered.
+Define a Tap resource that returns `ClientOutput<"counter">`. This connects the resource's methods to the scope type you just registered.
 
 ```ts title="lib/store/counter-store.ts"
 import { resource, tapState, tapMemo } from "@assistant-ui/tap";
@@ -54,7 +54,7 @@ export const CounterResource = resource(
 
 ## Use it in React
 
-Use `useAui` to create a client, `AuiProvider` to provide it to the tree, and `useAuiState` to subscribe to state.
+Use `useAui` to create a store, `AuiProvider` to provide it to the tree, and `useAuiState` to subscribe to state.
 
 ```tsx title="app/CounterApp.tsx"
 "use client";
@@ -102,7 +102,7 @@ export const CounterDisplay = () => {
 
 <Cards>
   <Card title="Scopes" href="/tap/docs/store/scopes">
-    Nest clients with Derived and AuiProvider.
+    Nest scopes with Derived and AuiProvider.
   </Card>
   <Card title="Events" href="/tap/docs/store/events">
     Emit and subscribe to typed events.

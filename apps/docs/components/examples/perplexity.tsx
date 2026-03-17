@@ -44,12 +44,11 @@ export const Perplexity: FC = () => {
       </AuiIf>
       <AuiIf condition={(s) => !s.thread.isEmpty}>
         <ThreadPrimitive.Viewport className="flex h-full flex-col items-center overflow-y-scroll scroll-smooth bg-inherit px-4 pt-8">
-          <ThreadPrimitive.Messages
-            components={{
-              UserMessage: UserMessage,
-              AssistantMessage: AssistantMessage,
-            }}
-          />
+          <ThreadPrimitive.Messages>
+            {({ message }) =>
+              message.role === "user" ? <UserMessage /> : <AssistantMessage />
+            }
+          </ThreadPrimitive.Messages>
 
           <div className="min-h-8 grow" />
 
@@ -197,7 +196,12 @@ const AssistantMessage: FC = () => {
           <SparkleIcon /> Answer
         </h1>
 
-        <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+        <MessagePrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "text") return <MarkdownText />;
+            return null;
+          }}
+        </MessagePrimitive.Parts>
       </div>
 
       <div className="flex">

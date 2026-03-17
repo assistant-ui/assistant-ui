@@ -277,3 +277,91 @@ describe("convertLangChainMessages metadata", () => {
     });
   });
 });
+
+describe("convertLangChainMessages file content", () => {
+  it("converts legacy nested file content blocks", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-legacy-file",
+      content: [
+        {
+          type: "file",
+          file: {
+            filename: "legacy.pdf",
+            file_data: "bGVnYWN5",
+            mime_type: "application/pdf",
+          },
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          filename: "legacy.pdf",
+          data: "bGVnYWN5",
+          mimeType: "application/pdf",
+        },
+      ],
+    });
+  });
+
+  it("converts flat base64-style file content blocks", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-flat-file",
+      content: [
+        {
+          type: "file",
+          data: "ZmxhdA==",
+          mime_type: "application/pdf",
+          source_type: "base64",
+          metadata: {
+            filename: "flat.pdf",
+          },
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          filename: "flat.pdf",
+          data: "ZmxhdA==",
+          mimeType: "application/pdf",
+        },
+      ],
+    });
+  });
+
+  it("converts file blocks with top-level base64 field", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-top-level-base64-file",
+      content: [
+        {
+          type: "file",
+          filename: "top-level.pdf",
+          base64: "dG9wLWxldmVs",
+          mime_type: "application/pdf",
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          filename: "top-level.pdf",
+          data: "dG9wLWxldmVs",
+          mimeType: "application/pdf",
+        },
+      ],
+    });
+  });
+});

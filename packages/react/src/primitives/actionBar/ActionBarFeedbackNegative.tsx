@@ -4,17 +4,12 @@ import { forwardRef } from "react";
 import { ActionButtonProps } from "../../utils/createActionButton";
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { Primitive } from "@radix-ui/react-primitive";
-import { useCallback } from "react";
-import { useAuiState, useAui } from "@assistant-ui/store";
+import { useAuiState } from "@assistant-ui/store";
+import { useActionBarFeedbackNegative as useActionBarFeedbackNegativeBehavior } from "@assistant-ui/core/react";
 
 const useActionBarFeedbackNegative = () => {
-  const aui = useAui();
-
-  const callback = useCallback(() => {
-    aui.message().submitFeedback({ type: "negative" });
-  }, [aui]);
-
-  return callback;
+  const { submit } = useActionBarFeedbackNegativeBehavior();
+  return submit;
 };
 
 export namespace ActionBarPrimitiveFeedbackNegative {

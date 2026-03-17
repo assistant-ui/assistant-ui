@@ -3,7 +3,7 @@
 import { MessageRuntime } from "../runtime/MessageRuntime";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
-import { EditComposerRuntime } from "../runtime";
+import type { EditComposerRuntime } from "@assistant-ui/core";
 
 /**
  * @deprecated Use `useAui()` with `aui.message()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12

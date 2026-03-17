@@ -97,21 +97,41 @@ describe("toJSONSchema", () => {
     });
   });
 
-  it("falls back to plain schema when StandardSchema has no toJSONSchema", () => {
+  it("throws when StandardSchema has no JSON Schema conversion method", () => {
     const schemaWithoutMethod = {
       "~standard": {
-        version: 1,
+        version: 1 as const,
         vendor: "test",
         validate: () => ({ value: {} }),
-        // no toJSONSchema method
+        // no toJSONSchema method and no jsonSchema property
       },
-      type: "object" as const,
-      properties: {},
     };
 
-    const result = toJSONSchema(schemaWithoutMethod);
-    // Should return the object as-is since ~standard.toJSONSchema is not a function
-    expect(result).toEqual(schemaWithoutMethod);
+    expect(() => toJSONSchema(schemaWithoutMethod)).toThrow(
+      "Could not convert schema to JSON Schema",
+    );
+  });
+
+  it("converts StandardSchemaV1 with ~standard.jsonSchema.input()", () => {
+    const mockStandardSchema = {
+      "~standard": {
+        version: 1 as const,
+        vendor: "test",
+        validate: () => ({ value: {} }),
+        jsonSchema: {
+          input: () => ({
+            type: "object",
+            properties: { name: { type: "string" } },
+          }),
+        },
+      },
+    };
+
+    const result = toJSONSchema(mockStandardSchema);
+    expect(result).toEqual({
+      type: "object",
+      properties: { name: { type: "string" } },
+    });
   });
 });
 

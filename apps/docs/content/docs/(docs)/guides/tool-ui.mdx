@@ -200,7 +200,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-4o"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     tools: {
       getWeather: tool({
         description: "Get current weather for a location",
@@ -275,7 +275,7 @@ export const WebSearchToolUI = makeAssistantToolUI<
 Use hooks for dynamic tool UI registration:
 
 <Callout type="tip">
-When you assign your `makeAssistantToolUI({...})` call to a constant starting with `use…`, you can call it directly as a hook inside your component. This pattern lets you access local props or state when rendering the tool UI.
+Use the `useAssistantToolUI` hook directly in your component for dynamic tool UI registration. This allows access to local component state and props when rendering the tool UI.
 </Callout>
 
 ```tsx
@@ -384,6 +384,9 @@ Build complex workflows with human-in-the-loop patterns for multi-step user inte
 ```tsx
 const DeleteProjectTool = makeAssistantTool({
   toolName: "deleteProject",
+  parameters: z.object({
+    projectId: z.string(),
+  }),
   execute: async ({ projectId }, { human }) => {
     const response = await human({ action, details });
     if (!response.approved) throw new Error("Project deletion cancelled");
@@ -502,6 +505,12 @@ render: ({ status, args }) => {
 
 ### Field-Level Validation
 
+<Callout type="warn">
+  `useToolArgsFieldStatus` is not currently exported from `@assistant-ui/react`.
+  The hook exists internally but is not part of the public API. This section is
+  included for reference and may become available in a future release.
+</Callout>
+
 Use `useToolArgsFieldStatus` to show validation states:
 
 ```tsx
@@ -510,8 +519,8 @@ import { useToolArgsFieldStatus } from "@assistant-ui/react";
 const FormToolUI = makeAssistantToolUI({
   toolName: "submitForm",
   render: ({ args }) => {
-    const emailStatus = useToolArgsFieldStatus("email");
-    const phoneStatus = useToolArgsFieldStatus("phone");
+    const emailStatus = useToolArgsFieldStatus(["email"]);
+    const phoneStatus = useToolArgsFieldStatus(["phone"]);
 
     return (
       <form className="space-y-4">
@@ -611,7 +620,7 @@ Provide a custom UI for tools without specific UIs:
 Generative UI components have access to execution context through props:
 
 ```tsx
-type ToolUIRenderProps<TArgs, TResult> = {
+type ToolCallMessagePartProps<TArgs, TResult> = {
   // Tool arguments
   args: TArgs;
   argsText: string; // JSON stringified args
@@ -628,7 +637,7 @@ type ToolUIRenderProps<TArgs, TResult> = {
   toolCallId: string;
 
   // Interactive callbacks
-  addResult: (result: TResult) => void;
+  addResult: (result: TResult | ToolResponse<TResult>) => void;
   resume: (payload: unknown) => void;
 
   // Interrupt state
@@ -671,7 +680,7 @@ const ConfirmationToolUI = makeAssistantToolUI<
 });
 ```
 
-Learn more about tool human input in the [Tools Guide](/docs/guides/tools#tool-human-input).
+Learn more about tool human input in the [Tools Guide](/docs/guides/tools#human-in-the-loop).
 
 ## Best Practices
 
@@ -742,6 +751,7 @@ useAssistantToolUI({
 ## Related Guides
 
 - [Tools Guide](/docs/guides/tools) - Learn how to create and use tools with AI models
+- [Multi-Agent](/docs/guides/multi-agent) - Render sub-agent conversations inside tool call UIs
 - [Tool Fallback](/docs/ui/tool-fallback) - Default UI for tools without custom components
 - [API Reference](/docs/api-reference/primitives/message-part) - Detailed type definitions and component APIs
 - [Message Primitive](/docs/api-reference/primitives/message) - Complete Message component documentation

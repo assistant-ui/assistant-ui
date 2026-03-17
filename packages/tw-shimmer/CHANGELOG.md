@@ -1,5 +1,17 @@
 # tw-shimmer
 
+## 0.4.9
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+
+## 0.4.8
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+
 ## 0.4.7
 
 ### Patch Changes

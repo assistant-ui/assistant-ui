@@ -1,3 +1,12 @@
 {
-  "pages": ["(docs)", "ui", "runtimes", "react-native", "cloud", "(reference)"]
+  "pages": [
+    "(docs)",
+    "ui",
+    "runtimes",
+    "react-native",
+    "ink",
+    "cloud",
+    "utilities",
+    "(reference)"
+  ]
 }

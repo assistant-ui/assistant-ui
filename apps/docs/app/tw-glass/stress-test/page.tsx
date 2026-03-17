@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 
 const PHOTO_ID = "photo-1531366936337-7c912a4589a7";
@@ -154,7 +155,7 @@ function GlassPanel({
 }) {
   return (
     <div
-      className={`rounded-xl ${className} ${compact ? "px-4 py-6" : "p-6"}`}
+      className={cn("rounded-xl", className, compact ? "px-4 py-6" : "p-6")}
       style={{ minHeight: compact ? 80 : 100 }}
     >
       <code className="rounded bg-foreground/10 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
@@ -195,13 +196,11 @@ function FpsCounter() {
   return (
     <div className="inline-flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1 font-mono text-sm">
       <span
-        className={`size-2 rounded-full ${
-          fps >= 55
-            ? "bg-green-500"
-            : fps >= 30
-              ? "bg-yellow-500"
-              : "bg-red-500"
-        }`}
+        className={cn("size-2 rounded-full", {
+          "bg-green-500": fps >= 55,
+          "bg-yellow-500": fps >= 30,
+          "bg-red-500": fps < 30,
+        })}
       />
       {fps} FPS
     </div>
@@ -630,7 +629,7 @@ function InteractiveSection() {
               {Array.from({ length: count }).map((_, i) => (
                 <div
                   key={i}
-                  className={`${fullClass} aspect-square rounded-lg`}
+                  className={cn("aspect-square rounded-lg", fullClass)}
                 />
               ))}
             </div>

@@ -1,59 +1,78 @@
 export const MODELS = [
+  // OpenAI
   {
     name: "GPT-5 Nano",
     value: "openai/gpt-5-nano",
     icon: "/icons/openai.svg",
     disabled: false,
-    contextWindow: 400_000,
+    contextWindow: 1_000_000,
   },
   {
-    name: "GPT-OSS 120b",
-    value: "openai/gpt-oss-120b",
+    name: "GPT-5 Mini",
+    value: "openai/gpt-5-mini",
     icon: "/icons/openai.svg",
     disabled: false,
-    contextWindow: 131_000,
+    contextWindow: 1_000_000,
   },
+  // Anthropic
   {
-    name: "Gemini 3.0 Flash",
-    value: "google/gemini-3-flash",
+    name: "Claude Haiku 4.5",
+    value: "anthropic/claude-haiku-4-5",
+    icon: "/icons/anthropic.svg",
+    disabled: false,
+    contextWindow: 200_000,
+  },
+  // Google
+  {
+    name: "Gemini 2.5 Flash Lite",
+    value: "google-ai-studio/gemini-2.5-flash-lite",
     icon: "/icons/google.svg",
     disabled: false,
     contextWindow: 1_000_000,
   },
   {
-    name: "Kimi K2.5",
-    value: "moonshotai/kimi-k2.5",
-    icon: "/icons/kimi.svg",
+    name: "Gemini 2.5 Flash",
+    value: "google-ai-studio/gemini-2.5-flash",
+    icon: "/icons/google.svg",
     disabled: false,
-    contextWindow: 256_000,
+    contextWindow: 1_000_000,
+  },
+  // xAI
+  {
+    name: "Grok 4.1 Fast",
+    value: "grok/grok-4-1-fast",
+    icon: "/icons/xai.svg",
+    disabled: false,
+    contextWindow: 131_072,
   },
   {
-    name: "GLM 5",
-    value: "zai/glm-5",
-    icon: "/icons/zai.svg",
+    name: "Grok 3 Mini Fast",
+    value: "grok/grok-3-mini-fast",
+    icon: "/icons/xai.svg",
     disabled: false,
-    contextWindow: 202_752,
+    contextWindow: 131_072,
+  },
+  // Groq
+  {
+    name: "Llama 3.3 70B",
+    value: "groq/llama-3.3-70b-versatile",
+    icon: "/icons/meta.svg",
+    disabled: false,
+    contextWindow: 131_072,
   },
   {
-    name: "Deepseek V3.1",
-    value: "deepseek/deepseek-v3.1",
-    icon: "/icons/deepseek.svg",
+    name: "Qwen3 32B",
+    value: "groq/qwen/qwen3-32b",
+    icon: "/icons/groq.svg",
     disabled: false,
-    contextWindow: 164_000,
-  },
-  {
-    name: "Claude Sonnet 4.6",
-    value: "anthropic/claude-sonnet-4.6",
-    icon: "/icons/anthropic.svg",
-    disabled: true,
-    contextWindow: 200_000,
+    contextWindow: 131_072,
   },
 ] as const;
 
 export type Model = (typeof MODELS)[number];
 export type KnownModelId = Model["value"];
 
-const DEFAULT_MODEL = MODELS[2];
+const DEFAULT_MODEL = MODELS[0];
 export const DEFAULT_MODEL_ID: KnownModelId = DEFAULT_MODEL.value;
 export const DEFAULT_CONTEXT_WINDOW = DEFAULT_MODEL.contextWindow;
 

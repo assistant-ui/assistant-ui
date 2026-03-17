@@ -181,11 +181,10 @@ describe("BaseComposerRuntimeCore", () => {
     expect(composer.quote).toBeUndefined();
   });
 
-  it("send with empty text produces empty content array", async () => {
+  it("send with empty text is a no-op", async () => {
     await composer.send();
 
-    expect(composer.sentMessages).toHaveLength(1);
-    expect(composer.sentMessages[0]!.content).toEqual([]);
+    expect(composer.sentMessages).toHaveLength(0);
   });
 
   it("addAttachment throws when no adapter", async () => {

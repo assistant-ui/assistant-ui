@@ -1,5 +1,54 @@
 # @assistant-ui/core
 
+## 0.1.7
+
+### Patch Changes
+
+- 7ecc497: feat: children API for primitives with part.toolUI, part.dataRendererUI, and MessagePrimitive.Quote
+
+## 0.1.6
+
+### Patch Changes
+
+- 1ed9867: feat: move resumeRun to stable
+- 427ffaa: refactor: drop all barrel files
+- 349f3c7: chore: update deps
+- 02614aa: feat: add multi-agent support
+  - `ReadonlyThreadProvider` and `MessagePartPrimitive.Messages` for rendering sub-agent messages
+  - `assistant-stream`: add `messages` field to `tool-result` chunks, `ToolResponseLike`, and `ToolCallPart` types, enabling sub-agent messages to flow through the streaming protocol
+
+- 6cc4122: refactor: use primitive hooks
+- 642bcda: Add `quote.tsx` registry components and `injectQuoteContext` helper
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+  - assistant-stream@0.3.6
+  - assistant-cloud@0.1.22
+  - @assistant-ui/store@0.2.3
+  - @assistant-ui/tap@0.5.3
+
+## 0.1.5
+
+### Patch Changes
+
+- 990e41d: refactor: code sharing between the multiple platforms
+
+## 0.1.4
+
+### Patch Changes
+
+- f032ea5: fix: restore `typeof process` runtime guard in useCloudThreadListAdapter
+- Updated dependencies [2828b67]
+  - assistant-stream@0.3.5
+
+## 0.1.3
+
+### Patch Changes
+
+- 5ae74fe: fix: prevent double-submit when ComposerPrimitive.Send child has type="submit"
+- 8ed9d6f: Refactor React Native component API: move shared runtime logic (remote thread list, external store, cloud adapters, message converter, tool invocations) into @assistant-ui/core for reuse across React and React Native
+- 01bee2b: Remove zod dependency by using assistant-stream's toJSONSchema utility for schema serialization in AssistantFrameProvider
+
 ## 0.1.2
 
 ### Patch Changes

@@ -1,10 +1,6 @@
 import { View, Image, StyleSheet, useColorScheme } from "react-native";
 import { ThemedText } from "@/components/themed-text";
-import {
-  useAuiState,
-  MessageContent,
-  MessageAttachments,
-} from "@assistant-ui/react-native";
+import { useAuiState, MessagePrimitive } from "@assistant-ui/react-native";
 import { MessageActionBar } from "./message-action-bar";
 import { MessageBranchPicker } from "./message-branch-picker";
 
@@ -59,8 +55,6 @@ function MessageImageAttachment() {
   return <Image source={{ uri }} style={styles.messageImage} />;
 }
 
-const messageAttachmentComponents = { Attachment: MessageImageAttachment };
-
 export function MessageBubble() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -71,7 +65,9 @@ export function MessageBubble() {
   if (isUser) {
     return (
       <View style={[styles.container, styles.userContainer]}>
-        <MessageAttachments components={messageAttachmentComponents} />
+        <MessagePrimitive.Attachments>
+          {() => <MessageImageAttachment />}
+        </MessagePrimitive.Attachments>
         <View
           style={[
             styles.bubble,
@@ -79,7 +75,9 @@ export function MessageBubble() {
             { backgroundColor: isDark ? "#0a84ff" : "#007aff" },
           ]}
         >
-          <MessageContent renderText={({ part }) => <TextPart part={part} />} />
+          <MessagePrimitive.Content
+            renderText={({ part }) => <TextPart part={part} />}
+          />
         </View>
         <MessageBranchPicker />
       </View>
@@ -99,7 +97,9 @@ export function MessageBubble() {
           },
         ]}
       >
-        <MessageContent renderText={({ part }) => <TextPart part={part} />} />
+        <MessagePrimitive.Content
+          renderText={({ part }) => <TextPart part={part} />}
+        />
         <MessageError />
       </View>
       {!isRunning && (

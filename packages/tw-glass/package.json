@@ -1,6 +1,6 @@
 {
   "name": "tw-glass",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "description": "Tailwind CSS v4 plugin for glass refraction effects via SVG displacement maps",
   "keywords": [
     "tailwindcss",
@@ -43,5 +43,6 @@
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
-  }
+  },
+  "scripts": {}
 }

@@ -58,6 +58,10 @@ const config: NextConfig = {
         destination: "/llms.mdx/:path*",
       },
       {
+        source: "/blog/:path.md",
+        destination: "/blog/llms.md/:path",
+      },
+      {
         source: "/ph/static/:path*",
         destination: "https://us-assets.i.posthog.com/static/:path*",
       },

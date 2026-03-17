@@ -14,6 +14,16 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import icon from "@/public/favicon/icon.svg";
 import {
+  ComposerQuotePreview,
+  QuoteBlock,
+  SelectionToolbar,
+} from "@/components/assistant-ui/quote";
+import {
+  ComposerMentionPopover,
+  ComposerMentionRoot,
+  DirectiveText,
+} from "@/components/assistant-ui/composer-mention";
+import {
   ActionBarMorePrimitive,
   ActionBarPrimitive,
   AuiIf,
@@ -21,10 +31,8 @@ import {
   ComposerPrimitive,
   ErrorPrimitive,
   MessagePrimitive,
-  SelectionToolbarPrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
-  useMessageQuote,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
@@ -38,12 +46,11 @@ import {
   MoreHorizontalIcon,
   PanelLeftIcon,
   PencilIcon,
-  QuoteIcon,
   RefreshCwIcon,
   ShareIcon,
   SquareIcon,
-  XIcon,
 } from "lucide-react";
+import { LexicalComposerInput } from "@assistant-ui/react-lexical";
 import Image from "next/image";
 import { useState, type FC } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -156,6 +163,8 @@ const Thread: FC = () => {
       className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
       style={{
         ["--thread-max-width" as string]: "44rem",
+        ["--composer-radius" as string]: "24px",
+        ["--composer-padding" as string]: "10px",
       }}
     >
       <ThreadPrimitive.Viewport
@@ -166,21 +175,21 @@ const Thread: FC = () => {
           <ThreadWelcome />
         </AuiIf>
 
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage,
-            EditComposer,
-            AssistantMessage,
+        <ThreadPrimitive.Messages>
+          {({ message }) => {
+            if (message.composer.isEditing) return <EditComposer />;
+            if (message.role === "user") return <UserMessage />;
+            return <AssistantMessage />;
           }}
-        />
+        </ThreadPrimitive.Messages>
 
-        <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
+        <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-(--composer-radius) bg-background pb-4 md:pb-6">
           <ThreadScrollToBottom />
           <Composer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
 
-      <FloatingSelectionToolbar />
+      <SelectionToolbar />
     </ThreadPrimitive.Root>
   );
 };
@@ -191,7 +200,7 @@ const ThreadScrollToBottom: FC = () => {
       <TooltipIconButton
         tooltip="Scroll to bottom"
         variant="outline"
-        className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible dark:bg-background dark:hover:bg-accent"
+        className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible dark:border-border dark:bg-background dark:hover:bg-accent"
       >
         <ArrowDownIcon />
       </TooltipIconButton>
@@ -220,11 +229,9 @@ const ThreadWelcome: FC = () => {
 const ThreadSuggestions: FC = () => {
   return (
     <div className="aui-thread-welcome-suggestions grid w-full @md:grid-cols-2 gap-2 pb-4">
-      <ThreadPrimitive.Suggestions
-        components={{
-          Suggestion: ThreadSuggestionItem,
-        }}
-      />
+      <ThreadPrimitive.Suggestions>
+        {() => <ThreadSuggestionItem />}
+      </ThreadPrimitive.Suggestions>
     </div>
   );
 };
@@ -235,66 +242,49 @@ const ThreadSuggestionItem: FC = () => {
       <SuggestionPrimitive.Trigger send asChild>
         <Button
           variant="ghost"
-          className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-2xl border px-4 py-3 text-left text-sm transition-colors hover:bg-muted"
+          className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-3xl border bg-background px-4 py-3 text-left text-sm transition-colors hover:bg-muted"
         >
-          <span className="aui-thread-welcome-suggestion-text-1 font-medium">
-            <SuggestionPrimitive.Title />
-          </span>
-          <span className="aui-thread-welcome-suggestion-text-2 text-muted-foreground">
-            <SuggestionPrimitive.Description />
-          </span>
+          <SuggestionPrimitive.Title className="aui-thread-welcome-suggestion-text-1 font-medium" />
+          <SuggestionPrimitive.Description className="aui-thread-welcome-suggestion-text-2 text-muted-foreground empty:hidden" />
         </Button>
       </SuggestionPrimitive.Trigger>
     </div>
   );
 };
 
-const ComposerQuotePreview: FC = () => {
-  return (
-    <ComposerPrimitive.Quote className="aui-composer-quote mx-3 mt-2 flex items-start gap-2 rounded-lg bg-muted/60 px-3 py-2">
-      <QuoteIcon className="aui-composer-quote-icon mt-0.5 size-3.5 shrink-0 text-muted-foreground/70" />
-      <ComposerPrimitive.QuoteText className="aui-composer-quote-text line-clamp-2 min-w-0 flex-1 text-muted-foreground text-sm" />
-      <ComposerPrimitive.QuoteDismiss asChild>
-        <button
-          type="button"
-          className="aui-composer-quote-dismiss shrink-0 rounded-sm p-0.5 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
-        >
-          <XIcon className="size-3.5" />
-        </button>
-      </ComposerPrimitive.QuoteDismiss>
-    </ComposerPrimitive.Quote>
-  );
-};
-
 const Composer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
-      <ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
-        <ComposerQuotePreview />
-        <ComposerAttachments />
-        <ComposerPrimitive.Input
-          placeholder="Send a message..."
-          className="aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
-          rows={1}
-          autoFocus
-          aria-label="Message input"
-        />
-        <ComposerAction />
-      </ComposerPrimitive.AttachmentDropzone>
-    </ComposerPrimitive.Root>
+    <ComposerMentionRoot>
+      <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
+        <ComposerPrimitive.AttachmentDropzone asChild>
+          <div
+            data-slot="composer-shell"
+            className="flex w-full flex-col gap-2 rounded-(--composer-radius) border bg-background p-(--composer-padding) transition-shadow focus-within:border-ring/75 focus-within:ring-2 focus-within:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50"
+          >
+            <ComposerQuotePreview />
+            <ComposerAttachments />
+            <LexicalComposerInput
+              placeholder="Send a message... (type @ to mention a tool)"
+              className="aui-composer-input relative max-h-32 min-h-10 w-full resize-none bg-transparent px-1.75 py-1 text-sm outline-none [&_.aui-lexical-input]:min-h-[1lh] [&_.aui-lexical-input]:outline-none [&_.aui-lexical-placeholder]:pointer-events-none [&_.aui-lexical-placeholder]:absolute [&_.aui-lexical-placeholder]:top-0 [&_.aui-lexical-placeholder]:left-0 [&_.aui-lexical-placeholder]:px-1.75 [&_.aui-lexical-placeholder]:py-1 [&_.aui-lexical-placeholder]:text-muted-foreground/80 [&_.aui-mention-chip]:mx-0.5 [&_.aui-mention-chip]:inline-flex [&_.aui-mention-chip]:translate-y-[-1px] [&_.aui-mention-chip]:items-center [&_.aui-mention-chip]:gap-1 [&_.aui-mention-chip]:rounded-full [&_.aui-mention-chip]:border [&_.aui-mention-chip]:border-primary/20 [&_.aui-mention-chip]:bg-primary/5 [&_.aui-mention-chip]:px-2 [&_.aui-mention-chip]:py-0.5 [&_.aui-mention-chip]:font-medium [&_.aui-mention-chip]:text-[13px] [&_.aui-mention-chip]:text-primary [&_.aui-mention-chip]:leading-none"
+            />
+            <ComposerAction />
+          </div>
+        </ComposerPrimitive.AttachmentDropzone>
+        <ComposerMentionPopover />
+      </ComposerPrimitive.Root>
+    </ComposerMentionRoot>
   );
 };
 
 const ComposerAction: FC = () => {
   return (
-    <div className="aui-composer-action-wrapper relative mx-1 mb-1.75 flex items-center justify-between">
+    <div className="aui-composer-action-wrapper relative flex items-center justify-between">
       <ComposerAddAttachment />
       <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send message"
             side="bottom"
-            type="submit"
             variant="default"
             size="icon"
             className="aui-composer-send size-8 rounded-full"
@@ -338,12 +328,14 @@ const AssistantMessage: FC = () => {
       data-role="assistant"
     >
       <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
-        <MessagePrimitive.Parts
-          components={{
-            Text: MarkdownText,
-            tools: { Fallback: ToolFallback },
+        <MessagePrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "text") return <MarkdownText />;
+            if (part.type === "tool-call")
+              return part.toolUI ?? <ToolFallback {...part} />;
+            return null;
           }}
-        />
+        </MessagePrimitive.Parts>
         <MessageError />
       </div>
 
@@ -352,17 +344,6 @@ const AssistantMessage: FC = () => {
         <AssistantActionBar />
       </div>
     </MessagePrimitive.Root>
-  );
-};
-
-const FloatingSelectionToolbar: FC = () => {
-  return (
-    <SelectionToolbarPrimitive.Root className="aui-selection-toolbar-root flex items-center gap-1 rounded-lg border bg-popover px-1 py-1 shadow-md">
-      <SelectionToolbarPrimitive.Quote className="aui-selection-toolbar-quote flex items-center gap-1.5 rounded-md px-2.5 py-1 text-popover-foreground text-sm transition-colors hover:bg-accent">
-        <QuoteIcon className="size-3.5" />
-        Quote
-      </SelectionToolbarPrimitive.Quote>
-    </SelectionToolbarPrimitive.Root>
   );
 };
 
@@ -415,20 +396,6 @@ const AssistantActionBar: FC = () => {
   );
 };
 
-const MessageQuoteBlock: FC = () => {
-  const quote = useMessageQuote();
-  if (!quote) return null;
-
-  return (
-    <div className="aui-message-quote mb-2 flex items-start gap-1.5">
-      <QuoteIcon className="aui-message-quote-icon mt-0.5 size-3 shrink-0 text-muted-foreground/60" />
-      <p className="aui-message-quote-text line-clamp-2 min-w-0 text-muted-foreground/80 text-sm italic">
-        {quote.text}
-      </p>
-    </div>
-  );
-};
-
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
@@ -439,8 +406,10 @@ const UserMessage: FC = () => {
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
-          <MessageQuoteBlock />
-          <MessagePrimitive.Parts />
+          <MessagePrimitive.Quote>
+            {(quote) => <QuoteBlock {...quote} />}
+          </MessagePrimitive.Quote>
+          <MessagePrimitive.Parts components={{ Text: DirectiveText }} />
         </div>
         <div className="aui-user-action-bar-wrapper absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
           <UserActionBar />

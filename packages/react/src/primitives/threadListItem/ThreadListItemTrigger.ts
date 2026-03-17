@@ -5,14 +5,11 @@ import {
   ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useAui } from "@assistant-ui/store";
-import { useCallback } from "react";
+import { useThreadListItemTrigger as useThreadListItemTriggerBehavior } from "@assistant-ui/core/react";
 
 const useThreadListItemTrigger = () => {
-  const aui = useAui();
-  return useCallback(() => {
-    aui.threadListItem().switchTo();
-  }, [aui]);
+  const { switchTo } = useThreadListItemTriggerBehavior();
+  return switchTo;
 };
 
 export namespace ThreadListItemPrimitiveTrigger {

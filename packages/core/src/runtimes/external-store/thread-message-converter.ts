@@ -1,4 +1,4 @@
-import type { ThreadMessage } from "../../types";
+import type { ThreadMessage } from "../../types/message";
 
 export type ConverterCallback<TIn> = (
   cache: ThreadMessage | undefined,

@@ -4,7 +4,7 @@ import type {
   ChainOfThoughtState,
   ChainOfThoughtPart,
 } from "../scopes/chain-of-thought";
-import type { MessagePartStatus } from "../../types";
+import type { MessagePartStatus } from "../../types/message";
 import type { PartMethods } from "../scopes/part";
 
 const COMPLETE_STATUS: MessagePartStatus = Object.freeze({

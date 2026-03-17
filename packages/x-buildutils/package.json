@@ -1,6 +1,7 @@
 {
   "name": "@assistant-ui/x-buildutils",
-  "version": "0.0.1",
+  "private": false,
+  "version": "0.0.3",
   "description": "Internal build utilities for assistant-ui packages",
   "keywords": [
     "build",
@@ -10,8 +11,12 @@
   ],
   "author": "AgentbaseAI Inc.",
   "license": "MIT",
-  "private": true,
   "type": "module",
+  "files": [
+    "bin",
+    "src",
+    "ts"
+  ],
   "bin": {
     "aui-build": "./bin/aui-build.js"
   },
@@ -23,7 +28,7 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "@types/node": "^25.3.0"
+    "@types/node": "^25.5.0"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
@@ -33,5 +38,10 @@
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  },
+  "scripts": {},
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

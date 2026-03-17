@@ -1,5 +1,41 @@
 # assistant-ui
 
+## 0.0.84
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- dbb2929: Improve CLI project creation error handling and transform sequencing in
+  `assistant-ui`.
+- Updated dependencies [349f3c7]
+  - @assistant-ui/agent-launcher@0.1.1
+
+## 0.0.83
+
+### Patch Changes
+
+- 6cdc259: feat(cli): add with-expo example to create command
+- 6ef092a: feat(cli): add with-react-ink example to project scaffolding
+- 848b42c: use checked-in bin wrapper to avoid pnpm install warnings in monorepos
+- 1b06c09: fix(cli): detect dev script and env file from scaffolded project
+
+## 0.0.82
+
+### Patch Changes
+
+- 5034b1e: Add `@assistant-ui/agent-launcher` package and `assistant-ui agent` CLI command to launch Claude Code with assistant-ui skills
+- fb84e6c: Unified scaffold pipeline: both templates and examples now download from the monorepo via giget at the latest release tag. Replaced create-next-app with @clack/prompts for interactive project creation. Added grouped project picker showing templates and examples. Added --preset support with short names (e.g. --preset chatgpt). Uses the detected package manager's dlx command instead of npx for faster execution.
+- Updated dependencies [5034b1e]
+  - @assistant-ui/agent-launcher@0.1.0
+
+## 0.0.81
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+- de45e19: fix(create): point the `cloud` template to the valid
+  `assistant-ui-starter-cloud` repository in both CLIs and aligned tests.
+
 ## 0.0.80
 
 ### Patch Changes

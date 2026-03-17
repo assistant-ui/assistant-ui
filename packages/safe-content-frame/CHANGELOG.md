@@ -1,5 +1,11 @@
 # safe-content-frame
 
+## 0.0.11
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+
 ## 0.0.10
 
 ### Patch Changes

@@ -96,9 +96,9 @@ const MyWeatherToolUI = makeAssistantToolUI({
         <pre className="whitespace-pre-wrap break-all text-center">
           get_weather({JSON.stringify(args)})
         </pre>
-        {"result" in result && (
+        {result !== undefined && (
           <pre className="whitespace-pre-wrap break-all text-center">
-            {JSON.stringify(result.result)}
+            {JSON.stringify(result)}
           </pre>
         )}
       </div>
@@ -116,18 +116,13 @@ You can map data events to UI components, similar to tool UIs. There are two app
 Pass a `data` config to `MessagePrimitive.Parts`:
 
 ```tsx
-<MessagePrimitive.Parts
-  components={{
-    data: {
-      by_name: {
-        my_chart: ({ name, data }) => <ChartComponent data={data} />,
-      },
-      Fallback: ({ name, data }) => (
-        <pre>{JSON.stringify(data, null, 2)}</pre>
-      ),
-    },
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "data" && part.name === "my_chart") return <ChartComponent data={part.data} />;
+    if (part.type === "data") return <pre>{JSON.stringify(part.data, null, 2)}</pre>;
+    return null;
   }}
-/>
+</MessagePrimitive.Parts>
 ```
 
 #### Global registration
@@ -169,6 +164,27 @@ function MyComponent() {
 
 Each data component receives the full data part as props: `{ type: "data", name: string, data: T, status: MessagePartStatus }`.
 
+### Messages (Sub-Agent)
+
+Renders nested messages from a tool call part's `messages` field. This is used in multi-agent setups where a sub-agent's conversation is embedded inside a tool call.
+
+```tsx
+import { MessagePartPrimitive } from "@assistant-ui/react";
+
+<MessagePartPrimitive.Messages>
+  {({ message }) => {
+    if (message.role === "user") return <MyUserMessage />;
+    return <MyAssistantMessage />;
+  }}
+</MessagePartPrimitive.Messages>;
+```
+
+This primitive must be used inside a tool call part context (e.g. inside a `makeAssistantToolUI` render function). It reads the `messages` field from the current `ToolCallMessagePart` and renders them in a readonly thread context.
+
+Parent tool UI registrations are inherited — tools registered via `makeAssistantToolUI` at the parent level are available inside sub-agent messages.
+
+See the [Multi-Agent Guide](/docs/guides/multi-agent) for detailed usage.
+
 ## Context Provider
 
 Message part context is provided by `MessagePrimitive.Parts` or `TextMessagePartProvider`
@@ -178,57 +194,53 @@ Message part context is provided by `MessagePrimitive.Parts` or `TextMessagePart
 ```tsx
 import { MessagePrimitive } from "@assistant-ui/react";
 
-<MessagePrimitive.Parts
-  components={{
-    Text: MyText,
-    Reasoning: MyReasoning,
-    Audio: MyAudio,
-    tools: {
-      by_name: {
-        get_weather: MyWeatherToolUI,
-      },
-      Fallback: MyFallbackToolUI,
-    },
-    data: {
-      by_name: {
-        my_chart: MyChartComponent,
-      },
-      Fallback: GenericDataComponent,
-    },
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <MyText />;
+    if (part.type === "reasoning") return <MyReasoning {...part} />;
+    if (part.type === "audio") return <MyAudio {...part} />;
+    if (part.type === "tool-call" && part.toolName === "get_weather") return <MyWeatherToolUI {...part} />;
+    if (part.type === "tool-call") return <MyFallbackToolUI {...part} />;
+    if (part.type === "data" && part.name === "my_chart") return <MyChartComponent {...part} />;
+    if (part.type === "data") return <GenericDataComponent {...part} />;
+    return null;
   }}
-/>;
+</MessagePrimitive.Parts>;
 ```
 
 ### TextMessagePartProvider
 
-This is a helper context provider to allow you to reuse the message part components outside a message message part.
+This is a helper context provider to allow you to reuse the message part components outside a message part.
 
 ```tsx
 import { TextMessagePartProvider } from "@assistant-ui/react";
 
 <TextMessagePartProvider text="Hello world" isRunning={false}>
-  <MessagePart.Text />
+  <MessagePartPrimitive.Text />
 </TextMessagePartProvider>;
 ```
 
 ## Runtime API
 
-### `useMessagePartRuntime`
+### `useAui` (Message Part Actions)
 
 ```tsx
-import { useMessagePartRuntime } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
 
-const MessagePartRuntime = useMessagePartRuntime();
+const aui = useAui();
+aui.part().addToolResult(result);
+const partState = aui.part().getState();
 ```
 
 <ParametersTable {...MessagePartRuntime} />
 
-### `useMessagePart`
+### `useAuiState` (Message Part State)
 
 ```tsx
-import { useMessagePart } from "@assistant-ui/react";
+import { useAuiState } from "@assistant-ui/react";
 
-const MessagePart = useMessagePart();
+const type = useAuiState((s) => s.part.type);
+const status = useAuiState((s) => s.part.status);
 ```
 
 <ParametersTable {...TextMessagePartState} />
@@ -240,7 +252,7 @@ const MessagePart = useMessagePart();
 ```tsx
 import { useMessagePartText } from "@assistant-ui/react";
 
-const MessagePartText = useMessagePartText();
+const { text, status } = useMessagePartText();
 ```
 
 <ParametersTable {...TextMessagePartState} />

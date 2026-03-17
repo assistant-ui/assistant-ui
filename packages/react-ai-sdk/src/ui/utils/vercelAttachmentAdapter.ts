@@ -1,4 +1,4 @@
-import { AttachmentAdapter } from "@assistant-ui/react";
+import type { AttachmentAdapter } from "@assistant-ui/core";
 import { generateId } from "ai";
 
 const getFileDataURL = (file: File) =>

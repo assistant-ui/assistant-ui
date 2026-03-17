@@ -1,5 +1,21 @@
 # assistant-stream
 
+## 0.3.6
+
+### Patch Changes
+
+- 427ffaa: refactor: drop all barrel files
+- 349f3c7: chore: update deps
+- 02614aa: feat: add multi-agent support
+  - `ReadonlyThreadProvider` and `MessagePartPrimitive.Messages` for rendering sub-agent messages
+  - `assistant-stream`: add `messages` field to `tool-result` chunks, `ToolResponseLike`, and `ToolCallPart` types, enabling sub-agent messages to flow through the streaming protocol
+
+## 0.3.5
+
+### Patch Changes
+
+- 2828b67: fix(assistant-stream): throw a clear error when a Standard Schema (e.g. Zod v3) cannot be converted to JSON Schema, instead of silently passing through invalid data. Also add support for `~standard.jsonSchema.input()` conversion path.
+
 ## 0.3.4
 
 ### Patch Changes

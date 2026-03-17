@@ -3,13 +3,12 @@ import type {
   CompleteAttachment,
   CreateAttachment,
   PendingAttachment,
-  MessageRole,
-  RunConfig,
-  QuoteInfo,
-  AppendMessage,
-  Unsubscribe,
-} from "../../types";
-import { BaseSubscribable } from "../../subscribable";
+} from "../../types/attachment";
+import type { MessageRole, AppendMessage } from "../../types/message";
+import type { QuoteInfo } from "../../types/quote";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { RunConfig } from "../../types/message";
+import { BaseSubscribable } from "../../subscribable/subscribable";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type {
   ComposerRuntimeCore,
@@ -151,6 +150,8 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async send() {
+    if (this.isEmpty) return;
+
     if (this._dictationSession) {
       this._dictationSession.cancel();
       this._cleanupDictation();

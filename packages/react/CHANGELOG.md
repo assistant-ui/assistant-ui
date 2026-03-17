@@ -1,5 +1,70 @@
 # @assistant-ui/react
 
+## 0.12.19
+
+### Patch Changes
+
+- 7ecc497: feat: children API for primitives with part.toolUI, part.dataRendererUI, and MessagePrimitive.Quote
+- Updated dependencies [7ecc497]
+  - @assistant-ui/core@0.1.7
+
+## 0.12.18
+
+### Patch Changes
+
+- 1ed9867: feat: move resumeRun to stable
+- 427ffaa: refactor: useRemoteThreadListRuntime no longer marked unstable
+- 349f3c7: chore: update deps
+- 02614aa: feat: add multi-agent support
+  - `ReadonlyThreadProvider` and `MessagePartPrimitive.Messages` for rendering sub-agent messages
+  - `assistant-stream`: add `messages` field to `tool-result` chunks, `ToolResponseLike`, and `ToolCallPart` types, enabling sub-agent messages to flow through the streaming protocol
+
+- 642bcda: Add `quote.tsx` registry components and `injectQuoteContext` helper
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [6cc4122]
+- Updated dependencies [642bcda]
+  - @assistant-ui/core@0.1.6
+  - assistant-stream@0.3.6
+  - assistant-cloud@0.1.22
+  - @assistant-ui/store@0.2.3
+  - @assistant-ui/tap@0.5.3
+
+## 0.12.17
+
+### Patch Changes
+
+- 990e41d: refactor: code sharing between the multiple platforms
+- Updated dependencies [990e41d]
+  - @assistant-ui/core@0.1.5
+
+## 0.12.16
+
+### Patch Changes
+
+- 5ae74fe: fix: prevent double-submit when ComposerPrimitive.Send child has type="submit"
+- 8ed9d6f: Refactor React Native component API: move shared runtime logic (remote thread list, external store, cloud adapters, message converter, tool invocations) into @assistant-ui/core for reuse across React and React Native
+- Updated dependencies [5ae74fe]
+- Updated dependencies [8ed9d6f]
+- Updated dependencies [01bee2b]
+  - @assistant-ui/core@0.1.3
+
+## 0.12.15
+
+### Patch Changes
+
+- 07dcce0: fix(react): duplicate `toolCallId` parts when joining consecutive assistant snapshots in the external message converter.
+- a845911: chore: update dependencies
+- bc40eaf: fix(react): `ActionBarMorePrimitive` disappearing when `ActionBarPrimitive.Root` uses `autohide="not-last"` on non-last messages.
+- be23d74: fix(react): make `useToolInvocations` args stream rewrites recover safely and avoid premature closure for non-executable client tools.
+- 1eb059c: fix(react): avoid crashing when external message conversion receives orphaned tool results without a matching tool call.
+- Updated dependencies [a845911]
+  - assistant-cloud@0.1.21
+  - @assistant-ui/store@0.2.2
+  - @assistant-ui/tap@0.5.2
+
 ## 0.12.14
 
 ### Patch Changes

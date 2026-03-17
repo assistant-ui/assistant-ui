@@ -1,4 +1,4 @@
-import { AssistantRuntime } from "@assistant-ui/react";
+import type { AssistantRuntime } from "@assistant-ui/core";
 import {
   DefaultChatTransport,
   HttpChatTransportInitOptions,

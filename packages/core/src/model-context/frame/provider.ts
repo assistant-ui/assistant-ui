@@ -1,7 +1,6 @@
 import { ModelContextProvider, ModelContext } from "../types";
-import type { Unsubscribe } from "../../types";
-import { Tool } from "assistant-stream";
-import { z } from "zod";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import { Tool, toJSONSchema } from "assistant-stream";
 import {
   FrameMessage,
   FRAME_MESSAGE_CHANNEL,
@@ -11,10 +10,7 @@ import {
 
 const serializeTool = (tool: Tool<any, any>): SerializedTool => ({
   ...(tool.description && { description: tool.description }),
-  parameters:
-    tool.parameters instanceof z.ZodType
-      ? ((z as any).toJSONSchema?.(tool.parameters) ?? tool.parameters)
-      : tool.parameters,
+  parameters: tool.parameters ? toJSONSchema(tool.parameters) : undefined,
   ...(tool.disabled !== undefined && { disabled: tool.disabled }),
   ...(tool.type && { type: tool.type }),
 });

@@ -18,7 +18,7 @@ The data stream protocol is a standardized format for streaming AI responses tha
 
 ## Installation
 
-<InstallCommand npm={["@assistant-ui/react-data-stream"]} />
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-data-stream"]} />
 
 ## Basic Usage
 
@@ -160,35 +160,34 @@ const runtime = useDataStreamRuntime({
   Human-in-the-loop tools (using `human()` for tool interrupts) are not supported
   in the data stream runtime. If you need human approval workflows or interactive
   tool UIs, consider using [LocalRuntime](/docs/runtimes/custom/local) or
-  [Assistant Cloud](/docs/cloud/overview) instead.
+  [Assistant Cloud](/docs/cloud) instead.
 </Callout>
 
 ### Frontend Tools
 
-Use the `frontendTools` helper to serialize client-side tools:
+Use `toToolsJSONSchema` to serialize client-side tools:
 
 ```tsx
-import { frontendTools } from "@assistant-ui/react-data-stream";
-import { makeAssistantTool } from "@assistant-ui/react";
+import { tool } from "@assistant-ui/react";
+import { toToolsJSONSchema } from "assistant-stream";
 
-const weatherTool = makeAssistantTool({
-  toolName: "get_weather",
-  description: "Get current weather",
-  parameters: z.object({
-    location: z.string(),
+const myTools = {
+  get_weather: tool({
+    description: "Get current weather",
+    parameters: z.object({
+      location: z.string(),
+    }),
+    execute: async ({ location }) => {
+      const weather = await fetchWeather(location);
+      return `Weather in ${location}: ${weather}`;
+    },
   }),
-  execute: async ({ location }) => {
-    const weather = await fetchWeather(location);
-    return `Weather in ${location}: ${weather}`;
-  },
-});
+};
 
 const runtime = useDataStreamRuntime({
   api: "/api/chat",
   body: {
-    tools: frontendTools({
-      get_weather: weatherTool,
-    }),
+    tools: toToolsJSONSchema(myTools),
   },
 });
 ```
@@ -343,6 +342,80 @@ const runtime = useDataStreamRuntime({
 ## Examples
 
 Explore our [examples repository](https://github.com/assistant-ui/assistant-ui/tree/main/examples) for implementation references.
+
+## LocalRuntimeOptions
+
+`useDataStreamRuntime` accepts all options from `LocalRuntimeOptions` in addition to its own options. These control the underlying local runtime behavior.
+
+### `maxSteps`
+
+The maximum number of agentic steps (tool call rounds) allowed per run. Defaults to unlimited.
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  maxSteps: 5,
+});
+```
+
+### `initialMessages`
+
+Pre-populate the thread with messages on first render. Useful for continuing an existing conversation.
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  initialMessages: [
+    { role: "user", content: [{ type: "text", text: "Hello" }] },
+    { role: "assistant", content: [{ type: "text", text: "Hi! How can I help?" }] },
+  ],
+});
+```
+
+### `adapters`
+
+Extend the runtime with optional capability adapters. The `chatModel` adapter is handled internally by `useDataStreamRuntime` and cannot be overridden here.
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  adapters: {
+    attachments: myAttachmentAdapter,
+    history: myHistoryAdapter,
+    speech: mySpeechAdapter,
+    dictation: myDictationAdapter,
+    feedback: myFeedbackAdapter,
+    suggestion: mySuggestionAdapter,
+  },
+});
+```
+
+See the [LocalRuntime adapters documentation](/docs/runtimes/custom/local#adapters) for details on implementing each adapter.
+
+### `cloud`
+
+Connect to [Assistant Cloud](/docs/cloud) for managed multi-thread support, persistence, and thread management.
+
+```tsx
+import { AssistantCloud } from "assistant-cloud";
+
+const cloud = new AssistantCloud({ /* ... */ });
+
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  cloud,
+});
+```
+
+### `unstable_humanToolNames`
+
+Names of tools that should pause execution and wait for human or external approval before proceeding.
+
+<Callout type="warn">
+  Human-in-the-loop tool interrupts (`unstable_humanToolNames`) are not supported
+  in the data stream runtime. Use [LocalRuntime](/docs/runtimes/custom/local) if
+  you need this feature.
+</Callout>
 
 ## API Reference
 

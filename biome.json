@@ -184,7 +184,11 @@
       }
     },
     {
-      "includes": ["packages/ui/src/components/ui/**"],
+      "includes": [
+        "packages/ui/src/components/ui/**",
+        "templates/*/components/ui/**",
+        "templates/*/components/assistant-ui/**"
+      ],
       "linter": {
         "rules": {
           "correctness": {

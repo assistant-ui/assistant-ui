@@ -33,11 +33,11 @@ const ComposerAction: FC = () => {
     <div className="flex items-center gap-1">
       <ModelSelector
         models={[
-          { id: "gpt-5-nano", name: "GPT-5 Nano", description: "Fast and efficient" },
-          { id: "gpt-5-mini", name: "GPT-5 Mini", description: "Balanced performance" },
-          { id: "gpt-5", name: "GPT-5", description: "Most capable" },
+          { id: "gpt-4o-mini", name: "GPT-4o Mini", description: "Fast and efficient" },
+          { id: "gpt-4o", name: "GPT-4o", description: "Balanced performance" },
+          { id: "o3", name: "o3", description: "Most capable" },
         ]}
-        defaultValue="gpt-5-mini"
+        defaultValue="gpt-4o-mini"
         size="sm"
       />
     </div>
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai(config?.modelName ?? "gpt-4o"),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
   });
 
   return result.toUIMessageStreamResponse();
@@ -101,8 +101,8 @@ Each model in the `models` array supports:
 ```tsx
 const models = [
   {
-    id: "gpt-5",           // Sent to backend as config.modelName
-    name: "GPT-5",         // Display name in trigger and items
+    id: "gpt-4o",           // Sent to backend as config.modelName
+    name: "GPT-4o",         // Display name in trigger and items
     description: "Most capable", // Optional subtitle in items only
     icon: <SparklesIcon />,      // Optional icon (any ReactNode)
   },
@@ -113,7 +113,7 @@ const models = [
 
 The default `ModelSelector` export automatically registers the selected model with assistant-ui's `ModelContext` system. When a user selects a model:
 
-1. The component calls `api.modelContext().register()` with `config.modelName`
+1. The component calls `aui.modelContext().register()` with `config.modelName`
 2. The `AssistantChatTransport` includes `config` in the request body
 3. Your API route reads `config.modelName` to determine which model to use
 

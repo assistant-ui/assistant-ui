@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { useState, useEffect, type ReactNode } from "react";
 
 const PHOTO_ID = "photo-1531366936337-7c912a4589a7";
@@ -136,7 +137,10 @@ function DemoArea({
 }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-lg bg-muted p-6 ${className}`}
+      className={cn(
+        "relative overflow-hidden rounded-lg bg-muted p-6",
+        className,
+      )}
     >
       {children}
     </div>
@@ -154,7 +158,7 @@ function GlassText({
 }) {
   return (
     <span
-      className={`glass-text ${className}`}
+      className={cn("glass-text", className)}
       style={{
         backgroundImage: BG_IMAGE,
         backgroundAttachment: "fixed",
@@ -197,13 +201,11 @@ function FpsCounter() {
   return (
     <div className="inline-flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1 font-mono text-sm">
       <span
-        className={`size-2 rounded-full ${
-          fps >= 55
-            ? "bg-green-500"
-            : fps >= 30
-              ? "bg-yellow-500"
-              : "bg-red-500"
-        }`}
+        className={cn("size-2 rounded-full", {
+          "bg-green-500": fps >= 55,
+          "bg-yellow-500": fps >= 30,
+          "bg-red-500": fps < 30,
+        })}
       />
       {fps} FPS
     </div>
@@ -299,7 +301,9 @@ function FontSizeSection() {
                   {label}
                 </code>
                 <div>
-                  <GlassText className={`font-bold ${cls}`}>tw-glass</GlassText>
+                  <GlassText className={cn("font-bold", cls)}>
+                    tw-glass
+                  </GlassText>
                 </div>
               </div>
             ))}
@@ -343,7 +347,7 @@ function FontWeightSection() {
                 <code className="w-32 shrink-0 rounded bg-foreground/10 px-1.5 py-0.5 text-right font-mono text-[10px] text-muted-foreground">
                   {label}
                 </code>
-                <GlassText className={`text-5xl ${cls}`}>tw-glass</GlassText>
+                <GlassText className={cn("text-5xl", cls)}>tw-glass</GlassText>
               </div>
             ))}
           </div>
@@ -666,11 +670,14 @@ function InteractiveSection() {
                   key={p.label}
                   type="button"
                   onClick={() => setPhotoIdx(i)}
-                  className={`cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors ${
-                    photoIdx === i
-                      ? "bg-foreground text-background"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  }`}
+                  className={cn(
+                    "cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors",
+                    {
+                      "bg-foreground text-background": photoIdx === i,
+                      "bg-muted text-muted-foreground hover:bg-muted/80":
+                        photoIdx !== i,
+                    },
+                  )}
                 >
                   {p.label}
                 </button>

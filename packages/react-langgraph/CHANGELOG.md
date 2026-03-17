@@ -1,5 +1,47 @@
 # @assistant-ui/react-langgraph
 
+## 0.13.5
+
+### Patch Changes
+
+- e4bc32e: fix(react-langgraph): support messages from non-LLM LangGraph nodes via `updates` and `values` events
+- Updated dependencies [7ecc497]
+  - @assistant-ui/core@0.1.7
+
+## 0.13.4
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- 619d923: Depend on @assistant-ui/core instead of @assistant-ui/react
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [6cc4122]
+- Updated dependencies [642bcda]
+  - @assistant-ui/core@0.1.6
+  - assistant-stream@0.3.6
+  - assistant-cloud@0.1.22
+  - @assistant-ui/store@0.2.3
+
+## 0.13.3
+
+### Patch Changes
+
+- cbdc786: fix(react-langgraph): stabilize tool args serialization to avoid argsText rewrites
+- a845911: chore: update dependencies
+- e9ba6ab: fix(react-langgraph): handle tool_call_chunks with index 0
+- 5232826: fix(react-langgraph): treat stream cancellation `AbortError` as a normal exit condition in `useLangGraphMessages` to avoid unhandled promise rejections when runs are cancelled.
+- 3c58d63: fix(react-langgraph): send file attachments as flat LangGraph file blocks and accept both flat/legacy file formats
+- 1eb059c: fix(react-langgraph): preserve tuple-stream accumulated messages by skipping updates snapshot replacement after tuple message events.
+- Updated dependencies [07dcce0]
+- Updated dependencies [a845911]
+- Updated dependencies [bc40eaf]
+- Updated dependencies [be23d74]
+- Updated dependencies [1eb059c]
+  - @assistant-ui/react@0.12.15
+
 ## 0.13.2
 
 ### Patch Changes

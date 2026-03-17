@@ -19,7 +19,10 @@ export type ToToolsJSONSchemaOptions = {
 };
 
 function isStandardSchema(schema: unknown): schema is StandardSchemaV1 & {
-  "~standard": StandardSchemaV1["~standard"] & { toJSONSchema?: () => unknown };
+  "~standard": StandardSchemaV1["~standard"] & {
+    toJSONSchema?: () => unknown;
+    jsonSchema?: { input?: () => unknown; output?: () => unknown };
+  };
 } {
   return (
     typeof schema === "object" &&
@@ -53,9 +56,10 @@ function hasToJSONMethod(schema: unknown): schema is { toJSON: () => unknown } {
  * Converts a schema to JSONSchema7.
  * Supports:
  * - StandardSchemaV1 with ~standard.toJSONSchema (e.g., Zod v4)
- * - Objects with toJSONSchema() method
+ * - StandardSchemaV1 with ~standard.jsonSchema.input() (e.g., Zod v4)
+ * - Objects with toJSONSchema() method (e.g., Zod v4)
  * - Objects with toJSON() method
- * - Plain JSONSchema7 objects
+ * - Plain JSONSchema7 objects (must have a "type" property)
  */
 export function toJSONSchema(
   schema: StandardSchemaV1 | JSONSchema7,
@@ -65,6 +69,16 @@ export function toJSONSchema(
     const toJSONSchemaMethod = schema["~standard"].toJSONSchema;
     if (typeof toJSONSchemaMethod === "function") {
       return toJSONSchemaMethod() as JSONSchema7;
+    }
+
+    // StandardSchemaV1 with ~standard.jsonSchema.input()
+    const jsonSchema = schema["~standard"].jsonSchema;
+    if (
+      typeof jsonSchema === "object" &&
+      jsonSchema !== null &&
+      typeof jsonSchema.input === "function"
+    ) {
+      return jsonSchema.input() as JSONSchema7;
     }
   }
 
@@ -76,6 +90,16 @@ export function toJSONSchema(
   // toJSON method on the schema
   if (hasToJSONMethod(schema)) {
     return schema.toJSON() as JSONSchema7;
+  }
+
+  // If it's a Standard Schema that we couldn't convert, throw a helpful error
+  if (isStandardSchema(schema)) {
+    throw new Error(
+      "Could not convert schema to JSON Schema. " +
+        "The schema implements Standard Schema but does not support JSON Schema conversion. " +
+        "If you are using Zod, please upgrade to Zod v4 (npm install zod@latest). " +
+        "Alternatively, pass a plain JSON Schema object instead.",
+    );
   }
 
   // Already a plain JSONSchema7

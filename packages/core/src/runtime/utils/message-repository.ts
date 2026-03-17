@@ -1,4 +1,5 @@
-import type { RunConfig, ThreadMessage } from "../../types";
+import type { ThreadMessage } from "../../types/message";
+import type { RunConfig } from "../../types/message";
 import { generateId, generateOptimisticId } from "../../utils/id";
 import type { ThreadMessageLike } from "./thread-message-like";
 import { getAutoStatus } from "./auto-status";

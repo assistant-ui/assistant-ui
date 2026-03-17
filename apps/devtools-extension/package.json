@@ -15,9 +15,9 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/chrome": "^0.1.37",
-    "@types/node": "^25.3.0",
+    "@types/node": "^25.5.0",
     "@types/webextension-polyfill": "^0.12.5",
-    "esbuild": "^0.27.3",
+    "esbuild": "^0.27.4",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

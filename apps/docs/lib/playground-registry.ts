@@ -1,15 +1,21 @@
 import type { BuilderConfig } from "@/components/builder/types";
 
+const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
+
 export function determineRegistryDependencies(config: BuilderConfig): string[] {
   const { components } = config;
-  const deps: string[] = ["thread", "tooltip-icon-button"];
+  const deps: string[] = [
+    "button",
+    `${REGISTRY_BASE_URL}/tooltip-icon-button.json`,
+  ];
 
   if (components.markdown) {
-    deps.push("markdown-text");
+    deps.push(`${REGISTRY_BASE_URL}/markdown-text.json`);
+    deps.push(`${REGISTRY_BASE_URL}/tool-fallback.json`);
   }
 
   if (components.attachments) {
-    deps.push("attachment");
+    deps.push(`${REGISTRY_BASE_URL}/attachment.json`);
   }
 
   return deps;
@@ -111,12 +117,13 @@ export function generateRegistryJson(config: BuilderConfig) {
     dependencies: [
       "@assistant-ui/react",
       "@assistant-ui/react-ui",
+      "lucide-react",
       ...(config.components.markdown ? ["@assistant-ui/react-markdown"] : []),
     ],
     registryDependencies,
     files: [
       {
-        path: "components/ui/assistant-ui/thread.tsx",
+        path: "components/assistant-ui/thread.tsx",
         content: threadCode,
         type: "registry:component",
       },

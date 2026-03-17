@@ -1,7 +1,7 @@
 import { resource, tapState, tapCallback } from "@assistant-ui/tap";
 import { type ClientOutput } from "@assistant-ui/store";
-import { DataRenderersState } from "../types/scopes";
-import { DataMessagePartComponent } from "../types";
+import { DataRenderersState } from "../types/scopes/dataRenderers";
+import { DataMessagePartComponent } from "../types/MessagePartComponentTypes";
 
 export const DataRenderers = resource((): ClientOutput<"dataRenderers"> => {
   const [state, setState] = tapState<DataRenderersState>(() => ({

@@ -2,6 +2,7 @@
 
 import { ScrollArea as ScrollAreaPrimitive } from "radix-ui";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
+import { cn } from "@/lib/utils";
 
 const MESSAGE_COUNT = 20;
 
@@ -12,11 +13,11 @@ const ScrollBar = ({
 }) => (
   <ScrollAreaPrimitive.ScrollAreaScrollbar
     orientation={orientation}
-    className={`flex touch-none select-none p-px transition-colors ${
-      orientation === "vertical"
-        ? "h-full w-2.5 border-l border-l-transparent"
-        : "h-2.5 flex-col border-t border-t-transparent"
-    }`}
+    className={cn("flex touch-none select-none p-px transition-colors", {
+      "h-full w-2.5 border-l border-l-transparent": orientation === "vertical",
+      "h-2.5 flex-col border-t border-t-transparent":
+        orientation === "horizontal",
+    })}
   >
     <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-border" />
   </ScrollAreaPrimitive.ScrollAreaScrollbar>

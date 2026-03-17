@@ -1,5 +1,26 @@
 # @assistant-ui/react-streamdown
 
+## 0.1.6
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [642bcda]
+  - @assistant-ui/react@0.12.18
+
+## 0.1.5
+
+### Patch Changes
+
+- 613c884: fix(react-streamdown): useMessagePartText provide status
+- Updated dependencies [5ae74fe]
+- Updated dependencies [8ed9d6f]
+  - @assistant-ui/react@0.12.16
+
 ## 0.1.4
 
 ### Patch Changes

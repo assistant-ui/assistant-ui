@@ -14,7 +14,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Floating button that opens an AI assistant chat box.",
     link: "/examples/modal",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/assistant-ui/assistant-modal.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/docs/samples/assistant-modal.tsx",
   },
   {
     title: "Form Filling Co-Pilot",
@@ -39,6 +39,14 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     link: "/examples/claude",
     githubLink:
       "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/claude.tsx",
+  },
+  {
+    title: "Gemini Clone",
+    image: "/screenshot/examples/gemini.png",
+    description: "Customized colors and styles for a Gemini look and feel.",
+    link: "/examples/gemini",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/gemini.tsx",
   },
   {
     title: "Grok Clone",
@@ -101,6 +109,14 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
 ];
 
 const COMMUNITY_EXAMPLES: ExampleItem[] = [
+  {
+    title: "Mastra UI Dojo",
+    image: "/screenshot/examples/mastra-ui-dojo.png",
+    description:
+      "Mastra integrated with AI SDK, Assistant UI, and CopilotKit — compare side-by-side.",
+    link: "https://github.com/mastra-ai/ui-dojo",
+    external: true,
+  },
   {
     title: "Open Canvas",
     image: "/screenshot/open-canvas.png",

@@ -1,4 +1,4 @@
-import type { AppendMessage, ThreadMessage } from "../../types";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type {
   AddToolResultOptions,
   ResumeRunConfig,
@@ -24,7 +24,7 @@ import type {
   ThreadRuntimeCore,
 } from "../../runtime/interfaces/thread-runtime-core";
 import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-core";
-import type { ModelContextProvider } from "../../model-context";
+import type { ModelContextProvider } from "../../model-context/types";
 import {
   ExportedMessageRepository,
   MessageRepository,

@@ -45,9 +45,14 @@ declare module "@assistant-ui/store" {
 
 This is a **type-level** declaration — no runtime code. It tells TypeScript what scopes exist and what shape each one has. Every Store hook uses this for autocomplete and type checking.
 
-Because `ScopeRegistry` uses TypeScript module augmentation, different packages can each register their own scopes. A `@my-org/chat` package can register `thread` and `message`, while `@my-org/analytics` registers `analytics` — and your app can access all of them through the same `useAuiState` and `useAui` hooks.
+Because `ScopeRegistry` uses TypeScript module augmentation, different packages can each register their own scopes. A `@my-org/chat` package can register `thread` and `message`, while `@my-org/analytics` registers `analytics` — and your app can access all of them through the same `useAui` hook.
 
 ## Filling scopes
+
+`useAui` has two modes:
+
+- **`useAui()`** — no arguments. Returns the store from the nearest `AuiProvider`.
+- **`useAui({ ... })`** — with arguments. Takes the store from the nearest `AuiProvider` and extends it by filling the scopes you pass in.
 
 You fill a scope by passing a resource to `useAui`:
 
@@ -59,7 +64,7 @@ const aui = useAui({
 
 Each key matches a name from `ScopeRegistry`. Each value is a Tap resource element that implements the scope's methods.
 
-You don't have to fill every scope at once. Each level of your tree can add its own:
+To make the store available to child components, wrap them in `AuiProvider`:
 
 ```tsx
 const App = () => {
@@ -70,8 +75,15 @@ const App = () => {
     </AuiProvider>
   );
 };
+```
 
+Now any component inside `App` can call `useAui()` (no arguments) to get the store with the `threadList` scope filled.
+
+You don't have to fill every scope at once. Each level of your tree can extend the store with its own scopes:
+
+```tsx
 const ThreadView = () => {
+  // extends the parent store with a thread scope
   const aui = useAui({ thread: ThreadResource() });
   return (
     <AuiProvider value={aui}>
@@ -81,22 +93,13 @@ const ThreadView = () => {
 };
 ```
 
-The inner `AuiProvider` inherits `threadList` from the parent and adds `thread`. Components inside `ThreadView` can access both scopes.
+The `useAui({ thread: ... })` call takes the parent store (which already has `threadList`) and extends it with `thread`. Components inside `ThreadView` can access both scopes.
 
-## Accessing scopes
-
-Any component inside an `AuiProvider` can read from any scope above it:
-
-```tsx
-const MessageList = () => {
-  // read from the thread scope
-  const messages = useAuiState((s) => s.thread.messages);
-
-  // read from the threadList scope (inherited from parent)
-  const threadIds = useAuiState((s) => s.threadList.threadIds);
-
-  // ...
-};
-```
-
-`useAuiState` can select from any scope in a single selector. `useAui()` (with no arguments) returns the current client, giving you access to all scopes' methods.
+<Cards>
+  <Card title="Methods" href="/tap/docs/store/methods">
+    Access scope methods with useAui.
+  </Card>
+  <Card title="State" href="/tap/docs/store/state">
+    Subscribe to state changes with useAuiState.
+  </Card>
+</Cards>

@@ -1,9 +1,9 @@
 "use client";
 
 import { describe, it, expect, beforeEach } from "vitest";
-import type { ChatModelRunResult } from "@assistant-ui/react";
+import type { ChatModelRunResult } from "@assistant-ui/core";
 import { RunAggregator } from "../src/runtime/adapter/run-aggregator";
-import type { AGUIEvent } from "../src/runtime/types";
+import type { AgUiEvent } from "../src/runtime/types";
 
 const makeLogger = () => ({
   debug: () => {},
@@ -27,16 +27,16 @@ describe("RunAggregator", () => {
   it("streams text content", () => {
     const aggregator = createAggregator(false);
 
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AGUIEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
     aggregator.handle({
       type: "TEXT_MESSAGE_CONTENT",
       delta: "Hello",
-    } as AGUIEvent);
+    } as AgUiEvent);
     aggregator.handle({
       type: "TEXT_MESSAGE_CONTENT",
       delta: " world",
-    } as AGUIEvent);
-    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AGUIEvent);
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
     const last = results.at(-1);
     expect(last?.status?.type).toBe("complete");
@@ -48,13 +48,13 @@ describe("RunAggregator", () => {
   it("maps thinking events to reasoning part when enabled", () => {
     const aggregator = createAggregator(true);
 
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AGUIEvent);
-    aggregator.handle({ type: "THINKING_TEXT_MESSAGE_START" } as AGUIEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "THINKING_TEXT_MESSAGE_START" } as AgUiEvent);
     aggregator.handle({
       type: "THINKING_TEXT_MESSAGE_CONTENT",
       delta: "Reasoning...",
-    } as AGUIEvent);
-    aggregator.handle({ type: "THINKING_TEXT_MESSAGE_END" } as AGUIEvent);
+    } as AgUiEvent);
+    aggregator.handle({ type: "THINKING_TEXT_MESSAGE_END" } as AgUiEvent);
 
     const reasoningPart = results.at(-1)?.content?.[0];
     expect(reasoningPart?.type).toBe("reasoning");
@@ -64,11 +64,48 @@ describe("RunAggregator", () => {
   it("ignores thinking events when disabled", () => {
     const aggregator = createAggregator(false);
 
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AGUIEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
     aggregator.handle({
       type: "THINKING_TEXT_MESSAGE_CONTENT",
       delta: "hidden",
-    } as AGUIEvent);
+    } as AgUiEvent);
+
+    const parts = results.at(-1)?.content ?? [];
+    expect(parts.every((part) => part.type !== "reasoning")).toBe(true);
+  });
+
+  it("maps reasoning events to reasoning part when enabled", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "m-reason",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "m-reason",
+      delta: "Reasoning...",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "m-reason",
+    } as AgUiEvent);
+
+    const reasoningPart = results.at(-1)?.content?.[0];
+    expect(reasoningPart?.type).toBe("reasoning");
+    expect((reasoningPart as any).text).toBe("Reasoning...");
+  });
+
+  it("ignores reasoning events when disabled", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "m-reason",
+      delta: "hidden",
+    } as AgUiEvent);
 
     const parts = results.at(-1)?.content ?? [];
     expect(parts.every((part) => part.type !== "reasoning")).toBe(true);
@@ -77,22 +114,22 @@ describe("RunAggregator", () => {
   it("tracks tool call lifecycle", () => {
     const aggregator = createAggregator(false);
 
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AGUIEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_START",
       toolCallId: "tool1",
       toolCallName: "search",
-    } as AGUIEvent);
+    } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_ARGS",
       toolCallId: "tool1",
       delta: '{"query":"test"}',
-    } as AGUIEvent);
+    } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_RESULT",
       toolCallId: "tool1",
       content: '"result"',
-    } as AGUIEvent);
+    } as AgUiEvent);
 
     const last = results.at(-1);
     const toolPart = last?.content?.find((part) => part.type === "tool-call");
@@ -105,18 +142,18 @@ describe("RunAggregator", () => {
   it("sets requires-action status when tool calls lack results at RUN_FINISHED", () => {
     const aggregator = createAggregator(false);
 
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AGUIEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_START",
       toolCallId: "tool1",
       toolCallName: "search",
-    } as AGUIEvent);
+    } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_ARGS",
       toolCallId: "tool1",
       delta: '{"q":"x"}',
-    } as AGUIEvent);
-    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AGUIEvent);
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
     const last = results.at(-1);
     expect(last?.status).toMatchObject({
@@ -128,18 +165,18 @@ describe("RunAggregator", () => {
   it("sets complete status when all tool calls have results at RUN_FINISHED", () => {
     const aggregator = createAggregator(false);
 
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AGUIEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_START",
       toolCallId: "tool1",
       toolCallName: "search",
-    } as AGUIEvent);
+    } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_RESULT",
       toolCallId: "tool1",
       content: '"done"',
-    } as AGUIEvent);
-    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AGUIEvent);
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
     const last = results.at(-1);
     expect(last?.status?.type).toBe("complete");
@@ -148,21 +185,21 @@ describe("RunAggregator", () => {
   it("respects event ordering between tool calls and text", () => {
     const aggregator = createAggregator(false);
 
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AGUIEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_START",
       toolCallId: "tool1",
       toolCallName: "search",
-    } as AGUIEvent);
+    } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_RESULT",
       toolCallId: "tool1",
       content: '"result"',
-    } as AGUIEvent);
+    } as AgUiEvent);
     aggregator.handle({
       type: "TEXT_MESSAGE_CONTENT",
       delta: "Final answer",
-    } as AGUIEvent);
+    } as AgUiEvent);
 
     const last = results.at(-1);
     const types = (last?.content ?? []).map((part) => part.type);
@@ -172,30 +209,30 @@ describe("RunAggregator", () => {
   it("creates additional text parts for subsequent assistant messages", () => {
     const aggregator = createAggregator(false);
 
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AGUIEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
     aggregator.handle({
       type: "TEXT_MESSAGE_START",
       messageId: "m1",
-    } as AGUIEvent);
+    } as AgUiEvent);
     aggregator.handle({
       type: "TEXT_MESSAGE_CONTENT",
       messageId: "m1",
       delta: "First",
-    } as AGUIEvent);
+    } as AgUiEvent);
     aggregator.handle({
       type: "TEXT_MESSAGE_END",
       messageId: "m1",
-    } as AGUIEvent);
+    } as AgUiEvent);
     aggregator.handle({
       type: "TEXT_MESSAGE_START",
       messageId: "m2",
-    } as AGUIEvent);
+    } as AgUiEvent);
     aggregator.handle({
       type: "TEXT_MESSAGE_CONTENT",
       messageId: "m2",
       delta: "Second",
-    } as AGUIEvent);
-    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AGUIEvent);
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
     const last = results.at(-1);
     const textParts = (last?.content ?? []).filter(
@@ -209,8 +246,8 @@ describe("RunAggregator", () => {
   it("marks status as cancelled", () => {
     const aggregator = createAggregator(false);
 
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AGUIEvent);
-    aggregator.handle({ type: "RUN_CANCELLED" } as AGUIEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "RUN_CANCELLED" } as AgUiEvent);
 
     const last = results.at(-1);
     expect(last?.status).toMatchObject({
@@ -222,22 +259,22 @@ describe("RunAggregator", () => {
   it("parses tool call args into an object once JSON becomes valid", () => {
     const aggregator = createAggregator(false);
 
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AGUIEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_START",
       toolCallId: "tool1",
       toolCallName: "search",
-    } as AGUIEvent);
+    } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_ARGS",
       toolCallId: "tool1",
       delta: '{"query":',
-    } as AGUIEvent);
+    } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_ARGS",
       toolCallId: "tool1",
       delta: '"pizza"}',
-    } as AGUIEvent);
+    } as AgUiEvent);
 
     const last = results.at(-1);
     const toolPart = last?.content?.find(
@@ -251,16 +288,16 @@ describe("RunAggregator", () => {
   it("positions reasoning content before text when thinking is shown", () => {
     const aggregator = createAggregator(true);
 
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AGUIEvent);
-    aggregator.handle({ type: "THINKING_TEXT_MESSAGE_START" } as AGUIEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "THINKING_TEXT_MESSAGE_START" } as AgUiEvent);
     aggregator.handle({
       type: "THINKING_TEXT_MESSAGE_CONTENT",
       delta: "Reasoning first",
-    } as AGUIEvent);
+    } as AgUiEvent);
     aggregator.handle({
       type: "TEXT_MESSAGE_CONTENT",
       delta: "Then answer",
-    } as AGUIEvent);
+    } as AgUiEvent);
 
     const last = results.at(-1);
     const types = (last?.content ?? []).map((part) => part.type);
@@ -272,8 +309,8 @@ describe("RunAggregator", () => {
   it("marks run errors with reason and message", () => {
     const aggregator = createAggregator(false);
 
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AGUIEvent);
-    aggregator.handle({ type: "RUN_ERROR", message: "boom" } as AGUIEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "RUN_ERROR", message: "boom" } as AgUiEvent);
 
     const last = results.at(-1);
     expect(last?.status).toMatchObject({
@@ -286,13 +323,13 @@ describe("RunAggregator", () => {
   it("parses tool call results and defaults metadata", () => {
     const aggregator = createAggregator(false);
 
-    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AGUIEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_RESULT",
       toolCallId: "tool1",
       content: '{"ok":true}',
       role: "tool",
-    } as AGUIEvent);
+    } as AgUiEvent);
 
     const last = results.at(-1);
     const toolPart = last?.content?.find(

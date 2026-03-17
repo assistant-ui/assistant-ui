@@ -215,8 +215,7 @@ function ensureServerPostinstall(targetDir: string): void {
   fs.mkdirSync(path.dirname(scriptPath), { recursive: true });
   fs.writeFileSync(
     scriptPath,
-    `/* eslint-disable */\n` +
-      `const { spawnSync } = require("node:child_process");\n` +
+    `const { spawnSync } = require("node:child_process");\n` +
       `const { existsSync } = require("node:fs");\n` +
       `const { join } = require("node:path");\n\n` +
       `const ROOT = process.cwd();\n` +

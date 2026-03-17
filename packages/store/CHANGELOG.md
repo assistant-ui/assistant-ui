@@ -1,5 +1,21 @@
 # @assistant-ui/store
 
+## 0.2.3
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- Updated dependencies [349f3c7]
+  - @assistant-ui/tap@0.5.3
+
+## 0.2.2
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+- Updated dependencies [a845911]
+  - @assistant-ui/tap@0.5.2
+
 ## 0.2.1
 
 ### Patch Changes
