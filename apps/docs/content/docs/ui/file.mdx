@@ -29,11 +29,12 @@ import { File } from "@/components/assistant-ui/file";
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="...">
-      <MessagePrimitive.Parts
-        components={{
-          File,
+      <MessagePrimitive.Parts>
+        {({ part }) => {
+          if (part.type === "file") return <File {...part} />;
+          return null;
         }}
-      />
+      </MessagePrimitive.Parts>
     </MessagePrimitive.Root>
   );
 };

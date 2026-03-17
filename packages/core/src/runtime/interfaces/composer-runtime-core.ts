@@ -1,11 +1,8 @@
-import type {
-  MessageRole,
-  RunConfig,
-  QuoteInfo,
-  Attachment,
-  CreateAttachment,
-  Unsubscribe,
-} from "../../types";
+import type { MessageRole } from "../../types/message";
+import type { QuoteInfo } from "../../types/quote";
+import type { Attachment, CreateAttachment } from "../../types/attachment";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { RunConfig } from "../../types/message";
 import type { DictationAdapter } from "../../adapters/speech";
 
 export type ComposerRuntimeEventType = "send" | "attachmentAdd";

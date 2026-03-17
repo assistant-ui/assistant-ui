@@ -1,5 +1,5 @@
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
-import { BaseSubscribable } from "../../subscribable";
+import { BaseSubscribable } from "../../subscribable/subscribable";
 import type { LocalThreadRuntimeCore } from "./local-thread-runtime-core";
 
 export type LocalThreadFactory = () => LocalThreadRuntimeCore;

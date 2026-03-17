@@ -10,7 +10,7 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 import type {
   ToolCallMessagePartProps,
   DataMessagePartProps,
-} from "../../types";
+} from "@assistant-ui/core/react";
 
 type MessageContentPart = ThreadUserMessagePart | ThreadAssistantMessagePart;
 

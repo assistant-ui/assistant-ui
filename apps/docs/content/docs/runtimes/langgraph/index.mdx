@@ -57,7 +57,7 @@ NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=your_graph_id
   subset of endpoints that you need and perform authorization checks.
 </Callout>
 
-```tsx twoslash title="@/api/api/[...path]/route.ts"
+```tsx twoslash title="@/app/api/[...path]/route.ts"
 import { NextRequest, NextResponse } from "next/server";
 
 function getCorsHeaders() {
@@ -143,7 +143,7 @@ export const OPTIONS = () =>
 
 // ---cut---
 import { Client, type ThreadState } from "@langchain/langgraph-sdk";
-import { LangChainMessage, LangGraphSendMessageConfig } from "@assistant-ui/react-langgraph";
+import { LangChainMessage, LangGraphCommand } from "@assistant-ui/react-langgraph";
 
 const createClient = () => {
   const apiUrl = process.env["NEXT_PUBLIC_LANGGRAPH_API_URL"] || "/api";
@@ -166,21 +166,19 @@ export const getThreadState = async (
 
 export const sendMessage = async (params: {
   threadId: string;
-  messages: LangChainMessage[];
-  config?: LangGraphSendMessageConfig;
+  messages?: LangChainMessage[];
+  command?: LangGraphCommand;
 }) => {
   const client = createClient();
-  const { checkpointId, ...restConfig } = params.config ?? {};
   return client.runs.stream(
     params.threadId,
     process.env["NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID"]!,
     {
-      input: params.messages.length > 0
+      input: params.messages?.length
         ? { messages: params.messages }
         : null,
-      streamMode: "messages-tuple",
-      ...(checkpointId && { checkpoint_id: checkpointId }),
-      ...restConfig,
+      command: params.command,
+      streamMode: ["messages", "updates"],
     },
   );
 };
@@ -206,14 +204,17 @@ import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 
 export function MyAssistant() {
   const runtime = useLangGraphRuntime({
-    stream: async (messages, { initialize, ...config }) => {
+    stream: async function* (messages, { initialize, command }) {
       const { externalId } = await initialize();
       if (!externalId) throw new Error("Thread not found");
-      return sendMessage({
+
+      const generator = await sendMessage({
         threadId: externalId,
         messages,
-        config
+        command,
       });
+
+      yield* generator;
     },
     create: async () => {
       const { thread_id } = await createThread();
@@ -329,6 +330,7 @@ const runtime = useLangGraphRuntime({
       // Fired when an "updates" event is received
     },
     onMetadata: (metadata) => { /* thread metadata */ },
+    onInfo: (info) => { /* informational messages */ },
     onError: (error) => { /* stream errors */ },
     onCustomEvent: (type, data) => { /* custom events */ },
   },
@@ -386,6 +388,7 @@ For persistent thread history across sessions, integrate with assistant-cloud:
 const runtime = useLangGraphRuntime({
   cloud: new AssistantCloud({
     baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL,
+    anonymous: true,
   }),
   // ... stream, create, load functions
 });

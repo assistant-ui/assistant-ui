@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "../../types";
+import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ExternalStoreThreadRuntimeCore } from "./external-store-thread-runtime-core";
 import type {
   ThreadListItemCoreState,

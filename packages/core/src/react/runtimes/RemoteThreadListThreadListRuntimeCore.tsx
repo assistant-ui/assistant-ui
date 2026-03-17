@@ -1,6 +1,6 @@
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
 import { generateId } from "../../utils/id";
-import { BaseSubscribable } from "../../subscribable";
+import { BaseSubscribable } from "../../subscribable/subscribable";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
 import type {

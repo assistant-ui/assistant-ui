@@ -30,13 +30,18 @@ assistant-ui organizes state into **scopes** - logical boundaries that provide a
     └── 💬 Thread (thread) - Active conversation with messages
         ├── 🔵 Message (message) - User or assistant message
         │   ├── 📝 Part (part) - Content within a message (text, tool calls, etc.)
+        │   ├── 🧠 ChainOfThought (chainOfThought) - Reasoning steps within a message
+        │   │   └── 📝 Part (part) - Individual reasoning/tool-call step
         │   ├── 📎 Attachment (attachment) - Files attached to messages
         │   └── ✏️  Composer (composer) - Edit mode for existing messages
         │       └── 📎 Attachment (attachment) - Files in edit mode
         └── ✏️  Composer (composer) - New message input
             └── 📎 Attachment (attachment) - Files being added
 
+💡 Suggestions (suggestions) - Follow-up message suggestions
+    └── 💬 Suggestion (suggestion) - Individual suggestion item
 🔧 Tools (tools) - Custom UI components for tool calls
+🧩 ModelContext (modelContext) - Model context and tool registration
 ```
 
 **How scopes work:**
@@ -169,8 +174,8 @@ aui.thread().startRun(config);
 aui.thread().resumeRun(config);
 aui.thread().cancelRun();
 aui.thread().getState();
-aui.thread().getMessageByIndex(idx);
-aui.thread().getMessageById(messageId);
+aui.thread().message({ index: idx });
+aui.thread().message({ id: messageId });
 aui.thread().composer();
 
 // Message actions
@@ -180,12 +185,13 @@ aui.message().stopSpeaking();
 aui.message().submitFeedback({ type: "positive" | "negative" });
 aui.message().switchToBranch({ position, branchId });
 aui.message().getState();
-aui.message().getMessagePartByIndex(idx);
-aui.message().getMessagePartByToolCallId(toolCallId);
+aui.message().part({ index: idx });
+aui.message().part({ toolCallId });
 aui.message().composer();
 
 // Part actions
 aui.part().addToolResult(result);
+aui.part().resumeToolCall(result);
 aui.part().getState();
 
 // Composer actions
@@ -194,8 +200,8 @@ aui.composer().setText(text);
 aui.composer().setRole(role);
 aui.composer().addAttachment(file); // File object
 aui.composer().addAttachment({ name, content }); // external source
-aui.composer().clearAttachments();
-aui.composer().reset();
+await aui.composer().clearAttachments();
+await aui.composer().reset();
 aui.composer().getState();
 
 // Attachment actions
@@ -214,6 +220,22 @@ aui.threadListItem().archive();
 aui.threadListItem().unarchive();
 aui.threadListItem().delete();
 aui.threadListItem().getState();
+
+// Suggestions actions
+aui.suggestions().getState();
+aui.suggestions().suggestion({ index: 0 });
+
+// Suggestion actions
+aui.suggestion().getState();
+
+// ChainOfThought actions
+aui.chainOfThought().getState();
+aui.chainOfThought().setCollapsed(collapsed);
+aui.chainOfThought().part({ index: 0 });
+
+// ModelContext actions
+aui.modelContext().getState();
+aui.modelContext().register(provider);
 
 // Tools actions
 aui.tools().setToolUI(toolName, render);
@@ -276,9 +298,13 @@ Each scope provides access to specific state and actions:
 - **Thread** (`thread`): Conversation with messages
 - **Message** (`message`): Individual message (user or assistant)
 - **Part** (`part`): Content part within a message (text, tool calls, etc.)
+- **ChainOfThought** (`chainOfThought`): Reasoning steps grouped within a message
 - **Composer** (`composer`): Text input for sending or editing messages
 - **Attachment** (`attachment`): File or media attached to a message or composer
+- **Suggestions** (`suggestions`): Collection of follow-up message suggestions
+- **Suggestion** (`suggestion`): Individual follow-up suggestion
 - **Tools** (`tools`): Tool UI components
+- **ModelContext** (`modelContext`): Model context and tool registration
 
 ### Scope Resolution
 
@@ -319,19 +345,19 @@ Navigate through the scope hierarchy programmatically:
 const aui = useAui();
 
 // Access specific message by ID or index
-const messageById = aui.thread().getMessageById("msg_123");
-const messageByIndex = aui.thread().getMessageByIndex(0);
+const messageById = aui.thread().message({ id: "msg_123" });
+const messageByIndex = aui.thread().message({ index: 0 });
 
 // Access part by index or tool call ID
-const partByIndex = aui.message().getMessagePartByIndex(0);
-const partByToolCall = aui.message().getMessagePartByToolCallId("call_123");
+const partByIndex = aui.message().part({ index: 0 });
+const partByToolCall = aui.message().part({ toolCallId: "call_123" });
 
 // Access attachment by index
-const attachment = aui.composer().getAttachmentByIndex(0).getState();
+const attachment = aui.composer().attachment({ index: 0 }).getState();
 
 // Access thread list item by ID or index
-const threadItem = aui.threads().getItemById("thread_123");
-const threadByIndex = aui.threads().getItemByIndex(0);
+const threadItem = aui.threads().item({ id: "thread_123" });
+const threadByIndex = aui.threads().item({ index: 0 });
 ```
 
 ## Common Patterns
@@ -354,7 +380,7 @@ function CopyButton() {
   const aui = useAui();
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(aui.message().unstable_getCopyText());
+    navigator.clipboard.writeText(aui.message().getCopyText());
   };
 
   return <button onClick={handleCopy}>Copy</button>;
@@ -462,27 +488,35 @@ const isRunning = useAuiState((s) => s.thread.isRunning);
 
 ### Scope States
 
-| Scope          | Key State Properties                                                              | Description                                      |
-| -------------- | --------------------------------------------------------------------------------- | ------------------------------------------------ |
-| ThreadList     | `mainThreadId`, `threadIds`, `isLoading`, `threadItems`                           | Manages all available conversation threads       |
-| ThreadListItem | `id`, `title`, `status`, `remoteId`, `externalId`                                 | Individual thread metadata and status            |
-| Thread         | `isRunning`, `isLoading`, `isDisabled`, `messages`, `capabilities`, `suggestions` | Active conversation state and message history    |
-| Message        | `role`, `content`, `status`, `attachments`, `parentId`, `branchNumber`, `isLast`  | Individual message content and metadata          |
-| Composer       | `text`, `role`, `attachments`, `isEmpty`, `canCancel`, `type`, `isEditing`        | Text input state for new/edited messages         |
-| Part           | `type`, `status`, `text`, `toolCallId`, `toolName`                                | Content parts within messages (text, tool calls) |
-| Attachment     | `id`, `type`, `name`, `contentType`, `status`                                     | File attachments metadata and content            |
+| Scope          | Key State Properties                                                                             | Description                                        |
+| -------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| ThreadList     | `mainThreadId`, `newThreadId`, `threadIds`, `archivedThreadIds`, `isLoading`, `threadItems`     | Manages all available conversation threads         |
+| ThreadListItem | `id`, `title`, `status`, `remoteId`, `externalId`                                               | Individual thread metadata and status              |
+| Thread         | `isRunning`, `isLoading`, `isDisabled`, `isEmpty`, `messages`, `capabilities`, `suggestions`    | Active conversation state and message history      |
+| Message        | `role`, `content`, `status`, `attachments`, `parts`, `parentId`, `branchNumber`, `branchCount`, `isLast`, `index` | Individual message content and metadata |
+| Part           | `type`, `status`, `text`, `toolCallId`, `toolName`                                              | Content parts within messages (text, tool calls)   |
+| ChainOfThought | `parts`, `collapsed`, `status`                                                                   | Reasoning steps grouped within a message           |
+| Composer       | `text`, `role`, `attachments`, `isEmpty`, `canCancel`, `type`, `isEditing`                      | Text input state for new/edited messages           |
+| Attachment     | `id`, `type`, `name`, `contentType`, `status`                                                   | File attachments metadata and content              |
+| Suggestions    | `suggestions`                                                                                    | Collection of follow-up message suggestions        |
+| Suggestion     | `title`, `label`, `prompt`                                                                       | Individual suggestion with title, label, and prompt |
+| ModelContext   | *(empty — use `register()` / `getToolCallParams()` methods)*                                     | Model context and tool registration                |
 
 ### Available Actions by Scope
 
-| Scope          | Actions                                                                   | Use Cases                                 |
-| -------------- | ------------------------------------------------------------------------- | ----------------------------------------- |
-| ThreadList     | `switchToNewThread()`, `switchToThread(id)`, `getState()`                 | Thread navigation and creation            |
-| ThreadListItem | `switchTo()`, `rename(title)`, `archive()`, `unarchive()`, `delete()`     | Thread management operations              |
-| Thread         | `append(message)`, `startRun()`, `resumeRun()`, `cancelRun()`             | Message handling and conversation control |
-| Message        | `reload()`, `speak()`, `stopSpeaking()`, `submitFeedback(feedback)`       | Message interactions and regeneration     |
-| Composer       | `send()`, `setText(text)`, `addAttachment(file \| attachment)`, `reset()` | Text input and message composition        |
-| Part           | `addToolResult(result)`, `getState()`                                     | Tool call result handling                 |
-| Attachment     | `remove()`, `getState()`                                                  | File management                           |
+| Scope          | Actions                                                                                                           | Use Cases                                  |
+| -------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| ThreadList     | `switchToNewThread()`, `switchToThread(id)`, `item(selector)`, `thread("main")`, `getState()`                    | Thread navigation and creation             |
+| ThreadListItem | `switchTo()`, `rename(title)`, `archive()`, `unarchive()`, `delete()`, `getState()`                              | Thread management operations               |
+| Thread         | `append(message)`, `startRun(config)`, `resumeRun(config)`, `cancelRun()`, `reset()`, `export()`, `import(repository)`, `message(selector)`, `composer()`, `getState()` | Message handling and conversation control |
+| Message        | `reload()`, `speak()`, `stopSpeaking()`, `submitFeedback(feedback)`, `switchToBranch(options)`, `getCopyText()`, `part(selector)`, `attachment(selector)`, `composer()`, `setIsCopied(value)`, `setIsHovering(value)`, `getState()` | Message interactions and regeneration |
+| Part           | `addToolResult(result)`, `resumeToolCall(result)`, `getState()`                                                   | Tool call result handling                  |
+| ChainOfThought | `setCollapsed(collapsed)`, `part({ index })`, `getState()`                                                        | Expand/collapse reasoning steps            |
+| Composer       | `send()`, `setText(text)`, `setRole(role)`, `addAttachment(file \| attachment)`, `clearAttachments()` (async), `reset()` (async), `getState()` | Text input and message composition |
+| Attachment     | `remove()`, `getState()`                                                                                          | File management                            |
+| Suggestions    | `suggestion({ index })`, `getState()`                                                                             | Access follow-up suggestions               |
+| Suggestion     | `getState()`                                                                                                      | Read individual suggestion data            |
+| ModelContext   | `register(provider)`, `getState()`                                                                                | Register model context providers           |
 
 ### Common Events
 

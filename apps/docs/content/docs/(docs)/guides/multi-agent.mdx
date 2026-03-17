@@ -35,12 +35,12 @@ const ResearchAgentToolUI = makeAssistantToolUI({
       <div className="mb-2 text-sm font-medium text-gray-500">
         Researcher Agent {status.type === "running" && "(working...)"}
       </div>
-      <MessagePartPrimitive.Messages
-        components={{
-          UserMessage: MyUserMessage,
-          AssistantMessage: MyAssistantMessage,
+      <MessagePartPrimitive.Messages>
+        {({ message }) => {
+          if (message.role === "user") return <MyUserMessage />;
+          return <MyAssistantMessage />;
         }}
-      />
+      </MessagePartPrimitive.Messages>
     </div>
   ),
 });
@@ -105,35 +105,32 @@ const OuterAgentToolUI = makeAssistantToolUI({
   render: () => (
     <div className="rounded border p-3">
       <h4>Planner Agent</h4>
-      <MessagePartPrimitive.Messages
-        components={{
-          AssistantMessage: () => (
-            <MessagePrimitive.Parts
-              components={{
-                Text: MyText,
-                tools: {
-                  by_name: {
-                    invoke_researcher: () => (
-                      <div className="ml-4 rounded border p-3">
-                        <h5>Researcher Agent</h5>
-                        {/* Nested sub-agent renders recursively */}
-                        <MessagePartPrimitive.Messages
-                          components={{
-                            UserMessage: MyUserMessage,
-                            AssistantMessage: MyAssistantMessage,
-                          }}
-                        />
-                      </div>
-                    ),
-                  },
-                  Fallback: MyToolFallback,
-                },
+      <MessagePartPrimitive.Messages>
+        {({ message }) => {
+          if (message.role === "user") return <MyUserMessage />;
+          return (
+            <MessagePrimitive.Parts>
+              {({ part }) => {
+                if (part.type === "text") return <MyText />;
+                if (part.type === "tool-call" && part.toolName === "invoke_researcher") return (
+                  <div className="ml-4 rounded border p-3">
+                    <h5>Researcher Agent</h5>
+                    {/* Nested sub-agent renders recursively */}
+                    <MessagePartPrimitive.Messages>
+                      {({ message }) => {
+                        if (message.role === "user") return <MyUserMessage />;
+                        return <MyAssistantMessage />;
+                      }}
+                    </MessagePartPrimitive.Messages>
+                  </div>
+                );
+                if (part.type === "tool-call") return <MyToolFallback {...part} />;
+                return null;
               }}
-            />
-          ),
-          UserMessage: MyUserMessage,
+            </MessagePrimitive.Parts>
+          );
         }}
-      />
+      </MessagePartPrimitive.Messages>
     </div>
   ),
 });
@@ -157,12 +154,12 @@ function SubConversation({
 }) {
   return (
     <ReadonlyThreadProvider messages={messages}>
-      <ThreadPrimitive.Messages
-        components={{
-          UserMessage: MyUserMessage,
-          AssistantMessage: MyAssistantMessage,
+      <ThreadPrimitive.Messages>
+        {({ message }) => {
+          if (message.role === "user") return <MyUserMessage />;
+          return <MyAssistantMessage />;
         }}
-      />
+      </ThreadPrimitive.Messages>
     </ReadonlyThreadProvider>
   );
 }

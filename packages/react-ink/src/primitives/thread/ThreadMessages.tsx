@@ -1,7 +1,7 @@
-import { type ComponentType, type FC, memo } from "react";
+import { type ComponentType, type FC, type ReactNode, useMemo } from "react";
 import { Box } from "ink";
 import type { ThreadMessage } from "@assistant-ui/core";
-import { useAuiState } from "@assistant-ui/store";
+import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import { MessageByIndexProvider } from "@assistant-ui/core/react";
 
 type MessageComponents =
@@ -26,9 +26,15 @@ type MessageComponents =
       SystemMessage?: ComponentType | undefined;
     };
 
-export type ThreadMessagesProps = {
-  components: MessageComponents;
-};
+export type ThreadMessagesProps =
+  | {
+      components: MessageComponents;
+      children?: never;
+    }
+  | {
+      children: (value: { message: ThreadMessage }) => ReactNode;
+      components?: never;
+    };
 
 const DEFAULT_SYSTEM_MESSAGE = () => null;
 
@@ -95,44 +101,47 @@ const ThreadMessageComponent: FC<{ components: MessageComponents }> = ({
   return <Component />;
 };
 
-const isComponentsSame = (prev: MessageComponents, next: MessageComponents) => {
-  return (
-    prev.Message === next.Message &&
-    prev.EditComposer === next.EditComposer &&
-    prev.UserEditComposer === next.UserEditComposer &&
-    prev.AssistantEditComposer === next.AssistantEditComposer &&
-    prev.SystemEditComposer === next.SystemEditComposer &&
-    prev.UserMessage === next.UserMessage &&
-    prev.AssistantMessage === next.AssistantMessage &&
-    prev.SystemMessage === next.SystemMessage
-  );
-};
-
-const ThreadMessageByIndex = memo(
-  ({ index, components }: { index: number; components: MessageComponents }) => {
-    return (
-      <MessageByIndexProvider index={index}>
-        <ThreadMessageComponent components={components} />
-      </MessageByIndexProvider>
-    );
-  },
-  (prev, next) =>
-    prev.index === next.index &&
-    isComponentsSame(prev.components, next.components),
-);
-
-export const ThreadMessages = ({ components }: ThreadMessagesProps) => {
+const ThreadMessagesInner: FC<{
+  children: (value: { message: ThreadMessage }) => ReactNode;
+}> = ({ children }) => {
   const messagesLength = useAuiState((s) => s.thread.messages.length);
 
+  return useMemo(() => {
+    if (messagesLength === 0) return null;
+    return Array.from({ length: messagesLength }, (_, index) => (
+      <MessageByIndexProvider key={index} index={index}>
+        <RenderChildrenWithAccessor
+          getItemState={(aui) => aui.thread().message({ index }).getState()}
+        >
+          {(getItem) =>
+            children({
+              get message() {
+                return getItem();
+              },
+            })
+          }
+        </RenderChildrenWithAccessor>
+      </MessageByIndexProvider>
+    ));
+  }, [messagesLength, children]);
+};
+
+export const ThreadMessages: FC<ThreadMessagesProps> = ({
+  components,
+  children,
+}) => {
+  if (components) {
+    return (
+      <Box flexDirection="column">
+        <ThreadMessagesInner>
+          {() => <ThreadMessageComponent components={components} />}
+        </ThreadMessagesInner>
+      </Box>
+    );
+  }
   return (
     <Box flexDirection="column">
-      {Array.from({ length: messagesLength }, (_, index) => (
-        <ThreadMessageByIndex
-          key={index}
-          index={index}
-          components={components}
-        />
-      ))}
+      <ThreadMessagesInner>{children}</ThreadMessagesInner>
     </Box>
   );
 };

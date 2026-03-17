@@ -1,5 +1,15 @@
 # assistant-ui
 
+## 0.0.84
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- dbb2929: Improve CLI project creation error handling and transform sequencing in
+  `assistant-ui`.
+- Updated dependencies [349f3c7]
+  - @assistant-ui/agent-launcher@0.1.1
+
 ## 0.0.83
 
 ### Patch Changes

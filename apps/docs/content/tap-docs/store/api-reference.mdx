@@ -68,6 +68,31 @@ Provides an `AssistantClient` to the React tree. Child components can access it 
 
 Renders children only when the condition returns `true`. Uses `useAuiState` internally.
 
+### RenderChildrenWithAccessor
+
+```tsx
+<RenderChildrenWithAccessor
+  getItemState={(aui) => aui.todoList().todo({ index }).getState()}
+>
+  {(getItem) =>
+    children({
+      get todo() {
+        return getItem();
+      },
+    })
+  }
+</RenderChildrenWithAccessor>
+```
+
+Sets up a lazy item accessor for list rendering. The `getItem` function defers reading state until the consumer accesses it — if the children render function never reads the item, no subscription is created. When children returns a propless component (e.g. `{() => <Todo />}`), the output is automatically memoized.
+
+| Prop | Type |
+|------|------|
+| `getItemState` | `(aui: AssistantClient) => T` |
+| `children` | `(getItem: () => T) => ReactNode` |
+
+See [Rendering Lists](/tap-docs/store/rendering-lists) for the full pattern.
+
 ---
 
 ## Resource utilities
@@ -232,7 +257,7 @@ declare module "@assistant-ui/store" {
 ### ClientOutput
 
 ```ts
-type ClientOutput<K extends ClientNames> = ClientSchemas[K]["methods"];
+type ClientOutput<K extends ClientNames> = ClientSchemas[K]["methods"] & ClientMethods;
 ```
 
 The return type for a resource implementing scope `K`. Use as the return type annotation on your resource function.

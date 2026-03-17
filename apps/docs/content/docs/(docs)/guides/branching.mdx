@@ -48,13 +48,18 @@ const BranchPicker = () => {
 
 ## API
 
-You can access the current branch state or navigate via the API as well.  
-These APIs rely on the message state and may only be called inside a message component.
+You can access the current branch state or navigate via the API as well.
+These APIs rely on the message scope and may only be called inside a message component.
 
 ```tsx
-const hasBranches = useMessageIf({ hasBranches: true }); // whether branchCount is >= 2
+import { useAui, useAuiState } from "@assistant-ui/react";
+
+// read branch state
+const { branchNumber, branchCount } = useAuiState((s) => s.message);
 
 // navigation
-const goToNextBranch = useGoToNextBranch(); // null if there is no next branch
-const goToPreviousBranch = useGoToPreviousBranch(); // null if there is no previous branch
+const aui = useAui();
+aui.message().switchToBranch({ position: "next" });
+aui.message().switchToBranch({ position: "previous" });
+aui.message().switchToBranch({ branchId: "some-id" });
 ```

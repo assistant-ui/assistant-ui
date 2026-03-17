@@ -68,10 +68,10 @@ const langGraphClient = new Client({
 
 export default function StockbrokerChat() {
   const runtime = useLangGraphRuntime({
-    threadId,
-    stream: async (messages, { abortSignal }) => {
+    stream: async (messages, { abortSignal, initialize }) => {
+      const { remoteId } = await initialize();
       return langGraphClient.runs.stream(
-        threadId,
+        remoteId,
         "stockbroker-assistant",
         {
           input: { messages },
@@ -80,9 +80,9 @@ export default function StockbrokerChat() {
         { signal: abortSignal }
       );
     },
-    onSwitchToNewThread: async () => {
+    create: async () => {
       const { thread_id } = await langGraphClient.threads.create();
-      return thread_id;
+      return { externalId: thread_id };
     },
   });
 
@@ -100,7 +100,7 @@ In your LangGraph workflow, define an interrupt point:
 
 ```python
 from langgraph.graph import StateGraph
-from langgraph.checkpoint import MemorySaver
+from langgraph.checkpoint.memory import MemorySaver
 
 def prepare_trade(state):
     # Prepare trade details
@@ -117,7 +117,7 @@ graph.add_node("execute", execute_trade)
 
 # Interrupt before execute for human approval
 graph.add_edge("prepare", "execute")
-graph.set_interrupt_before(["execute"])
+app = graph.compile(interrupt_before=["execute"], checkpointer=MemorySaver())
 ```
 
 ### Approval UI Component
@@ -126,7 +126,7 @@ graph.set_interrupt_before(["execute"])
 const TradeApproval = makeAssistantToolUI({
   toolName: "execute_trade",
   render: ({ args, status, addResult }) => {
-    if (status === "requires_action") {
+    if (status.type === "requires-action") {
       return (
         <div className="rounded-lg border p-4">
           <h3>Trade Approval Required</h3>

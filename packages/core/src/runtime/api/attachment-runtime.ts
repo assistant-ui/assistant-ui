@@ -1,4 +1,5 @@
-import type { Attachment, CompleteAttachment, Unsubscribe } from "../../types";
+import type { Attachment, CompleteAttachment } from "../../types/attachment";
+import type { Unsubscribe } from "../../types/unsubscribe";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
 
 import type { ComposerRuntimeCoreBinding } from "./bindings";

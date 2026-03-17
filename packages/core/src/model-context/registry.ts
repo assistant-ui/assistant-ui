@@ -6,7 +6,7 @@ import {
   AssistantToolProps,
   AssistantInstructionsConfig,
 } from "./types";
-import type { Unsubscribe } from "../types";
+import type { Unsubscribe } from "../types/unsubscribe";
 import {
   ModelContextRegistryToolHandle,
   ModelContextRegistryInstructionHandle,

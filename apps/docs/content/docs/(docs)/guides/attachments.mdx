@@ -157,7 +157,7 @@ class VisionImageAdapter implements AttachmentAdapter {
       type: "image",
       name: file.name,
       file,
-      status: { type: "running" },
+      status: { type: "requires-action", reason: "composer-send" },
     };
   }
 
@@ -224,7 +224,7 @@ class PDFAttachmentAdapter implements AttachmentAdapter {
       type: "document",
       name: file.name,
       file,
-      status: { type: "running" },
+      status: { type: "requires-action", reason: "composer-send" },
     };
   }
 
@@ -360,7 +360,7 @@ class UploadAttachmentAdapter implements AttachmentAdapter {
       type: "file",
       name: file.name,
       file,
-      status: { type: "running", progress: 0 },
+      status: { type: "running", reason: "uploading", progress: 0 },
     } as PendingAttachment;
 
     // Simulate upload progress
@@ -372,7 +372,7 @@ class UploadAttachmentAdapter implements AttachmentAdapter {
         type: "file",
         name: file.name,
         file,
-        status: { type: "running", progress },
+        status: { type: "running", reason: "uploading", progress },
       } as PendingAttachment;
     }
 
@@ -382,7 +382,7 @@ class UploadAttachmentAdapter implements AttachmentAdapter {
       type: "file",
       name: file.name,
       file,
-      status: { type: "running", progress: 100 },
+      status: { type: "running", reason: "uploading", progress: 100 },
     } as PendingAttachment;
   }
 
@@ -436,7 +436,6 @@ class ValidatedImageAdapter implements AttachmentAdapter {
         status: {
           type: "incomplete",
           reason: "error",
-          error: new Error("File size exceeds 5MB limit"),
         },
       };
     }
@@ -456,7 +455,6 @@ class ValidatedImageAdapter implements AttachmentAdapter {
         status: {
           type: "incomplete",
           reason: "error",
-          error,
         },
       };
     }
@@ -467,7 +465,7 @@ class ValidatedImageAdapter implements AttachmentAdapter {
       type: "image",
       name: file.name,
       file,
-      status: { type: "running" },
+      status: { type: "requires-action", reason: "composer-send" },
     };
   }
 
@@ -514,7 +512,7 @@ const handleMultipleFiles = async (files: FileList) => {
   const filesToAdd = Array.from(files).slice(0, maxFiles);
 
   for (const file of filesToAdd) {
-    await aui.composer().addAttachment({ file });
+    await aui.composer().addAttachment(file);
   }
 };
 ```

@@ -1,14 +1,16 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { useHeatGraphContext } from "../context";
 import type { DayLabel } from "../types";
 
 export type DayLabelsProps = {
-  children: (props: { labels: DayLabel[] }) => ReactNode;
+  children: (props: { label: DayLabel }) => ReactNode;
 };
 
 export const DayLabels = ({ children }: DayLabelsProps) => {
   const { dayLabels } = useHeatGraphContext();
-  return children({ labels: dayLabels });
+  return dayLabels.map((label) => (
+    <Fragment key={label.row}>{children({ label })}</Fragment>
+  ));
 };

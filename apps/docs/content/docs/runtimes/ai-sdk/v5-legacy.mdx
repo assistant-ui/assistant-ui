@@ -85,9 +85,7 @@ import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 export default function Home() {
-  const runtime = useChatRuntime({
-    api: "/api/chat",
-  });
+  const runtime = useChatRuntime();
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -99,6 +97,18 @@ export default function Home() {
 }
 ```
 
+<Callout type="info">
+  `useChatRuntime` was introduced in `@assistant-ui/react-ai-sdk@0.11.3`. If you're using an older 0.x version, use `useVercelUseChatRuntime` with `useChat` from `ai/react` instead:
+
+  ```tsx
+  import { useChat } from "ai/react";
+  import { useVercelUseChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+  const chat = useChat({ api: "/api/chat" });
+  const runtime = useVercelUseChatRuntime(chat);
+  ```
+</Callout>
+
   </Step>
 </Steps>
 
@@ -107,6 +117,7 @@ export default function Home() {
 | Feature | v5 | v6 |
 |---------|----|----|
 | **ai package** | `ai@^5` | `ai@^6` |
+| **@assistant-ui/react-ai-sdk** | `@0.x` | `@latest` |
 | **@ai-sdk/openai** | `@ai-sdk/openai@^1` | `@ai-sdk/openai@^3` |
 | **Message type** | `Message` | `UIMessage` |
 | **convertToModelMessages** | Sync | Async (`await`) |

@@ -1,332 +1,238 @@
 /// <reference types="@assistant-ui/core/store" />
-import { useEffect, useRef, useState } from "react";
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  A2AMessage,
-  A2AToolCall,
-  A2AArtifact,
-  A2ATaskState,
-  A2ASendMessageConfig,
-  A2AStreamCallback,
-  OnTaskUpdateEventCallback,
-  OnArtifactsEventCallback,
-  OnErrorEventCallback,
-  OnStateUpdateEventCallback,
-  OnCustomEventCallback,
-} from "./types";
-import {
-  useExternalMessageConverter,
   useExternalStoreRuntime,
+  useRuntimeAdapters,
 } from "@assistant-ui/core/react";
-import { useAui, useAuiState } from "@assistant-ui/store";
-import { convertA2AMessage } from "./convertA2AMessages";
-import { useA2AMessages } from "./useA2AMessages";
-import type { AttachmentAdapter } from "@assistant-ui/core";
-import type { AppendMessage } from "@assistant-ui/core";
-import type { ExternalStoreAdapter } from "@assistant-ui/core";
-import type { FeedbackAdapter } from "@assistant-ui/core";
-import type { SpeechSynthesisAdapter } from "@assistant-ui/core";
-import { appendA2AChunk } from "./appendA2AChunk";
+import type {
+  AssistantRuntime,
+  AppendMessage,
+  AttachmentAdapter,
+  ExternalStoreAdapter,
+  FeedbackAdapter,
+  SpeechSynthesisAdapter,
+  ThreadHistoryAdapter,
+  ThreadMessage,
+} from "@assistant-ui/core";
+import { useAuiState } from "@assistant-ui/store";
+import { A2AClient } from "./A2AClient";
+import type { A2AClientOptions } from "./A2AClient";
+import { A2AThreadRuntimeCore } from "./A2AThreadRuntimeCore";
+import type {
+  A2AArtifact,
+  A2AAgentCard,
+  A2ASendMessageConfiguration,
+  A2ATask,
+} from "./types";
 
-const getPendingToolCalls = (messages: A2AMessage[]) => {
-  const pendingToolCalls = new Map<string, A2AToolCall>();
-  for (const message of messages) {
-    if (message.role === "assistant") {
-      for (const toolCall of message.tool_calls ?? []) {
-        pendingToolCalls.set(toolCall.id, toolCall);
-      }
-    }
-    if (message.role === "tool") {
-      pendingToolCalls.delete(message.tool_call_id!);
-    }
-  }
+// --- Extras symbol for A2A-specific state ---
 
-  return [...pendingToolCalls.values()];
+const symbolA2AExtras = Symbol("a2a-extras");
+
+type A2AExtras = {
+  [symbolA2AExtras]: true;
+  task: A2ATask | undefined;
+  artifacts: readonly A2AArtifact[];
+  agentCard: A2AAgentCard | undefined;
 };
 
-const getMessageContent = (msg: AppendMessage) => {
-  const allContent = [
-    ...msg.content,
-    ...(msg.attachments?.flatMap((a) => a.content) ?? []),
-  ];
-  const content = allContent.map((part) => {
-    const type = part.type;
-    switch (type) {
-      case "text":
-        return { type: "text" as const, text: part.text };
-      case "image":
-        return { type: "image_url" as const, image_url: { url: part.image } };
-
-      case "tool-call":
-        throw new Error("Tool call appends are not supported.");
-
-      default:
-        const _exhaustiveCheck:
-          | "reasoning"
-          | "source"
-          | "file"
-          | "audio"
-          | "data" = type;
-        throw new Error(
-          `Unsupported append message part type: ${_exhaustiveCheck}`,
-        );
-    }
-  });
-
-  if (content.length === 1 && content[0]?.type === "text") {
-    return content[0].text ?? "";
-  }
-
-  return content;
-};
-
-const symbolA2ARuntimeExtras = Symbol("a2a-runtime-extras");
-type A2ARuntimeExtras = {
-  [symbolA2ARuntimeExtras]: true;
-  send: (messages: A2AMessage[], config: A2ASendMessageConfig) => Promise<void>;
-  taskState: A2ATaskState | undefined;
-  artifacts: A2AArtifact[];
-};
-
-const asA2ARuntimeExtras = (extras: unknown): A2ARuntimeExtras => {
+const asA2AExtras = (extras: unknown): A2AExtras => {
   if (
     typeof extras !== "object" ||
     extras == null ||
-    !(symbolA2ARuntimeExtras in extras)
+    !(symbolA2AExtras in extras)
   )
     throw new Error(
-      "This method can only be called when you are using useA2ARuntime",
+      "This hook can only be used inside a useA2ARuntime provider",
     );
-
-  return extras as A2ARuntimeExtras;
+  return extras as A2AExtras;
 };
 
-export const useA2ATaskState = () => {
-  const { taskState } = useAuiState((s) => asA2ARuntimeExtras(s.thread.extras));
-  return taskState;
+// --- Public hooks for A2A state ---
+
+export const useA2ATask = () => {
+  return useAuiState((s) => asA2AExtras(s.thread.extras).task);
 };
 
 export const useA2AArtifacts = () => {
-  const { artifacts } = useAuiState((s) => asA2ARuntimeExtras(s.thread.extras));
-  return artifacts;
+  return useAuiState((s) => asA2AExtras(s.thread.extras).artifacts);
 };
 
-export const useA2ASend = () => {
-  const { send } = useAuiState((s) => asA2ARuntimeExtras(s.thread.extras));
-  return send;
+export const useA2AAgentCard = () => {
+  return useAuiState((s) => asA2AExtras(s.thread.extras).agentCard);
 };
 
-export const useA2ARuntime = ({
-  autoCancelPendingToolCalls,
-  adapters: { attachments, feedback, speech } = {},
-  unstable_allowCancellation,
-  stream,
-  contextId,
-  onSwitchToNewThread,
-  onSwitchToThread,
-  eventHandlers,
-}: {
-  /**
-   * @deprecated For thread management use `useCloudThreadListRuntime` instead. This option will be removed in a future version.
-   */
-  contextId?: string | undefined;
-  autoCancelPendingToolCalls?: boolean | undefined;
-  unstable_allowCancellation?: boolean | undefined;
-  stream: A2AStreamCallback<A2AMessage>;
-  /**
-   * @deprecated For thread management use `useCloudThreadListRuntime` instead. This option will be removed in a future version.
-   */
+// --- Thread list adapter type ---
+
+export type UseA2AThreadListAdapter = {
+  threadId?: string;
   onSwitchToNewThread?: () => Promise<void> | void;
-  onSwitchToThread?: (contextId: string) => Promise<{
-    messages: A2AMessage[];
-    artifacts?: A2AArtifact[];
+  onSwitchToThread?: (threadId: string) => Promise<{
+    messages: readonly ThreadMessage[];
   }>;
-  adapters?:
-    | {
-        attachments?: AttachmentAdapter;
-        speech?: SpeechSynthesisAdapter;
-        feedback?: FeedbackAdapter;
-      }
-    | undefined;
-  /**
-   * Event handlers for various A2A stream events
-   */
-  eventHandlers?:
-    | {
-        /**
-         * Called when task updates are received from the A2A stream
-         */
-        onTaskUpdate?: OnTaskUpdateEventCallback;
-        /**
-         * Called when artifacts are received from the A2A stream
-         */
-        onArtifacts?: OnArtifactsEventCallback;
-        /**
-         * Called when errors occur during A2A stream processing
-         */
-        onError?: OnErrorEventCallback;
-        /**
-         * Called when state updates are received from the A2A stream
-         */
-        onStateUpdate?: OnStateUpdateEventCallback;
-        /**
-         * Called when custom events are received from the A2A stream
-         */
-        onCustomEvent?: OnCustomEventCallback;
-      }
-    | undefined;
-}) => {
-  const {
-    taskState,
-    artifacts,
-    setArtifacts,
-    messages,
-    sendMessage,
-    cancel,
-    setMessages,
-  } = useA2AMessages({
-    appendMessage: appendA2AChunk,
-    stream,
-    ...(eventHandlers && { eventHandlers }),
-  });
-
-  const [isRunning, setIsRunning] = useState(false);
-  const handleSendMessage = async (
-    messages: A2AMessage[],
-    config: A2ASendMessageConfig,
-  ) => {
-    try {
-      setIsRunning(true);
-      await sendMessage(messages, config);
-    } catch (error) {
-      console.error("Error streaming A2A messages:", error);
-    } finally {
-      setIsRunning(false);
-    }
-  };
-
-  const threadMessages = useExternalMessageConverter({
-    callback: convertA2AMessage,
-    messages,
-    isRunning,
-  });
-
-  const switchToThread = !onSwitchToThread
-    ? undefined
-    : async (externalId: string) => {
-        const { messages, artifacts } = await onSwitchToThread(externalId);
-        setMessages(messages);
-        if (artifacts) {
-          setArtifacts(artifacts);
-        }
-      };
-
-  const threadList: NonNullable<
-    ExternalStoreAdapter["adapters"]
-  >["threadList"] = {
-    threadId: contextId,
-    onSwitchToNewThread: !onSwitchToNewThread
-      ? undefined
-      : async () => {
-          await onSwitchToNewThread();
-          setMessages([]);
-          setArtifacts([]);
-        },
-    onSwitchToThread: switchToThread,
-  };
-
-  const loadingRef = useRef(false);
-  const aui = useAui();
-  const externalId = useAuiState(() =>
-    aui.threadListItem.source
-      ? aui.threadListItem().getState().externalId
-      : undefined,
-  );
-  useEffect(() => {
-    if (!externalId || !switchToThread || loadingRef.current) return;
-
-    loadingRef.current = true;
-    switchToThread(externalId).finally(() => {
-      loadingRef.current = false;
-    });
-  }, [switchToThread, externalId]);
-
-  return useExternalStoreRuntime({
-    isRunning,
-    messages: threadMessages,
-    adapters: {
-      attachments,
-      feedback,
-      speech,
-      threadList,
-    },
-    extras: {
-      [symbolA2ARuntimeExtras]: true,
-      taskState,
-      artifacts,
-      send: handleSendMessage,
-    } satisfies A2ARuntimeExtras,
-    onNew: (msg) => {
-      const cancellations =
-        autoCancelPendingToolCalls !== false
-          ? getPendingToolCalls(messages).map(
-              (t) =>
-                ({
-                  role: "tool",
-                  tool_call_id: t.id,
-                  content: JSON.stringify({ cancelled: true }),
-                  status: {
-                    type: "incomplete",
-                    reason: "cancelled",
-                  },
-                }) satisfies A2AMessage & { role: "tool" },
-            )
-          : [];
-
-      const config: A2ASendMessageConfig = {};
-      if (contextId !== undefined) config.contextId = contextId;
-      if (msg.runConfig !== undefined) config.runConfig = msg.runConfig;
-      return handleSendMessage(
-        [
-          ...cancellations,
-          {
-            role: "user",
-            content: getMessageContent(msg),
-          },
-        ],
-        config,
-      );
-    },
-    onAddToolResult: async ({
-      toolCallId,
-      toolName: _toolName,
-      result,
-      isError,
-      artifact,
-    }) => {
-      // TODO parallel human in the loop calls
-      const message: A2AMessage = {
-        role: "tool",
-        tool_call_id: toolCallId,
-        content: JSON.stringify(result),
-        status: isError
-          ? { type: "incomplete", reason: "error" }
-          : { type: "complete", reason: "stop" },
-      };
-      if (artifact) {
-        message.artifacts = [artifact] as A2AArtifact[];
-      }
-      const config: A2ASendMessageConfig = {};
-      if (contextId !== undefined) config.contextId = contextId;
-      await handleSendMessage(
-        [message],
-        // TODO reuse runconfig here!
-        config,
-      );
-    },
-    onCancel: unstable_allowCancellation
-      ? async () => {
-          cancel();
-        }
-      : undefined,
-  });
 };
+
+// --- Options ---
+
+export type UseA2ARuntimeOptions = {
+  /** Pre-built A2A client instance. Provide this OR baseUrl. */
+  client?: A2AClient;
+  /** Base URL of the A2A server. Used to create a client if `client` is not provided. */
+  baseUrl?: string;
+  /** Headers for the A2A client (only used with baseUrl). */
+  headers?: A2AClientOptions["headers"];
+
+  /** Initial context ID for the conversation. */
+  contextId?: string;
+  /** Default send message configuration. */
+  configuration?: A2ASendMessageConfiguration;
+
+  /** Called when an error occurs. */
+  onError?: (error: Error) => void;
+  /** Called when a run is cancelled. */
+  onCancel?: () => void;
+  /** Called when an artifact is fully received (lastChunk). */
+  onArtifactComplete?: (artifact: import("./types").A2AArtifact) => void;
+
+  adapters?: {
+    attachments?: AttachmentAdapter;
+    speech?: SpeechSynthesisAdapter;
+    feedback?: FeedbackAdapter;
+    history?: ThreadHistoryAdapter;
+    threadList?: UseA2AThreadListAdapter;
+  };
+};
+
+// --- Main hook ---
+
+export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
+  const [_version, setVersion] = useState(0);
+  const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
+  const runtimeAdapters = useRuntimeAdapters();
+  const historyAdapter = options.adapters?.history ?? runtimeAdapters?.history;
+  const threadListAdapter = options.adapters?.threadList;
+
+  // Create or reuse client
+  const clientRef = useRef<A2AClient | null>(null);
+  if (!clientRef.current) {
+    if (options.client) {
+      clientRef.current = options.client;
+    } else if (options.baseUrl) {
+      clientRef.current = new A2AClient({
+        baseUrl: options.baseUrl,
+        headers: options.headers,
+      });
+    } else {
+      throw new Error("useA2ARuntime requires either `client` or `baseUrl`");
+    }
+  }
+  const client = clientRef.current;
+
+  // Create or reuse core
+  const coreRef = useRef<A2AThreadRuntimeCore | null>(null);
+  if (!coreRef.current) {
+    coreRef.current = new A2AThreadRuntimeCore({
+      client,
+      contextId: options.contextId,
+      configuration: options.configuration,
+      ...(options.onError && { onError: options.onError }),
+      ...(options.onCancel && { onCancel: options.onCancel }),
+      ...(options.onArtifactComplete && {
+        onArtifactComplete: options.onArtifactComplete,
+      }),
+      ...(historyAdapter && { history: historyAdapter }),
+      notifyUpdate,
+    });
+  }
+
+  const core = coreRef.current;
+  core.updateOptions({
+    client,
+    contextId: options.contextId,
+    configuration: options.configuration,
+    ...(options.onError && { onError: options.onError }),
+    ...(options.onCancel && { onCancel: options.onCancel }),
+    ...(options.onArtifactComplete && {
+      onArtifactComplete: options.onArtifactComplete,
+    }),
+    ...(historyAdapter && { history: historyAdapter }),
+  });
+
+  // Thread list
+  const threadList = useMemo(() => {
+    if (!threadListAdapter) return undefined;
+
+    const { onSwitchToNewThread, onSwitchToThread } = threadListAdapter;
+
+    return {
+      threadId: threadListAdapter.threadId,
+      onSwitchToNewThread: onSwitchToNewThread
+        ? async () => {
+            await onSwitchToNewThread();
+            core.applyExternalMessages([]);
+          }
+        : undefined,
+      onSwitchToThread: onSwitchToThread
+        ? async (threadId: string) => {
+            const result = await onSwitchToThread(threadId);
+            core.applyExternalMessages(result.messages);
+          }
+        : undefined,
+    };
+  }, [threadListAdapter, core]);
+
+  // Adapters
+  const adapters = options.adapters;
+  const adapterAdapters = useMemo(
+    () => ({
+      attachments: adapters?.attachments ?? runtimeAdapters?.attachments,
+      speech: adapters?.speech,
+      feedback: adapters?.feedback,
+      threadList,
+    }),
+    [adapters, runtimeAdapters, threadList],
+  );
+
+  // Build store adapter
+  const store = useMemo(() => {
+    void _version;
+
+    return {
+      isLoading: core.isLoading,
+      messages: core.getMessages(),
+      isRunning: core.isRunning(),
+      extras: {
+        [symbolA2AExtras]: true,
+        task: core.getTask(),
+        artifacts: core.getArtifacts(),
+        agentCard: core.getAgentCard(),
+      } satisfies A2AExtras,
+      onNew: (message: AppendMessage) => core.append(message),
+      onEdit: (message: AppendMessage) => core.edit(message),
+      onReload: (parentId: string | null) => core.reload(parentId),
+      onCancel: () => core.cancel(),
+      setMessages: (messages: readonly ThreadMessage[]) =>
+        core.applyExternalMessages(messages),
+      onImport: (messages: readonly ThreadMessage[]) =>
+        core.applyExternalMessages(messages),
+      adapters: adapterAdapters,
+    } satisfies ExternalStoreAdapter<ThreadMessage>;
+  }, [adapterAdapters, core, _version]);
+
+  const runtime = useExternalStoreRuntime(store);
+
+  useEffect(() => {
+    core.attachRuntime(runtime);
+    return () => {
+      core.detachRuntime();
+    };
+  }, [core, runtime]);
+
+  useEffect(() => {
+    core.__internal_load();
+  }, [core]);
+
+  return runtime;
+}

@@ -167,7 +167,7 @@ graph TD
     } from "@assistant-ui/react";
     import { useState } from "react";
 
-    const convertMessage = (message: ThreadMessageLike) => {
+    const convertMessage = (message: ThreadMessageLike, idx: number) => {
       return message;
     };
 
@@ -265,13 +265,14 @@ For complex scenarios with performance optimization:
 import { useExternalMessageConverter } from "@assistant-ui/react";
 
 const convertedMessages = useExternalMessageConverter({
-  messages,
-  convertMessage: (message: MyMessage): ThreadMessageLike => ({
+  callback: (message: MyMessage): ThreadMessageLike => ({
     role: message.role,
     content: [{ type: "text", text: message.text }],
     id: message.id,
     createdAt: new Date(message.timestamp),
   }),
+  messages,
+  isRunning: false,
   joinStrategy: "concat-content", // Merge adjacent assistant messages
 });
 
@@ -506,7 +507,7 @@ Enable file uploads with the attachment adapter:
 ```tsx
 const attachmentAdapter: AttachmentAdapter = {
   accept: "image/*,application/pdf,.txt,.md",
-  async add(file) {
+  async add({ file }) {
     // Upload file to your server
     const formData = new FormData();
     formData.append("file", file);
@@ -516,13 +517,13 @@ const attachmentAdapter: AttachmentAdapter = {
       body: formData,
     });
 
-    const { id, url } = await response.json();
+    const { id } = await response.json();
     return {
       id,
       type: "document",
       name: file.name,
       file,
-      url,
+      status: { type: "requires-action", reason: "composer-send" },
     };
   },
   async remove(attachment) {
@@ -530,6 +531,14 @@ const attachmentAdapter: AttachmentAdapter = {
     await fetch(`/api/upload/${attachment.id}`, {
       method: "DELETE",
     });
+  },
+  async send(attachment) {
+    // Convert pending attachment to complete attachment when message is sent
+    return {
+      ...attachment,
+      status: { type: "complete" },
+      content: [{ type: "text", text: `File: ${attachment.name}` }],
+    };
   },
 };
 
@@ -599,7 +608,7 @@ function ChatWithThreads() {
   const { currentThreadId, setCurrentThreadId, threads, setThreads } =
     useThreadContext();
   const [threadList, setThreadList] = useState<ExternalStoreThreadData[]>([
-    { threadId: "default", status: "regular", title: "New Chat" },
+    { id: "default", status: "regular", title: "New Chat" },
   ]);
 
   // Get messages for current thread
@@ -615,7 +624,7 @@ function ChatWithThreads() {
       setThreadList((prev) => [
         ...prev,
         {
-          threadId: newId,
+          id: newId,
           status: "regular",
           title: "New Chat",
         },
@@ -631,7 +640,7 @@ function ChatWithThreads() {
     onRename: (threadId, newTitle) => {
       setThreadList((prev) =>
         prev.map((t) =>
-          t.threadId === threadId ? { ...t, title: newTitle } : t,
+          t.id === threadId ? { ...t, title: newTitle } : t,
         ),
       );
     },
@@ -639,13 +648,13 @@ function ChatWithThreads() {
     onArchive: (threadId) => {
       setThreadList((prev) =>
         prev.map((t) =>
-          t.threadId === threadId ? { ...t, status: "archived" } : t,
+          t.id === threadId ? { ...t, status: "archived" } : t,
         ),
       );
     },
 
     onDelete: (threadId) => {
-      setThreadList((prev) => prev.filter((t) => t.threadId !== threadId));
+      setThreadList((prev) => prev.filter((t) => t.id !== threadId));
       setThreads((prev) => {
         const next = new Map(prev);
         next.delete(threadId);
@@ -1074,18 +1083,18 @@ When `isRunning` becomes true, the runtime automatically shows an optimistic ass
 setIsRunning(true);
 
 // Runtime automatically:
-// 1. Shows empty assistant message with "in_progress" status
+// 1. Shows empty assistant message with { type: "running" } status
 // 2. Displays typing indicator
-// 3. Updates status to "complete" when isRunning becomes false
+// 3. Updates status to { type: "complete", reason: "unknown" } when isRunning becomes false
 ```
 
 ### Message Status Management
 
 Assistant messages get automatic status updates:
 
-- `"in_progress"` - When `isRunning` is true
-- `"complete"` - When `isRunning` becomes false
-- `"cancelled"` - When cancelled via `onCancel`
+- `{ type: "running" }` - When `isRunning` is true
+- `{ type: "complete", reason: "unknown" }` - When `isRunning` becomes false
+- `{ type: "incomplete", reason: "cancelled" }` - When cancelled via `onCancel`
 
 ### Tool Result Matching
 
@@ -1421,7 +1430,7 @@ The main interface for connecting your state to assistant-ui.
     },
     {
       name: "setMessages",
-      type: "(messages: T[]) => void",
+      type: "(messages: readonly T[]) => void",
       description: "Update messages (required for branch switching)",
     },
     {
@@ -1446,16 +1455,58 @@ The main interface for connecting your state to assistant-ui.
       description: "Handler for adding tool call results",
     },
     {
+      name: "onResume",
+      type: "(config: ResumeRunConfig) => Promise<void>",
+      description:
+        "Handler for resuming an interrupted run (e.g. after a page reload mid-generation)",
+    },
+    {
+      name: "onResumeToolCall",
+      type: "(options: { toolCallId: string; payload: unknown }) => void",
+      description:
+        "Handler for resuming a suspended tool call (used with human-in-the-loop tool execution)",
+    },
+    {
+      name: "isLoading",
+      type: "boolean",
+      description:
+        "Whether the adapter is in a loading state (e.g. initial data fetch). Displays a loading indicator instead of the composer",
+    },
+    {
+      name: "messageRepository",
+      type: "ExportedMessageRepository",
+      description:
+        "Pre-built message repository with branching history. Use instead of `messages` when you need to restore branch state",
+    },
+    {
+      name: "state",
+      type: "ReadonlyJSONValue",
+      description:
+        "Opaque serializable state passed to `onLoadExternalState` during thread import",
+    },
+    {
+      name: "onImport",
+      type: "(messages: readonly ThreadMessage[]) => void",
+      description:
+        "Called when the runtime imports messages into the external store (e.g. on thread switch)",
+    },
+    {
+      name: "onExportExternalState",
+      type: "() => any",
+      description:
+        "Called to retrieve external state when the runtime exports a thread snapshot",
+    },
+    {
+      name: "onLoadExternalState",
+      type: "(state: any) => void",
+      description:
+        "Called with previously exported external state when restoring a thread snapshot",
+    },
+    {
       name: "convertMessage",
       type: "(message: T, index: number) => ThreadMessageLike",
       description:
         "Convert your message format to assistant-ui format. Not needed if using ThreadMessage type",
-    },
-    {
-      name: "joinStrategy",
-      type: '"concat-content" | "none"',
-      description: "How to join adjacent assistant messages when converting",
-      default: '"concat-content"',
     },
     {
       name: "adapters",
@@ -1474,6 +1525,11 @@ The main interface for connecting your state to assistant-ui.
               name: "speech",
               type: "SpeechSynthesisAdapter",
               description: "Enable text-to-speech",
+            },
+            {
+              name: "dictation",
+              type: "DictationAdapter",
+              description: "Enable speech-to-text dictation",
             },
             {
               name: "feedback",
@@ -1543,7 +1599,7 @@ A flexible message format that can be converted to assistant-ui's internal forma
       name: "status",
       type: "MessageStatus",
       description:
-        "Status of assistant messages (in_progress, complete, cancelled)",
+        "Status of assistant messages ({ type: \"running\" }, { type: \"complete\" }, { type: \"incomplete\" })",
     },
     {
       name: "attachments",
@@ -1585,27 +1641,35 @@ Enable multi-thread support with custom thread management.
     {
       name: "threadId",
       type: "string",
-      description: "ID of the current active thread",
+      description:
+        "ID of the current active thread. **Deprecated** — this API is still under active development and might change without notice.",
+    },
+    {
+      name: "isLoading",
+      type: "boolean",
+      description: "Whether the thread list is currently loading",
     },
     {
       name: "threads",
-      type: "readonly ExternalStoreThreadData[]",
-      description: "Array of regular threads with { threadId, title }",
+      type: "readonly ExternalStoreThreadData<\"regular\">[]",
+      description: "Array of active threads. Each entry is an `ExternalStoreThreadData` object.",
     },
     {
       name: "archivedThreads",
-      type: "readonly ExternalStoreThreadData[]",
-      description: "Array of archived threads",
+      type: "readonly ExternalStoreThreadData<\"archived\">[]",
+      description: "Array of archived threads. Each entry is an `ExternalStoreThreadData` object.",
     },
     {
       name: "onSwitchToNewThread",
       type: "() => Promise<void> | void",
-      description: "Handler for creating a new thread",
+      description:
+        "Handler for creating a new thread. **Deprecated** — this API is still under active development and might change without notice.",
     },
     {
       name: "onSwitchToThread",
       type: "(threadId: string) => Promise<void> | void",
-      description: "Handler for switching to an existing thread",
+      description:
+        "Handler for switching to an existing thread. **Deprecated** — this API is still under active development and might change without notice.",
     },
     {
       name: "onRename",
@@ -1634,6 +1698,43 @@ Enable multi-thread support with custom thread management.
   The thread list adapter enables multi-thread support. Without it, the runtime
   only manages the current conversation.
 </Callout>
+
+### `ExternalStoreThreadData`
+
+Represents a single thread entry in the thread list.
+
+<ParametersTable
+  type="ExternalStoreThreadData<TState>"
+  parameters={[
+    {
+      name: "id",
+      type: "string",
+      description: "Unique local identifier for the thread",
+      required: true,
+    },
+    {
+      name: "status",
+      type: '"regular" | "archived"',
+      description: "Whether the thread is active or archived",
+      required: true,
+    },
+    {
+      name: "title",
+      type: "string",
+      description: "Display title for the thread",
+    },
+    {
+      name: "remoteId",
+      type: "string",
+      description: "Remote/server-side identifier for the thread (used for persistence)",
+    },
+    {
+      name: "externalId",
+      type: "string",
+      description: "External system identifier for the thread (e.g. from a third-party service)",
+    },
+  ]}
+/>
 
 ### Related Runtime APIs
 

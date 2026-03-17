@@ -89,19 +89,17 @@ import { ThreadListPrimitive, ThreadListItemPrimitive } from "@assistant-ui/reac
 
 <ThreadListPrimitive.Root>
   <ThreadListPrimitive.New />
-  <ThreadListPrimitive.Items
-    components={{
-      ThreadListItem: () => (
-        <ThreadListItemPrimitive.Root>
-          <ThreadListItemPrimitive.Trigger>
-            <ThreadListItemPrimitive.Title />
-          </ThreadListItemPrimitive.Trigger>
-          <ThreadListItemPrimitive.Archive />
-          <ThreadListItemPrimitive.Delete />
-        </ThreadListItemPrimitive.Root>
-      ),
-    }}
-  />
+  <ThreadListPrimitive.Items>
+    {() => (
+      <ThreadListItemPrimitive.Root>
+        <ThreadListItemPrimitive.Trigger>
+          <ThreadListItemPrimitive.Title />
+        </ThreadListItemPrimitive.Trigger>
+        <ThreadListItemPrimitive.Archive />
+        <ThreadListItemPrimitive.Delete />
+      </ThreadListItemPrimitive.Root>
+    )}
+  </ThreadListPrimitive.Items>
 </ThreadListPrimitive.Root>
 ```
 

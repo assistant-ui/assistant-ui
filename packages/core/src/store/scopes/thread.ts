@@ -3,14 +3,16 @@ import type {
   RuntimeCapabilities,
   SpeechState,
   ThreadSuggestion,
-  ExportedMessageRepository,
-  ThreadMessageLike,
+} from "../../runtime/interfaces/thread-runtime-core";
+import type { ExportedMessageRepository } from "../../runtime/utils/message-repository";
+import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
+import type {
   CreateAppendMessage,
   CreateStartRunConfig,
   CreateResumeRunConfig,
   ThreadRuntime,
-} from "../../runtime";
-import type { ModelContext } from "../../model-context";
+} from "../../runtime/api/thread-runtime";
+import type { ModelContext } from "../../model-context/types";
 import type { MessageMethods, MessageState } from "./message";
 import type { ComposerMethods, ComposerState } from "./composer";
 

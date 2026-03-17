@@ -26,7 +26,7 @@ The `useChatRuntime` hook from `@assistant-ui/react-ai-sdk` wraps AI SDK's `useC
 3. Generates a conversation title after the assistant's first response
 4. Loads historical messages when switching threads via `<ThreadList />`
 
-You provide the AI SDK endpoint (`api: "/api/chat"`) and the cloud configuration—everything else is handled.
+You provide the cloud configuration—everything else is handled. The default `AssistantChatTransport` automatically sends requests to `/api/chat`.
 
 ## Prerequisites
 
@@ -84,16 +84,21 @@ Create a client-side AssistantCloud instance and integrate it with your AI SDK r
 ```tsx title="app/chat/page.tsx"
 "use client";
 
+import { useMemo } from "react";
 import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { Thread } from "@/components/assistant-ui/thread";
 
 export default function ChatPage() {
-  const cloud = new AssistantCloud({
-    baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
-    anonymous: true, // Creates browser-session based user ID
-  });
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+        anonymous: true, // Creates browser-session based user ID
+      }),
+    [],
+  );
 
   const runtime = useChatRuntime({
     cloud,
@@ -113,6 +118,74 @@ export default function ChatPage() {
 </Step>
 
 </Steps>
+
+## `useChatRuntime` Options
+
+<ParametersTable
+  parameters={[
+    {
+      name: "cloud",
+      type: "AssistantCloud",
+      description:
+        "Optional AssistantCloud instance for chat persistence and thread management.",
+    },
+    {
+      name: "adapters",
+      type: "RuntimeAdapters",
+      description:
+        "Optional runtime adapters to extend or override built-in functionality.",
+      children: [
+        {
+          type: "RuntimeAdapters",
+          parameters: [
+            {
+              name: "attachments",
+              type: "AttachmentAdapter",
+              description:
+                "Custom attachment adapter for file uploads. Defaults to the Vercel AI SDK attachment adapter.",
+            },
+            {
+              name: "speech",
+              type: "SpeechSynthesisAdapter",
+              description:
+                "Adapter for text-to-speech functionality.",
+            },
+            {
+              name: "dictation",
+              type: "DictationAdapter",
+              description:
+                "Adapter for speech-to-text dictation input.",
+            },
+            {
+              name: "feedback",
+              type: "FeedbackAdapter",
+              description:
+                "Adapter for collecting user feedback on messages.",
+            },
+            {
+              name: "history",
+              type: "ThreadHistoryAdapter",
+              description:
+                "Adapter for loading and saving thread history. Used to restore previous messages when switching threads.",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: "toCreateMessage",
+      type: "(message: AppendMessage) => CreateUIMessage",
+      description:
+        "Optional custom function to convert an assistant-ui AppendMessage into an AI SDK CreateUIMessage before sending. Use this to customize how outgoing messages are formatted, for example to add custom metadata or transform content parts.",
+    },
+    {
+      name: "transport",
+      type: "ChatTransport",
+      description:
+        "Custom transport implementation. Defaults to AssistantChatTransport which sends requests to '/api/chat'.",
+    },
+  ]}
+/>
 
 ## Telemetry
 
@@ -140,7 +213,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5-mini"),
+    model: openai("gpt-4o-mini"),
     messages,
   });
 
@@ -171,6 +244,7 @@ Use the `beforeReport` hook to add custom metadata or filter reports:
 ```tsx
 const cloud = new AssistantCloud({
   baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  anonymous: true,
   telemetry: {
     beforeReport: (report) => ({
       ...report,

@@ -1,4 +1,4 @@
-import type { ThreadMessage } from "../../types";
+import type { ThreadMessage } from "../../types/message";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
 import type {
   ComposerRuntimeCore,

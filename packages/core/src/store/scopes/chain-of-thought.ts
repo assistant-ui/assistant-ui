@@ -1,4 +1,5 @@
-import type { MessagePartStatus, ToolCallMessagePartStatus } from "../../types";
+import type { ToolCallMessagePartStatus } from "../../types/message";
+import type { MessagePartStatus } from "../../types/message";
 import type { PartMethods, PartState } from "./part";
 
 export type ChainOfThoughtPart = Extract<

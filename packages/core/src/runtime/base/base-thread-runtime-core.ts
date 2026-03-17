@@ -1,5 +1,6 @@
-import type { AppendMessage, ThreadMessage, Unsubscribe } from "../../types";
-import type { ModelContextProvider } from "../../model-context";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { ModelContextProvider } from "../../model-context/types";
 import { getThreadMessageText } from "../../utils/text";
 import {
   ExportedMessageRepository,

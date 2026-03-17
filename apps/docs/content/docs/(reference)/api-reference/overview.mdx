@@ -16,10 +16,6 @@ export const contextColors = {
   "ThreadListItem Context": "#c678dd",
 };
 
-<Callout title="Work in progress" type="warn">
-  This page is under construction. Most links will not work yet.
-</Callout>
-
 ## Cloud
 
 - [`AssistantCloud`](#assistant-cloud)
@@ -93,7 +89,7 @@ export const contextColors = {
       link: "#composer-context",
     },
   ]}
-  docsLink="./context-providers/AssistantRuntimeProvider"
+  docsLink="./context-providers/assistant-runtime-provider"
   tooltip="Provides the highest level context for the assistant-ui"
   props="runtime={runtime}"
 >
@@ -111,7 +107,7 @@ export const contextColors = {
       link: "#MessagePart-context",
     },
   ]}
-  docsLink="./context-providers/TextMessagePartProvider"
+  docsLink="./context-providers/text-message-part-provider"
   tooltip="Provides context for text message parts"
   props="text={text}"
 >
@@ -567,5 +563,5 @@ Manages the state and actions for individual thread list items
 
 ## Utilities
 
-- [`useThreadViewportAutoscroll`](#use-thread-viewport-autoscroll)
+- [`useThreadViewportAutoScroll`](#use-thread-viewport-autoscroll)
 - [`useInlineRender`](#use-inline-render)

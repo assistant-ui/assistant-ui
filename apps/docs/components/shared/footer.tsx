@@ -121,9 +121,14 @@ export function Footer(): React.ReactElement {
             </a>
           </div>
 
-          <p className="mt-auto text-muted-foreground text-sm">
+          <a
+            href="https://agentbase.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-auto text-muted-foreground text-sm transition-colors hover:text-foreground"
+          >
             &copy; {new Date().getFullYear()} AgentbaseAI Inc.
-          </p>
+          </a>
         </div>
       </div>
     </footer>

@@ -103,11 +103,11 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <MyRuntimeProvider>
-      <html lang="en">
-        <body>{children}</body>
-      </html>
-    </MyRuntimeProvider>
+    <html lang="en">
+      <body>
+        <MyRuntimeProvider>{children}</MyRuntimeProvider>
+      </body>
+    </html>
   );
 }
 ```

@@ -20,14 +20,16 @@ import { ComposerPrimitive } from "@assistant-ui/react";
 // creating a new message
 const Composer = () => (
   <ComposerPrimitive.Root>
-    <ComposerPrimitive.Quote>
-      <ComposerPrimitive.QuoteText />
-      <ComposerPrimitive.QuoteDismiss />
-    </ComposerPrimitive.Quote>
-    <ComposerPrimitive.Attachments />
-    <ComposerPrimitive.AddAttachment />
-    <ComposerPrimitive.Input />
-    <ComposerPrimitive.Send />
+    <ComposerPrimitive.AttachmentDropzone>
+      <ComposerPrimitive.Quote>
+        <ComposerPrimitive.QuoteText />
+        <ComposerPrimitive.QuoteDismiss />
+      </ComposerPrimitive.Quote>
+      <ComposerPrimitive.Attachments />
+      <ComposerPrimitive.AddAttachment />
+      <ComposerPrimitive.Input />
+      <ComposerPrimitive.Send />
+    </ComposerPrimitive.AttachmentDropzone>
   </ComposerPrimitive.Root>
 );
 
@@ -90,6 +92,41 @@ This primitive renders a `<textarea>` element unless `asChild` is set.
       default: '"enter"',
       description:
         'Controls how the Enter key submits messages. "enter": plain Enter submits (Shift+Enter for newline). "ctrlEnter": Ctrl/Cmd+Enter submits (plain Enter for newline). "none": keyboard submission disabled.',
+    },
+    {
+      name: "cancelOnEscape",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to cancel message composition when Escape is pressed.",
+    },
+    {
+      name: "unstable_focusOnRunStart",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to automatically focus the input when a new run starts.",
+    },
+    {
+      name: "unstable_focusOnScrollToBottom",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to automatically focus the input when scrolling to bottom.",
+    },
+    {
+      name: "unstable_focusOnThreadSwitched",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to automatically focus the input when switching threads.",
+    },
+    {
+      name: "addAttachmentOnPaste",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to automatically add pasted files as attachments.",
     },
   ]}
 />
@@ -177,9 +214,9 @@ Renders attachments. This primitive renders a separate component for each attach
               description: "The component to render for each file attachment.",
             },
             {
-              name: "Fallback",
+              name: "Attachment",
               type: "ComponentType",
-              description: "The component to render for each attachment type.",
+              description: "The fallback component to render for each attachment type.",
             },
           ],
         },
@@ -236,6 +273,35 @@ This primitive renders a `<button>` element unless `asChild` is set.
       type: "boolean | undefined",
       description: "Allow selecting multiple attachments at the same time.",
       default: "true",
+    },
+  ]}
+/>
+
+### AttachmentDropzone
+
+A drag-and-drop zone that accepts file drops and adds them as attachments to the composer.
+
+When a file is dragged over the zone, a `data-dragging="true"` attribute is set on the element, which can be used for styling the active drag state.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.AttachmentDropzone className="relative data-[dragging]:ring-2">
+  <ComposerPrimitive.Input />
+  <ComposerPrimitive.Send />
+</ComposerPrimitive.AttachmentDropzone>
+```
+
+<ParametersTable
+  type="ComposerPrimitiveAttachmentDropzoneProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "disabled",
+      type: "boolean | undefined",
+      description: "When true, drag-and-drop is disabled and files will not be added on drop.",
     },
   ]}
 />

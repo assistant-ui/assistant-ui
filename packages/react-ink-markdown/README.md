@@ -46,7 +46,12 @@ Use `MarkdownTextPrimitive` inside `MessagePrimitive.Parts` — it reads text an
 ```tsx
 import { MarkdownTextPrimitive } from "@assistant-ui/react-ink-markdown";
 
-<MessagePrimitive.Parts components={{ Text: MarkdownTextPrimitive }} />
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <MarkdownTextPrimitive />;
+    return null;
+  }}
+</MessagePrimitive.Parts>
 ```
 
 ## API

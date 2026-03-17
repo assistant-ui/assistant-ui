@@ -36,6 +36,11 @@ const SUB_PROJECTS = [
     textValue: "safe-content-frame",
   },
   {
+    value: "cloud-ai-sdk",
+    label: "Cloud AI SDK",
+    textValue: "cloud-ai-sdk",
+  },
+  {
     value: "ink",
     label: "Ink",
     textValue: "ink",

@@ -69,8 +69,11 @@ The backend endpoint receives POST requests with the following payload:
   state: T, // The previous state that the frontend has access to
   commands: AssistantTransportCommand[],
   system?: string,
-  tools?: ToolDefinition[],
-  threadId: string // The current thread/conversation identifier
+  tools?: Record<string, ToolJSONSchema>, // Tool definitions keyed by tool name
+  threadId: string | null, // The current thread/conversation identifier (null for new threads)
+  parentId?: string | null, // The parent message ID (included when editing or branching)
+  // ...callSettings (maxTokens, temperature, topP, presencePenalty, frequencyPenalty, seed)
+  // ...config (apiKey, baseUrl, modelName)
 }
 ```
 
@@ -333,15 +336,17 @@ The `useAssistantTransportRuntime` hook is used to configure the runtime. It acc
   initialState: T,
   api: string,
   resumeApi?: string,
+  protocol?: "data-stream" | "assistant-transport",
   converter: (state: T, connectionMetadata: ConnectionMetadata) => AssistantTransportState,
-  headers?: Record<string, string> | (() => Promise<Record<string, string>>),
-  body?: object,
+  headers: Record<string, string> | Headers | (() => Promise<Record<string, string> | Headers>),
+  body?: object | (() => Promise<object | undefined>),
   prepareSendCommandsRequest?: (body: SendCommandsRequestBody) => Record<string, unknown> | Promise<Record<string, unknown>>,
   capabilities?: { edit?: boolean },
+  adapters?: { attachments?: AttachmentAdapter; history?: ThreadHistoryAdapter },
   onResponse?: (response: Response) => void,
   onFinish?: () => void,
-  onError?: (error: Error) => void,
-  onCancel?: () => void
+  onError?: (error: Error, params: { commands: AssistantTransportCommand[]; updateState: (updater: (state: T) => T) => void }) => void | Promise<void>,
+  onCancel?: (params: { commands: AssistantTransportCommand[]; updateState: (updater: (state: T) => T) => void; error?: Error }) => void
 }
 ```
 
@@ -354,11 +359,13 @@ The state converter is the core of your frontend integration. It transforms your
   state: T, // Your agent's state
   connectionMetadata: {
     pendingCommands: Command[], // Commands not yet sent to backend
-    isSending: boolean // Whether a request is in flight
+    isSending: boolean, // Whether a request is in flight
+    toolStatuses: Record<string, ToolExecutionStatus> // Tool execution status tracking
   }
 ) => {
   messages: ThreadMessage[], // Messages to display
-  isRunning: boolean // Whether the agent is running
+  isRunning: boolean, // Whether the agent is running
+  state?: ReadonlyJSONValue // Optional custom agent state
 }
 ```
 
@@ -465,7 +472,7 @@ const runtime = useAssistantTransportRuntime({
   },
   onCancel: ({ commands, updateState }) => {
     console.log("Request cancelled");
-    console.log("Commands in transit or queued:", commands);
+    console.log("Commands (in-transit + queued, or queued-only if called after error):", commands);
 
     // Update state to reflect cancellation
     updateState((currentState) => ({
@@ -476,7 +483,7 @@ const runtime = useAssistantTransportRuntime({
 });
 ```
 
-> **Note:** `onError` receives commands that were in transit, while `onCancel` receives both in-transit and queued commands.
+> **Note:** `onError` receives commands that were in transit. `onCancel` receives both in-transit and queued commands when the user cancels directly; when called after an error, it only receives queued commands (in-transit commands are passed to `onError` instead).
 
 ## Custom Headers and Body
 
@@ -791,7 +798,7 @@ export function MyRuntimeProvider({ children }) {
     },
     onCancel: ({ commands, updateState }) => {
       console.log("Request cancelled");
-      console.log("Commands in transit or queued:", commands);
+      console.log("Commands (in-transit + queued, or queued-only if called after error):", commands);
     },
   });
 
@@ -888,7 +895,7 @@ export function MyRuntimeProvider({ children }) {
     },
     onCancel: ({ commands, updateState }) => {
       console.log("Request cancelled");
-      console.log("Commands in transit or queued:", commands);
+      console.log("Commands (in-transit + queued, or queued-only if called after error):", commands);
     },
   });
 

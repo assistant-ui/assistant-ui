@@ -1,5 +1,14 @@
 # create-assistant-ui
 
+## 0.0.47
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- Updated dependencies [349f3c7]
+- Updated dependencies [dbb2929]
+  - assistant-ui@0.0.84
+
 ## 0.0.46
 
 ### Patch Changes

@@ -44,7 +44,9 @@ export const Claude = () => {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col bg-[#F5F5F0] p-4 pt-16 font-serif dark:bg-[#2b2a27]">
       <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll">
-        <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+        <ThreadPrimitive.Messages>
+          {() => <ChatMessage />}
+        </ThreadPrimitive.Messages>
       </ThreadPrimitive.Viewport>
 
       <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl flex-col rounded-2xl bg-white p-0.5 shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.035)] dark:bg-[#1f1e1b]">
