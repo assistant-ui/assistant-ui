@@ -13,11 +13,20 @@ body:
         - label: This is a reproducible bug, not a usage question (use [Discord](https://discord.gg/S9dwgCNEFs) for questions)
           required: true
 
-  - type: input
+  - type: textarea
     attributes:
-      label: Package version(s)
-      description: Run `npm ls @assistant-ui/react` or check your package.json.
-      placeholder: "e.g. @assistant-ui/react@0.10.x, assistant-stream@0.2.x"
+      label: Environment info
+      description: Run `npx assistant-ui info` in your project and paste the output here.
+      placeholder: |
+        Environment:
+          OS:               macOS 15.3 (arm64)
+          Node.js:          v22.14.0
+          Package Manager:  pnpm 10.32.1
+          Framework:        Next.js 15.3.1
+
+        Packages:
+          @assistant-ui/react          0.12.15
+          ...
     validations:
       required: true
 
@@ -82,16 +91,10 @@ body:
     validations:
       required: true
 
-  - type: textarea
+  - type: input
     attributes:
-      label: System information
-      description: Please provide relevant environment details.
-      value: |
-        - OS:
-        - Browser:
-        - Node.js:
-        - Package manager:
-        - Framework (Next.js / Vite / Expo / etc.):
+      label: Browser (if applicable)
+      placeholder: "e.g. Chrome 131, Firefox 135, Safari 18"
 
   - type: textarea
     attributes:

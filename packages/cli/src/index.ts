@@ -8,6 +8,7 @@ import { init } from "./commands/init";
 import { update } from "./commands/update";
 import { mcp } from "./commands/mcp";
 import { agent } from "./commands/agent";
+import { info } from "./commands/info";
 
 process.on("SIGINT", () => process.exit(0));
 process.on("SIGTERM", () => process.exit(0));
@@ -25,6 +26,7 @@ function main() {
   program.addCommand(upgradeCommand);
   program.addCommand(update);
   program.addCommand(agent);
+  program.addCommand(info);
 
   program.parse();
 }

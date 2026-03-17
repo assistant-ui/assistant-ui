@@ -340,6 +340,56 @@ Options:
   -h, --help        display help for command
 ```
 
+## info
+
+Use the `info` command to print your environment and package versions for bug reports.
+
+```bash
+npx assistant-ui@latest info
+```
+
+This command collects and prints:
+- OS, Node.js version, package manager, and framework
+- All installed `@assistant-ui/*` and `assistant-*` package versions
+- Key ecosystem dependency versions (React, Next.js, AI SDK, etc.)
+- Peer dependency warnings if any mismatches are detected
+
+**Example output:**
+
+```
+Environment:
+  OS:               macOS 15.3 (arm64)
+  Node.js:          v22.14.0
+  Package Manager:  pnpm 10.32.1
+  Framework:        Next.js 15.3.1
+
+Packages:
+  @assistant-ui/react            0.12.15
+  @assistant-ui/react-ai-sdk     1.3.12
+  @assistant-ui/react-markdown   0.3.8
+  assistant-stream                0.2.14
+
+Ecosystem:
+  react      19.1.0
+  react-dom  19.1.0
+  next       15.3.1
+  ai         6.0.120
+```
+
+The output includes a copy-pasteable markdown block that you can paste directly into a [bug report](https://github.com/assistant-ui/assistant-ui/issues/new?template=bug_report.yml).
+
+**Options**
+
+```bash
+Usage: assistant-ui info [options]
+
+Print environment and package information for bug reports.
+
+Options:
+  -c, --cwd <cwd>  the working directory. defaults to the current directory.
+  -h, --help       display help for command
+```
+
 ## Common Workflows
 
 ### Starting a new project
@@ -425,6 +475,16 @@ sudo npx assistant-ui@latest init
 ```
 
 Or fix npm permissions: https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally
+
+### Diagnosing issues
+
+When filing a bug report, run `npx assistant-ui info` to collect environment details:
+
+```bash
+npx assistant-ui info
+```
+
+Paste the output into the "Environment info" field of the [bug report template](https://github.com/assistant-ui/assistant-ui/issues/new?template=bug_report.yml).
 
 ### Conflicting dependencies
 
