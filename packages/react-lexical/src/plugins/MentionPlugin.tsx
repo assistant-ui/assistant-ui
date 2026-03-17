@@ -156,18 +156,21 @@ export function MentionPlugin({
           const selection = $getSelection();
           if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
             matchRef.current = null;
+            setCursorPosition?.(0);
             return;
           }
 
           const anchor = selection.anchor;
           if (anchor.type !== "text") {
             matchRef.current = null;
+            setCursorPosition?.(0);
             return;
           }
 
           const anchorNode = anchor.getNode();
           if (!$isTextNode(anchorNode)) {
             matchRef.current = null;
+            setCursorPosition?.(0);
             return;
           }
 
@@ -256,12 +259,12 @@ export function MentionPlugin({
         if (startOffset === 0 && endOffset === node.getTextContentSize()) {
           node.replace(mentionNode);
         } else if (startOffset === 0) {
-          const [, rightNode] = node.splitText(endOffset);
+          const [leftNode, rightNode] = node.splitText(endOffset);
           if (rightNode) {
             rightNode.insertBefore(mentionNode);
-          } else {
-            node.replace(mentionNode);
           }
+          // Remove the left node containing the trigger+query text
+          leftNode?.remove();
         } else {
           const parts = node.splitText(startOffset, endOffset);
           const targetNode = parts[1];

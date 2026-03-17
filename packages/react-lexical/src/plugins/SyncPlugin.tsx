@@ -7,11 +7,66 @@ import {
   $createTextNode,
   $createParagraphNode,
   $isElementNode,
+  type LexicalEditor,
 } from "lexical";
 import { useAui } from "@assistant-ui/store";
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 import { $createMentionNodeWithFormatter } from "../nodes/MentionNode";
+
+// ---------------------------------------------------------------------------
+// Shared: rebuild Lexical tree from runtime text
+// ---------------------------------------------------------------------------
+
+function syncRuntimeToLexical(
+  editor: LexicalEditor,
+  runtimeText: string,
+  formatter: Unstable_DirectiveFormatter,
+  onComplete: () => void,
+) {
+  editor.update(
+    () => {
+      const root = $getRoot();
+      root.clear();
+
+      if (runtimeText.length === 0) {
+        root.append($createParagraphNode());
+        root.selectEnd();
+        return;
+      }
+
+      const lines = runtimeText.split("\n");
+      for (const line of lines) {
+        const paragraph = $createParagraphNode();
+        const segments = formatter.parse(line);
+
+        for (const seg of segments) {
+          if (seg.kind === "text") {
+            if (seg.text.length > 0) {
+              paragraph.append($createTextNode(seg.text));
+            }
+          } else {
+            paragraph.append(
+              $createMentionNodeWithFormatter(
+                {
+                  id: seg.id,
+                  type: seg.type,
+                  label: seg.label,
+                },
+                formatter,
+              ),
+            );
+          }
+        }
+
+        root.append(paragraph);
+      }
+
+      root.selectEnd();
+    },
+    { onUpdate: onComplete },
+  );
+}
 
 // ---------------------------------------------------------------------------
 // SyncPlugin — bidirectional sync between Lexical and ComposerRuntime
@@ -32,8 +87,6 @@ export function SyncPlugin({
 
   // -----------------------------------------------------------------------
   // Lexical -> Runtime
-  // MentionNode.getTextContent() returns `:type[label]`, so the extracted
-  // text naturally contains the directive syntax.
   // -----------------------------------------------------------------------
 
   useEffect(() => {
@@ -72,15 +125,22 @@ export function SyncPlugin({
   }, [editor, aui]);
 
   // -----------------------------------------------------------------------
-  // Runtime -> Lexical
-  // Parse `:type[label]` directives and create MentionNode for each.
+  // Runtime -> Lexical (initial sync + subscription)
   // -----------------------------------------------------------------------
 
   useEffect(() => {
-    // Subscribe via ComposerRuntime so we only react to composer state
-    // changes (e.g. text updates), not all AUI state changes.
     const composerRuntime = aui.composer().__internal_getRuntime?.();
     if (!composerRuntime) return;
+
+    // Initial sync — populate editor with any preloaded text
+    const initialText = composerRuntime.getState().text;
+    if (initialText && initialText !== lastSyncedTextRef.current) {
+      isSyncingFromRuntimeRef.current = true;
+      lastSyncedTextRef.current = initialText;
+      syncRuntimeToLexical(editor, initialText, resolvedFormatter, () => {
+        isSyncingFromRuntimeRef.current = false;
+      });
+    }
 
     return composerRuntime.subscribe(() => {
       if (isSyncingFromLexicalRef.current) return;
@@ -91,54 +151,9 @@ export function SyncPlugin({
 
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = runtimeText;
-
-      editor.update(
-        () => {
-          const root = $getRoot();
-          root.clear();
-
-          if (runtimeText.length === 0) {
-            root.append($createParagraphNode());
-            root.selectEnd();
-            return;
-          }
-
-          const lines = runtimeText.split("\n");
-          for (const line of lines) {
-            const paragraph = $createParagraphNode();
-            const segments = resolvedFormatter.parse(line);
-
-            for (const seg of segments) {
-              if (seg.kind === "text") {
-                if (seg.text.length > 0) {
-                  paragraph.append($createTextNode(seg.text));
-                }
-              } else {
-                paragraph.append(
-                  $createMentionNodeWithFormatter(
-                    {
-                      id: seg.id,
-                      type: seg.type,
-                      label: seg.label,
-                    },
-                    resolvedFormatter,
-                  ),
-                );
-              }
-            }
-
-            root.append(paragraph);
-          }
-
-          // Restore cursor at end after rebuild
-          root.selectEnd();
-        },
-        {
-          onUpdate: () => {
-            isSyncingFromRuntimeRef.current = false;
-          },
-        },
-      );
+      syncRuntimeToLexical(editor, runtimeText, resolvedFormatter, () => {
+        isSyncingFromRuntimeRef.current = false;
+      });
     });
   }, [editor, aui, resolvedFormatter]);
 

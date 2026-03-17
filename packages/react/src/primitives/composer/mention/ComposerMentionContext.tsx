@@ -107,20 +107,24 @@ export function detectMentionTrigger(
   const textUpToCursor = text.slice(0, cursorPosition);
 
   // Search backwards from cursor for the trigger character
+  // Uses same boundary rules as Lexical's findTriggerMatch:
+  // stop at space or newline during scan
   for (let i = textUpToCursor.length - 1; i >= 0; i--) {
     const char = textUpToCursor[i]!;
 
-    // Stop at newlines — trigger must be on the same line as cursor
-    if (char === "\n") return null;
+    // Stop at whitespace — trigger must be contiguous with cursor
+    if (char === " " || char === "\n") return null;
 
     if (textUpToCursor.startsWith(triggerChar, i)) {
-      // Trigger must be preceded by whitespace or be at start of text
-      if (i > 0 && !/\s/.test(textUpToCursor[i - 1]!)) continue;
+      // Trigger must be preceded by space, newline, or be at start of text
+      if (
+        i > 0 &&
+        textUpToCursor[i - 1] !== " " &&
+        textUpToCursor[i - 1] !== "\n"
+      )
+        continue;
 
       const query = textUpToCursor.slice(i + triggerChar.length);
-
-      // Don't trigger if query contains whitespace (mention ended)
-      if (/\s/.test(query)) return null;
 
       return { query, offset: i };
     }
@@ -156,14 +160,24 @@ export const ComposerPrimitiveMentionRoot: FC<
   const text = useAuiState((s) => s.composer.text);
   const formatter = formatterProp ?? unstable_defaultDirectiveFormatter;
 
+  // Re-read when thread model context changes (tools registered/unregistered)
+  const modelContext = useAuiState(() => {
+    try {
+      return aui.thread().getModelContext();
+    } catch {
+      return undefined;
+    }
+  });
   const runtimeAdapter = useMemo(() => {
+    // modelContext is included to recompute when tools change
+    void modelContext;
     try {
       const runtime = aui.composer().__internal_getRuntime?.();
       return (runtime as any)?._core?.getState()?.getMentionAdapter?.();
     } catch {
       return undefined;
     }
-  }, [aui]);
+  }, [aui, modelContext]);
   const adapter = adapterProp ?? runtimeAdapter;
 
   // ---------------------------------------------------------------------------
@@ -239,13 +253,16 @@ export const ComposerPrimitiveMentionRoot: FC<
     }
   }, [open]);
 
-  const effectiveActiveCategoryId = open ? activeCategoryId : null;
-
-  // Derive categories and items synchronously from adapter
+  // Derive categories synchronously from adapter
   const categories = useMemo<readonly Unstable_MentionCategory[]>(() => {
     if (!open || !adapter) return [];
     return adapter.categories();
   }, [open, adapter]);
+
+  // Auto-drill into single category (avoids extra click for common case)
+  const effectiveActiveCategoryId = open
+    ? (activeCategoryId ?? (categories.length === 1 ? categories[0]!.id : null))
+    : null;
 
   const allItems = useMemo<readonly Unstable_MentionItem[]>(() => {
     if (!effectiveActiveCategoryId || !adapter) return [];

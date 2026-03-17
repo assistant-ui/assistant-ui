@@ -76,6 +76,21 @@ describe("unstable_defaultDirectiveFormatter", () => {
       });
     });
 
+    it("parses hyphenated types", () => {
+      expect(
+        unstable_defaultDirectiveFormatter.parse(
+          ":data-source[My DB]{name=db_1}",
+        ),
+      ).toEqual([
+        {
+          kind: "mention",
+          type: "data-source",
+          label: "My DB",
+          id: "db_1",
+        },
+      ]);
+    });
+
     it("roundtrips serialize → parse", () => {
       const item = {
         id: "get_weather",

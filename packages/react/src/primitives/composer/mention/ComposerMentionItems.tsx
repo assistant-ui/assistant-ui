@@ -57,6 +57,8 @@ export namespace ComposerPrimitiveMentionItem {
   export type Element = ComponentRef<typeof Primitive.button>;
   export type Props = ComponentPropsWithoutRef<typeof Primitive.button> & {
     item: Unstable_MentionItem;
+    /** Position in the items list. Used for keyboard highlight matching. Falls back to findIndex by id. */
+    index?: number | undefined;
   };
 }
 
@@ -67,7 +69,7 @@ export namespace ComposerPrimitiveMentionItem {
 export const ComposerPrimitiveMentionItem = forwardRef<
   ComposerPrimitiveMentionItem.Element,
   ComposerPrimitiveMentionItem.Props
->(({ item, onClick, ...props }, forwardedRef) => {
+>(({ item, index: indexProp, onClick, ...props }, forwardedRef) => {
   const {
     selectItem,
     items,
@@ -80,10 +82,11 @@ export const ComposerPrimitiveMentionItem = forwardRef<
     selectItem(item);
   }, [selectItem, item]);
 
-  // Derive highlighted state from context — no manual wiring needed
+  // Use explicit index prop if provided, fall back to findIndex
+  const itemIndex = indexProp ?? items.findIndex((i) => i.id === item.id);
   const isHighlighted =
     (isSearchMode || activeCategoryId !== null) &&
-    items.findIndex((i) => i.id === item.id) === highlightedIndex;
+    itemIndex === highlightedIndex;
 
   return (
     <Primitive.button

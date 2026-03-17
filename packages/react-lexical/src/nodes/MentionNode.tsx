@@ -43,6 +43,7 @@ export type SerializedMentionNode = Spread<
     mentionType: string;
     label: string;
     icon?: string | undefined;
+    description?: string | undefined;
     metadata?: Unstable_MentionItem["metadata"];
     directiveText?: string;
   },
@@ -86,6 +87,7 @@ export class MentionNode extends DecoratorNode<ReactNode> {
   __mentionType: string;
   __label: string;
   __icon: string | undefined;
+  __description: string | undefined;
   __metadata: Unstable_MentionItem["metadata"];
   __directiveText: string;
 
@@ -100,6 +102,7 @@ export class MentionNode extends DecoratorNode<ReactNode> {
         type: node.__mentionType,
         label: node.__label,
         icon: node.__icon,
+        description: node.__description,
         metadata: node.__metadata,
       },
       node.__directiveText,
@@ -117,6 +120,7 @@ export class MentionNode extends DecoratorNode<ReactNode> {
     this.__mentionType = item.type;
     this.__label = item.label;
     this.__icon = item.icon;
+    this.__description = item.description;
     this.__metadata = item.metadata;
     this.__directiveText = directiveText;
   }
@@ -130,6 +134,7 @@ export class MentionNode extends DecoratorNode<ReactNode> {
         type: serialized.mentionType,
         label: serialized.label,
         icon: serialized.icon,
+        description: serialized.description,
         metadata: serialized.metadata,
       },
       serialized.directiveText,
@@ -144,6 +149,7 @@ export class MentionNode extends DecoratorNode<ReactNode> {
       mentionType: this.__mentionType,
       label: this.__label,
       icon: this.__icon,
+      description: this.__description,
       metadata: this.__metadata,
       directiveText: this.__directiveText,
     };
@@ -216,6 +222,7 @@ export class MentionNode extends DecoratorNode<ReactNode> {
       type: this.__mentionType,
       label: this.__label,
       icon: this.__icon,
+      description: this.__description,
       metadata: this.__metadata,
     };
   }

@@ -42,14 +42,14 @@ The popover automatically shows registered tools when the user types `@`.
   </Step>
   <Step>
 
-### Render Mentions in Messages
+### Render Mentions in User Messages
 
-Use `DirectiveText` as the `Text` component in `MessagePrimitive.Parts` so mention directives render as inline chips instead of raw `:tool[label]` syntax:
+Use `DirectiveText` as the `Text` component for **user messages** so mention directives render as inline chips instead of raw `:tool[label]` syntax:
 
 ```tsx title="components/assistant-ui/thread.tsx" {1,8}
 import { DirectiveText } from "@/components/assistant-ui/composer-mention";
 
-const AssistantMessage = () => {
+const UserMessage = () => {
   return (
     <MessagePrimitive.Root>
       <MessagePrimitive.Parts
@@ -61,6 +61,11 @@ const AssistantMessage = () => {
   );
 };
 ```
+
+<Callout>
+  `DirectiveText` renders plain text with mention chips. For assistant messages
+  that contain markdown, keep using your markdown renderer (e.g. `MarkdownText`).
+</Callout>
 
   </Step>
 </Steps>
@@ -106,12 +111,20 @@ const myFormatter = {
   parse: (text) => [{ kind: "text", text }], // implement your parsing
 };
 
-// In composer:
+// In composer (textarea path):
 <ComposerMentionPopover.Root formatter={myFormatter}>
   ...
 </ComposerMentionPopover.Root>
 
-// In messages:
+// In composer (Lexical path — also pass formatter):
+<ComposerMentionPopover.Root formatter={myFormatter}>
+  <ComposerPrimitive.Root>
+    <LexicalComposerInput formatter={myFormatter} />
+    ...
+  </ComposerPrimitive.Root>
+</ComposerMentionPopover.Root>
+
+// In user messages:
 const MyDirectiveText = createDirectiveText(myFormatter);
 <MessagePrimitive.Parts components={{ Text: MyDirectiveText }} />
 ```

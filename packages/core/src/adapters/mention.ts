@@ -32,7 +32,7 @@ export type Unstable_MentionAdapter = {
 // Default Directive Formatter
 // =============================================================================
 
-const DIRECTIVE_RE = /:(\w+)\[([^\]]+)\](?:\{name=([^}]+)\})?/g;
+const DIRECTIVE_RE = /:([\w-]+)\[([^\]]+)\](?:\{name=([^}]+)\})?/g;
 
 /**
  * Default directive formatter using the `:type[label]{name=id}` syntax.

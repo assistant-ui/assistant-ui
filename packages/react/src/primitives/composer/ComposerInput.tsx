@@ -156,10 +156,16 @@ export const ComposerPrimitiveInput = forwardRef<
     const ref = useComposedRefs(forwardedRef, textareaRef);
 
     useEscapeKeydown((e) => {
-      if (!cancelOnEscape) return;
-
       // Only handle ESC if it originated from within this input
       if (!textareaRef.current?.contains(e.target as Node)) return;
+
+      // Let mention popover handle Escape first
+      if (mentionContext?.open) {
+        mentionContext.handleKeyDown(e);
+        return;
+      }
+
+      if (!cancelOnEscape) return;
 
       const composer = aui.composer();
       if (composer.getState().canCancel) {

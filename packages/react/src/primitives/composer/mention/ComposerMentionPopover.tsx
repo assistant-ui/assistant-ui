@@ -41,7 +41,7 @@ export const ComposerPrimitiveMentionPopover = forwardRef<
   return (
     <Primitive.div
       role="listbox"
-      data-state={open ? "open" : "closed"}
+      data-state="open"
       {...props}
       ref={forwardedRef}
     />

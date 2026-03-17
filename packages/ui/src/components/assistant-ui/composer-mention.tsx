@@ -242,7 +242,9 @@ export function createDirectiveText(
       <>
         {segments.map((seg, i) =>
           seg.kind === "text" ? (
-            <span key={i}>{seg.text}</span>
+            <span key={i} className="whitespace-pre-wrap">
+              {seg.text}
+            </span>
           ) : (
             <span
               key={i}
