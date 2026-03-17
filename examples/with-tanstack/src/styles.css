@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@source "../../../packages/ui/src";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

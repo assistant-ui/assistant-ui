@@ -10,6 +10,7 @@
     "jsx": "react-jsx",
     "lib": ["dom", "dom.iterable", "ES2023"],
     "stripInternal": true,
+    "noPropertyAccessFromIndexSignature": false,
     "customConditions": ["aui-source"]
   }
 }

@@ -13,7 +13,7 @@ const config = defineConfig({
       },
     }),
     viteTsConfigPaths({
-      projects: ["./tsconfig.json"],
+      projects: ["./tsconfig.json", "../../packages/ui/tsconfig.json"],
     }),
     tailwindcss(),
     tanstackStart(),

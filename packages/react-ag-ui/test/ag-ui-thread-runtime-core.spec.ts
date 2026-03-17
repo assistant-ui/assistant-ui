@@ -4,8 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 import type {
   AppendMessage,
   ThreadAssistantMessage,
+  ThreadHistoryAdapter,
   ThreadMessage,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
 import { AgUiThreadRuntimeCore } from "../src/runtime/AgUiThreadRuntimeCore";
 import { makeLogger } from "../src/runtime/logger";
@@ -28,7 +29,11 @@ const noopLogger = makeLogger();
 
 const createCore = (
   agent: HttpAgent,
-  hooks: { onError?: (e: Error) => void; onCancel?: () => void } = {},
+  hooks: {
+    onError?: (e: Error) => void;
+    onCancel?: () => void;
+    history?: ThreadHistoryAdapter;
+  } = {},
 ) =>
   new AgUiThreadRuntimeCore({
     agent,
@@ -36,6 +41,7 @@ const createCore = (
     showThinking: true,
     ...(hooks.onError ? { onError: hooks.onError } : {}),
     ...(hooks.onCancel ? { onCancel: hooks.onCancel } : {}),
+    ...(hooks.history ? { history: hooks.history } : {}),
     notifyUpdate: () => {},
   });
 
@@ -65,6 +71,131 @@ describe("AGUIThreadRuntimeCore", () => {
       reason: "unknown",
     });
     expect(core.isRunning()).toBe(false);
+  });
+
+  it("imports tool role messages from snapshots as assistant tool-call results", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              {
+                id: "msg-1",
+                role: "user",
+                content: "What's the weather?",
+              },
+              {
+                id: "msg-2",
+                role: "assistant",
+                content: "",
+                toolCalls: [
+                  {
+                    id: "call-1",
+                    type: "function",
+                    function: {
+                      name: "get_weather",
+                      arguments: '{"city":"Paris"}',
+                    },
+                  },
+                ],
+              },
+              {
+                id: "msg-3",
+                role: "tool",
+                toolCallId: "call-1",
+                content: '{"temperature":"22C"}',
+              },
+            ],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const messages = core.getMessages();
+    expect(messages).toHaveLength(2);
+    expect(messages[0]).toMatchObject({
+      id: "msg-1",
+      role: "user",
+    });
+    const assistant = messages[1] as ThreadAssistantMessage;
+    expect(assistant.id).toBe("msg-2");
+    const toolPart = assistant.content.find(
+      (part) => part.type === "tool-call",
+    ) as any;
+    expect(toolPart).toBeTruthy();
+    expect(toolPart).toMatchObject({
+      toolCallId: "call-1",
+      toolName: "get_weather",
+      result: { temperature: "22C" },
+    });
+  });
+
+  it("preserves tool message IDs when rerunning imported snapshots", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      if (runAgent.mock.calls.length === 1) {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              {
+                id: "msg-1",
+                role: "user",
+                content: "What's the weather?",
+              },
+              {
+                id: "msg-2",
+                role: "assistant",
+                content: "",
+                toolCalls: [
+                  {
+                    id: "call-1",
+                    type: "function",
+                    function: {
+                      name: "get_weather",
+                      arguments: '{"city":"Paris"}',
+                    },
+                  },
+                ],
+              },
+              {
+                id: "tool-msg-original-id",
+                role: "tool",
+                toolCallId: "call-1",
+                content: '{"temperature":"22C"}',
+              },
+            ],
+          },
+        });
+      }
+
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await core.resume({
+      parentId: "msg-2",
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+    });
+
+    const secondInput = runAgent.mock.calls[1]?.[0];
+    expect(secondInput).toBeTruthy();
+    expect(secondInput.messages).toContainEqual(
+      expect.objectContaining({
+        id: "tool-msg-original-id",
+        role: "tool",
+        toolCallId: "call-1",
+        content: '{"temperature":"22C"}',
+      }),
+    );
   });
 
   it("marks runs as cancelled when aborting", async () => {
@@ -159,6 +290,249 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(part.isError).toBe(false);
   });
 
+  it("prefers latest pending message when toolCallId is reused", () => {
+    const agent = {
+      runAgent: vi.fn(async () => {}),
+    } as unknown as HttpAgent;
+
+    const previousAssistant: ThreadAssistantMessage = {
+      id: "assistant-old",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "complete", reason: "unknown" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call" as const,
+          toolCallId: "call-1",
+          toolName: "search",
+          args: {},
+          argsText: "{}",
+          result: { ok: "old" },
+        },
+      ],
+    };
+
+    const pendingAssistant: ThreadAssistantMessage = {
+      id: "assistant-new",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "requires-action", reason: "tool-calls" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call" as const,
+          toolCallId: "call-1",
+          toolName: "search",
+          args: {},
+          argsText: "{}",
+        },
+      ],
+    };
+
+    const core = createCore(agent);
+    core.applyExternalMessages([
+      previousAssistant as ThreadMessage,
+      pendingAssistant as ThreadMessage,
+    ]);
+
+    const targetMessageId = core.findMessageIdForToolCall("call-1");
+    expect(targetMessageId).toBe("assistant-new");
+
+    core.addToolResult({
+      messageId: targetMessageId!,
+      toolCallId: "call-1",
+      toolName: "search",
+      result: { ok: "new" },
+      isError: false,
+    });
+
+    const [oldMessage, newMessage] =
+      core.getMessages() as ThreadAssistantMessage[];
+    expect((oldMessage.content[0] as any).result).toEqual({ ok: "old" });
+    expect((newMessage.content[0] as any).result).toEqual({ ok: "new" });
+  });
+
+  it("does not auto-resume when addToolResult does not match a tool call", () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const assistant: ThreadAssistantMessage = {
+      id: "assistant",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "requires-action", reason: "tool-calls" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call" as const,
+          toolCallId: "call-1",
+          toolName: "search",
+          args: {},
+          argsText: "{}",
+          result: { cached: true },
+        },
+      ],
+    };
+    core.applyExternalMessages([assistant as ThreadMessage]);
+
+    core.addToolResult({
+      messageId: "assistant",
+      toolCallId: "call-missing",
+      toolName: "search",
+      result: { ignored: true },
+      isError: false,
+    });
+
+    expect(runAgent).not.toHaveBeenCalled();
+    const updated = core.getMessages()[0] as ThreadAssistantMessage;
+    expect((updated.content[0] as any).result).toEqual({ cached: true });
+  });
+
+  it("auto-resumes run after all tool results are added", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        runCount++;
+
+        if (runCount === 1) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "call-1",
+              toolCallName: "get_weather",
+            },
+          });
+          subscriber.onToolCallArgsEvent?.({
+            event: {
+              type: "TOOL_CALL_ARGS",
+              toolCallId: "call-1",
+              delta: '{"city":"Paris"}',
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+          });
+          subscriber.onRunFinalized?.();
+        } else {
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", delta: "It is sunny!" },
+          });
+          subscriber.onRunFinalized?.();
+        }
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    // Find the assistant message with the tool call
+    const assistantMsg = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(assistantMsg).toBeTruthy();
+
+    // Simulate frontend tool execution completing
+    const resumePromise = new Promise<void>((resolve) => {
+      const origRunAgent = agent.runAgent;
+      agent.runAgent = vi.fn(async (...args: any[]) => {
+        await (origRunAgent as any)(...args);
+        resolve();
+      });
+    });
+
+    core.addToolResult({
+      messageId: assistantMsg.id,
+      toolCallId: "call-1",
+      toolName: "get_weather",
+      result: { temperature: "22C" },
+      isError: false,
+    });
+
+    await resumePromise;
+
+    // Verify a second run was triggered
+    expect(runCount).toBe(2);
+
+    // Verify the second run input includes the tool result
+    const run2Messages = runInputs[1]?.messages ?? [];
+    const toolResultMsg = run2Messages.find(
+      (m: { role: string }) => m.role === "tool",
+    );
+    expect(toolResultMsg).toBeTruthy();
+    expect(toolResultMsg.toolCallId).toBe("call-1");
+    expect(toolResultMsg.content).toContain("22C");
+  });
+
+  it("does not auto-resume when some tool calls still lack results", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onToolCallStartEvent?.({
+        event: {
+          type: "TOOL_CALL_START",
+          toolCallId: "call-1",
+          toolCallName: "tool_a",
+        },
+      });
+      subscriber.onToolCallEndEvent?.({
+        event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+      });
+      subscriber.onToolCallStartEvent?.({
+        event: {
+          type: "TOOL_CALL_START",
+          toolCallId: "call-2",
+          toolCallName: "tool_b",
+        },
+      });
+      subscriber.onToolCallEndEvent?.({
+        event: { type: "TOOL_CALL_END", toolCallId: "call-2" },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistantMsg = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+
+    // Add result for only one tool call
+    core.addToolResult({
+      messageId: assistantMsg.id,
+      toolCallId: "call-1",
+      toolName: "tool_a",
+      result: "done",
+      isError: false,
+    });
+
+    // Should NOT have triggered a second run
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
   it("resumes runs when requested", async () => {
     const runAgent = vi.fn(async (_input, subscriber) => {
       subscriber.onRunFinalized?.();
@@ -192,5 +566,170 @@ describe("AGUIThreadRuntimeCore", () => {
         message.role === "assistant" && message.content === "",
     );
     expect(containsEmptyAssistant).toBe(false);
+  });
+
+  it("loads history on __internal_load", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+
+    const userMessage: ThreadMessage = {
+      id: "msg-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Hello" }],
+      metadata: { custom: {} },
+    };
+    const assistantMessage: ThreadAssistantMessage = {
+      id: "msg-2",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "complete", reason: "unknown" },
+      content: [{ type: "text", text: "Hi there!" }],
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: "msg-2",
+        messages: [
+          { message: userMessage, parentId: null },
+          { message: assistantMessage, parentId: "msg-1" },
+        ],
+      }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    expect(core.isLoading).toBe(false);
+    const loadPromise = core.__internal_load();
+    expect(core.isLoading).toBe(true);
+
+    await loadPromise;
+
+    expect(historyAdapter.load).toHaveBeenCalledTimes(1);
+    expect(core.isLoading).toBe(false);
+    expect(core.getMessages()).toHaveLength(2);
+    expect(core.getMessages()[0]?.id).toBe("msg-1");
+    expect(core.getMessages()[1]?.id).toBe("msg-2");
+  });
+
+  it("returns existing promise if __internal_load called multiple times", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(null),
+      append: vi.fn(),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    const promise1 = core.__internal_load();
+    const promise2 = core.__internal_load();
+
+    expect(promise1).toBe(promise2);
+    await promise1;
+
+    expect(historyAdapter.load).toHaveBeenCalledTimes(1);
+  });
+
+  it("handles missing history adapter gracefully", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    await core.__internal_load();
+
+    expect(core.getMessages()).toHaveLength(0);
+    expect(core.isLoading).toBe(false);
+  });
+
+  it("triggers startRun when unstable_resume is true", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const userMessage: ThreadMessage = {
+      id: "msg-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Hello" }],
+      metadata: { custom: {} },
+    };
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: "msg-1",
+        messages: [{ message: userMessage, parentId: null }],
+        unstable_resume: true,
+      }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+    await core.__internal_load();
+
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(core.getMessages().length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("calls onError when history.load() throws", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const onError = vi.fn();
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockRejectedValue(new Error("load failed")),
+      append: vi.fn(),
+    };
+
+    const core = createCore(agent, { onError, history: historyAdapter });
+    await core.__internal_load();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(expect.any(Error));
+    expect(onError.mock.calls[0][0].message).toBe("load failed");
+    expect(core.isLoading).toBe(false);
+  });
+
+  it("resets isLoading to false when history.load() throws", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockRejectedValue(new Error("network error")),
+      append: vi.fn(),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    expect(core.isLoading).toBe(false);
+    const loadPromise = core.__internal_load();
+    expect(core.isLoading).toBe(true);
+
+    await loadPromise;
+
+    expect(core.isLoading).toBe(false);
+    expect(core.getMessages()).toHaveLength(0);
+  });
+
+  it("converts non-Error throws to Error in onError callback", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const onError = vi.fn();
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockRejectedValue("string error"),
+      append: vi.fn(),
+    };
+
+    const core = createCore(agent, { onError, history: historyAdapter });
+    await core.__internal_load();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(expect.any(Error));
+    expect(onError.mock.calls[0][0].message).toBe("string error");
   });
 });

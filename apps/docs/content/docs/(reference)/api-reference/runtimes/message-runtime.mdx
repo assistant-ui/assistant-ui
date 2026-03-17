@@ -1,0 +1,76 @@
+---
+title: MessageRuntime
+description: Hooks for accessing message state and edit composer.
+---
+
+import {
+  MessageRuntime,
+  MessageState,
+  ComposerState,
+} from "@/generated/typeDocs";
+
+### `useAui` (Message Actions)
+
+Access message actions via `useAui`:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+const aui = useAui();
+
+// Reload an assistant message (regenerate the response)
+aui.message().reload();
+
+// Switch to the previous or next branch
+aui.message().switchToBranch({ position: "previous" });
+aui.message().switchToBranch({ position: "next" });
+
+// Submit feedback on a message
+aui.message().submitFeedback({ type: "positive" });
+aui.message().submitFeedback({ type: "negative" });
+
+// Get the plain-text content of the message
+const text = aui.message().getCopyText();
+
+// Access a message part by index or tool call ID
+aui.message().part({ index: 0 });
+aui.message().part({ toolCallId: "call_123" });
+
+// Access an attachment by index
+aui.message().attachment({ index: 0 });
+
+// Access the edit composer for this message
+aui.message().composer();
+
+// Get a snapshot of the full message state
+const state = aui.message().getState();
+```
+
+<ParametersTable {...MessageRuntime} />
+
+### `useAuiState` (Message State)
+
+Access message state reactively:
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+const role = useAuiState((s) => s.message.role);
+const content = useAuiState((s) => s.message.content);
+const isLast = useAuiState((s) => s.message.isLast);
+```
+
+<ParametersTable {...MessageState} />
+
+### `useAuiState` (Edit Composer)
+
+Access the edit composer state (used when editing a message):
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+const editText = useAuiState((s) => s.message.composer.text);
+const isEditing = useAuiState((s) => s.message.composer.isEditing);
+```
+
+<ParametersTable {...ComposerState} />

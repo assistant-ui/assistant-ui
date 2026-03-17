@@ -1,0 +1,479 @@
+---
+title: Installation
+description: Get assistant-ui running in 5 minutes with npm and your first chat component.
+---
+
+
+## Quick Start
+
+The fastest way to get started with assistant-ui.
+
+![animated gif showing the steps to create a new project](../../../../../.github/assets/assistant-ui-starter.gif)
+
+<Steps>
+  <Step>
+
+### Initialize assistant-ui
+
+**Create a new project:**
+
+```sh
+npx assistant-ui@latest create
+```
+
+Or choose a template:
+
+```sh
+# Minimal starter
+npx assistant-ui@latest create -t minimal
+
+# Assistant Cloud - with persistence and thread management
+npx assistant-ui@latest create -t cloud
+
+# Assistant Cloud + Clerk authentication
+npx assistant-ui@latest create -t cloud-clerk
+
+# LangGraph starter template
+npx assistant-ui@latest create -t langgraph
+
+# MCP starter template
+npx assistant-ui@latest create -t mcp
+```
+
+**Add to an existing project:**
+
+```sh
+npx assistant-ui@latest init
+```
+
+  </Step>
+  <Step>
+
+### Add API key
+
+Create a `.env` file with your API key:
+
+```
+OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+  </Step>
+  <Step>
+
+### Start the app
+
+```sh
+npm run dev
+```
+
+  </Step>
+</Steps>
+
+## Manual Setup
+
+If you prefer not to use the CLI, you can install components manually.
+
+<Steps>
+  <Step>
+
+### Add assistant-ui
+
+<InstallCommand shadcn={["thread", "thread-list"]} manualSetupInstructions />
+
+  </Step>
+  <Step>
+
+### Setup Backend Endpoint
+
+Install provider SDK:
+
+<Tabs groupId="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/openai"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/anthropic"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/azure"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/amazon-bedrock"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/google"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/google-vertex"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/groq"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/fireworks"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/cohere"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "ollama-ai-provider-v2"]} />
+  </Tab>
+  <Tab>
+    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "chrome-ai"]} />
+  </Tab>
+</Tabs>
+
+Add an API endpoint:
+
+<Tabs groupId="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+```ts title="/app/api/chat/route.ts" tab="OpenAI"
+import { openai } from "@ai-sdk/openai";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { convertToModelMessages, streamText } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = await req.json();
+  const result = streamText({
+    model: openai("gpt-4o-mini"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+```ts title="/app/api/chat/route.ts" tab="Anthropic"
+import { anthropic } from "@ai-sdk/anthropic";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { convertToModelMessages, streamText } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = await req.json();
+  const result = streamText({
+    model: anthropic("claude-sonnet-4-6"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+```ts title="/app/api/chat/route.ts" tab="Azure"
+import { azure } from "@ai-sdk/azure";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { convertToModelMessages, streamText } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = await req.json();
+  const result = streamText({
+    model: azure("your-deployment-name"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+```ts title="/app/api/chat/route.ts" tab="AWS"
+import { bedrock } from "@ai-sdk/amazon-bedrock";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { convertToModelMessages, streamText } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = await req.json();
+  const result = streamText({
+    model: bedrock("anthropic.claude-sonnet-4-6-v1:0"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+```ts title="/app/api/chat/route.ts" tab="Gemini"
+import { google } from "@ai-sdk/google";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { convertToModelMessages, streamText } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = await req.json();
+  const result = streamText({
+    model: google("gemini-2.0-flash"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+```ts title="/app/api/chat/route.ts" tab="GCP"
+import { vertex } from "@ai-sdk/google-vertex";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { convertToModelMessages, streamText } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = await req.json();
+  const result = streamText({
+    model: vertex("gemini-2.0-flash"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+```ts title="/app/api/chat/route.ts" tab="Groq"
+import { groq } from "@ai-sdk/groq";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { convertToModelMessages, streamText } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = await req.json();
+  const result = streamText({
+    model: groq("llama-3.3-70b-versatile"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+```ts title="/app/api/chat/route.ts" tab="Fireworks"
+import { fireworks } from "@ai-sdk/fireworks";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { convertToModelMessages, streamText } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = await req.json();
+  const result = streamText({
+    model: fireworks("accounts/fireworks/models/llama-v3p3-70b-instruct"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+```ts title="/app/api/chat/route.ts" tab="Cohere"
+import { cohere } from "@ai-sdk/cohere";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { convertToModelMessages, streamText } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = await req.json();
+  const result = streamText({
+    model: cohere("command-r-plus"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+```ts title="/app/api/chat/route.ts" tab="Ollama"
+import { ollama } from "ollama-ai-provider-v2";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { convertToModelMessages, streamText } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = await req.json();
+  const result = streamText({
+    model: ollama("llama3"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+```ts title="/app/api/chat/route.ts" tab="Chrome AI"
+import { chromeai } from "chrome-ai";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { convertToModelMessages, streamText } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = await req.json();
+  const result = streamText({
+    model: chromeai(),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: frontendTools(tools),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+</Tabs>
+
+Define environment variables:
+
+<Tabs groupId="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
+
+```sh title="/.env.local" tab="OpenAI"
+OPENAI_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="Anthropic"
+ANTHROPIC_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="Azure"
+AZURE_RESOURCE_NAME="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+AZURE_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="AWS"
+AWS_ACCESS_KEY_ID="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+AWS_SECRET_ACCESS_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+AWS_REGION="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="Gemini"
+GOOGLE_GENERATIVE_AI_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="GCP"
+GOOGLE_VERTEX_PROJECT="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+GOOGLE_VERTEX_LOCATION="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+GOOGLE_APPLICATION_CREDENTIALS="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="Groq"
+GROQ_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="Fireworks"
+FIREWORKS_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh title="/.env.local" tab="Cohere"
+COHERE_API_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+```sh tab="Ollama"
+<none>
+```
+
+```sh tab="Chrome AI"
+<none>
+```
+
+</Tabs>
+
+If you aren't using Next.js, you can also deploy this endpoint to Cloudflare Workers, or any other serverless platform.
+
+  </Step>
+
+  <Step>
+
+### Use it in your app
+
+<Tabs items={["Thread", "AssistantModal"]}>
+
+```tsx title="/app/page.tsx" tab="Thread"
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+import { ThreadList } from "@/components/assistant-ui/thread-list";
+import { Thread } from "@/components/assistant-ui/thread";
+
+export default function MyApp() {
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({
+      api: "/api/chat",
+    }),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div>
+        <ThreadList />
+        <Thread />
+      </div>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+```tsx title="/app/page.tsx" tab="AssistantModal"
+// run `npx shadcn@latest add https://r.assistant-ui.com/assistant-modal.json`
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
+
+export default function MyApp() {
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({
+      api: "/api/chat",
+    }),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <AssistantModal />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tabs>
+
+</Step>
+</Steps>
+
+## What's Next?
+
+<Cards>
+  <Card
+    title="Pick a Runtime"
+    description="Choose the right runtime for your needs"
+    href="/docs/runtimes/pick-a-runtime"
+  />
+  <Card
+    title="Generative UI"
+    description="Create rich UI components for tool executions"
+    href="/docs/guides/tool-ui"
+  />
+  <Card
+    title="Add Persistence"
+    description="Save and restore chat conversations"
+    href="/docs/cloud"
+  />
+  <Card
+    title="Examples"
+    description="Explore full implementations and demos"
+    href="https://github.com/assistant-ui/assistant-ui/tree/main/examples"
+  />
+</Cards>

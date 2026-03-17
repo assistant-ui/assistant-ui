@@ -1,15 +1,17 @@
 // hooks
-export { useAssistantClient } from "./useAssistantClient";
-export { useAssistantState } from "./useAssistantState";
-export { useAssistantEvent } from "./useAssistantEvent";
+export { useAui } from "./useAui";
+export { useAuiState } from "./useAuiState";
+export { useAuiEvent } from "./useAuiEvent";
+export { RenderChildrenWithAccessor } from "./RenderChildrenWithAccessor";
 
 // components
-export { AssistantIf } from "./AssistantIf";
-export { AssistantProvider } from "./utils/react-assistant-context";
+export { AuiIf } from "./AuiIf";
+export { AuiProvider } from "./utils/react-assistant-context";
 
 // resources
 export { Derived } from "./Derived";
-export { attachDefaultPeers } from "./attachDefaultPeers";
+export { attachTransformScopes } from "./attachTransformScopes";
+export type { ScopesConfig } from "./attachTransformScopes";
 
 // tap hooks
 export {
@@ -22,16 +24,24 @@ export { tapClientList } from "./tapClientList";
 
 // types
 export type {
-  ClientRegistry,
+  ScopeRegistry,
   ClientOutput,
+  ClientMethods,
+  ClientSchema,
+  ClientNames,
+  ClientEvents,
+  ClientMeta,
+  ClientElement,
+  Unsubscribe,
+  AssistantClientAccessor,
   AssistantClient,
   AssistantState,
 } from "./types/client";
-export type {
-  AssistantEventName,
-  AssistantEventCallback,
-  AssistantEventPayload,
-  AssistantEventSelector,
-  AssistantEventScope,
+export {
+  normalizeEventSelector,
+  type AssistantEventName,
+  type AssistantEventCallback,
+  type AssistantEventPayload,
+  type AssistantEventSelector,
+  type AssistantEventScope,
 } from "./types/events";
-export type { DefaultPeers } from "./attachDefaultPeers";

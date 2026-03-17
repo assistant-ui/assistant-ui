@@ -17,5 +17,8 @@
     "lib": "@/lib",
     "hooks": "@/hooks"
   },
-  "iconLibrary": "lucide"
+  "iconLibrary": "lucide",
+  "registries": {
+    "@assistant-ui": "https://r.assistant-ui.com/{name}.json"
+  }
 }

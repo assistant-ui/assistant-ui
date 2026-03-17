@@ -1,19 +1,15 @@
 "use client";
 
-import { forwardRef, useCallback } from "react";
+import { forwardRef } from "react";
 import { ActionButtonProps } from "../../utils/createActionButton";
 import { composeEventHandlers } from "@radix-ui/primitive";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAuiState } from "@assistant-ui/store";
 import { Primitive } from "@radix-ui/react-primitive";
+import { useActionBarFeedbackPositive as useActionBarFeedbackPositiveBehavior } from "@assistant-ui/core/react";
 
 const useActionBarFeedbackPositive = () => {
-  const api = useAssistantApi();
-
-  const callback = useCallback(() => {
-    api.message().submitFeedback({ type: "positive" });
-  }, [api]);
-
-  return callback;
+  const { submit } = useActionBarFeedbackPositiveBehavior();
+  return submit;
 };
 
 export namespace ActionBarPrimitiveFeedbackPositive {
@@ -25,7 +21,7 @@ export const ActionBarPrimitiveFeedbackPositive = forwardRef<
   ActionBarPrimitiveFeedbackPositive.Element,
   ActionBarPrimitiveFeedbackPositive.Props
 >(({ onClick, disabled, ...props }, forwardedRef) => {
-  const isSubmitted = useAssistantState(
+  const isSubmitted = useAuiState(
     (s) => s.message.metadata.submittedFeedback?.type === "positive",
   );
   const callback = useActionBarFeedbackPositive();

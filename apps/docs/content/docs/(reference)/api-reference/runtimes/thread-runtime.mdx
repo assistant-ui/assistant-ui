@@ -1,0 +1,48 @@
+---
+title: ThreadRuntime
+description: Runtime for thread state, messages, and viewport management.
+---
+
+import { ThreadRuntime, ThreadState } from "@/generated/typeDocs";
+import { ThreadViewportState } from "@/components/docs/parameters-table.context";
+
+### `useAui` (Thread Actions)
+
+Access thread actions via `useAui`:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+const aui = useAui();
+aui.thread().cancelRun();
+aui.thread().append({ role: "user", content: [{ type: "text", text: "Hello" }] });
+```
+
+<ParametersTable {...ThreadRuntime} />
+
+### `useAuiState` (Thread State)
+
+Access the thread state reactively:
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+const isRunning = useAuiState((s) => s.thread.isRunning);
+const isLoading = useAuiState((s) => s.thread.isLoading);
+const messages = useAuiState((s) => s.thread.messages);
+```
+
+<ParametersTable {...ThreadState} />
+
+### `useThreadViewport`
+
+Manage thread viewport state (e.g., scrolling):
+
+```tsx
+import { useThreadViewport } from "@assistant-ui/react";
+
+const threadViewport = useThreadViewport();
+const isAtBottom = useThreadViewport((m) => m.isAtBottom);
+```
+
+<ParametersTable {...ThreadViewportState} />

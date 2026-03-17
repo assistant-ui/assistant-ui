@@ -80,12 +80,12 @@ describe("sanitizePath", () => {
     const validPaths = [
       { input: "getting-started", expected: "getting-started" },
       {
-        input: "api-reference/primitives/Thread",
-        expected: "api-reference/primitives/Thread",
+        input: "api-reference/primitives/thread",
+        expected: "api-reference/primitives/thread",
       },
       { input: "guides/tools", expected: "guides/tools" },
       { input: "docs/index", expected: "docs/index" },
-      { input: "examples/with-ai-sdk", expected: "examples/with-ai-sdk" },
+      { input: "examples/with-ai-sdk-v6", expected: "examples/with-ai-sdk-v6" },
       { input: "./current-dir-file", expected: "current-dir-file" },
       {
         input: "deeply/nested/path/to/file",

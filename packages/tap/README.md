@@ -51,7 +51,7 @@ Resources are self-contained units of reactive state and logic. They follow the 
 ### Creating Resources
 
 ```typescript
-import { createResource, tapState, tapEffect } from "@assistant-ui/tap";
+import { createResourceRoot, tapState, tapEffect } from "@assistant-ui/tap";
 
 // Define a resource using familiar hook patterns
 const Counter = resource(({ incrementBy = 1 }: { incrementBy?: number }) => {
@@ -69,15 +69,16 @@ const Counter = resource(({ incrementBy = 1 }: { incrementBy?: number }) => {
 });
 
 // Create an instance
-const counter = createResource(new Counter({ incrementBy: 2 }));
+const root = createResourceRoot();
+const counter = root.render(Counter({ incrementBy: 2 }));
 
 // Subscribe to changes
 const unsubscribe = counter.subscribe(() => {
-  console.log("Counter value:", counter.getState().count);
+  console.log("Counter value:", counter.getValue().count);
 });
 
 // Use the resource
-counter.getState().increment();
+counter.getValue().increment();
 ```
 
 ## `resource`
@@ -90,11 +91,12 @@ const Counter = resource(({ incrementBy = 1 }: { incrementBy?: number }) => {
 });
 
 // create a Counter element
-const counterEl = new Counter({ incrementBy: 2 });
+const counterEl = Counter({ incrementBy: 2 });
 
 // create a Counter instance
-const counter = createResource(counterEl);
-counter.dispose();
+const root = createResourceRoot();
+root.render(counterEl);
+root.unmount();
 ```
 
 ## Hook APIs
@@ -176,20 +178,18 @@ const Timer = resource(() => {
 
 ### `tapResources`
 
-Renders multiple resources from a record/map, similar to React's list rendering. Returns a record with the same keys mapping to each resource's result.
+Renders multiple resources from an array, similar to React's list rendering. Returns an array with each resource's result.
 
 ```typescript
-tapResources<T, R, K extends string | number>(
-  map: Record<K, T>,
-  getElement: (value: T, key: K) => ResourceElement<R>,
-  getElementDeps?: any[]
-): Record<K, R>
+tapResources<E extends ResourceElement<any, any>>(
+  getElements: () => readonly E[],
+  getElementsDeps: readonly any[]
+): ExtractResourceReturnType<E>[]
 ```
 
 **Parameters:**
-- `map`: A record/object where keys identify each resource instance
-- `getElement`: A function that receives each value and key, returning a ResourceElement
-- `getElementDeps`: Optional dependency array for memoizing the getElement function
+- `getElements`: A function that returns an array of ResourceElements
+- `getElementsDeps`: Dependency array for memoizing the getElements function
 
 **Example:**
 
@@ -201,71 +201,75 @@ const TodoItem = resource((props: { text: string }) => {
 
 const TodoList = resource(() => {
   const todos = tapMemo(
-    () => ({
-      "1": { text: "Learn tap" },
-      "2": { text: "Build something awesome" },
-    }),
+    () => [
+      { id: "1", text: "Learn tap" },
+      { id: "2", text: "Build something awesome" },
+    ],
     [],
   );
 
-  // Returns Record<string, { text, completed, setCompleted }>
-  const todoItems = tapResources(todos, (todo) => TodoItem({ text: todo.text }));
+  // Returns Array<{ text, completed, setCompleted }>
+  const todoItems = tapResources(
+    () => todos.map((todo) => TodoItem({ text: todo.text })),
+    [todos]
+  );
 
   return todoItems;
 });
 ```
 
 **Key features:**
-- Resource instances are preserved when keys remain the same
-- Automatically cleans up resources when keys are removed
+- Resource instances are preserved when keys remain the same (use `withKey()` to provide stable keys)
+- Automatically cleans up resources when removed from the array
 - Handles resource type changes (recreates fiber if type changes)
 
-### `tapContext` and Context Support
+### `tap` and Context Support
 
 Create and use context to pass values through resource boundaries without prop drilling.
 
 ```typescript
 import {
-  createContext,
-  tapContext,
+  createResourceContext,
+  tap,
   withContextProvider,
 } from "@assistant-ui/tap";
 
-const MyContext = createContext(defaultValue);
+const MyContext = createResourceContext(defaultValue);
 
 // Provide context
 withContextProvider(MyContext, value, () => {
-  // Inside this function, tapContext can access the value
+  // Inside this function, tap can access the value
 });
 
 // Access context in a resource
-const value = tapContext(MyContext);
+const value = tap(MyContext);
 ```
 
 ## Resource Management
 
-### `createResource`
+### `createResourceRoot`
 
-Create an instance of a resource. This renders the resource and mounts the tapEffect hooks.
+Create an instance of a resource. Call `render()` with a resource element to render it and mount effects. Returns a `SubscribableResource` with `getValue()` and `subscribe()`.
 
 ```typescript
-import { createResource } from "@assistant-ui/tap";
+import { createResourceRoot } from "@assistant-ui/tap";
 
-const handle = createResource(new Counter({ incrementBy: 1 }));
+const root = createResourceRoot();
+const counter = root.render(Counter({ incrementBy: 1 }));
 
 // Access current value
-console.log(handle.getState().count);
+console.log(counter.getValue().count);
 
 // Subscribe to changes
-const unsubscribe = handle.subscribe(() => {
-  console.log("Counter updated:", handle.getState());
+const unsubscribe = counter.subscribe(() => {
+  console.log("Counter updated:", counter.getValue());
 });
 
-// Update props to the resource
-handle.updateInput({ incrementBy: 2 });
+// Update props by calling render again
+root.render(Counter({ incrementBy: 2 }));
 
 // Cleanup
-handle.dispose();
+root.unmount();
 unsubscribe();
 ```
 

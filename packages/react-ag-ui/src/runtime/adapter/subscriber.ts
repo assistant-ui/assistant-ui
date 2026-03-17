@@ -16,6 +16,11 @@ type Subscriber = {
   onThinkingTextMessageStartEvent?: (payload: { event: unknown }) => void;
   onThinkingTextMessageContentEvent?: (payload: { event: unknown }) => void;
   onThinkingTextMessageEndEvent?: (payload: { event: unknown }) => void;
+  onReasoningStartEvent?: (payload: { event: unknown }) => void;
+  onReasoningEndEvent?: (payload: { event: unknown }) => void;
+  onReasoningMessageStartEvent?: (payload: { event: unknown }) => void;
+  onReasoningMessageContentEvent?: (payload: { event: unknown }) => void;
+  onReasoningMessageEndEvent?: (payload: { event: unknown }) => void;
   onToolCallStartEvent?: (payload: { event: unknown }) => void;
   onToolCallArgsEvent?: (payload: { event: unknown }) => void;
   onToolCallEndEvent?: (payload: { event: unknown }) => void;
@@ -95,6 +100,16 @@ export const createAgUiSubscriber = (
       dispatchIfValid(dispatch, event, "THINKING_TEXT_MESSAGE_CONTENT"),
     onThinkingTextMessageEndEvent: ({ event }) =>
       dispatchIfValid(dispatch, event, "THINKING_TEXT_MESSAGE_END"),
+    onReasoningStartEvent: ({ event }) =>
+      dispatchIfValid(dispatch, event, "REASONING_START"),
+    onReasoningEndEvent: ({ event }) =>
+      dispatchIfValid(dispatch, event, "REASONING_END"),
+    onReasoningMessageStartEvent: ({ event }) =>
+      dispatchIfValid(dispatch, event, "REASONING_MESSAGE_START"),
+    onReasoningMessageContentEvent: ({ event }) =>
+      dispatchIfValid(dispatch, event, "REASONING_MESSAGE_CONTENT"),
+    onReasoningMessageEndEvent: ({ event }) =>
+      dispatchIfValid(dispatch, event, "REASONING_MESSAGE_END"),
     onToolCallStartEvent: ({ event }) =>
       dispatchIfValid(dispatch, event, "TOOL_CALL_START"),
     onToolCallArgsEvent: ({ event }) =>

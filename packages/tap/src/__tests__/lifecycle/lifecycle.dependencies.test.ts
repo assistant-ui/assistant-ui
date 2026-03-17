@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/correctness/useExhaustiveDependencies: tests */
 import { describe, it, expect, vi } from "vitest";
 import { tapEffect } from "../../hooks/tap-effect";
 import { tapState } from "../../hooks/tap-state";
@@ -232,9 +233,9 @@ describe("Lifecycle - Dependencies", () => {
 
     // Change to no deps
     useDeps = false;
-    const ctx = renderResourceFiber(resource, undefined);
 
-    expect(() => commitResourceFiber(resource, ctx)).toThrow(
+    // Error now throws during render (fail-fast validation)
+    expect(() => renderResourceFiber(resource, undefined)).toThrow(
       "tapEffect called with and without dependencies across re-renders",
     );
   });

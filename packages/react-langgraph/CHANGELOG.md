@@ -1,5 +1,193 @@
 # @assistant-ui/react-langgraph
 
+## 0.13.5
+
+### Patch Changes
+
+- e4bc32e: fix(react-langgraph): support messages from non-LLM LangGraph nodes via `updates` and `values` events
+- Updated dependencies [7ecc497]
+  - @assistant-ui/core@0.1.7
+
+## 0.13.4
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- 619d923: Depend on @assistant-ui/core instead of @assistant-ui/react
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [6cc4122]
+- Updated dependencies [642bcda]
+  - @assistant-ui/core@0.1.6
+  - assistant-stream@0.3.6
+  - assistant-cloud@0.1.22
+  - @assistant-ui/store@0.2.3
+
+## 0.13.3
+
+### Patch Changes
+
+- cbdc786: fix(react-langgraph): stabilize tool args serialization to avoid argsText rewrites
+- a845911: chore: update dependencies
+- e9ba6ab: fix(react-langgraph): handle tool_call_chunks with index 0
+- 5232826: fix(react-langgraph): treat stream cancellation `AbortError` as a normal exit condition in `useLangGraphMessages` to avoid unhandled promise rejections when runs are cancelled.
+- 3c58d63: fix(react-langgraph): send file attachments as flat LangGraph file blocks and accept both flat/legacy file formats
+- 1eb059c: fix(react-langgraph): preserve tuple-stream accumulated messages by skipping updates snapshot replacement after tuple message events.
+- Updated dependencies [07dcce0]
+- Updated dependencies [a845911]
+- Updated dependencies [bc40eaf]
+- Updated dependencies [be23d74]
+- Updated dependencies [1eb059c]
+  - @assistant-ui/react@0.12.15
+
+## 0.13.2
+
+### Patch Changes
+
+- 3892994: fix(react-langgraph): normalize messages-tuple events for Python LangGraph compatibility
+- Updated dependencies [17cf9a8]
+  - @assistant-ui/react@0.12.13
+
+## 0.13.1
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+- 02c6f44: feat(react-langgraph): add `onEdit` and `onReload` support via `getCheckpointId` option
+
+  Added `getCheckpointId` callback to `useLangGraphRuntime`. When provided, enables message editing (branching) and regeneration by resolving the appropriate LangGraph checkpoint ID for server-side forking. The checkpoint ID flows through to the `stream` callback via `LangGraphSendMessageConfig.checkpointId`.
+
+  Also fixed a stale closure bug in `useLangGraphMessages` where the message accumulator could initialize with outdated messages when `setMessages` and `sendMessage` were called in the same React frame.
+
+- e1d839e: feat(react-langgraph): support `additional_kwargs.metadata` in LangGraph message converter, mapping it to `ThreadMessage.metadata.custom`
+- Updated dependencies [36ef3a2]
+- Updated dependencies [6692226]
+- Updated dependencies [c31c0fa]
+- Updated dependencies [1672be8]
+- Updated dependencies [28f39fe]
+- Updated dependencies [3a1cb66]
+- Updated dependencies [14769af]
+- Updated dependencies [7c360ce]
+- Updated dependencies [a638f05]
+- Updated dependencies [8a78cd2]
+  - assistant-stream@0.3.4
+  - @assistant-ui/react@0.12.12
+
+## 0.13.0
+
+### Minor Changes
+
+- 292eeda: feat(react-langgraph): support messages-tuple streaming metadata
+
+  Add `onMessageChunk`, `onValues`, `onUpdates` callbacks and `useLangGraphMessageMetadata` hook for accessing tuple metadata from messages-tuple stream mode.
+
+### Patch Changes
+
+- Updated dependencies [5bbe8a9]
+- Updated dependencies [5e304ea]
+- Updated dependencies [546c053]
+- Updated dependencies [a7039e3]
+- Updated dependencies [16c10fd]
+- Updated dependencies [98c3d54]
+- Updated dependencies [b181803]
+- Updated dependencies [7836760]
+- Updated dependencies [9276547]
+- Updated dependencies [b65428e]
+- Updated dependencies [af5b085]
+- Updated dependencies [61b54e9]
+- Updated dependencies [a094c45]
+- Updated dependencies [4d7f712]
+- Updated dependencies [ecc29ec]
+- Updated dependencies [6e97999]
+- Updated dependencies [a247fc9]
+- Updated dependencies [f414af9]
+- Updated dependencies [b48912c]
+- Updated dependencies [93910bd]
+- Updated dependencies [58a8472]
+  - @assistant-ui/react@0.12.11
+  - assistant-stream@0.3.3
+
+## 0.12.5
+
+### Patch Changes
+
+- afaaf3b: feat(react-langgraph): support frontend tool execution in LangGraph runtime
+- Updated dependencies [afaaf3b]
+- Updated dependencies [afaaf3b]
+- Updated dependencies [afaaf3b]
+- Updated dependencies [afaaf3b]
+- Updated dependencies [51d24be]
+- Updated dependencies [afaaf3b]
+  - @assistant-ui/react@0.12.10
+
+## 0.12.4
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+- Updated dependencies [a088518]
+- Updated dependencies [d8122cc]
+  - assistant-stream@0.3.2
+  - @assistant-ui/react@0.12.9
+
+## 0.12.3
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+- Updated dependencies [d45b893]
+- Updated dependencies [fe71bfc]
+  - assistant-stream@0.3.1
+  - @assistant-ui/react@0.12.5
+
+## 0.12.2
+
+### Patch Changes
+
+- Updated dependencies [07d1c65]
+- Updated dependencies [b591d72]
+- Updated dependencies [59a338a]
+- Updated dependencies [acbaf07]
+- Updated dependencies [c665612]
+- Updated dependencies [0371d72]
+- Updated dependencies [e8b3f34]
+  - @assistant-ui/react@0.12.3
+  - assistant-stream@0.3.0
+
+## 0.12.1
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+- Updated dependencies [1ea3e28]
+- Updated dependencies [8cbf686]
+- Updated dependencies [a8be364]
+- Updated dependencies [605d825]
+  - @assistant-ui/react@0.12.2
+  - assistant-stream@0.2.48
+
+## 0.7.15
+
+### Patch Changes
+
+- 3719567: chore: update deps
+- Updated dependencies [3719567]
+  - assistant-stream@0.2.47
+  - @assistant-ui/react@0.11.58
+
+## 0.7.14
+
+### Patch Changes
+
+- 07ff0d7: fix(react-langgraph): trigger `loadThread` when switching threads
+- Updated dependencies [ebd41c7]
+- Updated dependencies [9a110ea]
+- Updated dependencies [caee095]
+- Updated dependencies [9883125]
+  - @assistant-ui/react@0.11.57
+
 ## 0.7.13
 
 ### Patch Changes
@@ -156,7 +344,7 @@
 
 - 9e03f7a: fix: Handle undefined extras in useLangGraphInterruptState
 
-  Fixed an issue where useLangGraphInterruptState would throw errors when thread extras are undefined (e.g., with EMPTY_THREAD_CORE). The hook now safely returns undefined when extras are not available, and uses useAssistantApi for imperative operations in useLangGraphSend to avoid similar issues.
+  Fixed an issue where useLangGraphInterruptState would throw errors when thread extras are undefined (e.g., with EMPTY_THREAD_CORE). The hook now safely returns undefined when extras are not available, and uses useAui for imperative operations in useLangGraphSend to avoid similar issues.
 
 - Updated dependencies [94fcc39]
   - @assistant-ui/react@0.11.20
@@ -219,7 +407,7 @@
 
 ### Patch Changes
 
-- 072de1d: fix: incorrect use of api.threadListItem()
+- 072de1d: fix: incorrect use of aui.threadListItem()
 - Updated dependencies [2e1815e]
   - @assistant-ui/react@0.11.3
 

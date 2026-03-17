@@ -54,7 +54,7 @@ describe("Lifecycle - Mount/Unmount", () => {
     renderTest(resource, undefined);
     unmountResource(resource);
 
-    expect(order).toEqual([3, 2, 1]);
+    expect(order).toEqual([1, 2, 3]);
   });
 
   it("should preserve state across re-renders", () => {
@@ -150,7 +150,7 @@ describe("Lifecycle - Mount/Unmount", () => {
 
     // Unmount
     unmountResourceFiber(resource);
-    expect(log).toEqual(["cleanup-2", "cleanup-1"]);
+    expect(log).toEqual(["cleanup-1", "cleanup-2"]);
   });
 
   it("should handle cleanup errors gracefully", () => {

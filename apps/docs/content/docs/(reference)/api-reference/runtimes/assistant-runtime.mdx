@@ -1,0 +1,32 @@
+---
+title: AssistantRuntime
+description: Root runtime for managing threads, tool UIs, and assistant state.
+---
+
+import { AssistantRuntime } from "@/generated/typeDocs";
+
+The `AssistantRuntime` is the root runtime of the application.
+
+### `useAui`
+
+Access the assistant runtime via `useAui`:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+const aui = useAui();
+
+// Thread management
+aui.threads().switchToNewThread();
+aui.threads().switchToThread(threadId);
+
+// Thread actions
+aui.thread().cancelRun();
+aui.thread().append(message);
+```
+
+<ParametersTable {...AssistantRuntime} />
+
+### Tool UI Registry
+
+The tool UI registry is part of the assistant runtime. It allows you to display custom UI for tool calls, enabling generative UI.

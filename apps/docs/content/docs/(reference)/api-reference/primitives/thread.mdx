@@ -1,0 +1,374 @@
+---
+title: ThreadPrimitive
+description: Primitives for the message list, viewport, and welcome screen.
+---
+
+A conversation between a user and an assistant.
+
+
+## Anatomy
+
+```tsx
+import { ThreadPrimitive } from "@assistant-ui/react";
+
+const Thread = () => (
+  <ThreadPrimitive.Root>
+    <ThreadPrimitive.Viewport>
+      <AuiIf condition={(s) => s.thread.isEmpty}>...</AuiIf>
+      <ThreadPrimitive.Messages>{...}</ThreadPrimitive.Messages>
+      <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
+        <Composer />
+      </ThreadPrimitive.ViewportFooter>
+    </ThreadPrimitive.Viewport>
+  </ThreadPrimitive.Root>
+);
+```
+
+## API Reference
+
+### Root
+
+Contains all parts of the thread.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ThreadPrimitiveRootProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### Viewport
+
+The scrollable area containing all messages. Anchors scroll to the bottom as new messages are added.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ThreadPrimitiveViewportProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "autoScroll",
+      type: "boolean",
+      default: 'true (false when turnAnchor is "top")',
+      description:
+        "Whether to automatically scroll to the bottom of the viewport when new messages are added while the viewport was previously scrolled to the bottom.",
+    },
+    {
+      name: "turnAnchor",
+      type: '"top" | "bottom"',
+      default: '"bottom"',
+      description:
+        'Controls scroll anchoring behavior for new messages. "bottom" is the classic chat behavior where messages anchor at the bottom. "top" anchors new user messages at the top of the viewport for a focused reading experience.',
+    },
+    {
+      name: "scrollToBottomOnRunStart",
+      type: "boolean",
+      default: "true",
+      description: "Whether to scroll to bottom when a new run starts.",
+    },
+    {
+      name: "scrollToBottomOnInitialize",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to scroll to bottom when thread history is first loaded.",
+    },
+    {
+      name: "scrollToBottomOnThreadSwitch",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to scroll to bottom when switching to a different thread.",
+    },
+  ]}
+/>
+
+### ViewportFooter
+
+A footer container placed inside `ThreadPrimitive.Viewport` that measures its own height (including top margin) and reports it to the viewport context. The viewport uses this measurement in scroll calculations — for example, as the minimum height for `ViewportSlack` — so that the scroll-to-bottom behaviour accounts for any sticky footer overlapping the message list.
+
+Multiple `ViewportFooter` components may be used; their heights are summed.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ThreadPrimitive.Viewport>
+  <ThreadPrimitive.Messages>{...}</ThreadPrimitive.Messages>
+  <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
+    <Composer />
+  </ThreadPrimitive.ViewportFooter>
+</ThreadPrimitive.Viewport>
+```
+
+<ParametersTable
+  type="ThreadPrimitiveViewportFooterProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### Messages
+
+Renders all messages. This primitive renders a separate component for each message.
+
+<ParametersTable
+  type="ThreadPrimitiveMessagesProps"
+  parameters={[
+    {
+      name: "components",
+      type: "MessageComponents",
+      description: "The component to render for each message.",
+      children: [
+        {
+          type: "MessageComponents",
+          parameters: [
+            {
+              name: "Message",
+              type: "ComponentType",
+              description: "The component to render for each message.",
+            },
+            {
+              name: "UserMessage",
+              type: "ComponentType",
+              description: "The component to render for user messages.",
+            },
+            {
+              name: "AssistantMessage",
+              type: "ComponentType",
+              description: "The component to render for assistant messages.",
+            },
+            {
+              name: "SystemMessage",
+              type: "ComponentType",
+              description: "The component to render for system messages.",
+            },
+            {
+              name: "EditComposer",
+              type: "ComponentType",
+              description:
+                "The component to render when any message type is being edited. Used as a fallback when a role-specific edit composer is not provided.",
+            },
+            {
+              name: "UserEditComposer",
+              type: "ComponentType",
+              description:
+                "The component to render when a user message is being edited. Takes precedence over EditComposer for user messages.",
+            },
+            {
+              name: "AssistantEditComposer",
+              type: "ComponentType",
+              description:
+                "The component to render when an assistant message is being edited. Takes precedence over EditComposer for assistant messages.",
+            },
+            {
+              name: "SystemEditComposer",
+              type: "ComponentType",
+              description:
+                "The component to render when a system message is being edited. Takes precedence over EditComposer for system messages.",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+### MessageByIndex
+
+Renders a single message at the specified index in the current thread.
+
+```tsx
+<ThreadPrimitive.MessageByIndex index={0}>
+  {({ message }) => message.role === "user" ? <MyUserMessage /> : <MyAssistantMessage />}
+</ThreadPrimitive.MessageByIndex>
+```
+
+<ParametersTable
+  type="ThreadPrimitive.MessageByIndex.Props"
+  parameters={[
+    {
+      name: "index",
+      type: "number",
+      required: true,
+      description: "The index of the message to render.",
+    },
+    {
+      name: "components",
+      type: "MessageComponents",
+      description: "The component configuration for rendering the message.",
+      children: [
+        {
+          type: "MessageComponents",
+          parameters: [
+            {
+              name: "Message",
+              type: "ComponentType",
+              description: "The component to render for each message.",
+            },
+            {
+              name: "UserMessage",
+              type: "ComponentType",
+              description: "The component to render for user messages.",
+            },
+            {
+              name: "AssistantMessage",
+              type: "ComponentType",
+              description: "The component to render for assistant messages.",
+            },
+            {
+              name: "SystemMessage",
+              type: "ComponentType",
+              description: "The component to render for system messages.",
+            },
+            {
+              name: "EditComposer",
+              type: "ComponentType",
+              description:
+                "The component to render when any message type is being edited. Used as a fallback when a role-specific edit composer is not provided.",
+            },
+            {
+              name: "UserEditComposer",
+              type: "ComponentType",
+              description:
+                "The component to render when a user message is being edited. Takes precedence over EditComposer for user messages.",
+            },
+            {
+              name: "AssistantEditComposer",
+              type: "ComponentType",
+              description:
+                "The component to render when an assistant message is being edited. Takes precedence over EditComposer for assistant messages.",
+            },
+            {
+              name: "SystemEditComposer",
+              type: "ComponentType",
+              description:
+                "The component to render when a system message is being edited. Takes precedence over EditComposer for system messages.",
+            },
+          ],
+        },
+      ],
+    },
+  ]}
+/>
+
+### Empty
+
+<Callout type="warn">
+**Deprecated.** Use `<AuiIf condition={(s) => s.thread.isEmpty}>` instead.
+</Callout>
+
+Renders children only when there are no messages.
+
+### ScrollToBottom
+
+A button to scroll the viewport to the bottom. Disabled when the viewport is already at bottom.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ThreadPrimitiveScrollToBottomProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "behavior",
+      type: '"auto" | "instant" | "smooth"',
+      description:
+        "The scroll behavior to use when scrolling to the bottom. Passed to the browser's scrollIntoView API.",
+    },
+  ]}
+/>
+
+### Suggestion
+
+A button that applies a suggestion prompt to the composer. When clicked, it sets the composer text to the given prompt and optionally sends the message immediately.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ThreadPrimitive.Suggestion prompt="Tell me a joke" send>
+  Tell me a joke
+</ThreadPrimitive.Suggestion>
+```
+
+<ParametersTable
+  type="ThreadPrimitiveSuggestionProps"
+  parameters={[
+    {
+      name: "prompt",
+      type: "string",
+      required: true,
+      description:
+        "The text to place in the composer when this suggestion is activated.",
+    },
+    {
+      name: "send",
+      type: "boolean",
+      default: "false",
+      description:
+        "When true, immediately sends the message instead of only populating the composer.",
+    },
+    {
+      name: "clearComposer",
+      type: "boolean",
+      default: "true",
+      description:
+        "When send is false, determines whether the composer text is replaced by the prompt (true) or appended to it (false).",
+    },
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### `ThreadPrimitive.Suggestions`
+
+Renders all configured suggestions from the Suggestions API. Each suggestion is rendered using the provided Suggestion component.
+
+```tsx
+import { ThreadPrimitive, SuggestionPrimitive } from "@assistant-ui/react";
+
+const SuggestionsList = () => {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <ThreadPrimitive.Suggestions>
+        {() => <SuggestionItem />}
+      </ThreadPrimitive.Suggestions>
+    </div>
+  );
+};
+
+const SuggestionItem = () => (
+  <SuggestionPrimitive.Trigger send asChild>
+    <button className="p-3 border rounded">
+      <SuggestionPrimitive.Title />
+      <SuggestionPrimitive.Description />
+    </button>
+  </SuggestionPrimitive.Trigger>
+);
+```
+
+<ParametersTable
+  type="ThreadPrimitiveSuggestionsProps"
+  parameters={[
+    {
+      name: "components",
+      type: "{ Suggestion: ComponentType }",
+      description: "Custom component to render each suggestion.",
+    },
+  ]}
+/>
+
+<Callout type="info">
+Configure suggestions using the `Suggestions()` API in your runtime provider. See the [Suggestions guide](/docs/guides/suggestions) for details.
+</Callout>

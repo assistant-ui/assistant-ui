@@ -1,0 +1,245 @@
+---
+title: Select
+description: A dropdown select component with composable sub-components.
+links:
+  - label: Radix UI Select
+    url: https://www.radix-ui.com/primitives/docs/components/select
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import {
+  SelectSample,
+  SelectDisabledItemsSample,
+  SelectPlaceholderSample,
+  SelectDisabledSample,
+  SelectGroupsSample,
+  SelectVariantsSample,
+  SelectSizesSample,
+  SelectScrollableSample,
+} from "@/components/docs/samples/select";
+
+<Callout>
+  This is a **standalone component** that does not depend on the assistant-ui runtime. Use it anywhere in your application.
+</Callout>
+
+<SelectSample />
+
+## Installation
+
+<InstallCommand shadcn={["select"]} />
+
+## Usage
+
+```tsx
+import { Select } from "@/components/assistant-ui/select";
+
+const options = [
+  { value: "apple", label: "Apple" },
+  { value: "banana", label: "Banana" },
+  { value: "orange", label: "Orange" },
+];
+
+export function FruitPicker() {
+  const [value, setValue] = useState("apple");
+
+  return (
+    <Select
+      value={value}
+      onValueChange={setValue}
+      options={options}
+      placeholder="Select a fruit..."
+    />
+  );
+}
+```
+
+## Examples
+
+### Variants
+
+Use the `variant` prop on `SelectTrigger` to change the visual style.
+
+<SelectVariantsSample />
+
+```tsx
+<SelectTrigger variant="outline" /> // Border (default)
+<SelectTrigger variant="ghost" />   // No border
+<SelectTrigger variant="muted" />   // Solid background
+```
+
+### Sizes
+
+Use the `size` prop on `SelectTrigger` to change the height.
+
+<SelectSizesSample />
+
+```tsx
+<SelectTrigger size="default" /> // 36px (default)
+<SelectTrigger size="sm" />      // 32px
+```
+
+### Scrollable
+
+Long lists automatically become scrollable.
+
+<PreviewCode file="components/docs/samples/select" name="SelectScrollableSample">
+  <SelectScrollableSample />
+</PreviewCode>
+
+### Groups
+
+Use the composable API for grouped options:
+
+<PreviewCode file="components/docs/samples/select" name="SelectGroupsSample">
+  <SelectGroupsSample />
+</PreviewCode>
+
+### Disabled Items
+
+<PreviewCode file="components/docs/samples/select" name="SelectDisabledItemsSample">
+  <SelectDisabledItemsSample />
+</PreviewCode>
+
+### With Placeholder
+
+<PreviewCode file="components/docs/samples/select" name="SelectPlaceholderSample">
+  <SelectPlaceholderSample />
+</PreviewCode>
+
+### Disabled Select
+
+<PreviewCode file="components/docs/samples/select" name="SelectDisabledSample">
+  <SelectDisabledSample />
+</PreviewCode>
+
+## API Reference
+
+### Composable API
+
+| Component | Description |
+|-----------|-------------|
+| `Select` | A convenience component that renders a complete select with options. |
+| `SelectRoot` | The root component that manages state. |
+| `SelectTrigger` | The button that opens the dropdown. Accepts `variant` and `size` props. |
+| `SelectValue` | Renders the selected value or placeholder. |
+| `SelectContent` | The dropdown content container with animations. |
+| `SelectItem` | An individual selectable item. |
+| `SelectGroup` | Groups related items together. |
+| `SelectLabel` | A label for a group of items. |
+| `SelectSeparator` | A visual separator between items or groups. |
+| `SelectScrollUpButton` | Scroll indicator for long lists. |
+| `SelectScrollDownButton` | Scroll indicator for long lists. |
+
+### Select
+
+A convenience component that renders a complete select with options.
+
+<ParametersTable
+  type="SelectProps"
+  parameters={[
+    {
+      name: "value",
+      type: "string",
+      required: true,
+      description: "The controlled value of the select.",
+    },
+    {
+      name: "onValueChange",
+      type: "(value: string) => void",
+      required: true,
+      description: "Callback when the selected value changes.",
+    },
+    {
+      name: "options",
+      type: "SelectOption[]",
+      required: true,
+      description: "Array of options to display.",
+    },
+    {
+      name: "placeholder",
+      type: "string",
+      description: "Placeholder text when no value is selected.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes for the trigger.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      description: "Whether the select is disabled.",
+    },
+  ]}
+/>
+
+### SelectOption
+
+<ParametersTable
+  type="SelectOption"
+  parameters={[
+    {
+      name: "value",
+      type: "string",
+      required: true,
+      description: "The value of the option.",
+    },
+    {
+      name: "label",
+      type: "ReactNode",
+      required: true,
+      description: "The display label for the option.",
+    },
+    {
+      name: "textValue",
+      type: "string",
+      description: "Optional text value for typeahead. Defaults to label if it's a string.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      description: "Whether the option is disabled.",
+    },
+  ]}
+/>
+
+### SelectTrigger
+
+The button that opens the dropdown.
+
+<ParametersTable
+  type="SelectTriggerProps"
+  parameters={[
+    {
+      name: "variant",
+      type: '"outline" | "ghost" | "muted"',
+      default: '"outline"',
+      description: "The visual style of the trigger.",
+    },
+    {
+      name: "size",
+      type: '"sm" | "default" | "lg"',
+      default: '"default"',
+      description: "The size of the trigger.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### Style Variants (CVA)
+
+| Export | Description |
+|--------|-------------|
+| `selectTriggerVariants` | Styles for the select trigger button. |
+
+```tsx
+import { selectTriggerVariants } from "@/components/assistant-ui/select";
+
+<button className={selectTriggerVariants({ variant: "ghost", size: "sm" })}>
+  Custom Trigger
+</button>
+```

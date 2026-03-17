@@ -1,0 +1,84 @@
+---
+title: "Mermaid Diagrams"
+description: Render Mermaid diagrams in chat messages with streaming support.
+---
+
+import { MermaidSample } from "@/components/docs/samples/mermaid";
+
+<MermaidSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `mermaid-diagram` component
+
+<InstallCommand shadcn={["mermaid-diagram"]} />
+
+This will install the required dependencies and add the component to your project.
+
+  </Step>
+  <Step>
+
+### Add it to `componentsByLanguage` in `markdown-text.tsx`
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import { MermaidDiagram } from "@/components/assistant-ui/mermaid-diagram"; // [!code ++]
+
+const MarkdownTextImpl = () => {
+  return (
+    <MarkdownTextPrimitive
+      remarkPlugins={[remarkGfm]}
+      className="aui-md"
+      components={defaultComponents}
+      componentsByLanguage={{               // [!code ++]
+        mermaid: {                          // [!code ++]
+          SyntaxHighlighter: MermaidDiagram // [!code ++]
+        },                                  // [!code ++]
+      }}                                    // [!code ++]
+    />
+  );
+};
+
+export const MarkdownText = memo(MarkdownTextImpl);
+```
+
+  </Step>
+</Steps>
+
+## Configuration
+
+Configure mermaid options in `mermaid-diagram.tsx`:
+
+```tsx title="/components/assistant-ui/mermaid-diagram.tsx"
+mermaid.initialize({ theme: "default" });
+```
+
+## Streaming Performance
+
+The `MermaidDiagram` component is optimized for streaming scenarios:
+
+- **Smart completion detection**: Only renders when the specific code block is complete
+- **Zero failed renders**: Avoids parsing incomplete diagram code during streaming  
+
+
+## Supported Diagram Types
+
+Mermaid supports various diagram types including:
+
+- Flowcharts and decision trees
+- Sequence diagrams
+- Gantt charts
+- Class diagrams
+- State diagrams
+- Git graphs
+- User journey maps
+- Entity relationship diagrams
+
+See the [Mermaid documentation](https://mermaid.js.org/) for complete syntax reference.
+
+## Related Components
+
+- [Markdown](/docs/ui/markdown) - Rich text rendering where mermaid is integrated
+- [Syntax Highlighting](/docs/ui/syntax-highlighting) - Code highlighting for other languages

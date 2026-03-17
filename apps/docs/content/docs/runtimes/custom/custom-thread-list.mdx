@@ -3,13 +3,10 @@ title: Custom Thread List
 description: Plug a custom thread database for multi-thread persistence.
 ---
 
-import { Callout } from "fumadocs-ui/components/callout";
-import { Steps, Step } from "fumadocs-ui/components/steps";
-import { ParametersTable } from "@/components/docs";
 
 ## Overview
 
-`useRemoteThreadListRuntime` lets you plug a custom thread database into assistant-ui. It keeps the UI and local runtime logic in sync while you provide persistence, archiving, and metadata for every conversation. The hook is exported as `unstable_useRemoteThreadListRuntime`; we refer to it here as **Custom Thread List**.
+`useRemoteThreadListRuntime` lets you plug a custom thread database into assistant-ui. It keeps the UI and local runtime logic in sync while you provide persistence, archiving, and metadata for every conversation.
 
 ## When to Use
 
@@ -66,8 +63,8 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
     import {
       AssistantRuntimeProvider,
       useLocalRuntime,
-      unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
-      type unstable_RemoteThreadListAdapter as RemoteThreadListAdapter,
+      useRemoteThreadListRuntime,
+      type RemoteThreadListAdapter,
     } from "@assistant-ui/react";
     import { createAssistantStream } from "assistant-stream";
     import { myModelAdapter } from "./model-adapter"; // your chat model adapter
@@ -119,12 +116,12 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
           title: thread.title,
         };
       },
-      async generateTitle(remoteId, messages) {
+      async generateTitle(remoteId, unstable_messages) {
         return createAssistantStream(async (controller) => {
           const response = await fetch(`/api/threads/${remoteId}/title`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages }),
+            body: JSON.stringify({ messages: unstable_messages }),
           });
           const { title } = await response.json();
           controller.appendText(title);
@@ -202,6 +199,13 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
       required: true,
     },
     {
+      name: "fetch",
+      type: "(threadId: string) => Promise<RemoteThreadMetadata>",
+      description:
+        "Fetch metadata for a specific thread. Used when switching to a thread not in the initial list.",
+      required: true,
+    },
+    {
       name: "unstable_Provider",
       type: "ComponentType<PropsWithChildren>",
       description:
@@ -224,26 +228,26 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
 When implementing a custom history adapter, you must await thread initialization before saving messages. Failing to do so can cause the first message to be lost due to a race condition.
 </Callout>
 
-If you're building a history adapter that persists messages to your own database, use `api.threadListItem().initialize()` to ensure the thread is fully initialized before saving:
+If you're building a history adapter that persists messages to your own database, use `aui.threadListItem().initialize()` to ensure the thread is fully initialized before saving:
 
 ```tsx
-import { useAssistantApi } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/store";
 
 // Inside your unstable_Provider component
-const api = useAssistantApi();
+const aui = useAui();
 
 const history = useMemo<ThreadHistoryAdapter>(
   () => ({
     async append(message) {
       // Wait for initialization to complete and get the remoteId
-      const { remoteId } = await api.threadListItem().initialize();
+      const { remoteId } = await aui.threadListItem().initialize();
 
       // Now safe to save the message using the remoteId
       await saveMessageToDatabase(remoteId, message);
     },
     // ...
   }),
-  [api],
+  [aui],
 );
 ```
 

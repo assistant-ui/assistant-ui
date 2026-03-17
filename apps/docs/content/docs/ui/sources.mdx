@@ -1,0 +1,159 @@
+---
+title: Sources
+description: Display URL sources with favicon, title, and external link.
+---
+
+import { SourcesSample } from "@/components/docs/samples/sources";
+
+<SourcesSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `sources`
+
+<InstallCommand shadcn={["sources"]} />
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+Pass `Sources` to `MessagePrimitive.Parts`:
+
+```tsx title="/components/assistant-ui/thread.tsx" {1,8}
+import { Sources } from "@/components/assistant-ui/sources";
+
+const AssistantMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="...">
+      <MessagePrimitive.Parts>
+        {({ part }) => {
+          if (part.type === "source") return <Sources {...part} />;
+          return null;
+        }}
+      </MessagePrimitive.Parts>
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+  </Step>
+</Steps>
+
+## Variants
+
+Use the `variant` prop to change the visual style. The default is `outline`.
+
+```tsx
+<Source variant="outline" />     // Border (default)
+<Source variant="ghost" />       // No background
+<Source variant="muted" />       // Solid muted background
+<Source variant="secondary" />   // Secondary background
+<Source variant="info" />        // Blue
+<Source variant="warning" />     // Amber
+<Source variant="success" />     // Emerald
+<Source variant="destructive" /> // Red
+```
+
+## Sizes
+
+Use the `size` prop to change the size.
+
+```tsx
+<Source size="sm" />      // Small
+<Source size="default" /> // Default
+<Source size="lg" />      // Large
+```
+
+## API Reference
+
+### `Sources`
+
+The default export used as a `SourceMessagePartComponent`. Renders a single source part when `sourceType === "url"`. Also exposes compound sub-components for custom layouts.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `url` | `string` | — | The URL of the source (provided by the runtime) |
+| `title` | `string \| undefined` | — | Display title; falls back to the domain if omitted |
+| `sourceType` | `string` | — | Must be `"url"` to render; other types are ignored |
+
+#### Compound sub-components
+
+```tsx
+import { Sources } from "@/components/assistant-ui/sources";
+
+<Sources.Root href="https://example.com">
+  <Sources.Icon url="https://example.com" />
+  <Sources.Title>Example</Sources.Title>
+</Sources.Root>
+```
+
+| Sub-component | Equivalent named export | Description |
+|---------------|------------------------|-------------|
+| `Sources.Root` | `Source` | Root anchor element |
+| `Sources.Icon` | `SourceIcon` | Favicon with domain initial fallback |
+| `Sources.Title` | `SourceTitle` | Truncated title text |
+
+### `Source`
+
+Root container rendered as an `<a>` tag. Accepts all `<a>` props plus `variant` and `size`.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `href` | `string` | — | URL the link points to |
+| `variant` | `"outline" \| "ghost" \| "muted" \| "secondary" \| "info" \| "warning" \| "success" \| "destructive"` | `"outline"` | Visual style |
+| `size` | `"sm" \| "default" \| "lg"` | `"default"` | Size of the badge |
+| `target` | `string` | `"_blank"` | Link target |
+| `rel` | `string` | `"noopener noreferrer"` | Link rel attribute |
+| `asChild` | `boolean` | `false` | Render as a child element using Radix Slot |
+| `className` | `string` | — | Additional CSS classes |
+
+### `SourceIcon`
+
+Displays the favicon for the given URL. Falls back to the domain initial inside a muted box when the favicon fails to load.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `url` | `string` | — | URL used to derive the favicon and fallback initial |
+| `className` | `string` | — | Additional CSS classes applied to the `<img>` or fallback `<span>` |
+
+### `SourceTitle`
+
+Truncated title text rendered as a `<span>`.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `children` | `ReactNode` | — | Title content to display |
+| `className` | `string` | — | Additional CSS classes (default max-width is `37.5rem`) |
+
+### `sourceVariants`
+
+The underlying CVA variant function used to generate badge class names. Use this when building custom source-like components that need to match the built-in styling.
+
+```tsx
+import { sourceVariants } from "@/components/assistant-ui/sources";
+
+<span className={sourceVariants({ variant: "info", size: "sm" })}>
+  Custom badge
+</span>
+```
+
+## Composable API
+
+Use the named exports to build fully custom source layouts:
+
+```tsx
+import { Source, SourceIcon, SourceTitle } from "@/components/assistant-ui/sources";
+
+<Source href="https://example.com" variant="muted" className="gap-2">
+  <SourceIcon url="https://example.com" className="size-4" />
+  <SourceTitle className="max-w-none font-medium">Example</SourceTitle>
+</Source>
+```
+
+## Related Components
+
+- [PartGrouping](/docs/ui/part-grouping) - Group sources by parentId

@@ -3,14 +3,10 @@ title: Claude Clone
 description: Customized colors and styles for a Claude look and feel
 ---
 
-import { Claude } from "@/components/example/claude/Claude";
-import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
-import { SourceLink } from "@/components/examples/SourceLink";
+import { Claude } from "@/components/examples/claude";
 
 <div className="not-prose h-[600px]">
-  <DocsRuntimeProvider>
-    <Claude />
-  </DocsRuntimeProvider>
+  <Claude />
 </div>
 
 ## Overview
@@ -48,7 +44,9 @@ export const Claude = () => {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col bg-[#F5F5F0] p-4 pt-16 font-serif dark:bg-[#2b2a27]">
       <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll">
-        <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+        <ThreadPrimitive.Messages>
+          {() => <ChatMessage />}
+        </ThreadPrimitive.Messages>
       </ThreadPrimitive.Viewport>
 
       <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl flex-col rounded-2xl bg-white p-0.5 shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.035)] dark:bg-[#1f1e1b]">
@@ -92,4 +90,4 @@ export const Claude = () => {
 
 ## Source
 
-<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/example/claude/Claude.tsx" />
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/claude.tsx" />

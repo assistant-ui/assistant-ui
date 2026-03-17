@@ -1,0 +1,19 @@
+{
+  "title": "Docs",
+  "description": "Getting started with assistant-ui",
+  "icon": "BookOpen",
+  "root": true,
+  "pages": [
+    "---Getting Started---",
+    "index",
+    "installation",
+    "llm",
+    "cli",
+    "architecture",
+    "devtools",
+    "---Guides---",
+    "...guides",
+    "---Copilots---",
+    "...copilots"
+  ]
+}

@@ -3,14 +3,10 @@ title: Perplexity Clone
 description: Dark theme with cyan accents for a Perplexity look and feel
 ---
 
-import { Perplexity } from "@/components/example/perplexity/Perplexity";
-import { DocsRuntimeProvider } from "@/app/(home)/DocsRuntimeProvider";
-import { SourceLink } from "@/components/examples/SourceLink";
+import { Perplexity } from "@/components/examples/perplexity";
 
 <div className="not-prose h-[600px]">
-  <DocsRuntimeProvider>
-    <Perplexity />
-  </DocsRuntimeProvider>
+  <Perplexity />
 </div>
 
 ## Overview
@@ -38,6 +34,7 @@ The Perplexity clone uses a dark theme with cyan accents:
 
 ```tsx
 import {
+  AuiIf,
   ThreadPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
@@ -49,7 +46,7 @@ export const Thread = () => {
       className="dark h-full bg-[#1a1a1a] text-[#f5f5f5]"
       style={{ ["--thread-max-width"]: "42rem" }}
     >
-      <ThreadPrimitive.Empty>
+      <AuiIf condition={(s) => s.thread.isEmpty}>
         <div className="flex h-full w-full items-center justify-center">
           <div className="flex w-full max-w-[var(--thread-max-width)] flex-col gap-12">
             <p className="text-4xl text-[#f5f5f5] md:text-5xl">
@@ -66,10 +63,12 @@ export const Thread = () => {
             </ComposerPrimitive.Root>
           </div>
         </div>
-      </ThreadPrimitive.Empty>
+      </AuiIf>
 
       <ThreadPrimitive.Viewport>
-        <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+        <ThreadPrimitive.Messages>
+          {({ message }) => message.role === "user" ? <UserMessage /> : <AssistantMessage />}
+        </ThreadPrimitive.Messages>
         <Composer />
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
@@ -81,7 +80,9 @@ const AssistantMessage = () => (
     <h1 className="mb-4 inline-flex items-center gap-2 text-2xl text-[#20b8cd]">
       <SparkleIcon /> Answer
     </h1>
-    <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+    <MessagePrimitive.Parts>
+      {({ part }) => part.type === "text" ? <MarkdownText /> : null}
+    </MessagePrimitive.Parts>
   </MessagePrimitive.Root>
 );
 ```
@@ -108,4 +109,4 @@ const AssistantMessage = () => (
 
 ## Source
 
-<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/example/perplexity/thread.tsx" />
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/perplexity.tsx" />

@@ -1,7 +1,14 @@
 {
   "extends": "@assistant-ui/x-buildutils/ts/base",
   "compilerOptions": {
-    "paths": { "@/*": ["./*"] }
+    "paths": {
+      "@/components/assistant-ui/*": [
+        "../../packages/ui/src/components/assistant-ui/*"
+      ],
+      "@/components/ui/*": ["../../packages/ui/src/components/ui/*"],
+      "@/lib/*": ["../../packages/ui/src/lib/*"],
+      "@/*": ["./*"]
+    }
   },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]

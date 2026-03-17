@@ -1,9 +1,10 @@
 import type { FC, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
+import { PRODUCTS } from "@/lib/constants";
 
 type FooterLinkItem = {
   label: string;
@@ -13,19 +14,20 @@ type FooterLinkItem = {
 
 const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
   Products: [
-    { label: "assistant-ui", href: "/docs/getting-started" },
     {
-      label: "Dashboard",
+      label: "Cloud",
       href: "https://cloud.assistant-ui.com/",
       external: true,
     },
-    { label: "Tool UI", href: "https://tool-ui.com/", external: true },
-    { label: "tw-shimmer", href: "/tw-shimmer" },
-    { label: "Safe Content Frame", href: "/safe-content-frame" },
-    { label: "ChatGPT App Studio", href: "/chatgpt-app-studio" },
+    { label: "Playground", href: "/playground" },
+    ...PRODUCTS.map((p) => ({
+      label: p.label,
+      href: p.href,
+      ...(p.external && { external: true }),
+    })),
   ],
   Resources: [
-    { label: "Documentation", href: "/docs/getting-started" },
+    { label: "Documentation", href: "/docs" },
     { label: "Examples", href: "/examples" },
     { label: "Showcase", href: "/showcase" },
     { label: "Blog", href: "/blog" },
@@ -38,6 +40,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
       external: true,
     },
     { label: "Pricing", href: "/pricing" },
+    { label: "Brand", href: "/brand" },
   ],
   Legal: [
     {
@@ -118,9 +121,14 @@ export function Footer(): React.ReactElement {
             </a>
           </div>
 
-          <p className="mt-auto text-muted-foreground text-sm">
+          <a
+            href="https://agentbase.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-auto text-muted-foreground text-sm transition-colors hover:text-foreground"
+          >
             &copy; {new Date().getFullYear()} AgentbaseAI Inc.
-          </p>
+          </a>
         </div>
       </div>
     </footer>
@@ -143,7 +151,7 @@ const FooterLink: FC<{
         rel="noopener noreferrer"
       >
         {children}
-        <ExternalLink className="size-3 opacity-40" />
+        <ArrowUpRight className="size-3 opacity-40" />
       </a>
     );
   }

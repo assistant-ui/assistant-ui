@@ -34,7 +34,7 @@ class DefaultAssistantClientProxyHandler
     );
     if (introspection !== false) return introspection;
     return createErrorClientField(
-      `The current scope does not have a "${String(prop)}" property.`,
+      "You are using a component or hook that requires an AuiProvider. Wrap your component in an <AuiProvider> component.",
     );
   }
 
@@ -50,7 +50,7 @@ class DefaultAssistantClientProxyHandler
     );
   }
 }
-/** Default context value - throws "wrap in AssistantProvider" error */
+/** Default context value - throws "wrap in AuiProvider" error */
 export const DefaultAssistantClient: AssistantClient =
   new Proxy<AssistantClient>(
     {} as AssistantClient,
@@ -67,6 +67,7 @@ export const createRootAssistantClient = (): AssistantClient =>
     get(_: AssistantClient, prop: string | symbol) {
       const introspection = handleIntrospectionProp(prop, "AssistantClient");
       if (introspection !== false) return introspection;
+
       return createErrorClientField(
         `The current scope does not have a "${String(prop)}" property.`,
       );
@@ -87,20 +88,20 @@ export const useAssistantContextValue = (): AssistantClient => {
  *
  * @example
  * ```typescript
- * <AssistantProvider client={client}>
+ * <AuiProvider value={aui}>
  *   <YourApp />
- * </AssistantProvider>
+ * </AuiProvider>
  * ```
  */
-export const AssistantProvider = ({
-  client,
+export const AuiProvider = ({
+  value,
   children,
 }: {
-  client: AssistantClient;
+  value: AssistantClient;
   children: React.ReactNode;
 }): React.ReactElement => {
   return (
-    <AssistantContext.Provider value={client}>
+    <AssistantContext.Provider value={value}>
       {children}
     </AssistantContext.Provider>
   );

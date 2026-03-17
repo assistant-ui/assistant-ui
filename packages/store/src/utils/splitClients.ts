@@ -4,8 +4,9 @@ import type {
   ClientElement,
   ClientNames,
 } from "../types/client";
-import { getDefaultPeers } from "../attachDefaultPeers";
-import type { useAssistantClient } from "../useAssistantClient";
+import { getTransformScopes } from "../attachTransformScopes";
+import type { useAui } from "../useAui";
+import { tapMemo } from "@assistant-ui/tap";
 
 export type RootClients = Partial<
   Record<ClientNames, ClientElement<ClientNames>>
@@ -15,71 +16,65 @@ export type DerivedClients = Partial<
 >;
 
 /**
- * Splits a clients object into root clients and derived clients.
- *
- * @param clients - The clients input object to split
- * @returns An object with { rootClients, derivedClients }
- *
- * @example
- * ```typescript
- * const clients = {
- *   foo: RootClient({ ... }),
- *   bar: Derived({ ... }),
- * };
- *
- * const { rootClients, derivedClients } = splitClients(clients);
- * // rootClients = { foo: ... }
- * // derivedClients = { bar: ... }
- * ```
+ * Splits a clients object into root clients and derived clients,
+ * applying transformScopes from root client elements.
  */
-export function splitClients(
-  clients: useAssistantClient.Props,
-  baseClient: AssistantClient,
-) {
+function splitClients(clients: useAui.Props, baseClient: AssistantClient) {
+  // 1. Collect transforms from root elements and run them iteratively
+  let scopes = { ...clients } as Record<
+    string,
+    ClientElement<ClientNames> | DerivedElement<ClientNames>
+  >;
+  const visited = new Set<(...args: any[]) => any>();
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const clientElement of Object.values(scopes)) {
+      if (clientElement.type === (Derived as unknown)) continue;
+      if (visited.has(clientElement.type)) continue;
+      visited.add(clientElement.type);
+
+      const transform = getTransformScopes(clientElement.type);
+      if (transform) {
+        scopes = transform(scopes, baseClient) as typeof scopes;
+        changed = true;
+        break; // restart iteration since scopes may have new root elements
+      }
+    }
+  }
+
+  // 2. Split result into root/derived
   const rootClients: RootClients = {};
   const derivedClients: DerivedClients = {};
 
-  for (const [key, clientElement] of Object.entries(clients) as [
-    keyof useAssistantClient.Props,
-    NonNullable<useAssistantClient.Props[keyof useAssistantClient.Props]>,
+  for (const [key, clientElement] of Object.entries(scopes) as [
+    ClientNames,
+    ClientElement<ClientNames> | DerivedElement<ClientNames>,
   ][]) {
-    if (clientElement.type === Derived) {
+    if (clientElement.type === (Derived as unknown)) {
       derivedClients[key] = clientElement as DerivedElement<ClientNames>;
     } else {
       rootClients[key] = clientElement as ClientElement<ClientNames>;
     }
   }
 
-  for (const [clientKey, clientElement] of Object.entries(rootClients) as [
-    ClientNames,
-    ClientElement<ClientNames>,
-  ][]) {
-    const defaultPeers = getDefaultPeers(clientElement.type);
-    if (!defaultPeers) continue;
-
-    for (const [key, peerElement] of Object.entries(defaultPeers) as [
-      ClientNames,
-      ClientElement<ClientNames> | DerivedElement<ClientNames>,
-    ][]) {
-      if (
-        key in rootClients ||
-        key in derivedClients ||
-        baseClient[key].source !== null
-      )
-        continue;
-
-      if (peerElement.type === Derived<ClientNames>) {
-        derivedClients[key] = peerElement as DerivedElement<ClientNames>;
-      } else {
-        rootClients[key] = peerElement as ClientElement<ClientNames>;
-        const subDefaultPeers = getDefaultPeers(peerElement.type);
-        if (subDefaultPeers)
-          throw new Error(
-            `Nested default peers are not supported. Client "${clientKey}" has default peers, but its peer "${key}" also has default peers.`,
-          );
-      }
-    }
-  }
-
   return { rootClients, derivedClients };
 }
+
+const tapShallowMemoObject = <T extends object>(object: T) => {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: shallow memo
+  return tapMemo(() => object, [...Object.entries(object).flat()]);
+};
+
+export const tapSplitClients = (
+  clients: useAui.Props,
+  baseClient: AssistantClient,
+) => {
+  const { rootClients, derivedClients } = splitClients(clients, baseClient);
+
+  return {
+    rootClients: tapShallowMemoObject(rootClients),
+    derivedClients: tapShallowMemoObject(derivedClients),
+  };
+};

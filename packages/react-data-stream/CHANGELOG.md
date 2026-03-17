@@ -1,5 +1,126 @@
 # @assistant-ui/react-data-stream
 
+## 0.12.7
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- 619d923: Depend on @assistant-ui/core instead of @assistant-ui/react
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [6cc4122]
+- Updated dependencies [642bcda]
+  - @assistant-ui/core@0.1.6
+  - assistant-stream@0.3.6
+  - assistant-cloud@0.1.22
+
+## 0.12.6
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+- Updated dependencies [07dcce0]
+- Updated dependencies [a845911]
+- Updated dependencies [bc40eaf]
+- Updated dependencies [be23d74]
+- Updated dependencies [1eb059c]
+  - @assistant-ui/react@0.12.15
+
+## 0.12.5
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+- Updated dependencies [36ef3a2]
+- Updated dependencies [6692226]
+- Updated dependencies [c31c0fa]
+- Updated dependencies [1672be8]
+- Updated dependencies [28f39fe]
+- Updated dependencies [3a1cb66]
+- Updated dependencies [14769af]
+- Updated dependencies [7c360ce]
+- Updated dependencies [a638f05]
+- Updated dependencies [8a78cd2]
+  - assistant-stream@0.3.4
+  - @assistant-ui/react@0.12.12
+
+## 0.12.4
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+- Updated dependencies [a088518]
+- Updated dependencies [d8122cc]
+  - assistant-stream@0.3.2
+  - @assistant-ui/react@0.12.9
+
+## 0.12.3
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+- Updated dependencies [d45b893]
+- Updated dependencies [fe71bfc]
+  - assistant-stream@0.3.1
+  - @assistant-ui/react@0.12.5
+
+## 0.12.2
+
+### Patch Changes
+
+- acbaf07: feat: add framework-agnostic `toToolsJSONSchema` and `toGenericMessages` utilities to `assistant-stream`
+- Updated dependencies [07d1c65]
+- Updated dependencies [b591d72]
+- Updated dependencies [59a338a]
+- Updated dependencies [acbaf07]
+- Updated dependencies [c665612]
+- Updated dependencies [0371d72]
+- Updated dependencies [e8b3f34]
+  - @assistant-ui/react@0.12.3
+  - assistant-stream@0.3.0
+
+## 0.12.1
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+- Updated dependencies [1ea3e28]
+- Updated dependencies [8cbf686]
+- Updated dependencies [a8be364]
+- Updated dependencies [605d825]
+  - @assistant-ui/react@0.12.2
+  - assistant-stream@0.2.48
+
+## 0.12.0
+
+### Minor Changes
+
+- 6fd744a: Upgrade to Vercel AI SDK v6
+  - Updated peer dependencies: `ai@^6.0.0`, `@ai-sdk/react@^3.0.0`
+  - Renamed format adapter from `aiSDKV5FormatAdapter` to `aiSDKV6FormatAdapter`
+  - Updated `@ai-sdk/provider` to use LanguageModelV2 types
+
+### Patch Changes
+
+- 3719567: chore: update deps
+- Updated dependencies [3719567]
+  - assistant-stream@0.2.47
+  - @assistant-ui/react@0.11.58
+
+## 0.11.14
+
+### Patch Changes
+
+- 4b63488: Allow async function for `body` in runtime options
+- Updated dependencies [ab2259d]
+- Updated dependencies [699e585]
+- Updated dependencies [4b63488]
+- Updated dependencies [aee8561]
+- Updated dependencies [dbfdb11]
+  - @assistant-ui/react@0.11.54
+
 ## 0.11.13
 
 ### Patch Changes

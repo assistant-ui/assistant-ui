@@ -1,46 +1,128 @@
-import { openai } from "@ai-sdk/openai";
-import { convertToModelMessages, stepCountIs, streamText } from "ai";
+import { getDistinctId, posthogServer } from "@/lib/posthog-server";
+import { createPrismTracer } from "@/lib/prism-server";
+import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { validateGeneralChatInput } from "@/lib/validate-input";
+import { getModel } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { prismAISDK } from "@aui-x/prism";
+import { withTracing } from "@posthog/ai";
+import {
+  convertToModelMessages,
+  pruneMessages,
+  stepCountIs,
+  streamText,
+} from "ai";
 
 export const maxDuration = 30;
 
-const isDev = process.env.NODE_ENV === "development";
+const ALLOWED_ORIGINS = [
+  "https://assistant-ui-expo.vercel.app",
+  "http://localhost:8081",
+];
 
-const getRatelimit = async () => {
-  if (isDev) return null;
-  const { kv } = await import("@vercel/kv");
-  const { Ratelimit } = await import("@upstash/ratelimit");
-  return new Ratelimit({
-    redis: kv,
-    limiter: Ratelimit.fixedWindow(5, "30s"),
-  });
-};
+function corsHeaders(req: Request) {
+  const origin = req.headers.get("origin") ?? "";
+  if (!ALLOWED_ORIGINS.includes(origin)) return {};
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, User-Agent",
+  };
+}
 
-const ratelimitPromise = getRatelimit();
+export async function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: corsHeaders(req) });
+}
 
 export async function POST(req: Request) {
-  const { messages, tools } = await req.json();
+  try {
+    const rateLimitResponse = await checkRateLimit(req);
+    if (rateLimitResponse) return rateLimitResponse;
 
-  const ratelimit = await ratelimitPromise;
-  if (ratelimit) {
-    const ip = req.headers.get("x-forwarded-for") ?? "ip";
-    const { success } = await ratelimit.limit(ip);
+    const body = await req.json();
+    const { messages, tools, config } = body;
 
-    if (!success) {
-      return new Response("Rate limit exceeded", { status: 429 });
+    const inputError = validateGeneralChatInput(messages);
+    if (inputError) {
+      const cors = corsHeaders(req);
+      for (const [key, value] of Object.entries(cors)) {
+        inputError.headers.set(key, value);
+      }
+      return inputError;
     }
+
+    const baseModel = getModel(config?.modelName);
+    const distinctId = getDistinctId(req);
+    const prismTracer = createPrismTracer();
+
+    const posthogModel = posthogServer
+      ? withTracing(baseModel, posthogServer, {
+          posthogDistinctId: distinctId,
+          posthogPrivacyMode: false,
+          posthogProperties: {
+            $ai_span_name: "general_chat",
+            source: "general_chat",
+          },
+        })
+      : baseModel;
+
+    const prism = prismTracer
+      ? prismAISDK(prismTracer, posthogModel, {
+          name: "general_chat",
+          endUserId: distinctId,
+        })
+      : null;
+
+    const prunedMessages = pruneMessages({
+      messages: await convertToModelMessages(injectQuoteContext(messages)),
+      reasoning: "none",
+    });
+
+    const result = streamText({
+      model: prism?.model ?? posthogModel,
+      messages: prunedMessages,
+      maxOutputTokens: 4096,
+      stopWhen: stepCountIs(10),
+      tools: frontendTools(tools),
+      onFinish: async () => {
+        await prism?.end();
+      },
+      onError: async ({ error }) => {
+        console.error(error);
+        await prism?.end({ status: "error" });
+      },
+      onAbort: async () => {
+        await prism?.end();
+      },
+    });
+
+    const cors = corsHeaders(req);
+    const response = result.toUIMessageStreamResponse({
+      // gets usage and modelId for assistant-cloud telemetry reports
+      messageMetadata: ({ part }) => {
+        if (part.type === "finish-step") {
+          return {
+            modelId: part.response.modelId,
+          };
+        }
+        if (part.type === "finish") {
+          return {
+            usage: part.totalUsage,
+          };
+        }
+        return undefined;
+      },
+    });
+
+    // Append CORS headers
+    for (const [key, value] of Object.entries(cors)) {
+      response.headers.set(key, value);
+    }
+
+    return response;
+  } catch (e) {
+    console.error("[api/chat]", e);
+    return new Response("Request failed", { status: 500 });
   }
-
-  const result = streamText({
-    model: openai("gpt-4o-mini"),
-    messages: convertToModelMessages(messages),
-    maxOutputTokens: 1200,
-    stopWhen: stepCountIs(10),
-    tools: {
-      ...frontendTools(tools),
-    },
-    onError: console.error,
-  });
-
-  return result.toUIMessageStreamResponse();
 }

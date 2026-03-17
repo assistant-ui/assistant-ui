@@ -1,0 +1,220 @@
+---
+title: ThreadListItemMorePrimitive
+description: Dropdown menu for additional thread actions like archive and delete.
+---
+
+A dropdown menu for displaying additional actions on a thread list item. Built on top of [Radix UI Dropdown Menu](https://www.radix-ui.com/primitives/docs/components/dropdown-menu).
+
+
+## Anatomy
+
+```tsx
+import {
+  ThreadListItemPrimitive,
+  ThreadListItemMorePrimitive
+} from "@assistant-ui/react";
+
+const ThreadListItemMore = () => (
+  <ThreadListItemMorePrimitive.Root>
+    <ThreadListItemMorePrimitive.Trigger>
+      More options
+    </ThreadListItemMorePrimitive.Trigger>
+    <ThreadListItemMorePrimitive.Content>
+      <ThreadListItemPrimitive.Archive asChild>
+        <ThreadListItemMorePrimitive.Item>
+          Archive
+        </ThreadListItemMorePrimitive.Item>
+      </ThreadListItemPrimitive.Archive>
+      <ThreadListItemMorePrimitive.Separator />
+      <ThreadListItemPrimitive.Delete asChild>
+        <ThreadListItemMorePrimitive.Item>
+          Delete
+        </ThreadListItemMorePrimitive.Item>
+      </ThreadListItemPrimitive.Delete>
+    </ThreadListItemMorePrimitive.Content>
+  </ThreadListItemMorePrimitive.Root>
+);
+```
+
+## API Reference
+
+### Root
+
+Contains all parts of the dropdown menu. Wraps Radix UI's `DropdownMenu.Root`.
+
+<ParametersTable
+  type="ThreadListItemMorePrimitiveRootProps"
+  parameters={[
+    {
+      name: "open",
+      type: "boolean",
+      description: "The controlled open state of the dropdown menu.",
+    },
+    {
+      name: "defaultOpen",
+      type: "boolean",
+      description: "The open state of the dropdown menu when it is initially rendered.",
+    },
+    {
+      name: "onOpenChange",
+      type: "(open: boolean) => void",
+      description: "Event handler called when the open state changes.",
+    },
+    {
+      name: "modal",
+      type: "boolean",
+      default: "true",
+      description: "Whether the dropdown menu should be modal.",
+    },
+  ]}
+/>
+
+### Trigger
+
+The button that toggles the dropdown menu. Wraps Radix UI's `DropdownMenu.Trigger`.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ThreadListItemMorePrimitiveTriggerProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+### Content
+
+The container for the dropdown menu items. Wraps Radix UI's `DropdownMenu.Portal` and `DropdownMenu.Content`.
+
+<ParametersTable
+  type="ThreadListItemMorePrimitiveContentProps"
+  parameters={[
+    {
+      name: "side",
+      type: '"top" | "right" | "bottom" | "left"',
+      default: '"bottom"',
+      description: "The preferred side of the trigger to render against.",
+    },
+    {
+      name: "sideOffset",
+      type: "number",
+      default: "4",
+      description: "The distance in pixels from the trigger.",
+    },
+    {
+      name: "align",
+      type: '"start" | "center" | "end"',
+      default: '"center"',
+      description: "The preferred alignment against the trigger.",
+    },
+    {
+      name: "alignOffset",
+      type: "number",
+      default: "0",
+      description: "An offset in pixels from the align option.",
+    },
+    {
+      name: "portalProps",
+      type: "PortalProps",
+      description: "Props to pass to the Portal component.",
+    },
+  ]}
+/>
+
+### Item
+
+A menu item within the dropdown. Wraps Radix UI's `DropdownMenu.Item`.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ThreadListItemMorePrimitiveItemProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      description: "Whether the item is disabled.",
+    },
+    {
+      name: "onSelect",
+      type: "(event: Event) => void",
+      description: "Event handler called when the user selects an item.",
+    },
+  ]}
+/>
+
+### Separator
+
+A visual separator between menu items. Wraps Radix UI's `DropdownMenu.Separator`.
+
+<ParametersTable
+  type="ThreadListItemMorePrimitiveSeparatorProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
+
+## Examples
+
+### With Icons
+
+```tsx
+import { ArchiveIcon, TrashIcon, MoreHorizontalIcon } from "lucide-react";
+
+const ThreadListItemMore = () => (
+  <ThreadListItemMorePrimitive.Root>
+    <ThreadListItemMorePrimitive.Trigger asChild>
+      <button className="icon-button">
+        <MoreHorizontalIcon />
+      </button>
+    </ThreadListItemMorePrimitive.Trigger>
+    <ThreadListItemMorePrimitive.Content
+      side="bottom"
+      align="start"
+      className="dropdown-content"
+    >
+      <ThreadListItemPrimitive.Archive asChild>
+        <ThreadListItemMorePrimitive.Item className="dropdown-item">
+          <ArchiveIcon className="icon" />
+          Archive
+        </ThreadListItemMorePrimitive.Item>
+      </ThreadListItemPrimitive.Archive>
+    </ThreadListItemMorePrimitive.Content>
+  </ThreadListItemMorePrimitive.Root>
+);
+```
+
+### Complete Thread List Item with More Menu
+
+```tsx
+const ThreadListItem = () => (
+  <ThreadListItemPrimitive.Root className="thread-item">
+    <ThreadListItemPrimitive.Trigger className="thread-trigger">
+      <ThreadListItemPrimitive.Title fallback="New Chat" />
+    </ThreadListItemPrimitive.Trigger>
+
+    <ThreadListItemMorePrimitive.Root>
+      <ThreadListItemMorePrimitive.Trigger asChild>
+        <button className="more-button">
+          <MoreHorizontalIcon />
+        </button>
+      </ThreadListItemMorePrimitive.Trigger>
+      <ThreadListItemMorePrimitive.Content>
+        <ThreadListItemPrimitive.Archive asChild>
+          <ThreadListItemMorePrimitive.Item>
+            <ArchiveIcon />
+            Archive
+          </ThreadListItemMorePrimitive.Item>
+        </ThreadListItemPrimitive.Archive>
+      </ThreadListItemMorePrimitive.Content>
+    </ThreadListItemMorePrimitive.Root>
+  </ThreadListItemPrimitive.Root>
+);
+```
