@@ -147,6 +147,10 @@ export {
   createLocalStorageAdapter,
   type AsyncStorageLike,
 } from "./adapters/LocalStorageThreadListAdapter";
+export {
+  createSimpleTitleAdapter,
+  type TitleGenerationAdapter,
+} from "./adapters/TitleGenerationAdapter";
 
 // AssistantProvider base
 export {

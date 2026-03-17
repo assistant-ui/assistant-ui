@@ -5,8 +5,8 @@ import type { RemoteThreadListAdapter } from "@assistant-ui/core";
 import {
   createLocalStorageAdapter,
   type AsyncStorageLike,
+  type TitleGenerationAdapter,
 } from "@assistant-ui/core/react";
-import type { TitleGenerationAdapter } from "@assistant-ui/core/react/adapters/TitleGenerationAdapter";
 
 export type { AsyncStorageLike } from "@assistant-ui/core/react";
 
