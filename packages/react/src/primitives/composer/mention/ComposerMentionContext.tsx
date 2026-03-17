@@ -22,8 +22,6 @@ import {
   type MentionResourceOutput,
   type SelectItemOverride,
 } from "./MentionResource";
-// Re-export for external consumers and tests
-export { detectMentionTrigger } from "./detectMentionTrigger";
 
 // =============================================================================
 // Context — public (popover components read state + actions from here)

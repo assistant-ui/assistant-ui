@@ -157,7 +157,7 @@ export const MentionResource = resource(
     }, [categories, query, isSearchMode]);
 
     const filteredItems = tapMemo(() => {
-      if (isSearchMode) return searchResults;
+      if (isSearchMode) return searchResults ?? [];
       if (!query) return allItems;
       const lower = query.toLowerCase();
       return allItems.filter(
@@ -264,16 +264,18 @@ export const MentionResource = resource(
         case "ArrowDown": {
           e.preventDefault();
           setHighlightedIndex((prev) => {
-            const max = navigableList.length - 1;
-            return prev < max ? prev + 1 : 0;
+            const len = navigableList.length;
+            if (len === 0) return 0;
+            return prev < len - 1 ? prev + 1 : 0;
           });
           return true;
         }
         case "ArrowUp": {
           e.preventDefault();
           setHighlightedIndex((prev) => {
-            const max = navigableList.length - 1;
-            return prev > 0 ? prev - 1 : max;
+            const len = navigableList.length;
+            if (len === 0) return 0;
+            return prev > 0 ? prev - 1 : len - 1;
           });
           return true;
         }
