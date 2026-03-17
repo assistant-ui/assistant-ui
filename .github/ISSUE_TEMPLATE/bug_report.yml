@@ -5,49 +5,71 @@ labels: ["bug"]
 body:
   - type: checkboxes
     attributes:
-      label: Is this a bug report?
-      description: Please confirm this is a reproducible bug, not a usage question.
+      label: Checklist
+      description: Please confirm before submitting.
       options:
-        - label: This is a reproducible bug
-      validations:
-        required: true
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: This is a reproducible bug, not a usage question (use [Discord](https://discord.gg/S9dwgCNEFs) for questions)
+          required: true
+
+  - type: input
+    attributes:
+      label: Package version(s)
+      description: Run `npm ls @assistant-ui/react` or check your package.json.
+      placeholder: "e.g. @assistant-ui/react@0.10.x, assistant-stream@0.2.x"
+    validations:
+      required: true
 
   - type: dropdown
     attributes:
       label: Affected area(s)
       multiple: true
       options:
-        - Runtime / Streaming
-        - React / UI
-        - Store / Persistence
-        - Tooling / DevTools
-        - Apps / Examples
+        - Runtime / Core
+        - Thread Management
+        - Streaming (assistant-stream)
+        - Attachments / Files
+        - Cloud (assistant-cloud)
+        - React / UI Components
+        - React Native
+        - Store / Tap
+        - Content Rendering (Markdown, Syntax Highlighting)
+        - Rich Text / Composer (Lexical)
+        - Provider Adapters
+        - Performance
+        - CLI / Scaffolding
+        - DevTools / Observability
         - Documentation
         - Unsure
 
-  - type: input
-    attributes:
-      label: Specific package (optional)
-      placeholder: e.g. assistant-stream, @assistant-ui/react-langgraph, assistant-cloud
-
   - type: dropdown
     attributes:
-      label: Runtime in use
+      label: Runtime adapter in use
+      description: Which runtime hook are you using?
       options:
-        - Local runtime
-        - External runtime
-        - Thread runtime
-        - Custom runtime
+        - useLocalRuntime
+        - useExternalStoreRuntime
+        - useCloudRuntime
+        - useAISDKRuntime / useChatRuntime
+        - useLangGraphRuntime
+        - useAgUiRuntime
+        - useA2ARuntime
+        - useAdkRuntime (Google ADK)
+        - useDataStreamRuntime
+        - useAssistantTransportRuntime
+        - Other / Custom
+        - Not applicable
         - Unsure
 
   - type: textarea
     attributes:
       label: Steps to reproduce
-      description: Minimal steps or a small repo that reproduces the issue.
+      description: Minimal steps or a link to a reproduction repo.
       placeholder: |
-        1. Initialize assistant with X runtime
-        2. Call Y
-        3. Observe Z
+        1. Set up runtime with `useXxxRuntime(...)`
+        2. Send a message with ...
+        3. Observe ...
     validations:
       required: true
 
@@ -63,27 +85,21 @@ body:
   - type: textarea
     attributes:
       label: System information
-      description: |
-        Please provide relevant environment details.
-        Example:
-        - OS: macOS 14 / Windows 11 / Ubuntu 22.04
-        - Browser: Chrome 121 / Firefox 122 / Safari 17
-        - Node.js: v18.x / v20.x
-        - Package manager: pnpm / npm / yarn
-      placeholder: |
-        OS:
-        Browser (if applicable):
-        Node.js version:
-        Package manager:
-        Other relevant details:
+      description: Please provide relevant environment details.
+      value: |
+        - OS:
+        - Browser:
+        - Node.js:
+        - Package manager:
+        - Framework (Next.js / Vite / Expo / etc.):
 
   - type: textarea
     attributes:
-      label: Relevant code snippet (optional)
+      label: Code snippet or error log
       render: tsx
-      description: Please remove any secrets or tokens.
+      description: Relevant code, stack traces, or console output. Please remove any secrets.
 
   - type: textarea
     attributes:
       label: Additional context
-      description: Anything else that might help diagnose the issue.
+      description: Screenshots, related issues, or anything else that might help.
