@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
+import { PRODUCTS } from "@/lib/constants";
 
 type FooterLinkItem = {
   label: string;
@@ -19,12 +20,11 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
       external: true,
     },
     { label: "Playground", href: "/playground" },
-    { label: "Tool UI", href: "https://tool-ui.com/", external: true },
-    { label: "tw-shimmer", href: "/tw-shimmer" },
-    { label: "Safe Content Frame", href: "/safe-content-frame" },
-    { label: "React Native", href: "/native" },
-    { label: "Ink", href: "/ink" },
-    { label: "MCP App Studio", href: "/mcp-app-studio" },
+    ...PRODUCTS.map((p) => ({
+      label: p.label,
+      href: p.href,
+      ...(p.external && { external: true }),
+    })),
   ],
   Resources: [
     { label: "Documentation", href: "/docs" },

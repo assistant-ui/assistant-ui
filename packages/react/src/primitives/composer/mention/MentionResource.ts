@@ -100,14 +100,7 @@ export const MentionResource = resource(
       return adapter.categories();
     }, [open, adapter]);
 
-    // Auto-drill into single category
-    const autoDrilledCategoryId =
-      !activeCategoryId && !query && categories.length === 1
-        ? categories[0]!.id
-        : null;
-    const effectiveActiveCategoryId = open
-      ? (activeCategoryId ?? autoDrilledCategoryId)
-      : null;
+    const effectiveActiveCategoryId = open ? activeCategoryId : null;
 
     // -------------------------------------------------------------------------
     // Items + search
