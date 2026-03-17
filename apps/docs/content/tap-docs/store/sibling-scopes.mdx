@@ -61,17 +61,16 @@ import { attachTransformScopes } from "@assistant-ui/store";
 attachTransformScopes(ToolsResource, (scopes, parent) => {
   // ensure modelContext exists as a sibling
   if (!scopes.modelContext && parent.modelContext.source === null) {
-    return { ...scopes, modelContext: ModelContextResource() };
+    scopes.modelContext = ModelContextResource();
   }
-  return scopes;
 });
 ```
 
 The transform function receives:
-- `scopes` — the current scopes config being built
+- `scopes` — the current scopes config being built (mutate it directly)
 - `parent` — the parent `AssistantClient` (from the `AuiProvider` above)
 
-It returns a new scopes config, optionally adding scopes that should be created alongside.
+It mutates the `scopes` object directly, adding scopes that should be created alongside.
 
 ### Checking parent.source
 
@@ -83,9 +82,8 @@ Before adding a scope, check `parent.scopeName.source`:
 attachTransformScopes(MyResource, (scopes, parent) => {
   // only add if not already in scopes AND not provided by a parent
   if (!scopes.tools && parent.tools.source === null) {
-    return { ...scopes, tools: ToolsResource() };
+    scopes.tools = ToolsResource();
   }
-  return scopes;
 });
 ```
 
@@ -94,16 +92,13 @@ attachTransformScopes(MyResource, (scopes, parent) => {
 Transforms can also add `Derived` scopes:
 
 ```ts
-attachTransformScopes(ThreadResource, (scopes) => ({
-  ...scopes,
-  composer:
-    scopes.composer ??
-    Derived({
-      source: "thread",
-      query: {},
-      get: (aui) => aui.thread().composer(),
-    }),
-}));
+attachTransformScopes(ThreadResource, (scopes) => {
+  scopes.composer ??= Derived({
+    source: "thread",
+    query: {},
+    get: (aui) => aui.thread().composer(),
+  });
+});
 ```
 
 This ensures that when a user provides a `thread` scope, the `composer` scope is automatically wired up as a child of that thread — without the user having to declare it.

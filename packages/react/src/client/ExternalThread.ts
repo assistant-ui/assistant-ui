@@ -6,6 +6,7 @@ import {
   tapEffectEvent,
 } from "@assistant-ui/tap";
 import {
+  type ClientElement,
   type ClientOutput,
   tapClientLookup,
   attachTransformScopes,
@@ -22,6 +23,7 @@ import type {
 } from "@assistant-ui/core";
 import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
+import { SingleThreadList } from "./SingleThreadList";
 
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
@@ -489,29 +491,32 @@ export const ExternalThread = resource(
 );
 
 attachTransformScopes(ExternalThread, (scopes, parent) => {
-  const result = {
-    ...scopes,
-    composer:
-      scopes.composer ??
-      Derived({
-        source: "thread",
-        query: {},
-        get: (aui) => aui.thread().composer(),
-      }),
-  };
-
-  if (!result.modelContext && parent.modelContext.source === null) {
-    result.modelContext = ModelContext();
-  }
-  if (!result.tools && parent.tools.source === null) {
-    result.tools = Tools({});
-  }
-  if (!result.dataRenderers && parent.dataRenderers.source === null) {
-    result.dataRenderers = DataRenderers();
-  }
-  if (!result.suggestions && parent.suggestions.source === null) {
-    result.suggestions = Suggestions();
+  if (!scopes.threads && parent.threads.source === null) {
+    const threadElement = scopes.thread as ClientElement<"thread">;
+    scopes.threads = SingleThreadList({ thread: threadElement });
+    scopes.thread = Derived({
+      source: "threads",
+      query: { type: "main" },
+      get: (aui) => aui.threads().thread("main"),
+    });
   }
 
-  return result;
+  scopes.composer ??= Derived({
+    source: "thread",
+    query: {},
+    get: (aui) => aui.thread().composer(),
+  });
+
+  if (!scopes.modelContext && parent.modelContext.source === null) {
+    scopes.modelContext = ModelContext();
+  }
+  if (!scopes.tools && parent.tools.source === null) {
+    scopes.tools = Tools({});
+  }
+  if (!scopes.dataRenderers && parent.dataRenderers.source === null) {
+    scopes.dataRenderers = DataRenderers();
+  }
+  if (!scopes.suggestions && parent.suggestions.source === null) {
+    scopes.suggestions = Suggestions();
+  }
 });

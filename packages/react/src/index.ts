@@ -353,6 +353,7 @@ export {
   InMemoryThreadList,
   type InMemoryThreadListProps,
 } from "./client/InMemoryThreadList";
+export { SingleThreadList } from "./client/SingleThreadList";
 
 // ============================================================================
 // internal & augmentations
