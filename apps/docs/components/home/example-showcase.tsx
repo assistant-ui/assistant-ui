@@ -6,6 +6,7 @@ import { Perplexity } from "@/components/examples/perplexity";
 import { Shadcn } from "@/components/examples/shadcn";
 import { Tab } from "@/components/shared/tab";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
+import { Gemini } from "@/components/examples/gemini";
 import { Grok } from "@/components/examples/grok";
 import { analytics } from "@/lib/analytics";
 
@@ -52,6 +53,16 @@ const EXAMPLE_TABS = [
       <ExampleWrapper>
         <DocsRuntimeProvider>
           <Grok />
+        </DocsRuntimeProvider>
+      </ExampleWrapper>
+    ),
+  },
+  {
+    label: "Gemini",
+    value: (
+      <ExampleWrapper>
+        <DocsRuntimeProvider>
+          <Gemini />
         </DocsRuntimeProvider>
       </ExampleWrapper>
     ),

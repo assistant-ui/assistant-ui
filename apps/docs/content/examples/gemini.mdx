@@ -1,0 +1,101 @@
+---
+title: Gemini Clone
+description: Customized colors and styles for a Gemini look and feel
+---
+
+import { Gemini } from "@/components/examples/gemini";
+
+<div className="not-prose h-[600px]">
+  <Gemini />
+</div>
+
+## Overview
+
+The Gemini Clone demonstrates how to customize assistant-ui to match Google Gemini's interface. This example features Google's Material Design color system, a distinctive welcome screen with sparkle icon and suggestion chips, and a clean composer with model selector.
+
+## Features
+
+- **Material Design Colors**: Google's surface/on-surface color token system
+- **Welcome State**: Gemini sparkle icon, greeting text, and suggestion chips
+- **Composer**: White input with shadow, `+` upload, Tools, model picker, and mic buttons
+- **User Messages**: Right-aligned bubbles with sharp top-right corner (`4px 24px 24px 24px`)
+- **Assistant Messages**: Gemini sparkle avatar on the left with response text
+- **Action Bar**: Thumbs up/down, regenerate, copy, and more menu on hover
+
+## Quick Start
+
+```bash
+npx assistant-ui add thread
+```
+
+## Code
+
+The Gemini clone uses Google's Material Design surface colors:
+
+```tsx
+import {
+  AuiIf,
+  ThreadPrimitive,
+  ComposerPrimitive,
+  useAuiState,
+} from "@assistant-ui/react";
+
+export const Gemini = () => {
+  return (
+    <ThreadPrimitive.Root className="flex h-full flex-col bg-[#f8f9fa] dark:bg-[#131314]">
+      <ThreadPrimitive.Empty>
+        {/* Welcome: sparkle + greeting + title + composer + chips */}
+      </ThreadPrimitive.Empty>
+
+      <AuiIf condition={(s) => !s.thread.isEmpty}>
+        <ThreadPrimitive.Viewport>
+          <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+        </ThreadPrimitive.Viewport>
+        <Composer />
+      </AuiIf>
+    </ThreadPrimitive.Root>
+  );
+};
+
+const Composer = () => {
+  return (
+    <ComposerPrimitive.Root className="group/composer rounded-4xl bg-white p-3 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.16)] dark:bg-[#1e1f20]">
+      <ComposerPrimitive.Input
+        placeholder="Ask Gemini"
+        className="w-full bg-transparent text-[#1f1f1f] outline-none dark:text-[#e3e3e3]"
+      />
+      <div className="flex items-center text-[#444746] dark:text-[#c4c7c5]">
+        <ComposerPrimitive.AddAttachment>+</ComposerPrimitive.AddAttachment>
+        <button>Tools</button>
+        {/* right side: model picker, send, mic */}
+      </div>
+    </ComposerPrimitive.Root>
+  );
+};
+```
+
+### Color Palette
+
+| Element | Light | Dark |
+|---------|-------|------|
+| Background | `#f8f9fa` | `#131314` |
+| Composer bg | `#fff` | `#1e1f20` |
+| Text | `#1f1f1f` | `#e3e3e3` |
+| Muted text | `#444746` | `#c4c7c5` |
+| User bubble | `#e9eef6` | `#282a2c` |
+| Send button | `#d3e3fd` | `#1f3760` |
+| Suggestion chips | `#fff` | `#282a2c` |
+
+### User Message Bubble
+
+The distinctive Gemini user bubble has a sharp corner on one side:
+
+```tsx
+<div className="rounded-3xl rounded-tr bg-[#e9eef6] dark:bg-[#282a2c]">
+  {/* 4px top-right, 24px everywhere else */}
+</div>
+```
+
+## Source
+
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/gemini.tsx" />
