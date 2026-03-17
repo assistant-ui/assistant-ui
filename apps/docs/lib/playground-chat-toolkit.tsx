@@ -96,23 +96,16 @@ export function createPlaygroundChatToolkit(
         const changedSections = Object.keys(args).join(", ");
         return { success: true, changed: changedSections };
       },
-      render: ({ args }) => {
+      render: ({ args, status }) => {
+        const isRunning = status?.type === "running";
         const sections = Object.keys(args ?? {});
         return (
-          <div className="my-2 flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground shadow-sm">
-              <Settings2 className="size-4" />
-            </div>
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="truncate font-medium text-sm">
-                Configuration updated
-              </span>
-              {sections.length > 0 && (
-                <span className="truncate text-muted-foreground text-xs">
-                  Changed: {sections.join(", ")}
-                </span>
-              )}
-            </div>
+          <div className="my-1.5 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5 text-muted-foreground text-xs">
+            <Settings2 className="size-3" />
+            <span className="flex-1 truncate">
+              {isRunning ? "Updating" : "Updated"}{" "}
+              {sections.length > 0 ? sections.join(", ") : "config"}
+            </span>
           </div>
         );
       },

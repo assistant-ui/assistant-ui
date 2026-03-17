@@ -1,7 +1,7 @@
 import { checkRateLimit } from "@/lib/rate-limit";
+import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
-import { createOpenAI } from "@ai-sdk/openai";
 import {
   convertToModelMessages,
   pruneMessages,
@@ -142,16 +142,16 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { messages, tools, builderConfig } = body;
 
+    const inputError = validateGeneralChatInput(messages);
+    if (inputError) return inputError;
+
     // Guard against oversized configs (token inflation / DoS)
     const configStr = JSON.stringify(builderConfig ?? {});
     if (configStr.length > 10_000) {
       return new Response("Config too large", { status: 400 });
     }
 
-    // Use AI Gateway in production, fall back to direct OpenAI locally
-    const model = process.env.AI_GATEWAY_API_KEY
-      ? getModel("openai/gpt-5-nano")
-      : createOpenAI()("gpt-4o-mini");
+    const model = getModel("openai/gpt-5-nano");
 
     const prunedMessages = pruneMessages({
       messages: await convertToModelMessages(messages),
@@ -172,7 +172,17 @@ export async function POST(req: Request) {
       },
     });
 
-    return result.toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse({
+      messageMetadata: ({ part }) => {
+        if (part.type === "finish-step") {
+          return { modelId: part.response.modelId };
+        }
+        if (part.type === "finish") {
+          return { usage: part.totalUsage };
+        }
+        return undefined;
+      },
+    });
   } catch (e) {
     console.error("[api/playground-chat]", e);
     return new Response("Request failed", { status: 500 });
