@@ -36,10 +36,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/react": "^3.0.118",
+    "@ai-sdk/react": "^3.0.119",
     "@assistant-ui/core": "^0.1.6",
     "@assistant-ui/store": "^0.2.3",
-    "ai": "^6.0.116",
+    "ai": "^6.0.117",
     "assistant-cloud": "*"
   },
   "peerDependencies": {

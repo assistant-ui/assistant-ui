@@ -18,6 +18,7 @@ import type {
   MessageFormatItem,
   MessageFormatRepository,
   AppendMessage,
+  RunConfig,
 } from "@assistant-ui/core";
 import { getExternalStoreMessages } from "@assistant-ui/core";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
@@ -74,6 +75,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
+  const lastRunConfigRef = useRef<RunConfig | undefined>(undefined);
 
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
@@ -117,6 +119,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           tool: command.toolName,
           toolCallId: command.toolCallId,
           output: command.result,
+          options: { metadata: lastRunConfigRef.current },
         });
       }
     },
@@ -237,6 +240,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       await toolInvocations.abort();
     },
     onNew: async (message) => {
+      lastRunConfigRef.current = message.runConfig;
       await completePendingToolCalls();
 
       const createMessage = (
@@ -247,6 +251,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       });
     },
     onEdit: async (message) => {
+      lastRunConfigRef.current = message.runConfig;
       const newMessages = sliceMessagesUntil(
         chatHelpers.messages,
         message.parentId,
@@ -261,12 +266,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       });
     },
     onReload: async (parentId: string | null, config) => {
+      lastRunConfigRef.current = config.runConfig;
       const newMessages = sliceMessagesUntil(chatHelpers.messages, parentId);
       chatHelpers.setMessages(newMessages);
 
       await chatHelpers.regenerate({ metadata: config.runConfig });
     },
     onAddToolResult: ({ toolCallId, result, isError }) => {
+      const options = { metadata: lastRunConfigRef.current };
       if (isError) {
         chatHelpers.addToolOutput({
           state: "output-error",
@@ -274,6 +281,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           toolCallId,
           errorText:
             typeof result === "string" ? result : JSON.stringify(result),
+          options,
         });
       } else {
         chatHelpers.addToolOutput({
@@ -281,6 +289,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           tool: toolCallId,
           toolCallId,
           output: result,
+          options,
         });
       }
     },
