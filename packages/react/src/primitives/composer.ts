@@ -22,4 +22,3 @@ export { ComposerPrimitiveMentionItem as Unstable_MentionItem } from "./composer
 export { ComposerPrimitiveMentionBack as Unstable_MentionBack } from "./composer/mention";
 export { useMentionContext as unstable_useMentionContext } from "./composer/mention";
 export { useMentionContextOptional as unstable_useMentionContextOptional } from "./composer/mention";
-export { useMentionInternalContext as unstable_useMentionInternalContext } from "./composer/mention";

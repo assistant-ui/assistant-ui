@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectMentionTrigger } from "./ComposerMentionContext";
+import { detectMentionTrigger } from "./detectMentionTrigger";
 
 describe("detectMentionTrigger", () => {
   it("detects @query at cursor position", () => {
