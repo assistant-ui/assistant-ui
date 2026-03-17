@@ -157,9 +157,14 @@ export function SubProjectLayout({
                 assistant-ui
               </Link>
             </p>
-            <p className="text-foreground/30 text-xs">
+            <a
+              href="https://agentbase.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground/30 text-xs transition-colors hover:text-foreground"
+            >
               &copy; {new Date().getFullYear()} AgentbaseAI Inc.
-            </p>
+            </a>
           </div>
         </footer>
       )}

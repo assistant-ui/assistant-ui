@@ -214,6 +214,36 @@ npm install @assistant-ui/cloud-ai-sdk @ai-sdk/react ai
 
 ---
 
+## Day 6 — Heat Graph
+
+**GitHub-style activity heatmaps for React. Headless, composable, fully customizable.**
+
+We're launching [`heat-graph`](https://www.npmjs.com/package/heat-graph) — a set of Radix-style compound components for building activity heatmap graphs. No styling opinions, no dependencies on charting libraries — just composable primitives you fully control.
+
+- **Radix-style composable.** `Root`, `Grid`, `Cell`, `Legend`, `Tooltip` — pick the pieces you need and compose them however you want.
+- **Fully headless.** Zero styling opinions. Every element is a plain div you can style with CSS, Tailwind, or any framework.
+- **Tooltip built-in.** Hover tooltips powered by Radix Popper for pixel-perfect positioning, no extra deps.
+- **Custom bucketing.** Plug in your own classification function to control how counts map to color levels.
+- **Localizable.** Month and day labels expose raw values — format with the included English helpers or `Intl.DateTimeFormat` for any locale.
+
+Install it:
+
+```sh
+npm install heat-graph
+```
+
+Or add it via shadcn:
+
+```sh
+npx shadcn@latest add https://r.assistant-ui.com/heat-graph
+```
+
+[See the interactive demo →](/heat-graph)
+
+[Read the docs →](/docs/utilities/heat-graph)
+
+---
+
 ## One runtime, every platform
 
 The big picture: assistant-ui is now a **universal AI chat framework**. Web, mobile, terminal — one codebase for your backend, one set of adapters, one way to register tools. The only thing that changes is the UI layer.

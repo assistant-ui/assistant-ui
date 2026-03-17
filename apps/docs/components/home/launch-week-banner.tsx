@@ -2,6 +2,7 @@
 
 import {
   CloudIcon,
+  FlameIcon,
   SparklesIcon,
   ZapIcon,
   SmartphoneIcon,
@@ -25,6 +26,7 @@ const DAYS = [
     href: "/cloud-ai-sdk",
     icon: ZapIcon,
   },
+  { day: 6, title: "Heat Graph", href: "/heat-graph", icon: FlameIcon },
 ] as const;
 
 export function LaunchWeekBanner() {
