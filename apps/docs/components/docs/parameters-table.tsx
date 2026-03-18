@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import type { FC, ReactNode } from "react";
+import { StatusBadge } from "./status-badge";
 
 type ParameterDef = {
   name: string;
@@ -58,20 +59,9 @@ const Parameter: FC<{
         <code className="font-mono font-semibold text-foreground text-sm">
           {parameter.name}
         </code>
-        {parameter.required && (
-          <span className="rounded bg-red-500/10 px-1.5 py-0.5 font-medium text-red-600 text-xs dark:text-red-400">
-            required
-          </span>
-        )}
-        {parameter.deprecated && (
-          <span className="rounded bg-amber-500/10 px-1.5 py-0.5 font-medium text-amber-600 text-xs dark:text-amber-400">
-            deprecated
-          </span>
-        )}
+        {parameter.deprecated && <StatusBadge variant="deprecated" />}
         {parameter.name.startsWith("unstable_") && (
-          <span className="rounded bg-purple-500/10 px-1.5 py-0.5 font-medium text-purple-600 text-xs dark:text-purple-400">
-            unstable
-          </span>
+          <StatusBadge variant="unstable" />
         )}
         {parameter.type && (
           <code className="font-mono text-muted-foreground text-xs">

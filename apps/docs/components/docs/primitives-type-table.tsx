@@ -6,6 +6,7 @@ import {
   TypeTableClient,
   type TypeTableRow,
 } from "./primitives-type-table-client";
+import { StatusBadge } from "./status-badge";
 
 type PropDef = {
   name: string;
@@ -58,7 +59,7 @@ function getShortType(typeRaw: string): string | undefined {
   // Collapse "object | object | ..." into single "object"
   short = short.replace(/\bobject\b(\s*\|\s*\bobject\b)+/g, "object");
 
-  if (short.length > 60) short = short.substring(0, 57) + "...";
+  if (short.length > 60) short = `${short.substring(0, 57)}...`;
   if (short === typeRaw) return undefined;
   return short;
 }
@@ -68,47 +69,27 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
     props.map(async (raw) => {
       const prop = { ...COMMON_PARAMS[raw.name], ...raw };
 
-      const descParts: ReactNode[] = [];
-      if (prop.deprecated) {
-        descParts.push(
-          <div
-            key="dep"
-            className="mb-1 text-amber-600 text-xs dark:text-amber-400"
-          >
-            Deprecated: {prop.deprecated}
-          </div>,
-        );
-      }
-      if (prop.description) {
-        if (
-          typeof prop.description === "string" &&
-          prop.description.includes("\n")
-        ) {
-          const lines = prop.description.split("\n");
-          descParts.push(
-            <span key="desc">
-              {lines.map((line, i) => (
+      const descParts: ReactNode[] = [
+        prop.deprecated && <StatusBadge variant="deprecated" className="mr-1" />,
+        prop.name.startsWith("unstable_") && (
+          <StatusBadge variant="unstable" className="mr-1" />
+        ),
+        prop.deprecated && <span>{prop.deprecated}</span>,
+        prop.description &&
+          (typeof prop.description === "string" &&
+          prop.description.includes("\n") ? (
+            <span>
+              {prop.description.split("\n").map((line, i) => (
                 <Fragment key={i}>
                   {i > 0 && <br />}
                   {line}
                 </Fragment>
               ))}
-            </span>,
-          );
-        } else {
-          descParts.push(<span key="desc">{prop.description}</span>);
-        }
-      }
-      if (prop.name.startsWith("unstable_")) {
-        descParts.push(
-          <span
-            key="unstable"
-            className="ml-2 inline-block rounded bg-purple-500/10 px-1.5 py-0.5 font-medium text-purple-600 text-xs dark:text-purple-400"
-          >
-            unstable
-          </span>,
-        );
-      }
+            </span>
+          ) : (
+            <span>{prop.description}</span>
+          )),
+      ].filter(Boolean);
 
       // Highlight the type (clean version for collapsed row, full for expanded)
       const typeRaw = prop.type ?? "";
@@ -140,7 +121,7 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
         type: highlightedType,
         typeFull: highlightedTypeFull,
         typeRaw,
-        description: descParts.length > 0 ? <>{descParts}</> : undefined,
+        description: descParts.length > 0 ? descParts : undefined,
         default: prop.default,
         required: prop.required ?? false,
         deprecated: !!prop.deprecated,

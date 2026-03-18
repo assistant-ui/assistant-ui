@@ -1,4 +1,5 @@
 import type { FC } from "react";
+import { StatusBadge } from "./status-badge";
 
 type PartDef = {
   element?: string;
@@ -45,9 +46,7 @@ export const PrimitivePartsTable: FC<PrimitivePartsTableProps> = ({
               <td className="px-4 py-2 align-top">
                 <code className="font-mono text-sm">{name}</code>
                 {part.deprecated && (
-                  <span className="ml-1.5 rounded bg-amber-500/10 px-1.5 py-0.5 font-medium text-amber-600 text-xs dark:text-amber-400">
-                    deprecated
-                  </span>
+                  <StatusBadge variant="deprecated" className="ml-1.5" />
                 )}
               </td>
               <td className="px-4 py-2 align-top text-muted-foreground">
