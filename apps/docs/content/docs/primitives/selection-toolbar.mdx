@@ -55,7 +55,7 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 
 ### Automatic Positioning
 
-`Root` renders via a portal to `document.body`. In the current implementation, it positions itself with `position: fixed`, `top: rect.top - 8px`, centered horizontally from the selection rect, and `z-index: 50`.
+`Root` renders via a portal to `document.body`. In the current implementation, it positions itself with `position: fixed`, `top: rect.top - 8px`, `left: rect.left + rect.width / 2`, `transform: translate(-50%, -100%)` (placing it centered above the selection), and `z-index: 50`.
 
 ### Single-Message Validation
 
@@ -161,4 +161,4 @@ There is no pre-built shadcn component for SelectionToolbar. See the [Quoting gu
 
 ## API Reference
 
-For full prop details on every part, see the [SelectionToolbarPrimitive API Reference](/docs/reference/primitives/selection-toolbar).
+For full prop details on every part, see the [SelectionToolbarPrimitive API Reference](/docs/api-reference/primitives/selection-toolbar).

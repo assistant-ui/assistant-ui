@@ -21,25 +21,6 @@ const PRIMITIVES_DIR = path.join(REACT_PKG, "primitives");
 const REACT_INDEX = path.join(REACT_PKG, "index.ts");
 const OUTPUT_FILE = path.resolve("./generated/primitiveDocs.ts");
 
-// Props inherited from HTML elements that we don't want to document
-const INHERITED_ELEMENT_PROP_SOURCES = new Set([
-  "HTMLAttributes",
-  "ButtonHTMLAttributes",
-  "FormHTMLAttributes",
-  "TextareaHTMLAttributes",
-  "InputHTMLAttributes",
-  "AriaAttributes",
-  "DOMAttributes",
-  "RefAttributes",
-  "TextareaAutosizeProps",
-  "ComponentPropsWithoutRef",
-  "ComponentPropsWithRef",
-  "PrimitiveButtonProps",
-  "PrimitiveDivProps",
-  "PrimitiveFormProps",
-  "PrimitiveSpanProps",
-]);
-
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 const project = new Project({
@@ -136,7 +117,7 @@ function discoverSubComponents(
 
   const components: SubComponent[] = [];
   for (const [exportedName, declarations] of sourceFile.getExportedDeclarations()) {
-    if (!/^[A-Z]/.test(exportedName)) continue;
+    if (!/^[A-Z]/.test(exportedName) && !/^unstable_[A-Z]/.test(exportedName)) continue;
 
     const declaration = declarations.find((decl) => {
       const kind = decl.getKind();
@@ -157,7 +138,7 @@ function discoverSubComponents(
   return components;
 }
 
-// ── Step 4: Extract props from a namespace ──────────────────────────────────
+// ── Step 3: Extract props from a namespace ──────────────────────────────────
 
 function findNamespace(
   sourceFile: SourceFile,
@@ -268,6 +249,46 @@ function extractPropsFromType(
   const typeText = typeAlias.getType().getText();
   if (typeText === "Record<string, never>") return [];
 
+  // Detect RequireAtLeastOne by following only the type aliases/interfaces that
+  // this props declaration actually references. Scanning the whole source file
+  // is too broad and can misclassify unrelated props in the same file.
+  const referencesRequireAtLeastOne = (
+    decl: TypeAliasDeclaration | InterfaceDeclaration,
+    visited = new Set<string>(),
+  ): boolean => {
+    const key = decl.getName();
+    if (visited.has(key)) return false;
+    visited.add(key);
+
+    const text = decl.getText();
+    if (text.includes("RequireAtLeastOne")) return true;
+
+    const typeNodeText = decl.getTypeNode?.()?.getText() ?? text;
+    const referencedNames = new Set(
+      Array.from(typeNodeText.matchAll(/\b[A-Z][A-Za-z0-9_]*\b/g)).map(
+        (match) => match[0],
+      ),
+    );
+
+    for (const name of referencedNames) {
+      if (name === key || name === "PropsWithChildren") continue;
+      const referencedType = sourceFile.getTypeAlias(name);
+      if (referencedType && referencesRequireAtLeastOne(referencedType, visited)) {
+        return true;
+      }
+      const referencedInterface = sourceFile.getInterface(name);
+      if (
+        referencedInterface &&
+        referencesRequireAtLeastOne(referencedInterface, visited)
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+  const isRequireAtLeastOne = referencesRequireAtLeastOne(typeAlias);
+
   const properties = type.getProperties();
 
   for (const prop of properties) {
@@ -319,9 +340,11 @@ function extractPropsFromType(
     }
 
     // Determine if required
-    const isOptional = Node.isPropertySignature(decl)
-      ? (decl as PropertySignature).hasQuestionToken()
-      : true;
+    const isOptional = isRequireAtLeastOne
+      ? true // RequireAtLeastOne means at least one is needed, not all
+      : Node.isPropertySignature(decl)
+        ? (decl as PropertySignature).hasQuestionToken()
+        : true;
 
     const propDef: PropDef = { name };
 
@@ -509,11 +532,15 @@ function cleanTypeText(typeText: string): string {
   let cleaned = typeText.replace(/import\(".*?"\)\./g, "");
   // Simplify long union types
   if (cleaned.length > 120) {
-    // Keep it but truncate very long inline object types
+    // Truncate very long inline object types at a token boundary
     cleaned = cleaned.replace(/\{[^{}]{100,}\}/g, (match) => {
-      // Keep the first few properties
-      const abbreviated = match.substring(0, 80) + "... }";
-      return abbreviated;
+      // Find a clean break point (after a semicolon or comma) near char 80
+      let cutoff = 80;
+      const semicolonIdx = match.lastIndexOf(";", cutoff);
+      const commaIdx = match.lastIndexOf(",", cutoff);
+      const breakIdx = Math.max(semicolonIdx, commaIdx);
+      if (breakIdx > 20) cutoff = breakIdx + 1;
+      return match.substring(0, cutoff) + " ... }";
     });
   }
   return cleaned;
@@ -553,6 +580,12 @@ function extractPropsFromComponentDeclaration(
   return undefined;
 }
 
+function typeSupportsAsChild(
+  typeAlias: TypeAliasDeclaration | InterfaceDeclaration,
+): boolean {
+  return typeAlias.getType().getProperties().some((prop) => prop.getName() === "asChild");
+}
+
 function processComponent(sub: SubComponent): PartDef | undefined {
   const sourceFile = sub.declaration.getSourceFile();
   const localName =
@@ -567,10 +600,12 @@ function processComponent(sub: SubComponent): PartDef | undefined {
 
   let props: PropDef[] | undefined;
   let isActionButton = false;
+  let supportsAsChild = false;
 
   if (propsAlias) {
     const propsText = propsAlias.getText();
     isActionButton = propsText.includes("ActionButtonProps");
+    supportsAsChild = typeSupportsAsChild(propsAlias);
     props = isActionButton
       ? extractActionButtonProps(sourceFile, localName)
       : extractPropsFromType(propsAlias, sourceFile);
@@ -580,12 +615,13 @@ function processComponent(sub: SubComponent): PartDef | undefined {
 
   if (!props) return undefined;
 
-  // Add asChild if the component renders a Radix primitive element
-  // (check if the source file imports from @radix-ui/react-primitive)
+  // Add asChild when the actual props type includes it. We intentionally
+  // inspect the component's type information instead of sniffing source-file
+  // imports so provider components like Popover.Root don't get misclassified.
   const hasAsChild =
     !isActionButton &&
     props.every((p) => p.name !== "asChild") &&
-    sourceFile.getText().includes("@radix-ui/react-primitive");
+    supportsAsChild;
   if (hasAsChild) {
     props.unshift({ name: "asChild" });
   }

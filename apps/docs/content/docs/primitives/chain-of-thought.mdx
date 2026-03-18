@@ -23,12 +23,13 @@ import {
 function AssistantMessage() {
   return (
     <MessagePrimitive.Root>
-      <MessagePrimitive.Parts
-        components={{
-          Text: MyText,
-          ChainOfThought,
+      <MessagePrimitive.Parts>
+        {({ part }) => {
+          if (part.type === "text") return <MyText />;
+          return null;
         }}
-      />
+      </MessagePrimitive.Parts>
+      <ChainOfThought />
     </MessagePrimitive.Root>
   );
 }
@@ -48,11 +49,11 @@ function ChainOfThought() {
               </p>
             ),
             tools: {
-              Fallback: ({ toolName, isLoading }) => (
+              Fallback: ({ toolName, status }) => (
                 <div className="flex items-center gap-2 px-4 py-2 text-sm">
                   <span className="font-medium">{toolName}</span>
                   <span className="text-muted-foreground">
-                    {isLoading ? "running..." : "done"}
+                    {status.type === "running" ? "running..." : "done"}
                   </span>
                 </div>
               ),
@@ -69,7 +70,7 @@ function ChainOfThought() {
 
 ## Quick Start
 
-Pass a `ChainOfThought` component to `MessagePrimitive.Parts`. The runtime automatically groups consecutive reasoning and tool-call parts and renders them through your component:
+Render your normal message parts with `MessagePrimitive.Parts`, then place a `ChainOfThought` component alongside them inside the same `MessagePrimitive.Root`:
 
 ```tsx
 import {
@@ -77,12 +78,15 @@ import {
   MessagePrimitive,
 } from "@assistant-ui/react";
 
-<MessagePrimitive.Parts
-  components={{
-    Text: MyText,
-    ChainOfThought: MyChainOfThought,
-  }}
-/>
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts>
+    {({ part }) => {
+      if (part.type === "text") return <MyText />;
+      return null;
+    }}
+  </MessagePrimitive.Parts>
+  <MyChainOfThought />
+</MessagePrimitive.Root>
 
 function MyChainOfThought() {
   return (
@@ -106,7 +110,7 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 
 ### How Grouping Works
 
-When you pass a `ChainOfThought` component to `MessagePrimitive.Parts`, the runtime groups consecutive reasoning and tool-call parts together. Instead of rendering each part individually, the entire group is passed to your `ChainOfThought` component. Inside it, `ChainOfThoughtPrimitive.Parts` renders the individual parts.
+`ChainOfThoughtPrimitive.Parts` reads the current message's grouped reasoning and tool-call context. In practice, render your normal text/image/data parts with `MessagePrimitive.Parts`, and render `ChainOfThoughtPrimitive` separately where you want the collapsible reasoning block to appear.
 
 ### Collapsed State
 
@@ -159,9 +163,9 @@ import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
       </p>
     ),
     tools: {
-      Fallback: ({ toolName, isLoading }) => (
+      Fallback: ({ toolName, status }) => (
         <div className="px-4 py-2 text-sm">
-          {isLoading ? `Running ${toolName}...` : `${toolName} completed`}
+          {status.type === "running" ? `Running ${toolName}...` : `${toolName} completed`}
         </div>
       ),
     },
@@ -204,7 +208,7 @@ Trigger that toggles the collapsed state. Renders a `<button>` element unless `a
 
 ### Parts
 
-Renders reasoning and tool-call parts when expanded.
+Renders reasoning and tool-call parts. This component does not track collapsed state internally, so control visibility with `AuiIf` as shown in the patterns below.
 
 ```tsx
 <ChainOfThoughtPrimitive.Parts
@@ -215,9 +219,9 @@ Renders reasoning and tool-call parts when expanded.
       </p>
     ),
     tools: {
-      Fallback: ({ toolName, isLoading }) => (
+      Fallback: ({ toolName, status }) => (
         <div className="px-4 py-2 text-sm">
-          {isLoading ? `Running ${toolName}...` : `${toolName} completed`}
+          {status.type === "running" ? `Running ${toolName}...` : `${toolName} completed`}
         </div>
       ),
     },
@@ -272,11 +276,11 @@ function ChainOfThought() {
               </p>
             ),
             tools: {
-              Fallback: ({ toolName, isLoading }) => (
+              Fallback: ({ toolName, status }) => (
                 <div className="flex items-center gap-2 px-4 py-2 text-sm">
                   <span className="font-medium">{toolName}</span>
                   <span className="text-muted-foreground">
-                    {isLoading ? "running..." : "done"}
+                    {status.type === "running" ? "running..." : "done"}
                   </span>
                 </div>
               ),
@@ -298,4 +302,4 @@ The [Chain of Thought guide](/docs/guides/chain-of-thought) covers end-to-end se
 
 ## API Reference
 
-For full prop details on every part, see the [ChainOfThoughtPrimitive source](https://github.com/assistant-ui/assistant-ui/tree/main/packages/react/src/primitives/chainOfThought).
+For full prop details on every part, see the [ChainOfThoughtPrimitive source](https://github.com/assistant-ui/assistant-ui/tree/main/packages/react/src/primitives/chainOfThought). *(No dedicated API reference page yet.)*

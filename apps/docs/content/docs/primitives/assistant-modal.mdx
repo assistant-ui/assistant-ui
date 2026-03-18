@@ -111,7 +111,7 @@ Radix Popover provider, manages open/close state. No DOM element rendered.
 
 ### Trigger
 
-Button that toggles the modal open and closed. Renders a `<button>` element.
+Button that toggles the modal open and closed. Renders a `<button>` element unless `asChild` is set.
 
 ```tsx
 <AssistantModalPrimitive.Trigger className="rounded-full bg-primary px-4 py-2 text-primary-foreground">
@@ -121,7 +121,7 @@ Button that toggles the modal open and closed. Renders a `<button>` element.
 
 ### Anchor
 
-Positions the trigger and content relative to a shared anchor. Renders a `<div>` element.
+Positions the trigger and content relative to a shared anchor. Renders a `<div>` element unless `asChild` is set.
 
 ```tsx
 <AssistantModalPrimitive.Anchor className="fixed right-4 bottom-4">
@@ -210,4 +210,4 @@ The shadcn [AssistantModal](/docs/ui/assistant-modal) component wraps these prim
 
 ## API Reference
 
-For full prop details on every part, see the [AssistantModalPrimitive API Reference](/docs/reference/primitives/assistant-modal).
+For full prop details on every part, see the [AssistantModalPrimitive API Reference](/docs/api-reference/primitives/assistant-modal).

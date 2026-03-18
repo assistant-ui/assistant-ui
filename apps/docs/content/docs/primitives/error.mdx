@@ -6,7 +6,7 @@ description: Accessible error display for messages with automatic error text ext
 import { ErrorPrimitiveSample } from "@/components/docs/samples/error-primitive";
 import { ErrorPrimitive as ErrorPrimitiveDocs } from "@/generated/primitiveDocs";
 
-The Error primitive renders error states on messages — an accessible `role="alert"` container with automatic error text extraction. It only renders when the message has an error, so you can place it unconditionally in your message layout.
+The Error primitive renders error states on messages using an accessible `role="alert"` container with automatic error text extraction. `Root` always renders its container; `Message` only renders when the message has an error. Wrap in `MessagePrimitive.Error` if you need the entire block to be conditional.
 
 <Tabs items={["Preview", "Code"]}>
   <Tab>
@@ -45,10 +45,10 @@ import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
 </MessagePrimitive.Root>
 ```
 
-`Root` renders a `<div>` with `role="alert"` for screen reader accessibility. `Message` renders a `<span>` that auto-reads the error text from message state. Both only render when the message has an error — no conditional logic needed.
+`Root` renders a `<div>` with `role="alert"` for screen reader accessibility. `Message` renders a `<span>` that auto-reads the error text from message state, and it returns `null` when there is no error. `Root` itself always renders. Wrap in `<MessagePrimitive.Error>` if you want the entire block (including `Root`) to be conditional.
 
 <Callout type="info">
-ErrorPrimitive must be placed inside a `MessagePrimitive.Root` — it reads the error state from the nearest message context.
+ErrorPrimitive must be placed inside a `MessagePrimitive.Root` because it reads the error state from the nearest message context.
 </Callout>
 
 <Callout type="info">
@@ -59,7 +59,7 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 
 ### Auto-Rendering on Error
 
-Both `Root` and `Message` check the message status. They only render when `status.type === "incomplete"` and `status.reason === "error"`. Place them unconditionally in your layout — they handle visibility internally.
+`Message` checks the message status and only renders when `status.type === "incomplete"` and `status.reason === "error"`. `Root` always renders its `<div role="alert">` container. For fully conditional rendering, wrap in `<MessagePrimitive.Error>`.
 
 ### Automatic Error Text
 
@@ -138,4 +138,4 @@ The shadcn [Thread](/docs/ui/thread) component uses `ErrorPrimitive` inside its 
 
 ## API Reference
 
-For full prop details on every part, see the [ErrorPrimitive API Reference](/docs/reference/primitives/error).
+For full prop details on every part, see the [ErrorPrimitive API Reference](/docs/api-reference/primitives/error).

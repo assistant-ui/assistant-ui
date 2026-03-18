@@ -107,17 +107,17 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 </MessagePrimitive.Parts>
 ```
 
-The older `components` prop is still supported, but it is deprecated. Prefer the children API for new code.
+`components` is deprecated. Use the `children` render function instead.
 
 ### Tool Resolution
 
 Tool call parts resolve in this order:
 
-1. **`tools.Override`** — if provided inline through the deprecated `components` prop, handles **all** tool calls
-2. **Globally registered tools** — tools registered via `makeAssistantTool` / `useAssistantToolUI`
-3. **`tools.by_name[toolName]`** — per-`MessagePrimitive.Parts` inline overrides from the deprecated `components` prop
-4. **`tools.Fallback`** — catch-all for unmatched tool calls from the deprecated `components` prop
-5. **`part.toolUI`** — the resolved tool UI exposed directly in the children render function
+1. **`tools.Override`**: if provided inline through the deprecated `components` prop, handles **all** tool calls
+2. **Globally registered tools**: tools registered via `makeAssistantTool` / `useAssistantToolUI`
+3. **`tools.by_name[toolName]`**: per-`MessagePrimitive.Parts` inline overrides from the deprecated `components` prop
+4. **`tools.Fallback`**: catch-all for unmatched tool calls from the deprecated `components` prop
+5. **`part.toolUI`**: the resolved tool UI exposed directly in the children render function
 
 In the children API, tool and data parts expose resolved UI helpers directly:
 
@@ -139,12 +139,13 @@ Returning `null` still allows registered tool UIs and data renderer UIs to rende
 
 ### Components Prop (Deprecated)
 
-The deprecated `components` prop is still useful when you want grouped reasoning/tool rendering or inline by-name registries:
+`components` is deprecated. This section only documents it so older code is still understandable:
 
 - `ToolGroup` wraps consecutive tool-call parts
 - `ReasoningGroup` wraps consecutive reasoning parts
 - `ChainOfThought` takes over all reasoning and tool-call rendering (mutually exclusive with `ToolGroup`, `ReasoningGroup`, `tools`, and `Reasoning`)
 - `data.by_name` and `data.Fallback` let you route custom data part types
+- `Quote` renders quoted message references from metadata
 - `Empty` and `Unstable_Audio` are available for edge and experimental rendering paths
 
 ```tsx
@@ -184,19 +185,19 @@ The deprecated `components` prop is still useful when you want grouped reasoning
 />
 ```
 
-For new code, prefer the children API first, then drop down to `components` only when you need these grouping features.
+For new code, use the `children` render function instead.
 
 ### Hover State
 
-`MessagePrimitive.Root` automatically tracks mouse enter/leave events. This hover state is consumed by `ActionBarPrimitive` to implement auto-hide behavior — no extra wiring needed.
+`MessagePrimitive.Root` automatically tracks mouse enter/leave events. This hover state is consumed by `ActionBarPrimitive` to implement auto-hide behavior, with no extra wiring needed.
 
 ### MessagePartPrimitive
 
 Inside your custom part components, use these sub-primitives to access the actual content:
 
-- **`MessagePartPrimitive.Text`** — renders the text content of a text part
-- **`MessagePartPrimitive.Image`** — renders the image of an image part
-- **`MessagePartPrimitive.InProgress`** — renders only while the part is still streaming
+- **`MessagePartPrimitive.Text`**: renders the text content of a text part
+- **`MessagePartPrimitive.Image`**: renders the image of an image part
+- **`MessagePartPrimitive.InProgress`**: renders only while the part is still streaming
 
 ```tsx
 function MyText() {
@@ -349,7 +350,7 @@ Groups consecutive parts by a custom grouping function *(unstable)*.
 
 ### Unstable_PartsGroupedByParentId
 
-Groups parts by parent ID *(unstable, deprecated -- use `Unstable_PartsGrouped`)*.
+Groups parts by parent ID *(unstable, deprecated; use `Unstable_PartsGrouped`)*.
 
 ```tsx
 <MessagePrimitive.Unstable_PartsGroupedByParentId
@@ -405,13 +406,13 @@ function MarkdownText() {
         get_weather: ({ result }) => (
           <div className="rounded-lg border p-3">
             <p className="font-medium">Weather</p>
-            <p>{result?.temperature}°F — {result?.condition}</p>
+            <p>{result?.temperature}°F, {result?.condition}</p>
           </div>
         ),
       },
-      Fallback: ({ toolName, isLoading }) => (
+      Fallback: ({ toolName, status }) => (
         <div className="text-muted-foreground text-sm">
-          {isLoading ? `Running ${toolName}...` : `${toolName} completed`}
+          {status.type === "running" ? `Running ${toolName}...` : `${toolName} completed`}
         </div>
       ),
     },
@@ -447,7 +448,7 @@ import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
 </MessagePrimitive.Root>
 ```
 
-`ErrorPrimitive.Root` renders a `<div>` container and `ErrorPrimitive.Message` renders a `<span>` that displays the error text — both render only when the message has an error. See the [ErrorPrimitive API Reference](/docs/reference/primitives/error) for full details.
+`ErrorPrimitive.Root` renders a `<div>` container with `role="alert"` and `ErrorPrimitive.Message` renders a `<span>` that displays the error text. `Root` always renders. Only `Message` conditionally returns `null` when there is no error. Wrap in `<MessagePrimitive.Error>` if you want the entire block to be conditional. See the [ErrorPrimitive API Reference](/docs/api-reference/primitives/error) for full details.
 
 ### Legacy and Unstable APIs
 
@@ -456,7 +457,7 @@ import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
 
 ### Role-Based Styling
 
-`MessagePrimitive.Root` does not set data attributes by default — style by role in your message components:
+`MessagePrimitive.Root` sets `data-message-id` automatically but does not set a `data-role` attribute. Style by role in your message components:
 
 ```tsx
 // In your ThreadPrimitive.Messages children render function:
@@ -503,15 +504,15 @@ function AssistantMessage() {
 
 ## Relationship to Components
 
-The shadcn [Thread](/docs/ui/thread) component renders user and assistant messages built from these primitives. The pre-built `AssistantMessage` and `UserMessage` components handle text rendering, tool UIs, error display, and action bars — all using `MessagePrimitive` under the hood.
+The shadcn [Thread](/docs/ui/thread) component renders user and assistant messages built from these primitives. The pre-built `AssistantMessage` and `UserMessage` components handle text rendering, tool UIs, error display, and action bars, all using `MessagePrimitive` under the hood.
 
 Messages are commonly paired with [ActionBar](/docs/primitives/action-bar) for copy/reload/edit actions and [BranchPicker](/docs/primitives/branch-picker) for navigating between alternative responses.
 
 ## API Reference
 
-For full prop details on every part, see the [MessagePrimitive API Reference](/docs/reference/primitives/message).
+For full prop details on every part, see the [MessagePrimitive API Reference](/docs/api-reference/primitives/message).
 
 Related:
-- [MessagePartPrimitive API Reference](/docs/reference/primitives/message-part)
-- [ActionBarPrimitive API Reference](/docs/reference/primitives/action-bar)
-- [BranchPickerPrimitive API Reference](/docs/reference/primitives/branch-picker)
+- [MessagePartPrimitive API Reference](/docs/api-reference/primitives/message-part)
+- [ActionBarPrimitive API Reference](/docs/api-reference/primitives/action-bar)
+- [BranchPickerPrimitive API Reference](/docs/api-reference/primitives/branch-picker)

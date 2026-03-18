@@ -3,18 +3,17 @@ title: Overview
 description: Unstyled, accessible building blocks for AI chat interfaces.
 ---
 
-Primitives are the foundation of assistant-ui. They are unstyled, accessible React components that handle all the wiring for AI chat — state management, keyboard shortcuts, auto-scrolling, streaming, tool calls — so you can focus entirely on your UI.
+Primitives are the foundation of assistant-ui. They are unstyled, accessible React components that handle all the wiring for AI chat, including state management, keyboard shortcuts, auto-scrolling, streaming, and tool calls, so you can focus entirely on your UI.
 
 ## Why Primitives?
 
 Every assistant-ui [Component](/docs/ui/thread) is built from primitives. When you install a component like `Thread`, you get a pre-styled composition of primitives with default styling and behavior included.
 
-But when you need a UI that doesn't fit the defaults — a floating composer, a custom message layout, an inline editing experience — you reach for the primitives directly.
+But when you need a UI that doesn't fit the defaults, such as a floating composer, a custom message layout, or an inline editing experience, you reach for the primitives directly.
 
 ```tsx
 import { ComposerPrimitive } from "@assistant-ui/react";
 
-// A fully functional composer in 7 lines
 <ComposerPrimitive.Root>
   <ComposerPrimitive.Input placeholder="Ask anything..." />
   <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
@@ -90,11 +89,11 @@ Primitives read from the nearest runtime context. Place them inside an `Assistan
 
 Additional primitive references:
 
-- [MessagePartPrimitive](/docs/reference/primitives/message-part)
-- [ThreadListItemPrimitive](/docs/reference/primitives/thread-list-item)
-- [ThreadListItemMorePrimitive](/docs/reference/primitives/thread-list-item-more)
-- [ActionBarMorePrimitive](/docs/reference/primitives/action-bar-more)
-- [AssistantIf (`AuiIf`)](/docs/reference/primitives/assistant-if)
+- [MessagePartPrimitive](/docs/api-reference/primitives/message-part)
+- [ThreadListItemPrimitive](/docs/api-reference/primitives/thread-list-item)
+- [ThreadListItemMorePrimitive](/docs/api-reference/primitives/thread-list-item-more)
+- [ActionBarMorePrimitive](/docs/api-reference/primitives/action-bar-more)
+- [AssistantIf (`AuiIf`)](/docs/api-reference/primitives/assistant-if)
 
 ## Common Mistakes
 
@@ -105,4 +104,4 @@ Additional primitive references:
 
 ## Next Steps
 
-Start with the [Composer](/docs/primitives/composer) primitive to see how primitives work in practice, or jump to the [API Reference](/docs/reference/primitives/composer) for full prop details.
+Start with the [Composer](/docs/primitives/composer) primitive to see how primitives work in practice, or jump to the [API Reference](/docs/api-reference/primitives/composer) for full prop details.

@@ -196,7 +196,7 @@ These work alongside `autoScroll`. If `autoScroll` is omitted, it defaults to `t
 </ThreadPrimitive.Messages>
 ```
 
-The older `components` prop is still supported, but it is deprecated.
+`components` is deprecated. Use the `children` render function instead.
 
 ### Suggestions Iterator
 
@@ -276,14 +276,18 @@ Provides viewport context without rendering a scrollable element. Use this when 
 
 ### ViewportSlack
 
-Adds min-height for scroll anchoring with `turnAnchor="top"`. Renders a `<div>` element unless `asChild` is set.
+Adds min-height for scroll anchoring with `turnAnchor="top"`. It wraps its child element via `Slot` and does not render a DOM element of its own.
 
 ```tsx
 <MessagePrimitive.Root>
   <MessagePrimitive.Parts />
-  <ThreadPrimitive.ViewportSlack className="min-h-[40vh]" />
+  <ThreadPrimitive.ViewportSlack>
+    <div className="min-h-[40vh]" />
+  </ThreadPrimitive.ViewportSlack>
 </MessagePrimitive.Root>
 ```
+
+Props: `fillClampThreshold` and `fillClampOffset` control how the slack height is calculated. `children` is required.
 
 ### Messages
 
@@ -332,7 +336,7 @@ Renders suggestion prompts via a component.
 
 ```tsx
 <ThreadPrimitive.Suggestions>
-  {() => <MySuggestionButton />}
+  {({ suggestion }) => <MySuggestionButton prompt={suggestion.prompt} />}
 </ThreadPrimitive.Suggestions>
 ```
 
@@ -387,10 +391,12 @@ Deprecated. Use [`AuiIf`](/docs/api-reference/primitives/assistant-if) instead.
 // Before (deprecated)
 <ThreadPrimitive.If empty>...</ThreadPrimitive.If>
 <ThreadPrimitive.If running>...</ThreadPrimitive.If>
+<ThreadPrimitive.If disabled>...</ThreadPrimitive.If>
 
 // After
 <AuiIf condition={(s) => s.thread.isEmpty}>...</AuiIf>
 <AuiIf condition={(s) => s.thread.isRunning}>...</AuiIf>
+<AuiIf condition={(s) => s.thread.isDisabled}>...</AuiIf>
 ```
 
 ## Patterns
@@ -470,9 +476,9 @@ The [Thread](/docs/ui/thread) component is a full chat interface built from thes
 
 ## API Reference
 
-For full prop details on every part, see the [ThreadPrimitive API Reference](/docs/reference/primitives/thread).
+For full prop details on every part, see the [ThreadPrimitive API Reference](/docs/api-reference/primitives/thread).
 
 Related:
-- [MessagePrimitive API Reference](/docs/reference/primitives/message)
-- [ComposerPrimitive API Reference](/docs/reference/primitives/composer)
-- [ThreadListPrimitive API Reference](/docs/reference/primitives/thread-list)
+- [MessagePrimitive API Reference](/docs/api-reference/primitives/message)
+- [ComposerPrimitive API Reference](/docs/api-reference/primitives/composer)
+- [ThreadListPrimitive API Reference](/docs/api-reference/primitives/thread-list)

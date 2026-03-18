@@ -53,7 +53,7 @@ import { AttachmentPrimitive, ComposerPrimitive } from "@assistant-ui/react";
 </ComposerPrimitive.Root>
 ```
 
-`Root` renders a `<div>`, `unstable_Thumb` renders a `<div>` showing the file extension, `Name` renders plain text, and `Remove` renders a `<button>`.
+`Root` renders a `<div>`, `unstable_Thumb` renders a `<div>` showing the file extension with a leading dot (e.g., `.pdf`), `Name` renders plain text, and `Remove` renders a `<button>`.
 
 <Callout type="info">
 Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
@@ -212,4 +212,4 @@ The shadcn [Attachment](/docs/ui/attachment) component wraps these primitives wi
 
 ## API Reference
 
-For full prop details on every part, see the [AttachmentPrimitive API Reference](/docs/reference/primitives/attachment).
+For full prop details on every part, see the [AttachmentPrimitive API Reference](/docs/api-reference/primitives/attachment).

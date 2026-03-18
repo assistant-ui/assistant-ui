@@ -96,12 +96,12 @@ The `"single-branch"` option for `autohideFloat` only floats when the message ha
 
 ### Automatic Disabling
 
-Action buttons automatically disable based on state — no manual wiring needed:
+Action buttons automatically disable based on state, with no manual wiring needed:
 
-- **Copy** — disabled when there's no copyable text content or message is still running
-- **Reload** — disabled when the thread is running or the message role isn't assistant
-- **Edit** — disabled when the message is already being edited
-- **Speak** — disabled when there's no speakable text or message is still running
+- **Copy**: disabled when there's no copyable text content or an assistant message is still running
+- **Reload**: disabled when the thread is running or the message role isn't assistant
+- **Edit**: disabled when the message is already being edited
+- **Speak**: disabled when there's no speakable text or an assistant message is still running
 
 ### Copy State
 
@@ -337,7 +337,7 @@ import { MoreHorizontalIcon } from "lucide-react";
 </ActionBarPrimitive.Root>
 ```
 
-See the [ActionBarMorePrimitive API Reference](/docs/reference/primitives/action-bar-more) for full prop details.
+See the [ActionBarMorePrimitive API Reference](/docs/api-reference/primitives/action-bar-more) for full prop details.
 
 ## Relationship to Components
 
@@ -347,7 +347,7 @@ ActionBar is commonly paired with [BranchPicker](/docs/primitives/branch-picker)
 
 ## API Reference
 
-For full prop details on every part, see the [ActionBarPrimitive API Reference](/docs/reference/primitives/action-bar).
+For full prop details on every part, see the [ActionBarPrimitive API Reference](/docs/api-reference/primitives/action-bar).
 
 Related:
-- [ActionBarMorePrimitive API Reference](/docs/reference/primitives/action-bar-more)
+- [ActionBarMorePrimitive API Reference](/docs/api-reference/primitives/action-bar-more)

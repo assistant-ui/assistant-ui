@@ -129,7 +129,7 @@ The `New` button gets `data-active` when the user is on a fresh, unsaved thread.
 </ThreadListPrimitive.Items>
 ```
 
-The older `components` prop is still supported, but it is deprecated.
+`components` is deprecated. Use the `children` render function instead.
 
 ### Archived Threads
 
@@ -147,25 +147,6 @@ Pass `archived` to `Items` to render archived threads separately:
     {() => <ArchivedThreadItem />}
   </ThreadListPrimitive.Items>
 </ThreadListPrimitive.Root>
-```
-
-### Pagination
-
-Thread list runtimes can now expose pagination state. Use `s.threads.canLoadMore` to decide when to show a “Load more” control, and call `aui.threads().loadMore()` to fetch the next page.
-
-```tsx
-function LoadMoreThreads() {
-  const aui = useAui();
-  const canLoadMore = useAuiState((s) => s.threads.canLoadMore);
-
-  if (!canLoadMore) return null;
-
-  return (
-    <button onClick={() => aui.threads().loadMore()}>
-      Load more
-    </button>
-  );
-}
 ```
 
 ### Thread Actions
@@ -267,7 +248,7 @@ Interactive button that selects the thread. Renders a `<button>` element unless 
 
 #### Title
 
-Displays the thread title with a `fallback` prop. Renders a `<span>` element.
+Displays the thread title with a `fallback` prop. Renders a React fragment (no wrapper element). Use a `<span>` wrapper if you need to style it.
 
 ```tsx
 <ThreadListItemPrimitive.Title fallback="New Chat" />
@@ -315,7 +296,7 @@ Root container for the overflow menu primitives.
 
 #### Trigger
 
-Button that opens the overflow menu. Renders a `<button>` element.
+Button that opens the overflow menu. Renders a `<button>` element unless `asChild` is set.
 
 ```tsx
 <ThreadListItemMorePrimitive.Trigger className="rounded-md p-1 hover:bg-muted">
@@ -325,7 +306,7 @@ Button that opens the overflow menu. Renders a `<button>` element.
 
 #### Content
 
-The dropdown panel. Renders a `<div>` element.
+The dropdown panel. Renders a `<div>` via a portal (positioned relative to the trigger).
 
 ```tsx
 <ThreadListItemMorePrimitive.Content className="rounded-md border bg-popover p-1 shadow-md">
@@ -339,7 +320,7 @@ The dropdown panel. Renders a `<div>` element.
 
 #### Item
 
-Menu item slot inside the overflow menu. Renders a `<div>` element.
+Menu item slot inside the overflow menu. Renders a `<div>` element unless `asChild` is set.
 
 ```tsx
 <ThreadListItemMorePrimitive.Item>Archive</ThreadListItemMorePrimitive.Item>
@@ -347,7 +328,7 @@ Menu item slot inside the overflow menu. Renders a `<div>` element.
 
 #### Separator
 
-Visual separator between groups of menu items. Renders a `<div>` element.
+Visual separator between groups of menu items. Renders a `<div>` element unless `asChild` is set.
 
 ```tsx
 <ThreadListItemMorePrimitive.Separator className="my-1 h-px bg-border" />
@@ -424,6 +405,6 @@ The shadcn [ThreadList](/docs/ui/thread-list) component wraps these primitives w
 
 For full prop details on every part, see the API reference for each namespace:
 
-- [ThreadListPrimitive](/docs/reference/primitives/thread-list)
-- [ThreadListItemPrimitive](/docs/reference/primitives/thread-list-item)
-- [ThreadListItemMorePrimitive](/docs/reference/primitives/thread-list-item-more)
+- [ThreadListPrimitive](/docs/api-reference/primitives/thread-list)
+- [ThreadListItemPrimitive](/docs/api-reference/primitives/thread-list-item)
+- [ThreadListItemMorePrimitive](/docs/api-reference/primitives/thread-list-item-more)

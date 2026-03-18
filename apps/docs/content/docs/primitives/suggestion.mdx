@@ -22,9 +22,9 @@ import {
 function SuggestionList() {
   return (
     <div className="grid grid-cols-2 gap-2">
-      <ThreadPrimitive.Suggestions
-        components={{ Suggestion: SuggestionItem }}
-      />
+      <ThreadPrimitive.Suggestions>
+        {() => <SuggestionItem />}
+      </ThreadPrimitive.Suggestions>
     </div>
   );
 }
@@ -55,9 +55,9 @@ A suggestion list using the iterator pattern:
 ```tsx
 import { ThreadPrimitive, SuggestionPrimitive } from "@assistant-ui/react";
 
-<ThreadPrimitive.Suggestions
-  components={{ Suggestion: MySuggestionItem }}
-/>
+<ThreadPrimitive.Suggestions>
+  {() => <MySuggestionItem />}
+</ThreadPrimitive.Suggestions>
 
 function MySuggestionItem() {
   return (
@@ -78,12 +78,12 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 
 ### Context-Based Rendering
 
-SuggestionPrimitive parts read from a suggestion context. Use `ThreadPrimitive.Suggestions` to provide this context — it iterates over the thread's suggestions and renders your component for each one:
+SuggestionPrimitive parts read from a suggestion context. Use `ThreadPrimitive.Suggestions` to provide this context. It iterates over the thread's suggestions and renders your component for each one:
 
 ```tsx
-<ThreadPrimitive.Suggestions
-  components={{ Suggestion: MySuggestion }}
-/>
+<ThreadPrimitive.Suggestions>
+  {() => <MySuggestion />}
+</ThreadPrimitive.Suggestions>
 ```
 
 You can also use `ThreadPrimitive.SuggestionByIndex` to render a specific suggestion by index if you need more layout control.
@@ -105,8 +105,8 @@ Both render a `<span>` and accept `children` to override the value from state:
 
 `Trigger`'s `send` prop controls what happens on click:
 
-- **`send={true}`** — Immediately sends the suggestion as a new message
-- **`send={false}`** (default) — Populates the composer text so the user can edit before sending
+- **`send={true}`**: immediately sends the suggestion as a new message. When the thread is running, it falls back to populating the composer instead.
+- **`send={false}`** (default): populates the composer text so the user can edit before sending
 
 ```tsx
 // Send immediately
@@ -124,21 +124,21 @@ Both render a `<span>` and accept `children` to override the value from state:
 
 When `send={false}`, the `clearComposer` prop controls whether the suggestion replaces or appends to existing composer text:
 
-- **`clearComposer={true}`** (default) — Replaces the current composer text
-- **`clearComposer={false}`** — Appends the suggestion to the existing text
+- **`clearComposer={true}`** (default): replaces the current composer text
+- **`clearComposer={false}`**: appends the suggestion to the existing text
 
 ### ThreadPrimitive.Suggestion (Legacy)
 
 `ThreadPrimitive.Suggestion` is a self-contained button that takes a `prompt` prop directly. The newer pattern (`ThreadPrimitive.Suggestions` + `SuggestionPrimitive` parts) is preferred for structured suggestions with title and description:
 
 ```tsx
-// Legacy — still works, but limited
+// Legacy: still works, but limited
 <ThreadPrimitive.Suggestion prompt="Write a blog post" />
 
-// Preferred — structured with title/description
-<ThreadPrimitive.Suggestions
-  components={{ Suggestion: MySuggestionItem }}
-/>
+// Preferred: structured with title/description
+<ThreadPrimitive.Suggestions>
+  {() => <MySuggestionItem />}
+</ThreadPrimitive.Suggestions>
 ```
 
 `ThreadPrimitive.Suggestion` also supports deprecated `autoSend` and `method` props for backwards compatibility. Prefer `send` and `clearComposer`.
@@ -186,9 +186,9 @@ function WelcomeSuggestions() {
       <div className="text-center">
         <h2 className="text-lg font-semibold">How can I help you?</h2>
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <ThreadPrimitive.Suggestions
-            components={{ Suggestion: SuggestionCard }}
-          />
+          <ThreadPrimitive.Suggestions>
+            {() => <SuggestionCard />}
+          </ThreadPrimitive.Suggestions>
         </div>
       </div>
     </AuiIf>
@@ -238,4 +238,4 @@ The shadcn [Thread](/docs/ui/thread) component includes suggestions in its welco
 
 ## API Reference
 
-For full prop details on every part, see the [SuggestionPrimitive API Reference](/docs/reference/primitives/suggestion).
+For full prop details on every part, see the [SuggestionPrimitive API Reference](/docs/api-reference/primitives/suggestion).
