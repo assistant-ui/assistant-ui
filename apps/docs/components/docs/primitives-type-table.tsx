@@ -70,7 +70,9 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
       const prop = { ...COMMON_PARAMS[raw.name], ...raw };
 
       const descParts: ReactNode[] = [
-        prop.deprecated && <StatusBadge variant="deprecated" className="mr-1" />,
+        prop.deprecated && (
+          <StatusBadge variant="deprecated" className="mr-1" />
+        ),
         prop.name.startsWith("unstable_") && (
           <StatusBadge variant="unstable" className="mr-1" />
         ),
