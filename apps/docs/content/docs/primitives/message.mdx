@@ -6,7 +6,7 @@ description: Build custom message rendering with content parts, attachments, and
 import { MessagePrimitiveSample } from "@/components/docs/samples/message-primitive";
 import { MessagePrimitive as MessagePrimitiveDocs } from "@/generated/primitiveDocs";
 
-The Message primitive handles individual message rendering — content parts, attachments, hover state, and error display. It's the building block inside each message bubble, resolving text, images, tool calls, and more through a parts pipeline.
+The Message primitive handles individual message rendering: content parts, attachments, quotes, hover state, and error display. It's the building block inside each message bubble, resolving text, images, tool calls, and more through a parts pipeline.
 
 <Tabs items={["Preview", "Code"]}>
   <Tab>
@@ -23,7 +23,12 @@ function UserMessage() {
   return (
     <MessagePrimitive.Root className="flex justify-end">
       <div className="max-w-[80%] rounded-2xl bg-primary px-4 py-2.5 text-sm text-primary-foreground">
-        <MessagePrimitive.Parts components={{ Text: UserText }} />
+        <MessagePrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "text") return <UserText />;
+            return null;
+          }}
+        </MessagePrimitive.Parts>
       </div>
     </MessagePrimitive.Root>
   );
@@ -36,7 +41,12 @@ function AssistantMessage() {
         AI
       </div>
       <div className="max-w-[80%] rounded-2xl bg-muted px-4 py-2.5 text-sm">
-        <MessagePrimitive.Parts components={{ Text: AssistantText }} />
+        <MessagePrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "text") return <AssistantText />;
+            return part.toolUI ?? null;
+          }}
+        </MessagePrimitive.Parts>
       </div>
     </MessagePrimitive.Root>
   );
@@ -83,51 +93,53 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 
 ### Parts Pipeline
 
-`MessagePrimitive.Parts` resolves a component for each content part by type. Pass custom components to control how each type renders:
+`MessagePrimitive.Parts` now prefers a children render function. It gives you the current enriched part state directly, so you can branch inline and return exactly the UI you want:
 
 ```tsx
-<MessagePrimitive.Parts
-  components={{
-    Text: MyTextRenderer,
-    Image: MyImageRenderer,
-    tools: {
-      by_name: { search: SearchToolUI },
-      Fallback: GenericToolUI,
-    },
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <MyTextRenderer />;
+    if (part.type === "image") return <MyImageRenderer />;
+    if (part.type === "tool-call")
+      return part.toolUI ?? <GenericToolUI {...part} />;
+    return null;
   }}
-/>
+</MessagePrimitive.Parts>
 ```
 
-Each component receives the part data via context. Use `MessagePartPrimitive.Text` and `MessagePartPrimitive.Image` inside your custom components to access the content.
+The older `components` prop is still supported, but it is deprecated. Prefer the children API for new code.
 
 ### Tool Resolution
 
 Tool call parts resolve in this order:
 
-1. **`tools.Override`** — if provided inline, handles **all** tool calls (skips everything below)
-2. **Globally registered tools** — tools registered via `makeAssistantTool` / `useAssistantTool` in runtime context
-3. **`tools.by_name[toolName]`** — per-`MessagePrimitive.Parts` inline overrides (used as fallback when no global exists)
-4. **`tools.Fallback`** — catch-all for unmatched tool calls
+1. **`tools.Override`** — if provided inline through the deprecated `components` prop, handles **all** tool calls
+2. **Globally registered tools** — tools registered via `makeAssistantTool` / `useAssistantToolUI`
+3. **`tools.by_name[toolName]`** — per-`MessagePrimitive.Parts` inline overrides from the deprecated `components` prop
+4. **`tools.Fallback`** — catch-all for unmatched tool calls from the deprecated `components` prop
+5. **`part.toolUI`** — the resolved tool UI exposed directly in the children render function
 
-`Override` short-circuits the entire resolution chain — when set, no other tool components are consulted. Inline `by_name` components apply only when no globally registered tool exists for that name.
+In the children API, tool and data parts expose resolved UI helpers directly:
 
 ```tsx
-<MessagePrimitive.Parts
-  components={{
-    tools: {
-      by_name: {
-        weather: WeatherCard,
-        search: SearchResults,
-      },
-      Fallback: ({ toolName }) => <div>Running {toolName}...</div>,
-    },
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "tool-call")
+      return part.toolUI ?? <ToolFallback {...part} />;
+
+    if (part.type === "data")
+      return part.dataRendererUI ?? null;
+
+    return null;
   }}
-/>
+</MessagePrimitive.Parts>
 ```
 
-### Advanced Parts Configuration
+Returning `null` still allows registered tool UIs and data renderer UIs to render automatically. Return `<></>` if you want to suppress them entirely.
 
-`MessagePrimitive.Parts` supports advanced composition for tool, reasoning, and data parts:
+### Components Prop (Deprecated)
+
+The deprecated `components` prop is still useful when you want grouped reasoning/tool rendering or inline by-name registries:
 
 - `ToolGroup` wraps consecutive tool-call parts
 - `ReasoningGroup` wraps consecutive reasoning parts
@@ -172,6 +184,8 @@ Tool call parts resolve in this order:
 />
 ```
 
+For new code, prefer the children API first, then drop down to `components` only when you need these grouping features.
+
 ### Hover State
 
 `MessagePrimitive.Root` automatically tracks mouse enter/leave events. This hover state is consumed by `ActionBarPrimitive` to implement auto-hide behavior — no extra wiring needed.
@@ -207,6 +221,9 @@ Container for a single message. Renders a `<div>` element unless `asChild` is se
 
 ```tsx
 <MessagePrimitive.Root className="flex flex-col gap-2">
+  <MessagePrimitive.Quote>
+    {({ text }) => <blockquote className="mb-2 border-l pl-3 italic">{text}</blockquote>}
+  </MessagePrimitive.Quote>
   <MessagePrimitive.Parts />
 </MessagePrimitive.Root>
 ```
@@ -216,16 +233,15 @@ Container for a single message. Renders a `<div>` element unless `asChild` is se
 Renders each content part with type-based component resolution.
 
 ```tsx
-<MessagePrimitive.Parts
-  components={{
-    Text: MyTextRenderer,
-    Image: MyImageRenderer,
-    tools: {
-      by_name: { search: SearchToolUI },
-      Fallback: GenericToolUI,
-    },
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <MyTextRenderer />;
+    if (part.type === "image") return <MyImageRenderer />;
+    if (part.type === "tool-call")
+      return part.toolUI ?? <GenericToolUI {...part} />;
+    return null;
   }}
-/>
+</MessagePrimitive.Parts>
 ```
 
 <PrimitivesTypeTable type="MessagePrimitivePartsProps" parameters={MessagePrimitiveDocs.Parts.props} />
@@ -235,12 +251,12 @@ Renders each content part with type-based component resolution.
 Legacy alias for `Parts`.
 
 ```tsx
-<MessagePrimitive.Content
-  components={{
-    Text: MyTextRenderer,
-    tools: { Fallback: GenericToolUI },
+<MessagePrimitive.Content>
+  {({ part }) => {
+    if (part.type === "text") return <MyTextRenderer />;
+    return null;
   }}
-/>
+</MessagePrimitive.Content>
 ```
 
 ### PartByIndex
@@ -259,12 +275,22 @@ Renders a single part at a specific index.
 Renders all user message attachments.
 
 ```tsx
-<MessagePrimitive.Attachments
-  components={{
-    Image: ({ name }) => <img alt={name} className="max-w-xs rounded-lg" />,
-    Document: ({ name }) => <div className="rounded-lg border p-2 text-sm">{name}</div>,
+<MessagePrimitive.Attachments>
+  {({ attachment }) => {
+    if (attachment.type === "image")
+      return <img alt={attachment.name} className="max-w-xs rounded-lg" />;
+
+    if (attachment.type === "document") {
+      return (
+        <div className="rounded-lg border p-2 text-sm">
+          {attachment.name}
+        </div>
+      );
+    }
+
+    return null;
   }}
-/>
+</MessagePrimitive.Attachments>
 ```
 
 <PrimitivesTypeTable type="MessagePrimitiveAttachmentsProps" parameters={MessagePrimitiveDocs.Attachments.props} />
@@ -292,6 +318,20 @@ Renders children only when the message has an error.
     <ErrorPrimitive.Message />
   </ErrorPrimitive.Root>
 </MessagePrimitive.Error>
+```
+
+### Quote
+
+Renders quote metadata when the current message includes a quote. Place it above `MessagePrimitive.Parts`.
+
+```tsx
+<MessagePrimitive.Quote>
+  {({ text, messageId }) => (
+    <blockquote className="mb-2 border-l pl-3 italic" data-message-id={messageId}>
+      {text}
+    </blockquote>
+  )}
+</MessagePrimitive.Quote>
 ```
 
 ### Unstable_PartsGrouped
@@ -346,7 +386,12 @@ function MarkdownText() {
   );
 }
 
-<MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <MarkdownText />;
+    return null;
+  }}
+</MessagePrimitive.Parts>
 ```
 
 ### Tool UI with by_name
@@ -414,7 +459,7 @@ import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
 `MessagePrimitive.Root` does not set data attributes by default — style by role in your message components:
 
 ```tsx
-// In your ThreadPrimitive.Messages components:
+// In your ThreadPrimitive.Messages children render function:
 function UserMessage() {
   return (
     <MessagePrimitive.Root data-role="user" className="flex justify-end">
@@ -436,16 +481,22 @@ function AssistantMessage() {
 
 ```tsx
 <MessagePrimitive.Root>
-  <MessagePrimitive.Attachments
-    components={{
-      Image: ({ name }) => <img alt={name} className="max-w-xs rounded-lg" />,
-      Document: ({ name }) => (
-        <div className="flex items-center gap-2 rounded-lg border p-2 text-sm">
-          📄 {name}
-        </div>
-      ),
+  <MessagePrimitive.Attachments>
+    {({ attachment }) => {
+      if (attachment.type === "image")
+        return <img alt={attachment.name} className="max-w-xs rounded-lg" />;
+
+      if (attachment.type === "document") {
+        return (
+          <div className="flex items-center gap-2 rounded-lg border p-2 text-sm">
+            📄 {attachment.name}
+          </div>
+        );
+      }
+
+      return null;
     }}
-  />
+  </MessagePrimitive.Attachments>
   <MessagePrimitive.Parts />
 </MessagePrimitive.Root>
 ```

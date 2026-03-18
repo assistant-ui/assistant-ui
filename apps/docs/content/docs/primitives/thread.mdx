@@ -29,9 +29,13 @@ function MinimalThread() {
           <p>Welcome! Ask a question to get started.</p>
         </AuiIf>
 
-        <ThreadPrimitive.Messages
-          components={{ UserMessage, AssistantMessage }}
-        />
+        <ThreadPrimitive.Messages>
+          {({ message }) => {
+            if (message.composer.isEditing) return <EditComposer />;
+            if (message.role === "user") return <UserMessage />;
+            return <AssistantMessage />;
+          }}
+        </ThreadPrimitive.Messages>
 
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0 pt-2">
           <ComposerPrimitive.Root className="flex w-full flex-col rounded-3xl border bg-muted">
@@ -84,7 +88,9 @@ import { ThreadPrimitive } from "@assistant-ui/react";
 
 <ThreadPrimitive.Root>
   <ThreadPrimitive.Viewport>
-    <ThreadPrimitive.Messages components={{ Message: MyMessage }} />
+    <ThreadPrimitive.Messages>
+      {() => <MyMessage />}
+    </ThreadPrimitive.Messages>
   </ThreadPrimitive.Viewport>
 </ThreadPrimitive.Root>
 ```
@@ -137,7 +143,12 @@ These work alongside `autoScroll`. If `autoScroll` is omitted, it defaults to `t
   scrollToBottomOnInitialize={false}
   scrollToBottomOnThreadSwitch={true}
 >
-  <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+  <ThreadPrimitive.Messages>
+    {({ message }) => {
+      if (message.role === "user") return <UserMessage />;
+      return <AssistantMessage />;
+    }}
+  </ThreadPrimitive.Messages>
 </ThreadPrimitive.Viewport>
 ```
 
@@ -147,7 +158,9 @@ These work alongside `autoScroll`. If `autoScroll` is omitted, it defaults to `t
 
 ```tsx
 <ThreadPrimitive.Viewport>
-  <ThreadPrimitive.Messages components={...} />
+  <ThreadPrimitive.Messages>
+    {() => <MyMessage />}
+  </ThreadPrimitive.Messages>
   <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
     <MyComposer />
   </ThreadPrimitive.ViewportFooter>
@@ -171,19 +184,29 @@ These work alongside `autoScroll`. If `autoScroll` is omitted, it defaults to `t
 
 ### Messages Iterator
 
-`Messages` renders a component for each message, resolved by role and edit state:
+`Messages` now prefers a children render function. It gives you the current message state so you can branch inline:
 
 ```tsx
-<ThreadPrimitive.Messages
-  components={{
-    UserMessage: MyUserMessage,
-    AssistantMessage: MyAssistantMessage,
-    EditComposer: MyEditComposer, // shown when user is editing
+<ThreadPrimitive.Messages>
+  {({ message }) => {
+    if (message.composer.isEditing) return <MyEditComposer />;
+    if (message.role === "user") return <MyUserMessage />;
+    return <MyAssistantMessage />;
   }}
-/>
+</ThreadPrimitive.Messages>
 ```
 
-If you provide a single `Message` component, it's used for all roles. If you provide `UserMessage` and `AssistantMessage`, each role gets its own component. When a user message is being edited, `EditComposer` takes over.
+The older `components` prop is still supported, but it is deprecated.
+
+### Suggestions Iterator
+
+`Suggestions` follows the same pattern. Prefer the children render function when rendering custom suggestion UIs:
+
+```tsx
+<ThreadPrimitive.Suggestions>
+  {() => <MySuggestionButton />}
+</ThreadPrimitive.Suggestions>
+```
 
 ## Parts
 
@@ -196,7 +219,9 @@ Top-level container for a thread layout. Renders a `<div>` element unless `asChi
 ```tsx
 <ThreadPrimitive.Root className="flex h-full flex-col">
   <ThreadPrimitive.Viewport>
-    <ThreadPrimitive.Messages components={{ Message: MyMessage }} />
+    <ThreadPrimitive.Messages>
+      {() => <MyMessage />}
+    </ThreadPrimitive.Messages>
   </ThreadPrimitive.Viewport>
 </ThreadPrimitive.Root>
 ```
@@ -211,7 +236,12 @@ The scrollable area with auto-scroll behavior. Renders a `<div>` element unless 
   autoScroll={false}
   scrollToBottomOnRunStart={true}
 >
-  <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+  <ThreadPrimitive.Messages>
+    {({ message }) => {
+      if (message.role === "user") return <UserMessage />;
+      return <AssistantMessage />;
+    }}
+  </ThreadPrimitive.Messages>
 </ThreadPrimitive.Viewport>
 ```
 
@@ -234,7 +264,9 @@ Provides viewport context without rendering a scrollable element. Use this when 
 ```tsx
 <ThreadPrimitive.ViewportProvider>
   <div className="flex-1 overflow-y-auto">
-    <ThreadPrimitive.Messages components={{ Message: MyMessage }} />
+    <ThreadPrimitive.Messages>
+      {() => <MyMessage />}
+    </ThreadPrimitive.Messages>
     <ThreadPrimitive.ViewportFooter>
       <MyComposer />
     </ThreadPrimitive.ViewportFooter>
@@ -258,13 +290,13 @@ Adds min-height for scroll anchoring with `turnAnchor="top"`. Renders a `<div>` 
 Renders a component for each message in the thread, resolved by role and edit state.
 
 ```tsx
-<ThreadPrimitive.Messages
-  components={{
-    UserMessage: MyUserMessage,
-    AssistantMessage: MyAssistantMessage,
-    EditComposer: MyEditComposer,
+<ThreadPrimitive.Messages>
+  {({ message }) => {
+    if (message.composer.isEditing) return <MyEditComposer />;
+    if (message.role === "user") return <MyUserMessage />;
+    return <MyAssistantMessage />;
   }}
-/>
+</ThreadPrimitive.Messages>
 ```
 
 <PrimitivesTypeTable type="ThreadPrimitiveMessagesProps" parameters={ThreadPrimitiveDocs.Messages.props} />
@@ -299,9 +331,9 @@ Scrolls the viewport to the bottom. Automatically disabled when already at the b
 Renders suggestion prompts via a component.
 
 ```tsx
-<ThreadPrimitive.Suggestions
-  components={{ Suggestion: MySuggestionButton }}
-/>
+<ThreadPrimitive.Suggestions>
+  {() => <MySuggestionButton />}
+</ThreadPrimitive.Suggestions>
 ```
 
 <PrimitivesTypeTable type="ThreadPrimitiveSuggestionsProps" parameters={ThreadPrimitiveDocs.Suggestions.props} />
@@ -370,9 +402,9 @@ Deprecated. Use [`AuiIf`](/docs/api-reference/primitives/assistant-if) instead.
   <div className="flex flex-col items-center gap-4 text-center">
     <h2>What can I help with?</h2>
     <div className="grid grid-cols-2 gap-2">
-      <ThreadPrimitive.Suggestions
-        components={{ Suggestion: MySuggestionButton }}
-      />
+      <ThreadPrimitive.Suggestions>
+        {() => <MySuggestionButton />}
+      </ThreadPrimitive.Suggestions>
     </div>
   </div>
 </AuiIf>
@@ -393,7 +425,12 @@ The button is automatically disabled when the viewport is already scrolled to th
 ```tsx
 <ThreadPrimitive.Root className="flex h-full flex-col">
   <ThreadPrimitive.Viewport turnAnchor="top" className="flex-1 overflow-y-auto">
-    <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+    <ThreadPrimitive.Messages>
+      {({ message }) => {
+        if (message.role === "user") return <UserMessage />;
+        return <AssistantMessage />;
+      }}
+    </ThreadPrimitive.Messages>
     <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
       <MyComposer />
     </ThreadPrimitive.ViewportFooter>
@@ -404,24 +441,27 @@ The button is automatically disabled when the viewport is already scrolled to th
 ### Custom Message Components
 
 ```tsx
-<ThreadPrimitive.Messages
-  components={{
-    UserMessage: () => (
-      <MessagePrimitive.Root>
-        <div className="ml-auto rounded-xl bg-blue-500 p-3 text-white">
-          <MessagePrimitive.Parts />
-        </div>
-      </MessagePrimitive.Root>
-    ),
-    AssistantMessage: () => (
+<ThreadPrimitive.Messages>
+  {({ message }) => {
+    if (message.role === "user") {
+      return (
+        <MessagePrimitive.Root>
+          <div className="ml-auto rounded-xl bg-blue-500 p-3 text-white">
+            <MessagePrimitive.Parts />
+          </div>
+        </MessagePrimitive.Root>
+      );
+    }
+
+    return (
       <MessagePrimitive.Root>
         <div className="rounded-xl bg-gray-100 p-3">
           <MessagePrimitive.Parts />
         </div>
       </MessagePrimitive.Root>
-    ),
+    );
   }}
-/>
+</ThreadPrimitive.Messages>
 ```
 
 ## Relationship to Components

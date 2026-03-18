@@ -102,6 +102,19 @@ import { ComposerPrimitive } from "@assistant-ui/react";
 
 The primitive's behavior (keyboard handling, disabled state, form submission) is merged onto your element. Your styles, your component, primitive wiring.
 
+### Unstable Mentions
+
+Composer also includes an unstable mention system for `@`-triggered popovers. It is built around `ComposerPrimitive.Unstable_MentionRoot` and intended for rich inputs like `LexicalComposerInput`.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionRoot>
+  <ComposerPrimitive.Root>
+    <LexicalComposerInput placeholder="Type @ to mention a tool..." />
+    <ComposerPrimitive.Unstable_MentionPopover />
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.Unstable_MentionRoot>
+```
+
 ## Parts
 
 <PrimitivePartsTable primitive={ComposerPrimitiveDocs} />
@@ -165,16 +178,16 @@ Opens file picker for attachments. Renders a `<button>` element unless `asChild`
 
 ### Attachments
 
-Renders each attachment via the `components` prop.
+Renders each attachment. Prefer the children render function for new code.
 
 ```tsx
-<ComposerPrimitive.Attachments
-  components={{
-    Image: ImagePreview,
-    Document: DocumentPreview,
-    Attachment: GenericPreview,
+<ComposerPrimitive.Attachments>
+  {({ attachment }) => {
+    if (attachment.type === "image") return <ImagePreview />;
+    if (attachment.type === "document") return <DocumentPreview />;
+    return <GenericPreview />;
   }}
-/>
+</ComposerPrimitive.Attachments>
 ```
 
 <PrimitivesTypeTable type="ComposerPrimitiveAttachmentsProps" parameters={ComposerPrimitiveDocs.Attachments.props} />
@@ -279,19 +292,118 @@ Clears the active quote from the composer. Renders a `<button>` element unless `
 </ComposerPrimitive.QuoteDismiss>
 ```
 
+### Unstable_MentionRoot
+
+Provider that manages mention state and `@` trigger detection.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionRoot trigger="@" adapter={mentionAdapter}>
+  <ComposerPrimitive.Root>
+    <LexicalComposerInput placeholder="Type @ to mention a tool..." />
+    <ComposerPrimitive.Unstable_MentionPopover />
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.Unstable_MentionRoot>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveMentionRootProps" parameters={ComposerPrimitiveDocs.Unstable_MentionRoot.props} />
+
+### Unstable_MentionPopover
+
+Container for the mention picker popover. It only renders while a trigger match is active.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionPopover className="rounded-lg border bg-popover p-1 shadow-md">
+  <ComposerPrimitive.Unstable_MentionCategories>
+    {(categories) => categories.map((category) => (
+      <ComposerPrimitive.Unstable_MentionCategoryItem
+        key={category.id}
+        categoryId={category.id}
+      >
+        {category.label}
+      </ComposerPrimitive.Unstable_MentionCategoryItem>
+    ))}
+  </ComposerPrimitive.Unstable_MentionCategories>
+</ComposerPrimitive.Unstable_MentionPopover>
+```
+
+### Unstable_MentionCategories
+
+Render-function primitive for the top-level mention categories.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionCategories>
+  {(categories) => categories.map((category) => (
+    <ComposerPrimitive.Unstable_MentionCategoryItem
+      key={category.id}
+      categoryId={category.id}
+    >
+      {category.label}
+    </ComposerPrimitive.Unstable_MentionCategoryItem>
+  ))}
+</ComposerPrimitive.Unstable_MentionCategories>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveMentionCategoriesProps" parameters={ComposerPrimitiveDocs.Unstable_MentionCategories.props} />
+
+### Unstable_MentionCategoryItem
+
+Button that selects a mention category and drills into its items.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionCategoryItem categoryId="tools">
+  Tools
+</ComposerPrimitive.Unstable_MentionCategoryItem>
+```
+
+### Unstable_MentionItems
+
+Render-function primitive for the items inside the currently selected category.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionItems>
+  {(items) => items.map((item) => (
+    <ComposerPrimitive.Unstable_MentionItem key={item.id} item={item} />
+  ))}
+</ComposerPrimitive.Unstable_MentionItems>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveMentionItemsProps" parameters={ComposerPrimitiveDocs.Unstable_MentionItems.props} />
+
+### Unstable_MentionItem
+
+Selectable mention item inside the popover.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionItem item={item}>
+  {item.label}
+</ComposerPrimitive.Unstable_MentionItem>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveMentionItemProps" parameters={ComposerPrimitiveDocs.Unstable_MentionItem.props} />
+
+### Unstable_MentionBack
+
+Back button used when drilling from categories into a specific item list.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionBack className="rounded-md px-2 py-1 text-sm hover:bg-accent">
+  Back
+</ComposerPrimitive.Unstable_MentionBack>
+```
+
 ## Patterns
 
 ### With Attachments
 
 ```tsx
 <ComposerPrimitive.Root>
-  <ComposerPrimitive.Attachments
-    components={{
-      Image: ImagePreview,
-      Document: DocumentPreview,
-      Attachment: GenericPreview,
+  <ComposerPrimitive.Attachments>
+    {({ attachment }) => {
+      if (attachment.type === "image") return <ImagePreview />;
+      if (attachment.type === "document") return <DocumentPreview />;
+      return <GenericPreview />;
     }}
-  />
+  </ComposerPrimitive.Attachments>
   <ComposerPrimitive.Input placeholder="Ask anything..." />
   <ComposerPrimitive.AddAttachment>
     Attach
@@ -307,9 +419,9 @@ Wrap your composer with `AttachmentDropzone` to support dragging files directly 
 ```tsx
 <ComposerPrimitive.AttachmentDropzone className="rounded-xl border-2 border-dashed data-[dragging]:border-primary data-[dragging]:bg-primary/5">
   <ComposerPrimitive.Root>
-    <ComposerPrimitive.Attachments
-      components={{ Attachment: MyAttachment }}
-    />
+    <ComposerPrimitive.Attachments>
+      {() => <MyAttachment />}
+    </ComposerPrimitive.Attachments>
     <ComposerPrimitive.Input placeholder="Drop files or type..." />
     <ComposerPrimitive.AddAttachment>Attach</ComposerPrimitive.AddAttachment>
     <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
