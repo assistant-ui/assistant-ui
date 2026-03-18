@@ -85,6 +85,7 @@ class TaskController {
   > = new Map();
   private isRunning = false;
   private isCancelled = false;
+  private receivedResult = false;
   private eventListeners: Set<() => void> = new Set();
   private abortController: AbortController | null = null;
 
@@ -249,6 +250,9 @@ class TaskController {
 
         // Convert SDK messages to our event format
         this.processSDKMessage(message, agentId);
+
+        // Break after receiving the final result message
+        if (this.receivedResult) break;
       }
 
       if (!this.isCancelled) {
@@ -331,6 +335,7 @@ class TaskController {
 
       case "result":
         // Final result with cost info
+        this.receivedResult = true;
         this.pushEvent({
           type: "cost_update",
           taskId: this.taskId,
