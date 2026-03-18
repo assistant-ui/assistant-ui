@@ -5,8 +5,10 @@ import {
   type SourceFile,
   type ModuleDeclaration,
   type TypeAliasDeclaration,
+  type InterfaceDeclaration,
   type PropertySignature,
   type Symbol as TsMorphSymbol,
+  type ExportedDeclarations,
 } from "ts-morph";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -16,6 +18,7 @@ import * as path from "node:path";
 const REACT_PKG = path.resolve("../../packages/react/src");
 const CORE_PKG = path.resolve("../../packages/core/src");
 const PRIMITIVES_DIR = path.join(REACT_PKG, "primitives");
+const REACT_INDEX = path.join(REACT_PKG, "index.ts");
 const OUTPUT_FILE = path.resolve("./generated/primitiveDocs.ts");
 
 // Props inherited from HTML elements that we don't want to document
@@ -73,7 +76,7 @@ type PrimitiveDef = Record<string, PartDef>;
 // ── Step 1: Discover primitives from barrel export ──────────────────────────
 
 function discoverPrimitives(): Map<string, string> {
-  const indexPath = path.join(PRIMITIVES_DIR, "index.ts");
+  const indexPath = REACT_INDEX;
   const sourceFile = project.addSourceFileAtPath(indexPath);
   const result = new Map<string, string>();
 
@@ -109,15 +112,20 @@ function discoverPrimitives(): Map<string, string> {
 
 type SubComponent = {
   exportedName: string; // e.g. "Root", "Input"
-  localName: string; // e.g. "ComposerPrimitiveRoot", "ComposerPrimitiveInput"
-  sourceModule: string; // e.g. "./ComposerRoot"
+  declaration: ExportedDeclarations;
 };
 
 function discoverSubComponents(
-  primitiveDir: string,
+  primitiveModulePath: string,
 ): SubComponent[] {
-  const indexPath = path.join(primitiveDir, "index.ts");
-  if (!fs.existsSync(indexPath)) return [];
+  const candidatePaths = [
+    primitiveModulePath + ".ts",
+    primitiveModulePath + ".tsx",
+    path.join(primitiveModulePath, "index.ts"),
+    path.join(primitiveModulePath, "index.tsx"),
+  ];
+  const indexPath = candidatePaths.find((candidate) => fs.existsSync(candidate));
+  if (!indexPath) return [];
 
   let sourceFile: SourceFile;
   try {
@@ -127,41 +135,26 @@ function discoverSubComponents(
   }
 
   const components: SubComponent[] = [];
+  for (const [exportedName, declarations] of sourceFile.getExportedDeclarations()) {
+    if (!/^[A-Z]/.test(exportedName)) continue;
 
-  for (const decl of sourceFile.getExportDeclarations()) {
-    const moduleSpec = decl.getModuleSpecifierValue();
-    if (!moduleSpec) continue;
+    const declaration = declarations.find((decl) => {
+      const kind = decl.getKind();
+      return (
+        kind === SyntaxKind.VariableDeclaration ||
+        kind === SyntaxKind.FunctionDeclaration ||
+        kind === SyntaxKind.ClassDeclaration
+      );
+    });
+    if (!declaration) continue;
 
-    for (const named of decl.getNamedExports()) {
-      const localName = named.getName();
-      const alias = named.getAliasNode()?.getText() ?? localName;
-      components.push({
-        exportedName: alias,
-        localName,
-        sourceModule: moduleSpec,
-      });
-    }
+    components.push({
+      exportedName,
+      declaration,
+    });
   }
 
   return components;
-}
-
-// ── Step 3: Resolve source file for a sub-component ─────────────────────────
-
-function resolveSourceFile(
-  primitiveDir: string,
-  sourceModule: string,
-): SourceFile | undefined {
-  // Try local resolution first
-  const extensions = [".tsx", ".ts"];
-  for (const ext of extensions) {
-    const filePath = path.join(primitiveDir, sourceModule + ext);
-    if (fs.existsSync(filePath)) {
-      return project.getSourceFile(filePath) ?? project.addSourceFileAtPath(filePath);
-    }
-  }
-
-  return undefined;
 }
 
 // ── Step 4: Extract props from a namespace ──────────────────────────────────
@@ -265,7 +258,7 @@ function isInheritedProp(prop: TsMorphSymbol): boolean {
 }
 
 function extractPropsFromType(
-  typeAlias: TypeAliasDeclaration,
+  typeAlias: TypeAliasDeclaration | InterfaceDeclaration,
   sourceFile: SourceFile,
 ): PropDef[] {
   const type = typeAlias.getType();
@@ -274,9 +267,6 @@ function extractPropsFromType(
   // Handle Record<string, never> (empty props)
   const typeText = typeAlias.getType().getText();
   if (typeText === "Record<string, never>") return [];
-
-  // Handle PropsWithChildren (just children, no custom props)
-  if (typeText.startsWith("PropsWithChildren")) return [];
 
   const properties = type.getProperties();
 
@@ -531,78 +521,64 @@ function cleanTypeText(typeText: string): string {
 
 // ── Step 5: Process a single component ──────────────────────────────────────
 
-function resolveComponentSourceFile(
-  primitiveDir: string,
-  sub: SubComponent,
-): SourceFile | undefined {
-  // First, try resolving the local source file
-  const localFile = resolveSourceFile(primitiveDir, sub.sourceModule);
-  if (!localFile) return undefined;
+function extractPropsFromComponentDeclaration(
+  sourceFile: SourceFile,
+  localName: string,
+): PropDef[] | undefined {
+  const propsTypeNames = new Set<string>();
+  const variableDecl = sourceFile
+    .getVariableDeclarations()
+    .find((decl) => decl.getName() === localName);
 
-  // Check if the local file has the namespace we need
-  const ns = findNamespace(localFile, sub.localName);
-  if (ns) return localFile;
-
-  // The local file might be a re-export from another package (e.g., @assistant-ui/core/react)
-  // Check all export declarations for re-exports
-  for (const exportDecl of localFile.getExportDeclarations()) {
-    const moduleSpec = exportDecl.getModuleSpecifierValue();
-    if (!moduleSpec) continue;
-
-    // Check if this export includes our component name
-    const hasNamedExport = exportDecl.getNamedExports().some(
-      (named) => named.getName() === sub.localName
-    );
-    if (!hasNamedExport) continue;
-
-    if (moduleSpec.startsWith("@assistant-ui/core")) {
-      // Resolve from core package — @assistant-ui/core/react → packages/core/src/react
-      const corePath = moduleSpec.replace("@assistant-ui/core", CORE_PKG);
-      const found = findSourceInDirectory(corePath, sub.localName);
-      if (found) return found;
-
-      // Also try resolving as a barrel export — search subdirectories
-      const coreDir = path.join(CORE_PKG, "react/primitives");
-      if (fs.existsSync(coreDir)) {
-        for (const subdir of fs.readdirSync(coreDir)) {
-          const subdirPath = path.join(coreDir, subdir);
-          if (!fs.statSync(subdirPath).isDirectory()) continue;
-          const found = findSourceInDirectory(subdirPath, sub.localName);
-          if (found) return found;
-        }
-      }
+  const typeNodeText = variableDecl?.getTypeNode()?.getText();
+  if (typeNodeText) {
+    for (const match of typeNodeText.matchAll(/<\s*([A-Za-z0-9_]+Props)\s*>/g)) {
+      propsTypeNames.add(match[1]!);
     }
+  }
+
+  if (propsTypeNames.size === 0) {
+    const suffix = localName.replace(/^[A-Za-z]+Primitive/, "");
+    propsTypeNames.add(`${suffix}Props`);
+  }
+
+  for (const propsTypeName of propsTypeNames) {
+    const typeAlias = sourceFile.getTypeAlias(propsTypeName);
+    if (typeAlias) return extractPropsFromType(typeAlias, sourceFile);
+
+    const iface = sourceFile.getInterface(propsTypeName);
+    if (iface) return extractPropsFromType(iface, sourceFile);
   }
 
   return undefined;
 }
 
-function processComponent(
-  primitiveDir: string,
-  sub: SubComponent,
-): PartDef | undefined {
-  const sourceFile = resolveComponentSourceFile(primitiveDir, sub);
-  if (!sourceFile) return undefined;
+function processComponent(sub: SubComponent): PartDef | undefined {
+  const sourceFile = sub.declaration.getSourceFile();
+  const localName =
+    sub.declaration.getSymbol()?.getName() ??
+    ("getName" in sub.declaration ? (sub.declaration as any).getName?.() : undefined);
+  if (!localName) return undefined;
 
-  const ns = findNamespace(sourceFile, sub.localName);
-  if (!ns) return undefined;
+  const ns = findNamespace(sourceFile, localName);
+  const propsAlias = ns?.getTypeAliases().find((t) => t.getName() === "Props");
+  const element = ns ? extractElementType(ns) : undefined;
+  const { description, deprecated } = getComponentJsDoc(sourceFile, localName);
 
-  const propsAlias = ns.getTypeAliases().find((t) => t.getName() === "Props");
-  if (!propsAlias) return undefined;
+  let props: PropDef[] | undefined;
+  let isActionButton = false;
 
-  const element = extractElementType(ns);
-  const { description, deprecated } = getComponentJsDoc(sourceFile, sub.localName);
-
-  // Check if this is an ActionButtonProps type
-  const propsText = propsAlias.getText();
-  const isActionButton = propsText.includes("ActionButtonProps");
-
-  let props: PropDef[];
-  if (isActionButton) {
-    props = extractActionButtonProps(sourceFile, sub.localName);
+  if (propsAlias) {
+    const propsText = propsAlias.getText();
+    isActionButton = propsText.includes("ActionButtonProps");
+    props = isActionButton
+      ? extractActionButtonProps(sourceFile, localName)
+      : extractPropsFromType(propsAlias, sourceFile);
   } else {
-    props = extractPropsFromType(propsAlias, sourceFile);
+    props = extractPropsFromComponentDeclaration(sourceFile, localName);
   }
+
+  if (!props) return undefined;
 
   // Add asChild if the component renders a Radix primitive element
   // (check if the source file imports from @radix-ui/react-primitive)
@@ -626,31 +602,6 @@ function processComponent(
   return result;
 }
 
-function findSourceInDirectory(
-  dirPath: string,
-  componentName: string,
-): SourceFile | undefined {
-  const extensions = [".tsx", ".ts"];
-  for (const ext of extensions) {
-    // Try exact filename match
-    const filePath = path.join(dirPath, componentName + ext);
-    if (fs.existsSync(filePath)) {
-      return project.getSourceFile(filePath) ?? project.addSourceFileAtPath(filePath);
-    }
-  }
-
-  // Search all files in directory for the namespace
-  if (!fs.existsSync(dirPath)) return undefined;
-  const files = fs.readdirSync(dirPath).filter((f) => f.endsWith(".ts") || f.endsWith(".tsx"));
-  for (const file of files) {
-    const filePath = path.join(dirPath, file);
-    const sf = project.getSourceFile(filePath) ?? project.addSourceFileAtPath(filePath);
-    if (findNamespace(sf, componentName)) return sf;
-  }
-
-  return undefined;
-}
-
 // ── Step 6: Process all primitives ──────────────────────────────────────────
 
 function processAllPrimitives(): Record<string, PrimitiveDef> {
@@ -658,8 +609,8 @@ function processAllPrimitives(): Record<string, PrimitiveDef> {
   const result: Record<string, PrimitiveDef> = {};
 
   for (const [primitiveName, moduleSpec] of primitives) {
-    const primitiveDir = path.join(PRIMITIVES_DIR, moduleSpec.replace("./", ""));
-    const subComponents = discoverSubComponents(primitiveDir);
+    const primitiveModulePath = path.join(REACT_PKG, moduleSpec.replace("./", ""));
+    const subComponents = discoverSubComponents(primitiveModulePath);
 
     if (subComponents.length === 0) continue;
 
@@ -667,12 +618,14 @@ function processAllPrimitives(): Record<string, PrimitiveDef> {
     const seen = new Set<string>();
 
     for (const sub of subComponents) {
-      // Skip duplicate exports (e.g., Content is alias for Parts)
-      if (seen.has(sub.localName)) continue;
-      seen.add(sub.localName);
+      const localName =
+        sub.declaration.getSymbol()?.getName() ??
+        ("getName" in sub.declaration ? (sub.declaration as any).getName?.() : undefined);
+      if (localName && seen.has(localName)) continue;
+      if (localName) seen.add(localName);
 
       try {
-        const part = processComponent(primitiveDir, sub);
+        const part = processComponent(sub);
         if (part) {
           parts[sub.exportedName] = part;
         }
