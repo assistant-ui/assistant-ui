@@ -109,6 +109,26 @@ Radix Popover provider, manages open/close state. No DOM element rendered.
 
 <PrimitivesTypeTable type="AssistantModalPrimitiveRootProps" parameters={AssistantModalPrimitiveDocs.Root.props} />
 
+### Trigger
+
+Button that toggles the modal open and closed. Renders a `<button>` element.
+
+```tsx
+<AssistantModalPrimitive.Trigger className="rounded-full bg-primary px-4 py-2 text-primary-foreground">
+  Open Chat
+</AssistantModalPrimitive.Trigger>
+```
+
+### Anchor
+
+Positions the trigger and content relative to a shared anchor. Renders a `<div>` element.
+
+```tsx
+<AssistantModalPrimitive.Anchor className="fixed right-4 bottom-4">
+  <AssistantModalPrimitive.Trigger>Chat</AssistantModalPrimitive.Trigger>
+</AssistantModalPrimitive.Anchor>
+```
+
 ### Content
 
 The floating chat panel. Renders a `<div>` element inside a portal.

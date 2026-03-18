@@ -162,6 +162,66 @@ Copies message text to clipboard. Renders a `<button>` element unless `asChild` 
 
 <PrimitivesTypeTable type="ActionBarPrimitiveCopyProps" parameters={ActionBarPrimitiveDocs.Copy.props.filter(p => p.name !== "asChild")} />
 
+### Reload
+
+Reloads or regenerates the current assistant message. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ActionBarPrimitive.Reload className="rounded-md px-2 py-1 text-sm hover:bg-muted">
+  Regenerate
+</ActionBarPrimitive.Reload>
+```
+
+### Edit
+
+Enters edit mode for the current message. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ActionBarPrimitive.Edit className="rounded-md px-2 py-1 text-sm hover:bg-muted">
+  Edit
+</ActionBarPrimitive.Edit>
+```
+
+### Speak
+
+Starts speech playback for the current message. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ActionBarPrimitive.Speak className="rounded-md px-2 py-1 text-sm hover:bg-muted">
+  Play
+</ActionBarPrimitive.Speak>
+```
+
+### StopSpeaking
+
+Stops speech playback for the current message. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ActionBarPrimitive.StopSpeaking className="rounded-md px-2 py-1 text-sm hover:bg-muted">
+  Stop
+</ActionBarPrimitive.StopSpeaking>
+```
+
+### FeedbackPositive
+
+Submits positive feedback for the current message. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ActionBarPrimitive.FeedbackPositive className="rounded-md px-2 py-1 text-sm hover:bg-muted">
+  Helpful
+</ActionBarPrimitive.FeedbackPositive>
+```
+
+### FeedbackNegative
+
+Submits negative feedback for the current message. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ActionBarPrimitive.FeedbackNegative className="rounded-md px-2 py-1 text-sm hover:bg-muted">
+  Not helpful
+</ActionBarPrimitive.FeedbackNegative>
+```
+
 ### ExportMarkdown
 
 Downloads message as Markdown or calls custom handler. Renders a `<button>` element unless `asChild` is set.

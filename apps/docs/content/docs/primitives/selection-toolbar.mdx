@@ -102,6 +102,26 @@ The SelectionToolbar must be placed inside `ThreadPrimitive.Root` but **outside*
 
 <PrimitivePartsTable primitive={SelectionToolbarPrimitiveDocs} />
 
+### Root
+
+Floating toolbar container that appears for a valid text selection. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<SelectionToolbarPrimitive.Root className="flex items-center gap-1 rounded-lg border bg-popover px-1 py-1 shadow-md">
+  <SelectionToolbarPrimitive.Quote>Quote</SelectionToolbarPrimitive.Quote>
+</SelectionToolbarPrimitive.Root>
+```
+
+### Quote
+
+Quotes the currently selected text into the composer. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<SelectionToolbarPrimitive.Quote className="rounded-md px-2.5 py-1 text-sm hover:bg-accent">
+  Quote
+</SelectionToolbarPrimitive.Quote>
+```
+
 ## Patterns
 
 ### Basic Toolbar with Quote

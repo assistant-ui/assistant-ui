@@ -168,6 +168,26 @@ The canonical pattern composes `ThreadListItemPrimitive.Archive asChild` with `T
 
 <PrimitivePartsTable primitive={ThreadListPrimitiveDocs} />
 
+#### Root
+
+Container for the full thread list. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ThreadListPrimitive.Root className="flex flex-col gap-1">
+  <ThreadListPrimitive.Items components={{ ThreadListItem: MyThreadItem }} />
+</ThreadListPrimitive.Root>
+```
+
+#### New
+
+Button that creates a new thread. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ThreadListPrimitive.New className="rounded-lg border px-3 py-2 text-sm">
+  New Thread
+</ThreadListPrimitive.New>
+```
+
 #### Items
 
 Renders a component per thread.
@@ -197,6 +217,28 @@ Renders a single thread at a specific index.
 
 <PrimitivePartsTable primitive={ThreadListItemPrimitiveDocs} />
 
+#### Root
+
+Container for one thread list item. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ThreadListItemPrimitive.Root className="flex items-center gap-2 rounded-lg px-2 py-1.5">
+  <ThreadListItemPrimitive.Trigger className="flex-1 text-left">
+    <ThreadListItemPrimitive.Title fallback="New Chat" />
+  </ThreadListItemPrimitive.Trigger>
+</ThreadListItemPrimitive.Root>
+```
+
+#### Trigger
+
+Interactive button that selects the thread. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ThreadListItemPrimitive.Trigger className="flex-1 text-left">
+  <ThreadListItemPrimitive.Title fallback="New Chat" />
+</ThreadListItemPrimitive.Trigger>
+```
+
 #### Title
 
 Displays the thread title with a `fallback` prop. Renders a `<span>` element.
@@ -207,9 +249,53 @@ Displays the thread title with a `fallback` prop. Renders a `<span>` element.
 
 <PrimitivesTypeTable type="ThreadListItemPrimitiveTitleProps" parameters={ThreadListItemPrimitiveDocs.Title.props} />
 
+#### Archive
+
+Button that archives the current thread item. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ThreadListItemPrimitive.Archive>Archive</ThreadListItemPrimitive.Archive>
+```
+
+#### Unarchive
+
+Button that restores the current thread item from the archive. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ThreadListItemPrimitive.Unarchive>Unarchive</ThreadListItemPrimitive.Unarchive>
+```
+
+#### Delete
+
+Button that deletes the current thread item. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ThreadListItemPrimitive.Delete>Delete</ThreadListItemPrimitive.Delete>
+```
+
 ### ThreadListItemMorePrimitive
 
 <PrimitivePartsTable primitive={ThreadListItemMorePrimitiveDocs} />
+
+#### Root
+
+Root container for the overflow menu primitives.
+
+```tsx
+<ThreadListItemMorePrimitive.Root>
+  <ThreadListItemMorePrimitive.Trigger>More</ThreadListItemMorePrimitive.Trigger>
+</ThreadListItemMorePrimitive.Root>
+```
+
+#### Trigger
+
+Button that opens the overflow menu. Renders a `<button>` element.
+
+```tsx
+<ThreadListItemMorePrimitive.Trigger className="rounded-md p-1 hover:bg-muted">
+  More
+</ThreadListItemMorePrimitive.Trigger>
+```
 
 #### Content
 
@@ -224,6 +310,22 @@ The dropdown panel. Renders a `<div>` element.
 ```
 
 <PrimitivesTypeTable type="ThreadListItemMorePrimitiveContentProps" parameters={ThreadListItemMorePrimitiveDocs.Content.props} />
+
+#### Item
+
+Menu item slot inside the overflow menu. Renders a `<div>` element.
+
+```tsx
+<ThreadListItemMorePrimitive.Item>Archive</ThreadListItemMorePrimitive.Item>
+```
+
+#### Separator
+
+Visual separator between groups of menu items. Renders a `<div>` element.
+
+```tsx
+<ThreadListItemMorePrimitive.Separator className="my-1 h-px bg-border" />
+```
 
 ## Patterns
 

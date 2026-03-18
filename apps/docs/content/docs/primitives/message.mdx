@@ -201,6 +201,16 @@ function MyText() {
 
 <PrimitivePartsTable primitive={MessagePrimitiveDocs} />
 
+### Root
+
+Container for a single message. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<MessagePrimitive.Root className="flex flex-col gap-2">
+  <MessagePrimitive.Parts />
+</MessagePrimitive.Root>
+```
+
 ### Parts
 
 Renders each content part with type-based component resolution.
@@ -224,9 +234,25 @@ Renders each content part with type-based component resolution.
 
 Legacy alias for `Parts`.
 
+```tsx
+<MessagePrimitive.Content
+  components={{
+    Text: MyTextRenderer,
+    tools: { Fallback: GenericToolUI },
+  }}
+/>
+```
+
 ### PartByIndex
 
 Renders a single part at a specific index.
+
+```tsx
+<MessagePrimitive.PartByIndex
+  index={0}
+  components={{ Text: MyTextRenderer }}
+/>
+```
 
 ### Attachments
 
@@ -260,6 +286,14 @@ Renders a single attachment at the specified index within the current message.
 
 Renders children only when the message has an error.
 
+```tsx
+<MessagePrimitive.Error>
+  <ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive/20 bg-destructive/5 p-3">
+    <ErrorPrimitive.Message />
+  </ErrorPrimitive.Root>
+</MessagePrimitive.Error>
+```
+
 ### Unstable_PartsGrouped
 
 Groups consecutive parts by a custom grouping function *(unstable)*.
@@ -276,6 +310,12 @@ Groups consecutive parts by a custom grouping function *(unstable)*.
 ### Unstable_PartsGroupedByParentId
 
 Groups parts by parent ID *(unstable, deprecated -- use `Unstable_PartsGrouped`)*.
+
+```tsx
+<MessagePrimitive.Unstable_PartsGroupedByParentId
+  components={{ Text: MyText, Group: MyGroupWrapper }}
+/>
+```
 
 ### If (deprecated)
 

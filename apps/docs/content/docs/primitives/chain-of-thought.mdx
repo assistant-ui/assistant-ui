@@ -182,6 +182,26 @@ import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 
 <PrimitivePartsTable primitive={ChainOfThoughtPrimitiveDocs} />
 
+### Root
+
+Container for the chain-of-thought disclosure UI. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ChainOfThoughtPrimitive.Root className="rounded-lg border">
+  ...
+</ChainOfThoughtPrimitive.Root>
+```
+
+### AccordionTrigger
+
+Trigger that toggles the collapsed state. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full items-center justify-between px-4 py-2 text-sm">
+  Thinking
+</ChainOfThoughtPrimitive.AccordionTrigger>
+```
+
 ### Parts
 
 Renders reasoning and tool-call parts when expanded.

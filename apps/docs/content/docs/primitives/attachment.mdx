@@ -114,6 +114,42 @@ Each component receives its attachment context automatically, with no props to p
 
 <PrimitivePartsTable primitive={AttachmentPrimitiveDocs} />
 
+### Root
+
+Container for a single attachment item. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<AttachmentPrimitive.Root className="flex items-center gap-2 rounded-lg border p-2">
+  <AttachmentPrimitive.Name />
+</AttachmentPrimitive.Root>
+```
+
+### unstable_Thumb
+
+Thumbnail slot for attachment previews. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<AttachmentPrimitive.unstable_Thumb className="flex size-10 items-center justify-center rounded bg-muted text-xs" />
+```
+
+### Name
+
+Renders the attachment filename text.
+
+```tsx
+<AttachmentPrimitive.Name />
+```
+
+### Remove
+
+Button that removes the current attachment when used in a removable attachment context. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<AttachmentPrimitive.Remove className="rounded-full p-1 hover:bg-muted">
+  <XIcon className="size-3" />
+</AttachmentPrimitive.Remove>
+```
+
 ## Patterns
 
 ### Composer Attachment with Remove

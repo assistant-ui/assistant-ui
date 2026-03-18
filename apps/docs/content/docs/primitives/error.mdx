@@ -95,6 +95,24 @@ Both `Root` and `Message` check the message status. They only render when `statu
 
 <PrimitivePartsTable primitive={ErrorPrimitiveDocs} />
 
+### Root
+
+Container for an error message block. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ErrorPrimitive.Root className="rounded-md border border-destructive/20 bg-destructive/5 p-3">
+  <ErrorPrimitive.Message />
+</ErrorPrimitive.Root>
+```
+
+### Message
+
+Renders the current error text for the active message.
+
+```tsx
+<ErrorPrimitive.Message className="text-destructive text-sm" />
+```
+
 ## Patterns
 
 ### Styled Error Alert

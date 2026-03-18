@@ -189,6 +189,18 @@ If you provide a single `Message` component, it's used for all roles. If you pro
 
 <PrimitivePartsTable primitive={ThreadPrimitiveDocs} />
 
+### Root
+
+Top-level container for a thread layout. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ThreadPrimitive.Root className="flex h-full flex-col">
+  <ThreadPrimitive.Viewport>
+    <ThreadPrimitive.Messages components={{ Message: MyMessage }} />
+  </ThreadPrimitive.Viewport>
+</ThreadPrimitive.Root>
+```
+
 ### Viewport
 
 The scrollable area with auto-scroll behavior. Renders a `<div>` element unless `asChild` is set.
@@ -205,13 +217,41 @@ The scrollable area with auto-scroll behavior. Renders a `<div>` element unless 
 
 <PrimitivesTypeTable type="ThreadPrimitiveViewportProps" parameters={ThreadPrimitiveDocs.Viewport.props.filter(p => p.name !== "asChild")} />
 
+### ViewportFooter
+
+Footer container that registers its height with the viewport scroll system. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ThreadPrimitive.ViewportFooter className="sticky bottom-0 pt-2">
+  <ComposerPrimitive.Root>...</ComposerPrimitive.Root>
+</ThreadPrimitive.ViewportFooter>
+```
+
 ### ViewportProvider
 
 Provides viewport context without rendering a scrollable element. Use this when you have a custom scroll container.
 
+```tsx
+<ThreadPrimitive.ViewportProvider>
+  <div className="flex-1 overflow-y-auto">
+    <ThreadPrimitive.Messages components={{ Message: MyMessage }} />
+    <ThreadPrimitive.ViewportFooter>
+      <MyComposer />
+    </ThreadPrimitive.ViewportFooter>
+  </div>
+</ThreadPrimitive.ViewportProvider>
+```
+
 ### ViewportSlack
 
 Adds min-height for scroll anchoring with `turnAnchor="top"`. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts />
+  <ThreadPrimitive.ViewportSlack className="min-h-[40vh]" />
+</MessagePrimitive.Root>
+```
 
 ### Messages
 
@@ -288,6 +328,22 @@ Self-contained suggestion button. Renders a `<button>` element unless `asChild` 
 ```
 
 <PrimitivesTypeTable type="ThreadPrimitiveSuggestionProps" parameters={ThreadPrimitiveDocs.Suggestion.props.filter(p => p.name !== "asChild")} />
+
+### Empty
+
+<Callout type="warn">
+Deprecated. Use [`AuiIf`](/docs/api-reference/primitives/assistant-if) with `s.thread.isEmpty` instead.
+</Callout>
+
+Legacy helper that only renders its children when the thread is empty.
+
+```tsx
+<ThreadPrimitive.Empty>
+  <div className="text-center text-muted-foreground">
+    No messages yet.
+  </div>
+</ThreadPrimitive.Empty>
+```
 
 ### If (deprecated)
 

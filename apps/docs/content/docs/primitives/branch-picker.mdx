@@ -118,6 +118,38 @@ Container with optional `hideWhenSingleBranch`. Renders a `<div>` element unless
 
 <PrimitivesTypeTable type="BranchPickerPrimitiveRootProps" parameters={BranchPickerPrimitiveDocs.Root.props.filter(p => p.name !== "asChild")} />
 
+### Previous
+
+Button that selects the previous branch. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<BranchPickerPrimitive.Previous>Previous</BranchPickerPrimitive.Previous>
+```
+
+### Next
+
+Button that selects the next branch. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<BranchPickerPrimitive.Next>Next</BranchPickerPrimitive.Next>
+```
+
+### Number
+
+Displays the current branch number.
+
+```tsx
+<BranchPickerPrimitive.Number />
+```
+
+### Count
+
+Displays the total number of branches for the current message.
+
+```tsx
+<BranchPickerPrimitive.Count />
+```
+
 ## Patterns
 
 ### Standard Picker with Icons

@@ -106,6 +106,17 @@ The primitive's behavior (keyboard handling, disabled state, form submission) is
 
 <PrimitivePartsTable primitive={ComposerPrimitiveDocs} />
 
+### Root
+
+Form container for message composition. Renders a `<form>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.Root className="flex w-full flex-col rounded-3xl border bg-muted">
+  <ComposerPrimitive.Input placeholder="Ask anything..." />
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
 ### Input
 
 Text input with keyboard shortcuts. Renders a `<textarea>` element unless `asChild` is set.
@@ -119,6 +130,26 @@ Text input with keyboard shortcuts. Renders a `<textarea>` element unless `asChi
 ```
 
 <PrimitivesTypeTable type="ComposerPrimitiveInputProps" parameters={ComposerPrimitiveDocs.Input.props.filter(p => p.name !== "asChild")} />
+
+### Send
+
+Submits the composer form. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.Send className="rounded-full bg-primary px-3 py-2 text-primary-foreground">
+  Send
+</ComposerPrimitive.Send>
+```
+
+### Cancel
+
+Cancels the current composition or edit session. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.Cancel className="rounded-md px-3 py-2 text-sm hover:bg-muted">
+  Cancel
+</ComposerPrimitive.Cancel>
+```
 
 ### AddAttachment
 
@@ -175,6 +206,34 @@ Drag-and-drop zone for file attachments. Sets `data-dragging` when a file is bei
 
 <PrimitivesTypeTable type="ComposerPrimitiveAttachmentDropzoneProps" parameters={ComposerPrimitiveDocs.AttachmentDropzone.props.filter(p => p.name !== "asChild")} />
 
+### Dictate
+
+Starts a dictation session. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.Dictate className="rounded-md px-3 py-2 text-sm hover:bg-muted">
+  Start Dictation
+</ComposerPrimitive.Dictate>
+```
+
+### StopDictation
+
+Stops the current dictation session. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.StopDictation className="rounded-md px-3 py-2 text-sm hover:bg-muted">
+  Stop Dictation
+</ComposerPrimitive.StopDictation>
+```
+
+### DictationTranscript
+
+Renders the interim transcript while dictation is active. Renders a `<span>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.DictationTranscript className="text-sm text-muted-foreground" />
+```
+
 ### If (deprecated)
 
 <Callout type="warn">
@@ -189,6 +248,35 @@ Deprecated. Use [`AuiIf`](/docs/api-reference/primitives/assistant-if) instead.
 // After
 <AuiIf condition={(s) => s.composer.isEditing}>...</AuiIf>
 <AuiIf condition={(s) => s.composer.dictation != null}>...</AuiIf>
+```
+
+### Quote
+
+Container for quoted text preview inside the composer. Only renders when a quote is set. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.Quote className="rounded-lg border bg-background px-3 py-2 text-sm">
+  <ComposerPrimitive.QuoteText />
+  <ComposerPrimitive.QuoteDismiss className="ml-2" />
+</ComposerPrimitive.Quote>
+```
+
+### QuoteText
+
+Renders the quoted text content. Renders a `<span>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.QuoteText />
+```
+
+### QuoteDismiss
+
+Clears the active quote from the composer. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.QuoteDismiss className="rounded-full p-1 hover:bg-muted">
+  Dismiss
+</ComposerPrimitive.QuoteDismiss>
 ```
 
 ## Patterns
