@@ -85,7 +85,9 @@ ComposerPrimitiveAttachmentByIndex.displayName =
 const ComposerPrimitiveAttachmentsInner: FC<{
   children: (value: { attachment: Attachment }) => ReactNode;
 }> = ({ children }) => {
-  const attachmentsCount = useAuiState((s) => s.composer.attachments.length);
+  const attachmentsCount = useAuiState(
+    (s) => (s.composer.attachments ?? []).length,
+  );
 
   return useMemo(
     () =>
