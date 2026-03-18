@@ -44,8 +44,7 @@ async function highlightType(type: string): Promise<ReactNode> {
   });
 }
 
-function stripTrailingUndefined(typeRaw: string, required: boolean): string {
-  if (required) return typeRaw;
+function stripTrailingUndefined(typeRaw: string): string {
   return typeRaw.replace(/\s*\|\s*undefined\s*$/, "").trim();
 }
 
@@ -72,22 +71,12 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
       const descParts: ReactNode[] = [];
       if (prop.deprecated) {
         descParts.push(
-          <p
+          <div
             key="dep"
             className="mb-1 text-xs text-amber-600 dark:text-amber-400"
           >
             Deprecated: {prop.deprecated}
-          </p>,
-        );
-      }
-      if (prop.name.startsWith("unstable_")) {
-        descParts.push(
-          <span
-            key="unstable"
-            className="mb-1 inline-block rounded bg-purple-500/10 px-1.5 py-0.5 text-xs font-medium text-purple-600 dark:text-purple-400"
-          >
-            unstable
-          </span>,
+          </div>,
         );
       }
       if (prop.description) {
@@ -110,10 +99,20 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
           descParts.push(<span key="desc">{prop.description}</span>);
         }
       }
+      if (prop.name.startsWith("unstable_")) {
+        descParts.push(
+          <span
+            key="unstable"
+            className="ml-2 inline-block rounded bg-purple-500/10 px-1.5 py-0.5 text-xs font-medium text-purple-600 dark:text-purple-400"
+          >
+            unstable
+          </span>,
+        );
+      }
 
       // Highlight the type (clean version for collapsed row, full for expanded)
       const typeRaw = prop.type ?? "";
-      const displayType = stripTrailingUndefined(typeRaw, prop.required ?? false);
+      const displayType = stripTrailingUndefined(typeRaw);
       const shortType = getShortType(displayType);
       const highlightedType = displayType
         ? await highlightType(shortType ?? displayType)

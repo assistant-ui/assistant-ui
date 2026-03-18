@@ -22,7 +22,7 @@ function PropName({ row }: { row: TypeTableRow }) {
   return (
     <code
       className={cn(
-        "text-fd-primary min-w-fit w-1/4 font-mono font-medium pe-2 bg-transparent! p-0!",
+        "text-fd-primary w-1/4 min-w-0 overflow-x-auto whitespace-nowrap font-mono font-medium pe-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-12px),transparent)] bg-transparent! p-0!",
         row.deprecated && "line-through text-fd-primary/50",
       )}
     >
@@ -42,7 +42,7 @@ function TypeCell({
   return (
     <span
       className={cn(
-        "overflow-hidden [&>figure]:!my-0 [&_pre]:!bg-transparent [&_pre]:!p-0 [&_code]:!text-[0.8125rem] [&_code]:!bg-transparent [&_code]:!border-0 [&_code]:!p-0",
+        "min-w-0 flex-1 overflow-hidden [&>figure]:!my-0 [&_pre]:!bg-transparent [&_pre]:!p-0 [&_code]:!text-[0.8125rem] [&_code]:!bg-transparent [&_code]:!border-0 [&_code]:!p-0",
         className,
       )}
     >
@@ -136,7 +136,7 @@ function Item({
               <span className="text-fd-muted-foreground not-prose pe-2">
                 Default
               </span>
-              <span className="my-auto not-prose">
+              <span className="my-auto not-prose pl-4">
                 <code>{row.default}</code>
               </span>
             </>
@@ -170,8 +170,8 @@ export function TypeTableClient({
       )}
     >
       <div className="flex font-medium items-center px-3 py-1 not-prose text-fd-muted-foreground">
-        <p className="w-1/4">Prop</p>
-        <p className="@max-xl:hidden">Type</p>
+        <p className="w-1/4 shrink-0 pe-2">Prop</p>
+        <p className="flex-1 min-w-0 pl-4 @max-xl:hidden">Type</p>
       </div>
       {rows.map((row) => (
         <Item key={row.name} row={row} parentId={id} />
