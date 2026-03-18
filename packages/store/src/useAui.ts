@@ -39,6 +39,8 @@ import {
 import { NotificationManager } from "./utils/NotificationManager";
 import { withAssistantTapContextProvider } from "./utils/tap-assistant-context";
 import { tapClientResource } from "./tapClientResource";
+import { InvalidDerivedScopeError } from "./InvalidDerivedScopeError";
+import { LookupBoundsError } from "./LookupBoundsError";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 import {
   PROXIED_ASSISTANT_STATE_SYMBOL,
@@ -240,7 +242,21 @@ const DerivedClientAccessorResource = resource(
     const get = tapEffectEvent(() => element.props);
 
     return tapMemo(() => {
-      const clientFunction = () => get().get(clientRef.current!);
+      let hasResolved = false;
+      const clientFunction = () => {
+        try {
+          const client = get().get(clientRef.current!);
+          hasResolved = true;
+          return client;
+        } catch (e) {
+          if (hasResolved && e instanceof LookupBoundsError) {
+            throw new InvalidDerivedScopeError(
+              `Derived scope "${name}" is no longer valid: ${e.message}`,
+            );
+          }
+          throw e;
+        }
+      };
       const metaMemo = {};
       Object.defineProperties(clientFunction, {
         source: {

@@ -7,6 +7,7 @@ import {
 import type { ClientMethods } from "./types/client";
 import { ClientResource } from "./tapClientResource";
 import { wrapperResource } from "./wrapperResource";
+import { LookupBoundsError } from "./LookupBoundsError";
 
 type InferClientState<TMethods> = TMethods extends {
   getState: () => infer S;
@@ -62,7 +63,7 @@ export function tapClientLookup<TMethods extends ClientMethods>(
     get: (lookup: { index: number } | { key: string }) => {
       if ("index" in lookup) {
         if (lookup.index < 0 || lookup.index >= keys.length) {
-          throw new Error(
+          throw new LookupBoundsError(
             `tapClientLookup: Index ${lookup.index} out of bounds (length: ${keys.length})`,
           );
         }
@@ -71,7 +72,9 @@ export function tapClientLookup<TMethods extends ClientMethods>(
 
       const index = keyToIndex[lookup.key];
       if (index === undefined) {
-        throw new Error(`tapClientLookup: Key "${lookup.key}" not found`);
+        throw new LookupBoundsError(
+          `tapClientLookup: Key "${lookup.key}" not found`,
+        );
       }
       return resources[index]!.methods;
     },

@@ -27,6 +27,14 @@ type ClientInternal = {
   [SYMBOL_GET_OUTPUT]: ClientMethods;
 };
 
+export const isClientMethods = (value: unknown): boolean => {
+  return (
+    value != null &&
+    typeof value === "object" &&
+    SYMBOL_GET_OUTPUT in (value as object)
+  );
+};
+
 export const getClientState = (client: ClientMethods) => {
   const output = (client as unknown as ClientInternal)[SYMBOL_GET_OUTPUT];
   if (!output) {

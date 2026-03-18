@@ -16,32 +16,37 @@ import { ThreadPrimitiveViewportSlack } from "../thread/ThreadViewportSlack";
 
 const useIsHoveringRef = () => {
   const aui = useAui();
-  const message = useAuiState(() => aui.message());
 
   const callbackRef = useCallback(
     (el: HTMLElement) => {
-      const handleMouseEnter = () => {
-        message.setIsHovering(true);
+      const trySetIsHovering = (value: boolean) => {
+        try {
+          aui.message().setIsHovering(value);
+        } catch (e) {
+          if (!(e instanceof Error) || e.name !== "InvalidDerivedScopeError") {
+            throw e;
+          }
+        }
       };
-      const handleMouseLeave = () => {
-        message.setIsHovering(false);
-      };
+
+      const handleMouseEnter = () => trySetIsHovering(true);
+      const handleMouseLeave = () => trySetIsHovering(false);
 
       el.addEventListener("mouseenter", handleMouseEnter);
       el.addEventListener("mouseleave", handleMouseLeave);
 
       if (el.matches(":hover")) {
         // TODO this is needed for SSR to work, figure out why
-        queueMicrotask(() => message.setIsHovering(true));
+        queueMicrotask(() => trySetIsHovering(true));
       }
 
       return () => {
         el.removeEventListener("mouseenter", handleMouseEnter);
         el.removeEventListener("mouseleave", handleMouseLeave);
-        message.setIsHovering(false);
+        trySetIsHovering(false);
       };
     },
-    [message],
+    [aui],
   );
 
   return useManagedRef(callbackRef);
