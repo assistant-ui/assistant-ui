@@ -43,7 +43,9 @@
     "@assistant-ui/store": "^0.2.3",
     "@assistant-ui/tap": "^0.5.3",
     "assistant-stream": "^0.3.6",
+    "diff": "^8.0.3",
     "ink-spinner": "^5.0.0",
+    "parse-diff": "^0.11.1",
     "zustand": "^5.0.11"
   },
   "peerDependencies": {

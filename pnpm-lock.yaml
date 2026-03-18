@@ -2704,9 +2704,15 @@ importers:
       assistant-stream:
         specifier: ^0.3.6
         version: link:../assistant-stream
+      diff:
+        specifier: ^8.0.3
+        version: 8.0.3
       ink-spinner:
         specifier: ^5.0.0
         version: 5.0.0(ink@6.8.0(@types/react@19.2.14)(react-devtools-core@6.1.5)(react@19.2.4))(react@19.2.4)
+      parse-diff:
+        specifier: ^0.11.1
+        version: 0.11.1
       zustand:
         specifier: ^5.0.11
         version: 5.0.11(@types/react@19.2.14)(immer@11.1.4)(react@19.2.4)(use-sync-external-store@1.6.0(react@19.2.4))
