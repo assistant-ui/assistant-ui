@@ -16,7 +16,7 @@ function ReasoningStep({ text }: { text: string }) {
       <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted">
         <BrainIcon className="size-3 text-muted-foreground" />
       </div>
-      <p className="text-muted-foreground text-sm leading-relaxed italic">
+      <p className="text-muted-foreground text-sm italic leading-relaxed">
         {text}
       </p>
     </div>
@@ -54,13 +54,15 @@ function ToolCallStep({
         {open && (
           <div className="mt-2 overflow-hidden rounded-md border bg-muted/40">
             <div className="px-3 py-2">
-              <p className="mb-1 font-medium text-muted-foreground text-[10px] uppercase tracking-wider">
+              <p className="mb-1 font-medium text-[10px] text-muted-foreground uppercase tracking-wider">
                 Args
               </p>
-              <pre className="font-mono text-xs leading-relaxed">{argsText}</pre>
+              <pre className="font-mono text-xs leading-relaxed">
+                {argsText}
+              </pre>
             </div>
             <div className="border-t px-3 py-2">
-              <p className="mb-1 font-medium text-muted-foreground text-[10px] uppercase tracking-wider">
+              <p className="mb-1 font-medium text-[10px] text-muted-foreground uppercase tracking-wider">
                 Result
               </p>
               <pre className="font-mono text-xs leading-relaxed">{result}</pre>
@@ -79,7 +81,7 @@ export function ChainOfThoughtPrimitiveSample() {
     <SampleFrame className="flex h-auto items-center justify-center bg-background p-8">
       <div className="mx-auto w-full max-w-lg space-y-3">
         <div className="flex justify-start gap-3">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-medium text-primary text-xs">
             AI
           </div>
           <div className="min-w-0 flex-1 space-y-2">
@@ -103,7 +105,9 @@ export function ChainOfThoughtPrimitiveSample() {
                     <ToolCallStep
                       toolName="get_weather"
                       argsText={'{ "city": "Tokyo" }'}
-                      result={'{ "temp": "22°C", "condition": "Partly cloudy" }'}
+                      result={
+                        '{ "temp": "22°C", "condition": "Partly cloudy" }'
+                      }
                     />
                     <ReasoningStep text="Got the weather data. Let me also check for travel advisories." />
                     <ToolCallStep

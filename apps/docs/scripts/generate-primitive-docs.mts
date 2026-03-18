@@ -96,28 +96,34 @@ type SubComponent = {
   declaration: ExportedDeclarations;
 };
 
-function discoverSubComponents(
-  primitiveModulePath: string,
-): SubComponent[] {
+function discoverSubComponents(primitiveModulePath: string): SubComponent[] {
   const candidatePaths = [
     primitiveModulePath + ".ts",
     primitiveModulePath + ".tsx",
     path.join(primitiveModulePath, "index.ts"),
     path.join(primitiveModulePath, "index.tsx"),
   ];
-  const indexPath = candidatePaths.find((candidate) => fs.existsSync(candidate));
+  const indexPath = candidatePaths.find((candidate) =>
+    fs.existsSync(candidate),
+  );
   if (!indexPath) return [];
 
   let sourceFile: SourceFile;
   try {
-    sourceFile = project.getSourceFile(indexPath) ?? project.addSourceFileAtPath(indexPath);
+    sourceFile =
+      project.getSourceFile(indexPath) ??
+      project.addSourceFileAtPath(indexPath);
   } catch {
     return [];
   }
 
   const components: SubComponent[] = [];
-  for (const [exportedName, declarations] of sourceFile.getExportedDeclarations()) {
-    if (!/^[A-Z]/.test(exportedName) && !/^unstable_[A-Z]/.test(exportedName)) continue;
+  for (const [
+    exportedName,
+    declarations,
+  ] of sourceFile.getExportedDeclarations()) {
+    if (!/^[A-Z]/.test(exportedName) && !/^unstable_[A-Z]/.test(exportedName))
+      continue;
 
     const declaration = declarations.find((decl) => {
       const kind = decl.getKind();
@@ -175,7 +181,10 @@ function extractElementType(ns: ModuleDeclaration): string | undefined {
   return undefined;
 }
 
-function getComponentJsDoc(sourceFile: SourceFile, localName: string): { description?: string; deprecated?: string } {
+function getComponentJsDoc(
+  sourceFile: SourceFile,
+  localName: string,
+): { description?: string; deprecated?: string } {
   // Find the main exported const (the component itself) and get its JSDoc
   for (const varDecl of sourceFile.getVariableDeclarations()) {
     if (varDecl.getName() === localName) {
@@ -273,7 +282,10 @@ function extractPropsFromType(
     for (const name of referencedNames) {
       if (name === key || name === "PropsWithChildren") continue;
       const referencedType = sourceFile.getTypeAlias(name);
-      if (referencedType && referencesRequireAtLeastOne(referencedType, visited)) {
+      if (
+        referencedType &&
+        referencesRequireAtLeastOne(referencedType, visited)
+      ) {
         return true;
       }
       const referencedInterface = sourceFile.getInterface(name);
@@ -394,7 +406,9 @@ function extractComponentsChildren(
     const childName = childProp.getName();
     let childType: string;
     try {
-      childType = cleanTypeText(childProp.getTypeAtLocation(childDecl).getText());
+      childType = cleanTypeText(
+        childProp.getTypeAtLocation(childDecl).getText(),
+      );
     } catch {
       childType = "unknown";
     }
@@ -454,7 +468,10 @@ function extractActionButtonProps(
     // The hook is typically:
     // const useXxx = ({ propA, propB }: { propA?: Type; propB?: Type } = {}) => { ... }
     // We need to find the parameter type
-    if (Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer)) {
+    if (
+      Node.isArrowFunction(initializer) ||
+      Node.isFunctionExpression(initializer)
+    ) {
       const params = initializer.getParameters();
       if (params.length === 0) return []; // No custom props
 
@@ -559,7 +576,9 @@ function extractPropsFromComponentDeclaration(
 
   const typeNodeText = variableDecl?.getTypeNode()?.getText();
   if (typeNodeText) {
-    for (const match of typeNodeText.matchAll(/<\s*([A-Za-z0-9_]+Props)\s*>/g)) {
+    for (const match of typeNodeText.matchAll(
+      /<\s*([A-Za-z0-9_]+Props)\s*>/g,
+    )) {
       propsTypeNames.add(match[1]!);
     }
   }
@@ -583,14 +602,19 @@ function extractPropsFromComponentDeclaration(
 function typeSupportsAsChild(
   typeAlias: TypeAliasDeclaration | InterfaceDeclaration,
 ): boolean {
-  return typeAlias.getType().getProperties().some((prop) => prop.getName() === "asChild");
+  return typeAlias
+    .getType()
+    .getProperties()
+    .some((prop) => prop.getName() === "asChild");
 }
 
 function processComponent(sub: SubComponent): PartDef | undefined {
   const sourceFile = sub.declaration.getSourceFile();
   const localName =
     sub.declaration.getSymbol()?.getName() ??
-    ("getName" in sub.declaration ? (sub.declaration as any).getName?.() : undefined);
+    ("getName" in sub.declaration
+      ? (sub.declaration as any).getName?.()
+      : undefined);
   if (!localName) return undefined;
 
   const ns = findNamespace(sourceFile, localName);
@@ -645,7 +669,10 @@ function processAllPrimitives(): Record<string, PrimitiveDef> {
   const result: Record<string, PrimitiveDef> = {};
 
   for (const [primitiveName, moduleSpec] of primitives) {
-    const primitiveModulePath = path.join(REACT_PKG, moduleSpec.replace("./", ""));
+    const primitiveModulePath = path.join(
+      REACT_PKG,
+      moduleSpec.replace("./", ""),
+    );
     const subComponents = discoverSubComponents(primitiveModulePath);
 
     if (subComponents.length === 0) continue;
@@ -656,7 +683,9 @@ function processAllPrimitives(): Record<string, PrimitiveDef> {
     for (const sub of subComponents) {
       const localName =
         sub.declaration.getSymbol()?.getName() ??
-        ("getName" in sub.declaration ? (sub.declaration as any).getName?.() : undefined);
+        ("getName" in sub.declaration
+          ? (sub.declaration as any).getName?.()
+          : undefined);
       if (localName && seen.has(localName)) continue;
       if (localName) seen.add(localName);
 
@@ -666,7 +695,10 @@ function processAllPrimitives(): Record<string, PrimitiveDef> {
           parts[sub.exportedName] = part;
         }
       } catch (e) {
-        console.warn(`  Warning: Failed to process ${primitiveName}.${sub.exportedName}:`, (e as Error).message);
+        console.warn(
+          `  Warning: Failed to process ${primitiveName}.${sub.exportedName}:`,
+          (e as Error).message,
+        );
       }
     }
 

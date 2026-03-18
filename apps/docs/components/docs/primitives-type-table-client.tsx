@@ -22,8 +22,8 @@ function PropName({ row }: { row: TypeTableRow }) {
   return (
     <code
       className={cn(
-        "text-fd-primary w-1/4 min-w-0 overflow-x-auto whitespace-nowrap font-mono font-medium pe-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,black_calc(100%-12px),transparent)] bg-transparent! p-0!",
-        row.deprecated && "line-through text-fd-primary/50",
+        "w-1/4 min-w-0 overflow-x-auto whitespace-nowrap bg-transparent! p-0! pe-2 font-medium font-mono text-fd-primary [-ms-overflow-style:none] [mask-image:linear-gradient(to_right,black_calc(100%-12px),transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        row.deprecated && "text-fd-primary/50 line-through",
       )}
     >
       {row.name}
@@ -42,7 +42,7 @@ function TypeCell({
   return (
     <span
       className={cn(
-        "min-w-0 flex-1 overflow-hidden [&>figure]:!my-0 [&_pre]:!bg-transparent [&_pre]:!p-0 [&_code]:!text-[0.8125rem] [&_code]:!bg-transparent [&_code]:!border-0 [&_code]:!p-0",
+        "[&>figure]:!my-0 [&_pre]:!bg-transparent [&_pre]:!p-0 [&_code]:!text-[0.8125rem] [&_code]:!bg-transparent [&_code]:!border-0 [&_code]:!p-0 min-w-0 flex-1 overflow-hidden",
         className,
       )}
     >
@@ -81,7 +81,7 @@ function Item({
     return (
       <div
         id={id}
-        className="flex flex-row items-center w-full px-3 py-2 not-prose rounded-xl"
+        className="not-prose flex w-full flex-row items-center rounded-xl px-3 py-2"
       >
         <PropName row={row} />
         <TypeCell className="@max-xl:hidden">{row.type}</TypeCell>
@@ -98,13 +98,13 @@ function Item({
         if (v && id) window.history.replaceState(null, "", `#${id}`);
       }}
       className={cn(
-        "group rounded-xl border overflow-hidden scroll-m-20 transition-all",
+        "group scroll-m-20 overflow-hidden rounded-xl border transition-all",
         open
-          ? "shadow-sm bg-fd-background not-last:mb-2"
+          ? "not-last:mb-2 bg-fd-background shadow-sm"
           : "border-transparent",
       )}
     >
-      <Collapsible.Trigger className="relative flex flex-row items-center w-full group text-start px-3 py-2 not-prose hover:bg-fd-accent">
+      <Collapsible.Trigger className="group not-prose relative flex w-full flex-row items-center px-3 py-2 text-start hover:bg-fd-accent">
         <PropName row={row} />
         <TypeCell className="@max-xl:hidden">{row.type}</TypeCell>
         <ChevronDown className="absolute end-2 size-4 text-fd-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
@@ -117,13 +117,13 @@ function Item({
             "data-[state=closed]:animate-fd-collapsible-up data-[state=open]:animate-fd-collapsible-down",
         )}
       >
-        <div className="grid grid-cols-[1fr_3fr] gap-y-4 text-sm p-3 overflow-auto fd-scroll-container border-t">
-          <div className="text-sm prose col-span-full prose-no-margin empty:hidden">
+        <div className="fd-scroll-container grid grid-cols-[1fr_3fr] gap-y-4 overflow-auto border-t p-3 text-sm">
+          <div className="prose prose-no-margin col-span-full text-sm empty:hidden">
             {row.description}
           </div>
           {row.typeFull && (
             <>
-              <span className="text-fd-muted-foreground not-prose pe-2">
+              <span className="not-prose pe-2 text-fd-muted-foreground">
                 Type
               </span>
               <TypeCell>
@@ -133,10 +133,10 @@ function Item({
           )}
           {row.default && (
             <>
-              <span className="text-fd-muted-foreground not-prose pe-2">
+              <span className="not-prose pe-2 text-fd-muted-foreground">
                 Default
               </span>
-              <span className="my-auto not-prose pl-4">
+              <span className="not-prose my-auto pl-4">
                 <code>{row.default}</code>
               </span>
             </>
@@ -165,13 +165,13 @@ export function TypeTableClient({
     <div
       id={id}
       className={cn(
-        "@container flex flex-col p-1 bg-fd-card text-fd-card-foreground rounded-2xl border text-sm overflow-hidden",
+        "@container flex flex-col overflow-hidden rounded-2xl border bg-fd-card p-1 text-fd-card-foreground text-sm",
         nested ? "bg-fd-secondary/50" : "my-6",
       )}
     >
-      <div className="flex font-medium items-center px-3 py-1 not-prose text-fd-muted-foreground">
+      <div className="not-prose flex items-center px-3 py-1 font-medium text-fd-muted-foreground">
         <p className="w-1/4 shrink-0 pe-2">Prop</p>
-        <p className="flex-1 min-w-0 pl-4 @max-xl:hidden">Type</p>
+        <p className="@max-xl:hidden min-w-0 flex-1 pl-4">Type</p>
       </div>
       {rows.map((row) => (
         <Item key={row.name} row={row} parentId={id} />

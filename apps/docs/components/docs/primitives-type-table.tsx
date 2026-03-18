@@ -73,7 +73,7 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
         descParts.push(
           <div
             key="dep"
-            className="mb-1 text-xs text-amber-600 dark:text-amber-400"
+            className="mb-1 text-amber-600 text-xs dark:text-amber-400"
           >
             Deprecated: {prop.deprecated}
           </div>,
@@ -103,7 +103,7 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
         descParts.push(
           <span
             key="unstable"
-            className="ml-2 inline-block rounded bg-purple-500/10 px-1.5 py-0.5 text-xs font-medium text-purple-600 dark:text-purple-400"
+            className="ml-2 inline-block rounded bg-purple-500/10 px-1.5 py-0.5 font-medium text-purple-600 text-xs dark:text-purple-400"
           >
             unstable
           </span>,

@@ -24,7 +24,7 @@ export const PrimitivePartsTable: FC<PrimitivePartsTableProps> = ({
     <div className="not-prose my-4 overflow-x-auto rounded-lg border border-border/60">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border/60 bg-muted/50">
+          <tr className="border-border/60 border-b bg-muted/50">
             <th className="px-4 py-2 text-left font-medium text-muted-foreground">
               Part
             </th>
@@ -40,7 +40,7 @@ export const PrimitivePartsTable: FC<PrimitivePartsTableProps> = ({
           {entries.map(([name, part]) => (
             <tr
               key={name}
-              className="border-b border-border/50 last:border-b-0"
+              className="border-border/50 border-b last:border-b-0"
             >
               <td className="px-4 py-2 align-top">
                 <code className="font-mono text-sm">{name}</code>
