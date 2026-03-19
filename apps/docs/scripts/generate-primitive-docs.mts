@@ -98,8 +98,8 @@ type SubComponent = {
 
 function discoverSubComponents(primitiveModulePath: string): SubComponent[] {
   const candidatePaths = [
-    primitiveModulePath + ".ts",
-    primitiveModulePath + ".tsx",
+    `${primitiveModulePath}.ts`,
+    `${primitiveModulePath}.tsx`,
     path.join(primitiveModulePath, "index.ts"),
     path.join(primitiveModulePath, "index.tsx"),
   ];
@@ -553,7 +553,7 @@ function cleanTypeText(typeText: string): string {
       const commaIdx = match.lastIndexOf(",", cutoff);
       const breakIdx = Math.max(semicolonIdx, commaIdx);
       if (breakIdx > 20) cutoff = breakIdx + 1;
-      return match.substring(0, cutoff) + " ... }";
+      return `${match.substring(0, cutoff)} ... }`;
     });
   }
   return cleaned;

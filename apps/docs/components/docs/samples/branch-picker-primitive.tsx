@@ -87,8 +87,7 @@ function BranchSeeder() {
     if (state.branchCount > 1) return;
     seeded.current = true;
     messageRuntime.reload();
-    // messageRuntime is stable for the lifetime of this sample.
-  }, []);
+  }, [messageRuntime]);
 
   return null;
 }

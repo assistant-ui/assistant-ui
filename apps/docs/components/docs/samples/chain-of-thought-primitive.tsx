@@ -109,6 +109,24 @@ function ToolCallBlock({
   );
 }
 
+function ChainOfThoughtReasoning({ text }: { text: string }) {
+  return <ReasoningBlock text={text} />;
+}
+
+function ChainOfThoughtToolFallback({
+  toolName,
+  argsText,
+  result,
+}: {
+  toolName: string;
+  argsText: string;
+  result?: unknown;
+}) {
+  return (
+    <ToolCallBlock toolName={toolName} argsText={argsText} result={result} />
+  );
+}
+
 function AssistantChainOfThought() {
   return (
     <ChainOfThoughtPrimitive.Root className="overflow-hidden rounded-xl border border-border/80 bg-background/90 shadow-sm">
@@ -126,15 +144,9 @@ function AssistantChainOfThought() {
         <div className="border-t pb-3">
           <ChainOfThoughtPrimitive.Parts
             components={{
-              Reasoning: ({ text }) => <ReasoningBlock text={text} />,
+              Reasoning: ChainOfThoughtReasoning,
               tools: {
-                Fallback: ({ toolName, argsText, result }) => (
-                  <ToolCallBlock
-                    toolName={toolName}
-                    argsText={argsText}
-                    result={result}
-                  />
-                ),
+                Fallback: ChainOfThoughtToolFallback,
               },
             }}
           />
@@ -154,6 +166,16 @@ function ChainOfThoughtAutoOpen() {
   return null;
 }
 
+function AssistantMessageText() {
+  return (
+    <div className="max-w-[80%] rounded-2xl bg-muted px-4 py-2.5 text-sm">
+      <p>
+        <MessagePartPrimitive.Text />
+      </p>
+    </div>
+  );
+}
+
 function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="flex justify-start gap-3">
@@ -164,13 +186,7 @@ function AssistantMessage() {
         <div className="space-y-2">
           <MessagePrimitive.Parts
             components={{
-              Text: () => (
-                <div className="max-w-[80%] rounded-2xl bg-muted px-4 py-2.5 text-sm">
-                  <p>
-                    <MessagePartPrimitive.Text />
-                  </p>
-                </div>
-              ),
+              Text: AssistantMessageText,
               ChainOfThought: AssistantChainOfThought,
             }}
           />
