@@ -176,6 +176,16 @@ function AssistantMessageText() {
   );
 }
 
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root className="flex justify-end">
+      <div className="max-w-[80%] rounded-2xl bg-primary px-4 py-2.5 text-primary-foreground text-sm">
+        <MessagePrimitive.Parts />
+      </div>
+    </MessagePrimitive.Root>
+  );
+}
+
 function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="flex justify-start gap-3">
@@ -201,7 +211,9 @@ export function ChainOfThoughtPrimitiveSample() {
     <div className="not-prose flex items-center rounded-xl border border-border/50 bg-muted/40 p-8">
       <div className="mx-auto w-full max-w-lg">
         <SampleRuntimeProvider messages={sampleMessages}>
-          <ThreadPrimitive.Messages components={{ AssistantMessage }} />
+          <ThreadPrimitive.Messages
+            components={{ UserMessage, AssistantMessage }}
+          />
         </SampleRuntimeProvider>
       </div>
     </div>
