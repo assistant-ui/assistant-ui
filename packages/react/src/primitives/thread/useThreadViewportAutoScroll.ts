@@ -8,6 +8,7 @@ import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { writableStore } from "../../context/ReadonlyStore";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
+import { NewUserMessageMountedEvent } from "../message/MessageRoot";
 
 export namespace useThreadViewportAutoScroll {
   export type Options = {
@@ -125,6 +126,14 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   useAuiEvent("thread.runStart", () => {
     if (!scrollToBottomOnRunStart) return;
     scrollingToBottomBehaviorRef.current = "auto";
+
+    window.addEventListener(
+      NewUserMessageMountedEvent.type,
+      () => {
+        scrollToBottom("auto");
+      },
+      { once: true },
+    );
     requestAnimationFrame(() => {
       scrollToBottom("auto");
     });

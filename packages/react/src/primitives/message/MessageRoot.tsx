@@ -6,6 +6,7 @@ import {
   forwardRef,
   ComponentPropsWithoutRef,
   useCallback,
+  useEffect,
 } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
@@ -84,6 +85,14 @@ export namespace MessagePrimitiveRoot {
   export type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
 }
 
+export class NewUserMessageMountedEvent extends Event {
+  static type = "aui-new-user-message-mounted";
+
+  constructor() {
+    super("aui-new-user-message-mounted");
+  }
+}
+
 /**
  * The root container component for a message.
  *
@@ -117,6 +126,19 @@ export const MessagePrimitiveRoot = forwardRef<
     anchorUserMessageRef,
   );
   const messageId = useAuiState((s) => s.message.id);
+  const isLastUser = useAuiState(
+    (s) =>
+      s.message.role === "user" &&
+      s.thread.messages.findLast((m) => m.role === "user")?.id === s.message.id,
+  );
+
+  useEffect(() => {
+    if (isLastUser) {
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new NewUserMessageMountedEvent());
+      });
+    }
+  }, [isLastUser]);
 
   return (
     <ThreadPrimitiveViewportSlack>
