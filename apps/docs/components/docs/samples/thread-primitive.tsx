@@ -6,9 +6,11 @@ import {
   MessagePrimitive,
 } from "@assistant-ui/react";
 import { ArrowUpIcon } from "lucide-react";
+import { SampleRuntimeProvider } from "./sample-runtime-provider";
 
 export function ThreadPrimitiveSample() {
   return (
+    <SampleRuntimeProvider messages={[]}>
     <div className="not-prose flex items-end rounded-xl border border-border/50 bg-muted/40 p-4">
       <div className="mx-auto w-full max-w-lg">
         <ThreadPrimitive.Root className="flex h-[320px] flex-col">
@@ -47,6 +49,7 @@ export function ThreadPrimitiveSample() {
         </ThreadPrimitive.Root>
       </div>
     </div>
+    </SampleRuntimeProvider>
   );
 }
 

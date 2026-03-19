@@ -93,7 +93,7 @@ You can also use `ThreadPrimitive.SuggestionByIndex` to render a specific sugges
 Suggestions support two text parts for structured display:
 
 - **`Title`**: the primary text (e.g., "Write a blog post")
-- **`Description`**: secondary text (e.g., "About React Server Components")
+- **`Description`**: secondary text — renders the `label` field from the suggestion config (e.g., `{ prompt: "...", label: "About React Server Components" }`)
 
 Both render a `<span>` and accept `children` to override the value from state:
 
