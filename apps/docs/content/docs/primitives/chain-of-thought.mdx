@@ -8,6 +8,10 @@ import { ChainOfThoughtPrimitive as ChainOfThoughtPrimitiveDocs } from "@/genera
 
 The ChainOfThought primitive groups consecutive reasoning and tool-call parts into a collapsible accordion. Reasoning models emit reasoning tokens and tool calls before producing a final answer. This primitive lets you collapse those intermediate steps behind a "Thinking" toggle.
 
+<Callout type="info">
+Grouped Chain of Thought currently plugs into `MessagePrimitive.Parts` via `components.ChainOfThought`. If you're wiring grouped CoT, use that API.
+</Callout>
+
 <Tabs items={["Preview", "Code"]}>
   <Tab>
     <ChainOfThoughtPrimitiveSample />

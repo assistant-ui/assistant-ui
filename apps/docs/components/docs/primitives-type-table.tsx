@@ -71,16 +71,18 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
 
       const descParts: ReactNode[] = [
         prop.deprecated && (
-          <StatusBadge variant="deprecated" className="mr-1" />
+          <Fragment key="deprecated">
+            <StatusBadge variant="deprecated" className="mr-1" />
+            <span>{prop.deprecated}</span>
+          </Fragment>
         ),
         prop.name.startsWith("unstable_") && (
-          <StatusBadge variant="unstable" className="mr-1" />
+          <StatusBadge key="unstable" variant="unstable" className="mr-1" />
         ),
-        prop.deprecated && <span>{prop.deprecated}</span>,
         prop.description &&
           (typeof prop.description === "string" &&
           prop.description.includes("\n") ? (
-            <span>
+            <span key="description">
               {prop.description.split("\n").map((line, i) => (
                 <Fragment key={i}>
                   {i > 0 && <br />}
@@ -89,7 +91,7 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
               ))}
             </span>
           ) : (
-            <span>{prop.description}</span>
+            <span key="description">{prop.description}</span>
           )),
       ].filter(Boolean);
 

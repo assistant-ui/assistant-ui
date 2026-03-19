@@ -107,7 +107,9 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 </MessagePrimitive.Parts>
 ```
 
-`components` is deprecated. Use the `children` render function instead.
+<Callout type="info">
+For most new `MessagePrimitive.Parts` code, prefer the `children` render function. Grouped Chain of Thought is the current exception: it plugs into `MessagePrimitive.Parts` via `components.ChainOfThought`.
+</Callout>
 
 ### Tool Resolution
 
@@ -143,7 +145,7 @@ Returning `null` still allows registered tool UIs and data renderer UIs to rende
 
 - `ToolGroup` wraps consecutive tool-call parts
 - `ReasoningGroup` wraps consecutive reasoning parts
-- `ChainOfThought` takes over all reasoning and tool-call rendering (mutually exclusive with `ToolGroup`, `ReasoningGroup`, `tools`, and `Reasoning`)
+- `components.ChainOfThought` takes over all reasoning and tool-call rendering (mutually exclusive with `ToolGroup`, `ReasoningGroup`, `tools`, and `Reasoning`). Despite the deprecation of `components` in general, this is still the current way to wire grouped Chain of Thought.
 - `data.by_name` and `data.Fallback` let you route custom data part types
 - `Quote` renders quoted message references from metadata
 - `Empty` and `Unstable_Audio` are available for edge and experimental rendering paths
