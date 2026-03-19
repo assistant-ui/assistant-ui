@@ -2,7 +2,7 @@
 
 import { Collapsible } from "radix-ui";
 import { ChevronDown } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export type TypeTableRow = {
@@ -14,7 +14,6 @@ export type TypeTableRow = {
   default?: string | undefined;
   required: boolean;
   deprecated: boolean;
-  deprecatedMessage?: string | undefined;
   children?: { type?: string | undefined; rows: TypeTableRow[] }[] | undefined;
 };
 
@@ -59,21 +58,27 @@ function Item({
   parentId?: string | undefined;
 }) {
   const [open, setOpen] = useState(false);
-  const mounted = useRef(false);
+  const [mounted, setMounted] = useState(false);
   const id = parentId ? `${parentId}-${row.name}` : undefined;
 
   const hasContent =
     row.description || row.default || row.children?.length || row.typeFull;
 
   useEffect(() => {
-    mounted.current = true;
+    setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (id && window.location.hash === `#${id}`) {
-      setOpen(true);
-      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-    }
+    const expand = () => {
+      if (id && window.location.hash === `#${id}`) {
+        setOpen(true);
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+      }
+    };
+
+    expand();
+    window.addEventListener("hashchange", expand);
+    return () => window.removeEventListener("hashchange", expand);
   }, [id]);
 
   // Non-expandable row: render as plain div
@@ -113,7 +118,7 @@ function Item({
       <Collapsible.Content
         className={cn(
           "overflow-hidden",
-          mounted.current &&
+          mounted &&
             "data-[state=closed]:animate-fd-collapsible-up data-[state=open]:animate-fd-collapsible-down",
         )}
       >

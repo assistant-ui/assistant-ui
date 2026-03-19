@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
   ArchiveIcon,
   MoreHorizontalIcon,
   PlusIcon,
   TrashIcon,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/shared/dropdown-menu";
 import { SampleFrame } from "./sample-frame";
 
 const threads = [
@@ -57,19 +63,6 @@ function ThreadItem({
   onToggleMenu: () => void;
   onCloseMenu: () => void;
 }) {
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onCloseMenu();
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [menuOpen, onCloseMenu]);
-
   return (
     <div
       data-active={thread.active ? "true" : undefined}
@@ -81,40 +74,39 @@ function ThreadItem({
       >
         {thread.title}
       </button>
-      <div className="relative mr-2" ref={menuRef}>
-        <button
-          type="button"
-          onClick={onToggleMenu}
-          data-state={menuOpen ? "open" : undefined}
-          className={`flex size-7 items-center justify-center rounded-md transition-opacity hover:bg-accent ${
+      <DropdownMenu
+        open={menuOpen}
+        onOpenChange={(open) => {
+          if (open) onToggleMenu();
+          else onCloseMenu();
+        }}
+      >
+        <DropdownMenuTrigger
+          className={
             menuOpen
-              ? "bg-accent opacity-100"
-              : "opacity-0 group-hover:opacity-100 group-data-active:opacity-100"
-          }`}
+              ? "mr-2 flex size-7 bg-accent opacity-100"
+              : "mr-2 flex size-7 opacity-0 group-hover:opacity-100 group-data-active:opacity-100"
+          }
         >
           <MoreHorizontalIcon className="size-4 text-muted-foreground" />
-        </button>
-        {menuOpen && (
-          <div className="absolute top-full right-0 z-50 mt-1 min-w-32 overflow-hidden rounded-md border bg-popover p-1 text-sm shadow-md">
-            <button
-              type="button"
-              onClick={onCloseMenu}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 hover:bg-accent hover:text-accent-foreground"
-            >
-              <ArchiveIcon className="size-4" />
-              Archive
-            </button>
-            <button
-              type="button"
-              onClick={onCloseMenu}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-destructive hover:bg-destructive/10"
-            >
-              <TrashIcon className="size-4" />
-              Delete
-            </button>
-          </div>
-        )}
-      </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="min-w-32 rounded-md p-1" sideOffset={4}>
+          <DropdownMenuItem
+            icon={<ArchiveIcon className="size-4" />}
+            onSelect={onCloseMenu}
+            className="gap-2 rounded-sm px-2 py-1.5"
+          >
+            Archive
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            icon={<TrashIcon className="size-4" />}
+            onSelect={onCloseMenu}
+            className="gap-2 rounded-sm px-2 py-1.5 text-destructive focus:bg-destructive/10 focus:text-destructive"
+          >
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

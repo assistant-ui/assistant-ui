@@ -162,14 +162,10 @@ function extractElementType(ns: ModuleDeclaration): string | undefined {
 
     const typeText = typeAlias.getType().getText();
 
-    // Extract element type from patterns like:
-    // ComponentRef<typeof Primitive.form> → "form"
+    // Extract element type from resolved DOM element aliases like:
     // HTMLTextAreaElement → "textarea"
     // HTMLButtonElement → "button"
     // ActionButtonElement → "button"
-    const primitiveMatch = typeText.match(/Primitive\.(\w+)/);
-    if (primitiveMatch) return primitiveMatch[1]!;
-
     if (typeText.includes("HTMLTextAreaElement")) return "textarea";
     if (typeText.includes("HTMLButtonElement")) return "button";
     if (typeText.includes("HTMLInputElement")) return "input";

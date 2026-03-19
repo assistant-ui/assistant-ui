@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm build:docs && next build",
-    "build:docs": "tsx ./scripts/generate-docs.mts && tsx ./scripts/generate-primitive-docs.mts",
-    "dev": "next dev",
+    "build": "pnpm generate:docs && next build",
+    "generate:docs": "tsx ./scripts/generate-docs.mts && tsx ./scripts/generate-primitive-docs.mts",
+    "dev": "pnpm generate:docs && next dev",
     "start": "next start",
     "postinstall": "fumadocs-mdx"
   },

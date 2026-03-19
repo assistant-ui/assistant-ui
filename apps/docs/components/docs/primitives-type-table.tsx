@@ -101,10 +101,10 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
         ? await highlightType(shortType ?? displayType)
         : null;
 
-      // Always highlight the full type for the expanded "Type" row
-      const highlightedTypeFull = typeRaw
-        ? await highlightType(typeRaw)
-        : undefined;
+      const highlightedTypeFull =
+        typeRaw && displayType !== typeRaw
+          ? await highlightType(typeRaw)
+          : undefined;
 
       let children:
         | { type?: string | undefined; rows: TypeTableRow[] }[]
@@ -127,7 +127,6 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
         default: prop.default,
         required: prop.required ?? false,
         deprecated: !!prop.deprecated,
-        deprecatedMessage: prop.deprecated,
         children,
       } satisfies TypeTableRow;
     }),
