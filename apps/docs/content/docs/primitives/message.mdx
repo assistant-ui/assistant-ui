@@ -276,8 +276,11 @@ Renders all user message attachments.
 ```tsx
 <MessagePrimitive.Attachments>
   {({ attachment }) => {
-    if (attachment.type === "image")
-      return <img src={attachment.url} alt={attachment.name} className="max-w-xs rounded-lg" />;
+    if (attachment.type === "image") {
+      const imageSrc = attachment.content?.find((part) => part.type === "image")?.image;
+      if (!imageSrc) return null;
+      return <img src={imageSrc} alt={attachment.name} className="max-w-xs rounded-lg" />;
+    }
 
     if (attachment.type === "document") {
       return (
@@ -482,8 +485,11 @@ function AssistantMessage() {
 <MessagePrimitive.Root>
   <MessagePrimitive.Attachments>
     {({ attachment }) => {
-      if (attachment.type === "image")
-        return <img src={attachment.url} alt={attachment.name} className="max-w-xs rounded-lg" />;
+      if (attachment.type === "image") {
+        const imageSrc = attachment.content?.find((part) => part.type === "image")?.image;
+        if (!imageSrc) return null;
+        return <img src={imageSrc} alt={attachment.name} className="max-w-xs rounded-lg" />;
+      }
 
       if (attachment.type === "document") {
         return (

@@ -167,7 +167,7 @@ function extractElementType(ns: ModuleDeclaration): string | undefined {
     // HTMLTextAreaElement → "textarea"
     // HTMLButtonElement → "button"
     // ActionButtonElement → "button"
-    const primitiveMatch = typeText.match(/typeof\s+Primitive\.(\w+)/);
+    const primitiveMatch = typeText.match(/Primitive\.(\w+)/);
     if (primitiveMatch) return primitiveMatch[1]!;
 
     if (typeText.includes("HTMLTextAreaElement")) return "textarea";
