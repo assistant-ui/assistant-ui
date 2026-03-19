@@ -4,7 +4,6 @@ description: File and image attachment rendering for the composer and messages.
 ---
 
 import { AttachmentSample } from "@/components/docs/samples/attachment";
-import { AttachmentPrimitive as AttachmentPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The Attachment primitive renders file and image attachments. It appears in two places: inside the composer for pending uploads (with a remove button), and inside messages for sent attachments (read-only). You provide the layout and styling.
 
@@ -45,9 +44,9 @@ An attachment inside a composer:
 import { AttachmentPrimitive, ComposerPrimitive } from "@assistant-ui/react";
 
 <ComposerPrimitive.Root>
-  <ComposerPrimitive.Attachments
-    components={{ Attachment: MyAttachment }}
-  />
+  <ComposerPrimitive.Attachments>
+    {() => <MyAttachment />}
+  </ComposerPrimitive.Attachments>
   <ComposerPrimitive.Input placeholder="Ask anything..." />
   <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
 </ComposerPrimitive.Root>
@@ -72,29 +71,29 @@ The same `AttachmentPrimitive` parts work in both contexts. The difference is be
 
 ### Iterator Pattern
 
-You don't loop over attachments yourself. Instead, pass your attachment component to the iterator:
+You don't loop over attachments yourself. Instead, use the children render function:
 
 ```tsx
 // Composer attachments
-<ComposerPrimitive.Attachments
-  components={{
-    Image: ImageAttachment,
-    Document: DocumentAttachment,
-    Attachment: GenericAttachment,
+<ComposerPrimitive.Attachments>
+  {({ attachment }) => {
+    if (attachment.type === "image") return <ImageAttachment />;
+    if (attachment.type === "document") return <DocumentAttachment />;
+    return <GenericAttachment />;
   }}
-/>
+</ComposerPrimitive.Attachments>
 
 // Message attachments
-<MessagePrimitive.Attachments
-  components={{
-    Image: ImageAttachment,
-    Document: DocumentAttachment,
-    Attachment: GenericAttachment,
+<MessagePrimitive.Attachments>
+  {({ attachment }) => {
+    if (attachment.type === "image") return <ImageAttachment />;
+    if (attachment.type === "document") return <DocumentAttachment />;
+    return <GenericAttachment />;
   }}
-/>
+</MessagePrimitive.Attachments>
 ```
 
-Each component receives its attachment context automatically, with no props to pass.
+Each component receives its attachment context automatically, with no props to pass. `components` is deprecated — use the `children` render function instead.
 
 ### Remove Button
 
@@ -111,8 +110,6 @@ Each component receives its attachment context automatically, with no props to p
 ```
 
 ## Parts
-
-<PrimitivePartsTable primitive={AttachmentPrimitiveDocs} />
 
 ### Root
 
@@ -213,3 +210,7 @@ The shadcn [Attachment](/docs/ui/attachment) component wraps these primitives wi
 ## API Reference
 
 For full prop details on every part, see the [AttachmentPrimitive API Reference](/docs/api-reference/primitives/attachment).
+
+Related:
+- [ComposerPrimitive API Reference](/docs/api-reference/primitives/composer)
+- [MessagePrimitive API Reference](/docs/api-reference/primitives/message)

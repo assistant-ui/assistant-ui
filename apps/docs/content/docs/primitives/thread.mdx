@@ -31,7 +31,6 @@ function MinimalThread() {
 
         <ThreadPrimitive.Messages>
           {({ message }) => {
-            if (message.composer.isEditing) return <EditComposer />;
             if (message.role === "user") return <UserMessage />;
             return <AssistantMessage />;
           }}
@@ -209,8 +208,6 @@ These work alongside `autoScroll`. If `autoScroll` is omitted, it defaults to `t
 ```
 
 ## Parts
-
-<PrimitivePartsTable primitive={ThreadPrimitiveDocs} />
 
 ### Root
 

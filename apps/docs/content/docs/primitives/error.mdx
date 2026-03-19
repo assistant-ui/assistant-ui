@@ -4,7 +4,6 @@ description: Accessible error display for messages with automatic error text ext
 ---
 
 import { ErrorPrimitiveSample } from "@/components/docs/samples/error-primitive";
-import { ErrorPrimitive as ErrorPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The Error primitive renders error states on messages using an accessible `role="alert"` container with automatic error text extraction. `Root` always renders its container; `Message` only renders when the message has an error. Wrap in `MessagePrimitive.Error` if you need the entire block to be conditional.
 
@@ -93,8 +92,6 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 
 ## Parts
 
-<PrimitivePartsTable primitive={ErrorPrimitiveDocs} />
-
 ### Root
 
 Container for an error message block. Renders a `<div>` element unless `asChild` is set.
@@ -139,3 +136,6 @@ The shadcn [Thread](/docs/ui/thread) component uses `ErrorPrimitive` inside its 
 ## API Reference
 
 For full prop details on every part, see the [ErrorPrimitive API Reference](/docs/api-reference/primitives/error).
+
+Related:
+- [MessagePrimitive API Reference](/docs/api-reference/primitives/message)

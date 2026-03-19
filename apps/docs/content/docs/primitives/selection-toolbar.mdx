@@ -4,7 +4,6 @@ description: A floating toolbar that appears when text is selected within a mess
 ---
 
 import { SelectionToolbarPrimitiveSample } from "@/components/docs/samples/selection-toolbar-primitive";
-import { SelectionToolbarPrimitive as SelectionToolbarPrimitiveDocs } from "@/generated/primitiveDocs";
 
 The SelectionToolbar primitive is a floating toolbar that appears when the user selects text within a message. It lets users quote selected text into the composer. Styling and action layout are fully customizable.
 
@@ -100,8 +99,6 @@ The SelectionToolbar must be placed inside `ThreadPrimitive.Root` but **outside*
 
 ## Parts
 
-<PrimitivePartsTable primitive={SelectionToolbarPrimitiveDocs} />
-
 ### Root
 
 Floating toolbar container that appears for a valid text selection. Renders a `<div>` element unless `asChild` is set.
@@ -162,3 +159,7 @@ There is no pre-built shadcn component for SelectionToolbar. See the [Quoting gu
 ## API Reference
 
 For full prop details on every part, see the [SelectionToolbarPrimitive API Reference](/docs/api-reference/primitives/selection-toolbar).
+
+Related:
+- [Quoting Guide](/docs/guides/quoting)
+- [ComposerPrimitive API Reference](/docs/api-reference/primitives/composer)

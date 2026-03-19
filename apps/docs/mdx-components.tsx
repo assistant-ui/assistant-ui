@@ -15,7 +15,6 @@ import {
 import * as Twoslash from "fumadocs-twoslash/ui";
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 import { ParametersTable } from "@/components/docs/parameters-table";
-import { PrimitivePartsTable } from "@/components/docs/primitive-parts-table";
 import { PrimitivesTypeTable } from "@/components/docs/primitives-type-table";
 import { SourceLink } from "@/components/docs/source-link";
 import { Code } from "@radix-ui/themes";
@@ -56,7 +55,6 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     InstallCommand,
     ParametersTable,
     PrimitivesTypeTable,
-    PrimitivePartsTable,
     SourceLink,
     Code,
     blockquote: (props) => <Callout>{props.children}</Callout>,

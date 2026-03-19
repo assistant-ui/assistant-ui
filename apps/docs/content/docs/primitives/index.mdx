@@ -22,15 +22,6 @@ import { ComposerPrimitive } from "@assistant-ui/react";
 
 This renders an unstyled `<form>` with a `<textarea>` and a `<button>`. No styles, no opinions, but it already handles submit-on-enter, focus management, empty-state disabling, and streaming state.
 
-## Primitives vs Components
-
-| | Primitives | Components |
-|---|---|---|
-| **Styling** | None, you bring your own | Pre-styled with Tailwind via shadcn |
-| **Install** | `import { ComposerPrimitive } from "@assistant-ui/react"` | `npx shadcn@latest add "https://..."` |
-| **Customization** | Full control over every element | Modify the installed source files |
-| **Use when** | Building a custom UI from scratch | You want a working chat UI fast |
-
 ## How They Work
 
 Every primitive follows the same pattern inspired by [Radix UI](https://www.radix-ui.com/):
