@@ -102,7 +102,7 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
         : null;
 
       const highlightedTypeFull =
-        typeRaw && displayType !== typeRaw
+        typeRaw && (shortType != null || displayType !== typeRaw)
           ? await highlightType(typeRaw)
           : undefined;
 
@@ -122,7 +122,6 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
         name: prop.name,
         type: highlightedType,
         typeFull: highlightedTypeFull,
-        typeRaw,
         description: descParts.length > 0 ? descParts : undefined,
         default: prop.default,
         required: prop.required ?? false,

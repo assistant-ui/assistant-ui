@@ -9,7 +9,6 @@ export type TypeTableRow = {
   name: string;
   type: ReactNode;
   typeFull?: ReactNode | undefined;
-  typeRaw: string;
   description?: ReactNode | undefined;
   default?: string | undefined;
   required: boolean;
