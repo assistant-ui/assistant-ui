@@ -3,7 +3,7 @@
  * These tests should mirror the React strict mode behavior
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { resource } from "../../core/resource";
 import { tapState } from "../../hooks/tap-state";
 import { tapEffect } from "../../hooks/tap-effect";
@@ -202,6 +202,10 @@ describe("Tap Strict Mode - Rerender Sources", () => {
   });
 
   describe("Source 4: setState in setTimeout", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it("should double-render AND double-call setTimeout callback", async () => {
       vi.useFakeTimers();
 
