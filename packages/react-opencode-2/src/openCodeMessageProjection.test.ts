@@ -141,4 +141,53 @@ describe("projectOpenCodeThreadMessages", () => {
       },
     ]);
   });
+
+  it("normalizes escaped newlines in reasoning parts", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      messageOrder: ["assistant-1"],
+      messagesById: {
+        "assistant-1": {
+          id: "assistant-1",
+          info: {
+            id: "assistant-1",
+            role: "assistant",
+            sessionID: "ses_1",
+            parentID: "user-1",
+            modelID: "model",
+            providerID: "provider",
+            mode: "primary",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 1 },
+            finish: "stop",
+          } as never,
+          parts: [
+            {
+              id: "reasoning-1",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "reasoning",
+              text: "Confirming\\n\\nI checked the file.",
+            } as never,
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const messages = projectOpenCodeThreadMessages(state);
+    expect(messages[0]?.content).toMatchObject([
+      {
+        type: "reasoning",
+        text: "Confirming\n\nI checked the file.",
+      },
+    ]);
+  });
 });

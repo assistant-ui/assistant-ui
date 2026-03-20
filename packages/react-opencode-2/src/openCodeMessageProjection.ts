@@ -72,7 +72,12 @@ const makeDataPart = (
 });
 
 const sanitizeReasoningText = (text: string | undefined) =>
-  (text ?? "").replaceAll("[REDACTED]", "").trim();
+  (text ?? "")
+    .replaceAll("[REDACTED]", "")
+    .replaceAll("\\r\\n", "\n")
+    .replaceAll("\\n", "\n")
+    .replaceAll("\\t", "\t")
+    .trim();
 
 const convertFilePart = (part: Extract<Part, { type: "file" }>) => {
   const mimeType = part.mime ?? "application/octet-stream";
