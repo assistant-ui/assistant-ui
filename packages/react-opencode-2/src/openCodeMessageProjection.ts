@@ -24,12 +24,15 @@ const isRecord = (value: unknown): value is Record<string, unknown> => {
 };
 
 const mapToolState = (
-  state: {
-    status?: string;
-    input?: unknown;
-    output?: unknown;
-    error?: unknown;
-  } | null | undefined,
+  state:
+    | {
+        status?: string;
+        input?: unknown;
+        output?: unknown;
+        error?: unknown;
+      }
+    | null
+    | undefined,
 ) => {
   const args = isRecord(state?.input) ? state.input : {};
   const argsText = JSON.stringify(args);
@@ -138,7 +141,9 @@ const projectAssistantContent = (
           toolName: part.tool ?? "tool",
           args: toolState.args as never,
           argsText: toolState.argsText,
-          ...(toolState.result !== undefined ? { result: toolState.result } : {}),
+          ...(toolState.result !== undefined
+            ? { result: toolState.result }
+            : {}),
           ...(toolState.isError ? { isError: true } : {}),
           ...(currentStepId() ? { parentId: currentStepId() } : {}),
         });
@@ -171,8 +176,8 @@ const projectAssistantContent = (
       case "step-finish": {
         const stepId =
           stepStack.pop() ??
-          (("id" in part && typeof part.id === "string" ? part.id : undefined) ??
-            `step-finish-${index}`);
+          ("id" in part && typeof part.id === "string" ? part.id : undefined) ??
+          `step-finish-${index}`;
         content.push(
           makeDataPart("opencode-step-finish", {
             id: stepId,
@@ -193,8 +198,9 @@ const projectAssistantContent = (
             "opencode-patch",
             {
               id:
-                ("id" in part && typeof part.id === "string" ? part.id : undefined) ??
-                `patch-${index}`,
+                ("id" in part && typeof part.id === "string"
+                  ? part.id
+                  : undefined) ?? `patch-${index}`,
               hash: "hash" in part ? part.hash : undefined,
               files: Array.isArray((part as { files?: unknown[] }).files)
                 ? (part as { files: unknown[] }).files.filter(
@@ -214,8 +220,9 @@ const projectAssistantContent = (
             "opencode-snapshot",
             {
               id:
-                ("id" in part && typeof part.id === "string" ? part.id : undefined) ??
-                `snapshot-${index}`,
+                ("id" in part && typeof part.id === "string"
+                  ? part.id
+                  : undefined) ?? `snapshot-${index}`,
               part,
             },
             currentStepId(),
@@ -232,8 +239,9 @@ const projectAssistantContent = (
             `opencode-${part.type}`,
             {
               id:
-                ("id" in part && typeof part.id === "string" ? part.id : undefined) ??
-                `${part.type}-${index}`,
+                ("id" in part && typeof part.id === "string"
+                  ? part.id
+                  : undefined) ?? `${part.type}-${index}`,
               part,
             },
             currentStepId(),
@@ -259,7 +267,9 @@ const projectUserContent = (
   return message.parts.flatMap((part) => {
     switch (part.type) {
       case "text":
-        return [{ type: "text" as const, text: part.text ?? "" }] satisfies ProjectedContentPart[];
+        return [
+          { type: "text" as const, text: part.text ?? "" },
+        ] satisfies ProjectedContentPart[];
       case "file":
         return [convertFilePart(part)] satisfies ProjectedContentPart[];
       default:
@@ -423,9 +433,9 @@ export const projectOpenCodeThreadMessages = (
       (message): message is OpenCodeProjectedThreadMessage => message !== null,
     );
 
-  const pendingMessages = (Object.values(
-    state.pendingUserMessages,
-  ) as PendingUserMessage[])
+  const pendingMessages = (
+    Object.values(state.pendingUserMessages) as PendingUserMessage[]
+  )
     .sort((left, right) => left.createdAt - right.createdAt)
     .map((pending) => projectPendingMessage(pending));
 

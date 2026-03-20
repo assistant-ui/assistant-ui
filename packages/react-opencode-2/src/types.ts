@@ -147,9 +147,7 @@ export type OpenCodeRuntimeExtras = {
 
 export type OpenCodeRuntime = AssistantRuntime;
 
-export type OpenCodeThreadStateSelector<T> = (
-  state: OpenCodeThreadState,
-) => T;
+export type OpenCodeThreadStateSelector<T> = (state: OpenCodeThreadState) => T;
 
 export type OpenCodeServerEvent = {
   type: string;

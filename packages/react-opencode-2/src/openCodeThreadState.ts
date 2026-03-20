@@ -41,7 +41,8 @@ const serverFingerprint = (message: MessageWithParts) =>
       .map((part) => {
         if (part.type === "text") return part.text ?? "";
         if (part.type === "file") return part.filename ?? part.url ?? "";
-        if (part.type === "tool") return JSON.stringify(part.state?.input ?? {});
+        if (part.type === "tool")
+          return JSON.stringify(part.state?.input ?? {});
         return "";
       })
       .join("\n"),
@@ -65,7 +66,9 @@ const sortMessageIds = (
 const withMessage = (
   state: OpenCodeThreadState,
   messageId: string,
-  updater: (current: OpenCodeServerMessage | undefined) => OpenCodeServerMessage,
+  updater: (
+    current: OpenCodeServerMessage | undefined,
+  ) => OpenCodeServerMessage,
 ): OpenCodeThreadState => {
   const nextMessage = updater(state.messagesById[messageId]);
   const messagesById = {
@@ -102,9 +105,9 @@ const findPendingMatchByHistory = (
 ) => {
   const createdAt = extractCreatedAt(message.info);
   const fingerprint = serverFingerprint(message);
-  const candidates = (Object.values(
-    state.pendingUserMessages,
-  ) as PendingUserMessage[]).filter(
+  const candidates = (
+    Object.values(state.pendingUserMessages) as PendingUserMessage[]
+  ).filter(
     (pending) =>
       pending.status === "pending" &&
       (createdAt === undefined ||
@@ -116,7 +119,9 @@ const findPendingMatchByHistory = (
 
   if (candidates.length === 1) return candidates[0];
   if (candidates.length > 1) {
-    return candidates.sort((left, right) => left.createdAt - right.createdAt)[0];
+    return candidates.sort(
+      (left, right) => left.createdAt - right.createdAt,
+    )[0];
   }
   return undefined;
 };
@@ -126,9 +131,9 @@ const findPendingMatchByMessageInfo = (
   message: Message,
 ) => {
   const createdAt = extractCreatedAt(message);
-  const candidates = (Object.values(
-    state.pendingUserMessages,
-  ) as PendingUserMessage[]).filter(
+  const candidates = (
+    Object.values(state.pendingUserMessages) as PendingUserMessage[]
+  ).filter(
     (pending) =>
       pending.status === "pending" &&
       (createdAt === undefined ||
@@ -168,7 +173,9 @@ const historyLoaded = (
       info: message.info,
       parts: message.parts,
       shadowParts:
-        message.parts.length === 0 && pendingMatch ? pendingMatch.parts : undefined,
+        message.parts.length === 0 && pendingMatch
+          ? pendingMatch.parts
+          : undefined,
     };
 
     if (pendingMatch) {
@@ -179,7 +186,10 @@ const historyLoaded = (
   nextState = {
     ...nextState,
     messagesById: nextMessagesById,
-    messageOrder: sortMessageIds(nextMessagesById, Object.keys(nextMessagesById)),
+    messageOrder: sortMessageIds(
+      nextMessagesById,
+      Object.keys(nextMessagesById),
+    ),
   };
 
   return nextState;
@@ -213,8 +223,12 @@ export const createOpenCodeThreadState = (
   messagesById: {} as Readonly<Record<string, OpenCodeServerMessage>>,
   pendingUserMessages: {} as Readonly<Record<string, PendingUserMessage>>,
   permissions: {
-    pending: {} as Readonly<Record<string, import("./types").OpenCodePermissionRequest>>,
-    resolved: {} as Readonly<Record<string, { approved: boolean; respondedAt: number }>>,
+    pending: {} as Readonly<
+      Record<string, import("./types").OpenCodePermissionRequest>
+    >,
+    resolved: {} as Readonly<
+      Record<string, { approved: boolean; respondedAt: number }>
+    >,
   },
   sync: {},
 });

@@ -102,10 +102,7 @@ const useOpenCodeThreadRuntime = (
     });
   }, [controller, options]);
 
-  const messages = useMemo(
-    () => projectOpenCodeThreadMessages(state),
-    [state],
-  );
+  const messages = useMemo(() => projectOpenCodeThreadMessages(state), [state]);
 
   const extras = useMemo(
     () =>
@@ -182,18 +179,20 @@ const useRuntimeHook = (
   options: OpenCodeRuntimeOptions,
 ) => {
   const sessionId = useAuiState(
-    (state: any) => state.threadListItem.externalId ?? state.threadListItem.remoteId,
+    (state: any) =>
+      state.threadListItem.externalId ?? state.threadListItem.remoteId,
   );
 
-  const fallbackRuntime = useExternalStoreRuntime<OpenCodeProjectedThreadMessage>({
-    isDisabled: true,
-    isLoading: true,
-    messages: [] as OpenCodeProjectedThreadMessage[],
-    convertMessage: (message: OpenCodeProjectedThreadMessage) => message,
-    onNew: async () => {
-      throw new Error("OpenCode session is still initializing");
-    },
-  });
+  const fallbackRuntime =
+    useExternalStoreRuntime<OpenCodeProjectedThreadMessage>({
+      isDisabled: true,
+      isLoading: true,
+      messages: [] as OpenCodeProjectedThreadMessage[],
+      convertMessage: (message: OpenCodeProjectedThreadMessage) => message,
+      onNew: async () => {
+        throw new Error("OpenCode session is still initializing");
+      },
+    });
 
   if (!sessionId) return fallbackRuntime;
   const controller = getController(registry, client, baseUrl, sessionId);
@@ -300,7 +299,9 @@ export const useOpenCodeRuntime = (
 };
 
 export const useOpenCodeRuntimeExtras = (): OpenCodeRuntimeExtras => {
-  return useAuiState((state: any) => asOpenCodeRuntimeExtras(state.thread.extras));
+  return useAuiState((state: any) =>
+    asOpenCodeRuntimeExtras(state.thread.extras),
+  );
 };
 
 export const useOpenCodeSession = () => {

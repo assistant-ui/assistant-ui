@@ -1,7 +1,4 @@
-import type {
-  AppendMessage,
-  ThreadUserMessagePart,
-} from "@assistant-ui/react";
+import type { AppendMessage, ThreadUserMessagePart } from "@assistant-ui/react";
 import type { OpencodeClient } from "@opencode-ai/sdk/client";
 import {
   createOpenCodeThreadState,
@@ -36,11 +33,12 @@ const getTextContent = (parts: readonly ThreadUserMessagePart[]) =>
     .trim();
 
 const getPromptParts = (message: AppendMessage) => {
-    const content = [
-      ...message.content,
-      ...(message.attachments?.flatMap((attachment: any) => attachment.content ?? []) ??
-        []),
-    ];
+  const content = [
+    ...message.content,
+    ...(message.attachments?.flatMap(
+      (attachment: any) => attachment.content ?? [],
+    ) ?? []),
+  ];
 
   const promptParts: Array<Record<string, unknown>> = [];
   for (const part of content) {
@@ -156,7 +154,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         this.dispatch({
           type: "history.loaded",
           session: sessionResponse.data ?? null,
-          messages: ((messagesResponse.data ?? []) as MessageWithParts[]).slice(),
+          messages: (
+            (messagesResponse.data ?? []) as MessageWithParts[]
+          ).slice(),
         });
       })
       .catch((error) => {
@@ -184,8 +184,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
     const parts = [
       ...message.content,
-      ...(message.attachments?.flatMap((attachment: any) => attachment.content ?? []) ??
-        []),
+      ...(message.attachments?.flatMap(
+        (attachment: any) => attachment.content ?? [],
+      ) ?? []),
     ] as readonly ThreadUserMessagePart[];
 
     const pending: PendingUserMessage = {
