@@ -4,7 +4,7 @@ import {
   UserMessageAttachments,
 } from "@/components/assistant-ui/attachment";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { Reasoning } from "@/components/assistant-ui/reasoning";
+import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { OpenCodeDataPart } from "@/components/opencode-data-part";
@@ -210,18 +210,29 @@ const AssistantMessage: FC = () => {
       data-role="assistant"
     >
       <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
-        <MessagePrimitive.Parts>
-          {({ part }) => {
-            if (part.type === "text") return <MarkdownText />;
-            if (part.type === "reasoning") return <Reasoning {...part} />;
-            if (part.type === "tool-call")
-              return part.toolUI ?? <ToolFallback {...part} />;
-            if (part.type === "data" && part.name.startsWith("opencode-")) {
-              return <OpenCodeDataPart {...part} />;
-            }
-            return null;
+        <MessagePrimitive.Parts
+          components={{
+            Text: MarkdownText,
+            Reasoning,
+            ReasoningGroup,
+            tools: {
+              Fallback: ToolFallback,
+            },
+            data: {
+              by_name: {
+                "opencode-step-start": OpenCodeDataPart,
+                "opencode-step-finish": OpenCodeDataPart,
+                "opencode-patch": OpenCodeDataPart,
+                "opencode-snapshot": OpenCodeDataPart,
+                "opencode-retry": OpenCodeDataPart,
+                "opencode-compaction": OpenCodeDataPart,
+                "opencode-agent": OpenCodeDataPart,
+                "opencode-subtask": OpenCodeDataPart,
+              },
+              Fallback: OpenCodeDataPart,
+            },
           }}
-        </MessagePrimitive.Parts>
+        />
         <MessageError />
       </div>
 
