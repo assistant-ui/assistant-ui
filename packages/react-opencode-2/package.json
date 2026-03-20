@@ -1,0 +1,59 @@
+{
+  "name": "@assistant-ui/react-opencode-2",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Parallel OpenCode adapter for assistant-ui built on existing message primitives",
+  "keywords": [
+    "opencode",
+    "assistant-ui",
+    "react",
+    "ai",
+    "chat",
+    "agents"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "aui-source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "^1.1.3"
+  },
+  "peerDependencies": {
+    "@assistant-ui/react": "^0.12.17",
+    "@types/react": "*",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/node": "^25.3.3",
+    "@types/react": "^19.2.14",
+    "jsdom": "^28.1.0",
+    "react": "^19.2.4",
+    "vitest": "^4.0.18"
+  }
+}

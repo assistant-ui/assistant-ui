@@ -1,0 +1,20 @@
+{
+  "extends": "@assistant-ui/x-buildutils/ts/next",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./*"],
+      "@assistant-ui/react-opencode-2": [
+        "../../packages/react-opencode-2/src/index.ts"
+      ],
+      "@/components/assistant-ui/*": [
+        "../../packages/ui/src/components/assistant-ui/*"
+      ],
+      "@/components/ui/*": ["../../packages/ui/src/components/ui/*"],
+      "@/hooks/*": ["../../packages/ui/src/hooks/*"],
+      "@/lib/utils": ["../../packages/ui/src/lib/utils"],
+      "@assistant-ui/ui/*": ["../../packages/ui/src/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
