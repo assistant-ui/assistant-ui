@@ -187,12 +187,13 @@ export const ComposerPrimitiveInput = forwardRef<
         const threadState = aui.thread().getState();
         const hasQueue = threadState.capabilities.queue;
 
-        // Steer hotkey: Cmd/Ctrl+Shift+Enter (respects submitMode="none")
+        // Steer hotkey: Cmd/Ctrl+Shift+Enter (respects submitMode="none" and isEmpty)
         if (
           e.shiftKey &&
           (e.ctrlKey || e.metaKey) &&
           hasQueue &&
-          effectiveSubmitMode !== "none"
+          effectiveSubmitMode !== "none" &&
+          !aui.composer().getState().isEmpty
         ) {
           e.preventDefault();
           aui.composer().send({ steer: true });
