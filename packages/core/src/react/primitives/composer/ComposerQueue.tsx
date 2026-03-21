@@ -13,14 +13,14 @@ export namespace ComposerPrimitiveQueue {
 const ComposerPrimitiveQueueInner: FC<{
   children: (value: { queueItem: QueueItemState }) => ReactNode;
 }> = ({ children }) => {
-  const queueLength = useAuiState((s) => s.composer.queue.length);
+  const queue = useAuiState((s) => s.composer.queue);
 
   return useMemo(
     () =>
-      queueLength === 0
+      queue.length === 0
         ? null
-        : Array.from({ length: queueLength }, (_, index) => (
-            <QueueItemByIndexProvider key={index} index={index}>
+        : queue.map((item, index) => (
+            <QueueItemByIndexProvider key={item.id} index={index}>
               <RenderChildrenWithAccessor
                 getItemState={(aui) =>
                   aui.composer().queueItem({ index }).getState()
@@ -36,7 +36,7 @@ const ComposerPrimitiveQueueInner: FC<{
               </RenderChildrenWithAccessor>
             </QueueItemByIndexProvider>
           )),
-    [queueLength, children],
+    [queue, children],
   );
 };
 

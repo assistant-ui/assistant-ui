@@ -317,9 +317,9 @@ const ComposerClientResource = resource(
     const queueItems = queue?.items ?? [];
     const queueItemClients = tapClientLookup(
       () =>
-        queueItems.map((item, index) =>
+        queueItems.map((item) =>
           withKey(
-            index,
+            item.id,
             QueueItemClient({
               item,
               onSteer: () => queue?.steer(item.id),

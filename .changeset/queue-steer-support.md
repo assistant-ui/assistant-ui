@@ -1,6 +1,6 @@
 ---
-"@assistant-ui/react": minor
-"@assistant-ui/core": minor
+"@assistant-ui/react": patch
+"@assistant-ui/core": patch
 ---
 
 feat: add native queue and steer support
