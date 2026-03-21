@@ -21,6 +21,8 @@ import type {
   ThreadUserMessagePart,
   ThreadMessage,
 } from "@assistant-ui/core";
+import type { QueueItemState } from "@assistant-ui/core/store";
+import type { ComposerSendOptions } from "@assistant-ui/core/store";
 import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
 import { SingleThreadList } from "./SingleThreadList";
@@ -29,14 +31,28 @@ export type ExternalThreadMessage = ThreadMessage & {
   id: string;
 };
 
+export type ExternalThreadQueueAdapter = {
+  /** The current queue items. */
+  items: readonly QueueItemState[];
+  /** Called when a message is submitted via the composer. Receives the steer preference. */
+  enqueue: (message: any, opts: { steer: boolean }) => void;
+  /** Called to promote an existing queue item (cancel current run, run this immediately). */
+  steer: (queueItemId: string) => void;
+  /** Called to remove an item from the queue. */
+  remove: (queueItemId: string) => void;
+};
+
 export type ExternalThreadProps = {
   messages: readonly ExternalThreadMessage[];
   isRunning?: boolean;
+  /** Callback for new messages (non-queue runtimes). Ignored when `queue` is provided. */
   onNew?: (message: any) => void;
   onEdit?: (message: any) => void;
   onReload?: (parentId: string | null) => void;
   onStartRun?: () => void;
   onCancel?: () => void;
+  /** Queue adapter for runtimes that support message queuing and steering. */
+  queue?: ExternalThreadQueueAdapter;
 };
 
 type MessageClientProps = {
@@ -218,7 +234,26 @@ type ComposerClientResourceProps = {
   onBeginEdit?: () => void;
   onSend?: (message: any) => void;
   message?: ExternalThreadMessage;
+  queue?: ExternalThreadQueueAdapter | undefined;
 };
+
+const QueueItemClient = resource(
+  ({
+    item,
+    onSteer,
+    onRemove,
+  }: {
+    item: QueueItemState;
+    onSteer: () => void;
+    onRemove: () => void;
+  }): ClientOutput<"queueItem"> => {
+    return {
+      getState: () => item,
+      steer: onSteer,
+      remove: onRemove,
+    };
+  },
+);
 
 // Composer Client - minimal implementation
 const ComposerClientResource = resource(
@@ -230,6 +265,7 @@ const ComposerClientResource = resource(
     onBeginEdit,
     onSend,
     message,
+    queue,
   }: ComposerClientResourceProps): ClientOutput<"composer"> => {
     const [text, setText] = tapState("");
     const [role, setRole] = tapState<"user" | "assistant" | "system">("user");
@@ -278,6 +314,22 @@ const ComposerClientResource = resource(
       [attachments],
     );
 
+    const queueItems = queue?.items ?? [];
+    const queueItemClients = tapClientLookup(
+      () =>
+        queueItems.map((item, index) =>
+          withKey(
+            index,
+            QueueItemClient({
+              item,
+              onSteer: () => queue?.steer(item.id),
+              onRemove: () => queue?.remove(item.id),
+            }),
+          ),
+        ),
+      [queueItems],
+    );
+
     const state = tapMemo(
       () => ({
         text,
@@ -291,6 +343,7 @@ const ComposerClientResource = resource(
         type,
         dictation: undefined,
         quote,
+        queue: queueItems,
       }),
       [
         text,
@@ -302,6 +355,7 @@ const ComposerClientResource = resource(
         type,
         attachments.length,
         quote,
+        queueItems,
       ],
     );
 
@@ -350,9 +404,9 @@ const ComposerClientResource = resource(
         setAttachments([]);
         setQuote(undefined);
       },
-      send: () => {
+      send: (opts?: ComposerSendOptions) => {
         const currentQuote = quote;
-        const message = {
+        const composedMessage = {
           role,
           content: text ? [{ type: "text" as const, text }] : [],
           attachments: attachments as any,
@@ -362,7 +416,11 @@ const ComposerClientResource = resource(
             custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
           },
         };
-        onSend?.(message);
+        if (queue) {
+          queue.enqueue(composedMessage, { steer: opts?.steer ?? false });
+        } else {
+          onSend?.(composedMessage);
+        }
         setText("");
         setAttachments([]);
         setQuote(undefined);
@@ -374,6 +432,9 @@ const ComposerClientResource = resource(
       startDictation: () => {},
       stopDictation: () => {},
       setQuote,
+      queueItem: (selector: { index: number }) => {
+        return queueItemClients.get(selector);
+      },
     };
   },
 );
@@ -388,6 +449,7 @@ export const ExternalThread = resource(
     onReload,
     onStartRun,
     onCancel,
+    queue,
   }: ExternalThreadProps): ClientOutput<"thread"> => {
     const handleReload = (messageId: string) => {
       const messageIndex = messages.findIndex((m) => m.id === messageId);
@@ -426,9 +488,11 @@ export const ExternalThread = resource(
         canCancel: isRunning,
         onCancel: handleCancelRun,
         onSend: handleSendNew,
+        queue,
       }),
     );
 
+    const hasQueue = !!queue;
     const state = tapMemo(() => {
       const messageStates = messageClients.state.map((s, idx, arr) => ({
         ...s,
@@ -451,6 +515,7 @@ export const ExternalThread = resource(
           switchBranchDuringRun: false,
           unstable_copy: false,
           dictation: false,
+          queue: hasQueue,
         },
         messages: messageStates,
         state: {},
@@ -459,7 +524,13 @@ export const ExternalThread = resource(
         speech: undefined,
         composer: composerClient.state,
       };
-    }, [messages, isRunning, messageClients.state, composerClient.state]);
+    }, [
+      messages,
+      isRunning,
+      hasQueue,
+      messageClients.state,
+      composerClient.state,
+    ]);
 
     return {
       getState: () => state,

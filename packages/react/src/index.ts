@@ -216,6 +216,11 @@ export type { Tool } from "assistant-stream";
 export { tool } from "@assistant-ui/core";
 
 export { Suggestions, type SuggestionConfig } from "@assistant-ui/core/store";
+export type {
+  QueueItemState,
+  QueueItemMethods,
+} from "@assistant-ui/core/store";
+export type { ComposerSendOptions } from "@assistant-ui/core/store";
 
 // React-only (stays)
 export { makeAssistantVisible } from "./model-context/makeAssistantVisible";
@@ -250,6 +255,7 @@ export * as AttachmentPrimitive from "./primitives/attachment";
 export * as BranchPickerPrimitive from "./primitives/branchPicker";
 export * as ChainOfThoughtPrimitive from "./primitives/chainOfThought";
 export * as ComposerPrimitive from "./primitives/composer";
+export * as QueueItemPrimitive from "./primitives/queueItem";
 export * as MessagePartPrimitive from "./primitives/messagePart";
 export * as ErrorPrimitive from "./primitives/error";
 export * as MessagePrimitive from "./primitives/message";
@@ -348,6 +354,7 @@ export {
   ExternalThread,
   type ExternalThreadProps,
   type ExternalThreadMessage,
+  type ExternalThreadQueueAdapter,
 } from "./client/ExternalThread";
 export {
   InMemoryThreadList,

@@ -85,6 +85,10 @@ export {
   SuggestionByIndexProvider,
   type SuggestionByIndexProviderProps,
 } from "./providers/SuggestionByIndexProvider";
+export {
+  QueueItemByIndexProvider,
+  type QueueItemByIndexProviderProps,
+} from "./providers/QueueItemByIndexProvider";
 export { ReadonlyThreadProvider } from "./providers/ReadonlyThreadProvider";
 
 // RuntimeAdapter
@@ -144,6 +148,7 @@ export {
   ComposerPrimitiveAttachments,
   ComposerPrimitiveAttachmentByIndex,
 } from "./primitives/composer/ComposerAttachments";
+export { ComposerPrimitiveQueue } from "./primitives/composer/ComposerQueue";
 export {
   ThreadListPrimitiveItems,
   ThreadListPrimitiveItemByIndex,

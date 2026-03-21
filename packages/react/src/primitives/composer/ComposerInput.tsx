@@ -183,9 +183,22 @@ export const ComposerPrimitiveInput = forwardRef<
       // Let the mention popover handle keyboard events first
       if (mentionContext?.handleKeyDown(e)) return;
 
-      if (e.key === "Enter" && !e.shiftKey) {
-        const isRunning = aui.thread().getState().isRunning;
-        if (isRunning) return;
+      if (e.key === "Enter") {
+        const threadState = aui.thread().getState();
+        const hasQueue = !!threadState.capabilities.queue;
+
+        // Steer hotkey: Cmd/Ctrl+Shift+Enter
+        if (e.shiftKey && (e.ctrlKey || e.metaKey) && hasQueue) {
+          e.preventDefault();
+          aui.composer().send({ steer: true });
+          return;
+        }
+
+        // Regular newline: Shift+Enter
+        if (e.shiftKey) return;
+
+        // Block submission when running unless queue is supported
+        if (threadState.isRunning && !hasQueue) return;
 
         let shouldSubmit = false;
         if (effectiveSubmitMode === "ctrlEnter") {

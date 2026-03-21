@@ -10,7 +10,7 @@ import { useComposerSend as useComposerSendBehavior } from "@assistant-ui/core/r
 export const useComposerSend = () => {
   const { disabled, send } = useComposerSendBehavior();
   if (disabled) return null;
-  return send;
+  return () => send();
 };
 
 export namespace ComposerPrimitiveSend {
