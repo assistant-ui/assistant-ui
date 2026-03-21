@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Text } from "ink";
-import type { ChecklistItemData } from "./types";
+import type { ChecklistItemData } from "@assistant-ui/core";
 import { ChecklistRoot } from "./ChecklistRoot";
 import { ChecklistItem } from "./ChecklistItem";
 import { ChecklistProgress } from "./ChecklistProgress";

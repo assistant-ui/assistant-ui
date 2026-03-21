@@ -1,0 +1,240 @@
+---
+title: Checklist
+description: Live checklist that tracks tool-call progress across messages.
+---
+
+The Checklist primitive displays a live-updating list of tool calls with their current status (pending, running, complete, error). It automatically derives items from the message's tool-call parts, showing users what the assistant is working on.
+
+## Quick Start
+
+Drop `LiveChecklist` inside your assistant message to show tool-call progress:
+
+```tsx
+import { LiveChecklist, MessagePrimitive } from "@assistant-ui/react";
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts />
+      <LiveChecklist />
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+`LiveChecklist` automatically reads the current message's tool-call parts and renders a checklist with status indicators. When no tool calls are present, it renders nothing.
+
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
+
+## Core Concepts
+
+### Auto-Derived Mode
+
+When used without an `items` prop, `LiveChecklist` reads tool-call parts from the current message context and maps them to checklist items:
+
+- Tool calls without a result are **running** (first) or **pending** (rest)
+- Tool calls with a result are **complete**
+- Tool calls with errors are marked as **error**
+
+Only the first incomplete tool call is shown as "running" — the rest are "pending". This creates the sequential progress effect.
+
+### Standalone Mode
+
+Pass an `items` prop to render a checklist with manually controlled data:
+
+```tsx
+import { LiveChecklist } from "@assistant-ui/react";
+import type { ChecklistItemData } from "@assistant-ui/react";
+
+const items: ChecklistItemData[] = [
+  { id: "1", text: "Search the web", status: "complete" },
+  { id: "2", text: "Analyze results", status: "running" },
+  { id: "3", text: "Summarize findings", status: "pending" },
+];
+
+<LiveChecklist items={items} showProgress />
+```
+
+### Formatting Tool Names
+
+By default, tool names are displayed as-is. Use `formatToolName` to transform them:
+
+```tsx
+<LiveChecklist formatToolName={(name) => name.replace(/_/g, " ")} />
+```
+
+### Custom Item Rendering
+
+Use `renderItem` for full control over how each item renders:
+
+```tsx
+<LiveChecklist
+  renderItem={({ item, depth }) => (
+    <div data-status={item.status}>
+      {item.status === "complete" ? "■" : "□"} {item.text}
+    </div>
+  )}
+/>
+```
+
+## Primitives
+
+The checklist is built from composable primitives that you can use independently:
+
+### ChecklistPrimitive.Root
+
+Container for the checklist. Renders a `<div>`.
+
+```tsx
+import { ChecklistPrimitive } from "@assistant-ui/react";
+
+<ChecklistPrimitive.Root className="flex flex-col gap-1">
+  ...
+</ChecklistPrimitive.Root>
+```
+
+### ChecklistPrimitive.Item
+
+Renders a single checklist item. Renders a `<div>` with a `data-status` attribute.
+
+```tsx
+<ChecklistPrimitive.Item
+  item={{ id: "1", text: "Search", status: "running" }}
+/>
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `item` | `ChecklistItemData` | required | The checklist item data |
+| `depth` | `number` | `0` | Current nesting depth |
+| `maxDepth` | `number` | `2` | Maximum nesting depth for children |
+| `renderItem` | `(props: { item, depth }) => ReactNode` | — | Custom render function |
+
+### ChecklistPrimitive.Progress
+
+Renders progress as "X/Y complete". Renders a `<div>` with `data-done` and `data-total` attributes.
+
+```tsx
+<ChecklistPrimitive.Progress items={items} />
+```
+
+## Convenience Components
+
+### LiveChecklist
+
+Dual-mode component: auto-derives items from tool-call parts when no `items` prop is provided, or renders manually passed items.
+
+```tsx
+import { LiveChecklist } from "@assistant-ui/react";
+
+// Auto mode — reads from message context
+<LiveChecklist showProgress formatToolName={(n) => n.replace(/_/g, " ")} />
+
+// Standalone mode — manual items
+<LiveChecklist items={myItems} showProgress />
+```
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `items` | `ChecklistItemData[]` | — | Manual items (omit for auto mode) |
+| `showProgress` | `boolean` | — | Show "X/Y complete" counter |
+| `formatToolName` | `(name: string) => string` | — | Transform tool names for display |
+| `title` | `string` | — | Optional title above the list |
+| `maxDepth` | `number` | `2` | Maximum nesting depth |
+| `renderItem` | `(props: { item, depth }) => ReactNode` | — | Custom render function |
+
+### ToolActivityChecklist
+
+Like `LiveChecklist` without the `items` prop — always reads from message context:
+
+```tsx
+import { ToolActivityChecklist } from "@assistant-ui/react";
+
+<ToolActivityChecklist showProgress />
+```
+
+### DataChecklist
+
+Renders checklist data sent via `makeAssistantDataUI`:
+
+```tsx
+import { DataChecklist, ChecklistDataUI } from "@assistant-ui/react";
+```
+
+## Hook
+
+### useToolActivityChecklist
+
+Returns `ChecklistItemData[]` derived from the current message's tool-call parts:
+
+```tsx
+import { useToolActivityChecklist } from "@assistant-ui/react";
+
+function MyChecklist() {
+  const items = useToolActivityChecklist({
+    formatToolName: (name) => name.replace(/_/g, " "),
+  });
+
+  return items.map((item) => (
+    <div key={item.id} data-status={item.status}>
+      {item.text}
+    </div>
+  ));
+}
+```
+
+## Types
+
+```tsx
+type ChecklistItemStatus = "pending" | "running" | "complete" | "error";
+
+type ChecklistItemData = {
+  id: string;
+  text: string;
+  status: ChecklistItemStatus;
+  detail?: string;
+  children?: ChecklistItemData[];
+};
+```
+
+## Styled Component
+
+The `@assistant-ui/ui` package includes a pre-styled `LiveChecklist` with status indicators (□/■), shimmer animation on running items, and progress display:
+
+```tsx
+import { LiveChecklist } from "@/components/assistant-ui/checklist";
+
+<LiveChecklist className="my-2" />
+```
+
+Supports `variant` prop: `"outline"` (default), `"ghost"`, or `"muted"`.
+
+## Patterns
+
+### Inside AssistantMessage
+
+```tsx
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <div className="flex flex-col gap-2">
+        <MessagePrimitive.Parts />
+        <LiveChecklist
+          showProgress
+          formatToolName={(name) => name.replace(/_/g, " ")}
+        />
+      </div>
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+## API Reference
+
+For prop details, see the [ChecklistPrimitive source](https://github.com/assistant-ui/assistant-ui/tree/main/packages/react/src/primitives/checklist).
+
+Related:
+- [MessagePrimitive](/docs/primitives/message)
+- [ChainOfThoughtPrimitive](/docs/primitives/chain-of-thought)

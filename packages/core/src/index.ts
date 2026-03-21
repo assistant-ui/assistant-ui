@@ -61,6 +61,13 @@ export type { Unsubscribe } from "./types/unsubscribe";
 export type { QuoteInfo } from "./types/quote";
 
 export type {
+  ChecklistItemData,
+  ChecklistItemStatus,
+  ChecklistData,
+} from "./types/checklist";
+export { flattenChecklistItems } from "./types/checklist";
+
+export type {
   Unstable_DirectiveSegment,
   Unstable_DirectiveFormatter,
 } from "./types/directive";

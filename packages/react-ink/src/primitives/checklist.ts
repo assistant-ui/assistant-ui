@@ -10,4 +10,7 @@ export {
   ChecklistProgress as Progress,
   type ChecklistProgressProps as ProgressProps,
 } from "./checklist/ChecklistProgress";
-export type { ChecklistItemData, ChecklistItemStatus } from "./checklist/types";
+export type {
+  ChecklistItemData,
+  ChecklistItemStatus,
+} from "@assistant-ui/core";

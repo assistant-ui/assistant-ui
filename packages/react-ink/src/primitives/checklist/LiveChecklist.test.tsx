@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "ink-testing-library";
 import { LiveChecklist } from "./LiveChecklist";
-import type { ChecklistItemData } from "./types";
+import type { ChecklistItemData } from "@assistant-ui/core";
 
 const renderFrame = async (node: ReactElement) => {
   const instance = render(node);

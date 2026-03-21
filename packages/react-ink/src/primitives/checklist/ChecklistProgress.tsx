@@ -1,27 +1,17 @@
 import type { ComponentProps } from "react";
 import { Box, Text } from "ink";
-import type { ChecklistItemData } from "./types";
+import type { ChecklistItemData } from "@assistant-ui/core";
+import { flattenChecklistItems } from "@assistant-ui/core";
 
 export type ChecklistProgressProps = ComponentProps<typeof Box> & {
   items: ChecklistItemData[];
-};
-
-const flattenItems = (items: ChecklistItemData[]): ChecklistItemData[] => {
-  const result: ChecklistItemData[] = [];
-  for (const item of items) {
-    result.push(item);
-    if (item.children) {
-      result.push(...flattenItems(item.children));
-    }
-  }
-  return result;
 };
 
 export const ChecklistProgress = ({
   items,
   ...boxProps
 }: ChecklistProgressProps) => {
-  const flat = flattenItems(items);
+  const flat = flattenChecklistItems(items);
   const done = flat.filter(
     (i) => i.status === "complete" || i.status === "error",
   ).length;

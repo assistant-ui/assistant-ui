@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
-import type { ChecklistItemData } from "./types";
+import type { ChecklistItemData } from "@assistant-ui/core";
 
 export type ChecklistItemProps = ComponentProps<typeof Box> & {
   item: ChecklistItemData;
