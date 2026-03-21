@@ -30,8 +30,26 @@ export const ChecklistItem = ({
   renderItem,
   ...boxProps
 }: ChecklistItemProps) => {
+  const children =
+    item.children && depth < maxDepth
+      ? item.children.map((child) => (
+          <ChecklistItem
+            key={child.id}
+            item={child}
+            depth={depth + 1}
+            maxDepth={maxDepth}
+            renderItem={renderItem}
+          />
+        ))
+      : null;
+
   if (renderItem) {
-    return <>{renderItem({ item, depth })}</>;
+    return (
+      <>
+        {renderItem({ item, depth })}
+        {children}
+      </>
+    );
   }
 
   const color = STATUS_COLORS[item.status];
@@ -59,17 +77,7 @@ export const ChecklistItem = ({
         </Text>
         {item.detail ? <Text dimColor>({item.detail})</Text> : null}
       </Box>
-      {item.children && depth < maxDepth
-        ? item.children.map((child) => (
-            <ChecklistItem
-              key={child.id}
-              item={child}
-              depth={depth + 1}
-              maxDepth={maxDepth}
-              {...(renderItem ? { renderItem } : undefined)}
-            />
-          ))
-        : null}
+      {children}
     </Box>
   );
 };

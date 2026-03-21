@@ -25,25 +25,33 @@ export const ChecklistPrimitiveItem = forwardRef<
   ChecklistPrimitiveItem.Element,
   ChecklistPrimitiveItem.Props
 >(({ item, depth = 0, maxDepth = 2, renderItem, ...props }, ref) => {
+  const children =
+    item.children && depth < maxDepth
+      ? item.children.map((child) => (
+          <ChecklistPrimitiveItem
+            key={child.id}
+            item={child}
+            depth={depth + 1}
+            maxDepth={maxDepth}
+            renderItem={renderItem}
+          />
+        ))
+      : null;
+
   if (renderItem) {
-    return <>{renderItem({ item, depth })}</>;
+    return (
+      <>
+        {renderItem({ item, depth })}
+        {children}
+      </>
+    );
   }
 
   return (
     <Primitive.div data-status={item.status} {...props} ref={ref}>
       <span>{item.text}</span>
       {item.detail ? <span data-detail="">{item.detail}</span> : null}
-      {item.children && depth < maxDepth
-        ? item.children.map((child) => (
-            <ChecklistPrimitiveItem
-              key={child.id}
-              item={child}
-              depth={depth + 1}
-              maxDepth={maxDepth}
-              renderItem={renderItem}
-            />
-          ))
-        : null}
+      {children}
     </Primitive.div>
   );
 });

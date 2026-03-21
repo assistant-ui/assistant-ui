@@ -17,12 +17,12 @@ export const flattenChecklistItems = (
   items: ChecklistItemData[],
 ): ChecklistItemData[] => {
   const result: ChecklistItemData[] = [];
-  const stack = [...items];
-  while (stack.length > 0) {
-    const item = stack.pop()!;
+  const queue = [...items];
+  while (queue.length > 0) {
+    const item = queue.shift()!;
     result.push(item);
     if (item.children) {
-      stack.push(...item.children);
+      queue.push(...item.children);
     }
   }
   return result;
