@@ -57,9 +57,6 @@ const ComposerPrimitiveQueueInner: FC<{
  * </ComposerPrimitive.Queue>
  * ```
  */
-export const ComposerPrimitiveQueue = memo(
-  ComposerPrimitiveQueueInner,
-  (prev, next) => prev.children === next.children,
-);
+export const ComposerPrimitiveQueue = memo(ComposerPrimitiveQueueInner);
 
 ComposerPrimitiveQueue.displayName = "ComposerPrimitive.Queue";
