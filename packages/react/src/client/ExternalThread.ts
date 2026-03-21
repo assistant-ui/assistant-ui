@@ -54,8 +54,8 @@ export type ExternalThreadProps = {
    * Callback for new messages (non-queue runtimes).
    * @note Unused when `queue` is provided — new messages are routed through `queue.enqueue` instead.
    */
-  onNew?: (message: any) => void;
-  onEdit?: (message: any) => void;
+  onNew?: (message: AppendMessage) => void;
+  onEdit?: (message: AppendMessage) => void;
   onReload?: (parentId: string | null) => void;
   onStartRun?: () => void;
   onCancel?: () => void;
@@ -66,7 +66,7 @@ export type ExternalThreadProps = {
 type MessageClientProps = {
   message: ExternalThreadMessage;
   index: number;
-  onEdit?: (message: any) => void;
+  onEdit?: (message: AppendMessage) => void;
   onReload?: () => void;
   queue?: ExternalThreadQueueAdapter | undefined;
 };
@@ -114,7 +114,7 @@ const MessageClient = resource(
       setIsEditing(false);
     };
 
-    const handleSendEdit = (msg: any) => {
+    const handleSendEdit = (msg: AppendMessage) => {
       queue?.clear("edit");
       onEdit?.({
         ...msg,
@@ -244,7 +244,7 @@ type ComposerClientResourceProps = {
   canCancel: boolean;
   onCancel: () => void;
   onBeginEdit?: () => void;
-  onSend?: (message: any) => void;
+  onSend?: (message: AppendMessage) => void;
   message?: ExternalThreadMessage;
   queue?: ExternalThreadQueueAdapter | undefined;
 };
@@ -494,7 +494,7 @@ export const ExternalThread = resource(
       onCancel?.();
     };
 
-    const handleSendNew = (message: any) => {
+    const handleSendNew = (message: AppendMessage) => {
       onNew?.(message);
     };
 
@@ -553,10 +553,33 @@ export const ExternalThread = resource(
       getState: () => state,
       composer: () => composerClient.methods,
       append: (message) => {
+        const appendMessage: AppendMessage =
+          typeof message === "string"
+            ? {
+                createdAt: new Date(),
+                parentId: messages.at(-1)?.id ?? null,
+                sourceId: null,
+                runConfig: {},
+                role: "user",
+                content: [{ type: "text", text: message }],
+                attachments: [],
+                metadata: { custom: {} },
+              }
+            : {
+                createdAt: message.createdAt ?? new Date(),
+                parentId: message.parentId ?? messages.at(-1)?.id ?? null,
+                sourceId: message.sourceId ?? null,
+                role: message.role ?? "user",
+                content: message.content,
+                attachments: message.attachments ?? [],
+                metadata: message.metadata ?? { custom: {} },
+                runConfig: message.runConfig ?? {},
+                startRun: message.startRun,
+              };
         if (queue) {
-          queue.enqueue(message, { steer: false });
+          queue.enqueue(appendMessage, { steer: false });
         } else {
-          onNew?.(message);
+          onNew?.(appendMessage);
         }
       },
       startRun: () => {
