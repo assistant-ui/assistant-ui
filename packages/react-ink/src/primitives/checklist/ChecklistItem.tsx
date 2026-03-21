@@ -38,7 +38,7 @@ export const ChecklistItem = ({
             item={child}
             depth={depth + 1}
             maxDepth={maxDepth}
-            renderItem={renderItem}
+            {...(renderItem ? { renderItem } : undefined)}
           />
         ))
       : null;
