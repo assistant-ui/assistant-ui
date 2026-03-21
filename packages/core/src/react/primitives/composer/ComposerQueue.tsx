@@ -13,31 +13,27 @@ export namespace ComposerPrimitiveQueue {
 const ComposerPrimitiveQueueInner: FC<{
   children: (value: { queueItem: QueueItemState }) => ReactNode;
 }> = ({ children }) => {
-  // Subscribe to the full queue to get stable ids for React keys.
-  // Queue items are small and changes are infrequent.
-  const queue = useAuiState((s) => s.composer.queue);
+  const queue = useAuiState((s) => s.composer.queue.length);
 
   return useMemo(
     () =>
-      queue.length === 0
-        ? null
-        : queue.map((item, index) => (
-            <QueueItemByIndexProvider key={item.id} index={index}>
-              <RenderChildrenWithAccessor
-                getItemState={(aui) =>
-                  aui.composer().queueItem({ index }).getState()
-                }
-              >
-                {(getItem) =>
-                  children({
-                    get queueItem() {
-                      return getItem();
-                    },
-                  })
-                }
-              </RenderChildrenWithAccessor>
-            </QueueItemByIndexProvider>
-          )),
+      Array.from({ length: queue }, (_, index) => (
+        <QueueItemByIndexProvider key={index} index={index}>
+          <RenderChildrenWithAccessor
+            getItemState={(aui) =>
+              aui.composer().queueItem({ index }).getState()
+            }
+          >
+            {(getItem) =>
+              children({
+                get queueItem() {
+                  return getItem();
+                },
+              })
+            }
+          </RenderChildrenWithAccessor>
+        </QueueItemByIndexProvider>
+      )),
     [queue, children],
   );
 };
