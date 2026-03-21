@@ -15,6 +15,7 @@ import {
 } from "@assistant-ui/store";
 import { withKey } from "@assistant-ui/tap";
 import type {
+  AppendMessage,
   Attachment,
   CreateAttachment,
   ThreadAssistantMessagePart,
@@ -37,17 +38,22 @@ export type ExternalThreadQueueAdapter = {
   /** The current queue items. */
   items: readonly QueueItemState[];
   /** Called when a message is submitted via the composer. Receives the steer preference. */
-  enqueue: (message: any, opts: { steer: boolean }) => void;
+  enqueue: (message: AppendMessage, opts: { steer: boolean }) => void;
   /** Called to promote an existing queue item (cancel current run, run this immediately). */
   steer: (queueItemId: string) => void;
   /** Called to remove an item from the queue. */
   remove: (queueItemId: string) => void;
+  /** Called to clear all pending queue items, with the reason for clearing. */
+  clear: (reason: "edit" | "reload" | "cancel-run") => void;
 };
 
 export type ExternalThreadProps = {
   messages: readonly ExternalThreadMessage[];
   isRunning?: boolean;
-  /** Callback for new messages (non-queue runtimes). Ignored when `queue` is provided. */
+  /**
+   * Callback for new messages (non-queue runtimes).
+   * @note Unused when `queue` is provided — new messages are routed through `queue.enqueue` instead.
+   */
   onNew?: (message: any) => void;
   onEdit?: (message: any) => void;
   onReload?: (parentId: string | null) => void;
@@ -62,6 +68,7 @@ type MessageClientProps = {
   index: number;
   onEdit?: (message: any) => void;
   onReload?: () => void;
+  queue?: ExternalThreadQueueAdapter | undefined;
 };
 
 // Message Client - minimal implementation
@@ -71,6 +78,7 @@ const MessageClient = resource(
     index,
     onEdit,
     onReload,
+    queue,
   }: MessageClientProps): ClientOutput<"message"> => {
     const [isCopied, setIsCopied] = tapState(false);
     const [isHovering, setIsHovering] = tapState(false);
@@ -107,6 +115,7 @@ const MessageClient = resource(
     };
 
     const handleSendEdit = (msg: any) => {
+      queue?.clear("edit");
       onEdit?.({
         ...msg,
         parentId: message.id,
@@ -124,6 +133,7 @@ const MessageClient = resource(
         onBeginEdit: handleBeginEdit,
         onSend: handleSendEdit,
         message,
+        queue,
       }),
     );
 
@@ -408,11 +418,13 @@ const ComposerClientResource = resource(
       },
       send: (opts?: ComposerSendOptions) => {
         const currentQuote = quote;
-        const composedMessage = {
+        const composedMessage: AppendMessage = {
           role,
           content: text ? [{ type: "text" as const, text }] : [],
           attachments: attachments as any,
           createdAt: new Date(),
+          parentId: null,
+          sourceId: null,
           runConfig,
           metadata: {
             custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
@@ -458,6 +470,7 @@ export const ExternalThread = resource(
       if (messageIndex === -1) return;
 
       const parentId = messageIndex > 0 ? messages[messageIndex - 1]!.id : null;
+      queue?.clear("reload");
       onReload?.(parentId);
     };
 
@@ -468,14 +481,16 @@ export const ExternalThread = resource(
             message: msg,
             index,
             onReload: () => handleReload(msg.id),
+            queue,
           };
           if (onEdit) props.onEdit = onEdit;
           return withKey(msg.id, MessageClient(props));
         }),
-      [messages, onEdit],
+      [messages, onEdit, queue],
     );
 
     const handleCancelRun = () => {
+      queue?.clear("cancel-run");
       onCancel?.();
     };
 
@@ -538,7 +553,11 @@ export const ExternalThread = resource(
       getState: () => state,
       composer: () => composerClient.methods,
       append: (message) => {
-        onNew?.(message);
+        if (queue) {
+          queue.enqueue(message, { steer: false });
+        } else {
+          onNew?.(message);
+        }
       },
       startRun: () => {
         onStartRun?.();
@@ -571,6 +590,14 @@ attachTransformScopes(ExternalThread, (scopes, parent) => {
       source: "threads",
       query: { type: "main" },
       get: (aui) => aui.threads().thread("main"),
+    });
+  }
+
+  if (!scopes.threadListItem && parent.threadListItem.source === null) {
+    scopes.threadListItem = Derived({
+      source: "threads",
+      query: { type: "main" },
+      get: (aui) => aui.threads().item("main"),
     });
   }
 
