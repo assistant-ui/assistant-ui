@@ -165,6 +165,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     dictation: false,
     attachments: false,
     feedback: false,
+    queue: false,
   },
 
   isDisabled: false,

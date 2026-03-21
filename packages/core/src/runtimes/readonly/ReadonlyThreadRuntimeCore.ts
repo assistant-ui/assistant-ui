@@ -191,6 +191,7 @@ export class ReadonlyThreadRuntimeCore
     dictation: false,
     attachments: false,
     feedback: false,
+    queue: false,
   } as const;
 
   isDisabled = false;

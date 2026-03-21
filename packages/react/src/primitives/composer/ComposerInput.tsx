@@ -185,7 +185,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
       if (e.key === "Enter") {
         const threadState = aui.thread().getState();
-        const hasQueue = !!threadState.capabilities.queue;
+        const hasQueue = threadState.capabilities.queue;
 
         // Steer hotkey: Cmd/Ctrl+Shift+Enter (respects submitMode="none")
         if (

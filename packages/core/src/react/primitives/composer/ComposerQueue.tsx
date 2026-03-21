@@ -13,6 +13,8 @@ export namespace ComposerPrimitiveQueue {
 const ComposerPrimitiveQueueInner: FC<{
   children: (value: { queueItem: QueueItemState }) => ReactNode;
 }> = ({ children }) => {
+  // Subscribe to the full queue to get stable ids for React keys.
+  // Queue items are small and changes are infrequent.
   const queue = useAuiState((s) => s.composer.queue);
 
   return useMemo(

@@ -27,6 +27,8 @@ import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
 import { SingleThreadList } from "./SingleThreadList";
 
+const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
+
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
 };
@@ -314,7 +316,7 @@ const ComposerClientResource = resource(
       [attachments],
     );
 
-    const queueItems = queue?.items ?? [];
+    const queueItems = queue?.items ?? EMPTY_QUEUE_ITEMS;
     const queueItemClients = tapClientLookup(
       () =>
         queueItems.map((item) =>
