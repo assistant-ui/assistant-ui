@@ -1,5 +1,11 @@
 # @assistant-ui/core
 
+## Unreleased
+
+### Patch Changes
+
+- fix(core): prevent stale list() response from undoing concurrent delete/archive/unarchive in OptimisticState
+
 ## 0.1.7
 
 ### Patch Changes
