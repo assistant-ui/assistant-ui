@@ -63,6 +63,7 @@ render(<App />);
 - Composable, unstyled primitives (Thread, Composer, Message, ActionBar, etc.)
 - Streaming responses with real-time updates
 - Tool call support with built-in ToolFallback component
+- Diff rendering with DiffPrimitive components and DiffView for unified diffs and file comparisons in the terminal
 - Message branching and editing
 - Multi-thread support with thread list management
 - Markdown rendering via `@assistant-ui/react-ink-markdown`

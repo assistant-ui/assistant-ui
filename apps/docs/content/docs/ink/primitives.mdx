@@ -704,58 +704,61 @@ A built-in component for rendering tool calls with expandable/collapsible output
 import { DiffPrimitive, DiffView } from "@assistant-ui/react-ink";
 ```
 
-Primitives for rendering unified diffs and file comparisons in the terminal.
-
-`DiffPrimitive.*` components are **unstyled** — they output plain structural content (indicators, line numbers, file names) without any color, bold, or dimColor attributes. Use `renderLine`/`renderFold` on `Content` to add your own styling.
-
-`DiffView` is a **styled** convenience component that handles parsing and provides default colors (green for additions, red for deletions, dimColor for line numbers and fold markers, bold for file names).
+Components for rendering code diffs in the terminal.
 
 ### DiffView
 
-Styled all-in-one component that parses a patch string or computes a diff from two files and renders headers + content for each file with terminal colors.
+Pre-composed component that combines all diff primitives for easy diff rendering. Accepts either a unified diff patch string or old/new file content for inline comparison.
 
 ```tsx
-{/* From a unified diff / patch string */}
-<DiffView patch={patchString} />
-
-{/* From two file contents */}
+// From a patch string
 <DiffView
-  oldFile={{ content: "hello\nworld\n", name: "file.txt" }}
-  newFile={{ content: "hello\nearth\n", name: "file.txt" }}
+  patch={unifiedDiffString}
+  showLineNumbers
   contextLines={3}
   maxLines={50}
+/>
+
+// From file contents
+<DiffView
+  oldFile={{ content: "old text", name: "file.txt" }}
+  newFile={{ content: "new text", name: "file.txt" }}
+  showLineNumbers
 />
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `patch` | `string` | Unified diff string to parse |
-| `oldFile` | `DiffFileInput` | Old file `{ content, name? }` |
-| `newFile` | `DiffFileInput` | New file `{ content, name? }` |
-| `showLineNumbers` | `boolean` | Show line numbers (default: `true`) |
-| `contextLines` | `number` | Number of context lines around changes; unchanged regions are folded |
-| `maxLines` | `number` | Maximum lines to display before truncating |
-| `...rest` | `BoxProps` | Standard Ink Box props |
+| `patch` | `string` | Unified diff patch string to parse and display |
+| `oldFile` | `{ content: string; name?: string }` | Old file content for inline comparison |
+| `newFile` | `{ content: string; name?: string }` | New file content for inline comparison |
+| `showLineNumbers` | `boolean` | Whether to show line numbers (default: true) |
+| `contextLines` | `number` | Number of context lines to show around changes |
+| `maxLines` | `number` | Maximum number of lines to display |
 
 ### Root
 
-Context provider `Box` for composing diff primitives. Accepts pre-parsed `ParsedFile[]` data.
+Container `Box` that provides diff context to child components. Parses the patch or computes the diff from old/new file content.
 
 ```tsx
-<DiffPrimitive.Root files={parsedFiles}>
-  <DiffPrimitive.Header />
-  <DiffPrimitive.Content />
+<DiffPrimitive.Root
+  patch={patchString}
+  oldFile={{ content: oldContent, name: "file.txt" }}
+  newFile={{ content: newContent, name: "file.txt" }}
+>
+  {children}
 </DiffPrimitive.Root>
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `files` | `ParsedFile[]` | Pre-parsed diff file data |
-| `...rest` | `BoxProps` | Standard Ink Box props |
+| `patch` | `string` | Unified diff patch string |
+| `oldFile` | `{ content: string; name?: string }` | Old file for inline diff |
+| `newFile` | `{ content: string; name?: string }` | New file for inline diff |
 
 ### Header
 
-Displays the file name and change stats. Handles renames (shows `old -> new`) and `/dev/null` paths for new/deleted files.
+Displays file header information including filename(s) and change statistics.
 
 ```tsx
 <DiffPrimitive.Header fileIndex={0} />
@@ -763,50 +766,53 @@ Displays the file name and change stats. Handles renames (shows `old -> new`) an
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `fileIndex` | `number` | Index into the `files` array (default: `0`) |
-| `...rest` | `BoxProps` | Standard Ink Box props |
+| `fileIndex` | `number` | Index of file to display header for (default: 0) |
 
 ### Content
 
-Renders diff lines with optional context folding, truncation, and custom renderers.
+Renders the diff content with lines. Supports context folding and line truncation.
 
 ```tsx
 <DiffPrimitive.Content
   fileIndex={0}
-  contextLines={3}
-  maxLines={50}
   showLineNumbers
+  contextLines={3}
+  maxLines={100}
+  renderLine={({ line, index }) => <CustomLine line={line} />}
+  renderFold={({ region, index }) => <CustomFold region={region} />}
 />
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `fileIndex` | `number` | Index into the `files` array (default: `0`) |
-| `showLineNumbers` | `boolean` | Show line numbers (default: `true`) |
-| `contextLines` | `number` | Number of context lines; unchanged regions beyond this are folded |
-| `maxLines` | `number` | Maximum lines to display before truncating |
-| `renderLine` | `(props: { line: ParsedLine; index: number }) => ReactNode` | Custom line renderer |
-| `renderFold` | `(props: { region: FoldedRegion; index: number }) => ReactNode` | Custom fold region renderer |
-| `...rest` | `BoxProps` | Standard Ink Box props |
+| `fileIndex` | `number` | Index of file to display (default: 0) |
+| `showLineNumbers` | `boolean` | Show line numbers (default: true) |
+| `contextLines` | `number` | Number of context lines around changes |
+| `maxLines` | `number` | Maximum lines to display |
+| `renderLine` | `(props: { line; index }) => ReactNode` | Custom line renderer |
+| `renderFold` | `(props: { region; index }) => ReactNode` | Custom fold region renderer |
 
 ### Line
 
-Renders a single diff line with indicator (`+`/`-`/` `) and optional line number. Unstyled — no colors applied.
+Renders an individual diff line with appropriate coloring and indicators.
 
 ```tsx
-<DiffPrimitive.Line line={parsedLine} showLineNumbers lineNumberWidth={4} />
+<DiffPrimitive.Line
+  line={parsedLine}
+  showLineNumbers
+  lineNumberWidth={4}
+/>
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `line` | `ParsedLine` | The parsed line data |
-| `showLineNumbers` | `boolean` | Show line number (default: `true`) |
-| `lineNumberWidth` | `number` | Padding width for line numbers (default: `4`) |
-| `...rest` | `BoxProps` | Standard Ink Box props |
+| `line` | `ParsedLine` | The parsed line object to render |
+| `showLineNumbers` | `boolean` | Show line numbers (default: true) |
+| `lineNumberWidth` | `number` | Width for line number padding (default: 4) |
 
 ### Stats
 
-Displays addition/deletion counts (`+N` / `-N`).
+Displays diff statistics (additions and deletions count).
 
 ```tsx
 <DiffPrimitive.Stats fileIndex={0} />
@@ -814,5 +820,21 @@ Displays addition/deletion counts (`+N` / `-N`).
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `fileIndex` | `number` | Index into the `files` array (default: `0`) |
-| `...rest` | `BoxProps` | Standard Ink Box props |
+| `fileIndex` | `number` | Index of file to display stats for (default: 0) |
+
+### Composing with Primitives
+
+For custom layouts, use the primitives directly:
+
+```tsx
+<DiffPrimitive.Root patch={patchString}>
+  <Box flexDirection="column">
+    <DiffPrimitive.Header />
+    <DiffPrimitive.Stats />
+    <DiffPrimitive.Content
+      showLineNumbers
+      contextLines={2}
+    />
+  </Box>
+</DiffPrimitive.Root>
+```
