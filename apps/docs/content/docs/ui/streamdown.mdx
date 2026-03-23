@@ -247,7 +247,7 @@ Restrict allowed URLs for links and images. This overrides streamdown's default 
 
 ## Detecting Inline vs Block Code
 
-When building custom code components, you can use `useIsStreamdownCodeBlock` to detect whether you're inside a code block or inline code:
+When building custom code components, you can use the context-based hooks `useIsStreamdownCodeBlock` and `useStreamdownPreProps` to detect whether you're inside a code block or inline code:
 
 ```tsx
 import { useIsStreamdownCodeBlock } from "@assistant-ui/react-streamdown";
@@ -280,6 +280,10 @@ function MyCodeComponent({ children }) {
   return <code className={preProps.className}>{children}</code>;
 }
 ```
+
+<Callout type="info">
+  Internally, `PreOverride` injects a `data-block="true"` attribute on code elements within block contexts using `cloneElement`, which the code adapter checks for reliable detection. The context hooks remain available for custom components that need to differentiate between inline and block code.
+</Callout>
 
 ## Comparison with react-markdown
 

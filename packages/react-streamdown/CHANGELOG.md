@@ -1,5 +1,11 @@
 # @assistant-ui/react-streamdown
 
+## 0.1.7
+
+### Patch Changes
+
+- fix(react-streamdown): preserve data-block in PreOverride for block code detection
+
 ## 0.1.6
 
 ### Patch Changes
