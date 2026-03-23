@@ -59,9 +59,7 @@ export const DiffContent = ({
             );
           }
           return (
-            <Text key={i} dimColor>
-              {`  --- ${line.hiddenCount} lines hidden ---`}
-            </Text>
+            <Text key={i}>{`  --- ${line.hiddenCount} lines hidden ---`}</Text>
           );
         }
         if (renderLine) {
@@ -71,9 +69,7 @@ export const DiffContent = ({
           <DiffLine key={i} line={line} showLineNumbers={showLineNumbers} />
         );
       })}
-      {truncated && (
-        <Text dimColor>{`... (${remainingCount} more lines)`}</Text>
-      )}
+      {truncated && <Text>{`... (${remainingCount} more lines)`}</Text>}
     </Box>
   );
 };

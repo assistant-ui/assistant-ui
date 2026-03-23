@@ -704,11 +704,15 @@ A built-in component for rendering tool calls with expandable/collapsible output
 import { DiffPrimitive, DiffView } from "@assistant-ui/react-ink";
 ```
 
-Primitives for rendering unified diffs and file comparisons in the terminal. `DiffView` is a convenience component that handles parsing; the `DiffPrimitive.*` components can be composed individually for custom layouts.
+Primitives for rendering unified diffs and file comparisons in the terminal.
+
+`DiffPrimitive.*` components are **unstyled** — they output plain structural content (indicators, line numbers, file names) without any color, bold, or dimColor attributes. Use `renderLine`/`renderFold` on `Content` to add your own styling.
+
+`DiffView` is a **styled** convenience component that handles parsing and provides default colors (green for additions, red for deletions, dimColor for line numbers and fold markers, bold for file names).
 
 ### DiffView
 
-All-in-one component that parses a patch string or computes a diff from two files and renders headers + content for each file.
+Styled all-in-one component that parses a patch string or computes a diff from two files and renders headers + content for each file with terminal colors.
 
 ```tsx
 {/* From a unified diff / patch string */}
@@ -787,7 +791,7 @@ Renders diff lines with optional context folding, truncation, and custom rendere
 
 ### Line
 
-Renders a single diff line with indicator (`+`/`-`/` `), coloring, and optional line number.
+Renders a single diff line with indicator (`+`/`-`/` `) and optional line number. Unstyled — no colors applied.
 
 ```tsx
 <DiffPrimitive.Line line={parsedLine} showLineNumbers lineNumberWidth={4} />

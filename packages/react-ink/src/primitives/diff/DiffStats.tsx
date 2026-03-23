@@ -13,8 +13,8 @@ export const DiffStats = ({ fileIndex = 0, ...boxProps }: DiffStatsProps) => {
 
   return (
     <Box gap={1} {...boxProps}>
-      <Text color="green">+{file.additions}</Text>
-      <Text color="red">-{file.deletions}</Text>
+      <Text>+{file.additions}</Text>
+      <Text>-{file.deletions}</Text>
     </Box>
   );
 };

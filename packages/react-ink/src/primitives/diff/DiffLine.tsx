@@ -33,14 +33,8 @@ export const DiffLine = ({
 
   return (
     <Box {...boxProps}>
-      {showLineNumbers && <Text dimColor>{padded} </Text>}
-      {line.type === "add" ? (
-        <Text color="green">{content}</Text>
-      ) : line.type === "del" ? (
-        <Text color="red">{content}</Text>
-      ) : (
-        <Text>{content}</Text>
-      )}
+      {showLineNumbers && <Text>{padded} </Text>}
+      <Text>{content}</Text>
     </Box>
   );
 };

@@ -23,14 +23,12 @@ export const DiffHeader = ({ fileIndex = 0, ...boxProps }: DiffHeaderProps) => {
     <Box gap={1} {...boxProps}>
       {renamed ? (
         <>
-          <Text bold dimColor>
-            {file.oldName}
-          </Text>
-          <Text dimColor>{"->"}</Text>
-          <Text bold>{file.newName}</Text>
+          <Text>{file.oldName}</Text>
+          <Text>{"->"}</Text>
+          <Text>{file.newName}</Text>
         </>
       ) : (
-        <Text bold>{displayName}</Text>
+        <Text>{displayName}</Text>
       )}
       <DiffStats fileIndex={fileIndex} />
     </Box>

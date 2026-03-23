@@ -2,10 +2,14 @@ import { type ComponentProps, useMemo } from "react";
 import { Box, Text } from "ink";
 import { DiffContent } from "./DiffContent";
 import { useDiffContext } from "./DiffContext";
-import { DiffHeader } from "./DiffHeader";
 import { DiffRoot } from "./DiffRoot";
 import { computeDiff, parsePatch } from "./diff-utils";
-import type { DiffFileInput, ParsedFile } from "./types";
+import type {
+  DiffFileInput,
+  FoldedRegion,
+  ParsedFile,
+  ParsedLine,
+} from "./types";
 
 export type DiffViewProps = Omit<ComponentProps<typeof Box>, "children"> & {
   patch?: string | undefined;
@@ -22,12 +26,56 @@ interface DiffViewInnerProps {
   maxLines: number | undefined;
 }
 
+const INDICATOR: Record<string, string> = {
+  add: "+",
+  del: "-",
+  normal: " ",
+};
+
+const isDevNull = (n: string | undefined) => !n || n === "/dev/null";
+
+const StyledLine = ({
+  line,
+  showLineNumbers,
+}: {
+  line: ParsedLine;
+  showLineNumbers: boolean;
+}) => {
+  const lineNum =
+    line.type === "del"
+      ? line.oldLineNumber
+      : line.type === "add"
+        ? line.newLineNumber
+        : line.oldLineNumber;
+  const numStr = lineNum !== undefined ? String(lineNum) : "";
+  const padded = numStr.padStart(4);
+  const content = `${INDICATOR[line.type]} ${line.content}`;
+
+  return (
+    <Box>
+      {showLineNumbers && <Text dimColor>{padded} </Text>}
+      {line.type === "add" ? (
+        <Text color="green">{content}</Text>
+      ) : line.type === "del" ? (
+        <Text color="red">{content}</Text>
+      ) : (
+        <Text>{content}</Text>
+      )}
+    </Box>
+  );
+};
+
+const StyledFold = ({ region }: { region: FoldedRegion }) => (
+  <Text dimColor>{`  --- ${region.hiddenCount} lines hidden ---`}</Text>
+);
+
 const DiffViewInner = ({
   showLineNumbers,
   contextLines,
   maxLines,
 }: DiffViewInnerProps) => {
   const { files } = useDiffContext();
+  const shouldShowLineNumbers = showLineNumbers ?? true;
 
   if (files.length === 0) {
     return <Text dimColor>No diff content</Text>;
@@ -35,18 +83,48 @@ const DiffViewInner = ({
 
   return (
     <>
-      {files.map((_, i) => (
-        <Box key={i} flexDirection="column">
-          <DiffHeader fileIndex={i} />
-          <DiffContent
-            fileIndex={i}
-            showLineNumbers={showLineNumbers}
-            contextLines={contextLines}
-            maxLines={maxLines}
-          />
-          {i < files.length - 1 && <Text> </Text>}
-        </Box>
-      ))}
+      {files.map((file, i) => {
+        const renamed =
+          !isDevNull(file.oldName) &&
+          !isDevNull(file.newName) &&
+          file.oldName !== file.newName;
+        const displayName = isDevNull(file.newName)
+          ? file.oldName
+          : file.newName;
+
+        return (
+          <Box key={i} flexDirection="column">
+            <Box gap={1}>
+              {renamed ? (
+                <>
+                  <Text bold dimColor>
+                    {file.oldName}
+                  </Text>
+                  <Text dimColor>{"->"}</Text>
+                  <Text bold>{file.newName}</Text>
+                </>
+              ) : (
+                <Text bold>{displayName}</Text>
+              )}
+              <Text color="green">+{file.additions}</Text>
+              <Text color="red">-{file.deletions}</Text>
+            </Box>
+            <DiffContent
+              fileIndex={i}
+              contextLines={contextLines}
+              maxLines={maxLines}
+              renderLine={({ line }) => (
+                <StyledLine
+                  line={line}
+                  showLineNumbers={shouldShowLineNumbers}
+                />
+              )}
+              renderFold={({ region }) => <StyledFold region={region} />}
+            />
+            {i < files.length - 1 && <Text> </Text>}
+          </Box>
+        );
+      })}
     </>
   );
 };
