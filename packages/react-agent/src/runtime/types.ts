@@ -287,6 +287,12 @@ export interface AgentClientConfig {
   model?: string;
 }
 
+export type CodexSandboxMode =
+  | "read-only"
+  | "workspace-write"
+  | "danger-full-access";
+export type CodexApprovalPolicy = "on-request" | "never";
+
 export interface CodexClientConfig {
   /** Working directory for the Codex session */
   cwd: string;
@@ -296,6 +302,19 @@ export interface CodexClientConfig {
   model?: string;
   /** OpenAI API key — passed to subprocess via OPENAI_API_KEY env var */
   apiKey?: string;
+  /**
+   * Sandbox mode for the Codex session.
+   * - "danger-full-access": full read/write/execute (default)
+   * - "workspace-write": read everywhere, write only in cwd
+   * - "read-only": read-only access
+   */
+  sandbox?: CodexSandboxMode;
+  /**
+   * Approval policy for tool execution.
+   * - "never": no approvals required (default, for full-access mode)
+   * - "on-request": require approval for writes/executes (for supervised mode)
+   */
+  approvalPolicy?: CodexApprovalPolicy;
 }
 
 export interface CreateTaskOptions {

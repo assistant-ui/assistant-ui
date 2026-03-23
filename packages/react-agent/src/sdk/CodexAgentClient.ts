@@ -233,6 +233,10 @@ class CodexTaskController {
     new Map();
   private pendingUserInputs: Map<string, { jsonRpcId: string | number }> =
     new Map();
+  /** Buffer for command output deltas, keyed by toolCallId */
+  private commandOutputBuffer: Map<string, string> = new Map();
+  /** Tracks the currently executing command's toolCallId */
+  private activeCommandToolId: string | null = null;
   private threadId: string | null = null;
   // activeTurnId stored for future multi-turn support
   isRunning = false;
@@ -422,10 +426,12 @@ class CodexTaskController {
       });
       this.connection.sendNotification("initialized");
 
-      // 5. thread/start — NO approvalPolicy or sandbox
+      // 5. thread/start — with sandbox and approval policy
       const threadResult = (await this.connection.sendRequest("thread/start", {
         cwd: this.config.cwd,
         experimentalRawEvents: false,
+        approvalPolicy: this.config.approvalPolicy ?? "never",
+        sandbox: this.config.sandbox ?? "danger-full-access",
         ...(this.config.model ? { model: this.config.model } : {}),
       })) as { thread: { id: string } };
       this.threadId = threadResult.thread.id;
@@ -587,14 +593,16 @@ class CodexTaskController {
           },
         ];
 
-      case "item/commandExecution/outputDelta":
-        return [
-          {
-            type: "message_delta",
-            taskId: this.taskId,
-            data: { text: (p["delta"] as string | undefined) ?? "" },
-          },
-        ];
+      case "item/commandExecution/outputDelta": {
+        const delta = (p["delta"] as string | undefined) ?? "";
+        if (this.activeCommandToolId) {
+          const prev =
+            this.commandOutputBuffer.get(this.activeCommandToolId) ?? "";
+          this.commandOutputBuffer.set(this.activeCommandToolId, prev + delta);
+        }
+        // Don't emit as message_delta — output will be attached to tool_result
+        return [];
+      }
 
       // Codex-prefixed tool execution events
       case "codex/event/exec_command_begin": {
@@ -615,6 +623,8 @@ class CodexTaskController {
           (msg["call_id"] as string | undefined) ??
           (p["id"] as string | undefined) ??
           `tool_${nanoid()}`;
+        this.activeCommandToolId = toolId;
+        this.commandOutputBuffer.set(toolId, "");
         return [
           {
             type: "tool_use",
@@ -634,16 +644,28 @@ class CodexTaskController {
           (endMsg["call_id"] as string | undefined) ??
           (p["id"] as string | undefined) ??
           "";
+        const bufferedOutput = this.commandOutputBuffer.get(endToolId) ?? "";
+        this.commandOutputBuffer.delete(endToolId);
+        if (this.activeCommandToolId === endToolId) {
+          this.activeCommandToolId = null;
+        }
+        const exitCode = endMsg["exit_code"] as number | undefined;
+        // Output can come from: buffered outputDelta events, the end message itself, or stdout/stderr fields
+        const output =
+          bufferedOutput ||
+          (typeof endMsg["output"] === "string" ? endMsg["output"] : "") ||
+          (typeof endMsg["stdout"] === "string" ? endMsg["stdout"] : "") ||
+          (typeof p["output"] === "string" ? p["output"] : "");
         return [
           {
             type: "tool_result",
             taskId: this.taskId,
             data: {
               toolCallId: endToolId,
-              result: "done",
-              isError:
-                (endMsg["exit_code"] as number | undefined) !== 0 &&
-                endMsg["exit_code"] !== undefined,
+              result: output
+                ? { stdout: output, exitCode: exitCode ?? 0 }
+                : { exitCode: exitCode ?? 0 },
+              isError: exitCode !== 0 && exitCode !== undefined,
             },
           },
         ];
@@ -712,12 +734,17 @@ class CodexTaskController {
         const item = (p["item"] ?? {}) as Record<string, unknown>;
         const itemType = (item["type"] as string | undefined) ?? "";
         if (this.isToolItemType(itemType)) {
+          const itemId =
+            (item["id"] as string | undefined) ?? `tool_${nanoid()}`;
+          // Track active tool for output delta buffering
+          this.activeCommandToolId = itemId;
+          this.commandOutputBuffer.set(itemId, "");
           return [
             {
               type: "tool_use",
               taskId: this.taskId,
               data: {
-                toolCallId: item["id"],
+                toolCallId: itemId,
                 toolName: itemType,
                 toolInput: (item["data"] as unknown) ?? {},
               },
@@ -741,13 +768,30 @@ class CodexTaskController {
         const item = (p["item"] ?? {}) as Record<string, unknown>;
         const itemType = (item["type"] as string | undefined) ?? "";
         if (this.isToolItemType(itemType)) {
+          const completedId = (item["id"] as string | undefined) ?? "";
+          // Include any buffered output from outputDelta events
+          const buffered = this.commandOutputBuffer.get(completedId) ?? "";
+          this.commandOutputBuffer.delete(completedId);
+          if (this.activeCommandToolId === completedId) {
+            this.activeCommandToolId = null;
+          }
+          const rawOutput = item["output"];
+          const outputStr =
+            buffered ||
+            (typeof rawOutput === "string" ? rawOutput : "") ||
+            (typeof item["result"] === "string"
+              ? (item["result"] as string)
+              : "");
+          const result = outputStr
+            ? { stdout: outputStr, exitCode: 0 }
+            : (rawOutput ?? { exitCode: 0 });
           return [
             {
               type: "tool_result",
               taskId: this.taskId,
               data: {
-                toolCallId: item["id"],
-                result: item["output"],
+                toolCallId: completedId,
+                result,
                 isError: item["status"] === "failed",
               },
             },
@@ -792,6 +836,46 @@ class CodexTaskController {
             type: "item_updated",
             taskId: this.taskId,
             data: { itemId, detail: p["output"] },
+          },
+        ];
+      }
+
+      // File change output deltas — buffer for inclusion in tool_result
+      case "item/fileChange/outputDelta": {
+        const delta = (p["delta"] as string | undefined) ?? "";
+        const fcItemId =
+          (p["itemId"] as string | undefined) ?? this.activeCommandToolId;
+        if (fcItemId) {
+          const prev = this.commandOutputBuffer.get(fcItemId) ?? "";
+          this.commandOutputBuffer.set(fcItemId, prev + delta);
+        }
+        return [];
+      }
+
+      // File change approval requests
+      case "item/fileChange/requestApproval":
+      case "applyPatchApproval": {
+        const approvalId =
+          (p["approvalId"] as string | undefined) ??
+          (p["id"] as string | undefined) ??
+          `approval_${nanoid()}`;
+        const approvalItemId = (p["itemId"] as string | undefined) ?? "";
+        const detail =
+          (p["command"] as string | undefined) ??
+          (p["summary"] as string | undefined) ??
+          (p["detail"] as string | undefined) ??
+          "File change";
+        return [
+          {
+            type: "tool_use_requested",
+            taskId: this.taskId,
+            data: {
+              approvalId,
+              toolCallId: approvalItemId,
+              toolName: "file_change",
+              args: p,
+              detail,
+            },
           },
         ];
       }

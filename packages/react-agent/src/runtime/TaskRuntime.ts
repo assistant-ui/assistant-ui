@@ -35,6 +35,7 @@ export class TaskRuntime {
   private plan: PlanRuntime | null = null;
   private eventSubscribers: Set<(event: AgentEvent) => void> = new Set();
   private listeners: Set<() => void> = new Set();
+  private eventHistory: AgentEvent[] = [];
   private originalPrompt: string;
   private serverTaskId: string;
   private streamingPromise: Promise<void> | null = null;
@@ -93,6 +94,10 @@ export class TaskRuntime {
 
   getPlan(): PlanRuntime | null {
     return this.plan;
+  }
+
+  getEventHistory(): readonly AgentEvent[] {
+    return this.eventHistory;
   }
 
   subscribeToEvents(callback: (event: AgentEvent) => void): () => void {
@@ -238,6 +243,7 @@ export class TaskRuntime {
 
     // Handle new event
     if (result.newEvent) {
+      this.eventHistory = [...this.eventHistory, result.newEvent];
       const agent = this.agents.get(result.newEvent.agentId);
       if (agent) {
         agent.addEvent(result.newEvent);

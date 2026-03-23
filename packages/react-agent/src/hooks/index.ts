@@ -11,6 +11,8 @@ export {
   useTask,
   useTaskState,
   useTaskStateById,
+  useThreadTask,
+  useThreadTaskState,
 } from "./useTaskState";
 export type { TaskProviderProps } from "./useTaskState";
 

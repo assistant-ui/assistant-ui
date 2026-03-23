@@ -128,3 +128,65 @@ export function useTaskStateById<T>(
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
+
+export function useThreadTask(threadId: string): TaskRuntime | null {
+  const workspace = useAgentWorkspace();
+
+  return useSyncExternalStore(
+    (callback) => workspace.subscribe(callback),
+    () => workspace.getTaskByThreadId(threadId),
+    () => null,
+  );
+}
+
+export function useThreadTaskState<T>(
+  threadId: string,
+  selector: (state: TaskState | null) => T,
+): T {
+  const workspace = useAgentWorkspace();
+  const selectorRef = useRef(selector);
+  const lastTaskRef = useRef<TaskRuntime | null>(null);
+  const lastStateRef = useRef<TaskState | null>(null);
+  const lastSelectionRef = useRef<T | null>(null);
+  const hasSelectionRef = useRef(false);
+
+  if (selectorRef.current !== selector) {
+    selectorRef.current = selector;
+    hasSelectionRef.current = false;
+  }
+
+  const getSnapshot = useCallback(() => {
+    const task = workspace.getTaskByThreadId(threadId);
+    const state = task?.getState() ?? null;
+
+    if (
+      lastTaskRef.current === task &&
+      lastStateRef.current === state &&
+      hasSelectionRef.current
+    ) {
+      return lastSelectionRef.current as T;
+    }
+
+    const selection = selectorRef.current(state);
+    if (
+      hasSelectionRef.current &&
+      Object.is(lastSelectionRef.current, selection)
+    ) {
+      lastTaskRef.current = task;
+      lastStateRef.current = state;
+      return lastSelectionRef.current as T;
+    }
+
+    lastTaskRef.current = task;
+    lastStateRef.current = state;
+    lastSelectionRef.current = selection;
+    hasSelectionRef.current = true;
+    return selection;
+  }, [threadId, workspace]);
+
+  return useSyncExternalStore(
+    (callback) => workspace.subscribe(callback),
+    getSnapshot,
+    getSnapshot,
+  );
+}

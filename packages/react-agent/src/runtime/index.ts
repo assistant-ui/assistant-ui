@@ -47,4 +47,6 @@ export type {
   ItemUpdatedEvent,
   ItemCompletedEvent,
   CodexClientConfig,
+  CodexSandboxMode,
+  CodexApprovalPolicy,
 } from "./types";

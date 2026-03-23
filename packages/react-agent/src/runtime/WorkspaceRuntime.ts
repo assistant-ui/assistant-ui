@@ -23,6 +23,7 @@ export class WorkspaceRuntime {
   private client: AgentClientInterface;
   private permissionStore: PermissionStoreInterface;
   private tasks: Map<string, TaskRuntime> = new Map();
+  private threadTaskBindings: Map<string, string> = new Map();
   private taskUnsubscribes: Map<string, () => void> = new Map();
   private listeners: Set<() => void> = new Set();
   private cachedTasksArray: TaskRuntime[] = [];
@@ -46,6 +47,47 @@ export class WorkspaceRuntime {
     prompt: string,
     options?: Partial<CreateTaskOptions>,
   ): Promise<TaskRuntime> {
+    return this.createTaskInternal(prompt, options);
+  }
+
+  async createThreadTask(
+    threadId: string,
+    prompt: string,
+    options?: Partial<CreateTaskOptions>,
+  ): Promise<TaskRuntime> {
+    return this.createTaskInternal(prompt, options, threadId);
+  }
+
+  getTaskByThreadId(threadId: string): TaskRuntime | null {
+    const taskId = this.threadTaskBindings.get(threadId);
+    if (!taskId) return null;
+    return this.tasks.get(taskId) ?? null;
+  }
+
+  getThreadTaskId(threadId: string): string | null {
+    return this.threadTaskBindings.get(threadId) ?? null;
+  }
+
+  bindThreadToTask(threadId: string, taskId: string): void {
+    if (!this.tasks.has(taskId)) {
+      throw new Error(`Task not found: ${taskId}`);
+    }
+
+    this.threadTaskBindings.set(threadId, taskId);
+    this.notify();
+  }
+
+  clearThreadTask(threadId: string): void {
+    if (!this.threadTaskBindings.has(threadId)) return;
+    this.threadTaskBindings.delete(threadId);
+    this.notify();
+  }
+
+  private async createTaskInternal(
+    prompt: string,
+    options?: Partial<CreateTaskOptions>,
+    threadId?: string,
+  ): Promise<TaskRuntime> {
     const taskOptions: CreateTaskOptions = {
       ...options,
       prompt,
@@ -57,6 +99,9 @@ export class WorkspaceRuntime {
     });
 
     this.tasks.set(task.id, task);
+    if (threadId) {
+      this.threadTaskBindings.set(threadId, task.id);
+    }
 
     // Subscribe to task changes to propagate updates
     const unsubscribe = task.subscribe(() => this.notify());
@@ -79,6 +124,11 @@ export class WorkspaceRuntime {
     if (unsubscribe) {
       unsubscribe();
       this.taskUnsubscribes.delete(taskId);
+    }
+    for (const [threadId, boundTaskId] of this.threadTaskBindings.entries()) {
+      if (boundTaskId === taskId) {
+        this.threadTaskBindings.delete(threadId);
+      }
     }
     this.tasks.delete(taskId);
     this.notify();

@@ -1,24 +1,18 @@
 import { useRef } from "react";
 import type { WorkspaceRuntime } from "../runtime/WorkspaceRuntime";
 import { AsyncEventQueue } from "./AsyncEventQueue";
-import type { AgentEvent } from "../runtime/types";
+import type { AgentEvent, TaskState, TaskStatus } from "../runtime/types";
 
-/**
- * Minimal subset of ChatModelRunOptions needed by the bridge.
- * Mirrors the type from @assistant-ui/core without requiring a dependency.
- */
 type BridgeRunOptions = {
   readonly messages: ReadonlyArray<{
     role: string;
     content: ReadonlyArray<{ type: string; text?: string }>;
   }>;
   readonly abortSignal: AbortSignal;
+  readonly unstable_threadId?: string;
   readonly [key: string]: unknown;
 };
 
-/**
- * Minimal ChatModelRunResult shape matching @assistant-ui/core.
- */
 type BridgeContentPart =
   | { readonly type: "text"; readonly text: string }
   | { readonly type: "reasoning"; readonly text: string }
@@ -45,29 +39,155 @@ type BridgeRunResult = {
   };
 };
 
-/**
- * Minimal ChatModelAdapter shape matching @assistant-ui/core.
- */
 export type ChatModelAdapter = {
   run(
     options: BridgeRunOptions,
   ): Promise<BridgeRunResult> | AsyncGenerator<BridgeRunResult, void>;
 };
 
-export function useAgentChatRuntime(
-  workspace: WorkspaceRuntime,
-  options?: { model?: string; maxTokens?: number },
-): ChatModelAdapter {
-  const workspaceRef = useRef(workspace);
-  workspaceRef.current = workspace;
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
+export type UseAgentChatRuntimeOptions = {
+  model?: string;
+  maxTokens?: number;
+  threadId?: string;
+};
 
-  const adapter = useRef<ChatModelAdapter>({
+const ACTIVE_TASK_STATUSES = new Set<TaskStatus>([
+  "starting",
+  "running",
+  "waiting_input",
+  "interrupting",
+]);
+
+const isTaskActive = (status: TaskStatus) => ACTIVE_TASK_STATUSES.has(status);
+
+const applyEventToParts = (
+  event: AgentEvent,
+  parts: BridgeContentPart[],
+  refs: { textPartIndex: number; reasoningPartIndex: number },
+) => {
+  switch (event.type) {
+    case "message": {
+      const c = event.content as { text: string };
+      if (refs.textPartIndex >= 0) {
+        const existing = parts[refs.textPartIndex] as {
+          type: "text";
+          text: string;
+        };
+        parts[refs.textPartIndex] = {
+          type: "text",
+          text: existing.text + c.text,
+        };
+      } else {
+        refs.textPartIndex = parts.length;
+        parts.push({ type: "text", text: c.text });
+      }
+      break;
+    }
+    case "reasoning": {
+      const c = event.content as { text: string };
+      if (refs.reasoningPartIndex >= 0) {
+        const existing = parts[refs.reasoningPartIndex] as {
+          type: "reasoning";
+          text: string;
+        };
+        parts[refs.reasoningPartIndex] = {
+          type: "reasoning",
+          text: existing.text + c.text,
+        };
+      } else {
+        refs.reasoningPartIndex = parts.length;
+        parts.push({ type: "reasoning", text: c.text });
+      }
+      break;
+    }
+    case "tool_call": {
+      const c = event.content as {
+        toolCallId: string;
+        toolName: string;
+        toolInput: unknown;
+      };
+      refs.textPartIndex = -1;
+      parts.push({
+        type: "tool-call",
+        toolCallId: c.toolCallId,
+        toolName: c.toolName,
+        args: c.toolInput as Record<string, unknown>,
+        argsText: JSON.stringify(c.toolInput),
+      });
+      break;
+    }
+    case "tool_result": {
+      const c = event.content as {
+        toolCallId: string;
+        result: unknown;
+        isError?: boolean;
+      };
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const p = parts[i]!;
+        if (p.type === "tool-call" && p.toolCallId === c.toolCallId) {
+          parts[i] = {
+            ...p,
+            ...(c.result !== undefined ? { result: c.result } : {}),
+            ...(c.isError !== undefined ? { isError: c.isError } : {}),
+          };
+          break;
+        }
+      }
+      break;
+    }
+    default:
+      break;
+  }
+};
+
+const getInitialResults = (
+  taskState: TaskState,
+  events: readonly AgentEvent[],
+  parts: BridgeContentPart[],
+  refs: { textPartIndex: number; reasoningPartIndex: number },
+): BridgeRunResult[] => {
+  for (const event of events) {
+    applyEventToParts(event, parts, refs);
+  }
+
+  const results: BridgeRunResult[] = [];
+  if (parts.length > 0) {
+    results.push({ content: [...parts] });
+  }
+
+  if (taskState.pendingApprovals.length > 0) {
+    results.push({
+      status: {
+        type: "requires-action",
+        reason: "tool-calls",
+      },
+      metadata: {
+        custom: { approvals: taskState.pendingApprovals },
+      },
+    });
+  }
+
+  if (taskState.proposedPlan?.status === "proposed") {
+    results.push({
+      status: {
+        type: "requires-action",
+        reason: "interrupt",
+      },
+      metadata: { custom: { plan: taskState.proposedPlan } },
+    });
+  }
+
+  return results;
+};
+
+export function createAgentChatAdapter(
+  workspace: WorkspaceRuntime,
+  options?: UseAgentChatRuntimeOptions,
+): ChatModelAdapter {
+  return {
     async *run(
       chatOptions: BridgeRunOptions,
     ): AsyncGenerator<BridgeRunResult, void> {
-      // 1. Extract last user message text
       const lastMessage = chatOptions.messages[chatOptions.messages.length - 1];
       const prompt =
         lastMessage?.role === "user"
@@ -77,112 +197,58 @@ export function useAgentChatRuntime(
               .join("\n")
           : "";
 
-      // 2. Create task
-      const taskOpts: Parameters<WorkspaceRuntime["createTask"]>[1] = {};
-      if (optionsRef.current?.model !== undefined)
-        taskOpts.model = optionsRef.current.model;
-      if (optionsRef.current?.maxTokens !== undefined)
-        taskOpts.maxTokens = optionsRef.current.maxTokens;
-      const task = await workspaceRef.current.createTask(prompt, taskOpts);
+      const threadId = chatOptions.unstable_threadId ?? options?.threadId;
+      const existingTask = threadId
+        ? workspace.getTaskByThreadId(threadId)
+        : null;
+      const taskOptions = {
+        ...(options?.model !== undefined ? { model: options.model } : {}),
+        ...(options?.maxTokens !== undefined
+          ? { maxTokens: options.maxTokens }
+          : {}),
+      };
+      const task =
+        existingTask && isTaskActive(existingTask.getState().status)
+          ? existingTask
+          : threadId
+            ? await workspace.createThreadTask(threadId, prompt, taskOptions)
+            : await workspace.createTask(prompt, taskOptions);
 
-      // 3. Create async event queue
       const queue = new AsyncEventQueue<AgentEvent>();
-
-      // 4. Subscribe to per-event notifications
       const unsub = task.subscribeToEvents((event) => queue.push(event));
 
-      // 5. Wire abort signal
       const onAbort = () => {
-        task.cancel();
+        const reason = chatOptions.abortSignal.reason as
+          | { detach?: boolean }
+          | undefined;
+        if (!reason?.detach) {
+          void task.cancel();
+        }
         queue.close();
       };
       chatOptions.abortSignal.addEventListener("abort", onAbort);
 
       try {
-        // 6. Iterate events and yield BridgeRunResult
-        // IMPORTANT: Each yield REPLACES the previous content (not appends).
-        // We must accumulate all content parts ourselves and yield the
-        // full array each time. See assistant-ui's OpenAI adapter example.
         const parts: BridgeContentPart[] = [];
-        let textPartIndex = -1; // index of the current text part being streamed
-        let reasoningPartIndex = -1; // index of the current reasoning part
+        const refs = { textPartIndex: -1, reasoningPartIndex: -1 };
+        const initialResults = getInitialResults(
+          task.getState(),
+          task.getEventHistory(),
+          parts,
+          refs,
+        );
+
+        for (const result of initialResults) {
+          yield result;
+        }
 
         for await (const event of queue) {
           switch (event.type) {
-            case "message": {
-              const c = event.content as { text: string };
-              if (textPartIndex >= 0) {
-                // Append to existing text part
-                const existing = parts[textPartIndex] as {
-                  type: "text";
-                  text: string;
-                };
-                parts[textPartIndex] = {
-                  type: "text" as const,
-                  text: existing.text + c.text,
-                };
-              } else {
-                // Create new text part
-                textPartIndex = parts.length;
-                parts.push({ type: "text" as const, text: c.text });
-              }
-              yield { content: [...parts] };
-              break;
-            }
-            case "reasoning": {
-              const c = event.content as { text: string };
-              if (reasoningPartIndex >= 0) {
-                const existing = parts[reasoningPartIndex] as {
-                  type: "reasoning";
-                  text: string;
-                };
-                parts[reasoningPartIndex] = {
-                  type: "reasoning" as const,
-                  text: existing.text + c.text,
-                };
-              } else {
-                reasoningPartIndex = parts.length;
-                parts.push({ type: "reasoning" as const, text: c.text });
-              }
-              yield { content: [...parts] };
-              break;
-            }
-            case "tool_call": {
-              const c = event.content as {
-                toolCallId: string;
-                toolName: string;
-                toolInput: unknown;
-              };
-              // Reset text part index — new text after tool call is a new part
-              textPartIndex = -1;
-              parts.push({
-                type: "tool-call" as const,
-                toolCallId: c.toolCallId,
-                toolName: c.toolName,
-                args: c.toolInput as Record<string, unknown>,
-                argsText: JSON.stringify(c.toolInput),
-              });
-              yield { content: [...parts] };
-              break;
-            }
+            case "message":
+            case "reasoning":
+            case "tool_call":
             case "tool_result": {
-              const c = event.content as {
-                toolCallId: string;
-                result: unknown;
-                isError?: boolean;
-              };
-              // Update the matching tool-call part with its result
-              for (let i = parts.length - 1; i >= 0; i--) {
-                const p = parts[i]!;
-                if (p.type === "tool-call" && p.toolCallId === c.toolCallId) {
-                  parts[i] = {
-                    ...p,
-                    ...(c.result !== undefined ? { result: c.result } : {}),
-                    ...(c.isError !== undefined ? { isError: c.isError } : {}),
-                  };
-                  break;
-                }
-              }
+              applyEventToParts(event, parts, refs);
               yield { content: [...parts] };
               break;
             }
@@ -190,8 +256,8 @@ export function useAgentChatRuntime(
               const c = event.content as { message: string };
               yield {
                 status: {
-                  type: "incomplete" as const,
-                  reason: "error" as const,
+                  type: "incomplete",
+                  reason: "error",
                   error: c.message,
                 },
               };
@@ -200,19 +266,18 @@ export function useAgentChatRuntime(
             }
             case "task_completed": {
               yield {
-                status: { type: "complete" as const, reason: "stop" as const },
+                status: { type: "complete", reason: "stop" },
               };
               queue.close();
               break;
             }
             default: {
-              // Approval pending, plan proposed, etc. — expose via metadata
               const taskState = task.getState();
               if (taskState.pendingApprovals.length > 0) {
                 yield {
                   status: {
-                    type: "requires-action" as const,
-                    reason: "tool-calls" as const,
+                    type: "requires-action",
+                    reason: "tool-calls",
                   },
                   metadata: {
                     custom: { approvals: taskState.pendingApprovals },
@@ -222,8 +287,8 @@ export function useAgentChatRuntime(
               if (taskState.proposedPlan?.status === "proposed") {
                 yield {
                   status: {
-                    type: "requires-action" as const,
-                    reason: "interrupt" as const,
+                    type: "requires-action",
+                    reason: "interrupt",
                   },
                   metadata: { custom: { plan: taskState.proposedPlan } },
                 };
@@ -236,6 +301,25 @@ export function useAgentChatRuntime(
         unsub();
         chatOptions.abortSignal.removeEventListener("abort", onAbort);
       }
+    },
+  };
+}
+
+export function useAgentChatRuntime(
+  workspace: WorkspaceRuntime,
+  options?: UseAgentChatRuntimeOptions,
+): ChatModelAdapter {
+  const workspaceRef = useRef(workspace);
+  workspaceRef.current = workspace;
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
+  const adapter = useRef<ChatModelAdapter>({
+    run(chatOptions) {
+      return createAgentChatAdapter(
+        workspaceRef.current,
+        optionsRef.current,
+      ).run(chatOptions);
     },
   });
 
