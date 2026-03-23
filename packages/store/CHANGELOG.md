@@ -1,5 +1,17 @@
 # @assistant-ui/store
 
+## 0.2.4
+
+### Patch Changes
+
+- 28a987a: feat: SingleThreadList resource
+  refactor: attachTransformScopes should mutate the scopes instead of cloning it
+- 736344c: chore: update dependencies
+- c71cb58: chore: update dependencies
+- Updated dependencies [736344c]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/tap@0.5.4
+
 ## 0.2.3
 
 ### Patch Changes

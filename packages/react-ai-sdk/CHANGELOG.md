@@ -1,5 +1,22 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.15
+
+### Patch Changes
+
+- 01a59da: fix(react-ai-sdk): preserve runConfig.custom metadata after tool call resume in human-in-the-loop tools
+- 736344c: chore: update dependencies
+- c71cb58: chore: update dependencies
+- Updated dependencies [1406aed]
+- Updated dependencies [9480f30]
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [ff3be2a]
+- Updated dependencies [70b19f3]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/core@0.1.8
+  - @assistant-ui/store@0.2.4
+
 ## 1.3.14
 
 ### Patch Changes

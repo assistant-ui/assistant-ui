@@ -1,5 +1,12 @@
 # heat-graph
 
+## 0.0.2
+
+### Patch Changes
+
+- 736344c: chore: update dependencies
+- c71cb58: chore: update dependencies
+
 ## 0.0.1
 
 ### Patch Changes

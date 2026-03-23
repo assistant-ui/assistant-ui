@@ -1,5 +1,12 @@
 # assistant-ui
 
+## 0.0.85
+
+### Patch Changes
+
+- 6becd84: feat: add `info` command to print environment and package versions for bug reports
+- c71cb58: chore: update dependencies
+
 ## 0.0.84
 
 ### Patch Changes

@@ -1,5 +1,33 @@
 # @assistant-ui/core
 
+## 0.1.8
+
+### Patch Changes
+
+- 1406aed: fix(core): prevent stale list() response from undoing concurrent delete/archive/unarchive in OptimisticState
+- 9480f30: fix(core): stop thread runtime on delete to prevent store crash
+- 28a987a: feat: SingleThreadList resource
+  refactor: attachTransformScopes should mutate the scopes instead of cloning it
+- 736344c: chore: update dependencies
+- ff3be2a: Add @-mention system with cursor-aware trigger detection, keyboard navigation, search, and Lexical rich editor support
+- 70b19f3: feat: add native queue and steer support
+  - Add `queue` adapter to `ExternalThreadProps` for runtimes that support message queuing
+  - Add `QueueItemPrimitive.Text`, `.Steer`, `.Remove` primitives for rendering queue items
+  - Add `ComposerPrimitive.Queue` for rendering the queue list within the composer
+  - Add `ComposerSendOptions` with `steer` flag to `composer.send()`
+  - Add `capabilities.queue` to `RuntimeCapabilities`
+  - `ComposerPrimitive.Send` stays enabled during runs when queue is supported
+  - Cmd/Ctrl+Shift+Enter hotkey sends with `steer: true` (interrupt current run)
+  - Add `queueItem` scope to `ScopeRegistry`
+  - Add `queue` field to `ComposerState` and `queueItem()` method to `ComposerMethods`
+
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/store@0.2.4
+  - assistant-stream@0.3.7
+  - @assistant-ui/tap@0.5.4
+
 ## 0.1.7
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # mcp-app-studio
 
+## 0.7.6
+
+### Patch Changes
+
+- c71cb58: chore: update dependencies
+
 ## 0.7.5
 
 ### Patch Changes

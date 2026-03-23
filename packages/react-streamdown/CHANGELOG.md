@@ -1,5 +1,19 @@
 # @assistant-ui/react-streamdown
 
+## 0.1.7
+
+### Patch Changes
+
+- 736344c: chore: update dependencies
+- 3bd38ed: fix(react-streamdown): preserve data-block in PreOverride for block code detection
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [ff3be2a]
+- Updated dependencies [70b19f3]
+- Updated dependencies [70b19f3]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/react@0.12.20
+
 ## 0.1.6
 
 ### Patch Changes

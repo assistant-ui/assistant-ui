@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/store",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Tap-based state management for @assistant-ui",
   "keywords": [
     "state-management",
@@ -36,7 +36,7 @@
     "use-effect-event": "^2.0.3"
   },
   "peerDependencies": {
-    "@assistant-ui/tap": "^0.5.3",
+    "@assistant-ui/tap": "^0.5.4",
     "@types/react": "*",
     "react": "^18 || ^19"
   },

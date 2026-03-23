@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/cloud-ai-sdk",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "AI SDK hooks for assistant-cloud persistence",
   "keywords": [
     "assistant",
@@ -55,7 +55,7 @@
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "ai": "^6.0.134",
-    "assistant-stream": "^0.3.6",
+    "assistant-stream": "^0.3.7",
     "jsdom": "^29.0.1",
     "react": "^19.2.4",
     "vitest": "^4.1.0"

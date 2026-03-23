@@ -1,5 +1,23 @@
 # @assistant-ui/react-ink
 
+## 0.0.7
+
+### Patch Changes
+
+- 3247231: feat(react-ink): add DiffPrimitive and DiffView for terminal diff rendering
+- 736344c: chore: update dependencies
+- Updated dependencies [1406aed]
+- Updated dependencies [9480f30]
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [ff3be2a]
+- Updated dependencies [70b19f3]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/core@0.1.8
+  - @assistant-ui/store@0.2.4
+  - assistant-stream@0.3.7
+  - @assistant-ui/tap@0.5.4
+
 ## 0.0.6
 
 ### Patch Changes
