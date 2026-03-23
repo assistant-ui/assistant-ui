@@ -13,6 +13,7 @@ export { ComposerPrimitiveIf as If } from "./composer/ComposerIf";
 export { ComposerPrimitiveQuote as Quote } from "./composer/ComposerQuote";
 export { ComposerPrimitiveQuoteText as QuoteText } from "./composer/ComposerQuote";
 export { ComposerPrimitiveQuoteDismiss as QuoteDismiss } from "./composer/ComposerQuote";
+export { ComposerPrimitiveQueue as Queue } from "./composer/ComposerQueue";
 export { ComposerPrimitiveMentionRoot as Unstable_MentionRoot } from "./composer/mention";
 export { ComposerPrimitiveMentionPopover as Unstable_MentionPopover } from "./composer/mention";
 export { ComposerPrimitiveMentionCategories as Unstable_MentionCategories } from "./composer/mention";

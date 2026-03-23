@@ -15,35 +15,60 @@ import {
 } from "@assistant-ui/store";
 import { withKey } from "@assistant-ui/tap";
 import type {
+  AppendMessage,
   Attachment,
   CreateAttachment,
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
   ThreadMessage,
 } from "@assistant-ui/core";
+import type { QueueItemState } from "@assistant-ui/core/store";
+import type { ComposerSendOptions } from "@assistant-ui/core/store";
 import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
 import { SingleThreadList } from "./SingleThreadList";
+
+const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
 
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
 };
 
+export type ExternalThreadQueueAdapter = {
+  /** The current queue items. */
+  items: readonly QueueItemState[];
+  /** Called when a message is submitted via the composer. Receives the steer preference. */
+  enqueue: (message: AppendMessage, opts: { steer: boolean }) => void;
+  /** Called to promote an existing queue item (cancel current run, run this immediately). */
+  steer: (queueItemId: string) => void;
+  /** Called to remove an item from the queue. */
+  remove: (queueItemId: string) => void;
+  /** Called to clear all pending queue items, with the reason for clearing. */
+  clear: (reason: "edit" | "reload" | "cancel-run") => void;
+};
+
 export type ExternalThreadProps = {
   messages: readonly ExternalThreadMessage[];
   isRunning?: boolean;
-  onNew?: (message: any) => void;
-  onEdit?: (message: any) => void;
+  /**
+   * Callback for new messages (non-queue runtimes).
+   * @note Unused when `queue` is provided — new messages are routed through `queue.enqueue` instead.
+   */
+  onNew?: (message: AppendMessage) => void;
+  onEdit?: (message: AppendMessage) => void;
   onReload?: (parentId: string | null) => void;
   onStartRun?: () => void;
   onCancel?: () => void;
+  /** Queue adapter for runtimes that support message queuing and steering. */
+  queue?: ExternalThreadQueueAdapter;
 };
 
 type MessageClientProps = {
   message: ExternalThreadMessage;
   index: number;
-  onEdit?: (message: any) => void;
+  onEdit?: (message: AppendMessage) => void;
   onReload?: () => void;
+  queue?: ExternalThreadQueueAdapter | undefined;
 };
 
 // Message Client - minimal implementation
@@ -53,6 +78,7 @@ const MessageClient = resource(
     index,
     onEdit,
     onReload,
+    queue,
   }: MessageClientProps): ClientOutput<"message"> => {
     const [isCopied, setIsCopied] = tapState(false);
     const [isHovering, setIsHovering] = tapState(false);
@@ -88,7 +114,8 @@ const MessageClient = resource(
       setIsEditing(false);
     };
 
-    const handleSendEdit = (msg: any) => {
+    const handleSendEdit = (msg: AppendMessage) => {
+      queue?.clear("edit");
       onEdit?.({
         ...msg,
         parentId: message.id,
@@ -106,6 +133,7 @@ const MessageClient = resource(
         onBeginEdit: handleBeginEdit,
         onSend: handleSendEdit,
         message,
+        queue,
       }),
     );
 
@@ -216,9 +244,28 @@ type ComposerClientResourceProps = {
   canCancel: boolean;
   onCancel: () => void;
   onBeginEdit?: () => void;
-  onSend?: (message: any) => void;
+  onSend?: (message: AppendMessage) => void;
   message?: ExternalThreadMessage;
+  queue?: ExternalThreadQueueAdapter | undefined;
 };
+
+const QueueItemClient = resource(
+  ({
+    item,
+    onSteer,
+    onRemove,
+  }: {
+    item: QueueItemState;
+    onSteer: () => void;
+    onRemove: () => void;
+  }): ClientOutput<"queueItem"> => {
+    return {
+      getState: () => item,
+      steer: onSteer,
+      remove: onRemove,
+    };
+  },
+);
 
 // Composer Client - minimal implementation
 const ComposerClientResource = resource(
@@ -230,6 +277,7 @@ const ComposerClientResource = resource(
     onBeginEdit,
     onSend,
     message,
+    queue,
   }: ComposerClientResourceProps): ClientOutput<"composer"> => {
     const [text, setText] = tapState("");
     const [role, setRole] = tapState<"user" | "assistant" | "system">("user");
@@ -278,6 +326,22 @@ const ComposerClientResource = resource(
       [attachments],
     );
 
+    const queueItems = queue?.items ?? EMPTY_QUEUE_ITEMS;
+    const queueItemClients = tapClientLookup(
+      () =>
+        queueItems.map((item) =>
+          withKey(
+            item.id,
+            QueueItemClient({
+              item,
+              onSteer: () => queue?.steer(item.id),
+              onRemove: () => queue?.remove(item.id),
+            }),
+          ),
+        ),
+      [queueItems],
+    );
+
     const state = tapMemo(
       () => ({
         text,
@@ -291,6 +355,7 @@ const ComposerClientResource = resource(
         type,
         dictation: undefined,
         quote,
+        queue: queueItems,
       }),
       [
         text,
@@ -302,6 +367,7 @@ const ComposerClientResource = resource(
         type,
         attachments.length,
         quote,
+        queueItems,
       ],
     );
 
@@ -350,19 +416,25 @@ const ComposerClientResource = resource(
         setAttachments([]);
         setQuote(undefined);
       },
-      send: () => {
+      send: (opts?: ComposerSendOptions) => {
         const currentQuote = quote;
-        const message = {
+        const composedMessage: AppendMessage = {
           role,
           content: text ? [{ type: "text" as const, text }] : [],
           attachments: attachments as any,
           createdAt: new Date(),
+          parentId: null,
+          sourceId: null,
           runConfig,
           metadata: {
             custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
           },
         };
-        onSend?.(message);
+        if (queue) {
+          queue.enqueue(composedMessage, { steer: opts?.steer ?? false });
+        } else {
+          onSend?.(composedMessage);
+        }
         setText("");
         setAttachments([]);
         setQuote(undefined);
@@ -374,6 +446,9 @@ const ComposerClientResource = resource(
       startDictation: () => {},
       stopDictation: () => {},
       setQuote,
+      queueItem: (selector: { index: number }) => {
+        return queueItemClients.get(selector);
+      },
     };
   },
 );
@@ -388,12 +463,14 @@ export const ExternalThread = resource(
     onReload,
     onStartRun,
     onCancel,
+    queue,
   }: ExternalThreadProps): ClientOutput<"thread"> => {
     const handleReload = (messageId: string) => {
       const messageIndex = messages.findIndex((m) => m.id === messageId);
       if (messageIndex === -1) return;
 
       const parentId = messageIndex > 0 ? messages[messageIndex - 1]!.id : null;
+      queue?.clear("reload");
       onReload?.(parentId);
     };
 
@@ -404,18 +481,20 @@ export const ExternalThread = resource(
             message: msg,
             index,
             onReload: () => handleReload(msg.id),
+            queue,
           };
           if (onEdit) props.onEdit = onEdit;
           return withKey(msg.id, MessageClient(props));
         }),
-      [messages, onEdit],
+      [messages, onEdit, queue],
     );
 
     const handleCancelRun = () => {
+      queue?.clear("cancel-run");
       onCancel?.();
     };
 
-    const handleSendNew = (message: any) => {
+    const handleSendNew = (message: AppendMessage) => {
       onNew?.(message);
     };
 
@@ -426,9 +505,11 @@ export const ExternalThread = resource(
         canCancel: isRunning,
         onCancel: handleCancelRun,
         onSend: handleSendNew,
+        queue,
       }),
     );
 
+    const hasQueue = !!queue;
     const state = tapMemo(() => {
       const messageStates = messageClients.state.map((s, idx, arr) => ({
         ...s,
@@ -451,6 +532,7 @@ export const ExternalThread = resource(
           switchBranchDuringRun: false,
           unstable_copy: false,
           dictation: false,
+          queue: hasQueue,
         },
         messages: messageStates,
         state: {},
@@ -459,13 +541,46 @@ export const ExternalThread = resource(
         speech: undefined,
         composer: composerClient.state,
       };
-    }, [messages, isRunning, messageClients.state, composerClient.state]);
+    }, [
+      messages,
+      isRunning,
+      hasQueue,
+      messageClients.state,
+      composerClient.state,
+    ]);
 
     return {
       getState: () => state,
       composer: () => composerClient.methods,
       append: (message) => {
-        onNew?.(message);
+        const appendMessage: AppendMessage =
+          typeof message === "string"
+            ? {
+                createdAt: new Date(),
+                parentId: messages.at(-1)?.id ?? null,
+                sourceId: null,
+                runConfig: {},
+                role: "user",
+                content: [{ type: "text", text: message }],
+                attachments: [],
+                metadata: { custom: {} },
+              }
+            : {
+                createdAt: message.createdAt ?? new Date(),
+                parentId: message.parentId ?? messages.at(-1)?.id ?? null,
+                sourceId: message.sourceId ?? null,
+                role: message.role ?? "user",
+                content: message.content,
+                attachments: message.attachments ?? [],
+                metadata: message.metadata ?? { custom: {} },
+                runConfig: message.runConfig ?? {},
+                startRun: message.startRun,
+              };
+        if (queue) {
+          queue.enqueue(appendMessage, { steer: false });
+        } else {
+          onNew?.(appendMessage);
+        }
       },
       startRun: () => {
         onStartRun?.();
@@ -498,6 +613,14 @@ attachTransformScopes(ExternalThread, (scopes, parent) => {
       source: "threads",
       query: { type: "main" },
       get: (aui) => aui.threads().thread("main"),
+    });
+  }
+
+  if (!scopes.threadListItem && parent.threadListItem.source === null) {
+    scopes.threadListItem = Derived({
+      source: "threads",
+      query: { type: "main" },
+      get: (aui) => aui.threads().item("main"),
     });
   }
 

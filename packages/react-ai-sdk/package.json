@@ -36,10 +36,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/react": "^3.0.119",
-    "@assistant-ui/core": "^0.1.6",
+    "@ai-sdk/react": "^3.0.132",
+    "@assistant-ui/core": "^0.1.7",
     "@assistant-ui/store": "^0.2.3",
-    "ai": "^6.0.117",
+    "ai": "^6.0.130",
     "assistant-cloud": "*"
   },
   "peerDependencies": {
@@ -58,7 +58,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "assistant-stream": "workspace:*",
-    "jsdom": "^28.1.0",
+    "jsdom": "^29.0.0",
     "react": "^19.2.4",
     "vitest": "^4.1.0"
   },

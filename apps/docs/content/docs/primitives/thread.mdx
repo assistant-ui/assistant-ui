@@ -1,0 +1,482 @@
+---
+title: Thread
+description: Build custom scrollable message containers with auto-scroll, empty states, and message rendering.
+---
+
+import { ThreadPrimitiveSample } from "@/components/docs/samples/thread-primitive";
+import { ThreadPrimitive as ThreadPrimitiveDocs } from "@/generated/primitiveDocs";
+
+The Thread primitive is the scrollable message container, and the backbone of any chat interface. It handles viewport management, auto-scrolling, empty states, message rendering, and suggestions. You provide the layout and styling.
+
+<Tabs items={["Preview", "Code"]}>
+  <Tab>
+    <ThreadPrimitiveSample />
+  </Tab>
+  <Tab>
+```tsx
+import {
+  AuiIf,
+  ComposerPrimitive,
+  ThreadPrimitive,
+  MessagePrimitive,
+} from "@assistant-ui/react";
+import { ArrowUpIcon } from "lucide-react";
+
+function MinimalThread() {
+  return (
+    <ThreadPrimitive.Root className="flex h-full flex-col">
+      <ThreadPrimitive.Viewport className="flex flex-1 flex-col gap-3 overflow-y-auto p-3">
+        <AuiIf condition={(s) => s.thread.isEmpty}>
+          <p>Welcome! Ask a question to get started.</p>
+        </AuiIf>
+
+        <ThreadPrimitive.Messages>
+          {({ message }) => {
+            if (message.role === "user") return <UserMessage />;
+            return <AssistantMessage />;
+          }}
+        </ThreadPrimitive.Messages>
+
+        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 pt-2">
+          <ComposerPrimitive.Root className="flex w-full flex-col rounded-3xl border bg-muted">
+            <ComposerPrimitive.Input
+              placeholder="Ask anything..."
+              className="min-h-10 w-full resize-none bg-transparent px-5 pt-3.5 pb-2.5 text-sm focus:outline-none"
+              rows={1}
+            />
+            <div className="flex items-center justify-end px-2.5 pb-2.5">
+              <ComposerPrimitive.Send className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-30">
+                <ArrowUpIcon className="size-4" />
+              </ComposerPrimitive.Send>
+            </div>
+          </ComposerPrimitive.Root>
+        </ThreadPrimitive.ViewportFooter>
+      </ThreadPrimitive.Viewport>
+    </ThreadPrimitive.Root>
+  );
+}
+
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root className="flex justify-end">
+      <div className="max-w-[80%] rounded-2xl bg-primary px-4 py-2.5 text-sm text-primary-foreground">
+        <MessagePrimitive.Parts />
+      </div>
+    </MessagePrimitive.Root>
+  );
+}
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root className="flex justify-start">
+      <div className="max-w-[80%] rounded-2xl bg-muted px-4 py-2.5 text-sm">
+        <MessagePrimitive.Parts />
+      </div>
+    </MessagePrimitive.Root>
+  );
+}
+```
+  </Tab>
+</Tabs>
+
+## Quick Start
+
+Minimal example:
+
+```tsx
+import { ThreadPrimitive } from "@assistant-ui/react";
+
+<ThreadPrimitive.Root>
+  <ThreadPrimitive.Viewport>
+    <ThreadPrimitive.Messages>
+      {() => <MyMessage />}
+    </ThreadPrimitive.Messages>
+  </ThreadPrimitive.Viewport>
+</ThreadPrimitive.Root>
+```
+
+`Root` renders a `<div>`, `Viewport` renders a scrollable `<div>`, and `Messages` iterates over the thread's messages. Add your own styles and components; the primitive handles the rest.
+
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
+
+## Core Concepts
+
+### Viewport & Auto-Scroll
+
+`Viewport` is the scrollable container. It auto-scrolls to the bottom as new content streams in, but only if the user hasn't scrolled up manually. Set `autoScroll={false}` to disable this entirely.
+
+```tsx
+<ThreadPrimitive.Viewport autoScroll={true}>
+  {/* messages */}
+</ThreadPrimitive.Viewport>
+```
+
+### Turn Anchor
+
+By default, new messages appear at the bottom and scroll down. With `turnAnchor="top"`, the user's message anchors to the top of the viewport. This creates the modern reading experience where you see the question at the top and the response flowing below it.
+
+```tsx
+<ThreadPrimitive.Viewport turnAnchor="top">
+  {/* messages */}
+</ThreadPrimitive.Viewport>
+```
+
+This is what the shadcn Thread component uses by default. For scroll anchoring to work correctly, `ViewportSlack` is needed on the last assistant message to provide enough min-height for the user message to anchor at the top. This is included automatically in the shadcn component.
+
+### Viewport Scroll Options
+
+`ThreadPrimitive.Viewport` has three event-specific scroll controls:
+
+- `scrollToBottomOnRunStart` (default `true`): scrolls when `thread.runStart` fires
+- `scrollToBottomOnInitialize` (default `true`): scrolls when `thread.initialize` fires
+- `scrollToBottomOnThreadSwitch` (default `true`): scrolls when `threadListItem.switchedTo` fires
+
+These work alongside `autoScroll`. If `autoScroll` is omitted, it defaults to `true` for `turnAnchor="bottom"` and `false` for `turnAnchor="top"`.
+
+```tsx
+<ThreadPrimitive.Viewport
+  turnAnchor="top"
+  autoScroll={false}
+  scrollToBottomOnRunStart={true}
+  scrollToBottomOnInitialize={false}
+  scrollToBottomOnThreadSwitch={true}
+>
+  <ThreadPrimitive.Messages>
+    {({ message }) => {
+      if (message.role === "user") return <UserMessage />;
+      return <AssistantMessage />;
+    }}
+  </ThreadPrimitive.Messages>
+</ThreadPrimitive.Viewport>
+```
+
+### ViewportFooter
+
+`ViewportFooter` sticks to the bottom of the viewport and registers its height so the auto-scroll system accounts for it. This is where you place your composer:
+
+```tsx
+<ThreadPrimitive.Viewport>
+  <ThreadPrimitive.Messages>
+    {() => <MyMessage />}
+  </ThreadPrimitive.Messages>
+  <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
+    <MyComposer />
+  </ThreadPrimitive.ViewportFooter>
+</ThreadPrimitive.Viewport>
+```
+
+### Empty State
+
+<Callout type="warn">
+`ThreadPrimitive.Empty` is deprecated. Use [`AuiIf`](/docs/api-reference/primitives/assistant-if) instead.
+</Callout>
+
+```tsx
+<AuiIf condition={(s) => s.thread.isEmpty}>
+  <div className="flex flex-col items-center gap-2 text-center">
+    <h2>Welcome!</h2>
+    <p>How can I help you today?</p>
+  </div>
+</AuiIf>
+```
+
+### Messages Iterator
+
+`Messages` now prefers a children render function. It gives you the current message state so you can branch inline:
+
+```tsx
+<ThreadPrimitive.Messages>
+  {({ message }) => {
+    if (message.composer.isEditing) return <MyEditComposer />;
+    if (message.role === "user") return <MyUserMessage />;
+    return <MyAssistantMessage />;
+  }}
+</ThreadPrimitive.Messages>
+```
+
+`components` is deprecated. Use the `children` render function instead.
+
+### Suggestions Iterator
+
+`Suggestions` follows the same pattern. Prefer the children render function when rendering custom suggestion UIs:
+
+```tsx
+<ThreadPrimitive.Suggestions>
+  {() => <MySuggestionButton />}
+</ThreadPrimitive.Suggestions>
+```
+
+## Parts
+
+### Root
+
+Top-level container for a thread layout. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ThreadPrimitive.Root className="flex h-full flex-col">
+  <ThreadPrimitive.Viewport>
+    <ThreadPrimitive.Messages>
+      {() => <MyMessage />}
+    </ThreadPrimitive.Messages>
+  </ThreadPrimitive.Viewport>
+</ThreadPrimitive.Root>
+```
+
+### Viewport
+
+The scrollable area with auto-scroll behavior. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ThreadPrimitive.Viewport
+  turnAnchor="top"
+  autoScroll={false}
+  scrollToBottomOnRunStart={true}
+>
+  <ThreadPrimitive.Messages>
+    {({ message }) => {
+      if (message.role === "user") return <UserMessage />;
+      return <AssistantMessage />;
+    }}
+  </ThreadPrimitive.Messages>
+</ThreadPrimitive.Viewport>
+```
+
+<PrimitivesTypeTable type="ThreadPrimitiveViewportProps" parameters={ThreadPrimitiveDocs.Viewport.props.filter(p => p.name !== "asChild")} />
+
+### ViewportFooter
+
+Footer container that registers its height with the viewport scroll system. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ThreadPrimitive.ViewportFooter className="sticky bottom-0 pt-2">
+  <ComposerPrimitive.Root>...</ComposerPrimitive.Root>
+</ThreadPrimitive.ViewportFooter>
+```
+
+### ViewportProvider
+
+Provides viewport context without rendering a scrollable element. Use this when you have a custom scroll container.
+
+```tsx
+<ThreadPrimitive.ViewportProvider>
+  <div className="flex-1 overflow-y-auto">
+    <ThreadPrimitive.Messages>
+      {() => <MyMessage />}
+    </ThreadPrimitive.Messages>
+    <ThreadPrimitive.ViewportFooter>
+      <MyComposer />
+    </ThreadPrimitive.ViewportFooter>
+  </div>
+</ThreadPrimitive.ViewportProvider>
+```
+
+### ViewportSlack
+
+Adds min-height for scroll anchoring with `turnAnchor="top"`. It wraps its child element via `Slot` and does not render a DOM element of its own.
+
+```tsx
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts />
+  <ThreadPrimitive.ViewportSlack>
+    <div className="min-h-[40vh]" />
+  </ThreadPrimitive.ViewportSlack>
+</MessagePrimitive.Root>
+```
+
+Props: `fillClampThreshold` and `fillClampOffset` control how the slack height is calculated. `children` is required.
+
+### Messages
+
+Renders a component for each message in the thread, resolved by role and edit state.
+
+```tsx
+<ThreadPrimitive.Messages>
+  {({ message }) => {
+    if (message.composer.isEditing) return <MyEditComposer />;
+    if (message.role === "user") return <MyUserMessage />;
+    return <MyAssistantMessage />;
+  }}
+</ThreadPrimitive.Messages>
+```
+
+<PrimitivesTypeTable type="ThreadPrimitiveMessagesProps" parameters={ThreadPrimitiveDocs.Messages.props} />
+
+### MessageByIndex
+
+Renders a single message at a specific index in the thread.
+
+```tsx
+<ThreadPrimitive.MessageByIndex
+  index={0}
+  components={{ Message: MyMessage }}
+/>
+```
+
+<PrimitivesTypeTable type="ThreadPrimitiveMessageByIndexProps" parameters={ThreadPrimitiveDocs.MessageByIndex.props} />
+
+### ScrollToBottom
+
+Scrolls the viewport to the bottom. Automatically disabled when already at the bottom. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ThreadPrimitive.ScrollToBottom className="rounded-full bg-background p-2 shadow-md">
+  <ArrowDownIcon />
+</ThreadPrimitive.ScrollToBottom>
+```
+
+<PrimitivesTypeTable type="ThreadPrimitiveScrollToBottomProps" parameters={ThreadPrimitiveDocs.ScrollToBottom.props.filter(p => p.name !== "asChild")} />
+
+### Suggestions
+
+Renders suggestion prompts via a component.
+
+```tsx
+<ThreadPrimitive.Suggestions>
+  {({ suggestion }) => <MySuggestionButton prompt={suggestion.prompt} />}
+</ThreadPrimitive.Suggestions>
+```
+
+<PrimitivesTypeTable type="ThreadPrimitiveSuggestionsProps" parameters={ThreadPrimitiveDocs.Suggestions.props} />
+
+### SuggestionByIndex
+
+Renders a single suggestion at a specific index.
+
+```tsx
+<ThreadPrimitive.SuggestionByIndex
+  index={0}
+  components={{ Suggestion: MySuggestion }}
+/>
+```
+
+<PrimitivesTypeTable type="ThreadPrimitiveSuggestionByIndexProps" parameters={ThreadPrimitiveDocs.SuggestionByIndex.props} />
+
+### Suggestion
+
+Self-contained suggestion button. Renders a `<button>` element unless `asChild` is set. *(Legacy -- prefer `Suggestions` iterator.)*
+
+```tsx
+<ThreadPrimitive.Suggestion prompt="Write a blog post" send />
+```
+
+<PrimitivesTypeTable type="ThreadPrimitiveSuggestionProps" parameters={ThreadPrimitiveDocs.Suggestion.props.filter(p => p.name !== "asChild")} />
+
+### Empty
+
+<Callout type="warn">
+Deprecated. Use [`AuiIf`](/docs/api-reference/primitives/assistant-if) with `s.thread.isEmpty` instead.
+</Callout>
+
+Legacy helper that only renders its children when the thread is empty.
+
+```tsx
+<ThreadPrimitive.Empty>
+  <div className="text-center text-muted-foreground">
+    No messages yet.
+  </div>
+</ThreadPrimitive.Empty>
+```
+
+### If (deprecated)
+
+<Callout type="warn">
+Deprecated. Use [`AuiIf`](/docs/api-reference/primitives/assistant-if) instead.
+</Callout>
+
+```tsx
+// Before (deprecated)
+<ThreadPrimitive.If empty>...</ThreadPrimitive.If>
+<ThreadPrimitive.If running>...</ThreadPrimitive.If>
+<ThreadPrimitive.If disabled>...</ThreadPrimitive.If>
+
+// After
+<AuiIf condition={(s) => s.thread.isEmpty}>...</AuiIf>
+<AuiIf condition={(s) => s.thread.isRunning}>...</AuiIf>
+<AuiIf condition={(s) => s.thread.isDisabled}>...</AuiIf>
+```
+
+## Patterns
+
+### Welcome Screen with Suggestions
+
+```tsx
+<AuiIf condition={(s) => s.thread.isEmpty}>
+  <div className="flex flex-col items-center gap-4 text-center">
+    <h2>What can I help with?</h2>
+    <div className="grid grid-cols-2 gap-2">
+      <ThreadPrimitive.Suggestions>
+        {() => <MySuggestionButton />}
+      </ThreadPrimitive.Suggestions>
+    </div>
+  </div>
+</AuiIf>
+```
+
+### Scroll-to-Bottom Button
+
+```tsx
+<ThreadPrimitive.ScrollToBottom className="fixed bottom-24 right-4 rounded-full bg-background p-2 shadow-md">
+  <ArrowDownIcon />
+</ThreadPrimitive.ScrollToBottom>
+```
+
+The button is automatically disabled when the viewport is already scrolled to the bottom.
+
+### Turn Anchor Top Layout
+
+```tsx
+<ThreadPrimitive.Root className="flex h-full flex-col">
+  <ThreadPrimitive.Viewport turnAnchor="top" className="flex-1 overflow-y-auto">
+    <ThreadPrimitive.Messages>
+      {({ message }) => {
+        if (message.role === "user") return <UserMessage />;
+        return <AssistantMessage />;
+      }}
+    </ThreadPrimitive.Messages>
+    <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
+      <MyComposer />
+    </ThreadPrimitive.ViewportFooter>
+  </ThreadPrimitive.Viewport>
+</ThreadPrimitive.Root>
+```
+
+### Custom Message Components
+
+```tsx
+<ThreadPrimitive.Messages>
+  {({ message }) => {
+    if (message.role === "user") {
+      return (
+        <MessagePrimitive.Root>
+          <div className="ml-auto rounded-xl bg-blue-500 p-3 text-white">
+            <MessagePrimitive.Parts />
+          </div>
+        </MessagePrimitive.Root>
+      );
+    }
+
+    return (
+      <MessagePrimitive.Root>
+        <div className="rounded-xl bg-gray-100 p-3">
+          <MessagePrimitive.Parts />
+        </div>
+      </MessagePrimitive.Root>
+    );
+  }}
+</ThreadPrimitive.Messages>
+```
+
+## Relationship to Components
+
+The [Thread](/docs/ui/thread) component is a full chat interface built from these primitives with Tailwind styling. Start there for a default implementation. Reach for `ThreadPrimitive` when you need a custom layout, different scroll behavior, or a non-standard thread structure.
+
+## API Reference
+
+For full prop details on every part, see the [ThreadPrimitive API Reference](/docs/api-reference/primitives/thread).
+
+Related:
+- [MessagePrimitive API Reference](/docs/api-reference/primitives/message)
+- [ComposerPrimitive API Reference](/docs/api-reference/primitives/composer)
+- [ThreadListPrimitive API Reference](/docs/api-reference/primitives/thread-list)

@@ -58,8 +58,8 @@ const AssistantMessage: FC = () => {
 | `streamStartTime` | `number` | Unix timestamp when stream started |
 | `firstTokenTime` | `number?` | Time to first text token (ms) |
 | `totalStreamTime` | `number?` | Total stream duration (ms) |
-| `tokenCount` | `number?` | Real or estimated output token count |
-| `tokensPerSecond` | `number?` | Throughput (tokens/sec); see [accuracy note](#ai-sdk-usechatruntime) |
+| `tokenCount` | `number?` | Output token count from message metadata usage |
+| `tokensPerSecond` | `number?` | Throughput (tokens/sec), when token usage is available |
 | `totalChunks` | `number` | Total stream chunks received |
 | `toolCallCount` | `number` | Number of tool calls |
 
@@ -90,7 +90,7 @@ const runtime = useDataStreamRuntime({ api: "/api/chat" });
 Timing is tracked automatically on the client side by observing streaming state transitions and content changes. Timing is finalized when each stream completes.
 
 <Callout type="warn">
-  `tokenCount` and `tokensPerSecond` are **estimated** using a 4 characters per token approximation — real token counts from the server are not extracted. This can overcount significantly for short messages.
+  `tokenCount` and `tokensPerSecond` require usage metadata from `finish` or `finish-step` in your AI SDK route. If usage metadata is not emitted, duration and TTFT metrics still work, but token-based metrics are omitted.
 </Callout>
 
 ```tsx

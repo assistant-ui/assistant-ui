@@ -101,6 +101,7 @@ export const ComposerClient = resource(
         type: runtimeState.type ?? "thread",
         dictation: runtimeState.dictation,
         quote: runtimeState.quote,
+        queue: [],
       };
     }, [runtimeState, attachments.state]);
 
@@ -128,6 +129,9 @@ export const ComposerClient = resource(
         } else {
           return attachments.get(selector);
         }
+      },
+      queueItem: () => {
+        throw new Error("Queue is not supported in this runtime");
       },
       __internal_getRuntime: () => runtime,
     };

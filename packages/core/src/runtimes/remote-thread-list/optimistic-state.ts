@@ -30,6 +30,17 @@ const pipeTransforms = <TState, TExtra>(
 export class OptimisticState<TState> extends BaseSubscribable {
   private readonly _pendingTransforms: Array<PendingTransform<TState, any>> =
     [];
+
+  /**
+   * `optimistic` callbacks from transforms that have already resolved.
+   * Re-applied after every `then` callback so that a wholesale state
+   * replacement (e.g. list()) cannot erase earlier completed effects
+   * (e.g. delete). Cleared when no pending transforms remain.
+   *
+   * Correctness requirement: `optimistic` callbacks must be idempotent.
+   */
+  private readonly _completedOptimistics: Array<(state: TState) => TState> = [];
+
   private _baseValue: TState;
   private _cachedValue: TState;
 
@@ -77,12 +88,28 @@ export class OptimisticState<TState> extends BaseSubscribable {
         transform.optimistic,
         transform.then,
       ]);
+
+      // Re-apply previously completed optimistic callbacks so that a
+      // then() that does wholesale replacement cannot erase their effects.
+      for (const fn of this._completedOptimistics) {
+        this._baseValue = fn(this._baseValue);
+      }
+
+      if (transform.optimistic) {
+        this._completedOptimistics.push(transform.optimistic);
+      }
+
       return result;
     } finally {
       const index = this._pendingTransforms.indexOf(pendingTransform);
       if (index > -1) {
         this._pendingTransforms.splice(index, 1);
       }
+
+      if (this._pendingTransforms.length === 0) {
+        this._completedOptimistics.length = 0;
+      }
+
       this._updateState();
     }
   }

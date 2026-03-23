@@ -65,6 +65,7 @@ export class ExternalStoreThreadRuntimeCore
     dictation: false,
     attachments: false,
     feedback: false,
+    queue: false,
   };
 
   public get capabilities() {
@@ -139,6 +140,7 @@ export class ExternalStoreThreadRuntimeCore
       unstable_copy: this._store.unstable_capabilities?.copy !== false,
       attachments: !!this._store.adapters?.attachments,
       feedback: !!this._store.adapters?.feedback,
+      queue: false,
     };
     if (!shallowEqual(this._capabilities, newCapabilities)) {
       this._capabilities = newCapabilities;

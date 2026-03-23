@@ -252,7 +252,7 @@ export async function POST(req: Request) {
 ```
 
 <Callout type="info">
-  The standalone hook does not capture `duration_ms`, per-step breakdowns (`steps`), custom `metadata` pass-through, or `"error"` status. These require the full runtime integration available via [`useChatRuntime`](/docs/cloud/ai-sdk-assistant-ui).
+  The standalone hook captures message metadata when it is JSON-serializable, but it does not capture `duration_ms`, per-step breakdowns (`steps`), or `"error"` status. Those require the full runtime integration available via [`useChatRuntime`](/docs/cloud/ai-sdk-assistant-ui).
 </Callout>
 
 ### Customizing Reports
