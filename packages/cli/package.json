@@ -48,7 +48,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/cli-progress": "^3.11.6",
     "@types/cross-spawn": "^6.0.6",
-    "@types/debug": "^4.1.12",
+    "@types/debug": "^4.1.13",
     "@types/jscodeshift": "^17.3.0",
     "@types/node": "^25.5.0",
     "@vitest/coverage-v8": "^4.1.0",

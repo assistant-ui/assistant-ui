@@ -12,7 +12,7 @@
     "@assistant-ui/react-o11y": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
-    "next": "^16.2.0",
+    "next": "^16.2.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },

@@ -22,7 +22,7 @@
     "@changesets/cli": "^2.30.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
-    "turbo": "^2.8.19",
+    "turbo": "^2.8.20",
     "typescript": "^5.9.3"
   },
   "packageManager": "pnpm@10.32.1",

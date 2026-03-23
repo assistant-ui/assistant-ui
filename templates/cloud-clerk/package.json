@@ -12,11 +12,11 @@
     "lint:fix": "biome check --write ."
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.41",
+    "@ai-sdk/openai": "^3.0.47",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
-    "@clerk/nextjs": "^7.0.5",
+    "@clerk/nextjs": "^7.0.6",
     "@clerk/themes": "^2.4.57",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",
@@ -24,7 +24,7 @@
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "ai": "^6.0.130",
+    "ai": "^6.0.134",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.577.0",
