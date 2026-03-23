@@ -72,6 +72,30 @@ describe("createCodeAdapter integration", () => {
       expect(screen.getByTestId("header").textContent).toBe("python");
       expect(screen.getByTestId("syntax").textContent).toBe('print("hi")');
     });
+
+    it("re-renders when data-block changes from absent to present", () => {
+      const MockSyntax = vi.fn(({ code }) => (
+        <div data-testid="syntax">{code}</div>
+      ));
+      const AdaptedCode = createCodeAdapter({
+        SyntaxHighlighter: MockSyntax,
+      });
+
+      const { rerender } = render(
+        <AdaptedCode className="language-js">const x = 1;</AdaptedCode>,
+      );
+
+      expect(screen.queryByTestId("syntax")).toBeNull();
+
+      rerender(
+        <AdaptedCode className="language-js" data-block="true">
+          const x = 1;
+        </AdaptedCode>,
+      );
+
+      expect(screen.getByTestId("syntax").textContent).toBe("const x = 1;");
+      expect(MockSyntax).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("language detection", () => {

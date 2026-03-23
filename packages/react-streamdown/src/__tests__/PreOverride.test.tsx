@@ -80,20 +80,36 @@ describe("useStreamdownPreProps", () => {
 });
 
 describe("PreOverride component", () => {
-  it("renders a pre element", () => {
-    render(<PreOverride>code content</PreOverride>);
-    const preElement = screen.getByText("code content");
-    expect(preElement.tagName).toBe("PRE");
-  });
-
-  it("passes through props to pre element", () => {
+  it("does not render an extra pre wrapper", () => {
     render(
-      <PreOverride className="my-class" data-testid="my-pre">
-        content
+      <PreOverride>
+        <code data-testid="child-code">code content</code>
       </PreOverride>,
     );
-    const preElement = screen.getByTestId("my-pre");
-    expect(preElement.className).toContain("my-class");
+
+    const codeElement = screen.getByTestId("child-code");
+    expect(codeElement.tagName).toBe("CODE");
+    expect(document.querySelector("pre")).toBeNull();
+  });
+
+  it("stores pre props in context without leaking them to the DOM", () => {
+    function ChildComponent() {
+      const props = useStreamdownPreProps();
+      return (
+        <span data-testid="result">
+          {`${props?.className}:${props?.["data-testid"]}`}
+        </span>
+      );
+    }
+
+    render(
+      <PreOverride className="my-class" data-testid="my-pre">
+        <ChildComponent />
+      </PreOverride>,
+    );
+
+    expect(screen.getByTestId("result").textContent).toBe("my-class:my-pre");
+    expect(screen.queryByTestId("my-pre")).toBeNull();
   });
 
   it("provides context to children", () => {
