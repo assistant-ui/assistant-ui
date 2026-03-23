@@ -21,3 +21,8 @@ export interface FoldedRegion {
 }
 
 export type DisplayLine = ParsedLine | FoldedRegion;
+
+export interface DiffFileInput {
+  content: string;
+  name?: string | undefined;
+}

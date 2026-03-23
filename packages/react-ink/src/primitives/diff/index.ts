@@ -15,10 +15,10 @@ export {
   DiffStats as Stats,
   type DiffStatsProps as StatsProps,
 } from "./DiffStats";
-export { parsePatch, computeDiff, foldContext } from "./diff-utils";
 export type {
   ParsedLine,
   ParsedFile,
+  DiffFileInput,
   DiffLineType,
   DisplayLine,
   FoldedRegion,

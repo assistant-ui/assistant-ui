@@ -7,40 +7,66 @@ import type {
   FoldedRegion,
 } from "./types";
 
+const NO_NEWLINE_MARKER = "\\ No newline at end of file";
+
+const stripTrailingCarriageReturn = (content: string) => {
+  return content.endsWith("\r") ? content.slice(0, -1) : content;
+};
+
+const parseChangeContent = (content: string) => {
+  const normalized = stripTrailingCarriageReturn(content);
+  if (normalized === NO_NEWLINE_MARKER) return null;
+  return stripTrailingCarriageReturn(normalized.slice(1));
+};
+
+const splitDiffLines = (value: string) => {
+  const normalized = value.endsWith("\n") ? value.slice(0, -1) : value;
+  if (normalized.length === 0) {
+    return value.length > 0 ? [""] : [];
+  }
+  return normalized.split("\n").map(stripTrailingCarriageReturn);
+};
+
 export function parsePatch(patch: string): ParsedFile[] {
   const files = parseDiff(patch);
   return files.map((file) => {
     const lines: ParsedLine[] = [];
     let additions = 0;
     let deletions = 0;
+
     for (const chunk of file.chunks) {
       let oldLine = chunk.oldStart;
       let newLine = chunk.newStart;
+
       for (const change of chunk.changes) {
+        const content = parseChangeContent(change.content);
+        if (content === null) continue;
+
         if (change.type === "add") {
           additions++;
           lines.push({
             type: "add",
-            content: change.content.slice(1),
+            content,
             newLineNumber: newLine++,
           });
         } else if (change.type === "del") {
           deletions++;
           lines.push({
             type: "del",
-            content: change.content.slice(1),
+            content,
             oldLineNumber: oldLine++,
           });
         } else {
           lines.push({
             type: "normal",
-            content: change.content.slice(1),
+            content,
             oldLineNumber: oldLine++,
             newLineNumber: newLine++,
           });
         }
       }
     }
+
     return {
       oldName: file.from,
       newName: file.to,
@@ -63,9 +89,7 @@ export function computeDiff(
   let deletions = 0;
 
   for (const change of changes) {
-    const raw = change.value.replace(/\n$/, "");
-    const contentLines = raw.length > 0 ? raw.split("\n") : [];
-    for (const content of contentLines) {
+    for (const content of splitDiffLines(change.value)) {
       if (change.added) {
         additions++;
         lines.push({ type: "add", content, newLineNumber: newLine++ });
@@ -82,6 +106,7 @@ export function computeDiff(
       }
     }
   }
+
   return { lines, additions, deletions };
 }
 

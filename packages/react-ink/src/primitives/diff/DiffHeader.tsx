@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import { Box, Text } from "ink";
 import { useDiffContext } from "./DiffContext";
+import { DiffStats } from "./DiffStats";
 
 export type DiffHeaderProps = ComponentProps<typeof Box> & {
   fileIndex?: number;
@@ -31,8 +32,7 @@ export const DiffHeader = ({ fileIndex = 0, ...boxProps }: DiffHeaderProps) => {
       ) : (
         <Text bold>{displayName}</Text>
       )}
-      <Text color="green">+{file.additions}</Text>
-      <Text color="red">-{file.deletions}</Text>
+      <DiffStats fileIndex={fileIndex} />
     </Box>
   );
 };

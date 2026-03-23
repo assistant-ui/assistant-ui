@@ -1,14 +1,16 @@
-import type { ComponentProps } from "react";
+import { type ComponentProps, useMemo } from "react";
 import { Box, Text } from "ink";
-import { DiffRoot } from "./DiffRoot";
-import { DiffHeader } from "./DiffHeader";
 import { DiffContent } from "./DiffContent";
 import { useDiffContext } from "./DiffContext";
+import { DiffHeader } from "./DiffHeader";
+import { DiffRoot } from "./DiffRoot";
+import { computeDiff, parsePatch } from "./diff-utils";
+import type { DiffFileInput, ParsedFile } from "./types";
 
-export type DiffViewProps = ComponentProps<typeof Box> & {
+export type DiffViewProps = Omit<ComponentProps<typeof Box>, "children"> & {
   patch?: string | undefined;
-  oldFile?: { content: string; name?: string | undefined } | undefined;
-  newFile?: { content: string; name?: string | undefined } | undefined;
+  oldFile?: DiffFileInput | undefined;
+  newFile?: DiffFileInput | undefined;
   showLineNumbers?: boolean | undefined;
   contextLines?: number | undefined;
   maxLines?: number | undefined;
@@ -49,6 +51,39 @@ const DiffViewInner = ({
   );
 };
 
+const getDiffViewFiles = ({
+  patch,
+  oldFile,
+  newFile,
+}: {
+  patch?: string | undefined;
+  oldFile?: DiffFileInput | undefined;
+  newFile?: DiffFileInput | undefined;
+}): ParsedFile[] => {
+  if (patch) {
+    return parsePatch(patch);
+  }
+
+  if (!oldFile || !newFile) {
+    return [];
+  }
+
+  const { lines, additions, deletions } = computeDiff(
+    oldFile.content,
+    newFile.content,
+  );
+
+  return [
+    {
+      oldName: oldFile.name,
+      newName: newFile.name,
+      lines,
+      additions,
+      deletions,
+    },
+  ];
+};
+
 export const DiffView = ({
   patch,
   oldFile,
@@ -58,8 +93,29 @@ export const DiffView = ({
   maxLines,
   ...boxProps
 }: DiffViewProps) => {
+  const oldContent = oldFile?.content;
+  const oldName = oldFile?.name;
+  const newContent = newFile?.content;
+  const newName = newFile?.name;
+
+  const files = useMemo(
+    () =>
+      getDiffViewFiles({
+        patch,
+        oldFile:
+          oldContent !== undefined
+            ? { content: oldContent, name: oldName }
+            : undefined,
+        newFile:
+          newContent !== undefined
+            ? { content: newContent, name: newName }
+            : undefined,
+      }),
+    [patch, oldContent, oldName, newContent, newName],
+  );
+
   return (
-    <DiffRoot patch={patch} oldFile={oldFile} newFile={newFile} {...boxProps}>
+    <DiffRoot files={files} {...boxProps}>
       <DiffViewInner
         showLineNumbers={showLineNumbers}
         contextLines={contextLines}
@@ -68,5 +124,3 @@ export const DiffView = ({
     </DiffRoot>
   );
 };
-
-DiffView.displayName = "DiffView";

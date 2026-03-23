@@ -2,6 +2,9 @@ import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "ink-testing-library";
 import { parsePatch, computeDiff, foldContext } from "./diff-utils";
+import { DiffContent } from "./DiffContent";
+import { DiffHeader } from "./DiffHeader";
+import { DiffRoot } from "./DiffRoot";
 import { DiffView } from "./DiffView";
 
 const renderFrame = async (node: ReactElement) => {
@@ -41,6 +44,77 @@ describe("parsePatch", () => {
     expect(types).toContain("del");
     expect(types).toContain("normal");
   });
+
+  it("strips CRLF line endings from parsed patch lines", () => {
+    const patch = `diff --git a/x.txt b/x.txt
+--- a/x.txt
++++ b/x.txt
+@@ -1,2 +1,2 @@
+ a\r
+-b\r
++c\r
+`;
+
+    expect(parsePatch(patch)).toEqual([
+      {
+        oldName: "x.txt",
+        newName: "x.txt",
+        additions: 1,
+        deletions: 1,
+        lines: [
+          {
+            type: "normal",
+            content: "a",
+            oldLineNumber: 1,
+            newLineNumber: 1,
+          },
+          {
+            type: "del",
+            content: "b",
+            oldLineNumber: 2,
+          },
+          {
+            type: "add",
+            content: "c",
+            newLineNumber: 2,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("ignores no-newline markers in unified diff patches", () => {
+    const patch = `diff --git a/a.txt b/a.txt
+--- a/a.txt
++++ b/a.txt
+@@ -1 +1 @@
+-old
+\\ No newline at end of file
++new
+\\ No newline at end of file
+`;
+
+    expect(parsePatch(patch)).toEqual([
+      {
+        oldName: "a.txt",
+        newName: "a.txt",
+        additions: 1,
+        deletions: 1,
+        lines: [
+          {
+            type: "del",
+            content: "old",
+            oldLineNumber: 1,
+          },
+          {
+            type: "add",
+            content: "new",
+            newLineNumber: 1,
+          },
+        ],
+      },
+    ]);
+  });
 });
 
 describe("computeDiff", () => {
@@ -52,6 +126,69 @@ describe("computeDiff", () => {
     expect(types).toContain("add");
     expect(types).toContain("del");
     expect(types).toContain("normal");
+  });
+
+  it("preserves blank-line additions and deletions", () => {
+    expect(computeDiff("a\n", "a\n\n")).toEqual({
+      additions: 1,
+      deletions: 0,
+      lines: [
+        {
+          type: "normal",
+          content: "a",
+          oldLineNumber: 1,
+          newLineNumber: 1,
+        },
+        {
+          type: "add",
+          content: "",
+          newLineNumber: 2,
+        },
+      ],
+    });
+
+    expect(computeDiff("a\n\n", "a\n")).toEqual({
+      additions: 0,
+      deletions: 1,
+      lines: [
+        {
+          type: "normal",
+          content: "a",
+          oldLineNumber: 1,
+          newLineNumber: 1,
+        },
+        {
+          type: "del",
+          content: "",
+          oldLineNumber: 2,
+        },
+      ],
+    });
+  });
+
+  it("strips CRLF line endings from computed diffs", () => {
+    expect(computeDiff("a\r\nb\r\n", "a\r\nc\r\n")).toEqual({
+      additions: 1,
+      deletions: 1,
+      lines: [
+        {
+          type: "normal",
+          content: "a",
+          oldLineNumber: 1,
+          newLineNumber: 1,
+        },
+        {
+          type: "del",
+          content: "b",
+          oldLineNumber: 2,
+        },
+        {
+          type: "add",
+          content: "c",
+          newLineNumber: 2,
+        },
+      ],
+    });
   });
 });
 
@@ -85,6 +222,41 @@ describe("foldContext", () => {
 });
 
 describe("DiffView", () => {
+  it("supports composing primitives from prepared files", async () => {
+    const frame = await renderFrame(
+      <DiffRoot
+        files={[
+          {
+            oldName: "before.txt",
+            newName: "after.txt",
+            additions: 1,
+            deletions: 1,
+            lines: [
+              {
+                type: "del",
+                content: "before",
+                oldLineNumber: 1,
+              },
+              {
+                type: "add",
+                content: "after",
+                newLineNumber: 1,
+              },
+            ],
+          },
+        ]}
+      >
+        <DiffHeader />
+        <DiffContent />
+      </DiffRoot>,
+    );
+
+    expect(frame).toContain("before.txt");
+    expect(frame).toContain("after.txt");
+    expect(frame).toContain("+1");
+    expect(frame).toContain("-1");
+  });
+
   it("renders a basic patch", async () => {
     const frame = await renderFrame(<DiffView patch={SAMPLE_PATCH} />);
     expect(frame).toContain("hello.txt");
