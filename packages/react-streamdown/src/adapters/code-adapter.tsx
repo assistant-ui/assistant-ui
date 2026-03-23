@@ -13,7 +13,6 @@ import type {
   ComponentsByLanguage,
   SyntaxHighlighterProps,
 } from "../types";
-import { useIsStreamdownCodeBlock } from "./PreOverride";
 
 const LANGUAGE_REGEX = /language-([^\s]+)/;
 
@@ -71,13 +70,10 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     node,
     className,
     children,
+    "data-block": dataBlock,
     ...props
-  }: CodeProps) {
-    // Use context-based detection for inline vs block code
-    const isCodeBlock = useIsStreamdownCodeBlock();
-
-    if (!isCodeBlock) {
-      // Inline code - render as simple code element
+  }: CodeProps & { "data-block"?: string }) {
+    if (!dataBlock) {
       return (
         <code
           className={`aui-streamdown-inline-code ${className ?? ""}`.trim()}

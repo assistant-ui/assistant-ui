@@ -3,7 +3,10 @@
 import type { Element } from "hast";
 import {
   type ComponentPropsWithoutRef,
+  type ReactElement,
+  cloneElement,
   createContext,
+  isValidElement,
   memo,
   useContext,
 } from "react";
@@ -35,18 +38,20 @@ export function useStreamdownPreProps(): PreOverrideProps | null {
   return useContext(PreContext);
 }
 
-/**
- * Pre component override that provides context for child code elements.
- * This enables reliable inline vs block code detection.
- */
 export const PreOverride = memo(function PreOverride({
   children,
   node,
   ...rest
 }: PreOverrideProps) {
+  const childWithBlock = isValidElement(children)
+    ? cloneElement(children as ReactElement<{ "data-block"?: string }>, {
+        "data-block": "true",
+      })
+    : children;
+
   return (
     <PreContext.Provider value={{ node, ...rest }}>
-      <pre {...rest}>{children}</pre>
+      <pre {...rest}>{childWithBlock}</pre>
     </PreContext.Provider>
   );
 }, memoCompareNodes);

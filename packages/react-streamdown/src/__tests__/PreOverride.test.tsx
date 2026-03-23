@@ -126,6 +126,22 @@ describe("PreOverride component", () => {
     expect(screen.getByTestId("result").textContent).toBe("test-class");
   });
 
+  it("injects data-block onto child element", () => {
+    render(
+      <PreOverride>
+        <code data-testid="child-code">block code</code>
+      </PreOverride>,
+    );
+
+    const codeElement = screen.getByTestId("child-code");
+    expect(codeElement.getAttribute("data-block")).toBe("true");
+  });
+
+  it("handles non-element children without data-block", () => {
+    render(<PreOverride>plain text</PreOverride>);
+    expect(screen.getByText("plain text")).toBeDefined();
+  });
+
   it("is memoized and does not re-render unnecessarily", () => {
     const { rerender } = render(
       <PreOverride className="test">content</PreOverride>,
