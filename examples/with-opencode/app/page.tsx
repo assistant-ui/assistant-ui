@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar";
-import { useOpenCodeRuntime } from "@assistant-ui/react-opencode-2";
+import { useOpenCodeRuntime } from "@assistant-ui/react-opencode";
 import { Thread } from "../components/assistant-ui/thread";
 import { OpenCodePermissions } from "../components/opencode-permissions";
 

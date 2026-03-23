@@ -3,8 +3,8 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./*"],
-      "@assistant-ui/react-opencode-2": [
-        "../../packages/react-opencode-2/src/index.ts"
+      "@assistant-ui/react-opencode": [
+        "../../packages/react-opencode/src/index.ts"
       ],
       "@/components/assistant-ui/*": [
         "../../packages/ui/src/components/assistant-ui/*"

@@ -1,5 +1,5 @@
 {
-  "name": "with-opencode-2",
+  "name": "with-opencode",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
   "dependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
-    "@assistant-ui/react-opencode-2": "workspace:*",
+    "@assistant-ui/react-opencode": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

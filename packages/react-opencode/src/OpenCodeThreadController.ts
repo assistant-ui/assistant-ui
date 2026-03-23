@@ -226,17 +226,27 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
   public async cancel() {
     this.dispatch({ type: "run.cancelling" });
-    await this.client.session.abort({
-      path: { id: this.sessionId },
-    });
+    try {
+      await this.client.session.abort({
+        path: { id: this.sessionId },
+      });
+    } catch (error) {
+      this.dispatch({ type: "run.failed", error });
+      throw error;
+    }
   }
 
   public async revert(messageId: string) {
     this.dispatch({ type: "run.reverting" });
-    await this.client.session.revert({
-      path: { id: this.sessionId },
-      body: { messageID: messageId } as never,
-    });
+    try {
+      await this.client.session.revert({
+        path: { id: this.sessionId },
+        body: { messageID: messageId } as never,
+      });
+    } catch (error) {
+      this.dispatch({ type: "run.failed", error });
+      throw error;
+    }
   }
 
   public async unrevert() {

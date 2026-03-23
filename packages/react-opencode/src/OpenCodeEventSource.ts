@@ -122,7 +122,7 @@ export class OpenCodeEventSource {
       } catch (error) {
         if (this.abortController?.signal.aborted || this.stopped) return;
         console.warn(
-          "[react-opencode-2] OpenCode event stream disconnected",
+          "[react-opencode] OpenCode event stream disconnected",
           error,
         );
       } finally {

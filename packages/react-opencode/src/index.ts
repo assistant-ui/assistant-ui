@@ -16,6 +16,8 @@ export { projectOpenCodeThreadMessages } from "./openCodeMessageProjection";
 
 export type {
   MessageWithParts,
+  OpenCodeLoadState,
+  OpenCodePartPayload,
   OpenCodePermissionRequest,
   OpenCodePermissionResponse,
   OpenCodeProjectedThreadMessage,

@@ -7,7 +7,7 @@ import {
 } from "@assistant-ui/react";
 import type { AssistantRuntime } from "@assistant-ui/react";
 import { createOpencodeClient } from "@opencode-ai/sdk/client";
-import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type {
   OpenCodeProjectedThreadMessage,
   OpenCodeRuntimeExtras,
@@ -81,6 +81,19 @@ const getController = (
   return controller;
 };
 
+const NOOP_CONTROLLER: OpenCodeThreadControllerLike = {
+  getState: () => EMPTY_THREAD_STATE,
+  subscribe: () => () => {},
+  load: async () => {},
+  refresh: async () => {},
+  sendMessage: async () => {},
+  cancel: async () => {},
+  revert: async () => {},
+  unrevert: async () => {},
+  fork: async () => "",
+  replyToPermission: async () => {},
+};
+
 const useOpenCodeControllerState = (
   controller: OpenCodeThreadControllerLike,
 ): OpenCodeThreadState => {
@@ -97,6 +110,7 @@ const useOpenCodeThreadRuntime = (
   const state = useOpenCodeControllerState(controller);
 
   useEffect(() => {
+    if (controller === NOOP_CONTROLLER) return;
     controller.load().catch((error) => {
       options.onError?.(error);
     });
@@ -183,6 +197,12 @@ const useRuntimeHook = (
       state.threadListItem.externalId ?? state.threadListItem.remoteId,
   );
 
+  const controller = sessionId
+    ? getController(registry, client, baseUrl, sessionId)
+    : NOOP_CONTROLLER;
+
+  const threadRuntime = useOpenCodeThreadRuntime(controller, options);
+
   const fallbackRuntime =
     useExternalStoreRuntime<OpenCodeProjectedThreadMessage>({
       isDisabled: true,
@@ -195,8 +215,7 @@ const useRuntimeHook = (
     });
 
   if (!sessionId) return fallbackRuntime;
-  const controller = getController(registry, client, baseUrl, sessionId);
-  return useOpenCodeThreadRuntime(controller, options);
+  return threadRuntime;
 };
 
 export const useOpenCodeRuntime = (
@@ -207,12 +226,7 @@ export const useOpenCodeRuntime = (
     () => options.client ?? createOpencodeClient({ baseUrl }),
     [baseUrl, options.client],
   );
-  const registryRef = useRef<OpenCodeControllerRegistry | null>(null);
-  if (!registryRef.current) {
-    registryRef.current = createRegistry(client);
-  }
-
-  const registry = registryRef.current;
+  const registry = useMemo(() => createRegistry(client), [client]);
 
   useEffect(() => {
     return () => {
@@ -328,21 +342,20 @@ export const useOpenCodePermissions = () => {
   const extras = useAuiState((state: any) =>
     tryGetOpenCodeRuntimeExtras(state.thread.extras),
   );
-  const pending = extras
-    ? (Object.values(extras.permissions) as Array<
-        OpenCodeRuntimeExtras["permissions"][string]
-      >)
-    : [];
 
   return useMemo(
     () => ({
-      pending,
+      pending: extras
+        ? (Object.values(extras.permissions) as Array<
+            OpenCodeRuntimeExtras["permissions"][string]
+          >)
+        : [],
       reply:
         extras?.replyToPermission ??
         (async () => {
           throw new Error("OpenCode runtime is not ready yet");
         }),
     }),
-    [extras, pending],
+    [extras],
   );
 };

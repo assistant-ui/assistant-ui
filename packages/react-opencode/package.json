@@ -1,8 +1,7 @@
 {
-  "name": "@assistant-ui/react-opencode-2",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Parallel OpenCode adapter for assistant-ui built on existing message primitives",
+  "name": "@assistant-ui/react-opencode",
+  "version": "0.0.1",
+  "description": "OpenCode runtime adapter for assistant-ui",
   "keywords": [
     "opencode",
     "assistant-ui",
@@ -13,6 +12,19 @@
   ],
   "author": "AgentbaseAI Inc.",
   "license": "MIT",
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-opencode"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -52,7 +64,6 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^25.3.3",
     "@types/react": "^19.2.14",
-    "jsdom": "^28.1.0",
     "react": "^19.2.4",
     "vitest": "^4.0.18"
   }

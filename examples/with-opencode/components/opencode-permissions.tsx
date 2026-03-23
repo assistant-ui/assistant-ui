@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useOpenCodePermissions } from "@assistant-ui/react-opencode-2";
+import { useOpenCodePermissions } from "@assistant-ui/react-opencode";
 import { ShieldAlertIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -27,7 +27,7 @@ export function OpenCodePermissions() {
         <h2 className="font-semibold text-lg">Tool approvals</h2>
         <p className="mt-1 text-muted-foreground text-sm">
           Pending OpenCode permission requests remain separate from the message
-          timeline in this v2 implementation.
+          timeline.
         </p>
       </div>
 
