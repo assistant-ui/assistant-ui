@@ -40,14 +40,19 @@ const getSummary = (name: string, data: unknown) => {
 };
 
 export const OpenCodeDataPart: FC<OpenCodeDataPartProps> = ({ name, data }) => {
-  if (name === "opencode-step-start" || name === "opencode-step-finish") {
+  const dontShow =
+    name === "opencode-step-start" ||
+    name === "opencode-step-finish" ||
+    name === "opencode-patch";
+
+  if (dontShow) {
     return null;
   }
 
   const summary = getSummary(name, data);
 
   return (
-    <div className="my-2 rounded-xl border bg-muted/50 px-3 py-2 text-muted-foreground text-sm">
+    <div className="my-1 rounded-xl border bg-muted/50 px-2 py-1 text-muted-foreground text-xs">
       {summary}
     </div>
   );

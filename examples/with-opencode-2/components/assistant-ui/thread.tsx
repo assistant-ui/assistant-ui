@@ -4,8 +4,9 @@ import {
   UserMessageAttachments,
 } from "@/components/assistant-ui/attachment";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { Reasoning } from "@/components/assistant-ui/reasoning";
+import { ReasoningGroup } from "@/components/tools/reasoning-ghost";
+import { ToolCallInline } from "@/components/tools/tool-call-inline";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { OpenCodeDataPart } from "@/components/opencode-data-part";
 import { Button } from "@/components/ui/button";
@@ -96,10 +97,10 @@ const ThreadWelcome: FC = () => {
       <div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
         <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-4">
           <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both font-semibold text-2xl duration-200">
-            OpenCode v2
+            Welcome
           </h1>
           <p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-muted-foreground text-xl delay-75 duration-200">
-            Existing assistant-ui primitives, no AgentTrace required.
+            How can I help you today?
           </p>
         </div>
       </div>
@@ -216,7 +217,7 @@ const AssistantMessage: FC = () => {
             Reasoning,
             ReasoningGroup,
             tools: {
-              Fallback: ToolFallback,
+              Fallback: ToolCallInline,
             },
             data: {
               by_name: {

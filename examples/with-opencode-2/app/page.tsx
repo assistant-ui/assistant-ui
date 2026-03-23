@@ -28,10 +28,7 @@ export default function Home() {
               <SidebarTrigger />
               <Separator orientation="vertical" className="mr-2 h-4" />
               <div>
-                <div className="font-medium text-sm">OpenCode v2</div>
-                <div className="text-muted-foreground text-xs">
-                  Existing assistant-ui primitives only
-                </div>
+                <div className="font-medium text-sm">OpenCode</div>
               </div>
             </header>
             <div className="flex min-h-0 flex-1 overflow-hidden">
