@@ -57,9 +57,7 @@ export const ApplyPatchSummary = ({
   isRunning: boolean;
 }) => (
   <>
-    {patchInfo.file && (
-      <span className="opacity-60">{patchInfo.file}</span>
-    )}
+    {patchInfo.file && <span className="opacity-60">{patchInfo.file}</span>}
     {(patchInfo.added > 0 || patchInfo.removed > 0) && !isRunning && (
       <span className="ml-0.5 flex items-center gap-1 font-mono text-xs">
         {patchInfo.added > 0 && (

@@ -1,14 +1,9 @@
 "use client";
 
 import { memo } from "react";
-import {
-  Reasoning as ReasoningBase,
-} from "@/components/assistant-ui/reasoning";
+import { Reasoning as ReasoningBase } from "@/components/assistant-ui/reasoning";
 import { BrainIcon } from "lucide-react";
-import {
-  useAuiState,
-  type ReasoningGroupComponent,
-} from "@assistant-ui/react";
+import { useAuiState, type ReasoningGroupComponent } from "@assistant-ui/react";
 
 const ReasoningGroupImpl: ReasoningGroupComponent = ({
   children,
