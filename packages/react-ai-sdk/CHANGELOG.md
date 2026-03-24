@@ -1,5 +1,11 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.16
+
+### Patch Changes
+
+- fix(react-ai-sdk): convert assistant file parts to FileMessagePart instead of dropping them (fixes #3694)
+
 ## 1.3.15
 
 ### Patch Changes
