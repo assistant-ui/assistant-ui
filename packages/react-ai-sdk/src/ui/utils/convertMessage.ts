@@ -208,7 +208,7 @@ function convertParts(
           type: "file",
           data: part.url,
           mimeType: part.mediaType,
-          filename: part.filename,
+          ...(part.filename != null && { filename: part.filename }),
         } satisfies FileMessagePart;
       }
 
