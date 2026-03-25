@@ -59,7 +59,7 @@
     "@types/react": "^19.2.14",
     "react": "^19.2.4",
     "react-native": "^0.84.1",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.1"
   },
   "publishConfig": {
     "access": "public",

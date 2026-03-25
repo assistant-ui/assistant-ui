@@ -51,8 +51,8 @@
     "@types/debug": "^4.1.13",
     "@types/jscodeshift": "^17.3.0",
     "@types/node": "^25.5.0",
-    "@vitest/coverage-v8": "^4.1.0",
-    "vitest": "^4.1.0"
+    "@vitest/coverage-v8": "^4.1.1",
+    "vitest": "^4.1.1"
   },
   "publishConfig": {
     "access": "public",

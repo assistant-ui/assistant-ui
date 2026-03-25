@@ -41,7 +41,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@modelcontextprotocol/sdk": "^1.28.0",
     "gray-matter": "^4.0.3",
     "zod": "^4.3.6"
   },
@@ -49,7 +49,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^25.5.0",
     "tsx": "^4.21.0",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.1"
   },
   "publishConfig": {
     "access": "public",

@@ -41,10 +41,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.7",
-    "@assistant-ui/store": "^0.2.3",
+    "@assistant-ui/core": "^0.1.8",
+    "@assistant-ui/store": "^0.2.4",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.6",
+    "assistant-stream": "^0.3.7",
     "uuid": "^13.0.0"
   },
   "peerDependencies": {
@@ -65,7 +65,7 @@
     "@types/react": "^19.2.14",
     "@types/uuid": "^11.0.0",
     "react": "^19.2.4",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.1"
   },
   "publishConfig": {
     "access": "public",

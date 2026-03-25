@@ -35,8 +35,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.7",
-    "@assistant-ui/store": "^0.2.3"
+    "@assistant-ui/core": "^0.1.8",
+    "@assistant-ui/store": "^0.2.4"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -51,7 +51,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.14",
     "react": "^19.2.4",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.1"
   },
   "publishConfig": {
     "access": "public",
