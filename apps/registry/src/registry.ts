@@ -355,6 +355,11 @@ export const registry: RegistryItem[] = [
         sourcePath:
           "../../packages/ui/src/components/assistant-ui/threadlist-sidebar.tsx",
       },
+      {
+        type: "registry:component",
+        path: "components/icons/github.tsx",
+        sourcePath: "../../packages/ui/src/components/icons/github.tsx",
+      },
     ],
     dependencies: ["lucide-react"],
     registryDependencies: [

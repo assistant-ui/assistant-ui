@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Github, MessagesSquare } from "lucide-react";
+import { MessagesSquare } from "lucide-react";
+import { GitHubIcon } from "@/components/icons/github";
 import {
   Sidebar,
   SidebarContent,
@@ -55,7 +56,7 @@ export function ThreadListSidebar({
                 rel="noopener noreferrer"
               >
                 <div className="aui-sidebar-footer-icon-wrapper flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <Github className="aui-sidebar-footer-icon size-4" />
+                  <GitHubIcon className="aui-sidebar-footer-icon size-4" />
                 </div>
                 <div className="aui-sidebar-footer-heading flex flex-col gap-0.5 leading-none">
                   <span className="aui-sidebar-footer-title font-semibold">
