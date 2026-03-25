@@ -508,7 +508,7 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
         <div className="relative min-w-0 max-w-[80%]">
           <div
             className={cn(
-              "aui-user-message-content wrap-break-word px-4 py-2.5",
+              "aui-user-message-content wrap-break-word peer px-4 py-2.5 empty:hidden",
               BORDER_RADIUS_CLASS[styles.borderRadius],
             )}
             style={{ backgroundColor: "var(--aui-user-message-background)" }}
@@ -516,7 +516,7 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
             <MessagePrimitive.Parts />
           </div>
           {components.editMessage && (
-            <div className="aui-user-action-bar-wrapper absolute top-1/2 right-0 translate-x-full -translate-y-1/2 pl-2">
+            <div className="aui-user-action-bar-wrapper absolute top-1/2 right-0 translate-x-full -translate-y-1/2 pl-2 peer-empty:hidden">
               <UserActionBar />
             </div>
           )}
@@ -554,7 +554,7 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div
           className={cn(
-            "aui-user-message-content wrap-break-word px-4 py-2.5",
+            "aui-user-message-content wrap-break-word peer px-4 py-2.5 empty:hidden",
             BORDER_RADIUS_CLASS[styles.borderRadius],
           )}
           style={{ backgroundColor: "var(--aui-user-message-background)" }}
@@ -562,7 +562,7 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
           <MessagePrimitive.Parts />
         </div>
         {components.editMessage && (
-          <div className="aui-user-action-bar-wrapper absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
+          <div className="aui-user-action-bar-wrapper absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2 peer-empty:hidden">
             <UserActionBar />
           </div>
         )}

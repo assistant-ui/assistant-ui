@@ -440,6 +440,8 @@ const EmptyPartsImpl: FC<MessagePartComponentProps> = ({ components }) => {
 
   if (components?.Empty) return <components.Empty status={status} />;
 
+  if (status.type !== "running") return null;
+
   return (
     <EmptyPartFallback
       status={status}
