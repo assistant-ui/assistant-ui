@@ -1,0 +1,300 @@
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from "react";
+
+export interface UseKeyboardNavOptions<T> {
+  items: T[];
+  onActivate?: (item: T, index: number) => void;
+  onNavigate?: (item: T, index: number) => void;
+  getItemKey?: (item: T) => string | number;
+  enabled?: boolean;
+  loop?: boolean;
+  initialIndex?: number;
+}
+
+export interface UseKeyboardNavResult {
+  selectedIndex: number;
+  setSelectedIndex: (index: number) => void;
+  navigateUp: () => void;
+  navigateDown: () => void;
+  activate: () => void;
+}
+
+export function useKeyboardNav<T>({
+  items,
+  onActivate,
+  onNavigate,
+  getItemKey,
+  enabled = true,
+  loop = false,
+  initialIndex = 0,
+}: UseKeyboardNavOptions<T>): UseKeyboardNavResult {
+  const [selectedIndex, setSelectedIndex] = useState(initialIndex);
+  const shouldNotifyNavigateRef = useRef(false);
+  const selectedKeyRef = useRef<string | number | undefined>(undefined);
+  const itemsRef = useRef(items);
+  const onNavigateRef = useRef(onNavigate);
+  const onActivateRef = useRef(onActivate);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+
+  useEffect(() => {
+    onNavigateRef.current = onNavigate;
+  }, [onNavigate]);
+
+  useEffect(() => {
+    onActivateRef.current = onActivate;
+  }, [onActivate]);
+
+  useEffect(() => {
+    if (!getItemKey) return;
+    const currentItem = itemsRef.current[selectedIndex];
+    selectedKeyRef.current =
+      currentItem !== undefined ? getItemKey(currentItem) : undefined;
+  }, [getItemKey, selectedIndex]);
+
+  // Clamp index when items change
+  useEffect(() => {
+    if (items.length === 0) {
+      setSelectedIndex(0);
+    } else if (getItemKey && selectedKeyRef.current !== undefined) {
+      const nextIndex = items.findIndex(
+        (item) => getItemKey(item) === selectedKeyRef.current,
+      );
+      if (nextIndex >= 0 && nextIndex !== selectedIndex) {
+        setSelectedIndex(nextIndex);
+      }
+    } else if (selectedIndex >= items.length) {
+      setSelectedIndex(items.length - 1);
+    }
+  }, [getItemKey, items, selectedIndex]);
+
+  const navigateUp = useCallback(() => {
+    const itemCount = itemsRef.current.length;
+    if (itemCount === 0) {
+      return;
+    }
+    setSelectedIndex((prev) => {
+      const nextIndex = prev <= 0 ? (loop ? itemCount - 1 : 0) : prev - 1;
+      shouldNotifyNavigateRef.current = nextIndex !== prev;
+      return nextIndex;
+    });
+  }, [loop]);
+
+  const navigateDown = useCallback(() => {
+    const itemCount = itemsRef.current.length;
+    if (itemCount === 0) {
+      return;
+    }
+    setSelectedIndex((prev) => {
+      const nextIndex =
+        prev >= itemCount - 1 ? (loop ? 0 : itemCount - 1) : prev + 1;
+      shouldNotifyNavigateRef.current = nextIndex !== prev;
+      return nextIndex;
+    });
+  }, [loop]);
+
+  useEffect(() => {
+    if (!shouldNotifyNavigateRef.current) {
+      return;
+    }
+    shouldNotifyNavigateRef.current = false;
+    const item = itemsRef.current[selectedIndex];
+    if (item !== undefined) {
+      onNavigateRef.current?.(item, selectedIndex);
+    }
+  }, [selectedIndex]);
+
+  const activate = useCallback(() => {
+    const item = itemsRef.current[selectedIndex];
+    if (item !== undefined) {
+      onActivateRef.current?.(item, selectedIndex);
+    }
+  }, [selectedIndex]);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't capture if user is typing in an input
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      switch (e.key) {
+        case "j":
+        case "ArrowDown":
+          e.preventDefault();
+          navigateDown();
+          break;
+        case "k":
+        case "ArrowUp":
+          e.preventDefault();
+          navigateUp();
+          break;
+        case "Enter":
+          e.preventDefault();
+          activate();
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [enabled, navigateDown, navigateUp, activate]);
+
+  return {
+    selectedIndex,
+    setSelectedIndex,
+    navigateUp,
+    navigateDown,
+    activate,
+  };
+}
+
+// Extended hook with additional keyboard shortcuts
+export interface UseExtendedKeyboardNavOptions<T>
+  extends UseKeyboardNavOptions<T> {
+  onApprove?: (item: T, index: number) => void;
+  onDeny?: (item: T, index: number) => void;
+  onApproveSession?: (item: T, index: number) => void;
+  onApproveAll?: () => void;
+  onDenyAll?: () => void;
+  onCancel?: () => void;
+  onSearch?: () => void;
+  onNew?: () => void;
+  onEscape?: () => void;
+}
+
+export function useExtendedKeyboardNav<T>({
+  items,
+  onActivate,
+  onNavigate,
+  getItemKey,
+  enabled = true,
+  loop = false,
+  initialIndex = 0,
+  onApprove,
+  onDeny,
+  onApproveSession,
+  onApproveAll,
+  onDenyAll,
+  onCancel,
+  onSearch,
+  onNew,
+  onEscape,
+}: UseExtendedKeyboardNavOptions<T>): UseKeyboardNavResult {
+  const baseOptions: UseKeyboardNavOptions<T> = {
+    items,
+    enabled,
+    loop,
+    initialIndex,
+  };
+  if (getItemKey) baseOptions.getItemKey = getItemKey;
+  if (onActivate) baseOptions.onActivate = onActivate;
+  if (onNavigate) baseOptions.onNavigate = onNavigate;
+  const nav = useKeyboardNav(baseOptions);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't capture if user is typing in an input
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        // Allow Escape to work even in inputs
+        if (e.key === "Escape") {
+          e.preventDefault();
+          onEscape?.();
+        }
+        return;
+      }
+
+      const item = items[nav.selectedIndex];
+      const key = e.key.toLowerCase();
+
+      switch (key) {
+        case "y":
+          if (item && onApprove) {
+            e.preventDefault();
+            onApprove(item, nav.selectedIndex);
+          }
+          break;
+        case "a":
+          if (e.shiftKey && onApproveAll) {
+            e.preventDefault();
+            onApproveAll();
+          }
+          break;
+        case "d":
+          if (e.shiftKey && onDenyAll) {
+            e.preventDefault();
+            onDenyAll();
+          } else if (item && onDeny) {
+            e.preventDefault();
+            onDeny(item, nav.selectedIndex);
+          }
+          break;
+        case "s":
+          if (item && onApproveSession) {
+            e.preventDefault();
+            onApproveSession(item, nav.selectedIndex);
+          }
+          break;
+        case "c":
+          if (onCancel) {
+            e.preventDefault();
+            onCancel();
+          }
+          break;
+        case "/":
+          if (onSearch) {
+            e.preventDefault();
+            onSearch();
+          }
+          break;
+        case "n":
+          if (onNew) {
+            e.preventDefault();
+            onNew();
+          }
+          break;
+        case "escape":
+          if (onEscape) {
+            e.preventDefault();
+            onEscape();
+          }
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    enabled,
+    items,
+    nav.selectedIndex,
+    onApprove,
+    onDeny,
+    onApproveSession,
+    onApproveAll,
+    onDenyAll,
+    onCancel,
+    onSearch,
+    onNew,
+    onEscape,
+  ]);
+
+  return nav;
+}
