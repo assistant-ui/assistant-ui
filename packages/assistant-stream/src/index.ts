@@ -45,6 +45,7 @@ export {
 } from "./core/tool/toolResultStream";
 export {
   toJSONSchema,
+  toPartialJSONSchema,
   toToolsJSONSchema,
   type ToolJSONSchema,
   type ToToolsJSONSchemaOptions,
