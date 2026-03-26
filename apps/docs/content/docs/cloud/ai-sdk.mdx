@@ -274,6 +274,86 @@ const cloud = new AssistantCloud({
 
 Return `null` from `beforeReport` to skip reporting a specific run. To disable telemetry entirely, pass `telemetry: false`.
 
+### Sub-Agent Model Tracking
+
+In multi-agent setups where tool calls delegate to a different model (e.g., the main run uses GPT but a tool invokes Gemini), you can track the delegated model's usage by passing sampling call data through `messageMetadata`.
+
+**Step 1: Collect sampling data on the server**
+
+Use `createSamplingCollector` and `wrapSamplingHandler` from `assistant-cloud` to capture LLM calls made during tool execution:
+
+```ts title="app/api/chat/route.ts"
+import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
+import {
+  createSamplingCollector,
+  wrapSamplingHandler,
+} from "assistant-cloud";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  // Collect sub-agent sampling calls per tool call
+  const samplingCalls: Record<string, SamplingCallData[]> = {};
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages,
+    tools: {
+      delegate_to_gemini: tool({
+        parameters: z.object({ task: z.string() }),
+        execute: async ({ task }, { toolCallId }) => {
+          const collector = createSamplingCollector();
+          // Your sub-agent logic that calls another model
+          const result = await runSubAgent(task, {
+            onSamplingCall: collector.collect,
+          });
+          samplingCalls[toolCallId] = collector.getCalls();
+          return result;
+        },
+      }),
+    },
+  });
+
+  return result.toUIMessageStreamResponse({
+    messageMetadata: ({ part }) => {
+      if (part.type === "finish") {
+        return {
+          usage: part.totalUsage,
+          samplingCalls, // attach collected sampling data
+        };
+      }
+      if (part.type === "finish-step") {
+        return { modelId: part.response.modelId };
+      }
+      return undefined;
+    },
+  });
+}
+```
+
+**Step 2: That's it.** The telemetry reporter automatically reads `samplingCalls` from message metadata and attaches the data to matching tool calls in the report. The Cloud dashboard will show each delegated model in the model distribution chart with its own token and cost breakdown.
+
+<Callout type="info">
+  For MCP tools that use the sampling protocol, `wrapSamplingHandler` can wrap the MCP client's sampling handler directly to capture all nested LLM calls transparently.
+</Callout>
+
+<Callout type="tip">
+  **On older versions** that don't yet read `samplingCalls` from metadata, use `beforeReport` to inject the data manually:
+
+  ```ts
+  telemetry: {
+    beforeReport: (report) => ({
+      ...report,
+      tool_calls: report.tool_calls?.map((tc) => ({
+        ...tc,
+        sampling_calls: samplingCalls[tc.tool_call_id],
+      })),
+    }),
+  }
+  ```
+</Callout>
+
 ## Authentication
 
 The example above uses anonymous mode (browser session-based user ID) via the env var. For production apps with user accounts, pass an explicit cloud instance:

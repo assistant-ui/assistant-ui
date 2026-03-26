@@ -256,6 +256,12 @@ const cloud = new AssistantCloud({
 
 Return `null` from `beforeReport` to skip reporting a specific run. To disable telemetry entirely, pass `telemetry: false`.
 
+### Sub-Agent Model Tracking
+
+When tool calls delegate to a different model (e.g., the main run uses GPT but a tool invokes Gemini), you can track the delegated model's usage. Pass sampling call data through `messageMetadata.samplingCalls` in your API route, and the telemetry reporter will automatically include it in the report.
+
+See the [AI SDK Telemetry guide](/docs/cloud/ai-sdk#sub-agent-model-tracking) for the full setup with `createSamplingCollector` and `wrapSamplingHandler`.
+
 ## Authentication
 
 The example above uses anonymous mode (browser session-based user ID) via the env var. For production apps with user accounts, pass an explicit cloud instance:
