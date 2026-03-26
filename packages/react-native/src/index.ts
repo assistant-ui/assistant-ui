@@ -145,6 +145,13 @@ export {
   type ToolDefinition,
   Tools,
   DataRenderers,
+  Interactables,
+  useInteractable,
+  type UseInteractableConfig,
+  type UseInteractableMetadata,
+  makeInteractable,
+  type InteractableConfig,
+  type AssistantInteractable,
 } from "@assistant-ui/core/react";
 
 export type {

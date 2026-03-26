@@ -28,10 +28,21 @@ export {
 } from "./model-context/useAssistantDataUI";
 export { useInlineRender } from "./model-context/useInlineRender";
 export type { Toolkit, ToolDefinition } from "./model-context/toolbox";
+export {
+  useInteractable,
+  type UseInteractableConfig,
+  type UseInteractableMetadata,
+} from "./model-context/useInteractable";
+export {
+  makeInteractable,
+  type InteractableConfig,
+  type AssistantInteractable,
+} from "./model-context/makeInteractable";
 
 // client
 export { Tools } from "./client/Tools";
 export { DataRenderers } from "./client/DataRenderers";
+export { Interactables } from "./client/Interactables";
 
 // types
 export type {
@@ -68,6 +79,14 @@ export type {
   DataRenderersMethods,
   DataRenderersClientSchema,
 } from "./types/scopes/dataRenderers";
+export type {
+  InteractableStateSchema,
+  InteractablesState,
+  InteractableDefinition,
+  InteractableRegistration,
+  InteractablesMethods,
+  InteractablesClientSchema,
+} from "./types/scopes/interactables";
 
 // providers
 export {
