@@ -266,7 +266,11 @@ export abstract class BaseComposerRuntimeCore
           status: { type: "incomplete", reason: "error" },
         });
       }
-      this._notifyEventSubscribers("attachmentAddError");
+      try {
+        this._notifyEventSubscribers("attachmentAddError");
+      } catch {
+        // prevent subscriber errors from masking the adapter error
+      }
       throw e;
     }
 
@@ -276,7 +280,6 @@ export abstract class BaseComposerRuntimeCore
     this._notifyEventSubscribers(
       hasError ? "attachmentAddError" : "attachmentAdd",
     );
-    this._notifySubscribers();
   }
 
   async removeAttachment(attachmentId: string) {

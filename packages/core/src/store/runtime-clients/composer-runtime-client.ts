@@ -16,7 +16,6 @@ import {
   ComposerRuntime,
   EditComposerRuntime,
 } from "../../runtime/api/composer-runtime";
-import { ComposerRuntimeEventType } from "../../runtime/interfaces/composer-runtime-core";
 import { ComposerState } from "../scopes/composer";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 import { tapSubscribable } from "./tap-subscribable";
@@ -54,13 +53,7 @@ export const ComposerClient = resource(
       const unsubscribers: Unsubscribe[] = [];
 
       // Subscribe to composer events
-      const composerEvents: ComposerRuntimeEventType[] = [
-        "send",
-        "attachmentAdd",
-        "attachmentAddError",
-      ];
-
-      for (const event of composerEvents) {
+      for (const event of ["send", "attachmentAdd"] as const) {
         const unsubscribe = runtime.unstable_on(event, () => {
           emit(`composer.${event}`, {
             threadId: threadIdRef.current,
@@ -69,6 +62,23 @@ export const ComposerClient = resource(
         });
         unsubscribers.push(unsubscribe);
       }
+
+      // attachmentAddError carries the failed attachment ID
+      unsubscribers.push(
+        runtime.unstable_on("attachmentAddError", () => {
+          const errorAttachment = runtime
+            .getState()
+            .attachments.findLast(
+              (a) =>
+                a.status.type === "incomplete" && a.status.reason === "error",
+            );
+          emit("composer.attachmentAddError", {
+            threadId: threadIdRef.current,
+            ...(messageIdRef && { messageId: messageIdRef.current }),
+            ...(errorAttachment && { attachmentId: errorAttachment.id }),
+          });
+        }),
+      );
 
       return () => {
         for (const unsub of unsubscribers) unsub();
