@@ -204,7 +204,9 @@ describe("BaseComposerRuntimeCore", () => {
     };
     composer.setAttachmentAdapter(adapter);
 
-    await composer.addAttachment(new File(["data"], "test.txt"));
+    await composer.addAttachment(
+      new File(["data"], "test.txt", { type: "text/plain" }),
+    );
 
     expect(composer.attachments).toHaveLength(1);
     expect(composer.attachments[0]!.id).toBe("att-1");
