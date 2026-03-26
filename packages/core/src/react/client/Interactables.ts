@@ -129,6 +129,17 @@ export const Interactables = resource((): ClientOutput<"interactables"> => {
               type: "frontend" as const,
               description: `Update the state of interactable component "${name}"${isMulti ? ` (id: ${def.id})` : ""}. Only include the fields you want to change; omitted fields keep their current values. ${def.description}`,
               parameters: partialSchema,
+              streamCall: async (reader) => {
+                try {
+                  for await (const partialArgs of reader.args.streamValues()) {
+                    setDefState(def.id, (prev) =>
+                      shallowMerge(prev, partialArgs),
+                    );
+                  }
+                } catch {
+                  // Non-fatal: execute handles the final state
+                }
+              },
               execute: async (partialState: unknown) => {
                 setDefState(def.id, (prev) => shallowMerge(prev, partialState));
                 return { success: true };
