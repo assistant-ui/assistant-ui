@@ -9,7 +9,10 @@ import type { QuoteInfo } from "../../types/quote";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
 import { BaseSubscribable } from "../../subscribable/subscribable";
-import type { AttachmentAdapter } from "../../adapters/attachment";
+import {
+  type AttachmentAdapter,
+  fileMatchesAccept,
+} from "../../adapters/attachment";
 import type {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
@@ -215,6 +218,17 @@ export abstract class BaseComposerRuntimeCore
 
     const adapter = this.getAttachmentAdapter();
     if (!adapter) throw new Error("Attachments are not supported");
+
+    if (
+      !fileMatchesAccept(
+        { name: fileOrAttachment.name, type: fileOrAttachment.type },
+        adapter.accept,
+      )
+    ) {
+      throw new Error(
+        `File type ${fileOrAttachment.type || "unknown"} is not accepted. Accepted types: ${adapter.accept}`,
+      );
+    }
 
     const upsertAttachment = (a: PendingAttachment) => {
       const idx = this._attachments.findIndex(
