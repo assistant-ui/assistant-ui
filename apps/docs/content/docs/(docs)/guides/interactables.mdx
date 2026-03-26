@@ -31,7 +31,8 @@ Common use cases:
 ### 1. Register the Interactables scope
 
 ```tsx
-import { useAui, Interactables } from "@assistant-ui/react";
+import { useAui, Interactables, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
@@ -136,23 +137,38 @@ Auto-generated tools use a partial schema — all fields become optional. The AI
 
 This is especially useful for large state objects where regenerating the entire state would be expensive and error-prone.
 
+<Callout type="info">
+  Merge is shallow (one level deep). If the AI sends a nested object, it replaces
+  that entire field rather than deep-merging into it.
+</Callout>
+
 ## Multiple Instances
 
 You can render multiple interactables with the same `name` but different `id`s. Each gets its own update tool:
 
 ```tsx
+import { useInteractable } from "@assistant-ui/react";
+import { z } from "zod";
+
+const noteSchema = z.object({
+  title: z.string(),
+  content: z.string(),
+  color: z.enum(["yellow", "blue", "green", "pink"]),
+});
+
+const noteInitialState = { title: "New Note", content: "", color: "yellow" as const };
+
 function NoteCard({ noteId }: { noteId: string }) {
-  const [state, setState] = useInteractable("note", {
-    id: noteId, // unique per instance
+  const [state] = useInteractable("note", {
+    id: noteId,
     description: "A sticky note",
     stateSchema: noteSchema,
-    initialState: { title: "New Note", content: "", color: "yellow" },
+    initialState: noteInitialState,
   });
 
   return <div>{state.title}</div>;
 }
 
-// Render multiple instances
 function App() {
   return (
     <>
@@ -175,7 +191,7 @@ function NoteCard({ noteId }: { noteId: string }) {
     id: noteId,
     description: "A sticky note",
     stateSchema: noteSchema,
-    initialState: { title: "", content: "", color: "yellow" },
+    initialState: noteInitialState,
   });
 
   return (
@@ -228,8 +244,8 @@ import { makeInteractable } from "@assistant-ui/react";
 const TaskBoardInteractable = makeInteractable({
   name: "taskBoard",
   description: "A task board showing the user's tasks",
-  stateSchema: z.object({ /* ... */ }),
-  initialState: { tasks: [] },
+  stateSchema: taskBoardSchema,
+  initialState: taskBoardInitialState,
 });
 
 // Mount it anywhere — renders nothing, just registers the interactable
@@ -273,106 +289,3 @@ const aui = useAui({
   interactables: Interactables(),
 });
 ```
-
-## Examples
-
-### Data Dashboard
-
-```tsx
-function Dashboard() {
-  const [state, setState] = useInteractable("dashboard", {
-    description: "Analytics dashboard showing key metrics",
-    stateSchema: z.object({
-      timeRange: z.enum(["7d", "30d", "90d"]),
-      metrics: z.array(
-        z.object({
-          name: z.string(),
-          value: z.number(),
-          trend: z.enum(["up", "down", "flat"]),
-        }),
-      ),
-    }),
-    initialState: {
-      timeRange: "7d" as const,
-      metrics: [],
-    },
-  });
-
-  return (
-    <div>
-      <select
-        value={state.timeRange}
-        onChange={(e) =>
-          setState((prev) => ({
-            ...prev,
-            timeRange: e.target.value as "7d" | "30d" | "90d",
-          }))
-        }
-      >
-        <option value="7d">7 days</option>
-        <option value="30d">30 days</option>
-        <option value="90d">90 days</option>
-      </select>
-      {state.metrics.map((metric) => (
-        <div key={metric.name}>
-          <span>{metric.name}</span>
-          <span>{metric.value}</span>
-          <span>{metric.trend === "up" ? "↑" : metric.trend === "down" ? "↓" : "→"}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-```
-
-The user can ask _"Show me revenue and user growth for the last 30 days"_ and the AI will update only the `timeRange` and `metrics` fields it needs to change.
-
-### Shopping Cart
-
-```tsx
-function ShoppingCart() {
-  const [state, setState] = useInteractable("cart", {
-    description: "Shopping cart with items the user wants to buy",
-    stateSchema: z.object({
-      items: z.array(
-        z.object({
-          id: z.string(),
-          name: z.string(),
-          price: z.number(),
-          quantity: z.number(),
-        }),
-      ),
-    }),
-    initialState: { items: [] },
-  });
-
-  const total = state.items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
-  );
-
-  return (
-    <div>
-      <h2>Cart ({state.items.length} items)</h2>
-      {state.items.map((item) => (
-        <div key={item.id}>
-          <span>{item.name} × {item.quantity}</span>
-          <span>${(item.price * item.quantity).toFixed(2)}</span>
-          <button
-            onClick={() =>
-              setState((prev) => ({
-                items: prev.items.filter((i) => i.id !== item.id),
-              }))
-            }
-          >
-            Remove
-          </button>
-        </div>
-      ))}
-      <div>Total: ${total.toFixed(2)}</div>
-    </div>
-  );
-}
-```
-
-The user can say _"Add 2 units of the wireless headphones at $79.99"_ and the AI updates the cart.
