@@ -97,6 +97,7 @@ const TaskBoard: FC = () => {
           return { success: true, id };
         }
         case "toggle": {
+          if (!args.id) return { success: false, error: "id is required" };
           set((prev) => ({
             tasks: prev.tasks.map((t) =>
               t.id === args.id ? { ...t, done: !t.done } : t,
@@ -105,6 +106,7 @@ const TaskBoard: FC = () => {
           return { success: true };
         }
         case "remove": {
+          if (!args.id) return { success: false, error: "id is required" };
           set((prev) => ({
             tasks: prev.tasks.filter((t) => t.id !== args.id),
           }));
