@@ -1,5 +1,22 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.16
+
+### Patch Changes
+
+- 781f28d: feat: accept all file types and validate against adapter's accept constraint
+- 0924711: fix(react-ai-sdk): convert assistant file parts to FileMessagePart instead of dropping them
+- 52403c3: chore: update dependencies
+- Updated dependencies [781f28d]
+- Updated dependencies [3227e71]
+- Updated dependencies [0f55ce8]
+- Updated dependencies [83a15f7]
+- Updated dependencies [52403c3]
+- Updated dependencies [ffa3a0f]
+  - @assistant-ui/core@0.1.9
+  - assistant-cloud@0.1.23
+  - @assistant-ui/store@0.2.5
+
 ## 1.3.15
 
 ### Patch Changes

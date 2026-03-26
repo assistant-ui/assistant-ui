@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-google-adk",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Google ADK adapter for assistant-ui",
   "keywords": [
     "google-adk",
@@ -41,10 +41,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.8",
-    "@assistant-ui/store": "^0.2.4",
+    "@assistant-ui/core": "^0.1.9",
+    "@assistant-ui/store": "^0.2.5",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.7",
+    "assistant-stream": "^0.3.8",
     "uuid": "^13.0.0"
   },
   "peerDependencies": {

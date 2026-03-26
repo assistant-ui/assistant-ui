@@ -1,5 +1,12 @@
 # assistant-stream
 
+## 0.3.8
+
+### Patch Changes
+
+- 3227e71: feat: add `toPartialJSONSchema` utility for making JSON Schema properties optional
+- 52403c3: chore: update dependencies
+
 ## 0.3.7
 
 ### Patch Changes

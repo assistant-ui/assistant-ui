@@ -1,5 +1,28 @@
 # @assistant-ui/core
 
+## 0.1.9
+
+### Patch Changes
+
+- 781f28d: feat: accept all file types and validate against adapter's accept constraint
+- 3227e71: feat: add interactables with partial updates, multi-instance, and selection
+  - `useInteractable(name, config)` hook and `makeInteractable` factory for registering AI-controllable UI
+  - `Interactables()` scope resource with auto-generated update tools and system prompt injection
+  - Partial updates — auto-generated tools use partial schemas so AI only sends changed fields
+  - Multi-instance support — same name with different IDs get separate `update_{name}_{id}` tools
+  - Selection — `setSelected(true)` marks an interactable as focused, surfaced as `(SELECTED)` in system prompt
+
+- 0f55ce8: fix(core): hide phantom empty bubble when user message has no text content
+- 83a15f7: feat(core): stream interactable state updates as tool args arrive
+- 52403c3: chore: update dependencies
+- ffa3a0f: feat(core): add attachmentAddError composer event
+- Updated dependencies [3227e71]
+- Updated dependencies [52403c3]
+  - assistant-stream@0.3.8
+  - assistant-cloud@0.1.23
+  - @assistant-ui/store@0.2.5
+  - @assistant-ui/tap@0.5.5
+
 ## 0.1.8
 
 ### Patch Changes
