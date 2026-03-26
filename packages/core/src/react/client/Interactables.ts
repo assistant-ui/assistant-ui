@@ -116,9 +116,11 @@ export const Interactables = resource((): ClientOutput<"interactables"> => {
               `Interactable component "${name}"${idTag}${selectedTag} (${def.description}). Current state: ${JSON.stringify(def.state)}`,
             );
 
+            const safeName = name.replace(/[^a-zA-Z0-9_-]/g, "_");
+            const safeId = def.id.replace(/[^a-zA-Z0-9_-]/g, "_");
             const toolName = isMulti
-              ? `update_${name}_${def.id}`
-              : `update_${name}`;
+              ? `update_${safeName}_${safeId}`
+              : `update_${safeName}`;
 
             const partialSchema =
               partialSchemaCacheRef.current.get(def.id) ?? def.stateSchema;

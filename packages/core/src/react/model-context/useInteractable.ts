@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useId } from "react";
+import { useEffect, useCallback, useId, useRef } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { InteractableStateSchema } from "../types/scopes/interactables";
 
@@ -30,24 +30,21 @@ export const useInteractable = <TState>(
   const autoId = useId().replace(/[^a-zA-Z0-9]/g, "");
   const id = config.id ?? autoId;
 
+  const stateSchemaRef = useRef(config.stateSchema);
+  stateSchemaRef.current = config.stateSchema;
+  const initialStateRef = useRef(config.initialState);
+  initialStateRef.current = config.initialState;
+
   useEffect(() => {
     return aui.interactables().register({
       id,
       name,
       description: config.description,
-      stateSchema: config.stateSchema,
-      initialState: config.initialState,
+      stateSchema: stateSchemaRef.current,
+      initialState: initialStateRef.current,
       selected: config.selected,
     });
-  }, [
-    aui,
-    id,
-    name,
-    config.description,
-    config.stateSchema,
-    config.initialState,
-    config.selected,
-  ]);
+  }, [aui, id, name, config.description, config.selected]);
 
   const state =
     (useAuiState((s) => s.interactables.definitions[id]?.state) as TState) ??
