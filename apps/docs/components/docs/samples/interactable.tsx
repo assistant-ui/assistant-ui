@@ -19,9 +19,11 @@ import {
   AssistantCloud,
   type FeedbackAdapter,
 } from "@assistant-ui/react";
+import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
+import remarkGfm from "remark-gfm";
 import { z } from "zod";
 import {
   ArrowUpIcon,
@@ -185,8 +187,8 @@ const TaskBoard: FC = () => {
 
 const MiniThread: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col bg-background">
-      <ThreadPrimitive.Viewport className="relative flex flex-1 flex-col overflow-y-auto px-3">
+    <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col bg-background">
+      <ThreadPrimitive.Viewport className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-3">
         <AuiIf condition={(s) => s.thread.isEmpty}>
           <div className="flex grow flex-col items-center justify-center text-center">
             <p className="font-medium text-sm">Task Assistant</p>
@@ -204,11 +206,11 @@ const MiniThread: FC = () => {
         </ThreadPrimitive.Messages>
 
         <div className="min-h-6 grow" />
-        <div className="sticky bottom-0 bg-background px-1 pb-3">
-          <MiniSuggestions />
-          <MiniComposer />
-        </div>
       </ThreadPrimitive.Viewport>
+      <div className="shrink-0 px-4 pt-2 pb-3">
+        <MiniSuggestions />
+        <MiniComposer />
+      </div>
     </ThreadPrimitive.Root>
   );
 };
@@ -221,10 +223,14 @@ const UserMsg: FC = () => (
   </MessagePrimitive.Root>
 );
 
+const MiniMarkdownText: FC = () => (
+  <MarkdownTextPrimitive remarkPlugins={[remarkGfm]} className="aui-md" />
+);
+
 const AssistantMsg: FC = () => (
   <MessagePrimitive.Root className="py-2">
-    <div className="max-w-[85%] text-sm leading-relaxed [&_p]:my-1">
-      <MessagePrimitive.Parts />
+    <div className="max-w-[85%] text-sm leading-relaxed">
+      <MessagePrimitive.Parts components={{ Text: MiniMarkdownText }} />
     </div>
   </MessagePrimitive.Root>
 );
@@ -358,7 +364,7 @@ export const InteractableSample = () => {
   return (
     <SampleFrame className="overflow-hidden bg-muted/40">
       <InteractableRuntimeProvider>
-        <div className="grid h-full grid-cols-[1fr_220px]">
+        <div className="grid h-full min-h-0 grid-cols-[1fr_220px]">
           <MiniThread />
           <TaskBoard />
         </div>
