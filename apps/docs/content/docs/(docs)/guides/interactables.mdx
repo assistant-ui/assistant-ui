@@ -276,8 +276,9 @@ When you call `useInteractable("taskBoard", config)`:
 1. **Registration** — the interactable is registered in the `interactables` scope with its name, description, schema, and initial state.
 2. **Tool generation** — an `update_taskBoard` frontend tool is automatically created with a partial schema (all fields optional). For multiple instances, tools are named `update_{name}_{id}`.
 3. **System prompt** — the AI receives a system message describing the interactable, its current state, and whether it is selected.
-4. **Partial merge** — when the AI calls the tool with a subset of fields, only those fields are updated; the rest are preserved.
-5. **Bidirectional updates** — when the AI calls the tool, the state updates and React re-renders. When the user updates state via `setState`, the model context is notified so the AI sees the latest state on the next turn.
+4. **Streaming updates** — as the AI generates the tool arguments, the interactable's state updates progressively rather than waiting for complete arguments. This gives users immediate visual feedback.
+5. **Partial merge** — only the fields the AI sends are updated; the rest are preserved.
+6. **Bidirectional updates** — when the AI calls the tool, the state updates and React re-renders. When the user updates state via `setState`, the model context is notified so the AI sees the latest state on the next turn.
 
 ## Combining with Tools
 
