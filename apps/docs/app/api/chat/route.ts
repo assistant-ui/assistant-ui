@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = await req.json();
-    const { messages, tools, config } = body;
+    const { messages, system, tools, config } = body;
 
     const inputError = validateGeneralChatInput(messages);
     if (inputError) {
@@ -81,6 +81,7 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model: prism?.model ?? posthogModel,
+      ...(system ? { system } : {}),
       messages: prunedMessages,
       maxOutputTokens: 4096,
       stopWhen: stepCountIs(10),
