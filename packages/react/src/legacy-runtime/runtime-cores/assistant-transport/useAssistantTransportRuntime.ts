@@ -8,7 +8,7 @@ import {
 } from "assistant-stream/utils";
 import { useExternalStoreRuntime } from "../external-store/useExternalStoreRuntime";
 import { AssistantRuntime } from "../../runtime/AssistantRuntime";
-import { AddToolResultOptions } from "../core";
+import type { AddToolResultOptions } from "@assistant-ui/core";
 import { useState, useRef, useMemo } from "react";
 import {
   AssistantMessageAccumulator,

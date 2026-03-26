@@ -22,7 +22,9 @@ export const ThreadList: FC = () => {
         <ThreadListSkeleton />
       </AuiIf>
       <AuiIf condition={(s) => !s.threads.isLoading}>
-        <ThreadListPrimitive.Items components={{ ThreadListItem }} />
+        <ThreadListPrimitive.Items>
+          {() => <ThreadListItem />}
+        </ThreadListPrimitive.Items>
       </AuiIf>
     </ThreadListPrimitive.Root>
   );

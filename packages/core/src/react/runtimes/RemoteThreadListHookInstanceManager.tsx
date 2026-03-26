@@ -14,7 +14,7 @@ import { ThreadListItemRuntimeProvider } from "../providers/ThreadListItemRuntim
 import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
-import { BaseSubscribable } from "../../subscribable";
+import { BaseSubscribable } from "../../subscribable/subscribable";
 import { ThreadRuntimeImpl } from "../../runtime/api/thread-runtime";
 import { ThreadListRuntimeImpl } from "../../runtime/api/thread-list-runtime";
 

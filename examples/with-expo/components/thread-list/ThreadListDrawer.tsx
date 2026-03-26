@@ -1,11 +1,11 @@
 import { FlatList, View, StyleSheet, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useAssistantRuntime, useAuiState } from "@assistant-ui/react-native";
+import { useAui, useAuiState } from "@assistant-ui/react-native";
 import { ThreadListItem } from "./ThreadListItem";
 import type { DrawerContentComponentProps } from "@react-navigation/drawer";
 
 export function ThreadListDrawer({ navigation }: DrawerContentComponentProps) {
-  const runtime = useAssistantRuntime();
+  const aui = useAui();
   const threadIds = useAuiState((s) => s.threads.threadIds);
   const mainThreadId = useAuiState((s) => s.threads.mainThreadId);
   const threadItems = useAuiState((s) => s.threads.threadItems);
@@ -34,7 +34,7 @@ export function ThreadListDrawer({ navigation }: DrawerContentComponentProps) {
               title={threadItem?.title ?? "New Chat"}
               isActive={threadId === mainThreadId}
               onPress={() => {
-                runtime.threads.switchToThread(threadId);
+                aui.threads().switchToThread(threadId);
                 navigation.closeDrawer();
               }}
             />

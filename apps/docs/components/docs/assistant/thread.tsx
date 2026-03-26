@@ -59,12 +59,13 @@ export function AssistantThread(): React.ReactNode {
           <AssistantWelcome />
         </AuiIf>
 
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage,
-            AssistantMessage,
+        <ThreadPrimitive.Messages>
+          {({ message }) => {
+            if (message.role === "user") return <UserMessage />;
+            if (message.role === "assistant") return <AssistantMessage />;
+            return null;
           }}
-        />
+        </ThreadPrimitive.Messages>
 
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-background">
           <AssistantComposer />

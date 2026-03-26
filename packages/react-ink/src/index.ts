@@ -91,15 +91,15 @@ export {
   type AssistantEventCallback,
 } from "@assistant-ui/store";
 
-// Context providers and hooks
-export { AssistantRuntimeProvider, useAssistantRuntime } from "./context";
+// Context providers
+export { AssistantRuntimeProvider } from "./context/AssistantContext";
 
 // Runtime
 export {
   useLocalRuntime,
   type LocalRuntimeOptions,
-  useRemoteThreadListRuntime,
-} from "./runtimes";
+} from "./runtimes/useLocalRuntime";
+export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntime";
 
 // Primitives
 export * as ThreadPrimitive from "./primitives/thread";
@@ -113,6 +113,9 @@ export * as ThreadListItemPrimitive from "./primitives/threadListItem";
 export * as ChainOfThoughtPrimitive from "./primitives/chainOfThought";
 export * as SuggestionPrimitive from "./primitives/suggestion";
 export * as ToolCallPrimitive from "./primitives/toolCall";
+export * as ErrorPrimitive from "./primitives/error";
+export * as DiffPrimitive from "./primitives/diff";
+export { DiffView, type DiffViewProps } from "./primitives/diff/DiffView";
 
 // Re-export shared providers from core/react
 export {
@@ -126,6 +129,67 @@ export {
 } from "@assistant-ui/core/react";
 
 // Model context, tools & clients
-export * from "./model-context";
-export * from "./client";
-export * from "./types";
+export {
+  makeAssistantTool,
+  type AssistantTool,
+  makeAssistantToolUI,
+  type AssistantToolUI,
+  makeAssistantDataUI,
+  type AssistantDataUI,
+  useAssistantTool,
+  type AssistantToolProps,
+  useAssistantToolUI,
+  type AssistantToolUIProps,
+  useAssistantDataUI,
+  type AssistantDataUIProps,
+  useAssistantInstructions,
+  useInlineRender,
+  type Toolkit,
+  type ToolDefinition,
+  Tools,
+  DataRenderers,
+} from "@assistant-ui/core/react";
+export type {
+  ModelContext,
+  ModelContextProvider,
+  LanguageModelConfig,
+  LanguageModelV1CallSettings,
+} from "@assistant-ui/core";
+export { mergeModelContexts } from "@assistant-ui/core";
+export type { Tool } from "assistant-stream";
+export { tool } from "@assistant-ui/core";
+export { Suggestions, type SuggestionConfig } from "@assistant-ui/core/store";
+export { ModelContextRegistry } from "@assistant-ui/core";
+export type {
+  ModelContextRegistryToolHandle,
+  ModelContextRegistryInstructionHandle,
+  ModelContextRegistryProviderHandle,
+} from "@assistant-ui/core";
+
+// Client exports
+export { ModelContext as ModelContextClient } from "@assistant-ui/core/store";
+export { ChainOfThoughtClient } from "@assistant-ui/core/store";
+
+// Component types
+export type {
+  EmptyMessagePartComponent,
+  EmptyMessagePartProps,
+  TextMessagePartComponent,
+  TextMessagePartProps,
+  ReasoningMessagePartComponent,
+  ReasoningMessagePartProps,
+  ReasoningGroupProps,
+  ReasoningGroupComponent,
+  SourceMessagePartComponent,
+  SourceMessagePartProps,
+  ImageMessagePartComponent,
+  ImageMessagePartProps,
+  FileMessagePartComponent,
+  FileMessagePartProps,
+  Unstable_AudioMessagePartComponent,
+  Unstable_AudioMessagePartProps,
+  DataMessagePartComponent,
+  DataMessagePartProps,
+  ToolCallMessagePartComponent,
+  ToolCallMessagePartProps,
+} from "@assistant-ui/core/react";

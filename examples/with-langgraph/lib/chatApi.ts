@@ -14,14 +14,14 @@ const createClient = () => {
   });
 };
 
-export const createAssistant = async (graphId: string) => {
-  const client = createClient();
-  return client.assistants.create({ graphId });
-};
-
 export const createThread = async () => {
   const client = createClient();
   return client.threads.create();
+};
+
+export const createAssistant = async (graphId: string) => {
+  const client = createClient();
+  return client.assistants.create({ graphId });
 };
 
 export const getThreadState = async (
@@ -101,7 +101,7 @@ export const sendMessage = (params: {
           model_name: "openai",
         },
       },
-      streamMode: "messages-tuple",
+      streamMode: ["messages-tuple", "values"],
       ...(checkpointId && { checkpoint_id: checkpointId }),
       ...restConfig,
     },

@@ -1,3 +1,4 @@
+/// <reference types="@assistant-ui/core/store" />
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LangChainMessage,
@@ -12,18 +13,23 @@ import {
   OnMetadataEventCallback,
 } from "./types";
 import {
-  AssistantCloud,
   getExternalStoreMessages,
-  INTERNAL,
   type ThreadMessage,
+  type AttachmentAdapter,
+  type AppendMessage,
+  type FeedbackAdapter,
+  type SpeechSynthesisAdapter,
+} from "@assistant-ui/core";
+import {
   type ToolExecutionStatus,
-  unstable_useCloudThreadListAdapter,
-  unstable_useRemoteThreadListRuntime,
-  useAui,
-  useAuiState,
+  useCloudThreadListAdapter,
+  useRemoteThreadListRuntime,
   useExternalMessageConverter,
   useExternalStoreRuntime,
-} from "@assistant-ui/react";
+  useToolInvocations,
+} from "@assistant-ui/core/react";
+import { useAui, useAuiState } from "@assistant-ui/store";
+import { AssistantCloud } from "assistant-cloud";
 import { convertLangChainMessages } from "./convertLangChainMessages";
 import {
   LangGraphCommand,
@@ -32,10 +38,6 @@ import {
   LangGraphStreamCallback,
   useLangGraphMessages,
 } from "./useLangGraphMessages";
-import { AttachmentAdapter } from "@assistant-ui/react";
-import { AppendMessage } from "@assistant-ui/react";
-import { FeedbackAdapter } from "@assistant-ui/react";
-import { SpeechSynthesisAdapter } from "@assistant-ui/react";
 import { appendLangChainChunk } from "./appendLangChainChunk";
 
 const getPendingToolCalls = (messages: LangChainMessage[]) => {
@@ -313,7 +315,7 @@ const useLangGraphRuntimeImpl = ({
     },
   }));
 
-  const toolInvocations = INTERNAL.useToolInvocations({
+  const toolInvocations = useToolInvocations({
     state: {
       messages: threadMessages,
       isRunning: effectiveIsRunning,
@@ -485,7 +487,7 @@ export const useLangGraphRuntime = ({
   ...options
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
-  const cloudAdapter = unstable_useCloudThreadListAdapter({
+  const cloudAdapter = useCloudThreadListAdapter({
     cloud,
     create: async () => {
       if (create) {
@@ -500,7 +502,7 @@ export const useLangGraphRuntime = ({
     },
     delete: deleteFn,
   });
-  return unstable_useRemoteThreadListRuntime({
+  return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useLangGraphRuntimeImpl(options);
     },

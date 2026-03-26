@@ -18,6 +18,10 @@ import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useAuiState, useAui } from "@assistant-ui/store";
 import { flushResourcesSync } from "@assistant-ui/tap";
+import {
+  useMentionContextOptional,
+  useMentionInternalContext,
+} from "./mention/ComposerMentionContext";
 
 export namespace ComposerPrimitiveInput {
   export type Element = HTMLTextAreaElement;
@@ -118,6 +122,7 @@ export const ComposerPrimitiveInput = forwardRef<
       onChange,
       onKeyDown,
       onPaste,
+      onSelect,
       submitOnEnter,
       submitMode,
       cancelOnEscape = true,
@@ -130,6 +135,8 @@ export const ComposerPrimitiveInput = forwardRef<
     forwardedRef,
   ) => {
     const aui = useAui();
+    const mentionContext = useMentionContextOptional();
+    const mentionInternalContext = useMentionInternalContext();
 
     const effectiveSubmitMode =
       submitMode ?? (submitOnEnter === false ? "none" : "enter");
@@ -149,10 +156,16 @@ export const ComposerPrimitiveInput = forwardRef<
     const ref = useComposedRefs(forwardedRef, textareaRef);
 
     useEscapeKeydown((e) => {
-      if (!cancelOnEscape) return;
-
       // Only handle ESC if it originated from within this input
       if (!textareaRef.current?.contains(e.target as Node)) return;
+
+      // Let mention popover handle Escape first
+      if (mentionContext?.open) {
+        mentionContext.handleKeyDown(e);
+        return;
+      }
+
+      if (!cancelOnEscape) return;
 
       const composer = aui.composer();
       if (composer.getState().canCancel) {
@@ -167,9 +180,31 @@ export const ComposerPrimitiveInput = forwardRef<
       // ignore IME composition events
       if (e.nativeEvent.isComposing) return;
 
-      if (e.key === "Enter" && !e.shiftKey) {
-        const isRunning = aui.thread().getState().isRunning;
-        if (isRunning) return;
+      // Let the mention popover handle keyboard events first
+      if (mentionContext?.handleKeyDown(e)) return;
+
+      if (e.key === "Enter") {
+        const threadState = aui.thread().getState();
+        const hasQueue = threadState.capabilities.queue;
+
+        // Steer hotkey: Cmd/Ctrl+Shift+Enter (respects submitMode="none" and isEmpty)
+        if (
+          e.shiftKey &&
+          (e.ctrlKey || e.metaKey) &&
+          hasQueue &&
+          effectiveSubmitMode !== "none" &&
+          !aui.composer().getState().isEmpty
+        ) {
+          e.preventDefault();
+          aui.composer().send({ steer: true });
+          return;
+        }
+
+        // Regular newline: Shift+Enter
+        if (e.shiftKey) return;
+
+        // Block submission when running unless queue is supported
+        if (threadState.isRunning && !hasQueue) return;
 
         let shouldSubmit = false;
         if (effectiveSubmitMode === "ctrlEnter") {
@@ -254,8 +289,17 @@ export const ComposerPrimitiveInput = forwardRef<
           flushResourcesSync(() => {
             aui.composer().setText(e.target.value);
           });
+          mentionInternalContext?.setCursorPosition(
+            e.target.selectionStart ?? e.target.value.length,
+          );
         })}
         onKeyDown={composeEventHandlers(onKeyDown, handleKeyPress)}
+        onSelect={composeEventHandlers(onSelect, (e) => {
+          const target = e.target as HTMLTextAreaElement;
+          mentionInternalContext?.setCursorPosition(
+            target.selectionStart ?? target.value.length,
+          );
+        })}
         onPaste={composeEventHandlers(onPaste, handlePaste)}
       />
     );

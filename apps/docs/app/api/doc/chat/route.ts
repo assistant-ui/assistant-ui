@@ -3,6 +3,7 @@ import { getDistinctId, posthogServer } from "@/lib/posthog-server";
 import { createPrismTracer } from "@/lib/prism-server";
 import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { validateDocChatInput } from "@/lib/validate-input";
 import { source } from "@/lib/source";
 import { getModel } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
@@ -157,6 +158,9 @@ export async function POST(req: Request): Promise<Response> {
     const body = await req.json();
     const { messages, tools, system: pageContext, config } = body;
 
+    const inputError = validateDocChatInput(messages);
+    if (inputError) return inputError;
+
     const prunedMessages = pruneMessages({
       messages: await convertToModelMessages(injectQuoteContext(messages)),
       toolCalls: "before-last-2-messages",
@@ -190,6 +194,7 @@ export async function POST(req: Request): Promise<Response> {
       model: prism?.model ?? posthogModel,
       system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),
       messages: prunedMessages,
+      maxOutputTokens: 8192,
       stopWhen: stepCountIs(25),
       tools: {
         ...frontendTools(tools),

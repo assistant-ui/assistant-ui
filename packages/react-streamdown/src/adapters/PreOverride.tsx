@@ -3,7 +3,10 @@
 import type { Element } from "hast";
 import {
   type ComponentPropsWithoutRef,
+  type ReactElement,
+  cloneElement,
   createContext,
+  isValidElement,
   memo,
   useContext,
 } from "react";
@@ -14,21 +17,21 @@ type PreOverrideProps = ComponentPropsWithoutRef<"pre"> & {
 };
 
 /**
- * Context that indicates we're inside a <pre> element (code block).
- * Used by code adapter to distinguish inline code from block code.
+ * Stores the original pre props for descendants inside a block code fence.
+ * Streamdown itself uses a data-block marker for block detection, but we keep
+ * this context for compatibility and access to pre metadata.
  */
 export const PreContext = createContext<PreOverrideProps | null>(null);
 
 /**
- * Hook to check if the current code element is inside a code block.
- * Returns true if inside a <pre> (code block), false if inline code.
+ * Hook to check if the current element is rendered within a block code fence.
  */
 export function useIsStreamdownCodeBlock(): boolean {
   return useContext(PreContext) !== null;
 }
 
 /**
- * Hook to get the pre element props when inside a code block.
+ * Hook to get the original pre element props for the current block code fence.
  * Returns null if not inside a code block.
  */
 export function useStreamdownPreProps(): PreOverrideProps | null {
@@ -36,17 +39,23 @@ export function useStreamdownPreProps(): PreOverrideProps | null {
 }
 
 /**
- * Pre component override that provides context for child code elements.
- * This enables reliable inline vs block code detection.
+ * Mirrors streamdown's pre override by marking the child code element as block
+ * content without adding an extra <pre> wrapper around it.
  */
 export const PreOverride = memo(function PreOverride({
   children,
   node,
   ...rest
 }: PreOverrideProps) {
+  const childWithBlock = isValidElement(children)
+    ? cloneElement(children as ReactElement<{ "data-block"?: string }>, {
+        "data-block": "true",
+      })
+    : children;
+
   return (
     <PreContext.Provider value={{ node, ...rest }}>
-      <pre {...rest}>{children}</pre>
+      {childWithBlock}
     </PreContext.Provider>
   );
 }, memoCompareNodes);

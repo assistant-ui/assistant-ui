@@ -355,6 +355,11 @@ export const registry: RegistryItem[] = [
         sourcePath:
           "../../packages/ui/src/components/assistant-ui/threadlist-sidebar.tsx",
       },
+      {
+        type: "registry:component",
+        path: "components/icons/github.tsx",
+        sourcePath: "../../packages/ui/src/components/icons/github.tsx",
+      },
     ],
     dependencies: ["lucide-react"],
     registryDependencies: [
@@ -491,6 +496,20 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["radix-ui", "lucide-react", "class-variance-authority"],
+    registryDependencies: [],
+  },
+  {
+    name: "heat-graph",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/heat-graph.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/heat-graph.tsx",
+      },
+    ],
+    dependencies: ["heat-graph"],
     registryDependencies: [],
   },
 ];

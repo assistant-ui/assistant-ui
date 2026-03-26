@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { createOgMetadata } from "@/lib/og";
-import { Check, Github } from "lucide-react";
+import { Check } from "lucide-react";
+import { GitHubIcon } from "@/components/icons/github";
 import { PricingPlanCard } from "./pricing-plan-card";
 
 const title = "Pricing";
@@ -106,7 +107,7 @@ export default function PricingPage() {
 
         <div className="rounded-lg border border-border p-6">
           <div className="flex items-start gap-3">
-            <Github className="mt-0.5 h-5 w-5 flex-shrink-0" />
+            <GitHubIcon className="mt-0.5 h-5 w-5 flex-shrink-0" />
             <div>
               <h3 className="font-medium text-sm">
                 Forever free & open source

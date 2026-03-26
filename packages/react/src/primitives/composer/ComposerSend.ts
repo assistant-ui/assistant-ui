@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import {
   ActionButtonElement,
   ActionButtonProps,
@@ -9,8 +10,9 @@ import { useComposerSend as useComposerSendBehavior } from "@assistant-ui/core/r
 
 export const useComposerSend = () => {
   const { disabled, send } = useComposerSendBehavior();
+  const callback = useCallback(() => send(), [send]);
   if (disabled) return null;
-  return send;
+  return callback;
 };
 
 export namespace ComposerPrimitiveSend {

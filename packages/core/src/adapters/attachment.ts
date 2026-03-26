@@ -2,7 +2,7 @@ import type {
   Attachment,
   PendingAttachment,
   CompleteAttachment,
-} from "../types";
+} from "../types/attachment";
 
 // =============================================================================
 // Adapter Type
@@ -114,7 +114,7 @@ const getFileText = (file: File) =>
 // Composite Attachment Adapter
 // =============================================================================
 
-function fileMatchesAccept(
+export function fileMatchesAccept(
   file: { name: string; type: string },
   acceptString: string,
 ) {

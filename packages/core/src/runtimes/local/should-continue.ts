@@ -1,4 +1,4 @@
-import type { ThreadAssistantMessage } from "../../types";
+import type { ThreadAssistantMessage } from "../../types/message";
 
 export const shouldContinue = (
   result: ThreadAssistantMessage,

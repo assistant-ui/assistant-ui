@@ -83,6 +83,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
+    name: "with-google-adk",
+    label: "Google ADK",
+    description: "Google ADK agent integration",
+    category: "example",
+    path: "examples/with-google-adk",
+    hasLocalComponents: false,
+  },
+  {
     name: "with-ai-sdk-v6",
     label: "AI SDK v6",
     description: "Vercel AI SDK v6",
@@ -460,18 +468,19 @@ export const create = new Command()
         );
         process.exit(1);
       }
-    } catch (err: any) {
-      if (err.code === "ENOENT") {
+    } catch (err: unknown) {
+      const code =
+        err instanceof Error ? (err as NodeJS.ErrnoException).code : undefined;
+      if (code === "ENOENT") {
         // Directory doesn't exist — good, proceed
-      } else if (err.code === "ENOTDIR") {
+      } else if (code === "ENOTDIR") {
         logger.error(
           `${resolvedProjectDirectory} already exists and is not a directory`,
         );
         process.exit(1);
       } else {
-        logger.error(
-          `Cannot access ${resolvedProjectDirectory}: ${err.message}`,
-        );
+        const message = err instanceof Error ? err.message : String(err);
+        logger.error(`Cannot access ${resolvedProjectDirectory}: ${message}`);
         process.exit(1);
       }
     }

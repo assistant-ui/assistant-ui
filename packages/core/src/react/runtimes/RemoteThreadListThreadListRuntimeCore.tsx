@@ -1,6 +1,6 @@
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
 import { generateId } from "../../utils/id";
-import { BaseSubscribable } from "../../subscribable";
+import { BaseSubscribable } from "../../subscribable/subscribable";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
 import type {
@@ -480,6 +480,7 @@ export class RemoteThreadListThreadListRuntimeCore
       throw new Error("Thread is not yet initialized");
 
     await this._ensureThreadIsNotMain(data.id);
+    this._hookManager.stopThreadRuntime(data.id);
 
     return this._state.optimisticUpdate({
       execute: async () => {

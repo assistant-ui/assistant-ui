@@ -1,11 +1,13 @@
 {
   "pages": [
     "(docs)",
+    "primitives",
     "ui",
     "runtimes",
     "react-native",
     "ink",
     "cloud",
+    "utilities",
     "(reference)"
   ]
 }

@@ -2,15 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import {
-  Select,
   SelectContent,
   SelectGroup,
   SelectItem,
   SelectLabel,
+  SelectRoot,
   SelectSeparator,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/assistant-ui/select";
 
 const ALL = "__all__";
 
@@ -62,7 +62,7 @@ export function PackageFilter({
   const groups = groupPackages(packages);
 
   return (
-    <Select
+    <SelectRoot
       value={value ?? ALL}
       onValueChange={(v) => {
         router.push(v === ALL ? "/changelog" : `?pkg=${encodeURIComponent(v)}`);
@@ -85,6 +85,6 @@ export function PackageFilter({
           </SelectGroup>
         ))}
       </SelectContent>
-    </Select>
+    </SelectRoot>
   );
 }

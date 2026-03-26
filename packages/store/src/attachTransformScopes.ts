@@ -15,7 +15,7 @@ export type ScopesConfig = {
 type TransformScopesFn = (
   scopes: ScopesConfig,
   parent: AssistantClient,
-) => ScopesConfig;
+) => void;
 
 type ResourceWithTransformScopes = {
   [TRANSFORM_SCOPES]?: TransformScopesFn;

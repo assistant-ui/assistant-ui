@@ -1,5 +1,5 @@
-import { useCallback, type ReactNode } from "react";
-import { useAui } from "@assistant-ui/store";
+import type { ReactNode } from "react";
+import { useThreadListItemDelete } from "@assistant-ui/core/react";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 
 export type ThreadListItemDeleteProps = Omit<PressableProps, "onPress"> & {
@@ -10,14 +10,10 @@ export const ThreadListItemDelete = ({
   children,
   ...pressableProps
 }: ThreadListItemDeleteProps) => {
-  const aui = useAui();
-
-  const onPress = useCallback(() => {
-    aui.threadListItem().delete();
-  }, [aui]);
+  const { delete: deleteThread } = useThreadListItemDelete();
 
   return (
-    <Pressable onPress={onPress} {...pressableProps}>
+    <Pressable onPress={deleteThread} {...pressableProps}>
       {children}
     </Pressable>
   );

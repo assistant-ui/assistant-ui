@@ -197,20 +197,14 @@ jobs:
 
             core.info(`Canceled ${canceledCount} stale pending run(s)`);
 
-  publish:
-    name: Publish to npm
+  summary:
+    name: Release summary
     needs:
       - approve
-      - cancel_pending
-    environment: npm Publish
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-      # Required for npm trusted publishing (OIDC).
-      id-token: write
-    concurrency:
-      group: npm-publish-exec
-      cancel-in-progress: false
+    outputs:
+      target_count: ${{ steps.targets.outputs.targetCount }}
+      targets_json: ${{ steps.targets.outputs.targetsJson }}
     env:
       RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
       DEFAULT_BRANCH: ${{ needs.approve.outputs.default_branch }}
@@ -250,18 +244,6 @@ jobs:
             echo "origin/$DEFAULT_BRANCH SHA=$origin_default_sha" >&2
             exit 1
           fi
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
-
-      - name: Setup node.js
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
-        with:
-          node-version: 24
-          # No cache - hardened against cache poisoning for sensitive publish operations
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
 
       - name: Resolve publish targets
         id: targets
@@ -385,6 +367,8 @@ jobs:
                 targets.push({
                   name: pkgName,
                   version: pkgVersion,
+                  latestVersion: latestTag,
+                  dir: entry.name,
                 });
               }
             }
@@ -412,11 +396,299 @@ jobs:
             core.setOutput("targetCount", String(targets.length));
             core.setOutput("targetsJson", JSON.stringify(targets));
 
-      - name: Verify npm trusted publishing
-        if: steps.targets.outputs.targetCount != '0' && success()
+      - name: Write release summary
+        if: steps.targets.outputs.targetCount != '0'
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
           TARGETS_JSON: ${{ steps.targets.outputs.targetsJson }}
+        with:
+          script: |
+            const fs = require("node:fs");
+            const path = require("node:path");
+            const { execFileSync } = require("node:child_process");
+
+            const targets = JSON.parse(process.env.TARGETS_JSON || "[]");
+            const releaseSha = process.env.RELEASE_SHA;
+
+            const runGit = (args) => {
+              try {
+                return execFileSync("git", args, { encoding: "utf8" }).trim();
+              } catch {
+                return "";
+              }
+            };
+
+            const readJsonFromGit = (gitRef, filePath) => {
+              try {
+                return JSON.parse(
+                  execFileSync(
+                    "git",
+                    ["show", `${gitRef}:${filePath}`],
+                    { encoding: "utf8" },
+                  ),
+                );
+              } catch {
+                return null;
+              }
+            };
+
+            function classifyVersionBump(previousVersion, newVersion) {
+              const [pMajor, pMinor, pPatch] = previousVersion.split(".").map(Number);
+              const [nMajor, nMinor, nPatch] = newVersion.split(".").map(Number);
+              if (nMajor !== pMajor) return "major";
+              if (nMinor !== pMinor) return "minor";
+              if (nPatch !== pPatch) return "patch";
+              return "none";
+            }
+
+            function isOutsideCaretRange(rangeVersion, newVersion) {
+              const [rMajor, rMinor, rPatch] = rangeVersion.split(".").map(Number);
+              const [nMajor, nMinor, nPatch] = newVersion.split(".").map(Number);
+              if (rMajor === 0 && rMinor === 0) {
+                return nMajor !== 0 || nMinor !== 0 || nPatch !== rPatch;
+              }
+              if (rMajor === 0) return nMajor !== 0 || nMinor !== rMinor;
+              return nMajor !== rMajor;
+            }
+
+            // --- 1. Version changes table ---
+
+            let summary = "## Release Summary\n\n";
+            summary += `**Release SHA:** \`${releaseSha.slice(0, 12)}\`\n`;
+            summary += `**Packages:** ${targets.length}\n\n`;
+            summary += "### Version Changes\n\n";
+            summary += "| Package | Previous | New |\n";
+            summary += "| --- | --- | --- |\n";
+            for (const t of targets) {
+              const prev = t.latestVersion ?? "_new_";
+              summary += `| \`${t.name}\` | ${prev} | **${t.version}** |\n`;
+            }
+            summary += "\n";
+
+            const breakingTargets = targets
+              .filter((target) => target.latestVersion)
+              .map((target) => ({
+                ...target,
+                previousVersion: target.latestVersion,
+                bumpType: classifyVersionBump(target.latestVersion, target.version),
+              }))
+              .filter((target) => isOutsideCaretRange(target.previousVersion, target.version))
+              .sort((a, b) => a.name.localeCompare(b.name));
+
+            summary += "### Breaking Version Changes\n\n";
+            if (breakingTargets.length > 0) {
+              summary += "These published versions move outside the previous `^` range and would be breaking for caret consumers if this release is published:\n\n";
+              summary += "| Package | Previous | New | Bump |\n";
+              summary += "| --- | --- | --- | --- |\n";
+              for (const target of breakingTargets) {
+                summary += `| \`${target.name}\` | ${target.previousVersion} | **${target.version}** | ${target.bumpType} |\n`;
+              }
+            } else {
+              summary += "No published package versions move outside their previous `^` range.\n";
+            }
+            summary += "\n";
+
+            // --- 2. Cascade impact ---
+
+            const packagesDir = path.join(process.cwd(), "packages");
+            const currentPackages = new Map();
+            const previousPackages = new Map();
+
+            for (const entry of fs.readdirSync(packagesDir, { withFileTypes: true })) {
+              if (!entry.isDirectory()) continue;
+              const dir = entry.name;
+              const pkgJsonPath = path.join(packagesDir, dir, "package.json");
+              let pkgJson;
+              try {
+                pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, "utf8"));
+              } catch {
+                continue;
+              }
+              if (pkgJson.private) continue;
+
+              currentPackages.set(pkgJson.name, {
+                dir,
+                ...pkgJson,
+              });
+
+              const previousPkgJson = readJsonFromGit(
+                `${releaseSha}^`,
+                path.join("packages", dir, "package.json"),
+              );
+
+              if (!previousPkgJson || previousPkgJson.private) continue;
+
+              previousPackages.set(previousPkgJson.name, {
+                dir,
+                ...previousPkgJson,
+              });
+            }
+
+            const targetVersions = new Map(
+              targets.map((target) => [target.name, target.version]),
+            );
+            const cascadeByConsumer = new Map();
+
+            for (const previousPkg of previousPackages.values()) {
+              const allDeps = {
+                ...previousPkg.dependencies,
+                ...previousPkg.peerDependencies,
+              };
+
+              for (const [depName, range] of Object.entries(allDeps)) {
+                if (typeof range !== "string" || !range.startsWith("^")) continue;
+
+                const targetVersion = targetVersions.get(depName);
+                if (!targetVersion) continue;
+
+                const rangeVersion = range.replace(/^\^/, "");
+                if (!isOutsideCaretRange(rangeVersion, targetVersion)) continue;
+
+                const currentPkg = currentPackages.get(previousPkg.name);
+
+                const existing = cascadeByConsumer.get(previousPkg.name);
+
+                if (existing) {
+                  existing.triggers.push({
+                    name: depName,
+                    range,
+                    version: targetVersion,
+                  });
+                  continue;
+                }
+
+                cascadeByConsumer.set(previousPkg.name, {
+                  name: previousPkg.name,
+                  previousVersion: previousPkg.version,
+                  newVersion: currentPkg?.version ?? previousPkg.version,
+                  triggers: [
+                    {
+                      name: depName,
+                      range,
+                      version: targetVersion,
+                    },
+                  ],
+                });
+              }
+            }
+
+            const cascadeEntries = Array.from(cascadeByConsumer.values()).sort(
+              (a, b) => a.name.localeCompare(b.name),
+            );
+
+            if (cascadeEntries.length > 0) {
+              summary += "### Downstream Impact\n\n";
+              summary += `${cascadeEntries.length} internal consumer(s) have \`^\` ranges that will be broken by these version changes:\n\n`;
+              summary += "| Consumer | Version | Broken Dependencies |\n";
+              summary += "| --- | --- | --- |\n";
+              for (const c of cascadeEntries) {
+                const brokenDeps = c.triggers
+                  .map((trigger) => `\`${trigger.name}\` (${trigger.range} -> ${trigger.version})`)
+                  .join(", ");
+                summary += `| \`${c.name}\` | ${c.previousVersion} -> ${c.newVersion} | ${brokenDeps} |\n`;
+              }
+              summary += "\n";
+            }
+
+            // --- 3. Changelog entries ---
+
+            summary += "### Changelog\n\n";
+            for (const t of targets) {
+              const changelogPath = path.join(packagesDir, t.dir, "CHANGELOG.md");
+              let changelogEntry = "";
+              try {
+                const content = fs.readFileSync(changelogPath, "utf8");
+                const versionEscaped = t.version.replace(/\./g, "\\.");
+                const headingRe = new RegExp("^## " + versionEscaped + "\\b", "m");
+                const headingMatch = content.match(headingRe);
+                if (headingMatch) {
+                  const headingEnd = content.indexOf("\n", headingMatch.index);
+                  const afterHeading = headingEnd === -1 ? content.length : headingEnd + 1;
+                  const rest = content.slice(afterHeading);
+                  const nextIdx = rest.search(/^## /m);
+                  changelogEntry = (nextIdx === -1 ? rest : rest.slice(0, nextIdx)).trim();
+                }
+              } catch {
+                // No changelog file
+              }
+
+              if (changelogEntry) {
+                summary += `<details><summary><code>${t.name}@${t.version}</code></summary>\n\n`;
+                summary += changelogEntry + "\n";
+                summary += "</details>\n\n";
+              } else {
+                summary += `- \`${t.name}@${t.version}\` — _no changelog entry_\n`;
+              }
+            }
+            summary += "\n";
+
+            // --- 4. Commit history ---
+
+            const prevVersionCommit = runGit([
+              "log", "--format=%H", "--fixed-strings", "--grep=chore: update versions",
+              `${releaseSha}^`, "--max-count=1",
+            ]);
+
+            if (prevVersionCommit) {
+              const commitLog = runGit([
+                "log", "--oneline", "--no-merges",
+                `${prevVersionCommit}..${releaseSha}`,
+              ]);
+              if (commitLog) {
+                summary += "### Commits in This Release\n\n";
+                summary += "```\n" + commitLog + "\n```\n\n";
+              }
+            }
+
+            await core.summary.addRaw(summary).write();
+            core.info("Release summary written to job summary.");
+
+      - name: No targets
+        if: steps.targets.outputs.targetCount == '0'
+        run: echo "No packages require publishing for this release SHA."
+
+  publish:
+    name: Publish to npm
+    needs:
+      - approve
+      - cancel_pending
+      - summary
+    if: needs.summary.outputs.target_count != '0'
+    environment: npm Publish
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      # Required for npm trusted publishing (OIDC).
+      id-token: write
+    concurrency:
+      group: npm-publish-exec
+      cancel-in-progress: false
+    env:
+      RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
+    steps:
+
+      - name: Checkout code repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_SHA }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+
+      - name: Setup node.js
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
+        with:
+          node-version: 24
+          # No cache - hardened against cache poisoning for sensitive publish operations
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify npm trusted publishing
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          TARGETS_JSON: ${{ needs.summary.outputs.targets_json }}
         with:
           script: |
             const targets = JSON.parse(process.env.TARGETS_JSON || "[]");
@@ -512,7 +784,6 @@ jobs:
             );
 
       - name: Publish to npm and create GitHub releases
-        if: steps.targets.outputs.targetCount != '0' && success()
         id: changesets-publish
         uses: changesets/action@6a0a831ff30acef54f2c6aa1cbbc1096b066edaf # v1.7.0
         with:
@@ -520,10 +791,6 @@ jobs:
           createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: No targets
-        if: steps.targets.outputs.targetCount == '0' && success()
-        run: echo "No packages require publishing for this release SHA."
 
       - name: Recovery guidance
         if: failure()

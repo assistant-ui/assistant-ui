@@ -69,8 +69,11 @@ The backend endpoint receives POST requests with the following payload:
   state: T, // The previous state that the frontend has access to
   commands: AssistantTransportCommand[],
   system?: string,
-  tools?: ToolDefinition[],
-  threadId: string // The current thread/conversation identifier
+  tools?: Record<string, ToolJSONSchema>, // Tool definitions keyed by tool name
+  threadId: string | null, // The current thread/conversation identifier (null for new threads)
+  parentId?: string | null, // The parent message ID (included when editing or branching)
+  // ...callSettings (maxTokens, temperature, topP, presencePenalty, frequencyPenalty, seed)
+  // ...config (apiKey, baseUrl, modelName)
 }
 ```
 
@@ -333,15 +336,17 @@ The `useAssistantTransportRuntime` hook is used to configure the runtime. It acc
   initialState: T,
   api: string,
   resumeApi?: string,
+  protocol?: "data-stream" | "assistant-transport",
   converter: (state: T, connectionMetadata: ConnectionMetadata) => AssistantTransportState,
-  headers?: Record<string, string> | (() => Promise<Record<string, string>>),
-  body?: object,
+  headers: Record<string, string> | Headers | (() => Promise<Record<string, string> | Headers>),
+  body?: object | (() => Promise<object | undefined>),
   prepareSendCommandsRequest?: (body: SendCommandsRequestBody) => Record<string, unknown> | Promise<Record<string, unknown>>,
   capabilities?: { edit?: boolean },
+  adapters?: { attachments?: AttachmentAdapter; history?: ThreadHistoryAdapter },
   onResponse?: (response: Response) => void,
   onFinish?: () => void,
-  onError?: (error: Error) => void,
-  onCancel?: () => void
+  onError?: (error: Error, params: { commands: AssistantTransportCommand[]; updateState: (updater: (state: T) => T) => void }) => void | Promise<void>,
+  onCancel?: (params: { commands: AssistantTransportCommand[]; updateState: (updater: (state: T) => T) => void; error?: Error }) => void
 }
 ```
 
@@ -354,11 +359,13 @@ The state converter is the core of your frontend integration. It transforms your
   state: T, // Your agent's state
   connectionMetadata: {
     pendingCommands: Command[], // Commands not yet sent to backend
-    isSending: boolean // Whether a request is in flight
+    isSending: boolean, // Whether a request is in flight
+    toolStatuses: Record<string, ToolExecutionStatus> // Tool execution status tracking
   }
 ) => {
   messages: ThreadMessage[], // Messages to display
-  isRunning: boolean // Whether the agent is running
+  isRunning: boolean, // Whether the agent is running
+  state?: ReadonlyJSONValue // Optional custom agent state
 }
 ```
 
@@ -465,7 +472,7 @@ const runtime = useAssistantTransportRuntime({
   },
   onCancel: ({ commands, updateState }) => {
     console.log("Request cancelled");
-    console.log("Commands in transit or queued:", commands);
+    console.log("Commands (in-transit + queued, or queued-only if called after error):", commands);
 
     // Update state to reflect cancellation
     updateState((currentState) => ({
@@ -476,7 +483,7 @@ const runtime = useAssistantTransportRuntime({
 });
 ```
 
-> **Note:** `onError` receives commands that were in transit, while `onCancel` receives both in-transit and queued commands.
+> **Note:** `onError` receives commands that were in transit. `onCancel` receives both in-transit and queued commands when the user cancels directly; when called after an error, it only receives queued commands (in-transit commands are passed to `onError` instead).
 
 ## Custom Headers and Body
 
@@ -600,27 +607,54 @@ for command in request.commands:
   contact us for more information.
 </Callout>
 
-To enable resumability, you need to:
+When a user refreshes the page, switches tabs, or reconnects after a network interruption, the backend may still be generating a response. `resumeRun` allows the frontend to reconnect to the active backend stream.
 
-1. Pass a `resumeApi` URL to `useAssistantTransportRuntime` that points to your sync server
-2. Use the `unstable_resumeRun` API to resume a conversation
+### Setup
+
+Pass a `resumeApi` URL to `useAssistantTransportRuntime` that points to your sync server:
 
 ```typescript
-import { useAui } from "@assistant-ui/react";
-
 const runtime = useAssistantTransportRuntime({
   // ... other options
   api: "http://localhost:8010/assistant",
   resumeApi: "http://localhost:8010/resume", // Sync server endpoint
-  // ... other options
-});
-
-// Typically called on thread switch or mount to check if sync server has anything to resume
-const aui = useAui();
-aui.thread().unstable_resumeRun({
-  parentId: null, // Ignored (will be removed in a future version)
 });
 ```
+
+### Resuming on thread switch or page load
+
+When switching to a thread or mounting a component, check if the backend is still running and call `resumeRun`:
+
+```typescript
+import { useAui } from "@assistant-ui/react";
+import { useEffect, useRef } from "react";
+
+function useResumeOnMount(threadId: string) {
+  const aui = useAui();
+  const hasCheckedRef = useRef(false);
+
+  useEffect(() => {
+    if (hasCheckedRef.current) return;
+    hasCheckedRef.current = true;
+
+    const checkAndResume = async () => {
+      const status = await fetch(
+        `/api/sync-server/status/${threadId}`,
+      ).then((r) => r.json());
+
+      if (status.isRunning) {
+        const parentId =
+          aui.thread().getState().messages.at(-1)?.id ?? null;
+        aui.thread().resumeRun({ parentId });
+      }
+    };
+
+    checkAndResume();
+  }, [aui, threadId]);
+}
+```
+
+For the AssistantTransport runtime, you do not need to pass a `stream` parameter — the runtime uses the configured `resumeApi` endpoint to reconnect.
 
 ## Accessing Runtime State
 
@@ -684,12 +718,12 @@ If you're using `createMessageConverter`, you can access the original message fo
 
 ```typescript
 import { unstable_createMessageConverter as createMessageConverter } from "@assistant-ui/react";
-import { useMessage } from "@assistant-ui/react";
+import { useAuiState } from "@assistant-ui/react";
 
 const messageConverter = createMessageConverter(yourMessageConverter);
 
 function MyMessageComponent() {
-  const message = useMessage();
+  const message = useAuiState((s) => s.message);
 
   // Get the original message(s) from the converted ThreadMessage
   const originalMessage = messageConverter.toOriginalMessage(message);
@@ -764,7 +798,7 @@ export function MyRuntimeProvider({ children }) {
     },
     onCancel: ({ commands, updateState }) => {
       console.log("Request cancelled");
-      console.log("Commands in transit or queued:", commands);
+      console.log("Commands (in-transit + queued, or queued-only if called after error):", commands);
     },
   });
 
@@ -861,7 +895,7 @@ export function MyRuntimeProvider({ children }) {
     },
     onCancel: ({ commands, updateState }) => {
       console.log("Request cancelled");
-      console.log("Commands in transit or queued:", commands);
+      console.log("Commands (in-transit + queued, or queued-only if called after error):", commands);
     },
   });
 

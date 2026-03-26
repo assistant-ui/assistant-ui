@@ -105,7 +105,9 @@ ThreadPrimitiveViewportScrollable.displayName =
  * @example
  * ```tsx
  * <ThreadPrimitive.Viewport turnAnchor="top">
- *   <ThreadPrimitive.Messages components={{ Message: MyMessage }} />
+ *   <ThreadPrimitive.Messages>
+ *     {() => <MyMessage />}
+ *   </ThreadPrimitive.Messages>
  * </ThreadPrimitive.Viewport>
  * ```
  */

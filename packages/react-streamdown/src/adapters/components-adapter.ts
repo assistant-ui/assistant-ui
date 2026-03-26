@@ -18,7 +18,7 @@ interface UseAdaptedComponentsOptions {
  * - SyntaxHighlighter -> custom code component
  * - CodeHeader -> custom code component
  * - componentsByLanguage -> custom code component with language dispatch
- * - PreOverride -> context-based inline/block code detection
+ * - PreOverride -> streamdown-style data-block marking plus pre props context
  */
 export function useAdaptedComponents({
   components,

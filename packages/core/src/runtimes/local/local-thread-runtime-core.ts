@@ -16,11 +16,11 @@ import type {
 } from "../../runtime/interfaces/thread-runtime-core";
 import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-core";
 import type {
-  RunConfig,
   AppendMessage,
   ThreadAssistantMessage,
-} from "../../types";
-import type { ModelContextProvider } from "../../model-context";
+} from "../../types/message";
+import type { RunConfig } from "../../types/message";
+import type { ModelContextProvider } from "../../model-context/types";
 
 class AbortError extends Error {
   override name = "AbortError";
@@ -47,6 +47,7 @@ export class LocalThreadRuntimeCore
     dictation: false,
     attachments: false,
     feedback: false,
+    queue: false,
   };
 
   private abortController: AbortController | null = null;

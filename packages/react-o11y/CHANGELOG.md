@@ -1,5 +1,30 @@
 # @assistant-ui/react-o11y
 
+## 0.0.6
+
+### Patch Changes
+
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/store@0.2.4
+  - @assistant-ui/tap@0.5.4
+
+## 0.0.5
+
+### Patch Changes
+
+- 7ecc497: feat: children API for primitives with part.toolUI, part.dataRendererUI, and MessagePrimitive.Quote
+
+## 0.0.4
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- Updated dependencies [349f3c7]
+  - @assistant-ui/store@0.2.3
+  - @assistant-ui/tap@0.5.3
+
 ## 0.0.3
 
 ### Patch Changes

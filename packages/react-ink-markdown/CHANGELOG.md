@@ -1,5 +1,47 @@
 # @assistant-ui/react-ink-markdown
 
+## 0.0.6
+
+### Patch Changes
+
+- 736344c: chore: update dependencies
+- Updated dependencies [3247231]
+- Updated dependencies [1406aed]
+- Updated dependencies [9480f30]
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [ff3be2a]
+- Updated dependencies [70b19f3]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/react-ink@0.0.7
+  - @assistant-ui/core@0.1.8
+  - @assistant-ui/store@0.2.4
+
+## 0.0.5
+
+### Patch Changes
+
+- Updated dependencies [7ecc497]
+- Updated dependencies [639792c]
+  - @assistant-ui/core@0.1.7
+  - @assistant-ui/react-ink@0.0.6
+
+## 0.0.4
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- Updated dependencies [1ed9867]
+- Updated dependencies [4a904de]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [6cc4122]
+- Updated dependencies [642bcda]
+  - @assistant-ui/core@0.1.6
+  - @assistant-ui/react-ink@0.0.5
+  - @assistant-ui/store@0.2.3
+
 ## 0.0.3
 
 ### Patch Changes

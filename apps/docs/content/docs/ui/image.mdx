@@ -29,11 +29,12 @@ import { Image } from "@/components/assistant-ui/image";
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="...">
-      <MessagePrimitive.Parts
-        components={{
-          Image,
+      <MessagePrimitive.Parts>
+        {({ part }) => {
+          if (part.type === "image") return <Image {...part} />;
+          return null;
         }}
-      />
+      </MessagePrimitive.Parts>
     </MessagePrimitive.Root>
   );
 };

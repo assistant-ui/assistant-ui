@@ -16,8 +16,5 @@ export function getModel(modelId?: string) {
     );
   }
 
-  // Strip the "openai/" prefix from the model ID
-  const modelName = id.replace(/^openai\//, "");
-
-  return openai(modelName);
+  return openai.chat(id);
 }

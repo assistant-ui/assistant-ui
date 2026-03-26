@@ -1,11 +1,8 @@
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
-import type { ModelContext } from "../../model-context";
-import type {
-  RunConfig,
-  Unsubscribe,
-  AppendMessage,
-  ThreadMessage,
-} from "../../types";
+import type { ModelContext } from "../../model-context/types";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type { RunConfig } from "../../types/message";
 import type { SpeechSynthesisAdapter } from "../../adapters/speech";
 import type {
   ChatModelRunOptions,
@@ -29,6 +26,7 @@ export type RuntimeCapabilities = {
   readonly dictation: boolean;
   readonly attachments: boolean;
   readonly feedback: boolean;
+  readonly queue: boolean;
 };
 
 export type AddToolResultOptions = {

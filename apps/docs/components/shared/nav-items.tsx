@@ -24,8 +24,8 @@ export function NavItems({ items }: { items: NavItem[] }) {
             {item.label}
           </button>
         </HoverCardTrigger>
-        <HoverCardContent className="w-56 rounded-xl p-2 shadow-xs">
-          <div className="flex flex-col">
+        <HoverCardContent className="w-[28rem] rounded-xl p-2 shadow-xs">
+          <div className="grid grid-cols-2">
             {item.items.map((link) =>
               link.external ? (
                 <a

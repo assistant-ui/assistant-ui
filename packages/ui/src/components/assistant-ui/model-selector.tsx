@@ -32,6 +32,7 @@ export type ModelOption = {
 
 type ModelSelectorContextValue = {
   models: ModelOption[];
+  value: string | undefined;
 };
 
 const ModelSelectorContext = createContext<ModelSelectorContextValue | null>(
@@ -63,13 +64,15 @@ function ModelSelectorRoot({
   models,
   defaultValue: defaultValueProp,
   children,
+  value,
   ...selectProps
 }: ModelSelectorRootProps) {
   const defaultValue = defaultValueProp ?? models[0]?.id;
   return (
-    <ModelSelectorContext.Provider value={{ models }}>
+    <ModelSelectorContext.Provider value={{ models, value }}>
       <SelectRoot
         {...(defaultValue !== undefined ? { defaultValue } : undefined)}
+        {...(value !== undefined ? { value } : undefined)}
         {...selectProps}
       >
         {children}
@@ -97,8 +100,38 @@ function ModelSelectorTrigger({
       className={cn("aui-model-selector-trigger", className)}
       {...props}
     >
-      {children ?? <SelectPrimitive.Value />}
+      {children ?? <ModelSelectorValue />}
     </SelectTrigger>
+  );
+}
+
+/**
+ * Renders the selected model display in the trigger.
+ *
+ * Bypasses Radix Select.Value to avoid the empty-on-SSR issue caused by
+ * Select items living inside a Portal (not rendered server-side).
+ * Falls back to Select.Value for uncontrolled (defaultValue-only) usage.
+ */
+function ModelSelectorValue() {
+  const { models, value } = useModelSelectorContext();
+  const selectedModel =
+    value != null ? models.find((m) => m.id === value) : undefined;
+
+  if (!selectedModel) {
+    return <SelectPrimitive.Value />;
+  }
+
+  return (
+    <span>
+      <span className="flex items-center gap-2">
+        {selectedModel.icon && (
+          <span className="flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
+            {selectedModel.icon}
+          </span>
+        )}
+        <span className="truncate font-medium">{selectedModel.name}</span>
+      </span>
+    </span>
   );
 }
 
@@ -231,6 +264,7 @@ type ModelSelectorComponent = typeof ModelSelectorImpl & {
   Trigger: typeof ModelSelectorTrigger;
   Content: typeof ModelSelectorContent;
   Item: typeof ModelSelectorItem;
+  Value: typeof ModelSelectorValue;
 };
 
 const ModelSelector = memo(
@@ -242,6 +276,7 @@ ModelSelector.Root = ModelSelectorRoot;
 ModelSelector.Trigger = ModelSelectorTrigger;
 ModelSelector.Content = ModelSelectorContent;
 ModelSelector.Item = ModelSelectorItem;
+ModelSelector.Value = ModelSelectorValue;
 
 export {
   ModelSelector,
@@ -249,4 +284,5 @@ export {
   ModelSelectorTrigger,
   ModelSelectorContent,
   ModelSelectorItem,
+  ModelSelectorValue,
 };

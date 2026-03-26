@@ -20,14 +20,16 @@ import { ComposerPrimitive } from "@assistant-ui/react";
 // creating a new message
 const Composer = () => (
   <ComposerPrimitive.Root>
-    <ComposerPrimitive.Quote>
-      <ComposerPrimitive.QuoteText />
-      <ComposerPrimitive.QuoteDismiss />
-    </ComposerPrimitive.Quote>
-    <ComposerPrimitive.Attachments />
-    <ComposerPrimitive.AddAttachment />
-    <ComposerPrimitive.Input />
-    <ComposerPrimitive.Send />
+    <ComposerPrimitive.AttachmentDropzone>
+      <ComposerPrimitive.Quote>
+        <ComposerPrimitive.QuoteText />
+        <ComposerPrimitive.QuoteDismiss />
+      </ComposerPrimitive.Quote>
+      <ComposerPrimitive.Attachments />
+      <ComposerPrimitive.AddAttachment />
+      <ComposerPrimitive.Input />
+      <ComposerPrimitive.Send />
+    </ComposerPrimitive.AttachmentDropzone>
   </ComposerPrimitive.Root>
 );
 
@@ -44,12 +46,12 @@ const EditComposer = () => (
 const ComposerWithDictation = () => (
   <ComposerPrimitive.Root>
     <ComposerPrimitive.Input />
-    <ComposerPrimitive.If dictation={false}>
+    <AuiIf condition={(s) => s.composer.dictation == null}>
       <ComposerPrimitive.Dictate />
-    </ComposerPrimitive.If>
-    <ComposerPrimitive.If dictation>
+    </AuiIf>
+    <AuiIf condition={(s) => s.composer.dictation != null}>
       <ComposerPrimitive.StopDictation />
-    </ComposerPrimitive.If>
+    </AuiIf>
     <ComposerPrimitive.Send />
   </ComposerPrimitive.Root>
 );
@@ -59,7 +61,7 @@ const ComposerWithDictation = () => (
 
 ### Root
 
-Containts all parts of the composer.
+Contains all parts of the composer.
 
 This primitive renders a `<form>` element unless `asChild` is set.
 
@@ -90,6 +92,41 @@ This primitive renders a `<textarea>` element unless `asChild` is set.
       default: '"enter"',
       description:
         'Controls how the Enter key submits messages. "enter": plain Enter submits (Shift+Enter for newline). "ctrlEnter": Ctrl/Cmd+Enter submits (plain Enter for newline). "none": keyboard submission disabled.',
+    },
+    {
+      name: "cancelOnEscape",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to cancel message composition when Escape is pressed.",
+    },
+    {
+      name: "unstable_focusOnRunStart",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to automatically focus the input when a new run starts.",
+    },
+    {
+      name: "unstable_focusOnScrollToBottom",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to automatically focus the input when scrolling to bottom.",
+    },
+    {
+      name: "unstable_focusOnThreadSwitched",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to automatically focus the input when switching threads.",
+    },
+    {
+      name: "addAttachmentOnPaste",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to automatically add pasted files as attachments.",
     },
   ]}
 />
@@ -123,12 +160,6 @@ This primitive renders a `<button>` element unless `asChild` is set.
   parameters={[
     {
       name: "asChild",
-    },
-    {
-      name: "multiple",
-      type: "boolean | undefined",
-      description: "Allow selecting multiple attachments at the same time.",
-      default: "true",
     },
   ]}
 />
@@ -183,9 +214,9 @@ Renders attachments. This primitive renders a separate component for each attach
               description: "The component to render for each file attachment.",
             },
             {
-              name: "Fallback",
+              name: "Attachment",
               type: "ComponentType",
-              description: "The component to render for each attachment type.",
+              description: "The fallback component to render for each attachment type.",
             },
           ],
         },
@@ -236,6 +267,41 @@ This primitive renders a `<button>` element unless `asChild` is set.
   parameters={[
     {
       name: "asChild",
+    },
+    {
+      name: "multiple",
+      type: "boolean | undefined",
+      description: "Allow selecting multiple attachments at the same time.",
+      default: "true",
+    },
+  ]}
+/>
+
+### AttachmentDropzone
+
+A drag-and-drop zone that accepts file drops and adds them as attachments to the composer.
+
+When a file is dragged over the zone, a `data-dragging="true"` attribute is set on the element, which can be used for styling the active drag state.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.AttachmentDropzone className="relative data-[dragging]:ring-2">
+  <ComposerPrimitive.Input />
+  <ComposerPrimitive.Send />
+</ComposerPrimitive.AttachmentDropzone>
+```
+
+<ParametersTable
+  type="ComposerPrimitiveAttachmentDropzoneProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "disabled",
+      type: "boolean | undefined",
+      description: "When true, drag-and-drop is disabled and files will not be added on drop.",
     },
   ]}
 />
@@ -289,11 +355,11 @@ This primitive renders a `<span>` element.
 
 ```tsx
 {/* Optional: Display interim transcript separately with custom styling */}
-<ComposerPrimitive.If dictation>
+<AuiIf condition={(s) => s.composer.dictation != null}>
   <div className="dictation-preview">
     <ComposerPrimitive.DictationTranscript className="italic text-muted" />
   </div>
-</ComposerPrimitive.If>
+</AuiIf>
 ```
 
 ### Quote
@@ -334,30 +400,146 @@ This primitive renders a `<button>` element unless `asChild` is set.
 See the [Quoting guide](/docs/guides/quoting) for a complete walkthrough including the floating selection toolbar and backend handling.
 </Callout>
 
-### If
+### Conditional Rendering
 
-Renders children if a condition is met.
-
-<ParametersTable
-  type="UseComposerIfProps"
-  parameters={[
-    {
-      name: "editing",
-      required: false,
-      type: "boolean | undefined",
-      description: "Render children if the message is being edited.",
-    },
-    {
-      name: "dictation",
-      required: false,
-      type: "boolean | undefined",
-      description: "Render children if dictation is active.",
-    },
-  ]}
-/>
+Use `AuiIf` for conditional rendering based on composer state:
 
 ```tsx
-<Composer.If editing>{/* rendered if message is being edited */}</Composer.If>
+import { AuiIf } from "@assistant-ui/react";
 
-<Composer.If dictation>{/* rendered if dictation is active */}</Composer.If>
+<AuiIf condition={(s) => s.composer.isEditing}>
+  {/* rendered if message is being edited */}
+</AuiIf>
+
+<AuiIf condition={(s) => s.composer.dictation != null}>
+  {/* rendered if dictation is active */}
+</AuiIf>
+```
+
+## Mention Primitives (Unstable)
+
+<Callout type="warn">
+  These primitives are under the `Unstable_` prefix and may change without notice.
+</Callout>
+
+Primitives for an @-mention picker in the composer. See the [Mention component guide](/docs/ui/mention) for a pre-built implementation.
+
+### Anatomy
+
+```tsx
+import { ComposerPrimitive } from "@assistant-ui/react";
+
+const Composer = () => (
+  <ComposerPrimitive.Unstable_MentionRoot adapter={mentionAdapter}>
+    <ComposerPrimitive.Root>
+      <ComposerPrimitive.Input />
+      <ComposerPrimitive.Unstable_MentionPopover>
+        <ComposerPrimitive.Unstable_MentionCategories>
+          {(categories) =>
+            categories.map((cat) => (
+              <ComposerPrimitive.Unstable_MentionCategoryItem
+                key={cat.id}
+                categoryId={cat.id}
+              >
+                {cat.label}
+              </ComposerPrimitive.Unstable_MentionCategoryItem>
+            ))
+          }
+        </ComposerPrimitive.Unstable_MentionCategories>
+        <ComposerPrimitive.Unstable_MentionItems>
+          {(items) =>
+            items.map((item) => (
+              <ComposerPrimitive.Unstable_MentionItem
+                key={item.id}
+                item={item}
+              >
+                {item.label}
+              </ComposerPrimitive.Unstable_MentionItem>
+            ))
+          }
+        </ComposerPrimitive.Unstable_MentionItems>
+        <ComposerPrimitive.Unstable_MentionBack>
+          Back
+        </ComposerPrimitive.Unstable_MentionBack>
+      </ComposerPrimitive.Unstable_MentionPopover>
+    </ComposerPrimitive.Root>
+  </ComposerPrimitive.Unstable_MentionRoot>
+);
+```
+
+### Unstable_MentionRoot
+
+Provider that wraps the composer with mention trigger detection, keyboard navigation, and popover state.
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `adapter` | `Unstable_MentionAdapter` | — | Provides categories, items, and search |
+| `trigger` | `string` | `"@"` | Character(s) that activate the popover |
+| `formatter` | `Unstable_DirectiveFormatter` | Default | Serializer/parser for mention directives |
+
+### Unstable_MentionPopover
+
+Container that only renders when a mention trigger is active. Renders a `<div>` with `role="listbox"`.
+
+### Unstable_MentionCategories
+
+Renders the top-level category list. Accepts a render function `(categories) => ReactNode`. Hidden when a category is selected or when in search mode.
+
+### Unstable_MentionCategoryItem
+
+A button that drills into a category. Renders `role="option"` with automatic `data-highlighted` and `aria-selected` when keyboard-navigated.
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `categoryId` | `string` | The category to select on click |
+
+### Unstable_MentionItems
+
+Renders the item list for the active category or search results. Accepts a render function `(items) => ReactNode`. Hidden when no category is selected and not in search mode.
+
+### Unstable_MentionItem
+
+A button that inserts a mention into the composer. Renders `role="option"` with automatic `data-highlighted` and `aria-selected` when keyboard-navigated.
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `item` | `Unstable_MentionItem` | The item to insert on click |
+
+### Unstable_MentionBack
+
+A button that navigates back from items to the category list. Only renders when a category is active.
+
+### unstable_useMentionContext
+
+Hook to access the mention popover state and actions from within `Unstable_MentionRoot`.
+
+```tsx
+const {
+  open,           // boolean — whether popover is visible
+  query,          // string — text after the trigger character
+  isSearchMode,   // boolean — whether showing search results
+  highlightedIndex,
+  categories,
+  items,
+  activeCategoryId,
+  selectCategory,
+  selectItem,
+  goBack,
+  close,
+  handleKeyDown,
+  formatter,
+} = unstable_useMentionContext();
+```
+
+### unstable_useToolMentionAdapter
+
+Hook that creates a `Unstable_MentionAdapter` from registered tools (via `useAssistantTool`).
+
+```tsx
+import { unstable_useToolMentionAdapter } from "@assistant-ui/react";
+
+const adapter = unstable_useToolMentionAdapter({
+  formatLabel: (name) => name.replaceAll("_", " "),
+  categoryLabel: "Tools",
+});
 ```

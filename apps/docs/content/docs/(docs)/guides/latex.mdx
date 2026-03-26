@@ -32,6 +32,7 @@ import "katex/dist/katex.min.css"; // [!code ++]
 ### Update `markdown-text.tsx`
 
 ```tsx title="/components/assistant-ui/markdown-text.tsx"
+import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
 import remarkMath from "remark-math";     // [!code ++]
 import rehypeKatex from "rehype-katex";   // [!code ++]
 
@@ -69,6 +70,8 @@ Many language models generate LaTeX using different delimiter formats:
 You can use the `preprocess` prop to normalize these formats:
 
 ```tsx title="/components/assistant-ui/markdown-text.tsx"
+import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
+
 const MarkdownTextImpl = () => {
   return (
     <MarkdownTextPrimitive

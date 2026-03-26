@@ -4,15 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useExternalStoreRuntime,
   useRuntimeAdapters,
-  INTERNAL,
-} from "@assistant-ui/react";
+  useToolInvocations,
+} from "@assistant-ui/core/react";
+import type { ToolExecutionStatus } from "@assistant-ui/core/react";
 import type {
   AssistantRuntime,
   AppendMessage,
   ExternalStoreAdapter,
   ThreadMessage,
-  ToolExecutionStatus,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { makeLogger } from "./runtime/logger";
 import type { UseAgUiRuntimeOptions } from "./runtime/types";
@@ -111,7 +111,7 @@ export function useAgUiRuntime(
     [adapters, runtimeAdapters, threadList],
   );
 
-  const toolInvocations = INTERNAL.useToolInvocations({
+  const toolInvocations = useToolInvocations({
     state: {
       messages: core.getMessages(),
       isRunning: core.isRunning() || hasExecutingTools,

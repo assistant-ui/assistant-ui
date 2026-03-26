@@ -1,16 +1,16 @@
 "use client";
 
-import {
+import type {
   ThreadAssistantMessage,
-  useExternalMessageConverter,
-} from "@assistant-ui/react";
+  ThreadUserMessage,
+  ToolCallMessagePart,
+} from "@assistant-ui/core";
+import { useExternalMessageConverter } from "@assistant-ui/core/react";
 import {
   LangChainMessage,
   LangChainToolCall,
   LangChainToolCallChunk,
 } from "./types";
-import { ToolCallMessagePart } from "@assistant-ui/react";
-import { ThreadUserMessage } from "@assistant-ui/react";
 import {
   parsePartialJsonObject,
   ReadonlyJSONObject,

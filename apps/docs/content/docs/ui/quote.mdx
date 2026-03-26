@@ -23,19 +23,18 @@ This adds a `/components/assistant-ui/quote.tsx` file with three components: `Qu
 
 ### Display Quotes in User Messages
 
-Pass `QuoteBlock` to `MessagePrimitive.Parts` as the `Quote` renderer:
+Add `MessagePrimitive.Quote` above `MessagePrimitive.Parts` in your user message:
 
-```tsx title="components/assistant-ui/thread.tsx" {1,8}
+```tsx title="components/assistant-ui/thread.tsx" {1,8-10}
 import { QuoteBlock } from "@/components/assistant-ui/quote";
 
 const UserMessage = () => {
   return (
     <MessagePrimitive.Root>
-      <MessagePrimitive.Parts
-        components={{
-          Quote: QuoteBlock,
-        }}
-      />
+      <MessagePrimitive.Quote>
+        {(quote) => <QuoteBlock {...quote} />}
+      </MessagePrimitive.Quote>
+      <MessagePrimitive.Parts />
     </MessagePrimitive.Root>
   );
 };
@@ -55,7 +54,9 @@ const Thread = () => {
   return (
     <ThreadPrimitive.Root>
       <ThreadPrimitive.Viewport>
-        <ThreadPrimitive.Messages components={{ ... }} />
+        <ThreadPrimitive.Messages>
+          {({ message }) => { ... }}
+        </ThreadPrimitive.Messages>
         ...
       </ThreadPrimitive.Viewport>
 

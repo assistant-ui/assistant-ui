@@ -34,6 +34,7 @@ The Perplexity clone uses a dark theme with cyan accents:
 
 ```tsx
 import {
+  AuiIf,
   ThreadPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
@@ -65,7 +66,9 @@ export const Thread = () => {
       </AuiIf>
 
       <ThreadPrimitive.Viewport>
-        <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+        <ThreadPrimitive.Messages>
+          {({ message }) => message.role === "user" ? <UserMessage /> : <AssistantMessage />}
+        </ThreadPrimitive.Messages>
         <Composer />
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
@@ -77,7 +80,9 @@ const AssistantMessage = () => (
     <h1 className="mb-4 inline-flex items-center gap-2 text-2xl text-[#20b8cd]">
       <SparkleIcon /> Answer
     </h1>
-    <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+    <MessagePrimitive.Parts>
+      {({ part }) => part.type === "text" ? <MarkdownText /> : null}
+    </MessagePrimitive.Parts>
   </MessagePrimitive.Root>
 );
 ```

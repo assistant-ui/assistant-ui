@@ -1,17 +1,16 @@
-import type {
-  Attachment,
-  CreateAttachment,
-  MessageRole,
-  RunConfig,
-  QuoteInfo,
-  Unsubscribe,
-} from "../../types";
+import type { Attachment, CreateAttachment } from "../../types/attachment";
+import type { MessageRole } from "../../types/message";
+import type { QuoteInfo } from "../../types/quote";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { RunConfig } from "../../types/message";
 import {
   LazyMemoizeSubject,
+  EventSubscriptionSubject,
+} from "../../subscribable/subscribable";
+import {
   ShallowMemoizeSubject,
   SKIP_UPDATE,
-  EventSubscriptionSubject,
-} from "../../subscribable";
+} from "../../subscribable/subscribable";
 import type {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,

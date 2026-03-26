@@ -23,8 +23,7 @@ import {
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
-import { useAuth } from "@clerk/nextjs";
-import { UserButton, useUser } from "@clerk/nextjs";
+import { useAuth, UserButton, useUser } from "@clerk/nextjs";
 
 export const Assistant = () => {
   const { getToken } = useAuth();

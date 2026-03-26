@@ -21,10 +21,7 @@ Passing a `SpeechSynthesisAdapter` to the runtime will enable text-to-speech sup
 
 ## UI
 
-By default, a `Read aloud` button will be shown in the assistant message action bar.
-
-This is implemented using `AssistantActionBar.SpeechControl` which is a wrapper around `AssistantActionBar.Speak` and `AssistantActionBar.StopSpeaking`.
-The underlying primitives are `ActionBarPrimitive.Speak` and `ActionBarPrimitive.StopSpeaking`.
+The default action bar does not include a speech button. You need to add `ActionBarPrimitive.Speak` and `ActionBarPrimitive.StopSpeaking` to your assistant message action bar manually. See the example above for a complete implementation.
 
 ## Example
 

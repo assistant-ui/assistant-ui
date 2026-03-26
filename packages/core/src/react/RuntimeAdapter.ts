@@ -5,22 +5,21 @@ import {
   baseRuntimeAdapterTransformScopes,
 } from "../store/internal";
 import { attachTransformScopes } from "@assistant-ui/store";
-import { DataRenderers, Tools } from "./model-context";
+import { DataRenderers } from "./client/DataRenderers";
+import { Tools } from "./client/Tools";
 
 export const RuntimeAdapter = resource((runtime: AssistantRuntime) =>
   tapResource(RuntimeAdapterResource(runtime)),
 );
 
 attachTransformScopes(RuntimeAdapter, (scopes, parent) => {
-  const result = baseRuntimeAdapterTransformScopes(scopes, parent);
+  baseRuntimeAdapterTransformScopes(scopes, parent);
 
-  if (!result.tools && parent.tools.source === null) {
-    result.tools = Tools({});
+  if (!scopes.tools && parent.tools.source === null) {
+    scopes.tools = Tools({});
   }
 
-  if (!result.dataRenderers && parent.dataRenderers.source === null) {
-    result.dataRenderers = DataRenderers();
+  if (!scopes.dataRenderers && parent.dataRenderers.source === null) {
+    scopes.dataRenderers = DataRenderers();
   }
-
-  return result;
 });

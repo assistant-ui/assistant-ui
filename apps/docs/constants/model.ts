@@ -1,38 +1,64 @@
 export const MODELS = [
+  // OpenAI
   {
-    name: "GPT-5 Nano",
-    value: "openai/gpt-5-nano",
+    name: "GPT-5.4 Nano",
+    value: "openai/gpt-5.4-nano",
     icon: "/icons/openai.svg",
     disabled: false,
     contextWindow: 400_000,
   },
   {
-    name: "Gemini 3.0 Flash",
-    value: "google/gemini-3-flash",
+    name: "GPT-5.4 Mini",
+    value: "openai/gpt-5.4-mini",
+    icon: "/icons/openai.svg",
+    disabled: false,
+    contextWindow: 400_000,
+  },
+  // Anthropic
+  {
+    name: "Claude Haiku 4.5",
+    value: "anthropic/claude-haiku-4-5",
+    icon: "/icons/anthropic.svg",
+    disabled: false,
+    contextWindow: 200_000,
+  },
+  // Google
+  {
+    name: "Gemini 3 Flash",
+    value: "google-ai-studio/gemini-3-flash",
     icon: "/icons/google.svg",
-    disabled: true,
+    disabled: false,
     contextWindow: 1_000_000,
   },
+  // xAI
   {
-    name: "Kimi K2.5",
-    value: "moonshotai/kimi-k2.5",
-    icon: "/icons/kimi.svg",
-    disabled: true,
-    contextWindow: 256_000,
+    name: "Grok 4.1 Fast",
+    value: "grok/grok-4-1-fast",
+    icon: "/icons/xai.svg",
+    disabled: false,
+    contextWindow: 131_072,
   },
   {
-    name: "Deepseek V3.2",
-    value: "deepseek/deepseek-v3.2",
-    icon: "/icons/deepseek.svg",
-    disabled: true,
-    contextWindow: 164_000,
+    name: "Grok 3 Mini Fast",
+    value: "grok/grok-3-mini-fast",
+    icon: "/icons/xai.svg",
+    disabled: false,
+    contextWindow: 131_072,
+  },
+  // Groq
+  {
+    name: "Llama 3.3 70B",
+    value: "groq/llama-3.3-70b-versatile",
+    icon: "/icons/meta.svg",
+    disabled: false,
+    contextWindow: 131_072,
   },
   {
-    name: "Claude Sonnet 4.6",
-    value: "anthropic/claude-sonnet-4.6",
-    icon: "/icons/anthropic.svg",
-    disabled: true,
-    contextWindow: 200_000,
+    name: "Qwen3 32B",
+    value: "groq/qwen/qwen3-32b",
+    icon: "/icons/groq.svg",
+    disabled: false,
+    contextWindow: 131_072,
   },
 ] as const;
 

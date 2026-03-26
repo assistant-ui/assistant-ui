@@ -3,7 +3,8 @@ import {
   MessageRepository,
   ExportedMessageRepository,
 } from "../runtime/utils/message-repository";
-import type { ThreadMessage, TextMessagePart } from "../types";
+import type { ThreadMessage } from "../types/message";
+import type { TextMessagePart } from "../types/message";
 import type { ThreadMessageLike } from "../runtime/utils/thread-message-like";
 
 // Mock generateId and generateOptimisticId to make tests deterministic

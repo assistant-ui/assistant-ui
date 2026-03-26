@@ -1,12 +1,19 @@
 import {
   type ComponentType,
   type FC,
+  type ReactNode,
   memo,
   PropsWithChildren,
   useMemo,
 } from "react";
-import { useAuiState, useAui } from "@assistant-ui/store";
-import { PartByIndexProvider, TextMessagePartProvider } from "../../providers";
+import {
+  RenderChildrenWithAccessor,
+  useAuiState,
+  useAui,
+} from "@assistant-ui/store";
+import type { PartState } from "../../../store/scopes/part";
+import { PartByIndexProvider } from "../../providers/PartByIndexProvider";
+import { TextMessagePartProvider } from "../../providers/TextMessagePartProvider";
 import { ChainOfThoughtByIndicesProvider } from "../../providers/ChainOfThoughtByIndicesProvider";
 import { getMessageQuote } from "../../utils/getMessageQuote";
 import type {
@@ -23,8 +30,8 @@ import type {
   ReasoningMessagePartComponent,
   ReasoningGroupComponent,
   QuoteMessagePartComponent,
-} from "../../types";
-import type { MessagePartStatus } from "../../../types";
+} from "../../types/MessagePartComponentTypes";
+import type { MessagePartStatus } from "../../../types/message";
 import { useShallow } from "zustand/shallow";
 
 type MessagePartRange =
@@ -234,24 +241,32 @@ export namespace MessagePrimitiveParts {
     ReasoningGroup?: never;
   };
 
-  export type Props = {
-    /**
-     * Component configuration for rendering different types of message content.
-     *
-     * Use either `Reasoning`/`tools`/`ToolGroup`/`ReasoningGroup` for standard rendering,
-     * or `ChainOfThought` to group all reasoning and tool-call parts into a single
-     * collapsible component. These two modes are mutually exclusive.
-     */
-    components?: StandardComponents | ChainOfThoughtComponents | undefined;
-    /**
-     * When enabled, shows the Empty component if the last part in the message
-     * is anything other than Text or Reasoning.
-     *
-     * @experimental This API is experimental and may change in future versions.
-     * @default true
-     */
-    unstable_showEmptyOnNonTextEnd?: boolean | undefined;
-  };
+  export type Props =
+    | {
+        /**
+         * Component configuration for rendering different types of message content.
+         *
+         * Use either `Reasoning`/`tools`/`ToolGroup`/`ReasoningGroup` for standard rendering,
+         * or `ChainOfThought` to group all reasoning and tool-call parts into a single
+         * collapsible component. These two modes are mutually exclusive.
+         */
+        components?: StandardComponents | ChainOfThoughtComponents | undefined;
+        /**
+         * When enabled, shows the Empty component if the last part in the message
+         * is anything other than Text or Reasoning.
+         *
+         * @experimental This API is experimental and may change in future versions.
+         * @default true
+         */
+        unstable_showEmptyOnNonTextEnd?: boolean | undefined;
+        children?: never;
+      }
+    | {
+        /** Render function called for each part. Receives the enriched part state. */
+        children: (value: { part: EnrichedPartState }) => ReactNode;
+        components?: never;
+        unstable_showEmptyOnNonTextEnd?: never;
+      };
 }
 
 const ToolUIDisplay = ({
@@ -425,6 +440,8 @@ const EmptyPartsImpl: FC<MessagePartComponentProps> = ({ components }) => {
 
   if (components?.Empty) return <components.Empty status={status} />;
 
+  if (status.type !== "running") return null;
+
   return (
     <EmptyPartFallback
       status={status}
@@ -475,6 +492,148 @@ const QuoteRendererImpl: FC<{ Quote: QuoteMessagePartComponent }> = ({
 const QuoteRenderer = memo(QuoteRendererImpl);
 
 /**
+ * Stable propless component that renders the registered tool UI for the
+ * current part context. Reads tool registry and part state from context.
+ */
+const RegisteredToolUI: FC = () => {
+  const aui = useAui();
+  const part = useAuiState((s) => s.part);
+  const Render = useAuiState((s) => {
+    if (s.part.type !== "tool-call") return null;
+    const entry = s.tools.tools[s.part.toolName];
+    if (Array.isArray(entry)) return entry[0] ?? null;
+    return entry ?? null;
+  });
+
+  if (!Render || part.type !== "tool-call") return null;
+
+  return (
+    <Render
+      {...part}
+      addResult={aui.part().addToolResult}
+      resume={aui.part().resumeToolCall}
+    />
+  );
+};
+
+/**
+ * Stable propless component that renders the registered data renderer UI
+ * for the current part context.
+ */
+const RegisteredDataRendererUI: FC = () => {
+  const part = useAuiState((s) => s.part);
+  const Render = useAuiState((s) => {
+    if (s.part.type !== "data") return null;
+    const entry = s.dataRenderers.renderers[s.part.name];
+    if (Array.isArray(entry)) return entry[0] ?? null;
+    return entry ?? null;
+  });
+
+  if (!Render || part.type !== "data") return null;
+
+  return <Render {...(part as DataMessagePartProps)} />;
+};
+
+/**
+ * Fallback component rendered when the children render function returns null.
+ * Renders registered tool/data UIs via context.
+ * For all other part types, renders nothing.
+ *
+ * This allows users to write:
+ *   {({ part }) => {
+ *     if (part.type === "text") return <MyText />;
+ *     return null; // tool UIs and data UIs still render via registry
+ *   }}
+ *
+ * To explicitly render nothing (suppressing registered UIs), return <></>.
+ */
+const DefaultPartFallback: FC = () => {
+  const partType = useAuiState((s) => s.part.type);
+
+  if (partType === "tool-call") return <RegisteredToolUI />;
+  if (partType === "data") return <RegisteredDataRendererUI />;
+
+  return null;
+};
+
+export type { PartState };
+
+/**
+ * Enriched part state passed to children render functions.
+ *
+ * For tool-call parts, adds `toolUI`, `addResult`, and `resume`.
+ * For data parts, adds `dataRendererUI`.
+ */
+export type EnrichedPartState =
+  | (Extract<PartState, { type: "tool-call" }> & {
+      /** The registered tool UI element, or null if none registered. */
+      readonly toolUI: ReactNode;
+      /** Add a tool result to this tool call. */
+      addResult: ToolCallMessagePartProps["addResult"];
+      /** Resume a tool call waiting for human input. */
+      resume: ToolCallMessagePartProps["resume"];
+    })
+  | (Extract<PartState, { type: "data" }> & {
+      /** The registered data renderer UI element, or null if none registered. */
+      readonly dataRendererUI: ReactNode;
+    })
+  | Exclude<PartState, { type: "tool-call" } | { type: "data" }>;
+
+const MessagePrimitivePartsInner: FC<{
+  children: (value: { part: EnrichedPartState }) => ReactNode;
+}> = ({ children }) => {
+  const aui = useAui();
+  const contentLength = useAuiState((s) => s.message.parts.length);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: aui accessors are stable refs
+  return useMemo(
+    () =>
+      Array.from({ length: contentLength }, (_, index) => (
+        <PartByIndexProvider key={index} index={index}>
+          <RenderChildrenWithAccessor
+            getItemState={(aui) => aui.message().part({ index }).getState()}
+          >
+            {(getItem) => {
+              const result = children({
+                get part() {
+                  const state = getItem();
+                  if (state.type === "tool-call") {
+                    const entry = aui.tools().getState().tools[state.toolName];
+                    const hasUI = Array.isArray(entry) ? !!entry[0] : !!entry;
+                    const partMethods = aui.message().part({ index });
+                    return {
+                      ...state,
+                      toolUI: hasUI ? <RegisteredToolUI /> : null,
+                      addResult: partMethods.addToolResult,
+                      resume: partMethods.resumeToolCall,
+                    };
+                  }
+                  if (state.type === "data") {
+                    const entry = aui.dataRenderers().getState().renderers[
+                      state.name
+                    ];
+                    const hasUI = Array.isArray(entry) ? !!entry[0] : !!entry;
+                    return {
+                      ...state,
+                      dataRendererUI: hasUI ? (
+                        <RegisteredDataRendererUI />
+                      ) : null,
+                    };
+                  }
+                  return state;
+                },
+              });
+              if (result !== null) return result;
+              return <DefaultPartFallback />;
+            }}
+          </RenderChildrenWithAccessor>
+        </PartByIndexProvider>
+      )),
+    [contentLength, children],
+  );
+};
+
+/**
  * Renders the parts of a message with support for multiple content types.
  *
  * This is the platform-agnostic base. Each platform wraps this with its own
@@ -483,7 +642,25 @@ const QuoteRenderer = memo(QuoteRendererImpl);
 export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
   components,
   unstable_showEmptyOnNonTextEnd = true,
+  children,
 }) => {
+  if (children) {
+    return <MessagePrimitivePartsInner>{children}</MessagePrimitivePartsInner>;
+  }
+  return (
+    <MessagePrimitivePartsCompat
+      components={components}
+      unstable_showEmptyOnNonTextEnd={unstable_showEmptyOnNonTextEnd}
+    />
+  );
+};
+
+MessagePrimitiveParts.displayName = "MessagePrimitive.Parts";
+
+const MessagePrimitivePartsCompat: FC<{
+  components: MessagePrimitiveParts.Props["components"];
+  unstable_showEmptyOnNonTextEnd: boolean;
+}> = ({ components, unstable_showEmptyOnNonTextEnd }) => {
   const contentLength = useAuiState((s) => s.message.parts.length);
   const useChainOfThought = !!components?.ChainOfThought;
   const messageRanges = useMessagePartsGroups(useChainOfThought);
@@ -572,5 +749,3 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
     </>
   );
 };
-
-MessagePrimitiveParts.displayName = "MessagePrimitive.Parts";

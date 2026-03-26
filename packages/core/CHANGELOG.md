@@ -1,5 +1,60 @@
 # @assistant-ui/core
 
+## 0.1.8
+
+### Patch Changes
+
+- 1406aed: fix(core): prevent stale list() response from undoing concurrent delete/archive/unarchive in OptimisticState
+- 9480f30: fix(core): stop thread runtime on delete to prevent store crash
+- 28a987a: feat: SingleThreadList resource
+  refactor: attachTransformScopes should mutate the scopes instead of cloning it
+- 736344c: chore: update dependencies
+- ff3be2a: Add @-mention system with cursor-aware trigger detection, keyboard navigation, search, and Lexical rich editor support
+- 70b19f3: feat: add native queue and steer support
+  - Add `queue` adapter to `ExternalThreadProps` for runtimes that support message queuing
+  - Add `QueueItemPrimitive.Text`, `.Steer`, `.Remove` primitives for rendering queue items
+  - Add `ComposerPrimitive.Queue` for rendering the queue list within the composer
+  - Add `ComposerSendOptions` with `steer` flag to `composer.send()`
+  - Add `capabilities.queue` to `RuntimeCapabilities`
+  - `ComposerPrimitive.Send` stays enabled during runs when queue is supported
+  - Cmd/Ctrl+Shift+Enter hotkey sends with `steer: true` (interrupt current run)
+  - Add `queueItem` scope to `ScopeRegistry`
+  - Add `queue` field to `ComposerState` and `queueItem()` method to `ComposerMethods`
+
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/store@0.2.4
+  - assistant-stream@0.3.7
+  - @assistant-ui/tap@0.5.4
+
+## 0.1.7
+
+### Patch Changes
+
+- 7ecc497: feat: children API for primitives with part.toolUI, part.dataRendererUI, and MessagePrimitive.Quote
+
+## 0.1.6
+
+### Patch Changes
+
+- 1ed9867: feat: move resumeRun to stable
+- 427ffaa: refactor: drop all barrel files
+- 349f3c7: chore: update deps
+- 02614aa: feat: add multi-agent support
+  - `ReadonlyThreadProvider` and `MessagePartPrimitive.Messages` for rendering sub-agent messages
+  - `assistant-stream`: add `messages` field to `tool-result` chunks, `ToolResponseLike`, and `ToolCallPart` types, enabling sub-agent messages to flow through the streaming protocol
+
+- 6cc4122: refactor: use primitive hooks
+- 642bcda: Add `quote.tsx` registry components and `injectQuoteContext` helper
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+  - assistant-stream@0.3.6
+  - assistant-cloud@0.1.22
+  - @assistant-ui/store@0.2.3
+  - @assistant-ui/tap@0.5.3
+
 ## 0.1.5
 
 ### Patch Changes

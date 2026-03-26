@@ -14,11 +14,11 @@ import {
   MessageRuntimeImpl,
   MessageState,
 } from "./message-runtime";
+import { NestedSubscriptionSubject } from "../../subscribable/subscribable";
 import {
-  NestedSubscriptionSubject,
   ShallowMemoizeSubject,
   SKIP_UPDATE,
-} from "../../subscribable";
+} from "../../subscribable/subscribable";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
 import {
   ThreadComposerRuntime,
@@ -30,15 +30,12 @@ import {
   ThreadRuntimePath,
 } from "./paths";
 import type { ThreadListItemState } from "./bindings";
-import type {
-  RunConfig,
-  AppendMessage,
-  ThreadMessage,
-  Unsubscribe,
-} from "../../types";
-import { EventSubscriptionSubject } from "../../subscribable";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { RunConfig } from "../../types/message";
+import { EventSubscriptionSubject } from "../../subscribable/subscribable";
 import { symbolInnerMessage } from "../utils/external-store-message";
-import { ModelContext } from "../../model-context";
+import { ModelContext } from "../../model-context/types";
 import {
   ChatModelRunOptions,
   ChatModelRunResult,
@@ -263,6 +260,11 @@ export type ThreadRuntime = {
    * Resume a run with the given configuration.
    * @param config The configuration for resuming the run
    **/
+  resumeRun(config: CreateResumeRunConfig): void;
+
+  /**
+   * @deprecated Use `resumeRun` instead.
+   */
   unstable_resumeRun(config: CreateResumeRunConfig): void;
 
   /**
@@ -377,6 +379,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
   protected __internal_bindMethods() {
     this.append = this.append.bind(this);
+    this.resumeRun = this.resumeRun.bind(this);
     this.unstable_resumeRun = this.unstable_resumeRun.bind(this);
     this.unstable_loadExternalState =
       this.unstable_loadExternalState.bind(this);
@@ -431,8 +434,13 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     return this._threadBinding.getState().startRun(toStartRunConfig(config));
   }
 
-  public unstable_resumeRun(config: CreateResumeRunConfig) {
+  public resumeRun(config: CreateResumeRunConfig) {
     return this._threadBinding.getState().resumeRun(toResumeRunConfig(config));
+  }
+
+  /** @deprecated Use `resumeRun` instead. */
+  public unstable_resumeRun(config: CreateResumeRunConfig) {
+    return this.resumeRun(config);
   }
 
   public exportExternalState() {

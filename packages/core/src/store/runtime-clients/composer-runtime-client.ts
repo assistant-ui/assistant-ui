@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "../../types";
+import type { Unsubscribe } from "../../types/unsubscribe";
 import {
   resource,
   tapMemo,
@@ -15,9 +15,9 @@ import {
 import {
   ComposerRuntime,
   EditComposerRuntime,
-  ComposerRuntimeEventType,
-} from "../../runtime";
-import { ComposerState } from "../scopes";
+} from "../../runtime/api/composer-runtime";
+import { ComposerRuntimeEventType } from "../../runtime/interfaces/composer-runtime-core";
+import { ComposerState } from "../scopes/composer";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 import { tapSubscribable } from "./tap-subscribable";
 
@@ -102,6 +102,7 @@ export const ComposerClient = resource(
         type: runtimeState.type ?? "thread",
         dictation: runtimeState.dictation,
         quote: runtimeState.quote,
+        queue: [],
       };
     }, [runtimeState, attachments.state]);
 
@@ -129,6 +130,9 @@ export const ComposerClient = resource(
         } else {
           return attachments.get(selector);
         }
+      },
+      queueItem: () => {
+        throw new Error("Queue is not supported in this runtime");
       },
       __internal_getRuntime: () => runtime,
     };

@@ -2,6 +2,7 @@ import { getDistinctId, posthogServer } from "@/lib/posthog-server";
 import { createPrismTracer } from "@/lib/prism-server";
 import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { prismAISDK } from "@aui-x/prism";
@@ -42,6 +43,15 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { messages, tools, config } = body;
 
+    const inputError = validateGeneralChatInput(messages);
+    if (inputError) {
+      const cors = corsHeaders(req);
+      for (const [key, value] of Object.entries(cors)) {
+        inputError.headers.set(key, value);
+      }
+      return inputError;
+    }
+
     const baseModel = getModel(config?.modelName);
     const distinctId = getDistinctId(req);
     const prismTracer = createPrismTracer();
@@ -72,7 +82,7 @@ export async function POST(req: Request) {
     const result = streamText({
       model: prism?.model ?? posthogModel,
       messages: prunedMessages,
-      maxOutputTokens: 15000,
+      maxOutputTokens: 4096,
       stopWhen: stepCountIs(10),
       tools: frontendTools(tools),
       onFinish: async () => {

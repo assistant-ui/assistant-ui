@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/external-store-thread-runtime-core";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
-import type { ModelContextProvider } from "../model-context";
+import type { ModelContextProvider } from "../model-context/types";
 
 const mockContextProvider: ModelContextProvider = {
   getModelContext: () => ({}),

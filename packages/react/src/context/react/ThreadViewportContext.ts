@@ -5,7 +5,7 @@ import { ReadonlyStore } from "../ReadonlyStore";
 import { UseBoundStore } from "zustand";
 import { createContextHook } from "./utils/createContextHook";
 import { createContextStoreHook } from "./utils/createContextStoreHook";
-import { ThreadViewportState } from "../stores";
+import { ThreadViewportState } from "../stores/ThreadViewport";
 
 export type ThreadViewportContextValue = {
   useThreadViewport: UseBoundStore<ReadonlyStore<ThreadViewportState>>;
