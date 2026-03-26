@@ -122,5 +122,5 @@ useAuiEvent("*", (data) => {
 
 ## Learn More
 
-- [@assistant-ui/store Documentation](../store/README.md)
+- [@assistant-ui/store Documentation](../../packages/store/README.md)
 - [Next.js Documentation](https://nextjs.org/docs)

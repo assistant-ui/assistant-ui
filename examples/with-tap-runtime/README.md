@@ -142,5 +142,5 @@ You can extend this example to:
 
 - [Tap Documentation](../../packages/tap/README.md)
 - [Store Documentation](../../packages/store/README.md)
-- [Client Implementation](../../packages/react/src/client/README.md)
+- [Client Implementation](../../packages/react/src/client)
 - [Assistant UI Docs](https://assistant-ui.com)
