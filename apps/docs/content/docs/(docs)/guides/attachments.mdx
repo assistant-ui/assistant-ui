@@ -94,14 +94,31 @@ const UserMessage = () => {
 
 ## Built-in Attachment Adapters
 
+### AI SDK Runtime (Default)
+
+When using `useChatRuntime`, the built-in adapter accepts all file types and converts them to base64 data URLs. This works well for images and small files.
+
+<Callout type="warn">
+  Most models only support **image** attachments. Sending unsupported file types (audio, video, PDF, etc.) will result in an API error. Check your model provider's documentation for supported input types.
+</Callout>
+
+To restrict accepted file types, pass a custom adapter:
+
+```tsx
+const runtime = useChatRuntime({
+  adapters: {
+    attachments: new SimpleImageAttachmentAdapter(), // only images
+  },
+});
+```
+
 ### SimpleImageAttachmentAdapter
 
-Handles image files and converts them to data URLs for display in the chat UI. By default, images are shown inline but not sent to the LLM - use the VisionImageAdapter example above to send images to vision-capable models.
+Handles image files and converts them to data URLs for display in the chat UI.
 
 ```tsx
 const imageAdapter = new SimpleImageAttachmentAdapter();
 // Accepts: image/* (JPEG, PNG, GIF, etc.)
-// Output: { type: "image", url: "data:image/..." }
 ```
 
 ### SimpleTextAttachmentAdapter
@@ -111,7 +128,6 @@ Processes text files and wraps content in formatted tags:
 ```tsx
 const textAdapter = new SimpleTextAttachmentAdapter();
 // Accepts: text/plain, text/html, text/markdown, etc.
-// Output: Content wrapped in <attachment>...</attachment> tags
 ```
 
 ### CompositeAttachmentAdapter
@@ -122,7 +138,6 @@ Combines multiple adapters to support various file types:
 const compositeAdapter = new CompositeAttachmentAdapter([
   new SimpleImageAttachmentAdapter(),
   new SimpleTextAttachmentAdapter(),
-  // Add more adapters as needed
 ]);
 ```
 
@@ -536,6 +551,52 @@ Attachments work with all assistant-ui runtimes:
   The attachment system is designed to be extensible. You can create adapters
   for any file type, integrate with cloud storage services, or implement custom
   processing logic to fit your specific needs.
+</Callout>
+
+## Large File Uploads
+
+The built-in adapters convert files to base64 data URLs in memory. For large files (long audio, video, etc.), this can cause performance issues. Instead, upload to a server and pass the URL:
+
+```tsx
+class ServerUploadAdapter implements AttachmentAdapter {
+  accept = "*";
+  private urls = new Map<string, string>();
+
+  async *add({ file }: { file: File }) {
+    const id = crypto.randomUUID();
+    yield {
+      id, type: "file" as const, name: file.name, file,
+      contentType: file.type,
+      status: { type: "running" as const, reason: "uploading" as const, progress: 0 },
+    };
+
+    const form = new FormData();
+    form.append("file", file);
+    const { url } = await fetch("/api/upload", { method: "POST", body: form }).then(r => r.json());
+    this.urls.set(id, url);
+
+    yield {
+      id, type: "file" as const, name: file.name, file,
+      contentType: file.type,
+      status: { type: "requires-action" as const, reason: "composer-send" as const },
+    };
+  }
+
+  async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    const url = this.urls.get(attachment.id)!;
+    this.urls.delete(attachment.id);
+    return {
+      ...attachment, status: { type: "complete" },
+      content: [{ type: "file", data: url, mimeType: attachment.contentType ?? "", filename: attachment.name }],
+    };
+  }
+
+  async remove() {}
+}
+```
+
+<Callout type="tip">
+  [assistant-ui Cloud](/docs/cloud/ai-sdk-assistant-ui) includes `CloudFileAttachmentAdapter` which handles large file uploads via presigned URLs out of the box.
 </Callout>
 
 ## Best Practices
