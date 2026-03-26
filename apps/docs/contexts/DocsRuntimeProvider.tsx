@@ -5,6 +5,7 @@ import {
   AssistantRuntimeProvider,
   WebSpeechSynthesisAdapter,
   WebSpeechDictationAdapter,
+  SimpleImageAttachmentAdapter,
   AssistantCloud,
   useAui,
   Tools,
@@ -43,6 +44,7 @@ export function DocsRuntimeProvider({
       speech: new WebSpeechSynthesisAdapter(),
       dictation: new WebSpeechDictationAdapter(),
       feedback: feedbackAdapter,
+      attachments: new SimpleImageAttachmentAdapter(),
     }),
     [],
   );
