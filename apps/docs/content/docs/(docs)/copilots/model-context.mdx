@@ -14,16 +14,24 @@ System instructions define the base behavior and knowledge available to the assi
 ```tsx
 import {
   useAssistantInstructions,
+  useAssistantContext,
   makeAssistantVisible,
 } from "@assistant-ui/react";
 
-// Via useAssistantInstructions
+// Static instructions
 useAssistantInstructions("You are a helpful assistant...");
+
+// Dynamic context — callback is evaluated lazily at send-time
+useAssistantContext({
+  getContext: () => `Current page: ${window.location.href}`,
+});
 
 // Via makeAssistantVisible
 const ReadableComponent = makeAssistantVisible(MyComponent);
 // Automatically provides component HTML as system context
 ```
+
+`useAssistantInstructions` takes a static string that re-registers when changed. `useAssistantContext` takes a callback that is evaluated fresh each time the model context is read, making it ideal for injecting frequently-changing application state without triggering re-registrations.
 
 ### Tools
 
