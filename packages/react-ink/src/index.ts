@@ -152,6 +152,8 @@ export {
   useAssistantInteractable,
   type AssistantInteractableProps,
   useInteractableState,
+  useToolArgsStatus,
+  type ToolArgsStatus,
 } from "@assistant-ui/core/react";
 export type {
   ModelContext,

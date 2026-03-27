@@ -33,6 +33,10 @@ export {
   type AssistantInteractableProps,
 } from "./model-context/useAssistantInteractable";
 export { useInteractableState } from "./model-context/useInteractableState";
+export {
+  useToolArgsStatus,
+  type ToolArgsStatus,
+} from "./model-context/useToolArgsStatus";
 
 // client
 export { Tools } from "./client/Tools";
