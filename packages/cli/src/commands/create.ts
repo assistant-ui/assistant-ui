@@ -155,6 +155,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: true,
   },
   {
+    name: "with-interactables",
+    label: "Interactables",
+    description: "AI-driven interactive UI components",
+    category: "example",
+    path: "examples/with-interactables",
+    hasLocalComponents: true,
+  },
+  {
     name: "with-external-store",
     label: "External Store",
     description: "Custom message store",
