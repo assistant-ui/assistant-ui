@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
@@ -18,6 +18,7 @@ import {
   CheckCircle2Icon,
   CircleIcon,
   ListTodoIcon,
+  Loader2Icon,
   StickyNoteIcon,
   Trash2Icon,
   PlusIcon,
@@ -51,7 +52,7 @@ function TaskBoard() {
     stateSchema: taskBoardSchema,
     initialState: taskBoardInitialState,
   });
-  const [state, { setState }] = useInteractableState<TaskBoardState>(
+  const [state, { setState, isPending }] = useInteractableState<TaskBoardState>(
     id,
     taskBoardInitialState,
   );
@@ -114,6 +115,9 @@ function TaskBoard() {
       <div className="flex items-center gap-2 border-b px-4 py-3">
         <ListTodoIcon className="size-4 text-muted-foreground" />
         <span className="font-semibold text-sm">Task Board</span>
+        {isPending && (
+          <Loader2Icon className="size-3 animate-spin text-muted-foreground" />
+        )}
         {state.tasks.length > 0 && (
           <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary text-xs">
             {doneCount}/{state.tasks.length}
@@ -266,9 +270,31 @@ function NoteCard({
   );
 }
 
+const NOTE_IDS_KEY = "interactables-example-note-ids";
+
+function loadNoteIds(): string[] {
+  try {
+    const saved = localStorage.getItem(NOTE_IDS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
 function NotesPanel() {
   const [noteIds, setNoteIds] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const hydratedRef = useRef(false);
+
+  useEffect(() => {
+    if (!hydratedRef.current) {
+      hydratedRef.current = true;
+      const saved = loadNoteIds();
+      if (saved.length > 0) setNoteIds(saved);
+      return;
+    }
+    localStorage.setItem(NOTE_IDS_KEY, JSON.stringify(noteIds));
+  }, [noteIds]);
 
   const noteIdsRef = useRef(noteIds);
   noteIdsRef.current = noteIds;
@@ -367,6 +393,27 @@ function NotesPanel() {
 // App
 // ===========================================================================
 
+const STORAGE_KEY = "interactables-example";
+
+function useInteractablePersistence(aui: ReturnType<typeof useAui>) {
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        aui.interactables().importState(JSON.parse(saved));
+      } catch {
+        // ignore malformed data
+      }
+    }
+
+    aui.interactables().setPersistenceAdapter({
+      save: (state) => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      },
+    });
+  }, [aui]);
+}
+
 export default function Home() {
   const runtime = useChatRuntime({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
@@ -393,6 +440,8 @@ export default function Home() {
       },
     ]),
   });
+
+  useInteractablePersistence(aui);
 
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
