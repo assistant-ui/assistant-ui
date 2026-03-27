@@ -122,6 +122,7 @@ const handlePartStart = (
       type: "file",
       mimeType: partInit.mimeType,
       data: partInit.data,
+      ...(partInit.parentId && { parentId: partInit.parentId }),
     };
     return {
       ...message,

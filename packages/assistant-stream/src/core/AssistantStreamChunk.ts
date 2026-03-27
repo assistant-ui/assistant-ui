@@ -24,6 +24,7 @@ export type PartInit =
       readonly type: "file";
       readonly data: string;
       readonly mimeType: string;
+      readonly parentId?: string;
     }
   | {
       readonly type: "data";

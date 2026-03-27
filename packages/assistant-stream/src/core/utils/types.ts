@@ -92,6 +92,7 @@ export type FilePart = {
   type: "file";
   data: string;
   mimeType: string;
+  parentId?: string;
 };
 
 export type DataPart = {

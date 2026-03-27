@@ -169,48 +169,38 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     return controller;
   }
 
+  private _finishedPartStream(): AssistantStream {
+    return new ReadableStream({
+      start(controller) {
+        controller.enqueue({ type: "part-finish", path: [] });
+        controller.close();
+      },
+    });
+  }
+
+  private _withParentIdOption<T>(options: T): T {
+    if (!this._parentId) return options;
+    return { ...options, parentId: this._parentId };
+  }
+
   appendSource(options: SourcePart) {
     this._addPart(
-      { ...options, ...(this._parentId && { parentId: this._parentId }) },
-      new ReadableStream({
-        start(controller) {
-          controller.enqueue({
-            type: "part-finish",
-            path: [],
-          });
-          controller.close();
-        },
-      }),
+      this._withParentIdOption(options),
+      this._finishedPartStream(),
     );
   }
 
   appendFile(options: FilePart) {
     this._addPart(
-      options,
-      new ReadableStream({
-        start(controller) {
-          controller.enqueue({
-            type: "part-finish",
-            path: [],
-          });
-          controller.close();
-        },
-      }),
+      this._withParentIdOption(options),
+      this._finishedPartStream(),
     );
   }
 
   appendData(options: DataPart) {
     this._addPart(
-      { ...options, ...(this._parentId && { parentId: this._parentId }) },
-      new ReadableStream({
-        start(controller) {
-          controller.enqueue({
-            type: "part-finish",
-            path: [],
-          });
-          controller.close();
-        },
-      }),
+      this._withParentIdOption(options),
+      this._finishedPartStream(),
     );
   }
 
