@@ -29,15 +29,10 @@ export {
 export { useInlineRender } from "./model-context/useInlineRender";
 export type { Toolkit, ToolDefinition } from "./model-context/toolbox";
 export {
-  useInteractable,
-  type UseInteractableConfig,
-  type UseInteractableMetadata,
-} from "./model-context/useInteractable";
-export {
-  makeInteractable,
-  type InteractableConfig,
-  type AssistantInteractable,
-} from "./model-context/makeInteractable";
+  useAssistantInteractable,
+  type AssistantInteractableProps,
+} from "./model-context/useAssistantInteractable";
+export { useInteractableState } from "./model-context/useInteractableState";
 
 // client
 export { Tools } from "./client/Tools";
