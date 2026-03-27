@@ -80,6 +80,9 @@ export type {
   InteractableDefinition,
   InteractableRegistration,
   InteractablesMethods,
+  InteractablePersistedState,
+  InteractablePersistenceAdapter,
+  InteractablePersistenceStatus,
   InteractablesClientSchema,
 } from "./types/scopes/interactables";
 

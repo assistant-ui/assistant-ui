@@ -16,6 +16,9 @@ export const useInteractableState = <TState>(
   {
     setState: (updater: StateUpdater<TState>) => void;
     setSelected: (selected: boolean) => void;
+    isPending: boolean;
+    error: unknown;
+    flush: () => Promise<void>;
   },
 ] => {
   const aui = useAui();
@@ -23,6 +26,8 @@ export const useInteractableState = <TState>(
   const state =
     (useAuiState((s) => s.interactables.definitions[id]?.state) as TState) ??
     (fallback as TState);
+
+  const persistenceStatus = useAuiState((s) => s.interactables.persistence[id]);
 
   const setState = useCallback(
     (updater: StateUpdater<TState>) => {
@@ -43,5 +48,16 @@ export const useInteractableState = <TState>(
     [aui, id],
   );
 
-  return [state, { setState, setSelected }];
+  const flush = useCallback(() => aui.interactables().flush(), [aui]);
+
+  return [
+    state,
+    {
+      setState,
+      setSelected,
+      isPending: persistenceStatus?.isPending ?? false,
+      error: persistenceStatus?.error,
+      flush,
+    },
+  ];
 };
