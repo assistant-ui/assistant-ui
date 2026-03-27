@@ -236,6 +236,45 @@ Downloads message as Markdown or calls custom handler. Renders a `<button>` elem
 
 <PrimitivesTypeTable type="ActionBarPrimitiveExportMarkdownProps" parameters={ActionBarPrimitiveDocs.ExportMarkdown.props.filter(p => p.name !== "asChild")} />
 
+### Share
+
+Shares a single message (and optionally the full thread). Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ActionBarPrimitive.Share
+  onShare={async ({ message, thread }) => {
+    await fetch("/api/share", {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    });
+  }}
+>
+  Share
+</ActionBarPrimitive.Share>
+```
+
+<ParametersTable
+  type="ActionBarPrimitiveShareProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "onShare",
+      type: "(data: { message: SerializedThreadMessage; thread?: SerializedThreadMessage[] }) => void | Promise<void>",
+      description:
+        "Callback that receives the serialized message. The developer handles persistence, link generation, etc.",
+    },
+    {
+      name: "includeThread",
+      type: "boolean",
+      default: "false",
+      description:
+        "When true, the full thread is included in the data passed to onShare.",
+    },
+  ]}
+/>
+
 ## Patterns
 
 ### Assistant Action Bar

@@ -363,6 +363,40 @@ Self-contained suggestion button. Renders a `<button>` element unless `asChild` 
 
 <PrimitivesTypeTable type="ThreadPrimitiveSuggestionProps" parameters={ThreadPrimitiveDocs.Suggestion.props.filter(p => p.name !== "asChild")} />
 
+### Share
+
+Shares the entire thread conversation. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ThreadPrimitive.Share
+  onShare={async (messages) => {
+    const res = await fetch("/api/share", {
+      method: "POST",
+      body: JSON.stringify(messages),
+    });
+    const { url } = await res.json();
+    await navigator.clipboard.writeText(url);
+  }}
+>
+  Share conversation
+</ThreadPrimitive.Share>
+```
+
+<ParametersTable
+  type="ThreadPrimitiveShareProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "onShare",
+      type: "(data: SerializedThreadMessage[]) => void | Promise<void>",
+      description:
+        "Callback that receives all thread messages in serialized (JSON-safe) format. The developer handles persistence, URL generation, etc.",
+    },
+  ]}
+/>
+
 ### Empty
 
 <Callout type="warn">

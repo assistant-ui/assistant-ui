@@ -16,9 +16,32 @@ import type {
   InteractableRegistration,
   InteractableStateSchema,
 } from "../types/scopes/interactables";
-import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
+import { toJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store";
 import { buildInteractableModelContext } from "./interactable-model-context";
+
+const toPartialJSONSchema = (
+  schema: Record<string, any>,
+): Record<string, any> => {
+  const { required: _, ...result } = schema;
+
+  if (result.properties) {
+    result.properties = Object.fromEntries(
+      Object.entries(result.properties).map(([key, prop]) => {
+        if (typeof prop === "object" && prop !== null && !Array.isArray(prop)) {
+          const nested = prop as Record<string, any>;
+          return [
+            key,
+            nested.properties ? toPartialJSONSchema(nested) : nested,
+          ];
+        }
+        return [key, prop];
+      }),
+    );
+  }
+
+  return result;
+};
 
 export const Interactables = resource((): ClientOutput<"interactables"> => {
   const [state, setState] = tapState<InteractablesState>(() => ({
@@ -107,7 +130,7 @@ export const Interactables = resource((): ClientOutput<"interactables"> => {
       const jsonSchema = toJSONSchema(def.stateSchema);
       partialSchemaCacheRef.current.set(
         def.id,
-        toPartialJSONSchema(jsonSchema),
+        toPartialJSONSchema(jsonSchema) as InteractableStateSchema,
       );
     } catch (e) {
       console.warn(

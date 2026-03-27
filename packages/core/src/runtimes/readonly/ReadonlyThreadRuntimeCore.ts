@@ -186,7 +186,7 @@ export class ReadonlyThreadRuntimeCore
     edit: false,
     reload: false,
     cancel: false,
-    unstable_copy: false,
+    unstable_copy: true,
     speech: false,
     dictation: false,
     attachments: false,

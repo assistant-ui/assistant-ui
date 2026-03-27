@@ -385,6 +385,42 @@ export type { ToolExecutionStatus } from "./internal";
 
 export type { Assistant } from "./augmentations";
 
+// === share ===
+
+export { ThreadReadOnly } from "./share/ThreadReadOnly";
+
+export type {
+  SerializedThreadMessage,
+  SerializedAttachment,
+  SerializedSystemMessage,
+  SerializedUserMessage,
+  SerializedAssistantMessage,
+} from "@assistant-ui/core";
+
+export {
+  serializeMessages,
+  deserializeMessages,
+  isSerializedMessages,
+  toMarkdown,
+  toJSON,
+} from "@assistant-ui/core";
+
+export type { ToJSONOptions } from "@assistant-ui/core";
+
+// === replay ===
+
+export type {
+  ThreadRecording,
+  ThreadRecordingEvent,
+} from "@assistant-ui/core";
+
+export { diffMessages } from "@assistant-ui/core";
+export type { MessageDiff } from "@assistant-ui/core";
+
+export { useThreadRecorder } from "./replay/useThreadRecorder";
+export { ThreadReplay } from "./replay/ThreadReplay";
+export { PlaybackControls } from "./replay/PlaybackControls";
+
 // ============================================================================
 // Backwards compatibility - deprecated exports
 // ============================================================================

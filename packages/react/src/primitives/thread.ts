@@ -13,3 +13,4 @@ export {
   ThreadPrimitiveSuggestions as Suggestions,
   ThreadPrimitiveSuggestionByIndex as SuggestionByIndex,
 } from "./thread/ThreadSuggestions";
+export { ThreadPrimitiveShare as Share } from "./thread/ThreadShare";
