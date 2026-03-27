@@ -49,6 +49,13 @@ export class DataStreamEncoder
                   value,
                 });
               }
+              if (part.type === "data") {
+                const { type, ...value } = part;
+                controller.enqueue({
+                  type: DataStreamStreamChunkType.AuiDataPart,
+                  value,
+                });
+              }
               break;
             }
             case "text-delta": {
@@ -378,6 +385,13 @@ export class DataStreamDecoder extends PipeableTransformStream<
             case DataStreamStreamChunkType.File:
               controller.appendFile({
                 type: "file",
+                ...value,
+              });
+              break;
+
+            case DataStreamStreamChunkType.AuiDataPart:
+              controller.appendData({
+                type: "data",
                 ...value,
               });
               break;

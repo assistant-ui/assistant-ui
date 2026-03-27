@@ -37,6 +37,29 @@ Custom data events that can be rendered as UI at their position in the message s
 
 You can use either the explicit format `{ type: "data", name: "workflow", data: {...} }` or the shorthand `data-*` prefixed format `{ type: "data-workflow", data: {...} }`. The prefixed format is automatically converted to a `DataMessagePart` (stripping the `data-` prefix as the `name`). Unknown message part types that don't match any built-in type are silently skipped with a console warning.
 
+#### Streaming Data Parts
+
+Data parts can be sent from the server using `appendData()` on the stream controller:
+
+```ts
+controller.appendData({
+  type: "data",
+  name: "chart",
+  data: { labels: ["Q1", "Q2"], values: [10, 20] },
+});
+```
+
+Register a renderer with `makeAssistantDataUI` to display data parts:
+
+```tsx
+import { makeAssistantDataUI } from "@assistant-ui/react";
+
+const ChartUI = makeAssistantDataUI({
+  name: "chart",
+  render: ({ data }) => <MyChart data={data} />,
+});
+```
+
 ## Anatomy
 
 ```tsx

@@ -32,6 +32,7 @@ export { AssistantMessageStream } from "./core/accumulators/AssistantMessageStre
 export type {
   AssistantMessage,
   AssistantMessageTiming,
+  DataPart,
 } from "./core/utils/types";
 
 export type { Tool } from "./core/tool/tool-types";

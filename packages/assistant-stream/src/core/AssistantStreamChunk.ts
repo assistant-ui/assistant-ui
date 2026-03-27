@@ -24,6 +24,12 @@ export type PartInit =
       readonly type: "file";
       readonly data: string;
       readonly mimeType: string;
+    }
+  | {
+      readonly type: "data";
+      readonly name: string;
+      readonly data: ReadonlyJSONValue;
+      readonly parentId?: string;
     };
 
 export type AssistantStreamChunk = { readonly path: readonly number[] } & (
