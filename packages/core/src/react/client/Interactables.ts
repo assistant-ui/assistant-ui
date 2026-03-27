@@ -112,8 +112,12 @@ export const Interactables = resource((): ClientOutput<"interactables"> => {
         }));
       }
     } finally {
-      for (const resolve of flushResolversRef.current) resolve();
-      flushResolversRef.current = [];
+      if (dirtyIdsRef.current.size > 0 && adapterRef.current) {
+        runPersistence();
+      } else {
+        for (const resolve of flushResolversRef.current) resolve();
+        flushResolversRef.current = [];
+      }
     }
   }, []);
 
@@ -126,7 +130,14 @@ export const Interactables = resource((): ClientOutput<"interactables"> => {
       }
       debounceTimerRef.current = setTimeout(() => {
         debounceTimerRef.current = undefined;
-        runPersistence();
+        if (!hasPendingLocalChangeRef.current) {
+          runPersistence();
+        } else {
+          debounceTimerRef.current = setTimeout(() => {
+            debounceTimerRef.current = undefined;
+            runPersistence();
+          }, PERSISTENCE_DEBOUNCE_MS);
+        }
       }, PERSISTENCE_DEBOUNCE_MS);
     },
     [runPersistence],
