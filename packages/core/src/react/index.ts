@@ -15,6 +15,10 @@ export {
 } from "./model-context/makeAssistantDataUI";
 export { useAssistantInstructions } from "./model-context/useAssistantInstructions";
 export {
+  useAssistantContext,
+  type AssistantContextConfig,
+} from "./model-context/useAssistantContext";
+export {
   useAssistantTool,
   type AssistantToolProps,
 } from "./model-context/useAssistantTool";

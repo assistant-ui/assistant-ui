@@ -140,6 +140,8 @@ export {
   useAssistantDataUI,
   type AssistantDataUIProps,
   useAssistantInstructions,
+  useAssistantContext,
+  type AssistantContextConfig,
   useInlineRender,
   type Toolkit,
   type ToolDefinition,

@@ -62,6 +62,7 @@ export type {
   // Tool & instruction config
   AssistantToolProps,
   AssistantInstructionsConfig,
+  AssistantContextConfig,
 } from "./model-context/types";
 export { mergeModelContexts } from "./model-context/types";
 

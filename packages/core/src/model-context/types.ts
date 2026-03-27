@@ -55,6 +55,11 @@ export type AssistantInstructionsConfig = {
   instruction: string;
 };
 
+export type AssistantContextConfig = {
+  getContext: () => string;
+  disabled?: boolean | undefined;
+};
+
 // =============================================================================
 // Merging
 // =============================================================================
