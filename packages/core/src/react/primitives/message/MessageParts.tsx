@@ -442,6 +442,10 @@ const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
   type: "complete",
 });
 
+const RUNNING_STATUS: MessagePartStatus = Object.freeze({
+  type: "running",
+});
+
 const EmptyPartsImpl: FC<MessagePartComponentProps> = ({ components }) => {
   const status = useAuiState(
     (s) => (s.message.status ?? COMPLETE_STATUS) as MessagePartStatus,
@@ -591,13 +595,17 @@ const MessagePrimitivePartsInner: FC<{
   children: (value: { part: EnrichedPartState }) => ReactNode;
 }> = ({ children }) => {
   const aui = useAui();
-  const contentLength = useAuiState((s) => s.message.parts.length);
-  const emptyRunningStatus = useAuiState((s) => {
-    if (s.message.parts.length > 0) return null;
+  const { contentLength, isEmptyRunning } = useAuiState(
+    useShallow((s) => {
+      const contentLength = s.message.parts.length;
+      const status = (s.message.status ?? COMPLETE_STATUS) as MessagePartStatus;
 
-    const status = (s.message.status ?? COMPLETE_STATUS) as MessagePartStatus;
-    return status.type === "running" ? status : null;
-  });
+      return {
+        contentLength,
+        isEmptyRunning: contentLength === 0 && status.type === "running",
+      };
+    }),
+  );
   // Subscribed (not snapshotted like `tools`) so fallbacks registered after
   // the first render trigger a re-render and `hasUI` re-evaluates.
   const dataRenderers = useAuiState((s) => s.dataRenderers);
@@ -605,7 +613,7 @@ const MessagePrimitivePartsInner: FC<{
   // biome-ignore lint/correctness/useExhaustiveDependencies: aui accessors are stable refs
   return useMemo(() => {
     if (contentLength === 0) {
-      if (!emptyRunningStatus) return null;
+      if (!isEmptyRunning) return null;
 
       return (
         <TextMessagePartProvider text="" isRunning>
@@ -613,7 +621,7 @@ const MessagePrimitivePartsInner: FC<{
             part: {
               type: "text",
               text: "",
-              status: emptyRunningStatus,
+              status: RUNNING_STATUS,
             },
           })}
         </TextMessagePartProvider>
@@ -660,7 +668,7 @@ const MessagePrimitivePartsInner: FC<{
         </RenderChildrenWithAccessor>
       </PartByIndexProvider>
     ));
-  }, [contentLength, children, emptyRunningStatus, dataRenderers]);
+  }, [contentLength, children, isEmptyRunning, dataRenderers]);
 };
 
 /**

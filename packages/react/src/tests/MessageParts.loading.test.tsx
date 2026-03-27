@@ -3,15 +3,12 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import type { FC, PropsWithChildren } from "react";
 import { describe, expect, it } from "vitest";
-import {
-  AssistantRuntimeProvider,
-  MessagePartPrimitive,
-  MessagePrimitive,
-  ThreadPrimitive,
-  type ChatModelAdapter,
-  type ThreadMessageLike,
-  useLocalRuntime,
-} from "..";
+import { AssistantRuntimeProvider } from "../context";
+import * as MessagePartPrimitive from "../primitives/messagePart";
+import * as MessagePrimitive from "../primitives/message";
+import * as ThreadPrimitive from "../primitives/thread";
+import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
+import type { ChatModelAdapter, ThreadMessageLike } from "../index";
 
 const noOpAdapter: ChatModelAdapter = {
   async *run() {},
