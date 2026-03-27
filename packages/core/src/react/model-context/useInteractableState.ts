@@ -10,7 +10,7 @@ type StateUpdater<TState> = TState | ((prev: TState) => TState);
  */
 export const useInteractableState = <TState>(
   id: string,
-  fallback?: TState,
+  fallback: TState,
 ): [
   TState,
   {
