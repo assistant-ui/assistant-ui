@@ -106,6 +106,14 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     githubLink:
       "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-expo",
   },
+  {
+    title: "Interactables",
+    image: "/screenshot/examples/interactables.png",
+    description:
+      "Task board and sticky notes with AI-driven state updates and localStorage persistence.",
+    link: "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-interactables",
+    external: true,
+  },
 ];
 
 const COMMUNITY_EXAMPLES: ExampleItem[] = [

@@ -235,7 +235,7 @@ const id = useAssistantInteractable(name, config);
 Reads and writes the state of a registered interactable.
 
 ```tsx
-const [state, { setState, setSelected }] = useInteractableState<TState>(id, fallback?);
+const [state, { setState, setSelected, isPending, error, flush }] = useInteractableState<TState>(id, fallback?);
 ```
 
 **Parameters:**
@@ -245,13 +245,16 @@ const [state, { setState, setSelected }] = useInteractableState<TState>(id, fall
 | `id` | `string` | The interactable instance id (from `useAssistantInteractable`) |
 | `fallback` | `TState?` | Fallback value before the interactable is registered |
 
-**Returns:** `[state, { setState, setSelected }]`
+**Returns:** `[state, methods]`
 
 | Return | Type | Description |
 | --- | --- | --- |
 | `state` | `TState` | Current state |
 | `setState` | `(updater: TState \| (prev: TState) => TState) => void` | State setter (like `useState`) |
 | `setSelected` | `(selected: boolean) => void` | Mark this interactable as selected |
+| `isPending` | `boolean` | Whether a persistence save is in-flight |
+| `error` | `unknown` | Error from the last failed save |
+| `flush` | `() => Promise<void>` | Force an immediate persistence save |
 
 ### `Interactables`
 
@@ -274,6 +277,62 @@ When you call `useAssistantInteractable("taskBoard", config)`:
 5. **Partial merge** — only the fields the AI sends are updated; the rest are preserved.
 6. **Bidirectional updates** — when the AI calls the tool, the state updates and React re-renders. When the user updates state via `setState`, the model context is notified so the AI sees the latest state on the next turn.
 
+## Persistence
+
+By default, interactable state is in-memory and lost on page refresh. You can add persistence by providing a save callback:
+
+```tsx
+import { useEffect } from "react";
+import { useAui, Interactables } from "@assistant-ui/react";
+
+function MyRuntimeProvider({ children }) {
+  const aui = useAui({ interactables: Interactables() });
+
+  useEffect(() => {
+    // Set up persistence adapter
+    aui.interactables().setPersistenceAdapter({
+      save: async (state) => {
+        localStorage.setItem("interactables", JSON.stringify(state));
+      },
+    });
+
+    // Restore saved state on mount
+    const saved = localStorage.getItem("interactables");
+    if (saved) {
+      aui.interactables().importState(JSON.parse(saved));
+    }
+  }, [aui]);
+
+  return /* ... */;
+}
+```
+
+### Sync Status
+
+When a persistence adapter is set, `useInteractableState` exposes sync metadata:
+
+```tsx
+const [state, { setState, isPending, error, flush }] = useInteractableState(id, fallback);
+
+// isPending — true while a save is in-flight
+// error — the error from the last failed save, if any
+// flush() — force an immediate save (useful before navigation)
+```
+
+State changes are automatically debounced (500ms) before saving. When a component unregisters, any pending save is flushed immediately.
+
+### Export / Import
+
+For custom persistence strategies, use `exportState` and `importState` directly:
+
+```tsx
+const snapshot = aui.interactables().exportState();
+// => { "note-1": { name: "note", state: { title: "Hello" } }, ... }
+
+aui.interactables().importState(snapshot);
+// Imported state is picked up when components next register
+```
+
 ## Combining with Tools
 
 You can use `Interactables` alongside `Tools`:
@@ -284,3 +343,12 @@ const aui = useAui({
   interactables: Interactables(),
 });
 ```
+
+## Full Example
+
+See the complete [with-interactables example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-interactables) for a working implementation featuring:
+
+- **Task Board** — single-instance interactable with a custom `manage_tasks` tool
+- **Sticky Notes** — multi-instance interactables with selection and partial updates
+- **localStorage persistence** — state survives page refresh via `setPersistenceAdapter`
+- **Sync indicator** — spinning icon while a save is in-flight (`isPending`)
