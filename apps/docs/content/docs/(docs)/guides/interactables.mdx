@@ -58,7 +58,7 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 </Callout>
 
 ```tsx
-import { useInteractable } from "@assistant-ui/react";
+import { useAssistantInteractable, useInteractableState } from "@assistant-ui/react";
 import { z } from "zod";
 
 const taskBoardSchema = z.object({
@@ -74,11 +74,12 @@ const taskBoardSchema = z.object({
 const taskBoardInitialState = { tasks: [] };
 
 function TaskBoard() {
-  const [state, setState] = useInteractable("taskBoard", {
+  const id = useAssistantInteractable("taskBoard", {
     description: "A task board showing the user's tasks",
     stateSchema: taskBoardSchema,
     initialState: taskBoardInitialState,
   });
+  const [state, { setState }] = useInteractableState(id, taskBoardInitialState);
 
   return (
     <div>
@@ -147,7 +148,7 @@ This is especially useful for large state objects where regenerating the entire 
 You can render multiple interactables with the same `name` but different `id`s. Each gets its own update tool:
 
 ```tsx
-import { useInteractable } from "@assistant-ui/react";
+import { useAssistantInteractable, useInteractableState } from "@assistant-ui/react";
 import { z } from "zod";
 
 const noteSchema = z.object({
@@ -159,12 +160,13 @@ const noteSchema = z.object({
 const noteInitialState = { title: "New Note", content: "", color: "yellow" as const };
 
 function NoteCard({ noteId }: { noteId: string }) {
-  const [state] = useInteractable("note", {
+  useAssistantInteractable("note", {
     id: noteId,
     description: "A sticky note",
     stateSchema: noteSchema,
     initialState: noteInitialState,
   });
+  const [state] = useInteractableState(noteId, noteInitialState);
 
   return <div>{state.title}</div>;
 }
@@ -187,12 +189,13 @@ When multiple interactables are present, you can mark one as "selected" to tell 
 
 ```tsx
 function NoteCard({ noteId }: { noteId: string }) {
-  const [state, setState, { setSelected }] = useInteractable("note", {
+  useAssistantInteractable("note", {
     id: noteId,
     description: "A sticky note",
     stateSchema: noteSchema,
     initialState: noteInitialState,
   });
+  const [state, { setSelected }] = useInteractableState(noteId, noteInitialState);
 
   return (
     <div onClick={() => setSelected(true)}>
@@ -206,12 +209,12 @@ The AI sees `(SELECTED)` in the system prompt for the focused interactable, allo
 
 ## API Reference
 
-### `useInteractable`
+### `useAssistantInteractable`
 
-Hook that registers an interactable and returns its state with a setter.
+Registers an interactable with the AI assistant. Returns the instance id.
 
 ```tsx
-const [state, setState, meta] = useInteractable<TState>(name, config);
+const id = useAssistantInteractable(name, config);
 ```
 
 **Parameters:**
@@ -221,43 +224,34 @@ const [state, setState, meta] = useInteractable<TState>(name, config);
 | `name` | `string` | Name for the interactable (used in tool names) |
 | `config.description` | `string` | Description shown to the AI |
 | `config.stateSchema` | `StandardSchemaV1 \| JSONSchema7` | Schema for the state (e.g., a Zod schema) |
-| `config.initialState` | `TState` | Initial state value |
+| `config.initialState` | `unknown` | Initial state value |
 | `config.id` | `string?` | Optional unique instance ID (auto-generated if omitted) |
 | `config.selected` | `boolean?` | Whether this interactable is selected |
 
-**Returns:** `[state, setState, { id, setSelected }]`
+**Returns:** `string` — the instance id (auto-generated or provided).
+
+### `useInteractableState`
+
+Reads and writes the state of a registered interactable.
+
+```tsx
+const [state, { setState, setSelected }] = useInteractableState<TState>(id, fallback?);
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | The interactable instance id (from `useAssistantInteractable`) |
+| `fallback` | `TState?` | Fallback value before the interactable is registered |
+
+**Returns:** `[state, { setState, setSelected }]`
 
 | Return | Type | Description |
 | --- | --- | --- |
 | `state` | `TState` | Current state |
 | `setState` | `(updater: TState \| (prev: TState) => TState) => void` | State setter (like `useState`) |
-| `meta.id` | `string` | The instance ID (auto-generated or provided) |
-| `meta.setSelected` | `(selected: boolean) => void` | Mark this interactable as selected |
-
-### `makeInteractable`
-
-Declarative API that creates a component which registers an interactable when mounted. Useful for static configurations.
-
-```tsx
-import { makeInteractable } from "@assistant-ui/react";
-
-const TaskBoardInteractable = makeInteractable({
-  name: "taskBoard",
-  description: "A task board showing the user's tasks",
-  stateSchema: taskBoardSchema,
-  initialState: taskBoardInitialState,
-});
-
-// Mount it anywhere — renders nothing, just registers the interactable
-function App() {
-  return (
-    <>
-      <TaskBoardInteractable />
-      <Thread />
-    </>
-  );
-}
-```
+| `setSelected` | `(selected: boolean) => void` | Mark this interactable as selected |
 
 ### `Interactables`
 
@@ -271,7 +265,7 @@ const aui = useAui({
 
 ## How It Works
 
-When you call `useInteractable("taskBoard", config)`:
+When you call `useAssistantInteractable("taskBoard", config)`:
 
 1. **Registration** — the interactable is registered in the `interactables` scope with its name, description, schema, and initial state.
 2. **Tool generation** — an `update_taskBoard` frontend tool is automatically created with a partial schema (all fields optional). For multiple instances, tools are named `update_{name}_{id}`.

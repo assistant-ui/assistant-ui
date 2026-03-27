@@ -7,7 +7,8 @@ import {
   useAuiState,
   Interactables,
   Suggestions,
-  useInteractable,
+  useAssistantInteractable,
+  useInteractableState,
   useAssistantTool,
   ThreadPrimitive,
   ComposerPrimitive,
@@ -64,12 +65,16 @@ const taskBoardInitialState: TaskBoardState = { tasks: [] };
 let nextTaskId = 0;
 
 const TaskBoard: FC = () => {
-  const [state, setState] = useInteractable<TaskBoardState>("taskBoard", {
+  const id = useAssistantInteractable("taskBoard", {
     description:
       "A task board showing the user's tasks. Use the manage_tasks tool (not update_taskBoard) to add/toggle/remove/clear tasks.",
     stateSchema: taskBoardSchema,
     initialState: taskBoardInitialState,
   });
+  const [state, { setState }] = useInteractableState<TaskBoardState>(
+    id,
+    taskBoardInitialState,
+  );
 
   // Register a custom frontend tool for incremental updates.
   // This avoids full-state replacement, preserving user changes (e.g. toggles).

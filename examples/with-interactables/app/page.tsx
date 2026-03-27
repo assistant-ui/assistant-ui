@@ -7,7 +7,8 @@ import {
   Interactables,
   Suggestions,
   useAui,
-  useInteractable,
+  useAssistantInteractable,
+  useInteractableState,
   useAssistantTool,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
@@ -44,12 +45,16 @@ const taskBoardInitialState: TaskBoardState = { tasks: [] };
 let nextTaskId = 0;
 
 function TaskBoard() {
-  const [state, setState] = useInteractable<TaskBoardState>("taskBoard", {
+  const id = useAssistantInteractable("taskBoard", {
     description:
       "A task board showing the user's tasks. Use the manage_tasks tool (not update_taskBoard) to add/toggle/remove/clear tasks.",
     stateSchema: taskBoardSchema,
     initialState: taskBoardInitialState,
   });
+  const [state, { setState }] = useInteractableState<TaskBoardState>(
+    id,
+    taskBoardInitialState,
+  );
 
   const setStateRef = useRef(setState);
   setStateRef.current = setState;
@@ -208,7 +213,7 @@ function NoteCard({
   // Multi-instance: each NoteCard has a unique `id`, all share name "note"
   // Partial updates: AI can send { color: "blue" } without resending title/content
   // Selection: clicking a note calls setSelected(true)
-  const [state, , { setSelected }] = useInteractable<NoteState>("note", {
+  useAssistantInteractable("note", {
     id: noteId,
     description:
       "A sticky note. The AI can partially update any field (title, content, color) without resending the others.",
@@ -216,6 +221,10 @@ function NoteCard({
     initialState: noteInitialState,
     selected: selectedId === noteId,
   });
+  const [state, { setSelected }] = useInteractableState<NoteState>(
+    noteId,
+    noteInitialState,
+  );
 
   const isSelected = selectedId === noteId;
 

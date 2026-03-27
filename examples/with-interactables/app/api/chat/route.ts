@@ -24,7 +24,7 @@ export async function POST(req: Request) {
 
   // Convert client-defined tools (forwarded from model context) to AI SDK format.
   // These have no `execute` — they are frontend tools executed on the client
-  // via useAssistantTool / useInteractable.
+  // via useAssistantTool / useAssistantInteractable.
   const tools = clientTools
     ? Object.fromEntries(
         Object.entries(clientTools).map(([name, def]) => [
