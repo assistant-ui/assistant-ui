@@ -1,0 +1,87 @@
+// @vitest-environment jsdom
+
+import { render, screen, waitFor } from "@testing-library/react";
+import type { FC, PropsWithChildren } from "react";
+import { describe, expect, it } from "vitest";
+import {
+  AssistantRuntimeProvider,
+  MessagePartPrimitive,
+  MessagePrimitive,
+  ThreadPrimitive,
+  type ChatModelAdapter,
+  type ThreadMessageLike,
+  useLocalRuntime,
+} from "..";
+
+const noOpAdapter: ChatModelAdapter = {
+  async *run() {},
+};
+
+const initialMessages: ThreadMessageLike[] = [
+  {
+    role: "assistant",
+    content: [],
+    status: { type: "running" },
+  },
+];
+
+const RunningText: FC = () => {
+  return (
+    <p>
+      <MessagePartPrimitive.Text />
+      <MessagePartPrimitive.InProgress>
+        <span data-testid="loading-dot">dot</span>
+      </MessagePartPrimitive.InProgress>
+    </p>
+  );
+};
+
+const ComponentsMessage: FC = () => {
+  return <MessagePrimitive.Parts components={{ Text: RunningText }} />;
+};
+
+const ChildrenMessage: FC = () => {
+  return (
+    <MessagePrimitive.Parts>
+      {({ part }) => {
+        if (part.type === "text") return <RunningText />;
+        return null;
+      }}
+    </MessagePrimitive.Parts>
+  );
+};
+
+const RuntimeProvider: FC<PropsWithChildren> = ({ children }) => {
+  const runtime = useLocalRuntime(noOpAdapter, { initialMessages });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
+
+const renderThread = (MessageComponent: FC) => {
+  render(
+    <RuntimeProvider>
+      <ThreadPrimitive.Messages components={{ Message: MessageComponent }} />
+    </RuntimeProvider>,
+  );
+};
+
+describe("MessagePrimitive.Parts loading state", () => {
+  it("renders the loading indicator for the components API when assistant parts are empty", async () => {
+    renderThread(ComponentsMessage);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading-dot")).toBeTruthy();
+    });
+  });
+
+  it("renders the loading indicator for the children API when assistant parts are empty", async () => {
+    renderThread(ChildrenMessage);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading-dot")).toBeTruthy();
+    });
+  });
+});

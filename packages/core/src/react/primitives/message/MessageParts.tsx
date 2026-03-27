@@ -592,55 +592,75 @@ const MessagePrimitivePartsInner: FC<{
 }> = ({ children }) => {
   const aui = useAui();
   const contentLength = useAuiState((s) => s.message.parts.length);
+  const emptyRunningStatus = useAuiState((s) => {
+    if (s.message.parts.length > 0) return null;
+
+    const status = (s.message.status ?? COMPLETE_STATUS) as MessagePartStatus;
+    return status.type === "running" ? status : null;
+  });
   // Subscribed (not snapshotted like `tools`) so fallbacks registered after
   // the first render trigger a re-render and `hasUI` re-evaluates.
   const dataRenderers = useAuiState((s) => s.dataRenderers);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: aui accessors are stable refs
-  return useMemo(
-    () =>
-      Array.from({ length: contentLength }, (_, index) => (
-        <PartByIndexProvider key={index} index={index}>
-          <RenderChildrenWithAccessor
-            getItemState={(aui) => aui.message().part({ index }).getState()}
-          >
-            {(getItem) => {
-              const result = children({
-                get part() {
-                  const state = getItem();
-                  if (state.type === "tool-call") {
-                    const entry = aui.tools().getState().tools[state.toolName];
-                    const hasUI = Array.isArray(entry) ? !!entry[0] : !!entry;
-                    const partMethods = aui.message().part({ index });
-                    return {
-                      ...state,
-                      toolUI: hasUI ? <RegisteredToolUI /> : null,
-                      addResult: partMethods.addToolResult,
-                      resume: partMethods.resumeToolCall,
-                    };
-                  }
-                  if (state.type === "data") {
-                    const hasUI =
-                      getDataRenderer(dataRenderers, state.name, undefined) !==
-                      undefined;
-                    return {
-                      ...state,
-                      dataRendererUI: hasUI ? (
-                        <RegisteredDataRendererUI />
-                      ) : null,
-                    };
-                  }
-                  return state;
-                },
-              });
-              if (result !== null) return result;
-              return <DefaultPartFallback />;
-            }}
-          </RenderChildrenWithAccessor>
-        </PartByIndexProvider>
-      )),
-    [contentLength, children, dataRenderers],
-  );
+  return useMemo(() => {
+    if (contentLength === 0) {
+      if (!emptyRunningStatus) return null;
+
+      return (
+        <TextMessagePartProvider text="" isRunning>
+          {children({
+            part: {
+              type: "text",
+              text: "",
+              status: emptyRunningStatus,
+            },
+          })}
+        </TextMessagePartProvider>
+      );
+    }
+
+    return Array.from({ length: contentLength }, (_, index) => (
+      <PartByIndexProvider key={index} index={index}>
+        <RenderChildrenWithAccessor
+          getItemState={(aui) => aui.message().part({ index }).getState()}
+        >
+          {(getItem) => {
+            const result = children({
+              get part() {
+                const state = getItem();
+                if (state.type === "tool-call") {
+                  const entry = aui.tools().getState().tools[state.toolName];
+                  const hasUI = Array.isArray(entry) ? !!entry[0] : !!entry;
+                  const partMethods = aui.message().part({ index });
+                  return {
+                    ...state,
+                    toolUI: hasUI ? <RegisteredToolUI /> : null,
+                    addResult: partMethods.addToolResult,
+                    resume: partMethods.resumeToolCall,
+                  };
+                }
+                if (state.type === "data") {
+                  const hasUI =
+                    getDataRenderer(dataRenderers, state.name, undefined) !==
+                    undefined;
+                  return {
+                    ...state,
+                    dataRendererUI: hasUI ? (
+                      <RegisteredDataRendererUI />
+                    ) : null,
+                  };
+                }
+                return state;
+              },
+            });
+            if (result !== null) return result;
+            return <DefaultPartFallback />;
+          }}
+        </RenderChildrenWithAccessor>
+      </PartByIndexProvider>
+    ));
+  }, [contentLength, children, emptyRunningStatus, dataRenderers]);
 };
 
 /**
