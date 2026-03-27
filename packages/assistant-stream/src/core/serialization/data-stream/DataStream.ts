@@ -219,6 +219,7 @@ const TOOL_CALL_ARGS_CLOSING_CHUNKS = [
   DataStreamStreamChunkType.FinishMessage,
   DataStreamStreamChunkType.AuiTextDelta,
   DataStreamStreamChunkType.AuiReasoningDelta,
+  DataStreamStreamChunkType.AuiDataPart,
 ];
 
 export class DataStreamDecoder extends PipeableTransformStream<

@@ -135,6 +135,7 @@ const handlePartStart = (
       type: "data",
       name: partInit.name,
       data: partInit.data,
+      ...(partInit.parentId && { parentId: partInit.parentId }),
     };
     return {
       ...message,
