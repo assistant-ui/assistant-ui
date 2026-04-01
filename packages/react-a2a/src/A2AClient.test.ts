@@ -336,6 +336,22 @@ describe("A2AClient", () => {
       expect((result as any).content).toBeUndefined();
     });
 
+    it("prefers content over parts when server sends both", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          message: {
+            messageId: "m1",
+            role: "ROLE_AGENT",
+            content: [{ text: "from content" }],
+            parts: [{ text: "from parts" }],
+          },
+        }),
+      );
+
+      const result = (await client.sendMessage(userMessage)) as any;
+      expect(result.parts).toEqual([{ text: "from content" }]);
+    });
+
     it("includes metadata in request body", async () => {
       fetchMock.mockResolvedValue(
         mockFetchResponse({
@@ -448,22 +464,6 @@ describe("A2AClient", () => {
       // metadata values should NOT be enum-normalized
       expect(result.metadata.state).toBe("TASK_STATE_WORKING");
       expect(result.metadata.role).toBe("ROLE_AGENT");
-    });
-
-    it("prefers content over parts when server sends both", async () => {
-      fetchMock.mockResolvedValue(
-        mockFetchResponse({
-          message: {
-            messageId: "m1",
-            role: "ROLE_AGENT",
-            content: [{ text: "from content" }],
-            parts: [{ text: "from parts" }],
-          },
-        }),
-      );
-
-      const result = (await client.sendMessage(userMessage)) as any;
-      expect(result.parts).toEqual([{ text: "from content" }]);
     });
 
     it("preserves data field values in parts", async () => {
@@ -776,6 +776,74 @@ describe("A2AClient", () => {
       }
 
       expect(events).toHaveLength(2);
+    });
+
+    it("normalizes v1.0 'content' to 'parts' in SSE artifact update events", async () => {
+      const sseData = JSON.stringify({
+        artifact_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          artifact: {
+            artifact_id: "a1",
+            name: "Code",
+            content: [{ text: "print('hello')" }],
+          },
+          last_chunk: true,
+        },
+      });
+
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([`data: ${sseData}`, "", ""]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      const evt = events[0] as Extract<
+        A2AStreamEvent,
+        { type: "artifactUpdate" }
+      >;
+      expect(evt.event.artifact.parts).toEqual([{ text: "print('hello')" }]);
+      expect((evt.event.artifact as any).content).toBeUndefined();
+    });
+
+    it("normalizes v1.0 'content' to 'parts' in SSE status update messages", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: {
+            state: "TASK_STATE_WORKING",
+            message: {
+              message_id: "s1",
+              role: "ROLE_AGENT",
+              content: [{ text: "Thinking..." }],
+            },
+          },
+        },
+      });
+
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([`data: ${sseData}`, "", ""]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      const evt = events[0] as Extract<
+        A2AStreamEvent,
+        { type: "statusUpdate" }
+      >;
+      expect(evt.event.status.message?.parts).toEqual([
+        { text: "Thinking..." },
+      ]);
+      expect((evt.event.status.message as any)?.content).toBeUndefined();
     });
 
     it("skips malformed SSE events", async () => {
