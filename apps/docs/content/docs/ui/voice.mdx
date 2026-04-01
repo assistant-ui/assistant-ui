@@ -1,0 +1,172 @@
+---
+title: Voice
+description: Realtime voice session controls with connect, mute, and status indicator.
+---
+
+import { VoiceSample, VoiceVariantsSample, VoiceStatesSample } from "@/components/docs/samples/voice";
+
+A control bar for realtime bidirectional voice sessions with an animated orb indicator. Works with any `RealtimeVoiceAdapter` (LiveKit, ElevenLabs, etc.).
+
+<VoiceSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add the component
+
+<InstallCommand shadcn={["voice"]} />
+
+This adds `/components/assistant-ui/voice.tsx` to your project, which you can adjust as needed.
+
+  </Step>
+  <Step>
+
+### Configure a voice adapter
+
+Pass a `RealtimeVoiceAdapter` to your runtime. See the [Realtime Voice guide](/docs/guides/voice) for details.
+
+```tsx
+const runtime = useChatRuntime({
+  adapters: {
+    voice: myVoiceAdapter,
+  },
+});
+```
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+```tsx title="app/page.tsx"
+import { Thread } from "@/components/assistant-ui/thread";
+import { VoiceControl } from "@/components/assistant-ui/voice";
+import { AuiIf } from "@assistant-ui/react";
+
+export default function Chat() {
+  return (
+    <div className="flex h-full flex-col">
+      <AuiIf condition={(s) => s.thread.capabilities.voice}>
+        <VoiceControl />
+      </AuiIf>
+      <div className="min-h-0 flex-1">
+        <Thread />
+      </div>
+    </div>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+## Anatomy
+
+The `VoiceControl` component is built with the following hooks and conditionals:
+
+```tsx
+import { AuiIf, useVoiceState, useVoiceControls } from "@assistant-ui/react";
+
+<div className="aui-voice-control">
+  <VoiceIndicator />
+
+  <AuiIf condition={(s) => s.thread.voice == null}>
+    <VoiceConnectButton />
+  </AuiIf>
+
+  <AuiIf condition={(s) => s.thread.voice?.status.type === "running"}>
+    <VoiceMuteButton />
+    <VoiceDisconnectButton />
+  </AuiIf>
+</div>
+```
+
+## Examples
+
+### Conditionally show voice controls
+
+Only render when a voice adapter is configured:
+
+```tsx
+<AuiIf condition={(s) => s.thread.capabilities.voice}>
+  <VoiceControl />
+</AuiIf>
+```
+
+### Voice toggle in composer
+
+Add a compact voice toggle button inside the composer action area:
+
+```tsx
+function ComposerVoiceToggle() {
+  const voiceState = useVoiceState();
+  const { connect, disconnect } = useVoiceControls();
+  const isActive =
+    voiceState?.status.type === "running" ||
+    voiceState?.status.type === "starting";
+
+  return (
+    <AuiIf condition={(s) => s.thread.capabilities.voice}>
+      <button
+        type="button"
+        onClick={() => (isActive ? disconnect() : connect())}
+        aria-label={isActive ? "End voice" : "Start voice"}
+      >
+        {isActive ? <PhoneOffIcon /> : <PhoneIcon />}
+      </button>
+    </AuiIf>
+  );
+}
+```
+
+### Custom indicator colors
+
+Override the indicator styles by targeting the `aui-voice-indicator` class:
+
+```css
+.aui-voice-indicator {
+  /* Override active color */
+  &.bg-green-500 {
+    background: theme("colors.blue.500");
+  }
+}
+```
+
+## States
+
+The `VoiceOrb` responds to five voice session states with distinct animations:
+
+<VoiceStatesSample />
+
+## Variants
+
+Four built-in color palettes. Size is controlled via `className`.
+
+<VoiceVariantsSample />
+
+## Sub-components
+
+| Component | Description |
+|-----------|-------------|
+| `VoiceOrb` | Animated orb visual with gradient, glow, and ripple effects. Accepts `state` and `variant` props. |
+| `VoiceControl` | Control bar with status dot, connect/disconnect, and mute/unmute buttons. |
+| `VoiceConnectButton` | Calls `connect()`. Shown when no session is active. |
+| `VoiceMuteButton` | Toggles `mute()`/`unmute()`. Shown when session is running. |
+| `VoiceDisconnectButton` | Calls `disconnect()`. Shown when session is active. |
+
+All sub-components are exported and can be used independently for custom layouts.
+
+## State Selectors
+
+Use these with `AuiIf` or `useAuiState` to build custom voice UI:
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.thread.capabilities.voice` | `boolean` | Whether a voice adapter is configured |
+| `s.thread.voice` | `VoiceSessionState \| undefined` | `undefined` when no session |
+| `s.thread.voice?.status.type` | `"starting" \| "running" \| "ended"` | Session phase |
+| `s.thread.voice?.isMuted` | `boolean` | Microphone muted state |
+| `s.thread.voice?.mode` | `"listening" \| "speaking"` | Who is currently active (user or agent) |
+| `useVoiceVolume()` | `number` | Real-time audio level (0–1), separate from main state to avoid 20Hz re-renders |
