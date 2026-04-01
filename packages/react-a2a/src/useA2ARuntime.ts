@@ -81,8 +81,14 @@ export type UseA2ARuntimeOptions = {
   client?: A2AClient;
   /** Base URL of the A2A server. Used to create a client if `client` is not provided. */
   baseUrl?: string;
+  /** Optional path prefix for all API endpoints (e.g. "/v1"). Does not affect agent card discovery. Only used with baseUrl. */
+  basePath?: string;
+  /** Optional tenant ID for multi-tenant servers. Only used with baseUrl. */
+  tenant?: string;
   /** Headers for the A2A client (only used with baseUrl). */
   headers?: A2AClientOptions["headers"];
+  /** A2A extension URIs to negotiate. Only used with baseUrl. */
+  extensions?: string[];
 
   /** Initial context ID for the conversation. */
   contextId?: string;
@@ -122,7 +128,10 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
     } else if (options.baseUrl) {
       clientRef.current = new A2AClient({
         baseUrl: options.baseUrl,
+        basePath: options.basePath,
+        tenant: options.tenant,
         headers: options.headers,
+        extensions: options.extensions,
       });
     } else {
       throw new Error("useA2ARuntime requires either `client` or `baseUrl`");
