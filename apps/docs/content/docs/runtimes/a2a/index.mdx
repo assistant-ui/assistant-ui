@@ -97,6 +97,7 @@ const runtime = useA2ARuntime({ client });
 | Option | Type | Description |
 | --- | --- | --- |
 | `baseUrl` | `string` | Base URL of the A2A server |
+| `basePath` | `string` | Optional path prefix for API endpoints (e.g. `"/v1"`). Does not affect agent card discovery |
 | `headers` | `Record<string, string>` or `() => Record<string, string>` | Static or dynamic headers (e.g. for auth tokens) |
 | `tenant` | `string` | Tenant ID for multi-tenant servers (prepended to URL paths) |
 | `extensions` | `string[]` | Extension URIs to negotiate via `A2A-Extensions` header |
@@ -124,7 +125,10 @@ const runtime = useA2ARuntime({ client });
 | --- | --- | --- |
 | `client` | `A2AClient` | Pre-built A2A client instance (provide this OR `baseUrl`) |
 | `baseUrl` | `string` | A2A server URL (creates a client automatically) |
+| `basePath` | `string` | Path prefix for API endpoints (e.g. `"/v1"`). Only used with `baseUrl` |
+| `tenant` | `string` | Tenant ID for multi-tenant servers. Only used with `baseUrl` |
 | `headers` | see above | Headers for the auto-created client |
+| `extensions` | `string[]` | Extension URIs to negotiate. Only used with `baseUrl` |
 | `contextId` | `string` | Initial context ID for the conversation |
 | `configuration` | `A2ASendMessageConfiguration` | Default send message configuration |
 | `onError` | `(error: Error) => void` | Error callback |
