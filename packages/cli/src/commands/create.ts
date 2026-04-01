@@ -139,12 +139,28 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
+    name: "with-elevenlabs-conversational",
+    label: "ElevenLabs Conversational",
+    description: "Realtime voice with ElevenLabs",
+    category: "example",
+    path: "examples/with-elevenlabs-conversational",
+    hasLocalComponents: true,
+  },
+  {
     name: "with-elevenlabs-scribe",
     label: "ElevenLabs Scribe",
     description: "Audio/speech integration",
     category: "example",
     path: "examples/with-elevenlabs-scribe",
     hasLocalComponents: false,
+  },
+  {
+    name: "with-livekit",
+    label: "LiveKit Voice",
+    description: "Realtime voice with LiveKit",
+    category: "example",
+    path: "examples/with-livekit",
+    hasLocalComponents: true,
   },
   {
     name: "with-expo",

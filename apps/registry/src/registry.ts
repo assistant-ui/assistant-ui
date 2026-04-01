@@ -74,6 +74,22 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "voice",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/voice.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/voice.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+    registryDependencies: [
+      "button",
+      "https://r.assistant-ui.com/tooltip-icon-button.json",
+    ],
+  },
+  {
     name: "markdown-text",
     type: "registry:component",
     files: [
