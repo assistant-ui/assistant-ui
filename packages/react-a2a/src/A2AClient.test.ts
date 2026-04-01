@@ -170,6 +170,90 @@ describe("A2AClient", () => {
     });
   });
 
+  // --- basePath ---
+
+  describe("basePath", () => {
+    it("prepends basePath to API endpoint URLs", async () => {
+      const basePathClient = new A2AClient({
+        baseUrl: "https://agent.test",
+        basePath: "/v1",
+      });
+
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          task: { id: "t1", status: { state: "completed" } },
+        }),
+      );
+
+      await basePathClient.sendMessage(userMessage);
+
+      const [url] = fetchMock.mock.calls[0]!;
+      expect(url).toBe("https://agent.test/v1/message:send");
+    });
+
+    it("does not apply basePath to agent card discovery URL", async () => {
+      const basePathClient = new A2AClient({
+        baseUrl: "https://agent.test",
+        basePath: "/v1",
+      });
+
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          name: "Test",
+          description: "desc",
+          version: "1.0",
+          supportedInterfaces: [],
+          capabilities: {},
+          defaultInputModes: [],
+          defaultOutputModes: [],
+          skills: [],
+        }),
+      );
+
+      await basePathClient.getAgentCard();
+
+      const [url] = fetchMock.mock.calls[0]!;
+      expect(url).toBe("https://agent.test/.well-known/agent-card.json");
+    });
+
+    it("normalizes basePath without leading slash", async () => {
+      const basePathClient = new A2AClient({
+        baseUrl: "https://agent.test",
+        basePath: "v1",
+      });
+
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          task: { id: "t1", status: { state: "completed" } },
+        }),
+      );
+
+      await basePathClient.sendMessage(userMessage);
+
+      const [url] = fetchMock.mock.calls[0]!;
+      expect(url).toBe("https://agent.test/v1/message:send");
+    });
+
+    it("combines basePath and tenant", async () => {
+      const combinedClient = new A2AClient({
+        baseUrl: "https://agent.test",
+        basePath: "/v1",
+        tenant: "my-org",
+      });
+
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          task: { id: "t1", status: { state: "completed" } },
+        }),
+      );
+
+      await combinedClient.sendMessage(userMessage);
+
+      const [url] = fetchMock.mock.calls[0]!;
+      expect(url).toBe("https://agent.test/v1/my-org/message:send");
+    });
+  });
+
   // --- sendMessage ---
 
   describe("sendMessage", () => {
@@ -189,6 +273,20 @@ describe("A2AClient", () => {
       const body = JSON.parse(init.body);
       expect(body.message.role).toBe("ROLE_USER");
       expect(body.message.messageId).toBe("msg-1");
+    });
+
+    it("sends 'content' not 'parts' per A2A v1.0 proto spec", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          task: { id: "t1", status: { state: "completed" } },
+        }),
+      );
+
+      await client.sendMessage(userMessage);
+
+      const body = JSON.parse(fetchMock.mock.calls[0]![1].body);
+      expect(body.message.content).toEqual([{ text: "Hello" }]);
+      expect(body.message.parts).toBeUndefined();
     });
 
     it("unwraps task from SendMessageResponse", async () => {
@@ -220,6 +318,22 @@ describe("A2AClient", () => {
       const result = await client.sendMessage(userMessage);
       expect((result as any).messageId).toBe("m2");
       expect((result as any).role).toBe("agent");
+    });
+
+    it("normalizes 'content' array from v1.0 server response to internal 'parts'", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          message: {
+            messageId: "m2",
+            role: "ROLE_AGENT",
+            content: [{ text: "Hi from v1 server" }],
+          },
+        }),
+      );
+
+      const result = await client.sendMessage(userMessage);
+      expect((result as any).parts).toEqual([{ text: "Hi from v1 server" }]);
+      expect((result as any).content).toBeUndefined();
     });
 
     it("includes metadata in request body", async () => {
@@ -334,6 +448,22 @@ describe("A2AClient", () => {
       // metadata values should NOT be enum-normalized
       expect(result.metadata.state).toBe("TASK_STATE_WORKING");
       expect(result.metadata.role).toBe("ROLE_AGENT");
+    });
+
+    it("prefers content over parts when server sends both", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          message: {
+            messageId: "m1",
+            role: "ROLE_AGENT",
+            content: [{ text: "from content" }],
+            parts: [{ text: "from parts" }],
+          },
+        }),
+      );
+
+      const result = (await client.sendMessage(userMessage)) as any;
+      expect(result.parts).toEqual([{ text: "from content" }]);
     });
 
     it("preserves data field values in parts", async () => {

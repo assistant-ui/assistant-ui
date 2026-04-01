@@ -16,6 +16,8 @@ import { A2A_PROTOCOL_VERSION } from "./types";
 
 export type A2AClientOptions = {
   baseUrl: string;
+  /** Optional path prefix for all API endpoints (e.g. "/v1"). Does not affect agent card discovery. */
+  basePath?: string | undefined;
   /** Optional tenant ID for multi-tenant servers. */
   tenant?: string | undefined;
   headers?:
@@ -87,7 +89,9 @@ function normalizeKeys(obj: unknown, opaque = false): unknown {
         value.startsWith("ROLE_")
       ) {
         result[camelKey] = value.slice(5).toLowerCase();
-      } else {
+      } else if (camelKey === "content" && Array.isArray(value)) {
+        result["parts"] = normalizeKeys(value, false);
+      } else if (camelKey !== "parts" || !("parts" in result)) {
         result[camelKey] = isOpaqueChild ? value : normalizeKeys(value, false);
       }
     }
@@ -109,7 +113,8 @@ function toWireTaskState(state: A2ATaskState): string {
 }
 
 function toWireMessage(msg: A2AMessage): unknown {
-  return { ...msg, role: toWireRole(msg.role) };
+  const { parts, ...rest } = msg;
+  return { ...rest, role: toWireRole(msg.role), content: parts };
 }
 
 // === Stream response discrimination ===
@@ -156,6 +161,7 @@ function signalInit(signal?: AbortSignal): RequestInit {
 
 export class A2AClient {
   private baseUrl: string;
+  private basePath: string;
   private tenant: string | undefined;
   private extensionUris: string[] | undefined;
   private headersFn:
@@ -164,13 +170,16 @@ export class A2AClient {
 
   constructor(options: A2AClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
+    this.basePath = options.basePath
+      ? `/${options.basePath.replace(/^\/|\/$/g, "")}`
+      : "";
     this.tenant = options.tenant;
     this.extensionUris = options.extensions;
     this.headersFn = options.headers ?? {};
   }
 
   private getBasePath(): string {
-    return this.tenant ? `/${encodeURIComponent(this.tenant)}` : "";
+    return `${this.basePath}${this.tenant ? `/${encodeURIComponent(this.tenant)}` : ""}`;
   }
 
   private async getHeaders(
