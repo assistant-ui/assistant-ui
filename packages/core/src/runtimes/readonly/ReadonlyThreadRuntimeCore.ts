@@ -34,7 +34,6 @@ export class ReadonlyThreadRuntimeCore
   }
 
   getBranches(messageId: string) {
-    // no branching in readonly threads
     const idx = this._messages.findIndex((m) => m.id === messageId);
     if (idx === -1) return [];
     return [messageId];
@@ -56,9 +55,7 @@ export class ReadonlyThreadRuntimeCore
     throw READONLY_THREAD_ERROR;
   }
 
-  cancelRun(): void {
-    // noop - nothing to cancel
-  }
+  cancelRun(): void {}
 
   addToolResult(): void {
     throw READONLY_THREAD_ERROR;
@@ -72,8 +69,23 @@ export class ReadonlyThreadRuntimeCore
     throw READONLY_THREAD_ERROR;
   }
 
-  stopSpeaking(): void {
-    // noop
+  stopSpeaking(): void {}
+
+  connectVoice(): void {
+    throw READONLY_THREAD_ERROR;
+  }
+
+  disconnectVoice(): void {}
+
+  getVoiceVolume = () => 0;
+  subscribeVoiceVolume = (): Unsubscribe => () => {};
+
+  muteVoice(): void {
+    throw READONLY_THREAD_ERROR;
+  }
+
+  unmuteVoice(): void {
+    throw READONLY_THREAD_ERROR;
   }
 
   submitFeedback(): void {
@@ -179,6 +191,7 @@ export class ReadonlyThreadRuntimeCore
   }
 
   speech = undefined;
+  voice = undefined;
 
   capabilities = {
     switchToBranch: false,
@@ -189,6 +202,7 @@ export class ReadonlyThreadRuntimeCore
     unstable_copy: false,
     speech: false,
     dictation: false,
+    voice: false,
     attachments: false,
     feedback: false,
     queue: false,

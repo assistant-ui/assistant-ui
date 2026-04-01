@@ -528,6 +528,7 @@ export const ExternalThread = resource(
           speech: false,
           attachments: false,
           feedback: false,
+          voice: false,
           switchToBranch: false,
           switchBranchDuringRun: false,
           unstable_copy: false,
@@ -539,6 +540,7 @@ export const ExternalThread = resource(
         suggestions: [],
         extras: undefined,
         speech: undefined,
+        voice: undefined,
         composer: composerClient.state,
       };
     }, [
@@ -599,8 +601,12 @@ export const ExternalThread = resource(
         return messageClients.get(selector);
       },
       stopSpeaking: () => {},
-      startVoice: async () => {},
-      stopVoice: async () => {},
+      connectVoice: () => {},
+      disconnectVoice: () => {},
+      getVoiceVolume: () => 0,
+      subscribeVoiceVolume: () => () => {},
+      muteVoice: () => {},
+      unmuteVoice: () => {},
     };
   },
 );

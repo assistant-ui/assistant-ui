@@ -5,6 +5,7 @@ import type {
   SpeechSynthesisAdapter,
   DictationAdapter,
 } from "../../adapters/speech";
+import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { FeedbackAdapter } from "../../adapters/feedback";
 import type {
   AddToolResultOptions,
@@ -90,6 +91,7 @@ type ExternalStoreAdapterBase<T> = {
         attachments?: AttachmentAdapter | undefined;
         speech?: SpeechSynthesisAdapter | undefined;
         dictation?: DictationAdapter | undefined;
+        voice?: RealtimeVoiceAdapter | undefined;
         feedback?: FeedbackAdapter | undefined;
         /**
          * @deprecated This API is still under active development and might change without notice.

@@ -46,6 +46,9 @@ export type {
   AttachmentAdapter,
   ThreadHistoryAdapter,
   FeedbackAdapter,
+  RealtimeVoiceAdapter,
+  VoiceSessionControls,
+  VoiceSessionHelpers,
   SuggestionAdapter,
   // Other
   Unsubscribe,
@@ -57,6 +60,7 @@ export type {
   RemoteThreadListOptions,
 } from "@assistant-ui/core";
 export { InMemoryThreadListAdapter } from "@assistant-ui/core";
+export { createVoiceSession } from "@assistant-ui/core";
 
 // Attachment adapter implementations
 export {
@@ -200,4 +204,10 @@ export type {
   DataMessagePartProps,
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
+} from "@assistant-ui/core/react";
+
+export {
+  useVoiceState,
+  useVoiceVolume,
+  useVoiceControls,
 } from "@assistant-ui/core/react";

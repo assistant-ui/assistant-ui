@@ -13,6 +13,11 @@ export {
   WebSpeechDictationAdapter,
 } from "./speech";
 
+// Voice adapter
+export type { RealtimeVoiceAdapter } from "./voice";
+export { createVoiceSession } from "./voice";
+export type { VoiceSessionControls, VoiceSessionHelpers } from "./voice";
+
 // Feedback adapter
 export type { FeedbackAdapter } from "./feedback";
 

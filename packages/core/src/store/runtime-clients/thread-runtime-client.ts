@@ -44,11 +44,9 @@ export const ThreadClient = resource(
     const runtimeState = tapSubscribable(runtime);
     const emit = tapAssistantEmit();
 
-    // Bind thread events to event manager
     tapEffect(() => {
       const unsubscribers: Unsubscribe[] = [];
 
-      // Subscribe to thread events
       const threadEvents: ThreadRuntimeEventType[] = [
         "runStart",
         "runEnd",
@@ -105,6 +103,7 @@ export const ThreadClient = resource(
         suggestions: runtimeState.suggestions,
         extras: runtimeState.extras,
         speech: runtimeState.speech,
+        voice: runtimeState.voice,
 
         composer: composer.state,
         messages: messages.state,
@@ -124,12 +123,12 @@ export const ThreadClient = resource(
       import: runtime.import,
       reset: runtime.reset,
       stopSpeaking: runtime.stopSpeaking,
-      startVoice: async () => {
-        throw new Error("startVoice is not supported in this runtime");
-      },
-      stopVoice: async () => {
-        throw new Error("stopVoice is not supported in this runtime");
-      },
+      connectVoice: runtime.connectVoice,
+      disconnectVoice: runtime.disconnectVoice,
+      getVoiceVolume: runtime.getVoiceVolume,
+      subscribeVoiceVolume: runtime.subscribeVoiceVolume,
+      muteVoice: runtime.muteVoice,
+      unmuteVoice: runtime.unmuteVoice,
       message: (selector) => {
         if ("id" in selector) {
           return messages.get({ key: selector.id });

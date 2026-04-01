@@ -63,6 +63,7 @@ export class ExternalStoreThreadRuntimeCore
     unstable_copy: false,
     speech: false,
     dictation: false,
+    voice: false,
     attachments: false,
     feedback: false,
     queue: false,
@@ -78,7 +79,7 @@ export class ExternalStoreThreadRuntimeCore
     return this._store.isLoading ?? false;
   }
 
-  public override get messages() {
+  protected override _getBaseMessages(): readonly ThreadMessage[] {
     return this._messages;
   }
 
@@ -137,6 +138,7 @@ export class ExternalStoreThreadRuntimeCore
       cancel: this._store.onCancel !== undefined,
       speech: this._store.adapters?.speech !== undefined,
       dictation: this._store.adapters?.dictation !== undefined,
+      voice: this._store.adapters?.voice !== undefined,
       unstable_copy: this._store.unstable_capabilities?.copy !== false,
       attachments: !!this._store.adapters?.attachments,
       feedback: !!this._store.adapters?.feedback,

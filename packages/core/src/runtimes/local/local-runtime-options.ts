@@ -5,6 +5,7 @@ import type {
   SpeechSynthesisAdapter,
   DictationAdapter,
 } from "../../adapters/speech";
+import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { SuggestionAdapter } from "../../adapters/suggestion";
 import type { ChatModelAdapter } from "../../runtime/utils/chat-model-adapter";
 
@@ -16,6 +17,7 @@ export type LocalRuntimeOptionsBase = {
     attachments?: AttachmentAdapter | undefined;
     speech?: SpeechSynthesisAdapter | undefined;
     dictation?: DictationAdapter | undefined;
+    voice?: RealtimeVoiceAdapter | undefined;
     feedback?: FeedbackAdapter | undefined;
     suggestion?: SuggestionAdapter | undefined;
   };

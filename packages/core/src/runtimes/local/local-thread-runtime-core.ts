@@ -45,6 +45,7 @@ export class LocalThreadRuntimeCore
     unstable_copy: true,
     speech: false,
     dictation: false,
+    voice: false,
     attachments: false,
     feedback: false,
     queue: false,
@@ -115,6 +116,12 @@ export class LocalThreadRuntimeCore
     const canDictate = options.adapters?.dictation !== undefined;
     if (this.capabilities.dictation !== canDictate) {
       this.capabilities.dictation = canDictate;
+      hasUpdates = true;
+    }
+
+    const canVoice = options.adapters?.voice !== undefined;
+    if (this.capabilities.voice !== canVoice) {
+      this.capabilities.voice = canVoice;
       hasUpdates = true;
     }
 
