@@ -14,32 +14,26 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./internal": {
-      "aui-source": "./src/internal.ts",
       "types": "./dist/internal.d.ts",
       "default": "./dist/internal.js"
     },
     "./store": {
-      "aui-source": "./src/store/index.ts",
       "types": "./dist/store/index.d.ts",
       "default": "./dist/store/index.js"
     },
     "./store/internal": {
-      "aui-source": "./src/store/internal.ts",
       "types": "./dist/store/internal.d.ts",
       "default": "./dist/store/internal.js"
     },
     "./react": {
-      "aui-source": "./src/react/index.ts",
       "types": "./dist/react/index.d.ts",
       "default": "./dist/react/index.js"
     },
     "./*": {
-      "aui-source": "./src/*.ts",
       "types": "./dist/*.d.ts",
       "default": "./dist/*.js"
     }

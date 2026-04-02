@@ -25,22 +25,18 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./cli": {
-      "aui-source": "./src/cli/index.ts",
       "types": "./dist/cli/index.d.ts",
       "default": "./dist/cli/index.js"
     },
     "./core": {
-      "aui-source": "./src/core/index.ts",
       "types": "./dist/core/index.d.ts",
       "default": "./dist/core/index.js"
     },
     "./mcp": {
-      "aui-source": "./src/platforms/mcp/index.ts",
       "types": "./dist/platforms/mcp/index.d.ts",
       "default": "./dist/platforms/mcp/index.js"
     }
