@@ -9,6 +9,7 @@ import {
   isValidElement,
 } from "react";
 
+import { composeEventHandlers } from "@radix-ui/primitive";
 import { Slot } from "radix-ui";
 import React from "react";
 import { useAui } from "@assistant-ui/store";
@@ -76,17 +77,22 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
     [disabled, aui],
   );
 
-  const dragProps = {
-    onDragEnterCapture: handleDragEnterCapture,
-    onDragOverCapture: handleDragOverCapture,
-    onDragLeaveCapture: handleDragLeaveCapture,
-    onDropCapture: handleDrop,
-  };
-
   const mergedProps = {
     ...(isDragging ? { "data-dragging": "true" } : null),
-    ...dragProps,
     ...rest,
+    onDragEnterCapture: composeEventHandlers(
+      rest.onDragEnterCapture,
+      handleDragEnterCapture,
+    ),
+    onDragOverCapture: composeEventHandlers(
+      rest.onDragOverCapture,
+      handleDragOverCapture,
+    ),
+    onDragLeaveCapture: composeEventHandlers(
+      rest.onDragLeaveCapture,
+      handleDragLeaveCapture,
+    ),
+    onDropCapture: composeEventHandlers(rest.onDropCapture, handleDrop),
     ref,
   };
 

@@ -155,8 +155,6 @@ export const ComposerPrimitiveInput = forwardRef<
       return s.composer.text;
     });
 
-    const Component = asChild ? Slot.Root : TextareaAutosize;
-
     const isDisabled =
       useAuiState(
         (s) => s.thread.isDisabled || s.composer.dictation?.inputDisabled,
@@ -329,6 +327,7 @@ export const ComposerPrimitiveInput = forwardRef<
       );
     }
 
+    const Component = asChild ? Slot.Root : TextareaAutosize;
     return <Component {...inputProps} />;
   },
 );
