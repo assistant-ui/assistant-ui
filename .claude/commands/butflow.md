@@ -12,6 +12,5 @@ The user has requested butflow mode. Implement features, open PRs via GitButler,
 
 ## Gotchas
 
-- **Husky files**: `pnpm install` regenerates `.husky/_/` files in packages — never commit these.
 - **Ambiguous cliIds**: if `but stage` says an ID is ambiguous, re-run `but status -j` and use the longer form.
 - **Multiple PRs**: create one branch per change group, stage files to each, commit/push/PR independently.
