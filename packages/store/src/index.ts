@@ -10,7 +10,10 @@ export { AuiProvider } from "./utils/react-assistant-context";
 
 // resources
 export { Derived } from "./Derived";
-export { attachTransformScopes } from "./attachTransformScopes";
+export {
+  attachTransformScopes,
+  forwardTransformScopes,
+} from "./attachTransformScopes";
 export type { ScopesConfig } from "./attachTransformScopes";
 
 // tap hooks
