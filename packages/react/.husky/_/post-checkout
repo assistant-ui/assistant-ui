@@ -1,0 +1,72 @@
+#!/bin/sh
+# GITBUTLER_MANAGED_HOOK_V1
+# This hook auto-cleans GitButler hooks when you checkout away from gitbutler/workspace.
+
+PREV_HEAD=$1
+NEW_HEAD=$2
+BRANCH_CHECKOUT=$3
+
+# Only act on branch checkouts (not file checkouts)
+if [ "$BRANCH_CHECKOUT" != "1" ]; then
+    # Run user's hook if it exists
+    if [ -x "$(dirname "$0")/post-checkout-user" ]; then
+        exec "$(dirname "$0")/post-checkout-user" "$@"
+    fi
+    exit 0
+fi
+
+# Get the new branch name
+NEW_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
+
+# If we just left gitbutler/workspace (and aren't coming back to it)
+PREV_BRANCH=$(git name-rev --name-only "$PREV_HEAD" 2>/dev/null | sed 's|^remotes/||')
+if echo "$PREV_BRANCH" | grep -q "gitbutler/workspace"; then
+    if [ "$NEW_BRANCH" != "gitbutler/workspace" ]; then
+        echo ""
+        echo "NOTE: You have left GitButler's managed workspace branch."
+        echo "Cleaning up GitButler hooks..."
+
+        HOOKS_DIR=$(dirname "$0")
+
+        # Restore pre-commit - but only if it's GitButler-managed
+        if [ -f "$HOOKS_DIR/pre-commit-user" ]; then
+            mv "$HOOKS_DIR/pre-commit-user" "$HOOKS_DIR/pre-commit"
+            echo "  Restored: pre-commit"
+        elif [ -f "$HOOKS_DIR/pre-commit" ]; then
+            # Only remove if it's GitButler-managed (has our signature)
+            if grep -q "GITBUTLER_MANAGED_HOOK_V1" "$HOOKS_DIR/pre-commit"; then
+                rm "$HOOKS_DIR/pre-commit"
+                echo "  Removed: pre-commit (GitButler managed)"
+            else
+                echo "  Warning: pre-commit hook is not GitButler-managed, leaving it untouched"
+            fi
+        fi
+
+        # Run user's post-checkout if it exists, then clean up
+        if [ -x "$HOOKS_DIR/post-checkout-user" ]; then
+            "$HOOKS_DIR/post-checkout-user" "$@"
+            mv "$HOOKS_DIR/post-checkout-user" "$HOOKS_DIR/post-checkout"
+            echo "  Restored: post-checkout"
+        else
+            # Only remove self if we're GitButler-managed (we should be, but check anyway)
+            if grep -q "GITBUTLER_MANAGED_HOOK_V1" "$HOOKS_DIR/post-checkout"; then
+                rm "$HOOKS_DIR/post-checkout"
+                echo "  Removed: post-checkout (GitButler managed)"
+            else
+                echo "  Warning: post-checkout hook is not GitButler-managed, leaving it untouched"
+            fi
+        fi
+
+        echo ""
+        echo "To return to GitButler mode, run: but setup"
+        echo ""
+        exit 0
+    fi
+fi
+
+# Run user's hook if it exists
+if [ -x "$(dirname "$0")/post-checkout-user" ]; then
+    exec "$(dirname "$0")/post-checkout-user" "$@"
+fi
+
+exit 0

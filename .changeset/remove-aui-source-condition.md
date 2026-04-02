@@ -21,7 +21,7 @@
 "@assistant-ui/react-o11y": patch
 "@assistant-ui/react-devtools": patch
 "@assistant-ui/react-ink-markdown": patch
-"@assistant-ui/safe-content-frame": patch
+"safe-content-frame": patch
 "@assistant-ui/agent-launcher": patch
 "assistant-stream": patch
 "heat-graph": patch
