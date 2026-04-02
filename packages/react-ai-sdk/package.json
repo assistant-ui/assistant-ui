@@ -35,10 +35,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/react": "^3.0.140",
+    "@ai-sdk/react": "^3.0.146",
     "@assistant-ui/core": "^0.1.9",
     "@assistant-ui/store": "^0.2.5",
-    "ai": "^6.0.138",
+    "ai": "^6.0.144",
     "assistant-cloud": "*"
   },
   "peerDependencies": {
@@ -59,7 +59,7 @@
     "assistant-stream": "workspace:*",
     "jsdom": "^29.0.1",
     "react": "^19.2.4",
-    "vitest": "^4.1.1"
+    "vitest": "^4.1.2"
   },
   "publishConfig": {
     "access": "public",

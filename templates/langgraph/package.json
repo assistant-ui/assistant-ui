@@ -15,7 +15,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-langgraph": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
-    "@langchain/langgraph-sdk": "^1.8.0",
+    "@langchain/langgraph-sdk": "^1.8.4",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -25,7 +25,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.7.0",
-    "next": "^16.2.1",
+    "next": "^16.2.2",
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -36,7 +36,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.9",
+    "@biomejs/biome": "^2.4.10",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",

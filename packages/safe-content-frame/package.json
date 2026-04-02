@@ -38,7 +38,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "vite": "^8.0.2"
+    "vite": "^8.0.3"
   },
   "publishConfig": {
     "access": "public",

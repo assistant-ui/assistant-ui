@@ -33,14 +33,14 @@
   },
   "dependencies": {
     "@assistant-ui/agent-launcher": "workspace:*",
-    "@clack/prompts": "^1.1.0",
+    "@clack/prompts": "^1.2.0",
     "chalk": "^5.6.2",
     "cli-progress": "^3.12.0",
     "commander": "^14.0.3",
     "cross-spawn": "^7.0.6",
     "debug": "^4.4.3",
     "detect-package-manager": "^3.0.2",
-    "giget": "^3.1.2",
+    "giget": "^3.2.0",
     "glob": "^13.0.6",
     "jscodeshift": "^17.3.0"
   },
@@ -51,8 +51,8 @@
     "@types/debug": "^4.1.13",
     "@types/jscodeshift": "^17.3.0",
     "@types/node": "^25.5.0",
-    "@vitest/coverage-v8": "^4.1.1",
-    "vitest": "^4.1.1"
+    "@vitest/coverage-v8": "^4.1.2",
+    "vitest": "^4.1.2"
   },
   "publishConfig": {
     "access": "public",

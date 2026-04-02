@@ -46,7 +46,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "vitest": "^4.1.1"
+    "vitest": "^4.1.2"
   },
   "publishConfig": {
     "access": "public",
