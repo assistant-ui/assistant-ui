@@ -15,12 +15,10 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./shadow_dom": {
-      "aui-source": "./src/shadow_dom.ts",
       "types": "./dist/shadow_dom.d.ts",
       "default": "./dist/shadow_dom.js"
     }

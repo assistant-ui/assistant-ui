@@ -230,7 +230,7 @@ const migratePrimitiveIfToAuiIf = createTransformer(
       const primitiveName = name.object.name as string;
       const propertyName = name.property.name as string;
       const fixedMap = fixedConditionMap[primitiveName];
-      if (!fixedMap || !fixedMap[propertyName]) return;
+      if (!fixedMap?.[propertyName]) return;
       if (!importedPrimitives.has(primitiveName)) return;
 
       path.value.name = j.jsxIdentifier("AuiIf");

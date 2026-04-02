@@ -16,12 +16,10 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./full": {
-      "aui-source": "./src/full.tsx",
       "types": "./dist/full.d.ts",
       "default": "./dist/full.js"
     }

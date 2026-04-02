@@ -54,7 +54,6 @@ export const Interactables = resource((): ClientOutput<"interactables"> => {
   const flushResolversRef = tapRef<Array<() => void>>([]);
   const dirtyIdsRef = tapRef(new Set<string>());
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reads refs at call time
   const runPersistence = tapCallback(async () => {
     const adapter = adapterRef.current;
     if (!adapter) {
@@ -143,7 +142,6 @@ export const Interactables = resource((): ClientOutput<"interactables"> => {
     [runPersistence],
   );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reads refs at call time
   const exportState = tapCallback((): InteractablePersistedState => {
     const result: InteractablePersistedState = {};
     for (const [id, def] of Object.entries(stateRef.current.definitions)) {
@@ -152,7 +150,6 @@ export const Interactables = resource((): ClientOutput<"interactables"> => {
     return result;
   }, []);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reads refs at call time
   const importState = tapCallback((saved: InteractablePersistedState) => {
     for (const [id, entry] of Object.entries(saved)) {
       detachedStateRef.current.set(id, entry.state);

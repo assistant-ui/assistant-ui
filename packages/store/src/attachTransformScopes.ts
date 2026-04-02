@@ -31,6 +31,25 @@ export function attachTransformScopes<
   r[TRANSFORM_SCOPES] = transform;
 }
 
+export function forwardTransformScopes<
+  T extends (...args: any[]) => ResourceElement<any>,
+  S extends (...args: any[]) => ResourceElement<any>,
+>(target: T, source: S): void {
+  const sourceTransform = getTransformScopes(source);
+  if (!sourceTransform) return;
+
+  const r = target as T & ResourceWithTransformScopes;
+  const existingTransform = r[TRANSFORM_SCOPES];
+  if (existingTransform) {
+    r[TRANSFORM_SCOPES] = (scopes, parent) => {
+      sourceTransform(scopes, parent);
+      existingTransform(scopes, parent);
+    };
+  } else {
+    r[TRANSFORM_SCOPES] = sourceTransform;
+  }
+}
+
 export function getTransformScopes<
   T extends (...args: any[]) => ResourceElement<any>,
 >(resource: T): TransformScopesFn | undefined {
