@@ -3,6 +3,8 @@ import { ReadonlyJSONValue } from "assistant-stream/utils";
 import type {
   AttachmentAdapter,
   ThreadHistoryAdapter,
+  LanguageModelV1CallSettings,
+  LanguageModelConfig,
 } from "@assistant-ui/core";
 import { UserCommands } from "../../../augmentations";
 import type { ToolExecutionStatus } from "./useToolInvocations";
@@ -91,8 +93,16 @@ export type SendCommandsRequestBody = {
   state: unknown;
   system: string | undefined;
   tools: Record<string, unknown> | undefined;
+  callSettings: LanguageModelV1CallSettings | undefined;
+  config: LanguageModelConfig | undefined;
   threadId: string | null;
   parentId?: string | null;
+  /**
+   * @deprecated `callSettings` and `config` fields are also spread at the top level
+   * for backward compatibility (e.g. `body.modelName`). Use the nested
+   * `body.callSettings` / `body.config` objects instead. The spread fields
+   * will be removed in a future version.
+   */
   [key: string]: unknown;
 };
 
