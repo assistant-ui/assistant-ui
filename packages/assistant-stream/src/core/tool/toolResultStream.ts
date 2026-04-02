@@ -27,7 +27,7 @@ function getToolResponse(
   human: (toolCallId: string, payload: unknown) => Promise<unknown>,
 ) {
   const tool = tools?.[toolCall.toolName];
-  if (!tool || !tool.execute) return undefined;
+  if (!tool?.execute) return undefined;
 
   const getResult = async (
     toolExecute: ToolExecuteFunction<ReadonlyJSONObject, unknown>,
