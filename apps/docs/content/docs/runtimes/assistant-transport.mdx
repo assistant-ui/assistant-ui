@@ -72,10 +72,14 @@ The backend endpoint receives POST requests with the following payload:
   tools?: Record<string, ToolJSONSchema>, // Tool definitions keyed by tool name
   threadId: string | null, // The current thread/conversation identifier (null for new threads)
   parentId?: string | null, // The parent message ID (included when editing or branching)
-  // ...callSettings (maxTokens, temperature, topP, presencePenalty, frequencyPenalty, seed)
-  // ...config (apiKey, baseUrl, modelName)
+  callSettings?: { maxTokens, temperature, topP, presencePenalty, frequencyPenalty, seed },
+  config?: { apiKey, baseUrl, modelName },
 }
 ```
+
+<Callout type="warn">
+  **Migrating from top-level fields:** `callSettings` and `config` fields were previously spread at the top level of the request body (e.g. `body.modelName` instead of `body.config.modelName`). Both formats are currently sent for backward compatibility, but the top-level fields are deprecated and will be removed in a future version. Update your backend to read from the nested objects.
+</Callout>
 
 The backend endpoint returns a stream of state snapshots using the `assistant-stream` library ([npm](https://www.npmjs.com/package/assistant-stream) / [PyPI](https://pypi.org/project/assistant-stream/)).
 

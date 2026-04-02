@@ -111,9 +111,9 @@ Use `messageMetadata` in your Next.js route to attach `usage` from `finish` and 
 import { streamText, convertToModelMessages } from "ai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 export async function POST(req: Request) {
-  const { messages, tools, modelName } = await req.json();
+  const { messages, tools, config } = await req.json();
   const result = streamText({
-    model: getModel(modelName),
+    model: getModel(config?.modelName),
     messages: await convertToModelMessages(messages),
     tools: frontendTools(tools),
   });
