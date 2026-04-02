@@ -50,7 +50,7 @@ const ComposerAction: FC = () => {
 
 ### Read the model in your API route
 
-The selected model name is sent as `config.modelName` in the request body:
+The selected model's `id` is sent as `config.modelName` in the request body:
 
 ```tsx title="app/api/chat/route.ts" {2,5}
 export async function POST(req: Request) {
