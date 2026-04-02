@@ -353,6 +353,7 @@ describe("useLangGraphRuntime", () => {
       {
         type: "human",
         content: [
+          { type: "text", text: " " },
           {
             type: "file",
             data: "ZmFrZS1wZGY=",
@@ -363,6 +364,6 @@ describe("useLangGraphRuntime", () => {
         ],
       },
     ]);
-    expect(sentMessages?.[0]?.content?.[0]).not.toHaveProperty("file");
+    expect(sentMessages?.[0]?.content?.[1]).not.toHaveProperty("file");
   });
 });

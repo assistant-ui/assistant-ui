@@ -61,6 +61,15 @@ const getMessageContent = (msg: AppendMessage) => {
     ...msg.content,
     ...(msg.attachments?.flatMap((a) => a.content) ?? []),
   ];
+
+  const hasNonText = allContent.some(
+    (part) => part.type === "file" || part.type === "image",
+  );
+  const hasText = allContent.some((part) => part.type === "text");
+  if (hasNonText && !hasText) {
+    allContent.unshift({ type: "text", text: " " });
+  }
+
   const content = allContent.map((part) => {
     const type = part.type;
     switch (type) {
