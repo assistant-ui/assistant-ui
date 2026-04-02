@@ -97,12 +97,9 @@ export type SendCommandsRequestBody = {
   config: LanguageModelConfig | undefined;
   threadId: string | null;
   parentId?: string | null;
-  /**
-   * @deprecated `callSettings` and `config` fields are also spread at the top level
-   * for backward compatibility (e.g. `body.modelName`). Use the nested
-   * `body.callSettings` / `body.config` objects instead. The spread fields
-   * will be removed in a future version.
-   */
+  // `callSettings` and `config` fields are also spread at the top level for
+  // backward compatibility (e.g. `body.modelName`). Use the nested objects
+  // instead. The top-level fields will be removed in a future version.
   [key: string]: unknown;
 };
 
