@@ -1,5 +1,12 @@
 # heat-graph
 
+## 0.0.4
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+
 ## 0.0.3
 
 ### Patch Changes

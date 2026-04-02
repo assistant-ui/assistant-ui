@@ -1,5 +1,15 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.9
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [bdce66f]
+- Updated dependencies [209ae81]
+  - assistant-cloud@0.1.24
+
 ## 0.1.8
 
 ### Patch Changes

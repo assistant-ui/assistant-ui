@@ -1,5 +1,12 @@
 # @assistant-ui/tap
 
+## 0.5.6
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+
 ## 0.5.5
 
 ### Patch Changes

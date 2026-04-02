@@ -1,5 +1,54 @@
 # @assistant-ui/react
 
+## 0.12.22
+
+### Patch Changes
+
+- 6554892: feat: add useAssistantContext for dynamic context injection
+
+  Register a callback-based context provider that injects computed text into the system prompt at evaluation time, ensuring the prompt always reflects current application state.
+
+- d726499: fix: unify assistant-transport request body format with AssistantChatTransport
+
+  `callSettings` and `config` are now sent as nested objects in the request body,
+  aligned with the AI SDK transport. The old top-level spread is preserved for
+  backward compatibility but deprecated and will be removed in a future version.
+
+- 876f75d: feat: add interactable state persistence
+
+  Add persistence API to interactables with exportState/importState, debounced setPersistenceAdapter, per-id isPending/error tracking, flush() for immediate sync, and auto-flush on component unregister.
+
+- bdce66f: chore: update dependencies
+- c362685: feat: add RealtimeVoiceAdapter with VoiceOrb UI, mode/volume support, and ElevenLabs/LiveKit examples
+- 4abb898: refactor: align interactables with codebase conventions
+  - Rename `useInteractable` to `useAssistantInteractable` (registration only, returns id)
+  - Add `useInteractableState` hook for reading/writing interactable state
+  - Remove `makeInteractable` and related types
+  - Rename `UseInteractableConfig` to `AssistantInteractableProps`
+  - Extract `buildInteractableModelContext` from `Interactables` resource
+  - Add `with-interactables` example to CLI
+
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- 50b3100: feat: add render prop support to all primitives for shadcn "Base" component library compatibility
+- af70d7f: feat: add useToolArgsStatus hook for per-prop streaming status
+
+  Add a convenience hook that derives per-property streaming completion status from tool call args using structural partial JSON analysis.
+
+- Updated dependencies [dffb6b4]
+- Updated dependencies [6554892]
+- Updated dependencies [9103282]
+- Updated dependencies [876f75d]
+- Updated dependencies [bdce66f]
+- Updated dependencies [4abb898]
+- Updated dependencies [209ae81]
+- Updated dependencies [2dd0c9f]
+- Updated dependencies [af70d7f]
+  - assistant-stream@0.3.9
+  - @assistant-ui/core@0.1.10
+  - assistant-cloud@0.1.24
+  - @assistant-ui/store@0.2.6
+  - @assistant-ui/tap@0.5.6
+
 ## 0.12.21
 
 ### Patch Changes

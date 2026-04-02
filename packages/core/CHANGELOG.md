@@ -1,5 +1,42 @@
 # @assistant-ui/core
 
+## 0.1.10
+
+### Patch Changes
+
+- 6554892: feat: add useAssistantContext for dynamic context injection
+
+  Register a callback-based context provider that injects computed text into the system prompt at evaluation time, ensuring the prompt always reflects current application state.
+
+- 9103282: fix: resolve biome lint warnings (optional chaining, unused suppressions)
+- 876f75d: feat: add interactable state persistence
+
+  Add persistence API to interactables with exportState/importState, debounced setPersistenceAdapter, per-id isPending/error tracking, flush() for immediate sync, and auto-flush on component unregister.
+
+- bdce66f: chore: update dependencies
+- 4abb898: refactor: align interactables with codebase conventions
+  - Rename `useInteractable` to `useAssistantInteractable` (registration only, returns id)
+  - Add `useInteractableState` hook for reading/writing interactable state
+  - Remove `makeInteractable` and related types
+  - Rename `UseInteractableConfig` to `AssistantInteractableProps`
+  - Extract `buildInteractableModelContext` from `Interactables` resource
+  - Add `with-interactables` example to CLI
+
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- af70d7f: feat: add useToolArgsStatus hook for per-prop streaming status
+
+  Add a convenience hook that derives per-property streaming completion status from tool call args using structural partial JSON analysis.
+
+- Updated dependencies [dffb6b4]
+- Updated dependencies [9103282]
+- Updated dependencies [bdce66f]
+- Updated dependencies [209ae81]
+- Updated dependencies [2dd0c9f]
+  - assistant-stream@0.3.9
+  - assistant-cloud@0.1.24
+  - @assistant-ui/store@0.2.6
+  - @assistant-ui/tap@0.5.6
+
 ## 0.1.9
 
 ### Patch Changes

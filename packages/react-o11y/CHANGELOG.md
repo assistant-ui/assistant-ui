@@ -1,5 +1,17 @@
 # @assistant-ui/react-o11y
 
+## 0.0.8
+
+### Patch Changes
+
+- 9103282: fix: resolve biome lint warnings (optional chaining, unused suppressions)
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [bdce66f]
+- Updated dependencies [209ae81]
+- Updated dependencies [2dd0c9f]
+  - @assistant-ui/store@0.2.6
+  - @assistant-ui/tap@0.5.6
+
 ## 0.0.7
 
 ### Patch Changes

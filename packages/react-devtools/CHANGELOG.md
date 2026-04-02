@@ -1,5 +1,22 @@
 # @assistant-ui/react-devtools
 
+## 1.0.4
+
+### Patch Changes
+
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [6554892]
+- Updated dependencies [d726499]
+- Updated dependencies [876f75d]
+- Updated dependencies [bdce66f]
+- Updated dependencies [c362685]
+- Updated dependencies [4abb898]
+- Updated dependencies [209ae81]
+- Updated dependencies [50b3100]
+- Updated dependencies [af70d7f]
+  - @assistant-ui/react@0.12.22
+  - @assistant-ui/tap@0.5.6
+
 ## 1.0.3
 
 ### Patch Changes

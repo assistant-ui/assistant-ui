@@ -1,5 +1,12 @@
 # mcp-app-studio
 
+## 0.7.8
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+
 ## 0.7.7
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @assistant-ui/store
 
+## 0.2.6
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- 2dd0c9f: feat: add forwardTransformScopes utility
+- Updated dependencies [bdce66f]
+- Updated dependencies [209ae81]
+  - @assistant-ui/tap@0.5.6
+
 ## 0.2.5
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.1.27
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+
 ## 0.1.26
 
 ### Patch Changes

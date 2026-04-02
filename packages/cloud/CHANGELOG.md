@@ -1,5 +1,17 @@
 # assistant-cloud
 
+## 0.1.24
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [dffb6b4]
+- Updated dependencies [9103282]
+- Updated dependencies [bdce66f]
+- Updated dependencies [209ae81]
+  - assistant-stream@0.3.9
+
 ## 0.1.23
 
 ### Patch Changes

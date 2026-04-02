@@ -1,5 +1,17 @@
 # assistant-stream
 
+## 0.3.9
+
+### Patch Changes
+
+- dffb6b4: feat: add data part type to streaming pipeline
+
+  Add DataPart as a new streamable content part type, enabling AI to send structured named data that renders via makeAssistantDataUI. Includes appendData() controller method and DataStream serialization support.
+
+- 9103282: fix: resolve biome lint warnings (optional chaining, unused suppressions)
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+
 ## 0.3.8
 
 ### Patch Changes

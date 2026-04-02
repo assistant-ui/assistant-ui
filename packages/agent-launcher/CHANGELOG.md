@@ -1,5 +1,11 @@
 # @assistant-ui/agent-launcher
 
+## 0.1.2
+
+### Patch Changes
+
+- 209ae81: chore: remove aui-source export condition from package.json exports
+
 ## 0.1.1
 
 ### Patch Changes

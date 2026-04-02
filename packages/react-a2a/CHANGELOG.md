@@ -1,5 +1,23 @@
 # @assistant-ui/react-a2a
 
+## 0.2.9
+
+### Patch Changes
+
+- 3344084: fix(react-a2a): align wire format with A2A v1.0 proto spec
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [6554892]
+- Updated dependencies [9103282]
+- Updated dependencies [876f75d]
+- Updated dependencies [bdce66f]
+- Updated dependencies [4abb898]
+- Updated dependencies [209ae81]
+- Updated dependencies [2dd0c9f]
+- Updated dependencies [af70d7f]
+  - @assistant-ui/core@0.1.10
+  - @assistant-ui/store@0.2.6
+
 ## 0.2.8
 
 ### Patch Changes

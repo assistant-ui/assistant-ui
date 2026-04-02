@@ -1,5 +1,12 @@
 # safe-content-frame
 
+## 0.0.14
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+
 ## 0.0.13
 
 ### Patch Changes

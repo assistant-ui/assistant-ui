@@ -1,5 +1,23 @@
 # assistant-ui
 
+## 0.0.87
+
+### Patch Changes
+
+- 69eb0c5: chore: add shipables.json for CLI plugin skills
+- 9103282: fix: resolve biome lint warnings (optional chaining, unused suppressions)
+- bdce66f: chore: update dependencies
+- 4abb898: refactor: align interactables with codebase conventions
+  - Rename `useInteractable` to `useAssistantInteractable` (registration only, returns id)
+  - Add `useInteractableState` hook for reading/writing interactable state
+  - Remove `makeInteractable` and related types
+  - Rename `UseInteractableConfig` to `AssistantInteractableProps`
+  - Extract `buildInteractableModelContext` from `Interactables` resource
+  - Add `with-interactables` example to CLI
+
+- Updated dependencies [209ae81]
+  - @assistant-ui/agent-launcher@0.1.2
+
 ## 0.0.86
 
 ### Patch Changes
