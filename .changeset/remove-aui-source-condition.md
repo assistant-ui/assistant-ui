@@ -5,7 +5,7 @@
 "@assistant-ui/react-ink": patch
 "@assistant-ui/store": patch
 "@assistant-ui/tap": patch
-"@assistant-ui/cloud": patch
+"assistant-cloud": patch
 "@assistant-ui/cloud-ai-sdk": patch
 "@assistant-ui/react-ai-sdk": patch
 "@assistant-ui/react-langgraph": patch
@@ -24,8 +24,8 @@
 "@assistant-ui/safe-content-frame": patch
 "@assistant-ui/agent-launcher": patch
 "assistant-stream": patch
-"@assistant-ui/heat-graph": patch
-"@assistant-ui/mcp-app-studio": patch
+"heat-graph": patch
+"mcp-app-studio": patch
 "@assistant-ui/mcp-docs-server": patch
 ---
 
