@@ -318,13 +318,13 @@ export const ComposerPrimitiveInput = forwardRef<
     };
 
     if (render && isValidElement(render)) {
+      const renderChildren =
+        (rest as any).children !== undefined
+          ? ((rest as any).children as ReactNode)
+          : ((render.props as Record<string, unknown>).children as ReactNode);
       return (
         <Slot.Root {...inputProps}>
-          {cloneElement(
-            render,
-            undefined,
-            (render.props as Record<string, unknown>).children as ReactNode,
-          )}
+          {cloneElement(render, undefined, renderChildren)}
         </Slot.Root>
       );
     }

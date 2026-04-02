@@ -57,7 +57,7 @@ function createPrimitive<E extends PrimitiveNode>(node: E) {
   const RadixComp = RadixPrimitive[node];
 
   const Component = forwardRef<PrimitiveRef<E>, PrimitiveProps<E>>(
-    ({ render, children, ...props }, ref) => {
+    ({ render, asChild, children, ...props }, ref) => {
       if (render && isValidElement(render)) {
         // render={<Comp p />} + children
         //   → asChild + <Comp p>{children}</Comp>
@@ -73,7 +73,7 @@ function createPrimitive<E extends PrimitiveNode>(node: E) {
       }
 
       return (
-        <RadixComp {...(props as any)} ref={ref}>
+        <RadixComp asChild={asChild} {...(props as any)} ref={ref}>
           {children}
         </RadixComp>
       );

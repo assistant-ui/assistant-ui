@@ -85,9 +85,9 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
 
   const mergedProps = {
     ...(isDragging ? { "data-dragging": "true" } : null),
-    ref,
     ...dragProps,
     ...rest,
+    ref,
   };
 
   if (render && isValidElement(render)) {
