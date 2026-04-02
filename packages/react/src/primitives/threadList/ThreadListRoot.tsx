@@ -1,6 +1,6 @@
 "use client";
 
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "../../utils/Primitive";
 import { ComponentPropsWithoutRef, ComponentRef, forwardRef } from "react";
 
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;

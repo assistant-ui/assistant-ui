@@ -1,6 +1,6 @@
 "use client";
 
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "../../utils/Primitive";
 import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
 
 export namespace ThreadPrimitiveRoot {

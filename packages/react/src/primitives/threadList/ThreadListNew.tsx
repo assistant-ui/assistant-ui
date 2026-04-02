@@ -5,7 +5,7 @@ import {
   ActionButtonProps,
 } from "../../utils/createActionButton";
 import { forwardRef } from "react";
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "../../utils/Primitive";
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { useAuiState } from "@assistant-ui/store";
 import { useThreadListNew as useThreadListNewBehavior } from "@assistant-ui/core/react";
