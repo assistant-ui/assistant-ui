@@ -81,7 +81,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@modelcontextprotocol/ext-apps": "^1.3.1",
+    "@modelcontextprotocol/ext-apps": "^1.5.0",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
