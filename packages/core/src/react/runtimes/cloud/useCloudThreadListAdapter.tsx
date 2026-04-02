@@ -26,7 +26,9 @@ type CloudThreadListAdapterOptions = {
   delete?: ((threadId: string) => Promise<void>) | undefined;
 };
 
-const baseUrl = process?.env?.["NEXT_PUBLIC_ASSISTANT_BASE_URL"];
+const baseUrl =
+  typeof process !== "undefined" &&
+  process?.env?.["NEXT_PUBLIC_ASSISTANT_BASE_URL"];
 const autoCloud = baseUrl
   ? new AssistantCloud({ baseUrl, anonymous: true })
   : undefined;
