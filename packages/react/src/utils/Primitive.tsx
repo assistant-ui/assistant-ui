@@ -46,7 +46,7 @@ type PrimitiveNode = (typeof NODES)[number];
 type PrimitiveProps<E extends PrimitiveNode> = ComponentPropsWithoutRef<
   (typeof RadixPrimitive)[E]
 > & {
-  render?: ReactElement;
+  render?: ReactElement | undefined;
 };
 
 type PrimitiveRef<E extends PrimitiveNode> = ComponentRef<
