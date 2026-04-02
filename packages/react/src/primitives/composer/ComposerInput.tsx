@@ -6,10 +6,14 @@ import { Slot } from "radix-ui";
 import {
   ClipboardEvent,
   type KeyboardEvent,
+  type ReactElement,
+  type ReactNode,
   forwardRef,
   useCallback,
   useEffect,
   useRef,
+  cloneElement,
+  isValidElement,
 } from "react";
 import TextareaAutosize, {
   type TextareaAutosizeProps,
@@ -32,6 +36,10 @@ export namespace ComposerPrimitiveInput {
      * When true, the component will merge its props with its child.
      */
     asChild?: boolean | undefined;
+    /**
+     * A React element to use as the input container, with props merged in.
+     */
+    render?: ReactElement | undefined;
     /**
      * Whether to cancel message composition when Escape is pressed.
      * @default true
@@ -118,6 +126,7 @@ export const ComposerPrimitiveInput = forwardRef<
     {
       autoFocus = false,
       asChild,
+      render,
       disabled: disabledProp,
       onChange,
       onKeyDown,
@@ -277,14 +286,15 @@ export const ComposerPrimitiveInput = forwardRef<
       return aui.on("threadListItem.switchedTo", focus);
     }, [unstable_focusOnThreadSwitched, focus, aui]);
 
-    return (
-      <Component
-        name="input"
-        value={value}
-        {...rest}
-        ref={ref as React.ForwardedRef<HTMLTextAreaElement>}
-        disabled={isDisabled}
-        onChange={composeEventHandlers(onChange, (e) => {
+    const inputProps = {
+      name: "input" as const,
+      value,
+      ...rest,
+      ref: ref as React.ForwardedRef<HTMLTextAreaElement>,
+      disabled: isDisabled,
+      onChange: composeEventHandlers(
+        onChange,
+        (e: React.ChangeEvent<HTMLTextAreaElement>) => {
           if (!aui.composer().getState().isEditing) return;
           flushResourcesSync(() => {
             aui.composer().setText(e.target.value);
@@ -292,17 +302,34 @@ export const ComposerPrimitiveInput = forwardRef<
           mentionInternalContext?.setCursorPosition(
             e.target.selectionStart ?? e.target.value.length,
           );
-        })}
-        onKeyDown={composeEventHandlers(onKeyDown, handleKeyPress)}
-        onSelect={composeEventHandlers(onSelect, (e) => {
+        },
+      ),
+      onKeyDown: composeEventHandlers(onKeyDown, handleKeyPress),
+      onSelect: composeEventHandlers(
+        onSelect,
+        (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
           const target = e.target as HTMLTextAreaElement;
           mentionInternalContext?.setCursorPosition(
             target.selectionStart ?? target.value.length,
           );
-        })}
-        onPaste={composeEventHandlers(onPaste, handlePaste)}
-      />
-    );
+        },
+      ),
+      onPaste: composeEventHandlers(onPaste, handlePaste),
+    };
+
+    if (render && isValidElement(render)) {
+      return (
+        <Slot.Root {...inputProps}>
+          {cloneElement(
+            render,
+            undefined,
+            (render.props as Record<string, unknown>).children as ReactNode,
+          )}
+        </Slot.Root>
+      );
+    }
+
+    return <Component {...inputProps} />;
   },
 );
 
