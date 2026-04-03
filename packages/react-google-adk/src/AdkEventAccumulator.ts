@@ -323,7 +323,7 @@ export class AdkEventAccumulator {
 
   private processPart(part: AdkEventPart, event: AdkEvent): void {
     // Detect special ADK function calls
-    if (part.functionCall) {
+    if (part.functionCall && !event.partial) {
       const name = part.functionCall.name;
 
       // Tool confirmation request
@@ -387,8 +387,9 @@ export class AdkEventAccumulator {
       return;
     }
 
-    // Function call (including special ones above — still create tool-call parts)
+    // Function call — skip partial events (args may be incomplete)
     if (part.functionCall) {
+      if (event.partial) return;
       const msg = this.getOrCreateAiMessage(event);
       const toolCall: AdkToolCall = {
         id: part.functionCall.id ?? uuidv4(),

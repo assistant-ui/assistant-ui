@@ -132,6 +132,84 @@ describe("AdkEventAccumulator - function calls", () => {
     expect(tc).toHaveLength(1);
     expect(tc![0]!.id).toBeTruthy();
   });
+
+  it("skips partial functionCall events", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        partial: true,
+        content: {
+          role: "model",
+          parts: [{ functionCall: { name: "search", id: "tc-1", args: {} } }],
+        },
+      }),
+    );
+    expect(msgs).toHaveLength(0);
+  });
+
+  it("emits functionCall only from the final aggregated event", () => {
+    const acc = new AdkEventAccumulator();
+    // Partial event with empty args
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        partial: true,
+        content: {
+          role: "model",
+          parts: [{ functionCall: { name: "search", id: "tc-1", args: {} } }],
+        },
+      }),
+    );
+    // Final event with complete args
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            {
+              functionCall: {
+                name: "search",
+                id: "tc-1",
+                args: { q: "test" },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    const aiMsg = msgs[0] as AdkMessage & { type: "ai" };
+    expect(aiMsg.tool_calls).toHaveLength(1);
+    expect(aiMsg.tool_calls![0]).toMatchObject({
+      id: "tc-1",
+      name: "search",
+      args: { q: "test" },
+    });
+  });
+
+  it("skips partial special function calls (confirmation/auth)", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        author: "agent",
+        partial: true,
+        content: {
+          role: "model",
+          parts: [
+            {
+              functionCall: {
+                name: "adk_request_confirmation",
+                id: "tc-1",
+                args: {},
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(acc.getToolConfirmations()).toHaveLength(0);
+  });
 });
 
 describe("AdkEventAccumulator - function responses", () => {
