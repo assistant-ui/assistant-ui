@@ -3,12 +3,20 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, LayoutGrid, Menu, Search, X } from "lucide-react";
+import {
+  ArrowUpRight,
+  LayoutGrid,
+  Menu,
+  Search,
+  SparklesIcon,
+  X,
+} from "lucide-react";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
 import { NAV_ITEMS, type NavItem } from "@/lib/constants";
 import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
+import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -16,6 +24,20 @@ import { cn } from "@/lib/utils";
 interface DocsHeaderProps {
   section: string;
   sectionHref: string;
+}
+
+function AskAIButton() {
+  const { toggle } = useAssistantPanel();
+
+  return (
+    <button
+      onClick={toggle}
+      className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      aria-label="Ask AI"
+    >
+      <SparklesIcon className="size-3.5" />
+    </button>
+  );
 }
 
 function HeaderSearch() {
@@ -115,6 +137,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
           >
             <Search className="size-4" />
           </button>
+          <AskAIButton />
           <ThemeToggle />
           <button
             onClick={handleNavMenuToggle}
@@ -152,6 +175,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
           >
             <Search className="size-4" />
           </button>
+          <AskAIButton />
           <nav className="flex shrink-0 items-center">
             <NavItems items={condensedItems} />
             {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
@@ -162,6 +186,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
         {/* Full nav: lg+ */}
         <div className="ml-auto hidden items-center gap-2 lg:flex">
           <HeaderSearch />
+          <AskAIButton />
           <nav className="flex shrink-0 items-center">
             <NavItems items={filteredItems} />
           </nav>
