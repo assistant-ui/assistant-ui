@@ -355,41 +355,71 @@ export function useToolInvocations({
             if (isInitialState.current) {
               ignoredToolIds.current.add(content.toolCallId);
             } else {
-              const shouldSkipExecution =
-                ignoredToolIds.current.has(content.toolCallId) ||
-                (content.result !== undefined &&
-                  lastToolStates.current[content.toolCallId] === undefined);
-
-              if (!shouldSkipExecution) {
-                let lastState = lastToolStates.current[content.toolCallId];
-                if (!lastState) {
-                  toolCallIdAliasesRef.current.set(
-                    content.toolCallId,
-                    content.toolCallId,
-                  );
-                  const toolCallController = controller.addToolCallPart({
-                    toolName: content.toolName,
-                    toolCallId: content.toolCallId,
-                  });
-                  lastState = setToolState(
-                    content.toolCallId,
-                    createToolState({
-                      controller: toolCallController,
-                      streamToolCallId: content.toolCallId,
-                    }),
-                  );
+              if (ignoredToolIds.current.has(content.toolCallId)) {
+                return;
+              }
+              let lastState = lastToolStates.current[content.toolCallId];
+              if (!lastState) {
+                if (content.result !== undefined) {
+                  if (content.messages) {
+                    processMessages(content.messages);
+                  }
+                  return;
                 }
 
-                if (content.argsText !== lastState.argsText) {
-                  let shouldWriteArgsText = true;
+                toolCallIdAliasesRef.current.set(
+                  content.toolCallId,
+                  content.toolCallId,
+                );
+                const toolCallController = controller.addToolCallPart({
+                  toolName: content.toolName,
+                  toolCallId: content.toolCallId,
+                });
+                lastState = setToolState(
+                  content.toolCallId,
+                  createToolState({
+                    controller: toolCallController,
+                    streamToolCallId: content.toolCallId,
+                  }),
+                );
+              }
 
-                  if (lastState.argsComplete) {
-                    if (
-                      isEquivalentCompleteArgsText(
-                        lastState.argsText,
-                        content.argsText,
-                      )
-                    ) {
+              if (content.argsText !== lastState.argsText) {
+                let shouldWriteArgsText = true;
+
+                if (lastState.argsComplete) {
+                  if (
+                    isEquivalentCompleteArgsText(
+                      lastState.argsText,
+                      content.argsText,
+                    )
+                  ) {
+                    lastState = patchToolState(content.toolCallId, lastState, {
+                      argsText: content.argsText,
+                    });
+                    shouldWriteArgsText = false;
+                  }
+
+                  if (shouldWriteArgsText) {
+                    const canRestartClosedArgsStream =
+                      !lastState.hasResult &&
+                      !startedExecutionToolCallIdsRef.current.has(
+                        lastState.streamToolCallId,
+                      );
+
+                    if (process.env.NODE_ENV !== "production") {
+                      console.warn(
+                        canRestartClosedArgsStream
+                          ? "argsText updated after controller was closed, restarting tool args stream:"
+                          : "argsText updated after controller was closed:",
+                        {
+                          previous: lastState.argsText,
+                          next: content.argsText,
+                        },
+                      );
+                    }
+
+                    if (!canRestartClosedArgsStream) {
                       lastState = patchToolState(
                         content.toolCallId,
                         lastState,
@@ -398,98 +428,28 @@ export function useToolInvocations({
                         },
                       );
                       shouldWriteArgsText = false;
-                    }
-
-                    if (shouldWriteArgsText) {
-                      const canRestartClosedArgsStream =
-                        !lastState.hasResult &&
-                        !startedExecutionToolCallIdsRef.current.has(
-                          lastState.streamToolCallId,
-                        );
-
-                      if (process.env.NODE_ENV !== "production") {
-                        console.warn(
-                          canRestartClosedArgsStream
-                            ? "argsText updated after controller was closed, restarting tool args stream:"
-                            : "argsText updated after controller was closed:",
-                          {
-                            previous: lastState.argsText,
-                            next: content.argsText,
-                          },
-                        );
-                      }
-
-                      if (!canRestartClosedArgsStream) {
-                        lastState = patchToolState(
-                          content.toolCallId,
-                          lastState,
-                          {
-                            argsText: content.argsText,
-                          },
-                        );
-                        shouldWriteArgsText = false;
-                      }
-                    }
-
-                    if (shouldWriteArgsText) {
-                      lastState = restartToolArgsStream({
-                        toolCallId: content.toolCallId,
-                        toolName: content.toolName,
-                        state: lastState,
-                      });
-                    }
-                  } else if (!content.argsText.startsWith(lastState.argsText)) {
-                    if (
-                      isArgsTextComplete(lastState.argsText) &&
-                      isArgsTextComplete(content.argsText) &&
-                      isEquivalentCompleteArgsText(
-                        lastState.argsText,
-                        content.argsText,
-                      )
-                    ) {
-                      const shouldClose = shouldCloseArgsStream({
-                        toolName: content.toolName,
-                        argsText: content.argsText,
-                        hasResult: content.result !== undefined,
-                      });
-                      if (shouldClose) {
-                        lastState.controller.argsText.close();
-                      }
-                      lastState = patchToolState(
-                        content.toolCallId,
-                        lastState,
-                        {
-                          argsText: content.argsText,
-                          argsComplete: shouldClose,
-                        },
-                      );
-                      shouldWriteArgsText = false;
-                    }
-                    if (shouldWriteArgsText) {
-                      if (process.env.NODE_ENV !== "production") {
-                        console.warn(
-                          "argsText rewrote previous snapshot, restarting tool args stream:",
-                          {
-                            previous: lastState.argsText,
-                            next: content.argsText,
-                            toolCallId: content.toolCallId,
-                          },
-                        );
-                      }
-                      lastState = restartToolArgsStream({
-                        toolCallId: content.toolCallId,
-                        toolName: content.toolName,
-                        state: lastState,
-                      });
                     }
                   }
 
                   if (shouldWriteArgsText) {
-                    const argsTextDelta = content.argsText.slice(
-                      lastState.argsText.length,
-                    );
-                    lastState.controller.argsText.append(argsTextDelta);
-
+                    lastState = restartToolArgsStream({
+                      toolCallId: content.toolCallId,
+                      toolName: content.toolName,
+                      state: lastState,
+                    });
+                  }
+                } else if (!content.argsText.startsWith(lastState.argsText)) {
+                  // Check if this is key reordering (both are complete JSON)
+                  // This happens when transitioning from streaming to complete state
+                  // and the provider returns keys in a different order
+                  if (
+                    isArgsTextComplete(lastState.argsText) &&
+                    isArgsTextComplete(content.argsText) &&
+                    isEquivalentCompleteArgsText(
+                      lastState.argsText,
+                      content.argsText,
+                    )
+                  ) {
                     const shouldClose = shouldCloseArgsStream({
                       toolName: content.toolName,
                       argsText: content.argsText,
@@ -498,15 +458,37 @@ export function useToolInvocations({
                     if (shouldClose) {
                       lastState.controller.argsText.close();
                     }
-
                     lastState = patchToolState(content.toolCallId, lastState, {
                       argsText: content.argsText,
                       argsComplete: shouldClose,
                     });
+                    shouldWriteArgsText = false;
+                  }
+                  if (shouldWriteArgsText) {
+                    if (process.env.NODE_ENV !== "production") {
+                      console.warn(
+                        "argsText rewrote previous snapshot, restarting tool args stream:",
+                        {
+                          previous: lastState.argsText,
+                          next: content.argsText,
+                          toolCallId: content.toolCallId,
+                        },
+                      );
+                    }
+                    lastState = restartToolArgsStream({
+                      toolCallId: content.toolCallId,
+                      toolName: content.toolName,
+                      state: lastState,
+                    });
                   }
                 }
 
-                if (!lastState.argsComplete) {
+                if (shouldWriteArgsText) {
+                  const argsTextDelta = content.argsText.slice(
+                    lastState.argsText.length,
+                  );
+                  lastState.controller.argsText.append(argsTextDelta);
+
                   const shouldClose = shouldCloseArgsStream({
                     toolName: content.toolName,
                     argsText: content.argsText,
@@ -514,30 +496,44 @@ export function useToolInvocations({
                   });
                   if (shouldClose) {
                     lastState.controller.argsText.close();
-                    lastState = patchToolState(content.toolCallId, lastState, {
-                      argsText: content.argsText,
-                      argsComplete: true,
-                    });
                   }
-                }
 
-                if (content.result !== undefined && !lastState.hasResult) {
-                  patchToolState(content.toolCallId, lastState, {
-                    hasResult: true,
+                  lastState = patchToolState(content.toolCallId, lastState, {
+                    argsText: content.argsText,
+                    argsComplete: shouldClose,
+                  });
+                }
+              }
+
+              if (!lastState.argsComplete) {
+                const shouldClose = shouldCloseArgsStream({
+                  toolName: content.toolName,
+                  argsText: content.argsText,
+                  hasResult: content.result !== undefined,
+                });
+                if (shouldClose) {
+                  lastState.controller.argsText.close();
+                  lastState = patchToolState(content.toolCallId, lastState, {
+                    argsText: content.argsText,
                     argsComplete: true,
                   });
-
-                  lastState.controller.setResponse(
-                    new ToolResponse({
-                      result: content.result as ReadonlyJSONValue,
-                      artifact: content.artifact as
-                        | ReadonlyJSONValue
-                        | undefined,
-                      isError: content.isError,
-                    }),
-                  );
-                  lastState.controller.close();
                 }
+              }
+
+              if (content.result !== undefined && !lastState.hasResult) {
+                patchToolState(content.toolCallId, lastState, {
+                  hasResult: true,
+                  argsComplete: true,
+                });
+
+                lastState.controller.setResponse(
+                  new ToolResponse({
+                    result: content.result as ReadonlyJSONValue,
+                    artifact: content.artifact as ReadonlyJSONValue | undefined,
+                    isError: content.isError,
+                  }),
+                );
+                lastState.controller.close();
               }
             }
 
@@ -578,9 +574,9 @@ export function useToolInvocations({
   return {
     reset: () => {
       isInitialState.current = true;
+      ignoredToolIds.current.clear();
+      lastToolStates.current = {};
       void abort().finally(() => {
-        ignoredToolIds.current.clear();
-        lastToolStates.current = {};
         startedExecutionToolCallIdsRef.current.clear();
         toolCallIdAliasesRef.current.clear();
         ignoredResultToolCallIdsRef.current.clear();

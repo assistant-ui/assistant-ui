@@ -350,8 +350,13 @@ describe("useToolInvocations", () => {
   });
 
   it("still processes nested unresolved tool calls when the parent tool call is already resolved", async () => {
+    const executeParent = vi.fn(async () => ({ scope: "parent" }));
     const executeChild = vi.fn(async () => ({ scope: "child" }));
     const getTools = () => ({
+      resolvedOnly: {
+        parameters: { type: "object", properties: {} },
+        execute: executeParent,
+      } satisfies Tool,
       childTool: {
         parameters: { type: "object", properties: {} },
         execute: executeChild,
@@ -401,6 +406,7 @@ describe("useToolInvocations", () => {
     });
 
     await waitFor(() => {
+      expect(executeParent).not.toHaveBeenCalled();
       expect(executeChild).toHaveBeenCalledTimes(1);
     });
   });
