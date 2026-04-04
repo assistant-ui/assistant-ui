@@ -43,6 +43,9 @@ export const useRemoteThreadListRuntime = (
   const runtimeHookRef = useRef(options.runtimeHook);
   runtimeHookRef.current = options.runtimeHook;
 
+  // initialThreadId is only consumed by the constructor; capture once via ref
+  const initialThreadIdRef = useRef(options.initialThreadId);
+
   const stableRuntimeHook = useCallback(() => {
     return runtimeHookRef.current();
   }, []);
@@ -51,6 +54,7 @@ export const useRemoteThreadListRuntime = (
     () => ({
       adapter: options.adapter,
       allowNesting: options.allowNesting,
+      initialThreadId: initialThreadIdRef.current,
       runtimeHook: stableRuntimeHook,
     }),
     [options.adapter, options.allowNesting, stableRuntimeHook],

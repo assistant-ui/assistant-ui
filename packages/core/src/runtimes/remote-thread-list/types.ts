@@ -40,6 +40,13 @@ export type RemoteThreadListOptions = {
   adapter: RemoteThreadListAdapter;
 
   /**
+   * When provided, the runtime starts on this thread instead of creating a
+   * new empty thread. Useful for URL-based routing (e.g. `/chat/[threadId]`)
+   * where the initial thread is known at mount time.
+   */
+  initialThreadId?: string | undefined;
+
+  /**
    * When true, if this runtime is used inside another RemoteThreadListRuntime,
    * it becomes a no-op and simply calls the runtimeHook directly.
    * This allows wrapping runtimes that internally use RemoteThreadListRuntime.
