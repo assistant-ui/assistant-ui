@@ -72,10 +72,12 @@ const applyListResult = (
 
 function deferred<T>() {
   let resolve!: (v: T) => void;
-  const promise = new Promise<T>((r) => {
-    resolve = r;
+  let reject!: (e: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 describe("RemoteThreadList isLoading lifecycle", () => {
@@ -153,5 +155,38 @@ describe("RemoteThreadList isLoading lifecycle", () => {
     const after = state.value.isLoading;
     expect(before).toBe(true);
     expect(after).toBe(false);
+  });
+});
+
+describe("RemoteThreadList isLoading error path", () => {
+  it("isLoading resets to false after adapter.list() rejects", async () => {
+    const state = new OptimisticState<RemoteThreadState>(INITIAL_STATE);
+    const d = deferred<ListResult>();
+
+    // Simulate the getLoadThreadsPromise pattern with .catch() fix
+    let loadPromise: Promise<void> | undefined;
+    loadPromise = state
+      .optimisticUpdate({
+        execute: () => d.promise,
+        loading: (s) => ({ ...s, isLoading: true }),
+        then: applyListResult,
+      })
+      .catch(() => {
+        loadPromise = undefined;
+        state.update({ ...state.baseValue, isLoading: false });
+      })
+      .then(() => {});
+
+    // While loading, isLoading is true
+    expect(state.value.isLoading).toBe(true);
+
+    d.reject(new Error("network error"));
+    await loadPromise;
+
+    // After failure, isLoading resets to false
+    expect(state.value.isLoading).toBe(false);
+
+    // Cache is cleared, allowing retry
+    expect(loadPromise).toBeUndefined();
   });
 });

@@ -117,6 +117,13 @@ export class RemoteThreadListThreadListRuntimeCore
             };
           },
         })
+        .catch(() => {
+          this._loadThreadsPromise = undefined;
+          this._state.update({
+            ...this._state.baseValue,
+            isLoading: false,
+          });
+        })
         .then(() => {});
     }
 
