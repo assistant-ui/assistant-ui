@@ -190,7 +190,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
   },
 
   isDisabled: false,
-  isLoading: false,
+  isLoading: true,
 
   messages: [],
 
