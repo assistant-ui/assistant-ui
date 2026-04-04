@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/core",
-  "version": "0.1.5",
+  "version": "0.1.10",
   "description": "Framework-agnostic core runtime for assistant-ui",
   "keywords": [
     "assistant",
@@ -14,32 +14,26 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./internal": {
-      "aui-source": "./src/internal.ts",
       "types": "./dist/internal.d.ts",
       "default": "./dist/internal.js"
     },
     "./store": {
-      "aui-source": "./src/store/index.ts",
       "types": "./dist/store/index.d.ts",
       "default": "./dist/store/index.js"
     },
     "./store/internal": {
-      "aui-source": "./src/store/internal.ts",
       "types": "./dist/store/internal.d.ts",
       "default": "./dist/store/internal.js"
     },
     "./react": {
-      "aui-source": "./src/react/index.ts",
       "types": "./dist/react/index.d.ts",
       "default": "./dist/react/index.js"
     },
     "./*": {
-      "aui-source": "./src/*.ts",
       "types": "./dist/*.d.ts",
       "default": "./dist/*.js"
     }
@@ -58,15 +52,15 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.5",
-    "nanoid": "^5.1.6"
+    "assistant-stream": "^0.3.9",
+    "nanoid": "^5.1.7"
   },
   "peerDependencies": {
-    "@assistant-ui/store": "^0.2.2",
-    "@assistant-ui/tap": "^0.5.2",
+    "@assistant-ui/store": "^0.2.6",
+    "@assistant-ui/tap": "^0.5.6",
     "@types/react": "*",
     "react": "^18 || ^19",
-    "assistant-cloud": "^0.1.21",
+    "assistant-cloud": "^0.1.24",
     "zustand": "^5.0.11"
   },
   "peerDependenciesMeta": {
@@ -84,14 +78,14 @@
     }
   },
   "devDependencies": {
-    "assistant-cloud": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.14",
+    "assistant-cloud": "workspace:*",
     "react": "^19.2.4",
-    "vitest": "^4.0.18",
-    "zustand": "^5.0.11"
+    "vitest": "^4.1.2",
+    "zustand": "^5.0.12"
   },
   "publishConfig": {
     "access": "public",

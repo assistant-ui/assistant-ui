@@ -140,7 +140,7 @@ You can extend this example to:
 
 ## Learn More
 
-- [Tap Documentation](../../packages/tap/README.md)
-- [Store Documentation](../../packages/store/README.md)
-- [Client Implementation](../../packages/react/src/client/README.md)
+- [Tap Documentation](https://github.com/assistant-ui/assistant-ui/tree/main/packages/tap)
+- [Store Documentation](https://github.com/assistant-ui/assistant-ui/tree/main/packages/store)
+- [Client Implementation](https://github.com/assistant-ui/assistant-ui/tree/main/packages/react/src/client)
 - [Assistant UI Docs](https://assistant-ui.com)

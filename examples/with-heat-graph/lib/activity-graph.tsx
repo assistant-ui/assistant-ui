@@ -25,54 +25,39 @@ export function ActivityGraph({ data }: { data: HeatGraph.DataPoint[] }) {
 
 function MonthLabels() {
   return (
-    <HeatGraph.MonthLabels>
-      {({ labels, totalWeeks }) => (
-        <div className="relative ml-10 h-5">
-          {labels.map((label) => (
-            <span
-              key={`${label.month}-${label.column}`}
-              className="absolute text-gray-500 text-xs"
-              style={{ left: `${(label.column / totalWeeks) * 100}%` }}
-            >
-              {HeatGraph.MONTH_SHORT[label.month]}
-            </span>
-          ))}
-        </div>
-      )}
-    </HeatGraph.MonthLabels>
+    <div className="relative ml-10 h-5">
+      <HeatGraph.MonthLabels>
+        {({ label, totalWeeks }) => (
+          <span
+            className="absolute text-gray-500 text-xs"
+            style={{ left: `${(label.column / totalWeeks) * 100}%` }}
+          >
+            {HeatGraph.MONTH_SHORT[label.month]}
+          </span>
+        )}
+      </HeatGraph.MonthLabels>
+    </div>
   );
 }
 
 function DayLabels() {
   return (
-    <HeatGraph.DayLabels>
-      {({ labels }) => (
-        <div className="flex w-8 shrink-0 flex-col justify-between py-[2px]">
-          {labels.map((label) => (
-            <span
-              key={label.row}
-              className="flex h-[13px] items-center text-gray-500 text-xs"
-            >
-              {label.row % 2 === 0 ? HeatGraph.DAY_SHORT[label.dayOfWeek] : ""}
-            </span>
-          ))}
-        </div>
-      )}
-    </HeatGraph.DayLabels>
+    <div className="flex w-8 shrink-0 flex-col justify-between py-[2px]">
+      <HeatGraph.DayLabels>
+        {({ label }) => (
+          <span className="flex h-[13px] items-center text-gray-500 text-xs">
+            {label.row % 2 === 0 ? HeatGraph.DAY_SHORT[label.dayOfWeek] : ""}
+          </span>
+        )}
+      </HeatGraph.DayLabels>
+    </div>
   );
 }
 
 function CellGrid() {
   return (
     <HeatGraph.Grid className="flex-1 gap-[3px]">
-      {({ cells }) =>
-        cells.map((cell) => (
-          <HeatGraph.Cell
-            key={`${cell.column}-${cell.row}`}
-            className="aspect-square w-full rounded-sm"
-          />
-        ))
-      }
+      {() => <HeatGraph.Cell className="aspect-square w-full rounded-sm" />}
     </HeatGraph.Grid>
   );
 }
@@ -96,19 +81,14 @@ function CellTooltip() {
 
 function GraphLegend() {
   return (
-    <HeatGraph.Legend>
-      {({ items }) => (
-        <div className="ml-auto flex items-center gap-1 text-gray-500 text-xs">
-          <span>Less</span>
-          {items.map((item) => (
-            <HeatGraph.LegendLevel
-              key={item.level}
-              className="h-[13px] w-[13px] rounded-sm"
-            />
-          ))}
-          <span>More</span>
-        </div>
-      )}
-    </HeatGraph.Legend>
+    <div className="ml-auto flex items-center gap-1 text-gray-500 text-xs">
+      <span>Less</span>
+      <HeatGraph.Legend>
+        {() => (
+          <HeatGraph.LegendLevel className="h-[13px] w-[13px] rounded-sm" />
+        )}
+      </HeatGraph.Legend>
+      <span>More</span>
+    </div>
   );
 }

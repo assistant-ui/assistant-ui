@@ -1,5 +1,5 @@
-import { useCallback, type ReactNode } from "react";
-import { useAui } from "@assistant-ui/store";
+import type { ReactNode } from "react";
+import { useThreadListItemUnarchive } from "@assistant-ui/core/react";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 
 export type ThreadListItemUnarchiveProps = Omit<PressableProps, "onPress"> & {
@@ -10,14 +10,10 @@ export const ThreadListItemUnarchive = ({
   children,
   ...pressableProps
 }: ThreadListItemUnarchiveProps) => {
-  const aui = useAui();
-
-  const onPress = useCallback(() => {
-    aui.threadListItem().unarchive();
-  }, [aui]);
+  const { unarchive } = useThreadListItemUnarchive();
 
   return (
-    <Pressable onPress={onPress} {...pressableProps}>
+    <Pressable onPress={unarchive} {...pressableProps}>
       {children}
     </Pressable>
   );

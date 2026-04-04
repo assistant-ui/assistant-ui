@@ -1,4 +1,4 @@
-import type { AppendMessage } from "../../types";
+import type { AppendMessage } from "../../types/message";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { DictationAdapter } from "../../adapters/speech";
 import type { ThreadComposerRuntimeCore } from "../interfaces/composer-runtime-core";

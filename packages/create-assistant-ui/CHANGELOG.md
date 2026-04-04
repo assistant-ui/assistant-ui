@@ -1,5 +1,39 @@
 # create-assistant-ui
 
+## 0.0.50
+
+### Patch Changes
+
+- Updated dependencies [69eb0c5]
+- Updated dependencies [9103282]
+- Updated dependencies [bdce66f]
+- Updated dependencies [4abb898]
+  - assistant-ui@0.0.87
+
+## 0.0.49
+
+### Patch Changes
+
+- Updated dependencies [52403c3]
+  - assistant-ui@0.0.86
+
+## 0.0.48
+
+### Patch Changes
+
+- Updated dependencies [6becd84]
+- Updated dependencies [c71cb58]
+  - assistant-ui@0.0.85
+
+## 0.0.47
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- Updated dependencies [349f3c7]
+- Updated dependencies [dbb2929]
+  - assistant-ui@0.0.84
+
 ## 0.0.46
 
 ### Patch Changes

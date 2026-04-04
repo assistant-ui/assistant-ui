@@ -37,6 +37,66 @@ describe("AISDKMessageConverter", () => {
     expect(converted[0]?.attachments?.[1]?.type).toBe("file");
   });
 
+  it("converts assistant image file parts into file content", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "text", text: "Here is the image" },
+          {
+            type: "file",
+            mediaType: "image/png",
+            url: "https://cdn/generated.png",
+            filename: "generated.png",
+          },
+        ],
+      } as any,
+    ]);
+
+    expect(converted).toHaveLength(1);
+    expect(converted[0]?.role).toBe("assistant");
+    expect(converted[0]?.content).toHaveLength(2);
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "text",
+      text: "Here is the image",
+    });
+    expect(converted[0]?.content[1]).toMatchObject({
+      type: "file",
+      data: "https://cdn/generated.png",
+      mimeType: "image/png",
+      filename: "generated.png",
+    });
+  });
+
+  it("converts assistant non-image file parts into file content", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "text", text: "Here is the PDF" },
+          {
+            type: "file",
+            mediaType: "application/pdf",
+            url: "data:application/pdf;base64,abc123",
+            filename: "report.pdf",
+          },
+        ],
+      } as any,
+    ]);
+
+    expect(converted).toHaveLength(1);
+    expect(converted[0]?.role).toBe("assistant");
+    expect(converted[0]?.content).toHaveLength(2);
+    expect(converted[0]?.content[1]).toMatchObject({
+      type: "file",
+      data: "data:application/pdf;base64,abc123",
+      mimeType: "application/pdf",
+      filename: "report.pdf",
+    });
+  });
+
   it("deduplicates tool calls by toolCallId and maps interrupt states", () => {
     const converted = AISDKMessageConverter.toThreadMessages(
       [

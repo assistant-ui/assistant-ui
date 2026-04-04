@@ -1,7 +1,15 @@
 "use client";
 
-import { forwardRef, useCallback, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useState,
+  type ReactElement,
+  cloneElement,
+  isValidElement,
+} from "react";
 
+import { composeEventHandlers } from "@radix-ui/primitive";
 import { Slot } from "radix-ui";
 import React from "react";
 import { useAui } from "@assistant-ui/store";
@@ -10,6 +18,7 @@ export namespace ComposerPrimitiveAttachmentDropzone {
   export type Element = HTMLDivElement;
   export type Props = React.HTMLAttributes<HTMLDivElement> & {
     asChild?: boolean | undefined;
+    render?: ReactElement | undefined;
     disabled?: boolean | undefined;
   };
 }
@@ -17,7 +26,7 @@ export namespace ComposerPrimitiveAttachmentDropzone {
 export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   HTMLDivElement,
   ComposerPrimitiveAttachmentDropzone.Props
->(({ disabled, asChild = false, children, ...rest }, ref) => {
+>(({ disabled, asChild = false, render, children, ...rest }, ref) => {
   const [isDragging, setIsDragging] = useState(false);
   const aui = useAui();
 
@@ -68,25 +77,39 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
     [disabled, aui],
   );
 
-  const dragProps = {
-    onDragEnterCapture: handleDragEnterCapture,
-    onDragOverCapture: handleDragOverCapture,
-    onDragLeaveCapture: handleDragLeaveCapture,
-    onDropCapture: handleDrop,
+  const mergedProps = {
+    ...(isDragging ? { "data-dragging": "true" } : null),
+    ...rest,
+    onDragEnterCapture: composeEventHandlers(
+      rest.onDragEnterCapture,
+      handleDragEnterCapture,
+    ),
+    onDragOverCapture: composeEventHandlers(
+      rest.onDragOverCapture,
+      handleDragOverCapture,
+    ),
+    onDragLeaveCapture: composeEventHandlers(
+      rest.onDragLeaveCapture,
+      handleDragLeaveCapture,
+    ),
+    onDropCapture: composeEventHandlers(rest.onDropCapture, handleDrop),
+    ref,
   };
 
-  const Comp = asChild ? Slot.Root : "div";
+  if (render && isValidElement(render)) {
+    const renderChildren =
+      children !== undefined
+        ? children
+        : (render.props as Record<string, unknown>).children;
+    return (
+      <Slot.Root {...mergedProps}>
+        {cloneElement(render, undefined, renderChildren as React.ReactNode)}
+      </Slot.Root>
+    );
+  }
 
-  return (
-    <Comp
-      {...(isDragging ? { "data-dragging": "true" } : null)}
-      ref={ref}
-      {...dragProps}
-      {...rest}
-    >
-      {children}
-    </Comp>
-  );
+  const Comp = asChild ? Slot.Root : "div";
+  return <Comp {...mergedProps}>{children}</Comp>;
 });
 
 ComposerPrimitiveAttachmentDropzone.displayName =

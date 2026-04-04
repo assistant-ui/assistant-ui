@@ -13,7 +13,9 @@ onlyBuiltDependencies:
   - core-js
   - esbuild
   - protobufjs
+  - react-grab
   - sharp@0.34.5
+  - sqlite3
   - unrs-resolver@1.11.1
 
 strictDepBuilds: true

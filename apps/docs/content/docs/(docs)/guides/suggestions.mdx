@@ -102,11 +102,9 @@ const ThreadWelcome = () => {
 
       {/* Display suggestions */}
       <div className="grid grid-cols-2 gap-2">
-        <ThreadPrimitive.Suggestions
-          components={{
-            Suggestion: SuggestionItem,
-          }}
-        />
+        <ThreadPrimitive.Suggestions>
+          {() => <SuggestionItem />}
+        </ThreadPrimitive.Suggestions>
       </div>
     </div>
   );
@@ -135,11 +133,9 @@ const SuggestionItem = () => {
 Renders all suggestions from the suggestions scope.
 
 ```tsx
-<ThreadPrimitive.Suggestions
-  components={{
-    Suggestion: CustomSuggestionComponent,
-  }}
-/>
+<ThreadPrimitive.Suggestions>
+  {() => <CustomSuggestionComponent />}
+</ThreadPrimitive.Suggestions>
 ```
 
 ### SuggestionPrimitive.Title
@@ -276,11 +272,9 @@ const aui = useAui({
 2. Display suggestions using the primitives:
 
 ```tsx
-<ThreadPrimitive.Suggestions
-  components={{
-    Suggestion: SuggestionItem,
-  }}
-/>
+<ThreadPrimitive.Suggestions>
+  {() => <SuggestionItem />}
+</ThreadPrimitive.Suggestions>
 ```
 
 The new API provides:

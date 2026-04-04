@@ -16,11 +16,11 @@ import type {
 } from "../../runtime/interfaces/thread-runtime-core";
 import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-core";
 import type {
-  RunConfig,
   AppendMessage,
   ThreadAssistantMessage,
-} from "../../types";
-import type { ModelContextProvider } from "../../model-context";
+} from "../../types/message";
+import type { RunConfig } from "../../types/message";
+import type { ModelContextProvider } from "../../model-context/types";
 
 class AbortError extends Error {
   override name = "AbortError";
@@ -45,8 +45,10 @@ export class LocalThreadRuntimeCore
     unstable_copy: true,
     speech: false,
     dictation: false,
+    voice: false,
     attachments: false,
     feedback: false,
+    queue: false,
   };
 
   private abortController: AbortController | null = null;
@@ -114,6 +116,12 @@ export class LocalThreadRuntimeCore
     const canDictate = options.adapters?.dictation !== undefined;
     if (this.capabilities.dictation !== canDictate) {
       this.capabilities.dictation = canDictate;
+      hasUpdates = true;
+    }
+
+    const canVoice = options.adapters?.voice !== undefined;
+    if (this.capabilities.voice !== canVoice) {
+      this.capabilities.voice = canVoice;
       hasUpdates = true;
     }
 

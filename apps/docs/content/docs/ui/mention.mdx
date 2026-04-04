@@ -1,0 +1,168 @@
+---
+title: Mention
+description: Let users @-mention tools in the composer with a keyboard-navigable popover picker and inline chips.
+---
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `composer-mention`
+
+<InstallCommand shadcn={["composer-mention"]} />
+
+This adds a `/components/assistant-ui/composer-mention.tsx` file with `ComposerMentionPopover`, `ComposerMentionRoot`, and `DirectiveText`.
+
+  </Step>
+  <Step>
+
+### Wrap the Composer
+
+Wrap your composer with `ComposerMentionPopover.Root` and add `<ComposerMentionPopover />` inside:
+
+```tsx title="components/assistant-ui/thread.tsx" {1,7,10}
+import { ComposerMentionPopover } from "@/components/assistant-ui/composer-mention";
+
+const Composer = () => {
+  return (
+    <ComposerMentionPopover.Root>
+      <ComposerPrimitive.Root>
+        <ComposerPrimitive.Input placeholder="Type @ to mention a tool..." />
+        <ComposerPrimitive.Send />
+        <ComposerMentionPopover />
+      </ComposerPrimitive.Root>
+    </ComposerMentionPopover.Root>
+  );
+};
+```
+
+The popover automatically shows registered tools when the user types `@`.
+
+  </Step>
+  <Step>
+
+### Render Mentions in User Messages
+
+Use `DirectiveText` as the `Text` component for **user messages** so mention directives render as inline chips instead of raw `:tool[label]` syntax:
+
+```tsx title="components/assistant-ui/thread.tsx" {1,8}
+import { DirectiveText } from "@/components/assistant-ui/composer-mention";
+
+const UserMessage = () => {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts
+        components={{
+          Text: DirectiveText,
+        }}
+      />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+<Callout>
+  `DirectiveText` renders plain text with mention chips. For assistant messages
+  that contain markdown, keep using your markdown renderer (e.g. `MarkdownText`).
+</Callout>
+
+  </Step>
+</Steps>
+
+## With Lexical Rich Editor
+
+For inline mention chips in the composer (not just the popover), use `LexicalComposerInput` from `@assistant-ui/react-lexical`:
+
+```bash
+npm install @assistant-ui/react-lexical lexical @lexical/react
+```
+
+Replace `ComposerPrimitive.Input` with `LexicalComposerInput`:
+
+```tsx title="components/assistant-ui/thread.tsx" {1,8}
+import { LexicalComposerInput } from "@assistant-ui/react-lexical";
+
+const Composer = () => {
+  return (
+    <ComposerMentionPopover.Root>
+      <ComposerPrimitive.Root>
+        <LexicalComposerInput placeholder="Type @ to mention a tool..." />
+        <ComposerPrimitive.Send />
+        <ComposerMentionPopover />
+      </ComposerPrimitive.Root>
+    </ComposerMentionPopover.Root>
+  );
+};
+```
+
+`LexicalComposerInput` auto-wires to `MentionContext` — no extra props needed. Selected mentions appear as inline chips that are treated as atomic units (select, delete, undo as a whole).
+
+## Custom Formatter
+
+The default directive format is `:type[label]{name=id}`. To use a custom format, pass a `formatter` to both the mention root and the message renderer:
+
+```tsx
+import { ComposerMentionPopover } from "@/components/assistant-ui/composer-mention";
+import { createDirectiveText } from "@/components/assistant-ui/composer-mention";
+
+const myFormatter = {
+  serialize: (item) => `@${item.id}`,
+  parse: (text) => [{ kind: "text", text }], // implement your parsing
+};
+
+// In composer (textarea path):
+<ComposerMentionPopover.Root formatter={myFormatter}>
+  ...
+</ComposerMentionPopover.Root>
+
+// In composer (Lexical path — also pass formatter):
+<ComposerMentionPopover.Root formatter={myFormatter}>
+  <ComposerPrimitive.Root>
+    <LexicalComposerInput formatter={myFormatter} />
+    ...
+  </ComposerPrimitive.Root>
+</ComposerMentionPopover.Root>
+
+// In user messages:
+const MyDirectiveText = createDirectiveText(myFormatter);
+<MessagePrimitive.Parts components={{ Text: MyDirectiveText }} />
+```
+
+## Keyboard Navigation
+
+The mention popover supports full keyboard navigation out of the box:
+
+| Key | Action |
+| --- | --- |
+| <Kbd>ArrowDown</Kbd> | Highlight next item |
+| <Kbd>ArrowUp</Kbd> | Highlight previous item |
+| <Kbd>Enter</Kbd> | Select highlighted item / drill into category |
+| <Kbd>Escape</Kbd> | Close popover |
+| <Kbd>Backspace</Kbd> | Go back to categories (when query is empty) |
+
+## Components
+
+### `ComposerMentionPopover.Root`
+
+Wraps the composer with mention context and a tool mention adapter. Provides the `@`-trigger detection, keyboard navigation, and popover state.
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `adapter` | `Unstable_MentionAdapter` | Tool adapter | Custom mention adapter |
+| `trigger` | `string` | `"@"` | Character(s) that open the popover |
+| `formatter` | `Unstable_DirectiveFormatter` | Default | Custom directive serializer/parser |
+| `formatLabel` | `(name: string) => string` | Title case | Format tool names for display |
+| `categoryLabel` | `string` | `"Tools"` | Label for the tools category |
+
+### `ComposerMentionPopover`
+
+Pre-built popover containing categories and items lists. Only renders when the `@` trigger is active.
+
+### `DirectiveText`
+
+A `TextMessagePartComponent` that parses `:type[label]{name=id}` directives and renders them as styled inline chips.
+
+### `createDirectiveText(formatter)`
+
+Factory function that creates a `TextMessagePartComponent` using a custom `Unstable_DirectiveFormatter`.

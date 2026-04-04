@@ -33,8 +33,6 @@ function AttachmentPreview() {
   );
 }
 
-const attachmentComponents = { Attachment: AttachmentPreview };
-
 export function Composer() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
@@ -82,7 +80,9 @@ export function Composer() {
     >
       {attachmentsCount > 0 && (
         <View style={styles.attachmentsList}>
-          <ComposerPrimitive.Attachments components={attachmentComponents} />
+          <ComposerPrimitive.Attachments>
+            {() => <AttachmentPreview />}
+          </ComposerPrimitive.Attachments>
         </View>
       )}
       <View

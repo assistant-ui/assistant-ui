@@ -53,6 +53,60 @@ export type LangGraphInterruptState = {
   ns?: string[];
 };
 
+const ROLE_TO_TYPE: Record<string, string> = {
+  user: "human",
+  assistant: "ai",
+  system: "system",
+  tool: "tool",
+};
+
+const normalizeMessageType = <TMessage>(message: TMessage): TMessage => {
+  const msg = message as Record<string, unknown>;
+  if (msg.type) return message;
+  const role = msg.role as string | undefined;
+  if (role && role in ROLE_TO_TYPE) {
+    const { role: _, ...rest } = msg;
+    return { ...rest, type: ROLE_TO_TYPE[role] } as TMessage;
+  }
+  return message;
+};
+
+const extractMessagesFromUpdates = <TMessage>(
+  data: Record<string, unknown>,
+): TMessage[] => {
+  // { messages: [...] } shape
+  if (Array.isArray(data.messages)) {
+    return (data.messages as TMessage[]).map(normalizeMessageType);
+  }
+
+  // { nodeName: { messages: [...] } } shape
+  const messages: TMessage[] = [];
+  for (const value of Object.values(data)) {
+    if (value && typeof value === "object" && "messages" in value) {
+      const nodeMessages = (value as Record<string, unknown>).messages;
+      if (Array.isArray(nodeMessages)) {
+        messages.push(
+          ...(nodeMessages as TMessage[]).map(normalizeMessageType),
+        );
+      }
+    }
+  }
+  return messages;
+};
+
+const extractNewMessagesFromValues = <TMessage extends { id?: string }>(
+  valuesMessages: TMessage[],
+  accumulator: LangGraphMessageAccumulator<TMessage>,
+): TMessage[] => {
+  const existing = new Set(
+    accumulator
+      .getMessages()
+      .map((m) => m.id)
+      .filter(Boolean),
+  );
+  return valuesMessages.filter((m) => m.id && !existing.has(m.id));
+};
+
 const DEFAULT_APPEND_MESSAGE = <TMessage>(
   _: TMessage | undefined,
   curr: TMessage,
@@ -128,26 +182,42 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
         });
 
         let hasTupleMessageEvents = false;
+        let lastValuesMessages: TMessage[] | null = null;
         for await (const chunk of response) {
           switch (chunk.event) {
             case LangGraphKnownEventTypes.MessagesPartial:
             case LangGraphKnownEventTypes.MessagesComplete:
               setMessagesImmediate(accumulator.addMessages(chunk.data));
               break;
-            case LangGraphKnownEventTypes.Updates:
+            case LangGraphKnownEventTypes.Updates: {
               onUpdates?.(chunk.data);
-              if (
-                Array.isArray(chunk.data.messages) &&
-                !hasTupleMessageEvents
-              ) {
-                setMessagesImmediate(
-                  accumulator.replaceMessages(chunk.data.messages),
-                );
+              const extracted = extractMessagesFromUpdates<TMessage>(
+                chunk.data,
+              );
+              if (extracted.length > 0) {
+                setMessagesImmediate(accumulator.addMessages(extracted));
               }
               setInterrupt(chunk.data.__interrupt__?.[0]);
               break;
+            }
             case LangGraphKnownEventTypes.Values:
               onValues?.(chunk.data);
+              if (Array.isArray(chunk.data?.messages)) {
+                lastValuesMessages = chunk.data.messages;
+                if (hasTupleMessageEvents) {
+                  const newMessages = extractNewMessagesFromValues(
+                    chunk.data.messages,
+                    accumulator,
+                  );
+                  if (newMessages.length > 0) {
+                    setMessagesImmediate(accumulator.addMessages(newMessages));
+                  }
+                } else {
+                  setMessagesImmediate(
+                    accumulator.replaceMessages(chunk.data.messages),
+                  );
+                }
+              }
               break;
             case LangGraphKnownEventTypes.Messages: {
               hasTupleMessageEvents = true;
@@ -224,6 +294,12 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               }
               break;
           }
+        }
+
+        // Final reconcile: use the last values snapshot as authoritative state
+        if (lastValuesMessages && !abortController.signal.aborted) {
+          setMessagesImmediate(accumulator.replaceMessages(lastValuesMessages));
+          setMessageMetadata(new Map(accumulator.getMetadataMap()));
         }
       } catch (error) {
         if (

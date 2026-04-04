@@ -1,0 +1,624 @@
+---
+title: Google ADK
+description: Connect to Google ADK (Agent Development Kit) agents with streaming, tool calls, and multi-agent support.
+---
+
+The `@assistant-ui/react-google-adk` package provides integration with [Google ADK JS](https://github.com/google/adk-js), Google's official agent framework for TypeScript. It supports streaming text, tool calls, multi-agent orchestration, code execution, session state, tool confirmations, auth flows, and more.
+
+## Requirements
+
+You need a Google ADK agent running on a server. ADK supports `LlmAgent` with Gemini models, tool use, multi-agent orchestration (sequential, parallel, loop agents), and session management.
+
+## Installation
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-google-adk", "@google/adk"]} />
+
+<Callout type="info">
+  `@google/adk` is only needed on the server side. The client-side runtime has no dependency on it.
+</Callout>
+
+## Getting Started
+
+<Steps>
+<Step>
+
+### Create a backend API endpoint
+
+Use `createAdkApiRoute` to create an API route in one line:
+
+```typescript title="app/api/chat/route.ts"
+import { createAdkApiRoute } from "@assistant-ui/react-google-adk/server";
+import { InMemoryRunner, LlmAgent } from "@google/adk";
+
+const agent = new LlmAgent({
+  name: "my_agent",
+  model: "gemini-2.5-flash",
+  instruction: "You are a helpful assistant.",
+});
+
+const runner = new InMemoryRunner({ agent, appName: "my-app" });
+
+export const POST = createAdkApiRoute({
+  runner,
+  userId: "user_1",
+  sessionId: (req) =>
+    new URL(req.url).searchParams.get("sessionId") ?? "default",
+});
+```
+
+</Step>
+<Step>
+
+### Set up the client runtime
+
+Use `createAdkStream` to connect to your API route — no manual SSE parsing needed:
+
+```tsx title="components/MyAssistant.tsx"
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import {
+  useAdkRuntime,
+  createAdkStream,
+} from "@assistant-ui/react-google-adk";
+import { Thread } from "@/components/assistant-ui/thread";
+
+export function MyAssistant() {
+  const runtime = useAdkRuntime({
+    stream: createAdkStream({ api: "/api/chat" }),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Step>
+<Step>
+
+### Use the component
+
+```tsx title="app/page.tsx"
+import { MyAssistant } from "@/components/MyAssistant";
+
+export default function Home() {
+  return (
+    <main className="h-dvh">
+      <MyAssistant />
+    </main>
+  );
+}
+```
+
+</Step>
+<Step>
+
+### Setup UI components
+
+Follow the [UI Components](/docs/ui/thread) guide to setup the Thread and other UI components.
+
+</Step>
+</Steps>
+
+## `createAdkStream`
+
+Creates an `AdkStreamCallback` that connects to an ADK endpoint via SSE. Supports two modes:
+
+**Proxy mode** — POST to your own API route:
+
+```typescript
+import { createAdkStream } from "@assistant-ui/react-google-adk";
+
+const stream = createAdkStream({ api: "/api/chat" });
+```
+
+**Direct mode** — connect directly to an ADK server:
+
+```typescript
+const stream = createAdkStream({
+  api: "http://localhost:8000",
+  appName: "my-app",
+  userId: "user-1",
+});
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `api` | `string` | URL to POST to (proxy route or ADK server base URL) |
+| `appName` | `string?` | ADK app name (enables direct mode when set) |
+| `userId` | `string?` | ADK user ID (required with `appName`) |
+| `headers` | `Record<string, string> \| (() => ...)` | Static or dynamic request headers |
+
+## Direct ADK Server Connection
+
+When connecting directly to an ADK server (without a proxy API route), use `createAdkSessionAdapter` to back your thread list with ADK sessions:
+
+```tsx
+import {
+  useAdkRuntime,
+  createAdkStream,
+  createAdkSessionAdapter,
+} from "@assistant-ui/react-google-adk";
+
+const ADK_URL = "http://localhost:8000";
+
+const { adapter, load, artifacts } = createAdkSessionAdapter({
+  apiUrl: ADK_URL,
+  appName: "my-app",
+  userId: "user-1",
+});
+
+const runtime = useAdkRuntime({
+  stream: createAdkStream({
+    api: ADK_URL,
+    appName: "my-app",
+    userId: "user-1",
+  }),
+  sessionAdapter: adapter,
+  load,
+});
+```
+
+The session adapter maps ADK sessions to assistant-ui threads:
+
+- **`adapter`** — a `RemoteThreadListAdapter` that uses ADK's session REST API for thread CRUD
+- **`load`** — reconstructs messages from session events via `AdkEventAccumulator`
+- **`artifacts`** — functions to fetch, list, and delete session artifacts (see [Artifact Fetching](#artifact-fetching))
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `apiUrl` | `string` | ADK server base URL |
+| `appName` | `string` | ADK app name |
+| `userId` | `string` | ADK user ID |
+| `headers` | `Record<string, string> \| (() => ...)` | Static or dynamic request headers |
+
+## Server Helpers
+
+### `createAdkApiRoute`
+
+One-liner API route handler that combines request parsing and SSE streaming:
+
+```typescript
+import { createAdkApiRoute } from "@assistant-ui/react-google-adk/server";
+
+export const POST = createAdkApiRoute({
+  runner,
+  userId: "default-user",
+  sessionId: (req) =>
+    new URL(req.url).searchParams.get("sessionId") ?? "default",
+});
+```
+
+Both `userId` and `sessionId` accept a static string or a function `(req: Request) => string` for dynamic resolution (e.g. from cookies, headers, or query params).
+
+### `adkEventStream`
+
+Converts an `AsyncGenerator<Event>` from ADK's `Runner.runAsync()` into an SSE `Response`. Sends an initial `:ok` comment to keep connections alive through proxies.
+
+```typescript
+import { adkEventStream } from "@assistant-ui/react-google-adk/server";
+
+const events = runner.runAsync({ userId, sessionId, newMessage });
+return adkEventStream(events);
+```
+
+### `parseAdkRequest` / `toAdkContent`
+
+Lower-level helpers for custom API routes. Parse incoming requests and convert to ADK's `Content` format. Supports user messages, tool results, `stateDelta`, `checkpointId`, and multimodal content:
+
+```typescript
+import { parseAdkRequest, toAdkContent } from "@assistant-ui/react-google-adk/server";
+
+const parsed = await parseAdkRequest(req);
+// parsed.type is "message" or "tool-result"
+// parsed.config contains runConfig, checkpointId
+// parsed.stateDelta contains session state changes
+
+const newMessage = toAdkContent(parsed);
+const events = runner.runAsync({
+  userId,
+  sessionId,
+  newMessage,
+  stateDelta: parsed.stateDelta,
+});
+return adkEventStream(events);
+```
+
+## Hooks
+
+### Agent & Session State
+
+```typescript
+import {
+  useAdkAgentInfo,
+  useAdkSessionState,
+  useAdkSend,
+} from "@assistant-ui/react-google-adk";
+
+function MyComponent() {
+  // Current active agent name and branch path (multi-agent)
+  const agentInfo = useAdkAgentInfo();
+  // agentInfo?.name = "search_agent"
+  // agentInfo?.branch = "root.search_agent"
+
+  // Accumulated session state delta
+  const state = useAdkSessionState();
+
+  // Send raw ADK messages programmatically
+  const send = useAdkSend();
+}
+```
+
+### Tool Confirmations
+
+When ADK's `SecurityPlugin` or tool callbacks request user confirmation before executing a tool, use `useAdkToolConfirmations` to read pending requests and `useAdkConfirmTool` to respond:
+
+```typescript
+import {
+  useAdkToolConfirmations,
+  useAdkConfirmTool,
+} from "@assistant-ui/react-google-adk";
+
+function ToolConfirmationUI() {
+  const confirmations = useAdkToolConfirmations();
+  const confirmTool = useAdkConfirmTool();
+
+  if (confirmations.length === 0) return null;
+
+  return confirmations.map((conf) => (
+    <div key={conf.toolCallId}>
+      <p>Tool "{conf.toolName}" wants to run. {conf.hint}</p>
+      <button onClick={() => confirmTool(conf.toolCallId, true)}>
+        Approve
+      </button>
+      <button onClick={() => confirmTool(conf.toolCallId, false)}>
+        Deny
+      </button>
+    </div>
+  ));
+}
+```
+
+### Auth Requests
+
+When a tool requires OAuth or other authentication, use `useAdkAuthRequests` to read pending requests and `useAdkSubmitAuth` to submit credentials:
+
+```typescript
+import {
+  useAdkAuthRequests,
+  useAdkSubmitAuth,
+  type AdkAuthCredential,
+} from "@assistant-ui/react-google-adk";
+
+function AuthUI() {
+  const authRequests = useAdkAuthRequests();
+  const submitAuth = useAdkSubmitAuth();
+
+  if (authRequests.length === 0) return null;
+
+  return authRequests.map((req) => (
+    <div key={req.toolCallId}>
+      <button onClick={() => {
+        const credential: AdkAuthCredential = {
+          authType: "oauth2",
+          oauth2: { accessToken: "..." },
+        };
+        submitAuth(req.toolCallId, credential);
+      }}>
+        Authenticate
+      </button>
+    </div>
+  ));
+}
+```
+
+`AdkAuthCredential` supports all ADK auth types: `apiKey`, `http`, `oauth2`, `openIdConnect`, `serviceAccount`.
+
+### Artifacts
+
+Track file artifacts created or modified by the agent:
+
+```typescript
+import { useAdkArtifacts } from "@assistant-ui/react-google-adk";
+
+function ArtifactList() {
+  const artifacts = useAdkArtifacts();
+  // Record<string, number> — filename to version number
+}
+```
+
+#### Artifact Fetching
+
+When using `createAdkSessionAdapter`, the returned `artifacts` object provides functions to fetch artifact content from the ADK server:
+
+```typescript
+const { artifacts } = createAdkSessionAdapter({ apiUrl, appName, userId });
+
+// List all artifact filenames in a session
+const filenames = await artifacts.list(sessionId);
+
+// Load artifact content (latest version)
+const data = await artifacts.load(sessionId, "document.pdf");
+// data.inlineData?.data — base64 content
+// data.inlineData?.mimeType — MIME type
+// data.text — text content (if text artifact)
+
+// Load a specific version
+const v1 = await artifacts.load(sessionId, "document.pdf", 1);
+
+// List all versions
+const versions = await artifacts.listVersions(sessionId, "document.pdf");
+
+// Delete an artifact
+await artifacts.delete(sessionId, "document.pdf");
+```
+
+### Escalation
+
+Detect when an agent requests escalation to a human operator:
+
+```typescript
+import { useAdkEscalation } from "@assistant-ui/react-google-adk";
+
+function EscalationBanner() {
+  const escalated = useAdkEscalation();
+  if (!escalated) return null;
+  return <div>Agent has requested human assistance.</div>;
+}
+```
+
+### Long-Running Tools
+
+Track tools that are executing asynchronously and awaiting external input:
+
+```typescript
+import { useAdkLongRunningToolIds } from "@assistant-ui/react-google-adk";
+
+function PendingToolsIndicator() {
+  const pendingToolIds = useAdkLongRunningToolIds();
+  if (pendingToolIds.length === 0) return null;
+  return <div>{pendingToolIds.length} tool(s) awaiting input</div>;
+}
+```
+
+### Per-Message Metadata
+
+Access grounding, citation, and token usage metadata per message:
+
+```typescript
+import { useAdkMessageMetadata } from "@assistant-ui/react-google-adk";
+
+function MessageMetadata({ messageId }: { messageId: string }) {
+  const metadataMap = useAdkMessageMetadata();
+  const meta = metadataMap.get(messageId);
+  // meta?.groundingMetadata — Google Search grounding sources
+  // meta?.citationMetadata — citation references
+  // meta?.usageMetadata — token counts
+}
+```
+
+### Session State by Scope
+
+ADK uses key prefixes to scope state. These helpers filter and strip the prefix:
+
+```typescript
+import {
+  useAdkAppState,
+  useAdkUserState,
+  useAdkTempState,
+} from "@assistant-ui/react-google-adk";
+
+function StateDebug() {
+  const appState = useAdkAppState();   // app:* keys (app-level, shared)
+  const userState = useAdkUserState(); // user:* keys (user-level)
+  const tempState = useAdkTempState(); // temp:* keys (not persisted)
+}
+```
+
+Use `useAdkSessionState()` for the full unfiltered state delta.
+
+## Structured Events
+
+Convert raw ADK events into typed, structured events for custom renderers:
+
+```typescript
+import {
+  toAdkStructuredEvents,
+  AdkEventType,
+  type AdkStructuredEvent,
+} from "@assistant-ui/react-google-adk";
+
+const structured = toAdkStructuredEvents(event);
+for (const e of structured) {
+  switch (e.type) {
+    case AdkEventType.CONTENT:
+      console.log("Text:", e.content);
+      break;
+    case AdkEventType.THOUGHT:
+      console.log("Reasoning:", e.content);
+      break;
+    case AdkEventType.TOOL_CALL:
+      console.log("Tool:", e.call.name, e.call.args);
+      break;
+    case AdkEventType.ERROR:
+      console.error(e.errorMessage);
+      break;
+  }
+}
+```
+
+## State Delta
+
+Send session state mutations along with messages using `stateDelta`:
+
+```typescript
+const send = useAdkSend();
+
+// Pre-populate session state before the agent runs
+send(
+  [{ id: "1", type: "human", content: "Start task" }],
+  { stateDelta: { taskId: "abc", mode: "verbose" } },
+);
+```
+
+This maps to ADK's `stateDelta` parameter on `/run_sse`.
+
+## RunConfig
+
+Pass `AdkRunConfig` to control agent behavior:
+
+```typescript
+const send = useAdkSend();
+
+send(messages, {
+  runConfig: {
+    streamingMode: "sse",
+    maxLlmCalls: 10,
+    pauseOnToolCalls: true, // pause for client-side tool execution
+  },
+});
+```
+
+## Event Handlers
+
+Listen to streaming events:
+
+```typescript
+const runtime = useAdkRuntime({
+  stream: createAdkStream({ api: "/api/chat" }),
+  eventHandlers: {
+    onError: (error) => {
+      console.error("Stream error:", error);
+    },
+    onAgentTransfer: (toAgent) => {
+      console.log("Agent transferred to:", toAgent);
+    },
+    onCustomEvent: (key, value) => {
+      // Fired for each entry in event.customMetadata
+      console.log("Custom metadata:", key, value);
+    },
+  },
+});
+```
+
+## Thread Management
+
+### ADK Session Adapter
+
+Use `createAdkSessionAdapter` to persist threads via ADK's session API (see [Direct ADK Server Connection](#direct-adk-server-connection) above).
+
+### Custom Thread Management
+
+```typescript
+const runtime = useAdkRuntime({
+  stream: createAdkStream({ api: "/api/chat" }),
+  create: async () => {
+    const sessionId = await createSession();
+    return { externalId: sessionId };
+  },
+  load: async (externalId) => {
+    const history = await loadSession(externalId);
+    return { messages: history };
+  },
+  delete: async (externalId) => {
+    await deleteSession(externalId);
+  },
+});
+```
+
+### Cloud Persistence
+
+For persistent thread history via assistant-cloud:
+
+```typescript
+import { AssistantCloud } from "assistant-cloud";
+
+const runtime = useAdkRuntime({
+  cloud: new AssistantCloud({
+    baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL,
+    anonymous: true,
+  }),
+  stream: createAdkStream({ api: "/api/chat" }),
+});
+```
+
+## Message Editing & Regeneration
+
+Provide a `getCheckpointId` callback to enable edit and regenerate buttons:
+
+```typescript
+const runtime = useAdkRuntime({
+  stream: createAdkStream({ api: "/api/chat" }),
+  getCheckpointId: async (threadId, parentMessages) => {
+    // Resolve checkpoint ID for server-side forking
+    return checkpointId;
+  },
+});
+```
+
+When `getCheckpointId` is provided:
+- **Edit buttons** appear on user messages
+- **Regenerate buttons** appear on assistant messages
+
+The resolved `checkpointId` is passed to your `stream` callback via `config.checkpointId`.
+
+<Callout type="info">
+  Without `getCheckpointId`, edit and regenerate buttons will not appear.
+</Callout>
+
+## Hooks Reference
+
+| Hook | Description |
+|------|-------------|
+| `useAdkAgentInfo()` | Current agent name and branch path |
+| `useAdkSessionState()` | Full accumulated session state delta |
+| `useAdkAppState()` | App-level state (`app:*` prefix, stripped) |
+| `useAdkUserState()` | User-level state (`user:*` prefix, stripped) |
+| `useAdkTempState()` | Temp state (`temp:*` prefix, stripped, not persisted) |
+| `useAdkSend()` | Send raw ADK messages |
+| `useAdkConfirmTool()` | Confirm or deny a pending tool confirmation |
+| `useAdkSubmitAuth()` | Submit auth credentials for a pending auth request |
+| `useAdkToolConfirmations()` | Pending tool confirmation requests |
+| `useAdkAuthRequests()` | Pending auth credential requests |
+| `useAdkLongRunningToolIds()` | IDs of long-running tools awaiting input |
+| `useAdkArtifacts()` | Artifact delta (filename → version) |
+| `useAdkEscalation()` | Whether escalation was requested |
+| `useAdkMessageMetadata()` | Per-message grounding/citation/usage metadata |
+
+## Features
+
+| Feature | Status |
+|---|---|
+| Streaming text (SSE) | Supported |
+| Tool calls & results | Supported |
+| Tool confirmations (`useAdkConfirmTool`) | Supported |
+| Auth credential flow (`useAdkSubmitAuth`) | Supported |
+| Multi-agent (author/branch tracking) | Supported |
+| Agent transfer events | Supported |
+| Escalation detection | Supported |
+| Chain-of-thought / reasoning | Supported |
+| Code execution (executableCode + result) | Supported |
+| Inline images & file data | Supported |
+| Session state delta + scoped state | Supported |
+| Artifact delta tracking + fetching | Supported |
+| Long-running tools (HITL) | Supported |
+| Grounding / citation / usage metadata | Supported |
+| Structured events (`toAdkStructuredEvents`) | Supported |
+| Typed `AdkRunConfig` | Supported |
+| Client → server `stateDelta` | Supported |
+| `finishReason` mapping (17 values) | Supported |
+| `interrupted` event handling | Supported |
+| Snake\_case events (Python ADK) | Supported |
+| Cloud thread persistence | Supported |
+| ADK session-backed thread persistence | Supported |
+| Direct ADK server connection (no proxy) | Supported |
+| One-liner API route (`createAdkApiRoute`) | Supported |
+| Message editing & regeneration | Supported |
+| Automatic tool invocations | Supported |
+
+### ADK Python Backend
+
+The package automatically normalizes snake\_case event fields from ADK Python backends to camelCase. No configuration needed — connect to either ADK JS or ADK Python servers. This includes all nested fields: `function_call` → `functionCall`, `requested_tool_confirmations` → `requestedToolConfirmations`, etc.

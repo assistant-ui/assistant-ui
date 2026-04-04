@@ -4,7 +4,7 @@ import {
   ComponentPropsWithoutRef,
   MouseEventHandler,
 } from "react";
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "./Primitive";
 import { composeEventHandlers } from "@radix-ui/primitive";
 
 type ActionButtonCallback<TProps> = (

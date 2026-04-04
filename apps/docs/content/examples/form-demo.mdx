@@ -20,10 +20,8 @@ This example demonstrates how to create an AI assistant sidebar that helps users
 
 - **Sidebar Integration**: AI assistant lives alongside your form
 - **Field Mapping**: Assistant directly modifies form field values
-- **Smart Suggestions**: AI understands context and suggests appropriate values
-- **Validation Awareness**: Respects form validation rules
-- **Undo Support**: Users can review and revert AI changes
-- **React Hook Form**: Seamless integration with popular form library
+- **Smart Suggestions**: Pre-built prompt suggestions for common actions
+- **React Hook Form**: Seamless integration via `useAssistantForm`
 
 ## Use Cases
 
@@ -34,73 +32,153 @@ This example demonstrates how to create an AI assistant sidebar that helps users
 
 ## Integration
 
-The example uses `@assistant-ui/react-hook-form` to connect the AI with form state:
+The example uses `useAssistantForm` from `@assistant-ui/react-hook-form` to connect the AI with form state. This hook replaces the standard `useForm` and automatically registers `set_form_field` and `submit_form` tools with the assistant.
+
+### Runtime Provider
 
 ```tsx
-import { useFormContext } from "react-hook-form";
-import { makeAssistantToolUI } from "@assistant-ui/react";
-import { AssistantSidebar } from "@assistant-ui/react";
+// app/MyRuntimeProvider.tsx
+"use client";
 
-// Define a tool that sets form field values
-const SetFieldTool = makeAssistantToolUI({
-  toolName: "set_field",
-  render: ({ args, status }) => {
-    const { setValue, getValues } = useFormContext();
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
-    useEffect(() => {
-      if (status === "complete") {
-        setValue(args.field, args.value, { shouldValidate: true });
-      }
-    }, [args.field, args.value, status, setValue]);
+export function MyRuntimeProvider({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  const runtime = useChatRuntime();
 
-    return (
-      <div className="text-sm text-muted-foreground">
-        Setting {args.field} to "{args.value}"...
-      </div>
-    );
-  },
-});
-
-// Backend tool definition
-const tools = {
-  set_field: {
-    description: "Set a form field to a specific value",
-    parameters: z.object({
-      field: z.string().describe("The name of the form field"),
-      value: z.string().describe("The value to set"),
-    }),
-  },
-};
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
 ```
 
-### Form Integration Pattern
+### Backend Route
+
+```ts
+// app/api/chat/route.ts
+import { openai } from "@ai-sdk/openai";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { convertToModelMessages, streamText } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages: await convertToModelMessages(messages),
+    system,
+    tools: {
+      ...frontendTools(tools),
+    },
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+### Page Component
 
 ```tsx
-export default function FormPage() {
-  const form = useForm({
-    defaultValues: { name: "", email: "", company: "" },
+// app/page.tsx
+"use client";
+
+import { SignupForm } from "@/components/SignupForm";
+import { AssistantSidebar } from "@/components/assistant-ui/assistant-sidebar";
+import { Form } from "@/components/ui/form";
+import { useAssistantForm } from "@assistant-ui/react-hook-form";
+import {
+  useAssistantInstructions,
+  useAui,
+  AuiProvider,
+  Suggestions,
+} from "@assistant-ui/react";
+
+const SetFormFieldTool = () => {
+  return (
+    <p className="text-center font-bold font-mono text-blue-500 text-sm">
+      set_form_field(...)
+    </p>
+  );
+};
+
+const SubmitFormTool = () => {
+  return (
+    <p className="text-center font-bold font-mono text-blue-500 text-sm">
+      submit_form(...)
+    </p>
+  );
+};
+
+export default function Home() {
+  useAssistantInstructions("Help users sign up for the hackathon.");
+
+  const form = useAssistantForm({
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      cityAndCountry: "",
+      projectIdea: "",
+      proficientTechnologies: "",
+    },
+    assistant: {
+      tools: {
+        set_form_field: {
+          render: SetFormFieldTool,
+        },
+        submit_form: {
+          render: SubmitFormTool,
+        },
+      },
+    },
+  });
+
+  const aui = useAui({
+    suggestions: Suggestions([
+      {
+        title: "Fill out the form",
+        label: "with sample data",
+        prompt: "Please fill out the signup form with sample data for me.",
+      },
+      {
+        title: "Help me register",
+        label: "for the hackathon",
+        prompt:
+          "I'd like to sign up for the hackathon. My name is Jane Doe and my email is jane@example.com.",
+      },
+    ]),
   });
 
   return (
-    <FormProvider {...form}>
-      <div className="flex">
-        <form className="flex-1">
-          {/* Your form fields */}
-        </form>
-        <AssistantSidebar tools={[SetFieldTool]} />
-      </div>
-    </FormProvider>
+    <AuiProvider value={aui}>
+      <AssistantSidebar>
+        <div className="h-full overflow-y-scroll">
+          <main className="container py-8">
+            <h1 className="mb-2 font-semibold text-2xl">Hackathon Signup</h1>
+            <Form {...form}>
+              <SignupForm />
+            </Form>
+          </main>
+        </div>
+      </AssistantSidebar>
+    </AuiProvider>
   );
 }
 ```
 
 ### How It Works
 
-1. User opens the assistant sidebar
-2. User describes what they want to fill (e.g., "Fill in my contact info: John Doe, john@example.com")
-3. AI parses the request and calls `set_field` tool for each field
-4. React Hook Form receives the values and updates the UI
-5. User can review and submit the form
+1. `useAssistantForm` wraps React Hook Form's `useForm` and automatically exposes `set_form_field` and `submit_form` as frontend tools
+2. The backend receives these tool definitions via `frontendTools()` and passes them to the model
+3. When the AI calls `set_form_field`, the form field is updated directly via React Hook Form
+4. Custom `render` components display a visual indicator in the chat while the tool executes
+5. `useAui` with `Suggestions` adds pre-built prompt suggestions to the assistant UI
 
 ## Source
 

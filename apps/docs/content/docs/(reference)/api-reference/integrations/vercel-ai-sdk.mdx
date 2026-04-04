@@ -57,21 +57,28 @@ const runtime = useChatRuntime({
           type: "UseChatRuntimeOptions",
           parameters: [
             {
-              name: "api",
-              type: "string",
-              description: "The API endpoint URL. Defaults to '/api/chat'.",
-            },
-            {
               name: "transport",
               type: "ChatTransport",
               description:
-                "Custom transport implementation. Defaults to AssistantChatTransport which forwards system messages and tools.",
+                "Custom transport implementation. Defaults to AssistantChatTransport (which sends requests to '/api/chat' and forwards system messages and tools). Use `new AssistantChatTransport({ api: '/custom-endpoint' })` to customize the endpoint.",
             },
             {
               name: "cloud",
               type: "AssistantCloud",
               description:
                 "Optional AssistantCloud instance for chat persistence.",
+            },
+            {
+              name: "adapters",
+              type: "RuntimeAdapters",
+              description:
+                "Optional runtime adapters to extend or override built-in functionality (attachments, speech, dictation, feedback, history).",
+            },
+            {
+              name: "toCreateMessage",
+              type: "(message: AppendMessage) => CreateUIMessage",
+              description:
+                "Optional custom function to convert an AppendMessage into an AI SDK CreateUIMessage before sending.",
             },
             {
               name: "initialMessages",
@@ -134,18 +141,12 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
     },
     {
       name: "options",
-      type: "AISDKRuntimeOptions",
+      type: "AISDKRuntimeAdapter",
       description: "Optional configuration options.",
       children: [
         {
-          type: "AISDKRuntimeOptions",
+          type: "AISDKRuntimeAdapter",
           parameters: [
-            {
-              name: "cloud",
-              type: "AssistantCloud",
-              description:
-                "Optional AssistantCloud instance for chat persistence.",
-            },
             {
               name: "adapters",
               type: "RuntimeAdapters",
@@ -221,7 +222,7 @@ export async function POST(req: Request) {
   const result = streamText({
     model: openai("gpt-4o"),
     system,
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     tools: {
       // Wrap frontend tools with the helper
       ...frontendTools(tools),

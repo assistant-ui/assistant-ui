@@ -37,13 +37,18 @@ const MyComposerAttachment = () => (
 
 Contains all parts of the attachment.
 
-This primitive renders a `<div>` element unless `asChild` is set.
+This primitive renders a `<div>` element unless `asChild` is set. Accepts all standard HTML div element props.
 
 <ParametersTable
   type="AttachmentPrimitiveRootProps"
   parameters={[
     {
       name: "asChild",
+    },
+    {
+      name: "...props",
+      type: "HTMLAttributes<HTMLDivElement>",
+      description: "All standard div element props are forwarded to the underlying element.",
     },
   ]}
 />
@@ -52,13 +57,18 @@ This primitive renders a `<div>` element unless `asChild` is set.
 
 The thumbnail of the attachment.
 
-This primitive renders a `<div>` element unless `asChild` is set.
+This primitive renders a `<div>` element unless `asChild` is set. Accepts all standard HTML div element props.
 
 <ParametersTable
   type="AttachmentPrimitiveThumbProps"
   parameters={[
     {
       name: "asChild",
+    },
+    {
+      name: "...props",
+      type: "HTMLAttributes<HTMLDivElement>",
+      description: "All standard div element props are forwarded to the underlying element.",
     },
   ]}
 />
@@ -67,15 +77,11 @@ This primitive renders a `<div>` element unless `asChild` is set.
 
 The name of the attachment.
 
-This primitive renders a `<div>` element unless `asChild` is set.
+This primitive renders a text node with the attachment's file name. It accepts no props.
 
 <ParametersTable
   type="AttachmentPrimitiveNameProps"
-  parameters={[
-    {
-      name: "asChild",
-    },
-  ]}
+  parameters={[]}
 />
 
 ### Remove

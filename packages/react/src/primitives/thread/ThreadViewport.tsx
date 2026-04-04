@@ -1,7 +1,7 @@
 "use client";
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "../../utils/Primitive";
 import {
   type ComponentRef,
   forwardRef,
@@ -105,7 +105,9 @@ ThreadPrimitiveViewportScrollable.displayName =
  * @example
  * ```tsx
  * <ThreadPrimitive.Viewport turnAnchor="top">
- *   <ThreadPrimitive.Messages components={{ Message: MyMessage }} />
+ *   <ThreadPrimitive.Messages>
+ *     {() => <MyMessage />}
+ *   </ThreadPrimitive.Messages>
  * </ThreadPrimitive.Viewport>
  * ```
  */

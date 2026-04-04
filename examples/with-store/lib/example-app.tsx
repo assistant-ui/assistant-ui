@@ -169,7 +169,7 @@ export const ExampleApp = () => {
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <FooList components={{ Foo }} />
+          <FooList>{() => <Foo />}</FooList>
         </div>
         <EventLog />
       </div>

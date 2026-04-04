@@ -337,16 +337,13 @@ async def my_run(controller):
     # Add parts with custom parentId
     research_controller = controller.with_parent_id("research-123")
 
-    await research_controller.add_tool_call("search", {"query": "climate data"})
+    tool = await research_controller.add_tool_call("search")
+    tool.append_args_text('{"query": "climate data"}')
+    tool.set_response("climate data results")
     research_controller.append_text("Key findings from the research:")
 
-    # Add parts with custom metadata
-    controller.append_part({
-        "type": "text",
-        "text": "High priority finding",
-        "priority": "high",
-        "category": "findings"
-    })
+    # Add text with a different parent_id
+    controller.append_text("High priority finding")
 ```
 
 ### TypeScript (assistant-stream)
@@ -517,7 +514,7 @@ import { useAuiState } from "@assistant-ui/react";
 const DynamicGroup: FC<
   PropsWithChildren<{ groupKey: string | undefined; indices: number[] }>
 > = ({ groupKey, indices, children }) => {
-  const parts = useAuiState((s) => s.message.content);
+  const parts = useAuiState((s) => s.message.parts);
   const groupParts = indices.map((i) => parts[i]);
 
   // Analyze group content

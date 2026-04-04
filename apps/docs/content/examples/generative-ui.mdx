@@ -1,0 +1,64 @@
+---
+title: Generative UI Showcase
+description: Charts, date pickers, contact forms, and maps as AI tool UIs
+---
+
+## Overview
+
+This example demonstrates four common generative UI patterns using `makeAssistantToolUI`:
+
+- **Chart Generation** — AI returns structured data, rendered as bar/line/pie charts via Recharts
+- **Date Picker** — AI requests a date selection, user picks via native input, result sent back with `addResult`
+- **Contact Form** — AI collects name, email, and phone through an interactive form tool
+- **Location Map** — AI shows a place on an embedded OpenStreetMap
+
+## Patterns Demonstrated
+
+### Backend-Rendered Tools (Chart, Location)
+
+These tools have both backend `execute` functions and frontend `makeAssistantToolUI` components. The AI generates the data, the backend confirms, and the frontend renders rich UI from `args`:
+
+```tsx
+export const ChartToolUI = makeAssistantToolUI<ChartArgs, ChartResult>({
+  toolName: "generate_chart",
+  render: ({ args, status }) => {
+    const { title, type, data, xKey, dataKeys } = args;
+    // Render a Recharts BarChart/LineChart/PieChart based on args
+    return <ChartContainer config={buildChartConfig(dataKeys)}>...</ChartContainer>;
+  },
+});
+```
+
+### Frontend-Only Tools (Date Picker, Contact Form)
+
+These tools have no backend `execute` — the AI triggers the tool call, and the user completes it through interactive UI. The `addResult` callback sends the user's input back to the AI:
+
+```tsx
+export const DatePickerToolUI = makeAssistantToolUI<DatePickerArgs, DatePickerResult>({
+  toolName: "select_date",
+  render: ({ args, result, addResult }) => {
+    if (result) return <div>Selected: {result.date}</div>;
+
+    return (
+      <div>
+        <p>{args.prompt}</p>
+        <input type="date" onChange={(e) => setValue(e.target.value)} />
+        <button onClick={() => addResult({ date: value })}>Confirm</button>
+      </div>
+    );
+  },
+});
+```
+
+## Key Concepts
+
+| Concept | Used In | Description |
+|---------|---------|-------------|
+| `makeAssistantToolUI` | All 4 tools | Register a React component to render when a specific tool is called |
+| `addResult` | Date Picker, Contact Form | Send user input back to the AI as the tool result |
+| `status.type` | Chart, Location | Show loading states while the AI streams tool arguments |
+| `args` streaming | Chart | Render partial UI as tool arguments stream in |
+
+## Source
+
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-generative-ui" />

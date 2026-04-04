@@ -15,7 +15,7 @@ export type ScopesConfig = {
 type TransformScopesFn = (
   scopes: ScopesConfig,
   parent: AssistantClient,
-) => ScopesConfig;
+) => void;
 
 type ResourceWithTransformScopes = {
   [TRANSFORM_SCOPES]?: TransformScopesFn;
@@ -29,6 +29,25 @@ export function attachTransformScopes<
     throw new Error("transformScopes is already attached to this resource");
   }
   r[TRANSFORM_SCOPES] = transform;
+}
+
+export function forwardTransformScopes<
+  T extends (...args: any[]) => ResourceElement<any>,
+  S extends (...args: any[]) => ResourceElement<any>,
+>(target: T, source: S): void {
+  const sourceTransform = getTransformScopes(source);
+  if (!sourceTransform) return;
+
+  const r = target as T & ResourceWithTransformScopes;
+  const existingTransform = r[TRANSFORM_SCOPES];
+  if (existingTransform) {
+    r[TRANSFORM_SCOPES] = (scopes, parent) => {
+      sourceTransform(scopes, parent);
+      existingTransform(scopes, parent);
+    };
+  } else {
+    r[TRANSFORM_SCOPES] = sourceTransform;
+  }
 }
 
 export function getTransformScopes<

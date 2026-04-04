@@ -13,7 +13,7 @@ import {
   type ReadonlyJSONValue,
 } from "assistant-stream/utils";
 import { isJSONValueEqual } from "../../utils/json/is-json-equal";
-import type { ThreadMessage } from "../../types";
+import type { ThreadMessage } from "../../types/message";
 
 export type AssistantTransportState = {
   readonly messages: readonly ThreadMessage[];
@@ -360,6 +360,13 @@ export function useToolInvocations({
               }
               let lastState = lastToolStates.current[content.toolCallId];
               if (!lastState) {
+                if (content.result !== undefined) {
+                  if (content.messages) {
+                    processMessages(content.messages);
+                  }
+                  return;
+                }
+
                 toolCallIdAliasesRef.current.set(
                   content.toolCallId,
                   content.toolCallId,
@@ -567,6 +574,8 @@ export function useToolInvocations({
   return {
     reset: () => {
       isInitialState.current = true;
+      ignoredToolIds.current.clear();
+      lastToolStates.current = {};
       void abort().finally(() => {
         startedExecutionToolCallIdsRef.current.clear();
         toolCallIdAliasesRef.current.clear();

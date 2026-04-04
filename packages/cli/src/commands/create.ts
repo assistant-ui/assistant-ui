@@ -83,6 +83,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
+    name: "with-google-adk",
+    label: "Google ADK",
+    description: "Google ADK agent integration",
+    category: "example",
+    path: "examples/with-google-adk",
+    hasLocalComponents: false,
+  },
+  {
     name: "with-ai-sdk-v6",
     label: "AI SDK v6",
     description: "Vercel AI SDK v6",
@@ -131,6 +139,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
+    name: "with-elevenlabs-conversational",
+    label: "ElevenLabs Conversational",
+    description: "Realtime voice with ElevenLabs",
+    category: "example",
+    path: "examples/with-elevenlabs-conversational",
+    hasLocalComponents: true,
+  },
+  {
     name: "with-elevenlabs-scribe",
     label: "ElevenLabs Scribe",
     description: "Audio/speech integration",
@@ -139,11 +155,27 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
+    name: "with-livekit",
+    label: "LiveKit Voice",
+    description: "Realtime voice with LiveKit",
+    category: "example",
+    path: "examples/with-livekit",
+    hasLocalComponents: true,
+  },
+  {
     name: "with-expo",
     label: "Expo",
     description: "Expo / React Native",
     category: "example",
     path: "examples/with-expo",
+    hasLocalComponents: true,
+  },
+  {
+    name: "with-interactables",
+    label: "Interactables",
+    description: "AI-driven interactive UI components",
+    category: "example",
+    path: "examples/with-interactables",
     hasLocalComponents: true,
   },
   {

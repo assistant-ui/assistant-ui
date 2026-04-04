@@ -123,7 +123,7 @@ export class MCPBridge implements ExtendedBridge {
       this.contextCallbacks.forEach((cb) => cb(ctx));
     };
 
-    this.app.onteardown = async () => {
+    this.app.onteardown = async (_params, _extra) => {
       for (const cb of this.teardownCallbacks) {
         await cb();
       }
@@ -308,10 +308,15 @@ export class MCPBridge implements ExtendedBridge {
   }
 
   setListToolsHandler(handler: ListToolsHandler): void {
-    this.app.onlisttools = async (params) => {
+    this.app.onlisttools = async (params, _extra) => {
       const cursor = params?.cursor as string | undefined;
-      const tools = await handler(cursor);
-      return { tools };
+      const toolNames = await handler(cursor);
+      return {
+        tools: toolNames.map((name) => ({
+          name,
+          inputSchema: { type: "object" as const },
+        })),
+      };
     };
   }
 

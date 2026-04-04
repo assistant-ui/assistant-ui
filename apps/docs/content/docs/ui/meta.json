@@ -25,6 +25,7 @@
     "thread-list",
     "tool-fallback",
     "tool-group",
+    "voice",
     "---Standalone---",
     "accordion",
     "badge",
@@ -32,6 +33,7 @@
     "select",
     "tabs",
     "---Experimental---",
+    "mention",
     "message-timing",
     "part-grouping"
   ]

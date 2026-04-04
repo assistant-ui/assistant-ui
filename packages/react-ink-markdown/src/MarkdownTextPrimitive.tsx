@@ -20,9 +20,12 @@ type MarkdownTextPrimitiveProps = Omit<MarkdownTextProps, "text"> & {
  *
  * @example
  * ```tsx
- * <MessagePrimitive.Parts
- *   components={{ Text: MarkdownTextPrimitive }}
- * />
+ * <MessagePrimitive.Parts>
+ *   {({ part }) => {
+ *     if (part.type === "text") return <MarkdownTextPrimitive />;
+ *     return null;
+ *   }}
+ * </MessagePrimitive.Parts>
  * ```
  *
  * For use with `MessageContent`'s `renderText` callback (which does not

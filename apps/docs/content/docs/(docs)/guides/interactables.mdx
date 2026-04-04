@@ -1,0 +1,354 @@
+---
+title: Interactables
+description: Persistent UI whose state can be read and updated by the AI assistant.
+---
+
+import { InteractableSample } from "@/components/docs/samples/interactable";
+
+Interactables are React components that live outside the chat message flow and have state that both the user and the AI can read and write. This enables AI-driven UI patterns where the assistant controls parts of your application beyond the chat window.
+
+<InteractableSample />
+
+## Overview
+
+Unlike regular tool UIs that appear inline within messages, interactables:
+
+- **Persist across messages** — they live outside the chat thread
+- **Have shared state** — both the user (via React) and the AI (via auto-generated tools) can update them
+- **Support partial updates** — the AI only needs to send the fields it wants to change
+- **Are developer-placed** — you decide where they render in your app
+- **Auto-register tools** — the AI automatically gets a tool to update each interactable's state
+
+Common use cases:
+
+- Task boards that the AI can add items to
+- Data dashboards that update based on conversation
+- Forms that the AI pre-fills
+- Canvas/editor components that the AI can manipulate
+
+## Quick Start
+
+### 1. Register the Interactables scope
+
+```tsx
+import { useAui, Interactables, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+
+  const aui = useAui({
+    interactables: Interactables(),
+  });
+
+  return (
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+### 2. Create an interactable
+
+<Callout type="warn">
+  Define the `stateSchema` and `initialState` **outside** the component (or
+  memoize them). Creating a new schema on every render will cause the
+  interactable to re-register and reset its state.
+</Callout>
+
+```tsx
+import { useAssistantInteractable, useInteractableState } from "@assistant-ui/react";
+import { z } from "zod";
+
+const taskBoardSchema = z.object({
+  tasks: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      done: z.boolean(),
+    }),
+  ),
+});
+
+const taskBoardInitialState = { tasks: [] };
+
+function TaskBoard() {
+  const id = useAssistantInteractable("taskBoard", {
+    description: "A task board showing the user's tasks",
+    stateSchema: taskBoardSchema,
+    initialState: taskBoardInitialState,
+  });
+  const [state, { setState }] = useInteractableState(id, taskBoardInitialState);
+
+  return (
+    <div>
+      <h2>Tasks</h2>
+      <ul>
+        {state.tasks.map((task) => (
+          <li key={task.id}>
+            <label>
+              <input
+                type="checkbox"
+                checked={task.done}
+                onChange={() =>
+                  setState((prev) => ({
+                    tasks: prev.tasks.map((t) =>
+                      t.id === task.id ? { ...t, done: !t.done } : t,
+                    ),
+                  }))
+                }
+              />
+              {task.title}
+            </label>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+```
+
+### 3. Place it in your layout
+
+```tsx
+function App() {
+  return (
+    <MyRuntimeProvider>
+      <div className="flex">
+        <Thread className="flex-1" />
+        <TaskBoard /> {/* Lives outside the chat */}
+      </div>
+    </MyRuntimeProvider>
+  );
+}
+```
+
+Now when the user says _"Add a task called 'Buy groceries'"_, the AI will automatically call the `update_taskBoard` tool to update the state. Thanks to partial updates, the AI only needs to send the fields it wants to change.
+
+## Partial Updates
+
+Auto-generated tools use a partial schema — all fields become optional. The AI only sends the fields it wants to change; omitted fields keep their current values.
+
+```tsx
+// If the state is { title: "My Note", content: "Hello", color: "yellow" }
+// The AI can call: update_note({ color: "blue" })
+// Result: { title: "My Note", content: "Hello", color: "blue" }
+```
+
+This is especially useful for large state objects where regenerating the entire state would be expensive and error-prone.
+
+<Callout type="info">
+  Merge is shallow (one level deep). If the AI sends a nested object, it replaces
+  that entire field rather than deep-merging into it.
+</Callout>
+
+## Multiple Instances
+
+You can render multiple interactables with the same `name` but different `id`s. Each gets its own update tool:
+
+```tsx
+import { useAssistantInteractable, useInteractableState } from "@assistant-ui/react";
+import { z } from "zod";
+
+const noteSchema = z.object({
+  title: z.string(),
+  content: z.string(),
+  color: z.enum(["yellow", "blue", "green", "pink"]),
+});
+
+const noteInitialState = { title: "New Note", content: "", color: "yellow" as const };
+
+function NoteCard({ noteId }: { noteId: string }) {
+  useAssistantInteractable("note", {
+    id: noteId,
+    description: "A sticky note",
+    stateSchema: noteSchema,
+    initialState: noteInitialState,
+  });
+  const [state] = useInteractableState(noteId, noteInitialState);
+
+  return <div>{state.title}</div>;
+}
+
+function App() {
+  return (
+    <>
+      <NoteCard noteId="note-1" /> {/* → update_note_note-1 tool */}
+      <NoteCard noteId="note-2" /> {/* → update_note_note-2 tool */}
+    </>
+  );
+}
+```
+
+When only one instance of a name exists, the tool is named `update_{name}` (e.g., `update_note`). When multiple instances exist, tools are named `update_{name}_{id}` (e.g., `update_note_note-1`).
+
+## Selection
+
+When multiple interactables are present, you can mark one as "selected" to tell the AI which one the user is focused on:
+
+```tsx
+function NoteCard({ noteId }: { noteId: string }) {
+  useAssistantInteractable("note", {
+    id: noteId,
+    description: "A sticky note",
+    stateSchema: noteSchema,
+    initialState: noteInitialState,
+  });
+  const [state, { setSelected }] = useInteractableState(noteId, noteInitialState);
+
+  return (
+    <div onClick={() => setSelected(true)}>
+      {state.title}
+    </div>
+  );
+}
+```
+
+The AI sees `(SELECTED)` in the system prompt for the focused interactable, allowing it to prioritize that one in responses. For example, the user can say _"Change the color to blue"_ and the AI knows which note to update.
+
+## API Reference
+
+### `useAssistantInteractable`
+
+Registers an interactable with the AI assistant. Returns the instance id.
+
+```tsx
+const id = useAssistantInteractable(name, config);
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Name for the interactable (used in tool names) |
+| `config.description` | `string` | Description shown to the AI |
+| `config.stateSchema` | `StandardSchemaV1 \| JSONSchema7` | Schema for the state (e.g., a Zod schema) |
+| `config.initialState` | `unknown` | Initial state value |
+| `config.id` | `string?` | Optional unique instance ID (auto-generated if omitted) |
+| `config.selected` | `boolean?` | Whether this interactable is selected |
+
+**Returns:** `string` — the instance id (auto-generated or provided).
+
+### `useInteractableState`
+
+Reads and writes the state of a registered interactable.
+
+```tsx
+const [state, { setState, setSelected, isPending, error, flush }] = useInteractableState<TState>(id, fallback?);
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | The interactable instance id (from `useAssistantInteractable`) |
+| `fallback` | `TState?` | Fallback value before the interactable is registered |
+
+**Returns:** `[state, methods]`
+
+| Return | Type | Description |
+| --- | --- | --- |
+| `state` | `TState` | Current state |
+| `setState` | `(updater: TState \| (prev: TState) => TState) => void` | State setter (like `useState`) |
+| `setSelected` | `(selected: boolean) => void` | Mark this interactable as selected |
+| `isPending` | `boolean` | Whether a persistence save is in-flight |
+| `error` | `unknown` | Error from the last failed save |
+| `flush` | `() => Promise<void>` | Force an immediate persistence save |
+
+### `Interactables`
+
+The scope resource that manages all interactables. Register it via `useAui`:
+
+```tsx
+const aui = useAui({
+  interactables: Interactables(),
+});
+```
+
+## How It Works
+
+When you call `useAssistantInteractable("taskBoard", config)`:
+
+1. **Registration** — the interactable is registered in the `interactables` scope with its name, description, schema, and initial state.
+2. **Tool generation** — an `update_taskBoard` frontend tool is automatically created with a partial schema (all fields optional). For multiple instances, tools are named `update_{name}_{id}`.
+3. **System prompt** — the AI receives a system message describing the interactable, its current state, and whether it is selected.
+4. **Streaming updates** — as the AI generates the tool arguments, the interactable's state updates progressively rather than waiting for complete arguments. This gives users immediate visual feedback.
+5. **Partial merge** — only the fields the AI sends are updated; the rest are preserved.
+6. **Bidirectional updates** — when the AI calls the tool, the state updates and React re-renders. When the user updates state via `setState`, the model context is notified so the AI sees the latest state on the next turn.
+
+## Persistence
+
+By default, interactable state is in-memory and lost on page refresh. You can add persistence by providing a save callback:
+
+```tsx
+import { useEffect } from "react";
+import { useAui, Interactables } from "@assistant-ui/react";
+
+function MyRuntimeProvider({ children }) {
+  const aui = useAui({ interactables: Interactables() });
+
+  useEffect(() => {
+    // Set up persistence adapter
+    aui.interactables().setPersistenceAdapter({
+      save: async (state) => {
+        localStorage.setItem("interactables", JSON.stringify(state));
+      },
+    });
+
+    // Restore saved state on mount
+    const saved = localStorage.getItem("interactables");
+    if (saved) {
+      aui.interactables().importState(JSON.parse(saved));
+    }
+  }, [aui]);
+
+  return /* ... */;
+}
+```
+
+### Sync Status
+
+When a persistence adapter is set, `useInteractableState` exposes sync metadata:
+
+```tsx
+const [state, { setState, isPending, error, flush }] = useInteractableState(id, fallback);
+
+// isPending — true while a save is in-flight
+// error — the error from the last failed save, if any
+// flush() — force an immediate save (useful before navigation)
+```
+
+State changes are automatically debounced (500ms) before saving. When a component unregisters, any pending save is flushed immediately.
+
+### Export / Import
+
+For custom persistence strategies, use `exportState` and `importState` directly:
+
+```tsx
+const snapshot = aui.interactables().exportState();
+// => { "note-1": { name: "note", state: { title: "Hello" } }, ... }
+
+aui.interactables().importState(snapshot);
+// Imported state is picked up when components next register
+```
+
+## Combining with Tools
+
+You can use `Interactables` alongside `Tools`:
+
+```tsx
+const aui = useAui({
+  tools: Tools({ toolkit: myToolkit }),
+  interactables: Interactables(),
+});
+```
+
+## Full Example
+
+See the complete [with-interactables example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-interactables) for a working implementation featuring:
+
+- **Task Board** — single-instance interactable with a custom `manage_tasks` tool
+- **Sticky Notes** — multi-instance interactables with selection and partial updates
+- **localStorage persistence** — state survives page refresh via `setPersistenceAdapter`
+- **Sync indicator** — spinning icon while a save is in-flight (`isPending`)

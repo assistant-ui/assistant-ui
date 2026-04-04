@@ -49,6 +49,13 @@ export class DataStreamEncoder
                   value,
                 });
               }
+              if (part.type === "data") {
+                const { type, ...value } = part;
+                controller.enqueue({
+                  type: DataStreamStreamChunkType.AuiDataPart,
+                  value,
+                });
+              }
               break;
             }
             case "text-delta": {
@@ -212,6 +219,7 @@ const TOOL_CALL_ARGS_CLOSING_CHUNKS = [
   DataStreamStreamChunkType.FinishMessage,
   DataStreamStreamChunkType.AuiTextDelta,
   DataStreamStreamChunkType.AuiReasoningDelta,
+  DataStreamStreamChunkType.AuiDataPart,
 ];
 
 export class DataStreamDecoder extends PipeableTransformStream<
@@ -378,6 +386,13 @@ export class DataStreamDecoder extends PipeableTransformStream<
             case DataStreamStreamChunkType.File:
               controller.appendFile({
                 type: "file",
+                ...value,
+              });
+              break;
+
+            case DataStreamStreamChunkType.AuiDataPart:
+              controller.appendData({
+                type: "data",
                 ...value,
               });
               break;

@@ -3,7 +3,7 @@
 import { forwardRef } from "react";
 import { ActionButtonProps } from "../../utils/createActionButton";
 import { composeEventHandlers } from "@radix-ui/primitive";
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "../../utils/Primitive";
 import { useActionBarCopy } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
 

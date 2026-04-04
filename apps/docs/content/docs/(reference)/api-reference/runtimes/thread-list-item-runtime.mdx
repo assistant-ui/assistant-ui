@@ -16,10 +16,32 @@ Access thread list item actions via `useAui`:
 import { useAui } from "@assistant-ui/react";
 
 const aui = useAui();
-aui.threadListItem().switchTo();
-aui.threadListItem().rename("New Title");
-aui.threadListItem().archive();
-aui.threadListItem().delete();
+
+// Navigation
+await aui.threadListItem().switchTo();
+
+// Rename
+await aui.threadListItem().rename("New Title");
+
+// Archive / unarchive
+await aui.threadListItem().archive();
+await aui.threadListItem().unarchive();
+
+// Delete
+await aui.threadListItem().delete();
+
+// Initialize a new thread (returns remoteId and externalId)
+const { remoteId, externalId } = await aui.threadListItem().initialize();
+
+// Auto-generate a title from thread content
+await aui.threadListItem().generateTitle();
+
+// Detach the thread list item from its thread
+aui.threadListItem().detach();
+
+// Get current state
+const state = aui.threadListItem().getState();
+const { id, title, status } = state;
 ```
 
 <ParametersTable {...ThreadListItemRuntime} />

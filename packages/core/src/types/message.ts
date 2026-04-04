@@ -40,6 +40,7 @@ export type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly parentId?: string;
 };
 
 export type Unstable_AudioMessagePart = {

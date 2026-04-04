@@ -92,6 +92,14 @@ export type FilePart = {
   type: "file";
   data: string;
   mimeType: string;
+  parentId?: string;
+};
+
+export type DataPart = {
+  type: "data";
+  name: string;
+  data: ReadonlyJSONValue;
+  parentId?: string;
 };
 
 export type AssistantMessagePart =
@@ -99,7 +107,8 @@ export type AssistantMessagePart =
   | ReasoningPart
   | ToolCallPart
   | SourcePart
-  | FilePart;
+  | FilePart
+  | DataPart;
 
 type AssistantMessageStepUsage = {
   inputTokens: number;

@@ -8,7 +8,7 @@ import {
 } from "assistant-stream/utils";
 import { useExternalStoreRuntime } from "../external-store/useExternalStoreRuntime";
 import { AssistantRuntime } from "../../runtime/AssistantRuntime";
-import { AddToolResultOptions } from "../core";
+import type { AddToolResultOptions } from "@assistant-ui/core";
 import { useState, useRef, useMemo } from "react";
 import {
   AssistantMessageAccumulator,
@@ -147,6 +147,10 @@ const useAssistantTransportThreadRuntime = <T>(
         ...(parentIdRef.current !== undefined && {
           parentId: parentIdRef.current,
         }),
+        // nested (new format, aligned with AssistantChatTransport)
+        callSettings: context.callSettings,
+        config: context.config,
+        // @deprecated spread at top level — use nested `callSettings`/`config` instead. Will be removed in a future version.
         ...context.callSettings,
         ...context.config,
         ...(bodyValue ?? {}),

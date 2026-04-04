@@ -1,12 +1,19 @@
-import type {
-  Attachment,
-  CreateAttachment,
-  MessageRole,
-  RunConfig,
-  QuoteInfo,
-} from "../../types";
-import type { ComposerRuntime, DictationState } from "../../runtime";
+import type { Attachment, CreateAttachment } from "../../types/attachment";
+import type { MessageRole } from "../../types/message";
+import type { QuoteInfo } from "../../types/quote";
+import type { RunConfig } from "../../types/message";
+import type { ComposerRuntime } from "../../runtime/api/composer-runtime";
+import type { DictationState } from "../../runtime/interfaces/composer-runtime-core";
 import type { AttachmentMethods } from "./attachment";
+import type { QueueItemState, QueueItemMethods } from "./queue-item";
+
+export type ComposerSendOptions = {
+  /**
+   * Whether to steer (interrupt the current run and process this message immediately).
+   * When false (default), the message is queued and processed in order.
+   */
+  steer?: boolean;
+};
 
 export type ComposerState = {
   readonly text: string;
@@ -30,6 +37,12 @@ export type ComposerState = {
    * Undefined when no quote is set.
    */
   readonly quote: QuoteInfo | undefined;
+
+  /**
+   * The queue of messages waiting to be processed.
+   * Empty when no messages are queued.
+   */
+  readonly queue: readonly QueueItemState[];
 };
 
 export type ComposerMethods = {
@@ -41,7 +54,7 @@ export type ComposerMethods = {
   clearAttachments(): Promise<void>;
   attachment(selector: { index: number } | { id: string }): AttachmentMethods;
   reset(): Promise<void>;
-  send(): void;
+  send(opts?: ComposerSendOptions): void;
   cancel(): void;
   beginEdit(): void;
 
@@ -61,6 +74,11 @@ export type ComposerMethods = {
    */
   setQuote(quote: QuoteInfo | undefined): void;
 
+  /**
+   * Access a queue item by index.
+   */
+  queueItem(selector: { index: number }): QueueItemMethods;
+
   __internal_getRuntime?(): ComposerRuntime;
 };
 
@@ -72,6 +90,11 @@ export type ComposerMeta = {
 export type ComposerEvents = {
   "composer.send": { threadId: string; messageId?: string };
   "composer.attachmentAdd": { threadId: string; messageId?: string };
+  "composer.attachmentAddError": {
+    threadId: string;
+    messageId?: string;
+    attachmentId?: string;
+  };
 };
 
 export type ComposerClientSchema = {

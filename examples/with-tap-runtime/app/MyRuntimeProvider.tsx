@@ -270,7 +270,9 @@ function ThreadListSidebar() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-2">
-        <ThreadListPrimitive.Items components={{ ThreadListItem }} />
+        <ThreadListPrimitive.Items>
+          {() => <ThreadListItem />}
+        </ThreadListPrimitive.Items>
       </div>
 
       <div className="border-t p-2">

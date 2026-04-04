@@ -1,0 +1,526 @@
+---
+title: Composer
+description: Build custom message input UIs with full control over layout and behavior.
+---
+
+import { ComposerPrimitiveSample } from "@/components/docs/samples/composer-primitive";
+import { ComposerPrimitive as ComposerPrimitiveDocs } from "@/generated/primitiveDocs";
+
+The Composer primitive is the interface for composing new messages or editing existing ones. It handles submit behavior, keyboard shortcuts, focus management, attachment state, and streaming status. You provide the UI.
+
+<Tabs items={["Preview", "Code"]}>
+  <Tab>
+    <ComposerPrimitiveSample />
+  </Tab>
+  <Tab>
+```tsx
+import { ComposerPrimitive } from "@assistant-ui/react";
+import { ArrowUpIcon } from "lucide-react";
+
+export function MinimalComposer() {
+  return (
+    <ComposerPrimitive.Root className="flex w-full flex-col rounded-3xl border bg-muted">
+      <ComposerPrimitive.Input
+        placeholder="Ask anything..."
+        className="min-h-10 w-full resize-none bg-transparent px-5 pt-4 pb-3 text-sm focus:outline-none"
+        rows={1}
+      />
+      <div className="flex items-center justify-end px-3 pb-3">
+        <ComposerPrimitive.Send className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-30">
+          <ArrowUpIcon className="size-4" />
+        </ComposerPrimitive.Send>
+      </div>
+    </ComposerPrimitive.Root>
+  );
+}
+```
+  </Tab>
+</Tabs>
+
+## Quick Start
+
+Minimal example:
+
+```tsx
+import { ComposerPrimitive } from "@assistant-ui/react";
+
+<ComposerPrimitive.Root>
+  <ComposerPrimitive.Input placeholder="Ask anything..." />
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+`Root` renders a `<form>`, `Input` renders a `<textarea>`, and `Send` renders a `<button>`. Each part renders its native element by default, and supports `asChild` for element substitution.
+
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
+
+## Core Concepts
+
+### New Message vs Edit Mode
+
+A Composer placed inside a **Thread** composes new messages. A Composer placed inside a **Message** edits that message. The same primitives handle both, and the behavior changes automatically based on context.
+
+```tsx
+// New message composer
+<ThreadPrimitive.Root>
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Input />
+    <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+  </ComposerPrimitive.Root>
+</ThreadPrimitive.Root>
+
+// Edit composer (inside a message)
+<MessagePrimitive.Root>
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Input />
+    <ComposerPrimitive.Send>Save</ComposerPrimitive.Send>
+    <ComposerPrimitive.Cancel>Cancel</ComposerPrimitive.Cancel>
+  </ComposerPrimitive.Root>
+</MessagePrimitive.Root>
+```
+
+### The `asChild` Pattern
+
+Every primitive part accepts `asChild` to merge its behavior onto your own element. This is how you use primitives with your own design system:
+
+```tsx
+import { ComposerPrimitive } from "@assistant-ui/react";
+
+<ComposerPrimitive.Input asChild>
+  <textarea
+    className="my-custom-textarea"
+    placeholder="Type here..."
+  />
+</ComposerPrimitive.Input>
+
+<ComposerPrimitive.Send asChild>
+  <MyButton variant="primary">Send</MyButton>
+</ComposerPrimitive.Send>
+```
+
+The primitive's behavior (keyboard handling, disabled state, form submission) is merged onto your element. Your styles, your component, primitive wiring.
+
+### Unstable Mentions
+
+Composer also includes an unstable mention system for `@`-triggered popovers. It is built around `ComposerPrimitive.Unstable_MentionRoot` and intended for rich inputs like `LexicalComposerInput`.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionRoot>
+  <ComposerPrimitive.Root>
+    <LexicalComposerInput placeholder="Type @ to mention a tool..." />
+    <ComposerPrimitive.Unstable_MentionPopover />
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.Unstable_MentionRoot>
+```
+
+## Parts
+
+### Root
+
+Form container for message composition. Renders a `<form>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.Root className="flex w-full flex-col rounded-3xl border bg-muted">
+  <ComposerPrimitive.Input placeholder="Ask anything..." />
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+### Input
+
+Text input with keyboard shortcuts. Renders a `<textarea>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.Input
+  submitMode="ctrlEnter"
+  cancelOnEscape
+  placeholder="Ask anything..."
+/>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveInputProps" parameters={ComposerPrimitiveDocs.Input.props.filter(p => p.name !== "asChild")} />
+
+### Send
+
+Submits the composer form. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.Send className="rounded-full bg-primary px-3 py-2 text-primary-foreground">
+  Send
+</ComposerPrimitive.Send>
+```
+
+### Cancel
+
+Cancels the current composition or edit session. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.Cancel className="rounded-md px-3 py-2 text-sm hover:bg-muted">
+  Cancel
+</ComposerPrimitive.Cancel>
+```
+
+### AddAttachment
+
+Opens file picker for attachments. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.AddAttachment multiple>
+  Attach Files
+</ComposerPrimitive.AddAttachment>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveAddAttachmentProps" parameters={ComposerPrimitiveDocs.AddAttachment.props.filter(p => p.name !== "asChild")} />
+
+### Attachments
+
+Renders each attachment. Prefer the children render function for new code.
+
+```tsx
+<ComposerPrimitive.Attachments>
+  {({ attachment }) => {
+    if (attachment.type === "image") return <ImagePreview />;
+    if (attachment.type === "document") return <DocumentPreview />;
+    return <GenericPreview />;
+  }}
+</ComposerPrimitive.Attachments>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveAttachmentsProps" parameters={ComposerPrimitiveDocs.Attachments.props} />
+
+### AttachmentByIndex
+
+Renders a single attachment at a specific index.
+
+```tsx
+<ComposerPrimitive.AttachmentByIndex
+  index={0}
+  components={{ Attachment: MyAttachment }}
+/>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveAttachmentByIndexProps" parameters={ComposerPrimitiveDocs.AttachmentByIndex.props} />
+
+### AttachmentDropzone
+
+Drag-and-drop zone for file attachments. Sets `data-dragging` when a file is being dragged over it. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.AttachmentDropzone className="rounded-xl border-2 border-dashed data-[dragging]:border-primary data-[dragging]:bg-primary/5">
+  <ComposerPrimitive.Root>
+    ...
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.AttachmentDropzone>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveAttachmentDropzoneProps" parameters={ComposerPrimitiveDocs.AttachmentDropzone.props.filter(p => p.name !== "asChild")} />
+
+### Dictate
+
+Starts a dictation session. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.Dictate className="rounded-md px-3 py-2 text-sm hover:bg-muted">
+  Start Dictation
+</ComposerPrimitive.Dictate>
+```
+
+### StopDictation
+
+Stops the current dictation session. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.StopDictation className="rounded-md px-3 py-2 text-sm hover:bg-muted">
+  Stop Dictation
+</ComposerPrimitive.StopDictation>
+```
+
+### DictationTranscript
+
+Renders the interim transcript while dictation is active. Renders a `<span>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.DictationTranscript className="text-sm text-muted-foreground" />
+```
+
+### If (deprecated)
+
+<Callout type="warn">
+Deprecated. Use [`AuiIf`](/docs/api-reference/primitives/assistant-if) instead.
+</Callout>
+
+```tsx
+// Before (deprecated)
+<ComposerPrimitive.If editing>...</ComposerPrimitive.If>
+<ComposerPrimitive.If dictation>...</ComposerPrimitive.If>
+
+// After
+<AuiIf condition={(s) => s.composer.isEditing}>...</AuiIf>
+<AuiIf condition={(s) => s.composer.dictation != null}>...</AuiIf>
+```
+
+### Quote
+
+Container for quoted text preview inside the composer. Only renders when a quote is set. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.Quote className="rounded-lg border bg-background px-3 py-2 text-sm">
+  <ComposerPrimitive.QuoteText />
+  <ComposerPrimitive.QuoteDismiss className="ml-2" />
+</ComposerPrimitive.Quote>
+```
+
+### QuoteText
+
+Renders the quoted text content. Renders a `<span>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.QuoteText />
+```
+
+### QuoteDismiss
+
+Clears the active quote from the composer. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.QuoteDismiss className="rounded-full p-1 hover:bg-muted">
+  Dismiss
+</ComposerPrimitive.QuoteDismiss>
+```
+
+### Unstable_MentionRoot
+
+Provider that manages mention state and `@` trigger detection.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionRoot trigger="@" adapter={mentionAdapter}>
+  <ComposerPrimitive.Root>
+    <LexicalComposerInput placeholder="Type @ to mention a tool..." />
+    <ComposerPrimitive.Unstable_MentionPopover />
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.Unstable_MentionRoot>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveMentionRootProps" parameters={ComposerPrimitiveDocs.Unstable_MentionRoot.props} />
+
+### Unstable_MentionPopover
+
+Container for the mention picker popover. It only renders while a trigger match is active.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionPopover className="rounded-lg border bg-popover p-1 shadow-md">
+  <ComposerPrimitive.Unstable_MentionCategories>
+    {(categories) => categories.map((category) => (
+      <ComposerPrimitive.Unstable_MentionCategoryItem
+        key={category.id}
+        categoryId={category.id}
+      >
+        {category.label}
+      </ComposerPrimitive.Unstable_MentionCategoryItem>
+    ))}
+  </ComposerPrimitive.Unstable_MentionCategories>
+</ComposerPrimitive.Unstable_MentionPopover>
+```
+
+### Unstable_MentionCategories
+
+Render-function primitive for the top-level mention categories.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionCategories>
+  {(categories) => categories.map((category) => (
+    <ComposerPrimitive.Unstable_MentionCategoryItem
+      key={category.id}
+      categoryId={category.id}
+    >
+      {category.label}
+    </ComposerPrimitive.Unstable_MentionCategoryItem>
+  ))}
+</ComposerPrimitive.Unstable_MentionCategories>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveMentionCategoriesProps" parameters={ComposerPrimitiveDocs.Unstable_MentionCategories.props} />
+
+### Unstable_MentionCategoryItem
+
+Button that selects a mention category and drills into its items.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionCategoryItem categoryId="tools">
+  Tools
+</ComposerPrimitive.Unstable_MentionCategoryItem>
+```
+
+### Unstable_MentionItems
+
+Render-function primitive for the items inside the currently selected category.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionItems>
+  {(items) => items.map((item) => (
+    <ComposerPrimitive.Unstable_MentionItem key={item.id} item={item} />
+  ))}
+</ComposerPrimitive.Unstable_MentionItems>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveMentionItemsProps" parameters={ComposerPrimitiveDocs.Unstable_MentionItems.props} />
+
+### Unstable_MentionItem
+
+Selectable mention item inside the popover.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionItem item={item}>
+  {item.label}
+</ComposerPrimitive.Unstable_MentionItem>
+```
+
+<PrimitivesTypeTable type="ComposerPrimitiveMentionItemProps" parameters={ComposerPrimitiveDocs.Unstable_MentionItem.props} />
+
+### Unstable_MentionBack
+
+Back button used when drilling from categories into a specific item list.
+
+```tsx
+<ComposerPrimitive.Unstable_MentionBack className="rounded-md px-2 py-1 text-sm hover:bg-accent">
+  Back
+</ComposerPrimitive.Unstable_MentionBack>
+```
+
+## Patterns
+
+### With Attachments
+
+```tsx
+<ComposerPrimitive.Root>
+  <ComposerPrimitive.Attachments>
+    {({ attachment }) => {
+      if (attachment.type === "image") return <ImagePreview />;
+      if (attachment.type === "document") return <DocumentPreview />;
+      return <GenericPreview />;
+    }}
+  </ComposerPrimitive.Attachments>
+  <ComposerPrimitive.Input placeholder="Ask anything..." />
+  <ComposerPrimitive.AddAttachment>
+    Attach
+  </ComposerPrimitive.AddAttachment>
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+### With Drag-and-Drop
+
+Wrap your composer with `AttachmentDropzone` to support dragging files directly onto the input area:
+
+```tsx
+<ComposerPrimitive.AttachmentDropzone className="rounded-xl border-2 border-dashed data-[dragging]:border-primary data-[dragging]:bg-primary/5">
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Attachments>
+      {() => <MyAttachment />}
+    </ComposerPrimitive.Attachments>
+    <ComposerPrimitive.Input placeholder="Drop files or type..." />
+    <ComposerPrimitive.AddAttachment>Attach</ComposerPrimitive.AddAttachment>
+    <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.AttachmentDropzone>
+```
+
+The dropzone sets `data-dragging` when a file is being dragged over it, so you can style the active state with CSS.
+
+### With Voice Input
+
+```tsx
+<ComposerPrimitive.Root>
+  <ComposerPrimitive.Input placeholder="Ask or speak..." />
+  <AuiIf condition={(s) => s.composer.dictation != null}>
+    <ComposerPrimitive.DictationTranscript className="text-sm text-muted-foreground" />
+  </AuiIf>
+  <AuiIf condition={(s) => s.composer.dictation == null}>
+    <ComposerPrimitive.Dictate>Mic</ComposerPrimitive.Dictate>
+  </AuiIf>
+  <AuiIf condition={(s) => s.composer.dictation != null}>
+    <ComposerPrimitive.StopDictation>Stop</ComposerPrimitive.StopDictation>
+  </AuiIf>
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+`DictationTranscript` renders a `<span>` showing the interim speech-to-text transcript while the user is speaking.
+
+<Callout type="info">
+Voice input requires a `DictationAdapter` configured in your runtime. See [Speech & Dictation](/docs/guides/speech) for setup.
+</Callout>
+
+### Custom Submit Behavior
+
+Use `onSubmit` on `Root` to intercept submission:
+
+```tsx
+<ComposerPrimitive.Root
+  onSubmit={(e) => {
+    // Runs before the message is sent
+    // e.g., track analytics, transform input
+    // Call e.preventDefault() to cancel the send
+  }}
+>
+  <ComposerPrimitive.Input />
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+### Ctrl+Enter to Submit
+
+```tsx
+<ComposerPrimitive.Root>
+  <ComposerPrimitive.Input submitMode="ctrlEnter" />
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+With `submitMode="ctrlEnter"`, plain Enter inserts a newline and Ctrl/Cmd+Enter submits.
+
+### Floating Composer
+
+Primitives aren't bound to any layout. Here's how the floating composer on this docs site is built, using the same `ComposerPrimitive.Root` and `ComposerPrimitive.Input` positioned with CSS:
+
+```tsx
+import { ComposerPrimitive } from "@assistant-ui/react";
+
+function FloatingComposer() {
+  return (
+    <div className="fixed bottom-6 left-1/2 z-40 w-full max-w-md -translate-x-1/2">
+      <ComposerPrimitive.Root>
+        <div className="rounded-xl border bg-background/80 shadow-lg backdrop-blur-sm">
+          <ComposerPrimitive.Input
+            asChild
+            unstable_focusOnRunStart={false}
+            unstable_focusOnScrollToBottom={false}
+          >
+            <textarea
+              placeholder="Ask a question..."
+              className="w-full resize-none bg-transparent px-3 py-2.5 text-sm focus:outline-none"
+              rows={1}
+            />
+          </ComposerPrimitive.Input>
+        </div>
+      </ComposerPrimitive.Root>
+    </div>
+  );
+}
+```
+
+The primitive handles everything about composing a message. The layout, animation, and visibility logic is all yours.
+
+## Relationship to Components
+
+The [Thread](/docs/ui/thread) component includes a full composer built from these primitives. If you need a working chat UI fast, start there. When you need a composer that doesn't fit inside a thread, such as a floating input, a sidebar composer, or a multi-step form, reach for `ComposerPrimitive` directly.
+
+## API Reference
+
+For full prop details on every part, see the [ComposerPrimitive API Reference](/docs/api-reference/primitives/composer).
+
+Related:
+- [ThreadPrimitive](/docs/primitives/thread)
+- [AttachmentPrimitive](/docs/primitives/attachment)

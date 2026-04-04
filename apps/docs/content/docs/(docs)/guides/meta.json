@@ -7,12 +7,15 @@
     "context-api",
     "dictation",
     "editing",
+    "interactables",
     "latex",
+    "mentions",
     "message-timing",
     "multi-agent",
     "quoting",
     "speech",
     "suggestions",
+    "voice",
     "tool-ui",
     "tools"
   ]

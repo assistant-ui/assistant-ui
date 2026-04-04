@@ -40,22 +40,19 @@ export const myChatAdapter: ChatModelAdapter = {
 ```
 
 ```tsx title="hooks/use-app-runtime.ts"
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalRuntime } from "@assistant-ui/react-native";
 import { myChatAdapter } from "@/adapters/my-chat-adapter";
 
 export function useAppRuntime() {
-  return useLocalRuntime(myChatAdapter, {
-    storage: AsyncStorage, // threads + messages persisted locally
-  });
+  return useLocalRuntime(myChatAdapter);
 }
 ```
 
 This gives you:
 
 - Streaming chat responses from your API
-- Local thread list with persistence (AsyncStorage)
-- Message history saved across app restarts
+- In-memory thread and message management
+- Automatic features like message editing, reloading, and branch switching
 
 ## Option 2: Full backend thread management
 
@@ -203,8 +200,8 @@ export default function App() {
 
 | | Option 1: ChatModelAdapter | Option 2: RemoteThreadListAdapter |
 |---|---|---|
-| **Thread storage** | On-device (AsyncStorage) | Your backend |
-| **Message storage** | On-device (AsyncStorage) | On-device (can add history adapter for server-side) |
+| **Thread storage** | In-memory | Your backend |
+| **Message storage** | In-memory | In-memory (can add history adapter for server-side) |
 | **Cross-device sync** | No | Yes |
 | **Setup complexity** | Minimal | Moderate |
 | **Best for** | Single-device apps, prototypes | Production apps with user accounts |

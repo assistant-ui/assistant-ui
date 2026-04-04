@@ -1,18 +1,18 @@
 export const MODELS = [
   // OpenAI
   {
-    name: "GPT-5 Nano",
-    value: "openai/gpt-5-nano",
+    name: "GPT-5.4 Nano",
+    value: "openai/gpt-5.4-nano",
     icon: "/icons/openai.svg",
     disabled: false,
-    contextWindow: 1_000_000,
+    contextWindow: 400_000,
   },
   {
-    name: "GPT-5 Mini",
-    value: "openai/gpt-5-mini",
+    name: "GPT-5.4 Mini",
+    value: "openai/gpt-5.4-mini",
     icon: "/icons/openai.svg",
     disabled: false,
-    contextWindow: 1_000_000,
+    contextWindow: 400_000,
   },
   // Anthropic
   {
@@ -24,15 +24,8 @@ export const MODELS = [
   },
   // Google
   {
-    name: "Gemini 2.5 Flash Lite",
-    value: "google-ai-studio/gemini-2.5-flash-lite",
-    icon: "/icons/google.svg",
-    disabled: false,
-    contextWindow: 1_000_000,
-  },
-  {
-    name: "Gemini 2.5 Flash",
-    value: "google-ai-studio/gemini-2.5-flash",
+    name: "Gemini 3 Flash",
+    value: "google-ai-studio/gemini-3-flash",
     icon: "/icons/google.svg",
     disabled: false,
     contextWindow: 1_000_000,

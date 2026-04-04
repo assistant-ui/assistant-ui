@@ -1,12 +1,10 @@
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
-import type { ModelContext } from "../../model-context";
-import type {
-  RunConfig,
-  Unsubscribe,
-  AppendMessage,
-  ThreadMessage,
-} from "../../types";
+import type { ModelContext } from "../../model-context/types";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type { RunConfig } from "../../types/message";
 import type { SpeechSynthesisAdapter } from "../../adapters/speech";
+import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type {
   ChatModelRunOptions,
   ChatModelRunResult,
@@ -27,8 +25,10 @@ export type RuntimeCapabilities = {
   readonly unstable_copy: boolean;
   readonly speech: boolean;
   readonly dictation: boolean;
+  readonly voice: boolean;
   readonly attachments: boolean;
   readonly feedback: boolean;
+  readonly queue: boolean;
 };
 
 export type AddToolResultOptions = {
@@ -57,6 +57,12 @@ export type ThreadSuggestion = {
 export type SpeechState = {
   readonly messageId: string;
   readonly status: SpeechSynthesisAdapter.Status;
+};
+
+export type VoiceSessionState = {
+  readonly status: RealtimeVoiceAdapter.Status;
+  readonly isMuted: boolean;
+  readonly mode: RealtimeVoiceAdapter.Mode;
 };
 
 export type SubmittedFeedback = {
@@ -104,6 +110,11 @@ export type ThreadRuntimeCore = Readonly<{
   speak: (messageId: string) => void;
   stopSpeaking: () => void;
 
+  connectVoice: () => void;
+  disconnectVoice: () => void;
+  muteVoice: () => void;
+  unmuteVoice: () => void;
+
   submitFeedback: (feedback: SubmitFeedbackOptions) => void;
 
   getModelContext: () => ModelContext;
@@ -113,6 +124,7 @@ export type ThreadRuntimeCore = Readonly<{
   beginEdit: (messageId: string) => void;
 
   speech: SpeechState | undefined;
+  voice: VoiceSessionState | undefined;
 
   capabilities: Readonly<RuntimeCapabilities>;
   isDisabled: boolean;
@@ -124,6 +136,9 @@ export type ThreadRuntimeCore = Readonly<{
   extras: unknown;
 
   subscribe: (callback: () => void) => Unsubscribe;
+
+  getVoiceVolume: () => number;
+  subscribeVoiceVolume: (callback: () => void) => Unsubscribe;
 
   import(repository: ExportedMessageRepository): void;
   export(): ExportedMessageRepository;

@@ -12,7 +12,7 @@ A full-featured React Native chat application built with Expo and `@assistant-ui
 - **Native UI**: Built with React Native primitives — no web views
 - **Drawer Navigation**: Swipeable sidebar for thread management
 - **Thread Management**: Create, switch, and browse conversations
-- **Streaming**: Real-time SSE streaming via OpenAI chat completions
+- **Streaming**: Real-time streaming via a server-side chat API endpoint
 - **Dark Mode**: Automatic light/dark theme support
 - **Keyboard Handling**: Proper `KeyboardAvoidingView` integration
 
@@ -27,7 +27,7 @@ cd assistant-ui
 pnpm install
 
 # Set your API key
-echo 'EXPO_PUBLIC_OPENAI_API_KEY="sk-..."' > examples/with-expo/.env
+echo 'OPENAI_API_KEY="sk-..."' > examples/with-expo/.env
 
 # Run the example
 pnpm --filter with-expo start
@@ -37,61 +37,110 @@ pnpm --filter with-expo start
 
 ### Runtime Setup
 
-The runtime uses `useLocalRuntime` with a custom `ChatModelAdapter` that calls the OpenAI API directly:
+The runtime uses `useChatRuntime` from `@assistant-ui/react-ai-sdk` with an `AssistantChatTransport` that connects to a chat API endpoint:
 
 ```tsx title="hooks/use-app-runtime.ts"
 import { useMemo } from "react";
-import { fetch } from "expo/fetch";
-import { useLocalRuntime } from "@assistant-ui/react-native";
-import { createOpenAIChatModelAdapter } from "@/adapters/openai-chat-adapter";
+import {
+  useChatRuntime,
+  AssistantChatTransport,
+} from "@assistant-ui/react-ai-sdk";
+
+const CHAT_API = process.env.EXPO_PUBLIC_CHAT_ENDPOINT_URL ?? "/api/chat";
 
 export function useAppRuntime() {
-  const chatModel = useMemo(
-    () =>
-      createOpenAIChatModelAdapter({
-        apiKey: process.env.EXPO_PUBLIC_OPENAI_API_KEY ?? "",
-        model: "gpt-4o-mini",
-        fetch, // expo/fetch for streaming support
-      }),
+  const transport = useMemo(
+    () => new AssistantChatTransport({ api: CHAT_API }),
     [],
   );
-
-  return useLocalRuntime(chatModel);
+  return useChatRuntime({ transport });
 }
 ```
 
 ### App Layout
 
-`AssistantRuntimeProvider` wraps the Expo Router drawer layout. Thread and composer contexts are set up automatically — no extra providers needed:
+`AssistantRuntimeProvider` wraps the Expo Router drawer layout inside a `GestureHandlerRootView`. The layout also handles font loading, theming, a "New Chat" button in the header, and tool registration via `useAui`:
 
 ```tsx title="app/_layout.tsx"
 import {
-  AssistantRuntimeProvider,
-} from "@assistant-ui/react-native";
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from "@react-navigation/native";
 import { Drawer } from "expo-router/drawer";
+import { StatusBar } from "expo-status-bar";
+import "react-native-reanimated";
+import { Pressable, useColorScheme } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useFonts } from "expo-font";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+import {
+  AssistantRuntimeProvider,
+  useAui,
+  Tools,
+} from "@assistant-ui/react-native";
 import { useAppRuntime } from "@/hooks/use-app-runtime";
 import { ThreadListDrawer } from "@/components/thread-list/ThreadListDrawer";
+import { expoToolkit } from "@/components/assistant-ui/tools";
+
+function NewChatButton() {
+  const aui = useAui();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+
+  return (
+    <Pressable
+      onPress={() => {
+        aui.threads().switchToNewThread();
+      }}
+      style={{ marginRight: 16 }}
+    >
+      <Ionicons
+        name="create-outline"
+        size={24}
+        color={isDark ? "#ffffff" : "#000000"}
+      />
+    </Pressable>
+  );
+}
 
 function DrawerLayout() {
+  const colorScheme = useColorScheme();
+
   return (
-    <Drawer
-      drawerContent={(props) => <ThreadListDrawer {...props} />}
-      screenOptions={{
-        drawerType: "front",
-        swipeEnabled: true,
-      }}
-    >
-      <Drawer.Screen name="index" options={{ title: "Chat" }} />
-    </Drawer>
+    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+      <Drawer
+        drawerContent={(props) => <ThreadListDrawer {...props} />}
+        screenOptions={{
+          headerRight: () => <NewChatButton />,
+          drawerType: "front",
+          swipeEnabled: true,
+          drawerStyle: { backgroundColor: "transparent" },
+        }}
+      >
+        <Drawer.Screen name="index" options={{ title: "Chat" }} />
+      </Drawer>
+      <StatusBar style="auto" />
+    </ThemeProvider>
   );
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts(Ionicons.font);
   const runtime = useAppRuntime();
+  const aui = useAui({
+    tools: Tools({ toolkit: expoToolkit }),
+  });
+
+  if (!fontsLoaded) return null;
+
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <DrawerLayout />
-    </AssistantRuntimeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AssistantRuntimeProvider runtime={runtime} aui={aui}>
+        <DrawerLayout />
+      </AssistantRuntimeProvider>
+    </GestureHandlerRootView>
   );
 }
 ```
@@ -108,7 +157,7 @@ export default function ChatPage() {
 
 | Layer | Purpose |
 |-------|---------|
-| `useLocalRuntime` | Creates an in-memory runtime with the OpenAI adapter |
+| `useChatRuntime` | Creates a runtime backed by an `AssistantChatTransport` connecting to a chat API endpoint |
 | `AssistantRuntimeProvider` | Provides the runtime to the entire app (thread and composer scopes are set up automatically) |
 | `useAuiState((s) => s.thread)` | Reactive thread state access with selector for fine-grained re-renders |
 | `useAuiState((s) => s.composer)` | Reactive composer state access |

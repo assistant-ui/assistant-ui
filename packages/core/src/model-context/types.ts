@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "../types";
+import type { Unsubscribe } from "../types/unsubscribe";
 import { Tool } from "assistant-stream";
 
 // =============================================================================
@@ -53,6 +53,11 @@ export type AssistantToolProps<
 export type AssistantInstructionsConfig = {
   disabled?: boolean | undefined;
   instruction: string;
+};
+
+export type AssistantContextConfig = {
+  getContext: () => string;
+  disabled?: boolean | undefined;
 };
 
 // =============================================================================

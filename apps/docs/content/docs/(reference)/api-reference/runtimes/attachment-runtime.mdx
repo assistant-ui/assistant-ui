@@ -3,10 +3,7 @@ title: AttachmentRuntime
 description: Hooks for accessing attachment state in composer and messages.
 ---
 
-import {
-  ComposerAttachmentState,
-  MessageAttachmentState,
-} from "@/components/docs/parameters-table.context";
+import { AttachmentRuntime, AttachmentState } from "@/generated/typeDocs";
 
 ### `useAuiState` (Attachment State)
 
@@ -29,10 +26,10 @@ aui.attachment().remove();
 const state = aui.attachment().getState();
 ```
 
-### Composer Attachments
+### Attachment Runtime
 
-<ParametersTable {...ComposerAttachmentState} />
+<ParametersTable {...AttachmentRuntime} />
 
-### Message Attachments
+### Attachment State
 
-<ParametersTable {...MessageAttachmentState} />
+<ParametersTable {...AttachmentState} />

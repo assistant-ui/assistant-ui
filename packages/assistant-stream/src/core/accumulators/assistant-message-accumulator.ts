@@ -11,6 +11,7 @@ import {
   AssistantMessagePart,
   ReasoningPart,
   FilePart,
+  DataPart,
 } from "../utils/types";
 import { ObjectStreamAccumulator } from "../object/ObjectStreamAccumulator";
 import { ReadonlyJSONValue } from "../../utils";
@@ -121,10 +122,25 @@ const handlePartStart = (
       type: "file",
       mimeType: partInit.mimeType,
       data: partInit.data,
+      ...(partInit.parentId && { parentId: partInit.parentId }),
     };
     return {
       ...message,
       parts: [...message.parts, newFilePart],
+      get content() {
+        return this.parts;
+      },
+    };
+  } else if (partInit.type === "data") {
+    const newDataPart: DataPart = {
+      type: "data",
+      name: partInit.name,
+      data: partInit.data,
+      ...(partInit.parentId && { parentId: partInit.parentId }),
+    };
+    return {
+      ...message,
+      parts: [...message.parts, newDataPart],
       get content() {
         return this.parts;
       },

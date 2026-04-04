@@ -1,6 +1,6 @@
 "use client";
 
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "../../utils/Primitive";
 import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
 
 export namespace ThreadPrimitiveRoot {
@@ -22,7 +22,9 @@ export namespace ThreadPrimitiveRoot {
  * ```tsx
  * <ThreadPrimitive.Root>
  *   <ThreadPrimitive.Viewport>
- *     <ThreadPrimitive.Messages components={{ Message: MyMessage }} />
+ *     <ThreadPrimitive.Messages>
+ *       {() => <MyMessage />}
+ *     </ThreadPrimitive.Messages>
  *   </ThreadPrimitive.Viewport>
  * </ThreadPrimitive.Root>
  * ```

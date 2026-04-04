@@ -26,6 +26,7 @@ The core hooks have been renamed for consistency and clarity:
 - `useAssistantApi` → `useAui`
 - `useAssistantState` → `useAuiState`
 - `useAssistantEvent` → `useAuiEvent`
+- `AssistantIf` → `AuiIf`
 
 The variable naming convention has also changed from `api` to `aui`.
 
@@ -44,8 +45,8 @@ function MyComponent() {
   const api = useAssistantApi();
   const isRunning = useAssistantState(({ thread }) => thread.isRunning);
 
-  useAssistantEvent("thread.started", () => {
-    console.log("Thread started");
+  useAssistantEvent("thread.run-start", () => {
+    console.log("Thread started running");
   });
 
   const handleSend = () => {
@@ -118,8 +119,8 @@ The following hooks have been removed:
 
 - `useMessageUtils` → Use `useAuiState((s) => s.message.isHovering)` / `useAuiState((s) => s.message.isCopied)`
 - `useMessageUtilsStore` → Use `useAui()` with `aui.message().setIsHovering()` / `aui.message().setIsCopied()`
-- `useToolUIs` → Use `useAuiState((s) => s.tools)` and `useAui()` with `aui.tools()`
-- `useToolUIsStore` → Use `useAui()` with `aui.tools()`
+- `useToolUIs` → Removed with no direct equivalent. Use `useAssistantTool` / `makeAssistantToolUI` to register tool UIs instead.
+- `useToolUIsStore` → Removed with no direct equivalent.
 
 **Deprecated Hooks:**
 
@@ -137,7 +138,8 @@ The following hooks have been removed:
 - `useMessagePartRuntime` → Use `useAui()` with `aui.part()`
 - `useAttachment` → Use `useAuiState((s) => s.attachment)`
 - `useAttachmentRuntime` → Use `useAui()` with `aui.attachment()`
-- `useThreadModelContext` / `useThreadModelConfig` → Use `useAui().thread().getModelContext()`
+- `useThreadModelContext` → Use `useAuiState((s) => s.thread.modelContext)`
+- `useThreadModelConfig` → Removed. Use `useAui().thread().getModelContext()` instead.
 - `useThreadComposer` → Use `useAuiState((s) => s.thread.composer)`
 - `useThreadList` → Use `useAuiState((s) => s.threads)`
 

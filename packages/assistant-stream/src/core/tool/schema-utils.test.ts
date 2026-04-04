@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { toJSONSchema, toToolsJSONSchema } from "./schema-utils";
+import {
+  toJSONSchema,
+  toPartialJSONSchema,
+  toToolsJSONSchema,
+} from "./schema-utils";
 import type { Tool } from "./tool-types";
 
 describe("toJSONSchema", () => {
@@ -132,6 +136,96 @@ describe("toJSONSchema", () => {
       type: "object",
       properties: { name: { type: "string" } },
     });
+  });
+});
+
+describe("toPartialJSONSchema", () => {
+  it("removes required from a flat object schema", () => {
+    const schema = {
+      type: "object" as const,
+      properties: {
+        name: { type: "string" as const },
+        age: { type: "number" as const },
+      },
+      required: ["name", "age"],
+    };
+    const result = toPartialJSONSchema(schema);
+    expect(result.required).toBeUndefined();
+    expect(result.properties).toEqual(schema.properties);
+  });
+
+  it("recursively removes required from nested objects", () => {
+    const schema = {
+      type: "object" as const,
+      properties: {
+        address: {
+          type: "object" as const,
+          properties: {
+            street: { type: "string" as const },
+            city: { type: "string" as const },
+          },
+          required: ["street", "city"],
+        },
+      },
+      required: ["address"],
+    };
+    const result = toPartialJSONSchema(schema);
+    expect(result.required).toBeUndefined();
+    const address = result.properties!["address"] as Record<string, unknown>;
+    expect(address.required).toBeUndefined();
+  });
+
+  it("leaves array item schemas unchanged", () => {
+    const schema = {
+      type: "object" as const,
+      properties: {
+        tags: {
+          type: "array" as const,
+          items: {
+            type: "object" as const,
+            properties: { label: { type: "string" as const } },
+            required: ["label"],
+          },
+        },
+      },
+      required: ["tags"],
+    };
+    const result = toPartialJSONSchema(schema);
+    expect(result.required).toBeUndefined();
+    const tags = result.properties!["tags"] as Record<string, unknown>;
+    const items = tags.items as Record<string, unknown>;
+    expect(items.required).toEqual(["label"]);
+  });
+
+  it("handles schema with no required field", () => {
+    const schema = {
+      type: "object" as const,
+      properties: { x: { type: "string" as const } },
+    };
+    const result = toPartialJSONSchema(schema);
+    expect(result).toEqual(schema);
+  });
+
+  it("does not mutate the input schema", () => {
+    const schema = {
+      type: "object" as const,
+      properties: { a: { type: "string" as const } },
+      required: ["a"],
+    };
+    toPartialJSONSchema(schema);
+    expect(schema.required).toEqual(["a"]);
+  });
+
+  it("preserves additionalProperties", () => {
+    const schema = {
+      type: "object" as const,
+      properties: { x: { type: "string" as const } },
+      required: ["x"],
+      additionalProperties: false,
+    };
+    const result = toPartialJSONSchema(schema);
+    expect(result.additionalProperties).toBe(false);
+    expect(result.required).toBeUndefined();
   });
 });
 

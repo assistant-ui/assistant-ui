@@ -1,5 +1,148 @@
 # @assistant-ui/react
 
+## 0.12.22
+
+### Patch Changes
+
+- 6554892: feat: add useAssistantContext for dynamic context injection
+
+  Register a callback-based context provider that injects computed text into the system prompt at evaluation time, ensuring the prompt always reflects current application state.
+
+- d726499: fix: unify assistant-transport request body format with AssistantChatTransport
+
+  `callSettings` and `config` are now sent as nested objects in the request body,
+  aligned with the AI SDK transport. The old top-level spread is preserved for
+  backward compatibility but deprecated and will be removed in a future version.
+
+- 876f75d: feat: add interactable state persistence
+
+  Add persistence API to interactables with exportState/importState, debounced setPersistenceAdapter, per-id isPending/error tracking, flush() for immediate sync, and auto-flush on component unregister.
+
+- bdce66f: chore: update dependencies
+- c362685: feat: add RealtimeVoiceAdapter with VoiceOrb UI, mode/volume support, and ElevenLabs/LiveKit examples
+- 4abb898: refactor: align interactables with codebase conventions
+  - Rename `useInteractable` to `useAssistantInteractable` (registration only, returns id)
+  - Add `useInteractableState` hook for reading/writing interactable state
+  - Remove `makeInteractable` and related types
+  - Rename `UseInteractableConfig` to `AssistantInteractableProps`
+  - Extract `buildInteractableModelContext` from `Interactables` resource
+  - Add `with-interactables` example to CLI
+
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- 50b3100: feat: add render prop support to all primitives for shadcn "Base" component library compatibility
+- af70d7f: feat: add useToolArgsStatus hook for per-prop streaming status
+
+  Add a convenience hook that derives per-property streaming completion status from tool call args using structural partial JSON analysis.
+
+- Updated dependencies [dffb6b4]
+- Updated dependencies [6554892]
+- Updated dependencies [9103282]
+- Updated dependencies [876f75d]
+- Updated dependencies [bdce66f]
+- Updated dependencies [4abb898]
+- Updated dependencies [209ae81]
+- Updated dependencies [2dd0c9f]
+- Updated dependencies [af70d7f]
+  - assistant-stream@0.3.9
+  - @assistant-ui/core@0.1.10
+  - assistant-cloud@0.1.24
+  - @assistant-ui/store@0.2.6
+  - @assistant-ui/tap@0.5.6
+
+## 0.12.21
+
+### Patch Changes
+
+- 3227e71: feat: add interactables with partial updates, multi-instance, and selection
+  - `useInteractable(name, config)` hook and `makeInteractable` factory for registering AI-controllable UI
+  - `Interactables()` scope resource with auto-generated update tools and system prompt injection
+  - Partial updates — auto-generated tools use partial schemas so AI only sends changed fields
+  - Multi-instance support — same name with different IDs get separate `update_{name}_{id}` tools
+  - Selection — `setSelected(true)` marks an interactable as focused, surfaced as `(SELECTED)` in system prompt
+
+- 52403c3: chore: update dependencies
+- Updated dependencies [781f28d]
+- Updated dependencies [3227e71]
+- Updated dependencies [3227e71]
+- Updated dependencies [0f55ce8]
+- Updated dependencies [83a15f7]
+- Updated dependencies [52403c3]
+- Updated dependencies [ffa3a0f]
+  - @assistant-ui/core@0.1.9
+  - assistant-stream@0.3.8
+  - assistant-cloud@0.1.23
+  - @assistant-ui/store@0.2.5
+  - @assistant-ui/tap@0.5.5
+
+## 0.12.20
+
+### Patch Changes
+
+- 28a987a: feat: SingleThreadList resource
+  refactor: attachTransformScopes should mutate the scopes instead of cloning it
+- 736344c: chore: update dependencies
+- ff3be2a: Add @-mention system with cursor-aware trigger detection, keyboard navigation, search, and Lexical rich editor support
+- 70b19f3: feat: add queue.clear callback, route thread.append through queue
+  - Add `clear(reason: "edit" | "reload" | "cancel-run")` to `ExternalThreadQueueAdapter`
+  - `thread.append()` now routes through `queue.enqueue` when a queue adapter is present
+  - Cancel, edit, and reload operations call `queue.clear` with the appropriate reason
+
+- 70b19f3: feat: add native queue and steer support
+  - Add `queue` adapter to `ExternalThreadProps` for runtimes that support message queuing
+  - Add `QueueItemPrimitive.Text`, `.Steer`, `.Remove` primitives for rendering queue items
+  - Add `ComposerPrimitive.Queue` for rendering the queue list within the composer
+  - Add `ComposerSendOptions` with `steer` flag to `composer.send()`
+  - Add `capabilities.queue` to `RuntimeCapabilities`
+  - `ComposerPrimitive.Send` stays enabled during runs when queue is supported
+  - Cmd/Ctrl+Shift+Enter hotkey sends with `steer: true` (interrupt current run)
+  - Add `queueItem` scope to `ScopeRegistry`
+  - Add `queue` field to `ComposerState` and `queueItem()` method to `ComposerMethods`
+
+- c71cb58: chore: update dependencies
+- Updated dependencies [1406aed]
+- Updated dependencies [9480f30]
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [ff3be2a]
+- Updated dependencies [70b19f3]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/core@0.1.8
+  - @assistant-ui/store@0.2.4
+  - assistant-stream@0.3.7
+  - @assistant-ui/tap@0.5.4
+
+## 0.12.19
+
+### Patch Changes
+
+- 7ecc497: feat: children API for primitives with part.toolUI, part.dataRendererUI, and MessagePrimitive.Quote
+- Updated dependencies [7ecc497]
+  - @assistant-ui/core@0.1.7
+
+## 0.12.18
+
+### Patch Changes
+
+- 1ed9867: feat: move resumeRun to stable
+- 427ffaa: refactor: useRemoteThreadListRuntime no longer marked unstable
+- 349f3c7: chore: update deps
+- 02614aa: feat: add multi-agent support
+  - `ReadonlyThreadProvider` and `MessagePartPrimitive.Messages` for rendering sub-agent messages
+  - `assistant-stream`: add `messages` field to `tool-result` chunks, `ToolResponseLike`, and `ToolCallPart` types, enabling sub-agent messages to flow through the streaming protocol
+
+- 642bcda: Add `quote.tsx` registry components and `injectQuoteContext` helper
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [6cc4122]
+- Updated dependencies [642bcda]
+  - @assistant-ui/core@0.1.6
+  - assistant-stream@0.3.6
+  - assistant-cloud@0.1.22
+  - @assistant-ui/store@0.2.3
+  - @assistant-ui/tap@0.5.3
+
 ## 0.12.17
 
 ### Patch Changes

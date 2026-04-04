@@ -1,4 +1,1 @@
-export {
-  AssistantRuntimeProvider,
-  useAssistantRuntime,
-} from "@assistant-ui/core/react";
+export { AssistantRuntimeProvider } from "@assistant-ui/core/react";

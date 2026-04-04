@@ -22,8 +22,8 @@ import {
 } from "@assistant-ui/core";
 import {
   type ToolExecutionStatus,
-  useCloudThreadListAdapter as unstable_useCloudThreadListAdapter,
-  useRemoteThreadListRuntime as unstable_useRemoteThreadListRuntime,
+  useCloudThreadListAdapter,
+  useRemoteThreadListRuntime,
   useExternalMessageConverter,
   useExternalStoreRuntime,
   useToolInvocations,
@@ -61,6 +61,15 @@ const getMessageContent = (msg: AppendMessage) => {
     ...msg.content,
     ...(msg.attachments?.flatMap((a) => a.content) ?? []),
   ];
+
+  const hasNonText = allContent.some(
+    (part) => part.type === "file" || part.type === "image",
+  );
+  const hasText = allContent.some((part) => part.type === "text");
+  if (hasNonText && !hasText) {
+    allContent.unshift({ type: "text", text: " " });
+  }
+
   const content = allContent.map((part) => {
     const type = part.type;
     switch (type) {
@@ -487,7 +496,7 @@ export const useLangGraphRuntime = ({
   ...options
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
-  const cloudAdapter = unstable_useCloudThreadListAdapter({
+  const cloudAdapter = useCloudThreadListAdapter({
     cloud,
     create: async () => {
       if (create) {
@@ -502,7 +511,7 @@ export const useLangGraphRuntime = ({
     },
     delete: deleteFn,
   });
-  return unstable_useRemoteThreadListRuntime({
+  return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useLangGraphRuntimeImpl(options);
     },

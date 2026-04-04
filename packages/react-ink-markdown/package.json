@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ink-markdown",
-  "version": "0.0.3",
+  "version": "0.0.8",
   "description": "Terminal markdown rendering for @assistant-ui/react-ink",
   "keywords": [
     "markdown",
@@ -17,7 +17,6 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -39,15 +38,15 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.5",
-    "@assistant-ui/store": "^0.2.2",
+    "@assistant-ui/core": "^0.1.10",
+    "@assistant-ui/store": "^0.2.6",
     "markdansi": "^0.2.1"
   },
   "peerDependencies": {
-    "@assistant-ui/react-ink": "^0.0.4",
+    "@assistant-ui/react-ink": "^0.0.9",
     "@types/react": "*",
-    "ink": ">=4",
-    "react": "^18 || ^19",
+    "ink": ">=6",
+    "react": "^19",
     "shiki": ">=4"
   },
   "peerDependenciesMeta": {
@@ -67,11 +66,11 @@
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.14",
-    "ink": "^5.2.0",
+    "ink": "^6.8.0",
     "ink-testing-library": "^4.0.0",
-    "react": "18.3.1",
-    "shiki": "^4.0.1",
-    "vitest": "^4.0.18"
+    "react": "^19.2.4",
+    "shiki": "^4.0.2",
+    "vitest": "^4.1.2"
   },
   "publishConfig": {
     "access": "public",

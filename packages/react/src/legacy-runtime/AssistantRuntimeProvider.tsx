@@ -5,7 +5,7 @@ import { AssistantClient, useAui } from "@assistant-ui/store";
 import { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { AssistantProviderBase } from "@assistant-ui/core/react";
 import { ThreadPrimitiveViewportProvider } from "../context/providers/ThreadViewportProvider";
-import { DevToolsProviderApi } from "../devtools";
+import { DevToolsProviderApi } from "../devtools/DevToolsHooks";
 
 export namespace AssistantRuntimeProvider {
   export type Props = PropsWithChildren<{

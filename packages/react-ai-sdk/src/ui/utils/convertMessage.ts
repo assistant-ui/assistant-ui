@@ -9,6 +9,7 @@ import type {
   TextMessagePart,
   DataMessagePart,
   SourceMessagePart,
+  FileMessagePart,
   ThreadMessageLike,
 } from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
@@ -123,7 +124,11 @@ function convertParts(
   }
 
   const converted = message.parts
-    .filter((p) => p.type !== "step-start" && p.type !== "file")
+    .filter(
+      (p) =>
+        p.type !== "step-start" &&
+        (message.role !== "user" || p.type !== "file"),
+    )
     .map((part) => {
       if (part.type === "text") {
         return {
@@ -196,6 +201,15 @@ function convertParts(
           url: part.url,
           title: part.title || "",
         } satisfies SourceMessagePart;
+      }
+
+      if (part.type === "file") {
+        return {
+          type: "file",
+          data: part.url,
+          mimeType: part.mediaType,
+          ...(part.filename != null && { filename: part.filename }),
+        } satisfies FileMessagePart;
       }
 
       if (part.type === "source-document") {

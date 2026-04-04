@@ -1,6 +1,6 @@
 "use client";
 
-import { toLanguageModelMessages } from "./converters";
+import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
 import type {
   AssistantRuntime,
   ChatModelAdapter,

@@ -1,21 +1,35 @@
-import { type ComponentType, type FC, memo, useMemo } from "react";
-import { useAuiState } from "@assistant-ui/store";
+import {
+  type ComponentType,
+  type FC,
+  type ReactNode,
+  memo,
+  useMemo,
+} from "react";
+import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import type { SuggestionState } from "../../../store/scopes/suggestion";
 import { SuggestionByIndexProvider } from "../../providers/SuggestionByIndexProvider";
 
+type SuggestionsComponentConfig = {
+  /** Component used to render each suggestion */
+  Suggestion: ComponentType;
+};
+
 export namespace ThreadPrimitiveSuggestions {
-  export type Props = {
-    /**
-     * Component to render for each suggestion.
-     */
-    components: {
-      /** Component used to render each suggestion */
-      Suggestion: ComponentType;
-    };
-  };
+  export type Props =
+    | {
+        /** @deprecated Use the children render function instead. */
+        components: SuggestionsComponentConfig;
+        children?: never;
+      }
+    | {
+        /** Render function called for each suggestion. Receives the suggestion. */
+        children: (value: { suggestion: SuggestionState }) => ReactNode;
+        components?: never;
+      };
 }
 
 type SuggestionComponentProps = {
-  components: ThreadPrimitiveSuggestions.Props["components"];
+  components: SuggestionsComponentConfig;
 };
 
 const SuggestionComponent: FC<SuggestionComponentProps> = ({ components }) => {
@@ -26,7 +40,7 @@ const SuggestionComponent: FC<SuggestionComponentProps> = ({ components }) => {
 export namespace ThreadPrimitiveSuggestionByIndex {
   export type Props = {
     index: number;
-    components: ThreadPrimitiveSuggestions.Props["components"];
+    components: SuggestionsComponentConfig;
   };
 }
 
@@ -50,33 +64,63 @@ export const ThreadPrimitiveSuggestionByIndex: FC<ThreadPrimitiveSuggestionByInd
 ThreadPrimitiveSuggestionByIndex.displayName =
   "ThreadPrimitive.SuggestionByIndex";
 
-/**
- * Renders all suggestions using the provided component configuration.
- */
-export const ThreadPrimitiveSuggestionsImpl: FC<
-  ThreadPrimitiveSuggestions.Props
-> = ({ components }) => {
+const ThreadPrimitiveSuggestionsInner: FC<{
+  children: (value: { suggestion: SuggestionState }) => ReactNode;
+}> = ({ children }) => {
   const suggestionsLength = useAuiState(
     (s) => s.suggestions.suggestions.length,
   );
 
-  const suggestionElements = useMemo(() => {
+  return useMemo(() => {
     if (suggestionsLength === 0) return null;
     return Array.from({ length: suggestionsLength }, (_, index) => (
-      <ThreadPrimitiveSuggestionByIndex
-        key={index}
-        index={index}
-        components={components}
-      />
+      <SuggestionByIndexProvider key={index} index={index}>
+        <RenderChildrenWithAccessor
+          getItemState={(aui) =>
+            aui.suggestions().suggestion({ index }).getState()
+          }
+        >
+          {(getItem) =>
+            children({
+              get suggestion() {
+                return getItem();
+              },
+            })
+          }
+        </RenderChildrenWithAccessor>
+      </SuggestionByIndexProvider>
     ));
-  }, [suggestionsLength, components]);
+  }, [suggestionsLength, children]);
+};
 
-  return suggestionElements;
+/**
+ * Renders all suggestions.
+ */
+export const ThreadPrimitiveSuggestionsImpl: FC<
+  ThreadPrimitiveSuggestions.Props
+> = ({ components, children }) => {
+  if (components) {
+    return (
+      <ThreadPrimitiveSuggestionsInner>
+        {() => <SuggestionComponent components={components} />}
+      </ThreadPrimitiveSuggestionsInner>
+    );
+  }
+  return (
+    <ThreadPrimitiveSuggestionsInner>
+      {children}
+    </ThreadPrimitiveSuggestionsInner>
+  );
 };
 
 ThreadPrimitiveSuggestionsImpl.displayName = "ThreadPrimitive.Suggestions";
 
 export const ThreadPrimitiveSuggestions = memo(
   ThreadPrimitiveSuggestionsImpl,
-  (prev, next) => prev.components.Suggestion === next.components.Suggestion,
+  (prev, next) => {
+    if (prev.children || next.children) {
+      return prev.children === next.children;
+    }
+    return prev.components!.Suggestion === next.components!.Suggestion;
+  },
 );

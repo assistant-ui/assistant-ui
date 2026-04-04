@@ -1,7 +1,7 @@
 "use client";
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "../../utils/Primitive";
 import {
   type ComponentRef,
   forwardRef,
@@ -30,7 +30,9 @@ export namespace ThreadPrimitiveViewportFooter {
  * @example
  * ```tsx
  * <ThreadPrimitive.Viewport>
- *   <ThreadPrimitive.Messages components={{ ... }} />
+ *   <ThreadPrimitive.Messages>
+ *     {() => <MyMessage />}
+ *   </ThreadPrimitive.Messages>
  *   <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
  *     <Composer />
  *   </ThreadPrimitive.ViewportFooter>

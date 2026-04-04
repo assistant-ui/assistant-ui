@@ -1442,4 +1442,445 @@ describe("useLangGraphMessages", {}, () => {
       expect(onMessageChunk).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("extracts messages from node-keyed updates shape", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "updates",
+        data: {
+          validate_input: {
+            messages: [
+              { id: "ai-1", type: "ai" as const, content: "Validated input" },
+            ],
+          },
+        },
+      },
+      {
+        event: "updates",
+        data: {
+          generate_plan: {
+            messages: [
+              {
+                id: "ai-2",
+                type: "ai" as const,
+                content: "Here is your plan",
+              },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "Plan a trip" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(3);
+      expect(result.current.messages[0]!.id).toEqual("user-1");
+      expect(result.current.messages[1]!.id).toEqual("ai-1");
+      expect(result.current.messages[1]!.content).toEqual("Validated input");
+      expect(result.current.messages[2]!.id).toEqual("ai-2");
+      expect(result.current.messages[2]!.content).toEqual("Here is your plan");
+    });
+  });
+
+  it("normalizes role-based dict messages from updates to type-based", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "updates",
+        data: {
+          generate_plan: {
+            messages: [
+              {
+                id: "ai-1",
+                role: "assistant",
+                content: "Here is your plan",
+              },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "Plan a trip" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const aiMessage = result.current.messages[1]!;
+      expect(aiMessage.id).toEqual("ai-1");
+      // role: "assistant" should be normalized to type: "ai"
+      expect(aiMessage.type).toEqual("ai");
+      expect(aiMessage.content).toEqual("Here is your plan");
+    });
+  });
+
+  it("syncs messages from values event when no tuple events", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "values",
+        data: {
+          messages: [
+            { id: "user-1", type: "human" as const, content: "hi" },
+            { id: "ai-1", type: "ai" as const, content: "hello" },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "hi" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[0]!.id).toEqual("user-1");
+      expect(result.current.messages[1]!.id).toEqual("ai-1");
+      expect(result.current.messages[1]!.content).toEqual("hello");
+    });
+  });
+
+  it("reconciles tuple-accumulated messages with final values snapshot", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "Streaming response",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "values",
+        data: {
+          messages: [
+            { id: "user-1", type: "human" as const, content: "hi" },
+            { id: "run-1", type: "ai" as const, content: "Final value" },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "hi" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      // After stream ends, final values snapshot becomes authoritative
+      const aiMessage = result.current.messages[1]!;
+      expect(aiMessage.id).toBe("run-1");
+      expect(aiMessage.content).toEqual("Final value");
+    });
+  });
+
+  it("shows messages from pure node after LLM node (mixed tuple + values)", async () => {
+    // Reproduces the exact issue #3598 scenario:
+    // Node A (validate_input) has LLM → produces messages-tuple events
+    // Node B (generate_plan) is pure Python → only produces values events
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      // Node A: LLM node produces tuple events
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "Input validated.",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1, langgraph_node: "validate_input" },
+        ],
+      },
+      // Node B: pure node, no LLM → only appears in values
+      {
+        event: "values",
+        data: {
+          messages: [
+            { id: "user-1", type: "human" as const, content: "Plan a trip" },
+            { id: "ai-1", type: "ai" as const, content: "Input validated." },
+            {
+              id: "ai-2",
+              type: "ai" as const,
+              content: "Here is your plan: ...",
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "Plan a trip" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(3);
+      expect(result.current.messages[2]!.id).toEqual("ai-2");
+      expect(result.current.messages[2]!.content).toEqual(
+        "Here is your plan: ...",
+      );
+    });
+  });
+
+  it("shows messages from pure node after LLM node (mixed tuple + updates)", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      // Node A: LLM node produces tuple events
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "Validated.",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1, langgraph_node: "validate_input" },
+        ],
+      },
+      // Node B: pure node → only appears in updates
+      {
+        event: "updates",
+        data: {
+          generate_plan: {
+            messages: [
+              {
+                id: "ai-2",
+                type: "ai" as const,
+                content: "Here is the plan",
+              },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "Plan" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(3);
+      expect(result.current.messages[2]!.id).toEqual("ai-2");
+      expect(result.current.messages[2]!.content).toEqual("Here is the plan");
+    });
+  });
+
+  it("reconciles with final values snapshot after stream ends", async () => {
+    // During streaming, tuple accumulates partial content for ai-1.
+    // The final values snapshot has the complete ai-1 content.
+    // After the stream ends, the final values should become authoritative.
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "Partial strea",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "ming content",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      // Final values snapshot: complete state from server
+      {
+        event: "values",
+        data: {
+          messages: [
+            { id: "user-1", type: "human" as const, content: "hi" },
+            {
+              id: "ai-1",
+              type: "ai" as const,
+              content: "Partial streaming content — complete version",
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "hi" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const aiMessage = result.current.messages[1]!;
+      expect(aiMessage.id).toBe("ai-1");
+      // After stream ends, should reconcile to the final values content
+      expect(aiMessage.content).toEqual(
+        "Partial streaming content — complete version",
+      );
+    });
+  });
+
+  it("does not reconcile if stream is aborted", async () => {
+    const streamSpy = vi.fn().mockImplementation(async (_messages, config) => {
+      async function* gen() {
+        yield metadataEvent;
+        yield {
+          event: "messages" as const,
+          data: [
+            {
+              id: "ai-1",
+              content: "Streaming...",
+              type: "AIMessageChunk",
+              tool_call_chunks: [],
+            },
+            { run_attempt: 1 },
+          ],
+        };
+        yield {
+          event: "values" as const,
+          data: {
+            messages: [
+              { id: "user-1", type: "human", content: "hi" },
+              { id: "ai-1", type: "ai", content: "Values snapshot" },
+            ],
+          },
+        };
+        // Block until abort, then throw AbortError like the real SDK
+        await new Promise<void>((_resolve, reject) => {
+          const onAbort = () => {
+            const err = new Error("The operation was aborted.");
+            err.name = "AbortError";
+            reject(err);
+          };
+
+          if (config.abortSignal.aborted) {
+            onAbort();
+            return;
+          }
+
+          config.abortSignal.addEventListener("abort", onAbort, {
+            once: true,
+          });
+        });
+      }
+      return gen();
+    });
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy as any,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "hi" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[1]!.content).toEqual("Streaming...");
+    });
+
+    act(() => {
+      result.current.cancel();
+    });
+
+    await waitFor(() => {
+      const aiMessage = result.current.messages[1]!;
+      // Should keep tuple-accumulated content, NOT the values snapshot
+      expect(aiMessage.content).not.toEqual("Values snapshot");
+    });
+  });
 });
