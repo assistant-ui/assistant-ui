@@ -107,6 +107,15 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
       "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-expo",
   },
   {
+    title: "Generative UI",
+    image: "/screenshot/examples/generative-ui.png",
+    description:
+      "Charts, date pickers, contact forms, and maps rendered as interactive AI tool UIs.",
+    link: "/examples/generative-ui",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-generative-ui",
+  },
+  {
     title: "Interactables",
     image: "/screenshot/examples/interactables.png",
     description:
