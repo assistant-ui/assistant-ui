@@ -1,0 +1,361 @@
+---
+title: Mentions
+description: Let users @-mention tools or custom items in the composer to guide the LLM.
+---
+
+Mentions let users type `@` in the composer to open a popover picker, select an item (e.g. a tool), and insert a directive into the message text. The LLM can then use the directive as a hint.
+
+## How It Works
+
+```
+User types "@"  →  Trigger detected  →  Adapter provides categories/items
+                                              ↓
+              Directive inserted  ←  User selects item from popover
+                   ↓
+         Message sent with ":tool[Label]{name=id}" in text
+```
+
+The mention system has three layers:
+
+1. **Trigger detection** — watches the composer text for a trigger character (`@` by default) and extracts the query
+2. **Adapter** — provides the categories and items to display in the popover (e.g. registered tools)
+3. **Formatter** — serializes a selected item into directive text (`:type[label]{name=id}`) and parses it back for rendering
+
+## Quick Start
+
+The fastest path is the pre-built [Mention UI component](/docs/ui/mention), which wires everything together with a single shadcn component:
+
+```bash
+npx shadcn@latest add "https://r.assistant-ui.com/composer-mention"
+```
+
+See the [Mention UI guide](/docs/ui/mention) for setup steps.
+
+The rest of this guide covers the underlying concepts and customization points.
+
+## Mention Adapter
+
+A `Unstable_MentionAdapter` provides the data for the popover. All methods are **synchronous** — use external state management (React Query, SWR, local state) for async data, then expose loaded results through the adapter.
+
+```ts
+import type { Unstable_MentionAdapter } from "@assistant-ui/core";
+
+const myAdapter: Unstable_MentionAdapter = {
+  categories() {
+    return [
+      { id: "tools", label: "Tools" },
+      { id: "users", label: "Users" },
+    ];
+  },
+
+  categoryItems(categoryId) {
+    if (categoryId === "tools") {
+      return [
+        { id: "search", type: "tool", label: "Search" },
+        { id: "calculator", type: "tool", label: "Calculator" },
+      ];
+    }
+    if (categoryId === "users") {
+      return [
+        { id: "alice", type: "user", label: "Alice" },
+        { id: "bob", type: "user", label: "Bob" },
+      ];
+    }
+    return [];
+  },
+
+  // Optional — global search across all categories
+  search(query) {
+    const lower = query.toLowerCase();
+    const all = [
+      ...this.categoryItems("tools"),
+      ...this.categoryItems("users"),
+    ];
+    return all.filter(
+      (item) =>
+        item.label.toLowerCase().includes(lower) ||
+        item.id.toLowerCase().includes(lower),
+    );
+  },
+};
+```
+
+Pass the adapter to `MentionRoot`:
+
+```tsx
+<ComposerPrimitive.Unstable_MentionRoot adapter={myAdapter}>
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Input placeholder="Type @ to mention..." />
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.Unstable_MentionRoot>
+```
+
+### Built-in Tool Adapter
+
+For the common case of mentioning registered tools, use `unstable_useToolMentionAdapter`:
+
+```tsx
+import { unstable_useToolMentionAdapter } from "@assistant-ui/react";
+
+const adapter = unstable_useToolMentionAdapter({
+  // Format tool names for display (default: raw name)
+  formatLabel: (name) =>
+    name.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+
+  // Custom category label (default: "Tools")
+  categoryLabel: "Tools",
+
+  // Explicit tool list (overrides model context tools)
+  // tools: [{ id: "search", type: "tool", label: "Search" }],
+
+  // Include model context tools alongside explicit tools
+  // includeModelContextTools: true,
+});
+```
+
+The adapter automatically reads tools from the model context (registered via `Tools()` or `useAssistantTool`). When `tools` is provided, model context tools are excluded unless `includeModelContextTools` is set to `true`.
+
+## Directive Format
+
+When a user selects a mention item, it is serialized into the composer text as a **directive**. The default format is:
+
+```
+:type[label]{name=id}
+```
+
+For example, selecting a tool named "get_weather" with label "Get Weather" produces:
+
+```
+:tool[Get Weather]{name=get_weather}
+```
+
+When `id` equals `label`, the `{name=…}` attribute is omitted for brevity:
+
+```
+:tool[search]
+```
+
+### Custom Formatter
+
+Implement `Unstable_DirectiveFormatter` to use a different format:
+
+```ts
+import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
+
+const slashFormatter: Unstable_DirectiveFormatter = {
+  serialize(item) {
+    return `/${item.id}`;
+  },
+
+  parse(text) {
+    const segments = [];
+    const re = /\/(\w+)/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = re.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        segments.push({ kind: "text" as const, text: text.slice(lastIndex, match.index) });
+      }
+      segments.push({
+        kind: "mention" as const,
+        type: "tool",
+        label: match[1]!,
+        id: match[1]!,
+      });
+      lastIndex = re.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+      segments.push({ kind: "text" as const, text: text.slice(lastIndex) });
+    }
+
+    return segments;
+  },
+};
+```
+
+Pass it to both the mention root and the message renderer:
+
+```tsx
+// Composer
+<ComposerPrimitive.Unstable_MentionRoot adapter={adapter} formatter={slashFormatter}>
+  ...
+</ComposerPrimitive.Unstable_MentionRoot>
+
+// User messages
+const SlashDirectiveText = createDirectiveText(slashFormatter);
+<MessagePrimitive.Parts components={{ Text: SlashDirectiveText }} />
+```
+
+## Textarea vs Lexical
+
+The mention system supports two input modes:
+
+| | Textarea (default) | Lexical |
+| --- | --- | --- |
+| **Input component** | `ComposerPrimitive.Input` | `LexicalComposerInput` |
+| **Mention display in composer** | Raw directive text (`:tool[Label]`) | Inline chips (atomic nodes) |
+| **Dependencies** | None | `@assistant-ui/react-lexical`, `lexical`, `@lexical/react` |
+| **Best for** | Simple setups, minimal bundle | Rich editing, polished UX |
+
+With **textarea**, selecting a mention inserts the directive string directly into the text. The user sees `:tool[Get Weather]{name=get_weather}` in the input.
+
+With **Lexical**, selected mentions appear as styled inline chips that behave as atomic units — they can be selected, deleted, and undone as a whole. The underlying text still uses the directive format.
+
+```tsx
+import { LexicalComposerInput } from "@assistant-ui/react-lexical";
+
+<ComposerPrimitive.Unstable_MentionRoot adapter={adapter}>
+  <ComposerPrimitive.Root>
+    <LexicalComposerInput placeholder="Type @ to mention..." />
+    <ComposerPrimitive.Send />
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.Unstable_MentionRoot>
+```
+
+`LexicalComposerInput` auto-wires to the mention context — no extra props needed.
+
+## Rendering Mentions in Messages
+
+Use `DirectiveText` as the `Text` component for user messages so directives render as inline chips instead of raw syntax:
+
+```tsx
+import { DirectiveText } from "@/components/assistant-ui/composer-mention";
+
+<MessagePrimitive.Parts
+  components={{
+    Text: DirectiveText,
+  }}
+/>
+```
+
+For assistant messages, keep using your markdown renderer (e.g. `MarkdownText`) — the LLM typically does not emit directive syntax.
+
+For a custom formatter, use `createDirectiveText`:
+
+```tsx
+import { createDirectiveText } from "@/components/assistant-ui/composer-mention";
+
+const MyDirectiveText = createDirectiveText(myFormatter);
+```
+
+## Processing Mentions on the Backend
+
+The message text arrives at your backend with directives inline. Parse them to extract mentioned items:
+
+```ts
+// Default format: :type[label]{name=id}
+const DIRECTIVE_RE = /:([\w-]+)\[([^\]]+)\](?:\{name=([^}]+)\})?/g;
+
+function parseMentions(text: string) {
+  const mentions = [];
+  let match;
+  while ((match = DIRECTIVE_RE.exec(text)) !== null) {
+    mentions.push({
+      type: match[1],        // e.g. "tool"
+      label: match[2],       // e.g. "Get Weather"
+      id: match[3] ?? match[2], // e.g. "get_weather"
+    });
+  }
+  return mentions;
+}
+
+// Example:
+// parseMentions("Use :tool[Get Weather]{name=get_weather} to check")
+// → [{ type: "tool", label: "Get Weather", id: "get_weather" }]
+```
+
+You can use the extracted mentions to:
+- Force-enable specific tools for the LLM call
+- Add context about mentioned users or documents to the system prompt
+- Log which tools users request most often
+
+## Reading Mention State
+
+Use `unstable_useMentionContext` to programmatically access the mention popover state:
+
+```tsx
+import { unstable_useMentionContext } from "@assistant-ui/react";
+
+function MyComponent() {
+  const mention = unstable_useMentionContext();
+
+  // mention.open — whether the popover is visible
+  // mention.query — current search text after "@"
+  // mention.categories — filtered category list
+  // mention.items — filtered item list
+  // mention.highlightedIndex — keyboard-navigated index
+  // mention.isSearchMode — true when global search is active
+  // mention.selectItem(item) — programmatically select an item
+  // mention.close() — close the popover
+}
+```
+
+This hook must be used within a `ComposerPrimitive.Unstable_MentionRoot`.
+
+## Building a Custom Popover
+
+Use the mention primitives to build a fully custom popover:
+
+```tsx
+<ComposerPrimitive.Unstable_MentionRoot adapter={adapter}>
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Input />
+
+    <ComposerPrimitive.Unstable_MentionPopover className="popover">
+      <ComposerPrimitive.Unstable_MentionBack>
+        ← Back
+      </ComposerPrimitive.Unstable_MentionBack>
+
+      <ComposerPrimitive.Unstable_MentionCategories>
+        {(categories) =>
+          categories.map((cat) => (
+            <ComposerPrimitive.Unstable_MentionCategoryItem
+              key={cat.id}
+              categoryId={cat.id}
+            >
+              {cat.label}
+            </ComposerPrimitive.Unstable_MentionCategoryItem>
+          ))
+        }
+      </ComposerPrimitive.Unstable_MentionCategories>
+
+      <ComposerPrimitive.Unstable_MentionItems>
+        {(items) =>
+          items.map((item) => (
+            <ComposerPrimitive.Unstable_MentionItem
+              key={item.id}
+              item={item}
+            >
+              {item.label}
+            </ComposerPrimitive.Unstable_MentionItem>
+          ))
+        }
+      </ComposerPrimitive.Unstable_MentionItems>
+    </ComposerPrimitive.Unstable_MentionPopover>
+
+    <ComposerPrimitive.Send />
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.Unstable_MentionRoot>
+```
+
+### Primitives Reference
+
+| Primitive | Description |
+| --- | --- |
+| `Unstable_MentionRoot` | Provider — wraps the composer with trigger detection, keyboard navigation, and popover state |
+| `Unstable_MentionPopover` | Container — only renders when a trigger is active (`role="listbox"`) |
+| `Unstable_MentionCategories` | Render-function for the top-level category list |
+| `Unstable_MentionCategoryItem` | Button that drills into a category (`role="option"`, auto `data-highlighted`) |
+| `Unstable_MentionItems` | Render-function for items within the active category or search results |
+| `Unstable_MentionItem` | Button that inserts a mention (`role="option"`, auto `data-highlighted`) |
+| `Unstable_MentionBack` | Button that navigates back from items to categories |
+
+See the [Composer API reference](/docs/api-reference/primitives/composer) for full prop details.
+
+## Related
+
+- [Mention UI Component](/docs/ui/mention) — pre-built shadcn component
+- [Tools Guide](/docs/guides/tools) — register tools that appear in the mention picker
+- [Composer Primitives](/docs/primitives/composer) — underlying composer primitives
