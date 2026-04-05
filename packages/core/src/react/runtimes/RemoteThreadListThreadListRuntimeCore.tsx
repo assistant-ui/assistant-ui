@@ -149,15 +149,11 @@ export class RemoteThreadListThreadListRuntimeCore
         Fragment) as ComponentType<PropsWithChildren>,
     }));
     this.__internal_setOptions(options);
-    const startThreadId = options.threadId ?? options.initialThreadId;
-    if (startThreadId) {
-      this.switchToThread(startThreadId);
-    } else {
-      this.switchToNewThread();
-    }
+    this.switchToNewThread();
   }
 
   private useProvider;
+  private _initialThreadLoaded = false;
 
   public __internal_setOptions(options: RemoteThreadListOptions) {
     if (this._options === options) return;
@@ -175,6 +171,11 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public __internal_load() {
     this.getLoadThreadsPromise(); // begin loading on initial bind
+    const startThreadId = this._options.threadId ?? this._options.initialThreadId;
+    if (!this._initialThreadLoaded && startThreadId) {
+      this._initialThreadLoaded = true;
+      this.switchToThread(startThreadId);
+    }
   }
 
   public get isLoading() {
