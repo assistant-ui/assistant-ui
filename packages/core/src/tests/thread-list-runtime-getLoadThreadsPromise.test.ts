@@ -50,15 +50,11 @@ const createMockCore = (
 });
 
 describe("ThreadListRuntime.getLoadThreadsPromise", () => {
-  it("is a function on the public API", () => {
-    const runtime = new ThreadListRuntimeImpl(createMockCore());
-    expect(typeof runtime.getLoadThreadsPromise).toBe("function");
-  });
-
-  it("returns a Promise", () => {
+  it("returns a Promise that resolves", async () => {
     const runtime = new ThreadListRuntimeImpl(createMockCore());
     const result = runtime.getLoadThreadsPromise();
     expect(result).toBeInstanceOf(Promise);
+    await expect(result).resolves.toBeUndefined();
   });
 
   it("delegates to the core implementation", async () => {
@@ -75,12 +71,5 @@ describe("ThreadListRuntime.getLoadThreadsPromise", () => {
     expect(resolved).toBe(false);
     await runtime.getLoadThreadsPromise();
     expect(resolved).toBe(true);
-  });
-
-  it("resolves immediately for sync cores", async () => {
-    const runtime = new ThreadListRuntimeImpl(
-      createMockCore(Promise.resolve()),
-    );
-    await expect(runtime.getLoadThreadsPromise()).resolves.toBeUndefined();
   });
 });

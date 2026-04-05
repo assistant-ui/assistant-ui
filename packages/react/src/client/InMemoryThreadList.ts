@@ -1,4 +1,6 @@
 import { resource, tapState, tapMemo } from "@assistant-ui/tap";
+
+const RESOLVED_PROMISE = Promise.resolve();
 import {
   type ClientOutput,
   tapClientLookup,
@@ -151,7 +153,7 @@ export const InMemoryThreadList = resource(
       getState: () => state,
       switchToThread: handleSwitchToThread,
       switchToNewThread: handleSwitchToNewThread,
-      getLoadThreadsPromise: () => Promise.resolve(),
+      getLoadThreadsPromise: () => RESOLVED_PROMISE,
       item: (selector) => {
         if (selector === "main") {
           const index = threads.findIndex((t) => t.id === mainThreadId);

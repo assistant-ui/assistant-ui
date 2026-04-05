@@ -1,4 +1,6 @@
 import { resource, tapMemo } from "@assistant-ui/tap";
+
+const RESOLVED_PROMISE = Promise.resolve();
 import {
   type ClientElement,
   type ClientOutput,
@@ -62,7 +64,7 @@ export const SingleThreadList = resource(
       switchToNewThread: () => {
         throw new Error("SingleThreadList does not support switchToNewThread");
       },
-      getLoadThreadsPromise: () => Promise.resolve(),
+      getLoadThreadsPromise: () => RESOLVED_PROMISE,
       item: (selector) => {
         if (
           selector !== "main" &&
