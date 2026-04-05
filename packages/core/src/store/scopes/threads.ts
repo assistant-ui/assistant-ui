@@ -26,6 +26,7 @@ export type ThreadsMethods = {
       | { index: number; archived?: boolean },
   ): ThreadListItemMethods;
   thread(selector: "main"): ThreadMethods;
+  getLoadThreadsPromise(): Promise<void>;
   __internal_getAssistantRuntime?(): AssistantRuntime;
 };
 

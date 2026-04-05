@@ -85,6 +85,7 @@ export const ThreadListClient = resource(
       switchToNewThread: async () => {
         await runtime.switchToNewThread();
       },
+      getLoadThreadsPromise: () => runtime.getLoadThreadsPromise(),
       __internal_getAssistantRuntime: () => __internal_assistantRuntime,
     };
   },
