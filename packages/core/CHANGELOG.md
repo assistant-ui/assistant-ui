@@ -1,5 +1,16 @@
 # @assistant-ui/core
 
+## 0.1.11
+
+### Patch Changes
+
+- de29641: fix(core): start RemoteThreadList isLoading as true
+- a8bf84b: feat(core): expose `getLoadThreadsPromise()` on `ThreadListRuntime` public API
+- 5fd5c3d: feat(core): add reactive `threadId` option to `useRemoteThreadListRuntime` for URL-based routing
+- ec50e8a: fix(core): prevent resolved history tool calls from re-executing
+- Updated dependencies [2c5cd97]
+  - assistant-stream@0.3.10
+
 ## 0.1.10
 
 ### Patch Changes

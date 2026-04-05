@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.10
+
+### Patch Changes
+
+- 2c5cd97: fix(assistant-stream): handle CRLF line endings in LineDecoderStream
+
 ## 0.3.9
 
 ### Patch Changes

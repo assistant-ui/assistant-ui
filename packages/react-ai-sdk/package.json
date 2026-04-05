@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.146",
-    "@assistant-ui/core": "^0.1.10",
+    "@assistant-ui/core": "^0.1.11",
     "@assistant-ui/store": "^0.2.6",
     "ai": "^6.0.144",
     "assistant-cloud": "*"

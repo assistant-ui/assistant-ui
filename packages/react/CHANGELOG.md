@@ -1,5 +1,20 @@
 # @assistant-ui/react
 
+## 0.12.23
+
+### Patch Changes
+
+- a8bf84b: feat(core): expose `getLoadThreadsPromise()` on `ThreadListRuntime` public API
+- bdbd024: fix(core): set EMPTY_THREAD_CORE.isLoading to true to prevent Welcome page flash during thread switch
+- 0958070: feat(core): add `initialThreadId` option to `useRemoteThreadListRuntime`
+- Updated dependencies [de29641]
+- Updated dependencies [a8bf84b]
+- Updated dependencies [5fd5c3d]
+- Updated dependencies [2c5cd97]
+- Updated dependencies [ec50e8a]
+  - @assistant-ui/core@0.1.11
+  - assistant-stream@0.3.10
+
 ## 0.12.22
 
 ### Patch Changes
