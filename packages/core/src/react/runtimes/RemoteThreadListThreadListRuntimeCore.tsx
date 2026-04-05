@@ -171,7 +171,8 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public __internal_load() {
     this.getLoadThreadsPromise(); // begin loading on initial bind
-    const startThreadId = this._options.threadId ?? this._options.initialThreadId;
+    const startThreadId =
+      this._options.threadId ?? this._options.initialThreadId;
     if (!this._initialThreadLoaded && startThreadId) {
       this._initialThreadLoaded = true;
       this.switchToThread(startThreadId);
