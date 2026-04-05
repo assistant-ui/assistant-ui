@@ -161,6 +161,31 @@ describe("AssistantTransportDecoder", () => {
     expect(decodedChunks).toEqual(originalChunks);
   });
 
+  it("should decode SSE with CRLF line endings", async () => {
+    // Simulate a server that uses \r\n line endings (common in HTTP)
+    const sseText =
+      'data: {"type":"text-delta","textDelta":"Hello","path":[]}\r\n\r\n' +
+      "data: [DONE]\r\n\r\n";
+
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(sseText));
+        controller.close();
+      },
+    });
+
+    const decodedStream = stream.pipeThrough(new AssistantTransportDecoder());
+    const decodedChunks = await collectChunks(decodedStream);
+
+    expect(decodedChunks).toHaveLength(1);
+    expect(decodedChunks[0]).toEqual({
+      type: "text-delta",
+      textDelta: "Hello",
+      path: [],
+    });
+  });
+
   it("should throw error when stream ends without [DONE]", async () => {
     // Manually create an SSE stream without [DONE]
     const sseText =
