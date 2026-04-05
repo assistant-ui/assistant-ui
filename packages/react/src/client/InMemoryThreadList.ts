@@ -1,6 +1,4 @@
 import { resource, tapState, tapMemo } from "@assistant-ui/tap";
-
-const RESOLVED_PROMISE = Promise.resolve();
 import {
   type ClientOutput,
   tapClientLookup,
@@ -13,6 +11,8 @@ import type { ResourceElement } from "@assistant-ui/tap";
 
 import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
+
+const RESOLVED_PROMISE = Promise.resolve();
 
 export type InMemoryThreadListProps = {
   thread: (threadId: string) => ResourceElement<ClientOutput<"thread">>;

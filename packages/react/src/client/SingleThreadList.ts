@@ -1,12 +1,11 @@
 import { resource, tapMemo } from "@assistant-ui/tap";
-
-const RESOLVED_PROMISE = Promise.resolve();
 import {
   type ClientElement,
   type ClientOutput,
   tapClientResource,
 } from "@assistant-ui/store";
 
+const RESOLVED_PROMISE = Promise.resolve();
 const THREAD_ID = "default";
 
 const SingleThreadListItem = resource((): ClientOutput<"threadListItem"> => {
