@@ -43,8 +43,17 @@ export type RemoteThreadListOptions = {
    * When provided, the runtime starts on this thread instead of creating a
    * new empty thread. Useful for URL-based routing (e.g. `/chat/[threadId]`)
    * where the initial thread is known at mount time.
+   *
+   * @deprecated Use `threadId` instead, which also reacts to subsequent changes.
    */
   initialThreadId?: string | undefined;
+
+  /**
+   * The current thread ID to display. When this value changes, the runtime
+   * automatically switches to the specified thread. Set to `undefined` to
+   * switch to a new thread.
+   */
+  threadId?: string | undefined;
 
   /**
    * When true, if this runtime is used inside another RemoteThreadListRuntime,

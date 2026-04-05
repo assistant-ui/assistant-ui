@@ -149,8 +149,9 @@ export class RemoteThreadListThreadListRuntimeCore
         Fragment) as ComponentType<PropsWithChildren>,
     }));
     this.__internal_setOptions(options);
-    if (options.initialThreadId) {
-      this.switchToThread(options.initialThreadId);
+    const startThreadId = options.threadId ?? options.initialThreadId;
+    if (startThreadId) {
+      this.switchToThread(startThreadId);
     } else {
       this.switchToNewThread();
     }

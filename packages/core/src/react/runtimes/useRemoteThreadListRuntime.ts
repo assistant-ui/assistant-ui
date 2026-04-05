@@ -34,6 +34,7 @@ const useRemoteThreadListRuntimeImpl = (
     runtime.threads.__internal_setOptions(options);
     runtime.threads.__internal_load();
   }, [runtime, options]);
+
   return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
 };
 
@@ -43,8 +44,8 @@ export const useRemoteThreadListRuntime = (
   const runtimeHookRef = useRef(options.runtimeHook);
   runtimeHookRef.current = options.runtimeHook;
 
-  // initialThreadId is only consumed by the constructor; capture once via ref
-  const initialThreadIdRef = useRef(options.initialThreadId);
+  // threadId/initialThreadId only affect the constructor; capture once via ref
+  const startThreadIdRef = useRef(options.threadId ?? options.initialThreadId);
 
   const stableRuntimeHook = useCallback(() => {
     return runtimeHookRef.current();
@@ -54,7 +55,7 @@ export const useRemoteThreadListRuntime = (
     () => ({
       adapter: options.adapter,
       allowNesting: options.allowNesting,
-      initialThreadId: initialThreadIdRef.current,
+      initialThreadId: startThreadIdRef.current,
       runtimeHook: stableRuntimeHook,
     }),
     [options.adapter, options.allowNesting, stableRuntimeHook],
@@ -76,5 +77,18 @@ export const useRemoteThreadListRuntime = (
     return stableRuntimeHook();
   }
 
-  return useRemoteThreadListRuntimeImpl(stableOptions);
+  const runtime = useRemoteThreadListRuntimeImpl(stableOptions);
+
+  const prevThreadIdRef = useRef(options.threadId);
+  useEffect(() => {
+    if (options.threadId === prevThreadIdRef.current) return;
+    prevThreadIdRef.current = options.threadId;
+    if (options.threadId) {
+      runtime.threads.switchToThread(options.threadId).catch(() => {});
+    } else {
+      runtime.threads.switchToNewThread().catch(() => {});
+    }
+  }, [runtime, options.threadId]);
+
+  return runtime;
 };
