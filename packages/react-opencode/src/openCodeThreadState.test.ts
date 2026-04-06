@@ -73,4 +73,39 @@ describe("reduceOpenCodeThreadState", () => {
     expect(withPart.messageOrder).toEqual(["msg_assistant"]);
     expect(withPart.messagesById["msg_assistant"]?.parts).toHaveLength(1);
   });
+
+  it("reconciles a pending user message with a streamed message update", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+    const pending: PendingUserMessage = {
+      clientId: "local_1",
+      sessionId: "ses_1",
+      createdAt: 1000,
+      parentId: "msg_parent",
+      sourceId: null,
+      runConfig: undefined,
+      contentText: "hello world",
+      parts: [{ type: "text", text: "hello world" }],
+      status: "pending",
+    };
+
+    const queued = reduceOpenCodeThreadState(initial, {
+      type: "local.message.queued",
+      pending,
+    });
+
+    const updated = reduceOpenCodeThreadState(queued, {
+      type: "message.updated",
+      info: {
+        id: "msg_1",
+        role: "user",
+        parentID: "msg_parent",
+        sessionID: "ses_1",
+        time: { created: 1000 },
+      } as never,
+    });
+
+    expect(Object.keys(updated.pendingUserMessages)).toHaveLength(0);
+    expect(updated.messageOrder).toEqual(["msg_1"]);
+    expect(updated.messagesById["msg_1"]?.shadowParts).toEqual(pending.parts);
+  });
 });

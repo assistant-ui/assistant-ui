@@ -1,4 +1,6 @@
-import { projectOpenCodeThreadMessages } from "./openCodeMessageProjection";
+import {
+  projectOpenCodeThreadMessages,
+} from "./openCodeMessageProjection";
 import { createOpenCodeThreadState } from "./openCodeThreadState";
 import type { OpenCodeThreadState } from "./types";
 

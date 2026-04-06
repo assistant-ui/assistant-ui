@@ -7,6 +7,7 @@ import type {
   Part,
   PendingUserMessage,
 } from "./types";
+import { ExportedMessageRepository } from "@assistant-ui/react";
 
 type ProjectedContentPart = Exclude<
   OpenCodeProjectedThreadMessage["content"],
@@ -447,4 +448,10 @@ export const projectOpenCodeThreadMessages = (
     if (leftTime !== rightTime) return leftTime - rightTime;
     return left.id?.localeCompare(right.id ?? "") ?? 0;
   });
+};
+
+export const projectOpenCodeThreadRepository = (
+  state: OpenCodeThreadState,
+) => {
+  return ExportedMessageRepository.fromArray(projectOpenCodeThreadMessages(state));
 };

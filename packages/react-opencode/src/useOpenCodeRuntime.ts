@@ -5,11 +5,10 @@ import {
   useAuiState,
   useExternalStoreRuntime,
 } from "@assistant-ui/react";
-import type { AssistantRuntime } from "@assistant-ui/react";
+import type { AssistantRuntime, ThreadMessage } from "@assistant-ui/react";
 import { createOpencodeClient } from "@opencode-ai/sdk/client";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type {
-  OpenCodeProjectedThreadMessage,
   OpenCodeRuntimeExtras,
   OpenCodeRuntimeOptions,
   OpenCodeThreadControllerLike,
@@ -17,8 +16,9 @@ import type {
 } from "./types";
 import { OpenCodeEventSource } from "./OpenCodeEventSource";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
-import { projectOpenCodeThreadMessages } from "./openCodeMessageProjection";
+import { projectOpenCodeThreadRepository } from "./openCodeMessageProjection";
 import { createOpenCodeThreadState } from "./openCodeThreadState";
+import { ExportedMessageRepository } from "@assistant-ui/react";
 
 type OpenCodeControllerRegistry = {
   eventSource: OpenCodeEventSource;
@@ -117,7 +117,10 @@ const useOpenCodeThreadRuntime = (
     });
   }, [controller, options]);
 
-  const messages = useMemo(() => projectOpenCodeThreadMessages(state), [state]);
+  const messageRepository = useMemo(
+    () => projectOpenCodeThreadRepository(state),
+    [state],
+  );
 
   const extras = useMemo(
     () =>
@@ -139,15 +142,14 @@ const useOpenCodeThreadRuntime = (
     [controller, state],
   );
 
-  return useExternalStoreRuntime({
+  return useExternalStoreRuntime<ThreadMessage>({
     isLoading: state.loadState.type === "loading",
     isRunning:
       state.runState.type === "streaming" ||
       state.runState.type === "cancelling" ||
       state.runState.type === "reverting",
-    messages,
+    messageRepository,
     extras,
-    convertMessage: (message: OpenCodeProjectedThreadMessage) => message,
     onNew: async (message: any) => {
       try {
         const sendOptions =
@@ -205,11 +207,10 @@ const useRuntimeHook = (
   const threadRuntime = useOpenCodeThreadRuntime(controller, options);
 
   const fallbackRuntime =
-    useExternalStoreRuntime<OpenCodeProjectedThreadMessage>({
+    useExternalStoreRuntime<ThreadMessage>({
       isDisabled: true,
       isLoading: true,
-      messages: [] as OpenCodeProjectedThreadMessage[],
-      convertMessage: (message: OpenCodeProjectedThreadMessage) => message,
+      messageRepository: ExportedMessageRepository.fromArray([]),
       onNew: async () => {
         throw new Error("OpenCode session is still initializing");
       },
