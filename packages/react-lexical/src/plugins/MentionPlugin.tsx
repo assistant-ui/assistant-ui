@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef } from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   $getSelection,
-  $getRoot,
   $isElementNode,
   $isNodeSelection,
   $isRangeSelection,
@@ -86,41 +85,6 @@ export function findTriggerMatch(
 }
 
 // ---------------------------------------------------------------------------
-// Internal: compute cursor position as character offset into the full text
-// ---------------------------------------------------------------------------
-
-function computeCursorPosition(
-  anchorNode: TextNode,
-  anchorOffset: number,
-): number {
-  let offset = 0;
-
-  const paragraph = anchorNode.getParent();
-  if (!paragraph || !$isElementNode(paragraph)) return anchorOffset;
-
-  const root = $getRoot();
-  for (const child of root.getChildren()) {
-    if (child === paragraph) break;
-    if ($isElementNode(child)) {
-      for (const c of child.getChildren()) {
-        offset += c.getTextContent().length;
-      }
-    }
-    offset += 1; // newline between paragraphs
-  }
-
-  for (const child of paragraph.getChildren()) {
-    if (child === anchorNode) {
-      offset += anchorOffset;
-      break;
-    }
-    offset += child.getTextContent().length;
-  }
-
-  return offset;
-}
-
-// ---------------------------------------------------------------------------
 // MentionPlugin component — auto-wires to MentionInternalContext
 // ---------------------------------------------------------------------------
 
@@ -137,8 +101,9 @@ export function MentionPlugin({
   formatterRef.current = formatter;
 
   // Auto-wire to MentionInternalContext (optional — gracefully degrades)
+  // Cursor position is now reported by CursorPlugin via the plugin registry;
+  // MentionPlugin only needs registerSelectItemOverride for Lexical node insertion.
   const mentionInternalContext = unstable_useMentionInternalContext();
-  const setCursorPosition = mentionInternalContext?.setCursorPosition;
   const registerSelectItemOverride =
     mentionInternalContext?.registerSelectItemOverride;
 
@@ -151,32 +116,26 @@ export function MentionPlugin({
 
   useEffect(() => {
     return mergeRegister(
+      // Track trigger match for mention node insertion
       editor.registerUpdateListener(({ editorState }) => {
         editorState.read(() => {
           const selection = $getSelection();
           if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
             matchRef.current = null;
-            setCursorPosition?.(0);
             return;
           }
 
           const anchor = selection.anchor;
           if (anchor.type !== "text") {
             matchRef.current = null;
-            setCursorPosition?.(0);
             return;
           }
 
           const anchorNode = anchor.getNode();
           if (!$isTextNode(anchorNode)) {
             matchRef.current = null;
-            setCursorPosition?.(0);
             return;
           }
-
-          // Report cursor position to MentionContext
-          const cursorPos = computeCursorPosition(anchorNode, anchor.offset);
-          setCursorPosition?.(cursorPos);
 
           matchRef.current = findTriggerMatch(
             triggerRef.current,
@@ -235,7 +194,7 @@ export function MentionPlugin({
         COMMAND_PRIORITY_LOW,
       ),
     );
-  }, [editor, setCursorPosition]);
+  }, [editor]);
 
   // -----------------------------------------------------------------------
   // Insert a mention — replaces the @query text with a MentionNode

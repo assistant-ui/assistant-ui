@@ -17,9 +17,15 @@ import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
+  $getRoot,
+  $getSelection,
+  $isElementNode,
+  $isRangeSelection,
+  $isTextNode,
   COMMAND_PRIORITY_HIGH,
   KEY_ARROW_DOWN_COMMAND,
   KEY_ARROW_UP_COMMAND,
+  KEY_BACKSPACE_COMMAND,
   KEY_ENTER_COMMAND,
   KEY_ESCAPE_COMMAND,
 } from "lexical";
@@ -27,7 +33,7 @@ import { mergeRegister } from "@lexical/utils";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
-import { unstable_useMentionContextOptional } from "@assistant-ui/react";
+import { INTERNAL } from "@assistant-ui/react";
 import {
   MentionNode,
   MentionChipProvider,
@@ -71,9 +77,18 @@ function KeyboardPlugin({
 }) {
   const [editor] = useLexicalComposerContext();
   const aui = useAui();
-  const mentionContext = unstable_useMentionContextOptional();
+  const pluginRegistry = INTERNAL.useComposerInputPluginRegistryOptional();
 
   useEffect(() => {
+    /** Delegate a keyboard event to all registered input plugins. */
+    const delegateToPlugins = (event: KeyboardEvent): boolean => {
+      if (!pluginRegistry) return false;
+      for (const plugin of pluginRegistry.getPlugins()) {
+        if (plugin.handleKeyDown(event)) return true;
+      }
+      return false;
+    };
+
     return mergeRegister(
       editor.registerCommand(
         KEY_ENTER_COMMAND,
@@ -82,8 +97,8 @@ function KeyboardPlugin({
           if (event.isComposing) return false;
           if (event.shiftKey) return false;
 
-          // Let mention popover handle Enter first
-          if (mentionContext?.handleKeyDown(event)) return true;
+          // Let registered plugins (mention, slash command, etc.) handle Enter first
+          if (delegateToPlugins(event)) return true;
 
           if (submitMode === "none") return false;
 
@@ -111,7 +126,7 @@ function KeyboardPlugin({
       editor.registerCommand(
         KEY_ESCAPE_COMMAND,
         (event) => {
-          if (event && mentionContext?.handleKeyDown(event)) return true;
+          if (event && delegateToPlugins(event)) return true;
 
           if (!cancelOnEscape) return false;
           const composer = aui.composer();
@@ -128,7 +143,7 @@ function KeyboardPlugin({
       editor.registerCommand(
         KEY_ARROW_DOWN_COMMAND,
         (event) => {
-          if (event && mentionContext?.handleKeyDown(event)) return true;
+          if (event && delegateToPlugins(event)) return true;
           return false;
         },
         COMMAND_PRIORITY_HIGH,
@@ -137,13 +152,102 @@ function KeyboardPlugin({
       editor.registerCommand(
         KEY_ARROW_UP_COMMAND,
         (event) => {
-          if (event && mentionContext?.handleKeyDown(event)) return true;
+          if (event && delegateToPlugins(event)) return true;
+          return false;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+
+      editor.registerCommand(
+        KEY_BACKSPACE_COMMAND,
+        (event) => {
+          if (event && delegateToPlugins(event)) return true;
           return false;
         },
         COMMAND_PRIORITY_HIGH,
       ),
     );
-  }, [editor, submitMode, cancelOnEscape, aui, mentionContext]);
+  }, [editor, submitMode, cancelOnEscape, aui, pluginRegistry]);
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Internal: report cursor position to all registered ComposerInput plugins
+// (needed for trigger systems like slash commands to detect their trigger char)
+// ---------------------------------------------------------------------------
+
+function CursorPlugin() {
+  const [editor] = useLexicalComposerContext();
+  const pluginRegistry = INTERNAL.useComposerInputPluginRegistryOptional();
+
+  useEffect(() => {
+    if (!pluginRegistry) return undefined;
+
+    let lastAnchorKey: string | null = null;
+    let lastAnchorOffset = -1;
+
+    const broadcastCursor = (pos: number) => {
+      for (const plugin of pluginRegistry.getPlugins()) {
+        plugin.setCursorPosition(pos);
+      }
+    };
+
+    return editor.registerUpdateListener(({ editorState }) => {
+      editorState.read(() => {
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
+          broadcastCursor(0);
+          return;
+        }
+
+        const anchor = selection.anchor;
+        if (anchor.type !== "text") {
+          broadcastCursor(0);
+          return;
+        }
+
+        const anchorNode = anchor.getNode();
+        if (!$isTextNode(anchorNode)) {
+          broadcastCursor(0);
+          return;
+        }
+
+        // Skip expensive tree walk if selection hasn't moved
+        if (anchor.key === lastAnchorKey && anchor.offset === lastAnchorOffset)
+          return;
+        lastAnchorKey = anchor.key;
+        lastAnchorOffset = anchor.offset;
+
+        // Compute cursor position as character offset into the full text
+        let offset = 0;
+        const paragraph = anchorNode.getParent();
+        if (paragraph && $isElementNode(paragraph)) {
+          const root = $getRoot();
+          for (const child of root.getChildren()) {
+            if (child === paragraph) break;
+            if ($isElementNode(child)) {
+              for (const c of child.getChildren()) {
+                offset += c.getTextContent().length;
+              }
+            }
+            offset += 1; // newline between paragraphs
+          }
+          for (const child of paragraph.getChildren()) {
+            if (child === anchorNode) {
+              offset += anchor.offset;
+              break;
+            }
+            offset += child.getTextContent().length;
+          }
+        } else {
+          offset = anchor.offset;
+        }
+
+        broadcastCursor(offset);
+      });
+    });
+  }, [editor, pluginRegistry]);
 
   return null;
 }
@@ -246,6 +350,7 @@ export const LexicalComposerInput = forwardRef<
               submitMode={submitMode}
               cancelOnEscape={cancelOnEscape}
             />
+            <CursorPlugin />
             <FocusPlugin />
             <EditablePlugin isDisabled={!!isDisabled} />
           </div>
