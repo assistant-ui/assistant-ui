@@ -12,7 +12,10 @@ import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useSizeHandle } from "../../utils/hooks/useSizeHandle";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { useThreadViewport } from "../../context/react/ThreadViewportContext";
-import { ThreadPrimitiveViewportSlack } from "../thread/ThreadViewportSlack";
+import {
+  ThreadPrimitiveViewportSlack,
+  type ThreadViewportSlackProps,
+} from "../thread/ThreadViewportSlack";
 
 const useIsHoveringRef = () => {
   const aui = useAui();
@@ -77,11 +80,8 @@ const useMessageViewportRef = () => {
 
 export namespace MessagePrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;
-  /**
-   * Props for the MessagePrimitive.Root component.
-   * Accepts all standard div element props.
-   */
-  export type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
+  export type Props = ComponentPropsWithoutRef<typeof Primitive.div> &
+    Omit<ThreadViewportSlackProps, "children">;
 }
 
 /**
@@ -108,7 +108,7 @@ export namespace MessagePrimitiveRoot {
 export const MessagePrimitiveRoot = forwardRef<
   MessagePrimitiveRoot.Element,
   MessagePrimitiveRoot.Props
->((props, forwardRef) => {
+>(({ fillClampThreshold, fillClampOffset, ...props }, forwardRef) => {
   const isHoveringRef = useIsHoveringRef();
   const anchorUserMessageRef = useMessageViewportRef();
   const ref = useComposedRefs<HTMLDivElement>(
@@ -119,7 +119,10 @@ export const MessagePrimitiveRoot = forwardRef<
   const messageId = useAuiState((s) => s.message.id);
 
   return (
-    <ThreadPrimitiveViewportSlack>
+    <ThreadPrimitiveViewportSlack
+      {...(fillClampThreshold !== undefined && { fillClampThreshold })}
+      {...(fillClampOffset !== undefined && { fillClampOffset })}
+    >
       <Primitive.div {...props} ref={ref} data-message-id={messageId} />
     </ThreadPrimitiveViewportSlack>
   );
