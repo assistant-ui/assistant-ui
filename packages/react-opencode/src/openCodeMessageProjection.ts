@@ -450,8 +450,8 @@ export const projectOpenCodeThreadMessages = (
   });
 };
 
-export const projectOpenCodeThreadRepository = (
-  state: OpenCodeThreadState,
-) => {
-  return ExportedMessageRepository.fromArray(projectOpenCodeThreadMessages(state));
+export const projectOpenCodeThreadRepository = (state: OpenCodeThreadState) => {
+  return ExportedMessageRepository.fromArray(
+    projectOpenCodeThreadMessages(state),
+  );
 };

@@ -206,15 +206,14 @@ const useRuntimeHook = (
 
   const threadRuntime = useOpenCodeThreadRuntime(controller, options);
 
-  const fallbackRuntime =
-    useExternalStoreRuntime<ThreadMessage>({
-      isDisabled: true,
-      isLoading: true,
-      messageRepository: ExportedMessageRepository.fromArray([]),
-      onNew: async () => {
-        throw new Error("OpenCode session is still initializing");
-      },
-    });
+  const fallbackRuntime = useExternalStoreRuntime<ThreadMessage>({
+    isDisabled: true,
+    isLoading: true,
+    messageRepository: ExportedMessageRepository.fromArray([]),
+    onNew: async () => {
+      throw new Error("OpenCode session is still initializing");
+    },
+  });
 
   if (!sessionId) return fallbackRuntime;
   return threadRuntime;
