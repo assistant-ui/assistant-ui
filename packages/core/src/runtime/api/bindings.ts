@@ -2,6 +2,7 @@ import type { ThreadMessage } from "../../types/message";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
 import type {
   ComposerRuntimeCore,
+  EditComposerRuntimeCore,
   ThreadComposerRuntimeCore,
 } from "../interfaces/composer-runtime-core";
 import type {
@@ -21,7 +22,7 @@ export type ThreadComposerRuntimeCoreBinding = SubscribableWithState<
 >;
 
 export type EditComposerRuntimeCoreBinding = SubscribableWithState<
-  ComposerRuntimeCore | undefined,
+  EditComposerRuntimeCore | undefined,
   ComposerRuntimePath & { composerSource: "edit" }
 >;
 

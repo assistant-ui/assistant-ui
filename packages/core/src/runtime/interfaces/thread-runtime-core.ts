@@ -12,7 +12,7 @@ import type {
 import type { ExportedMessageRepository } from "../utils/message-repository";
 import type { ThreadMessageLike } from "../utils/thread-message-like";
 import type {
-  ComposerRuntimeCore,
+  EditComposerRuntimeCore,
   ThreadComposerRuntimeCore,
 } from "./composer-runtime-core";
 
@@ -120,7 +120,7 @@ export type ThreadRuntimeCore = Readonly<{
   getModelContext: () => ModelContext;
 
   composer: ThreadComposerRuntimeCore;
-  getEditComposer: (messageId: string) => ComposerRuntimeCore | undefined;
+  getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
   beginEdit: (messageId: string) => void;
 
   speech: SpeechState | undefined;

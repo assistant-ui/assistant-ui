@@ -16,6 +16,10 @@ export type DictationState = {
   readonly inputDisabled?: boolean;
 };
 
+export type SendOptions = {
+  startRun?: boolean;
+};
+
 export type ComposerRuntimeCore = Readonly<{
   isEditing: boolean;
 
@@ -43,7 +47,7 @@ export type ComposerRuntimeCore = Readonly<{
   reset: () => Promise<void>;
   clearAttachments: () => Promise<void>;
 
-  send: () => void;
+  send: (options?: SendOptions) => void;
   cancel: () => void;
 
   dictation: DictationState | undefined;
@@ -59,3 +63,9 @@ export type ComposerRuntimeCore = Readonly<{
 }>;
 
 export type ThreadComposerRuntimeCore = ComposerRuntimeCore;
+
+export type EditComposerRuntimeCore = ComposerRuntimeCore &
+  Readonly<{
+    parentId: string | null;
+    sourceId: string | null;
+  }>;

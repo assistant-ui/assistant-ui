@@ -165,6 +165,8 @@ export type {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
   DictationState,
+  EditComposerRuntimeCore,
+  SendOptions,
   ThreadComposerRuntimeCore,
 } from "./runtime/interfaces/composer-runtime-core";
 
