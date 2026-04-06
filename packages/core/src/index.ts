@@ -50,6 +50,15 @@ export type {
   Unstable_DirectiveFormatter,
 } from "./types/mention";
 
+export type {
+  Unstable_TriggerItem,
+  Unstable_TriggerCategory,
+} from "./types/trigger";
+
+// === trigger adapter ===
+
+export type { Unstable_TriggerAdapter } from "./adapters/trigger";
+
 // === model-context ===
 
 export type {
@@ -122,6 +131,12 @@ export type { SuggestionAdapter } from "./adapters/suggestion";
 // Mention adapter
 export type { Unstable_MentionAdapter } from "./adapters/mention";
 export { unstable_defaultDirectiveFormatter } from "./adapters/mention";
+
+// Slash command adapter
+export type {
+  Unstable_SlashCommandAdapter,
+  Unstable_SlashCommandItem,
+} from "./adapters/trigger";
 
 // Thread history adapters
 export type {

@@ -45,3 +45,8 @@ export type {
   Unstable_DirectiveSegment,
   Unstable_DirectiveFormatter,
 } from "./mention";
+
+export type {
+  Unstable_TriggerItem,
+  Unstable_TriggerCategory,
+} from "./trigger";

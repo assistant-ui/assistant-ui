@@ -1,27 +1,16 @@
-import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import type { Unstable_TriggerItem, Unstable_TriggerCategory } from "./trigger";
 
 // =============================================================================
-// Mention Item (user-facing definition for items that can be @-mentioned)
+// Mention Item — alias of the generic TriggerItem for backward compatibility
 // =============================================================================
 
-export type Unstable_MentionItem = {
-  readonly id: string;
-  readonly type: string;
-  readonly label: string;
-  readonly icon?: string | undefined;
-  readonly description?: string | undefined;
-  readonly metadata?: ReadonlyJSONObject | undefined;
-};
+export type Unstable_MentionItem = Unstable_TriggerItem;
 
 // =============================================================================
-// Mention Category (for hierarchical navigation)
+// Mention Category — alias of the generic TriggerCategory
 // =============================================================================
 
-export type Unstable_MentionCategory = {
-  readonly id: string;
-  readonly label: string;
-  readonly icon?: string | undefined;
-};
+export type Unstable_MentionCategory = Unstable_TriggerCategory;
 
 // =============================================================================
 // Directive Segment (parsed representation of mention directives in text)
