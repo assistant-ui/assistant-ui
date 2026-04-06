@@ -401,6 +401,20 @@ export {
 } from "./primitives/composer/mention";
 export type { ToolExecutionStatus } from "./internal";
 
+// Unstable - trigger popover (generic)
+export {
+  useTriggerPopoverContext as unstable_useTriggerPopoverContext,
+  useTriggerPopoverContextOptional as unstable_useTriggerPopoverContextOptional,
+} from "./primitives/composer/trigger";
+export type { OnSelectBehavior as Unstable_OnSelectBehavior } from "./primitives/composer/trigger";
+
+// Unstable - slash commands
+export {
+  unstable_useSlashCommandAdapter,
+  type Unstable_SlashCommandDefinition,
+  type Unstable_UseSlashCommandAdapterOptions,
+} from "./unstable/useSlashCommandAdapter";
+
 export type { Assistant } from "./augmentations";
 
 // ============================================================================

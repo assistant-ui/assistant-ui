@@ -1,0 +1,1 @@
+export { ComposerPrimitiveSlashCommandRoot } from "./ComposerSlashCommandRoot";
