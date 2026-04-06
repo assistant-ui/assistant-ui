@@ -36,9 +36,9 @@ const parseCssLength = (value: string, element: HTMLElement): number => {
 
 export type ThreadViewportSlackProps = {
   /** Threshold at which the user message height clamps to the offset */
-  fillClampThreshold?: string;
+  fillClampThreshold?: string | undefined;
   /** Offset used when clamping large user messages */
-  fillClampOffset?: string;
+  fillClampOffset?: string | undefined;
   children: ReactNode;
 };
 
