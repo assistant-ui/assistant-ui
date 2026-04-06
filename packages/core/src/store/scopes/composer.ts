@@ -3,11 +3,14 @@ import type { MessageRole } from "../../types/message";
 import type { QuoteInfo } from "../../types/quote";
 import type { RunConfig } from "../../types/message";
 import type { ComposerRuntime } from "../../runtime/api/composer-runtime";
-import type { DictationState } from "../../runtime/interfaces/composer-runtime-core";
+import type {
+  DictationState,
+  SendOptions,
+} from "../../runtime/interfaces/composer-runtime-core";
 import type { AttachmentMethods } from "./attachment";
 import type { QueueItemState, QueueItemMethods } from "./queue-item";
 
-export type ComposerSendOptions = {
+export type ComposerSendOptions = SendOptions & {
   /**
    * Whether to steer (interrupt the current run and process this message immediately).
    * When false (default), the message is queued and processed in order.

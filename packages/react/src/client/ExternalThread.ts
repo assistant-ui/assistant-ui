@@ -426,6 +426,7 @@ const ComposerClientResource = resource(
           parentId: null,
           sourceId: null,
           runConfig,
+          startRun: opts?.startRun,
           metadata: {
             custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
           },
