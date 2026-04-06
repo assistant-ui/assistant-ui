@@ -100,6 +100,7 @@ const useOpenCodeControllerState = (
   return useSyncExternalStore(
     (listener) => controller.subscribe(listener),
     () => controller.getState(),
+    () => controller.getState(),
   );
 };
 
