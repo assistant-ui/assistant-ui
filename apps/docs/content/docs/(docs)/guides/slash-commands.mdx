@@ -62,10 +62,11 @@ function MyComposer() {
         <ComposerPrimitive.Unstable_TriggerPopoverPopover className="popover">
           <ComposerPrimitive.Unstable_TriggerPopoverItems>
             {(items) =>
-              items.map((item) => (
+              items.map((item, index) => (
                 <ComposerPrimitive.Unstable_TriggerPopoverItem
                   key={item.id}
                   item={item}
+                  index={index}
                   className="popover-item"
                 >
                   <strong>{item.label}</strong>
@@ -164,8 +165,8 @@ When using a categorized adapter, add `TriggerPopoverCategories` to your popover
     ))}
   </ComposerPrimitive.Unstable_TriggerPopoverCategories>
   <ComposerPrimitive.Unstable_TriggerPopoverItems>
-    {(items) => items.map((item) => (
-      <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item}>
+    {(items) => items.map((item, index) => (
+      <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item} index={index}>
         {item.label}
       </ComposerPrimitive.Unstable_TriggerPopoverItem>
     ))}
@@ -205,8 +206,8 @@ Slash commands and mentions can coexist on the same composer. Nest both roots â€
       {/* Slash command popover â€” shows when / is typed */}
       <ComposerPrimitive.Unstable_TriggerPopoverPopover>
         <ComposerPrimitive.Unstable_TriggerPopoverItems>
-          {(items) => items.map((item) => (
-            <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item}>
+          {(items) => items.map((item, index) => (
+            <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item} index={index}>
               {item.label}
             </ComposerPrimitive.Unstable_TriggerPopoverItem>
           ))}

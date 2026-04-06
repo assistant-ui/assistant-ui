@@ -341,12 +341,13 @@ const SlashCommandPopover: FC = () => {
       <ComposerPrimitive.Unstable_TriggerPopoverItems>
         {(items) => (
           <div className="py-1">
-            {items.map((item) => {
+            {items.map((item, index) => {
               const IconComp = slashCommandIcons[item.icon ?? ""] ?? SlashIcon;
               return (
                 <ComposerPrimitive.Unstable_TriggerPopoverItem
                   key={item.id}
                   item={item}
+                  index={index}
                   className="flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-left outline-none transition-colors hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent"
                 >
                   <span className="flex items-center gap-2 font-medium text-sm">

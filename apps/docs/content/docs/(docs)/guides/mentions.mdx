@@ -386,8 +386,8 @@ Mentions and [slash commands](/docs/guides/slash-commands) can coexist on the sa
       {/* Slash command popover (shows on /) */}
       <ComposerPrimitive.Unstable_TriggerPopoverPopover>
         <ComposerPrimitive.Unstable_TriggerPopoverItems>
-          {(items) => items.map((item) => (
-            <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item}>
+          {(items) => items.map((item, index) => (
+            <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item} index={index}>
               {item.label}
             </ComposerPrimitive.Unstable_TriggerPopoverItem>
           ))}
