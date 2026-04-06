@@ -152,8 +152,8 @@ export class RemoteThreadListThreadListRuntimeCore
     this.switchToNewThread();
   }
 
-  private useProvider;
   private _initialThreadLoaded = false;
+  private useProvider;
 
   public __internal_setOptions(options: RemoteThreadListOptions) {
     if (this._options === options) return;
@@ -175,7 +175,7 @@ export class RemoteThreadListThreadListRuntimeCore
       this._options.threadId ?? this._options.initialThreadId;
     if (!this._initialThreadLoaded && startThreadId) {
       this._initialThreadLoaded = true;
-      this.switchToThread(startThreadId);
+      this.switchToThread(startThreadId).catch(() => {});
     }
   }
 
