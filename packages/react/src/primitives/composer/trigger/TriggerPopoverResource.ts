@@ -7,43 +7,62 @@ import {
   tapRef,
 } from "@assistant-ui/tap";
 import type {
-  Unstable_MentionAdapter,
-  Unstable_MentionCategory,
-  Unstable_MentionItem,
+  Unstable_TriggerAdapter,
+  Unstable_TriggerCategory,
+  Unstable_TriggerItem,
   Unstable_DirectiveFormatter,
 } from "@assistant-ui/core";
 import type { AssistantClient } from "@assistant-ui/store";
-import { detectMentionTrigger } from "./detectMentionTrigger";
+import { detectTrigger } from "./detectTrigger";
+
+function isTriggerItem(
+  x: Unstable_TriggerItem | Unstable_TriggerCategory,
+): x is Unstable_TriggerItem {
+  return "type" in x;
+}
 
 // =============================================================================
 // Types
 // =============================================================================
 
-export type MentionKeyEvent = {
+export type TriggerPopoverKeyEvent = {
   readonly key: string;
   readonly shiftKey: boolean;
   preventDefault(): void;
 };
 
-export type SelectItemOverride = (item: Unstable_MentionItem) => boolean;
+export type SelectItemOverride = (item: Unstable_TriggerItem) => boolean;
 
-export type MentionResourceOutput = {
+export type OnSelectBehavior =
+  | {
+      type: "insertDirective";
+      formatter: Unstable_DirectiveFormatter;
+    }
+  | {
+      type: "action";
+      handler: (item: Unstable_TriggerItem) => void;
+    };
+
+export type TriggerPopoverResourceOutput = {
   // State
   readonly open: boolean;
   readonly query: string;
   readonly activeCategoryId: string | null;
-  readonly categories: readonly Unstable_MentionCategory[];
-  readonly items: readonly Unstable_MentionItem[];
+  readonly categories: readonly Unstable_TriggerCategory[];
+  readonly items: readonly Unstable_TriggerItem[];
   readonly highlightedIndex: number;
   readonly isSearchMode: boolean;
-  readonly formatter: Unstable_DirectiveFormatter;
+  /** Stable ID prefix for generating accessible element IDs. */
+  readonly popoverId: string;
+  /** ID of the currently highlighted item (for aria-activedescendant). */
+  readonly highlightedItemId: string | undefined;
 
   // Actions
   selectCategory(categoryId: string): void;
   goBack(): void;
-  selectItem(item: Unstable_MentionItem): void;
+  selectItem(item: Unstable_TriggerItem): void;
   close(): void;
-  handleKeyDown(e: MentionKeyEvent): boolean;
+  handleKeyDown(e: TriggerPopoverKeyEvent): boolean;
 
   // Internal (for ComposerInput integration)
   setCursorPosition(pos: number): void;
@@ -54,20 +73,29 @@ export type MentionResourceOutput = {
 // Resource
 // =============================================================================
 
-export const MentionResource = resource(
+export const TriggerPopoverResource = resource(
   ({
     adapter,
     text,
     triggerChar,
-    formatter,
+    onSelect,
     aui,
   }: {
-    adapter: Unstable_MentionAdapter | undefined;
+    adapter: Unstable_TriggerAdapter | undefined;
     text: string;
     triggerChar: string;
-    formatter: Unstable_DirectiveFormatter;
+    onSelect: OnSelectBehavior;
     aui: AssistantClient;
-  }): MentionResourceOutput => {
+  }): TriggerPopoverResourceOutput => {
+    // -------------------------------------------------------------------------
+    // Stable popover ID for accessible element IDs
+    // -------------------------------------------------------------------------
+
+    const popoverIdRef = tapRef(
+      `aui-trigger-${triggerChar.replace(/\W/g, "")}-${Math.random().toString(36).slice(2, 8)}`,
+    );
+    const popoverId = popoverIdRef.current;
+
     // -------------------------------------------------------------------------
     // Cursor tracking + trigger detection
     // -------------------------------------------------------------------------
@@ -76,7 +104,7 @@ export const MentionResource = resource(
 
     const trigger = tapMemo(() => {
       const pos = Math.min(cursorPosition, text.length);
-      return detectMentionTrigger(text, triggerChar, pos);
+      return detectTrigger(text, triggerChar, pos);
     }, [cursorPosition, text, triggerChar]);
 
     const open = trigger !== null && adapter !== undefined;
@@ -95,7 +123,7 @@ export const MentionResource = resource(
       if (!open) setActiveCategoryId(null);
     }, [open]);
 
-    const categories = tapMemo<readonly Unstable_MentionCategory[]>(() => {
+    const categories = tapMemo<readonly Unstable_TriggerCategory[]>(() => {
       if (!open || !adapter) return [];
       return adapter.categories();
     }, [open, adapter]);
@@ -106,21 +134,23 @@ export const MentionResource = resource(
     // Items + search
     // -------------------------------------------------------------------------
 
-    const allItems = tapMemo<readonly Unstable_MentionItem[]>(() => {
+    const allItems = tapMemo<readonly Unstable_TriggerItem[]>(() => {
       if (!effectiveActiveCategoryId || !adapter) return [];
       return adapter.categoryItems(effectiveActiveCategoryId);
     }, [effectiveActiveCategoryId, adapter]);
 
     const searchResults = tapMemo<
-      readonly Unstable_MentionItem[] | null
+      readonly Unstable_TriggerItem[] | null
     >(() => {
-      if (!open || !adapter || !query || effectiveActiveCategoryId) return null;
+      if (!open || !adapter || effectiveActiveCategoryId) return null;
+      // If categories exist and query is empty, show categories first (not search)
+      if (!query && categories.length > 0) return null;
       if (adapter.search) return adapter.search(query);
 
-      const cats = adapter.categories();
-      const all: Unstable_MentionItem[] = [];
+      // Fallback: search all categories manually (reuse already-computed list)
+      const all: Unstable_TriggerItem[] = [];
       const lower = query.toLowerCase();
-      for (const cat of cats) {
+      for (const cat of categories) {
         for (const item of adapter.categoryItems(cat.id)) {
           if (
             item.id.toLowerCase().includes(lower) ||
@@ -132,7 +162,7 @@ export const MentionResource = resource(
         }
       }
       return all;
-    }, [open, adapter, query, effectiveActiveCategoryId]);
+    }, [open, adapter, query, effectiveActiveCategoryId, categories]);
 
     const isSearchMode = searchResults !== null;
 
@@ -186,7 +216,7 @@ export const MentionResource = resource(
     }, [navigableList]);
 
     // -------------------------------------------------------------------------
-    // Lexical select-item override
+    // Select-item override (for Lexical integration)
     // -------------------------------------------------------------------------
 
     const selectItemOverrideRef = tapRef<SelectItemOverride | null>(null);
@@ -216,27 +246,42 @@ export const MentionResource = resource(
       setHighlightedIndex(0);
     });
 
-    const selectItem = tapEffectEvent((item: Unstable_MentionItem) => {
+    const selectItem = tapEffectEvent((item: Unstable_TriggerItem) => {
       if (!trigger) return;
 
-      // Try the Lexical override first
+      // Try the override first (e.g. Lexical MentionPlugin)
       if (selectItemOverrideRef.current?.(item)) {
         setActiveCategoryId(null);
         setHighlightedIndex(0);
         return;
       }
 
-      // Default: text-based replacement (textarea path)
-      const currentText = aui.composer().getState().text;
-      const before = currentText.slice(0, trigger.offset);
-      const after = currentText.slice(
-        trigger.offset + triggerChar.length + trigger.query.length,
-      );
-      const directive = formatter.serialize(item);
-      const newText =
-        before + directive + (after.startsWith(" ") ? after : ` ${after}`);
+      // Behavior depends on the onSelect configuration
+      if (onSelect.type === "insertDirective") {
+        // Insert directive text (mention path)
+        const currentText = aui.composer().getState().text;
+        const before = currentText.slice(0, trigger.offset);
+        const after = currentText.slice(
+          trigger.offset + triggerChar.length + trigger.query.length,
+        );
+        const directive = onSelect.formatter.serialize(item);
+        const newText =
+          before + directive + (after.startsWith(" ") ? after : ` ${after}`);
 
-      aui.composer().setText(newText);
+        aui.composer().setText(newText);
+      } else if (onSelect.type === "action") {
+        // Execute action + clear trigger text (slash command path)
+        const currentText = aui.composer().getState().text;
+        const before = currentText.slice(0, trigger.offset);
+        const after = currentText.slice(
+          trigger.offset + triggerChar.length + trigger.query.length,
+        );
+        const newText = before + after.trimStart();
+        aui.composer().setText(newText);
+
+        onSelect.handler(item);
+      }
+
       setActiveCategoryId(null);
       setHighlightedIndex(0);
     });
@@ -250,62 +295,71 @@ export const MentionResource = resource(
       }
     });
 
-    const handleKeyDown = tapEffectEvent((e: MentionKeyEvent): boolean => {
-      if (!open) return false;
+    const handleKeyDown = tapEffectEvent(
+      (e: TriggerPopoverKeyEvent): boolean => {
+        if (!open) return false;
 
-      switch (e.key) {
-        case "ArrowDown": {
-          e.preventDefault();
-          setHighlightedIndex((prev) => {
-            const len = navigableList.length;
-            if (len === 0) return 0;
-            return prev < len - 1 ? prev + 1 : 0;
-          });
-          return true;
-        }
-        case "ArrowUp": {
-          e.preventDefault();
-          setHighlightedIndex((prev) => {
-            const len = navigableList.length;
-            if (len === 0) return 0;
-            return prev > 0 ? prev - 1 : len - 1;
-          });
-          return true;
-        }
-        case "Enter": {
-          if (e.shiftKey) return false;
-          e.preventDefault();
-          const item = navigableList[highlightedIndex];
-          if (!item) return true;
-
-          if (isSearchMode || effectiveActiveCategoryId) {
-            selectItem(item as Unstable_MentionItem);
-          } else {
-            selectCategory((item as Unstable_MentionCategory).id);
-          }
-          return true;
-        }
-        case "Escape": {
-          e.preventDefault();
-          close();
-          return true;
-        }
-        case "Backspace": {
-          if (effectiveActiveCategoryId && query === "") {
+        switch (e.key) {
+          case "ArrowDown": {
             e.preventDefault();
-            goBack();
+            setHighlightedIndex((prev) => {
+              const len = navigableList.length;
+              if (len === 0) return 0;
+              return prev < len - 1 ? prev + 1 : 0;
+            });
             return true;
           }
-          return false;
+          case "ArrowUp": {
+            e.preventDefault();
+            setHighlightedIndex((prev) => {
+              const len = navigableList.length;
+              if (len === 0) return 0;
+              return prev > 0 ? prev - 1 : len - 1;
+            });
+            return true;
+          }
+          case "Enter": {
+            if (e.shiftKey) return false;
+            e.preventDefault();
+            const item = navigableList[highlightedIndex];
+            if (!item) return true;
+
+            if (isTriggerItem(item)) {
+              selectItem(item);
+            } else {
+              selectCategory(item.id);
+            }
+            return true;
+          }
+          case "Escape": {
+            e.preventDefault();
+            close();
+            return true;
+          }
+          case "Backspace": {
+            if (effectiveActiveCategoryId && query === "") {
+              e.preventDefault();
+              goBack();
+              return true;
+            }
+            return false;
+          }
+          default:
+            return false;
         }
-        default:
-          return false;
-      }
-    });
+      },
+    );
 
     // -------------------------------------------------------------------------
     // Output
     // -------------------------------------------------------------------------
+
+    // Compute highlighted item ID for aria-activedescendant
+    const highlightedEntry = navigableList[highlightedIndex];
+    const highlightedItemId =
+      open && highlightedEntry
+        ? `${popoverId}-option-${highlightedEntry.id}`
+        : undefined;
 
     return {
       open,
@@ -315,7 +369,8 @@ export const MentionResource = resource(
       items: filteredItems,
       highlightedIndex,
       isSearchMode,
-      formatter,
+      popoverId,
+      highlightedItemId,
       selectCategory,
       goBack,
       selectItem,

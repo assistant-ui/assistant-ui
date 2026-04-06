@@ -10,21 +10,25 @@ import {
   type ReactNode,
   type FC,
 } from "react";
-import { useResource } from "@assistant-ui/tap/react";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import type {
   Unstable_MentionAdapter,
   Unstable_DirectiveFormatter,
 } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
-import {
-  MentionResource,
-  type MentionResourceOutput,
-  type SelectItemOverride,
-} from "./MentionResource";
+import { ComposerPrimitiveTriggerPopoverRoot } from "../trigger/TriggerPopoverContext";
+import type {
+  TriggerPopoverResourceOutput,
+  SelectItemOverride,
+  OnSelectBehavior,
+} from "../trigger/TriggerPopoverResource";
+
+type MentionResourceOutput = TriggerPopoverResourceOutput & {
+  readonly formatter: Unstable_DirectiveFormatter;
+};
 
 // =============================================================================
-// Context — public (popover components read state + actions from here)
+// Context — public (provides formatter on top of TriggerPopoverContext)
 // =============================================================================
 
 const MentionContext = createContext<MentionResourceOutput | null>(null);
@@ -43,11 +47,10 @@ export const useMentionContextOptional = () => {
 };
 
 // =============================================================================
-// Internal context — ComposerInput → MentionRoot communication
+// Internal context — only registerSelectItemOverride for Lexical integration
 // =============================================================================
 
 type MentionInternalContextValue = {
-  setCursorPosition(pos: number): void;
   registerSelectItemOverride(fn: SelectItemOverride): () => void;
 };
 
@@ -59,7 +62,7 @@ export const useMentionInternalContext = () => {
 };
 
 // =============================================================================
-// Provider Component
+// Provider Component — delegates to TriggerPopoverRoot internally
 // =============================================================================
 
 export namespace ComposerPrimitiveMentionRoot {
@@ -82,7 +85,6 @@ export const ComposerPrimitiveMentionRoot: FC<
   formatter: formatterProp,
 }) => {
   const aui = useAui();
-  const text = useAuiState((s) => s.composer.text);
   const formatter = formatterProp ?? unstable_defaultDirectiveFormatter;
 
   // ---------------------------------------------------------------------------
@@ -110,32 +112,64 @@ export const ComposerPrimitiveMentionRoot: FC<
   const adapter = adapterProp ?? runtimeAdapter;
 
   // ---------------------------------------------------------------------------
-  // Mention resource (all state + logic managed via tap primitives)
+  // onSelect behavior for mentions: insert directive text
   // ---------------------------------------------------------------------------
 
-  const mention = useResource(
-    MentionResource({ adapter, text, triggerChar, formatter, aui }),
+  const onSelect = useMemo<OnSelectBehavior>(
+    () => ({ type: "insertDirective", formatter }),
+    [formatter],
   );
 
   // ---------------------------------------------------------------------------
-  // Internal context (stable — methods come from tapEffectEvent)
+  // MentionContext — provides formatter + delegates state to TriggerPopoverContext
+  // We use useAuiState to read trigger popover state via the inner context.
+  // For backward compat, MentionContext wraps TriggerPopoverContext output.
   // ---------------------------------------------------------------------------
+
+  return (
+    <ComposerPrimitiveTriggerPopoverRoot
+      adapter={adapter}
+      trigger={triggerChar}
+      onSelect={onSelect}
+    >
+      <MentionContextBridge formatter={formatter}>
+        {children}
+      </MentionContextBridge>
+    </ComposerPrimitiveTriggerPopoverRoot>
+  );
+};
+
+ComposerPrimitiveMentionRoot.displayName = "ComposerPrimitive.MentionRoot";
+
+// =============================================================================
+// Bridge — reads TriggerPopoverContext, wraps it as MentionContext
+// =============================================================================
+
+import { useTriggerPopoverContext } from "../trigger/TriggerPopoverContext";
+
+const MentionContextBridge: FC<{
+  formatter: Unstable_DirectiveFormatter;
+  children: ReactNode;
+}> = ({ formatter, children }) => {
+  const triggerCtx = useTriggerPopoverContext();
+
+  const mentionValue = useMemo<MentionResourceOutput>(
+    () => ({ ...triggerCtx, formatter }),
+    [triggerCtx, formatter],
+  );
 
   const internalContextValue = useMemo<MentionInternalContextValue>(
     () => ({
-      setCursorPosition: mention.setCursorPosition,
-      registerSelectItemOverride: mention.registerSelectItemOverride,
+      registerSelectItemOverride: triggerCtx.registerSelectItemOverride,
     }),
-    [mention.setCursorPosition, mention.registerSelectItemOverride],
+    [triggerCtx.registerSelectItemOverride],
   );
 
   return (
-    <MentionContext.Provider value={mention}>
+    <MentionContext.Provider value={mentionValue}>
       <MentionInternalContext.Provider value={internalContextValue}>
         {children}
       </MentionInternalContext.Provider>
     </MentionContext.Provider>
   );
 };
-
-ComposerPrimitiveMentionRoot.displayName = "ComposerPrimitive.MentionRoot";

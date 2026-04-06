@@ -1,11 +1,11 @@
 const WHITESPACE_RE = /\s/;
 
 /**
- * Detect a mention trigger in text relative to the cursor position.
+ * Detect a trigger character in text relative to the cursor position.
  *
- * @internal Exported for testing and for the MentionResource.
+ * @internal Exported for testing and for trigger resources.
  */
-export function detectMentionTrigger(
+export function detectTrigger(
   text: string,
   triggerChar: string,
   cursorPosition: number,

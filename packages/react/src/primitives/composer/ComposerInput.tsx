@@ -22,10 +22,7 @@ import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useAuiState, useAui } from "@assistant-ui/store";
 import { flushResourcesSync } from "@assistant-ui/tap";
-import {
-  useMentionContextOptional,
-  useMentionInternalContext,
-} from "./mention/ComposerMentionContext";
+import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
 
 export namespace ComposerPrimitiveInput {
   export type Element = HTMLTextAreaElement;
@@ -144,8 +141,7 @@ export const ComposerPrimitiveInput = forwardRef<
     forwardedRef,
   ) => {
     const aui = useAui();
-    const mentionContext = useMentionContextOptional();
-    const mentionInternalContext = useMentionInternalContext();
+    const pluginRegistry = useComposerInputPluginRegistryOptional();
 
     const effectiveSubmitMode =
       submitMode ?? (submitOnEnter === false ? "none" : "enter");
@@ -166,10 +162,11 @@ export const ComposerPrimitiveInput = forwardRef<
       // Only handle ESC if it originated from within this input
       if (!textareaRef.current?.contains(e.target as Node)) return;
 
-      // Let mention popover handle Escape first
-      if (mentionContext?.open) {
-        mentionContext.handleKeyDown(e);
-        return;
+      // Let registered plugins (mention, slash command, etc.) handle Escape first
+      if (pluginRegistry) {
+        for (const plugin of pluginRegistry.getPlugins()) {
+          if (plugin.handleKeyDown(e)) return;
+        }
       }
 
       if (!cancelOnEscape) return;
@@ -187,8 +184,12 @@ export const ComposerPrimitiveInput = forwardRef<
       // ignore IME composition events
       if (e.nativeEvent.isComposing) return;
 
-      // Let the mention popover handle keyboard events first
-      if (mentionContext?.handleKeyDown(e)) return;
+      // Let registered plugins (mention, slash command, etc.) handle keyboard events first
+      if (pluginRegistry) {
+        for (const plugin of pluginRegistry.getPlugins()) {
+          if (plugin.handleKeyDown(e)) return;
+        }
+      }
 
       if (e.key === "Enter") {
         const threadState = aui.thread().getState();
@@ -297,9 +298,12 @@ export const ComposerPrimitiveInput = forwardRef<
           flushResourcesSync(() => {
             aui.composer().setText(e.target.value);
           });
-          mentionInternalContext?.setCursorPosition(
-            e.target.selectionStart ?? e.target.value.length,
-          );
+          const pos = e.target.selectionStart ?? e.target.value.length;
+          if (pluginRegistry) {
+            for (const plugin of pluginRegistry.getPlugins()) {
+              plugin.setCursorPosition(pos);
+            }
+          }
         },
       ),
       onKeyDown: composeEventHandlers(onKeyDown, handleKeyPress),
@@ -307,9 +311,12 @@ export const ComposerPrimitiveInput = forwardRef<
         onSelect,
         (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
           const target = e.target as HTMLTextAreaElement;
-          mentionInternalContext?.setCursorPosition(
-            target.selectionStart ?? target.value.length,
-          );
+          const pos = target.selectionStart ?? target.value.length;
+          if (pluginRegistry) {
+            for (const plugin of pluginRegistry.getPlugins()) {
+              plugin.setCursorPosition(pos);
+            }
+          }
         },
       ),
       onPaste: composeEventHandlers(onPaste, handlePaste),

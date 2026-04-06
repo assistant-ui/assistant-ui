@@ -4,13 +4,16 @@ export {
   useMentionContextOptional,
   useMentionInternalContext,
 } from "./ComposerMentionContext";
-export { ComposerPrimitiveMentionPopover } from "./ComposerMentionPopover";
+
+// UI primitives — re-exported from the shared trigger popover implementation.
+// MentionRoot internally renders TriggerPopoverRoot, so these work within it.
+export { ComposerPrimitiveTriggerPopoverPopover as ComposerPrimitiveMentionPopover } from "../trigger/TriggerPopoverPopover";
 export {
-  ComposerPrimitiveMentionCategories,
-  ComposerPrimitiveMentionCategoryItem,
-} from "./ComposerMentionCategories";
+  ComposerPrimitiveTriggerPopoverCategories as ComposerPrimitiveMentionCategories,
+  ComposerPrimitiveTriggerPopoverCategoryItem as ComposerPrimitiveMentionCategoryItem,
+} from "../trigger/TriggerPopoverCategories";
 export {
-  ComposerPrimitiveMentionItems,
-  ComposerPrimitiveMentionItem,
-} from "./ComposerMentionItems";
-export { ComposerPrimitiveMentionBack } from "./ComposerMentionBack";
+  ComposerPrimitiveTriggerPopoverItems as ComposerPrimitiveMentionItems,
+  ComposerPrimitiveTriggerPopoverItem as ComposerPrimitiveMentionItem,
+} from "../trigger/TriggerPopoverItems";
+export { ComposerPrimitiveTriggerPopoverBack as ComposerPrimitiveMentionBack } from "../trigger/TriggerPopoverBack";

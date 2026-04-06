@@ -9,34 +9,33 @@ import {
   useCallback,
 } from "react";
 import { composeEventHandlers } from "@radix-ui/primitive";
-import { useMentionContext } from "./ComposerMentionContext";
-import type { Unstable_MentionCategory } from "@assistant-ui/core";
+import { useTriggerPopoverContext } from "./TriggerPopoverContext";
+import type { Unstable_TriggerCategory } from "@assistant-ui/core";
 
 // =============================================================================
-// MentionCategories — Renders the list of categories
+// TriggerPopoverCategories — Renders the list of categories
 // =============================================================================
 
-export namespace ComposerPrimitiveMentionCategories {
+export namespace ComposerPrimitiveTriggerPopoverCategories {
   export type Element = ComponentRef<typeof Primitive.div>;
   export type Props = Omit<
     ComponentPropsWithoutRef<typeof Primitive.div>,
     "children"
   > & {
-    /**
-     * Render function that receives the filtered categories and returns
-     * the UI. A render-function pattern is used here (instead of a
-     * `components` prop) to give consumers full control over list layout,
-     * ordering, grouping, and empty states.
-     */
-    children: (categories: readonly Unstable_MentionCategory[]) => ReactNode;
+    children: (categories: readonly Unstable_TriggerCategory[]) => ReactNode;
   };
 }
 
-export const ComposerPrimitiveMentionCategories = forwardRef<
-  ComposerPrimitiveMentionCategories.Element,
-  ComposerPrimitiveMentionCategories.Props
+/**
+ * Renders the top-level category list via a render function.
+ * Only renders when no category is active and search mode is off.
+ */
+export const ComposerPrimitiveTriggerPopoverCategories = forwardRef<
+  ComposerPrimitiveTriggerPopoverCategories.Element,
+  ComposerPrimitiveTriggerPopoverCategories.Props
 >(({ children, ...props }, forwardedRef) => {
-  const { categories, activeCategoryId, isSearchMode } = useMentionContext();
+  const { categories, activeCategoryId, isSearchMode } =
+    useTriggerPopoverContext();
 
   if (activeCategoryId || isSearchMode) return null;
 
@@ -47,14 +46,14 @@ export const ComposerPrimitiveMentionCategories = forwardRef<
   );
 });
 
-ComposerPrimitiveMentionCategories.displayName =
-  "ComposerPrimitive.MentionCategories";
+ComposerPrimitiveTriggerPopoverCategories.displayName =
+  "ComposerPrimitive.TriggerPopoverCategories";
 
 // =============================================================================
-// MentionCategoryItem — A single category row (clickable to drill-down)
+// TriggerPopoverCategoryItem — A single category row
 // =============================================================================
 
-export namespace ComposerPrimitiveMentionCategoryItem {
+export namespace ComposerPrimitiveTriggerPopoverCategoryItem {
   export type Element = ComponentRef<typeof Primitive.button>;
   export type Props = ComponentPropsWithoutRef<typeof Primitive.button> & {
     categoryId: string;
@@ -65,9 +64,9 @@ export namespace ComposerPrimitiveMentionCategoryItem {
  * A button that selects a category and triggers drill-down navigation.
  * Automatically receives `data-highlighted` when keyboard-navigated.
  */
-export const ComposerPrimitiveMentionCategoryItem = forwardRef<
-  ComposerPrimitiveMentionCategoryItem.Element,
-  ComposerPrimitiveMentionCategoryItem.Props
+export const ComposerPrimitiveTriggerPopoverCategoryItem = forwardRef<
+  ComposerPrimitiveTriggerPopoverCategoryItem.Element,
+  ComposerPrimitiveTriggerPopoverCategoryItem.Props
 >(({ categoryId, onClick, ...props }, forwardedRef) => {
   const {
     selectCategory,
@@ -75,13 +74,13 @@ export const ComposerPrimitiveMentionCategoryItem = forwardRef<
     highlightedIndex,
     activeCategoryId,
     isSearchMode,
-  } = useMentionContext();
+    popoverId,
+  } = useTriggerPopoverContext();
 
   const handleClick = useCallback(() => {
     selectCategory(categoryId);
   }, [selectCategory, categoryId]);
 
-  // Derive highlighted state from context — no manual wiring needed
   const isHighlighted =
     !activeCategoryId &&
     !isSearchMode &&
@@ -91,6 +90,7 @@ export const ComposerPrimitiveMentionCategoryItem = forwardRef<
     <Primitive.button
       type="button"
       role="option"
+      id={`${popoverId}-option-${categoryId}`}
       aria-selected={isHighlighted}
       data-highlighted={isHighlighted ? "" : undefined}
       {...props}
@@ -100,5 +100,5 @@ export const ComposerPrimitiveMentionCategoryItem = forwardRef<
   );
 });
 
-ComposerPrimitiveMentionCategoryItem.displayName =
-  "ComposerPrimitive.MentionCategoryItem";
+ComposerPrimitiveTriggerPopoverCategoryItem.displayName =
+  "ComposerPrimitive.TriggerPopoverCategoryItem";
