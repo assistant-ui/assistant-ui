@@ -3049,7 +3049,7 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.11
+        specifier: ^0.1.12
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.6

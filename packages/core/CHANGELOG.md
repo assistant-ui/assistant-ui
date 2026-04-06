@@ -1,5 +1,11 @@
 # @assistant-ui/core
 
+## 0.1.12
+
+### Patch Changes
+
+- 19b1024: fix(core): move initialThreadId/threadId handling from constructor to \_\_internal_load to prevent SSR crash
+
 ## 0.1.11
 
 ### Patch Changes
