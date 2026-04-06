@@ -98,7 +98,7 @@ export const ChartToolUI = makeAssistantToolUI<ChartArgs, ChartResult>({
                     key={key}
                     type="monotone"
                     dataKey={key}
-                    stroke={COLORS[i % COLORS.length]}
+                    stroke={COLORS[i % COLORS.length] ?? "#8884d8"}
                     strokeWidth={2}
                     dot={false}
                   />
@@ -118,7 +118,10 @@ export const ChartToolUI = makeAssistantToolUI<ChartArgs, ChartResult>({
                   label
                 >
                   {data.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    <Cell
+                      key={i}
+                      fill={COLORS[i % COLORS.length] ?? "#8884d8"}
+                    />
                   ))}
                 </Pie>
               </PieChart>

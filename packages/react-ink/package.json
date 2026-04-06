@@ -37,10 +37,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.10",
+    "@assistant-ui/core": "^0.1.12",
     "@assistant-ui/store": "^0.2.6",
     "@assistant-ui/tap": "^0.5.6",
-    "assistant-stream": "^0.3.9",
+    "assistant-stream": "^0.3.10",
     "diff": "^8.0.4",
     "ink-spinner": "^5.0.0",
     "parse-diff": "^0.11.1",
