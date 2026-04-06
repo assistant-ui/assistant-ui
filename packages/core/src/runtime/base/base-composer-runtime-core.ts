@@ -17,6 +17,7 @@ import type {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
   DictationState,
+  SendOptions,
 } from "../interfaces/composer-runtime-core";
 import type { DictationAdapter } from "../../adapters/speech";
 import { generateId } from "../../utils/id";
@@ -152,7 +153,7 @@ export abstract class BaseComposerRuntimeCore
     await task;
   }
 
-  public async send() {
+  public async send(options?: SendOptions) {
     if (this.isEmpty) return;
 
     if (this._dictationSession) {
@@ -187,7 +188,7 @@ export abstract class BaseComposerRuntimeCore
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 
-    this.handleSend(message);
+    this.handleSend(message, options);
     this._notifyEventSubscribers("send");
   }
 
@@ -197,6 +198,7 @@ export abstract class BaseComposerRuntimeCore
 
   protected abstract handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
+    options?: SendOptions,
   ): void;
   protected abstract handleCancel(): void;
 

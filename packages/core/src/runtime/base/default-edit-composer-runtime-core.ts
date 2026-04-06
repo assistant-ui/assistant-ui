@@ -2,6 +2,7 @@ import type { AppendMessage, ThreadMessage } from "../../types/message";
 import { getThreadMessageText } from "../../utils/text";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { DictationAdapter } from "../../adapters/speech";
+import type { SendOptions } from "../interfaces/composer-runtime-core";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
 
@@ -20,8 +21,8 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
 
   private _nonTextParts;
   private _previousText;
-  private _parentId;
-  private _sourceId;
+  private _parentId: string | null;
+  private _sourceId: string | null;
   constructor(
     private runtime: ThreadRuntimeCore & {
       adapters?:
@@ -48,16 +49,26 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     this.setRunConfig({ ...runtime.composer.runConfig });
   }
 
+  public get parentId() {
+    return this._parentId;
+  }
+
+  public get sourceId() {
+    return this._sourceId;
+  }
+
   public async handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
+    options?: SendOptions,
   ) {
     const text = getThreadMessageText(message as AppendMessage);
-    if (text !== this._previousText) {
+    if (text !== this._previousText || options?.startRun) {
       this.runtime.append({
         ...message,
         content: [...message.content, ...this._nonTextParts] as any,
         parentId: this._parentId,
         sourceId: this._sourceId,
+        startRun: options?.startRun,
       });
     }
 
