@@ -21,6 +21,14 @@ function isTriggerItem(
   return "type" in x;
 }
 
+function matchesQuery(item: Unstable_TriggerItem, lower: string): boolean {
+  return (
+    item.id.toLowerCase().includes(lower) ||
+    item.label.toLowerCase().includes(lower) ||
+    (item.description?.toLowerCase().includes(lower) ?? false)
+  );
+}
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -80,22 +88,16 @@ export const TriggerPopoverResource = resource(
     triggerChar,
     onSelect,
     aui,
+    popoverId,
   }: {
     adapter: Unstable_TriggerAdapter | undefined;
     text: string;
     triggerChar: string;
     onSelect: OnSelectBehavior;
     aui: AssistantClient;
+    /** Stable ID for accessible element IDs (pass React's useId() from component layer). */
+    popoverId: string;
   }): TriggerPopoverResourceOutput => {
-    // -------------------------------------------------------------------------
-    // Stable popover ID for accessible element IDs
-    // -------------------------------------------------------------------------
-
-    const popoverIdRef = tapRef(
-      `aui-trigger-${triggerChar.replace(/\W/g, "")}-${Math.random().toString(36).slice(2, 8)}`,
-    );
-    const popoverId = popoverIdRef.current;
-
     // -------------------------------------------------------------------------
     // Cursor tracking + trigger detection
     // -------------------------------------------------------------------------
@@ -152,11 +154,7 @@ export const TriggerPopoverResource = resource(
       const lower = query.toLowerCase();
       for (const cat of categories) {
         for (const item of adapter.categoryItems(cat.id)) {
-          if (
-            item.id.toLowerCase().includes(lower) ||
-            item.label.toLowerCase().includes(lower) ||
-            item.description?.toLowerCase().includes(lower)
-          ) {
+          if (matchesQuery(item, lower)) {
             all.push(item);
           }
         }
@@ -183,12 +181,7 @@ export const TriggerPopoverResource = resource(
       if (isSearchMode) return searchResults ?? [];
       if (!query) return allItems;
       const lower = query.toLowerCase();
-      return allItems.filter(
-        (item) =>
-          item.id.toLowerCase().includes(lower) ||
-          item.label.toLowerCase().includes(lower) ||
-          item.description?.toLowerCase().includes(lower),
-      );
+      return allItems.filter((item) => matchesQuery(item, lower));
     }, [allItems, query, isSearchMode, searchResults]);
 
     // -------------------------------------------------------------------------

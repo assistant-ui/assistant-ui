@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useId,
   type ReactNode,
   type FC,
 } from "react";
@@ -61,9 +62,17 @@ const TriggerPopoverRootInner: FC<
 > = ({ children, adapter, trigger: triggerChar = "@", onSelect }) => {
   const aui = useAui();
   const text = useAuiState((s) => s.composer.text);
+  const popoverId = useId();
 
   const triggerPopover = useResource(
-    TriggerPopoverResource({ adapter, text, triggerChar, onSelect, aui }),
+    TriggerPopoverResource({
+      adapter,
+      text,
+      triggerChar,
+      onSelect,
+      aui,
+      popoverId,
+    }),
   );
 
   // Register as ComposerInput plugin

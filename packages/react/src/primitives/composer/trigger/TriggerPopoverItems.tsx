@@ -33,13 +33,18 @@ export namespace ComposerPrimitiveTriggerPopoverItems {
 export const ComposerPrimitiveTriggerPopoverItems = forwardRef<
   ComposerPrimitiveTriggerPopoverItems.Element,
   ComposerPrimitiveTriggerPopoverItems.Props
->(({ children, ...props }, forwardedRef) => {
+>(({ children, "aria-label": ariaLabel, ...props }, forwardedRef) => {
   const { items, activeCategoryId, isSearchMode } = useTriggerPopoverContext();
 
   if (!activeCategoryId && !isSearchMode) return null;
 
   return (
-    <Primitive.div role="group" {...props} ref={forwardedRef}>
+    <Primitive.div
+      role="group"
+      aria-label={ariaLabel ?? "Items"}
+      {...props}
+      ref={forwardedRef}
+    >
       {children(items)}
     </Primitive.div>
   );
