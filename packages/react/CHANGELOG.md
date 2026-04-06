@@ -1,5 +1,38 @@
 # @assistant-ui/react
 
+## 0.12.24
+
+### Patch Changes
+
+- 42bc640: feat: support edit lineage and startRun in EditComposer send flow
+  - Add `SendOptions` with `startRun` flag to `composer.send()`
+  - Expose `parentId` and `sourceId` on `EditComposerState`
+  - Add `EditComposerRuntimeCore` interface extending `ComposerRuntimeCore`
+  - Bypass text-unchanged guard when `startRun` is explicitly set
+  - `ComposerSendOptions` extends `SendOptions` for consistent layering
+
+- e82726c: fix(react): forward viewport slack props from MessagePrimitive.Root
+- 376bb00: chore: update dependencies
+- 87e7761: feat: generalize mention system into trigger popover architecture with slash command support
+  - Introduce `ComposerInputPlugin` protocol to decouple ComposerInput from mention-specific code
+  - Extract generic `TriggerPopoverResource` from `MentionResource` supporting multiple trigger characters
+  - Add `Unstable_TriggerItem`, `Unstable_TriggerCategory`, `Unstable_TriggerAdapter` generic types
+  - Add `Unstable_SlashCommandAdapter`, `Unstable_SlashCommandItem` types
+  - Add `ComposerPrimitive.Unstable_TriggerPopoverRoot` and related primitives
+  - Add `ComposerPrimitive.Unstable_SlashCommandRoot` and related primitives
+  - Add `unstable_useSlashCommandAdapter` hook for building slash command adapters
+  - Refactor `MentionResource` as thin wrapper around `TriggerPopoverResource`
+  - Alias `Unstable_MentionItem`/`Unstable_MentionAdapter` to generic trigger types
+  - Update `react-lexical` `KeyboardPlugin` to use plugin protocol
+  - All existing `Unstable_Mention*` APIs remain unchanged
+
+- Updated dependencies [42bc640]
+- Updated dependencies [376bb00]
+- Updated dependencies [87e7761]
+  - @assistant-ui/core@0.1.13
+  - assistant-cloud@0.1.25
+  - @assistant-ui/tap@0.5.7
+
 ## 0.12.23
 
 ### Patch Changes

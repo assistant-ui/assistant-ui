@@ -1,5 +1,16 @@
 # @assistant-ui/react-native
 
+## 0.1.10
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+- Updated dependencies [42bc640]
+- Updated dependencies [376bb00]
+- Updated dependencies [87e7761]
+  - @assistant-ui/core@0.1.13
+  - @assistant-ui/tap@0.5.7
+
 ## 0.1.9
 
 ### Patch Changes

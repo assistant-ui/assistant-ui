@@ -1,5 +1,13 @@
 # assistant-ui
 
+## 0.0.88
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+- Updated dependencies [376bb00]
+  - @assistant-ui/agent-launcher@0.1.3
+
 ## 0.0.87
 
 ### Patch Changes

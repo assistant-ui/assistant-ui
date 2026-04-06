@@ -1,5 +1,16 @@
 # @assistant-ui/react-google-adk
 
+## 0.0.5
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+- Updated dependencies [42bc640]
+- Updated dependencies [376bb00]
+- Updated dependencies [87e7761]
+  - @assistant-ui/core@0.1.13
+  - assistant-cloud@0.1.25
+
 ## 0.0.4
 
 ### Patch Changes

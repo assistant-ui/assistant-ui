@@ -1,5 +1,13 @@
 # @assistant-ui/react-o11y
 
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies [376bb00]
+  - @assistant-ui/tap@0.5.7
+  - @assistant-ui/store@0.2.6
+
 ## 0.0.8
 
 ### Patch Changes

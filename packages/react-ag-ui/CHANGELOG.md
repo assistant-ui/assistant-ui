@@ -1,5 +1,14 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.25
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+- Updated dependencies [42bc640]
+- Updated dependencies [87e7761]
+  - @assistant-ui/core@0.1.13
+
 ## 0.0.24
 
 ### Patch Changes

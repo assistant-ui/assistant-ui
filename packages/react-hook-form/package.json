@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-hook-form",
-  "version": "0.12.8",
+  "version": "0.12.9",
   "description": "React Hook Form integration for assistant-ui",
   "keywords": [
     "react-hook-form",
@@ -32,7 +32,7 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.12",
+    "@assistant-ui/core": "^0.1.13",
     "@assistant-ui/store": "^0.2.6",
     "zod": "^4.3.6"
   },

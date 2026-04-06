@@ -1,5 +1,11 @@
 # tw-shimmer
 
+## 0.4.10
+
+### Patch Changes
+
+- 094fa56: fix: register shimmer-bg as standalone @utility for Tailwind v4 tooling recognition
+
 ## 0.4.9
 
 ### Patch Changes

@@ -35,7 +35,7 @@
     "use-effect-event": "^2.0.3"
   },
   "peerDependencies": {
-    "@assistant-ui/tap": "^0.5.6",
+    "@assistant-ui/tap": "^0.5.7",
     "@types/react": "*",
     "react": "^18 || ^19"
   },

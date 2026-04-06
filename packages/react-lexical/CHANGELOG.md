@@ -1,5 +1,30 @@
 # @assistant-ui/react-lexical
 
+## 0.0.5
+
+### Patch Changes
+
+- 87e7761: feat: generalize mention system into trigger popover architecture with slash command support
+  - Introduce `ComposerInputPlugin` protocol to decouple ComposerInput from mention-specific code
+  - Extract generic `TriggerPopoverResource` from `MentionResource` supporting multiple trigger characters
+  - Add `Unstable_TriggerItem`, `Unstable_TriggerCategory`, `Unstable_TriggerAdapter` generic types
+  - Add `Unstable_SlashCommandAdapter`, `Unstable_SlashCommandItem` types
+  - Add `ComposerPrimitive.Unstable_TriggerPopoverRoot` and related primitives
+  - Add `ComposerPrimitive.Unstable_SlashCommandRoot` and related primitives
+  - Add `unstable_useSlashCommandAdapter` hook for building slash command adapters
+  - Refactor `MentionResource` as thin wrapper around `TriggerPopoverResource`
+  - Alias `Unstable_MentionItem`/`Unstable_MentionAdapter` to generic trigger types
+  - Update `react-lexical` `KeyboardPlugin` to use plugin protocol
+  - All existing `Unstable_Mention*` APIs remain unchanged
+
+- Updated dependencies [42bc640]
+- Updated dependencies [e82726c]
+- Updated dependencies [376bb00]
+- Updated dependencies [87e7761]
+  - @assistant-ui/core@0.1.13
+  - @assistant-ui/react@0.12.24
+  - @assistant-ui/store@0.2.6
+
 ## 0.0.4
 
 ### Patch Changes
