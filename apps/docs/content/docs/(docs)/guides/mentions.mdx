@@ -354,8 +354,53 @@ Use the mention primitives to build a fully custom popover:
 
 See the [Composer API reference](/docs/api-reference/primitives/composer) for full prop details.
 
+## Combining with Slash Commands
+
+Mentions and [slash commands](/docs/guides/slash-commands) can coexist on the same composer. Both are built on the same [trigger popover architecture](/docs/guides/slash-commands#trigger-popover-architecture) — nest both roots and they work independently:
+
+```tsx
+<ComposerPrimitive.Unstable_MentionRoot adapter={mentionAdapter}>
+  <ComposerPrimitive.Unstable_SlashCommandRoot adapter={slashAdapter}>
+    <ComposerPrimitive.Root>
+      <ComposerPrimitive.Input placeholder="Type @ to mention, / for commands..." />
+      <ComposerPrimitive.Send />
+
+      {/* Mention popover (shows on @) */}
+      <ComposerPrimitive.Unstable_MentionPopover>
+        <ComposerPrimitive.Unstable_MentionCategories>
+          {(categories) => categories.map((cat) => (
+            <ComposerPrimitive.Unstable_MentionCategoryItem key={cat.id} categoryId={cat.id}>
+              {cat.label}
+            </ComposerPrimitive.Unstable_MentionCategoryItem>
+          ))}
+        </ComposerPrimitive.Unstable_MentionCategories>
+        <ComposerPrimitive.Unstable_MentionItems>
+          {(items) => items.map((item) => (
+            <ComposerPrimitive.Unstable_MentionItem key={item.id} item={item}>
+              {item.label}
+            </ComposerPrimitive.Unstable_MentionItem>
+          ))}
+        </ComposerPrimitive.Unstable_MentionItems>
+      </ComposerPrimitive.Unstable_MentionPopover>
+
+      {/* Slash command popover (shows on /) */}
+      <ComposerPrimitive.Unstable_TriggerPopoverPopover>
+        <ComposerPrimitive.Unstable_TriggerPopoverItems>
+          {(items) => items.map((item) => (
+            <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item}>
+              {item.label}
+            </ComposerPrimitive.Unstable_TriggerPopoverItem>
+          ))}
+        </ComposerPrimitive.Unstable_TriggerPopoverItems>
+      </ComposerPrimitive.Unstable_TriggerPopoverPopover>
+    </ComposerPrimitive.Root>
+  </ComposerPrimitive.Unstable_SlashCommandRoot>
+</ComposerPrimitive.Unstable_MentionRoot>
+```
+
 ## Related
 
 - [Mention UI Component](/docs/ui/mention) — pre-built shadcn component
+- [Slash Commands Guide](/docs/guides/slash-commands) — `/` command system built on the same architecture
 - [Tools Guide](/docs/guides/tools) — register tools that appear in the mention picker
 - [Composer Primitives](/docs/primitives/composer) — underlying composer primitives

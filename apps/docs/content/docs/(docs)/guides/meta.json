@@ -10,6 +10,7 @@
     "interactables",
     "latex",
     "mentions",
+    "slash-commands",
     "message-timing",
     "multi-agent",
     "quoting",

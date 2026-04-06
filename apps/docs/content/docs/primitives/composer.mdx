@@ -102,18 +102,41 @@ import { ComposerPrimitive } from "@assistant-ui/react";
 
 The primitive's behavior (keyboard handling, disabled state, form submission) is merged onto your element. Your styles, your component, primitive wiring.
 
-### Unstable Mentions
+### Unstable Trigger Popovers
 
-Composer also includes an unstable mention system for `@`-triggered popovers. It is built around `ComposerPrimitive.Unstable_MentionRoot` and intended for rich inputs like `LexicalComposerInput`.
+Composer includes an unstable **trigger popover** system for character-triggered popovers (e.g. `@` for mentions, `/` for slash commands). Multiple triggers can coexist on the same input.
+
+**Mentions** (`@` trigger) — insert directive text into the message:
 
 ```tsx
-<ComposerPrimitive.Unstable_MentionRoot>
+<ComposerPrimitive.Unstable_MentionRoot adapter={mentionAdapter}>
   <ComposerPrimitive.Root>
-    <LexicalComposerInput placeholder="Type @ to mention a tool..." />
+    <ComposerPrimitive.Input placeholder="Type @ to mention..." />
     <ComposerPrimitive.Unstable_MentionPopover />
   </ComposerPrimitive.Root>
 </ComposerPrimitive.Unstable_MentionRoot>
 ```
+
+**Slash commands** (`/` trigger) — execute an action and clear the command text:
+
+```tsx
+<ComposerPrimitive.Unstable_SlashCommandRoot adapter={slashAdapter}>
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Input placeholder="Type / for commands..." />
+    <ComposerPrimitive.Unstable_TriggerPopoverPopover>
+      <ComposerPrimitive.Unstable_TriggerPopoverItems>
+        {(items) => items.map(item => (
+          <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item}>
+            {item.label}
+          </ComposerPrimitive.Unstable_TriggerPopoverItem>
+        ))}
+      </ComposerPrimitive.Unstable_TriggerPopoverItems>
+    </ComposerPrimitive.Unstable_TriggerPopoverPopover>
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.Unstable_SlashCommandRoot>
+```
+
+See the [Mentions guide](/docs/guides/mentions) and [Slash Commands guide](/docs/guides/slash-commands) for full documentation.
 
 ## Parts
 
