@@ -11,13 +11,10 @@ const normalizeToolCallChunk = (
   value: unknown,
 ): LangChainToolCallChunk | null => {
   if (!isRecord(value)) return null;
-  if (
-    typeof value.id !== "string" ||
-    typeof value.name !== "string" ||
-    typeof value.index !== "number"
-  ) {
-    return null;
-  }
+  if (typeof value.index !== "number") return null;
+
+  const id = typeof value.id === "string" ? value.id : "";
+  const name = typeof value.name === "string" ? value.name : "";
 
   const args =
     typeof value.args === "string"
@@ -28,6 +25,8 @@ const normalizeToolCallChunk = (
 
   return {
     ...(value as LangChainToolCallChunk),
+    id,
+    name,
     args,
   };
 };

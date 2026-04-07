@@ -1377,6 +1377,226 @@ describe("useLangGraphMessages", {}, () => {
     });
   });
 
+  it("handles Bedrock tool_call_chunks with null id/name on continuation chunks", async () => {
+    // Bedrock only sends id and name on the first chunk.
+    // Subsequent chunks carry the args but have id: null, name: null.
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              {
+                id: "tooluse_abc123",
+                index: 1,
+                name: "read_file",
+                args: null,
+              },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              {
+                id: null,
+                index: 1,
+                name: null,
+                args: '{"file_path"',
+              },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              {
+                id: null,
+                index: 1,
+                name: null,
+                args: ': "/foo/bar"}',
+              },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "Go" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const aiMessage = result.current.messages[1]!;
+      expect(aiMessage.type).toBe("ai");
+      if (aiMessage.type !== "ai") {
+        throw new Error("Expected AI message");
+      }
+
+      expect(aiMessage.tool_calls).toHaveLength(1);
+      expect(aiMessage.tool_calls?.[0]?.id).toBe("tooluse_abc123");
+      expect(aiMessage.tool_calls?.[0]?.name).toBe("read_file");
+      expect(aiMessage.tool_calls?.[0]?.partial_json).toBe(
+        '{"file_path": "/foo/bar"}',
+      );
+      expect(aiMessage.tool_calls?.[0]?.partial_json).not.toContain(
+        "undefined",
+      );
+      expect(aiMessage.tool_calls?.[0]?.args).toMatchObject({
+        file_path: "/foo/bar",
+      });
+    });
+  });
+
+  it("handles multiple Bedrock tool calls with null id/name matched by index", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      // First chunks for two tool calls — these carry id and name
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              { id: "tool_a", index: 0, name: "search", args: null },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              { id: "tool_b", index: 1, name: "read_file", args: null },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      // Continuation chunks — null id/name, must match by index
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              { id: null, index: 0, name: null, args: '{"q":"he' },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              { id: null, index: 1, name: null, args: '{"path":"/a' },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              { id: null, index: 0, name: null, args: 'llo"}' },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "run-1",
+            content: "",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              { id: null, index: 1, name: null, args: '/b"}' },
+            ],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "Go" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const aiMessage = result.current.messages[1]!;
+      expect(aiMessage.type).toBe("ai");
+      if (aiMessage.type !== "ai") throw new Error("Expected AI message");
+
+      expect(aiMessage.tool_calls).toHaveLength(2);
+
+      // First tool call (index 0) — args must not cross-wire with index 1
+      expect(aiMessage.tool_calls?.[0]?.id).toBe("tool_a");
+      expect(aiMessage.tool_calls?.[0]?.name).toBe("search");
+      expect(aiMessage.tool_calls?.[0]?.args).toMatchObject({ q: "hello" });
+
+      // Second tool call (index 1)
+      expect(aiMessage.tool_calls?.[1]?.id).toBe("tool_b");
+      expect(aiMessage.tool_calls?.[1]?.name).toBe("read_file");
+      expect(aiMessage.tool_calls?.[1]?.args).toMatchObject({ path: "/a/b" });
+    });
+  });
+
   it("accepts tool messages from messages tuple streams", async () => {
     const onMessageChunk = vi.fn();
     const mockStreamCallback = mockStreamCallbackFactory([

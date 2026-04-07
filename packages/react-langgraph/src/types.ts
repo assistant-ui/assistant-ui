@@ -10,6 +10,7 @@ export type LangChainToolCallChunk = {
 };
 
 export type LangChainToolCall = {
+  index?: number;
   id: string;
   name: string;
   args: ReadonlyJSONObject;
