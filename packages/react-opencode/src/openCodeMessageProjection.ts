@@ -75,6 +75,19 @@ const makeDataPart = (
   ...(parentId ? { parentId } : {}),
 });
 
+const makeUnsupportedPart = (
+  part: Part,
+  parentId?: string,
+) =>
+  makeDataPart(
+    "opencode-unsupported-part",
+    {
+      type: (part as { type?: string }).type ?? "unknown",
+      part,
+    },
+    parentId,
+  );
+
 const sanitizeReasoningText = (text: string | undefined) =>
   (text ?? "")
     .replaceAll("[REDACTED]", "")
@@ -251,6 +264,7 @@ const projectAssistantContent = (
         break;
 
       default:
+        content.push(makeUnsupportedPart(part, currentStepId()));
         break;
     }
   }

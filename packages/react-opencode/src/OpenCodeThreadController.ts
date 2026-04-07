@@ -1,5 +1,9 @@
 import type { AppendMessage, ThreadUserMessagePart } from "@assistant-ui/react";
-import type { OpencodeClient } from "@opencode-ai/sdk/client";
+import type {
+  OpencodeClient,
+  PermissionRequest,
+  SessionStatus,
+} from "@opencode-ai/sdk/v2/client";
 import {
   createOpenCodeThreadState,
   reduceOpenCodeThreadState,
@@ -8,9 +12,11 @@ import type {
   MessageWithParts,
   OpenCodePermissionRequest,
   OpenCodePermissionResponse,
+  OpenCodeQuestionRequest,
   OpenCodeServerEvent,
   OpenCodeThreadControllerLike,
   OpenCodeThreadState,
+  OpenCodeUnhandledEvent,
   OpenCodeUserMessageOptions,
   PendingUserMessage,
 } from "./types";
@@ -65,47 +71,100 @@ const getPromptParts = (message: AppendMessage) => {
   return promptParts;
 };
 
+const getRecordValue = (
+  record: Record<string, unknown>,
+  keys: readonly string[],
+) => {
+  for (const key of keys) {
+    if (key in record) {
+      return record[key];
+    }
+  }
+
+  return undefined;
+};
+
 const extractPermissionRequest = (
   event: OpenCodeServerEvent,
 ): OpenCodePermissionRequest | null => {
-  const permissionID =
-    typeof event.properties.permissionID === "string"
-      ? event.properties.permissionID
-      : typeof event.properties.id === "string"
-        ? event.properties.id
-        : undefined;
+  const request = event.properties as PermissionRequest;
+  if (typeof request.id !== "string" || typeof request.sessionID !== "string") {
+    return null;
+  }
 
-  const sessionId =
-    event.sessionId ??
-    (typeof event.properties.sessionID === "string"
-      ? event.properties.sessionID
-      : undefined);
+  const metadata =
+    typeof request.metadata === "object" && request.metadata !== null
+      ? (request.metadata as Record<string, unknown>)
+      : {};
 
-  if (!permissionID || !sessionId) return null;
+  const titleValue = getRecordValue(metadata, ["title", "message", "prompt"]);
+  const toolNameValue = getRecordValue(metadata, [
+    "toolName",
+    "tool",
+    "name",
+    "permission",
+  ]);
+  const toolInputValue = getRecordValue(metadata, [
+    "toolInput",
+    "input",
+    "args",
+    "arguments",
+  ]);
 
-  const request: OpenCodePermissionRequest = {
-    id: permissionID,
-    sessionId,
-    toolInput: event.properties.toolInput,
+  return {
+    id: request.id,
+    sessionId: request.sessionID,
+    permission: request.permission,
+    patterns: request.patterns,
+    metadata,
+    always: request.always,
+    tool: request.tool,
+    toolName:
+      typeof toolNameValue === "string" ? toolNameValue : request.permission,
+    toolInput: toolInputValue,
+    title: typeof titleValue === "string" ? titleValue : undefined,
+    askedAt: Date.now(),
+    raw: request,
+  };
+};
+
+const extractQuestionRequest = (
+  event: OpenCodeServerEvent,
+): OpenCodeQuestionRequest | null => {
+  const request = event.properties;
+  if (typeof request.id !== "string" || typeof request.sessionID !== "string") {
+    return null;
+  }
+
+  return {
+    ...(request as OpenCodeQuestionRequest),
     askedAt: Date.now(),
   };
+};
 
-  if (typeof event.properties.toolName === "string") {
-    request.toolName = event.properties.toolName;
-  }
+const normalizeUnhandledEvent = (
+  event: OpenCodeServerEvent,
+): OpenCodeUnhandledEvent => ({
+  type: event.type,
+  sessionId: event.sessionId,
+  properties: event.properties as Record<string, unknown>,
+  seenAt: Date.now(),
+});
 
-  if (typeof event.properties.title === "string") {
-    request.title = event.properties.title;
-  }
+const isSupportedDelta = (
+  state: OpenCodeThreadState,
+  messageId: string,
+  partId: string,
+  field: string,
+) => {
+  const message = state.messagesById[messageId];
+  const part = message?.parts.find((candidate) => candidate.id === partId);
+  if (!part) return false;
 
-  if (
-    typeof event.properties.metadata === "object" &&
-    event.properties.metadata !== null
-  ) {
-    request.metadata = event.properties.metadata as Record<string, unknown>;
-  }
-
-  return request;
+  return (
+    field === "text" &&
+    (part.type === "text" || part.type === "reasoning")
+  );
 };
 
 export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
@@ -117,7 +176,6 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   constructor(
     private readonly client: OpencodeClient,
     private readonly eventSource: OpenCodeEventSource,
-    private readonly baseUrl: string,
     private readonly sessionId: string,
   ) {
     this.state = createOpenCodeThreadState(sessionId);
@@ -147,8 +205,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.dispatch({ type: "history.loading" });
 
     this.loadPromise = Promise.all([
-      this.client.session.get({ path: { id: this.sessionId } }),
-      this.client.session.messages({ path: { id: this.sessionId } }),
+      this.client.session.get({ sessionID: this.sessionId }),
+      this.client.session.messages({ sessionID: this.sessionId }),
     ])
       .then(([sessionResponse, messagesResponse]) => {
         this.dispatch({
@@ -205,14 +263,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.dispatch({ type: "run.started" });
 
     try {
-      await this.client.session.prompt({
-        path: { id: this.sessionId },
-        body: {
-          parts: getPromptParts(message),
-          ...(options?.model ? { model: options.model } : {}),
-          ...(options?.agent ? { agent: options.agent } : {}),
-          ...(options?.noReply ? { noReply: options.noReply } : {}),
-        } as never,
+      await this.client.session.promptAsync({
+        sessionID: this.sessionId,
+        parts: getPromptParts(message) as never,
+        ...(options?.model ? { model: options.model } : {}),
+        ...(options?.agent ? { agent: options.agent } : {}),
+        ...(options?.noReply ? { noReply: options.noReply } : {}),
       });
     } catch (error) {
       this.dispatch({
@@ -228,7 +284,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.dispatch({ type: "run.cancelling" });
     try {
       await this.client.session.abort({
-        path: { id: this.sessionId },
+        sessionID: this.sessionId,
       });
     } catch (error) {
       this.dispatch({ type: "run.failed", error });
@@ -240,8 +296,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.dispatch({ type: "run.reverting" });
     try {
       await this.client.session.revert({
-        path: { id: this.sessionId },
-        body: { messageID: messageId } as never,
+        sessionID: this.sessionId,
+        messageID: messageId,
       });
     } catch (error) {
       this.dispatch({ type: "run.failed", error });
@@ -251,14 +307,14 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
   public async unrevert() {
     await this.client.session.unrevert({
-      path: { id: this.sessionId },
+      sessionID: this.sessionId,
     });
   }
 
   public async fork(messageId: string) {
     const response = await this.client.session.fork({
-      path: { id: this.sessionId },
-      body: { messageID: messageId } as never,
+      sessionID: this.sessionId,
+      messageID: messageId,
     });
     if (!response.data?.id) {
       throw new Error("Failed to fork OpenCode session");
@@ -270,30 +326,28 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     permissionId: string,
     response: OpenCodePermissionResponse,
   ) {
-    const endpoint = `${this.baseUrl.replace(/\/$/, "")}/session/${this.sessionId}/permissions/${permissionId}`;
-    const result = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({ response }),
+    await this.client.permission.reply({
+      requestID: permissionId,
+      reply: response,
     });
-
-    if (!result.ok) {
-      throw new Error(`Failed to reply to permission: ${result.status}`);
-    }
 
     this.dispatch({
       type: "permission.replied",
       permissionId,
-      approved: response !== "reject",
+      reply: response,
+    });
+  }
+
+  private refreshInBackground() {
+    void this.refresh().catch((error) => {
+      this.dispatch({ type: "run.failed", error });
     });
   }
 
   private handleServerEvent(event: OpenCodeServerEvent) {
     switch (event.type) {
       case "session.updated": {
-        const session = event.properties.info ?? event.properties.session;
+        const session = event.properties.info;
         if (session && typeof session === "object") {
           this.dispatch({
             type: "session.updated",
@@ -303,9 +357,33 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         return;
       }
 
+      case "session.status":
+        if (event.properties.status) {
+          this.dispatch({
+            type: "session.status",
+            status: event.properties.status as SessionStatus,
+          });
+        }
+        return;
+
       case "session.idle":
         this.dispatch({ type: "session.idle", sessionId: this.sessionId });
         return;
+
+      case "session.compacted":
+        this.dispatch({ type: "session.compacted", sessionId: this.sessionId });
+        this.refreshInBackground();
+        return;
+
+      case "session.error":
+        if (event.properties.error !== undefined) {
+          this.dispatch({
+            type: "run.failed",
+            error: event.properties.error,
+          });
+          return;
+        }
+        break;
 
       case "message.updated": {
         const info = event.properties.info;
@@ -330,14 +408,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       case "message.part.updated": {
         const part = event.properties.part;
         const messageId =
-          typeof event.properties.messageID === "string"
-            ? event.properties.messageID
-            : part &&
-                typeof part === "object" &&
-                "messageID" in part &&
-                typeof part.messageID === "string"
-              ? part.messageID
-              : undefined;
+          part &&
+          typeof part === "object" &&
+          "messageID" in part &&
+          typeof part.messageID === "string"
+            ? part.messageID
+            : undefined;
 
         if (messageId && part && typeof part === "object") {
           this.dispatch({
@@ -348,6 +424,29 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         }
         return;
       }
+
+      case "message.part.delta":
+        if (
+          typeof event.properties.messageID === "string" &&
+          typeof event.properties.partID === "string" &&
+          typeof event.properties.field === "string" &&
+          typeof event.properties.delta === "string"
+        ) {
+          const { messageID, partID, field, delta } = event.properties;
+
+          if (isSupportedDelta(this.state, messageID, partID, field)) {
+            this.dispatch({
+              type: "part.delta",
+              messageId: messageID,
+              partId: partID,
+              field,
+              delta,
+            });
+          } else {
+            this.refreshInBackground();
+          }
+        }
+        return;
 
       case "message.part.removed":
         if (
@@ -374,18 +473,58 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       }
 
       case "permission.replied":
-        if (typeof event.properties.permissionID === "string") {
+        if (
+          typeof event.properties.requestID === "string" &&
+          (event.properties.reply === "once" ||
+            event.properties.reply === "always" ||
+            event.properties.reply === "reject")
+        ) {
           this.dispatch({
             type: "permission.replied",
-            permissionId: event.properties.permissionID,
-            approved: Boolean(event.properties.approved),
+            permissionId: event.properties.requestID,
+            reply: event.properties.reply,
           });
         }
         return;
 
-      default:
+      case "question.asked": {
+        const request = extractQuestionRequest(event);
+        if (request) {
+          this.dispatch({
+            type: "question.asked",
+            request,
+          });
+        }
+        return;
+      }
+
+      case "question.replied":
+        if (
+          typeof event.properties.requestID === "string" &&
+          Array.isArray(event.properties.answers)
+        ) {
+          this.dispatch({
+            type: "question.replied",
+            questionId: event.properties.requestID,
+            answers: event.properties.answers as never,
+          });
+        }
+        return;
+
+      case "question.rejected":
+        if (typeof event.properties.requestID === "string") {
+          this.dispatch({
+            type: "question.rejected",
+            questionId: event.properties.requestID,
+          });
+        }
         return;
     }
+
+    this.dispatch({
+      type: "unhandled.event",
+      event: normalizeUnhandledEvent(event),
+    });
   }
 
   private dispatch(event: Parameters<typeof reduceOpenCodeThreadState>[1]) {

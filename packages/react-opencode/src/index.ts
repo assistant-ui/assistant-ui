@@ -1,5 +1,6 @@
 export {
   useOpenCodePermissions,
+  useOpenCodeQuestions,
   useOpenCodeRuntime,
   useOpenCodeRuntimeExtras,
   useOpenCodeSession,
@@ -21,6 +22,7 @@ export type {
   OpenCodePermissionRequest,
   OpenCodePermissionResponse,
   OpenCodeProjectedThreadMessage,
+  OpenCodeQuestionRequest,
   OpenCodeRunState,
   OpenCodeRuntime,
   OpenCodeRuntimeExtras,
@@ -32,21 +34,28 @@ export type {
   OpenCodeThreadControllerSnapshot,
   OpenCodeThreadState,
   OpenCodeThreadStateSelector,
+  OpenCodeUnhandledEvent,
   OpenCodeUserMessageOptions,
   PendingUserMessage,
 } from "./types";
 
 export type {
   AssistantMessage,
+  Event,
   FilePart,
+  GlobalSession,
   Message,
   Model,
   OpencodeClient,
   OpencodeClientConfig,
   Part,
+  PermissionRequest,
   Provider,
+  QuestionAnswer,
+  QuestionRequest,
   ReasoningPart,
   Session,
+  SessionStatus,
   SnapshotPart,
   StepFinishPart,
   StepStartPart,
@@ -56,4 +65,4 @@ export type {
   UserMessage,
 } from "./types";
 
-export { createOpencodeClient } from "@opencode-ai/sdk/client";
+export { createOpencodeClient } from "@opencode-ai/sdk/v2/client";

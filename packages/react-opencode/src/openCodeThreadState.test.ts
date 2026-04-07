@@ -108,4 +108,80 @@ describe("reduceOpenCodeThreadState", () => {
     expect(updated.messageOrder).toEqual(["msg_1"]);
     expect(updated.messagesById["msg_1"]?.shadowParts).toEqual(pending.parts);
   });
+
+  it("tracks session status and applies text deltas", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+
+    const withStatus = reduceOpenCodeThreadState(initial, {
+      type: "session.status",
+      status: { type: "busy" },
+    });
+
+    const withMessage = reduceOpenCodeThreadState(withStatus, {
+      type: "message.updated",
+      info: {
+        id: "msg_assistant",
+        role: "assistant",
+        sessionID: "ses_1",
+        time: { created: 1001 },
+      } as never,
+    });
+
+    const withPart = reduceOpenCodeThreadState(withMessage, {
+      type: "part.updated",
+      messageId: "msg_assistant",
+      part: {
+        id: "prt_1",
+        type: "text",
+        text: "Hello",
+        sessionID: "ses_1",
+        messageID: "msg_assistant",
+      } as never,
+    });
+
+    const withDelta = reduceOpenCodeThreadState(withPart, {
+      type: "part.delta",
+      messageId: "msg_assistant",
+      partId: "prt_1",
+      field: "text",
+      delta: " world",
+    });
+
+    expect(withDelta.sessionStatus).toEqual({ type: "busy" });
+    expect(withDelta.runState.type).toBe("streaming");
+    expect(withDelta.messagesById["msg_assistant"]?.parts).toMatchObject([
+      { type: "text", text: "Hello world" },
+    ]);
+  });
+
+  it("stores pending questions separately from permissions", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+
+    const withQuestion = reduceOpenCodeThreadState(initial, {
+      type: "question.asked",
+      request: {
+        id: "question_1",
+        sessionID: "ses_1",
+        questions: [
+          {
+            header: "Confirm",
+            question: "Should I continue?",
+            options: [
+              { label: "Yes", description: "Continue the task." },
+              { label: "No", description: "Stop here." },
+            ],
+          },
+        ],
+        askedAt: 1000,
+      } as never,
+    });
+
+    expect(
+      withQuestion.interactions.questions.pending["question_1"]?.questions[0]
+        ?.header,
+    ).toBe("Confirm");
+    expect(
+      Object.keys(withQuestion.interactions.permissions.pending),
+    ).toHaveLength(0);
+  });
 });

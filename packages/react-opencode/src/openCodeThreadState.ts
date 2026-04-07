@@ -4,11 +4,13 @@ import type {
   OpenCodeServerMessage,
   OpenCodeStateEvent,
   OpenCodeThreadState,
+  Part,
   PendingUserMessage,
   ThreadUserMessagePart,
 } from "./types";
 
 const PENDING_MATCH_WINDOW_MS = 2 * 60 * 1000;
+const MAX_UNHANDLED_EVENTS = 25;
 
 const extractCreatedAt = (message: Message | undefined): number | undefined => {
   const created = message?.time?.created;
@@ -195,15 +197,10 @@ const historyLoaded = (
   return nextState;
 };
 
-const removeMessagePart = (
-  parts: readonly import("@opencode-ai/sdk").Part[],
-  partId: string,
-) => parts.filter((part) => part.id !== partId);
+const removeMessagePart = (parts: readonly Part[], partId: string) =>
+  parts.filter((part) => part.id !== partId);
 
-const upsertMessagePart = (
-  parts: readonly import("@opencode-ai/sdk").Part[],
-  part: import("@opencode-ai/sdk").Part,
-) => {
+const upsertMessagePart = (parts: readonly Part[], part: Part) => {
   if (!part.id) return [...parts, part];
   const index = parts.findIndex((candidate) => candidate.id === part.id);
   if (index === -1) return [...parts, part];
@@ -212,24 +209,75 @@ const upsertMessagePart = (
   return nextParts;
 };
 
+const applyMessagePartDelta = (
+  parts: readonly Part[],
+  partId: string,
+  field: string,
+  delta: string,
+) => {
+  const index = parts.findIndex((candidate) => candidate.id === partId);
+  if (index === -1) return null;
+
+  const current = parts[index];
+  if (!current) return null;
+  if (
+    field === "text" &&
+    (current.type === "text" || current.type === "reasoning")
+  ) {
+    const nextParts = [...parts];
+    nextParts[index] = {
+      ...current,
+      text: (current.text ?? "") + delta,
+    };
+    return nextParts;
+  }
+
+  return null;
+};
+
 export const createOpenCodeThreadState = (
   sessionId: string,
 ): OpenCodeThreadState => ({
   sessionId,
   session: null,
+  sessionStatus: null,
   loadState: { type: "idle" },
   runState: { type: "idle" },
   messageOrder: [],
   messagesById: {} as Readonly<Record<string, OpenCodeServerMessage>>,
   pendingUserMessages: {} as Readonly<Record<string, PendingUserMessage>>,
-  permissions: {
-    pending: {} as Readonly<
-      Record<string, import("./types").OpenCodePermissionRequest>
-    >,
-    resolved: {} as Readonly<
-      Record<string, { approved: boolean; respondedAt: number }>
-    >,
+  interactions: {
+    permissions: {
+      pending: {} as Readonly<
+        Record<string, import("./types").OpenCodePermissionRequest>
+      >,
+      resolved: {} as Readonly<
+        Record<
+          string,
+          {
+            reply: import("./types").OpenCodePermissionResponse;
+            respondedAt: number;
+          }
+        >
+      >,
+    },
+    questions: {
+      pending: {} as Readonly<
+        Record<string, import("./types").OpenCodeQuestionRequest>
+      >,
+      answered: {} as Readonly<
+        Record<
+          string,
+          {
+            answers: readonly import("./types").QuestionAnswer[];
+            respondedAt: number;
+          }
+        >
+      >,
+      rejected: {} as Readonly<Record<string, { rejectedAt: number }>>,
+    },
   },
+  unhandledEvents: [],
   sync: {},
 });
 
@@ -257,6 +305,7 @@ export const reduceOpenCodeThreadState = (
       return {
         ...state,
         runState: { type: "streaming" },
+        sessionStatus: { type: "busy" },
       };
 
     case "run.cancelling":
@@ -287,12 +336,40 @@ export const reduceOpenCodeThreadState = (
         },
       };
 
+    case "session.status":
+      return {
+        ...state,
+        sessionStatus: event.status,
+        runState:
+          event.status.type === "idle"
+            ? { type: "idle" }
+            : state.runState.type === "cancelling" ||
+                state.runState.type === "reverting"
+              ? state.runState
+              : { type: "streaming" },
+        sync: {
+          ...state.sync,
+          lastEventAt: Date.now(),
+        },
+      };
+
     case "session.idle":
       return {
         ...state,
+        sessionStatus: { type: "idle" },
         runState: { type: "idle" },
         sync: {
           ...state.sync,
+          lastEventAt: Date.now(),
+        },
+      };
+
+    case "session.compacted":
+      return {
+        ...state,
+        sync: {
+          ...state.sync,
+          lastCompactionAt: Date.now(),
           lastEventAt: Date.now(),
         },
       };
@@ -351,11 +428,45 @@ export const reduceOpenCodeThreadState = (
           shadowParts: current?.shadowParts,
         })),
         runState: { type: "streaming" },
+        sessionStatus:
+          state.sessionStatus?.type === "retry"
+            ? state.sessionStatus
+            : { type: "busy" },
         sync: {
           ...state.sync,
           lastEventAt: Date.now(),
         },
       };
+
+    case "part.delta": {
+      const current = state.messagesById[event.messageId];
+      const nextParts = current
+        ? applyMessagePartDelta(
+            current.parts,
+            event.partId,
+            event.field,
+            event.delta,
+          )
+        : null;
+
+      if (!current || !nextParts) return state;
+
+      return {
+        ...withMessage(state, event.messageId, () => ({
+          ...current,
+          parts: nextParts,
+        })),
+        runState: { type: "streaming" },
+        sessionStatus:
+          state.sessionStatus?.type === "retry"
+            ? state.sessionStatus
+            : { type: "busy" },
+        sync: {
+          ...state.sync,
+          lastEventAt: Date.now(),
+        },
+      };
+    }
 
     case "part.removed":
       return {
@@ -374,11 +485,14 @@ export const reduceOpenCodeThreadState = (
     case "permission.asked":
       return {
         ...state,
-        permissions: {
-          ...state.permissions,
-          pending: {
-            ...state.permissions.pending,
-            [event.request.id]: event.request,
+        interactions: {
+          ...state.interactions,
+          permissions: {
+            ...state.interactions.permissions,
+            pending: {
+              ...state.interactions.permissions.pending,
+              [event.request.id]: event.request,
+            },
           },
         },
         sync: {
@@ -388,17 +502,21 @@ export const reduceOpenCodeThreadState = (
       };
 
     case "permission.replied": {
-      const pending = { ...state.permissions.pending };
+      const pending = { ...state.interactions.permissions.pending };
       delete pending[event.permissionId];
+
       return {
         ...state,
-        permissions: {
-          pending,
-          resolved: {
-            ...state.permissions.resolved,
-            [event.permissionId]: {
-              approved: event.approved,
-              respondedAt: Date.now(),
+        interactions: {
+          ...state.interactions,
+          permissions: {
+            pending,
+            resolved: {
+              ...state.interactions.permissions.resolved,
+              [event.permissionId]: {
+                reply: event.reply,
+                respondedAt: Date.now(),
+              },
             },
           },
         },
@@ -409,6 +527,91 @@ export const reduceOpenCodeThreadState = (
       };
     }
 
+    case "question.asked":
+      return {
+        ...state,
+        interactions: {
+          ...state.interactions,
+          questions: {
+            ...state.interactions.questions,
+            pending: {
+              ...state.interactions.questions.pending,
+              [event.request.id]: event.request,
+            },
+          },
+        },
+        sync: {
+          ...state.sync,
+          lastEventAt: Date.now(),
+        },
+      };
+
+    case "question.replied": {
+      const pending = { ...state.interactions.questions.pending };
+      delete pending[event.questionId];
+
+      return {
+        ...state,
+        interactions: {
+          ...state.interactions,
+          questions: {
+            ...state.interactions.questions,
+            pending,
+            answered: {
+              ...state.interactions.questions.answered,
+              [event.questionId]: {
+                answers: event.answers,
+                respondedAt: Date.now(),
+              },
+            },
+          },
+        },
+        sync: {
+          ...state.sync,
+          lastEventAt: Date.now(),
+        },
+      };
+    }
+
+    case "question.rejected": {
+      const pending = { ...state.interactions.questions.pending };
+      delete pending[event.questionId];
+
+      return {
+        ...state,
+        interactions: {
+          ...state.interactions,
+          questions: {
+            ...state.interactions.questions,
+            pending,
+            rejected: {
+              ...state.interactions.questions.rejected,
+              [event.questionId]: {
+                rejectedAt: Date.now(),
+              },
+            },
+          },
+        },
+        sync: {
+          ...state.sync,
+          lastEventAt: Date.now(),
+        },
+      };
+    }
+
+    case "unhandled.event":
+      return {
+        ...state,
+        unhandledEvents: [
+          ...state.unhandledEvents.slice(-(MAX_UNHANDLED_EVENTS - 1)),
+          event.event,
+        ],
+        sync: {
+          ...state.sync,
+          lastEventAt: Date.now(),
+        },
+      };
+
     case "local.message.queued":
       return {
         ...state,
@@ -416,21 +619,20 @@ export const reduceOpenCodeThreadState = (
           ...state.pendingUserMessages,
           [event.pending.clientId]: event.pending,
         },
-        runState: { type: "streaming" },
       };
 
     case "local.message.reconciled":
       return removePending(state, event.clientId);
 
     case "local.message.failed": {
-      const pending = state.pendingUserMessages[event.clientId];
-      if (!pending) return state;
+      const current = state.pendingUserMessages[event.clientId];
+      if (!current) return state;
       return {
         ...state,
         pendingUserMessages: {
           ...state.pendingUserMessages,
           [event.clientId]: {
-            ...pending,
+            ...current,
             status: "failed",
             error: event.error,
           },
@@ -438,8 +640,5 @@ export const reduceOpenCodeThreadState = (
         runState: { type: "error", error: event.error },
       };
     }
-
-    default:
-      return state;
   }
 };

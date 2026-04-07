@@ -21,6 +21,16 @@ const getFiles = (data: unknown) => {
 };
 
 const getSummary = (name: string, data: unknown) => {
+  if (
+    name === "opencode-unsupported-part" &&
+    typeof data === "object" &&
+    data !== null &&
+    "type" in data &&
+    typeof data.type === "string"
+  ) {
+    return `Unsupported part: ${data.type}`;
+  }
+
   if (name === "opencode-patch") {
     const files = getFiles(data);
     if (files.length === 0) return "Patch";

@@ -1,30 +1,40 @@
-import type { OpencodeClient } from "@opencode-ai/sdk/client";
+import type { OpencodeClient } from "@opencode-ai/sdk/v2/client";
 import type { OpenCodeServerEvent } from "./types";
 
 type Listener = (event: OpenCodeServerEvent) => void;
 
-const extractSessionId = (event: OpenCodeServerEvent) => {
-  if (typeof event.properties.sessionID === "string") {
-    return event.properties.sessionID;
+const asRecord = (value: unknown): Record<string, unknown> | null => {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+};
+
+const extractSessionId = (
+  type: string,
+  properties: Record<string, unknown>,
+): string | undefined => {
+  if (typeof properties.sessionID === "string") {
+    return properties.sessionID;
   }
 
-  const info = event.properties.info;
-  if (
-    info &&
-    typeof info === "object" &&
-    "sessionID" in info &&
-    typeof info.sessionID === "string"
-  ) {
-    return info.sessionID;
+  const info = asRecord(properties.info);
+  if (info) {
+    if (typeof info.sessionID === "string") {
+      return info.sessionID;
+    }
+
+    if (
+      (type === "session.created" ||
+        type === "session.updated" ||
+        type === "session.deleted") &&
+      typeof info.id === "string"
+    ) {
+      return info.id;
+    }
   }
 
-  const part = event.properties.part;
-  if (
-    part &&
-    typeof part === "object" &&
-    "sessionID" in part &&
-    typeof part.sessionID === "string"
-  ) {
+  const part = asRecord(properties.part);
+  if (part && typeof part.sessionID === "string") {
     return part.sessionID;
   }
 
@@ -32,36 +42,30 @@ const extractSessionId = (event: OpenCodeServerEvent) => {
 };
 
 const normalizeEventPayload = (event: unknown): OpenCodeServerEvent | null => {
-  if (!event || typeof event !== "object") return null;
+  const outer = asRecord(event);
+  if (!outer) return null;
 
-  const wrappedPayload =
-    "payload" in event && event.payload && typeof event.payload === "object"
-      ? event.payload
-      : null;
-
-  const candidate =
-    wrappedPayload && "type" in wrappedPayload && "properties" in wrappedPayload
-      ? wrappedPayload
-      : event;
+  const payload = asRecord(outer.payload);
+  const candidate = payload ?? outer;
 
   if (
-    !candidate ||
-    typeof candidate !== "object" ||
-    !("type" in candidate) ||
-    !("properties" in candidate) ||
     typeof candidate.type !== "string" ||
-    typeof candidate.properties !== "object" ||
-    candidate.properties == null
+    !("properties" in candidate) ||
+    !asRecord(candidate.properties)
   ) {
     return null;
   }
 
-  const normalized: OpenCodeServerEvent = {
+  const normalized = {
     type: candidate.type,
     properties: candidate.properties as Record<string, unknown>,
-    sessionId: undefined,
-  };
-  normalized.sessionId = extractSessionId(normalized);
+    sessionId: extractSessionId(
+      candidate.type,
+      candidate.properties as Record<string, unknown>,
+    ),
+    raw: event,
+  } satisfies OpenCodeServerEvent;
+
   return normalized;
 };
 
@@ -106,7 +110,7 @@ export class OpenCodeEventSource {
       this.abortController = new AbortController();
 
       try {
-        const subscription = await this.client.event.subscribe({
+        const subscription = await this.client.event.subscribe(undefined, {
           signal: this.abortController.signal,
         });
 

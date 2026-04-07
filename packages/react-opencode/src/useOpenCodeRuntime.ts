@@ -1,12 +1,16 @@
 "use client";
 
 import {
+  ExportedMessageRepository,
   unstable_useRemoteThreadListRuntime,
   useAuiState,
   useExternalStoreRuntime,
 } from "@assistant-ui/react";
 import type { AssistantRuntime, ThreadMessage } from "@assistant-ui/react";
-import { createOpencodeClient } from "@opencode-ai/sdk/client";
+import {
+  createOpencodeClient,
+  type GlobalSession,
+} from "@opencode-ai/sdk/v2/client";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import type {
   OpenCodeRuntimeExtras,
@@ -18,11 +22,11 @@ import { OpenCodeEventSource } from "./OpenCodeEventSource";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { projectOpenCodeThreadRepository } from "./openCodeMessageProjection";
 import { createOpenCodeThreadState } from "./openCodeThreadState";
-import { ExportedMessageRepository } from "@assistant-ui/react";
 
 type OpenCodeControllerRegistry = {
   eventSource: OpenCodeEventSource;
   controllers: Map<string, OpenCodeThreadController>;
+  dispose(): void;
 };
 
 const symbolOpenCodeRuntimeExtras = Symbol("opencode-runtime-extras");
@@ -57,15 +61,26 @@ const EMPTY_THREAD_STATE = createOpenCodeThreadState("__pending__");
 
 const createRegistry = (
   client: ReturnType<typeof createOpencodeClient>,
-): OpenCodeControllerRegistry => ({
-  eventSource: new OpenCodeEventSource(client),
-  controllers: new Map(),
-});
+): OpenCodeControllerRegistry => {
+  const eventSource = new OpenCodeEventSource(client);
+  const controllers = new Map<string, OpenCodeThreadController>();
+
+  return {
+    eventSource,
+    controllers,
+    dispose() {
+      eventSource.dispose();
+      for (const controller of controllers.values()) {
+        controller.dispose();
+      }
+      controllers.clear();
+    },
+  };
+};
 
 const getController = (
   registry: OpenCodeControllerRegistry,
   client: ReturnType<typeof createOpencodeClient>,
-  baseUrl: string,
   sessionId: string,
 ) => {
   const existing = registry.controllers.get(sessionId);
@@ -74,7 +89,6 @@ const getController = (
   const controller = new OpenCodeThreadController(
     client,
     registry.eventSource,
-    baseUrl,
     sessionId,
   );
   registry.controllers.set(sessionId, controller);
@@ -128,7 +142,8 @@ const useOpenCodeThreadRuntime = (
         [symbolOpenCodeRuntimeExtras]: true,
         session: state.session,
         state,
-        permissions: state.permissions.pending,
+        permissions: state.interactions.permissions.pending,
+        questions: state.interactions.questions.pending,
         fork: (messageId: string) => controller.fork(messageId),
         revert: (messageId: string) => controller.revert(messageId),
         unrevert: () => controller.unrevert(),
@@ -147,7 +162,9 @@ const useOpenCodeThreadRuntime = (
     isRunning:
       state.runState.type === "streaming" ||
       state.runState.type === "cancelling" ||
-      state.runState.type === "reverting",
+      state.runState.type === "reverting" ||
+      state.sessionStatus?.type === "busy" ||
+      state.sessionStatus?.type === "retry",
     messageRepository,
     extras,
     onNew: async (message: any) => {
@@ -192,7 +209,6 @@ const useOpenCodeThreadRuntime = (
 const useRuntimeHook = (
   client: ReturnType<typeof createOpencodeClient>,
   registry: OpenCodeControllerRegistry,
-  baseUrl: string,
   options: OpenCodeRuntimeOptions,
 ) => {
   const sessionId = useAuiState(
@@ -201,7 +217,7 @@ const useRuntimeHook = (
   );
 
   const controller = sessionId
-    ? getController(registry, client, baseUrl, sessionId)
+    ? getController(registry, client, sessionId)
     : NOOP_CONTROLLER;
 
   const threadRuntime = useOpenCodeThreadRuntime(controller, options);
@@ -219,6 +235,23 @@ const useRuntimeHook = (
   return threadRuntime;
 };
 
+const isArchivedSession = (session: Pick<GlobalSession, "time">) => {
+  return typeof session.time.archived === "number";
+};
+
+const mapThreadMetadata = (session: {
+  id: string;
+  title: string;
+  time: { archived?: number };
+}) => ({
+  status: isArchivedSession(session as GlobalSession)
+    ? ("archived" as const)
+    : ("regular" as const),
+  remoteId: session.id,
+  externalId: session.id,
+  title: session.title,
+});
+
 export const useOpenCodeRuntime = (
   options: OpenCodeRuntimeOptions = {},
 ): AssistantRuntime => {
@@ -231,41 +264,49 @@ export const useOpenCodeRuntime = (
 
   useEffect(() => {
     return () => {
-      registry.eventSource.dispose();
-      for (const controller of registry.controllers.values()) {
-        controller.dispose();
-      }
-      registry.controllers.clear();
+      registry.dispose();
     };
   }, [registry]);
 
   const adapter = useMemo(
     () => ({
       list: async () => {
-        const response = await client.session.list();
-        const sessions = (response.data ?? []).filter(
-          (session) => !session.parentID,
-        );
+        const response = await client.experimental.session.list({
+          roots: true,
+          archived: true,
+        });
+        const sessions = new Map<string, GlobalSession>();
+
+        for (const session of response.data ?? []) {
+          if (session.parentID) continue;
+          sessions.set(session.id, session);
+        }
+
         return {
-          threads: sessions.map((session) => ({
-            status: "regular" as const,
-            remoteId: session.id,
-            externalId: session.id,
-            title: session.title,
-          })),
+          threads: [...sessions.values()].map(mapThreadMetadata),
         };
       },
       rename: async (remoteId: string, newTitle: string) => {
         await client.session.update({
-          path: { id: remoteId },
-          body: { title: newTitle } as never,
+          sessionID: remoteId,
+          title: newTitle,
         });
       },
-      archive: async (_remoteId: string) => {},
-      unarchive: async (_remoteId: string) => {},
+      archive: async (remoteId: string) => {
+        await client.session.update({
+          sessionID: remoteId,
+          time: { archived: Date.now() },
+        });
+      },
+      unarchive: async (remoteId: string) => {
+        await client.session.update({
+          sessionID: remoteId,
+          time: { archived: null as never } as never,
+        });
+      },
       delete: async (remoteId: string) => {
         await client.session.delete({
-          path: { id: remoteId },
+          sessionID: remoteId,
         });
       },
       initialize: async () => {
@@ -280,7 +321,7 @@ export const useOpenCodeRuntime = (
       },
       generateTitle: async (remoteId: string) => {
         await client.session.summarize({
-          path: { id: remoteId },
+          sessionID: remoteId,
         });
         return new ReadableStream({
           start(controller) {
@@ -290,17 +331,12 @@ export const useOpenCodeRuntime = (
       },
       fetch: async (threadId: string) => {
         const response = await client.session.get({
-          path: { id: threadId },
+          sessionID: threadId,
         });
         if (!response.data?.id) {
           throw new Error("OpenCode session not found");
         }
-        return {
-          status: "regular" as const,
-          remoteId: response.data.id,
-          externalId: response.data.id,
-          title: response.data.title,
-        };
+        return mapThreadMetadata(response.data as GlobalSession);
       },
     }),
     [client],
@@ -309,7 +345,7 @@ export const useOpenCodeRuntime = (
   return unstable_useRemoteThreadListRuntime({
     allowNesting: true,
     adapter,
-    runtimeHook: () => useRuntimeHook(client, registry, baseUrl, options),
+    runtimeHook: () => useRuntimeHook(client, registry, options),
   });
 };
 
@@ -357,6 +393,22 @@ export const useOpenCodePermissions = () => {
           throw new Error("OpenCode runtime is not ready yet");
         }),
     }),
+    [extras],
+  );
+};
+
+export const useOpenCodeQuestions = () => {
+  const extras = useAuiState((state: any) =>
+    tryGetOpenCodeRuntimeExtras(state.thread.extras),
+  );
+
+  return useMemo(
+    () =>
+      extras
+        ? (Object.values(extras.questions) as Array<
+            OpenCodeRuntimeExtras["questions"][string]
+          >)
+        : [],
     [extras],
   );
 };

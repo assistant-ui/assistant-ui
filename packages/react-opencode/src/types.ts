@@ -4,17 +4,33 @@ import type {
   ThreadMessageLike,
   ThreadUserMessagePart,
 } from "@assistant-ui/react";
-import type { OpencodeClient } from "@opencode-ai/sdk/client";
+import type {
+  Message,
+  OpencodeClient,
+  Part,
+  PermissionRequest,
+  QuestionAnswer,
+  QuestionRequest,
+  Session,
+  SessionStatus,
+} from "@opencode-ai/sdk/v2/client";
 
 export type {
   AssistantMessage,
+  Event,
+  EventMessagePartDelta,
   FilePart,
+  GlobalSession,
   Message,
   Model,
   Part,
+  PermissionRequest,
   Provider,
+  QuestionAnswer,
+  QuestionRequest,
   ReasoningPart,
   Session,
+  SessionStatus,
   SnapshotPart,
   StepFinishPart,
   StepStartPart,
@@ -22,16 +38,16 @@ export type {
   ToolPart,
   ToolState,
   UserMessage,
-} from "@opencode-ai/sdk/client";
+} from "@opencode-ai/sdk/v2/client";
 
 export type {
   OpencodeClient,
   OpencodeClientConfig,
-} from "@opencode-ai/sdk/client";
+} from "@opencode-ai/sdk/v2/client";
 
 export type MessageWithParts = {
-  info: import("@opencode-ai/sdk").Message;
-  parts: import("@opencode-ai/sdk").Part[];
+  info: Message;
+  parts: Part[];
 };
 
 export type OpenCodePermissionResponse = "once" | "always" | "reject";
@@ -39,10 +55,19 @@ export type OpenCodePermissionResponse = "once" | "always" | "reject";
 export type OpenCodePermissionRequest = {
   id: string;
   sessionId: string;
+  permission: string;
+  patterns: readonly string[];
+  metadata: Record<string, unknown>;
+  always: readonly string[];
+  tool?: PermissionRequest["tool"] | undefined;
   toolName?: string | undefined;
   toolInput?: unknown;
   title?: string | undefined;
-  metadata?: Record<string, unknown> | undefined;
+  askedAt: number;
+  raw: PermissionRequest;
+};
+
+export type OpenCodeQuestionRequest = QuestionRequest & {
   askedAt: number;
 };
 
@@ -61,8 +86,8 @@ export type PendingUserMessage = {
 
 export type OpenCodeServerMessage = {
   id: string;
-  info: import("@opencode-ai/sdk").Message | undefined;
-  parts: readonly import("@opencode-ai/sdk").Part[];
+  info: Message | undefined;
+  parts: readonly Part[];
   shadowParts: readonly ThreadUserMessagePart[] | undefined;
 };
 
@@ -79,29 +104,54 @@ export type OpenCodeRunState =
   | { type: "reverting" }
   | { type: "error"; error: unknown };
 
+export type OpenCodeUnhandledEvent = {
+  type: string;
+  sessionId: string | undefined;
+  properties: Record<string, unknown>;
+  seenAt: number;
+};
+
 export type OpenCodeThreadState = {
   sessionId: string;
-  session: import("@opencode-ai/sdk").Session | null;
+  session: Session | null;
+  sessionStatus: SessionStatus | null;
   loadState: OpenCodeLoadState;
   runState: OpenCodeRunState;
   messageOrder: readonly string[];
   messagesById: Readonly<Record<string, OpenCodeServerMessage>>;
   pendingUserMessages: Readonly<Record<string, PendingUserMessage>>;
-  permissions: {
-    pending: Readonly<Record<string, OpenCodePermissionRequest>>;
-    resolved: Readonly<
-      Record<
-        string,
-        {
-          approved: boolean;
-          respondedAt: number;
-        }
-      >
-    >;
+  interactions: {
+    permissions: {
+      pending: Readonly<Record<string, OpenCodePermissionRequest>>;
+      resolved: Readonly<
+        Record<
+          string,
+          {
+            reply: OpenCodePermissionResponse;
+            respondedAt: number;
+          }
+        >
+      >;
+    };
+    questions: {
+      pending: Readonly<Record<string, OpenCodeQuestionRequest>>;
+      answered: Readonly<
+        Record<
+          string,
+          {
+            answers: readonly QuestionAnswer[];
+            respondedAt: number;
+          }
+        >
+      >;
+      rejected: Readonly<Record<string, { rejectedAt: number }>>;
+    };
   };
+  unhandledEvents: readonly OpenCodeUnhandledEvent[];
   sync: {
     lastHistoryLoadAt?: number;
     lastEventAt?: number;
+    lastCompactionAt?: number;
   };
 };
 
@@ -131,9 +181,10 @@ export type OpenCodeRuntimeOptions = {
 };
 
 export type OpenCodeRuntimeExtras = {
-  session: import("@opencode-ai/sdk").Session | null;
+  session: Session | null;
   state: OpenCodeThreadState;
-  permissions: OpenCodeThreadState["permissions"]["pending"];
+  permissions: OpenCodeThreadState["interactions"]["permissions"]["pending"];
+  questions: OpenCodeThreadState["interactions"]["questions"]["pending"];
   fork: (messageId: string) => Promise<string>;
   revert: (messageId: string) => Promise<void>;
   unrevert: () => Promise<void>;
@@ -151,8 +202,9 @@ export type OpenCodeThreadStateSelector<T> = (state: OpenCodeThreadState) => T;
 
 export type OpenCodeServerEvent = {
   type: string;
-  properties: Record<string, unknown>;
   sessionId: string | undefined;
+  raw: unknown;
+  properties: Record<string, unknown>;
 };
 
 export type OpenCodeStateEvent =
@@ -161,30 +213,47 @@ export type OpenCodeStateEvent =
     }
   | {
       type: "history.loaded";
-      session: import("@opencode-ai/sdk").Session | null;
+      session: Session | null;
       messages: readonly MessageWithParts[];
     }
   | { type: "history.failed"; error: unknown }
-  | { type: "session.updated"; session: import("@opencode-ai/sdk").Session }
+  | { type: "session.updated"; session: Session }
+  | { type: "session.status"; status: SessionStatus }
   | { type: "session.idle"; sessionId: string }
+  | { type: "session.compacted"; sessionId: string }
   | { type: "run.started" }
   | { type: "run.cancelling" }
   | { type: "run.reverting" }
   | { type: "run.failed"; error: unknown }
-  | { type: "message.updated"; info: import("@opencode-ai/sdk").Message }
+  | { type: "message.updated"; info: Message }
   | { type: "message.removed"; messageId: string }
   | {
       type: "part.updated";
       messageId: string;
-      part: import("@opencode-ai/sdk").Part;
+      part: Part;
+    }
+  | {
+      type: "part.delta";
+      messageId: string;
+      partId: string;
+      field: string;
+      delta: string;
     }
   | { type: "part.removed"; messageId: string; partId: string }
   | { type: "permission.asked"; request: OpenCodePermissionRequest }
   | {
       type: "permission.replied";
       permissionId: string;
-      approved: boolean;
+      reply: OpenCodePermissionResponse;
     }
+  | { type: "question.asked"; request: OpenCodeQuestionRequest }
+  | {
+      type: "question.replied";
+      questionId: string;
+      answers: readonly QuestionAnswer[];
+    }
+  | { type: "question.rejected"; questionId: string }
+  | { type: "unhandled.event"; event: OpenCodeUnhandledEvent }
   | { type: "local.message.queued"; pending: PendingUserMessage }
   | {
       type: "local.message.reconciled";
