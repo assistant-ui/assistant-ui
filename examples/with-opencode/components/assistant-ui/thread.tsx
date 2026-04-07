@@ -6,7 +6,18 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { Reasoning } from "@/components/assistant-ui/reasoning";
 import { ReasoningGroup } from "@/components/tools/reasoning-ghost";
-import { ToolCallInline } from "@/components/tools/tool-call-inline";
+import {
+  ApplyPatchInline,
+  BashInline,
+  EditInline,
+  GlobInline,
+  GrepInline,
+  ReadInline,
+  ToolCallFallback,
+  WebFetchInline,
+  WebSearchInline,
+  WriteInline,
+} from "@/components/tools/tool-call-inline";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { OpenCodeDataPart } from "@/components/opencode-data-part";
 import { Button } from "@/components/ui/button";
@@ -217,7 +228,18 @@ const AssistantMessage: FC = () => {
             Reasoning,
             ReasoningGroup,
             tools: {
-              Fallback: ToolCallInline,
+              by_name: {
+                read: ReadInline,
+                edit: EditInline,
+                write: WriteInline,
+                bash: BashInline,
+                grep: GrepInline,
+                glob: GlobInline,
+                webSearch: WebSearchInline,
+                webFetch: WebFetchInline,
+                apply_patch: ApplyPatchInline,
+              },
+              Fallback: ToolCallFallback,
             },
             data: {
               by_name: {
