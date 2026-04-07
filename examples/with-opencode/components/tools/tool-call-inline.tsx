@@ -163,33 +163,33 @@ WebFetchInline.displayName = "WebFetchInline";
 
 /** apply_patch — show file(s) + added/removed line counts */
 export const ApplyPatchInline: ToolCallMessagePartComponent = memo(
-  (props) => {
-    const { toolName, args, argsText, result, status } = props;
-    console.log("ApplyPatchInline", { toolName, args, argsText: argsText?.slice(0, 300), result, status, allProps: props });
+  ({ toolName, args, status }) => {
     const statusType = status?.type ?? "complete";
     const isRunning = statusType === "running";
+    const patchText = str(args?.patchText);
 
     const patchInfo = useMemo(() => {
-      if (!argsText) return { files: [] as string[], added: 0, removed: 0 };
-      const text = argsText.replace(/\\n/g, "\n");
+      if (!patchText) return { files: [] as string[], added: 0, removed: 0 };
 
-      const fileMatches = [
-        ...text.matchAll(/^(?:---|\+\+\+)\s+(?:\w\/)?(.+)$/gm),
-        ...text.matchAll(/(?:\/[\w.-]+)+\.\w+/g),
-      ]
-        .map((m) => m[1] ?? m[0])
-        .map((f) => basename(f.trim()))
-        .filter(Boolean);
+      const files = unique(
+        [
+          ...patchText.matchAll(
+            /^\*\*\*\s+(?:Update|Add|Delete)\s+File:\s+(.+)$/gm,
+          ),
+        ]
+          .map((m) => basename(m[1]!.trim()))
+          .filter(Boolean),
+      );
 
       let added = 0;
       let removed = 0;
-      for (const line of text.split("\n")) {
-        if (/^\+[^+]/.test(line)) added++;
-        else if (/^-[^-]/.test(line)) removed++;
+      for (const line of patchText.split("\n")) {
+        if (/^\+/.test(line)) added++;
+        else if (/^-/.test(line)) removed++;
       }
 
-      return { files: unique(fileMatches), added, removed };
-    }, [argsText]);
+      return { files, added, removed };
+    }, [patchText]);
 
     return (
       <ToolCallShell toolName={toolName} status={status}>
