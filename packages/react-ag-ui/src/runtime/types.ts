@@ -47,6 +47,7 @@ export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   showThinking?: boolean;
   onError?: (e: Error) => void;
   onCancel?: () => void;
+  onCustomEvent?: (event: { name: string; value: unknown }) => void;
   adapters?: UseAgUiRuntimeAdapters;
 };
 

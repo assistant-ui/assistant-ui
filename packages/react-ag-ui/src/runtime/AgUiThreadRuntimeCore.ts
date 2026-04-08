@@ -31,6 +31,7 @@ import {
   toAgUiTools,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
+import { applyJsonPatch } from "./json-patch";
 
 const symbolResumeShim = Symbol("agui-resume-shim");
 
@@ -48,6 +49,7 @@ type CoreOptions = {
   showThinking: boolean;
   onError?: (error: Error) => void;
   onCancel?: () => void;
+  onCustomEvent?: (event: { name: string; value: unknown }) => void;
   history?: ThreadHistoryAdapter;
   notifyUpdate: () => void;
 };
@@ -60,6 +62,9 @@ export class AgUiThreadRuntimeCore {
   private showThinking: boolean;
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
+  private onCustomEvent:
+    | ((event: { name: string; value: unknown }) => void)
+    | undefined;
   private readonly notifyUpdate: () => void;
 
   private runtime: AssistantRuntime | undefined;
@@ -81,6 +86,7 @@ export class AgUiThreadRuntimeCore {
     this.showThinking = options.showThinking;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
+    this.onCustomEvent = options.onCustomEvent;
     this.history = options.history;
     this.notifyUpdate = options.notifyUpdate;
     this.installResumeShim();
@@ -92,6 +98,7 @@ export class AgUiThreadRuntimeCore {
     this.showThinking = options.showThinking;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
+    this.onCustomEvent = options.onCustomEvent;
     this.history = options.history;
     this.installResumeShim();
   }
@@ -731,11 +738,19 @@ export class AgUiThreadRuntimeCore {
         return;
       }
       case "STATE_DELTA": {
-        this.logger.debug?.("[agui] state delta event ignored", event.delta);
+        this.stateSnapshot = applyJsonPatch(
+          this.stateSnapshot,
+          event.delta,
+        ) as ReadonlyJSONValue;
+        this.notifyUpdate();
         return;
       }
       case "MESSAGES_SNAPSHOT": {
         this.importMessagesSnapshot(event.messages);
+        return;
+      }
+      case "CUSTOM": {
+        this.onCustomEvent?.({ name: event.name, value: event.value });
         return;
       }
       default:
