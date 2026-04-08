@@ -75,9 +75,8 @@ async function buildSnapshot(files: string[]) {
   }
 
   await Promise.all(
-    Array.from(
-      { length: Math.min(READ_CONCURRENCY, files.length) },
-      () => worker(),
+    Array.from({ length: Math.min(READ_CONCURRENCY, files.length) }, () =>
+      worker(),
     ),
   );
 
