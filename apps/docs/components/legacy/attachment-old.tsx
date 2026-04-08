@@ -107,11 +107,10 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
 };
 
 const AttachmentThumb: FC = () => {
-  const isImage = useAuiState((s) => s.attachment.type === "image");
   const src = useAttachmentSrc();
   return (
     <Avatar className="flex size-10 items-center justify-center rounded border bg-muted text-sm">
-      <AvatarFallback delayMs={isImage ? 200 : 0}>
+      <AvatarFallback>
         <FileIcon />
       </AvatarFallback>
       <AvatarImage src={src} />
