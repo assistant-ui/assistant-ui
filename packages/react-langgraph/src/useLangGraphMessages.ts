@@ -22,10 +22,17 @@ import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage
 
 const DEFAULT_UI_STATE_KEY = "ui";
 
-const isUIUpdate = (value: unknown): value is UIMessage | RemoveUIMessage => {
+const isUIUpdate = (
+  value: unknown,
+): value is
+  | UIMessage
+  | RemoveUIMessage
+  | readonly (UIMessage | RemoveUIMessage)[] => {
+  if (Array.isArray(value)) return value.every(isUIUpdate);
   if (value == null || typeof value !== "object") return false;
-  const type = (value as { type?: unknown }).type;
-  return type === "ui" || type === "remove-ui";
+  const v = value as { type?: unknown; id?: unknown };
+  if (typeof v.id !== "string") return false;
+  return v.type === "ui" || v.type === "remove-ui";
 };
 
 export type LangGraphCommand = {
@@ -319,8 +326,8 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               break;
             }
             default: {
-              // push_ui_message also writes raw ui/remove-ui events here
-              if (isUIUpdate(chunk.data)) {
+              // push_ui_message emits ui/remove-ui events on the "custom" channel
+              if (chunk.event === "custom" && isUIUpdate(chunk.data)) {
                 setUIMessagesImmediate(accumulator.applyUIUpdate(chunk.data));
                 break;
               }

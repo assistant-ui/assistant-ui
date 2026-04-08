@@ -91,26 +91,23 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
       | RemoveUIMessage
       | readonly (UIMessage | RemoveUIMessage)[],
   ): UIMessage[] {
-    // Mirrors `uiMessageReducer` in `@langchain/langgraph-sdk/dist/react-ui/types.js`.
-    // `state` (original) drives findIndex/merge lookups; `newState` accumulates writes.
     const events = Array.isArray(update)
       ? update
       : [update as UIMessage | RemoveUIMessage];
-    const state = this.uiMessages;
-    let newState = state.slice();
+    let newState = this.uiMessages.slice();
     for (const event of events) {
       if (event.type === "remove-ui") {
         newState = newState.filter((ui) => ui.id !== event.id);
         continue;
       }
-      const index = state.findIndex((ui) => ui.id === event.id);
+      const index = newState.findIndex((ui) => ui.id === event.id);
       if (index !== -1) {
         const shouldMerge =
           typeof event.metadata === "object" &&
           event.metadata != null &&
           event.metadata.merge === true;
         newState[index] = shouldMerge
-          ? { ...event, props: { ...state[index]!.props, ...event.props } }
+          ? { ...event, props: { ...newState[index]!.props, ...event.props } }
           : event;
       } else {
         newState.push(event);

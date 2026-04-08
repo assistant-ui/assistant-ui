@@ -334,12 +334,12 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         ...(message.additional_kwargs?.tool_outputs ?? []),
       ].filter((c) => c !== undefined);
 
-      const uiDataParts: DataMessagePart[] =
-        message.id && metadata.uiMessagesByParent?.has(message.id)
+      const uiDataParts: readonly DataMessagePart[] =
+        (message.id
           ? metadata.uiMessagesByParent
-              .get(message.id)!
-              .map(uiMessageToDataPart)
-          : [];
+              ?.get(message.id)
+              ?.map(uiMessageToDataPart)
+          : undefined) ?? [];
 
       return {
         role: "assistant",

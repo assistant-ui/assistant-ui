@@ -201,10 +201,17 @@ export type UseLangGraphRuntimeOptions = {
   onSwitchToThread?: (threadId: string) => Promise<{
     messages: LangChainMessage[];
     interrupts?: LangGraphInterruptState[];
+    uiMessages?: UIMessage[];
   }>;
   load?: (threadId: string) => Promise<{
     messages: LangChainMessage[];
     interrupts?: LangGraphInterruptState[];
+    /**
+     * Persisted LangSmith Generative UI messages for this thread, typically
+     * read from `state.values[uiStateKey]` returned by the LangGraph SDK's
+     * `client.threads.getState()`. Defaults to an empty list.
+     */
+    uiMessages?: UIMessage[];
   }>;
   create?: () => Promise<{
     externalId: string;
@@ -279,7 +286,8 @@ const filterUIMessagesBySurvivingIds = (
   }
   return uiMessages.filter((ui) => {
     const parentId = ui.metadata?.message_id;
-    if (!parentId) return true; // keep orphans; they're accessible via the hook
+    // orphans (no message_id) represent global UI, cleared only via delete_ui_message
+    if (!parentId) return true;
     return survivingIds.has(parentId);
   });
 };
@@ -340,7 +348,7 @@ const useLangGraphRuntimeImpl = ({
     return map;
   }, [uiMessages]);
 
-  // fresh object on uiMessagesByParent change invalidates the converter cache
+  // fresh metadata identity invalidates the converter cache; each UI event re-converts all messages
   const converterMetadata = useMemo(
     () =>
       ({
@@ -543,10 +551,9 @@ const useLangGraphRuntimeImpl = ({
       const externalId = aui.threadListItem().getState().externalId;
       if (externalId == null) return;
 
-      load(externalId).then(({ messages, interrupts }) => {
+      load(externalId).then(({ messages, interrupts, uiMessages }) => {
         setMessages(messages);
-        // new thread: drop any UI state from the previous thread
-        setUIMessages([]);
+        setUIMessages(uiMessages ?? []);
         setInterrupt(interrupts?.[0]);
       });
     }, [aui, setMessages, setUIMessages, setInterrupt]);
