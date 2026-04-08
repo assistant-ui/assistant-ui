@@ -113,23 +113,34 @@ describe("LangGraphMessageAccumulator UI reducer", () => {
     expect(acc.getUIMessages().map((u) => u.id)).toEqual(["ui-2"]);
   });
 
-  it("uses the original (pre-batch) state for findIndex + merge lookups", () => {
-    // Byte-exact match for upstream: within a single batch, every merge reads
-    // the ORIGINAL state snapshot (not intermediate mutations).
+  it("merges batch updates forward against the running state", () => {
     const acc = new LangGraphMessageAccumulator<LangChainMessage>();
     acc.applyUIUpdate(makeUIMessage("ui-1", "chart", { a: 1, b: 2 }));
 
-    // Now apply a batch that merges twice against the same original entry.
-    // Upstream behavior: both merges reference props {a:1, b:2}.
     acc.applyUIUpdate([
       makeUIMessage("ui-1", "chart", { b: 99 }, { merge: true }),
       makeUIMessage("ui-1", "chart", { c: 3 }, { merge: true }),
     ]);
 
-    // The second merge overwrites the first at the same index, and both read
-    // the original state[0].props, so the final state is {a:1, b:2, c:3}.
     expect(acc.getUIMessages()).toHaveLength(1);
-    expect(acc.getUIMessages()[0]!.props).toEqual({ a: 1, b: 2, c: 3 });
+    expect(acc.getUIMessages()[0]!.props).toEqual({ a: 1, b: 99, c: 3 });
+  });
+
+  it("handles batch remove + later-element update without index aliasing", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.applyUIUpdate([
+      makeUIMessage("ui-1", "chart", { v: 1 }),
+      makeUIMessage("ui-2", "table", { rows: 10 }),
+    ]);
+
+    acc.applyUIUpdate([
+      { type: "remove-ui", id: "ui-1" },
+      makeUIMessage("ui-2", "table", { rows: 999 }),
+    ]);
+
+    expect(acc.getUIMessages()).toHaveLength(1);
+    expect(acc.getUIMessages()[0]!.id).toEqual("ui-2");
+    expect(acc.getUIMessages()[0]!.props).toEqual({ rows: 999 });
   });
 
   it("treats non-object metadata as non-merge", () => {

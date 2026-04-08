@@ -2604,4 +2604,121 @@ describe("useLangGraphMessages", {}, () => {
 
     expect(result.current.uiMessages).toHaveLength(0);
   });
+
+  it("rejects malformed UI payloads without a string id", async () => {
+    const onCustomEvent = vi.fn();
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "custom",
+        data: {
+          type: "ui",
+          name: "chart",
+          props: {},
+          metadata: { message_id: "ai-1" },
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: { onCustomEvent },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "malformed" }], {});
+    });
+
+    await waitFor(() => {
+      expect(onCustomEvent).toHaveBeenCalledTimes(1);
+    });
+    expect(result.current.uiMessages).toHaveLength(0);
+  });
+
+  it("accepts an array payload of UI updates on the custom channel", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "custom",
+        data: [
+          {
+            type: "ui",
+            id: "ui-1",
+            name: "chart",
+            props: { a: 1 },
+            metadata: { message_id: "ai-1" },
+          },
+          {
+            type: "ui",
+            id: "ui-2",
+            name: "table",
+            props: { rows: 3 },
+            metadata: { message_id: "ai-1" },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "batch" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.uiMessages.map((u) => u.id)).toEqual([
+        "ui-1",
+        "ui-2",
+      ]);
+    });
+  });
+
+  it("does not intercept type:ui data on non-custom event channels", async () => {
+    const onCustomEvent = vi.fn();
+    // payload shaped like a UIMessage but on a different channel must forward
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "not-a-known-channel",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: {},
+          metadata: { message_id: "ai-1" },
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: { onCustomEvent },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ type: "human", content: "foreign channel" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(onCustomEvent).toHaveBeenCalledWith(
+        "not-a-known-channel",
+        expect.objectContaining({ type: "ui", id: "ui-1" }),
+      );
+    });
+    expect(result.current.uiMessages).toHaveLength(0);
+  });
 });
