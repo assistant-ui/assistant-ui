@@ -20,7 +20,7 @@ const cspHeader = `
 
 const config: NextConfig = {
   transpilePackages: ["@assistant-ui/*", "shiki"],
-  serverExternalPackages: ["twoslash"],
+  serverExternalPackages: ["twoslash", "just-bash"],
   skipTrailingSlashRedirect: true,
   headers: async () => [
     {

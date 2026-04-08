@@ -10,10 +10,12 @@ import {
 import {
   BookOpenIcon,
   CheckIcon,
+  FileCodeIcon,
   FileTextIcon,
   FolderTreeIcon,
   LoaderIcon,
   type LucideIcon,
+  TerminalIcon,
 } from "lucide-react";
 import { type ReactNode, useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
@@ -69,6 +71,25 @@ function getToolDisplay(
         icon: FileTextIcon,
         label: isRunning ? "Reading" : "Read",
         detail: `/docs/${normalizedSlug}`,
+      };
+    }
+    case "bash": {
+      const command = (args as { command?: string })?.command ?? "";
+      const preview =
+        command.length > 60 ? command.slice(0, 57) + "..." : command;
+      return {
+        icon: TerminalIcon,
+        label: isRunning ? "Running" : "Ran",
+        detail: preview,
+      };
+    }
+    case "readFile": {
+      const filePath = (args as { path?: string })?.path ?? "";
+      const shortPath = filePath.split("/").slice(-2).join("/");
+      return {
+        icon: FileCodeIcon,
+        label: isRunning ? "Reading" : "Read",
+        detail: shortPath,
       };
     }
     default:

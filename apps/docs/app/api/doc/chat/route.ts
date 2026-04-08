@@ -6,7 +6,9 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { validateDocChatInput } from "@/lib/validate-input";
 import { source } from "@/lib/source";
 import { getModel } from "@/lib/ai/provider";
+import { getSourceSnapshot } from "@/lib/source-snapshot";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { createBashTool } from "bash-tool";
 import { prismAISDK } from "@aui-x/prism";
 import { withTracing } from "@posthog/ai";
 import {
@@ -81,6 +83,36 @@ function normalizeDocPath(slugOrUrl: string, routeUrl: string): string {
 
 export const maxDuration = 300;
 
+// Cached per serverless instance — recreated when snapshot changes
+let bashToolkitCache: {
+  files: Record<string, string>;
+  toolkit: Awaited<ReturnType<typeof createBashTool>>;
+} | null = null;
+
+async function getBashToolkit() {
+  const files = await getSourceSnapshot();
+
+  if (bashToolkitCache && bashToolkitCache.files === files) {
+    return bashToolkitCache.toolkit;
+  }
+
+  const toolkit = await createBashTool({
+    files,
+    destination: "/repo",
+    maxFiles: 5000,
+    maxOutputLength: 15000,
+    onBeforeBashCall: ({ command }) => {
+      if (/\b(rm|mv|cp|chmod|chown|mkdir|touch|tee|dd)\b/.test(command)) {
+        return { command: "echo 'Read-only sandbox'" };
+      }
+      return undefined;
+    },
+  });
+
+  bashToolkitCache = { files, toolkit };
+  return toolkit;
+}
+
 const SYSTEM_PROMPT = `You are the assistant-ui docs assistant.
 
 <about_assistant_ui>
@@ -130,6 +162,32 @@ You have two documentation tools:
 - User asks a question → listDocs to find relevant section → readDoc to get content
 - User mentions a specific path → readDoc directly
 </tools>
+
+<source_code_tools>
+You also have tools for exploring the actual assistant-ui source code:
+
+3. **bash** - Execute bash commands in a sandbox containing the full monorepo
+   - The sandbox is at /repo with the complete source tree
+   - Use for: grep, find, cat, awk, head, tail, wc, ls, tree, etc.
+   - Example: \`grep -r "useThread" packages/ --include="*.ts" -l\`
+   - Example: \`find packages/core/src -name "*.ts" | head -20\`
+   - Example: \`cat packages/react/src/hooks/useThread.ts | head -50\`
+   - Example: \`ls packages/\` to see all packages
+
+4. **readFile** - Read a specific source file by path
+   - More token-efficient than \`cat\` for reading whole files
+
+**When to use which tools:**
+- "How do I use X?" → listDocs/readDoc (documentation)
+- "How does X work internally?" → bash/readFile (source code)
+- "Where is X defined?" → bash (grep/find)
+- API/props questions → Start with docs, supplement with source if needed
+
+**Source code tips:**
+- Keep output focused: use \`grep -l\` for file lists, \`--include\` for file types, \`| head\` to limit
+- Use \`find\` or \`ls\` to discover structure before diving into specific files
+- Prefer \`readFile\` over \`cat\` when reading an entire file
+</source_code_tools>
 
 <answering>
 - Use the documentation tools to find relevant information
@@ -190,6 +248,8 @@ export async function POST(req: Request): Promise<Response> {
         })
       : null;
 
+    const { tools: bashTools } = await getBashToolkit();
+
     const result = streamText({
       model: prism?.model ?? posthogModel,
       system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),
@@ -198,6 +258,8 @@ export async function POST(req: Request): Promise<Response> {
       stopWhen: stepCountIs(25),
       tools: {
         ...frontendTools(tools),
+        bash: bashTools.bash,
+        readFile: bashTools.readFile,
         listDocs: tool({
           description:
             "List documentation pages. Use with no path for root categories, or specify path to browse a section.",
