@@ -3,6 +3,7 @@
 import { AssistantActionBar } from "./assistant-action-bar";
 import { MarkdownText } from "./markdown";
 import {
+  AuiIf,
   ErrorPrimitive,
   MessagePrimitive,
   type ToolCallMessagePartProps,
@@ -43,6 +44,18 @@ export function AssistantMessage(): ReactNode {
             return null;
           }}
         </MessagePrimitive.Parts>
+
+        <AuiIf
+          condition={(s) =>
+            s.thread.isRunning && s.message.content.length === 0
+          }
+        >
+
+          <div className="flex items-center gap-2 py-1 text-muted-foreground">
+            <LoaderIcon className="size-3 animate-spin" />
+            <span className="text-sm">Thinking...</span>
+          </div>
+        </AuiIf>
         <MessageError />
       </div>
       <AssistantActionBar />
