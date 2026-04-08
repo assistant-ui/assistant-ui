@@ -11,7 +11,9 @@ const OUTPUT_PATH = path.join(OUTPUT_DIR, "source-snapshot.json");
 async function main() {
   const files = listTrackedFiles()
     .map((filePath) => filePath.replace(/\\/g, "/"))
-    .filter((filePath) => !SOURCE_SNAPSHOT_EXCLUDE.some((re) => re.test(filePath)));
+    .filter(
+      (filePath) => !SOURCE_SNAPSHOT_EXCLUDE.some((re) => re.test(filePath)),
+    );
 
   const snapshot = Object.fromEntries(
     await Promise.all(

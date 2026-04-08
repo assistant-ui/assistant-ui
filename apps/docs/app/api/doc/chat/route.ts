@@ -84,8 +84,9 @@ function normalizeDocPath(slugOrUrl: string, routeUrl: string): string {
 export const maxDuration = 300;
 
 function createRepoTools() {
-  let bashToolkitPromise: Promise<Awaited<ReturnType<typeof createBashTool>>> | null =
-    null;
+  let bashToolkitPromise: Promise<
+    Awaited<ReturnType<typeof createBashTool>>
+  > | null = null;
 
   const getBashToolkit = () => {
     if (!bashToolkitPromise) {
@@ -113,7 +114,7 @@ function createRepoTools() {
       ),
       execute: async ({ command }) => {
         const { tools } = await getBashToolkit();
-        return tools.bash.execute!( { command }, {} );
+        return tools.bash.execute!({ command }, {});
       },
     }),
     readFile: tool({
@@ -127,7 +128,7 @@ function createRepoTools() {
       ),
       execute: async ({ path }) => {
         const { tools } = await getBashToolkit();
-        return tools.readFile.execute!( { path }, {} );
+        return tools.readFile.execute!({ path }, {});
       },
     }),
   };

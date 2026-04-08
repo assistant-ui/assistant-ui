@@ -36,9 +36,10 @@ let cachedSnapshot: Record<string, string> | null = null;
 export function getSourceSnapshot(): Record<string, string> {
   if (cachedSnapshot) return cachedSnapshot;
 
-  cachedSnapshot = JSON.parse(
-    readFileSync(SNAPSHOT_PATH, "utf-8"),
-  ) as Record<string, string>;
+  cachedSnapshot = JSON.parse(readFileSync(SNAPSHOT_PATH, "utf-8")) as Record<
+    string,
+    string
+  >;
 
   return cachedSnapshot;
 }
