@@ -6,6 +6,8 @@ packages:
 
 ignoredBuiltDependencies:
   - '@modelcontextprotocol/ext-apps'
+  - '@mongodb-js/zstd'
+  - node-liblzma
 
 onlyBuiltDependencies:
   - '@clerk/shared'
