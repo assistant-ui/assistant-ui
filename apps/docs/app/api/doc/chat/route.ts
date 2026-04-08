@@ -83,34 +83,14 @@ function normalizeDocPath(slugOrUrl: string, routeUrl: string): string {
 
 export const maxDuration = 300;
 
-// Cached per serverless instance — recreated when snapshot changes
-let bashToolkitCache: {
-  files: Record<string, string>;
-  toolkit: Awaited<ReturnType<typeof createBashTool>>;
-} | null = null;
-
 async function getBashToolkit() {
   const files = await getSourceSnapshot();
-
-  if (bashToolkitCache && bashToolkitCache.files === files) {
-    return bashToolkitCache.toolkit;
-  }
-
-  const toolkit = await createBashTool({
+  return createBashTool({
     files,
     destination: "/repo",
     maxFiles: 5000,
     maxOutputLength: 15000,
-    onBeforeBashCall: ({ command }) => {
-      if (/\b(rm|mv|cp|chmod|chown|mkdir|touch|tee|dd)\b/.test(command)) {
-        return { command: "echo 'Read-only sandbox'" };
-      }
-      return undefined;
-    },
   });
-
-  bashToolkitCache = { files, toolkit };
-  return toolkit;
 }
 
 const SYSTEM_PROMPT = `You are the assistant-ui docs assistant.
