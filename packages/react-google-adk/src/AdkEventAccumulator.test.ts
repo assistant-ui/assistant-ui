@@ -576,7 +576,12 @@ describe("AdkEventAccumulator - author/agent tracking", () => {
 
   it("does not track user as agent info", () => {
     const acc = new AdkEventAccumulator();
-    acc.processEvent(makeTextEvent("hello", false, "user"));
+    acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: { role: "user", parts: [{ text: "hello" }] },
+      }),
+    );
     expect(acc.getAgentInfo()).toEqual({});
   });
 
@@ -665,5 +670,160 @@ describe("AdkEventAccumulator - initial messages", () => {
     const acc = new AdkEventAccumulator(initial);
     const msgs = acc.processEvent(makeTextEvent("Hi there"));
     expect(msgs).toHaveLength(2);
+  });
+});
+
+describe("AdkEventAccumulator - user message handling", () => {
+  it("creates a human message for user-authored text events", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: { role: "user", parts: [{ text: "hello" }] },
+      }),
+    );
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      type: "human",
+      content: "hello",
+    });
+  });
+
+  it("creates separate human and AI messages for a user/agent turn", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        id: "u1",
+        author: "user",
+        content: { role: "user", parts: [{ text: "help" }] },
+      }),
+    );
+    const msgs = acc.processEvent(makeTextEvent("How can I help?"));
+    expect(msgs).toHaveLength(2);
+    expect(msgs[0]).toMatchObject({ type: "human", content: "help" });
+    expect(msgs[1]).toMatchObject({
+      type: "ai",
+      content: [{ type: "text", text: "How can I help?" }],
+    });
+  });
+
+  it("handles multiple user/agent turns with correct message types", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        id: "u1",
+        author: "user",
+        content: { role: "user", parts: [{ text: "hello" }] },
+      }),
+    );
+    acc.processEvent(makeTextEvent("Hi there!"));
+    acc.processEvent(
+      makeEvent({
+        id: "u2",
+        author: "user",
+        content: { role: "user", parts: [{ text: "help" }] },
+      }),
+    );
+    const msgs = acc.processEvent(makeTextEvent("How can I help?"));
+    expect(msgs).toHaveLength(4);
+    expect(msgs[0]).toMatchObject({ type: "human", content: "hello" });
+    expect(msgs[1]).toMatchObject({ type: "ai" });
+    expect(msgs[2]).toMatchObject({ type: "human", content: "help" });
+    expect(msgs[3]).toMatchObject({ type: "ai" });
+  });
+
+  it("creates human message with image content", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [{ inlineData: { mimeType: "image/png", data: "abc123" } }],
+        },
+      }),
+    );
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      type: "human",
+      content: [{ type: "image", mimeType: "image/png", data: "abc123" }],
+    });
+  });
+
+  it("creates human message with mixed text and image content", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            { text: "Look at this" },
+            { inlineData: { mimeType: "image/png", data: "abc123" } },
+          ],
+        },
+      }),
+    );
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      type: "human",
+      content: [
+        { type: "text", text: "Look at this" },
+        { type: "image", mimeType: "image/png", data: "abc123" },
+      ],
+    });
+  });
+
+  it("session replay produces correct message types", () => {
+    // Simulate loading a session with alternating user/agent events
+    const acc = new AdkEventAccumulator();
+    const events: AdkEvent[] = [
+      makeEvent({
+        id: "e1",
+        author: "user",
+        content: { role: "user", parts: [{ text: "good morning" }] },
+      }),
+      // Workflow state-only events (no content)
+      makeEvent({
+        id: "e2",
+        author: "WorkflowAgent",
+        actions: { stateDelta: { intent: "greeting" } },
+      }),
+      // Final response with content
+      makeEvent({
+        id: "e3",
+        author: "WorkflowAgent",
+        content: { role: "model", parts: [{ text: "Hello! How can I help?" }] },
+      }),
+      // Second turn
+      makeEvent({
+        id: "e4",
+        author: "user",
+        content: { role: "user", parts: [{ text: "help" }] },
+      }),
+      makeEvent({
+        id: "e5",
+        author: "WorkflowAgent",
+        content: {
+          role: "model",
+          parts: [{ text: "What do you need help with?" }],
+        },
+      }),
+    ];
+    let msgs: AdkMessage[] = [];
+    for (const event of events) {
+      msgs = acc.processEvent(event);
+    }
+    expect(msgs).toHaveLength(4);
+    expect(msgs[0]).toMatchObject({ type: "human", content: "good morning" });
+    expect(msgs[1]).toMatchObject({
+      type: "ai",
+      content: [{ type: "text", text: "Hello! How can I help?" }],
+    });
+    expect(msgs[2]).toMatchObject({ type: "human", content: "help" });
+    expect(msgs[3]).toMatchObject({
+      type: "ai",
+      content: [{ type: "text", text: "What do you need help with?" }],
+    });
   });
 });

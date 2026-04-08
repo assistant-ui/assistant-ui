@@ -284,6 +284,40 @@ export class AdkEventAccumulator {
       return this.getMessages();
     }
 
+    // User-authored events → create human message, not AI.
+    // Without this, user events fall through to processPart →
+    // getOrCreateAiMessage, producing type:"ai" messages that
+    // convertAdkMessage maps to role:"assistant".
+    if (event.author === "user") {
+      this.finalizeCurrentMessage();
+      const humanParts: AdkMessageContentPart[] = [];
+      for (const part of parts) {
+        if (part.text != null && !part.thought) {
+          humanParts.push({ type: "text", text: part.text });
+        } else if (part.inlineData) {
+          humanParts.push({
+            type: "image",
+            mimeType: part.inlineData.mimeType,
+            data: part.inlineData.data,
+          });
+        } else if (part.fileData) {
+          humanParts.push({
+            type: "image_url",
+            url: part.fileData.fileUri,
+          });
+        }
+      }
+      if (humanParts.length > 0) {
+        const id = event.id ?? uuidv4();
+        const content: string | AdkMessageContentPart[] =
+          humanParts.length === 1 && humanParts[0]!.type === "text"
+            ? (humanParts[0] as { type: "text"; text: string }).text
+            : humanParts;
+        this.messagesMap.set(id, { id, type: "human", content });
+      }
+      return this.getMessages();
+    }
+
     // If author changed, finalize previous message
     if (this.currentMessageId && event.author && event.author !== "user") {
       const current = this.messagesMap.get(this.currentMessageId);
