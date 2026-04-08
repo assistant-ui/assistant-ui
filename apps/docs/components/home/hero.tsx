@@ -3,6 +3,7 @@
 import { analytics } from "@/lib/analytics";
 import { StarPill } from "@/components/home/star-pill";
 import { CopyCommandButton } from "@/components/home/copy-command-button";
+import { CopyPromptButton } from "@/components/home/copy-prompt-button";
 import { LaunchWeekBanner } from "@/components/home/launch-week-banner";
 import Image from "next/image";
 import Link from "next/link";
@@ -22,7 +23,10 @@ export function Hero() {
           </p>
         </div>
 
-        <CopyCommandButton />
+        <div className="flex flex-wrap items-center gap-2">
+          <CopyCommandButton />
+          <CopyPromptButton analyticsContext={{ section: "hero" }} />
+        </div>
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-[13px] text-muted-foreground">
           <Link
