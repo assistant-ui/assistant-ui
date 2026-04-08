@@ -50,7 +50,6 @@ export function AssistantMessage(): ReactNode {
             s.thread.isRunning && s.message.content.length === 0
           }
         >
-
           <div className="flex items-center gap-2 py-1 text-muted-foreground">
             <LoaderIcon className="size-3 animate-spin" />
             <span className="text-sm">Thinking...</span>
