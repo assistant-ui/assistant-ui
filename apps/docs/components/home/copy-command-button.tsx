@@ -1,35 +1,22 @@
 "use client";
 
-import { analytics } from "@/lib/analytics";
+import { analytics, type AnalyticsProperties } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { useState } from "react";
-
-type AnalyticsContext = {
-  page?: string;
-  section?: string;
-  [key: string]: string | number | boolean | undefined;
-};
 
 export function CopyCommandButton({
   command = "npx assistant-ui init",
   analyticsContext,
 }: {
   command?: string;
-  analyticsContext?: AnalyticsContext;
+  analyticsContext?: AnalyticsProperties;
 }) {
   const [copied, setCopied] = useState(false);
 
   const copyToClipboard = () => {
-    const context =
-      analyticsContext &&
-      (Object.fromEntries(
-        Object.entries(analyticsContext).filter(
-          ([, value]) => value !== undefined,
-        ),
-      ) as Record<string, string | number | boolean>);
     navigator.clipboard.writeText(command);
-    analytics.cta.npmCommandCopied(command, context);
+    analytics.cta.npmCommandCopied(command, analyticsContext);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
