@@ -1,12 +1,13 @@
 import { getLLMText } from "@/lib/get-llm-text";
 import { getDistinctId, posthogServer } from "@/lib/posthog-server";
 import { createPrismTracer } from "@/lib/prism-server";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateDocChatInput } from "@/lib/validate-input";
 import { source } from "@/lib/source";
 import { getModel } from "@/lib/ai/provider";
-import { getSourceSnapshot } from "@/lib/source-snapshot";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { createBashTool } from "bash-tool";
 import { prismAISDK } from "@aui-x/prism";
@@ -21,6 +22,16 @@ import {
 } from "ai";
 import type * as PageTree from "fumadocs-core/page-tree";
 import z from "zod";
+
+const SOURCE_SNAPSHOT_PATH = path.join(
+  process.cwd(),
+  "generated",
+  "source-snapshot.json",
+);
+
+const SOURCE_SNAPSHOT = JSON.parse(
+  readFileSync(SOURCE_SNAPSHOT_PATH, "utf-8"),
+) as Record<string, string>;
 
 function normalizeSegment(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-");
@@ -91,7 +102,7 @@ function createRepoTools() {
   const getBashToolkit = () => {
     if (!bashToolkitPromise) {
       bashToolkitPromise = createBashTool({
-        files: getSourceSnapshot(),
+        files: SOURCE_SNAPSHOT,
         destination: "/repo",
         maxFiles: 5000,
         maxOutputLength: 15000,
@@ -112,9 +123,9 @@ function createRepoTools() {
             .describe("The bash command to execute from the /repo directory."),
         }),
       ),
-      execute: async ({ command }) => {
+      execute: async ({ command }, options) => {
         const { tools } = await getBashToolkit();
-        return tools.bash.execute!({ command }, {});
+        return tools.bash.execute!({ command }, options);
       },
     }),
     readFile: tool({
@@ -126,9 +137,9 @@ function createRepoTools() {
             .describe("The repo-relative file path to read from /repo."),
         }),
       ),
-      execute: async ({ path }) => {
+      execute: async ({ path }, options) => {
         const { tools } = await getBashToolkit();
-        return tools.readFile.execute!({ path }, {});
+        return tools.readFile.execute!({ path }, options);
       },
     }),
   };

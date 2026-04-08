@@ -1,13 +1,35 @@
 import { execFileSync } from "node:child_process";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { SOURCE_SNAPSHOT_EXCLUDE } from "../lib/source-snapshot";
 
 const DOCS_ROOT = process.cwd();
 const REPO_ROOT = path.resolve(DOCS_ROOT, "../..");
 const OUTPUT_DIR = path.join(DOCS_ROOT, "generated");
 const OUTPUT_PATH = path.join(OUTPUT_DIR, "source-snapshot.json");
 const READ_CONCURRENCY = 32;
+const SOURCE_SNAPSHOT_EXCLUDE = [
+  /pnpm-lock\.yaml$/,
+  /package-lock\.json$/,
+  /yarn\.lock$/,
+  /\.png$/,
+  /\.jpg$/,
+  /\.jpeg$/,
+  /\.gif$/,
+  /\.ico$/,
+  /\.svg$/,
+  /\.woff2?$/,
+  /\.ttf$/,
+  /\.eot$/,
+  /\.mp[34]$/,
+  /\.webm$/,
+  /\.webp$/,
+  /\.pdf$/,
+  /\.zip$/,
+  /\.tar$/,
+  /\.gz$/,
+  /\/dist\//,
+  /\/\.next\//,
+];
 
 async function main() {
   const files = listTrackedFiles()
@@ -32,10 +54,23 @@ async function buildSnapshot(files: string[]) {
       if (currentIndex >= files.length) return;
 
       const filePath = files[currentIndex]!;
-      snapshot[filePath] = await fs.readFile(
-        path.join(REPO_ROOT, filePath),
-        "utf-8",
-      );
+      try {
+        snapshot[filePath] = await fs.readFile(
+          path.join(REPO_ROOT, filePath),
+          "utf-8",
+        );
+      } catch (error) {
+        if (
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          error.code === "ENOENT"
+        ) {
+          continue;
+        }
+
+        throw error;
+      }
     }
   }
 
