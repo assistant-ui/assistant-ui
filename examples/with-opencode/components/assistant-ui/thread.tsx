@@ -6,9 +6,9 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { Reasoning } from "@/components/assistant-ui/reasoning";
 import { ReasoningGroup } from "@/components/tools/reasoning-ghost";
+import { BashTerminal } from "@/components/tools/bash-terminal";
 import {
   ApplyPatchInline,
-  BashInline,
   EditInline,
   GlobInline,
   GrepInline,
@@ -233,7 +233,7 @@ const AssistantMessage: FC = () => {
                 read: ReadInline,
                 edit: EditInline,
                 write: WriteInline,
-                bash: BashInline,
+                bash: BashTerminal,
                 grep: GrepInline,
                 glob: GlobInline,
                 webSearch: WebSearchInline,
