@@ -774,6 +774,54 @@ describe("AdkEventAccumulator - user message handling", () => {
     });
   });
 
+  it("creates human message with fileData content", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [{ fileData: { fileUri: "gs://bucket/image.png" } }],
+        },
+      }),
+    );
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      type: "human",
+      content: [{ type: "image_url", url: "gs://bucket/image.png" }],
+    });
+  });
+
+  it("tool result events (no author, role:'user') still create tool messages", () => {
+    // Regression: the user-author check must not hijack tool events.
+    // messageToEvent for `type:'tool'` emits events without `author`,
+    // with content.role:'user' and a functionResponse part.
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        content: {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                name: "get_weather",
+                id: "call_1",
+                response: { temp: 72 },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      type: "tool",
+      name: "get_weather",
+      tool_call_id: "call_1",
+      content: JSON.stringify({ temp: 72 }),
+    });
+  });
+
   it("session replay produces correct message types", () => {
     // Simulate loading a session with alternating user/agent events
     const acc = new AdkEventAccumulator();

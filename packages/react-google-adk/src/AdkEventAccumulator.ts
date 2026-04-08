@@ -309,9 +309,10 @@ export class AdkEventAccumulator {
       }
       if (humanParts.length > 0) {
         const id = event.id ?? uuidv4();
+        const first = humanParts[0];
         const content: string | AdkMessageContentPart[] =
-          humanParts.length === 1 && humanParts[0]!.type === "text"
-            ? (humanParts[0] as { type: "text"; text: string }).text
+          humanParts.length === 1 && first?.type === "text"
+            ? first.text
             : humanParts;
         this.messagesMap.set(id, { id, type: "human", content });
       }
