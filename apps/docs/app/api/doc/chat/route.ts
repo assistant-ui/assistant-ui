@@ -31,9 +31,10 @@ const SOURCE_SNAPSHOT_PATH = path.join(
 
 function loadSourceSnapshot(): Record<string, string> {
   try {
-    return JSON.parse(
-      readFileSync(SOURCE_SNAPSHOT_PATH, "utf-8"),
-    ) as Record<string, string>;
+    return JSON.parse(readFileSync(SOURCE_SNAPSHOT_PATH, "utf-8")) as Record<
+      string,
+      string
+    >;
   } catch (error) {
     if (
       error &&
