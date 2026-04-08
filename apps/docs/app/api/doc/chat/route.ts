@@ -21,6 +21,7 @@ import {
   zodSchema,
 } from "ai";
 import type * as PageTree from "fumadocs-core/page-tree";
+import type { UIMessage } from "ai";
 import z from "zod";
 
 const SOURCE_SNAPSHOT_PATH = path.join(
@@ -114,6 +115,23 @@ function normalizeDocPath(slugOrUrl: string, routeUrl: string): string {
 }
 
 export const maxDuration = 300;
+
+export const DOC_CHAT_PRUNE_OPTIONS = {
+  toolCalls: "before-last-2-messages",
+  reasoning: "none",
+  emptyMessages: "remove",
+} as const;
+
+export async function prepareDocChatMessages(messages: readonly UIMessage[]) {
+  const modelMessages = await convertToModelMessages(
+    injectQuoteContext([...messages]),
+  );
+
+  return pruneMessages({
+    messages: modelMessages,
+    ...DOC_CHAT_PRUNE_OPTIONS,
+  });
+}
 
 function createRepoTools() {
   let bashToolkitPromise: Promise<
@@ -255,15 +273,10 @@ export async function POST(req: Request): Promise<Response> {
     const body = await req.json();
     const { messages, tools, system: pageContext, config } = body;
 
-    const inputError = validateDocChatInput(messages);
-    if (inputError) return inputError;
+    const prunedMessages = await prepareDocChatMessages(messages);
 
-    const prunedMessages = pruneMessages({
-      messages: await convertToModelMessages(injectQuoteContext(messages)),
-      toolCalls: "before-last-2-messages",
-      reasoning: "none",
-      emptyMessages: "remove",
-    });
+    const inputError = validateDocChatInput(prunedMessages);
+    if (inputError) return inputError;
 
     const baseModel = getModel(config?.modelName);
     const distinctId = getDistinctId(req);
