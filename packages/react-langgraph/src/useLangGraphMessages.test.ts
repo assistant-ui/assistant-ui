@@ -2103,4 +2103,505 @@ describe("useLangGraphMessages", {}, () => {
       expect(aiMessage.content).not.toEqual("Values snapshot");
     });
   });
+
+  it("accumulates UI messages from custom events", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "Here's a chart.",
+            type: "AIMessageChunk",
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: { series: [1, 2, 3] },
+          metadata: { message_id: "ai-1" },
+        },
+      },
+      {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-2",
+          name: "table",
+          props: { rows: 10 },
+          metadata: { message_id: "ai-1" },
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ type: "human", content: "Show me a chart" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.uiMessages).toHaveLength(2);
+      expect(result.current.uiMessages[0]!.name).toEqual("chart");
+      expect(result.current.uiMessages[1]!.name).toEqual("table");
+      expect(result.current.uiMessages[0]!.metadata?.message_id).toEqual(
+        "ai-1",
+      );
+    });
+  });
+
+  it("merges UI props when metadata.merge is true", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: { a: 1, b: 2 },
+          metadata: { message_id: "ai-1" },
+        },
+      },
+      {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: { b: 99, c: 3 },
+          metadata: { message_id: "ai-1", merge: true },
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ type: "human", content: "merge test" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.uiMessages).toHaveLength(1);
+      expect(result.current.uiMessages[0]!.props).toEqual({
+        a: 1,
+        b: 99,
+        c: 3,
+      });
+    });
+  });
+
+  it("removes a UI message on remove-ui", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: {},
+          metadata: { message_id: "ai-1" },
+        },
+      },
+      {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-2",
+          name: "table",
+          props: {},
+          metadata: { message_id: "ai-1" },
+        },
+      },
+      {
+        event: "custom",
+        data: { type: "remove-ui", id: "ui-1" },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ type: "human", content: "remove test" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.uiMessages).toHaveLength(1);
+      expect(result.current.uiMessages[0]!.id).toEqual("ui-2");
+    });
+  });
+
+  it("extracts UI messages from the values event state snapshot", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "values",
+        data: {
+          messages: [
+            { id: "ai-1", type: "ai" as const, content: "Here's a chart" },
+          ],
+          ui: [
+            {
+              type: "ui",
+              id: "ui-1",
+              name: "chart",
+              props: { from: "values" },
+              metadata: { message_id: "ai-1" },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ type: "human", content: "values path" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.uiMessages).toHaveLength(1);
+      expect(result.current.uiMessages[0]!.props).toEqual({ from: "values" });
+    });
+  });
+
+  it("does not route UI updates through onCustomEvent", async () => {
+    const onCustomEvent = vi.fn();
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: {},
+          metadata: { message_id: "ai-1" },
+        },
+      },
+      {
+        event: "custom",
+        data: { unrelated: true },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: { onCustomEvent },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ type: "human", content: "filter test" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.uiMessages).toHaveLength(1);
+    });
+
+    // UI updates are swallowed; only the non-UI custom event reaches the handler
+    expect(onCustomEvent).toHaveBeenCalledTimes(1);
+    expect(onCustomEvent).toHaveBeenCalledWith("custom", { unrelated: true });
+  });
+
+  it("reads UI messages from a custom uiStateKey", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "values",
+        data: {
+          messages: [
+            { id: "ai-1", type: "ai" as const, content: "Here's a chart" },
+          ],
+          gen_ui: [
+            {
+              type: "ui",
+              id: "ui-1",
+              name: "chart",
+              props: { from: "custom-key" },
+              metadata: { message_id: "ai-1" },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        uiStateKey: "gen_ui",
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ type: "human", content: "custom key" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.uiMessages).toHaveLength(1);
+      expect(result.current.uiMessages[0]!.props).toEqual({
+        from: "custom-key",
+      });
+    });
+  });
+
+  it("reconciles UI state to the final values snapshot when stream ends", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      // Early values snapshot with one UI message
+      {
+        event: "values",
+        data: {
+          messages: [{ id: "ai-1", type: "ai" as const, content: "..." }],
+          ui: [
+            {
+              type: "ui",
+              id: "ui-1",
+              name: "progress",
+              props: { pct: 10 },
+              metadata: { message_id: "ai-1" },
+            },
+          ],
+        },
+      },
+      // Mid-stream custom event mutating UI
+      {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "progress",
+          props: { pct: 50 },
+          metadata: { message_id: "ai-1", merge: true },
+        },
+      },
+      // Final authoritative values snapshot
+      {
+        event: "values",
+        data: {
+          messages: [{ id: "ai-1", type: "ai" as const, content: "done" }],
+          ui: [
+            {
+              type: "ui",
+              id: "ui-1",
+              name: "progress",
+              props: { pct: 100 },
+              metadata: { message_id: "ai-1" },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "progress" }], {});
+    });
+
+    // After the stream completes, final reconcile applies — the authoritative
+    // values snapshot overwrites any intermediate custom-event mutations.
+    await waitFor(() => {
+      expect(result.current.uiMessages).toHaveLength(1);
+      expect(result.current.uiMessages[0]!.props).toEqual({ pct: 100 });
+    });
+  });
+
+  it("keeps UI messages accessible when the parent AI message arrives later", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      // UI message arrives BEFORE the parent ai-1
+      {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: { early: true },
+          metadata: { message_id: "ai-1" },
+        },
+      },
+      // Parent AI message arrives after
+      {
+        event: "messages",
+        data: [
+          { id: "ai-1", content: "chart incoming", type: "AIMessageChunk" },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ type: "human", content: "show chart" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.uiMessages).toHaveLength(1);
+      expect(result.current.uiMessages[0]!.metadata?.message_id).toEqual(
+        "ai-1",
+      );
+      // Parent message also landed
+      expect(result.current.messages.some((m) => m.id === "ai-1")).toBe(true);
+    });
+  });
+
+  it("persists UI state across separate sendMessage calls", async () => {
+    const firstCall = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: { turn: 1 },
+          metadata: { message_id: "ai-1" },
+        },
+      },
+    ]);
+
+    // Mutable stream so we can swap the impl between calls
+    const streamMock = vi.fn().mockImplementation(firstCall);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamMock,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "first" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.uiMessages).toHaveLength(1);
+    });
+
+    // Second call merges into the UI state from call 1
+    const secondCall = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: { turn: 2 },
+          metadata: { message_id: "ai-1", merge: true },
+        },
+      },
+    ]);
+    streamMock.mockImplementation(secondCall);
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "second" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.uiMessages).toHaveLength(1);
+      // Merge preserves turn:1 and adds turn:2 — but since same key, turn:2 wins
+      expect(result.current.uiMessages[0]!.props).toEqual({ turn: 2 });
+    });
+  });
+
+  it("clears UI state when setUIMessages is called directly", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "custom",
+        data: {
+          type: "ui",
+          id: "ui-1",
+          name: "chart",
+          props: {},
+          metadata: { message_id: "ai-1" },
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "setup" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.uiMessages).toHaveLength(1);
+    });
+
+    act(() => {
+      result.current.setUIMessages([]);
+    });
+
+    expect(result.current.uiMessages).toHaveLength(0);
+  });
 });

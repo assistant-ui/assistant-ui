@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { convertLangChainMessages } from "./convertLangChainMessages";
+import type { UIMessage } from "./types";
 
 describe("convertLangChainMessages metadata", () => {
   it("passes additional_kwargs.metadata to system message", () => {
@@ -362,6 +363,109 @@ describe("convertLangChainMessages file content", () => {
           mimeType: "application/pdf",
         },
       ],
+    });
+  });
+});
+
+describe("convertLangChainMessages UI messages", () => {
+  it("appends matching UI messages as data parts on the assistant message", () => {
+    const uiMessage: UIMessage = {
+      type: "ui",
+      id: "ui-1",
+      name: "chart",
+      props: { series: [1, 2, 3] },
+      metadata: { message_id: "ai-1" },
+    };
+
+    const result = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-1",
+        content: "Here's your chart.",
+      },
+      {
+        uiMessagesByParent: new Map([["ai-1", [uiMessage]]]),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any,
+    );
+
+    expect(result).toMatchObject({
+      role: "assistant",
+      content: [
+        { type: "text", text: "Here's your chart." },
+        { type: "data", name: "chart", data: { series: [1, 2, 3] } },
+      ],
+    });
+  });
+
+  it("preserves the order of multiple UI messages for the same parent", () => {
+    const uiMessages: UIMessage[] = [
+      { type: "ui", id: "ui-1", name: "chart", props: { a: 1 } },
+      { type: "ui", id: "ui-2", name: "table", props: { b: 2 } },
+    ];
+
+    const result = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-1",
+        content: "",
+      },
+      {
+        uiMessagesByParent: new Map([["ai-1", uiMessages]]),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any,
+    );
+
+    expect(result).toMatchObject({
+      role: "assistant",
+      content: [
+        { type: "text", text: "" },
+        { type: "data", name: "chart", data: { a: 1 } },
+        { type: "data", name: "table", data: { b: 2 } },
+      ],
+    });
+  });
+
+  it("does not inject data parts when the map has no entry for this message", () => {
+    const result = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-2",
+        content: "No UI here.",
+      },
+      {
+        uiMessagesByParent: new Map([
+          [
+            "ai-1",
+            [
+              { type: "ui", id: "ui-1", name: "chart", props: {} },
+            ] as UIMessage[],
+          ],
+        ]),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any,
+    );
+
+    expect(result).toMatchObject({
+      role: "assistant",
+      content: [{ type: "text", text: "No UI here." }],
+    });
+  });
+
+  it("does not inject data parts when metadata.uiMessagesByParent is absent", () => {
+    const result = convertLangChainMessages(
+      {
+        type: "ai",
+        id: "ai-1",
+        content: "Plain response.",
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      {} as any,
+    );
+
+    expect(result).toMatchObject({
+      role: "assistant",
+      content: [{ type: "text", text: "Plain response." }],
     });
   });
 });
