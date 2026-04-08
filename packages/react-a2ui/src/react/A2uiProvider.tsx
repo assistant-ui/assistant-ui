@@ -31,8 +31,6 @@ export const A2uiProvider = ({
   }
   const dataStore = dataStoreRef.current;
 
-  const components = userComponents;
-
   const handleAction = useCallback(
     (action: A2uiAction) => {
       onAction?.(action);
@@ -65,11 +63,11 @@ export const A2uiProvider = ({
     () => ({
       surfaceManager,
       dataStore,
-      components,
+      components: userComponents,
       onAction: handleAction,
       processMessage,
     }),
-    [surfaceManager, dataStore, components, handleAction, processMessage],
+    [surfaceManager, dataStore, userComponents, handleAction, processMessage],
   );
 
   return (

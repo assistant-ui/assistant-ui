@@ -12,6 +12,7 @@
     "langchain",
     "google-adk",
     "a2a",
+    "a2ui",
     "ag-ui",
     "opencode",
     "..."

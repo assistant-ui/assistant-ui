@@ -45,10 +45,10 @@ export class SurfaceDataStore {
   }
 
   private notifyPath(surfaceId: string, updatedPath: string): void {
-    const prefix = `${surfaceId}:${updatedPath}`;
+    const exactKey = `${surfaceId}:${updatedPath}`;
     const rootKey = `${surfaceId}:/`;
     for (const [key, listeners] of this.listeners) {
-      if (key === prefix || key.startsWith(prefix + "/") || key === rootKey) {
+      if (key === exactKey || key === rootKey) {
         for (const listener of listeners) {
           listener();
         }

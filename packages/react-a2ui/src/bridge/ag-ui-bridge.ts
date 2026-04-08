@@ -28,15 +28,7 @@ export function useA2uiAgUiBridge(): {
 
   const handleEvent = useCallback((event: { name: string; value: unknown }) => {
     if (!processMessageRef.current) return;
-    if (!event.name.startsWith("a2ui:")) return;
-    const type = event.name.slice("a2ui:".length);
-    const payload =
-      event.value && typeof event.value === "object" ? event.value : {};
-    const parsed = parseA2uiMessage({
-      type,
-      ...(payload as Record<string, unknown>),
-    });
-    if (parsed) processMessageRef.current(parsed);
+    createA2uiMessageHandler(processMessageRef.current)(event);
   }, []);
 
   const connect = useCallback(

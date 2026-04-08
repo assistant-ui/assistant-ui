@@ -1,0 +1,527 @@
+---
+title: A2UI
+description: Render declarative agent UI surfaces alongside your chat thread.
+---
+
+`@assistant-ui/react-a2ui` adds [A2UI (Agent-to-UI)](https://github.com/google/a2ui) support to assistant-ui. A2UI is an open protocol where AI agents send declarative JSON describing what UI to render. The client renders surfaces using a pre-approved component catalog — no executable code crosses the wire.
+
+A2UI is complementary to your chat runtime. Surfaces exist independently of the message stream and can be shown alongside a `<Thread />`.
+
+## Requirements
+
+- An A2UI-compatible agent
+- React 18 or 19
+
+## Installation
+
+**Standalone** (any transport):
+
+<InstallCommand npm={["@assistant-ui/react-a2ui"]} />
+
+**With AG-UI** (chat + declarative UI):
+
+<InstallCommand npm={["@assistant-ui/react-a2ui", "@assistant-ui/react-ag-ui", "@assistant-ui/react", "@ag-ui/client"]} />
+
+## Getting Started
+
+### Standalone track
+
+<Steps>
+<Step>
+### Set up the provider
+
+Wrap your app with `A2uiProvider`. You must provide a `components` map that defines how each A2UI component type is rendered, and an `onAction` callback to receive user interactions.
+
+```tsx title="app/MyProvider.tsx"
+"use client";
+
+import { A2uiProvider } from "@assistant-ui/react-a2ui";
+import type { A2uiComponentProps } from "@assistant-ui/react-a2ui";
+
+const MyButton = ({ def, surfaceId, onAction }: A2uiComponentProps) => {
+  const label = typeof def.props?.label === "string" ? def.props.label : "Button";
+  return (
+    <button
+      onClick={() =>
+        onAction({
+          name: "click",
+          surfaceId,
+          sourceComponentId: def.id,
+          timestamp: new Date().toISOString(),
+          context: {},
+        })
+      }
+    >
+      {label}
+    </button>
+  );
+};
+
+const components = { Button: MyButton };
+
+export function MyProvider({ children }: { children: React.ReactNode }) {
+  function handleAction(action) {
+    fetch("/api/agent/action", {
+      method: "POST",
+      body: JSON.stringify(action),
+    });
+  }
+
+  return (
+    <A2uiProvider components={components} onAction={handleAction}>
+      {children}
+    </A2uiProvider>
+  );
+}
+```
+
+</Step>
+<Step>
+### Connect your transport
+
+Use `useA2ui()` to get `processMessage` and feed A2UI events from any source.
+
+```tsx title="app/AgentUI.tsx"
+"use client";
+
+import { useEffect } from "react";
+import { useA2ui } from "@assistant-ui/react-a2ui";
+
+export function AgentUI() {
+  const { processMessage } = useA2ui();
+
+  useEffect(() => {
+    const ws = new WebSocket("/agent");
+    ws.onmessage = (e) => processMessage(JSON.parse(e.data));
+    return () => ws.close();
+  }, [processMessage]);
+
+  return null;
+}
+```
+
+</Step>
+<Step>
+### Render surfaces
+
+```tsx title="app/page.tsx"
+import { A2uiSurfaceRenderer } from "@assistant-ui/react-a2ui";
+import { MyProvider } from "./MyProvider";
+import { AgentUI } from "./AgentUI";
+
+export default function Page() {
+  return (
+    <MyProvider>
+      <AgentUI />
+      <A2uiSurfaceRenderer />
+    </MyProvider>
+  );
+}
+```
+
+</Step>
+<Step>
+### Setup UI Components
+
+Follow the [UI Setup](/docs/ui) guide to setup the UI components.
+
+</Step>
+</Steps>
+
+### AG-UI track
+
+<Steps>
+<Step>
+### Create the AG-UI runtime with `onCustomEvent`
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { useEffect, type ReactNode } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
+import { A2uiProvider, useA2ui } from "@assistant-ui/react-a2ui";
+import { useA2uiAgUiBridge } from "@assistant-ui/react-a2ui/ag-ui";
+
+export function MyRuntimeProvider({ children }: { children: ReactNode }) {
+  const bridge = useA2uiAgUiBridge();
+
+  const runtime = useAgUiRuntime({
+    agent,
+    onCustomEvent: bridge.handleEvent,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <A2uiProvider onAction={handleAction}>
+        <A2uiBridgeConnector bridge={bridge} />
+        {children}
+      </A2uiProvider>
+    </AssistantRuntimeProvider>
+  );
+}
+
+function A2uiBridgeConnector({
+  bridge,
+}: {
+  bridge: ReturnType<typeof useA2uiAgUiBridge>;
+}) {
+  const { processMessage } = useA2ui();
+  useEffect(() => {
+    bridge.connect(processMessage);
+  }, [bridge, processMessage]);
+  return null;
+}
+
+function handleAction(action) {
+  fetch("/api/agent/action", {
+    method: "POST",
+    body: JSON.stringify(action),
+  });
+}
+```
+
+</Step>
+<Step>
+### Render `Thread` and surfaces side by side
+
+```tsx title="app/page.tsx"
+"use client";
+
+import { Thread } from "@assistant-ui/react";
+import { A2uiSurfaceRenderer, useA2uiSurfaces } from "@assistant-ui/react-a2ui";
+import { MyRuntimeProvider } from "./MyRuntimeProvider";
+
+export default function Page() {
+  return (
+    <MyRuntimeProvider>
+      <div className="flex h-screen">
+        <div className="flex-1">
+          <Thread />
+        </div>
+        <SurfaceSidebar />
+      </div>
+    </MyRuntimeProvider>
+  );
+}
+
+function SurfaceSidebar() {
+  const surfaces = useA2uiSurfaces();
+  if (surfaces.length === 0) return null;
+  return (
+    <aside className="w-96 border-l p-4">
+      <A2uiSurfaceRenderer />
+    </aside>
+  );
+}
+```
+
+</Step>
+<Step>
+### Setup UI Components
+
+Follow the [UI Setup](/docs/ui) guide to setup the UI components.
+
+</Step>
+</Steps>
+
+## A2uiProvider Props
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `children` | `ReactNode` | Child components |
+| `components` | `Record<string, A2uiComponentRenderer>` | **Required.** Map of component type names to React components that render them |
+| `onAction` | `(action: A2uiAction) => void` | Callback when a user interacts with a surface component |
+
+## Hooks
+
+### useA2ui
+
+Access `processMessage` to feed A2UI server messages into the system.
+
+```tsx
+import { useA2ui } from "@assistant-ui/react-a2ui";
+
+function MyTransport() {
+  const { processMessage } = useA2ui();
+
+  useEffect(() => {
+    const ws = new WebSocket("/agent");
+    ws.onmessage = (e) => processMessage(JSON.parse(e.data));
+    return () => ws.close();
+  }, [processMessage]);
+
+  return null;
+}
+```
+
+### useA2uiSurfaces
+
+Subscribe to all active surfaces. Re-renders when surfaces are created or deleted.
+
+```tsx
+import { useA2uiSurfaces } from "@assistant-ui/react-a2ui";
+
+function SurfaceList() {
+  const surfaces = useA2uiSurfaces();
+  return <div>{surfaces.length} active surface(s)</div>;
+}
+```
+
+### useA2uiSurface
+
+Subscribe to a single surface by ID.
+
+```tsx
+import { useA2uiSurface } from "@assistant-ui/react-a2ui";
+
+function BookingStatus({ surfaceId }: { surfaceId: string }) {
+  const surface = useA2uiSurface(surfaceId);
+  if (!surface) return <div>No active booking</div>;
+  return <div>{surface.components.length} component(s)</div>;
+}
+```
+
+### useA2uiData
+
+Subscribe to data at a specific JSON pointer path within a surface. Re-renders only when that path changes (granular updates).
+
+```tsx
+import { useA2uiData } from "@assistant-ui/react-a2ui";
+
+function Destination({ surfaceId }: { surfaceId: string }) {
+  const destination = useA2uiData(surfaceId, "/booking/destination");
+  return <span>{String(destination ?? "—")}</span>;
+}
+```
+
+### useA2uiActions
+
+Dispatch actions back to the agent.
+
+```tsx
+import { useA2uiActions } from "@assistant-ui/react-a2ui";
+
+function SubmitButton({ surfaceId }: { surfaceId: string }) {
+  const { dispatch } = useA2uiActions();
+  return (
+    <button
+      onClick={() =>
+        dispatch({
+          name: "click",
+          surfaceId,
+          sourceComponentId: "submit-btn",
+          timestamp: new Date().toISOString(),
+          context: {},
+        })
+      }
+    >
+      Submit
+    </button>
+  );
+}
+```
+
+## Rendering
+
+### A2uiSurfaceRenderer
+
+Renders surfaces and their components.
+
+```tsx
+import { A2uiSurfaceRenderer } from "@assistant-ui/react-a2ui";
+
+// Render a specific surface
+<A2uiSurfaceRenderer surfaceId="booking-form" className="p-4" />
+
+// Render all active surfaces
+<A2uiSurfaceRenderer className="p-4" />
+```
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `surfaceId` | `string` | Optional. Render only this surface; omit to render all active surfaces |
+| `className` | `string` | CSS class applied to each surface's wrapper `<div>` |
+
+### A2uiComponent
+
+Renders a single component from its definition. Useful for building custom surface layouts.
+
+```tsx
+import { A2uiComponent } from "@assistant-ui/react-a2ui";
+
+function CustomSurface({ surface }) {
+  return (
+    <div>
+      {surface.components.map((def) => (
+        <A2uiComponent key={def.id} def={def} surfaceId={surface.surfaceId} />
+      ))}
+    </div>
+  );
+}
+```
+
+## Components
+
+`A2uiProvider` requires a `components` map. Each entry maps a component type name (e.g. `"Button"`, `"Card"`) to a React component that receives `A2uiComponentProps`. Use `getData` to read bound data and `onAction` to dispatch user interactions.
+
+```tsx title="components/a2ui/StyledButton.tsx"
+import type { A2uiComponentProps } from "@assistant-ui/react-a2ui";
+
+export function StyledButton({ def, surfaceId, onAction }: A2uiComponentProps) {
+  const label = typeof def.props?.label === "string" ? def.props.label : "Button";
+  return (
+    <button
+      className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+      onClick={() =>
+        onAction({
+          name: "click",
+          surfaceId,
+          sourceComponentId: def.id,
+          timestamp: new Date().toISOString(),
+          context: {},
+        })
+      }
+    >
+      {label}
+    </button>
+  );
+}
+```
+
+```tsx title="app/MyProvider.tsx"
+import { A2uiProvider } from "@assistant-ui/react-a2ui";
+import { StyledButton } from "../components/a2ui/StyledButton";
+import { StyledCard } from "../components/a2ui/StyledCard";
+
+const components = { Button: StyledButton, Card: StyledCard };
+
+<A2uiProvider components={components}>
+  {children}
+</A2uiProvider>
+```
+
+If the agent sends a component type that isn't in your map, it is silently skipped.
+
+## AG-UI Bridge
+
+When using AG-UI as transport, A2UI messages arrive as CUSTOM events with the name prefix `a2ui:`.
+
+**Wire format:**
+
+```
+AG-UI event:  { type: "CUSTOM", name: "a2ui:createSurface", value: { surfaceId: "booking" } }
+A2UI message: { type: "createSurface", surfaceId: "booking" }
+```
+
+### createA2uiMessageHandler
+
+Low-level factory. Useful when you have a plain callback and don't need React.
+
+```tsx
+import { createA2uiMessageHandler } from "@assistant-ui/react-a2ui";
+
+const handler = createA2uiMessageHandler(processMessage);
+// Pass handler wherever custom events arrive
+```
+
+### useA2uiAgUiBridge
+
+React hook for the bridge connector pattern. `handleEvent` is stable and safe to pass to `useAgUiRuntime` at mount time. Call `connect(processMessage)` from inside the `A2uiProvider` tree to wire up the bridge.
+
+```tsx
+import { useA2uiAgUiBridge } from "@assistant-ui/react-a2ui/ag-ui";
+
+const bridge = useA2uiAgUiBridge();
+
+// Pass to AG-UI runtime
+const runtime = useAgUiRuntime({
+  agent,
+  onCustomEvent: bridge.handleEvent,
+});
+
+// Wire processMessage inside the A2uiProvider tree
+function A2uiBridgeConnector({ bridge }) {
+  const { processMessage } = useA2ui();
+  useEffect(() => {
+    bridge.connect(processMessage);
+  }, [bridge, processMessage]);
+  return null;
+}
+```
+
+<Callout type="info">
+Events received before `bridge.connect()` is called are silently dropped. Because AG-UI surfaces are rebuilt on each agent run, this is safe for the common case.
+</Callout>
+
+## Actions
+
+User interactions with surface components dispatch `A2uiAction` objects to the `onAction` callback on `A2uiProvider`. How you handle them depends on your transport.
+
+```typescript
+type A2uiAction = {
+  name: string;              // "click", "change", "submit"
+  surfaceId: string;
+  sourceComponentId: string;
+  timestamp: string;         // ISO 8601
+  context: Record<string, unknown>; // e.g. { value: "new text" }
+};
+```
+
+**Standalone (WebSocket):**
+
+```tsx
+<A2uiProvider
+  onAction={(action) => {
+    ws.send(JSON.stringify(action));
+  }}
+>
+```
+
+**AG-UI (separate HTTP endpoint):**
+
+```tsx
+<A2uiProvider
+  onAction={(action) => {
+    fetch("/api/agent/action", {
+      method: "POST",
+      body: JSON.stringify(action),
+    });
+  }}
+>
+```
+
+## Data Binding
+
+Components reference data using JSON pointer paths. When an agent calls `updateDataModel`, the `SurfaceDataStore` notifies only the hooks subscribed to that path (or its descendants).
+
+```typescript
+// Agent sends:
+{ type: "updateDataModel", surfaceId: "booking", path: "/booking/destination", value: "Tokyo" }
+
+// Component definition uses a path binding:
+{ type: "TextField", id: "dest", props: { value: { path: "/booking/destination" } } }
+
+// In a custom component, resolveValue handles the binding:
+import { resolveValue } from "@assistant-ui/react-a2ui";
+
+const value = resolveValue(def.props?.value, getData); // → "Tokyo"
+```
+
+**Subtree invalidation:** Updating `/booking` notifies all subscribers under `/booking/*`. Updating `/booking/destination` does not notify `/booking` subscribers — parent paths are unaffected by descendant updates.
+
+## Features
+
+| Feature | Supported |
+| --- | --- |
+| Surface creation / deletion | Yes |
+| Component rendering | Yes |
+| Data binding (JSON pointer paths) | Yes |
+| Subtree invalidation | Yes |
+| Granular re-renders per path | Yes |
+| User-defined components | Yes |
+| AG-UI transport | Yes |
+| Standalone transport (WebSocket, HTTP, etc.) | Yes |
+| Action dispatch | Yes |
+| Multiple simultaneous surfaces | Yes |
+| Render all surfaces mode | Yes |

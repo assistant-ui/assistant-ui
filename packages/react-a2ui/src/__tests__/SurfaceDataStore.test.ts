@@ -41,7 +41,7 @@ describe("SurfaceDataStore", () => {
     expect(dateListener).not.toHaveBeenCalled();
   });
 
-  it("should notify descendant subscribers on ancestor update (subtree invalidation)", () => {
+  it("should NOT notify descendant subscribers on ancestor update", () => {
     const store = new SurfaceDataStore();
     const destListener = vi.fn();
     const dateListener = vi.fn();
@@ -52,8 +52,8 @@ describe("SurfaceDataStore", () => {
       destination: "Tokyo",
       date: "2026-05-15",
     });
-    expect(destListener).toHaveBeenCalledTimes(1);
-    expect(dateListener).toHaveBeenCalledTimes(1);
+    expect(destListener).not.toHaveBeenCalled();
+    expect(dateListener).not.toHaveBeenCalled();
   });
 
   it("should notify root subscribers on any update", () => {

@@ -14,13 +14,14 @@ export const A2uiComponent = ({
   allComponents,
 }: A2uiComponentExternalProps) => {
   const { components, dataStore, onAction } = useA2uiContext();
-  const Component = components[def.type];
-  if (!Component) return null;
 
   const getData = useCallback(
     (path: string) => dataStore.getData(surfaceId, path),
     [dataStore, surfaceId],
   );
+
+  const Component = components[def.type];
+  if (!Component) return null;
 
   let children: ReactNode = null;
   if (def.children?.length && allComponents) {
