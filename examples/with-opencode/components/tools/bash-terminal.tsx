@@ -51,8 +51,7 @@ export const BashTerminal: ToolCallMessagePartComponent = memo(
       typeof parsed.stdout === "string" ? parsed.stdout : undefined;
     const stderr =
       typeof parsed.stderr === "string" ? parsed.stderr : undefined;
-    const exitCode =
-      typeof parsed.exitCode === "number" ? parsed.exitCode : 0;
+    const exitCode = typeof parsed.exitCode === "number" ? parsed.exitCode : 0;
     const hasOutput = Boolean(stdout || stderr);
     const isError = !isRunning && exitCode !== 0;
 
@@ -71,7 +70,10 @@ export const BashTerminal: ToolCallMessagePartComponent = memo(
               <XCircleIcon className="size-3 shrink-0 text-destructive" />
             ) : statusType === "incomplete" ? (
               <XCircleIcon
-                className={cn("size-3 shrink-0", !isCancelled && "text-destructive")}
+                className={cn(
+                  "size-3 shrink-0",
+                  !isCancelled && "text-destructive",
+                )}
               />
             ) : (
               <DollarSignIcon className="size-3.5 shrink-0" />
@@ -84,16 +86,12 @@ export const BashTerminal: ToolCallMessagePartComponent = memo(
               )}
             >
               <span className="font-medium">bash</span>
-              {summaryText && (
-                <span className="opacity-60">{summaryText}</span>
-              )}
+              {summaryText && <span className="opacity-60">{summaryText}</span>}
             </span>
 
             {hasOutput && (
               <>
-                <span
-                  className="mt-0.5 min-w-4 flex-1 self-center border-muted-foreground/20 border-b-[0.5px] transition-colors group-hover:border-muted-foreground/50"
-                />
+                <span className="mt-0.5 min-w-4 flex-1 self-center border-muted-foreground/20 border-b-[0.5px] transition-colors group-hover:border-muted-foreground/50" />
                 <ChevronRightIcon
                   className={cn(
                     "mt-0.5 size-3.75 shrink-0 stroke-muted-foreground/60 transition-[transform,stroke] group-hover:stroke-foreground/60",

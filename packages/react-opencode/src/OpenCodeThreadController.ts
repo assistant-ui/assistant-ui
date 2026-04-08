@@ -162,8 +162,7 @@ const isSupportedDelta = (
   if (!part) return false;
 
   return (
-    field === "text" &&
-    (part.type === "text" || part.type === "reasoning")
+    field === "text" && (part.type === "text" || part.type === "reasoning")
   );
 };
 

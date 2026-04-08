@@ -75,10 +75,7 @@ const makeDataPart = (
   ...(parentId ? { parentId } : {}),
 });
 
-const makeUnsupportedPart = (
-  part: Part,
-  parentId?: string,
-) =>
+const makeUnsupportedPart = (part: Part, parentId?: string) =>
   makeDataPart(
     "opencode-unsupported-part",
     {
