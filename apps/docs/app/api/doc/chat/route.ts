@@ -202,23 +202,9 @@ You also have tools for exploring the actual assistant-ui source code:
    - The sandbox is at /repo with the complete source tree
    - Use for: grep, find, cat, awk, head, tail, wc, ls, tree, etc.
    - Example: \`grep -r "useThread" packages/ --include="*.ts" -l\`
-   - Example: \`find packages/core/src -name "*.ts" | head -20\`
-   - Example: \`cat packages/react/src/hooks/useThread.ts | head -50\`
-   - Example: \`ls packages/\` to see all packages
 
 4. **readFile** - Read a specific source file by path
    - More token-efficient than \`cat\` for reading whole files
-
-**When to use which tools:**
-- "How do I use X?" → listDocs/readDoc (documentation)
-- "How does X work internally?" → bash/readFile (source code)
-- "Where is X defined?" → bash (grep/find)
-- API/props questions → Start with docs, supplement with source if needed
-
-**Source code tips:**
-- Keep output focused: use \`grep -l\` for file lists, \`--include\` for file types, \`| head\` to limit
-- Use \`find\` or \`ls\` to discover structure before diving into specific files
-- Prefer \`readFile\` over \`cat\` when reading an entire file
 </source_code_tools>
 
 <answering>
