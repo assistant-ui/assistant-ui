@@ -133,17 +133,25 @@ export function getThreadMessageTokenUsage(
 export function getLatestThreadTokenUsage(
   messages: readonly ThreadUsageExtractableMessage[] | undefined,
 ): ThreadTokenUsage | undefined {
+  return getThreadMessageTokenUsage(findLatestMessageWithUsage(messages));
+}
+
+function findLatestMessageWithUsage(
+  messages: readonly ThreadUsageExtractableMessage[] | undefined,
+): ThreadUsageExtractableMessage | undefined {
   if (!messages) return undefined;
 
   for (let idx = messages.length - 1; idx >= 0; idx -= 1) {
-    const usage = getThreadMessageTokenUsage(messages[idx]);
-    if (usage) return usage;
+    const message = messages[idx];
+    if (getThreadMessageTokenUsage(message)) {
+      return message;
+    }
   }
 
   return undefined;
 }
 
 export function useThreadTokenUsage(): ThreadTokenUsage | undefined {
-  const messages = useAuiState((s) => s.thread.messages);
-  return getLatestThreadTokenUsage(messages);
+  const msg = useAuiState((s) => findLatestMessageWithUsage(s.thread.messages));
+  return getThreadMessageTokenUsage(msg);
 }

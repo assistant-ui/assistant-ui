@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { getLatestThreadTokenUsage, getThreadMessageTokenUsage } from "./usage";
+import {
+  getLatestThreadTokenUsage,
+  getThreadMessageTokenUsage,
+} from "./usage";
 
 function msg(metadata: unknown): { role: "assistant"; metadata: unknown } {
   return {
