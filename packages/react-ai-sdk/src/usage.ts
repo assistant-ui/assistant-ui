@@ -14,8 +14,6 @@ export interface TokenUsageExtractableMessage {
   metadata?: unknown;
 }
 
-export type ThreadUsageExtractableMessage = TokenUsageExtractableMessage;
-
 type UsageRecord = Record<string, unknown>;
 
 const USAGE_KEYS = [
@@ -131,14 +129,14 @@ export function getThreadMessageTokenUsage(
 }
 
 export function getLatestThreadTokenUsage(
-  messages: readonly ThreadUsageExtractableMessage[] | undefined,
+  messages: readonly TokenUsageExtractableMessage[] | undefined,
 ): ThreadTokenUsage | undefined {
   return getThreadMessageTokenUsage(findLatestMessageWithUsage(messages));
 }
 
 function findLatestMessageWithUsage(
-  messages: readonly ThreadUsageExtractableMessage[] | undefined,
-): ThreadUsageExtractableMessage | undefined {
+  messages: readonly TokenUsageExtractableMessage[] | undefined,
+): TokenUsageExtractableMessage | undefined {
   if (!messages) return undefined;
 
   for (let idx = messages.length - 1; idx >= 0; idx -= 1) {
