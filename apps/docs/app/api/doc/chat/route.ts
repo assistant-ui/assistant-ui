@@ -29,9 +29,29 @@ const SOURCE_SNAPSHOT_PATH = path.join(
   "source-snapshot.json",
 );
 
-const SOURCE_SNAPSHOT = JSON.parse(
-  readFileSync(SOURCE_SNAPSHOT_PATH, "utf-8"),
-) as Record<string, string>;
+function loadSourceSnapshot(): Record<string, string> {
+  try {
+    return JSON.parse(
+      readFileSync(SOURCE_SNAPSHOT_PATH, "utf-8"),
+    ) as Record<string, string>;
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      console.warn(
+        `Missing source snapshot at ${SOURCE_SNAPSHOT_PATH}; repo tools will be unavailable until generate:docs runs.`,
+      );
+      return {};
+    }
+
+    throw error;
+  }
+}
+
+const SOURCE_SNAPSHOT = loadSourceSnapshot();
 
 function normalizeSegment(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-");
