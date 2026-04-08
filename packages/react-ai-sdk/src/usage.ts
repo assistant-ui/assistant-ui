@@ -14,6 +14,8 @@ export interface TokenUsageExtractableMessage {
   metadata?: unknown;
 }
 
+export type ThreadUsageExtractableMessage = TokenUsageExtractableMessage;
+
 type UsageRecord = Record<string, unknown>;
 
 const USAGE_KEYS = [
@@ -128,9 +130,20 @@ export function getThreadMessageTokenUsage(
   return usageFromSteps(metadata.steps);
 }
 
+export function getLatestThreadTokenUsage(
+  messages: readonly ThreadUsageExtractableMessage[] | undefined,
+): ThreadTokenUsage | undefined {
+  if (!messages) return undefined;
+
+  for (let idx = messages.length - 1; idx >= 0; idx -= 1) {
+    const usage = getThreadMessageTokenUsage(messages[idx]);
+    if (usage) return usage;
+  }
+
+  return undefined;
+}
+
 export function useThreadTokenUsage(): ThreadTokenUsage | undefined {
-  const lastAssistant = useAuiState((s) =>
-    s.thread.messages.findLast((m) => m.role === "assistant"),
-  );
-  return getThreadMessageTokenUsage(lastAssistant);
+  const messages = useAuiState((s) => s.thread.messages);
+  return getLatestThreadTokenUsage(messages);
 }
