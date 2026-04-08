@@ -100,6 +100,7 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
         newState = newState.filter((ui) => ui.id !== event.id);
         continue;
       }
+      // newState.findIndex (not state): forward semantics avoids upstream batch aliasing
       const index = newState.findIndex((ui) => ui.id === event.id);
       if (index !== -1) {
         const shouldMerge =
@@ -114,16 +115,16 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
       }
     }
     this.uiMessages = newState;
-    return this.uiMessages;
+    return this.getUIMessages();
   }
 
   public replaceUIMessages(newUIMessages: UIMessage[]): UIMessage[] {
     this.uiMessages = [...newUIMessages];
-    return this.uiMessages;
+    return this.getUIMessages();
   }
 
   public getUIMessages(): UIMessage[] {
-    return this.uiMessages;
+    return [...this.uiMessages];
   }
 
   public clear() {

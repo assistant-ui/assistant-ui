@@ -158,4 +158,25 @@ describe("LangGraphMessageAccumulator UI reducer", () => {
 
     expect(acc.getUIMessages()[0]!.props).toEqual({ b: 2 });
   });
+
+  it("returns defensive copies that cannot corrupt internal state", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+
+    // getUIMessages returns a copy
+    acc.applyUIUpdate(makeUIMessage("ui-1", "chart"));
+    const fromGetter = acc.getUIMessages();
+    fromGetter.push(makeUIMessage("fake-1", "table"));
+    expect(acc.getUIMessages()).toHaveLength(1);
+
+    // applyUIUpdate return is a copy
+    const fromApply = acc.applyUIUpdate(makeUIMessage("ui-2", "chart"));
+    fromApply.push(makeUIMessage("fake-2", "table"));
+    expect(acc.getUIMessages()).toHaveLength(2);
+
+    // replaceUIMessages return is a copy
+    const fromReplace = acc.replaceUIMessages([makeUIMessage("ui-3", "chart")]);
+    fromReplace.push(makeUIMessage("fake-3", "table"));
+    expect(acc.getUIMessages()).toHaveLength(1);
+    expect(acc.getUIMessages()[0]!.id).toBe("ui-3");
+  });
 });
