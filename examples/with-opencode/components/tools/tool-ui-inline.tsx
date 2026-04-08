@@ -3,8 +3,14 @@
 import { memo, useMemo } from "react";
 import { CheckIcon, LoaderIcon, XCircleIcon } from "lucide-react";
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import { cn } from "@/lib/utils";
 
-// ── Shared helpers ──────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────
+
+const truncate = (s: string, max = 80): string =>
+  s.length > max ? `${s.slice(0, max - 3)}...` : s;
+
+const str = (v: unknown): string => (typeof v === "string" ? v : "");
 
 const basename = (filepath: string): string => {
   const parts = filepath.split("/").filter(Boolean);
@@ -17,14 +23,9 @@ const shortenPath = (filepath: string, depth = 2): string => {
   return parts.slice(-depth).join("/");
 };
 
-const truncate = (s: string, max = 80): string =>
-  s.length > max ? `${s.slice(0, max - 3)}...` : s;
-
-const str = (v: unknown): string => (typeof v === "string" ? v : "");
-
 const unique = <T,>(items: readonly T[]) => [...new Set(items)];
 
-// ── StatusIcon ──────────────────────────────────────────────────────────
+// ── StatusIcon ─────────────────────────────────────────────────────────
 
 const StatusIcon = ({
   statusType,
@@ -38,13 +39,13 @@ const StatusIcon = ({
   if (statusType === "incomplete")
     return (
       <XCircleIcon
-        className={`size-3 shrink-0 ${isCancelled ? "" : "text-destructive"}`}
+        className={cn("size-3 shrink-0", !isCancelled && "text-destructive")}
       />
     );
   return <CheckIcon className="size-3 shrink-0" />;
 };
 
-// ── Shared inline shell ─────────────────────────────────────────────────
+// ── ToolCallShell ──────────────────────────────────────────────────────
 
 const ToolCallShell = ({
   toolName,
@@ -64,7 +65,10 @@ const ToolCallShell = ({
     <div className="flex items-center gap-2 py-0.5 text-muted-foreground text-sm">
       <StatusIcon statusType={statusType} isCancelled={isCancelled} />
       <span
-        className={`flex items-center gap-1.5 truncate ${isCancelled ? "line-through opacity-50" : ""}`}
+        className={cn(
+          "flex items-center gap-1.5 truncate",
+          isCancelled && "line-through opacity-50",
+        )}
       >
         <span className="font-medium">{toolName}</span>
         {children}
@@ -73,99 +77,59 @@ const ToolCallShell = ({
   );
 };
 
-// ── Per-tool inline components ──────────────────────────────────────────
+// ── Factory for simple inline tools ────────────────────────────────────
 
-/** Read — show shortened path (last 2 segments) */
-export const ReadInline: ToolCallMessagePartComponent = memo(
-  ({ toolName, args, status }) => (
-    <ToolCallShell toolName={toolName} status={status}>
-      <span className="opacity-60">
-        {truncate(
-          shortenPath(
-            str(args?.file_path ?? args?.filePath ?? args?.path ?? args?.file),
-          ),
-        )}
-      </span>
-    </ToolCallShell>
-  ),
+const inlineTool = (
+  argKeys: string | string[],
+  format: (v: string) => string = truncate,
+): ToolCallMessagePartComponent => {
+  const keys = Array.isArray(argKeys) ? argKeys : [argKeys];
+  const Component: ToolCallMessagePartComponent = memo(
+    ({ toolName, args, status }) => {
+      const value = keys.reduce<string>(
+        (acc, key) => acc || str((args as Record<string, unknown>)?.[key]),
+        "",
+      );
+      return (
+        <ToolCallShell toolName={toolName} status={status}>
+          {value && <span className="opacity-60">{format(value)}</span>}
+        </ToolCallShell>
+      );
+    },
+  );
+  return Component;
+};
+
+// ── Per-tool inline components ─────────────────────────────────────────
+
+export const ReadInline = inlineTool(
+  ["file_path", "filePath", "path", "file"],
+  (v) => truncate(shortenPath(v)),
 );
 ReadInline.displayName = "ReadInline";
 
-/** Edit — show basename of the file */
-export const EditInline: ToolCallMessagePartComponent = memo(
-  ({ toolName, args, status }) => (
-    <ToolCallShell toolName={toolName} status={status}>
-      <span className="opacity-60">{basename(str(args?.file_path))}</span>
-    </ToolCallShell>
-  ),
-);
+export const EditInline = inlineTool("file_path", basename);
 EditInline.displayName = "EditInline";
 
-/** Write — show basename of the file */
-export const WriteInline: ToolCallMessagePartComponent = memo(
-  ({ toolName, args, status }) => (
-    <ToolCallShell toolName={toolName} status={status}>
-      <span className="opacity-60">{basename(str(args?.file_path))}</span>
-    </ToolCallShell>
-  ),
-);
+export const WriteInline = inlineTool("file_path", basename);
 WriteInline.displayName = "WriteInline";
 
-/** Bash — show truncated command */
-export const BashInline: ToolCallMessagePartComponent = memo(
-  ({ toolName, args, status }) => (
-    <ToolCallShell toolName={toolName} status={status}>
-      <span className="opacity-60">{truncate(str(args?.command))}</span>
-    </ToolCallShell>
-  ),
-);
-BashInline.displayName = "BashInline";
-
-/** Grep — show the search pattern */
-export const GrepInline: ToolCallMessagePartComponent = memo(
-  ({ toolName, args, status }) => (
-    <ToolCallShell toolName={toolName} status={status}>
-      <span className="opacity-60">{truncate(str(args?.pattern))}</span>
-    </ToolCallShell>
-  ),
-);
+export const GrepInline = inlineTool("pattern");
 GrepInline.displayName = "GrepInline";
 
-/** Glob — show the glob pattern */
-export const GlobInline: ToolCallMessagePartComponent = memo(
-  ({ toolName, args, status }) => (
-    <ToolCallShell toolName={toolName} status={status}>
-      <span className="opacity-60">{truncate(str(args?.pattern))}</span>
-    </ToolCallShell>
-  ),
-);
+export const GlobInline = inlineTool("pattern");
 GlobInline.displayName = "GlobInline";
 
-/** WebSearch — show the query */
-export const WebSearchInline: ToolCallMessagePartComponent = memo(
-  ({ toolName, args, status }) => (
-    <ToolCallShell toolName={toolName} status={status}>
-      <span className="opacity-60">{truncate(str(args?.query))}</span>
-    </ToolCallShell>
-  ),
-);
+export const WebSearchInline = inlineTool("query");
 WebSearchInline.displayName = "WebSearchInline";
 
-/** WebFetch — show the URL */
-export const WebFetchInline: ToolCallMessagePartComponent = memo(
-  ({ toolName, args, status }) => (
-    <ToolCallShell toolName={toolName} status={status}>
-      <span className="opacity-60">{truncate(str(args?.url))}</span>
-    </ToolCallShell>
-  ),
-);
+export const WebFetchInline = inlineTool("url");
 WebFetchInline.displayName = "WebFetchInline";
 
-/** apply_patch — show file(s) + added/removed line counts */
+// ── ApplyPatch — custom logic for diff stats ───────────────────────────
+
 export const ApplyPatchInline: ToolCallMessagePartComponent = memo(
   ({ toolName, args, status }) => {
-    const statusType = status?.type ?? "complete";
-    const isRunning = statusType === "running";
     const patchText = str(args?.patchText);
 
     const patchInfo = useMemo(() => {
@@ -190,6 +154,8 @@ export const ApplyPatchInline: ToolCallMessagePartComponent = memo(
 
       return { files, added, removed };
     }, [patchText]);
+
+    const isRunning = status?.type === "running";
 
     return (
       <ToolCallShell toolName={toolName} status={status}>
@@ -216,7 +182,7 @@ export const ApplyPatchInline: ToolCallMessagePartComponent = memo(
 );
 ApplyPatchInline.displayName = "ApplyPatchInline";
 
-// ── Fallback — truly generic, for unknown/MCP tools ─────────────────────
+// ── Fallback — generic, for unknown/MCP tools ─────────────────────────
 
 const SUMMARY_KEYS = [
   "file_path",

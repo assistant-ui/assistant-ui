@@ -6,7 +6,7 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { Reasoning } from "@/components/assistant-ui/reasoning";
 import { ReasoningGroup } from "@/components/tools/reasoning-ghost";
-import { BashTerminal } from "@/components/tools/bash-terminal";
+import { BashTerminal } from "@/components/tools/tool-ui-bash";
 import {
   ApplyPatchInline,
   EditInline,
@@ -17,7 +17,7 @@ import {
   WebFetchInline,
   WebSearchInline,
   WriteInline,
-} from "@/components/tools/tool-call-inline";
+} from "@/components/tools/tool-ui-inline";
 import { ToolGroup } from "@/components/tools/tool-group";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { OpenCodeDataPart } from "@/components/opencode-data-part";
