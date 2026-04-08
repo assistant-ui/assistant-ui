@@ -574,6 +574,26 @@ The adapter mirrors the reducer in `@langchain/langgraph-sdk/react-ui` exactly:
 - Emitting `{ type: "remove-ui", id }` (via `delete_ui_message` / `ui.delete(id)`) removes the entry
 - UI messages without `metadata.message_id` are held in the runtime but not injected into any message; use `useLangGraphUIMessages()` to access the raw list if needed
 
+### Restore persisted UI messages on thread switch
+
+If your graph persists UI messages in state via `typedUi`, return them from the `load` callback so they're restored when the user switches threads or refreshes the page:
+
+```tsx
+const runtime = useLangGraphRuntime({
+  stream: async function* (messages, { initialize }) { /* ... */ },
+  load: async (externalId) => {
+    const state = await getThreadState(externalId);
+    return {
+      messages: state.values.messages,
+      uiMessages: state.values.ui,
+      interrupts: state.tasks[0]?.interrupts,
+    };
+  },
+});
+```
+
+Without this, each reload starts with an empty UI list even though the messages themselves are loaded.
+
 ### Escape hatch: `useLangGraphUIMessages`
 
 ```tsx
