@@ -101,7 +101,7 @@ export const sendMessage = (params: {
           model_name: "openai",
         },
       },
-      streamMode: ["messages-tuple", "values"],
+      streamMode: ["messages-tuple", "values", "custom"],
       ...(checkpointId && { checkpoint_id: checkpointId }),
       ...restConfig,
     },
