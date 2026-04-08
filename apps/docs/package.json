@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "pnpm generate:docs && next build",
-    "generate:docs": "tsx ./scripts/generate-docs.mts && tsx ./scripts/generate-primitive-docs.mts",
+    "generate:docs": "tsx ./scripts/generate-docs.mts && tsx ./scripts/generate-primitive-docs.mts && tsx ./scripts/generate-source-snapshot.mts",
     "dev": "pnpm generate:docs && next dev",
     "start": "next start",
     "postinstall": "fumadocs-mdx"
@@ -81,7 +81,6 @@
     "streamdown": "^2.5.0",
     "tailwind-merge": "^3.5.0",
     "tailwind-scrollbar": "^4.0.2",
-    "tar-stream": "^3.1.8",
     "tw-glass": "workspace:*",
     "tw-shimmer": "workspace:*",
     "vaul": "^1.1.2",
@@ -97,7 +96,6 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "@types/tar-stream": "^3.1.4",
     "postcss": "^8.5.8",
     "react-grab": "^0.1.29",
     "tailwindcss": "^4.2.2",

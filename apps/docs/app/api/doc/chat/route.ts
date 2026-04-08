@@ -83,14 +83,54 @@ function normalizeDocPath(slugOrUrl: string, routeUrl: string): string {
 
 export const maxDuration = 300;
 
-async function getBashToolkit() {
-  const files = await getSourceSnapshot();
-  return createBashTool({
-    files,
-    destination: "/repo",
-    maxFiles: 5000,
-    maxOutputLength: 15000,
-  });
+function createRepoTools() {
+  let bashToolkitPromise: Promise<Awaited<ReturnType<typeof createBashTool>>> | null =
+    null;
+
+  const getBashToolkit = () => {
+    if (!bashToolkitPromise) {
+      bashToolkitPromise = createBashTool({
+        files: getSourceSnapshot(),
+        destination: "/repo",
+        maxFiles: 5000,
+        maxOutputLength: 15000,
+      });
+    }
+
+    return bashToolkitPromise;
+  };
+
+  return {
+    bash: tool({
+      description:
+        "Execute bash commands in the /repo sandbox containing the assistant-ui monorepo.",
+      inputSchema: zodSchema(
+        z.object({
+          command: z
+            .string()
+            .describe("The bash command to execute from the /repo directory."),
+        }),
+      ),
+      execute: async ({ command }) => {
+        const { tools } = await getBashToolkit();
+        return tools.bash.execute!( { command }, {} );
+      },
+    }),
+    readFile: tool({
+      description: "Read the contents of a source file from the /repo sandbox.",
+      inputSchema: zodSchema(
+        z.object({
+          path: z
+            .string()
+            .describe("The repo-relative file path to read from /repo."),
+        }),
+      ),
+      execute: async ({ path }) => {
+        const { tools } = await getBashToolkit();
+        return tools.readFile.execute!( { path }, {} );
+      },
+    }),
+  };
 }
 
 const SYSTEM_PROMPT = `You are the assistant-ui docs assistant.
@@ -228,7 +268,7 @@ export async function POST(req: Request): Promise<Response> {
         })
       : null;
 
-    const { tools: bashTools } = await getBashToolkit();
+    const repoTools = createRepoTools();
 
     const result = streamText({
       model: prism?.model ?? posthogModel,
@@ -238,8 +278,7 @@ export async function POST(req: Request): Promise<Response> {
       stopWhen: stepCountIs(25),
       tools: {
         ...frontendTools(tools),
-        bash: bashTools.bash,
-        readFile: bashTools.readFile,
+        ...repoTools,
         listDocs: tool({
           description:
             "List documentation pages. Use with no path for root categories, or specify path to browse a section.",
