@@ -18,6 +18,7 @@ import {
   WebSearchInline,
   WriteInline,
 } from "@/components/tools/tool-call-inline";
+import { ToolGroup } from "@/components/tools/tool-group";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { OpenCodeDataPart } from "@/components/opencode-data-part";
 import { Button } from "@/components/ui/button";
@@ -241,6 +242,7 @@ const AssistantMessage: FC = () => {
               },
               Fallback: ToolCallFallback,
             },
+            ToolGroup,
             data: {
               by_name: {
                 "opencode-step-start": OpenCodeDataPart,
