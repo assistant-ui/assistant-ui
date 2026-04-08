@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  DataMessagePart,
   ThreadAssistantMessage,
   ThreadUserMessage,
   ToolCallMessagePart,
@@ -10,6 +11,7 @@ import {
   LangChainMessage,
   LangChainToolCall,
   LangChainToolCallChunk,
+  UIMessage,
 } from "./types";
 import {
   parsePartialJsonObject,
@@ -19,7 +21,14 @@ import {
 type LangGraphMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
+    uiMessagesByParent?: Map<string, UIMessage[]>;
   };
+
+const uiMessageToDataPart = (ui: UIMessage): DataMessagePart => ({
+  type: "data",
+  name: ui.name,
+  data: ui.props,
+});
 
 const hasOwn = (value: object, key: string) =>
   Object.prototype.hasOwnProperty.call(value, key);
@@ -325,12 +334,20 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         ...(message.additional_kwargs?.tool_outputs ?? []),
       ].filter((c) => c !== undefined);
 
+      const uiDataParts: DataMessagePart[] =
+        message.id && metadata.uiMessagesByParent?.has(message.id)
+          ? metadata.uiMessagesByParent
+              .get(message.id)!
+              .map(uiMessageToDataPart)
+          : [];
+
       return {
         role: "assistant",
         id: message.id,
         content: [
           ...contentToParts(allContent, metadata, message.id),
           ...toolCallParts,
+          ...uiDataParts,
         ],
         metadata: { custom: getCustomMetadata(message.additional_kwargs) },
         ...(message.status && { status: message.status }),

@@ -11,6 +11,7 @@ import {
   OnErrorEventCallback,
   OnInfoEventCallback,
   OnMetadataEventCallback,
+  UIMessage,
 } from "./types";
 import {
   getExternalStoreMessages,
@@ -116,6 +117,7 @@ type LangGraphRuntimeExtras = {
   ) => Promise<void>;
   interrupt: LangGraphInterruptState | undefined;
   messageMetadata: Map<string, LangGraphTupleMetadata>;
+  uiMessages: readonly UIMessage[];
 };
 
 const asLangGraphRuntimeExtras = (extras: unknown): LangGraphRuntimeExtras => {
@@ -164,10 +166,26 @@ export const useLangGraphMessageMetadata = () => {
   return messageMetadata;
 };
 
-type UseLangGraphRuntimeOptions = {
+const EMPTY_UI_MESSAGES: readonly UIMessage[] = Object.freeze([]);
+
+export const useLangGraphUIMessages = () => {
+  return useAuiState((s) => {
+    const extras = s.thread.extras;
+    if (!extras) return EMPTY_UI_MESSAGES;
+    return asLangGraphRuntimeExtras(extras).uiMessages;
+  });
+};
+
+export type UseLangGraphRuntimeOptions = {
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;
   stream: LangGraphStreamCallback<LangChainMessage>;
+  /**
+   * State key under which LangGraph's `typed_ui` writes Generative UI
+   * messages in the graph state. Must match the `stateKey` option passed to
+   * `typedUi(config, { stateKey })` on the server. Defaults to `"ui"`.
+   */
+  uiStateKey?: string;
   /**
    * Resolves a checkpoint ID for a given thread and message history.
    * When provided, enables message editing (onEdit) and regeneration (onReload).
@@ -251,6 +269,21 @@ const truncateLangChainMessages = (
   return truncated;
 };
 
+const filterUIMessagesBySurvivingIds = (
+  uiMessages: readonly UIMessage[],
+  survivingMessages: readonly LangChainMessage[],
+): UIMessage[] => {
+  const survivingIds = new Set<string>();
+  for (const m of survivingMessages) {
+    if (m.id) survivingIds.add(m.id);
+  }
+  return uiMessages.filter((ui) => {
+    const parentId = ui.metadata?.message_id;
+    if (!parentId) return true; // keep orphans; they're accessible via the hook
+    return survivingIds.has(parentId);
+  });
+};
+
 const useLangGraphRuntimeImpl = ({
   autoCancelPendingToolCalls,
   adapters: { attachments, feedback, speech } = {},
@@ -260,6 +293,7 @@ const useLangGraphRuntimeImpl = ({
   load = _onSwitchToThread,
   getCheckpointId,
   eventHandlers,
+  uiStateKey,
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
   const {
@@ -267,13 +301,16 @@ const useLangGraphRuntimeImpl = ({
     setInterrupt,
     messages,
     messageMetadata,
+    uiMessages,
     sendMessage,
     cancel,
     setMessages,
+    setUIMessages,
   } = useLangGraphMessages({
     appendMessage: appendLangChainChunk,
     stream,
     ...(eventHandlers && { eventHandlers }),
+    ...(uiStateKey !== undefined && { uiStateKey }),
   });
 
   const [isRunning, setIsRunning] = useState(false);
@@ -288,12 +325,29 @@ const useLangGraphRuntimeImpl = ({
   );
   const effectiveIsRunning = isRunning || hasExecutingTools;
 
+  const uiMessagesByParent = useMemo(() => {
+    const map = new Map<string, UIMessage[]>();
+    for (const ui of uiMessages) {
+      const parentId = ui.metadata?.message_id;
+      if (!parentId) continue;
+      const existing = map.get(parentId);
+      if (existing) {
+        existing.push(ui);
+      } else {
+        map.set(parentId, [ui]);
+      }
+    }
+    return map;
+  }, [uiMessages]);
+
+  // fresh object on uiMessagesByParent change invalidates the converter cache
   const converterMetadata = useMemo(
     () =>
       ({
         toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
+        uiMessagesByParent,
       }) as unknown as useExternalMessageConverter.Metadata,
-    [],
+    [uiMessagesByParent],
   );
 
   const handleSendMessage = async (
@@ -317,6 +371,9 @@ const useLangGraphRuntimeImpl = ({
 
   const threadMessagesRef = useRef(threadMessages);
   threadMessagesRef.current = threadMessages;
+
+  const uiMessagesRef = useRef(uiMessages);
+  uiMessagesRef.current = uiMessages;
 
   const [runtimeRef] = useState(() => ({
     get current() {
@@ -362,6 +419,7 @@ const useLangGraphRuntimeImpl = ({
       [symbolLangGraphRuntimeExtras]: true,
       interrupt,
       messageMetadata,
+      uiMessages,
       send: handleSendMessage,
     } satisfies LangGraphRuntimeExtras,
     onNew: async (msg) => {
@@ -425,6 +483,9 @@ const useLangGraphRuntimeImpl = ({
             msg.parentId,
           );
           setMessages(truncated);
+          setUIMessages(
+            filterUIMessagesBySurvivingIds(uiMessagesRef.current, truncated),
+          );
           setInterrupt(undefined);
           const externalId = aui.threadListItem().getState().externalId;
           const checkpointId = externalId
@@ -447,6 +508,9 @@ const useLangGraphRuntimeImpl = ({
             parentId,
           );
           setMessages(truncated);
+          setUIMessages(
+            filterUIMessagesBySurvivingIds(uiMessagesRef.current, truncated),
+          );
           setInterrupt(undefined);
           const externalId = aui.threadListItem().getState().externalId;
           const checkpointId = externalId
@@ -481,9 +545,11 @@ const useLangGraphRuntimeImpl = ({
 
       load(externalId).then(({ messages, interrupts }) => {
         setMessages(messages);
+        // new thread: drop any UI state from the previous thread
+        setUIMessages([]);
         setInterrupt(interrupts?.[0]);
       });
-    }, [aui, setMessages, setInterrupt]);
+    }, [aui, setMessages, setUIMessages, setInterrupt]);
   }
 
   return runtime;

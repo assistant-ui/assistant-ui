@@ -14,9 +14,19 @@ import {
   OnErrorEventCallback,
   OnInfoEventCallback,
   OnMetadataEventCallback,
+  RemoveUIMessage,
+  UIMessage,
 } from "./types";
 import { useAui } from "@assistant-ui/store";
 import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage";
+
+const DEFAULT_UI_STATE_KEY = "ui";
+
+const isUIUpdate = (value: unknown): value is UIMessage | RemoveUIMessage => {
+  if (value == null || typeof value !== "object") return false;
+  const type = (value as { type?: unknown }).type;
+  return type === "ui" || type === "remove-ui";
+};
 
 export type LangGraphCommand = {
   resume: string;
@@ -116,9 +126,16 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
   stream,
   appendMessage = DEFAULT_APPEND_MESSAGE,
   eventHandlers,
+  uiStateKey = DEFAULT_UI_STATE_KEY,
 }: {
   stream: LangGraphStreamCallback<TMessage>;
   appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
+  /**
+   * State key under which `typedUi` writes UI messages in the graph state.
+   * Must match the `stateKey` option passed to `typedUi(config, { stateKey })`
+   * on the server. Defaults to `"ui"`.
+   */
+  uiStateKey?: string;
   eventHandlers?: {
     onMessageChunk?: OnMessageChunkCallback;
     onValues?: OnValuesEventCallback;
@@ -139,6 +156,15 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
   const setMessagesImmediate = useCallback((msgs: TMessage[]) => {
     messagesRef.current = msgs;
     _setMessages(msgs);
+  }, []);
+
+  const [uiMessages, _setUIMessages] = useState<UIMessage[]>([]);
+  const uiMessagesRef = useRef(uiMessages);
+  uiMessagesRef.current = uiMessages;
+
+  const setUIMessagesImmediate = useCallback((next: UIMessage[]) => {
+    uiMessagesRef.current = next;
+    _setUIMessages(next);
   }, []);
 
   const [messageMetadata, setMessageMetadata] = useState<
@@ -166,6 +192,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
 
       const accumulator = new LangGraphMessageAccumulator({
         initialMessages: messagesRef.current,
+        initialUIMessages: uiMessagesRef.current,
         appendMessage,
       });
       setMessagesImmediate(accumulator.addMessages(newMessagesWithId));
@@ -183,6 +210,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
 
         let hasTupleMessageEvents = false;
         let lastValuesMessages: TMessage[] | null = null;
+        let lastValuesUIMessages: UIMessage[] | null = null;
         for await (const chunk of response) {
           switch (chunk.event) {
             case LangGraphKnownEventTypes.MessagesPartial:
@@ -217,6 +245,14 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                     accumulator.replaceMessages(chunk.data.messages),
                   );
                 }
+              }
+              if (Array.isArray(chunk.data?.[uiStateKey])) {
+                // values is a full state snapshot, replace UI list wholesale
+                const valuesUIMessages = chunk.data[uiStateKey] as UIMessage[];
+                lastValuesUIMessages = valuesUIMessages;
+                setUIMessagesImmediate(
+                  accumulator.replaceUIMessages(valuesUIMessages),
+                );
               }
               break;
             case LangGraphKnownEventTypes.Messages: {
@@ -282,7 +318,12 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               }
               break;
             }
-            default:
+            default: {
+              // push_ui_message also writes raw ui/remove-ui events here
+              if (isUIUpdate(chunk.data)) {
+                setUIMessagesImmediate(accumulator.applyUIUpdate(chunk.data));
+                break;
+              }
               if (onCustomEvent) {
                 onCustomEvent(chunk.event, chunk.data);
               } else {
@@ -293,6 +334,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                 );
               }
               break;
+            }
           }
         }
 
@@ -300,6 +342,11 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
         if (lastValuesMessages && !abortController.signal.aborted) {
           setMessagesImmediate(accumulator.replaceMessages(lastValuesMessages));
           setMessageMetadata(new Map(accumulator.getMetadataMap()));
+        }
+        if (lastValuesUIMessages && !abortController.signal.aborted) {
+          setUIMessagesImmediate(
+            accumulator.replaceUIMessages(lastValuesUIMessages),
+          );
         }
       } catch (error) {
         if (
@@ -317,8 +364,10 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     [
       aui,
       setMessagesImmediate,
+      setUIMessagesImmediate,
       appendMessage,
       stream,
+      uiStateKey,
       onMessageChunk,
       onValues,
       onUpdates,
@@ -339,9 +388,11 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     interrupt,
     messages,
     messageMetadata,
+    uiMessages,
     sendMessage,
     cancel,
     setInterrupt,
     setMessages: setMessagesImmediate,
+    setUIMessages: setUIMessagesImmediate,
   };
 };

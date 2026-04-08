@@ -4,7 +4,9 @@ export {
   useLangGraphSendCommand,
   useLangGraphInterruptState,
   useLangGraphMessageMetadata,
+  useLangGraphUIMessages,
 } from "./useLangGraphRuntime";
+export type { UseLangGraphRuntimeOptions } from "./useLangGraphRuntime";
 
 export {
   useLangGraphMessages,
@@ -30,6 +32,8 @@ export type {
   OnInfoEventCallback,
   OnErrorEventCallback,
   OnCustomEventCallback,
+  UIMessage,
+  RemoveUIMessage,
 } from "./types";
 
 export { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";

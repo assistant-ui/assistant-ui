@@ -174,6 +174,29 @@ export type LangChainMessageTupleEvent = {
   data: [LangChainMessage | LangChainMessageChunk, LangGraphTupleMetadata];
 };
 
+export type UIMessage<
+  TName extends string = string,
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> = {
+  type: "ui";
+  id: string;
+  name: TName;
+  props: TProps;
+  metadata?: {
+    merge?: boolean;
+    run_id?: string;
+    name?: string;
+    tags?: string[];
+    message_id?: string;
+    [key: string]: unknown;
+  };
+};
+
+export type RemoveUIMessage = {
+  type: "remove-ui";
+  id: string;
+};
+
 export type OnMessageChunkCallback = (
   chunk: LangChainMessageChunk,
   metadata: LangGraphTupleMetadata,
