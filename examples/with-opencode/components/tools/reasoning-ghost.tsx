@@ -1,9 +1,9 @@
 "use client";
 
 import { memo } from "react";
-import clsx from "clsx";
 import { BrainIcon } from "lucide-react";
 import { useAuiState, type ReasoningGroupComponent } from "@assistant-ui/react";
+import { cn } from "@/lib/utils";
 
 const ReasoningGroupImpl: ReasoningGroupComponent = ({
   children,
@@ -22,11 +22,22 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
     return totalLength > 120;
   });
 
+  const textAfter = useAuiState((s) => {
+    for (let i = endIndex + 1; i < s.message.parts.length; i++) {
+      const type = s.message.parts[i]?.type;
+      if (type === "data") continue;
+      return type === "text";
+    }
+    return false;
+  });
+
   return (
     <div
-      className={clsx(
-        "flex items-start gap-2 text-muted-foreground text-sm leading-relaxed",
-        isMultiLine ? "mt-6 mb-4" : "mt-4 mb-2",
+      data-slot="reasoning-group"
+      className={cn(
+        "mt-4 mb-2 flex items-start gap-2 text-muted-foreground text-sm leading-relaxed first:mt-0",
+        isMultiLine && "mt-6 mb-4",
+        textAfter && "mb-4",
       )}
     >
       <BrainIcon className="mt-[3.25px] size-3.5 shrink-0" />

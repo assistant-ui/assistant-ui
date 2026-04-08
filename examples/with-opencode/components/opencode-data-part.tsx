@@ -1,5 +1,6 @@
 "use client";
 
+import { WrenchIcon } from "lucide-react";
 import type { FC } from "react";
 
 type OpenCodeDataPartProps = {
@@ -62,7 +63,8 @@ export const OpenCodeDataPart: FC<OpenCodeDataPartProps> = ({ name, data }) => {
   const summary = getSummary(name, data);
 
   return (
-    <div className="my-1 rounded-xl border bg-muted/50 px-2 py-1 text-muted-foreground text-xs">
+    <div className="my-3 flex w-min items-center gap-2 text-nowrap rounded-full border bg-muted/30 px-2 py-1 text-muted-foreground text-xs">
+      <WrenchIcon className="size-3" />
       {summary}
     </div>
   );
