@@ -609,16 +609,9 @@ const MessagePrimitivePartsInner: FC<{
                     };
                   }
                   if (state.type === "data") {
-                    const drState = aui.dataRenderers().getState();
-                    const entry = drState.renderers[state.name];
-                    const hasUI =
-                      (Array.isArray(entry) && !!entry[0]) ||
-                      !!drState.fallback;
                     return {
                       ...state,
-                      dataRendererUI: hasUI ? (
-                        <RegisteredDataRendererUI />
-                      ) : null,
+                      dataRendererUI: <RegisteredDataRendererUI />,
                     };
                   }
                   return state;
