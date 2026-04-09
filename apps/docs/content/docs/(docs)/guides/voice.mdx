@@ -303,13 +303,20 @@ const runtime = useChatRuntime({
 
 ## Example: LiveKit
 
-[LiveKit](https://livekit.io/) provides realtime voice via WebRTC rooms with transcription support.
+[LiveKit](https://livekit.io/) provides realtime voice via WebRTC rooms with transcription support. Unlike fully-hosted agent services, LiveKit follows a "bring-your-own-agent" model: the browser adapter only joins a room, and you run a separate **agent worker** that joins the same room and handles STT, LLM, and TTS. Without an agent in the room, the client will connect successfully but have nothing to talk to.
+
+### Prerequisites
+
+1. **A LiveKit server** — create a [LiveKit Cloud](https://cloud.livekit.io/) project (grab the URL, API Key, and API Secret from the project settings) or self-host `livekit-server`.
+2. **An agent worker** — built with the [LiveKit Agents SDK](https://docs.livekit.io/agents/) (Python or Node). The worker connects to your LiveKit server and is automatically dispatched into new rooms.
 
 ### Install Dependencies
 
 ```bash
-npm install livekit-client
+npm install livekit-client livekit-server-sdk
 ```
+
+`livekit-client` powers the browser adapter; `livekit-server-sdk` is used server-side to mint access tokens.
 
 ### Usage
 
@@ -330,4 +337,4 @@ const runtime = useChatRuntime({
 });
 ```
 
-See the `examples/with-livekit` directory in the repository for a complete implementation including the adapter and token endpoint.
+See the [`with-livekit` example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-livekit) for a complete implementation: the browser adapter, the token endpoint, and a minimal Python agent worker using the OpenAI Realtime API.
