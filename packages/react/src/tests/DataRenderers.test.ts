@@ -224,6 +224,18 @@ describe("DataRenderers fallback state logic", () => {
     expect(s.state.fallback).toBe(Fallback2);
   });
 
+  it("should clear fallback when the active registration unmounts (single-slot)", () => {
+    const s = createState();
+    const Fallback1 = (() => null) as unknown as DataMessagePartComponent;
+    const Fallback2 = (() => null) as unknown as DataMessagePartComponent;
+
+    s.setFallbackDataUI(Fallback1);
+    const unsub2 = s.setFallbackDataUI(Fallback2);
+
+    unsub2();
+    expect(s.state.fallback).toBeUndefined();
+  });
+
   it("should not affect named renderers when setting fallback", () => {
     const s = createState();
     const Named = (() => null) as unknown as DataMessagePartComponent;
