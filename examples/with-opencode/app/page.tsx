@@ -8,7 +8,10 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar";
-import { useOpenCodeRuntime } from "@assistant-ui/react-opencode";
+import {
+  useOpenCodeRuntime,
+  useOpenCodeSession,
+} from "@assistant-ui/react-opencode";
 import { Thread } from "../components/assistant-ui/thread";
 import { OpenCodePermissions } from "../components/opencode-permissions";
 
@@ -27,8 +30,9 @@ export default function Home() {
             <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
               <SidebarTrigger />
               <Separator orientation="vertical" className="mr-2 h-4" />
-              <div>
+              <div className="min-w-0">
                 <div className="font-medium text-sm">OpenCode</div>
+                <SelectedSessionTitle />
               </div>
             </header>
             <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -43,5 +47,18 @@ export default function Home() {
         </div>
       </SidebarProvider>
     </AssistantRuntimeProvider>
+  );
+}
+
+function SelectedSessionTitle() {
+  const session = useOpenCodeSession();
+  const title = session?.title?.trim();
+
+  if (!title) return null;
+
+  return (
+    <div className="truncate text-muted-foreground text-xs leading-tight">
+      {title}
+    </div>
   );
 }
