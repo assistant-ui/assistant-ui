@@ -7,8 +7,8 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { Reasoning } from "@/components/assistant-ui/reasoning";
 import { ReasoningGroup } from "@/components/tools/reasoning-ghost";
 import { BashTerminal } from "@/components/tools/tool-ui-bash";
+import { ApplyPatchDiff } from "@/components/tools/tool-ui-apply-patch";
 import {
-  ApplyPatchInline,
   EditInline,
   GlobInline,
   GrepInline,
@@ -238,7 +238,7 @@ const AssistantMessage: FC = () => {
                 glob: GlobInline,
                 webSearch: WebSearchInline,
                 webFetch: WebFetchInline,
-                apply_patch: ApplyPatchInline,
+                apply_patch: ApplyPatchDiff,
               },
               Fallback: ToolCallFallback,
             },
