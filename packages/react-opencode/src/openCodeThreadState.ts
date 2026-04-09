@@ -8,6 +8,7 @@ import type {
   PendingUserMessage,
   ThreadUserMessagePart,
 } from "./types";
+import { serializeUserParts } from "./serializeUserParts";
 
 const PENDING_MATCH_WINDOW_MS = 2 * 60 * 1000;
 const MAX_UNHANDLED_EVENTS = 25;
@@ -24,18 +25,7 @@ const pendingFingerprint = (pending: PendingUserMessage) =>
   normalizeText(pending.contentText);
 
 const partTextFingerprint = (parts: readonly ThreadUserMessagePart[]) =>
-  normalizeText(
-    parts
-      .map((part) => {
-        if (part.type === "text") return part.text;
-        if (part.type === "image") return part.filename ?? part.image;
-        if (part.type === "file") return part.filename ?? part.data;
-        if (part.type === "data") return JSON.stringify(part.data);
-        if (part.type === "audio") return part.audio.data;
-        return "";
-      })
-      .join("\n"),
-  );
+  normalizeText(serializeUserParts(parts));
 
 const serverFingerprint = (message: MessageWithParts) =>
   normalizeText(

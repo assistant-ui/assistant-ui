@@ -40,30 +40,28 @@ type OpenCodeRuntimeExtrasInternal = OpenCodeRuntimeExtras & {
   [symbolOpenCodeRuntimeExtras]: true;
 };
 
+const isOpenCodeRuntimeExtras = (
+  extras: unknown,
+): extras is OpenCodeRuntimeExtrasInternal => {
+  return (
+    typeof extras === "object" &&
+    extras != null &&
+    symbolOpenCodeRuntimeExtras in extras
+  );
+};
+
 const asOpenCodeRuntimeExtras = (extras: unknown) => {
-  if (
-    typeof extras !== "object" ||
-    extras == null ||
-    !(symbolOpenCodeRuntimeExtras in extras)
-  ) {
+  if (!isOpenCodeRuntimeExtras(extras)) {
     throw new Error(
       "This hook can only be used inside an OpenCode runtime context",
     );
   }
 
-  return extras as OpenCodeRuntimeExtrasInternal;
+  return extras;
 };
 
 const tryGetOpenCodeRuntimeExtras = (extras: unknown) => {
-  if (
-    typeof extras !== "object" ||
-    extras == null ||
-    !(symbolOpenCodeRuntimeExtras in extras)
-  ) {
-    return undefined;
-  }
-
-  return extras as OpenCodeRuntimeExtrasInternal;
+  return isOpenCodeRuntimeExtras(extras) ? extras : undefined;
 };
 
 const EMPTY_THREAD_STATE = createOpenCodeThreadState("__pending__");
@@ -116,6 +114,9 @@ const NOOP_CONTROLLER: OpenCodeThreadControllerLike = {
   fork: async () => "",
   replyToPermission: async () => {},
 };
+
+const NOOP_ON_NEW = () =>
+  Promise.reject(new Error("OpenCode session is still initializing"));
 
 const useOpenCodeControllerState = (
   controller: OpenCodeThreadControllerLike,
@@ -179,17 +180,10 @@ const useOpenCodeThreadRuntime = (
     extras,
     onNew: async (message: any) => {
       try {
-        const sendOptions =
-          options.defaultModel || options.defaultAgent
-            ? {
-                ...(options.defaultModel
-                  ? { model: options.defaultModel }
-                  : {}),
-                ...(options.defaultAgent
-                  ? { agent: options.defaultAgent }
-                  : {}),
-              }
-            : undefined;
+        const sendOptions = {
+          model: options.defaultModel,
+          agent: options.defaultAgent,
+        };
         await controller.sendMessage(message, sendOptions);
       } catch (error) {
         options.onError?.(error);
@@ -236,9 +230,7 @@ const useRuntimeHook = (
     isDisabled: true,
     isLoading: true,
     messageRepository: ExportedMessageRepository.fromArray([]),
-    onNew: async () => {
-      throw new Error("OpenCode session is still initializing");
-    },
+    onNew: NOOP_ON_NEW,
   });
 
   if (!sessionId) return fallbackRuntime;
@@ -311,6 +303,8 @@ export const useOpenCodeRuntime = (
       unarchive: async (remoteId: string) => {
         await client.session.update({
           sessionID: remoteId,
+          // The SDK models archived timestamps as numbers, but OpenCode uses
+          // `null` here to clear the archived flag when unarchiving.
           time: { archived: null as never } as never,
         });
       },
@@ -333,6 +327,8 @@ export const useOpenCodeRuntime = (
         await client.session.summarize({
           sessionID: remoteId,
         });
+        // Title updates arrive through the OpenCode event stream, so this
+        // placeholder stream only satisfies the remote thread list contract.
         return new ReadableStream({
           start(controller) {
             controller.close();
@@ -355,6 +351,7 @@ export const useOpenCodeRuntime = (
   return unstable_useRemoteThreadListRuntime({
     allowNesting: true,
     adapter,
+    initialThreadId: options.initialSessionId,
     runtimeHook: () => useRuntimeHook(client, registry, options),
   });
 };

@@ -72,9 +72,11 @@ const normalizeEventPayload = (event: unknown): OpenCodeServerEvent | null => {
 export class OpenCodeEventSource {
   private readonly listeners = new Set<Listener>();
   private readonly reconnectDelayMs = 1_000;
+  private readonly maxReconnectDelayMs = 30_000;
   private abortController: AbortController | null = null;
   private connectionPromise: Promise<void> | null = null;
   private stopped = false;
+  private nextReconnectDelayMs = this.reconnectDelayMs;
 
   constructor(private readonly client: OpencodeClient) {}
 
@@ -110,6 +112,9 @@ export class OpenCodeEventSource {
     const connection = this.run().finally(() => {
       if (this.connectionPromise === connection) {
         this.connectionPromise = null;
+        if (!this.stopped && this.listeners.size > 0) {
+          this.connect();
+        }
       }
     });
     this.connectionPromise = connection;
@@ -126,11 +131,15 @@ export class OpenCodeEventSource {
 
       const abortController = new AbortController();
       this.abortController = abortController;
+      let failedToConnect = true;
+      let reconnectDelayMs = this.reconnectDelayMs;
 
       try {
         const subscription = await this.client.event.subscribe(undefined, {
           signal: abortController.signal,
         });
+        failedToConnect = false;
+        this.nextReconnectDelayMs = this.reconnectDelayMs;
 
         for await (const event of subscription.stream) {
           if (abortController.signal.aborted || this.stopped) {
@@ -147,6 +156,13 @@ export class OpenCodeEventSource {
           "[react-opencode] OpenCode event stream disconnected",
           error,
         );
+        if (failedToConnect) {
+          reconnectDelayMs = this.nextReconnectDelayMs;
+          this.nextReconnectDelayMs = Math.min(
+            this.nextReconnectDelayMs * 2,
+            this.maxReconnectDelayMs,
+          );
+        }
       } finally {
         if (this.abortController === abortController) {
           this.abortController = null;
@@ -155,9 +171,7 @@ export class OpenCodeEventSource {
 
       if (this.listeners.size === 0) return;
 
-      await new Promise((resolve) =>
-        setTimeout(resolve, this.reconnectDelayMs),
-      );
+      await new Promise((resolve) => setTimeout(resolve, reconnectDelayMs));
     }
   }
 }

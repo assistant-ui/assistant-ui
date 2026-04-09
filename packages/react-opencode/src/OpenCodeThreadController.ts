@@ -21,22 +21,13 @@ import type {
   PendingUserMessage,
 } from "./types";
 import { OpenCodeEventSource } from "./OpenCodeEventSource";
+import { serializeUserParts } from "./serializeUserParts";
 
 const createLocalId = (prefix: string) =>
   `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
 const getTextContent = (parts: readonly ThreadUserMessagePart[]) =>
-  parts
-    .map((part) => {
-      if (part.type === "text") return part.text;
-      if (part.type === "image") return part.filename ?? part.image;
-      if (part.type === "file") return part.filename ?? part.data;
-      if (part.type === "data") return JSON.stringify(part.data);
-      if (part.type === "audio") return part.audio.data;
-      return "";
-    })
-    .join("\n")
-    .trim();
+  serializeUserParts(parts).trim();
 
 const getPromptParts = (message: AppendMessage) => {
   const content = [
@@ -269,6 +260,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     try {
       await this.client.session.promptAsync({
         sessionID: this.sessionId,
+        // The SDK currently infers a narrower payload shape than the runtime
+        // accepts here, so we cast at the boundary instead of widening types
+        // throughout the caller stack.
         parts: getPromptParts(message) as never,
         ...(options?.model ? { model: options.model } : {}),
         ...(options?.agent ? { agent: options.agent } : {}),
