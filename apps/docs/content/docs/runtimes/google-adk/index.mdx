@@ -373,7 +373,7 @@ Register the tool UI inside `AssistantRuntimeProvider`:
   `adk_request_input` is emitted only by ADK Python 2.0+ Workflow `RequestInput` nodes — ADK JS has no equivalent. Always respond via a tool UI with `useAdkSubmitInput`; HITL interrupts are automatically exempt from `autoCancelPendingToolCalls`, so typing a normal message in the composer will not overwrite the pending interrupt.
 </Callout>
 
-`useAdkSubmitInput` is sugar over the generic `addResult` — if you prefer, you can call `addResult(JSON.stringify({ result: value }))` from inside the render function directly. The `{ result }` wrapper is required either way: ADK's `unwrap_response` unwraps it on the backend before the Workflow node resumes.
+`useAdkSubmitInput` is sugar over the generic `addResult` — if you prefer, you can call `addResult({ result: value })` from inside the render function directly. The `{ result }` wrapper is required either way: the adapter JSON-stringifies the value before sending, and ADK's `unwrap_response` unwraps it on the backend before the Workflow node resumes.
 
 ### Artifacts
 
