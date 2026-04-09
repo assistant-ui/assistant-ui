@@ -1,6 +1,6 @@
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 
-const createDeferred = <T,>() => {
+const createDeferred = <T>() => {
   let resolve!: (value: T) => void;
   let reject!: (error: unknown) => void;
 

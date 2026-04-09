@@ -19,9 +19,9 @@ const omitKey = <T extends Record<string, unknown>>(record: T, key: string) => {
 export function OpenCodePermissions() {
   const { pending, reply } = useOpenCodePermissions();
   const questions = useOpenCodeQuestions();
-  const [submittingById, setSubmittingById] = useState<
-    Record<string, boolean>
-  >({});
+  const [submittingById, setSubmittingById] = useState<Record<string, boolean>>(
+    {},
+  );
   const [errorById, setErrorById] = useState<Record<string, string>>({});
 
   const handleReply = async (
