@@ -166,7 +166,7 @@ export class AdkEventAccumulator {
     branch?: string | undefined;
   } = {};
   private lastTransferToAgent: string | undefined;
-  private pendingLongRunningToolIds: string[] = [];
+  private pendingLongRunningToolIds = new Set<string>();
   private toolConfirmations: AdkToolConfirmation[] = [];
   private authRequests: AdkAuthRequest[] = [];
   private escalated = false;
@@ -202,9 +202,13 @@ export class AdkEventAccumulator {
       this.lastTransferToAgent = event.actions.transferToAgent;
     }
 
-    // Track long-running tool IDs
+    // Track long-running tool IDs. Accumulate across events so that multiple
+    // HITL interrupts emitted in the same turn are all tracked — a
+    // single-event replacement would drop earlier ids.
     if (event.longRunningToolIds?.length) {
-      this.pendingLongRunningToolIds = event.longRunningToolIds;
+      for (const id of event.longRunningToolIds) {
+        this.pendingLongRunningToolIds.add(id);
+      }
     }
 
     // Track tool confirmations from actions

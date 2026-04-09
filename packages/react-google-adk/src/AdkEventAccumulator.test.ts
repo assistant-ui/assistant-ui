@@ -487,6 +487,44 @@ describe("AdkEventAccumulator - actions tracking", () => {
     );
     expect(acc.getLongRunningToolIds()).toEqual(["lrt-1", "lrt-2"]);
   });
+
+  it("unions longRunningToolIds across multiple events", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        longRunningToolIds: ["lrt-1"],
+        author: "agent",
+        content: { parts: [{ text: "x" }] },
+      }),
+    );
+    acc.processEvent(
+      makeEvent({
+        longRunningToolIds: ["lrt-2"],
+        author: "agent",
+        content: { parts: [{ text: "y" }] },
+      }),
+    );
+    expect(acc.getLongRunningToolIds()).toEqual(["lrt-1", "lrt-2"]);
+  });
+
+  it("deduplicates repeated longRunningToolIds", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        longRunningToolIds: ["lrt-1"],
+        author: "agent",
+        content: { parts: [{ text: "x" }] },
+      }),
+    );
+    acc.processEvent(
+      makeEvent({
+        longRunningToolIds: ["lrt-1"],
+        author: "agent",
+        content: { parts: [{ text: "y" }] },
+      }),
+    );
+    expect(acc.getLongRunningToolIds()).toEqual(["lrt-1"]);
+  });
 });
 
 describe("AdkEventAccumulator - special function calls", () => {
