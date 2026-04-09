@@ -291,9 +291,9 @@ const DataUIDisplay = ({
   Fallback: DataMessagePartComponent | undefined;
 } & DataMessagePartProps) => {
   const Render = useAuiState((s) => {
-    const Render = s.dataRenderers.renderers[props.name] ?? Fallback;
-    if (Array.isArray(Render)) return Render[0] ?? Fallback;
-    return Render;
+    const entry = s.dataRenderers.renderers[props.name];
+    if (Array.isArray(entry) && entry[0]) return entry[0];
+    return s.dataRenderers.fallback ?? Fallback;
   });
   if (!Render) return null;
   return <Render {...props} />;
@@ -525,8 +525,8 @@ const RegisteredDataRendererUI: FC = () => {
   const Render = useAuiState((s) => {
     if (s.part.type !== "data") return null;
     const entry = s.dataRenderers.renderers[s.part.name];
-    if (Array.isArray(entry)) return entry[0] ?? null;
-    return entry ?? null;
+    if (Array.isArray(entry) && entry[0]) return entry[0];
+    return s.dataRenderers.fallback ?? null;
   });
 
   if (!Render || part.type !== "data") return null;
@@ -609,10 +609,11 @@ const MessagePrimitivePartsInner: FC<{
                     };
                   }
                   if (state.type === "data") {
-                    const entry = aui.dataRenderers().getState().renderers[
-                      state.name
-                    ];
-                    const hasUI = Array.isArray(entry) ? !!entry[0] : !!entry;
+                    const drState = aui.dataRenderers().getState();
+                    const entry = drState.renderers[state.name];
+                    const hasUI =
+                      (Array.isArray(entry) && !!entry[0]) ||
+                      !!drState.fallback;
                     return {
                       ...state,
                       dataRendererUI: hasUI ? (

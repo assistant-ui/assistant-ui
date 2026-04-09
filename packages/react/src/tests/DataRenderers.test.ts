@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { DataMessagePartComponent, DataRenderersState } from "../types";
+import * as PackageExports from "../index";
 
 /**
  * Tests for the DataRenderers state management logic.
@@ -13,7 +14,7 @@ describe("DataRenderers state logic", () => {
     state: DataRenderersState;
     setDataUI: (name: string, render: DataMessagePartComponent) => () => void;
   } => {
-    let state: DataRenderersState = { renderers: {} };
+    let state: DataRenderersState = { renderers: {}, fallback: undefined };
 
     const setDataUI = (name: string, render: DataMessagePartComponent) => {
       state = {
@@ -129,8 +130,117 @@ describe("DataRenderers state logic", () => {
   });
 });
 
+describe("DataRenderers fallback state logic", () => {
+  const createState = (): {
+    state: DataRenderersState;
+    setDataUI: (name: string, render: DataMessagePartComponent) => () => void;
+    setFallbackDataUI: (render: DataMessagePartComponent) => () => void;
+  } => {
+    let state: DataRenderersState = { renderers: {}, fallback: undefined };
+
+    const setDataUI = (name: string, render: DataMessagePartComponent) => {
+      state = {
+        ...state,
+        renderers: {
+          ...state.renderers,
+          [name]: [...(state.renderers[name] ?? []), render],
+        },
+      };
+
+      return () => {
+        state = {
+          ...state,
+          renderers: {
+            ...state.renderers,
+            [name]: state.renderers[name]?.filter((r) => r !== render) ?? [],
+          },
+        };
+      };
+    };
+
+    const setFallbackDataUI = (render: DataMessagePartComponent) => {
+      state = { ...state, fallback: render };
+      return () => {
+        if (state.fallback === render) {
+          state = { ...state, fallback: undefined };
+        }
+      };
+    };
+
+    return {
+      get state() {
+        return state;
+      },
+      setDataUI,
+      setFallbackDataUI,
+    };
+  };
+
+  it("should start with undefined fallback", () => {
+    const { state } = createState();
+    expect(state.fallback).toBeUndefined();
+  });
+
+  it("should register a fallback renderer", () => {
+    const s = createState();
+    const Fallback = (() => null) as unknown as DataMessagePartComponent;
+
+    s.setFallbackDataUI(Fallback);
+
+    expect(s.state.fallback).toBe(Fallback);
+  });
+
+  it("should unregister the fallback renderer on cleanup", () => {
+    const s = createState();
+    const Fallback = (() => null) as unknown as DataMessagePartComponent;
+
+    const unsub = s.setFallbackDataUI(Fallback);
+    expect(s.state.fallback).toBe(Fallback);
+
+    unsub();
+    expect(s.state.fallback).toBeUndefined();
+  });
+
+  it("should replace the fallback when a new one is registered", () => {
+    const s = createState();
+    const Fallback1 = (() => null) as unknown as DataMessagePartComponent;
+    const Fallback2 = (() => null) as unknown as DataMessagePartComponent;
+
+    s.setFallbackDataUI(Fallback1);
+    s.setFallbackDataUI(Fallback2);
+
+    expect(s.state.fallback).toBe(Fallback2);
+  });
+
+  it("should not clear a newer fallback when an older cleanup is called", () => {
+    const s = createState();
+    const Fallback1 = (() => null) as unknown as DataMessagePartComponent;
+    const Fallback2 = (() => null) as unknown as DataMessagePartComponent;
+
+    const unsub1 = s.setFallbackDataUI(Fallback1);
+    s.setFallbackDataUI(Fallback2);
+
+    unsub1();
+    expect(s.state.fallback).toBe(Fallback2);
+  });
+
+  it("should not affect named renderers when setting fallback", () => {
+    const s = createState();
+    const Named = (() => null) as unknown as DataMessagePartComponent;
+    const Fallback = (() => null) as unknown as DataMessagePartComponent;
+
+    s.setDataUI("chart", Named);
+    s.setFallbackDataUI(Fallback);
+
+    expect(s.state.renderers["chart"]).toHaveLength(1);
+    expect(s.state.renderers["chart"]![0]).toBe(Named);
+    expect(s.state.fallback).toBe(Fallback);
+  });
+});
+
 describe("Data part component resolution", () => {
   // Replicate the component lookup logic from MessageParts.tsx
+  // Updated to include store-level fallback in the resolution chain
   const resolveDataComponent = (
     partName: string,
     inlineConfig?: {
@@ -138,16 +248,17 @@ describe("Data part component resolution", () => {
       Fallback?: DataMessagePartComponent;
     },
     globalRenderers?: Record<string, DataMessagePartComponent[]>,
+    globalFallback?: DataMessagePartComponent,
   ): DataMessagePartComponent | undefined => {
     const inlineFallback =
       inlineConfig?.by_name?.[partName] ?? inlineConfig?.Fallback;
     const globalRenderer = globalRenderers?.[partName];
 
-    // Global takes priority (first element), then inline fallback
+    // Priority: global name-match > global fallback > inline config
     if (globalRenderer && globalRenderer.length > 0) {
-      return globalRenderer[0] ?? inlineFallback;
+      return globalRenderer[0] ?? globalFallback ?? inlineFallback;
     }
-    return inlineFallback;
+    return globalFallback ?? inlineFallback;
   };
 
   it("should return undefined when no config provided", () => {
@@ -218,5 +329,85 @@ describe("Data part component resolution", () => {
       { "my-event": [] },
     );
     expect(result).toBe(Fallback);
+  });
+
+  // --- Fallback data renderer resolution tests ---
+
+  it("should use global fallback when no name-specific renderer exists", () => {
+    const GlobalFallback = (() => null) as unknown as DataMessagePartComponent;
+
+    const result = resolveDataComponent(
+      "unknown-widget",
+      undefined,
+      {},
+      GlobalFallback,
+    );
+    expect(result).toBe(GlobalFallback);
+  });
+
+  it("should prefer global name-match over global fallback", () => {
+    const NamedComponent = (() => null) as unknown as DataMessagePartComponent;
+    const GlobalFallback = (() => null) as unknown as DataMessagePartComponent;
+
+    const result = resolveDataComponent(
+      "chart",
+      undefined,
+      { chart: [NamedComponent] },
+      GlobalFallback,
+    );
+    expect(result).toBe(NamedComponent);
+  });
+
+  it("should prefer global fallback over inline config", () => {
+    const InlineComponent = (() => null) as unknown as DataMessagePartComponent;
+    const GlobalFallback = (() => null) as unknown as DataMessagePartComponent;
+
+    const result = resolveDataComponent(
+      "my-event",
+      { by_name: { "my-event": InlineComponent } },
+      {},
+      GlobalFallback,
+    );
+    expect(result).toBe(GlobalFallback);
+  });
+
+  it("should prefer global fallback over inline Fallback", () => {
+    const InlineFallback = (() => null) as unknown as DataMessagePartComponent;
+    const GlobalFallback = (() => null) as unknown as DataMessagePartComponent;
+
+    const result = resolveDataComponent(
+      "unknown",
+      { Fallback: InlineFallback },
+      {},
+      GlobalFallback,
+    );
+    expect(result).toBe(GlobalFallback);
+  });
+
+  it("should return undefined when no fallbacks of any kind exist", () => {
+    const result = resolveDataComponent("unknown", undefined, {}, undefined);
+    expect(result).toBeUndefined();
+  });
+});
+
+describe("Fallback DataUI public API", () => {
+  it("should export makeAssistantFallbackDataUI", () => {
+    expect(
+      (PackageExports as Record<string, unknown>).makeAssistantFallbackDataUI,
+    ).toBeDefined();
+    expect(
+      typeof (PackageExports as Record<string, unknown>)
+        .makeAssistantFallbackDataUI,
+    ).toBe("function");
+  });
+
+  it("should export useAssistantFallbackDataUI", () => {
+    expect(
+      (PackageExports as Record<string, unknown>).useAssistantFallbackDataUI,
+    ).toBeDefined();
+    expect(
+      typeof (PackageExports as Record<string, unknown>)
+        .useAssistantFallbackDataUI,
+    ).toBe("function");
   });
 });
