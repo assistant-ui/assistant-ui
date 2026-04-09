@@ -317,6 +317,64 @@ function AuthUI() {
 
 `AdkAuthCredential` supports all ADK auth types: `apiKey`, `http`, `oauth2`, `openIdConnect`, `serviceAccount`.
 
+### Input Requests
+
+When an ADK Python 2.0+ Workflow's `RequestInput` node pauses execution to ask the user a question, ADK emits an `adk_request_input` function call marked as long-running. Respond with `useAdkSubmitInput` inside a tool UI — the helper wraps the answer as `{ result }` to match ADK's `unwrap_response` contract, so the Workflow node resumes with the unwrapped value:
+
+```tsx
+import { makeAssistantToolUI } from "@assistant-ui/react";
+import { useAdkSubmitInput } from "@assistant-ui/react-google-adk";
+
+type RequestInputArgs = {
+  interrupt_id?: string;
+  message?: string;
+  payload?: unknown;
+  response_schema?: unknown;
+};
+
+export const RequestInputToolUI = makeAssistantToolUI<RequestInputArgs, unknown>({
+  toolName: "adk_request_input",
+  render: function RequestInputUI({ toolCallId, args, result }) {
+    const submitInput = useAdkSubmitInput();
+
+    if (result !== undefined) {
+      return <p>Answered: {String(result)}</p>;
+    }
+
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const value = (
+            e.currentTarget.elements.namedItem("answer") as HTMLInputElement
+          ).value;
+          submitInput(toolCallId, value);
+        }}
+      >
+        <p>{args.message ?? "Please provide input:"}</p>
+        <input name="answer" autoFocus />
+        <button type="submit">Submit</button>
+      </form>
+    );
+  },
+});
+```
+
+Register the tool UI inside `AssistantRuntimeProvider`:
+
+```tsx
+<AssistantRuntimeProvider runtime={runtime}>
+  <RequestInputToolUI />
+  <Thread />
+</AssistantRuntimeProvider>
+```
+
+<Callout type="info">
+  `adk_request_input` is emitted only by ADK Python 2.0+ Workflow `RequestInput` nodes — ADK JS has no equivalent. Always respond via a tool UI with `useAdkSubmitInput`; HITL interrupts are automatically exempt from `autoCancelPendingToolCalls`, so typing a normal message in the composer will not overwrite the pending interrupt.
+</Callout>
+
+`useAdkSubmitInput` is sugar over the generic `addResult` — if you prefer, you can call `addResult(JSON.stringify({ result: value }))` from inside the render function directly. The `{ result }` wrapper is required either way: ADK's `unwrap_response` unwraps it on the backend before the Workflow node resumes.
+
 ### Artifacts
 
 Track file artifacts created or modified by the agent:
@@ -383,6 +441,8 @@ function PendingToolsIndicator() {
   return <div>{pendingToolIds.length} tool(s) awaiting input</div>;
 }
 ```
+
+This hook reports every tool call ADK marked via `long_running_tool_ids`, including HITL interrupts. To respond to a specific HITL type, see [Tool Confirmations](#tool-confirmations), [Auth Requests](#auth-requests), or [Input Requests](#input-requests).
 
 ### Per-Message Metadata
 
@@ -581,6 +641,7 @@ The resolved `checkpointId` is passed to your `stream` callback via `config.chec
 | `useAdkSend()` | Send raw ADK messages |
 | `useAdkConfirmTool()` | Confirm or deny a pending tool confirmation |
 | `useAdkSubmitAuth()` | Submit auth credentials for a pending auth request |
+| `useAdkSubmitInput()` | Submit the user's answer for a pending `adk_request_input` HITL interrupt |
 | `useAdkToolConfirmations()` | Pending tool confirmation requests |
 | `useAdkAuthRequests()` | Pending auth credential requests |
 | `useAdkLongRunningToolIds()` | IDs of long-running tools awaiting input |
@@ -596,6 +657,7 @@ The resolved `checkpointId` is passed to your `stream` callback via `config.chec
 | Tool calls & results | Supported |
 | Tool confirmations (`useAdkConfirmTool`) | Supported |
 | Auth credential flow (`useAdkSubmitAuth`) | Supported |
+| Workflow input requests (`useAdkSubmitInput`, ADK Python 2.0+) | Supported |
 | Multi-agent (author/branch tracking) | Supported |
 | Agent transfer events | Supported |
 | Escalation detection | Supported |
