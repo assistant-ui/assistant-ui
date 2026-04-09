@@ -60,8 +60,8 @@ const encodeQuestionAnswers = (
     return answers;
   });
 
-const getQuestionSummary = (request: OpenCodeQuestionRequest) => {
-  if (request.questions.length === 0) return "Waiting for input";
+export const getQuestionSummary = (request?: OpenCodeQuestionRequest) => {
+  if (!request || request.questions.length === 0) return "Waiting for input";
   if (request.questions.length === 1) {
     return request.questions[0]?.header || "1 question";
   }

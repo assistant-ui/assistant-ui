@@ -2,19 +2,18 @@
 
 import { memo, useState } from "react";
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
-import {
-  AlertCircleIcon,
-  ChevronRightIcon,
-  DollarSignIcon,
-  LoaderIcon,
-  XCircleIcon,
-} from "lucide-react";
+import { ChevronRightIcon, DollarSignIcon, XCircleIcon } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import {
+  ToolStatusIcon,
+  isCancelledToolStatus,
+  truncate,
+} from "@/components/tools/tool-ui-shared";
 
 const parseResult = (result: unknown) => {
   if (!result) return {};
@@ -31,9 +30,6 @@ const parseResult = (result: unknown) => {
   return {};
 };
 
-const truncate = (s: string, max = 80): string =>
-  s.length > max ? `${s.slice(0, max - 3)}...` : s;
-
 export const BashTerminal: ToolCallMessagePartComponent = memo(
   ({ args, result, status }) => {
     const [open, setOpen] = useState(false);
@@ -42,10 +38,7 @@ export const BashTerminal: ToolCallMessagePartComponent = memo(
     const description =
       typeof args?.description === "string" ? args.description : "";
     const isRunning = status?.type === "running";
-    const isCancelled =
-      status?.type === "incomplete" &&
-      (status as { reason?: string }).reason === "cancelled";
-    const statusType = status?.type ?? "complete";
+    const isCancelled = isCancelledToolStatus(status);
 
     const parsed = isRunning ? {} : parseResult(result);
     const stdout =
@@ -66,20 +59,14 @@ export const BashTerminal: ToolCallMessagePartComponent = memo(
             className="group flex w-full items-center gap-2 py-0.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
           >
             {isRunning ? (
-              <LoaderIcon className="size-3 shrink-0 animate-spin" />
-            ) : statusType === "requires-action" ? (
-              <AlertCircleIcon className="size-3 shrink-0 text-amber-600" />
+              <ToolStatusIcon status={status} />
             ) : isError ? (
               <XCircleIcon className="size-3 shrink-0 text-destructive" />
-            ) : statusType === "incomplete" ? (
-              <XCircleIcon
-                className={cn(
-                  "size-3 shrink-0",
-                  !isCancelled && "text-destructive",
-                )}
-              />
             ) : (
-              <DollarSignIcon className="size-3.5 shrink-0" />
+              <ToolStatusIcon
+                status={status}
+                completeIcon={<DollarSignIcon className="size-3.5 shrink-0" />}
+              />
             )}
 
             <span

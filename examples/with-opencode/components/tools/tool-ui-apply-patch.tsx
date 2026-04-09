@@ -2,13 +2,7 @@
 
 import { memo, useMemo, useState } from "react";
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
-import {
-  AlertCircleIcon,
-  CheckIcon,
-  ChevronRightIcon,
-  LoaderIcon,
-  XCircleIcon,
-} from "lucide-react";
+import { CheckIcon, ChevronRightIcon } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -16,17 +10,12 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { PatchDiff } from "@pierre/diffs/react";
-
-// ── Helpers ──────────────────────────────────────────────────────────────
-
-const str = (v: unknown): string => (typeof v === "string" ? v : "");
-
-const basename = (filepath: string): string => {
-  const parts = filepath.split("/").filter(Boolean);
-  return parts[parts.length - 1] ?? filepath;
-};
-
-const unique = <T,>(items: readonly T[]) => [...new Set(items)];
+import {
+  ToolStatusIcon,
+  getPatchInfo,
+  isCancelledToolStatus,
+  str,
+} from "@/components/tools/tool-ui-shared";
 
 // ── Patch format conversion ──────────────────────────────────────────────
 // Claude Code's apply_patch uses a custom "v2" format:
@@ -158,28 +147,7 @@ export const ApplyPatchDiff: ToolCallMessagePartComponent = memo(
     const [open, setOpen] = useState(false);
     const patchText = str(args?.patchText);
 
-    const patchInfo = useMemo(() => {
-      if (!patchText) return { files: [] as string[], added: 0, removed: 0 };
-
-      const files = unique(
-        [
-          ...patchText.matchAll(
-            /^\*\*\*\s+(?:Update|Add|Delete)\s+File:\s+(.+)$/gm,
-          ),
-        ]
-          .map((m) => basename(m[1]!.trim()))
-          .filter(Boolean),
-      );
-
-      let added = 0;
-      let removed = 0;
-      for (const line of patchText.split("\n")) {
-        if (/^\+/.test(line)) added++;
-        else if (/^-/.test(line)) removed++;
-      }
-
-      return { files, added, removed };
-    }, [patchText]);
+    const patchInfo = useMemo(() => getPatchInfo(patchText), [patchText]);
 
     const unifiedPatch = useMemo(() => {
       if (!patchText) return "";
@@ -188,10 +156,7 @@ export const ApplyPatchDiff: ToolCallMessagePartComponent = memo(
     }, [patchText]);
 
     const isRunning = status?.type === "running";
-    const isCancelled =
-      status?.type === "incomplete" &&
-      (status as { reason?: string }).reason === "cancelled";
-    const statusType = status?.type ?? "complete";
+    const isCancelled = isCancelledToolStatus(status);
     const hasDiff = unifiedPatch.length > 0 && !isRunning;
 
     return (
@@ -201,20 +166,10 @@ export const ApplyPatchDiff: ToolCallMessagePartComponent = memo(
             type="button"
             className="group flex w-full items-center gap-2 py-0.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
           >
-            {isRunning ? (
-              <LoaderIcon className="size-3 shrink-0 animate-spin" />
-            ) : statusType === "requires-action" ? (
-              <AlertCircleIcon className="size-3 shrink-0 text-amber-600" />
-            ) : statusType === "incomplete" ? (
-              <XCircleIcon
-                className={cn(
-                  "size-3 shrink-0",
-                  !isCancelled && "text-destructive",
-                )}
-              />
-            ) : (
-              <CheckIcon className="size-3 shrink-0" />
-            )}
+            <ToolStatusIcon
+              status={status}
+              completeIcon={<CheckIcon className="size-3 shrink-0" />}
+            />
 
             <span
               className={cn(

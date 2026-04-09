@@ -16,7 +16,10 @@ import {
   XCircleIcon,
 } from "lucide-react";
 import { OpenCodePermissionCard } from "@/components/tools/opencode-permission-card";
-import { OpenCodeQuestionCard } from "@/components/tools/opencode-question-card";
+import {
+  OpenCodeQuestionCard,
+  getQuestionSummary,
+} from "@/components/tools/opencode-question-card";
 
 type ToolPermissionInteraction = {
   request: OpenCodePermissionRequest;
@@ -35,14 +38,6 @@ const ASK_QUESTION_TOOL_NAMES = [
   "request_user_input",
   "requestUserInput",
 ] as const;
-
-const getQuestionSummary = (request?: OpenCodeQuestionRequest) => {
-  if (!request || request.questions.length === 0) return "Waiting for input";
-  if (request.questions.length === 1) {
-    return request.questions[0]?.header || "1 question";
-  }
-  return `${request.questions.length} questions`;
-};
 
 const useOpenCodeToolInteractions = (toolCallId: string) => {
   const interactions = useOpenCodeThreadState((state) => state.interactions);

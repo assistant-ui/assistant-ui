@@ -68,10 +68,9 @@ const upsertMessage = (
     ...state.messagesById,
     [messageId]: nextMessage,
   };
-  const messageOrder = sortMessageIds(
-    messagesById,
-    current ? state.messageOrder : [...state.messageOrder, messageId],
-  );
+  const messageOrder = current
+    ? state.messageOrder
+    : sortMessageIds(messagesById, [...state.messageOrder, messageId]);
 
   return {
     ...state,

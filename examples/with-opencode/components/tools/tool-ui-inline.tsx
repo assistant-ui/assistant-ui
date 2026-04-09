@@ -1,55 +1,24 @@
 "use client";
 
 import { memo, useMemo } from "react";
-import {
-  AlertCircleIcon,
-  CheckIcon,
-  LoaderIcon,
-  XCircleIcon,
-} from "lucide-react";
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
+import {
+  ToolStatusIcon,
+  basename,
+  getPatchInfo,
+  isCancelledToolStatus,
+  str,
+  truncate,
+  type ToolCallStatusLike,
+} from "@/components/tools/tool-ui-shared";
 
 // ── Helpers ────────────────────────────────────────────────────────────
-
-const truncate = (s: string, max = 80): string =>
-  s.length > max ? `${s.slice(0, max - 3)}...` : s;
-
-const str = (v: unknown): string => (typeof v === "string" ? v : "");
-
-const basename = (filepath: string): string => {
-  const parts = filepath.split("/").filter(Boolean);
-  return parts[parts.length - 1] ?? filepath;
-};
 
 const shortenPath = (filepath: string, depth = 2): string => {
   const parts = filepath.split("/").filter(Boolean);
   if (parts.length <= depth) return filepath;
   return parts.slice(-depth).join("/");
-};
-
-const unique = <T,>(items: readonly T[]) => [...new Set(items)];
-
-// ── StatusIcon ─────────────────────────────────────────────────────────
-
-const StatusIcon = ({
-  statusType,
-  isCancelled,
-}: {
-  statusType: string;
-  isCancelled: boolean;
-}) => {
-  if (statusType === "running")
-    return <LoaderIcon className="size-3 shrink-0 animate-spin" />;
-  if (statusType === "requires-action")
-    return <AlertCircleIcon className="size-3 shrink-0 text-amber-600" />;
-  if (statusType === "incomplete")
-    return (
-      <XCircleIcon
-        className={cn("size-3 shrink-0", !isCancelled && "text-destructive")}
-      />
-    );
-  return <CheckIcon className="size-3 shrink-0" />;
 };
 
 // ── ToolCallShell ──────────────────────────────────────────────────────
@@ -60,17 +29,14 @@ const ToolCallShell = ({
   children,
 }: {
   toolName: string;
-  status?: { type: string; reason?: string };
+  status?: ToolCallStatusLike;
   children?: React.ReactNode;
 }) => {
-  const statusType = status?.type ?? "complete";
-  const isCancelled =
-    status?.type === "incomplete" &&
-    (status as { reason?: string }).reason === "cancelled";
+  const isCancelled = isCancelledToolStatus(status);
 
   return (
     <div className="flex items-center gap-2 py-0.5 text-muted-foreground text-sm">
-      <StatusIcon statusType={statusType} isCancelled={isCancelled} />
+      <ToolStatusIcon status={status} />
       <span
         className={cn(
           "flex items-center gap-1.5 truncate",
@@ -133,35 +99,12 @@ WebSearchInline.displayName = "WebSearchInline";
 export const WebFetchInline = inlineTool("url");
 WebFetchInline.displayName = "WebFetchInline";
 
-// ── ApplyPatch — custom logic for diff stats ───────────────────────────
-
+// Kept as a compact reference implementation even though the example
+// currently uses the richer diff viewer from tool-ui-apply-patch.tsx.
 export const ApplyPatchInline: ToolCallMessagePartComponent = memo(
   ({ toolName, args, status }) => {
     const patchText = str(args?.patchText);
-
-    const patchInfo = useMemo(() => {
-      if (!patchText) return { files: [] as string[], added: 0, removed: 0 };
-
-      const files = unique(
-        [
-          ...patchText.matchAll(
-            /^\*\*\*\s+(?:Update|Add|Delete)\s+File:\s+(.+)$/gm,
-          ),
-        ]
-          .map((m) => basename(m[1]!.trim()))
-          .filter(Boolean),
-      );
-
-      let added = 0;
-      let removed = 0;
-      for (const line of patchText.split("\n")) {
-        if (/^\+/.test(line)) added++;
-        else if (/^-/.test(line)) removed++;
-      }
-
-      return { files, added, removed };
-    }, [patchText]);
-
+    const patchInfo = useMemo(() => getPatchInfo(patchText), [patchText]);
     const isRunning = status?.type === "running";
 
     return (
