@@ -76,20 +76,20 @@ describe("SurfaceManager", () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
-  it("should return stable snapshot reference when unchanged", () => {
+  it("should return stable getSurfaces reference when unchanged", () => {
     const mgr = new SurfaceManager();
     mgr.createSurface({ surfaceId: "s1" });
-    const snap1 = mgr.getSnapshot();
-    const snap2 = mgr.getSnapshot();
+    const snap1 = mgr.getSurfaces();
+    const snap2 = mgr.getSurfaces();
     expect(snap1).toBe(snap2);
   });
 
-  it("should return new snapshot reference on change", () => {
+  it("should return new getSurfaces reference on change", () => {
     const mgr = new SurfaceManager();
     mgr.createSurface({ surfaceId: "s1" });
-    const snap1 = mgr.getSnapshot();
+    const snap1 = mgr.getSurfaces();
     mgr.createSurface({ surfaceId: "s2" });
-    const snap2 = mgr.getSnapshot();
+    const snap2 = mgr.getSurfaces();
     expect(snap1).not.toBe(snap2);
   });
 

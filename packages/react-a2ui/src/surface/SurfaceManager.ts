@@ -4,7 +4,6 @@ import type { CreateSurface, UpdateComponents, DeleteSurface } from "./types";
 export class SurfaceManager {
   private surfaces = new Map<string, A2uiSurface>();
   private listeners = new Set<() => void>();
-  private snapshot: ReadonlyMap<string, A2uiSurface> = new Map();
   private surfacesArray: A2uiSurface[] = [];
 
   createSurface(msg: CreateSurface): void {
@@ -19,7 +18,10 @@ export class SurfaceManager {
   updateComponents(msg: UpdateComponents): void {
     const surface = this.surfaces.get(msg.surfaceId);
     if (!surface) return;
-    surface.components = msg.components;
+    this.surfaces.set(msg.surfaceId, {
+      ...surface,
+      components: msg.components,
+    });
     this.notify();
   }
 
@@ -28,10 +30,6 @@ export class SurfaceManager {
     this.surfaces.delete(msg.surfaceId);
     this.notify();
   }
-
-  getSnapshot = (): ReadonlyMap<string, A2uiSurface> => {
-    return this.snapshot;
-  };
 
   getSurfaces = (): A2uiSurface[] => {
     return this.surfacesArray;
@@ -49,7 +47,6 @@ export class SurfaceManager {
   };
 
   private notify(): void {
-    this.snapshot = new Map(this.surfaces);
     this.surfacesArray = Array.from(this.surfaces.values());
     for (const listener of this.listeners) {
       listener();
