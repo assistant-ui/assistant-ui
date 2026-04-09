@@ -66,7 +66,8 @@ export const useAdkMessages = ({
 
   // Replace the message list AND reset derived per-turn HITL state.
   // Used by truncation paths (edit, reload, load) so that stale interrupt
-  // markers from the removed messages don't leak into the next turn.
+  // markers and per-message metadata from the removed messages don't leak
+  // into the next turn.
   const replaceMessages = useCallback(
     (msgs: AdkMessage[]) => {
       setMessagesImmediate(msgs);
@@ -74,6 +75,7 @@ export const useAdkMessages = ({
       setToolConfirmations([]);
       setAuthRequests([]);
       setEscalated(false);
+      setMessageMetadata(new Map());
     },
     [setMessagesImmediate],
   );
