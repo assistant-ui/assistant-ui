@@ -238,12 +238,12 @@ const aui = useAui();
 
 const history = useMemo<ThreadHistoryAdapter>(
   () => ({
-    async append(message) {
+    async append({ message, parentId }) {
       // Wait for initialization to complete and get the remoteId
       const { remoteId } = await aui.threadListItem().initialize();
 
       // Now safe to save the message using the remoteId
-      await saveMessageToDatabase(remoteId, message);
+      await saveMessageToDatabase(remoteId, parentId, message);
     },
     // ...
   }),
