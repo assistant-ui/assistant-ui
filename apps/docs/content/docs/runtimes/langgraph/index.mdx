@@ -565,6 +565,50 @@ Mount the component once somewhere inside the `AssistantRuntimeProvider` tree. I
 
 When a matching UI message arrives, the adapter appends a `{ type: "data", name: "chart", data: { series, title } }` part to the parent assistant message and the registered component renders inline.
 
+### Register renderers via `uiComponents`
+
+Instead of mounting separate `makeAssistantDataUI` components, you can register renderers directly on the runtime hook via the `uiComponents` option:
+
+```tsx title="@/components/MyAssistant.tsx"
+const runtime = useLangGraphRuntime({
+  stream: async function* (messages, { initialize }) { /* ... */ },
+  uiComponents: {
+    renderers: {
+      chart: ({ data }) => <Chart series={data.series} title={data.title} />,
+      table: ({ data }) => <DataTable rows={data.rows} />,
+    },
+  },
+});
+```
+
+Static `renderers` are matched by `ui_message` name. If no match is found, the part renders nothing unless a `fallback` is provided.
+
+### Dynamic loading with `fallback`
+
+LangSmith's [Generative UI](https://docs.langchain.com/langsmith/generative-ui-react) supports colocating UI code with your graph and loading it at runtime via `LoadExternalComponent`. The `fallback` option handles any `ui_message` name that has no static renderer:
+
+```tsx title="@/components/MyAssistant.tsx"
+import { LoadExternalComponent } from "@langchain/langgraph-sdk/react-ui";
+
+const runtime = useLangGraphRuntime({
+  stream: async function* (messages, { initialize }) { /* ... */ },
+  uiComponents: {
+    fallback: ({ name, data }) => (
+      <LoadExternalComponent name={name} props={data} />
+    ),
+    renderers: {
+      chart: ({ data }) => <Chart {...data} />,
+    },
+  },
+});
+```
+
+With this setup:
+- A `ui_message` with `name: "chart"` renders the static `Chart` component
+- Any other name (e.g. `"dashboard"`, `"form"`) is handled by `fallback`, which fetches the component from LangSmith at runtime
+
+The `fallback` component receives the same props as any data renderer: `name`, `data`, and part state metadata. This lets you pass the component name and props straight through to `LoadExternalComponent`.
+
 ### Semantics
 
 The adapter mirrors the reducer in `@langchain/langgraph-sdk/react-ui` exactly:
