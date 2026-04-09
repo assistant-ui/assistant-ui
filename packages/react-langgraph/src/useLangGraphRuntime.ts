@@ -23,6 +23,7 @@ import {
 } from "@assistant-ui/core";
 import {
   type ToolExecutionStatus,
+  type DataMessagePartComponent,
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
   useExternalMessageConverter,
@@ -257,6 +258,19 @@ export type UseLangGraphRuntimeOptions = {
         onCustomEvent?: OnCustomEventCallback;
       }
     | undefined;
+  /**
+   * Register data renderers for Generative UI components.
+   *
+   * `renderers` maps a `ui_message` name to a static component.
+   * `fallback` handles any name without a static match — use this for
+   * dynamic loading (e.g. LangSmith's `LoadExternalComponent`).
+   */
+  uiComponents?:
+    | {
+        fallback?: DataMessagePartComponent;
+        renderers?: Record<string, DataMessagePartComponent>;
+      }
+    | undefined;
   cloud?: AssistantCloud | undefined;
 };
 
@@ -302,8 +316,29 @@ const useLangGraphRuntimeImpl = ({
   getCheckpointId,
   eventHandlers,
   uiStateKey,
+  uiComponents,
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
+
+  useEffect(() => {
+    if (!uiComponents) return;
+    const cleanups: (() => void)[] = [];
+    if (uiComponents.fallback) {
+      cleanups.push(
+        aui.dataRenderers().setFallbackDataUI(uiComponents.fallback),
+      );
+    }
+    if (uiComponents.renderers) {
+      for (const [name, component] of Object.entries(uiComponents.renderers)) {
+        if (component) {
+          cleanups.push(aui.dataRenderers().setDataUI(name, component));
+        }
+      }
+    }
+    return () => {
+      for (const cleanup of cleanups) cleanup();
+    };
+  }, [aui, uiComponents]);
   const {
     interrupt,
     setInterrupt,
