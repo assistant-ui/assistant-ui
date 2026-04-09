@@ -2,6 +2,7 @@
 
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { v4 as uuidv4 } from "uuid";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type {
   AdkMessage,
   AdkSendMessageConfig,
@@ -126,7 +127,11 @@ export const useAdkMessageMetadata = () => {
 /** Returns a function to confirm or deny a pending tool confirmation. */
 export const useAdkConfirmTool = () => {
   const aui = useAui();
-  return (toolCallId: string, confirmed: boolean, payload?: unknown) => {
+  return (
+    toolCallId: string,
+    confirmed: boolean,
+    payload?: ReadonlyJSONValue,
+  ) => {
     const extras = aui.thread().getState().extras;
     const { send } = asAdkRuntimeExtras(extras);
     return send(
@@ -162,6 +167,28 @@ export const useAdkSubmitAuth = () => {
           tool_call_id: toolCallId,
           name: "adk_request_credential",
           content: JSON.stringify(credential),
+          status: "success",
+        },
+      ],
+      {},
+    );
+  };
+};
+
+/** Returns a function to submit the user's answer for a pending `adk_request_input` HITL interrupt. */
+export const useAdkSubmitInput = () => {
+  const aui = useAui();
+  return (toolCallId: string, result: ReadonlyJSONValue) => {
+    const extras = aui.thread().getState().extras;
+    const { send } = asAdkRuntimeExtras(extras);
+    return send(
+      [
+        {
+          id: uuidv4(),
+          type: "tool",
+          tool_call_id: toolCallId,
+          name: "adk_request_input",
+          content: JSON.stringify({ result }),
           status: "success",
         },
       ],

@@ -60,6 +60,7 @@ export {
   useAdkMessageMetadata,
   useAdkConfirmTool,
   useAdkSubmitAuth,
+  useAdkSubmitInput,
   useAdkAppState,
   useAdkUserState,
   useAdkTempState,
