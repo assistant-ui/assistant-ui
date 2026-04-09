@@ -64,6 +64,20 @@ export const useAdkMessages = ({
     _setMessages(msgs);
   }, []);
 
+  // Replace the message list AND reset derived per-turn HITL state.
+  // Used by truncation paths (edit, reload, load) so that stale interrupt
+  // markers from the removed messages don't leak into the next turn.
+  const replaceMessages = useCallback(
+    (msgs: AdkMessage[]) => {
+      setMessagesImmediate(msgs);
+      setLongRunningToolIds([]);
+      setToolConfirmations([]);
+      setAuthRequests([]);
+      setEscalated(false);
+    },
+    [setMessagesImmediate],
+  );
+
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const { onError, onCustomEvent, onAgentTransfer } = useMemo(
@@ -180,6 +194,7 @@ export const useAdkMessages = ({
     sendMessage,
     cancel,
     setMessages: setMessagesImmediate,
+    replaceMessages,
   };
 };
 

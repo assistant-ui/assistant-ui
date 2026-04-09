@@ -69,7 +69,8 @@ const getMessageContent = (msg: AppendMessage) => {
   return content;
 };
 
-const getPendingToolCalls = (messages: AdkMessage[]) => {
+/** @internal — exported for unit tests. */
+export const getPendingToolCalls = (messages: AdkMessage[]) => {
   const pending = new Map<string, { id: string; name: string }>();
   for (const msg of messages) {
     if (msg.type === "ai" && msg.tool_calls) {
@@ -82,6 +83,35 @@ const getPendingToolCalls = (messages: AdkMessage[]) => {
     }
   }
   return [...pending.values()];
+};
+
+/**
+ * @internal — exported for unit tests.
+ *
+ * Returns `{cancelled: true}` tool responses for pending tool calls when the
+ * user sends a new turn, EXCEPT for HITL interrupts marked via
+ * `long_running_tool_ids` (`adk_request_input`, `adk_request_confirmation`,
+ * `adk_request_credential`). Those must be answered through a dedicated tool
+ * UI + submit helper, not auto-cancelled.
+ */
+export const getPendingCancellations = (
+  messages: AdkMessage[],
+  longRunningToolIds: readonly string[],
+): Array<AdkMessage & { type: "tool" }> => {
+  const longRunningSet = new Set(longRunningToolIds);
+  return getPendingToolCalls(messages)
+    .filter((t) => !longRunningSet.has(t.id))
+    .map(
+      (t) =>
+        ({
+          id: uuidv4(),
+          type: "tool",
+          name: t.name,
+          tool_call_id: t.id,
+          content: JSON.stringify({ cancelled: true }),
+          status: "error",
+        }) satisfies AdkMessage & { type: "tool" },
+    );
 };
 
 const truncateAdkMessages = (
@@ -153,7 +183,7 @@ const useAdkRuntimeImpl = ({
     messageMetadata,
     sendMessage,
     cancel,
-    setMessages,
+    replaceMessages,
   } = useAdkMessages({
     stream,
     ...(eventHandlers && { eventHandlers }),
@@ -239,17 +269,7 @@ const useAdkRuntimeImpl = ({
 
       const cancellations =
         autoCancelPendingToolCalls !== false
-          ? getPendingToolCalls(messages).map(
-              (t) =>
-                ({
-                  id: uuidv4(),
-                  type: "tool",
-                  name: t.name,
-                  tool_call_id: t.id,
-                  content: JSON.stringify({ cancelled: true }),
-                  status: "error",
-                }) satisfies AdkMessage & { type: "tool" },
-            )
+          ? getPendingCancellations(messages, longRunningToolIds)
           : [];
 
       return handleSendMessage(
@@ -271,7 +291,7 @@ const useAdkRuntimeImpl = ({
             threadMessagesRef.current,
             msg.parentId,
           );
-          setMessages(truncated);
+          replaceMessages(truncated);
           const externalId = aui.threadListItem().getState().externalId;
           const checkpointId = externalId
             ? await getCheckpointId(externalId, truncated)
@@ -298,7 +318,7 @@ const useAdkRuntimeImpl = ({
             threadMessagesRef.current,
             parentId,
           );
-          setMessages(truncated);
+          replaceMessages(truncated);
           const externalId = aui.threadListItem().getState().externalId;
           const checkpointId = externalId
             ? await getCheckpointId(externalId, truncated)
@@ -356,13 +376,13 @@ const useAdkRuntimeImpl = ({
 
       loadFn(externalId).then(
         ({ messages: msgs }) => {
-          setMessages(msgs);
+          replaceMessages(msgs);
         },
         (e) => {
           console.warn("Failed to load ADK session:", e);
         },
       );
-    }, [aui, setMessages]);
+    }, [aui, replaceMessages]);
   }
 
   return runtime;
