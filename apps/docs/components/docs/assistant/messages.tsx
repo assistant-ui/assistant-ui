@@ -88,7 +88,7 @@ function getToolDisplay(
     case "bash": {
       const command = (args as { command?: string })?.command ?? "";
       const preview =
-        command.length > 60 ? command.slice(0, 57) + "..." : command;
+        command.length > 60 ? `${command.slice(0, 57)}...` : command;
       return {
         icon: TerminalIcon,
         label: isRunning ? "Running" : "Ran",
