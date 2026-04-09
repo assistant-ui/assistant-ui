@@ -320,16 +320,15 @@ const useLangGraphRuntimeImpl = ({
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
 
+  const uiFallback = uiComponents?.fallback;
+  const uiRenderers = uiComponents?.renderers;
   useEffect(() => {
-    if (!uiComponents) return;
     const cleanups: (() => void)[] = [];
-    if (uiComponents.fallback) {
-      cleanups.push(
-        aui.dataRenderers().setFallbackDataUI(uiComponents.fallback),
-      );
+    if (uiFallback) {
+      cleanups.push(aui.dataRenderers().setFallbackDataUI(uiFallback));
     }
-    if (uiComponents.renderers) {
-      for (const [name, component] of Object.entries(uiComponents.renderers)) {
+    if (uiRenderers) {
+      for (const [name, component] of Object.entries(uiRenderers)) {
         if (component) {
           cleanups.push(aui.dataRenderers().setDataUI(name, component));
         }
@@ -338,7 +337,7 @@ const useLangGraphRuntimeImpl = ({
     return () => {
       for (const cleanup of cleanups) cleanup();
     };
-  }, [aui, uiComponents]);
+  }, [aui, uiFallback, uiRenderers]);
   const {
     interrupt,
     setInterrupt,

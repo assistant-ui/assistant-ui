@@ -574,7 +574,7 @@ export type EnrichedPartState =
       resume: ToolCallMessagePartProps["resume"];
     })
   | (Extract<PartState, { type: "data" }> & {
-      /** The registered data renderer UI element, or null if none registered. */
+      /** The registered data renderer UI element. Renders nothing when no renderer is registered. */
       readonly dataRendererUI: ReactNode;
     })
   | Exclude<PartState, { type: "tool-call" } | { type: "data" }>;
