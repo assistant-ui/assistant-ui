@@ -1,6 +1,12 @@
 import type { RealtimeVoiceAdapter } from "@assistant-ui/react";
 import { createVoiceSession } from "@assistant-ui/react";
-import { Room, RoomEvent, type RoomOptions } from "livekit-client";
+import {
+  Room,
+  RoomEvent,
+  Track,
+  type RemoteTrack,
+  type RoomOptions,
+} from "livekit-client";
 
 export type LiveKitVoiceAdapterOptions = {
   url: string;
@@ -26,6 +32,31 @@ export class LiveKitVoiceAdapter implements RealtimeVoiceAdapter {
 
     return createVoiceSession(options, async (session) => {
       let volumeInterval: ReturnType<typeof setInterval> | null = null;
+      const attachedAudioElements = new Set<HTMLMediaElement>();
+
+      const attachRemoteAudio = (track: RemoteTrack) => {
+        if (track.kind !== Track.Kind.Audio) return;
+        const element = track.attach();
+        element.style.display = "none";
+        document.body.appendChild(element);
+        attachedAudioElements.add(element);
+      };
+
+      const detachRemoteAudio = (track: RemoteTrack) => {
+        if (track.kind !== Track.Kind.Audio) return;
+        for (const element of track.detach()) {
+          element.remove();
+          attachedAudioElements.delete(element);
+        }
+      };
+
+      const cleanupAudioElements = () => {
+        for (const element of attachedAudioElements) element.remove();
+        attachedAudioElements.clear();
+      };
+
+      room.on(RoomEvent.TrackSubscribed, attachRemoteAudio);
+      room.on(RoomEvent.TrackUnsubscribed, detachRemoteAudio);
 
       room.on(RoomEvent.Connected, () => {
         session.setStatus({ type: "running" });
@@ -76,18 +107,23 @@ export class LiveKitVoiceAdapter implements RealtimeVoiceAdapter {
 
       const token =
         typeof this._token === "function" ? await this._token() : this._token;
-      if (session.isDisposed())
+      if (session.isDisposed()) {
+        cleanupAudioElements();
         return { disconnect: () => {}, mute: () => {}, unmute: () => {} };
+      }
 
       await room.connect(this._url, token);
-      if (session.isDisposed())
+      if (session.isDisposed()) {
+        cleanupAudioElements();
         return { disconnect: () => {}, mute: () => {}, unmute: () => {} };
+      }
 
       await room.localParticipant.setMicrophoneEnabled(true);
 
       return {
         disconnect: () => {
           if (volumeInterval) clearInterval(volumeInterval);
+          cleanupAudioElements();
           room.disconnect();
         },
         mute: () => {
