@@ -264,6 +264,7 @@ export const createOpenCodeThreadState = (
         Record<
           string,
           {
+            request: import("./types").OpenCodePermissionRequest;
             reply: import("./types").OpenCodePermissionResponse;
             respondedAt: number;
           }
@@ -278,12 +279,21 @@ export const createOpenCodeThreadState = (
         Record<
           string,
           {
+            request: import("./types").OpenCodeQuestionRequest;
             answers: readonly import("./types").QuestionAnswer[];
             respondedAt: number;
           }
         >
       >,
-      rejected: {} as Readonly<Record<string, { rejectedAt: number }>>,
+      rejected: {} as Readonly<
+        Record<
+          string,
+          {
+            request: import("./types").OpenCodeQuestionRequest;
+            rejectedAt: number;
+          }
+        >
+      >,
     },
   },
   unhandledEvents: [],
@@ -530,7 +540,9 @@ export const reduceOpenCodeThreadState = (
 
     case "permission.replied": {
       const pending = { ...state.interactions.permissions.pending };
+      const request = pending[event.permissionId];
       delete pending[event.permissionId];
+      if (!request) return state;
 
       return {
         ...state,
@@ -541,6 +553,7 @@ export const reduceOpenCodeThreadState = (
             resolved: {
               ...state.interactions.permissions.resolved,
               [event.permissionId]: {
+                request,
                 reply: event.reply,
                 respondedAt: Date.now(),
               },
@@ -575,7 +588,9 @@ export const reduceOpenCodeThreadState = (
 
     case "question.replied": {
       const pending = { ...state.interactions.questions.pending };
+      const request = pending[event.questionId];
       delete pending[event.questionId];
+      if (!request) return state;
 
       return {
         ...state,
@@ -587,6 +602,7 @@ export const reduceOpenCodeThreadState = (
             answered: {
               ...state.interactions.questions.answered,
               [event.questionId]: {
+                request,
                 answers: event.answers,
                 respondedAt: Date.now(),
               },
@@ -602,7 +618,9 @@ export const reduceOpenCodeThreadState = (
 
     case "question.rejected": {
       const pending = { ...state.interactions.questions.pending };
+      const request = pending[event.questionId];
       delete pending[event.questionId];
+      if (!request) return state;
 
       return {
         ...state,
@@ -614,6 +632,7 @@ export const reduceOpenCodeThreadState = (
             rejected: {
               ...state.interactions.questions.rejected,
               [event.questionId]: {
+                request,
                 rejectedAt: Date.now(),
               },
             },

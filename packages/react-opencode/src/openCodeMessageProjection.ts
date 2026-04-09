@@ -111,6 +111,45 @@ const mapToolState = (
   };
 };
 
+const getPartToolCallId = (part: Part) => {
+  if (part.type !== "tool") return undefined;
+  return typeof part.callID === "string" ? part.callID : undefined;
+};
+
+const hasPendingInteractionForToolCall = (
+  state: OpenCodeThreadState,
+  toolCallId: string | undefined,
+) => {
+  if (!toolCallId) return false;
+
+  for (const request of Object.values(state.interactions.permissions.pending)) {
+    if (request.tool?.callID === toolCallId) {
+      return true;
+    }
+  }
+
+  for (const request of Object.values(state.interactions.questions.pending)) {
+    if (request.tool?.callID === toolCallId) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const hasPendingInteractionForMessage = (
+  state: OpenCodeThreadState,
+  message: OpenCodeServerMessage,
+) => {
+  for (const part of message.parts) {
+    if (hasPendingInteractionForToolCall(state, getPartToolCallId(part))) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 const makeDataPart = (
   name: string,
   data: Record<string, unknown>,
@@ -338,10 +377,18 @@ const projectUserContent = (
 };
 
 const getMessageStatus = (
+  state: OpenCodeThreadState,
   message: OpenCodeServerMessage,
 ): OpenCodeProjectedThreadMessage["status"] => {
   if (!isAssistantMessage(message.info)) {
     return undefined;
+  }
+
+  if (hasPendingInteractionForMessage(state, message)) {
+    return {
+      type: "requires-action",
+      reason: "tool-calls",
+    };
   }
 
   if (message.info.error) {
@@ -409,6 +456,7 @@ const mergeServerMessages = (
 };
 
 const projectServerMessage = (
+  state: OpenCodeThreadState,
   message: OpenCodeServerMessage,
 ): OpenCodeProjectedThreadMessage | null => {
   if (!message.info) return null;
@@ -429,7 +477,7 @@ const projectServerMessage = (
       role: "assistant",
       createdAt: new Date(message.info.time?.created ?? Date.now()),
       content: projectAssistantContent(message),
-      status: getMessageStatus(message),
+      status: getMessageStatus(state, message),
       metadata: {
         custom: {
           ...metadata.custom,
@@ -492,7 +540,7 @@ export const projectOpenCodeThreadMessages = (
   );
 
   const serverMessages = mergedServerMessages
-    .map((message) => projectServerMessage(message))
+    .map((message) => projectServerMessage(state, message))
     .filter(
       (message): message is OpenCodeProjectedThreadMessage => message !== null,
     );

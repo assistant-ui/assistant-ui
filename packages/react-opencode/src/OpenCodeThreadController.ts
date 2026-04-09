@@ -13,6 +13,7 @@ import type {
   OpenCodePermissionRequest,
   OpenCodePermissionResponse,
   OpenCodeQuestionRequest,
+  QuestionAnswer,
   OpenCodeServerEvent,
   OpenCodeThreadControllerLike,
   OpenCodeThreadState,
@@ -333,6 +334,33 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       type: "permission.replied",
       permissionId,
       reply: response,
+    });
+  }
+
+  public async replyToQuestion(
+    questionId: string,
+    answers: readonly QuestionAnswer[],
+  ) {
+    await this.client.question.reply({
+      requestID: questionId,
+      answers: answers.slice(),
+    });
+
+    this.dispatch({
+      type: "question.replied",
+      questionId,
+      answers,
+    });
+  }
+
+  public async rejectQuestion(questionId: string) {
+    await this.client.question.reject({
+      requestID: questionId,
+    });
+
+    this.dispatch({
+      type: "question.rejected",
+      questionId,
     });
   }
 

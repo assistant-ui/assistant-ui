@@ -127,6 +127,7 @@ export type OpenCodeThreadState = {
         Record<
           string,
           {
+            request: OpenCodePermissionRequest;
             reply: OpenCodePermissionResponse;
             respondedAt: number;
           }
@@ -139,12 +140,21 @@ export type OpenCodeThreadState = {
         Record<
           string,
           {
+            request: OpenCodeQuestionRequest;
             answers: readonly QuestionAnswer[];
             respondedAt: number;
           }
         >
       >;
-      rejected: Readonly<Record<string, { rejectedAt: number }>>;
+      rejected: Readonly<
+        Record<
+          string,
+          {
+            request: OpenCodeQuestionRequest;
+            rejectedAt: number;
+          }
+        >
+      >;
     };
   };
   unhandledEvents: readonly OpenCodeUnhandledEvent[];
@@ -194,6 +204,11 @@ export type OpenCodeRuntimeExtras = {
     permissionId: string,
     response: OpenCodePermissionResponse,
   ) => Promise<void>;
+  replyToQuestion: (
+    questionId: string,
+    answers: readonly QuestionAnswer[],
+  ) => Promise<void>;
+  rejectQuestion: (questionId: string) => Promise<void>;
 };
 
 export type OpenCodeRuntime = AssistantRuntime;
@@ -281,6 +296,11 @@ export type OpenCodeThreadControllerLike = {
     permissionId: string,
     response: OpenCodePermissionResponse,
   ): Promise<void>;
+  replyToQuestion(
+    questionId: string,
+    answers: readonly QuestionAnswer[],
+  ): Promise<void>;
+  rejectQuestion(questionId: string): Promise<void>;
 };
 
 export type OpenCodePartPayload = {

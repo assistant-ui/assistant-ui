@@ -142,6 +142,160 @@ describe("projectOpenCodeThreadMessages", () => {
     ]);
   });
 
+  it("marks assistant messages with pending permission requests as requires-action", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      interactions: {
+        permissions: {
+          pending: {
+            permission_1: {
+              id: "permission_1",
+              sessionId: "ses_1",
+              permission: "bash",
+              patterns: [],
+              metadata: {},
+              always: [],
+              askedAt: 1000,
+              raw: {} as never,
+              tool: {
+                messageID: "assistant-1",
+                callID: "call-1",
+              },
+            },
+          },
+          resolved: {},
+        },
+        questions: {
+          pending: {},
+          answered: {},
+          rejected: {},
+        },
+      },
+      messageOrder: ["assistant-1"],
+      messagesById: {
+        "assistant-1": {
+          id: "assistant-1",
+          info: {
+            id: "assistant-1",
+            role: "assistant",
+            sessionID: "ses_1",
+            parentID: "user-1",
+            modelID: "model",
+            providerID: "provider",
+            mode: "primary",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 1 },
+            finish: "stop",
+          } as never,
+          parts: [
+            {
+              id: "tool-1",
+              callID: "call-1",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "bash",
+              state: {
+                status: "pending",
+                input: { command: "ls" },
+                raw: "ls",
+              },
+            } as never,
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const messages = projectOpenCodeThreadMessages(state);
+    expect(messages[0]?.status).toEqual({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+  });
+
+  it("marks assistant messages with pending question requests as requires-action", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      interactions: {
+        permissions: {
+          pending: {},
+          resolved: {},
+        },
+        questions: {
+          pending: {
+            question_1: {
+              id: "question_1",
+              sessionID: "ses_1",
+              questions: [],
+              askedAt: 1000,
+              tool: {
+                messageID: "assistant-1",
+                callID: "call-1",
+              },
+            },
+          },
+          answered: {},
+          rejected: {},
+        },
+      },
+      messageOrder: ["assistant-1"],
+      messagesById: {
+        "assistant-1": {
+          id: "assistant-1",
+          info: {
+            id: "assistant-1",
+            role: "assistant",
+            sessionID: "ses_1",
+            parentID: "user-1",
+            modelID: "model",
+            providerID: "provider",
+            mode: "primary",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 1 },
+            finish: "stop",
+          } as never,
+          parts: [
+            {
+              id: "tool-1",
+              callID: "call-1",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "request_user_input",
+              state: {
+                status: "pending",
+                input: {},
+                raw: "",
+              },
+            } as never,
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const messages = projectOpenCodeThreadMessages(state);
+    expect(messages[0]?.status).toEqual({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+  });
+
   it("normalizes escaped newlines in reasoning parts", () => {
     const state: OpenCodeThreadState = {
       ...createOpenCodeThreadState("ses_1"),

@@ -13,7 +13,6 @@ import {
   useOpenCodeSession,
 } from "@assistant-ui/react-opencode";
 import { Thread } from "../components/assistant-ui/thread";
-import { OpenCodePermissions } from "../components/opencode-permissions";
 
 export default function Home() {
   const runtime = useOpenCodeRuntime({
@@ -35,13 +34,8 @@ export default function Home() {
                 <SelectedSessionTitle />
               </div>
             </header>
-            <div className="flex min-h-0 flex-1 overflow-hidden">
-              <div className="min-w-0 flex-1 overflow-hidden">
-                <Thread />
-              </div>
-              <aside className="hidden w-80 shrink-0 overflow-y-auto border-l bg-background p-4 lg:block">
-                <OpenCodePermissions />
-              </aside>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <Thread />
             </div>
           </SidebarInset>
         </div>

@@ -97,4 +97,97 @@ describe("OpenCodeThreadController", () => {
     });
     expect(controller.getState().messageOrder).toEqual(["fresh_message"]);
   });
+
+  it("replies to questions and stores answered state", async () => {
+    const client = {
+      session: {
+        get: vi.fn(),
+        messages: vi.fn(),
+      },
+      question: {
+        reply: vi.fn().mockResolvedValue({}),
+        reject: vi.fn().mockResolvedValue({}),
+      },
+    };
+
+    const controller = new OpenCodeThreadController(
+      client as never,
+      { subscribe: () => () => {} } as never,
+      "ses_1",
+    );
+
+    (controller as unknown as { dispatch: (event: unknown) => void }).dispatch({
+      type: "question.asked",
+      request: {
+        id: "question_1",
+        sessionID: "ses_1",
+        questions: [],
+        askedAt: 1000,
+        tool: {
+          messageID: "msg_1",
+          callID: "call_1",
+        },
+      },
+    });
+
+    await controller.replyToQuestion("question_1", [["Yes"]]);
+
+    expect(client.question.reply).toHaveBeenCalledWith({
+      requestID: "question_1",
+      answers: [["Yes"]],
+    });
+    expect(
+      controller.getState().interactions.questions.answered["question_1"],
+    ).toMatchObject({
+      answers: [["Yes"]],
+    });
+    expect(
+      controller.getState().interactions.questions.pending["question_1"],
+    ).toBeUndefined();
+  });
+
+  it("rejects questions and stores rejected state", async () => {
+    const client = {
+      session: {
+        get: vi.fn(),
+        messages: vi.fn(),
+      },
+      question: {
+        reply: vi.fn().mockResolvedValue({}),
+        reject: vi.fn().mockResolvedValue({}),
+      },
+    };
+
+    const controller = new OpenCodeThreadController(
+      client as never,
+      { subscribe: () => () => {} } as never,
+      "ses_1",
+    );
+
+    (controller as unknown as { dispatch: (event: unknown) => void }).dispatch({
+      type: "question.asked",
+      request: {
+        id: "question_1",
+        sessionID: "ses_1",
+        questions: [],
+        askedAt: 1000,
+        tool: {
+          messageID: "msg_1",
+          callID: "call_1",
+        },
+      },
+    });
+
+    await controller.rejectQuestion("question_1");
+
+    expect(client.question.reject).toHaveBeenCalledWith({
+      requestID: "question_1",
+    });
+    expect(
+      controller.getState().interactions.questions.rejected["question_1"],
+    ).toBeDefined();
+    expect(
+      controller.getState().interactions.questions.pending["question_1"],
+    ).toBeUndefined();
+  });
 });

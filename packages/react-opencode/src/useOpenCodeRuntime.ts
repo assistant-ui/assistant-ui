@@ -113,6 +113,8 @@ const NOOP_CONTROLLER: OpenCodeThreadControllerLike = {
   unrevert: async () => {},
   fork: async () => "",
   replyToPermission: async () => {},
+  replyToQuestion: async () => {},
+  rejectQuestion: async () => {},
 };
 
 const NOOP_ON_NEW = () =>
@@ -164,6 +166,12 @@ const useOpenCodeThreadRuntime = (
           permissionId: string,
           response: "once" | "always" | "reject",
         ) => controller.replyToPermission(permissionId, response),
+        replyToQuestion: (
+          questionId: string,
+          answers: readonly import("./types").QuestionAnswer[],
+        ) => controller.replyToQuestion(questionId, answers),
+        rejectQuestion: (questionId: string) =>
+          controller.rejectQuestion(questionId),
       }) satisfies OpenCodeRuntimeExtrasInternal,
     [controller, state],
   );

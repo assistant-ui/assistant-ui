@@ -5,6 +5,10 @@ import {
 } from "@/components/assistant-ui/attachment";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { Reasoning } from "@/components/assistant-ui/reasoning";
+import {
+  AskQuestionInline,
+  withOpenCodeToolInteractions,
+} from "@/components/tools/opencode-tool-interactions";
 import { ReasoningGroup } from "@/components/tools/reasoning-ghost";
 import { BashTerminal } from "@/components/tools/tool-ui-bash";
 import { ApplyPatchDiff } from "@/components/tools/tool-ui-apply-patch";
@@ -49,6 +53,18 @@ import {
   SquareIcon,
 } from "lucide-react";
 import type { FC } from "react";
+
+const ReadTool = withOpenCodeToolInteractions(ReadInline);
+const EditTool = withOpenCodeToolInteractions(EditInline);
+const WriteTool = withOpenCodeToolInteractions(WriteInline);
+const BashTool = withOpenCodeToolInteractions(BashTerminal);
+const GrepTool = withOpenCodeToolInteractions(GrepInline);
+const GlobTool = withOpenCodeToolInteractions(GlobInline);
+const WebSearchTool = withOpenCodeToolInteractions(WebSearchInline);
+const WebFetchTool = withOpenCodeToolInteractions(WebFetchInline);
+const ApplyPatchTool = withOpenCodeToolInteractions(ApplyPatchDiff);
+const AskQuestionTool = withOpenCodeToolInteractions(AskQuestionInline);
+const FallbackTool = withOpenCodeToolInteractions(ToolCallFallback);
 
 export const Thread: FC = () => {
   return (
@@ -230,17 +246,20 @@ const AssistantMessage: FC = () => {
             ReasoningGroup,
             tools: {
               by_name: {
-                read: ReadInline,
-                edit: EditInline,
-                write: WriteInline,
-                bash: BashTerminal,
-                grep: GrepInline,
-                glob: GlobInline,
-                webSearch: WebSearchInline,
-                webFetch: WebFetchInline,
-                apply_patch: ApplyPatchDiff,
+                read: ReadTool,
+                edit: EditTool,
+                write: WriteTool,
+                bash: BashTool,
+                grep: GrepTool,
+                glob: GlobTool,
+                webSearch: WebSearchTool,
+                webFetch: WebFetchTool,
+                apply_patch: ApplyPatchTool,
+                ask_question: AskQuestionTool,
+                request_user_input: AskQuestionTool,
+                requestUserInput: AskQuestionTool,
               },
-              Fallback: ToolCallFallback,
+              Fallback: FallbackTool,
             },
             ToolGroup,
             data: {

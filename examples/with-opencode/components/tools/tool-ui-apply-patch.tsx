@@ -3,6 +3,7 @@
 import { memo, useMemo, useState } from "react";
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import {
+  AlertCircleIcon,
   CheckIcon,
   ChevronRightIcon,
   LoaderIcon,
@@ -202,6 +203,8 @@ export const ApplyPatchDiff: ToolCallMessagePartComponent = memo(
           >
             {isRunning ? (
               <LoaderIcon className="size-3 shrink-0 animate-spin" />
+            ) : statusType === "requires-action" ? (
+              <AlertCircleIcon className="size-3 shrink-0 text-amber-600" />
             ) : statusType === "incomplete" ? (
               <XCircleIcon
                 className={cn(

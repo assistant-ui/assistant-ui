@@ -1,7 +1,12 @@
 "use client";
 
 import { memo, useMemo } from "react";
-import { CheckIcon, LoaderIcon, XCircleIcon } from "lucide-react";
+import {
+  AlertCircleIcon,
+  CheckIcon,
+  LoaderIcon,
+  XCircleIcon,
+} from "lucide-react";
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +41,8 @@ const StatusIcon = ({
 }) => {
   if (statusType === "running")
     return <LoaderIcon className="size-3 shrink-0 animate-spin" />;
+  if (statusType === "requires-action")
+    return <AlertCircleIcon className="size-3 shrink-0 text-amber-600" />;
   if (statusType === "incomplete")
     return (
       <XCircleIcon

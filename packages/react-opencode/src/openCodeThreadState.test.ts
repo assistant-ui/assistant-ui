@@ -196,4 +196,68 @@ describe("reduceOpenCodeThreadState", () => {
       Object.keys(withQuestion.interactions.permissions.pending),
     ).toHaveLength(0);
   });
+
+  it("retains request details for resolved questions and permissions", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+
+    const withPermission = reduceOpenCodeThreadState(initial, {
+      type: "permission.asked",
+      request: {
+        id: "permission_1",
+        sessionId: "ses_1",
+        permission: "bash",
+        patterns: [],
+        metadata: {},
+        always: [],
+        askedAt: 1000,
+        raw: {} as never,
+        tool: {
+          messageID: "msg_1",
+          callID: "call_1",
+        },
+      },
+    });
+
+    const resolvedPermission = reduceOpenCodeThreadState(withPermission, {
+      type: "permission.replied",
+      permissionId: "permission_1",
+      reply: "once",
+    });
+
+    expect(
+      resolvedPermission.interactions.permissions.resolved["permission_1"]
+        ?.request.tool?.callID,
+    ).toBe("call_1");
+
+    const withQuestion = reduceOpenCodeThreadState(initial, {
+      type: "question.asked",
+      request: {
+        id: "question_1",
+        sessionID: "ses_1",
+        questions: [
+          {
+            header: "Confirm",
+            question: "Should I continue?",
+            options: [],
+          },
+        ],
+        askedAt: 1000,
+        tool: {
+          messageID: "msg_1",
+          callID: "call_2",
+        },
+      } as never,
+    });
+
+    const answeredQuestion = reduceOpenCodeThreadState(withQuestion, {
+      type: "question.replied",
+      questionId: "question_1",
+      answers: [["Yes"]],
+    });
+
+    expect(
+      answeredQuestion.interactions.questions.answered["question_1"]?.request
+        .tool?.callID,
+    ).toBe("call_2");
+  });
 });
