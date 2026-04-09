@@ -504,20 +504,25 @@ export function MyRuntimeProvider({ children }) {
               const messages = await db.messages.findByThreadId(remoteId);
               return {
                 messages: messages.map((m) => ({
-                  role: m.role,
-                  content: m.content,
-                  id: m.id,
-                  createdAt: new Date(m.createdAt),
+                  parentId: m.parentId,
+                  message: {
+                    role: m.role,
+                    content: m.content,
+                    id: m.id,
+                    createdAt: new Date(m.createdAt),
+                    metadata: { custom: {} },
+                  },
                 })),
               };
             },
 
-            async append(message) {
+            async append({ message, parentId }) {
               // Wait for initialization to get remoteId (safe to call multiple times)
               const { remoteId } = await aui.threadListItem().initialize();
 
               await db.messages.create({
                 threadId: remoteId,
+                parentId,
                 role: message.role,
                 content: message.content,
                 id: message.id,
@@ -584,10 +589,10 @@ const aui = useAui();
 
 const history = useMemo<ThreadHistoryAdapter>(
   () => ({
-    async append(message) {
+    async append({ message, parentId }) {
       // Wait for initialization - safe to call multiple times
       const { remoteId } = await aui.threadListItem().initialize();
-      await db.messages.create({ threadId: remoteId, ...message });
+      await db.messages.create({ threadId: remoteId, parentId, ...message });
     },
     // ...
   }),
@@ -613,6 +618,7 @@ interface ThreadRecord {
 interface MessageRecord {
   id: string;
   threadId: string;
+  parentId: string | null;
   role: "user" | "assistant" | "system";
   content: any; // Store as JSON
   createdAt: Date;
@@ -699,12 +705,12 @@ const historyAdapter: ThreadHistoryAdapter = {
     return { messages };
   },
 
-  async append(message) {
+  async append({ message, parentId }) {
     // Save new message to storage
     await fetch(`/api/thread/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, parentId }),
     });
   },
 
