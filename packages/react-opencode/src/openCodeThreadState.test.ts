@@ -154,6 +154,18 @@ describe("reduceOpenCodeThreadState", () => {
     ]);
   });
 
+  it("ignores part removals for unknown messages", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+
+    const updated = reduceOpenCodeThreadState(initial, {
+      type: "part.removed",
+      messageId: "missing_message",
+      partId: "missing_part",
+    });
+
+    expect(updated).toBe(initial);
+  });
+
   it("stores pending questions separately from permissions", () => {
     const initial = createOpenCodeThreadState("ses_1");
 

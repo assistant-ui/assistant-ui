@@ -203,11 +203,12 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
     this.dispatch({ type: "history.loading" });
 
-    this.loadPromise = Promise.all([
+    const request = Promise.all([
       this.client.session.get({ sessionID: this.sessionId }),
       this.client.session.messages({ sessionID: this.sessionId }),
     ])
       .then(([sessionResponse, messagesResponse]) => {
+        if (this.loadPromise !== request) return;
         this.dispatch({
           type: "history.loaded",
           session: sessionResponse.data ?? null,
@@ -217,14 +218,18 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         });
       })
       .catch((error) => {
+        if (this.loadPromise !== request) throw error;
         this.dispatch({ type: "history.failed", error });
         throw error;
       })
       .finally(() => {
-        this.loadPromise = null;
+        if (this.loadPromise === request) {
+          this.loadPromise = null;
+        }
       });
 
-    return this.loadPromise;
+    this.loadPromise = request;
+    return request;
   }
 
   public refresh() {
@@ -415,6 +420,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
             : undefined;
 
         if (messageId && part && typeof part === "object") {
+          if (!(messageId in this.state.messagesById)) {
+            this.refreshInBackground();
+            return;
+          }
+
           this.dispatch({
             type: "part.updated",
             messageId,
@@ -452,6 +462,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
           typeof event.properties.messageID === "string" &&
           typeof event.properties.partID === "string"
         ) {
+          if (!(event.properties.messageID in this.state.messagesById)) {
+            this.refreshInBackground();
+            return;
+          }
+
           this.dispatch({
             type: "part.removed",
             messageId: event.properties.messageID,

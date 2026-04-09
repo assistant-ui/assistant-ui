@@ -84,38 +84,56 @@ export class OpenCodeEventSource {
 
     return () => {
       this.listeners.delete(listener);
+      if (this.listeners.size === 0) {
+        this.disconnect();
+      }
     };
   }
 
   public dispose() {
     this.stopped = true;
-    this.abortController?.abort();
-    this.abortController = null;
-    this.connectionPromise = null;
+    this.disconnect();
   }
 
   private emit(event: OpenCodeServerEvent) {
     for (const listener of this.listeners) {
-      listener(event);
+      try {
+        listener(event);
+      } catch (error) {
+        console.error("[react-opencode] Listener threw an error", error);
+      }
     }
   }
 
   private connect() {
     if (this.connectionPromise || this.stopped) return;
-    this.connectionPromise = this.run();
+    const connection = this.run().finally(() => {
+      if (this.connectionPromise === connection) {
+        this.connectionPromise = null;
+      }
+    });
+    this.connectionPromise = connection;
+  }
+
+  private disconnect() {
+    this.abortController?.abort();
+    this.abortController = null;
   }
 
   private async run() {
     while (!this.stopped) {
-      this.abortController = new AbortController();
+      if (this.listeners.size === 0) return;
+
+      const abortController = new AbortController();
+      this.abortController = abortController;
 
       try {
         const subscription = await this.client.event.subscribe(undefined, {
-          signal: this.abortController.signal,
+          signal: abortController.signal,
         });
 
         for await (const event of subscription.stream) {
-          if (this.abortController.signal.aborted || this.stopped) {
+          if (abortController.signal.aborted || this.stopped) {
             return;
           }
 
@@ -124,14 +142,18 @@ export class OpenCodeEventSource {
           this.emit(normalized);
         }
       } catch (error) {
-        if (this.abortController?.signal.aborted || this.stopped) return;
+        if (abortController.signal.aborted || this.stopped) return;
         console.warn(
           "[react-opencode] OpenCode event stream disconnected",
           error,
         );
       } finally {
-        this.abortController = null;
+        if (this.abortController === abortController) {
+          this.abortController = null;
+        }
       }
+
+      if (this.listeners.size === 0) return;
 
       await new Promise((resolve) =>
         setTimeout(resolve, this.reconnectDelayMs),

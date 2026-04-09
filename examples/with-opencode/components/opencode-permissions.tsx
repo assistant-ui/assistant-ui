@@ -8,20 +8,40 @@ import {
 import { ShieldAlertIcon } from "lucide-react";
 import { useState } from "react";
 
+const omitKey = <T extends Record<string, unknown>>(record: T, key: string) => {
+  if (!(key in record)) return record;
+
+  const nextRecord = { ...record };
+  delete nextRecord[key];
+  return nextRecord;
+};
+
 export function OpenCodePermissions() {
   const { pending, reply } = useOpenCodePermissions();
   const questions = useOpenCodeQuestions();
-  const [submitting, setSubmitting] = useState<string | null>(null);
+  const [submittingById, setSubmittingById] = useState<
+    Record<string, boolean>
+  >({});
+  const [errorById, setErrorById] = useState<Record<string, string>>({});
 
   const handleReply = async (
     permissionId: string,
     response: "once" | "always" | "reject",
   ) => {
-    setSubmitting(permissionId);
+    setSubmittingById((current) => ({ ...current, [permissionId]: true }));
+    setErrorById((current) => omitKey(current, permissionId));
+
     try {
       await reply(permissionId, response);
+      setErrorById((current) => omitKey(current, permissionId));
+    } catch (error) {
+      setErrorById((current) => ({
+        ...current,
+        [permissionId]:
+          error instanceof Error ? error.message : "Failed to send reply.",
+      }));
     } finally {
-      setSubmitting(null);
+      setSubmittingById((current) => omitKey(current, permissionId));
     }
   };
 
@@ -75,7 +95,7 @@ export function OpenCodePermissions() {
                 <Button
                   size="sm"
                   onClick={() => handleReply(request.id, "once")}
-                  disabled={submitting === request.id}
+                  disabled={Boolean(submittingById[request.id])}
                 >
                   Allow once
                 </Button>
@@ -83,7 +103,7 @@ export function OpenCodePermissions() {
                   size="sm"
                   variant="secondary"
                   onClick={() => handleReply(request.id, "always")}
-                  disabled={submitting === request.id}
+                  disabled={Boolean(submittingById[request.id])}
                 >
                   Always allow
                 </Button>
@@ -91,11 +111,16 @@ export function OpenCodePermissions() {
                   size="sm"
                   variant="outline"
                   onClick={() => handleReply(request.id, "reject")}
-                  disabled={submitting === request.id}
+                  disabled={Boolean(submittingById[request.id])}
                 >
                   Reject
                 </Button>
               </div>
+              {errorById[request.id] ? (
+                <p className="mt-2 text-destructive text-xs">
+                  {errorById[request.id]}
+                </p>
+              ) : null}
             </div>
           ))
         )}

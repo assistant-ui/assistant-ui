@@ -11,7 +11,12 @@ import {
   createOpencodeClient,
   type GlobalSession,
 } from "@opencode-ai/sdk/v2/client";
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
 import type {
   OpenCodeRuntimeExtras,
   OpenCodeRuntimeOptions,
@@ -50,11 +55,15 @@ const asOpenCodeRuntimeExtras = (extras: unknown) => {
 };
 
 const tryGetOpenCodeRuntimeExtras = (extras: unknown) => {
-  try {
-    return asOpenCodeRuntimeExtras(extras);
-  } catch {
+  if (
+    typeof extras !== "object" ||
+    extras == null ||
+    !(symbolOpenCodeRuntimeExtras in extras)
+  ) {
     return undefined;
   }
+
+  return extras as OpenCodeRuntimeExtrasInternal;
 };
 
 const EMPTY_THREAD_STATE = createOpenCodeThreadState("__pending__");
@@ -123,13 +132,14 @@ const useOpenCodeThreadRuntime = (
   options: OpenCodeRuntimeOptions,
 ): AssistantRuntime => {
   const state = useOpenCodeControllerState(controller);
+  const onLoadError = useEffectEvent((error: unknown) => {
+    options.onError?.(error);
+  });
 
   useEffect(() => {
     if (controller === NOOP_CONTROLLER) return;
-    controller.load().catch((error) => {
-      options.onError?.(error);
-    });
-  }, [controller, options]);
+    void controller.load().catch(onLoadError);
+  }, [controller]);
 
   const messageRepository = useMemo(
     () => projectOpenCodeThreadRepository(state),

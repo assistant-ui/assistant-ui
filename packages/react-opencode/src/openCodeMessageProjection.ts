@@ -24,6 +24,53 @@ const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === "object" && value !== null;
 };
 
+const getProjectedCreatedAt = (message: OpenCodeProjectedThreadMessage) => {
+  return message.createdAt instanceof Date
+    ? message.createdAt.getTime()
+    : Date.now();
+};
+
+const compareProjectedMessages = (
+  left: OpenCodeProjectedThreadMessage,
+  right: OpenCodeProjectedThreadMessage,
+) => {
+  const leftTime = getProjectedCreatedAt(left);
+  const rightTime = getProjectedCreatedAt(right);
+  if (leftTime !== rightTime) return leftTime - rightTime;
+  return left.id?.localeCompare(right.id ?? "") ?? 0;
+};
+
+const mergeProjectedMessages = (
+  serverMessages: readonly OpenCodeProjectedThreadMessage[],
+  pendingMessages: readonly OpenCodeProjectedThreadMessage[],
+) => {
+  const merged: OpenCodeProjectedThreadMessage[] = [];
+  let serverIndex = 0;
+  let pendingIndex = 0;
+
+  while (
+    serverIndex < serverMessages.length &&
+    pendingIndex < pendingMessages.length
+  ) {
+    const serverMessage = serverMessages[serverIndex]!;
+    const pendingMessage = pendingMessages[pendingIndex]!;
+
+    if (compareProjectedMessages(serverMessage, pendingMessage) <= 0) {
+      merged.push(serverMessage);
+      serverIndex += 1;
+    } else {
+      merged.push(pendingMessage);
+      pendingIndex += 1;
+    }
+  }
+
+  return [
+    ...merged,
+    ...serverMessages.slice(serverIndex),
+    ...pendingMessages.slice(pendingIndex),
+  ];
+};
+
 const mapToolState = (
   state:
     | {
@@ -300,17 +347,22 @@ const getMessageStatus = (
   if (message.info.error) {
     const error = message.info.error;
     const maybeMessage =
-      "data" in error &&
-      typeof error.data === "object" &&
-      error.data &&
-      "message" in error.data
-        ? (error.data as { message?: string }).message
+      isRecord(error) &&
+      isRecord(error.data) &&
+      typeof error.data.message === "string"
+        ? error.data.message
         : undefined;
+    const fallbackMessage =
+      typeof error === "string"
+        ? error
+        : isRecord(error) && typeof error.name === "string"
+          ? error.name
+          : "OpenCode run failed";
 
     return {
       type: "incomplete",
       reason: "error",
-      error: maybeMessage ?? error.name,
+      error: maybeMessage ?? fallbackMessage,
     };
   }
 
@@ -451,14 +503,7 @@ export const projectOpenCodeThreadMessages = (
     .sort((left, right) => left.createdAt - right.createdAt)
     .map((pending) => projectPendingMessage(pending));
 
-  return [...serverMessages, ...pendingMessages].sort((left, right) => {
-    const leftTime =
-      left.createdAt instanceof Date ? left.createdAt.getTime() : Date.now();
-    const rightTime =
-      right.createdAt instanceof Date ? right.createdAt.getTime() : Date.now();
-    if (leftTime !== rightTime) return leftTime - rightTime;
-    return left.id?.localeCompare(right.id ?? "") ?? 0;
-  });
+  return mergeProjectedMessages(serverMessages, pendingMessages);
 };
 
 export const projectOpenCodeThreadRepository = (state: OpenCodeThreadState) => {

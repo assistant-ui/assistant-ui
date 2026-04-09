@@ -65,26 +65,45 @@ const sortMessageIds = (
   });
 };
 
-const withMessage = (
+const upsertMessage = (
   state: OpenCodeThreadState,
   messageId: string,
   updater: (
     current: OpenCodeServerMessage | undefined,
   ) => OpenCodeServerMessage,
 ): OpenCodeThreadState => {
-  const nextMessage = updater(state.messagesById[messageId]);
+  const current = state.messagesById[messageId];
+  const nextMessage = updater(current);
   const messagesById = {
     ...state.messagesById,
     [messageId]: nextMessage,
   };
-  const messageOrder = state.messageOrder.includes(messageId)
-    ? sortMessageIds(messagesById, state.messageOrder)
-    : sortMessageIds(messagesById, [...state.messageOrder, messageId]);
+  const messageOrder = sortMessageIds(
+    messagesById,
+    current ? state.messageOrder : [...state.messageOrder, messageId],
+  );
 
   return {
     ...state,
     messagesById,
     messageOrder,
+  };
+};
+
+const updateExistingMessage = (
+  state: OpenCodeThreadState,
+  messageId: string,
+  updater: (current: OpenCodeServerMessage) => OpenCodeServerMessage,
+): OpenCodeThreadState => {
+  const current = state.messagesById[messageId];
+  if (!current) return state;
+
+  return {
+    ...state,
+    messagesById: {
+      ...state.messagesById,
+      [messageId]: updater(current),
+    },
   };
 };
 
@@ -380,7 +399,7 @@ export const reduceOpenCodeThreadState = (
           ? findPendingMatchByMessageInfo(state, event.info)
           : undefined;
 
-      let nextState = withMessage(state, event.info.id, (current) => ({
+      let nextState = upsertMessage(state, event.info.id, (current) => ({
         id: event.info.id,
         info: event.info,
         parts: current?.parts ?? [],
@@ -419,14 +438,22 @@ export const reduceOpenCodeThreadState = (
       };
     }
 
-    case "part.updated":
-      return {
-        ...withMessage(state, event.messageId, (current) => ({
+    case "part.updated": {
+      const nextState = updateExistingMessage(
+        state,
+        event.messageId,
+        (current) => ({
           id: event.messageId,
-          info: current?.info,
-          parts: upsertMessagePart(current?.parts ?? [], event.part),
-          shadowParts: current?.shadowParts,
-        })),
+          info: current.info,
+          parts: upsertMessagePart(current.parts, event.part),
+          shadowParts: current.shadowParts,
+        }),
+      );
+
+      if (nextState === state) return state;
+
+      return {
+        ...nextState,
         runState: { type: "streaming" },
         sessionStatus:
           state.sessionStatus?.type === "retry"
@@ -437,6 +464,7 @@ export const reduceOpenCodeThreadState = (
           lastEventAt: Date.now(),
         },
       };
+    }
 
     case "part.delta": {
       const current = state.messagesById[event.messageId];
@@ -452,7 +480,7 @@ export const reduceOpenCodeThreadState = (
       if (!current || !nextParts) return state;
 
       return {
-        ...withMessage(state, event.messageId, () => ({
+        ...updateExistingMessage(state, event.messageId, () => ({
           ...current,
           parts: nextParts,
         })),
@@ -468,19 +496,28 @@ export const reduceOpenCodeThreadState = (
       };
     }
 
-    case "part.removed":
-      return {
-        ...withMessage(state, event.messageId, (current) => ({
+    case "part.removed": {
+      const nextState = updateExistingMessage(
+        state,
+        event.messageId,
+        (current) => ({
           id: event.messageId,
-          info: current?.info,
-          parts: removeMessagePart(current?.parts ?? [], event.partId),
-          shadowParts: current?.shadowParts,
-        })),
+          info: current.info,
+          parts: removeMessagePart(current.parts, event.partId),
+          shadowParts: current.shadowParts,
+        }),
+      );
+
+      if (nextState === state) return state;
+
+      return {
+        ...nextState,
         sync: {
           ...state.sync,
           lastEventAt: Date.now(),
         },
       };
+    }
 
     case "permission.asked":
       return {
