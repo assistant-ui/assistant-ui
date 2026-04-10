@@ -49,7 +49,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
     "@types/react": "^19.2.14",
-    "react": "^19.2.4"
+    "react": "^19.2.5"
   },
   "publishConfig": {
     "access": "public",

@@ -62,8 +62,8 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.14",
     "@types/uuid": "^11.0.0",
-    "react": "^19.2.4",
-    "vitest": "^4.1.2"
+    "react": "^19.2.5",
+    "vitest": "^4.1.4"
   },
   "publishConfig": {
     "access": "public",

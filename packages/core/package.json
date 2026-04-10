@@ -83,8 +83,8 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.14",
     "assistant-cloud": "workspace:*",
-    "react": "^19.2.4",
-    "vitest": "^4.1.2",
+    "react": "^19.2.5",
+    "vitest": "^4.1.4",
     "zustand": "^5.0.12"
   },
   "publishConfig": {
