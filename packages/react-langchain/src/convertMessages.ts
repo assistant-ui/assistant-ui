@@ -21,7 +21,6 @@ const contentToParts = (content: unknown) => {
       const type = part.type;
       switch (type) {
         case "text":
-          return { type: "text" as const, text: part.text };
         case "text_delta":
           return { type: "text" as const, text: part.text };
         case "image_url":

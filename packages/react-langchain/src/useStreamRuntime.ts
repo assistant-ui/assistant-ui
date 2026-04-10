@@ -33,9 +33,7 @@ type LangChainRuntimeExtras = {
   ) => Promise<void>;
 };
 
-export const asLangChainRuntimeExtras = (
-  extras: unknown,
-): LangChainRuntimeExtras => {
+const asLangChainRuntimeExtras = (extras: unknown): LangChainRuntimeExtras => {
   if (
     typeof extras !== "object" ||
     extras == null ||
