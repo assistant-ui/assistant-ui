@@ -127,7 +127,7 @@ export function AssistantComposer({
   return (
     <ComposerPrimitive.Root
       onSubmit={handleSubmit}
-      className={cn("py-2", className)}
+      className={cn("pb-0.5", className)}
     >
       <div className="rounded-xl border border-border bg-background focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/20">
         <ComposerPrimitive.Input asChild>
