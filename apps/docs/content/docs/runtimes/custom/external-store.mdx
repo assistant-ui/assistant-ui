@@ -424,6 +424,44 @@ const onEdit = async (message: AppendMessage) => {
 };
 ```
 
+### Branching Support
+
+The `messages` array path assumes a linear conversation — each message's parent is the previous message. To support branching (e.g. regenerating responses creates alternative branches), use `ExportedMessageRepository.fromBranchableArray()` combined with `thread.import()`.
+
+Each message must have an explicit `id` and `parentId`. Messages with the same `parentId` create branches:
+
+```tsx
+import {
+  ExportedMessageRepository,
+  useExternalStoreRuntime,
+} from "@assistant-ui/react";
+
+// Your messages from the backend, each with an id and parentId
+const backendMessages = [
+  { id: "user-1", role: "user", content: "Hello", parentId: null },
+  { id: "asst-1", role: "assistant", content: "Hi!", parentId: "user-1" },
+  // A second response to the same user message = a branch
+  { id: "asst-2", role: "assistant", content: "Hey!", parentId: "user-1" },
+];
+
+// Convert to ExportedMessageRepository
+const repo = ExportedMessageRepository.fromBranchableArray(
+  backendMessages.map((m) => ({
+    message: { id: m.id, role: m.role, content: m.content },
+    parentId: m.parentId,
+  })),
+  { headId: "asst-1" }, // which branch to display initially
+);
+
+// Import into the runtime
+runtime.thread.import(repo);
+```
+
+<Callout type="warn">
+  Messages in the array must be ordered so that parents appear before their
+  children. Each message **must** have an `id` field set.
+</Callout>
+
 ### Tool Calling
 
 Support tool calls with proper result handling:
