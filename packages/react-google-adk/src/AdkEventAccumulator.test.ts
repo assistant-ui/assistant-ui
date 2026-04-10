@@ -399,17 +399,7 @@ describe("AdkEventAccumulator - isFinalResponse logic", () => {
     });
   });
 
-  it("isFinalResponse is true for HITL but status stays undefined (let auto-status apply requires-action)", () => {
-    // HITL regression: previously this test asserted
-    //   status: { type: "complete", reason: "stop" }
-    // which was WRONG. Assigning a manual "complete" status to a message
-    // that carries an unresolved tool call blocks
-    // external-message-converter from applying AUTO_STATUS_PENDING
-    // ({type:"requires-action"}), so any `makeAssistantToolUI` registered
-    // for adk_request_input / adk_request_confirmation /
-    // adk_request_credential could never use its `status.type ===
-    // "requires-action"` render branch. See the HITL requires-action
-    // describe block below for the full contract.
+  it("HITL event leaves status undefined for auto-status", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(
       makeEvent({
@@ -427,100 +417,56 @@ describe("AdkEventAccumulator - isFinalResponse logic", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// HITL requires-action — Google ADK RequestInput / LongRunningFunctionTool
-// ---------------------------------------------------------------------------
-//
-// When ADK emits an `adk_request_input` (or `adk_request_confirmation` /
-// `adk_request_credential`) interrupt, the event carries:
-//   - content.parts[0].functionCall  — the tool call
-//   - longRunningToolIds[]           — matching id of the tool call
-//
-// Consumers register a `makeAssistantToolUI({ toolName: "adk_request_input" })`
-// whose `render({ status })` expects `status.type === "requires-action"` when
-// the tool call is pending, so it can show an input form and collect the
-// user's answer via `useAdkSubmitInput(toolCallId, text)`.
-//
-// For that to work, the AI message carrying the tool call must NOT be
-// stamped with a manual "complete" status by the accumulator — otherwise
-// external-message-converter refuses to promote it to AUTO_STATUS_PENDING
-// and the form branch is dead code.
-//
-// These tests lock that contract in place.
-// ---------------------------------------------------------------------------
-
 describe("AdkEventAccumulator - HITL requires-action", () => {
-  // Wire shape captured from a real Google ADK backend run
-  // (front_door workflow, clarify_hitl node, 2026-04-10).
-  const HITL_TOOL_CALL_ID = "15e1abeb-aaf9-4e43-a55f-3a5ca10d810c";
-  const HITL_EVENT = {
-    id: "8700bf9d-4673-46ff-a28e-36f5e7927123",
-    invocationId: "e-3888c670-4bbb-4c90-9e3a-17d7dc47e4a8",
-    author: "FrontDoorWorkflow",
-    longRunningToolIds: [HITL_TOOL_CALL_ID],
-    content: {
-      parts: [
-        {
-          functionCall: {
-            id: HITL_TOOL_CALL_ID,
-            name: "adk_request_input",
-            args: {
-              interrupt_id: HITL_TOOL_CALL_ID,
-              message: "What's the forecast period?",
+  const makeHitlEvent = (
+    toolCallId: string,
+    overrides: Partial<AdkEvent> = {},
+  ): AdkEvent =>
+    makeEvent({
+      author: "agent",
+      longRunningToolIds: [toolCallId],
+      content: {
+        parts: [
+          {
+            functionCall: {
+              id: toolCallId,
+              name: "adk_request_input",
+              args: { message: "What's the forecast period?" },
             },
           },
-        },
-      ],
-    },
-  } satisfies AdkEvent;
+        ],
+      },
+      ...overrides,
+    });
 
-  it("HITL event produces an AI message with the tool call and NO manual status", () => {
+  it("produces an AI message with tool call and no manual status", () => {
     const acc = new AdkEventAccumulator();
-    const msgs = acc.processEvent(HITL_EVENT);
+    const msgs = acc.processEvent(makeHitlEvent("tc-1"));
 
     expect(msgs).toHaveLength(1);
     const aiMsg = msgs[0] as AdkMessage & { type: "ai" };
     expect(aiMsg.type).toBe("ai");
-
-    // Tool call attached with matching id
-    expect(aiMsg.tool_calls).toBeDefined();
     expect(aiMsg.tool_calls).toHaveLength(1);
-    expect(aiMsg.tool_calls![0]!.id).toBe(HITL_TOOL_CALL_ID);
+    expect(aiMsg.tool_calls![0]!.id).toBe("tc-1");
     expect(aiMsg.tool_calls![0]!.name).toBe("adk_request_input");
-
-    // THE LOAD-BEARING ASSERTION: status must be undefined so auto-status
-    // can later apply AUTO_STATUS_PENDING ({type:"requires-action"}).
-    // If this fails, ClarifyToolUI's `status.type === "requires-action"`
-    // render branch becomes dead code.
     expect(aiMsg.status).toBeUndefined();
   });
 
-  it("HITL tool call id matches the longRunningToolIds entry (wire contract)", () => {
+  it("matches tool call id to the longRunningToolIds entry", () => {
     const acc = new AdkEventAccumulator();
-    const msgs = acc.processEvent(HITL_EVENT);
+    const msgs = acc.processEvent(makeHitlEvent("tc-1"));
     const aiMsg = msgs[0] as AdkMessage & { type: "ai" };
-
-    // AdkEventAccumulator.pendingLongRunningToolIds must contain the id,
-    // AND the tool call in the message must have the same id, so
-    // getPendingCancellations can filter it from auto-cancel.
-    expect(aiMsg.tool_calls![0]!.id).toBe(HITL_TOOL_CALL_ID);
+    expect(aiMsg.tool_calls![0]!.id).toBe("tc-1");
   });
 
-  it("HITL tool call stays pending across a subsequent bookkeeping event in the same turn", () => {
-    // Multi-event guard: after the HITL interrupt, bookkeeping events
-    // (state delta only, no content) can still arrive in the same
-    // turn. This mirrors a real Google ADK Workflow trace where a
-    // stateDelta bump (e.g. `clarify_count`) and the HITL
-    // FunctionCall arrive back-to-back. The bookkeeping event must
-    // NOT flip the HITL message to a manual "complete" status nor
-    // drop the pending tool call.
+  it("stays pending across a subsequent bookkeeping event", () => {
     const acc = new AdkEventAccumulator();
-    acc.processEvent(HITL_EVENT);
+    acc.processEvent(makeHitlEvent("tc-1", { author: "WorkflowA" }));
 
     const msgs = acc.processEvent(
       makeEvent({
         id: "evt-bookkeeping",
-        author: "FrontDoorWorkflow",
+        author: "WorkflowA",
         actions: { stateDelta: { waiting_for_user: true } },
       }),
     );
@@ -530,15 +476,11 @@ describe("AdkEventAccumulator - HITL requires-action", () => {
         m.type === "ai" && (m.tool_calls?.length ?? 0) > 0,
     );
     expect(aiMsg).toBeDefined();
-    expect(aiMsg!.tool_calls![0]!.id).toBe(HITL_TOOL_CALL_ID);
+    expect(aiMsg!.tool_calls![0]!.id).toBe("tc-1");
     expect(aiMsg!.status).toBeUndefined();
   });
 
-  it("non-HITL final event still gets manual 'complete' status (regression guard)", () => {
-    // Make sure the fix doesn't leak into non-HITL flows. A plain text
-    // final event with no longRunningToolIds should still get
-    // {type:"complete", reason:"stop"} — this is intentional and prevents
-    // spurious status flips from auto-status on subsequent updates.
+  it("assigns manual complete status on non-HITL final event", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(
       makeEvent({
@@ -552,9 +494,7 @@ describe("AdkEventAccumulator - HITL requires-action", () => {
     });
   });
 
-  it("skipSummarization final event still gets manual 'complete' status", () => {
-    // Second regression guard: the other `isFinalResponse` branch
-    // (skipSummarization) must continue to assign manual status.
+  it("assigns manual complete status on skipSummarization final event", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(
       makeEvent({
@@ -569,17 +509,7 @@ describe("AdkEventAccumulator - HITL requires-action", () => {
     });
   });
 
-  it("event with BOTH longRunningToolIds AND skipSummarization gets manual status (skipSummarization wins)", () => {
-    // Regression guard for the refined `hasHitl` guard: when both
-    // flags are present on a single event, `skipSummarization` wins
-    // and the message gets a manual "complete" status. This locks in
-    // the narrow intent of `hasHitl` — "HITL is the SOLE reason for
-    // isFinalResponse." In current ADK the two flags don't co-occur
-    // on one event (the `_long_running_interrupt_event` constructor
-    // in `adk-python/src/google/adk/agents/llm/_execute_tools_node.py`
-    // only sets `long_running_tool_ids`, and the `skip_summarization`
-    // writers in adk-python set it on FunctionResponse or non-LRT
-    // events), so this test documents the defensive contract.
+  it("prioritizes skipSummarization over longRunningToolIds", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(
       makeEvent({
@@ -598,6 +528,167 @@ describe("AdkEventAccumulator - HITL requires-action", () => {
     expect(msgs[0]).toMatchObject({
       status: { type: "complete", reason: "stop" },
     });
+  });
+
+  it("ignores empty longRunningToolIds array for HITL guard", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        longRunningToolIds: [],
+        content: { role: "model", parts: [{ text: "Done." }] },
+      }),
+    );
+
+    expect(msgs[0]).toMatchObject({
+      status: { type: "complete", reason: "stop" },
+    });
+  });
+
+  it("preserves text and skips status when partial text precedes HITL event", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeEvent({
+        author: "ClarifyAgent",
+        partial: true,
+        content: {
+          role: "model",
+          parts: [{ text: "Let me ask about " }],
+        },
+      }),
+    );
+
+    const msgs = acc.processEvent(
+      makeHitlEvent("tc-1", { author: "ClarifyAgent" }),
+    );
+
+    const aiMsg = msgs.find(
+      (m): m is AdkMessage & { type: "ai" } =>
+        m.type === "ai" && (m.tool_calls?.length ?? 0) > 0,
+    );
+    expect(aiMsg).toBeDefined();
+    expect(aiMsg!.tool_calls).toHaveLength(1);
+    expect(
+      aiMsg!.content.some(
+        (c) => c.type === "text" && c.text.includes("Let me ask"),
+      ),
+    ).toBe(true);
+    expect(aiMsg!.status).toBeUndefined();
+  });
+
+  it("keeps status undefined for mixed text and functionCall content", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        longRunningToolIds: ["mixed-tc-1"],
+        content: {
+          role: "model",
+          parts: [
+            { text: "I need some clarification." },
+            {
+              functionCall: {
+                id: "mixed-tc-1",
+                name: "adk_request_input",
+                args: { message: "Which region?" },
+              },
+            },
+          ],
+        },
+      }),
+    );
+
+    const aiMsg = msgs[0] as AdkMessage & { type: "ai" };
+    expect(aiMsg.content.some((c) => c.type === "text")).toBe(true);
+    expect(aiMsg.tool_calls).toHaveLength(1);
+    expect(aiMsg.tool_calls![0]!.id).toBe("mixed-tc-1");
+    expect(aiMsg.status).toBeUndefined();
+  });
+
+  it("handles multiple tool calls with partial longRunningToolIds overlap", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        longRunningToolIds: ["tc-hitl"],
+        content: {
+          role: "model",
+          parts: [
+            {
+              functionCall: {
+                id: "tc-hitl",
+                name: "adk_request_input",
+                args: { message: "Confirm?" },
+              },
+            },
+            {
+              functionCall: {
+                id: "tc-regular",
+                name: "fetch_data",
+                args: { url: "https://example.com" },
+              },
+            },
+          ],
+        },
+      }),
+    );
+
+    const aiMsg = msgs[0] as AdkMessage & { type: "ai" };
+    expect(aiMsg.tool_calls).toHaveLength(2);
+    expect(aiMsg.tool_calls!.map((tc) => tc.id).sort()).toEqual(
+      ["tc-hitl", "tc-regular"].sort(),
+    );
+    expect(aiMsg.status).toBeUndefined();
+  });
+
+  it("does not override HITL guard with explicit finishReason", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeHitlEvent("tc-fr", { finishReason: "STOP" }),
+    );
+
+    const aiMsg = msgs[0] as AdkMessage & { type: "ai" };
+    expect(aiMsg.status).toBeUndefined();
+  });
+
+  it("produces separate messages without status for sequential HITL events", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(
+      makeHitlEvent("tc-seq-1", { id: "evt-1", author: "WorkflowA" }),
+    );
+
+    const msgs = acc.processEvent(
+      makeEvent({
+        id: "evt-2",
+        author: "WorkflowB",
+        longRunningToolIds: ["tc-seq-2"],
+        content: {
+          role: "model",
+          parts: [
+            {
+              functionCall: {
+                id: "tc-seq-2",
+                name: "adk_request_confirmation",
+                args: {
+                  originalFunctionCall: { name: "delete_all", args: {} },
+                  toolConfirmation: { hint: "Sure?", payload: {} },
+                },
+              },
+            },
+          ],
+        },
+      }),
+    );
+
+    const hitlMsgs = msgs.filter(
+      (m): m is AdkMessage & { type: "ai" } =>
+        m.type === "ai" && (m.tool_calls?.length ?? 0) > 0,
+    );
+    expect(hitlMsgs).toHaveLength(2);
+    expect(hitlMsgs[0]!.status).toBeUndefined();
+    expect(hitlMsgs[1]!.status).toBeUndefined();
+    expect(hitlMsgs[0]!.tool_calls![0]!.id).toBe("tc-seq-1");
+    expect(hitlMsgs[1]!.tool_calls![0]!.id).toBe("tc-seq-2");
   });
 });
 
