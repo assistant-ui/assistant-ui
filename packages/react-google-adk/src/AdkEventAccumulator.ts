@@ -341,26 +341,13 @@ export class AdkEventAccumulator {
     // Check isFinalResponse (can be true even for partial events via skipSummarization/longRunningToolIds)
     if (isFinalResponse(event) && this.currentMessageId) {
       const msg = this.messagesMap.get(this.currentMessageId);
-      // HITL fix: if the event is "final" only because it carries
-      // longRunningToolIds, do NOT assign a manual "complete" status —
-      // the message has an unresolved tool call that must stay pending
-      // so external-message-converter can apply AUTO_STATUS_PENDING
-      // ({type:"requires-action"}). This is what makes makeAssistantToolUI
-      // ToolUIs (e.g. ClarifyToolUI for adk_request_input) render their
-      // input form instead of falling through to the completed branch.
-      // `hasHitl` intentionally narrow: only fires when HITL is the SOLE
-      // reason `isFinalResponse` returned true. If `skipSummarization` is
-      // ALSO set, let the skipSummarization contract win and assign a
-      // manual "complete" status — don't silently override it.
-      // `hasHitl` intentionally narrow: only fires when HITL is the SOLE
-      // reason `isFinalResponse` returned true. If `skipSummarization` is
-      // ALSO set, let the skipSummarization contract win and assign a
-      // manual "complete" status — don't silently override it.
-      const hasHitl =
+      // Skip manual "complete" when longRunningToolIds is the sole reason for
+      // isFinalResponse — let auto-status apply requires-action for pending tool calls.
+      const isHitlOnly =
         event.longRunningToolIds &&
         event.longRunningToolIds.length > 0 &&
         !event.actions?.skipSummarization;
-      if (msg && msg.type === "ai" && !msg.status && !hasHitl) {
+      if (msg && msg.type === "ai" && !msg.status && !isHitlOnly) {
         const status = finishReasonToStatus(event.finishReason);
         const updated: InProgressMessage = {
           ...msg,
