@@ -506,18 +506,32 @@ describe("AdkEventAccumulator - HITL requires-action", () => {
     expect(aiMsg.tool_calls![0]!.id).toBe(HITL_TOOL_CALL_ID);
   });
 
-  it("HITL event followed by a later final text event still preserves pending tool call", () => {
-    // Regression: two sequential events in the same turn should not
-    // mask the HITL tool call. The first event is the interrupt; there
-    // are no text deltas to follow (the workflow paused). The tool call
-    // must remain in the accumulator's message map without a manual
-    // "complete" status that would block requires-action.
+  it("HITL tool call stays pending across a subsequent bookkeeping event in the same turn", () => {
+    // Multi-event guard: after the HITL interrupt, bookkeeping events
+    // (state delta only, no content) can still arrive in the same
+    // turn. This mirrors a real Google ADK Workflow trace where a
+    // stateDelta bump (e.g. `clarify_count`) and the HITL
+    // FunctionCall arrive back-to-back. The bookkeeping event must
+    // NOT flip the HITL message to a manual "complete" status nor
+    // drop the pending tool call.
     const acc = new AdkEventAccumulator();
-    const msgs = acc.processEvent(HITL_EVENT);
+    acc.processEvent(HITL_EVENT);
 
-    const aiMsg = msgs[msgs.length - 1] as AdkMessage & { type: "ai" };
-    expect(aiMsg.tool_calls).toHaveLength(1);
-    expect(aiMsg.status).toBeUndefined();
+    const msgs = acc.processEvent(
+      makeEvent({
+        id: "evt-bookkeeping",
+        author: "FrontDoorWorkflow",
+        actions: { stateDelta: { waiting_for_user: true } },
+      }),
+    );
+
+    const aiMsg = msgs.find(
+      (m): m is AdkMessage & { type: "ai" } =>
+        m.type === "ai" && (m.tool_calls?.length ?? 0) > 0,
+    );
+    expect(aiMsg).toBeDefined();
+    expect(aiMsg!.tool_calls![0]!.id).toBe(HITL_TOOL_CALL_ID);
+    expect(aiMsg!.status).toBeUndefined();
   });
 
   it("non-HITL final event still gets manual 'complete' status (regression guard)", () => {
@@ -547,6 +561,37 @@ describe("AdkEventAccumulator - HITL requires-action", () => {
         author: "agent",
         actions: { skipSummarization: true },
         content: { role: "model", parts: [{ text: "skipped" }] },
+      }),
+    );
+
+    expect(msgs[0]).toMatchObject({
+      status: { type: "complete", reason: "stop" },
+    });
+  });
+
+  it("event with BOTH longRunningToolIds AND skipSummarization gets manual status (skipSummarization wins)", () => {
+    // Regression guard for the refined `hasHitl` guard: when both
+    // flags are present on a single event, `skipSummarization` wins
+    // and the message gets a manual "complete" status. This locks in
+    // the narrow intent of `hasHitl` — "HITL is the SOLE reason for
+    // isFinalResponse." In current ADK the two flags don't co-occur
+    // on one event (the `_long_running_interrupt_event` constructor
+    // in `adk-python/src/google/adk/agents/llm/_execute_tools_node.py`
+    // only sets `long_running_tool_ids`, and the `skip_summarization`
+    // writers in adk-python set it on FunctionResponse or non-LRT
+    // events), so this test documents the defensive contract.
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        longRunningToolIds: ["lrt-both"],
+        actions: { skipSummarization: true },
+        content: {
+          role: "model",
+          parts: [
+            { functionCall: { name: "slow_tool", id: "lrt-both", args: {} } },
+          ],
+        },
       }),
     );
 

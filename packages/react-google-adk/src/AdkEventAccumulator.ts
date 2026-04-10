@@ -348,8 +348,18 @@ export class AdkEventAccumulator {
       // ({type:"requires-action"}). This is what makes makeAssistantToolUI
       // ToolUIs (e.g. ClarifyToolUI for adk_request_input) render their
       // input form instead of falling through to the completed branch.
+      // `hasHitl` intentionally narrow: only fires when HITL is the SOLE
+      // reason `isFinalResponse` returned true. If `skipSummarization` is
+      // ALSO set, let the skipSummarization contract win and assign a
+      // manual "complete" status — don't silently override it.
+      // `hasHitl` intentionally narrow: only fires when HITL is the SOLE
+      // reason `isFinalResponse` returned true. If `skipSummarization` is
+      // ALSO set, let the skipSummarization contract win and assign a
+      // manual "complete" status — don't silently override it.
       const hasHitl =
-        event.longRunningToolIds && event.longRunningToolIds.length > 0;
+        event.longRunningToolIds &&
+        event.longRunningToolIds.length > 0 &&
+        !event.actions?.skipSummarization;
       if (msg && msg.type === "ai" && !msg.status && !hasHitl) {
         const status = finishReasonToStatus(event.finishReason);
         const updated: InProgressMessage = {
