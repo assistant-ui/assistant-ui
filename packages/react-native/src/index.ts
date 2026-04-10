@@ -168,6 +168,9 @@ export type {
 
 export { mergeModelContexts } from "@assistant-ui/core";
 
+export type { ExportedMessageRepositoryItem } from "@assistant-ui/core";
+export { ExportedMessageRepository } from "@assistant-ui/core";
+
 export type { Tool } from "assistant-stream";
 
 export { tool } from "@assistant-ui/core";
