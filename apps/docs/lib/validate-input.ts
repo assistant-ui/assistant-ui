@@ -20,8 +20,8 @@ const GENERAL_CHAT_LIMITS: InputLimits = {
 
 const DOC_CHAT_LIMITS: InputLimits = {
   maxMessages: 0, // no message count limit; pruneMessages handles windowing
-  maxTotalChars: 120_000, // ~30k tokens — allows longer threads before pruning
-  maxSingleMessageChars: 8_000,
+  maxTotalChars: 480_000, // ~120k tokens
+  maxSingleMessageChars: 24_000, // ~6k tokens
 };
 
 function measureMessageChars(messages: unknown[]): {
