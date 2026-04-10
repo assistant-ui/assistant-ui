@@ -341,7 +341,16 @@ export class AdkEventAccumulator {
     // Check isFinalResponse (can be true even for partial events via skipSummarization/longRunningToolIds)
     if (isFinalResponse(event) && this.currentMessageId) {
       const msg = this.messagesMap.get(this.currentMessageId);
-      if (msg && msg.type === "ai" && !msg.status) {
+      // HITL fix: if the event is "final" only because it carries
+      // longRunningToolIds, do NOT assign a manual "complete" status —
+      // the message has an unresolved tool call that must stay pending
+      // so external-message-converter can apply AUTO_STATUS_PENDING
+      // ({type:"requires-action"}). This is what makes makeAssistantToolUI
+      // ToolUIs (e.g. ClarifyToolUI for adk_request_input) render their
+      // input form instead of falling through to the completed branch.
+      const hasHitl =
+        event.longRunningToolIds && event.longRunningToolIds.length > 0;
+      if (msg && msg.type === "ai" && !msg.status && !hasHitl) {
         const status = finishReasonToStatus(event.finishReason);
         const updated: InProgressMessage = {
           ...msg,

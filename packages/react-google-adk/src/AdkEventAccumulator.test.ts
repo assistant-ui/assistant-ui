@@ -399,7 +399,17 @@ describe("AdkEventAccumulator - isFinalResponse logic", () => {
     });
   });
 
-  it("marks as final when longRunningToolIds is non-empty", () => {
+  it("isFinalResponse is true for HITL but status stays undefined (let auto-status apply requires-action)", () => {
+    // HITL regression: previously this test asserted
+    //   status: { type: "complete", reason: "stop" }
+    // which was WRONG. Assigning a manual "complete" status to a message
+    // that carries an unresolved tool call blocks
+    // external-message-converter from applying AUTO_STATUS_PENDING
+    // ({type:"requires-action"}), so any `makeAssistantToolUI` registered
+    // for adk_request_input / adk_request_confirmation /
+    // adk_request_credential could never use its `status.type ===
+    // "requires-action"` render branch. See the HITL requires-action
+    // describe block below for the full contract.
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(
       makeEvent({
@@ -413,6 +423,133 @@ describe("AdkEventAccumulator - isFinalResponse logic", () => {
         },
       }),
     );
+    expect((msgs[0] as AdkMessage & { type: "ai" }).status).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// HITL requires-action — Google ADK RequestInput / LongRunningFunctionTool
+// ---------------------------------------------------------------------------
+//
+// When ADK emits an `adk_request_input` (or `adk_request_confirmation` /
+// `adk_request_credential`) interrupt, the event carries:
+//   - content.parts[0].functionCall  — the tool call
+//   - longRunningToolIds[]           — matching id of the tool call
+//
+// Consumers register a `makeAssistantToolUI({ toolName: "adk_request_input" })`
+// whose `render({ status })` expects `status.type === "requires-action"` when
+// the tool call is pending, so it can show an input form and collect the
+// user's answer via `useAdkSubmitInput(toolCallId, text)`.
+//
+// For that to work, the AI message carrying the tool call must NOT be
+// stamped with a manual "complete" status by the accumulator — otherwise
+// external-message-converter refuses to promote it to AUTO_STATUS_PENDING
+// and the form branch is dead code.
+//
+// These tests lock that contract in place.
+// ---------------------------------------------------------------------------
+
+describe("AdkEventAccumulator - HITL requires-action", () => {
+  // Wire shape captured from a real Google ADK backend run
+  // (front_door workflow, clarify_hitl node, 2026-04-10).
+  const HITL_TOOL_CALL_ID = "15e1abeb-aaf9-4e43-a55f-3a5ca10d810c";
+  const HITL_EVENT = {
+    id: "8700bf9d-4673-46ff-a28e-36f5e7927123",
+    invocationId: "e-3888c670-4bbb-4c90-9e3a-17d7dc47e4a8",
+    author: "FrontDoorWorkflow",
+    longRunningToolIds: [HITL_TOOL_CALL_ID],
+    content: {
+      parts: [
+        {
+          functionCall: {
+            id: HITL_TOOL_CALL_ID,
+            name: "adk_request_input",
+            args: {
+              interrupt_id: HITL_TOOL_CALL_ID,
+              message: "What's the forecast period?",
+            },
+          },
+        },
+      ],
+    },
+  } satisfies AdkEvent;
+
+  it("HITL event produces an AI message with the tool call and NO manual status", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(HITL_EVENT);
+
+    expect(msgs).toHaveLength(1);
+    const aiMsg = msgs[0] as AdkMessage & { type: "ai" };
+    expect(aiMsg.type).toBe("ai");
+
+    // Tool call attached with matching id
+    expect(aiMsg.tool_calls).toBeDefined();
+    expect(aiMsg.tool_calls).toHaveLength(1);
+    expect(aiMsg.tool_calls![0]!.id).toBe(HITL_TOOL_CALL_ID);
+    expect(aiMsg.tool_calls![0]!.name).toBe("adk_request_input");
+
+    // THE LOAD-BEARING ASSERTION: status must be undefined so auto-status
+    // can later apply AUTO_STATUS_PENDING ({type:"requires-action"}).
+    // If this fails, ClarifyToolUI's `status.type === "requires-action"`
+    // render branch becomes dead code.
+    expect(aiMsg.status).toBeUndefined();
+  });
+
+  it("HITL tool call id matches the longRunningToolIds entry (wire contract)", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(HITL_EVENT);
+    const aiMsg = msgs[0] as AdkMessage & { type: "ai" };
+
+    // AdkEventAccumulator.pendingLongRunningToolIds must contain the id,
+    // AND the tool call in the message must have the same id, so
+    // getPendingCancellations can filter it from auto-cancel.
+    expect(aiMsg.tool_calls![0]!.id).toBe(HITL_TOOL_CALL_ID);
+  });
+
+  it("HITL event followed by a later final text event still preserves pending tool call", () => {
+    // Regression: two sequential events in the same turn should not
+    // mask the HITL tool call. The first event is the interrupt; there
+    // are no text deltas to follow (the workflow paused). The tool call
+    // must remain in the accumulator's message map without a manual
+    // "complete" status that would block requires-action.
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(HITL_EVENT);
+
+    const aiMsg = msgs[msgs.length - 1] as AdkMessage & { type: "ai" };
+    expect(aiMsg.tool_calls).toHaveLength(1);
+    expect(aiMsg.status).toBeUndefined();
+  });
+
+  it("non-HITL final event still gets manual 'complete' status (regression guard)", () => {
+    // Make sure the fix doesn't leak into non-HITL flows. A plain text
+    // final event with no longRunningToolIds should still get
+    // {type:"complete", reason:"stop"} — this is intentional and prevents
+    // spurious status flips from auto-status on subsequent updates.
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: { role: "model", parts: [{ text: "Done." }] },
+      }),
+    );
+
+    expect(msgs[0]).toMatchObject({
+      status: { type: "complete", reason: "stop" },
+    });
+  });
+
+  it("skipSummarization final event still gets manual 'complete' status", () => {
+    // Second regression guard: the other `isFinalResponse` branch
+    // (skipSummarization) must continue to assign manual status.
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        actions: { skipSummarization: true },
+        content: { role: "model", parts: [{ text: "skipped" }] },
+      }),
+    );
+
     expect(msgs[0]).toMatchObject({
       status: { type: "complete", reason: "stop" },
     });
