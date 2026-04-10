@@ -19,7 +19,7 @@ export const MODELS = [
     name: "Claude Haiku 4.5",
     value: "anthropic/claude-haiku-4-5",
     icon: "/icons/anthropic.svg",
-    disabled: false,
+    disabled: true,
     contextWindow: 200_000,
   },
   // Google
@@ -27,7 +27,7 @@ export const MODELS = [
     name: "Gemini 3 Flash",
     value: "google-ai-studio/gemini-3-flash",
     icon: "/icons/google.svg",
-    disabled: false,
+    disabled: true,
     contextWindow: 1_000_000,
   },
   // xAI
@@ -35,14 +35,14 @@ export const MODELS = [
     name: "Grok 4.1 Fast",
     value: "grok/grok-4-1-fast",
     icon: "/icons/xai.svg",
-    disabled: false,
+    disabled: true,
     contextWindow: 131_072,
   },
   {
     name: "Grok 3 Mini Fast",
     value: "grok/grok-3-mini-fast",
     icon: "/icons/xai.svg",
-    disabled: false,
+    disabled: true,
     contextWindow: 131_072,
   },
   // Groq
@@ -50,14 +50,14 @@ export const MODELS = [
     name: "Llama 3.3 70B",
     value: "groq/llama-3.3-70b-versatile",
     icon: "/icons/meta.svg",
-    disabled: false,
+    disabled: true,
     contextWindow: 131_072,
   },
   {
     name: "Qwen3 32B",
     value: "groq/qwen/qwen3-32b",
     icon: "/icons/groq.svg",
-    disabled: false,
+    disabled: true,
     contextWindow: 131_072,
   },
 ] as const;
