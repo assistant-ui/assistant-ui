@@ -10,6 +10,16 @@ The user has requested butflow mode. Implement features, open PRs via GitButler,
 2. Add `.changeset/*.md` (patch) if published packages changed.
 3. Set a 2-min cron to monitor CI and AI review comments. Don't wait for cubic (optional). Merge with `gh pr merge <n> --squash --admin`.
 
+## Cron prompt template
+
+The cron prompt MUST run ALL of these commands every cycle before deciding to merge:
+
+```
+1. `gh pr checks <n>` — check CI status
+2. `gh api repos/assistant-ui/assistant-ui/pulls/<n>/comments` — check for new review comments
+3. `gh pr view <n> --json reviews` — check for reviews
+```
+
 ## Gotchas
 
 - **Check for PR comments**: Review and address valid AI review bot comments, only auto-merge if all human comments are addressed.

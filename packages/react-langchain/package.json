@@ -1,0 +1,71 @@
+{
+  "name": "@assistant-ui/react-langchain",
+  "version": "0.0.1",
+  "description": "LangChain useStream adapter for assistant-ui",
+  "keywords": [
+    "langchain",
+    "langgraph",
+    "assistant-ui",
+    "react",
+    "ai",
+    "chat",
+    "agents"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build"
+  },
+  "dependencies": {
+    "@assistant-ui/core": "^0.1.13",
+    "@assistant-ui/store": "^0.2.6",
+    "assistant-cloud": "*",
+    "assistant-stream": "^0.3.10"
+  },
+  "peerDependencies": {
+    "@langchain/react": "^0.3.3",
+    "@types/react": "*",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@langchain/core": "^0.3.80",
+    "@langchain/langgraph-sdk": "^0.0.41",
+    "@langchain/react": "^0.3.3",
+    "@types/react": "^19.2.14",
+    "react": "^19.2.4"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-langchain"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}
