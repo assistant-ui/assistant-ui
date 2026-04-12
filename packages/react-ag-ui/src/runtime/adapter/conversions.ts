@@ -1,6 +1,9 @@
 "use client";
 
+import type { InputContent } from "@ag-ui/client";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
+
+export type { InputContent };
 
 type AttachmentLike = {
   name?: string | undefined;
@@ -23,25 +26,6 @@ type AgUiToolCall = {
   type: "function";
   function: { name: string; arguments: string };
 };
-
-type InputContentSource =
-  | { type: "data"; value: string; mimeType: string }
-  | { type: "url"; value: string; mimeType?: string };
-
-export type InputContent =
-  | { type: "text"; text: string }
-  | { type: "image"; source: InputContentSource }
-  | { type: "audio"; source: InputContentSource }
-  | { type: "video"; source: InputContentSource }
-  | { type: "document"; source: InputContentSource }
-  | {
-      type: "binary";
-      mimeType: string;
-      id?: string;
-      url?: string;
-      data?: string;
-      filename?: string;
-    };
 
 export type AgUiMessage =
   | {
