@@ -2,6 +2,12 @@
 
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 
+type AttachmentLike = {
+  name?: string | undefined;
+  contentType?: string | undefined;
+  content?: readonly unknown[] | undefined;
+};
+
 type ThreadMessageLike = {
   id: string;
   role: string;
@@ -9,6 +15,7 @@ type ThreadMessageLike = {
   name?: string;
   toolCallId?: string;
   error?: string;
+  attachments?: readonly AttachmentLike[];
 };
 
 type AgUiToolCall = {
@@ -17,11 +24,30 @@ type AgUiToolCall = {
   function: { name: string; arguments: string };
 };
 
+type InputContentSource =
+  | { type: "data"; value: string; mimeType: string }
+  | { type: "url"; value: string; mimeType?: string };
+
+export type InputContent =
+  | { type: "text"; text: string }
+  | { type: "image"; source: InputContentSource }
+  | { type: "audio"; source: InputContentSource }
+  | { type: "video"; source: InputContentSource }
+  | { type: "document"; source: InputContentSource }
+  | {
+      type: "binary";
+      mimeType: string;
+      id?: string;
+      url?: string;
+      data?: string;
+      filename?: string;
+    };
+
 export type AgUiMessage =
   | {
       id: string;
       role: string;
-      content: string;
+      content: string | InputContent[];
       name?: string;
       toolCalls?: AgUiToolCall[];
     }
@@ -105,6 +131,115 @@ function extractText(content: unknown): string {
     )
     .map((part) => part.text)
     .join("\n");
+}
+
+function parseDataUrl(
+  value: string,
+): { mimeType: string; data: string } | null {
+  const match = value.match(/^data:([^;,]+)(?:;[^;,]+)*;base64,(.+)$/);
+  if (!match) return null;
+  return { mimeType: match[1]!, data: match[2]! };
+}
+
+const httpUrlPattern = /^https?:\/\//i;
+
+function toInputContent(
+  part: unknown,
+  fallbackMimeType: string | undefined,
+): InputContent | null {
+  if (!isObject(part)) return null;
+  const type = getString(part, "type");
+
+  if (type === "text") {
+    const text = getString(part, "text");
+    if (text === undefined) return null;
+    return { type: "text", text };
+  }
+
+  if (type === "image") {
+    const image = getString(part, "image");
+    if (image === undefined) return null;
+    const parsed = parseDataUrl(image);
+    if (parsed) {
+      return {
+        type: "image",
+        source: {
+          type: "data",
+          value: parsed.data,
+          mimeType: parsed.mimeType,
+        },
+      };
+    }
+    return {
+      type: "image",
+      source: {
+        type: "url",
+        value: image,
+        ...(fallbackMimeType !== undefined
+          ? { mimeType: fallbackMimeType }
+          : {}),
+      },
+    };
+  }
+
+  if (type === "file") {
+    const data = getString(part, "data");
+    if (data === undefined) return null;
+    const partMimeType = getString(part, "mimeType");
+    const filename = getString(part, "filename");
+    const mimeType =
+      partMimeType || fallbackMimeType || "application/octet-stream";
+
+    if (httpUrlPattern.test(data)) {
+      return {
+        type: "binary",
+        mimeType,
+        url: data,
+        ...(filename !== undefined ? { filename } : {}),
+      };
+    }
+    const parsed = parseDataUrl(data);
+    return {
+      type: "binary",
+      mimeType: parsed?.mimeType ?? mimeType,
+      data: parsed?.data ?? data,
+      ...(filename !== undefined ? { filename } : {}),
+    };
+  }
+
+  return null;
+}
+
+function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
+  const contentParts = Array.isArray(message.content)
+    ? message.content.filter(
+        (part) => !(isObject(part) && part["type"] === "file"),
+      )
+    : [];
+
+  const attachments = message.attachments ?? [];
+
+  const converted: InputContent[] = [];
+  for (const part of contentParts) {
+    const input = toInputContent(part, undefined);
+    if (input) converted.push(input);
+  }
+  for (const attachment of attachments) {
+    if (!isObject(attachment)) continue;
+    const attachmentContent = attachment["content"];
+    if (!Array.isArray(attachmentContent)) continue;
+    const fallbackMime = getString(attachment, "contentType");
+    for (const part of attachmentContent) {
+      const input = toInputContent(part, fallbackMime);
+      if (input) converted.push(input);
+    }
+  }
+
+  const hasNonText = converted.some((part) => part.type !== "text");
+  if (!hasNonText) {
+    return extractText(message.content);
+  }
+  return converted;
 }
 
 function toToolCallPart(value: unknown): ToolCallPart | null {
@@ -415,7 +550,10 @@ export function toAgUiMessages(
     const genericMessage: AgUiMessage = {
       id: message.id,
       role: message.role,
-      content: extractText(message.content),
+      content:
+        message.role === "user"
+          ? buildUserContent(message)
+          : extractText(message.content),
     };
     if (message.name) {
       genericMessage.name = message.name;
