@@ -450,6 +450,73 @@ describe("adapter conversions", () => {
     expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
   });
 
+  it("preserves string-form content when non-text attachments are present", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: "What is in this image?",
+        attachments: [
+          {
+            id: "a-1",
+            type: "image",
+            name: "photo.png",
+            content: [
+              {
+                type: "image",
+                image: "data:image/png;base64,AAAA",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "What is in this image?" },
+        {
+          type: "image",
+          source: {
+            type: "data",
+            value: "AAAA",
+            mimeType: "image/png",
+          },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("preserves text parts from attachments in the string fallback", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+        attachments: [
+          {
+            id: "a-1",
+            type: "document",
+            name: "notes.txt",
+            content: [
+              {
+                type: "text",
+                text: "<attachment name=notes.txt>extracted content</attachment>",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]!.content).toBe(
+      "hi\n<attachment name=notes.txt>extracted content</attachment>",
+    );
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
   it("parses data URL with charset parameter (e.g. SVG)", () => {
     const result = toAgUiMessages([
       {

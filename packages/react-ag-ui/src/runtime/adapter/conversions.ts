@@ -211,6 +211,8 @@ function toInputContent(
 }
 
 function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
+  // File parts in message.content are intentionally skipped: the canonical
+  // binary payload for files always flows through message.attachments.
   const contentParts = Array.isArray(message.content)
     ? message.content.filter(
         (part) => !(isObject(part) && part["type"] === "file"),
@@ -220,6 +222,13 @@ function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
   const attachments = message.attachments ?? [];
 
   const converted: InputContent[] = [];
+
+  // Promote string-form content to a leading text part so it survives when
+  // non-text attachments are present (fromAgUiMessages emits string content).
+  if (typeof message.content === "string" && message.content.length > 0) {
+    converted.push({ type: "text", text: message.content });
+  }
+
   for (const part of contentParts) {
     const input = toInputContent(part, undefined);
     if (input) converted.push(input);
@@ -236,10 +245,14 @@ function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
   }
 
   const hasNonText = converted.some((part) => part.type !== "text");
-  if (!hasNonText) {
-    return extractText(message.content);
-  }
-  return converted;
+  if (hasNonText) return converted;
+
+  // All-text path: collapse to plain string. Join text parts collected from
+  // both content and attachments so attachment-sourced text is not dropped.
+  if (converted.length === 0) return extractText(message.content);
+  return converted
+    .map((part) => (part as { type: "text"; text: string }).text)
+    .join("\n");
 }
 
 function toToolCallPart(value: unknown): ToolCallPart | null {
