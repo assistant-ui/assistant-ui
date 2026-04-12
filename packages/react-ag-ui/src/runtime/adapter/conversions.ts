@@ -235,7 +235,10 @@ function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
   // both content and attachments so attachment-sourced text is not dropped.
   if (converted.length === 0) return extractText(message.content);
   return converted
-    .map((part) => (part as { type: "text"; text: string }).text)
+    .filter(
+      (part): part is { type: "text"; text: string } => part.type === "text",
+    )
+    .map((part) => part.text)
     .join("\n");
 }
 
