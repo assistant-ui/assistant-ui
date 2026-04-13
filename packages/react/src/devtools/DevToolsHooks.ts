@@ -79,6 +79,7 @@ export class DevToolsHooks {
 
   private static notifyListeners(apiId: number): void {
     const hook = getHook();
+    // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
     hook.listeners.forEach((listener) => listener(apiId));
   }
 }
@@ -144,6 +145,7 @@ export class DevToolsProviderApi {
 
   private static notifyListeners(apiId: number): void {
     const hook = getHook();
+    // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
     hook.listeners.forEach((listener) => listener(apiId));
   }
 }

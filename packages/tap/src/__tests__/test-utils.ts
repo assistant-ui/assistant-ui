@@ -82,6 +82,7 @@ export function unmountResource<R, P>(fiber: ResourceFiber<R, P>) {
  * Cleans up all resources. Should be called after each test.
  */
 export function cleanupAllResources() {
+  // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
   activeResources.forEach((fiber) => unmountResourceFiber(fiber));
   activeResources.clear();
 }

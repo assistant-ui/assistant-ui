@@ -62,7 +62,12 @@ function TimeAxisTicks({
   });
 
   return (
-    <svg width={barWidth} height={28} className="overflow-visible">
+    <svg
+      aria-hidden="true"
+      width={barWidth}
+      height={28}
+      className="overflow-visible"
+    >
       {ticks.map(({ t, x }) => (
         <g key={x}>
           <line

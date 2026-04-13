@@ -95,6 +95,7 @@ const DevToolsModalImpl = () => {
           title="Open assistant-ui DevTools"
         >
           <svg
+            aria-hidden="true"
             width="20"
             height="20"
             viewBox="0 0 24 24"
@@ -133,6 +134,7 @@ const DevToolsModalImpl = () => {
               aria-label="Close DevTools"
             >
               <svg
+                aria-hidden="true"
                 width="14"
                 height="14"
                 viewBox="0 0 24 24"

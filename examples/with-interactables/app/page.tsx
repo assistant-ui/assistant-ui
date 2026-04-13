@@ -238,6 +238,7 @@ function NoteCard({
   };
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: styled interactive card
     <div
       role="button"
       tabIndex={0}

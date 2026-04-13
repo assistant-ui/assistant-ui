@@ -998,6 +998,7 @@ export function DevToolsUI() {
   const eventTypes = useMemo(() => {
     const types = new Set<string>();
     apis.forEach((api) => {
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       api.logs.forEach((log) => types.add(log.event));
     });
     return Array.from(types).sort();

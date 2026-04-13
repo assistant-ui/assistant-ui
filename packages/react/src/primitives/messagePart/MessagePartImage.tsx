@@ -37,6 +37,7 @@ export const MessagePartPrimitiveImage = forwardRef<
   MessagePartPrimitiveImage.Props
 >((props, forwardedRef) => {
   const { image } = useMessagePartImage();
+  // biome-ignore lint/performance/noImgElement: next/image not applicable here
   return <Primitive.img src={image} {...props} ref={forwardedRef} />;
 });
 

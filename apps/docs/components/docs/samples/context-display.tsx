@@ -44,6 +44,7 @@ export function ContextDisplaySample() {
             <div key={label} className="flex items-center gap-2">
               <div className="inline-flex items-center rounded-md p-1 transition-colors">
                 <svg
+                  aria-hidden="true"
                   width={RING_SIZE}
                   height={RING_SIZE}
                   viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}

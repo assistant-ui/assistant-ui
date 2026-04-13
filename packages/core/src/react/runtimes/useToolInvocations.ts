@@ -197,6 +197,7 @@ export function useToolInvocations({
             if (wasStarted) {
               executingCountRef.current--;
               if (executingCountRef.current === 0) {
+                // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
                 settledResolversRef.current.forEach((resolve) => resolve());
                 settledResolversRef.current = [];
               }
@@ -215,6 +216,7 @@ export function useToolInvocations({
           });
           // Resolve any waiting abort promises when all tools have settled
           if (executingCountRef.current === 0) {
+            // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
             settledResolversRef.current.forEach((resolve) => resolve());
             settledResolversRef.current = [];
           }

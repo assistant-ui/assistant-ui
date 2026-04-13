@@ -3,8 +3,9 @@ const SPARKLE_PATH =
 
 export function GeminiIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg {...props} viewBox="0 0 65 65" fill="none">
+    <svg aria-hidden="true" {...props} viewBox="0 0 65 65" fill="none">
       <defs>
+        {/* biome-ignore lint/correctness/useUniqueElementIds: static page with unique context */}
         <linearGradient
           id="gemini-blue"
           x1="18.447"

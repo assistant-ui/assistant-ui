@@ -97,6 +97,7 @@ export const tapResourceRoot = <TState>(
 
     if (scheduler.isDirty || valueRef.current === render.output) return;
     valueRef.current = render.output;
+    // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
     subscribers.forEach((callback) => callback());
   });
 
@@ -115,6 +116,7 @@ export const tapResourceRoot = <TState>(
 
     if (scheduler.isDirty || valueRef.current === render.output) return;
     valueRef.current = render.output;
+    // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
     subscribers.forEach((callback) => callback());
   });
 

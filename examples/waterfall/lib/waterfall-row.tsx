@@ -24,6 +24,7 @@ export function WaterfallRow() {
         <AuiIf condition={(s) => s.span.hasChildren}>
           <SpanPrimitive.CollapseToggle className="flex shrink-0 items-center justify-center rounded p-0.5 text-muted-foreground hover:text-foreground">
             <svg
+              aria-hidden="true"
               className="size-3.5 transition-transform data-[collapsed=true]:[-rotate-90]"
               viewBox="0 0 16 16"
               fill="currentColor"
@@ -45,7 +46,7 @@ export function WaterfallRow() {
         className="group-hover:bg-accent/30"
         style={{ width: barWidth, height: barHeight }}
       >
-        <svg width={barWidth} height={barHeight}>
+        <svg aria-hidden="true" width={barWidth} height={barHeight}>
           <WaterfallBar />
         </svg>
       </div>

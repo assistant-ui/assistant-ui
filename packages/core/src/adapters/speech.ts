@@ -76,6 +76,7 @@ export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
       if (res.status.type === "ended") return;
 
       res.status = { type: "ended", reason, error };
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       subscribers.forEach((handler) => handler());
     };
 

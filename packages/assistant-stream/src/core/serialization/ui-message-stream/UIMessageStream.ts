@@ -264,6 +264,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
         },
         flush() {
           activeToolCallArgsText?.close();
+          // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
           toolCallControllers.forEach((ctrl) => ctrl.close());
           toolCallControllers.clear();
         },

@@ -44,6 +44,7 @@ const subscribeModelStore = (listener: ModelStoreListener) => {
 const setSharedDocsModelName = (modelName: KnownModelId) => {
   if (sharedDocsModelName === modelName) return;
   sharedDocsModelName = modelName;
+  // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
   modelStoreListeners.forEach((listener) => listener());
 };
 

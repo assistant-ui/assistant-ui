@@ -269,6 +269,7 @@ const ChatGPTAttachmentUI: FC = () => {
       <div className="flex items-center gap-2 overflow-hidden rounded-2xl border bg-secondary dark:bg-white/5">
         <AuiIf condition={(s) => s.attachment.type === "image"}>
           {src ? (
+            // biome-ignore lint/performance/noImgElement: example component
             <img
               className="size-32 rounded-md object-cover"
               alt="Attachment"

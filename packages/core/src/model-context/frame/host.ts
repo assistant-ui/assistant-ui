@@ -175,6 +175,7 @@ export class AssistantFrameHost implements ModelContextProvider {
   }
 
   private notifySubscribers() {
+    // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
     this._subscribers.forEach((callback) => callback());
   }
 

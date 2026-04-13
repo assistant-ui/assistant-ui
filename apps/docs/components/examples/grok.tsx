@@ -287,6 +287,7 @@ const GrokAttachment: FC = () => {
       <div className="flex h-12 items-center gap-2 overflow-hidden rounded-xl border border-[#e5e5e5] bg-[#f0f0f0] p-0.5 transition-colors hover:border-[#d0d0d0] dark:border-[#2a2a2a] dark:bg-[#252525] dark:hover:border-[#3a3a3a]">
         <AuiIf condition={(s) => s.attachment.type === "image"}>
           {src ? (
+            // biome-ignore lint/performance/noImgElement: example component
             <img
               className="h-full w-12 rounded-[9px] object-cover"
               alt="Attachment"

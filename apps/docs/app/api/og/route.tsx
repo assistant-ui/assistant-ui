@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
         }}
       >
         <svg
+          aria-hidden="true"
           width="120"
           height="120"
           viewBox="0 0 32 32"
@@ -152,7 +153,13 @@ export async function GET(request: NextRequest) {
             gap: 20,
           }}
         >
-          <svg width="64" height="64" viewBox="0 0 32 32" fill="none">
+          <svg
+            aria-hidden="true"
+            width="64"
+            height="64"
+            viewBox="0 0 32 32"
+            fill="none"
+          >
             <rect width="32" height="32" rx="6" fill="#000000" />
             <g
               transform="translate(4,4)"

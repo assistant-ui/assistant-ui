@@ -69,6 +69,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           data-website-id="6f07c001-46a2-411f-9241-4f7f5afb60ee"
           data-domains="www.assistant-ui.com"
         ></script>
+        {/* biome-ignore lint/correctness/useUniqueElementIds: static page with unique context */}
         <Script
           id="vector-script"
           // biome-ignore lint/security/noDangerouslySetInnerHtml: analytics script injection

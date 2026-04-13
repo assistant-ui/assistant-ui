@@ -131,6 +131,7 @@ function ArtifactPartView({ part }: { part: A2APart }) {
     const isImage = part.mediaType?.startsWith("image/");
     if (isImage) {
       return (
+        // biome-ignore lint/performance/noImgElement: example component
         <img
           src={part.url}
           alt={part.filename ?? "image"}
@@ -159,6 +160,7 @@ function ArtifactPartView({ part }: { part: A2APart }) {
     const isImage = part.mediaType?.startsWith("image/");
     if (isImage) {
       return (
+        // biome-ignore lint/performance/noImgElement: example component
         <img
           src={`data:${part.mediaType};base64,${part.raw}`}
           alt={part.filename ?? "image"}

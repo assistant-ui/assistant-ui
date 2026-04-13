@@ -27,7 +27,6 @@
       "suspicious": {
         "noExplicitAny": "off",
         "noArrayIndexKey": "off",
-        "useIterableCallbackReturn": "off",
         "noConfusingLabels": {
           "level": "error",
           "options": {
@@ -79,18 +78,10 @@
               }
             ]
           }
-        },
-        "useUniqueElementIds": "off"
+        }
       },
       "complexity": {
         "noForEach": "off"
-      },
-      "a11y": {
-        "noSvgWithoutTitle": "off",
-        "useSemanticElements": "off"
-      },
-      "performance": {
-        "noImgElement": "off"
       },
       "nursery": {
         "useSortedClasses": {
@@ -145,6 +136,16 @@
   },
   "overrides": [
     {
+      "includes": ["apps/docs/app/tw-glass/**", "apps/docs/app/tw-shimmer/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useUniqueElementIds": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": [
         "apps/docs/components/tool-ui/weather-widget/generated/weather-runtime-core.generated.ts"
       ],
@@ -158,8 +159,11 @@
     {
       "includes": [
         "packages/ui/src/components/ui/**",
+        "packages/ui/src/components/assistant-ui/**",
+        "packages/ui/src/components/icons/**",
         "templates/*/components/ui/**",
-        "templates/*/components/assistant-ui/**"
+        "templates/*/components/assistant-ui/**",
+        "templates/*/components/icons/**"
       ],
       "linter": {
         "rules": {
@@ -176,7 +180,12 @@
             "noRedundantAlt": "off",
             "useFocusableInteractive": "off",
             "useKeyWithClickEvents": "off",
-            "noStaticElementInteractions": "off"
+            "noStaticElementInteractions": "off",
+            "useSemanticElements": "off",
+            "noSvgWithoutTitle": "off"
+          },
+          "performance": {
+            "noImgElement": "off"
           }
         }
       }

@@ -179,6 +179,7 @@ export class AssistantFrameProvider {
       const instance = AssistantFrameProvider._instance;
       window.removeEventListener("message", instance.handleMessage);
 
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       instance._providerUnsubscribes.forEach((unsubscribe) => unsubscribe?.());
       instance._providerUnsubscribes.clear();
       instance._providers.clear();

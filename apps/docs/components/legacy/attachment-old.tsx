@@ -67,6 +67,7 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   return (
+    // biome-ignore lint/performance/noImgElement: example component
     <img
       src={src}
       style={{

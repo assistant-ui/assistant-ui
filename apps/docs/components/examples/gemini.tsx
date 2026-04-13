@@ -43,6 +43,7 @@ export const Gemini: FC = () => {
         <div className="flex h-full flex-col justify-center px-4">
           <div className="mx-auto w-full max-w-3xl">
             <div className="mb-1 flex items-center gap-3">
+              {/* biome-ignore lint/performance/noImgElement: example component */}
               <img src="/icons/gemini.svg" alt="" className="size-5" />
               <p className="text-black text-xl dark:text-white">Hello there</p>
             </div>
@@ -283,6 +284,7 @@ const GeminiAttachment: FC = () => {
           style={{ width: "120px", height: "120px" }}
         >
           {isImage && src ? (
+            // biome-ignore lint/performance/noImgElement: example component
             <img
               className="h-full w-full object-cover transition duration-400"
               alt="Attachment"
