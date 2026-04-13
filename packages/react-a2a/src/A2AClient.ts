@@ -484,8 +484,8 @@ export class A2AClient {
 
         buffer += decoder.decode(value, { stream: true });
 
-        let eventEnd: number;
-        while ((eventEnd = buffer.indexOf("\n\n")) !== -1) {
+        let eventEnd: number = buffer.indexOf("\n\n");
+        while (eventEnd !== -1) {
           const eventText = buffer.slice(0, eventEnd);
           buffer = buffer.slice(eventEnd + 2);
 
@@ -521,6 +521,7 @@ export class A2AClient {
           } catch {
             // Skip malformed events
           }
+          eventEnd = buffer.indexOf("\n\n");
         }
       }
     } finally {

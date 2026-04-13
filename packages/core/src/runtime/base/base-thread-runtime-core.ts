@@ -93,7 +93,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   }
 
   public get state() {
-    let mostRecentAssistantMessage;
+    let mostRecentAssistantMessage: (typeof this.messages)[number] | undefined;
     for (const message of this.messages) {
       if (message.role === "assistant") {
         mostRecentAssistantMessage = message;

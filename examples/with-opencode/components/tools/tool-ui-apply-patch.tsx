@@ -46,9 +46,7 @@ function parseClaudePatchBlocks(patchText: string): PatchBlock[] {
   const headerRegex = /^\*\*\*\s+(Update|Add|Delete)\s+File:\s+(.+)$/gm;
   const blocks: PatchBlock[] = [];
   let lastIndex = 0;
-  let match;
-
-  while ((match = headerRegex.exec(cleaned)) !== null) {
+  for (const match of cleaned.matchAll(headerRegex)) {
     if (blocks.length > 0) {
       blocks[blocks.length - 1]!.body = cleaned.slice(lastIndex, match.index);
     }

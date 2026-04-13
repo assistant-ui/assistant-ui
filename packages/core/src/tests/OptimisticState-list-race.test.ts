@@ -95,6 +95,7 @@ describe("list + delete race condition", () => {
     const listPromise = state.optimisticUpdate({
       execute: () => listDeferred.promise,
       loading: (s) => ({ ...s, isLoading: true }),
+      // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
       then: applyListResult,
     });
 
@@ -152,6 +153,7 @@ describe("list + delete race condition", () => {
     const listPromise = state.optimisticUpdate({
       execute: () => listDeferred.promise,
       loading: (s) => ({ ...s, isLoading: true }),
+      // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
       then: applyListResult,
     });
 
@@ -189,6 +191,7 @@ describe("list + delete race condition", () => {
     const listPromise = state.optimisticUpdate({
       execute: () => listDeferred.promise,
       loading: (s) => ({ ...s, isLoading: true }),
+      // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
       then: applyListResult,
     });
 
@@ -226,6 +229,7 @@ describe("list + delete race condition", () => {
     const listPromise = state.optimisticUpdate({
       execute: () => listDeferred.promise,
       loading: (s) => ({ ...s, isLoading: true }),
+      // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
       then: applyListResult,
     });
 

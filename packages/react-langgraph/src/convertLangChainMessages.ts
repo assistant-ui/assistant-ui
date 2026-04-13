@@ -255,7 +255,7 @@ const contentToParts = (
           case "input_json_delta":
             return null;
 
-          case "computer_call":
+          case "computer_call": {
             const args = part.action as ReadonlyJSONObject;
             return {
               type: "tool-call",
@@ -268,11 +268,13 @@ const contentToParts = (
                 args,
               ),
             };
+          }
 
-          default:
+          default: {
             const _exhaustiveCheck: never = type;
             warnForUnknownMessagePartType(_exhaustiveCheck);
             return null;
+          }
 
           // const _exhaustiveCheck: never = type;
           // throw new Error(`Unknown message part type: ${_exhaustiveCheck}`);
@@ -300,7 +302,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         content: contentToParts(message.content, metadata, message.id),
         metadata: { custom: getCustomMetadata(message.additional_kwargs) },
       };
-    case "ai":
+    case "ai": {
       const toolCallParts =
         message.tool_calls?.map((chunk): ToolCallMessagePart => {
           const matchingToolCallChunk = message.tool_call_chunks?.find(
@@ -351,6 +353,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         metadata: { custom: getCustomMetadata(message.additional_kwargs) },
         ...(message.status && { status: message.status }),
       };
+    }
     case "tool":
       return {
         role: "tool",

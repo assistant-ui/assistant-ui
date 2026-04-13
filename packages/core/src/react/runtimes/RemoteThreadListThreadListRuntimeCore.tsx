@@ -63,6 +63,7 @@ export class RemoteThreadListThreadListRuntimeCore
               isLoading: true,
             };
           },
+          // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
           then: (state, l) => {
             const newThreadIds = [];
             const newArchivedThreadIds = [];
@@ -352,6 +353,7 @@ export class RemoteThreadListThreadListRuntimeCore
           },
         };
       },
+      // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
       then: (state, { remoteId, externalId }) => {
         const data = getThreadData(state, threadId);
         if (!data) return state;

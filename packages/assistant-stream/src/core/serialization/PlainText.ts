@@ -30,7 +30,7 @@ export class PlainTextEncoder
             case "error":
               break;
 
-            default:
+            default: {
               const unsupportedType:
                 | "tool-call-args-text-finish"
                 | "data"
@@ -40,6 +40,7 @@ export class PlainTextEncoder
                 | "result"
                 | "update-state" = type;
               throw new Error(`unsupported chunk type: ${unsupportedType}`);
+            }
           }
         },
       });

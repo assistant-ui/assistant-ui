@@ -302,13 +302,12 @@ async function scanRequiredComponents(
 
       const assistantUIRegex =
         /from\s+["']@\/components\/assistant-ui\/([^"']+)["']/g;
-      let match;
-      while ((match = assistantUIRegex.exec(content)) !== null) {
+      for (const match of content.matchAll(assistantUIRegex)) {
         assistantUIComponents.add(match[1]!);
       }
 
       const uiRegex = /from\s+["']@\/components\/ui\/([^"']+)["']/g;
-      while ((match = uiRegex.exec(content)) !== null) {
+      for (const match of content.matchAll(uiRegex)) {
         shadcnUIComponents.add(match[1]!);
       }
     } catch {

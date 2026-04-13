@@ -119,9 +119,9 @@ export class ToolExecutionStream extends PipeableTransformStream<
               let isExecuting = false;
               const promise = withPromiseOrValue(
                 () => {
-                  let args;
+                  let args: ReadonlyJSONObject;
                   try {
-                    args = sjson.parse(streamController.argsText);
+                    args = sjson.parse(streamController.argsText) as ReadonlyJSONObject;
                   } catch (e) {
                     throw new Error(
                       `Function parameter parsing failed. ${JSON.stringify((e as Error).message)}`,

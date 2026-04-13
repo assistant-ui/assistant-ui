@@ -94,8 +94,7 @@ function parseErrors(transform: string, output: string): TransformErrors {
   const errorRegex = /ERR (.+) Transformation error/g;
   const syntaxErrorRegex = /SyntaxError: .+/g;
 
-  let match;
-  while ((match = errorRegex.exec(output)) !== null) {
+  for (const match of output.matchAll(errorRegex)) {
     const filename = match[1]!;
     const syntaxErrorMatch = syntaxErrorRegex.exec(output);
     if (syntaxErrorMatch) {

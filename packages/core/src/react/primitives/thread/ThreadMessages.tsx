@@ -124,9 +124,10 @@ const getComponent = (
           DEFAULT_SYSTEM_MESSAGE
         );
       }
-    default:
+    default: {
       const _exhaustiveCheck: never = role;
       throw new Error(`Unknown message role: ${_exhaustiveCheck}`);
+    }
   }
 };
 

@@ -65,13 +65,21 @@ export class ObjectStreamAccumulator {
         throw new Error(`Insert array index out of bounds`);
 
       const nextState = [...state];
-      nextState[idx] = this.updatePath(nextState[idx], rest, updater);
+      nextState[idx] = ObjectStreamAccumulator.updatePath(
+        nextState[idx],
+        rest,
+        updater,
+      );
 
       return nextState;
     }
 
     const nextState = { ...(state as ReadonlyJSONObject) };
-    nextState[key] = this.updatePath(nextState[key], rest, updater);
+    nextState[key] = ObjectStreamAccumulator.updatePath(
+      nextState[key],
+      rest,
+      updater,
+    );
 
     return nextState;
   }

@@ -28,17 +28,12 @@
         "noExplicitAny": "off",
         "noArrayIndexKey": "off",
         "useIterableCallbackReturn": "off",
-        "noThenProperty": "off",
-        "noImplicitAnyLet": "off",
-        "noAssignInExpressions": "off",
-        "noRedeclare": "off",
         "noConfusingLabels": {
           "level": "error",
           "options": {
             "allowedLabels": ["DEV"]
           }
         },
-        "noDocumentCookie": "off",
         "noReactForwardRef": "off"
       },
       "style": {
@@ -87,14 +82,10 @@
           }
         },
         "useHookAtTopLevel": "off",
-        "noSwitchDeclarations": "off",
         "useUniqueElementIds": "off"
       },
       "complexity": {
         "noForEach": "off",
-        "noBannedTypes": "off",
-        "noStaticOnlyClass": "off",
-        "noThisInStatic": "off",
         "useLiteralKeys": "off"
       },
       "a11y": {
@@ -105,9 +96,6 @@
         "useButtonType": "off",
         "useSemanticElements": "off",
         "noRedundantAlt": "off"
-      },
-      "security": {
-        "noDangerouslySetInnerHtml": "off"
       },
       "performance": {
         "noImgElement": "off"

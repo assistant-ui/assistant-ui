@@ -32,9 +32,7 @@ export const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter = {
     const segments: Unstable_DirectiveSegment[] = [];
     let lastIndex = 0;
 
-    DIRECTIVE_RE.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = DIRECTIVE_RE.exec(text)) !== null) {
+    for (const match of text.matchAll(DIRECTIVE_RE)) {
       if (match.index > lastIndex) {
         segments.push({
           kind: "text",
@@ -48,7 +46,7 @@ export const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter = {
         label,
         id: match[3] ?? label,
       });
-      lastIndex = DIRECTIVE_RE.lastIndex;
+      lastIndex = match.index + match[0].length;
     }
 
     if (lastIndex < text.length) {

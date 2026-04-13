@@ -54,6 +54,7 @@ const getHook = (): DevToolsHook => {
   return newHook;
 };
 
+// biome-ignore lint/complexity/noStaticOnlyClass: intentional namespace for DevTools API
 export class DevToolsHooks {
   static subscribe(listener: () => void): Unsubscribe {
     const hook = getHook();
@@ -82,6 +83,7 @@ export class DevToolsHooks {
   }
 }
 
+// biome-ignore lint/complexity/noStaticOnlyClass: intentional namespace for DevTools API
 export class DevToolsProviderApi {
   private static readonly MAX_EVENT_LOGS_PER_API = 200;
 
