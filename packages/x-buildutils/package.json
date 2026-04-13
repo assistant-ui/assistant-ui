@@ -15,7 +15,8 @@
   "files": [
     "bin",
     "src",
-    "ts"
+    "ts",
+    "types"
   ],
   "bin": {
     "aui-build": "./bin/aui-build.js"

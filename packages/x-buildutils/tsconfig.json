@@ -1,4 +1,4 @@
 {
-  "extends": "./ts/base",
+  "extends": "./ts/base-node",
   "include": ["src", "bin"]
 }
