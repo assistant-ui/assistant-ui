@@ -640,6 +640,7 @@ export default function McpAppStudioPage() {
                 </span>
               </div>
               <button
+                type="button"
                 ref={fullscreenCloseButtonRef}
                 onClick={() => {
                   analytics.mcpAppStudio.workbenchFullscreenToggled(false);
@@ -703,6 +704,7 @@ function HeroShowcase({
                 </div>
               </div>
               <button
+                type="button"
                 onClick={onFullscreen}
                 className="hidden size-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300 md:flex"
                 aria-label="Open fullscreen demo"

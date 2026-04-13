@@ -1598,6 +1598,7 @@ function InteractivePlaygroundSection() {
                 className="flex-1"
               />
               <button
+                type="button"
                 onClick={() => setSpeed(speed === null ? 500 : null)}
                 className="rounded bg-muted px-2 py-1 text-xs"
               >
@@ -1629,6 +1630,7 @@ function InteractivePlaygroundSection() {
                 className="flex-1"
               />
               <button
+                type="button"
                 onClick={() => setBgSpread(bgSpread === null ? 100 : null)}
                 className="rounded bg-muted px-2 py-1 text-xs"
               >
@@ -1660,6 +1662,7 @@ function InteractivePlaygroundSection() {
                 className="flex-1"
               />
               <button
+                type="button"
                 onClick={() => setTextSpread(textSpread === null ? 6 : null)}
                 className="rounded bg-muted px-2 py-1 text-xs"
               >

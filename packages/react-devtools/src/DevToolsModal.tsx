@@ -83,6 +83,7 @@ const DevToolsModalImpl = () => {
     <>
       <div style={styles.floatingContainer}>
         <button
+          type="button"
           onClick={() => setIsOpen(true)}
           onMouseEnter={() => setButtonHover(true)}
           onMouseLeave={() => setButtonHover(false)}
@@ -121,6 +122,7 @@ const DevToolsModalImpl = () => {
 
           <div style={styles.modal} data-devtools-modal>
             <button
+              type="button"
               onClick={() => setIsOpen(false)}
               onMouseEnter={() => setCloseHover(true)}
               onMouseLeave={() => setCloseHover(false)}

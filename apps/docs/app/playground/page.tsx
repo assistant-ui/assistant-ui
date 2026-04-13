@@ -138,6 +138,7 @@ export default function PlaygroundPage() {
                   const Icon = preset.icon;
                   return (
                     <button
+                      type="button"
                       key={key}
                       onClick={() => handlePresetChange(key)}
                       className={cn(
@@ -161,6 +162,7 @@ export default function PlaygroundPage() {
             <Sheet open={controlsOpen} onOpenChange={setControlsOpen}>
               <SheetTrigger asChild>
                 <button
+                  type="button"
                   className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-medium text-muted-foreground text-xs transition-colors hover:bg-foreground/5 hover:text-foreground md:hidden"
                   aria-label="Open controls"
                 >
@@ -193,6 +195,7 @@ export default function PlaygroundPage() {
               <ShareButton />
 
               <button
+                type="button"
                 onClick={() => setShowChat(!showChat)}
                 className={cn(
                   "hidden items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-xs transition-colors md:flex",
@@ -208,6 +211,7 @@ export default function PlaygroundPage() {
               <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
                 <SheetTrigger asChild>
                   <button
+                    type="button"
                     className="flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-muted-foreground text-xs transition-colors hover:text-foreground md:hidden"
                     aria-label="Open AI chat"
                   >
@@ -226,6 +230,7 @@ export default function PlaygroundPage() {
               </Sheet>
 
               <button
+                type="button"
                 onClick={() => setShowCode(!showCode)}
                 className={cn(
                   "flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-xs transition-colors",
@@ -252,7 +257,10 @@ export default function PlaygroundPage() {
                 container={previewContainerRef}
                 onOpenCodeView={() => setShowCode(true)}
               >
-                <button className="flex items-center gap-1.5 rounded-md bg-foreground px-2.5 py-1 font-medium text-background text-xs transition-colors hover:bg-foreground/90">
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 rounded-md bg-foreground px-2.5 py-1 font-medium text-background text-xs transition-colors hover:bg-foreground/90"
+                >
                   <SquareTerminal className="size-3.5" />
                   <span className="hidden sm:inline">Create Project</span>
                 </button>
@@ -320,6 +328,7 @@ export default function PlaygroundPage() {
             <div className="flex items-center justify-between border-b px-3 py-2">
               <span className="font-medium text-sm">AI Assistant</span>
               <button
+                type="button"
                 onClick={() => setShowChat(false)}
                 className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
                 aria-label="Close chat"

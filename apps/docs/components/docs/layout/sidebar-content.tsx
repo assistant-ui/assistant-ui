@@ -111,6 +111,7 @@ function PageTreeItem({
             </Link>
           ) : (
             <button
+              type="button"
               onClick={handleFolderNameClick}
               className="min-w-0 flex-1 text-left text-[13px] text-muted-foreground"
             >
@@ -119,6 +120,7 @@ function PageTreeItem({
           )}
           {hasChildren && (
             <button
+              type="button"
               onClick={handleFolderToggle}
               className="p-1 text-muted-foreground/60 transition-colors hover:text-muted-foreground"
               aria-label={open ? "Collapse section" : "Expand section"}

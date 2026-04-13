@@ -69,6 +69,7 @@ function TOCActions({
       {markdownUrl && (
         <>
           <button
+            type="button"
             onClick={handleCopy}
             disabled={isLoading}
             className={linkClass}
@@ -100,7 +101,7 @@ function TOCActions({
           Edit on GitHub
         </a>
       )}
-      <button onClick={handleAskAIClick} className={linkClass}>
+      <button type="button" onClick={handleAskAIClick} className={linkClass}>
         <SparklesIcon className="size-3" />
         Ask AI
       </button>

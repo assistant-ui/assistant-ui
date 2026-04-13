@@ -30,6 +30,7 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
 
   return (
     <button
+      type="button"
       onClick={onToggle}
       className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
       aria-label="Search (⌘K)"
@@ -149,6 +150,7 @@ export function Header() {
           <ThemeToggle />
 
           <button
+            type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground md:hidden"
             aria-label="Toggle menu"

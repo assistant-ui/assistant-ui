@@ -308,6 +308,7 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
             </div>
           )}
           <button
+            type="button"
             onClick={handleDownload}
             className="flex w-fit items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm hover:bg-accent"
           >

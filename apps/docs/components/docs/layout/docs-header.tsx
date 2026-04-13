@@ -31,6 +31,7 @@ function AskAIButton() {
 
   return (
     <button
+      type="button"
       onClick={toggle}
       className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       aria-label="Ask AI"
@@ -45,6 +46,7 @@ function HeaderSearch() {
 
   return (
     <button
+      type="button"
       onClick={() => {
         analytics.search.opened("header");
         setOpenSearch(true);
@@ -128,6 +130,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
         {/* Mobile controls */}
         <div className="ml-auto flex items-center gap-1 md:hidden">
           <button
+            type="button"
             onClick={() => {
               analytics.search.opened("header");
               setOpenSearch(true);
@@ -140,6 +143,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
           <AskAIButton />
           <ThemeToggle />
           <button
+            type="button"
             onClick={handleNavMenuToggle}
             className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
             aria-label="Site navigation"
@@ -151,6 +155,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
             )}
           </button>
           <button
+            type="button"
             onClick={handleSidebarToggle}
             className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
             aria-label="Toggle sidebar"
@@ -166,6 +171,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
         {/* Condensed nav: md to lg */}
         <div className="ml-auto hidden items-center gap-2 md:flex lg:hidden">
           <button
+            type="button"
             onClick={() => {
               analytics.search.opened("header");
               setOpenSearch(true);

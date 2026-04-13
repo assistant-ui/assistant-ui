@@ -205,6 +205,7 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground text-sm">Controls:</span>
                 <button
+                  type="button"
                   onClick={() => {
                     updateCurrentThreadMessages((prev) => [
                       ...prev,
@@ -220,6 +221,7 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
                   Add User Message
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     updateCurrentThreadMessages((prev) => [
                       ...prev,
@@ -237,12 +239,14 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
                   Add Assistant Message
                 </button>
                 <button
+                  type="button"
                   onClick={() => setIsRunning(!isRunning)}
                   className="rounded-md bg-accent px-3 py-1 font-medium text-accent-foreground text-sm hover:bg-accent/80"
                 >
                   {isRunning ? "Stop" : "Start"} Running
                 </button>
                 <button
+                  type="button"
                   onClick={() => updateCurrentThreadMessages(() => [])}
                   className="rounded-md bg-destructive px-3 py-1 font-medium text-sm text-white hover:bg-destructive/90"
                 >

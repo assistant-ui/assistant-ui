@@ -87,7 +87,6 @@
       },
       "a11y": {
         "noSvgWithoutTitle": "off",
-        "useButtonType": "off",
         "useSemanticElements": "off"
       },
       "performance": {

@@ -23,6 +23,7 @@ export function ThreadList({
     <div className="flex h-full w-64 shrink-0 flex-col border-r bg-sidebar">
       <div className="p-3">
         <button
+          type="button"
           onClick={() => onSelect(null)}
           className="flex w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border bg-sidebar px-4 py-2 font-medium text-sidebar-foreground text-sm transition-colors hover:bg-sidebar-accent"
         >
@@ -59,6 +60,7 @@ export function ThreadList({
                   {thread.title || "New conversation"}
                 </span>
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onDelete(thread.id);

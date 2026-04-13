@@ -23,6 +23,7 @@ export function CopyCommandButton({
 
   return (
     <button
+      type="button"
       onClick={copyToClipboard}
       className="group inline-flex w-fit items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-3 py-1.5 font-mono text-sm transition-all hover:border-border hover:bg-muted/50"
     >

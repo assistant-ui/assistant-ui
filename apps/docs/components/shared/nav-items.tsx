@@ -20,7 +20,10 @@ export function NavItems({ items }: { items: NavItem[] }) {
     ) : (
       <HoverCard key={item.label} openDelay={100} closeDelay={100}>
         <HoverCardTrigger asChild>
-          <button className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground">
+          <button
+            type="button"
+            className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+          >
             {item.label}
           </button>
         </HoverCardTrigger>

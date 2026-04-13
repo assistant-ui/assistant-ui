@@ -12,7 +12,10 @@ function SuggestionItemStatic({
   description,
 }: SuggestionItemStaticProps) {
   return (
-    <button className="flex h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border border-border bg-background px-4 py-3 text-left text-sm transition-colors hover:bg-muted">
+    <button
+      type="button"
+      className="flex h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border border-border bg-background px-4 py-3 text-left text-sm transition-colors hover:bg-muted"
+    >
       <span className="font-medium">{title}</span>
       <span className="text-muted-foreground">{description}</span>
     </button>
