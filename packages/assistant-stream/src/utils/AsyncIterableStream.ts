@@ -2,7 +2,7 @@ export type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
 
 async function* streamGeneratorPolyfill<T>(
   this: ReadableStream<T>,
-): AsyncIterator<T, undefined, unknown> {
+): AsyncGenerator<T, undefined, unknown> {
   const reader = this.getReader();
   try {
     while (true) {
@@ -19,6 +19,6 @@ export function asAsyncIterableStream<T>(
   source: ReadableStream<T>,
 ): AsyncIterableStream<T> {
   (source as AsyncIterableStream<T>)[Symbol.asyncIterator] ??=
-    streamGeneratorPolyfill as AsyncIterableStream<T>[typeof Symbol.asyncIterator];
+    streamGeneratorPolyfill;
   return source as AsyncIterableStream<T>;
 }
