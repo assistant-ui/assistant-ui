@@ -1,0 +1,16 @@
+/* Squircle corners - progressively enhanced / only visible if supported */
+:root {
+  --border-radius-multiplier: 1;
+}
+
+@supports (corner-shape: squircle) {
+  :root {
+    --border-radius-multiplier: 2;
+  }
+}
+
+.squircle {
+  corner-shape: squircle;
+  border-radius: 30px !important;
+  border-radius: calc(var(--radius) * var(--border-radius-multiplier));
+}
