@@ -176,7 +176,7 @@ export const DevToolsModal = () => {
   // This allows the entire component to be eliminated via dead code elimination
   if (
     typeof process !== "undefined" &&
-    process.env?.["NODE_ENV"] === "production"
+    process.env?.NODE_ENV === "production"
   ) {
     return null;
   }

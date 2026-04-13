@@ -5,7 +5,7 @@ import { Primitive } from "../../utils/Primitive";
 import {
   type ComponentRef,
   forwardRef,
-  ComponentPropsWithoutRef,
+  type ComponentPropsWithoutRef,
   useCallback,
 } from "react";
 import { useThreadViewportAutoScroll } from "./useThreadViewportAutoScroll";

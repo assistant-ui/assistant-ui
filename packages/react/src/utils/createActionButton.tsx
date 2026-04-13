@@ -1,8 +1,8 @@
 import {
-  ComponentRef,
+  type ComponentRef,
   forwardRef,
-  ComponentPropsWithoutRef,
-  MouseEventHandler,
+  type ComponentPropsWithoutRef,
+  type MouseEventHandler,
 } from "react";
 import { Primitive } from "./Primitive";
 import { composeEventHandlers } from "@radix-ui/primitive";

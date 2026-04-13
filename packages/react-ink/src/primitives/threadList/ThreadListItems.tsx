@@ -1,4 +1,4 @@
-import { type ReactElement } from "react";
+import type { ReactElement } from "react";
 import { Box } from "ink";
 import { useAuiState } from "@assistant-ui/store";
 

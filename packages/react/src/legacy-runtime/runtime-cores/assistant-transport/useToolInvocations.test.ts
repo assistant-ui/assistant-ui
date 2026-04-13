@@ -5,8 +5,14 @@ import type { Tool } from "assistant-stream";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AssistantTransportState } from "./types";
-import { ToolExecutionStatus, useToolInvocations } from "./useToolInvocations";
-import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
+import {
+  type ToolExecutionStatus,
+  useToolInvocations,
+} from "./useToolInvocations";
+import type {
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "assistant-stream/utils";
 
 const createState = (
   messages: ThreadAssistantMessage[],

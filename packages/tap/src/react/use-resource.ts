@@ -1,8 +1,8 @@
 import { useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
-import {
+import type {
   ResourceFiberRoot,
-  type ExtractResourceReturnType,
-  type ResourceElement,
+  ExtractResourceReturnType,
+  ResourceElement,
 } from "../core/types";
 import {
   createResourceFiber,

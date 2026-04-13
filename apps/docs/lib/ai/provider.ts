@@ -2,8 +2,8 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { resolveModelId } from "@/constants/model";
 
 export const openai = createOpenAI({
-  apiKey: process.env["ASSISTANT_BILLING_GATEWAY_API_KEY"]!,
-  baseURL: process.env["ASSISTANT_BILLING_GATEWAY_BASE_URL"]!,
+  apiKey: process.env.ASSISTANT_BILLING_GATEWAY_API_KEY!,
+  baseURL: process.env.ASSISTANT_BILLING_GATEWAY_BASE_URL!,
 });
 
 export function getModel(modelId?: string) {

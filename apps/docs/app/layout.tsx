@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
 
 const getMetadataBase = () => {
-  const appUrl = process.env["NEXT_PUBLIC_APP_URL"];
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
   if (appUrl) {
     return new URL(appUrl);
   }

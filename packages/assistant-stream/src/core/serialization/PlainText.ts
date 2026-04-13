@@ -1,5 +1,5 @@
-import { AssistantStreamEncoder } from "../AssistantStream";
-import { AssistantStreamChunk } from "../AssistantStreamChunk";
+import type { AssistantStreamEncoder } from "../AssistantStream";
+import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { AssistantTransformStream } from "../utils/stream/AssistantTransformStream";
 import { PipeableTransformStream } from "../utils/stream/PipeableTransformStream";
 

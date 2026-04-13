@@ -1,6 +1,6 @@
 import { resource } from "@assistant-ui/tap";
-import { type ClientOutput } from "@assistant-ui/store";
-import { MessagePartRuntime } from "../../runtime/api/message-part-runtime";
+import type { ClientOutput } from "@assistant-ui/store";
+import type { MessagePartRuntime } from "../../runtime/api/message-part-runtime";
 import { tapSubscribable } from "./tap-subscribable";
 
 export const MessagePartClient = resource(

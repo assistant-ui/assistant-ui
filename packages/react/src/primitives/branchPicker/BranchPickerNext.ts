@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  ActionButtonElement,
-  ActionButtonProps,
+  type ActionButtonElement,
+  type ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
 import { useBranchPickerNext as useBranchPickerNextBehavior } from "@assistant-ui/core/react";

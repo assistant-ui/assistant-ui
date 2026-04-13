@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import transform from "../content-part-to-message-part";
-import jscodeshift, { API } from "jscodeshift";
+import jscodeshift, { type API } from "jscodeshift";
 
 const transformer = transform;
 

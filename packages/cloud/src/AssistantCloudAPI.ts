@@ -1,5 +1,5 @@
 import {
-  AssistantCloudAuthStrategy,
+  type AssistantCloudAuthStrategy,
   AssistantCloudJWTAuthStrategy,
   AssistantCloudAPIKeyAuthStrategy,
   AssistantCloudAnonymousAuthStrategy,

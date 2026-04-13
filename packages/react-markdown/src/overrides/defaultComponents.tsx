@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from "react";
-import { PreComponent, CodeComponent, CodeHeaderProps } from "./types";
+import type { PreComponent, CodeComponent, CodeHeaderProps } from "./types";
 import type { Element } from "hast";
 
 export const DefaultPre: PreComponent = ({ node, ...rest }) => (

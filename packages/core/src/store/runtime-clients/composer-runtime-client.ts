@@ -12,11 +12,11 @@ import {
   tapAssistantEmit,
   tapClientLookup,
 } from "@assistant-ui/store";
-import {
+import type {
   ComposerRuntime,
   EditComposerRuntime,
 } from "../../runtime/api/composer-runtime";
-import { ComposerState } from "../scopes/composer";
+import type { ComposerState } from "../scopes/composer";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 import { tapSubscribable } from "./tap-subscribable";
 

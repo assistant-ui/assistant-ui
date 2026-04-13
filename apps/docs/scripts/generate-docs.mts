@@ -1,8 +1,8 @@
 import {
   Project,
   Node,
-  InterfaceDeclaration,
-  TypeAliasDeclaration,
+  type InterfaceDeclaration,
+  type TypeAliasDeclaration,
 } from "ts-morph";
 import * as fs from "node:fs";
 

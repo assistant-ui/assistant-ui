@@ -1,7 +1,7 @@
-import { AssistantCloud } from "assistant-cloud";
+import type { AssistantCloud } from "assistant-cloud";
 import {
   useDataStreamRuntime,
-  UseDataStreamRuntimeOptions,
+  type UseDataStreamRuntimeOptions,
 } from "./useDataStreamRuntime";
 
 type UseCloudRuntimeOptions = Omit<UseDataStreamRuntimeOptions, "api"> & {

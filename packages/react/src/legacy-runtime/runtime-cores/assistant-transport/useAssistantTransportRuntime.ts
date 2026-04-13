@@ -7,7 +7,7 @@ import {
   asAsyncIterableStream,
 } from "assistant-stream/utils";
 import { useExternalStoreRuntime } from "../external-store/useExternalStoreRuntime";
-import { AssistantRuntime } from "../../runtime/AssistantRuntime";
+import type { AssistantRuntime } from "../../runtime/AssistantRuntime";
 import type { AddToolResultOptions } from "@assistant-ui/core";
 import { useState, useRef, useMemo } from "react";
 import {
@@ -17,7 +17,7 @@ import {
   unstable_createInitialMessage as createInitialMessage,
   toToolsJSONSchema,
 } from "assistant-stream";
-import {
+import type {
   AssistantTransportOptions,
   AddMessageCommand,
   AddToolResultCommand,
@@ -29,12 +29,15 @@ import {
 import { useCommandQueue } from "./commandQueue";
 import { useRunManager } from "./runManager";
 import { useConvertedState } from "./useConvertedState";
-import { ToolExecutionStatus, useToolInvocations } from "./useToolInvocations";
+import {
+  type ToolExecutionStatus,
+  useToolInvocations,
+} from "./useToolInvocations";
 import { createRequestHeaders } from "@assistant-ui/core";
 import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
 import { InMemoryThreadListAdapter } from "@assistant-ui/core";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import { UserExternalState } from "../../../augmentations";
+import type { UserExternalState } from "../../../augmentations";
 
 const convertAppendMessageToCommand = (
   message: AppendMessage,

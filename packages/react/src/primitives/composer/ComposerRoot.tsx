@@ -6,7 +6,7 @@ import {
   type ComponentRef,
   type FormEvent,
   forwardRef,
-  ComponentPropsWithoutRef,
+  type ComponentPropsWithoutRef,
 } from "react";
 import { useComposerSend } from "./ComposerSend";
 

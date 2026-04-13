@@ -1,5 +1,5 @@
-import { ReadonlyJSONValue } from "../utils/json/json-value";
-import { ObjectStreamOperation } from "./object/types";
+import type { ReadonlyJSONValue } from "../utils/json/json-value";
+import type { ObjectStreamOperation } from "./object/types";
 
 export type PartInit =
   | {

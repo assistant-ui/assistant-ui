@@ -4,9 +4,9 @@ import type { TextStreamController } from "../../modules/text";
 import { AssistantTransformStream } from "../../utils/stream/AssistantTransformStream";
 import { PipeableTransformStream } from "../../utils/stream/PipeableTransformStream";
 import { LineDecoderStream } from "../../utils/stream/LineDecoderStream";
-import {
-  type UIMessageStreamChunk,
-  type UIMessageStreamDataChunk,
+import type {
+  UIMessageStreamChunk,
+  UIMessageStreamDataChunk,
 } from "./chunk-types";
 import { generateId } from "../../utils/generateId";
 

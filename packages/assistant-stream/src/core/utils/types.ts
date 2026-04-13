@@ -1,4 +1,4 @@
-import {
+import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "../../utils/json/json-value";

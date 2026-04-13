@@ -10,7 +10,7 @@ import { tapMemo } from "./hooks/tap-memo";
 import { tapEffect } from "./hooks/tap-effect";
 import { tapEffectEvent } from "./hooks/tap-effect-event";
 import { tapRef } from "./hooks/tap-ref";
-import { RenderResult, ResourceElement } from "./core/types";
+import type { RenderResult, ResourceElement } from "./core/types";
 import { isDevelopment } from "./core/helpers/env";
 import {
   commitRoot,

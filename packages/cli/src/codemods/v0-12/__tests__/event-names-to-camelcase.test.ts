@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import jscodeshift, { API } from "jscodeshift";
+import jscodeshift, { type API } from "jscodeshift";
 import transform from "../event-names-to-camelcase";
 
 const j = jscodeshift.withParser("tsx");

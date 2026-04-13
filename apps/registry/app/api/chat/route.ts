@@ -4,7 +4,7 @@ import {
   streamText,
   convertToModelMessages,
   type UIMessage,
-  JSONSchema7,
+  type JSONSchema7,
 } from "ai";
 
 export async function POST(req: Request) {

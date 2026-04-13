@@ -1,12 +1,12 @@
 import type { ThreadMessage } from "@assistant-ui/core";
-import { ReadonlyJSONValue } from "assistant-stream/utils";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type {
   AttachmentAdapter,
   ThreadHistoryAdapter,
   LanguageModelV1CallSettings,
   LanguageModelConfig,
 } from "@assistant-ui/core";
-import { UserCommands } from "../../../augmentations";
+import type { UserCommands } from "../../../augmentations";
 import type { ToolExecutionStatus } from "./useToolInvocations";
 
 // Message part types

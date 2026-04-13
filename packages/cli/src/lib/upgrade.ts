@@ -1,6 +1,6 @@
 import debug from "debug";
-import { transform, TransformErrors, getRelevantFiles } from "./transform";
-import { TransformOptions } from "./transform-options";
+import { transform, type TransformErrors, getRelevantFiles } from "./transform";
+import type { TransformOptions } from "./transform-options";
 import { SingleBar, Presets } from "cli-progress";
 import installReactUILib from "./install-ui-lib";
 import installEdgeLib from "./install-edge-lib";

@@ -1,4 +1,4 @@
-import { Cell } from "../core/types";
+import type { Cell } from "../core/types";
 import { depsShallowEqual } from "./utils/depsShallowEqual";
 import { tapHook, registerRenderMountTask } from "./utils/tapHook";
 

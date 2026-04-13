@@ -1,5 +1,5 @@
-import { MessageStatus } from "@assistant-ui/core";
-import { ReadonlyJSONObject } from "assistant-stream/utils";
+import type { MessageStatus } from "@assistant-ui/core";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 export type LangChainToolCallChunk = {
   index: number;

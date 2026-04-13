@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ThreadRuntime } from "../runtime/ThreadRuntime";
+import type { ThreadRuntime } from "../runtime/ThreadRuntime";
 import type { ModelContext } from "@assistant-ui/core";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 import type { ThreadComposerRuntime } from "@assistant-ui/core";

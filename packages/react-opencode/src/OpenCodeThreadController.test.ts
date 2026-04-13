@@ -137,12 +137,12 @@ describe("OpenCodeThreadController", () => {
       answers: [["Yes"]],
     });
     expect(
-      controller.getState().interactions.questions.answered["question_1"],
+      controller.getState().interactions.questions.answered.question_1,
     ).toMatchObject({
       answers: [["Yes"]],
     });
     expect(
-      controller.getState().interactions.questions.pending["question_1"],
+      controller.getState().interactions.questions.pending.question_1,
     ).toBeUndefined();
   });
 
@@ -184,10 +184,10 @@ describe("OpenCodeThreadController", () => {
       requestID: "question_1",
     });
     expect(
-      controller.getState().interactions.questions.rejected["question_1"],
+      controller.getState().interactions.questions.rejected.question_1,
     ).toBeDefined();
     expect(
-      controller.getState().interactions.questions.pending["question_1"],
+      controller.getState().interactions.questions.pending.question_1,
     ).toBeUndefined();
   });
 });

@@ -13,7 +13,7 @@ import {
   type AISDKRuntimeAdapter,
   type CustomToCreateMessageFunction,
 } from "./useAISDKRuntime";
-import { ChatInit, ChatTransport } from "ai";
+import type { ChatInit, ChatTransport } from "ai";
 import { AssistantChatTransport } from "./AssistantChatTransport";
 import { useEffect, useMemo, useRef } from "react";
 

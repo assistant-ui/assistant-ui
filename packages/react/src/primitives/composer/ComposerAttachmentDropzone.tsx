@@ -11,7 +11,7 @@ import {
 
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { Slot } from "radix-ui";
-import React from "react";
+import type React from "react";
 import { useAui } from "@assistant-ui/store";
 
 export namespace ComposerPrimitiveAttachmentDropzone {

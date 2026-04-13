@@ -16,10 +16,10 @@ import {
 import type { RemoteThreadListOptions } from "../../runtimes/remote-thread-list/types";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 import {
-  ComponentType,
-  FC,
+  type ComponentType,
+  type FC,
   Fragment,
-  PropsWithChildren,
+  type PropsWithChildren,
   useEffect,
   useId,
 } from "react";

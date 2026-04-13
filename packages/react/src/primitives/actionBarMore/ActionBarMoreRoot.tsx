@@ -1,8 +1,8 @@
 "use client";
 
-import { FC, useCallback, useEffect, useRef } from "react";
+import { type FC, useCallback, useEffect, useRef } from "react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
-import { ScopedProps, useDropdownMenuScope } from "./scope";
+import { type ScopedProps, useDropdownMenuScope } from "./scope";
 import { useActionBarInteractionContext } from "../actionBar/ActionBarInteractionContext";
 
 export namespace ActionBarMorePrimitiveRoot {

@@ -1,5 +1,5 @@
-import { UseBoundStore } from "zustand";
-import { ReadonlyStore } from "../../ReadonlyStore";
+import type { UseBoundStore } from "zustand";
+import type { ReadonlyStore } from "../../ReadonlyStore";
 
 /**
  * Creates hooks for accessing a store within a context.

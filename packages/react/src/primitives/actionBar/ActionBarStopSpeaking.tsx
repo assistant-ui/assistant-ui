@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef } from "react";
-import { ActionButtonProps } from "../../utils/createActionButton";
+import type { ActionButtonProps } from "../../utils/createActionButton";
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { Primitive } from "../../utils/Primitive";
 import { composeEventHandlers } from "@radix-ui/primitive";

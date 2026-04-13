@@ -1,5 +1,5 @@
 import type { Unsubscribe } from "@assistant-ui/core";
-import { AssistantClient } from "@assistant-ui/store";
+import type { AssistantClient } from "@assistant-ui/store";
 
 export interface EventLog {
   time: Date;

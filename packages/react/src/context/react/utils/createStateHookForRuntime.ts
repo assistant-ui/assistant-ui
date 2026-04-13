@@ -1,5 +1,5 @@
 import {
-  SubscribableRuntime,
+  type SubscribableRuntime,
   useRuntimeStateInternal,
 } from "./useRuntimeState";
 

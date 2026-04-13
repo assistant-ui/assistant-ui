@@ -1,5 +1,5 @@
-import { FC, useCallback, useEffect, useState } from "react";
-import { ToolCallMessagePartProps } from "../types/MessagePartComponentTypes";
+import { type FC, useCallback, useEffect, useState } from "react";
+import type { ToolCallMessagePartProps } from "../types/MessagePartComponentTypes";
 import { create } from "zustand";
 
 export const useInlineRender = <TArgs, TResult>(

@@ -1,4 +1,4 @@
-import { AssistantCloudAPI } from "./AssistantCloudAPI";
+import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import type { SamplingCallData } from "./instrumentMcpSampling";
 import { AssistantStream, PlainTextDecoder } from "assistant-stream";
 

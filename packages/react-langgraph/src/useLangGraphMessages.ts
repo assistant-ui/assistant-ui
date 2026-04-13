@@ -3,19 +3,19 @@ import { useState, useCallback, useRef, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
 import {
-  EventType,
-  LangChainMessageTupleEvent,
+  type EventType,
+  type LangChainMessageTupleEvent,
   LangGraphKnownEventTypes,
-  LangGraphTupleMetadata,
-  OnMessageChunkCallback,
-  OnValuesEventCallback,
-  OnUpdatesEventCallback,
-  OnCustomEventCallback,
-  OnErrorEventCallback,
-  OnInfoEventCallback,
-  OnMetadataEventCallback,
-  RemoveUIMessage,
-  UIMessage,
+  type LangGraphTupleMetadata,
+  type OnMessageChunkCallback,
+  type OnValuesEventCallback,
+  type OnUpdatesEventCallback,
+  type OnCustomEventCallback,
+  type OnErrorEventCallback,
+  type OnInfoEventCallback,
+  type OnMetadataEventCallback,
+  type RemoveUIMessage,
+  type UIMessage,
 } from "./types";
 import { useAui } from "@assistant-ui/store";
 import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage";

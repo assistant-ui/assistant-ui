@@ -1,6 +1,6 @@
 "use client";
 
-import { ComponentType, type FC } from "react";
+import type { ComponentType, FC } from "react";
 import type { SyntaxHighlighterProps as SHP } from "react-syntax-highlighter";
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
 

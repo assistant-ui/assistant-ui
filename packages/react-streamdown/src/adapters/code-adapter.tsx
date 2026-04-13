@@ -38,8 +38,8 @@ function extractCode(children: unknown): string {
   if (!isValidElement(children)) return "";
 
   const props = children.props as Record<string, unknown> | null;
-  if (props && typeof props["children"] === "string") {
-    return props["children"];
+  if (props && typeof props.children === "string") {
+    return props.children;
   }
   return "";
 }

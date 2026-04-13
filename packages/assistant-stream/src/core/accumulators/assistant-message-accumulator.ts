@@ -1,7 +1,7 @@
-import { AssistantStreamChunk } from "../AssistantStreamChunk";
+import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { generateId } from "../utils/generateId";
 import { parsePartialJsonObject } from "../../utils/json/parse-partial-json-object";
-import {
+import type {
   AssistantMessage,
   AssistantMessageStatus,
   AssistantMessageTiming,
@@ -14,7 +14,7 @@ import {
   DataPart,
 } from "../utils/types";
 import { ObjectStreamAccumulator } from "../object/ObjectStreamAccumulator";
-import { ReadonlyJSONValue } from "../../utils";
+import type { ReadonlyJSONValue } from "../../utils";
 import { TimingTracker } from "./TimingTracker";
 
 export const createInitialMessage = ({

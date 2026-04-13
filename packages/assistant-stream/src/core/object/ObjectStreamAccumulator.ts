@@ -1,5 +1,5 @@
-import { ReadonlyJSONValue, ReadonlyJSONObject } from "../../utils";
-import { ObjectStreamOperation } from "./types";
+import type { ReadonlyJSONValue, ReadonlyJSONObject } from "../../utils";
+import type { ObjectStreamOperation } from "./types";
 
 export class ObjectStreamAccumulator {
   private _state: ReadonlyJSONValue;

@@ -9,14 +9,14 @@ import {
 } from "../../subscribable/subscribable";
 import type { ThreadListRuntimeCore } from "../interfaces/thread-list-runtime-core";
 import {
-  ThreadListItemRuntime,
+  type ThreadListItemRuntime,
   ThreadListItemRuntimeImpl,
-  ThreadListItemState,
+  type ThreadListItemState,
 } from "./thread-list-item-runtime";
 import {
-  ThreadListItemRuntimeBinding,
-  ThreadRuntime,
-  ThreadRuntimeCoreBinding,
+  type ThreadListItemRuntimeBinding,
+  type ThreadRuntime,
+  type ThreadRuntimeCoreBinding,
   ThreadRuntimeImpl,
 } from "./thread-runtime";
 

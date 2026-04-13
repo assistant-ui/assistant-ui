@@ -19,15 +19,15 @@ import type {
   ClientElement,
   ClientMeta,
 } from "./types/client";
-import { Derived, DerivedElement } from "./Derived";
+import type { Derived, DerivedElement } from "./Derived";
 import {
   useAssistantContextValue,
   DefaultAssistantClient,
   createRootAssistantClient,
 } from "./utils/react-assistant-context";
 import {
-  DerivedClients,
-  RootClients,
+  type DerivedClients,
+  type RootClients,
   tapSplitClients,
 } from "./utils/splitClients";
 import {

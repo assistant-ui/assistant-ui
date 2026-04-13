@@ -1,4 +1,4 @@
-import { Derived, DerivedElement } from "../Derived";
+import { Derived, type DerivedElement } from "../Derived";
 import type {
   AssistantClient,
   ClientElement,

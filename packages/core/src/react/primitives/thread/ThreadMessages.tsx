@@ -7,7 +7,7 @@ import {
 } from "react";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import { MessageByIndexProvider } from "../../providers/MessageByIndexProvider";
-import { MessageState } from "../../../store";
+import type { MessageState } from "../../../store";
 
 type MessagesComponentConfig =
   | {

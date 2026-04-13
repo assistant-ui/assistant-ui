@@ -21,7 +21,7 @@ import type {
   OpenCodeUserMessageOptions,
   PendingUserMessage,
 } from "./types";
-import { OpenCodeEventSource } from "./OpenCodeEventSource";
+import type { OpenCodeEventSource } from "./OpenCodeEventSource";
 import { serializeUserParts } from "./serializeUserParts";
 
 const createLocalId = (prefix: string) =>

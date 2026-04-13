@@ -1,6 +1,6 @@
-import { AssistantStream } from "../AssistantStream";
-import { AssistantStreamChunk } from "../AssistantStreamChunk";
-import { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
+import type { AssistantStream } from "../AssistantStream";
+import type { AssistantStreamChunk } from "../AssistantStreamChunk";
+import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
 
 export type TextStreamController = {
   append(textDelta: string): void;

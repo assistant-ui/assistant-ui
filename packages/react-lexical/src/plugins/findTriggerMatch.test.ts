@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { TextNode } from "lexical";
+import type { TextNode } from "lexical";
 import { findTriggerMatch } from "./MentionPlugin";
 
 // Minimal mock that satisfies findTriggerMatch's usage: node.getTextContent()

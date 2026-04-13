@@ -171,7 +171,7 @@ describe("toPartialJSONSchema", () => {
     };
     const result = toPartialJSONSchema(schema);
     expect(result.required).toBeUndefined();
-    const address = result.properties!["address"] as Record<string, unknown>;
+    const address = result.properties!.address as Record<string, unknown>;
     expect(address.required).toBeUndefined();
   });
 
@@ -192,7 +192,7 @@ describe("toPartialJSONSchema", () => {
     };
     const result = toPartialJSONSchema(schema);
     expect(result.required).toBeUndefined();
-    const tags = result.properties!["tags"] as Record<string, unknown>;
+    const tags = result.properties!.tags as Record<string, unknown>;
     const items = tags.items as Record<string, unknown>;
     expect(items.required).toEqual(["label"]);
   });

@@ -1,11 +1,11 @@
 "use client";
 
-import { Primitive } from "../../utils/Primitive";
+import type { Primitive } from "../../utils/Primitive";
 import {
   type ComponentRef,
   forwardRef,
-  ComponentPropsWithoutRef,
-  ElementType,
+  type ComponentPropsWithoutRef,
+  type ElementType,
 } from "react";
 import { useMessagePartText } from "./useMessagePartText";
 import { useSmooth } from "../../utils/smooth/useSmooth";

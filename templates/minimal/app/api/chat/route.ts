@@ -1,7 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import {
-  JSONSchema7,
+  type JSONSchema7,
   streamText,
   convertToModelMessages,
   type UIMessage,

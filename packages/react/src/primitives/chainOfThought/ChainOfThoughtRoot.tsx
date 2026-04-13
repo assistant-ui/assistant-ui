@@ -1,7 +1,11 @@
 "use client";
 
 import { Primitive } from "../../utils/Primitive";
-import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
+import {
+  type ComponentRef,
+  forwardRef,
+  type ComponentPropsWithoutRef,
+} from "react";
 
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 

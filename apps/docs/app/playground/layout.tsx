@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ReactNode, Suspense } from "react";
+import { type ReactNode, Suspense } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
 import { PlaygroundRuntimeProvider } from "@/contexts/PlaygroundRuntimeProvider";
 import { createOgMetadata } from "@/lib/og";

@@ -38,7 +38,6 @@
       },
       "style": {
         "noNamespace": "off",
-        "useImportType": "off",
         "noNonNullAssertion": "off",
         "useComponentExportOnlyModules": "off"
       },
@@ -85,8 +84,7 @@
         "useUniqueElementIds": "off"
       },
       "complexity": {
-        "noForEach": "off",
-        "useLiteralKeys": "off"
+        "noForEach": "off"
       },
       "a11y": {
         "useKeyWithClickEvents": "off",

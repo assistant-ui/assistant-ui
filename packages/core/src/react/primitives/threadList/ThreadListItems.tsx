@@ -1,4 +1,10 @@
-import { ComponentType, FC, ReactNode, memo, useMemo } from "react";
+import {
+  type ComponentType,
+  type FC,
+  type ReactNode,
+  memo,
+  useMemo,
+} from "react";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import type { ThreadListItemState } from "../../../store/scopes/thread-list-item";
 import { ThreadListItemByIndexProvider } from "../../providers/ThreadListItemByIndexProvider";

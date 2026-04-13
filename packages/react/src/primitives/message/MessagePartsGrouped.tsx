@@ -4,7 +4,7 @@ import {
   type ComponentType,
   type FC,
   memo,
-  PropsWithChildren,
+  type PropsWithChildren,
   useMemo,
 } from "react";
 import { useAuiState, useAui } from "@assistant-ui/store";

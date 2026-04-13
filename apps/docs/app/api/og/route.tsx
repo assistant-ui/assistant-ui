@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { type ImageResponseOptions, type NextRequest } from "next/server";
+import type { ImageResponseOptions, NextRequest } from "next/server";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 

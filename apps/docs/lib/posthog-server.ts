@@ -1,6 +1,6 @@
 import { PostHog } from "posthog-node";
 
-const apiKey = process.env["NEXT_PUBLIC_POSTHOG_API_KEY"];
+const apiKey = process.env.NEXT_PUBLIC_POSTHOG_API_KEY;
 
 export const posthogServer = apiKey
   ? new PostHog(apiKey, { host: "https://us.i.posthog.com" })

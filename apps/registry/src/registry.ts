@@ -1,4 +1,4 @@
-import { RegistryItem } from "./schema";
+import type { RegistryItem } from "./schema";
 
 export const registry: RegistryItem[] = [
   {

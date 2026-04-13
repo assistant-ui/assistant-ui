@@ -50,7 +50,7 @@ function ArtifactsView() {
       .at(-1);
   });
 
-  const code = lastToolCall?.args["code"] as string | undefined;
+  const code = lastToolCall?.args.code as string | undefined;
   const isComplete = lastToolCall?.result !== undefined;
 
   if (!code) return null;

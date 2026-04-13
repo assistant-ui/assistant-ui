@@ -1,11 +1,11 @@
-import { ModelContextProvider, ModelContext } from "../types";
+import type { ModelContextProvider, ModelContext } from "../types";
 import type { Unsubscribe } from "../../types/unsubscribe";
-import { Tool, toJSONSchema } from "assistant-stream";
+import { type Tool, toJSONSchema } from "assistant-stream";
 import {
-  FrameMessage,
+  type FrameMessage,
   FRAME_MESSAGE_CHANNEL,
-  SerializedModelContext,
-  SerializedTool,
+  type SerializedModelContext,
+  type SerializedTool,
 } from "./types";
 
 const serializeTool = (tool: Tool<any, any>): SerializedTool => ({

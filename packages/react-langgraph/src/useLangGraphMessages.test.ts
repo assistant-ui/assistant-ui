@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 
 import { useLangGraphMessages } from "./useLangGraphMessages";
 import { appendLangChainChunk } from "./appendLangChainChunk";
-import {
+import type {
   LangChainMessageChunk,
   LangGraphTupleMetadata,
   MessageContentImageUrl,

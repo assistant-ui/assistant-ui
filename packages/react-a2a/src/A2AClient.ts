@@ -91,7 +91,7 @@ function normalizeKeys(obj: unknown, opaque = false): unknown {
         result[camelKey] = value.slice(5).toLowerCase();
       } else if (camelKey === "content" && Array.isArray(value)) {
         // v1.0 proto uses "content" for message/artifact parts; map to internal "parts"
-        result["parts"] = normalizeKeys(value, false);
+        result.parts = normalizeKeys(value, false);
       } else if (camelKey !== "parts" || !("parts" in result)) {
         // skip "parts" if "content" already mapped it (prefer content over parts)
         result[camelKey] = isOpaqueChild ? value : normalizeKeys(value, false);
@@ -307,7 +307,7 @@ export class A2AClient {
     signal?: AbortSignal,
   ): AsyncGenerator<A2AStreamEvent> {
     const headers = await this.getHeaders(true);
-    headers["Accept"] = "text/event-stream";
+    headers.Accept = "text/event-stream";
 
     const body: Record<string, unknown> = {
       message: toWireMessage(message),
@@ -394,7 +394,7 @@ export class A2AClient {
     signal?: AbortSignal,
   ): AsyncGenerator<A2AStreamEvent> {
     const headers = await this.getHeaders(false); // GET: no Content-Type
-    headers["Accept"] = "text/event-stream";
+    headers.Accept = "text/event-stream";
 
     const response = await fetch(
       `${this.baseUrl}${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}:subscribe`,

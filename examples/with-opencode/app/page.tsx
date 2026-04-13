@@ -17,7 +17,7 @@ import { Thread } from "../components/assistant-ui/thread";
 export default function Home() {
   const runtime = useOpenCodeRuntime({
     baseUrl:
-      process.env["NEXT_PUBLIC_OPENCODE_BASE_URL"] ?? "http://localhost:4096",
+      process.env.NEXT_PUBLIC_OPENCODE_BASE_URL ?? "http://localhost:4096",
   });
 
   return (

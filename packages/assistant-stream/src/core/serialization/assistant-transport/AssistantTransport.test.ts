@@ -3,7 +3,7 @@ import {
   AssistantTransportEncoder,
   AssistantTransportDecoder,
 } from "./AssistantTransport";
-import { AssistantStreamChunk } from "../../AssistantStreamChunk";
+import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 
 // Helper function to collect all chunks from a stream
 async function collectChunks<T>(stream: ReadableStream<T>): Promise<T[]> {

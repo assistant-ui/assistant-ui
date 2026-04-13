@@ -19,7 +19,7 @@ const withOptional = <T extends object>(
 export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
   if (!event || typeof event !== "object") return null;
   const payload = event as Record<string, unknown>;
-  const typeValue = payload["type"];
+  const typeValue = payload.type;
   if (!isString(typeValue)) return null;
 
   const getString = (key: string) =>
@@ -156,43 +156,39 @@ export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
         },
         {
           messageId: getString("messageId"),
-          role: payload["role"] === "tool" ? "tool" : undefined,
+          role: payload.role === "tool" ? "tool" : undefined,
         },
       );
     }
     case "STATE_SNAPSHOT":
-      return { type: "STATE_SNAPSHOT", snapshot: payload["snapshot"] };
+      return { type: "STATE_SNAPSHOT", snapshot: payload.snapshot };
     case "STATE_DELTA":
       return {
         type: "STATE_DELTA",
-        delta: Array.isArray(payload["delta"])
-          ? (payload["delta"] as any[])
-          : [],
+        delta: Array.isArray(payload.delta) ? (payload.delta as any[]) : [],
       };
     case "MESSAGES_SNAPSHOT":
       return {
         type: "MESSAGES_SNAPSHOT",
-        messages: Array.isArray(payload["messages"])
-          ? (payload["messages"] as any[])
+        messages: Array.isArray(payload.messages)
+          ? (payload.messages as any[])
           : [],
       };
     case "RAW":
       return withOptional(
-        { type: "RAW" as const, event: payload["event"] },
+        { type: "RAW" as const, event: payload.event },
         { source: getString("source") },
       );
     case "CUSTOM": {
       const name = getString("name");
       if (!name) return null;
-      return { type: "CUSTOM", name, value: payload["value"] };
+      return { type: "CUSTOM", name, value: payload.value };
     }
     default:
       return withOptional(
         { type: "RAW" as const, event: payload },
         {
-          source: isString(payload["type"])
-            ? (payload["type"] as string)
-            : undefined,
+          source: isString(payload.type) ? (payload.type as string) : undefined,
         },
       );
   }

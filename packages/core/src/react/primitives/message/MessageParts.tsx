@@ -3,7 +3,7 @@ import {
   type FC,
   type ReactNode,
   memo,
-  PropsWithChildren,
+  type PropsWithChildren,
   useMemo,
 } from "react";
 import {

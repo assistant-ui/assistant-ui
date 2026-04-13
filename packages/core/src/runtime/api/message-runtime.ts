@@ -1,4 +1,4 @@
-import {
+import type {
   SpeechState,
   SubmittedFeedback,
 } from "../interfaces/thread-runtime-core";
@@ -18,21 +18,21 @@ import {
   ShallowMemoizeSubject,
 } from "../../subscribable/subscribable";
 import {
-  AttachmentRuntime,
-  AttachmentState,
+  type AttachmentRuntime,
+  type AttachmentState,
   MessageAttachmentRuntimeImpl,
 } from "./attachment-runtime";
 import {
-  EditComposerRuntime,
+  type EditComposerRuntime,
   EditComposerRuntimeImpl,
 } from "./composer-runtime";
 import {
-  MessagePartRuntime,
+  type MessagePartRuntime,
   MessagePartRuntimeImpl,
-  MessagePartState,
+  type MessagePartState,
 } from "./message-part-runtime";
-import { MessageRuntimePath } from "./paths";
-import { ThreadRuntimeCoreBinding } from "./thread-runtime";
+import type { MessageRuntimePath } from "./paths";
+import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
 import type { MessageStateBinding } from "./bindings";
 
 const COMPLETE_STATUS: MessagePartStatus = Object.freeze({

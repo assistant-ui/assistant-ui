@@ -1,5 +1,5 @@
 import type { Unsubscribe } from "../types/unsubscribe";
-import { Tool } from "assistant-stream";
+import type { Tool } from "assistant-stream";
 
 // =============================================================================
 // Language Model Settings

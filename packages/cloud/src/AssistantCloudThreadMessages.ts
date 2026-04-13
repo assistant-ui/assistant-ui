@@ -1,5 +1,5 @@
-import { ReadonlyJSONObject } from "assistant-stream/utils";
-import { AssistantCloudAPI } from "./AssistantCloudAPI";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 
 export type CloudMessage = {
   id: string;

@@ -4,7 +4,7 @@ import { composeEventHandlers } from "@radix-ui/primitive";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { Slot } from "radix-ui";
 import {
-  ClipboardEvent,
+  type ClipboardEvent,
   type KeyboardEvent,
   type ReactElement,
   type ReactNode,

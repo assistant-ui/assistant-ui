@@ -147,21 +147,21 @@ function detectFramework(
 ): string {
   const deps = readProjectDeps(projectPkg);
 
-  if (deps["next"]) {
+  if (deps.next) {
     const v = getInstalledVersion("next", cwd);
-    return `Next.js ${v ?? deps["next"]}`;
+    return `Next.js ${v ?? deps.next}`;
   }
-  if (deps["expo"]) {
+  if (deps.expo) {
     const v = getInstalledVersion("expo", cwd);
-    return `Expo ${v ?? deps["expo"]}`;
+    return `Expo ${v ?? deps.expo}`;
   }
-  if (deps["vite"]) {
+  if (deps.vite) {
     const v = getInstalledVersion("vite", cwd);
-    return `Vite ${v ?? deps["vite"]}`;
+    return `Vite ${v ?? deps.vite}`;
   }
-  if (deps["@remix-run/react"] || deps["remix"]) return "Remix";
-  if (deps["gatsby"]) return "Gatsby";
-  if (deps["astro"]) return "Astro";
+  if (deps["@remix-run/react"] || deps.remix) return "Remix";
+  if (deps.gatsby) return "Gatsby";
+  if (deps.astro) return "Astro";
   return "Unknown";
 }
 

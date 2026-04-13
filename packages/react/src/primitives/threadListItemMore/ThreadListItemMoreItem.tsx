@@ -1,8 +1,12 @@
 "use client";
 
-import { ComponentPropsWithoutRef, ComponentRef, forwardRef } from "react";
+import {
+  type ComponentPropsWithoutRef,
+  type ComponentRef,
+  forwardRef,
+} from "react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
-import { ScopedProps, useDropdownMenuScope } from "./scope";
+import { type ScopedProps, useDropdownMenuScope } from "./scope";
 
 export namespace ThreadListItemMorePrimitiveItem {
   export type Element = ComponentRef<typeof DropdownMenuPrimitive.Item>;

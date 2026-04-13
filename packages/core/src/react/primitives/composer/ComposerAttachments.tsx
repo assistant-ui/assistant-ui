@@ -1,5 +1,11 @@
 import type { Attachment } from "../../../types/attachment";
-import { ComponentType, type FC, type ReactNode, memo, useMemo } from "react";
+import {
+  type ComponentType,
+  type FC,
+  type ReactNode,
+  memo,
+  useMemo,
+} from "react";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import { ComposerAttachmentByIndexProvider } from "../../providers/AttachmentByIndexProvider";
 

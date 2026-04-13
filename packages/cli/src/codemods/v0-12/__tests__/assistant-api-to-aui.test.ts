@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import jscodeshift, { API } from "jscodeshift";
+import jscodeshift, { type API } from "jscodeshift";
 import transform from "../assistant-api-to-aui";
 
 const j = jscodeshift.withParser("tsx");

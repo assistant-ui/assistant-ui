@@ -11,7 +11,13 @@ import type {
 import { getExternalStoreMessages } from "@assistant-ui/core";
 import { MessageRepository } from "@assistant-ui/core/internal";
 import { useAui } from "@assistant-ui/store";
-import { useRef, useEffect, useState, RefObject, useCallback } from "react";
+import {
+  useRef,
+  useEffect,
+  useState,
+  type RefObject,
+  useCallback,
+} from "react";
 
 export const toExportedMessageRepository = <TMessage>(
   toThreadMessages: (messages: TMessage[]) => ThreadMessage[],

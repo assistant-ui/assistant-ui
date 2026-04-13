@@ -1,19 +1,19 @@
-import { AssistantStreamChunk } from "../../AssistantStreamChunk";
-import { ToolCallStreamController } from "../../modules/tool-call";
+import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
+import type { ToolCallStreamController } from "../../modules/tool-call";
 import { AssistantTransformStream } from "../../utils/stream/AssistantTransformStream";
 import { PipeableTransformStream } from "../../utils/stream/PipeableTransformStream";
-import { DataStreamChunk, DataStreamStreamChunkType } from "./chunk-types";
+import { type DataStreamChunk, DataStreamStreamChunkType } from "./chunk-types";
 import { LineDecoderStream } from "../../utils/stream/LineDecoderStream";
 import {
   DataStreamChunkDecoder,
   DataStreamChunkEncoder,
 } from "./serialization";
 import {
-  AssistantMetaStreamChunk,
+  type AssistantMetaStreamChunk,
   AssistantMetaTransformStream,
 } from "../../utils/stream/AssistantMetaTransformStream";
-import { TextStreamController } from "../../modules/text";
-import { AssistantStreamEncoder } from "../../AssistantStream";
+import type { TextStreamController } from "../../modules/text";
+import type { AssistantStreamEncoder } from "../../AssistantStream";
 
 export class DataStreamEncoder
   extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>>

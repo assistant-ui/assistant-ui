@@ -10,7 +10,7 @@ import {
   $isTextNode,
   COMMAND_PRIORITY_LOW,
   KEY_BACKSPACE_COMMAND,
-  TextNode,
+  type TextNode,
 } from "lexical";
 import { mergeRegister } from "@lexical/utils";
 import {

@@ -42,7 +42,7 @@ describe("reduceOpenCodeThreadState", () => {
 
     expect(Object.keys(history.pendingUserMessages)).toHaveLength(0);
     expect(history.messageOrder).toEqual(["msg_1"]);
-    expect(history.messagesById["msg_1"]?.shadowParts).toEqual(pending.parts);
+    expect(history.messagesById.msg_1?.shadowParts).toEqual(pending.parts);
   });
 
   it("adds assistant parts without losing message order", () => {
@@ -71,7 +71,7 @@ describe("reduceOpenCodeThreadState", () => {
     });
 
     expect(withPart.messageOrder).toEqual(["msg_assistant"]);
-    expect(withPart.messagesById["msg_assistant"]?.parts).toHaveLength(1);
+    expect(withPart.messagesById.msg_assistant?.parts).toHaveLength(1);
   });
 
   it("reconciles a pending user message with a streamed message update", () => {
@@ -106,7 +106,7 @@ describe("reduceOpenCodeThreadState", () => {
 
     expect(Object.keys(updated.pendingUserMessages)).toHaveLength(0);
     expect(updated.messageOrder).toEqual(["msg_1"]);
-    expect(updated.messagesById["msg_1"]?.shadowParts).toEqual(pending.parts);
+    expect(updated.messagesById.msg_1?.shadowParts).toEqual(pending.parts);
   });
 
   it("tracks session status and applies text deltas", () => {
@@ -149,7 +149,7 @@ describe("reduceOpenCodeThreadState", () => {
 
     expect(withDelta.sessionStatus).toEqual({ type: "busy" });
     expect(withDelta.runState.type).toBe("streaming");
-    expect(withDelta.messagesById["msg_assistant"]?.parts).toMatchObject([
+    expect(withDelta.messagesById.msg_assistant?.parts).toMatchObject([
       { type: "text", text: "Hello world" },
     ]);
   });
@@ -189,7 +189,7 @@ describe("reduceOpenCodeThreadState", () => {
     });
 
     expect(
-      withQuestion.interactions.questions.pending["question_1"]?.questions[0]
+      withQuestion.interactions.questions.pending.question_1?.questions[0]
         ?.header,
     ).toBe("Confirm");
     expect(
@@ -225,8 +225,8 @@ describe("reduceOpenCodeThreadState", () => {
     });
 
     expect(
-      resolvedPermission.interactions.permissions.resolved["permission_1"]
-        ?.request.tool?.callID,
+      resolvedPermission.interactions.permissions.resolved.permission_1?.request
+        .tool?.callID,
     ).toBe("call_1");
 
     const withQuestion = reduceOpenCodeThreadState(initial, {
@@ -256,8 +256,8 @@ describe("reduceOpenCodeThreadState", () => {
     });
 
     expect(
-      answeredQuestion.interactions.questions.answered["question_1"]?.request
-        .tool?.callID,
+      answeredQuestion.interactions.questions.answered.question_1?.request.tool
+        ?.callID,
     ).toBe("call_2");
   });
 });

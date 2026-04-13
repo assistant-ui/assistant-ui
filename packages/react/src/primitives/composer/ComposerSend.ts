@@ -2,8 +2,8 @@
 
 import { useCallback } from "react";
 import {
-  ActionButtonElement,
-  ActionButtonProps,
+  type ActionButtonElement,
+  type ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
 import { useComposerSend as useComposerSendBehavior } from "@assistant-ui/core/react";

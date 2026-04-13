@@ -1,8 +1,8 @@
 declare const process: { env: Record<string, string | undefined> };
 
 import {
-  FC,
-  PropsWithChildren,
+  type FC,
+  type PropsWithChildren,
   useCallback,
   useEffect,
   useMemo,
@@ -28,7 +28,7 @@ type CloudThreadListAdapterOptions = {
 
 const baseUrl =
   typeof process !== "undefined" &&
-  process?.env?.["NEXT_PUBLIC_ASSISTANT_BASE_URL"];
+  process?.env?.NEXT_PUBLIC_ASSISTANT_BASE_URL;
 const autoCloud = baseUrl
   ? new AssistantCloud({ baseUrl, anonymous: true })
   : undefined;

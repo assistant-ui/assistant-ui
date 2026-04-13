@@ -1,5 +1,5 @@
 import { type AssistantStream, createAssistantStream } from "assistant-stream";
-import { FC, PropsWithChildren, useMemo } from "react";
+import { type FC, type PropsWithChildren, useMemo } from "react";
 import { useAui } from "@assistant-ui/store";
 import type {
   RemoteThreadInitializeResponse,

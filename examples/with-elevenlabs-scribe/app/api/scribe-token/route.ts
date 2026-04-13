@@ -8,7 +8,7 @@ export async function POST() {
     {
       method: "POST",
       headers: {
-        "xi-api-key": process.env["ELEVENLABS_API_KEY"]!,
+        "xi-api-key": process.env.ELEVENLABS_API_KEY!,
       },
     },
   );

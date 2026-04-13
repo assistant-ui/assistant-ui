@@ -241,9 +241,8 @@ describe("debug mode", () => {
   it("enableDebugMode sets window debug flag", () => {
     enableDebugMode();
     expect(
-      (globalThis.window as unknown as Record<string, unknown>)[
-        "__MCP_APP_STUDIO_DEBUG__"
-      ],
+      (globalThis.window as unknown as Record<string, unknown>)
+        .__MCP_APP_STUDIO_DEBUG__,
     ).toBe(true);
   });
 
@@ -251,9 +250,8 @@ describe("debug mode", () => {
     enableDebugMode();
     disableDebugMode();
     expect(
-      (globalThis.window as unknown as Record<string, unknown>)[
-        "__MCP_APP_STUDIO_DEBUG__"
-      ],
+      (globalThis.window as unknown as Record<string, unknown>)
+        .__MCP_APP_STUDIO_DEBUG__,
     ).toBe(false);
   });
 });

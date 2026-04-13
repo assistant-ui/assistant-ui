@@ -1,4 +1,4 @@
-import {
+import type {
   ThreadSuggestion,
   RuntimeCapabilities,
   ThreadRuntimeCore,
@@ -8,12 +8,12 @@ import {
   StartRunConfig,
   ResumeRunConfig,
 } from "../interfaces/thread-runtime-core";
-import { ExportedMessageRepository } from "../utils/message-repository";
-import { ThreadMessageLike } from "../utils/thread-message-like";
+import type { ExportedMessageRepository } from "../utils/message-repository";
+import type { ThreadMessageLike } from "../utils/thread-message-like";
 import {
-  MessageRuntime,
+  type MessageRuntime,
   MessageRuntimeImpl,
-  MessageState,
+  type MessageState,
 } from "./message-runtime";
 import { NestedSubscriptionSubject } from "../../subscribable/subscribable";
 import {
@@ -22,10 +22,10 @@ import {
 } from "../../subscribable/subscribable";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
 import {
-  ThreadComposerRuntime,
+  type ThreadComposerRuntime,
   ThreadComposerRuntimeImpl,
 } from "./composer-runtime";
-import {
+import type {
   MessageRuntimePath,
   ThreadListItemRuntimePath,
   ThreadRuntimePath,
@@ -36,12 +36,12 @@ import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
 import { EventSubscriptionSubject } from "../../subscribable/subscribable";
 import { symbolInnerMessage } from "../utils/external-store-message";
-import { ModelContext } from "../../model-context/types";
-import {
+import type { ModelContext } from "../../model-context/types";
+import type {
   ChatModelRunOptions,
   ChatModelRunResult,
 } from "../utils/chat-model-adapter";
-import { ReadonlyJSONValue } from "assistant-stream/utils";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type CreateStartRunConfig = {
   parentId: string | null;

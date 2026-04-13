@@ -1,10 +1,10 @@
 import { AssistantStream } from "../AssistantStream";
-import { AssistantStreamChunk, PartInit } from "../AssistantStreamChunk";
+import type { AssistantStreamChunk, PartInit } from "../AssistantStreamChunk";
 import { createMergeStream } from "../utils/stream/merge";
-import { createTextStreamController, TextStreamController } from "./text";
+import { createTextStreamController, type TextStreamController } from "./text";
 import {
   createToolCallStreamController,
-  ToolCallStreamController,
+  type ToolCallStreamController,
 } from "./tool-call";
 import { Counter } from "../utils/Counter";
 import {
@@ -12,13 +12,13 @@ import {
   PathMergeEncoder,
 } from "../utils/stream/path-utils";
 import { DataStreamEncoder } from "../serialization/data-stream/DataStream";
-import { DataPart, FilePart, SourcePart } from "../utils/types";
+import type { DataPart, FilePart, SourcePart } from "../utils/types";
 import { generateId } from "../utils/generateId";
-import {
+import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "../../utils/json/json-value";
-import { ToolResponseLike } from "../tool/ToolResponse";
+import type { ToolResponseLike } from "../tool/ToolResponse";
 import { promiseWithResolvers } from "../../utils/promiseWithResolvers";
 
 type ToolCallPartInit = {

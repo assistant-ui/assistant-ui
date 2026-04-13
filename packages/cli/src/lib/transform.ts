@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import debug from "debug";
 import path from "node:path";
-import { TransformOptions } from "./transform-options";
+import type { TransformOptions } from "./transform-options";
 import { fileURLToPath } from "node:url";
 import * as fs from "node:fs";
 import { sync as globSync } from "glob";

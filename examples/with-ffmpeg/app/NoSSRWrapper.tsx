@@ -1,5 +1,5 @@
 import dynamic from "next/dynamic";
-import { FC, PropsWithChildren } from "react";
+import type { FC, PropsWithChildren } from "react";
 
 const NoSSRWrapper: FC<PropsWithChildren> = (props) => <>{props.children}</>;
 

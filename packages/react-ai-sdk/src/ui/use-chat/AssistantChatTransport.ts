@@ -1,8 +1,8 @@
 import type { AssistantRuntime } from "@assistant-ui/core";
 import {
   DefaultChatTransport,
-  HttpChatTransportInitOptions,
-  UIMessage,
+  type HttpChatTransportInitOptions,
+  type UIMessage,
 } from "ai";
 import { toToolsJSONSchema } from "assistant-stream";
 

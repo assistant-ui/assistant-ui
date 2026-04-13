@@ -1,5 +1,5 @@
 import type { AppendMessage } from "@assistant-ui/core";
-import {
+import type {
   CreateUIMessage,
   UIDataTypes,
   UIMessage,

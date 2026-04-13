@@ -1,4 +1,8 @@
-import { Tool, toToolsJSONSchema, type ToolJSONSchema } from "assistant-stream";
+import {
+  type Tool,
+  toToolsJSONSchema,
+  type ToolJSONSchema,
+} from "assistant-stream";
 
 /**
  * @deprecated Use `toToolsJSONSchema` from `assistant-stream` instead.

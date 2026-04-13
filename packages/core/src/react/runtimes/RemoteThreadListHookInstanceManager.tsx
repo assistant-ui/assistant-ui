@@ -1,21 +1,21 @@
 import {
-  FC,
+  type FC,
   useCallback,
   useRef,
   useEffect,
   memo,
-  PropsWithChildren,
-  ComponentType,
+  type PropsWithChildren,
+  type ComponentType,
   useMemo,
 } from "react";
-import { UseBoundStore, StoreApi, create } from "zustand";
+import { type UseBoundStore, type StoreApi, create } from "zustand";
 import { useAui } from "@assistant-ui/store";
 import { ThreadListItemRuntimeProvider } from "../providers/ThreadListItemRuntimeProvider";
 import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { BaseSubscribable } from "../../subscribable/subscribable";
-import { ThreadRuntimeImpl } from "../../runtime/api/thread-runtime";
+import type { ThreadRuntimeImpl } from "../../runtime/api/thread-runtime";
 import { ThreadListRuntimeImpl } from "../../runtime/api/thread-list-runtime";
 
 type RemoteThreadListHook = () => AssistantRuntime;
@@ -116,9 +116,8 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
     useEffect(() => {
       const runtimeCore = threadBinding.getState();
-      const setGetInitializePromise = (runtimeCore as Record<string, unknown>)[
-        "__internal_setGetInitializePromise"
-      ];
+      const setGetInitializePromise = (runtimeCore as Record<string, unknown>)
+        .__internal_setGetInitializePromise;
       if (typeof setGetInitializePromise === "function") {
         setGetInitializePromise.call(runtimeCore, () => initPromiseRef.current);
       }

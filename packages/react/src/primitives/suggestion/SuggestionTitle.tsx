@@ -1,7 +1,11 @@
 "use client";
 
 import { Primitive } from "../../utils/Primitive";
-import { type ElementRef, forwardRef, ComponentPropsWithoutRef } from "react";
+import {
+  type ElementRef,
+  forwardRef,
+  type ComponentPropsWithoutRef,
+} from "react";
 import { useAuiState } from "@assistant-ui/store";
 
 export namespace SuggestionPrimitiveTitle {

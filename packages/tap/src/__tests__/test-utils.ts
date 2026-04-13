@@ -6,7 +6,7 @@ import {
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
-import { ResourceFiber } from "../core/types";
+import type { ResourceFiber } from "../core/types";
 import { tapState } from "../hooks/tap-state";
 
 // ============================================================================

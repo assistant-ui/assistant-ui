@@ -3,7 +3,7 @@ import { useAuiState } from "@assistant-ui/store";
 import type { ThreadMessage } from "../../../types/message";
 import { ReadonlyThreadProvider } from "../../providers/ReadonlyThreadProvider";
 import {
-  ThreadPrimitiveMessages,
+  type ThreadPrimitiveMessages,
   ThreadPrimitiveMessagesImpl,
 } from "../thread/ThreadMessages";
 

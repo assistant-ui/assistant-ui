@@ -32,7 +32,7 @@ export function DocsRuntimeProvider({
   const assistantCloud = useMemo(
     () =>
       new AssistantCloud({
-        baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
+        baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
         anonymous: true,
       }),
     [],

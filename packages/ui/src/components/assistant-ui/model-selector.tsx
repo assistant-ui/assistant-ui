@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { Select as SelectPrimitive } from "radix-ui";
-import { type VariantProps } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import { CheckIcon } from "lucide-react";
 import { useAssistantApi } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
@@ -18,8 +18,8 @@ import {
   SelectRoot,
   SelectTrigger,
   SelectContent,
-  SelectItem,
-  selectTriggerVariants,
+  type SelectItem,
+  type selectTriggerVariants,
 } from "@/components/assistant-ui/select";
 
 export type ModelOption = {

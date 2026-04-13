@@ -11,7 +11,7 @@ import {
 import { z } from "zod";
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { toBlobURL } from "@ffmpeg/util";
-import { FC, useCallback, useEffect, useRef, useState } from "react";
+import { type FC, useCallback, useEffect, useRef, useState } from "react";
 import {
   CircleCheckIcon,
   DownloadIcon,

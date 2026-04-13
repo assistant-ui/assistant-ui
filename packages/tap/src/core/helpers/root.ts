@@ -1,4 +1,4 @@
-import { Cell, ResourceFiber, ResourceFiberRoot } from "../types";
+import type { Cell, ResourceFiber, ResourceFiberRoot } from "../types";
 
 export const createResourceFiberRoot = (
   dispatchUpdate: (cb: () => boolean) => void,

@@ -1,6 +1,6 @@
 import { isDevelopment } from "../core/helpers/env";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
-import { ReducerQueueEntry, ResourceFiber } from "../core/types";
+import type { ReducerQueueEntry, ResourceFiber } from "../core/types";
 import { markCellDirty } from "../core/helpers/root";
 import { tapHook } from "./utils/tapHook";
 

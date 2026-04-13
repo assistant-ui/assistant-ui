@@ -4,10 +4,10 @@ import {
   type ClientOutput,
   attachTransformScopes,
 } from "@assistant-ui/store";
-import { ToolsState } from "../types/scopes/tools";
+import type { ToolsState } from "../types/scopes/tools";
 import type { Tool } from "assistant-stream";
-import { type Toolkit } from "../model-context/toolbox";
-import { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
+import type { Toolkit } from "../model-context/toolbox";
+import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import { ModelContext } from "../../store";
 
 export const Tools = resource(

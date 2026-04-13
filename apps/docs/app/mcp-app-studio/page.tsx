@@ -204,7 +204,7 @@ const EXPORT_TREE_SNIPPET = `export/
     └── widget.css`;
 
 const WORKBENCH_URL =
-  process.env["NEXT_PUBLIC_WORKBENCH_URL"] ??
+  process.env.NEXT_PUBLIC_WORKBENCH_URL ??
   "https://mcp-app-studio-starter.vercel.app";
 
 const WORKBENCH_HOST = (() => {

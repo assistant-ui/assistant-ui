@@ -1,6 +1,6 @@
 "use client";
 
-import { FC, PropsWithChildren } from "react";
+import type { FC, PropsWithChildren } from "react";
 import { useAuiState } from "@assistant-ui/store";
 
 export namespace MessagePartPrimitiveInProgress {

@@ -1,7 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import {
   streamText,
-  UIMessage,
+  type UIMessage,
   convertToModelMessages,
   tool,
   stepCountIs,

@@ -8,7 +8,7 @@ import {
   getCheckpointId,
   sendMessage,
 } from "@/lib/chatApi";
-import { LangChainMessage } from "@assistant-ui/react-langgraph";
+import type { LangChainMessage } from "@assistant-ui/react-langgraph";
 
 export function MyRuntimeProvider({
   children,

@@ -1,6 +1,6 @@
 import type { ThreadMessage } from "../../types/message";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
-import { AssistantStream } from "assistant-stream";
+import type { AssistantStream } from "assistant-stream";
 
 export type RemoteThreadInitializeResponse = {
   remoteId: string;

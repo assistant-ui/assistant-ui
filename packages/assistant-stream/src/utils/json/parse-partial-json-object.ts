@@ -1,6 +1,6 @@
 import sjson from "secure-json-parse";
 import { fixJson } from "./fix-json";
-import { ReadonlyJSONObject } from "./json-value";
+import type { ReadonlyJSONObject } from "./json-value";
 
 const PARTIAL_JSON_OBJECT_META_SYMBOL = Symbol(
   "aui.parse-partial-json-object.meta",

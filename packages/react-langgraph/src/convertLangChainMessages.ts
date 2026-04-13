@@ -6,8 +6,8 @@ import type {
   ThreadUserMessage,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
-import { useExternalMessageConverter } from "@assistant-ui/core/react";
-import {
+import type { useExternalMessageConverter } from "@assistant-ui/core/react";
+import type {
   LangChainMessage,
   LangChainToolCall,
   LangChainToolCallChunk,
@@ -15,7 +15,7 @@ import {
 } from "./types";
 import {
   parsePartialJsonObject,
-  ReadonlyJSONObject,
+  type ReadonlyJSONObject,
 } from "assistant-stream/utils";
 
 type LangGraphMessageConverterMetadata =
@@ -149,7 +149,7 @@ const warnedMessagePartTypes = new Set<string>();
 const warnForUnknownMessagePartType = (type: string) => {
   if (
     typeof process === "undefined" ||
-    process?.env?.["NODE_ENV"] !== "development"
+    process?.env?.NODE_ENV !== "development"
   )
     return;
   if (warnedMessagePartTypes.has(type)) return;
@@ -161,7 +161,7 @@ const warnedFilePartShapes = new Set<string>();
 const warnForUnsupportedFilePartShape = (part: FileContentPart) => {
   if (
     typeof process === "undefined" ||
-    process?.env?.["NODE_ENV"] !== "development"
+    process?.env?.NODE_ENV !== "development"
   )
     return;
   const shape = Object.keys(part).sort().join(",");

@@ -5,7 +5,7 @@ import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
 import { useLangGraphRuntime, useLangGraphSend } from "./useLangGraphRuntime";
 import { mockStreamCallbackFactory } from "./testUtils";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 const metadataEvent = {
   event: "metadata",

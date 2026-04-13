@@ -199,7 +199,7 @@ function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
   // binary payload for files always flows through message.attachments.
   const contentParts = Array.isArray(message.content)
     ? message.content.filter(
-        (part) => !(isObject(part) && part["type"] === "file"),
+        (part) => !(isObject(part) && part.type === "file"),
       )
     : [];
 
@@ -219,7 +219,7 @@ function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
   }
   for (const attachment of attachments) {
     if (!isObject(attachment)) continue;
-    const attachmentContent = attachment["content"];
+    const attachmentContent = attachment.content;
     if (!Array.isArray(attachmentContent)) continue;
     const fallbackMime = getString(attachment, "contentType");
     for (const part of attachmentContent) {
@@ -244,7 +244,7 @@ function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
 
 function toToolCallPart(value: unknown): ToolCallPart | null {
   if (!isObject(value)) return null;
-  const rawFunction = isObject(value["function"]) ? value["function"] : null;
+  const rawFunction = isObject(value.function) ? value.function : null;
   const toolCallId = getString(value, "toolCallId") ?? getString(value, "id");
   const toolName =
     getString(value, "toolName") ??
@@ -261,8 +261,8 @@ function toToolCallPart(value: unknown): ToolCallPart | null {
   const args =
     isObject(parsedArgs) && !Array.isArray(parsedArgs)
       ? (parsedArgs as Record<string, unknown>)
-      : isObject(value["args"]) && !Array.isArray(value["args"])
-        ? (value["args"] as Record<string, unknown>)
+      : isObject(value.args) && !Array.isArray(value.args)
+        ? (value.args as Record<string, unknown>)
         : undefined;
 
   const part: ToolCallPart = {
@@ -273,9 +273,9 @@ function toToolCallPart(value: unknown): ToolCallPart | null {
     ...(args !== undefined ? { args } : {}),
   };
 
-  if (value["type"] === "tool-call") {
-    const result = value["result"];
-    const isError = value["isError"];
+  if (value.type === "tool-call") {
+    const result = value.result;
+    const isError = value.isError;
     if (result !== undefined) part.result = result;
     if (typeof isError === "boolean") part.isError = isError;
   }
@@ -299,19 +299,19 @@ function extractAssistantToolCalls(
     });
   };
 
-  const content = message["content"];
+  const content = message.content;
   if (Array.isArray(content)) {
     for (const part of content) {
-      if (isObject(part) && part["type"] === "tool-call") {
+      if (isObject(part) && part.type === "tool-call") {
         pushPart(toToolCallPart(part));
       }
     }
   }
 
-  const toolCalls = Array.isArray(message["toolCalls"])
-    ? message["toolCalls"]
-    : Array.isArray(message["tool_calls"])
-      ? message["tool_calls"]
+  const toolCalls = Array.isArray(message.toolCalls)
+    ? message.toolCalls
+    : Array.isArray(message.tool_calls)
+      ? message.tool_calls
       : [];
   for (const call of toolCalls) {
     pushPart(toToolCallPart(call));
@@ -323,7 +323,7 @@ function extractAssistantToolCalls(
 function toAssistantSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): ThreadMessageLike {
-  const text = extractText(rawMessage["content"]);
+  const text = extractText(rawMessage.content);
   const toolCallParts = extractAssistantToolCalls(rawMessage);
   const assistantContent = [
     ...(text.length > 0 ? [{ type: "text" as const, text }] : []),
@@ -346,7 +346,7 @@ function toUserOrSystemSnapshotMessage(
   return {
     id: getString(rawMessage, "id") ?? generateId(),
     role,
-    content: extractText(rawMessage["content"]),
+    content: extractText(rawMessage.content),
     ...(messageName !== undefined ? { name: messageName } : {}),
   };
 }
@@ -365,17 +365,17 @@ export function fromAgUiMessages(
       const toolCallId = getToolCallId(rawMessage) ?? `tool-${generateId()}`;
       const toolMessageId = getString(rawMessage, "id");
       const result =
-        rawMessage["result"] !== undefined
-          ? rawMessage["result"]
-          : typeof rawMessage["content"] === "string"
-            ? parseJSONText(rawMessage["content"])
-            : rawMessage["content"];
+        rawMessage.result !== undefined
+          ? rawMessage.result
+          : typeof rawMessage.content === "string"
+            ? parseJSONText(rawMessage.content)
+            : rawMessage.content;
       const isError =
-        typeof rawMessage["error"] === "string" ||
-        rawMessage["isError"] === true ||
-        rawMessage["status"] === "error"
+        typeof rawMessage.error === "string" ||
+        rawMessage.isError === true ||
+        rawMessage.status === "error"
           ? true
-          : rawMessage["isError"] === false
+          : rawMessage.isError === false
             ? false
             : undefined;
 
@@ -399,7 +399,7 @@ export function fromAgUiMessages(
           partIndex--
         ) {
           const part = message.content[partIndex];
-          if (!isObject(part) || part["type"] !== "tool-call") continue;
+          if (!isObject(part) || part.type !== "tool-call") continue;
           if (getString(part, "toolCallId") !== toolCallId) continue;
 
           const updatedPart: ToolCallPart = {
