@@ -1,5 +1,17 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.19
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- a5bce86: fix: preserve latest thread token usage during pending turns
+- Updated dependencies [f20b9ca]
+- Updated dependencies [c988db8]
+  - @assistant-ui/core@0.1.14
+  - assistant-cloud@0.1.26
+  - @assistant-ui/store@0.2.7
+
 ## 1.3.18
 
 ### Patch Changes

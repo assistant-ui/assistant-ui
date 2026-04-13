@@ -1,5 +1,14 @@
 # @assistant-ui/react-o11y
 
+## 0.0.10
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- Updated dependencies [c988db8]
+  - @assistant-ui/store@0.2.7
+  - @assistant-ui/tap@0.5.8
+
 ## 0.0.9
 
 ### Patch Changes

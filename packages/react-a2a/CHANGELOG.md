@@ -1,5 +1,15 @@
 # @assistant-ui/react-a2a
 
+## 0.2.11
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- Updated dependencies [f20b9ca]
+- Updated dependencies [c988db8]
+  - @assistant-ui/core@0.1.14
+  - @assistant-ui/store@0.2.7
+
 ## 0.2.10
 
 ### Patch Changes

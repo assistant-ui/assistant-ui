@@ -1,5 +1,18 @@
 # @assistant-ui/react-native
 
+## 0.1.11
+
+### Patch Changes
+
+- 0d2d2f3: fix: export ExportedMessageRepository and ExportedMessageRepositoryItem from react-native
+- c988db8: chore: update dependencies
+- Updated dependencies [f20b9ca]
+- Updated dependencies [c988db8]
+  - @assistant-ui/core@0.1.14
+  - assistant-stream@0.3.11
+  - @assistant-ui/store@0.2.7
+  - @assistant-ui/tap@0.5.8
+
 ## 0.1.10
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @assistant-ui/react-syntax-highlighter
 
+## 0.12.9
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- Updated dependencies [c988db8]
+  - @assistant-ui/react-markdown@0.12.9
+  - @assistant-ui/react@0.12.25
+
 ## 0.12.8
 
 ### Patch Changes

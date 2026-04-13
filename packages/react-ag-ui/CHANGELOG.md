@@ -1,5 +1,20 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.26
+
+### Patch Changes
+
+- 43fb4f7: fix(react-ag-ui): preserve user message attachments when converting to AG-UI format
+  - `toAgUiMessages()` previously called `extractText()` for user messages, silently dropping image and file attachments
+  - User messages with attachments now emit AG-UI `InputContent[]`: images map to the `image` variant with a `data` or `url` source, files map to the `binary` variant preserving `filename`
+  - Falls back to plain string `content` when no binary parts are present, preserving backward compatibility
+
+- c988db8: chore: update dependencies
+- Updated dependencies [f20b9ca]
+- Updated dependencies [c988db8]
+  - @assistant-ui/core@0.1.14
+  - assistant-stream@0.3.11
+
 ## 0.0.25
 
 ### Patch Changes

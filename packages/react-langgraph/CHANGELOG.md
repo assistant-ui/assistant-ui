@@ -1,5 +1,29 @@
 # @assistant-ui/react-langgraph
 
+## 0.13.10
+
+### Patch Changes
+
+- 01d0dbe: feat(react-langgraph): support LangSmith Generative UI `ui_message`
+  - Translate UI messages into `DataMessagePart`s on the associated assistant message, rendered via the existing `makeAssistantDataUI({ name, render })` API
+  - Accumulate UI messages from both `custom` stream events (raw `{type:"ui"}` / `{type:"remove-ui"}`) and the `values.ui` state snapshot
+  - Key UI entries by `ui.id`, shallow-merge props when `metadata.merge === true`, delete on `type:"remove-ui"`
+  - Expose `uiStateKey` config option for graphs that customize the `typedUi` state key
+  - Extend the `load` callback return type with `uiMessages` so persisted UI state can be restored on thread switch
+  - Expose `useLangGraphUIMessages()` for accessing the raw UI message list
+  - Export `UIMessage`, `RemoveUIMessage`, and `UseLangGraphRuntimeOptions` types
+
+  **Behavior change:** `{type:"ui"}` / `{type:"remove-ui"}` payloads received on the `custom` stream channel are now intercepted by the adapter before reaching `eventHandlers.onCustomEvent`. Other custom events still reach the handler unchanged.
+
+- c988db8: chore: update dependencies
+- 8b51ffa: fix(react-langgraph): handle Bedrock tool_call_chunks with null id/name
+- Updated dependencies [f20b9ca]
+- Updated dependencies [c988db8]
+  - @assistant-ui/core@0.1.14
+  - assistant-stream@0.3.11
+  - assistant-cloud@0.1.26
+  - @assistant-ui/store@0.2.7
+
 ## 0.13.9
 
 ### Patch Changes

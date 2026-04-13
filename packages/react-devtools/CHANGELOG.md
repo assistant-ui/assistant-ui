@@ -1,5 +1,14 @@
 # @assistant-ui/react-devtools
 
+## 1.0.6
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- Updated dependencies [c988db8]
+  - @assistant-ui/react@0.12.25
+  - @assistant-ui/tap@0.5.8
+
 ## 1.0.5
 
 ### Patch Changes

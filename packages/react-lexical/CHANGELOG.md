@@ -1,5 +1,16 @@
 # @assistant-ui/react-lexical
 
+## 0.0.6
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- Updated dependencies [f20b9ca]
+- Updated dependencies [c988db8]
+  - @assistant-ui/core@0.1.14
+  - @assistant-ui/react@0.12.25
+  - @assistant-ui/store@0.2.7
+
 ## 0.0.5
 
 ### Patch Changes

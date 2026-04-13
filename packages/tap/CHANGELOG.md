@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.5.8
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+
 ## 0.5.7
 
 ### Patch Changes

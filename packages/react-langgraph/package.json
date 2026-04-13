@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-langgraph",
-  "version": "0.13.9",
+  "version": "0.13.10",
   "description": "LangGraph adapter for assistant-ui",
   "keywords": [
     "langgraph",
@@ -34,10 +34,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.13",
-    "@assistant-ui/store": "^0.2.6",
+    "@assistant-ui/core": "^0.1.14",
+    "@assistant-ui/store": "^0.2.7",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.10",
+    "assistant-stream": "^0.3.11",
     "uuid": "^13.0.0"
   },
   "peerDependencies": {

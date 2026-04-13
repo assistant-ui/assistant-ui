@@ -1,5 +1,13 @@
 # assistant-cloud
 
+## 0.1.26
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- Updated dependencies [c988db8]
+  - assistant-stream@0.3.11
+
 ## 0.1.25
 
 ### Patch Changes

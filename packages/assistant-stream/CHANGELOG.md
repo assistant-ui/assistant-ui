@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.11
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+
 ## 0.3.10
 
 ### Patch Changes

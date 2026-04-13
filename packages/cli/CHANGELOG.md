@@ -1,5 +1,14 @@
 # assistant-ui
 
+## 0.0.89
+
+### Patch Changes
+
+- 8d334f9: fix(cli): detect package manager from npm_config_user_agent before falling back to detect-package-manager
+- c988db8: chore: update dependencies
+- Updated dependencies [c988db8]
+  - @assistant-ui/agent-launcher@0.1.4
+
 ## 0.0.88
 
 ### Patch Changes

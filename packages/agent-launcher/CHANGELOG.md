@@ -1,5 +1,11 @@
 # @assistant-ui/agent-launcher
 
+## 0.1.4
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+
 ## 0.1.3
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @assistant-ui/core
 
+## 0.1.14
+
+### Patch Changes
+
+- f20b9ca: feat: add ExportedMessageRepository.fromBranchableArray() for constructing branching message trees from ThreadMessageLike messages
+- c988db8: chore: update dependencies
+- Updated dependencies [c988db8]
+  - assistant-stream@0.3.11
+  - assistant-cloud@0.1.26
+  - @assistant-ui/store@0.2.7
+  - @assistant-ui/tap@0.5.8
+
 ## 0.1.13
 
 ### Patch Changes
