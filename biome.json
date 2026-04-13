@@ -216,7 +216,8 @@
       "!**/.tanstack",
       "!**/.output",
       "!**/routeTree.gen.ts",
-      "!**/packages/mcp-app-studio/templates"
+      "!**/packages/mcp-app-studio/templates",
+      "!**/*.html"
     ]
   }
 }
