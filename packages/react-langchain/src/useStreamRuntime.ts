@@ -110,15 +110,18 @@ const useStreamThreadRuntime = ({
   messagesKey = "messages",
   ...streamOptions
 }: Omit<UseStreamRuntimeOptions, "cloud">) => {
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const externalId = useAuiState((s) => s.threadListItem.externalId) as
     | string
     | null;
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const stream = useStream({
     ...streamOptions,
     threadId: externalId,
   });
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
@@ -127,21 +130,25 @@ const useStreamThreadRuntime = ({
   );
   const effectiveIsRunning = stream.isLoading || hasExecutingTools;
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const threadMessages = useExternalMessageConverter({
     callback: convertLangChainBaseMessage,
     messages: stream.messages as LangChainBaseMessage[],
     isRunning: effectiveIsRunning,
   });
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [runtimeRef] = useState(() => ({
     get current() {
       return runtime;
     },
   }));
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const streamRef = useRef(stream);
   streamRef.current = stream;
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const toolInvocations = useToolInvocations({
     state: {
       messages: threadMessages,
@@ -169,6 +176,7 @@ const useStreamThreadRuntime = ({
     setToolStatuses,
   });
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const extras = useMemo(
     (): LangChainRuntimeExtras => ({
       [symbolLangChainRuntimeExtras]: true,
@@ -179,6 +187,7 @@ const useStreamThreadRuntime = ({
     [stream.interrupt, stream.interrupts, stream.submit],
   );
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runtime = useExternalStoreRuntime({
     isRunning: effectiveIsRunning,
     messages: threadMessages,
@@ -254,6 +263,7 @@ export const useStreamRuntime = ({
   const cloudAdapter = useCloudThreadListAdapter({ cloud });
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
+      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       return useStreamThreadRuntime(optionsRef.current);
     },
     adapter: cloudAdapter,

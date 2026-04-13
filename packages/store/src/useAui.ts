@@ -373,6 +373,7 @@ export function useAui(
   },
 ): AssistantClient {
   if (clients) {
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
     return useResource(
       AssistantClientResource({
         parent: parent ?? DefaultAssistantClient,

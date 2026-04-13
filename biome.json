@@ -80,7 +80,6 @@
             ]
           }
         },
-        "useHookAtTopLevel": "off",
         "useUniqueElementIds": "off"
       },
       "complexity": {

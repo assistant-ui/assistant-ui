@@ -43,17 +43,20 @@ export const useCloudThreadListAdapter = (
 
   const unstable_Provider = useCallback<FC<PropsWithChildren>>(
     function Provider({ children }) {
+      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       const history = useAssistantCloudThreadHistoryAdapter({
         get current() {
           return adapterRef.current.cloud ?? autoCloud!;
         },
       });
       const cloudInstance = adapterRef.current.cloud ?? autoCloud!;
+      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       const attachments = useMemo(
         () => new CloudFileAttachmentAdapter(cloudInstance),
         [cloudInstance],
       );
 
+      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       const adapters = useMemo(
         () => ({
           history,

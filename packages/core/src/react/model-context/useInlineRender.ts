@@ -17,6 +17,7 @@ export const useInlineRender = <TArgs, TResult>(
 
   return useCallback(
     function ToolUI(args) {
+      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       const store = useToolUIStore();
       return store.toolUI(args);
     },

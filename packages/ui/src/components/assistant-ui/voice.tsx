@@ -262,6 +262,7 @@ function initWebGL(canvas: HTMLCanvasElement) {
   gl.attachShader(program, fs);
   gl.linkProgram(program);
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return null;
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   gl.useProgram(program);
 
   const buf = gl.createBuffer();

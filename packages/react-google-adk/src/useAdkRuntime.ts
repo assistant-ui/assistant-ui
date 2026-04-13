@@ -171,6 +171,7 @@ const useAdkRuntimeImpl = ({
   getCheckpointId,
   eventHandlers,
 }: UseAdkRuntimeOptions) => {
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const aui = useAui();
   const {
     messages,
@@ -185,12 +186,15 @@ const useAdkRuntimeImpl = ({
     sendMessage,
     cancel,
     replaceMessages,
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   } = useAdkMessages({
     stream,
     ...(eventHandlers && { eventHandlers }),
   });
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [isRunning, setIsRunning] = useState(false);
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
@@ -211,21 +215,25 @@ const useAdkRuntimeImpl = ({
     }
   };
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const threadMessages = useExternalMessageConverter({
     callback: convertAdkMessage,
     messages,
     isRunning: effectiveIsRunning,
   });
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const threadMessagesRef = useRef(threadMessages);
   threadMessagesRef.current = threadMessages;
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [runtimeRef] = useState(() => ({
     get current() {
       return runtime;
     },
   }));
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const toolInvocations = useToolInvocations({
     state: { messages: threadMessages, isRunning: effectiveIsRunning },
     getTools: () => runtimeRef.current.thread.getModelContext().tools,
@@ -249,6 +257,7 @@ const useAdkRuntimeImpl = ({
     setToolStatuses,
   });
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runtime = useExternalStoreRuntime({
     isRunning: effectiveIsRunning,
     messages: threadMessages,
@@ -363,11 +372,14 @@ const useAdkRuntimeImpl = ({
   });
 
   {
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
     const loadRef = useRef(load);
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
     useEffect(() => {
       loadRef.current = load;
     });
 
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
     useEffect(() => {
       const loadFn = loadRef.current;
       if (!loadFn) return;
@@ -411,6 +423,7 @@ export const useAdkRuntime = ({
 
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
+      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       return useAdkRuntimeImpl(options);
     },
     adapter,

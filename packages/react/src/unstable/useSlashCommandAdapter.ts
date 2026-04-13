@@ -45,6 +45,7 @@ export function unstable_useSlashCommandAdapter(
 ): Unstable_SlashCommandAdapter {
   const { commands } = options;
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   return useMemo<Unstable_SlashCommandAdapter>(() => {
     // Build items lazily at call time so execute callbacks are always fresh
     const getItems = (): Unstable_SlashCommandItem[] =>

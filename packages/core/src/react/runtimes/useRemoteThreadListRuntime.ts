@@ -29,12 +29,15 @@ class RemoteThreadListRuntimeCore
 const useRemoteThreadListRuntimeImpl = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [runtime] = useState(() => new RemoteThreadListRuntimeCore(options));
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   useEffect(() => {
     runtime.threads.__internal_setOptions(options);
     runtime.threads.__internal_load();
   }, [runtime, options]);
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
 };
 
@@ -77,9 +80,12 @@ export const useRemoteThreadListRuntime = (
     return stableRuntimeHook();
   }
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runtime = useRemoteThreadListRuntimeImpl(stableOptions);
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const prevThreadIdRef = useRef(options.threadId);
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   useEffect(() => {
     if (options.threadId === prevThreadIdRef.current) return;
     prevThreadIdRef.current = options.threadId;

@@ -224,8 +224,10 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
       args: { fileName, mimeType },
       result,
     }) {
+      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
+      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       const readFile = useCallback(async () => {
         const ffmpeg = ffmpegRef.current;
         const data = (await ffmpeg.readFile(
@@ -234,6 +236,7 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
         return URL.createObjectURL(new Blob([data.buffer], { type: mimeType }));
       }, [fileName, mimeType]);
 
+      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       useEffect(() => {
         if (!result?.success) return;
         let revoked = false;

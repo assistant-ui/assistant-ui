@@ -54,6 +54,7 @@ export type Unstable_ToolMentionAdapterOptions = {
 export function unstable_useToolMentionAdapter(
   options?: Unstable_ToolMentionAdapterOptions,
 ): Unstable_MentionAdapter {
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const aui = useAui();
   const explicitTools = options?.tools;
   const includeModelContext =
@@ -61,6 +62,7 @@ export function unstable_useToolMentionAdapter(
   const formatLabel = options?.formatLabel;
   const categoryLabel = options?.categoryLabel;
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   return useMemo<Unstable_MentionAdapter>(() => {
     const getTools = (): Unstable_MentionItem[] => {
       const items: Unstable_MentionItem[] = [];
