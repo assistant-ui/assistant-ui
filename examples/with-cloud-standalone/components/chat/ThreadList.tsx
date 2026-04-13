@@ -44,11 +44,12 @@ export function ThreadList({
         ) : (
           <div className="space-y-0.5">
             {threads.map((thread) => (
-              <div
+              <button
+                type="button"
                 key={thread.id}
                 onClick={() => onSelect(thread.id)}
                 className={cn(
-                  "group flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+                  "group flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors",
                   selectedId === thread.id
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground hover:bg-sidebar-accent/50",
@@ -67,7 +68,7 @@ export function ThreadList({
                 >
                   <Trash2 className="size-3.5 text-muted-foreground hover:text-destructive" />
                 </button>
-              </div>
+              </button>
             ))}
           </div>
         )}

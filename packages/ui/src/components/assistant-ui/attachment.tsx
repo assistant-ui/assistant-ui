@@ -69,7 +69,7 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
   return (
     <img
       src={src}
-      alt="Image Preview"
+      alt="Attachment preview"
       className={cn(
         "block h-auto max-h-[80vh] w-auto max-w-full object-contain",
         isLoaded
@@ -155,6 +155,7 @@ const AttachmentUI: FC = () => {
             <div
               className="aui-attachment-tile size-14 cursor-pointer overflow-hidden rounded-[calc(var(--composer-radius)-var(--composer-padding))] border bg-muted transition-opacity hover:opacity-75"
               role="button"
+              tabIndex={0}
               aria-label={`${typeLabel} attachment`}
             >
               <AttachmentThumb />

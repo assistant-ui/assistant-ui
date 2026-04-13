@@ -87,13 +87,9 @@
         "noForEach": "off"
       },
       "a11y": {
-        "useKeyWithClickEvents": "off",
         "noSvgWithoutTitle": "off",
-        "noStaticElementInteractions": "off",
-        "useFocusableInteractive": "off",
         "useButtonType": "off",
-        "useSemanticElements": "off",
-        "noRedundantAlt": "off"
+        "useSemanticElements": "off"
       },
       "performance": {
         "noImgElement": "off"
@@ -173,9 +169,16 @@
             "useExhaustiveDependencies": "off",
             "noNestedComponentDefinitions": "off"
           },
+          "suspicious": {
+            "noDocumentCookie": "off"
+          },
           "a11y": {
             "useAriaPropsForRole": "off",
-            "noRedundantRoles": "off"
+            "noRedundantRoles": "off",
+            "noRedundantAlt": "off",
+            "useFocusableInteractive": "off",
+            "useKeyWithClickEvents": "off",
+            "noStaticElementInteractions": "off"
           }
         }
       }

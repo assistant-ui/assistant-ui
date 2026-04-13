@@ -17,6 +17,7 @@ function AttachmentTileStatic({ name, isImage }: AttachmentTileStaticProps) {
       <div
         className="aui-attachment-tile aui-attachment-tile-composer size-14 cursor-pointer overflow-hidden rounded-[14px] border border-foreground/20 bg-muted transition-opacity hover:opacity-75"
         role="button"
+        tabIndex={0}
         aria-label={`${attachmentType} attachment: ${name}`}
       >
         <div className="flex h-full w-full items-center justify-center">

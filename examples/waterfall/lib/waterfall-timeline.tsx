@@ -225,6 +225,8 @@ export function WaterfallTimeline() {
 
         {/* Span rows */}
         <WaterfallLayoutContext.Provider value={layoutValue}>
+          {/* biome-ignore lint/a11y/useKeyWithClickEvents: event delegation on span rows */}
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: event delegation on span rows */}
           <div
             style={{ width: contentWidth }}
             onClick={(e) => {
