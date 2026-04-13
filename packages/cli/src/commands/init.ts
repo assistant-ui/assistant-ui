@@ -2,8 +2,12 @@ import { Command, Option } from "commander";
 import { spawn } from "cross-spawn";
 import fs from "node:fs";
 import path from "node:path";
+import {
+  dlxCommand,
+  resolvePackageManagerName,
+} from "../lib/create-project";
 import { logger } from "../lib/utils/logger";
-import { create } from "./create";
+import { create, resolvePackageManager } from "./create";
 
 const DEFAULT_REGISTRY_URL =
   "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json";
@@ -151,6 +155,12 @@ export const init = new Command()
     }
 
     try {
+      const pm = await resolvePackageManagerName(
+        targetDir,
+        resolvePackageManager(opts),
+      );
+      const [dlxCmd, dlxArgs] = dlxCommand(pm);
+
       const { initArgs, addArgs } = createExistingProjectInitPlan({
         yes: opts.yes,
         overwrite: opts.overwrite,
@@ -158,9 +168,9 @@ export const init = new Command()
       });
 
       if (initArgs) {
-        await runSpawn("npx", initArgs, targetDir);
+        await runSpawn(dlxCmd, [...dlxArgs, ...initArgs], targetDir);
       }
-      await runSpawn("npx", addArgs, targetDir);
+      await runSpawn(dlxCmd, [...dlxArgs, ...addArgs], targetDir);
 
       logger.break();
       logger.success("Project initialized successfully!");

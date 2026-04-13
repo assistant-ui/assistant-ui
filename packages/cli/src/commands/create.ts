@@ -384,7 +384,7 @@ export function resolveCreateProjectDirectory(params: {
   return undefined;
 }
 
-function resolvePackageManager(opts: {
+export function resolvePackageManager(opts: {
   useNpm?: boolean;
   usePnpm?: boolean;
   useYarn?: boolean;
