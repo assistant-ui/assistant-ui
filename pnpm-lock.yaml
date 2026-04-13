@@ -24,8 +24,8 @@ importers:
         specifier: ^2.9.6
         version: 2.9.6
       typescript:
-        specifier: 5.9.3
-        version: 5.9.3
+        specifier: ^6.0.2
+        version: 6.0.2
 
   apps/devtools-extension:
     dependencies:
