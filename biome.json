@@ -27,10 +27,8 @@
       "suspicious": {
         "noExplicitAny": "off",
         "noArrayIndexKey": "off",
-        "noEmptyInterface": "off",
         "useIterableCallbackReturn": "off",
         "noThenProperty": "off",
-        "noConfusingVoidType": "off",
         "noImplicitAnyLet": "off",
         "noAssignInExpressions": "off",
         "noRedeclare": "off",
@@ -40,8 +38,6 @@
             "allowedLabels": ["DEV"]
           }
         },
-        "noDoubleEquals": "off",
-        "noPrototypeBuiltins": "off",
         "noDocumentCookie": "off",
         "noReactForwardRef": "off"
       },
@@ -92,17 +88,13 @@
         },
         "useHookAtTopLevel": "off",
         "noSwitchDeclarations": "off",
-        "noUnsafeOptionalChaining": "off",
         "useUniqueElementIds": "off"
       },
       "complexity": {
         "noForEach": "off",
         "noBannedTypes": "off",
-        "noUselessConstructor": "off",
         "noStaticOnlyClass": "off",
-        "useArrowFunction": "off",
         "noThisInStatic": "off",
-        "useFlatMap": "off",
         "useLiteralKeys": "off"
       },
       "a11y": {

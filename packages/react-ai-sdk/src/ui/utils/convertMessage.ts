@@ -24,8 +24,7 @@ function stripClosingDelimiters(json: string): string {
   return json.replace(/[}\]"]+$/, "");
 }
 
-const hasOwn = (value: object, key: string) =>
-  Object.prototype.hasOwnProperty.call(value, key);
+const hasOwn = (value: object, key: string) => Object.hasOwn(value, key);
 
 const stabilizeToolArgsValue = (
   value: unknown,

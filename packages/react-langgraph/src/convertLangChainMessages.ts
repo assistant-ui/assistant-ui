@@ -30,8 +30,7 @@ const uiMessageToDataPart = (ui: UIMessage): DataMessagePart => ({
   data: ui.props,
 });
 
-const hasOwn = (value: object, key: string) =>
-  Object.prototype.hasOwnProperty.call(value, key);
+const hasOwn = (value: object, key: string) => Object.hasOwn(value, key);
 
 const stabilizeToolArgsValue = (
   value: unknown,

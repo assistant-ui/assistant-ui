@@ -36,7 +36,7 @@ export type Cell =
     }
   | {
       readonly type: "effect";
-      cleanup: tapEffect.Destructor | void;
+      cleanup: tapEffect.Destructor | undefined;
       deps: readonly unknown[] | null | undefined;
     };
 

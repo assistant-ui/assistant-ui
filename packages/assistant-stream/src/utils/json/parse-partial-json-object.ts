@@ -75,7 +75,7 @@ const getFieldState = (
   const [field, ...restPath] = fieldPath as [string, ...string[]];
 
   // 3) field doesn't yet exist in parent: return "partial"
-  if (!Object.prototype.hasOwnProperty.call(parent, field)) return "partial";
+  if (!Object.hasOwn(parent, field)) return "partial";
 
   const [partialField, ...restPartialPath] = parentMeta.partialPath;
 

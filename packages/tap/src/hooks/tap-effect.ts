@@ -10,7 +10,7 @@ const newEffect = (): Cell & { type: "effect" } => ({
 
 export namespace tapEffect {
   export type Destructor = () => void;
-  export type EffectCallback = () => void | Destructor;
+  export type EffectCallback = () => Destructor | undefined;
 }
 
 export function tapEffect(effect: tapEffect.EffectCallback): void;

@@ -71,7 +71,7 @@ export const useExternalHistory = <TMessage>(
           const messages = tempRepo.getMessages();
 
           onSetMessagesRef.current(
-            messages.map(getExternalStoreMessages<TMessage>).flat(),
+            messages.flatMap(getExternalStoreMessages<TMessage>),
           );
 
           historyIds.current = new Set(

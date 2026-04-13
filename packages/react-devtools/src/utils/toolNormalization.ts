@@ -41,7 +41,7 @@ const mapToNormalizedTool = (
     tool.disabled = raw["disabled"] as boolean;
   }
 
-  if (Object.prototype.hasOwnProperty.call(raw, "parameters")) {
+  if (Object.hasOwn(raw, "parameters")) {
     tool.parameters = toJsonSchema(raw["parameters"]);
   }
 
