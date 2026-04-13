@@ -155,8 +155,11 @@ export const init = new Command()
     }
 
     try {
+      // resolvePackageManagerName calls detect({ cwd: path.dirname(dir) }),
+      // which is designed for `create` where the dir doesn't exist yet.
+      // For init, targetDir IS the project root, so append a dummy segment.
       const pm = await resolvePackageManagerName(
-        targetDir,
+        path.join(targetDir, "_"),
         resolvePackageManager(opts),
       );
       const [dlxCmd, dlxArgs] = dlxCommand(pm);
