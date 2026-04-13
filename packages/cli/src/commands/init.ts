@@ -2,10 +2,7 @@ import { Command, Option } from "commander";
 import { spawn } from "cross-spawn";
 import fs from "node:fs";
 import path from "node:path";
-import {
-  dlxCommand,
-  resolvePackageManagerName,
-} from "../lib/create-project";
+import { dlxCommand, resolvePackageManagerName } from "../lib/create-project";
 import { logger } from "../lib/utils/logger";
 import { create, resolvePackageManager } from "./create";
 
