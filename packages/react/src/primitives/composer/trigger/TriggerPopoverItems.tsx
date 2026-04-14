@@ -9,7 +9,7 @@ import {
   useCallback,
 } from "react";
 import { composeEventHandlers } from "@radix-ui/primitive";
-import { useTriggerPopoverContext } from "./TriggerPopoverContext";
+import { useTriggerPopoverScopeContext } from "./TriggerPopover";
 import type { Unstable_TriggerItem } from "@assistant-ui/core";
 
 // =============================================================================
@@ -34,7 +34,8 @@ export const ComposerPrimitiveTriggerPopoverItems = forwardRef<
   ComposerPrimitiveTriggerPopoverItems.Element,
   ComposerPrimitiveTriggerPopoverItems.Props
 >(({ children, "aria-label": ariaLabel, ...props }, forwardedRef) => {
-  const { items, activeCategoryId, isSearchMode } = useTriggerPopoverContext();
+  const { items, activeCategoryId, isSearchMode } =
+    useTriggerPopoverScopeContext();
 
   if (!activeCategoryId && !isSearchMode) return null;
 
@@ -80,7 +81,7 @@ export const ComposerPrimitiveTriggerPopoverItem = forwardRef<
     activeCategoryId,
     isSearchMode,
     popoverId,
-  } = useTriggerPopoverContext();
+  } = useTriggerPopoverScopeContext();
 
   const handleClick = useCallback(() => {
     selectItem(item);

@@ -1,9 +1,17 @@
 export {
   ComposerPrimitiveTriggerPopoverRoot,
-  useTriggerPopoverContext,
-  useTriggerPopoverContextOptional,
-} from "./TriggerPopoverContext";
-export { ComposerPrimitiveTriggerPopoverPopover } from "./TriggerPopoverPopover";
+  useTriggerPopoverRootContext,
+  useTriggerPopoverRootContextOptional,
+  useTriggerPopoverTriggers,
+  useTriggerPopoverTriggersOptional,
+  type RegisteredTrigger,
+  type TriggerPopoverRootContextValue,
+} from "./TriggerPopoverRootContext";
+export {
+  ComposerPrimitiveTriggerPopover,
+  useTriggerPopoverScopeContext,
+  useTriggerPopoverScopeContextOptional,
+} from "./TriggerPopover";
 export {
   ComposerPrimitiveTriggerPopoverCategories,
   ComposerPrimitiveTriggerPopoverCategoryItem,

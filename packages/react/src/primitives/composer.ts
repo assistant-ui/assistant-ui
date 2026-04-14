@@ -14,28 +14,21 @@ export { ComposerPrimitiveQuote as Quote } from "./composer/ComposerQuote";
 export { ComposerPrimitiveQuoteText as QuoteText } from "./composer/ComposerQuote";
 export { ComposerPrimitiveQuoteDismiss as QuoteDismiss } from "./composer/ComposerQuote";
 export { ComposerPrimitiveQueue as Queue } from "./composer/ComposerQueue";
-export { ComposerPrimitiveMentionRoot as Unstable_MentionRoot } from "./composer/mention";
-export { ComposerPrimitiveMentionPopover as Unstable_MentionPopover } from "./composer/mention";
-export { ComposerPrimitiveMentionCategories as Unstable_MentionCategories } from "./composer/mention";
-export { ComposerPrimitiveMentionCategoryItem as Unstable_MentionCategoryItem } from "./composer/mention";
-export { ComposerPrimitiveMentionItems as Unstable_MentionItems } from "./composer/mention";
-export { ComposerPrimitiveMentionItem as Unstable_MentionItem } from "./composer/mention";
-export { ComposerPrimitiveMentionBack as Unstable_MentionBack } from "./composer/mention";
-export { useMentionContext as unstable_useMentionContext } from "./composer/mention";
-export { useMentionContextOptional as unstable_useMentionContextOptional } from "./composer/mention";
 
-// --- Generic Trigger Popover primitives (unstable) ---
+// --- Unified Trigger Popover primitives (unstable) ---
+// Root + per-trigger declarations + shared sub-primitives. Used for `@` mentions,
+// `/` slash commands, and any other trigger-driven popover.
 export { ComposerPrimitiveTriggerPopoverRoot as Unstable_TriggerPopoverRoot } from "./composer/trigger";
-export { ComposerPrimitiveTriggerPopoverPopover as Unstable_TriggerPopoverPopover } from "./composer/trigger";
+export { ComposerPrimitiveTriggerPopover as Unstable_TriggerPopover } from "./composer/trigger";
 export { ComposerPrimitiveTriggerPopoverCategories as Unstable_TriggerPopoverCategories } from "./composer/trigger";
 export { ComposerPrimitiveTriggerPopoverCategoryItem as Unstable_TriggerPopoverCategoryItem } from "./composer/trigger";
 export { ComposerPrimitiveTriggerPopoverItems as Unstable_TriggerPopoverItems } from "./composer/trigger";
 export { ComposerPrimitiveTriggerPopoverItem as Unstable_TriggerPopoverItem } from "./composer/trigger";
 export { ComposerPrimitiveTriggerPopoverBack as Unstable_TriggerPopoverBack } from "./composer/trigger";
-export { useTriggerPopoverContext as unstable_useTriggerPopoverContext } from "./composer/trigger";
-export { useTriggerPopoverContextOptional as unstable_useTriggerPopoverContextOptional } from "./composer/trigger";
-
-// --- Slash Command primitives (unstable) ---
-// SlashCommandRoot is the only slash-specific primitive; UI primitives
-// (Popover, Items, Categories, Back) are the shared TriggerPopover* set above.
-export { ComposerPrimitiveSlashCommandRoot as Unstable_SlashCommandRoot } from "./composer/slash-command";
+export { useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext } from "./composer/trigger";
+export { useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional } from "./composer/trigger";
+export { useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext } from "./composer/trigger";
+export { useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional } from "./composer/trigger";
+export { useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers } from "./composer/trigger";
+export { useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional } from "./composer/trigger";
+export type { RegisteredTrigger as Unstable_RegisteredTrigger } from "./composer/trigger";

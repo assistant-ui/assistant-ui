@@ -389,26 +389,26 @@ export { SingleThreadList } from "./client/SingleThreadList";
 // ============================================================================
 export * as INTERNAL from "./internal";
 
-// Unstable - mention
+// Unstable - mention (tool adapter helper)
 export {
   unstable_useToolMentionAdapter,
   type Unstable_ToolMentionAdapterOptions,
 } from "./unstable/useToolMentionAdapter";
-export {
-  useMentionContext as unstable_useMentionContext,
-  useMentionContextOptional as unstable_useMentionContextOptional,
-  useMentionInternalContext as unstable_useMentionInternalContext,
-} from "./primitives/composer/mention";
 export type { ToolExecutionStatus } from "./internal";
 
-// Unstable - trigger popover (generic)
+// Unstable - trigger popover (unified root for @ mentions, / slash commands, etc.)
 export {
-  useTriggerPopoverContext as unstable_useTriggerPopoverContext,
-  useTriggerPopoverContextOptional as unstable_useTriggerPopoverContextOptional,
+  useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext,
+  useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional,
+  useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext,
+  useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional,
+  useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers,
+  useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional,
+  type RegisteredTrigger as Unstable_RegisteredTrigger,
 } from "./primitives/composer/trigger";
 export type { OnSelectBehavior as Unstable_OnSelectBehavior } from "./primitives/composer/trigger";
 
-// Unstable - slash commands
+// Unstable - slash commands (adapter helper)
 export {
   unstable_useSlashCommandAdapter,
   type Unstable_SlashCommandDefinition,

@@ -7,7 +7,7 @@ import {
   forwardRef,
 } from "react";
 import { composeEventHandlers } from "@radix-ui/primitive";
-import { useTriggerPopoverContext } from "./TriggerPopoverContext";
+import { useTriggerPopoverScopeContext } from "./TriggerPopover";
 
 export namespace ComposerPrimitiveTriggerPopoverBack {
   export type Element = ComponentRef<typeof Primitive.button>;
@@ -22,7 +22,8 @@ export const ComposerPrimitiveTriggerPopoverBack = forwardRef<
   ComposerPrimitiveTriggerPopoverBack.Element,
   ComposerPrimitiveTriggerPopoverBack.Props
 >(({ onClick, ...props }, forwardedRef) => {
-  const { activeCategoryId, isSearchMode, goBack } = useTriggerPopoverContext();
+  const { activeCategoryId, isSearchMode, goBack } =
+    useTriggerPopoverScopeContext();
 
   if (!activeCategoryId || isSearchMode) return null;
 
