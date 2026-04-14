@@ -18,11 +18,13 @@ import {
   $isMentionNode,
 } from "../nodes/MentionNode";
 import type {
-  Unstable_MentionItem,
   Unstable_DirectiveFormatter,
+  Unstable_TriggerItem,
 } from "@assistant-ui/core";
-import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
-import { unstable_useMentionInternalContext } from "@assistant-ui/react";
+import {
+  unstable_useTriggerPopoverTriggersOptional,
+  type Unstable_RegisteredTrigger,
+} from "@assistant-ui/react";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -30,11 +32,7 @@ import { unstable_useMentionInternalContext } from "@assistant-ui/react";
 
 export type MentionPluginProps = {
   /** Callback fired after a mention is inserted. */
-  onMentionSelect?: ((item: Unstable_MentionItem) => void) | undefined;
-  /** Trigger character that opens the mention flow. @default "@" */
-  trigger?: string | undefined;
-  /** Formatter for serializing mention directives. */
-  formatter?: Unstable_DirectiveFormatter | undefined;
+  onMentionSelect?: ((item: Unstable_TriggerItem) => void) | undefined;
 };
 
 // ---------------------------------------------------------------------------
@@ -85,38 +83,37 @@ export function findTriggerMatch(
 }
 
 // ---------------------------------------------------------------------------
-// MentionPlugin component — auto-wires to MentionInternalContext
+// MentionPlugin — iterates all `insertDirective` triggers from the
+// TriggerPopoverRoot and wires each to Lexical MentionNode insertion.
 // ---------------------------------------------------------------------------
 
-export function MentionPlugin({
-  onMentionSelect,
-  trigger = "@",
-  formatter: formatterProp,
-}: MentionPluginProps) {
+type ActiveMatch = {
+  readonly triggerId: string;
+  readonly formatter: Unstable_DirectiveFormatter;
+  readonly match: TriggerMatch;
+};
+
+export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
   const [editor] = useLexicalComposerContext();
-  const triggerRef = useRef(trigger);
-  triggerRef.current = trigger;
-  const formatter = formatterProp ?? unstable_defaultDirectiveFormatter;
-  const formatterRef = useRef(formatter);
-  formatterRef.current = formatter;
+  const triggers = unstable_useTriggerPopoverTriggersOptional();
 
-  // Auto-wire to MentionInternalContext (optional — gracefully degrades)
-  // Cursor position is now reported by CursorPlugin via the plugin registry;
-  // MentionPlugin only needs registerSelectItemOverride for Lexical node insertion.
-  const mentionInternalContext = unstable_useMentionInternalContext();
-  const registerSelectItemOverride =
-    mentionInternalContext?.registerSelectItemOverride;
+  // Keep the current match keyed so `insertMention` can resolve which trigger
+  // the user is interacting with (there's at most one active match at a time —
+  // trigger detection is scoped to the caret).
+  const matchRef = useRef<ActiveMatch | null>(null);
 
-  // Track the current trigger match
-  const matchRef = useRef<TriggerMatch | null>(null);
+  // Mirror `triggers` into a ref so editor update + backspace handlers can
+  // read the latest map without re-subscribing on every change.
+  const triggersRef = useRef(triggers);
+  triggersRef.current = triggers;
 
   // -----------------------------------------------------------------------
-  // Watch for text changes and update trigger match + cursor position
+  // Watch text changes: update trigger match for whichever `insertDirective`
+  // trigger (if any) matches the current caret position.
   // -----------------------------------------------------------------------
 
   useEffect(() => {
     return mergeRegister(
-      // Track trigger match for mention node insertion
       editor.registerUpdateListener(({ editorState }) => {
         editorState.read(() => {
           const selection = $getSelection();
@@ -137,15 +134,26 @@ export function MentionPlugin({
             return;
           }
 
-          matchRef.current = findTriggerMatch(
-            triggerRef.current,
-            anchorNode,
-            anchor.offset,
-          );
+          matchRef.current = null;
+          for (const [id, trigger] of triggersRef.current) {
+            if (trigger.onSelect.type !== "insertDirective") continue;
+            const match = findTriggerMatch(
+              trigger.char,
+              anchorNode,
+              anchor.offset,
+            );
+            if (match) {
+              matchRef.current = {
+                triggerId: id,
+                formatter: trigger.onSelect.formatter,
+                match,
+              };
+              break;
+            }
+          }
         });
       }),
 
-      // Delete the entire MentionNode on backspace
       editor.registerCommand(
         KEY_BACKSPACE_COMMAND,
         () => {
@@ -197,22 +205,19 @@ export function MentionPlugin({
   }, [editor]);
 
   // -----------------------------------------------------------------------
-  // Insert a mention — replaces the @query text with a MentionNode
+  // Insert a mention — replaces the @query text with a MentionNode.
   // -----------------------------------------------------------------------
 
   const insertMention = useCallback(
-    (item: Unstable_MentionItem) => {
-      const match = matchRef.current;
-      if (!match) return;
+    (item: Unstable_TriggerItem, active: ActiveMatch) => {
+      const { node, startOffset, endOffset } = active.match;
 
       editor.update(() => {
-        const { node, startOffset, endOffset } = match;
-
         if (!node.isAttached()) return;
 
         const mentionNode = $createMentionNodeWithFormatter(
           item,
-          formatterRef.current,
+          active.formatter,
         );
 
         if (startOffset === 0 && endOffset === node.getTextContentSize()) {
@@ -222,7 +227,6 @@ export function MentionPlugin({
           if (rightNode) {
             rightNode.insertBefore(mentionNode);
           }
-          // Remove the left node containing the trigger+query text
           leftNode?.remove();
         } else {
           const parts = node.splitText(startOffset, endOffset);
@@ -233,27 +237,45 @@ export function MentionPlugin({
         }
 
         mentionNode.selectNext();
-        matchRef.current = null;
       });
 
+      matchRef.current = null;
       onMentionSelect?.(item);
     },
     [editor, onMentionSelect],
   );
 
   // -----------------------------------------------------------------------
-  // Register the selectItem override so the popover uses insertMention
+  // Register a selectItem override on every `insertDirective` trigger so
+  // selecting an item routes to Lexical MentionNode insertion.
   // -----------------------------------------------------------------------
 
   useEffect(() => {
-    if (!registerSelectItemOverride) return undefined;
+    const unsubs: Array<() => void> = [];
 
-    return registerSelectItemOverride((item: Unstable_MentionItem) => {
-      if (!matchRef.current) return false;
-      insertMention(item);
-      return true;
-    });
-  }, [registerSelectItemOverride, insertMention]);
+    for (const [id, trigger] of triggers) {
+      if (trigger.onSelect.type !== "insertDirective") continue;
+      unsubs.push(wireTrigger(id, trigger, matchRef, insertMention));
+    }
+
+    return () => {
+      for (const unsub of unsubs) unsub();
+    };
+  }, [triggers, insertMention]);
 
   return null;
+}
+
+function wireTrigger(
+  id: string,
+  trigger: Unstable_RegisteredTrigger,
+  matchRef: React.RefObject<ActiveMatch | null>,
+  insertMention: (item: Unstable_TriggerItem, active: ActiveMatch) => void,
+): () => void {
+  return trigger.resource.registerSelectItemOverride((item) => {
+    const active = matchRef.current;
+    if (!active || active.triggerId !== id) return false;
+    insertMention(item, active);
+    return true;
+  });
 }

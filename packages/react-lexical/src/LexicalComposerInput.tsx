@@ -40,10 +40,8 @@ import {
   type MentionChipProps,
 } from "./nodes/MentionNode";
 import { SyncPlugin } from "./plugins/SyncPlugin";
-import {
-  MentionPlugin,
-  type MentionPluginProps,
-} from "./plugins/MentionPlugin";
+import { MentionPlugin } from "./plugins/MentionPlugin";
+import type { MentionPluginProps } from "./plugins/MentionPlugin";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -342,10 +340,7 @@ export const LexicalComposerInput = forwardRef<
             />
             <HistoryPlugin />
             <SyncPlugin formatter={resolvedFormatter} />
-            <MentionPlugin
-              {...mentionPluginProps}
-              formatter={resolvedFormatter}
-            />
+            <MentionPlugin {...mentionPluginProps} />
             <KeyboardPlugin
               submitMode={submitMode}
               cancelOnEscape={cancelOnEscape}
