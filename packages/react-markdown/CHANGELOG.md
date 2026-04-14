@@ -1,5 +1,11 @@
 # @assistant-ui/react-markdown
 
+## 0.12.10
+
+### Patch Changes
+
+- 1083599: fix: add "style" export condition for CSS entries so Tailwind CSS v4 `@import` can resolve packages
+
 ## 0.12.9
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # tw-shimmer
 
+## 0.4.11
+
+### Patch Changes
+
+- 1083599: fix: add "style" export condition for CSS entries so Tailwind CSS v4 `@import` can resolve packages
+
 ## 0.4.10
 
 ### Patch Changes

@@ -3755,7 +3755,7 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       tw-shimmer:
-        specifier: ^0.4.10
+        specifier: ^0.4.11
         version: link:../../packages/tw-shimmer
       zustand:
         specifier: ^5.0.12
@@ -3855,7 +3855,7 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       tw-shimmer:
-        specifier: ^0.4.10
+        specifier: ^0.4.11
         version: link:../../packages/tw-shimmer
       zustand:
         specifier: ^5.0.12
@@ -3949,7 +3949,7 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       tw-shimmer:
-        specifier: ^0.4.10
+        specifier: ^0.4.11
         version: link:../../packages/tw-shimmer
       zustand:
         specifier: ^5.0.12
@@ -4040,7 +4040,7 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       tw-shimmer:
-        specifier: ^0.4.10
+        specifier: ^0.4.11
         version: link:../../packages/tw-shimmer
       zustand:
         specifier: ^5.0.12
@@ -4137,7 +4137,7 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       tw-shimmer:
-        specifier: ^0.4.10
+        specifier: ^0.4.11
         version: link:../../packages/tw-shimmer
       zustand:
         specifier: ^5.0.12
@@ -4228,7 +4228,7 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       tw-shimmer:
-        specifier: ^0.4.10
+        specifier: ^0.4.11
         version: link:../../packages/tw-shimmer
       zustand:
         specifier: ^5.0.12
