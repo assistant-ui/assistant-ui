@@ -1,0 +1,87 @@
+---
+title: Directive Text
+description: Render mention directives as inline chips in user messages.
+---
+
+import { DirectiveTextSample } from "@/components/docs/samples/directive-text";
+
+<DirectiveTextSample />
+
+`DirectiveText` parses the directive syntax written by [`ComposerTriggerPopover`](/docs/ui/composer-trigger-popover) (default: `:type[label]{name=id}`) and renders each segment as an inline chip. Use it as the `Text` component in user messages so the raw directive syntax never shows up.
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `directive-text`
+
+<InstallCommand shadcn={["directive-text"]} />
+
+This adds `/components/assistant-ui/directive-text.tsx` with `DirectiveText` and the `createDirectiveText(formatter)` factory.
+
+  </Step>
+  <Step>
+
+### Use in user messages
+
+Pass `DirectiveText` as the `Text` component in `MessagePrimitive.Parts`:
+
+```tsx title="components/assistant-ui/thread.tsx"
+import { DirectiveText } from "@/components/assistant-ui/directive-text";
+
+const UserMessage = () => (
+  <MessagePrimitive.Root>
+    <MessagePrimitive.Parts components={{ Text: DirectiveText }} />
+  </MessagePrimitive.Root>
+);
+```
+
+Keep your markdown renderer (e.g. `MarkdownText`) for assistant messages — assistants rarely emit directive syntax.
+
+  </Step>
+</Steps>
+
+## Custom Formatter
+
+The default format is `:type[label]{name=id}`. For a different format, build a custom `Unstable_DirectiveFormatter` and wrap it with `createDirectiveText`:
+
+```tsx
+import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
+import { createDirectiveText } from "@/components/assistant-ui/directive-text";
+
+const slashFormatter: Unstable_DirectiveFormatter = {
+  serialize: (item) => `/${item.id}`,
+  parse: (text) => {
+    /* return alternating text / mention segments */
+  },
+};
+
+const SlashDirectiveText = createDirectiveText(slashFormatter);
+```
+
+Pass the **same formatter** to the composer trigger's `onSelect: { type: "insertDirective", formatter }` so insertion and rendering stay consistent.
+
+## Customizing the Chip
+
+Because `directive-text.tsx` is copied into your project, you can edit it directly — change the icon per `type`, swap the chip styling, or read `data-mention-id` to link to a detail page. For example:
+
+```tsx
+// inside createDirectiveText's inner `Component`
+const Icon = seg.type === "user" ? UserIcon : WrenchIcon;
+```
+
+## API Reference
+
+### `DirectiveText`
+
+A `TextMessagePartComponent` that parses `:type[label]{name=id}` directives and renders them as inline chips. Uses the default formatter from `@assistant-ui/core`.
+
+### `createDirectiveText(formatter)`
+
+Factory that returns a `TextMessagePartComponent` bound to a custom `Unstable_DirectiveFormatter`.
+
+## Related
+
+- [Composer Trigger Popover](/docs/ui/composer-trigger-popover) — the picker that inserts directives
+- [Mentions guide](/docs/guides/mentions) — directive format, backend parsing

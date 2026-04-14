@@ -416,13 +416,13 @@ import { AuiIf } from "@assistant-ui/react";
 </AuiIf>
 ```
 
-## Mention Primitives (Unstable)
+## Trigger Popover Primitives (Unstable)
 
 <Callout type="warn">
   These primitives are under the `Unstable_` prefix and may change without notice.
 </Callout>
 
-Primitives for an @-mention picker in the composer. See the [Mention component guide](/docs/ui/mention) for a pre-built implementation.
+Unified primitives for any character-triggered popover (`@` mentions, `/` slash commands, `:` emoji, etc.). Multiple triggers coexist under a single `TriggerPopoverRoot`. See the [Mentions guide](/docs/guides/mentions) and [Slash Commands guide](/docs/guides/slash-commands) for full documentation and the [Mention component guide](/docs/ui/mention) for a pre-built implementation.
 
 ### Anatomy
 
@@ -430,62 +430,78 @@ Primitives for an @-mention picker in the composer. See the [Mention component g
 import { ComposerPrimitive } from "@assistant-ui/react";
 
 const Composer = () => (
-  <ComposerPrimitive.Unstable_MentionRoot adapter={mentionAdapter}>
+  <ComposerPrimitive.Unstable_TriggerPopoverRoot>
     <ComposerPrimitive.Root>
       <ComposerPrimitive.Input />
-      <ComposerPrimitive.Unstable_MentionPopover>
-        <ComposerPrimitive.Unstable_MentionCategories>
+
+      <ComposerPrimitive.Unstable_TriggerPopover
+        triggerId="mention"
+        char="@"
+        adapter={mentionAdapter}
+        onSelect={{ type: "insertDirective", formatter }}
+      >
+        <ComposerPrimitive.Unstable_TriggerPopoverCategories>
           {(categories) =>
             categories.map((cat) => (
-              <ComposerPrimitive.Unstable_MentionCategoryItem
+              <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem
                 key={cat.id}
                 categoryId={cat.id}
               >
                 {cat.label}
-              </ComposerPrimitive.Unstable_MentionCategoryItem>
+              </ComposerPrimitive.Unstable_TriggerPopoverCategoryItem>
             ))
           }
-        </ComposerPrimitive.Unstable_MentionCategories>
-        <ComposerPrimitive.Unstable_MentionItems>
+        </ComposerPrimitive.Unstable_TriggerPopoverCategories>
+        <ComposerPrimitive.Unstable_TriggerPopoverItems>
           {(items) =>
             items.map((item) => (
-              <ComposerPrimitive.Unstable_MentionItem
+              <ComposerPrimitive.Unstable_TriggerPopoverItem
                 key={item.id}
                 item={item}
               >
                 {item.label}
-              </ComposerPrimitive.Unstable_MentionItem>
+              </ComposerPrimitive.Unstable_TriggerPopoverItem>
             ))
           }
-        </ComposerPrimitive.Unstable_MentionItems>
-        <ComposerPrimitive.Unstable_MentionBack>
+        </ComposerPrimitive.Unstable_TriggerPopoverItems>
+        <ComposerPrimitive.Unstable_TriggerPopoverBack>
           Back
-        </ComposerPrimitive.Unstable_MentionBack>
-      </ComposerPrimitive.Unstable_MentionPopover>
+        </ComposerPrimitive.Unstable_TriggerPopoverBack>
+      </ComposerPrimitive.Unstable_TriggerPopover>
     </ComposerPrimitive.Root>
-  </ComposerPrimitive.Unstable_MentionRoot>
+  </ComposerPrimitive.Unstable_TriggerPopoverRoot>
 );
 ```
 
-### Unstable_MentionRoot
+### Unstable_TriggerPopoverRoot
 
-Provider that wraps the composer with mention trigger detection, keyboard navigation, and popover state.
+Root provider that groups one or more `TriggerPopover` declarations. Owns the shared `ComposerInputPluginRegistry` that routes cursor and keyboard events to each registered trigger.
+
+No props.
+
+### Unstable_TriggerPopover
+
+Declares a trigger and renders its popover container. Only renders its DOM (and children) while this trigger is active in the composer input. Each declaration has an isolated scope — sub-primitives placed inside read state from this declaration only.
 
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
-| `adapter` | `Unstable_MentionAdapter` | — | Provides categories, items, and search |
-| `trigger` | `string` | `"@"` | Character(s) that activate the popover |
-| `formatter` | `Unstable_DirectiveFormatter` | Default | Serializer/parser for mention directives |
+| `triggerId` | `string` | — | Unique id for this trigger within the root (required) |
+| `char` | `string` | — | Character(s) that activate the trigger (e.g. `"@"`, `"/"`) |
+| `adapter` | `Unstable_TriggerAdapter` | — | Provides categories, items, and search |
+| `onSelect` | `Unstable_OnSelectBehavior` | — | What happens when an item is selected |
 
-### Unstable_MentionPopover
+`onSelect` is a discriminated union:
 
-Container that only renders when a mention trigger is active. Renders a `<div>` with `role="listbox"`.
+- `{ type: "insertDirective", formatter }` — writes `:type[label]{name=id}` into the composer text (mention behavior)
+- `{ type: "action", handler }` — removes the trigger text from the composer and calls `handler(item)` (slash-command behavior)
 
-### Unstable_MentionCategories
+Renders a `<div>` with `role="listbox"` when open.
+
+### Unstable_TriggerPopoverCategories
 
 Renders the top-level category list. Accepts a render function `(categories) => ReactNode`. Hidden when a category is selected or when in search mode.
 
-### Unstable_MentionCategoryItem
+### Unstable_TriggerPopoverCategoryItem
 
 A button that drills into a category. Renders `role="option"` with automatic `data-highlighted` and `aria-selected` when keyboard-navigated.
 
@@ -493,25 +509,26 @@ A button that drills into a category. Renders `role="option"` with automatic `da
 | --- | --- | --- |
 | `categoryId` | `string` | The category to select on click |
 
-### Unstable_MentionItems
+### Unstable_TriggerPopoverItems
 
 Renders the item list for the active category or search results. Accepts a render function `(items) => ReactNode`. Hidden when no category is selected and not in search mode.
 
-### Unstable_MentionItem
+### Unstable_TriggerPopoverItem
 
-A button that inserts a mention into the composer. Renders `role="option"` with automatic `data-highlighted` and `aria-selected` when keyboard-navigated.
+A button that selects an item. Renders `role="option"` with automatic `data-highlighted` and `aria-selected` when keyboard-navigated.
 
 | Prop | Type | Description |
 | --- | --- | --- |
-| `item` | `Unstable_MentionItem` | The item to insert on click |
+| `item` | `Unstable_TriggerItem` | The item to select on click |
+| `index` | `number` | Optional index override for highlight matching |
 
-### Unstable_MentionBack
+### Unstable_TriggerPopoverBack
 
 A button that navigates back from items to the category list. Only renders when a category is active.
 
-### unstable_useMentionContext
+### unstable_useTriggerPopoverScopeContext
 
-Hook to access the mention popover state and actions from within `Unstable_MentionRoot`.
+Hook to access the popover state and actions for the nearest enclosing `Unstable_TriggerPopover`.
 
 ```tsx
 const {
@@ -527,9 +544,12 @@ const {
   goBack,
   close,
   handleKeyDown,
-  formatter,
-} = unstable_useMentionContext();
+} = unstable_useTriggerPopoverScopeContext();
 ```
+
+### unstable_useTriggerPopoverTriggers
+
+Hook to iterate every trigger registered under the current `Unstable_TriggerPopoverRoot`. Intended for input-level integrations (e.g. Lexical `MentionPlugin`). Returns `ReadonlyMap<string, Unstable_RegisteredTrigger>`.
 
 ### unstable_useToolMentionAdapter
 
@@ -541,5 +561,20 @@ import { unstable_useToolMentionAdapter } from "@assistant-ui/react";
 const adapter = unstable_useToolMentionAdapter({
   formatLabel: (name) => name.replaceAll("_", " "),
   categoryLabel: "Tools",
+});
+```
+
+### unstable_useSlashCommandAdapter
+
+Hook that creates a `Unstable_SlashCommandAdapter` from a flat list of command definitions.
+
+```tsx
+import { unstable_useSlashCommandAdapter } from "@assistant-ui/react";
+
+const adapter = unstable_useSlashCommandAdapter({
+  commands: [
+    { name: "summarize", description: "Summarize the thread", execute: () => {} },
+    { name: "translate", description: "Translate to another language" },
+  ],
 });
 ```

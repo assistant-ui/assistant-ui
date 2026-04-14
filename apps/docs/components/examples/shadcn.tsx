@@ -18,11 +18,8 @@ import {
   QuoteBlock,
   SelectionToolbar,
 } from "@/components/assistant-ui/quote";
-import {
-  ComposerMentionPopover,
-  ComposerMentionRoot,
-  DirectiveText,
-} from "@/components/assistant-ui/composer-mention";
+import { ComposerTriggerPopover } from "@/components/assistant-ui/composer-trigger-popover";
+import { DirectiveText } from "@/components/assistant-ui/directive-text";
 import {
   ActionBarMorePrimitive,
   ActionBarPrimitive,
@@ -34,8 +31,9 @@ import {
   SuggestionPrimitive,
   ThreadPrimitive,
   unstable_useSlashCommandAdapter,
+  unstable_useToolMentionAdapter,
 } from "@assistant-ui/react";
-import type { Unstable_SlashCommandItem } from "@assistant-ui/core";
+import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -56,9 +54,11 @@ import {
   ShareIcon,
   SlashIcon,
   SquareIcon,
+  WrenchIcon,
 } from "lucide-react";
 import { LexicalComposerInput } from "@assistant-ui/react-lexical";
 import { useAui } from "@assistant-ui/store";
+import type { Unstable_SlashCommandItem } from "@assistant-ui/core";
 import Image from "next/image";
 import { useCallback, useState, type FC } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -292,13 +292,18 @@ const slashCommandIcons: Record<string, FC<{ className?: string }>> = {
 
 const Composer: FC = () => {
   const aui = useAui();
+
+  const mentionAdapter = unstable_useToolMentionAdapter();
   const slashAdapter = unstable_useSlashCommandAdapter({
     commands: slashCommands,
   });
 
   const handleSlashCommand = useCallback(
     (item: Unstable_SlashCommandItem) => {
-      // Fill the composer with the command description as a prompt and send
+      if (item.execute) {
+        item.execute();
+        return;
+      }
       const prompt = item.description ?? item.id;
       aui.composer().setText(prompt);
       aui.composer().send();
@@ -307,70 +312,45 @@ const Composer: FC = () => {
   );
 
   return (
-    <ComposerMentionRoot>
-      <ComposerPrimitive.Unstable_SlashCommandRoot
-        adapter={slashAdapter}
-        onSelect={handleSlashCommand}
-      >
-        <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
-          <ComposerPrimitive.AttachmentDropzone asChild>
-            <div
-              data-slot="composer-shell"
-              className="flex w-full flex-col gap-2 rounded-(--composer-radius) border bg-background p-(--composer-padding) transition-shadow focus-within:border-ring/75 focus-within:ring-2 focus-within:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50"
-            >
-              <ComposerQuotePreview />
-              <ComposerAttachments />
-              <LexicalComposerInput
-                placeholder="Send a message... (@ to mention, / for commands)"
-                className="aui-composer-input relative max-h-32 min-h-10 w-full resize-none bg-transparent px-1.75 py-1 text-sm outline-none [&_.aui-lexical-input]:min-h-[1lh] [&_.aui-lexical-input]:outline-none [&_.aui-lexical-placeholder]:pointer-events-none [&_.aui-lexical-placeholder]:absolute [&_.aui-lexical-placeholder]:top-0 [&_.aui-lexical-placeholder]:left-0 [&_.aui-lexical-placeholder]:px-1.75 [&_.aui-lexical-placeholder]:py-1 [&_.aui-lexical-placeholder]:text-muted-foreground/80 [&_.aui-mention-chip]:mx-0.5 [&_.aui-mention-chip]:inline-flex [&_.aui-mention-chip]:translate-y-[-1px] [&_.aui-mention-chip]:items-center [&_.aui-mention-chip]:gap-1 [&_.aui-mention-chip]:rounded-full [&_.aui-mention-chip]:border [&_.aui-mention-chip]:border-primary/20 [&_.aui-mention-chip]:bg-primary/5 [&_.aui-mention-chip]:px-2 [&_.aui-mention-chip]:py-0.5 [&_.aui-mention-chip]:font-medium [&_.aui-mention-chip]:text-[13px] [&_.aui-mention-chip]:text-primary [&_.aui-mention-chip]:leading-none"
-              />
-              <ComposerAction />
-            </div>
-          </ComposerPrimitive.AttachmentDropzone>
-          <ComposerMentionPopover />
-          <SlashCommandPopover />
-        </ComposerPrimitive.Root>
-      </ComposerPrimitive.Unstable_SlashCommandRoot>
-    </ComposerMentionRoot>
-  );
-};
-
-const SlashCommandPopover: FC = () => {
-  return (
-    <ComposerPrimitive.Unstable_TriggerPopoverPopover className="absolute bottom-full left-0 z-50 mb-2 w-64 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-lg">
-      <ComposerPrimitive.Unstable_TriggerPopoverItems>
-        {(items) => (
-          <div className="py-1">
-            {items.map((item, index) => {
-              const IconComp = slashCommandIcons[item.icon ?? ""] ?? SlashIcon;
-              return (
-                <ComposerPrimitive.Unstable_TriggerPopoverItem
-                  key={item.id}
-                  item={item}
-                  index={index}
-                  className="flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-left outline-none transition-colors hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent"
-                >
-                  <span className="flex items-center gap-2 font-medium text-sm">
-                    <IconComp className="size-3.5 text-primary" />
-                    {item.label}
-                  </span>
-                  {item.description && (
-                    <span className="ml-5.5 text-muted-foreground text-xs leading-tight">
-                      {item.description}
-                    </span>
-                  )}
-                </ComposerPrimitive.Unstable_TriggerPopoverItem>
-              );
-            })}
-            {items.length === 0 && (
-              <div className="px-3 py-2 text-muted-foreground text-sm">
-                No matching commands
-              </div>
-            )}
+    <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+      <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
+        <ComposerPrimitive.AttachmentDropzone asChild>
+          <div
+            data-slot="composer-shell"
+            className="flex w-full flex-col gap-2 rounded-(--composer-radius) border bg-background p-(--composer-padding) transition-shadow focus-within:border-ring/75 focus-within:ring-2 focus-within:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50"
+          >
+            <ComposerQuotePreview />
+            <ComposerAttachments />
+            <LexicalComposerInput
+              placeholder="Send a message... (@ to mention, / for commands)"
+              className="aui-composer-input relative max-h-32 min-h-10 w-full resize-none bg-transparent px-1.75 py-1 text-sm outline-none [&_.aui-lexical-input]:min-h-[1lh] [&_.aui-lexical-input]:outline-none [&_.aui-lexical-placeholder]:pointer-events-none [&_.aui-lexical-placeholder]:absolute [&_.aui-lexical-placeholder]:top-0 [&_.aui-lexical-placeholder]:left-0 [&_.aui-lexical-placeholder]:px-1.75 [&_.aui-lexical-placeholder]:py-1 [&_.aui-lexical-placeholder]:text-muted-foreground/80 [&_.aui-mention-chip]:mx-0.5 [&_.aui-mention-chip]:inline-flex [&_.aui-mention-chip]:translate-y-[-1px] [&_.aui-mention-chip]:items-center [&_.aui-mention-chip]:gap-1 [&_.aui-mention-chip]:rounded-full [&_.aui-mention-chip]:border [&_.aui-mention-chip]:border-primary/20 [&_.aui-mention-chip]:bg-primary/5 [&_.aui-mention-chip]:px-2 [&_.aui-mention-chip]:py-0.5 [&_.aui-mention-chip]:font-medium [&_.aui-mention-chip]:text-[13px] [&_.aui-mention-chip]:text-primary [&_.aui-mention-chip]:leading-none"
+            />
+            <ComposerAction />
           </div>
-        )}
-      </ComposerPrimitive.Unstable_TriggerPopoverItems>
-    </ComposerPrimitive.Unstable_TriggerPopoverPopover>
+        </ComposerPrimitive.AttachmentDropzone>
+
+        <ComposerTriggerPopover
+          triggerId="mention"
+          char="@"
+          adapter={mentionAdapter}
+          onSelect={{
+            type: "insertDirective",
+            formatter: unstable_defaultDirectiveFormatter,
+          }}
+          fallbackIcon={WrenchIcon}
+        />
+
+        <ComposerTriggerPopover
+          triggerId="slash"
+          char="/"
+          adapter={slashAdapter}
+          onSelect={{ type: "action", handler: handleSlashCommand }}
+          iconMap={slashCommandIcons}
+          fallbackIcon={SlashIcon}
+          emptyItemsLabel="No matching commands"
+        />
+      </ComposerPrimitive.Root>
+    </ComposerPrimitive.Unstable_TriggerPopoverRoot>
   );
 };
 

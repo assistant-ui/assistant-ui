@@ -17,16 +17,18 @@ User types "@"  →  Trigger detected  →  Adapter provides categories/items
 
 The mention system has three layers:
 
-1. **Trigger detection** — watches the composer text for a trigger character (`@` by default) and extracts the query
+1. **Trigger detection** — the composer input watches for a trigger character (`@` by default) and extracts the query
 2. **Adapter** — provides the categories and items to display in the popover (e.g. registered tools)
 3. **Formatter** — serializes a selected item into directive text (`:type[label]{name=id}`) and parses it back for rendering
+
+Under the hood, mentions are just one kind of [trigger popover](/docs/guides/slash-commands#trigger-popover-architecture). A mention is a trigger whose `onSelect` behavior is `{ type: "insertDirective", formatter }`.
 
 ## Quick Start
 
 The fastest path is the pre-built [Mention UI component](/docs/ui/mention), which wires everything together with a single shadcn component:
 
 ```bash
-npx shadcn@latest add "https://r.assistant-ui.com/composer-mention"
+npx shadcn@latest add "https://r.assistant-ui.com/composer-trigger-popover" "https://r.assistant-ui.com/directive-text"
 ```
 
 See the [Mention UI guide](/docs/ui/mention) for setup steps.
@@ -35,7 +37,7 @@ The rest of this guide covers the underlying concepts and customization points.
 
 ## Mention Adapter
 
-A `Unstable_MentionAdapter` provides the data for the popover. All methods are **synchronous** — use external state management (React Query, SWR, local state) for async data, then expose loaded results through the adapter.
+A `Unstable_MentionAdapter` (an alias of `Unstable_TriggerAdapter`) provides the data for the popover. All methods are **synchronous** — use external state management (React Query, SWR, local state) for async data, then expose loaded results through the adapter.
 
 ```ts
 import type { Unstable_MentionAdapter } from "@assistant-ui/core";
@@ -80,14 +82,51 @@ const myAdapter: Unstable_MentionAdapter = {
 };
 ```
 
-Pass the adapter to `MentionRoot`:
+Pass the adapter to `TriggerPopover`:
 
 ```tsx
-<ComposerPrimitive.Unstable_MentionRoot adapter={myAdapter}>
+import { ComposerPrimitive } from "@assistant-ui/react";
+import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+
+<ComposerPrimitive.Unstable_TriggerPopoverRoot>
   <ComposerPrimitive.Root>
     <ComposerPrimitive.Input placeholder="Type @ to mention..." />
+    <ComposerPrimitive.Unstable_TriggerPopover
+      triggerId="mention"
+      char="@"
+      adapter={myAdapter}
+      onSelect={{
+        type: "insertDirective",
+        formatter: unstable_defaultDirectiveFormatter,
+      }}
+    >
+      <ComposerPrimitive.Unstable_TriggerPopoverCategories>
+        {(categories) =>
+          categories.map((cat) => (
+            <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem
+              key={cat.id}
+              categoryId={cat.id}
+            >
+              {cat.label}
+            </ComposerPrimitive.Unstable_TriggerPopoverCategoryItem>
+          ))
+        }
+      </ComposerPrimitive.Unstable_TriggerPopoverCategories>
+      <ComposerPrimitive.Unstable_TriggerPopoverItems>
+        {(items) =>
+          items.map((item) => (
+            <ComposerPrimitive.Unstable_TriggerPopoverItem
+              key={item.id}
+              item={item}
+            >
+              {item.label}
+            </ComposerPrimitive.Unstable_TriggerPopoverItem>
+          ))
+        }
+      </ComposerPrimitive.Unstable_TriggerPopoverItems>
+    </ComposerPrimitive.Unstable_TriggerPopover>
   </ComposerPrimitive.Root>
-</ComposerPrimitive.Unstable_MentionRoot>
+</ComposerPrimitive.Unstable_TriggerPopoverRoot>
 ```
 
 ### Built-in Tool Adapter
@@ -175,13 +214,18 @@ const slashFormatter: Unstable_DirectiveFormatter = {
 };
 ```
 
-Pass it to both the mention root and the message renderer:
+Pass it to the trigger and the message renderer:
 
 ```tsx
 // Composer
-<ComposerPrimitive.Unstable_MentionRoot adapter={adapter} formatter={slashFormatter}>
+<ComposerPrimitive.Unstable_TriggerPopover
+  triggerId="mention"
+  char="@"
+  adapter={adapter}
+  onSelect={{ type: "insertDirective", formatter: slashFormatter }}
+>
   ...
-</ComposerPrimitive.Unstable_MentionRoot>
+</ComposerPrimitive.Unstable_TriggerPopover>
 
 // User messages
 const SlashDirectiveText = createDirectiveText(slashFormatter);
@@ -206,22 +250,30 @@ With **Lexical**, selected mentions appear as styled inline chips that behave as
 ```tsx
 import { LexicalComposerInput } from "@assistant-ui/react-lexical";
 
-<ComposerPrimitive.Unstable_MentionRoot adapter={adapter}>
+<ComposerPrimitive.Unstable_TriggerPopoverRoot>
   <ComposerPrimitive.Root>
     <LexicalComposerInput placeholder="Type @ to mention..." />
     <ComposerPrimitive.Send />
+    <ComposerPrimitive.Unstable_TriggerPopover
+      triggerId="mention"
+      char="@"
+      adapter={adapter}
+      onSelect={{ type: "insertDirective", formatter }}
+    >
+      ...
+    </ComposerPrimitive.Unstable_TriggerPopover>
   </ComposerPrimitive.Root>
-</ComposerPrimitive.Unstable_MentionRoot>
+</ComposerPrimitive.Unstable_TriggerPopoverRoot>
 ```
 
-`LexicalComposerInput` auto-wires to the mention context — no extra props needed.
+`LexicalComposerInput` automatically discovers every `insertDirective` trigger registered under `TriggerPopoverRoot` and renders their selections as inline chips.
 
 ## Rendering Mentions in Messages
 
 Use `DirectiveText` as the `Text` component for user messages so directives render as inline chips instead of raw syntax:
 
 ```tsx
-import { DirectiveText } from "@/components/assistant-ui/composer-mention";
+import { DirectiveText } from "@/components/assistant-ui/directive-text";
 
 <MessagePrimitive.Parts
   components={{
@@ -235,7 +287,7 @@ For assistant messages, keep using your markdown renderer (e.g. `MarkdownText`) 
 For a custom formatter, use `createDirectiveText`:
 
 ```tsx
-import { createDirectiveText } from "@/components/assistant-ui/composer-mention";
+import { createDirectiveText } from "@/components/assistant-ui/directive-text";
 
 const MyDirectiveText = createDirectiveText(myFormatter);
 ```
@@ -273,130 +325,150 @@ You can use the extracted mentions to:
 
 ## Reading Mention State
 
-Use `unstable_useMentionContext` to programmatically access the mention popover state:
+Use `unstable_useTriggerPopoverScopeContext` inside the `TriggerPopover` to programmatically access the popover state for that trigger:
 
 ```tsx
-import { unstable_useMentionContext } from "@assistant-ui/react";
+import { unstable_useTriggerPopoverScopeContext } from "@assistant-ui/react";
 
-function MyComponent() {
-  const mention = unstable_useMentionContext();
+function MyPopoverContent() {
+  const scope = unstable_useTriggerPopoverScopeContext();
 
-  // mention.open — whether the popover is visible
-  // mention.query — current search text after "@"
-  // mention.categories — filtered category list
-  // mention.items — filtered item list
-  // mention.highlightedIndex — keyboard-navigated index
-  // mention.isSearchMode — true when global search is active
-  // mention.selectItem(item) — programmatically select an item
-  // mention.close() — close the popover
+  // scope.open — whether the popover is visible
+  // scope.query — current search text after the trigger
+  // scope.categories — filtered category list
+  // scope.items — filtered item list
+  // scope.highlightedIndex — keyboard-navigated index
+  // scope.isSearchMode — true when global search is active
+  // scope.selectItem(item) — programmatically select an item
+  // scope.close() — close the popover
+
+  return null;
 }
 ```
 
-This hook must be used within a `ComposerPrimitive.Unstable_MentionRoot`.
+This hook must be used inside a `ComposerPrimitive.Unstable_TriggerPopover`.
+
+To iterate every registered trigger (e.g. from a custom input implementation), use `unstable_useTriggerPopoverTriggers` inside `TriggerPopoverRoot`.
 
 ## Building a Custom Popover
 
-Use the mention primitives to build a fully custom popover:
+Use the trigger popover primitives to build a fully custom popover:
 
 ```tsx
-<ComposerPrimitive.Unstable_MentionRoot adapter={adapter}>
+<ComposerPrimitive.Unstable_TriggerPopoverRoot>
   <ComposerPrimitive.Root>
     <ComposerPrimitive.Input />
 
-    <ComposerPrimitive.Unstable_MentionPopover className="popover">
-      <ComposerPrimitive.Unstable_MentionBack>
+    <ComposerPrimitive.Unstable_TriggerPopover
+      triggerId="mention"
+      char="@"
+      adapter={adapter}
+      onSelect={{ type: "insertDirective", formatter }}
+      className="popover"
+    >
+      <ComposerPrimitive.Unstable_TriggerPopoverBack>
         ← Back
-      </ComposerPrimitive.Unstable_MentionBack>
+      </ComposerPrimitive.Unstable_TriggerPopoverBack>
 
-      <ComposerPrimitive.Unstable_MentionCategories>
+      <ComposerPrimitive.Unstable_TriggerPopoverCategories>
         {(categories) =>
           categories.map((cat) => (
-            <ComposerPrimitive.Unstable_MentionCategoryItem
+            <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem
               key={cat.id}
               categoryId={cat.id}
             >
               {cat.label}
-            </ComposerPrimitive.Unstable_MentionCategoryItem>
+            </ComposerPrimitive.Unstable_TriggerPopoverCategoryItem>
           ))
         }
-      </ComposerPrimitive.Unstable_MentionCategories>
+      </ComposerPrimitive.Unstable_TriggerPopoverCategories>
 
-      <ComposerPrimitive.Unstable_MentionItems>
+      <ComposerPrimitive.Unstable_TriggerPopoverItems>
         {(items) =>
           items.map((item) => (
-            <ComposerPrimitive.Unstable_MentionItem
+            <ComposerPrimitive.Unstable_TriggerPopoverItem
               key={item.id}
               item={item}
             >
               {item.label}
-            </ComposerPrimitive.Unstable_MentionItem>
+            </ComposerPrimitive.Unstable_TriggerPopoverItem>
           ))
         }
-      </ComposerPrimitive.Unstable_MentionItems>
-    </ComposerPrimitive.Unstable_MentionPopover>
+      </ComposerPrimitive.Unstable_TriggerPopoverItems>
+    </ComposerPrimitive.Unstable_TriggerPopover>
 
     <ComposerPrimitive.Send />
   </ComposerPrimitive.Root>
-</ComposerPrimitive.Unstable_MentionRoot>
+</ComposerPrimitive.Unstable_TriggerPopoverRoot>
 ```
 
 ### Primitives Reference
 
 | Primitive | Description |
 | --- | --- |
-| `Unstable_MentionRoot` | Provider — wraps the composer with trigger detection, keyboard navigation, and popover state |
-| `Unstable_MentionPopover` | Container — only renders when a trigger is active (`role="listbox"`) |
-| `Unstable_MentionCategories` | Render-function for the top-level category list |
-| `Unstable_MentionCategoryItem` | Button that drills into a category (`role="option"`, auto `data-highlighted`) |
-| `Unstable_MentionItems` | Render-function for items within the active category or search results |
-| `Unstable_MentionItem` | Button that inserts a mention (`role="option"`, auto `data-highlighted`) |
-| `Unstable_MentionBack` | Button that navigates back from items to categories |
+| `Unstable_TriggerPopoverRoot` | Root provider — groups one or more triggers, manages plugin registry |
+| `Unstable_TriggerPopover` | Declares a trigger (id, char, adapter, onSelect) and renders the popover container |
+| `Unstable_TriggerPopoverCategories` | Render-function for the top-level category list |
+| `Unstable_TriggerPopoverCategoryItem` | Button that drills into a category (`role="option"`, auto `data-highlighted`) |
+| `Unstable_TriggerPopoverItems` | Render-function for items within the active category or search results |
+| `Unstable_TriggerPopoverItem` | Button that selects an item (`role="option"`, auto `data-highlighted`) |
+| `Unstable_TriggerPopoverBack` | Button that navigates back from items to categories |
 
 See the [Composer API reference](/docs/api-reference/primitives/composer) for full prop details.
 
 ## Combining with Slash Commands
 
-Mentions and [slash commands](/docs/guides/slash-commands) can coexist on the same composer. Both are built on the same [trigger popover architecture](/docs/guides/slash-commands#trigger-popover-architecture) — nest both roots and they work independently:
+Mentions and [slash commands](/docs/guides/slash-commands) coexist on the same composer — they're both just triggers on the shared `TriggerPopoverRoot`:
 
 ```tsx
-<ComposerPrimitive.Unstable_MentionRoot adapter={mentionAdapter}>
-  <ComposerPrimitive.Unstable_SlashCommandRoot adapter={slashAdapter}>
-    <ComposerPrimitive.Root>
-      <ComposerPrimitive.Input placeholder="Type @ to mention, / for commands..." />
-      <ComposerPrimitive.Send />
+<ComposerPrimitive.Unstable_TriggerPopoverRoot>
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Input placeholder="Type @ to mention, / for commands..." />
+    <ComposerPrimitive.Send />
 
-      {/* Mention popover (shows on @) */}
-      <ComposerPrimitive.Unstable_MentionPopover>
-        <ComposerPrimitive.Unstable_MentionCategories>
-          {(categories) => categories.map((cat) => (
-            <ComposerPrimitive.Unstable_MentionCategoryItem key={cat.id} categoryId={cat.id}>
-              {cat.label}
-            </ComposerPrimitive.Unstable_MentionCategoryItem>
-          ))}
-        </ComposerPrimitive.Unstable_MentionCategories>
-        <ComposerPrimitive.Unstable_MentionItems>
-          {(items) => items.map((item) => (
-            <ComposerPrimitive.Unstable_MentionItem key={item.id} item={item}>
-              {item.label}
-            </ComposerPrimitive.Unstable_MentionItem>
-          ))}
-        </ComposerPrimitive.Unstable_MentionItems>
-      </ComposerPrimitive.Unstable_MentionPopover>
+    {/* Mention popover (shows on @) */}
+    <ComposerPrimitive.Unstable_TriggerPopover
+      triggerId="mention"
+      char="@"
+      adapter={mentionAdapter}
+      onSelect={{ type: "insertDirective", formatter }}
+    >
+      <ComposerPrimitive.Unstable_TriggerPopoverCategories>
+        {(categories) => categories.map((cat) => (
+          <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem key={cat.id} categoryId={cat.id}>
+            {cat.label}
+          </ComposerPrimitive.Unstable_TriggerPopoverCategoryItem>
+        ))}
+      </ComposerPrimitive.Unstable_TriggerPopoverCategories>
+      <ComposerPrimitive.Unstable_TriggerPopoverItems>
+        {(items) => items.map((item) => (
+          <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item}>
+            {item.label}
+          </ComposerPrimitive.Unstable_TriggerPopoverItem>
+        ))}
+      </ComposerPrimitive.Unstable_TriggerPopoverItems>
+    </ComposerPrimitive.Unstable_TriggerPopover>
 
-      {/* Slash command popover (shows on /) */}
-      <ComposerPrimitive.Unstable_TriggerPopoverPopover>
-        <ComposerPrimitive.Unstable_TriggerPopoverItems>
-          {(items) => items.map((item, index) => (
-            <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item} index={index}>
-              {item.label}
-            </ComposerPrimitive.Unstable_TriggerPopoverItem>
-          ))}
-        </ComposerPrimitive.Unstable_TriggerPopoverItems>
-      </ComposerPrimitive.Unstable_TriggerPopoverPopover>
-    </ComposerPrimitive.Root>
-  </ComposerPrimitive.Unstable_SlashCommandRoot>
-</ComposerPrimitive.Unstable_MentionRoot>
+    {/* Slash command popover (shows on /) */}
+    <ComposerPrimitive.Unstable_TriggerPopover
+      triggerId="slash"
+      char="/"
+      adapter={slashAdapter}
+      onSelect={{ type: "action", handler: (item) => item.execute?.() }}
+    >
+      <ComposerPrimitive.Unstable_TriggerPopoverItems>
+        {(items) => items.map((item, index) => (
+          <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item} index={index}>
+            {item.label}
+          </ComposerPrimitive.Unstable_TriggerPopoverItem>
+        ))}
+      </ComposerPrimitive.Unstable_TriggerPopoverItems>
+    </ComposerPrimitive.Unstable_TriggerPopover>
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.Unstable_TriggerPopoverRoot>
 ```
+
+Each `TriggerPopover` declares its own scope — its popover UI reads state only from that declaration, so `@` and `/` never collide.
 
 ## Related
 
