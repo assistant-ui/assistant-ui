@@ -16,6 +16,7 @@
   "type": "module",
   "exports": {
     ".": {
+      "style": "./src/index.css",
       "default": "./src/index.css"
     }
   },

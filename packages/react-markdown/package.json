@@ -20,6 +20,7 @@
       "default": "./dist/index.js"
     },
     "./styles/dot.css": {
+      "style": "./styles/dot.css",
       "default": "./styles/dot.css"
     }
   },
