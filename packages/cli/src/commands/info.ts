@@ -58,10 +58,6 @@ const SHOULD_NOT_DIRECT_INSTALL = new Set([
   "@assistant-ui/tap",
 ]);
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 function resolvePackageJson(pkg: string, cwd: string): string | null {
   let dir = cwd;
   const root = path.parse(dir).root;
@@ -224,10 +220,6 @@ function satisfiesRange(version: string, range: string): boolean {
   return versionMajor >= rangeMajor;
 }
 
-// ---------------------------------------------------------------------------
-// Data collection
-// ---------------------------------------------------------------------------
-
 interface PackageInfo {
   name: string;
   version: string;
@@ -329,10 +321,6 @@ async function collectInfo(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Rendering
-// ---------------------------------------------------------------------------
-
 function formatSection(label: string, items: PackageInfo[]): string[] {
   if (items.length === 0) return [];
   const lines: string[] = [];
@@ -410,10 +398,6 @@ function renderColored(data: InfoData): string[] {
 
   return lines;
 }
-
-// ---------------------------------------------------------------------------
-// Command
-// ---------------------------------------------------------------------------
 
 export const info = new Command()
   .name("info")
