@@ -28,8 +28,6 @@ export type A2AClientOptions = {
   extensions?: string[] | undefined;
 };
 
-// === Structured A2A Error ===
-
 export class A2AError extends Error {
   code: number;
   status: string;
@@ -44,8 +42,7 @@ export class A2AError extends Error {
   }
 }
 
-// === Key normalization (incoming: snake_case → camelCase + enum normalization) ===
-
+// Incoming key normalization: snake_case → camelCase, plus ProtoJSON enum normalization.
 function toCamelCase(key: string): string {
   return key.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 }
@@ -102,8 +99,7 @@ function normalizeKeys(obj: unknown, opaque = false): unknown {
   return obj;
 }
 
-// === Outgoing enum conversion (v1.0 ProtoJSON format) ===
-
+// Outgoing enum conversion (v1.0 ProtoJSON format)
 function toWireRole(role: A2ARole): string {
   if (role === "user") return "ROLE_USER";
   if (role === "agent") return "ROLE_AGENT";
@@ -118,8 +114,6 @@ function toWireMessage(msg: A2AMessage): unknown {
   const { parts, ...rest } = msg;
   return { ...rest, role: toWireRole(msg.role), content: parts };
 }
-
-// === Stream response discrimination ===
 
 function discriminateStreamResponse(
   data: Record<string, unknown>,
@@ -158,8 +152,6 @@ function discriminateStreamResponse(
 function signalInit(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
 }
-
-// === A2A Client ===
 
 export class A2AClient {
   private baseUrl: string;

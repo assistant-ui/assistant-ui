@@ -4,10 +4,8 @@
 
 export const A2A_PROTOCOL_VERSION = "1.0";
 
-// === Roles ===
 export type A2ARole = "unspecified" | "user" | "agent";
 
-// === Part (content unit) ===
 export type A2APart = {
   text?: string | undefined;
   raw?: string | undefined; // base64 encoded bytes
@@ -19,7 +17,6 @@ export type A2APart = {
   mediaType?: string | undefined; // MIME type
 };
 
-// === Message ===
 export type A2AMessage = {
   messageId: string;
   contextId?: string | undefined;
@@ -31,7 +28,6 @@ export type A2AMessage = {
   referenceTaskIds?: string[] | undefined;
 };
 
-// === Task State ===
 export type A2ATaskState =
   | "unspecified"
   | "submitted"
@@ -43,14 +39,12 @@ export type A2ATaskState =
   | "rejected"
   | "auth_required";
 
-// === Task Status ===
 export type A2ATaskStatus = {
   state: A2ATaskState;
   message?: A2AMessage | undefined;
   timestamp?: string | undefined; // ISO 8601
 };
 
-// === Artifact ===
 export type A2AArtifact = {
   artifactId: string;
   name?: string | undefined;
@@ -60,7 +54,6 @@ export type A2AArtifact = {
   extensions?: string[] | undefined;
 };
 
-// === Task ===
 export type A2ATask = {
   id: string;
   contextId?: string | undefined;
@@ -70,7 +63,7 @@ export type A2ATask = {
   metadata?: Record<string, unknown> | undefined;
 };
 
-// === Streaming Events ===
+// Streaming events
 export type A2ATaskStatusUpdateEvent = {
   taskId: string;
   contextId: string; // REQUIRED per proto
@@ -93,13 +86,11 @@ export type A2AStreamEvent =
   | { type: "statusUpdate"; event: A2ATaskStatusUpdateEvent }
   | { type: "artifactUpdate"; event: A2ATaskArtifactUpdateEvent };
 
-// === Authentication ===
 export type A2AAuthenticationInfo = {
   scheme: string;
   credentials?: string | undefined;
 };
 
-// === Push Notification Config ===
 export type A2ATaskPushNotificationConfig = {
   tenant?: string | undefined;
   id?: string | undefined;
@@ -114,7 +105,6 @@ export type A2AListTaskPushNotificationConfigsResponse = {
   nextPageToken?: string | undefined;
 };
 
-// === Request/Response Types ===
 export type A2ASendMessageConfiguration = {
   acceptedOutputModes?: string[] | undefined;
   taskPushNotificationConfig?: A2ATaskPushNotificationConfig | undefined;
@@ -139,7 +129,7 @@ export type A2AListTasksResponse = {
   totalSize: number;
 };
 
-// === Structured Error (google.rpc.Status) ===
+// Structured error (google.rpc.Status)
 export type A2AErrorInfo = {
   code: number;
   status: string;
@@ -147,7 +137,6 @@ export type A2AErrorInfo = {
   details?: unknown[] | undefined;
 };
 
-// === Security Schemes ===
 export type A2AApiKeySecurityScheme = {
   description?: string | undefined;
   location: string; // "query" | "header" | "cookie"
@@ -232,14 +221,13 @@ export type A2ASecurityRequirement = {
   schemes: Record<string, { list: string[] }>;
 };
 
-// === Agent Card Signature (JWS) ===
+// Agent card signature (JWS)
 export type A2AAgentCardSignature = {
   protected: string; // base64url-encoded JWS header
   signature: string; // base64url-encoded signature
   header?: Record<string, unknown> | undefined;
 };
 
-// === Agent Card ===
 export type A2AAgentSkill = {
   id: string;
   name: string;
