@@ -102,34 +102,35 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
     const text = useAuiState((s) => s.composer.text);
     const popoverId = useId();
 
-    // Stable wrapper: identity only changes when `onSelect.type` changes,
-    // so inner callbacks can cast `onSelectRef.current` to the matching
-    // variant without a runtime guard.
+    // Inner guards no-op if the wrapper outlives its variant by one render.
     const onSelectRef = useRef(onSelect);
     onSelectRef.current = onSelect;
     const stableOnSelect = useMemo<OnSelectBehavior>(() => {
       if (onSelect.type === "insertDirective") {
-        const getFormatter = () =>
-          (
-            onSelectRef.current as OnSelectBehavior & {
-              type: "insertDirective";
-            }
-          ).formatter;
         return {
           type: "insertDirective",
           formatter: {
-            serialize: (item: Unstable_TriggerItem) =>
-              getFormatter().serialize(item),
-            parse: (input: string) => getFormatter().parse(input),
+            serialize: (item: Unstable_TriggerItem) => {
+              const cur = onSelectRef.current;
+              return cur.type === "insertDirective"
+                ? cur.formatter.serialize(item)
+                : "";
+            },
+            parse: (input: string) => {
+              const cur = onSelectRef.current;
+              return cur.type === "insertDirective"
+                ? cur.formatter.parse(input)
+                : [{ kind: "text", text: input }];
+            },
           },
         };
       }
       return {
         type: "action",
-        handler: (item: Unstable_TriggerItem) =>
-          (
-            onSelectRef.current as OnSelectBehavior & { type: "action" }
-          ).handler(item),
+        handler: (item: Unstable_TriggerItem) => {
+          const cur = onSelectRef.current;
+          if (cur.type === "action") cur.handler(item);
+        },
       };
     }, [onSelect.type]);
 
