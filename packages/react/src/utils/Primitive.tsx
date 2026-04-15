@@ -89,6 +89,12 @@ function withRenderProp<T extends ElementType>(Component: T) {
     },
   );
 
+  const componentName =
+    typeof Component === "string"
+      ? Component
+      : (Component.displayName ?? Component.name ?? "Component");
+  Wrapped.displayName = componentName;
+
   return Wrapped as ForwardRefExoticComponent<
     WithRenderPropProps<T> & RefAttributes<ComponentRef<T>>
   >;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Primitive } from "./Primitive";
+import { Primitive, withRenderProp } from "./Primitive";
 
 const ALL_NODES = [
   "a",
@@ -70,6 +70,12 @@ describe("Primitive", () => {
   });
 
   describe("render prop edge cases", () => {
+    it("preserves a useful displayName on wrapped components", () => {
+      const Wrapped = withRenderProp(Primitive.div);
+
+      expect(Wrapped.displayName).toBe("Primitive.div");
+    });
+
     it("uses render element's own children as fallback", () => {
       const html = renderToStaticMarkup(
         <Primitive.span render={<em>Fallback</em>} />,
