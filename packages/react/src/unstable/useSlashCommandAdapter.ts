@@ -1,84 +1,112 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import type {
-  Unstable_SlashCommandAdapter,
-  Unstable_SlashCommandItem,
-  Unstable_TriggerCategory,
+  Unstable_TriggerAdapter,
+  Unstable_TriggerItem,
 } from "@assistant-ui/core";
+import type { Unstable_IconComponent } from "./useMentionAdapter";
 
-export type Unstable_SlashCommandDefinition = {
-  /** Unique command name (e.g. "summarize"). */
-  readonly name: string;
-  /** Display label (e.g. "/summarize"). */
+export type Unstable_SlashCommand = {
+  readonly id: string;
   readonly label?: string | undefined;
-  /** Short description shown in the popover. */
   readonly description?: string | undefined;
-  /** Icon identifier. */
   readonly icon?: string | undefined;
-  /** Action to execute when the command is selected. */
-  readonly execute?: (() => void) | undefined;
+  readonly execute: () => void;
 };
 
 export type Unstable_UseSlashCommandAdapterOptions = {
-  /** List of available slash commands. */
-  commands: readonly Unstable_SlashCommandDefinition[];
+  readonly commands: readonly Unstable_SlashCommand[];
+  /** Strip the trigger text from the composer after executing. @default false */
+  readonly removeOnExecute?: boolean | undefined;
+  /** Maps `metadata.icon` / `category.id` string keys to React components. */
+  readonly iconMap?: Record<string, Unstable_IconComponent>;
+  /** Fallback icon when no entry in `iconMap` matches. */
+  readonly fallbackIcon?: Unstable_IconComponent;
+};
+
+export type Unstable_SlashCommandAction = {
+  readonly onExecute: (item: Unstable_TriggerItem) => void;
+  readonly removeOnExecute?: boolean | undefined;
 };
 
 /**
- * @deprecated This API is still under active development and might change without notice.
+ * @deprecated Under active development and may change without notice.
  *
- * Creates a SlashCommandAdapter from a list of command definitions.
+ * Bundles slash command definitions (with inline `execute` callbacks) into
+ * `{adapter, action}` that plug directly into `ComposerTriggerPopover`.
+ * `execute` stays in the hook closure and is never attached to the returned
+ * `TriggerItem`, keeping items serializable.
  *
  * @example
  * ```tsx
- * const slashAdapter = unstable_useSlashCommandAdapter({
+ * const slash = unstable_useSlashCommandAdapter({
  *   commands: [
- *     { name: "summarize", description: "Summarize the conversation", execute: () => {} },
- *     { name: "translate", description: "Translate text", execute: () => {} },
+ *     { id: "summarize", execute: () => runSummarize(), icon: "FileText" },
+ *     { id: "translate", execute: () => runTranslate(), icon: "Languages" },
  *   ],
  * });
+ *
+ * <ComposerTriggerPopover char="/" {...slash} />
  * ```
  */
 export function unstable_useSlashCommandAdapter(
   options: Unstable_UseSlashCommandAdapterOptions,
-): Unstable_SlashCommandAdapter {
-  const { commands } = options;
+): {
+  adapter: Unstable_TriggerAdapter;
+  action: Unstable_SlashCommandAction;
+  iconMap?: Record<string, Unstable_IconComponent>;
+  fallbackIcon?: Unstable_IconComponent;
+} {
+  const { commands, removeOnExecute } = options;
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  return useMemo<Unstable_SlashCommandAdapter>(() => {
-    // Build items lazily at call time so execute callbacks are always fresh
-    const getItems = (): Unstable_SlashCommandItem[] =>
-      commands.map((cmd) => ({
-        id: cmd.name,
-        type: "command",
-        label: cmd.label ?? `/${cmd.name}`,
-        description: cmd.description,
-        icon: cmd.icon,
-        execute: cmd.execute,
-      }));
+  // biome-ignore lint/correctness/useHookAtTopLevel: `unstable_` prefix not recognized as hook
+  const commandsRef = useRef(commands);
+  commandsRef.current = commands;
 
-    return {
-      // No categories — slash commands show items directly via search mode
-      categories(): Unstable_TriggerCategory[] {
-        return [];
-      },
-
-      categoryItems(): Unstable_SlashCommandItem[] {
-        return [];
-      },
-
-      search(query: string): Unstable_SlashCommandItem[] {
-        const items = getItems();
-        if (!query) return items;
+  // biome-ignore lint/correctness/useHookAtTopLevel: `unstable_` prefix not recognized as hook
+  return useMemo(() => {
+    const adapter: Unstable_TriggerAdapter = {
+      categories: () => [],
+      categoryItems: () => [],
+      search: (query: string) => {
         const lower = query.toLowerCase();
-        return items.filter(
-          (item) =>
-            item.id.toLowerCase().includes(lower) ||
-            item.label.toLowerCase().includes(lower) ||
-            item.description?.toLowerCase().includes(lower),
-        );
+        return commandsRef.current
+          .filter((c) => matchesQuery(c, lower))
+          .map(toItem);
       },
     };
-  }, [commands]);
+
+    const action: Unstable_SlashCommandAction = {
+      onExecute: (item) => {
+        commandsRef.current.find((c) => c.id === item.id)?.execute();
+      },
+      ...(removeOnExecute !== undefined ? { removeOnExecute } : {}),
+    };
+
+    return {
+      adapter,
+      action,
+      ...(options.iconMap ? { iconMap: options.iconMap } : {}),
+      ...(options.fallbackIcon ? { fallbackIcon: options.fallbackIcon } : {}),
+    };
+  }, [removeOnExecute, options.iconMap, options.fallbackIcon]);
+}
+
+function toItem(cmd: Unstable_SlashCommand): Unstable_TriggerItem {
+  return {
+    id: cmd.id,
+    type: "command",
+    label: cmd.label ?? `/${cmd.id}`,
+    ...(cmd.description !== undefined ? { description: cmd.description } : {}),
+    ...(cmd.icon !== undefined ? { metadata: { icon: cmd.icon } } : {}),
+  };
+}
+
+function matchesQuery(cmd: Unstable_SlashCommand, lower: string): boolean {
+  if (!lower) return true;
+  if (cmd.id.toLowerCase().includes(lower)) return true;
+  if (cmd.label?.toLowerCase().includes(lower)) return true;
+  if (cmd.description?.toLowerCase().includes(lower)) return true;
+  return false;
 }
