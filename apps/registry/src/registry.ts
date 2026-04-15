@@ -528,4 +528,32 @@ export const registry: RegistryItem[] = [
     dependencies: ["heat-graph"],
     registryDependencies: [],
   },
+  {
+    name: "composer-trigger-popover",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/composer-trigger-popover.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/composer-trigger-popover.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+    registryDependencies: [],
+  },
+  {
+    name: "directive-text",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/directive-text.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/directive-text.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "@assistant-ui/core", "lucide-react"],
+    registryDependencies: ["https://r.assistant-ui.com/badge.json"],
+  },
 ];
