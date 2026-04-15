@@ -1,10 +1,7 @@
 "use client";
 
 import { memo, type ComponentPropsWithoutRef, type FC } from "react";
-import {
-  ComposerPrimitive,
-  unstable_useTriggerPopoverScopeContext,
-} from "@assistant-ui/react";
+import { ComposerPrimitive } from "@assistant-ui/react";
 import { ChevronLeftIcon, ChevronRightIcon, SparklesIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -91,8 +88,6 @@ const Items: FC<ItemsProps> = ({
   backLabel,
   emptyLabel,
 }) => {
-  const { isSearchMode } = unstable_useTriggerPopoverScopeContext();
-
   return (
     <ComposerPrimitive.Unstable_TriggerPopoverItems>
       {(items) => (
@@ -100,12 +95,10 @@ const Items: FC<ItemsProps> = ({
           data-slot="composer-trigger-popover-items"
           className="flex flex-col"
         >
-          {!isSearchMode && (
-            <ComposerPrimitive.Unstable_TriggerPopoverBack className="flex cursor-pointer items-center gap-1.5 border-b px-3 py-2 text-muted-foreground text-xs uppercase tracking-wide transition-colors hover:bg-accent">
-              <ChevronLeftIcon className="size-3.5" />
-              {backLabel}
-            </ComposerPrimitive.Unstable_TriggerPopoverBack>
-          )}
+          <ComposerPrimitive.Unstable_TriggerPopoverBack className="flex cursor-pointer items-center gap-1.5 border-b px-3 py-2 text-muted-foreground text-xs uppercase tracking-wide transition-colors hover:bg-accent">
+            <ChevronLeftIcon className="size-3.5" />
+            {backLabel}
+          </ComposerPrimitive.Unstable_TriggerPopoverBack>
 
           <div className="py-1">
             {items.map((item, index) => {
