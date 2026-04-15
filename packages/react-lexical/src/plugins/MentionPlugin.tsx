@@ -22,7 +22,7 @@ import type {
   Unstable_TriggerItem,
 } from "@assistant-ui/core";
 import {
-  unstable_useTriggerPopoverTriggersOptional,
+  unstable_useTriggerPopoverRootContextOptional,
   type Unstable_RegisteredTrigger,
 } from "@assistant-ui/react";
 
@@ -95,14 +95,12 @@ type ActiveMatch = {
 
 export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
   const [editor] = useLexicalComposerContext();
-  const triggers = unstable_useTriggerPopoverTriggersOptional();
+  const root = unstable_useTriggerPopoverRootContextOptional();
 
-  // At most one trigger matches at a time (detection is caret-scoped).
   const matchRef = useRef<ActiveMatch | null>(null);
-
-  // Ref-mirror so command handlers below see the latest map without re-subscribing.
-  const triggersRef = useRef(triggers);
-  triggersRef.current = triggers;
+  const triggersRef = useRef<ReadonlyMap<string, Unstable_RegisteredTrigger>>(
+    root?.getTriggers() ?? new Map(),
+  );
 
   // -----------------------------------------------------------------------
   // Watch text changes: update trigger match for whichever `insertDirective`
@@ -248,14 +246,38 @@ export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
   // -----------------------------------------------------------------------
 
   useEffect(() => {
-    const unsubs: Array<() => void> = [];
-    for (const [id, trigger] of triggers) {
-      if (trigger.onSelect.type !== "insertDirective") continue;
-      unsubs.push(wireTrigger(id, trigger, matchRef, insertMention));
-    }
-    if (unsubs.length === 0) return undefined;
-    return mergeRegister(...unsubs);
-  }, [triggers, insertMention]);
+    if (!root) return undefined;
+    const unsubByTrigger = new Map<string, () => void>();
+
+    const wire = (trigger: Unstable_RegisteredTrigger) => {
+      if (trigger.onSelect.type !== "insertDirective") return;
+      unsubByTrigger.set(
+        trigger.id,
+        wireTrigger(trigger.id, trigger, matchRef, insertMention),
+      );
+    };
+
+    for (const trigger of root.getTriggers().values()) wire(trigger);
+    triggersRef.current = root.getTriggers();
+
+    const unsubLifecycle = root.subscribeLifecycle({
+      added: (trigger) => {
+        triggersRef.current = root.getTriggers();
+        wire(trigger);
+      },
+      removed: (id) => {
+        triggersRef.current = root.getTriggers();
+        unsubByTrigger.get(id)?.();
+        unsubByTrigger.delete(id);
+      },
+    });
+
+    return () => {
+      unsubLifecycle();
+      for (const u of unsubByTrigger.values()) u();
+      unsubByTrigger.clear();
+    };
+  }, [root, insertMention]);
 
   return null;
 }
