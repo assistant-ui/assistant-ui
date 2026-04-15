@@ -10,7 +10,7 @@ function Chip({ children }: { children: React.ReactNode }) {
       variant="info"
       size="sm"
       data-slot="directive-text-chip"
-      className="items-baseline [&_svg]:self-center"
+      className="items-baseline text-[13px] leading-none [&_svg]:self-center"
     >
       <WrenchIcon />
       {children}

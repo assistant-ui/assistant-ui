@@ -44,10 +44,10 @@ export function createDirectiveText(
               data-slot="directive-text-chip"
               data-mention-type={seg.type}
               data-mention-id={seg.id}
-              className="aui-mention-chip items-baseline [&_svg]:self-center"
+              className="aui-mention-chip items-baseline text-[13px] leading-none [&_svg]:self-center"
             >
               {/* Customize icon per type in your own copy (shadcn pattern) */}
-              <WrenchIcon />
+              {seg.type !== "command" && <WrenchIcon />}
               {seg.label}
             </Badge>
           ),
