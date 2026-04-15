@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { TextNode } from "lexical";
-import { findTriggerMatch } from "./MentionPlugin";
+import { findTriggerMatch } from "./DirectivePlugin";
 
-// Minimal mock that satisfies findTriggerMatch's usage: node.getTextContent()
 function mockTextNode(text: string): TextNode {
   return { getTextContent: () => text } as unknown as TextNode;
 }
@@ -47,7 +46,6 @@ describe("findTriggerMatch", () => {
 
   it("stops at whitespace before cursor", () => {
     const node = mockTextNode("@foo bar");
-    // Space at index 4 terminates the search
     expect(findTriggerMatch("@", node, 8)).toBeNull();
   });
 
@@ -91,13 +89,34 @@ describe("findTriggerMatch", () => {
 
   it("only considers text up to anchorOffset", () => {
     const node = mockTextNode("@first @second");
-    // Cursor at position 6 — only "@first" is considered
     const result = findTriggerMatch("@", node, 6);
     expect(result).toEqual({
       query: "first",
       node,
       startOffset: 0,
       endOffset: 6,
+    });
+  });
+
+  it("treats full-width space (U+3000) as a boundary", () => {
+    const node = mockTextNode("hello\u3000@foo");
+    const result = findTriggerMatch("@", node, 10);
+    expect(result).toEqual({
+      query: "foo",
+      node,
+      startOffset: 6,
+      endOffset: 10,
+    });
+  });
+
+  it("treats non-breaking space (U+00A0) as a boundary", () => {
+    const node = mockTextNode("hello\u00a0@foo");
+    const result = findTriggerMatch("@", node, 10);
+    expect(result).toEqual({
+      query: "foo",
+      node,
+      startOffset: 6,
+      endOffset: 10,
     });
   });
 });

@@ -14,9 +14,9 @@ import {
 } from "lexical";
 import { mergeRegister } from "@lexical/utils";
 import {
-  $createMentionNodeWithFormatter,
-  $isMentionNode,
-} from "../nodes/MentionNode";
+  $createDirectiveNodeWithFormatter,
+  $isDirectiveNode,
+} from "../nodes/DirectiveNode";
 import type {
   Unstable_DirectiveFormatter,
   Unstable_TriggerItem,
@@ -26,23 +26,19 @@ import {
   type Unstable_RegisteredTrigger,
 } from "@assistant-ui/react";
 
-export type MentionPluginProps = {
-  /** Callback fired after a mention is inserted. */
-  onMentionSelect?: ((item: Unstable_TriggerItem) => void) | undefined;
+export type DirectivePluginProps = {
+  onDirectiveSelect?: ((item: Unstable_TriggerItem) => void) | undefined;
 };
 
 type TriggerMatch = {
-  /** The text after the trigger character (the query). */
   query: string;
-  /** The TextNode containing the trigger. */
   node: TextNode;
-  /** Start offset of the trigger character within the TextNode. */
   startOffset: number;
-  /** End offset (after query) within the TextNode. */
   endOffset: number;
 };
 
-/** @internal Exported for testing. */
+const WHITESPACE_RE = /\s/u;
+
 export function findTriggerMatch(
   trigger: string,
   node: TextNode,
@@ -53,15 +49,12 @@ export function findTriggerMatch(
 
   for (let i = textUpToCursor.length - 1; i >= 0; i--) {
     const char = textUpToCursor[i]!;
-    if (char === " " || char === "\n") {
-      return null;
-    }
-    if (
-      textUpToCursor.startsWith(trigger, i) &&
-      (i === 0 ||
-        textUpToCursor[i - 1] === " " ||
-        textUpToCursor[i - 1] === "\n")
-    ) {
+
+    if (WHITESPACE_RE.test(char)) return null;
+
+    if (textUpToCursor.startsWith(trigger, i)) {
+      if (i > 0 && !WHITESPACE_RE.test(textUpToCursor[i - 1]!)) continue;
+
       return {
         query: textUpToCursor.slice(i + trigger.length),
         node,
@@ -74,15 +67,15 @@ export function findTriggerMatch(
   return null;
 }
 
-// MentionPlugin — iterates all `insertDirective` triggers from the
-// TriggerPopoverRoot and wires each to Lexical MentionNode insertion.
 type ActiveMatch = {
-  readonly triggerId: string;
+  readonly char: string;
   readonly formatter: Unstable_DirectiveFormatter;
   readonly match: TriggerMatch;
 };
 
-export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
+export function DirectivePlugin({
+  onDirectiveSelect,
+}: DirectivePluginProps = {}) {
   const [editor] = useLexicalComposerContext();
   const root = unstable_useTriggerPopoverRootContextOptional();
 
@@ -114,8 +107,9 @@ export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
           }
 
           matchRef.current = null;
-          for (const [id, trigger] of triggersRef.current) {
-            if (trigger.onSelect.type !== "insertDirective") continue;
+          for (const trigger of triggersRef.current.values()) {
+            if (!trigger.behavior || trigger.behavior.kind !== "directive")
+              continue;
             const match = findTriggerMatch(
               trigger.char,
               anchorNode,
@@ -123,8 +117,8 @@ export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
             );
             if (match) {
               matchRef.current = {
-                triggerId: id,
-                formatter: trigger.onSelect.formatter,
+                char: trigger.char,
+                formatter: trigger.behavior.formatter,
                 match,
               };
               break;
@@ -142,7 +136,7 @@ export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
             const nodes = selection.getNodes();
             let handled = false;
             for (const node of nodes) {
-              if ($isMentionNode(node)) {
+              if ($isDirectiveNode(node)) {
                 node.remove();
                 handled = true;
               }
@@ -159,7 +153,7 @@ export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
 
           if ($isTextNode(node) && anchor.offset === 0) {
             const prev = node.getPreviousSibling();
-            if ($isMentionNode(prev)) {
+            if ($isDirectiveNode(prev)) {
               prev.remove();
               return true;
             }
@@ -170,7 +164,7 @@ export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
               anchor.offset > 0
                 ? node.getChildAtIndex(anchor.offset - 1)
                 : null;
-            if ($isMentionNode(childBefore)) {
+            if ($isDirectiveNode(childBefore)) {
               childBefore.remove();
               return true;
             }
@@ -183,41 +177,44 @@ export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
     );
   }, [editor]);
 
-  const insertMention = useCallback(
+  const insertDirective = useCallback(
     (item: Unstable_TriggerItem, active: ActiveMatch) => {
       const { node, startOffset, endOffset } = active.match;
 
-      editor.update(() => {
-        if (!node.isAttached()) return;
+      editor.update(
+        () => {
+          if (!node.isAttached()) return;
 
-        const mentionNode = $createMentionNodeWithFormatter(
-          item,
-          active.formatter,
-        );
+          const directiveNode = $createDirectiveNodeWithFormatter(
+            item,
+            active.formatter,
+          );
 
-        if (startOffset === 0 && endOffset === node.getTextContentSize()) {
-          node.replace(mentionNode);
-        } else if (startOffset === 0) {
-          const [leftNode, rightNode] = node.splitText(endOffset);
-          if (rightNode) {
-            rightNode.insertBefore(mentionNode);
+          if (startOffset === 0 && endOffset === node.getTextContentSize()) {
+            node.replace(directiveNode);
+          } else if (startOffset === 0) {
+            const [leftNode, rightNode] = node.splitText(endOffset);
+            if (rightNode) {
+              rightNode.insertBefore(directiveNode);
+            }
+            leftNode?.remove();
+          } else {
+            const parts = node.splitText(startOffset, endOffset);
+            const targetNode = parts[1];
+            if (targetNode) {
+              targetNode.replace(directiveNode);
+            }
           }
-          leftNode?.remove();
-        } else {
-          const parts = node.splitText(startOffset, endOffset);
-          const targetNode = parts[1];
-          if (targetNode) {
-            targetNode.replace(mentionNode);
-          }
-        }
 
-        mentionNode.selectNext();
-      });
+          directiveNode.selectNext();
+        },
+        { tag: "history-merge" },
+      );
 
       matchRef.current = null;
-      onMentionSelect?.(item);
+      onDirectiveSelect?.(item);
     },
-    [editor, onMentionSelect],
+    [editor, onDirectiveSelect],
   );
 
   useEffect(() => {
@@ -225,10 +222,10 @@ export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
     const unsubByTrigger = new Map<string, () => void>();
 
     const wire = (trigger: Unstable_RegisteredTrigger) => {
-      if (trigger.onSelect.type !== "insertDirective") return;
+      if (!trigger.behavior || trigger.behavior.kind !== "directive") return;
       unsubByTrigger.set(
-        trigger.id,
-        wireTrigger(trigger.id, trigger, matchRef, insertMention),
+        trigger.char,
+        wireTrigger(trigger, matchRef, insertDirective),
       );
     };
 
@@ -240,10 +237,10 @@ export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
         triggersRef.current = root.getTriggers();
         wire(trigger);
       },
-      removed: (id) => {
+      removed: (char) => {
         triggersRef.current = root.getTriggers();
-        unsubByTrigger.get(id)?.();
-        unsubByTrigger.delete(id);
+        unsubByTrigger.get(char)?.();
+        unsubByTrigger.delete(char);
       },
     });
 
@@ -252,21 +249,20 @@ export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
       for (const u of unsubByTrigger.values()) u();
       unsubByTrigger.clear();
     };
-  }, [root, insertMention]);
+  }, [root, insertDirective]);
 
   return null;
 }
 
 function wireTrigger(
-  id: string,
   trigger: Unstable_RegisteredTrigger,
   matchRef: React.RefObject<ActiveMatch | null>,
-  insertMention: (item: Unstable_TriggerItem, active: ActiveMatch) => void,
+  insertDirective: (item: Unstable_TriggerItem, active: ActiveMatch) => void,
 ): () => void {
   return trigger.resource.registerSelectItemOverride((item) => {
     const active = matchRef.current;
-    if (!active || active.triggerId !== id) return false;
-    insertMention(item, active);
+    if (!active || active.char !== trigger.char) return false;
+    insertDirective(item, active);
     return true;
   });
 }

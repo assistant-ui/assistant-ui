@@ -1,12 +1,12 @@
 export { LexicalComposerInput } from "./LexicalComposerInput";
 export type { LexicalComposerInputProps } from "./LexicalComposerInput";
 export {
-  MentionNode,
-  $createMentionNode,
-  $createMentionNodeWithFormatter,
-  $isMentionNode,
-  MentionChipProvider,
-} from "./nodes/MentionNode";
-export type { MentionChipProps } from "./nodes/MentionNode";
-export { MentionPlugin } from "./plugins/MentionPlugin";
-export type { MentionPluginProps } from "./plugins/MentionPlugin";
+  DirectiveNode,
+  $createDirectiveNode,
+  $createDirectiveNodeWithFormatter,
+  $isDirectiveNode,
+  DirectiveChipProvider,
+} from "./nodes/DirectiveNode";
+export type { DirectiveChipProps } from "./nodes/DirectiveNode";
+export { DirectivePlugin } from "./plugins/DirectivePlugin";
+export type { DirectivePluginProps } from "./plugins/DirectivePlugin";

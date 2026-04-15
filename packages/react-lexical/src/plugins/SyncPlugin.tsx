@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   $getRoot,
@@ -10,14 +16,68 @@ import {
   type LexicalEditor,
 } from "lexical";
 import { useAui } from "@assistant-ui/store";
-import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
+import type {
+  Unstable_DirectiveFormatter,
+  Unstable_DirectiveSegment,
+} from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
-import { $createMentionNodeWithFormatter } from "../nodes/MentionNode";
+import {
+  unstable_useTriggerPopoverRootContextOptional,
+  type Unstable_RegisteredTrigger,
+} from "@assistant-ui/react";
+import { $createDirectiveNodeWithFormatter } from "../nodes/DirectiveNode";
+
+type ParsedSegment = {
+  readonly segment: Unstable_DirectiveSegment;
+  readonly formatter: Unstable_DirectiveFormatter;
+};
+
+type CompositeParser = (text: string) => readonly ParsedSegment[];
+
+/** Ordered, identity-deduped: prop formatter, trigger formatters, default tail. */
+export function collectFormatters(
+  triggers: ReadonlyMap<string, Unstable_RegisteredTrigger>,
+  propFormatter: Unstable_DirectiveFormatter | undefined,
+): readonly Unstable_DirectiveFormatter[] {
+  const ordered: Unstable_DirectiveFormatter[] = [];
+  const seen = new Set<Unstable_DirectiveFormatter>();
+  const push = (f: Unstable_DirectiveFormatter | undefined) => {
+    if (!f || seen.has(f)) return;
+    seen.add(f);
+    ordered.push(f);
+  };
+  push(propFormatter);
+  for (const trigger of triggers.values()) push(trigger.behavior?.formatter);
+  push(unstable_defaultDirectiveFormatter);
+  return ordered;
+}
+
+/** First formatter whose parse yields a mention wins; else first formatter's plain-text. */
+export function composeParsers(
+  formatters: readonly Unstable_DirectiveFormatter[],
+): CompositeParser {
+  const ordered = formatters.length
+    ? formatters
+    : [unstable_defaultDirectiveFormatter];
+  return (text: string) => {
+    let fallback: readonly ParsedSegment[] | null = null;
+    for (const formatter of ordered) {
+      const segments = formatter.parse(text);
+      if (segments.some((s) => s.kind === "mention")) {
+        return segments.map((segment) => ({ segment, formatter }));
+      }
+      if (!fallback) {
+        fallback = segments.map((segment) => ({ segment, formatter }));
+      }
+    }
+    return fallback!;
+  };
+}
 
 function syncRuntimeToLexical(
   editor: LexicalEditor,
   runtimeText: string,
-  formatter: Unstable_DirectiveFormatter,
+  parse: CompositeParser,
   onComplete: () => void,
 ) {
   editor.update(
@@ -34,20 +94,20 @@ function syncRuntimeToLexical(
       const lines = runtimeText.split("\n");
       for (const line of lines) {
         const paragraph = $createParagraphNode();
-        const segments = formatter.parse(line);
+        const segments = parse(line);
 
-        for (const seg of segments) {
-          if (seg.kind === "text") {
-            if (seg.text.length > 0) {
-              paragraph.append($createTextNode(seg.text));
+        for (const { segment, formatter } of segments) {
+          if (segment.kind === "text") {
+            if (segment.text.length > 0) {
+              paragraph.append($createTextNode(segment.text));
             }
           } else {
             paragraph.append(
-              $createMentionNodeWithFormatter(
+              $createDirectiveNodeWithFormatter(
                 {
-                  id: seg.id,
-                  type: seg.type,
-                  label: seg.label,
+                  id: segment.id,
+                  type: segment.type,
+                  label: segment.label,
                 },
                 formatter,
               ),
@@ -60,19 +120,46 @@ function syncRuntimeToLexical(
 
       root.selectEnd();
     },
-    { onUpdate: onComplete },
+    { onUpdate: onComplete, tag: SYNC_TAG },
   );
 }
 
-// SyncPlugin — bidirectional sync between Lexical and ComposerRuntime
+const SYNC_TAG = "aui-sync";
+
+const EMPTY_TRIGGERS: ReadonlyMap<string, Unstable_RegisteredTrigger> =
+  new Map();
+const noopSubscribe = () => () => {};
+
+/** Bidirectional sync between Lexical and ComposerRuntime with composite directive parsing. */
 export function SyncPlugin({
-  formatter,
+  formatter: propFormatter,
 }: {
-  formatter?: Unstable_DirectiveFormatter;
-}) {
-  const resolvedFormatter = formatter ?? unstable_defaultDirectiveFormatter;
+  formatter?: Unstable_DirectiveFormatter | undefined;
+} = {}) {
   const [editor] = useLexicalComposerContext();
   const aui = useAui();
+  const root = unstable_useTriggerPopoverRootContextOptional();
+
+  const subscribe = useCallback(
+    (listener: () => void) =>
+      root ? root.subscribe(listener) : noopSubscribe(),
+    [root],
+  );
+  const getSnapshot = useCallback(
+    () => (root ? root.getTriggers() : EMPTY_TRIGGERS),
+    [root],
+  );
+
+  const triggers = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
+  const formatters = useMemo(
+    () => collectFormatters(triggers, propFormatter),
+    [triggers, propFormatter],
+  );
+
+  const parser = useMemo(() => composeParsers(formatters), [formatters]);
+  const parserRef = useRef<CompositeParser>(parser);
+  parserRef.current = parser;
 
   const isSyncingFromLexicalRef = useRef(false);
   const isSyncingFromRuntimeRef = useRef(false);
@@ -81,16 +168,16 @@ export function SyncPlugin({
   useEffect(() => {
     return editor.registerUpdateListener(({ editorState, tags }) => {
       if (isSyncingFromRuntimeRef.current) return;
-      if (tags.has("history-merge")) return;
+      if (tags.has(SYNC_TAG)) return;
 
       editorState.read(() => {
         isSyncingFromLexicalRef.current = true;
 
         try {
-          const root = $getRoot();
+          const rootNode = $getRoot();
           let fullText = "";
 
-          for (const paragraph of root.getChildren()) {
+          for (const paragraph of rootNode.getChildren()) {
             if (fullText.length > 0) {
               fullText += "\n";
             }
@@ -117,12 +204,11 @@ export function SyncPlugin({
     const composerRuntime = aui.composer().__internal_getRuntime?.();
     if (!composerRuntime) return;
 
-    // Initial sync — populate editor with any preloaded text
     const initialText = composerRuntime.getState().text;
     if (initialText && initialText !== lastSyncedTextRef.current) {
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = initialText;
-      syncRuntimeToLexical(editor, initialText, resolvedFormatter, () => {
+      syncRuntimeToLexical(editor, initialText, parserRef.current, () => {
         isSyncingFromRuntimeRef.current = false;
       });
     }
@@ -136,11 +222,11 @@ export function SyncPlugin({
 
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = runtimeText;
-      syncRuntimeToLexical(editor, runtimeText, resolvedFormatter, () => {
+      syncRuntimeToLexical(editor, runtimeText, parserRef.current, () => {
         isSyncingFromRuntimeRef.current = false;
       });
     });
-  }, [editor, aui, resolvedFormatter]);
+  }, [editor, aui]);
 
   return null;
 }

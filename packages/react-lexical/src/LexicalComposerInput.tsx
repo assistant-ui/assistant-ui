@@ -35,26 +35,31 @@ import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 import { INTERNAL } from "@assistant-ui/react";
 import {
-  MentionNode,
-  MentionChipProvider,
-  type MentionChipProps,
-} from "./nodes/MentionNode";
+  DirectiveNode,
+  DirectiveChipProvider,
+  type DirectiveChipProps,
+} from "./nodes/DirectiveNode";
 import { SyncPlugin } from "./plugins/SyncPlugin";
-import { MentionPlugin } from "./plugins/MentionPlugin";
-import type { MentionPluginProps } from "./plugins/MentionPlugin";
+import { DirectivePlugin } from "./plugins/DirectivePlugin";
+import type { DirectivePluginProps } from "./plugins/DirectivePlugin";
 
-export type LexicalComposerInputProps = ComponentPropsWithoutRef<"div"> & {
+export type LexicalComposerInputProps = Omit<
+  ComponentPropsWithoutRef<"div">,
+  "autoFocus"
+> & {
   /** Controls how Enter submits. @default "enter" */
   submitMode?: "enter" | "ctrlEnter" | "none" | undefined;
   /** Whether Escape cancels editing. @default true */
   cancelOnEscape?: boolean | undefined;
   /** Placeholder text shown when the editor is empty. */
   placeholder?: string | undefined;
-  /** Props forwarded to the MentionPlugin. */
-  mentionPluginProps?: MentionPluginProps | undefined;
-  /** Custom component for rendering mention chips inline. */
-  mentionChip?: FC<MentionChipProps> | undefined;
-  /** Custom formatter for serializing/parsing mention directives. */
+  /** Focus the editor on mount. @default false */
+  autoFocus?: boolean | undefined;
+  /** Props forwarded to the DirectivePlugin. */
+  directivePluginProps?: DirectivePluginProps | undefined;
+  /** Custom component for rendering directive chips inline. */
+  directiveChip?: FC<DirectiveChipProps> | undefined;
+  /** Custom formatter for serializing/parsing directives. */
   formatter?: Unstable_DirectiveFormatter | undefined;
 };
 
@@ -70,7 +75,6 @@ function KeyboardPlugin({
   const pluginRegistry = INTERNAL.useComposerInputPluginRegistryOptional();
 
   useEffect(() => {
-    /** Delegate a keyboard event to all registered input plugins. */
     const delegateToPlugins = (event: KeyboardEvent): boolean => {
       if (!pluginRegistry) return false;
       for (const plugin of pluginRegistry.getPlugins()) {
@@ -162,8 +166,6 @@ function KeyboardPlugin({
   return null;
 }
 
-// Reports cursor position to registered ComposerInput plugins so trigger
-// systems (slash commands, mentions) can detect their trigger char.
 function CursorPlugin() {
   const [editor] = useLexicalComposerContext();
   const pluginRegistry = INTERNAL.useComposerInputPluginRegistryOptional();
@@ -206,7 +208,6 @@ function CursorPlugin() {
         lastAnchorKey = anchor.key;
         lastAnchorOffset = anchor.offset;
 
-        // Compute cursor position as character offset into the full text
         let offset = 0;
         const paragraph = anchorNode.getParent();
         if (paragraph && $isElementNode(paragraph)) {
@@ -239,9 +240,13 @@ function CursorPlugin() {
   return null;
 }
 
-function FocusPlugin() {
+function FocusPlugin({ autoFocus }: { autoFocus: boolean }) {
   const [editor] = useLexicalComposerContext();
   const aui = useAui();
+
+  useEffect(() => {
+    if (autoFocus) editor.focus();
+  }, [editor, autoFocus]);
 
   useEffect(() => {
     return aui.on("thread.runStart", () => {
@@ -252,16 +257,7 @@ function FocusPlugin() {
   return null;
 }
 
-/**
- * A Lexical-based rich text input for the assistant-ui composer.
- *
- * Supports inline mention chips via `MentionNode` and bidirectional sync
- * with the assistant-ui `ComposerRuntime`.
- *
- * Drop-in replacement for `ComposerPrimitive.Input` when you need rich
- * text features like @-mentions. Auto-wires to `MentionContext` when
- * rendered inside a `ComposerPrimitive.Unstable_MentionRoot`.
- */
+/** Lexical-based composer input with inline directive chips and runtime sync. */
 export const LexicalComposerInput = forwardRef<
   HTMLDivElement,
   LexicalComposerInputProps
@@ -271,8 +267,9 @@ export const LexicalComposerInput = forwardRef<
       submitMode = "enter",
       cancelOnEscape = true,
       placeholder,
-      mentionPluginProps,
-      mentionChip,
+      autoFocus = false,
+      directivePluginProps,
+      directiveChip,
       formatter: formatterProp,
       className,
       ...rest
@@ -288,7 +285,7 @@ export const LexicalComposerInput = forwardRef<
     const initialConfig = useMemo(
       () => ({
         namespace: "aui-lexical-composer",
-        nodes: [MentionNode],
+        nodes: [DirectiveNode],
         onError: (error: Error) => {
           console.error("[LexicalComposerInput]", error);
         },
@@ -298,7 +295,7 @@ export const LexicalComposerInput = forwardRef<
 
     return (
       <LexicalComposer initialConfig={initialConfig}>
-        <MentionChipProvider value={mentionChip ?? null}>
+        <DirectiveChipProvider value={directiveChip ?? null}>
           <div
             ref={ref}
             className={
@@ -321,16 +318,16 @@ export const LexicalComposerInput = forwardRef<
             />
             <HistoryPlugin />
             <SyncPlugin formatter={resolvedFormatter} />
-            <MentionPlugin {...mentionPluginProps} />
+            <DirectivePlugin {...directivePluginProps} />
             <KeyboardPlugin
               submitMode={submitMode}
               cancelOnEscape={cancelOnEscape}
             />
             <CursorPlugin />
-            <FocusPlugin />
+            <FocusPlugin autoFocus={autoFocus} />
             <EditablePlugin isDisabled={!!isDisabled} />
           </div>
-        </MentionChipProvider>
+        </DirectiveChipProvider>
       </LexicalComposer>
     );
   },
