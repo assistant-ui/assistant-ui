@@ -5,7 +5,7 @@ import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
 import {
   type WithRenderPropProps,
   withRenderProp,
-} from "../../utils/withRenderProp";
+} from "../../utils/Primitive";
 import { type ScopedProps, useDropdownMenuScope } from "./scope";
 
 const DropdownMenuTrigger = withRenderProp(DropdownMenuPrimitive.Trigger);

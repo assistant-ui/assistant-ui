@@ -1,6 +1,7 @@
 import {
   type ComponentPropsWithoutRef,
   type ComponentRef,
+  type ElementType,
   type ForwardRefExoticComponent,
   type ReactElement,
   type ReactNode,
@@ -43,42 +44,59 @@ const NODES = [
 ] as const;
 type PrimitiveNode = (typeof NODES)[number];
 
-type PrimitiveProps<E extends PrimitiveNode> = ComponentPropsWithoutRef<
+type WithRenderPropProps<T extends ElementType> =
+  ComponentPropsWithoutRef<T> & {
+    render?: ReactElement | undefined;
+  };
+
+type PrimitiveProps<E extends PrimitiveNode> = WithRenderPropProps<
   (typeof RadixPrimitive)[E]
-> & {
-  render?: ReactElement | undefined;
-};
+>;
 
 type PrimitiveRef<E extends PrimitiveNode> = ComponentRef<
   (typeof RadixPrimitive)[E]
 >;
 
-function createPrimitive<E extends PrimitiveNode>(node: E) {
-  const RadixComp = RadixPrimitive[node];
+function withRenderProp<T extends ElementType>(Component: T) {
+  const Wrapped = forwardRef<ComponentRef<T>, WithRenderPropProps<T>>(
+    ({ render, ...props }, ref) => {
+      const { asChild, children, ...rest } =
+        props as ComponentPropsWithoutRef<T> & {
+          asChild?: boolean | undefined;
+          children?: ReactNode | undefined;
+        };
 
-  const Component = forwardRef<PrimitiveRef<E>, PrimitiveProps<E>>(
-    ({ render, asChild, children, ...props }, ref) => {
+      const Comp = Component as any;
+
       if (render && isValidElement(render)) {
-        // render={<Comp p />} + children
-        //   → asChild + <Comp p>{children}</Comp>
         const renderChildren =
           children !== undefined
             ? children
             : ((render.props as Record<string, unknown>).children as ReactNode);
+
         return (
-          <RadixComp asChild {...(props as any)} ref={ref}>
+          <Comp {...(rest as any)} asChild ref={ref}>
             {cloneElement(render, undefined, renderChildren)}
-          </RadixComp>
+          </Comp>
         );
       }
 
       return (
-        <RadixComp asChild={asChild} {...(props as any)} ref={ref}>
+        <Comp {...(rest as any)} asChild={asChild} ref={ref}>
           {children}
-        </RadixComp>
+        </Comp>
       );
     },
   );
+
+  return Wrapped as ForwardRefExoticComponent<
+    WithRenderPropProps<T> & RefAttributes<ComponentRef<T>>
+  >;
+}
+
+function createPrimitive<E extends PrimitiveNode>(node: E) {
+  const RadixComp = RadixPrimitive[node];
+  const Component = withRenderProp(RadixComp);
 
   Component.displayName = `Primitive.${node}`;
   return Component as ForwardRefExoticComponent<
@@ -96,5 +114,5 @@ const Primitive = NODES.reduce(
   },
 );
 
-export { Primitive };
-export type { PrimitiveProps };
+export { Primitive, withRenderProp };
+export type { PrimitiveProps, WithRenderPropProps };
