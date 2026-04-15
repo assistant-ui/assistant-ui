@@ -4,10 +4,6 @@ import type {
   CompleteAttachment,
 } from "../types/attachment";
 
-// =============================================================================
-// Adapter Type
-// =============================================================================
-
 export type AttachmentAdapter = {
   accept: string;
   add(state: {
@@ -16,10 +12,6 @@ export type AttachmentAdapter = {
   remove(attachment: Attachment): Promise<void>;
   send(attachment: PendingAttachment): Promise<CompleteAttachment>;
 };
-
-// =============================================================================
-// Simple Image Attachment Adapter
-// =============================================================================
 
 export class SimpleImageAttachmentAdapter implements AttachmentAdapter {
   public accept = "image/*";
@@ -63,10 +55,6 @@ const getFileDataURL = (file: File) =>
     reader.readAsDataURL(file);
   });
 
-// =============================================================================
-// Simple Text Attachment Adapter
-// =============================================================================
-
 export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   public accept =
     "text/plain,text/html,text/markdown,text/csv,text/xml,text/json,text/css";
@@ -109,10 +97,6 @@ const getFileText = (file: File) =>
     reader.onerror = (error) => reject(error);
     reader.readAsText(file);
   });
-
-// =============================================================================
-// Composite Attachment Adapter
-// =============================================================================
 
 export function fileMatchesAccept(
   file: { name: string; type: string },

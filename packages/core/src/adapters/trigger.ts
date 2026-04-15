@@ -3,10 +3,6 @@ import type {
   Unstable_TriggerItem,
 } from "../types/trigger";
 
-// =============================================================================
-// Trigger Adapter — generic adapter for any trigger-based popover
-// =============================================================================
-
 /**
  * Adapter for providing categories and items to a trigger popover.
  *
@@ -26,20 +22,12 @@ export type Unstable_TriggerAdapter = {
   search?(query: string): readonly Unstable_TriggerItem[];
 };
 
-// =============================================================================
-// Slash Command Item — extends TriggerItem with an execute callback
-// =============================================================================
-
 export type Unstable_SlashCommandItem = Unstable_TriggerItem & {
   /** Action to execute when the command is selected. */
   readonly execute?: (() => void) | undefined;
 };
 
-// =============================================================================
-// Slash Command Adapter — extends TriggerAdapter with narrower return types
-// so consumers get SlashCommandItem directly without casting.
-// =============================================================================
-
+// narrower return types so consumers get SlashCommandItem directly without casting
 export type Unstable_SlashCommandAdapter = Omit<
   Unstable_TriggerAdapter,
   "categoryItems" | "search"

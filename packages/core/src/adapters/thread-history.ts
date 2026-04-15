@@ -7,10 +7,6 @@ import type {
   ExportedMessageRepositoryItem,
 } from "../runtime/utils/message-repository";
 
-// =============================================================================
-// Message Format Adapter
-// =============================================================================
-
 export interface MessageStorageEntry<TPayload> {
   id: string;
   parent_id: string | null;
@@ -39,10 +35,6 @@ export interface MessageFormatAdapter<
   ): MessageFormatItem<TMessage>;
   getId(message: TMessage): string;
 }
-
-// =============================================================================
-// Thread History Adapter
-// =============================================================================
 
 export type GenericThreadHistoryAdapter<TMessage> = {
   load(): Promise<MessageFormatRepository<TMessage>>;

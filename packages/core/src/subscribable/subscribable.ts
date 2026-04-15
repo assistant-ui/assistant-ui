@@ -1,15 +1,7 @@
 import type { Unsubscribe } from "../types/unsubscribe";
 
-// =============================================================================
-// Sentinel
-// =============================================================================
-
 export const SKIP_UPDATE = Symbol("skip-update");
 export type SKIP_UPDATE = typeof SKIP_UPDATE;
-
-// =============================================================================
-// Types
-// =============================================================================
 
 export type Subscribable = {
   subscribe: (callback: () => void) => Unsubscribe;
@@ -36,10 +28,6 @@ export type EventSubscribable<TEvent extends string> = {
   >;
 };
 
-// =============================================================================
-// Utilities
-// =============================================================================
-
 function shallowEqual<T extends object>(
   objA: T | undefined,
   objB: T | undefined,
@@ -56,10 +44,6 @@ function shallowEqual<T extends object>(
 
   return true;
 }
-
-// =============================================================================
-// Base Subscribable (simple pub-sub)
-// =============================================================================
 
 export class BaseSubscribable {
   private _subscribers = new Set<() => void>();
@@ -101,10 +85,7 @@ export class BaseSubscribable {
   }
 }
 
-// =============================================================================
-// Base Subject (lazy connect/disconnect)
-// =============================================================================
-
+// lazy connect/disconnect: only opens upstream subscription while it has subscribers
 export abstract class BaseSubject {
   private _subscriptions = new Set<() => void>();
   private _connection: Unsubscribe | undefined;
@@ -139,10 +120,6 @@ export abstract class BaseSubject {
     };
   }
 }
-
-// =============================================================================
-// Subject Implementations
-// =============================================================================
 
 export class ShallowMemoizeSubject<TState extends object, TPath>
   extends BaseSubject

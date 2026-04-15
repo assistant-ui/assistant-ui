@@ -5,15 +5,8 @@ import type {
 } from "../types/mention";
 import type { Unstable_TriggerAdapter } from "./trigger";
 
-// =============================================================================
-// Mention Adapter — alias of the generic TriggerAdapter
-// =============================================================================
-
+// alias of TriggerAdapter
 export type Unstable_MentionAdapter = Unstable_TriggerAdapter;
-
-// =============================================================================
-// Default Directive Formatter
-// =============================================================================
 
 const DIRECTIVE_RE = /:([\w-]+)\[([^\]]+)\](?:\{name=([^}]+)\})?/g;
 

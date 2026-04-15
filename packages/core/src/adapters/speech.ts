@@ -1,9 +1,5 @@
 import type { Unsubscribe } from "../types/unsubscribe";
 
-// =============================================================================
-// Speech Synthesis Adapter
-// =============================================================================
-
 export namespace SpeechSynthesisAdapter {
   export type Status =
     | {
@@ -25,10 +21,6 @@ export namespace SpeechSynthesisAdapter {
 export type SpeechSynthesisAdapter = {
   speak: (text: string) => SpeechSynthesisAdapter.Utterance;
 };
-
-// =============================================================================
-// Dictation Adapter
-// =============================================================================
 
 export namespace DictationAdapter {
   export type Status =
@@ -59,10 +51,6 @@ export type DictationAdapter = {
   listen: () => DictationAdapter.Session;
   disableInputDuringDictation?: boolean;
 };
-
-// =============================================================================
-// Web Speech Synthesis Adapter
-// =============================================================================
 
 export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
   speak(text: string): SpeechSynthesisAdapter.Utterance {
@@ -111,10 +99,6 @@ export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
     return res;
   }
 }
-
-// =============================================================================
-// Web Speech Dictation Adapter
-// =============================================================================
 
 interface SpeechRecognitionResultItem {
   transcript: string;

@@ -1,7 +1,5 @@
 // @assistant-ui/core - Framework-agnostic core runtime (public API)
 
-// === types ===
-
 export type {
   // Message parts
   TextMessagePart,
@@ -55,11 +53,7 @@ export type {
   Unstable_TriggerCategory,
 } from "./types/trigger";
 
-// === trigger adapter ===
-
 export type { Unstable_TriggerAdapter } from "./adapters/trigger";
-
-// === model-context ===
 
 export type {
   // Language model settings
@@ -93,8 +87,6 @@ export type {
   FrameMessage,
 } from "./model-context/frame/types";
 export { FRAME_MESSAGE_CHANNEL } from "./model-context/frame/types";
-
-// === adapters ===
 
 // Attachment adapters
 export type { AttachmentAdapter } from "./adapters/attachment";
@@ -147,8 +139,6 @@ export type {
   MessageFormatRepository,
   MessageStorageEntry,
 } from "./adapters/thread-history";
-
-// === runtime ===
 
 // Path Types
 export type {
@@ -261,8 +251,6 @@ export {
 // ExportedMessageRepository
 export type { ExportedMessageRepositoryItem } from "./runtime/utils/message-repository";
 export { ExportedMessageRepository } from "./runtime/utils/message-repository";
-
-// === runtimes ===
 
 // Local Runtime Options
 export type { LocalRuntimeOptionsBase } from "./runtimes/local/local-runtime-options";

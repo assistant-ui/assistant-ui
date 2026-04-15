@@ -1,10 +1,6 @@
 import type { Unsubscribe } from "../types/unsubscribe";
 import type { Tool } from "assistant-stream";
 
-// =============================================================================
-// Language Model Settings
-// =============================================================================
-
 export type LanguageModelV1CallSettings = {
   maxTokens?: number;
   temperature?: number;
@@ -21,10 +17,6 @@ export type LanguageModelConfig = {
   modelName?: string;
 };
 
-// =============================================================================
-// Model Context
-// =============================================================================
-
 export type ModelContext = {
   priority?: number | undefined;
   system?: string | undefined;
@@ -37,10 +29,6 @@ export type ModelContextProvider = {
   getModelContext: () => ModelContext;
   subscribe?: (callback: () => void) => Unsubscribe;
 };
-
-// =============================================================================
-// Tool & Instruction Config
-// =============================================================================
 
 export type AssistantToolProps<
   TArgs extends Record<string, unknown>,
@@ -59,10 +47,6 @@ export type AssistantContextConfig = {
   getContext: () => string;
   disabled?: boolean | undefined;
 };
-
-// =============================================================================
-// Merging
-// =============================================================================
 
 export const mergeModelContexts = (
   configSet: Set<ModelContextProvider>,

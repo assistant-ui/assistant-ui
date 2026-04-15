@@ -4,10 +4,6 @@ import type {
 } from "assistant-stream/utils";
 import type { CompleteAttachment } from "./attachment";
 
-// =============================================================================
-// Message Parts
-// =============================================================================
-
 export type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
@@ -90,10 +86,6 @@ export type ThreadAssistantMessagePart =
   | ImageMessagePart
   | DataMessagePart;
 
-// =============================================================================
-// Message Status
-// =============================================================================
-
 export type MessagePartStatus =
   | {
       readonly type: "running";
@@ -142,10 +134,6 @@ export type MessageStatus =
         | "error";
       readonly error?: ReadonlyJSONValue;
     };
-
-// =============================================================================
-// Thread Messages
-// =============================================================================
 
 export type MessageTiming = {
   readonly streamStartTime: number;
