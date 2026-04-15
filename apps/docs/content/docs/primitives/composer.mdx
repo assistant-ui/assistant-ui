@@ -113,21 +113,22 @@ Composer includes an unstable **trigger popover** system for character-triggered
 
     {/* @ mention — inserts directive text into the message */}
     <ComposerPrimitive.Unstable_TriggerPopover
-      triggerId="mention"
       char="@"
       adapter={mentionAdapter}
-      onSelect={{ type: "insertDirective", formatter }}
     >
+      <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
       {/* popover UI */}
     </ComposerPrimitive.Unstable_TriggerPopover>
 
-    {/* / slash command — removes the command text and runs a handler */}
+    {/* / slash command — runs a handler on selection; leaves an audit-trail chip by default */}
     <ComposerPrimitive.Unstable_TriggerPopover
-      triggerId="slash"
       char="/"
       adapter={slashAdapter}
-      onSelect={{ type: "action", handler: (item) => item.execute?.() }}
     >
+      <ComposerPrimitive.Unstable_TriggerPopover.Action
+        formatter={formatter}
+        onExecute={(item) => commandHandlers[item.id]?.()}
+      />
       <ComposerPrimitive.Unstable_TriggerPopoverItems>
         {(items) => items.map(item => (
           <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item}>
@@ -325,7 +326,8 @@ Root provider that groups one or more `TriggerPopover` declarations and owns the
 <ComposerPrimitive.Unstable_TriggerPopoverRoot>
   <ComposerPrimitive.Root>
     <LexicalComposerInput placeholder="Type @ to mention, / for commands..." />
-    <ComposerPrimitive.Unstable_TriggerPopover triggerId="mention" char="@" adapter={mentionAdapter} onSelect={{ type: "insertDirective", formatter }}>
+    <ComposerPrimitive.Unstable_TriggerPopover char="@" adapter={mentionAdapter}>
+      <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
       ...
     </ComposerPrimitive.Unstable_TriggerPopover>
   </ComposerPrimitive.Root>
@@ -334,16 +336,15 @@ Root provider that groups one or more `TriggerPopover` declarations and owns the
 
 ### Unstable_TriggerPopover
 
-Declares a trigger (by `triggerId`, `char`, `adapter`, `onSelect`) and renders the popover container. Only renders its DOM (and children) while the trigger is active in the composer input.
+Declares a trigger (by `char`, `adapter`) and renders the popover container. Selection behavior is declared by rendering exactly one behavior sub-primitive inside — either `<Unstable_TriggerPopover.Directive>` (insert a directive on selection) or `<Unstable_TriggerPopover.Action>` (run `onExecute` on selection). Only renders its DOM (and children) while the trigger is active in the composer input.
 
 ```tsx
 <ComposerPrimitive.Unstable_TriggerPopover
-  triggerId="mention"
   char="@"
   adapter={mentionAdapter}
-  onSelect={{ type: "insertDirective", formatter }}
   className="rounded-lg border bg-popover p-1 shadow-md"
 >
+  <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
   <ComposerPrimitive.Unstable_TriggerPopoverCategories>
     {(categories) => categories.map((category) => (
       <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem
@@ -357,10 +358,32 @@ Declares a trigger (by `triggerId`, `char`, `adapter`, `onSelect`) and renders t
 </ComposerPrimitive.Unstable_TriggerPopover>
 ```
 
-`onSelect` is a discriminated union:
+Behavior is supplied by exactly one of two sub-primitives:
 
-- `{ type: "insertDirective", formatter }` — writes `:type[label]{name=id}` into the composer text (mention behavior)
-- `{ type: "action", handler }` — removes the trigger text from the composer and calls the handler (slash-command behavior)
+- `<Unstable_TriggerPopover.Directive formatter={...} onInserted={...} />` — writes `:type[label]{name=id}` into the composer text (mention behavior)
+- `<Unstable_TriggerPopover.Action onExecute={...} removeOnExecute={...} />` — runs a callback on selection; leaves a directive chip behind by default (slash-command behavior)
+
+### Unstable_TriggerPopover.Directive
+
+Behavior sub-primitive. Registers the directive-insert behavior with its parent `TriggerPopover`. Renders nothing.
+
+```tsx
+<ComposerPrimitive.Unstable_TriggerPopover.Directive
+  formatter={unstable_defaultDirectiveFormatter}
+  onInserted={(item) => track("mention", item.id)}
+/>
+```
+
+### Unstable_TriggerPopover.Action
+
+Behavior sub-primitive. Registers the action behavior with its parent `TriggerPopover`. Renders nothing. By default leaves a directive chip behind after executing (audit trail); pass `removeOnExecute` to strip the trigger text entirely.
+
+```tsx
+<ComposerPrimitive.Unstable_TriggerPopover.Action
+  onExecute={(item) => commandHandlers[item.id]?.()}
+  removeOnExecute={false}
+/>
+```
 
 ### Unstable_TriggerPopoverCategories
 

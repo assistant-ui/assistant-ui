@@ -21,7 +21,7 @@ The mention system has three layers:
 2. **Adapter** — provides the categories and items to display in the popover (e.g. registered tools)
 3. **Formatter** — serializes a selected item into directive text (`:type[label]{name=id}`) and parses it back for rendering
 
-Under the hood, mentions are just one kind of [trigger popover](/docs/guides/slash-commands#trigger-popover-architecture). A mention is a trigger whose `onSelect` behavior is `{ type: "insertDirective", formatter }`.
+Under the hood, mentions are one kind of [trigger popover](/docs/guides/slash-commands#trigger-popover-architecture). A mention declares its behavior with a `<TriggerPopover.Directive>` sub-primitive, which writes the formatter-serialized directive into the composer on selection.
 
 ## Quick Start
 
@@ -35,14 +35,14 @@ See the [Composer Trigger Popover](/docs/ui/composer-trigger-popover) and [Direc
 
 The rest of this guide covers the underlying concepts and customization points.
 
-## Mention Adapter
+## Trigger Adapter
 
-A `Unstable_MentionAdapter` (an alias of `Unstable_TriggerAdapter`) provides the data for the popover. All methods are **synchronous** — use external state management (React Query, SWR, local state) for async data, then expose loaded results through the adapter.
+A `Unstable_TriggerAdapter` provides the data for the popover. All methods are **synchronous** — use external state management (React Query, SWR, local state) for async data, then expose loaded results through the adapter.
 
 ```ts
-import type { Unstable_MentionAdapter } from "@assistant-ui/core";
+import type { Unstable_TriggerAdapter } from "@assistant-ui/core";
 
-const myAdapter: Unstable_MentionAdapter = {
+const myAdapter: Unstable_TriggerAdapter = {
   categories() {
     return [
       { id: "tools", label: "Tools" },
@@ -82,7 +82,7 @@ const myAdapter: Unstable_MentionAdapter = {
 };
 ```
 
-Pass the adapter to `TriggerPopover`:
+Pass the adapter to `TriggerPopover` and declare a `Directive` sub-primitive to bind the insertion behavior:
 
 ```tsx
 import { ComposerPrimitive } from "@assistant-ui/react";
@@ -92,14 +92,12 @@ import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
   <ComposerPrimitive.Root>
     <ComposerPrimitive.Input placeholder="Type @ to mention..." />
     <ComposerPrimitive.Unstable_TriggerPopover
-      triggerId="mention"
       char="@"
       adapter={myAdapter}
-      onSelect={{
-        type: "insertDirective",
-        formatter: unstable_defaultDirectiveFormatter,
-      }}
     >
+      <ComposerPrimitive.Unstable_TriggerPopover.Directive
+        formatter={unstable_defaultDirectiveFormatter}
+      />
       <ComposerPrimitive.Unstable_TriggerPopoverCategories>
         {(categories) =>
           categories.map((cat) => (
@@ -129,30 +127,97 @@ import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 </ComposerPrimitive.Unstable_TriggerPopoverRoot>
 ```
 
-### Built-in Tool Adapter
+Exactly one behavior sub-primitive (`Directive` or `Action`) is allowed per `TriggerPopover`. The parent reads the registered behavior and wires the selection machinery.
 
-For the common case of mentioning registered tools, use `unstable_useToolMentionAdapter`:
+### Built-in Mention Adapter
+
+`unstable_useMentionAdapter` covers the common cases: mention registered tools, add your own items, mix tools with custom items, or show multi-category drill-down.
+
+**Tools from model context (default):**
 
 ```tsx
-import { unstable_useToolMentionAdapter } from "@assistant-ui/react";
+import { unstable_useMentionAdapter } from "@assistant-ui/react";
 
-const adapter = unstable_useToolMentionAdapter({
-  // Format tool names for display (default: raw name)
-  formatLabel: (name) =>
-    name.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+const mention = unstable_useMentionAdapter();
+// → { adapter, directive } — spread into <ComposerTriggerPopover {...mention} />
+// Default: single "Tools" category reading from useAssistantTool registrations
+```
 
-  // Custom category label (default: "Tools")
-  categoryLabel: "Tools",
+**Custom items only (no tools):**
 
-  // Explicit tool list (overrides model context tools)
-  // tools: [{ id: "search", type: "tool", label: "Search" }],
-
-  // Include model context tools alongside explicit tools
-  // includeModelContextTools: true,
+```tsx
+const mention = unstable_useMentionAdapter({
+  items: [
+    { id: "alice", type: "user", label: "Alice", icon: "User" },
+    { id: "bob", type: "user", label: "Bob", icon: "User" },
+  ],
 });
 ```
 
-The adapter automatically reads tools from the model context (registered via `Tools()` or `useAssistantTool`). When `tools` is provided, model context tools are excluded unless `includeModelContextTools` is set to `true`.
+**Mix custom items with model-context tools (flat):**
+
+```tsx
+const mention = unstable_useMentionAdapter({
+  items: [{ id: "kb", type: "doc", label: "Knowledge Base", icon: "Book" }],
+  includeModelContextTools: true,
+});
+```
+
+**Multi-category drill-down:**
+
+```tsx
+const mention = unstable_useMentionAdapter({
+  categories: [
+    {
+      id: "users",
+      label: "Users",
+      items: [
+        { id: "alice", type: "user", label: "Alice", icon: "User" },
+        { id: "bob", type: "user", label: "Bob", icon: "User" },
+      ],
+    },
+    {
+      id: "files",
+      label: "Files",
+      items: [
+        { id: "readme", type: "file", label: "README.md", icon: "FileText" },
+      ],
+    },
+  ],
+  // Tools auto-appended as their own category (default id "tools", label "Tools")
+  includeModelContextTools: true,
+});
+```
+
+**Tool formatting and category override:**
+
+```tsx
+const mention = unstable_useMentionAdapter({
+  categories: [{ id: "users", label: "Users", items: [...] }],
+  includeModelContextTools: {
+    category: { id: "integrations", label: "Integrations" },
+    formatLabel: (name) =>
+      name.replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    icon: "Wrench",
+  },
+});
+```
+
+**Options summary:**
+
+| Option | Type | Behavior |
+| --- | --- | --- |
+| `items` | `Unstable_Mention[]` | Flat list (ignored when `categories` is set) |
+| `categories` | `{id, label, items}[]` | Drill-down groups |
+| `includeModelContextTools` | `boolean \| object` | Default: `true` iff neither `items` nor `categories` |
+| `formatter` | `Unstable_DirectiveFormatter` | Override directive serialization (default: `unstable_defaultDirectiveFormatter`) |
+| `onInserted` | `(item) => void` | Fires after the directive is inserted into the composer |
+| `iconMap` | `Record<string, IconComponent>` | Maps `metadata.icon` / category `id` strings to React components |
+| `fallbackIcon` | `IconComponent` | Fallback when no entry in `iconMap` matches |
+
+`icon` on each mention is a shortcut for `metadata.icon` that the picker UI resolves via `iconMap`. Dedup between custom items and model-context tools is by `id` — explicit items win.
+
+The hook returns `{ adapter, directive, iconMap?, fallbackIcon? }` — spread into `<ComposerTriggerPopover {...mention} />` for one-line wiring. Callers consuming the raw primitives instead destructure: `mention.adapter`, `mention.directive.formatter`, etc.
 
 ## Directive Format
 
@@ -214,16 +279,15 @@ const slashFormatter: Unstable_DirectiveFormatter = {
 };
 ```
 
-Pass it to the trigger and the message renderer:
+Pass it to the trigger's `Directive` sub-primitive and the message renderer:
 
 ```tsx
 // Composer
 <ComposerPrimitive.Unstable_TriggerPopover
-  triggerId="mention"
   char="@"
   adapter={adapter}
-  onSelect={{ type: "insertDirective", formatter: slashFormatter }}
 >
+  <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={slashFormatter} />
   ...
 </ComposerPrimitive.Unstable_TriggerPopover>
 
@@ -255,18 +319,17 @@ import { LexicalComposerInput } from "@assistant-ui/react-lexical";
     <LexicalComposerInput placeholder="Type @ to mention..." />
     <ComposerPrimitive.Send />
     <ComposerPrimitive.Unstable_TriggerPopover
-      triggerId="mention"
       char="@"
       adapter={adapter}
-      onSelect={{ type: "insertDirective", formatter }}
     >
+      <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
       ...
     </ComposerPrimitive.Unstable_TriggerPopover>
   </ComposerPrimitive.Root>
 </ComposerPrimitive.Unstable_TriggerPopoverRoot>
 ```
 
-`LexicalComposerInput` automatically discovers every `insertDirective` trigger registered under `TriggerPopoverRoot` and renders their selections as inline chips.
+`LexicalComposerInput` automatically discovers every `Directive` trigger registered under `TriggerPopoverRoot` and renders their selections as inline chips.
 
 ## Rendering Mentions in Messages
 
@@ -360,12 +423,12 @@ Use the trigger popover primitives to build a fully custom popover:
     <ComposerPrimitive.Input />
 
     <ComposerPrimitive.Unstable_TriggerPopover
-      triggerId="mention"
       char="@"
       adapter={adapter}
-      onSelect={{ type: "insertDirective", formatter }}
       className="popover"
     >
+      <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
+
       <ComposerPrimitive.Unstable_TriggerPopoverBack>
         ← Back
       </ComposerPrimitive.Unstable_TriggerPopoverBack>
@@ -407,7 +470,9 @@ Use the trigger popover primitives to build a fully custom popover:
 | Primitive | Description |
 | --- | --- |
 | `Unstable_TriggerPopoverRoot` | Root provider — groups one or more triggers, manages plugin registry |
-| `Unstable_TriggerPopover` | Declares a trigger (id, char, adapter, onSelect) and renders the popover container |
+| `Unstable_TriggerPopover` | Declares a trigger (id, char, adapter) and renders the popover container |
+| `Unstable_TriggerPopover.Directive` | Behavior sub-primitive — inserts a formatted directive into the composer on selection |
+| `Unstable_TriggerPopover.Action` | Behavior sub-primitive — runs a callback on selection; inserts a chip by default |
 | `Unstable_TriggerPopoverCategories` | Render-function for the top-level category list |
 | `Unstable_TriggerPopoverCategoryItem` | Button that drills into a category (`role="option"`, auto `data-highlighted`) |
 | `Unstable_TriggerPopoverItems` | Render-function for items within the active category or search results |
@@ -428,11 +493,10 @@ Mentions and [slash commands](/docs/guides/slash-commands) coexist on the same c
 
     {/* Mention popover (shows on @) */}
     <ComposerPrimitive.Unstable_TriggerPopover
-      triggerId="mention"
       char="@"
-      adapter={mentionAdapter}
-      onSelect={{ type: "insertDirective", formatter }}
+      adapter={mention.adapter}
     >
+      <ComposerPrimitive.Unstable_TriggerPopover.Directive {...mention.directive} />
       <ComposerPrimitive.Unstable_TriggerPopoverCategories>
         {(categories) => categories.map((cat) => (
           <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem key={cat.id} categoryId={cat.id}>
@@ -451,11 +515,13 @@ Mentions and [slash commands](/docs/guides/slash-commands) coexist on the same c
 
     {/* Slash command popover (shows on /) */}
     <ComposerPrimitive.Unstable_TriggerPopover
-      triggerId="slash"
       char="/"
       adapter={slashAdapter}
-      onSelect={{ type: "action", handler: (item) => item.execute?.() }}
     >
+      <ComposerPrimitive.Unstable_TriggerPopover.Action
+        formatter={unstable_defaultDirectiveFormatter}
+        onExecute={(item) => commandHandlers[item.id]?.()}
+      />
       <ComposerPrimitive.Unstable_TriggerPopoverItems>
         {(items) => items.map((item, index) => (
           <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item} index={index}>

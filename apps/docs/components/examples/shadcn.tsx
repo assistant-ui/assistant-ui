@@ -30,10 +30,10 @@ import {
   MessagePrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
+  unstable_useMentionAdapter,
   unstable_useSlashCommandAdapter,
-  unstable_useToolMentionAdapter,
+  type Unstable_SlashCommand,
 } from "@assistant-ui/react";
-import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -58,7 +58,7 @@ import {
 } from "lucide-react";
 import {
   LexicalComposerInput,
-  type MentionChipProps,
+  type DirectiveChipProps,
 } from "@assistant-ui/react-lexical";
 import Image from "next/image";
 import { useState, type FC } from "react";
@@ -263,64 +263,65 @@ const ThreadSuggestionItem: FC = () => {
   );
 };
 
-const slashCommands = [
+const slashCommands: readonly Unstable_SlashCommand[] = [
   {
-    name: "summarize",
+    id: "summarize",
     description: "Summarize the conversation",
     icon: "FileText",
+    execute: () => console.log("[shadcn example] /summarize invoked"),
   },
   {
-    name: "translate",
+    id: "translate",
     description: "Translate text to another language",
     icon: "Languages",
+    execute: () => console.log("[shadcn example] /translate invoked"),
   },
   {
-    name: "search",
+    id: "search",
     description: "Search the web for information",
     icon: "Globe",
+    execute: () => console.log("[shadcn example] /search invoked"),
   },
   {
-    name: "help",
+    id: "help",
     description: "List available commands",
     icon: "HelpCircle",
+    execute: () => console.log("[shadcn example] /help invoked"),
   },
-] as const;
+];
 
-const slashCommandIcons: Record<string, FC<{ className?: string }>> = {
+const slashIconMap: Record<string, FC<{ className?: string }>> = {
   FileText: FileTextIcon,
   Languages: LanguagesIcon,
   Globe: GlobeIcon,
   HelpCircle: HelpCircleIcon,
 };
 
-function MentionChip({
-  mentionId,
-  mentionType,
-  label,
-  icon,
-}: MentionChipProps) {
-  const Icon =
-    mentionType !== "command" && icon ? slashCommandIcons[icon] : undefined;
+function DirectiveChip(props: DirectiveChipProps) {
+  const { directiveId, directiveType, label } = props;
+  const showWrench = directiveType !== "command";
   return (
     <span
-      className="aui-mention-chip"
-      data-mention-type={mentionType}
-      data-mention-id={mentionId}
+      className="aui-directive-chip"
+      data-directive-type={directiveType}
+      data-directive-id={directiveId}
     >
-      {Icon && (
-        <span className="aui-mention-chip-icon">
-          <Icon className="size-3" />
+      {showWrench && (
+        <span className="aui-directive-chip-icon">
+          <WrenchIcon className="size-3" />
         </span>
       )}
-      <span className="aui-mention-chip-label">{label}</span>
+      <span className="aui-directive-chip-label">{label}</span>
     </span>
   );
 }
 
 const Composer: FC = () => {
-  const mentionAdapter = unstable_useToolMentionAdapter();
-  const slashAdapter = unstable_useSlashCommandAdapter({
+  const mention = unstable_useMentionAdapter({ fallbackIcon: WrenchIcon });
+  const slash = unstable_useSlashCommandAdapter({
     commands: slashCommands,
+    iconMap: slashIconMap,
+    fallbackIcon: SlashIcon,
   });
 
   return (
@@ -334,35 +335,19 @@ const Composer: FC = () => {
             <ComposerQuotePreview />
             <ComposerAttachments />
             <LexicalComposerInput
-              mentionChip={MentionChip}
+              directiveChip={DirectiveChip}
               placeholder="Send a message... (@ to mention, / for commands)"
-              className="aui-composer-input relative max-h-32 min-h-10 w-full resize-none bg-transparent px-1.75 py-1 text-sm outline-none [&_.aui-lexical-input]:min-h-[1lh] [&_.aui-lexical-input]:outline-none [&_.aui-lexical-placeholder]:pointer-events-none [&_.aui-lexical-placeholder]:absolute [&_.aui-lexical-placeholder]:top-0 [&_.aui-lexical-placeholder]:left-0 [&_.aui-lexical-placeholder]:px-1.75 [&_.aui-lexical-placeholder]:py-1 [&_.aui-lexical-placeholder]:text-muted-foreground/80 [&_.aui-mention-chip-icon]:self-center [&_.aui-mention-chip]:inline-flex [&_.aui-mention-chip]:items-baseline [&_.aui-mention-chip]:gap-1 [&_.aui-mention-chip]:rounded-md [&_.aui-mention-chip]:bg-blue-100 [&_.aui-mention-chip]:px-1.5 [&_.aui-mention-chip]:py-0.5 [&_.aui-mention-chip]:font-medium [&_.aui-mention-chip]:text-[13px] [&_.aui-mention-chip]:text-blue-700 [&_.aui-mention-chip]:leading-none dark:[&_.aui-mention-chip]:bg-blue-900/50 dark:[&_.aui-mention-chip]:text-blue-300"
+              className="aui-composer-input relative max-h-32 min-h-10 w-full resize-none bg-transparent px-1.75 py-1 text-sm outline-none [&_.aui-directive-chip-icon]:self-center [&_.aui-directive-chip]:inline-flex [&_.aui-directive-chip]:items-baseline [&_.aui-directive-chip]:gap-1 [&_.aui-directive-chip]:rounded-md [&_.aui-directive-chip]:bg-blue-100 [&_.aui-directive-chip]:px-1.5 [&_.aui-directive-chip]:py-0.5 [&_.aui-directive-chip]:font-medium [&_.aui-directive-chip]:text-[13px] [&_.aui-directive-chip]:text-blue-700 [&_.aui-directive-chip]:leading-none dark:[&_.aui-directive-chip]:bg-blue-900/50 dark:[&_.aui-directive-chip]:text-blue-300 [&_.aui-lexical-input]:min-h-[1lh] [&_.aui-lexical-input]:outline-none [&_.aui-lexical-placeholder]:pointer-events-none [&_.aui-lexical-placeholder]:absolute [&_.aui-lexical-placeholder]:top-0 [&_.aui-lexical-placeholder]:left-0 [&_.aui-lexical-placeholder]:px-1.75 [&_.aui-lexical-placeholder]:py-1 [&_.aui-lexical-placeholder]:text-muted-foreground/80"
             />
             <ComposerAction />
           </div>
         </ComposerPrimitive.AttachmentDropzone>
 
-        <ComposerTriggerPopover
-          triggerId="mention"
-          char="@"
-          adapter={mentionAdapter}
-          onSelect={{
-            type: "insertDirective",
-            formatter: unstable_defaultDirectiveFormatter,
-          }}
-          fallbackIcon={WrenchIcon}
-        />
+        <ComposerTriggerPopover char="@" {...mention} />
 
         <ComposerTriggerPopover
-          triggerId="slash"
           char="/"
-          adapter={slashAdapter}
-          onSelect={{
-            type: "insertDirective",
-            formatter: unstable_defaultDirectiveFormatter,
-          }}
-          iconMap={slashCommandIcons}
-          fallbackIcon={SlashIcon}
+          {...slash}
           emptyItemsLabel="No matching commands"
         />
       </ComposerPrimitive.Root>
@@ -534,22 +519,25 @@ const UserActionBar: FC = () => {
 const EditComposer: FC = () => {
   return (
     <MessagePrimitive.Root className="aui-edit-composer-wrapper mx-auto flex w-full max-w-(--thread-max-width) flex-col px-2 py-3">
-      <ComposerPrimitive.Root className="aui-edit-composer-root ml-auto flex w-full max-w-[85%] flex-col rounded-2xl bg-muted">
-        <ComposerPrimitive.Input
-          className="aui-edit-composer-input min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none"
-          autoFocus
-        />
-        <div className="aui-edit-composer-footer mx-3 mb-3 flex items-center gap-2 self-end">
-          <ComposerPrimitive.Cancel asChild>
-            <Button variant="ghost" size="sm">
-              Cancel
-            </Button>
-          </ComposerPrimitive.Cancel>
-          <ComposerPrimitive.Send asChild>
-            <Button size="sm">Update</Button>
-          </ComposerPrimitive.Send>
-        </div>
-      </ComposerPrimitive.Root>
+      <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+        <ComposerPrimitive.Root className="aui-edit-composer-root ml-auto flex w-full max-w-[85%] flex-col rounded-2xl bg-muted">
+          <LexicalComposerInput
+            directiveChip={DirectiveChip}
+            autoFocus
+            className="aui-edit-composer-input min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none [&_.aui-directive-chip-icon]:self-center [&_.aui-directive-chip]:inline-flex [&_.aui-directive-chip]:items-baseline [&_.aui-directive-chip]:gap-1 [&_.aui-directive-chip]:rounded-md [&_.aui-directive-chip]:bg-blue-100 [&_.aui-directive-chip]:px-1.5 [&_.aui-directive-chip]:py-0.5 [&_.aui-directive-chip]:font-medium [&_.aui-directive-chip]:text-[13px] [&_.aui-directive-chip]:text-blue-700 [&_.aui-directive-chip]:leading-none dark:[&_.aui-directive-chip]:bg-blue-900/50 dark:[&_.aui-directive-chip]:text-blue-300 [&_.aui-lexical-input]:min-h-[1lh] [&_.aui-lexical-input]:outline-none"
+          />
+          <div className="aui-edit-composer-footer mx-3 mb-3 flex items-center gap-2 self-end">
+            <ComposerPrimitive.Cancel asChild>
+              <Button variant="ghost" size="sm">
+                Cancel
+              </Button>
+            </ComposerPrimitive.Cancel>
+            <ComposerPrimitive.Send asChild>
+              <Button size="sm">Update</Button>
+            </ComposerPrimitive.Send>
+          </div>
+        </ComposerPrimitive.Root>
+      </ComposerPrimitive.Unstable_TriggerPopoverRoot>
     </MessagePrimitive.Root>
   );
 };

@@ -1,22 +1,16 @@
 "use client";
 
 import { WrenchIcon } from "lucide-react";
-import { Badge } from "@/components/assistant-ui/badge";
+import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+import { createDirectiveText } from "@/components/assistant-ui/directive-text";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
-function Chip({ children }: { children: React.ReactNode }) {
-  return (
-    <Badge
-      variant="info"
-      size="sm"
-      data-slot="directive-text-chip"
-      className="items-baseline text-[13px] leading-none [&_svg]:self-center"
-    >
-      <WrenchIcon />
-      {children}
-    </Badge>
-  );
-}
+const SampleDirectiveText = createDirectiveText(
+  unstable_defaultDirectiveFormatter,
+  { iconMap: { tool: WrenchIcon } },
+);
+
+const COMPLETE_STATUS = { type: "complete" } as const;
 
 export function DirectiveTextSample() {
   return (
@@ -24,13 +18,21 @@ export function DirectiveTextSample() {
       <div className="flex w-full max-w-md flex-col items-end gap-2">
         <span className="text-muted-foreground text-xs">User message</span>
         <div className="rounded-2xl bg-muted px-4 py-2.5 text-foreground text-sm">
-          Use <Chip>Get Weather</Chip> to check today's forecast in Tokyo.
+          <SampleDirectiveText
+            type="text"
+            text="Use :tool[Get Weather]{name=get_weather} to check today's forecast in Tokyo."
+            status={COMPLETE_STATUS}
+          />
         </div>
       </div>
       <div className="flex w-full max-w-md flex-col items-end gap-2">
         <span className="text-muted-foreground text-xs">Another example</span>
         <div className="rounded-2xl bg-muted px-4 py-2.5 text-foreground text-sm">
-          Ask <Chip>Search</Chip> for recent updates on <Chip>Calendar</Chip>.
+          <SampleDirectiveText
+            type="text"
+            text="Ask :tool[Search] for recent updates on :tool[Calendar]."
+            status={COMPLETE_STATUS}
+          />
         </div>
       </div>
     </SampleFrame>

@@ -18,7 +18,7 @@ import { DirectiveTextSample } from "@/components/docs/samples/directive-text";
 
 <InstallCommand shadcn={["directive-text"]} />
 
-This adds `/components/assistant-ui/directive-text.tsx` with `DirectiveText` and the `createDirectiveText(formatter)` factory.
+This adds `/components/assistant-ui/directive-text.tsx` with `DirectiveText` and the `createDirectiveText(formatter, options?)` factory.
 
   </Step>
   <Step>
@@ -42,6 +42,32 @@ Keep your markdown renderer (e.g. `MarkdownText`) for assistant messages — ass
   </Step>
 </Steps>
 
+## Icons per Directive Type
+
+`DirectiveText` ships icon-free by default — every parsed segment renders as a plain label chip regardless of its `type`. To add icons, use the `createDirectiveText` factory and pass an `iconMap` that routes each `type` string to an icon component, plus an optional `fallbackIcon` for unmapped types:
+
+```tsx
+import { createDirectiveText } from "@/components/assistant-ui/directive-text";
+import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+import { FileTextIcon, SparklesIcon, UserIcon, WrenchIcon } from "lucide-react";
+
+const DirectiveTextWithIcons = createDirectiveText(
+  unstable_defaultDirectiveFormatter,
+  {
+    iconMap: {
+      tool: WrenchIcon,
+      user: UserIcon,
+      file: FileTextIcon,
+    },
+    fallbackIcon: SparklesIcon,
+  },
+);
+
+<MessagePrimitive.Parts components={{ Text: DirectiveTextWithIcons }} />;
+```
+
+A matching `iconMap` / `fallbackIcon` option is accepted by [`ComposerTriggerPopover`](/docs/ui/composer-trigger-popover), where it routes `item.metadata.icon` strings instead of `type` — keeping icon configuration consistent across the composer and the rendered message.
+
 ## Custom Formatter
 
 The default format is `:type[label]{name=id}`. For a different format, build a custom `Unstable_DirectiveFormatter` and wrap it with `createDirectiveText`:
@@ -60,26 +86,26 @@ const slashFormatter: Unstable_DirectiveFormatter = {
 const SlashDirectiveText = createDirectiveText(slashFormatter);
 ```
 
-Pass the **same formatter** to the composer trigger's `onSelect: { type: "insertDirective", formatter }` so insertion and rendering stay consistent.
+Pass the **same formatter** to the composer trigger's `directive={{ formatter }}` (or `action={{ formatter }}`) so insertion and rendering stay consistent.
 
 ## Customizing the Chip
 
-Because `directive-text.tsx` is copied into your project, you can edit it directly — change the icon per `type`, swap the chip styling, or read `data-mention-id` to link to a detail page. For example:
-
-```tsx
-// inside createDirectiveText's inner `Component`
-const Icon = seg.type === "user" ? UserIcon : WrenchIcon;
-```
+Because `directive-text.tsx` is copied into your project, you can also edit it directly — swap the chip styling, read `data-directive-id` to link to a detail page, or replace the chip wrapper entirely.
 
 ## API Reference
 
 ### `DirectiveText`
 
-A `TextMessagePartComponent` that parses `:type[label]{name=id}` directives and renders them as inline chips. Uses the default formatter from `@assistant-ui/core`.
+A `TextMessagePartComponent` that parses `:type[label]{name=id}` directives and renders them as inline chips. Uses the default formatter from `@assistant-ui/core` and renders chips without icons. For per-type icons, build a component with `createDirectiveText(formatter, { iconMap })`.
 
-### `createDirectiveText(formatter)`
+### `createDirectiveText(formatter, options?)`
 
 Factory that returns a `TextMessagePartComponent` bound to a custom `Unstable_DirectiveFormatter`.
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `iconMap` | `Record<string, ComponentType<{ className?: string }>>` | Maps a directive segment's `type` to an icon rendered inside the chip |
+| `fallbackIcon` | `ComponentType<{ className?: string }>` | Icon used when no `iconMap` entry matches. When neither option resolves, the chip renders without an icon. |
 
 ## Related
 

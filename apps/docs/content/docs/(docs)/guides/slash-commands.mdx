@@ -3,52 +3,55 @@ title: Slash Commands
 description: Let users type / in the composer to trigger predefined actions from a popover picker.
 ---
 
-Slash commands let users type `/` in the composer to open a popover, browse available commands, and execute one. Unlike [mentions](/docs/guides/mentions) (which insert text into the message), slash commands trigger **actions** — the `/command` text is removed from the composer and a callback fires.
+Slash commands let users type `/` in the composer to open a popover, browse available commands, and execute one. Unlike [mentions](/docs/guides/mentions) (which only insert a directive into the message), slash commands additionally fire an **action callback** at the moment of selection.
 
 ## How It Works
 
 ```
 User types "/"  →  Trigger detected  →  Adapter provides commands
                                               ↓
-              Command executed  ←  User selects command from popover
+              Callback fired  ←  User selects command from popover
                    ↓
-        "/command" text removed from composer
+       Directive chip left in composer (or removed if removeOnExecute)
 ```
 
-The slash command system is built on the same [trigger popover architecture](#trigger-popover-architecture) as mentions. A slash command is just a trigger whose `onSelect` behavior is `{ type: "action", handler }`.
+The slash command system is built on the same [trigger popover architecture](#trigger-popover-architecture) as mentions. A slash command declares its behavior with a `<TriggerPopover.Action>` sub-primitive whose `onExecute` callback fires when an item is chosen.
+
+By default `Action` leaves a directive chip in the composer — giving the user (and the LLM) an audit trail of which commands were invoked. Pass `removeOnExecute` to strip the `/command` text entirely.
 
 ## Quick Start
 
-### 1. Define Commands
+### 1. Define Commands with `unstable_useSlashCommandAdapter`
+
+Declare commands (data + `execute` bundled together, like `useAssistantTool`). The hook returns `{ adapter, action }` — wire both into a single `<TriggerPopover>`:
 
 ```tsx
 import {
-  unstable_useSlashCommandAdapter,
   ComposerPrimitive,
+  unstable_useSlashCommandAdapter,
+  type Unstable_SlashCommand,
 } from "@assistant-ui/react";
 
-// Define commands outside the component for a stable reference
-const COMMANDS = [
+const SLASH_COMMANDS: readonly Unstable_SlashCommand[] = [
   {
-    name: "summarize",
+    id: "summarize",
     description: "Summarize the conversation",
     execute: () => console.log("Summarize!"),
   },
   {
-    name: "translate",
+    id: "translate",
     description: "Translate text to another language",
     execute: () => console.log("Translate!"),
   },
   {
-    name: "help",
+    id: "help",
     description: "List all available commands",
+    execute: () => console.log("Help!"),
   },
 ];
 
 function MyComposer() {
-  const slashAdapter = unstable_useSlashCommandAdapter({
-    commands: COMMANDS,
-  });
+  const slash = unstable_useSlashCommandAdapter({ commands: SLASH_COMMANDS });
 
   return (
     <ComposerPrimitive.Unstable_TriggerPopoverRoot>
@@ -57,15 +60,11 @@ function MyComposer() {
         <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
 
         <ComposerPrimitive.Unstable_TriggerPopover
-          triggerId="slash"
           char="/"
-          adapter={slashAdapter}
-          onSelect={{
-            type: "action",
-            handler: (item) => item.execute?.(),
-          }}
+          adapter={slash.adapter}
           className="popover"
         >
+          <ComposerPrimitive.Unstable_TriggerPopover.Action {...slash.action} />
           <ComposerPrimitive.Unstable_TriggerPopoverItems>
             {(items) =>
               items.map((item, index) => (
@@ -88,57 +87,42 @@ function MyComposer() {
 }
 ```
 
-### 2. Handle Command Selection
+The label defaults to `/${id}`; override via `label` on the command. Icons are strings that your `iconMap` on the picker UI resolves to components (see [ComposerTriggerPopover](/docs/ui/composer-trigger-popover)).
 
-There are two ways to handle command execution:
+### 2. Controlling the Chip
 
-**Via `execute` on each item** — define the action inline in the command definition:
+By default, a selected `/summarize` is converted into a directive chip (`:command[/summarize]{name=summarize}`) in the composer text and the command's `execute` fires. This keeps an audit trail of which commands were invoked.
 
-```ts
-{ name: "summarize", execute: () => runSummarize() }
-```
-
-**Via `onSelect` handler** — handle all commands in one place:
+To strip the trigger text entirely — useful for purely transient commands — pass `removeOnExecute` on the hook options:
 
 ```tsx
-<ComposerPrimitive.Unstable_TriggerPopover
-  triggerId="slash"
-  char="/"
-  adapter={slashAdapter}
-  onSelect={{
-    type: "action",
-    handler: (item) => {
-      switch (item.id) {
-        case "summarize": runSummarize(); break;
-        case "translate": runTranslate(); break;
-      }
-    },
-  }}
->
+const slash = unstable_useSlashCommandAdapter({
+  commands: SLASH_COMMANDS,
+  removeOnExecute: true,
+});
 ```
 
-If you want both — per-item `execute` plus a central `onSelect` — call `item.execute?.()` from the handler:
+### 3. Custom Dispatch
+
+For side effects on top of `execute` (logging, analytics, intercept), wrap the hook's `onExecute`:
 
 ```tsx
-onSelect={{
-  type: "action",
-  handler: (item) => {
-    item.execute?.();
+<ComposerPrimitive.Unstable_TriggerPopover.Action
+  onExecute={(item) => {
     logCommandUsed(item.id);
-  },
-}}
+    slash.action.onExecute(item);
+  }}
+/>
 ```
 
-## Custom Adapter
+## Categorized Commands
 
-The `unstable_useSlashCommandAdapter` hook uses a **flat list** — all commands show immediately when `/` is typed, with search filtering as the user types. This is the recommended UX for most cases.
-
-For **categorized navigation** (drill-down into groups), build the adapter manually. Return categories from `categories()` and items from `categoryItems()`. The popover will show categories first, then items within the selected category:
+For **categorized navigation** (drill-down into groups), return categories from `categories()` and items from `categoryItems()`. The popover shows categories first, then items within the selected category:
 
 ```ts
-import type { Unstable_SlashCommandAdapter } from "@assistant-ui/core";
+import type { Unstable_TriggerAdapter } from "@assistant-ui/core";
 
-const adapter: Unstable_SlashCommandAdapter = {
+const adapter: Unstable_TriggerAdapter = {
   categories() {
     return [
       { id: "actions", label: "Actions" },
@@ -176,12 +160,19 @@ const adapter: Unstable_SlashCommandAdapter = {
 When using a categorized adapter, add `TriggerPopoverCategories` to your popover UI:
 
 ```tsx
+const commandHandlers: Record<string, () => void> = {
+  summarize: () => {/* ... */},
+  pdf: () => {/* ... */},
+};
+
 <ComposerPrimitive.Unstable_TriggerPopover
-  triggerId="slash"
   char="/"
   adapter={adapter}
-  onSelect={{ type: "action", handler: (item) => item.execute?.() }}
 >
+  <ComposerPrimitive.Unstable_TriggerPopover.Action
+    formatter={unstable_defaultDirectiveFormatter}
+    onExecute={(item) => commandHandlers[item.id]?.()}
+  />
   <ComposerPrimitive.Unstable_TriggerPopoverBack>← Back</ComposerPrimitive.Unstable_TriggerPopoverBack>
   <ComposerPrimitive.Unstable_TriggerPopoverCategories>
     {(categories) => categories.map((cat) => (
@@ -202,7 +193,7 @@ When using a categorized adapter, add `TriggerPopoverCategories` to your popover
 
 ## Combining with Mentions
 
-Slash commands and mentions live under the same `TriggerPopoverRoot`. Declare one `TriggerPopover` per trigger:
+Slash commands and mentions live under the same `TriggerPopoverRoot`. Declare one `TriggerPopover` per trigger — each with its own behavior sub-primitive:
 
 ```tsx
 <ComposerPrimitive.Unstable_TriggerPopoverRoot>
@@ -212,11 +203,10 @@ Slash commands and mentions live under the same `TriggerPopoverRoot`. Declare on
 
     {/* @ mention popover */}
     <ComposerPrimitive.Unstable_TriggerPopover
-      triggerId="mention"
       char="@"
-      adapter={mentionAdapter}
-      onSelect={{ type: "insertDirective", formatter }}
+      adapter={mention.adapter}
     >
+      <ComposerPrimitive.Unstable_TriggerPopover.Directive {...mention.directive} />
       <ComposerPrimitive.Unstable_TriggerPopoverItems>
         {(items) => items.map((item) => (
           <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item}>
@@ -228,11 +218,10 @@ Slash commands and mentions live under the same `TriggerPopoverRoot`. Declare on
 
     {/* / slash command popover */}
     <ComposerPrimitive.Unstable_TriggerPopover
-      triggerId="slash"
       char="/"
-      adapter={slashAdapter}
-      onSelect={{ type: "action", handler: (item) => item.execute?.() }}
+      adapter={slash.adapter}
     >
+      <ComposerPrimitive.Unstable_TriggerPopover.Action {...slash.action} />
       <ComposerPrimitive.Unstable_TriggerPopoverItems>
         {(items) => items.map((item, index) => (
           <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item} index={index}>
@@ -264,13 +253,11 @@ Same keyboard bindings as mentions:
 Both mentions and slash commands are built on a generic **trigger popover** system:
 
 - `ComposerPrimitive.Unstable_TriggerPopoverRoot` — root provider that groups triggers and owns the input plugin registry
-- `ComposerPrimitive.Unstable_TriggerPopover` — declares one trigger (id, char, adapter, onSelect) and renders its popover container
+- `ComposerPrimitive.Unstable_TriggerPopover` — declares one trigger (id, char, adapter) and renders its popover container
+- Behavior sub-primitives — exactly one per `TriggerPopover`:
+  - `Unstable_TriggerPopover.Directive` — writes a formatted directive on selection ("mention" path)
+  - `Unstable_TriggerPopover.Action` — fires a callback on selection ("slash" path); inserts a chip by default, strip with `removeOnExecute`
 - Shared sub-primitives (`TriggerPopoverCategories`, `TriggerPopoverItems`, `TriggerPopoverBack`) live inside a `TriggerPopover`
-
-Behavior splits by `onSelect` type:
-
-- **`{ type: "insertDirective", formatter }`** — selecting an item writes the directive into the composer text. This is the "mention" path.
-- **`{ type: "action", handler }`** — selecting an item removes the trigger text from the composer and invokes the handler. This is the "slash" path.
 
 You can declare any number of triggers under one root and mix behavior types.
 
@@ -293,6 +280,8 @@ The input iterates over registered plugins for keyboard events and cursor change
 | --- | --- |
 | `Unstable_TriggerPopoverRoot` | Root — groups triggers, provides input plugin registry |
 | `Unstable_TriggerPopover` | Declares a trigger and renders its popover container |
+| `Unstable_TriggerPopover.Directive` | Behavior sub-primitive — inserts a formatted directive on selection |
+| `Unstable_TriggerPopover.Action` | Behavior sub-primitive — runs `onExecute` on selection; chip-by-default |
 | `Unstable_TriggerPopoverCategories` | Render-function for the top-level category list |
 | `Unstable_TriggerPopoverCategoryItem` | Button that drills into a category (`role="option"`, auto `data-highlighted`) |
 | `Unstable_TriggerPopoverItems` | Render-function for items within the active category or search results |
