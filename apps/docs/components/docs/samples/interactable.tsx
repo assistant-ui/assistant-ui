@@ -35,16 +35,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 type Task = { id: string; title: string; done: boolean };
 type TaskBoardState = { tasks: Task[] };
-
-// ---------------------------------------------------------------------------
-// Interactable config (stable references, defined outside the component)
-// ---------------------------------------------------------------------------
 
 const taskBoardSchema = z.object({
   tasks: z.array(
@@ -57,10 +49,6 @@ const taskBoardSchema = z.object({
 });
 
 const taskBoardInitialState: TaskBoardState = { tasks: [] };
-
-// ---------------------------------------------------------------------------
-// Task Board (interactable component) + custom incremental tool
-// ---------------------------------------------------------------------------
 
 let nextTaskId = 0;
 
@@ -186,10 +174,6 @@ const TaskBoard: FC = () => {
   );
 };
 
-// ---------------------------------------------------------------------------
-// Minimal Thread UI
-// ---------------------------------------------------------------------------
-
 const MiniThread: FC = () => {
   return (
     <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col bg-background">
@@ -302,10 +286,6 @@ const MiniComposer: FC = () => (
   </ComposerPrimitive.Root>
 );
 
-// ---------------------------------------------------------------------------
-// Runtime Provider: real AI backend + Interactables
-// ---------------------------------------------------------------------------
-
 const feedbackAdapter: FeedbackAdapter = { submit: () => {} };
 
 function InteractableRuntimeProvider({
@@ -360,10 +340,6 @@ function InteractableRuntimeProvider({
     </AssistantRuntimeProvider>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Exported sample
-// ---------------------------------------------------------------------------
 
 export const InteractableSample = () => {
   return (

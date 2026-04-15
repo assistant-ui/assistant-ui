@@ -1,9 +1,5 @@
 export const BASE_URL = "https://www.assistant-ui.com";
 
-// =============================================================================
-// Products — single source of truth for header, footer, and sub-project switcher
-// =============================================================================
-
 export type Product = {
   /** Route segment for internal products (e.g. "tw-shimmer", "native"). Omit for external. */
   slug?: string;
@@ -82,10 +78,6 @@ export const SUB_PROJECTS: (Product & { slug: string })[] = [
   },
   ...PRODUCTS.filter((p): p is Product & { slug: string } => !!p.slug),
 ];
-
-// =============================================================================
-// Navigation
-// =============================================================================
 
 export type DropdownItem = {
   label: string;

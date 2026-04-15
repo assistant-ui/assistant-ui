@@ -10,8 +10,6 @@ import {
 } from "@assistant-ui/react-a2a";
 import { Thread } from "@/components/assistant-ui/thread";
 
-// === State Badge ===
-
 const STATE_CONFIG: Record<
   string,
   { label: string; color: string; bg: string }
@@ -83,8 +81,6 @@ function StateBadge({ state }: { state: A2ATaskState }) {
   );
 }
 
-// === Task Status Bar ===
-
 function TaskStatusBar() {
   const task = useA2ATask();
 
@@ -104,8 +100,6 @@ function TaskStatusBar() {
     </div>
   );
 }
-
-// === Artifact Part Renderer ===
 
 function ArtifactPartView({ part }: { part: A2APart }) {
   if (part.text !== undefined) {
@@ -188,8 +182,6 @@ function ArtifactPartView({ part }: { part: A2APart }) {
   return null;
 }
 
-// === Artifact Panel ===
-
 function ArtifactPanel() {
   const artifacts = useA2AArtifacts();
 
@@ -228,8 +220,6 @@ function ArtifactPanel() {
   );
 }
 
-// === Agent Card Banner ===
-
 function AgentCardBanner() {
   const card = useA2AAgentCard();
 
@@ -259,8 +249,6 @@ function AgentCardBanner() {
     </div>
   );
 }
-
-// === Thread with Suggestions ===
 
 function ThreadWithSuggestions() {
   const aui = useAui({
@@ -298,8 +286,6 @@ function ThreadWithSuggestions() {
     </AuiProvider>
   );
 }
-
-// === Main ===
 
 export default function Home() {
   return (

@@ -5,10 +5,6 @@ import * as HeatGraph from "heat-graph";
 import { SyntaxHighlighter } from "@/components/assistant-ui/shiki-highlighter";
 import { cn } from "@/lib/utils";
 
-// ---------------------------------------------------------------------------
-// Data generators
-// ---------------------------------------------------------------------------
-
 function seededRandom(seed: number) {
   let s = seed;
   return () => {
@@ -158,10 +154,6 @@ const generateMood = (): HeatGraph.DataPoint[] => {
   return data;
 };
 
-// ---------------------------------------------------------------------------
-// Theme definitions
-// ---------------------------------------------------------------------------
-
 type ThemeName =
   | "Contributions"
   | "Steps Walked"
@@ -221,10 +213,6 @@ const SWATCH_STYLES: Record<
   ],
 };
 
-// ---------------------------------------------------------------------------
-// Color interpolation for steps
-// ---------------------------------------------------------------------------
-
 const STEPS_GRADIENT = [
   [15, 23, 42], // 0: near-invisible
   [25, 45, 100], // low: hint of blue
@@ -252,10 +240,6 @@ function stepsColor(count: number): string {
   return `rgb(${r},${g},${bl})`;
 }
 
-// ---------------------------------------------------------------------------
-// Mood labels & shapes
-// ---------------------------------------------------------------------------
-
 const MOOD_LABELS = ["", "Bad", "Neutral", "Great"];
 
 // Per-mood shapes: down triangle (bad), hexagon (neutral), up triangle (great)
@@ -268,20 +252,12 @@ const MOOD_SHAPES: Record<number, React.CSSProperties> = {
   3: { clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)" }, // up triangle
 };
 
-// ---------------------------------------------------------------------------
-// Shared helpers
-// ---------------------------------------------------------------------------
-
 const formatDate = (date: Date) =>
   date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
-
-// ---------------------------------------------------------------------------
-// GraphShell — shared layout for all themes
-// ---------------------------------------------------------------------------
 
 type CellInfo = {
   date: Date;
@@ -409,10 +385,6 @@ function GraphShell({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Per-theme graph components
-// ---------------------------------------------------------------------------
 
 function ContributionsGraph({ data }: { data: HeatGraph.DataPoint[] }) {
   return (
@@ -588,10 +560,6 @@ function MoodGraph({ data }: { data: HeatGraph.DataPoint[] }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Code snippets
-// ---------------------------------------------------------------------------
-
 const CODE_CONTRIBUTIONS = `const COLORS = ["#161b22", "#0e4429", "#006d32", "#26a641", "#39d353"];
 
 <HeatGraph.Root data={data} weekStart="sunday" colorScale={COLORS}>
@@ -647,10 +615,6 @@ const CODE_SNIPPETS: Record<ThemeName, string> = {
   "Gym Tracker": CODE_GYM,
   "Mood Tracker": CODE_MOOD,
 };
-
-// ---------------------------------------------------------------------------
-// Main demo
-// ---------------------------------------------------------------------------
 
 export function HeatGraphDemo() {
   const contributions = useMemo(() => generateContributions(), []);

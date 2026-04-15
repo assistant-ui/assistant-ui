@@ -24,10 +24,6 @@ import {
   PlusIcon,
 } from "lucide-react";
 
-// ===========================================================================
-// 1. Task Board — single-instance interactable + custom tool
-// ===========================================================================
-
 type Task = { id: string; title: string; done: boolean };
 type TaskBoardState = { tasks: Task[] };
 
@@ -178,10 +174,6 @@ function TaskBoard() {
   );
 }
 
-// ===========================================================================
-// 2. Sticky Notes — multi-instance interactable + selection + partial updates
-// ===========================================================================
-
 type NoteState = { title: string; content: string; color: string };
 
 const noteSchema = z.object({
@@ -214,9 +206,6 @@ function NoteCard({
   onSelect: (id: string) => void;
   onRemove: (id: string) => void;
 }) {
-  // Multi-instance: each NoteCard has a unique `id`, all share name "note"
-  // Partial updates: AI can send { color: "blue" } without resending title/content
-  // Selection: clicking a note calls setSelected(true)
   useAssistantInteractable("note", {
     id: noteId,
     description:
@@ -304,7 +293,6 @@ function NotesPanel() {
   const setSelectedIdRef = useRef(setSelectedId);
   setSelectedIdRef.current = setSelectedId;
 
-  // Tool to add/remove notes (manages the list, not the note content)
   useAssistantTool({
     toolName: "manage_notes",
     description:
@@ -389,10 +377,6 @@ function NotesPanel() {
     </div>
   );
 }
-
-// ===========================================================================
-// App
-// ===========================================================================
 
 const STORAGE_KEY = "interactables-example";
 
