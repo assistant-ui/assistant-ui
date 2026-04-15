@@ -29,17 +29,13 @@ export function tapEffectEvent<T extends (...args: any[]) => any>(
     callbackRef.current = callback;
   });
 
-  if (isDevelopment) {
-    const fiber = getCurrentResourceFiber();
-    return tapCallback(
-      ((...args: Parameters<T>) => {
-        if (fiber.renderContext)
-          throw new Error("tapEffectEvent cannot be called during render");
-        return callbackRef.current(...args);
-      }) as T,
-      [fiber],
-    );
-  }
-
-  return callbackRef.current;
+  const fiber = getCurrentResourceFiber();
+  return tapCallback(
+    ((...args: Parameters<T>) => {
+      if (isDevelopment && fiber.renderContext)
+        throw new Error("tapEffectEvent cannot be called during render");
+      return callbackRef.current(...args);
+    }) as T,
+    [fiber],
+  );
 }
