@@ -9,10 +9,6 @@ import {
 import type { ResourceFiber } from "../core/types";
 import { tapState } from "../hooks/tap-state";
 
-// ============================================================================
-// Resource Creation
-// ============================================================================
-
 /**
  * Creates a test resource fiber for unit testing.
  * This is a low-level utility that creates a ResourceFiber directly.
@@ -37,10 +33,6 @@ export function createTestResource<R, P>(fn: (props: P) => R) {
   );
   return fiber;
 }
-
-// ============================================================================
-// Resource Lifecycle Management
-// ============================================================================
 
 // Track resources for cleanup
 const activeResources = new Set<ResourceFiber<any, any>>();
@@ -100,10 +92,6 @@ export function getCommittedOutput<R, P>(fiber: ResourceFiber<R, P>): R {
   }
   return lastResult.output;
 }
-
-// ============================================================================
-// Test Helpers
-// ============================================================================
 
 /**
  * Helper to subscribe to resource state changes for testing.
@@ -165,10 +153,6 @@ export class TestResourceManager<R, P> {
   }
 }
 
-// ============================================================================
-// Async Utilities
-// ============================================================================
-
 /**
  * Waits for the next tick of the event loop.
  * Useful for testing async state updates.
@@ -194,10 +178,6 @@ export async function waitFor(
     await new Promise((resolve) => setTimeout(resolve, interval));
   }
 }
-
-// ============================================================================
-// Test Data Factories
-// ============================================================================
 
 /**
  * Creates a simple counter resource for testing.
