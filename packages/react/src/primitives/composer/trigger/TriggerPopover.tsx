@@ -26,9 +26,6 @@ import {
 } from "./TriggerPopoverResource";
 import { useTriggerPopoverRootContext } from "./TriggerPopoverRootContext";
 
-// Scope Context — the active TriggerPopover's state. Read by sub-primitives
-// (Categories, Items, Back) via nearest-ancestor lookup.
-
 const TriggerPopoverScopeContext =
   createContext<TriggerPopoverResourceOutput | null>(null);
 
@@ -105,12 +102,9 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
     const text = useAuiState((s) => s.composer.text);
     const popoverId = useId();
 
-    // Stabilize `onSelect` so it doesn't re-register on every render. The
-    // wrapper identity changes only when the behavior `type` changes; inner
-    // callbacks always read the latest caller-supplied functions via a ref.
-    // The memo dep `[onSelect.type]` is the invariant that lets us skip the
-    // narrowing guard inside each callback — if type changes, the whole
-    // wrapper is rebuilt, so `onSelectRef.current.type` always matches.
+    // Stable wrapper: identity only changes when `onSelect.type` changes,
+    // so inner callbacks can cast `onSelectRef.current` to the matching
+    // variant without a runtime guard.
     const onSelectRef = useRef(onSelect);
     onSelectRef.current = onSelect;
     const stableOnSelect = useMemo<OnSelectBehavior>(() => {
@@ -161,7 +155,6 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
       });
     }, [root, triggerId, char, stableOnSelect, resource]);
 
-    // Register as a ComposerInput plugin — receives cursor + keyDown events.
     const pluginRegistry = useComposerInputPluginRegistryOptional();
     useEffect(() => {
       if (!pluginRegistry) return undefined;
