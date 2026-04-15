@@ -14,10 +14,6 @@ import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 import { $createMentionNodeWithFormatter } from "../nodes/MentionNode";
 
-// ---------------------------------------------------------------------------
-// Shared: rebuild Lexical tree from runtime text
-// ---------------------------------------------------------------------------
-
 function syncRuntimeToLexical(
   editor: LexicalEditor,
   runtimeText: string,
@@ -68,10 +64,7 @@ function syncRuntimeToLexical(
   );
 }
 
-// ---------------------------------------------------------------------------
 // SyncPlugin — bidirectional sync between Lexical and ComposerRuntime
-// ---------------------------------------------------------------------------
-
 export function SyncPlugin({
   formatter,
 }: {
@@ -84,10 +77,6 @@ export function SyncPlugin({
   const isSyncingFromLexicalRef = useRef(false);
   const isSyncingFromRuntimeRef = useRef(false);
   const lastSyncedTextRef = useRef("");
-
-  // -----------------------------------------------------------------------
-  // Lexical -> Runtime
-  // -----------------------------------------------------------------------
 
   useEffect(() => {
     return editor.registerUpdateListener(({ editorState, tags }) => {
@@ -123,10 +112,6 @@ export function SyncPlugin({
       });
     });
   }, [editor, aui]);
-
-  // -----------------------------------------------------------------------
-  // Runtime -> Lexical (initial sync + subscription)
-  // -----------------------------------------------------------------------
 
   useEffect(() => {
     const composerRuntime = aui.composer().__internal_getRuntime?.();

@@ -18,10 +18,6 @@ import type {
 } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 
-// ---------------------------------------------------------------------------
-// Chip customization context
-// ---------------------------------------------------------------------------
-
 export type MentionChipProps = {
   mentionId: string;
   mentionType: string;
@@ -32,10 +28,6 @@ export type MentionChipProps = {
 const MentionChipContext = createContext<FC<MentionChipProps> | null>(null);
 
 export const MentionChipProvider = MentionChipContext.Provider;
-
-// ---------------------------------------------------------------------------
-// Serialized format
-// ---------------------------------------------------------------------------
 
 export type SerializedMentionNode = Spread<
   {
@@ -49,10 +41,6 @@ export type SerializedMentionNode = Spread<
   },
   SerializedLexicalNode
 >;
-
-// ---------------------------------------------------------------------------
-// Decorator component rendered inside the editor
-// ---------------------------------------------------------------------------
 
 function DefaultMentionChip({
   mentionId,
@@ -77,10 +65,6 @@ function MentionChipRenderer(props: MentionChipProps) {
   const Chip = Custom ?? DefaultMentionChip;
   return <Chip {...props} />;
 }
-
-// ---------------------------------------------------------------------------
-// MentionNode  (DecoratorNode — renders React inline)
-// ---------------------------------------------------------------------------
 
 export class MentionNode extends DecoratorNode<ReactNode> {
   __mentionId: string;
@@ -125,8 +109,6 @@ export class MentionNode extends DecoratorNode<ReactNode> {
     this.__directiveText = directiveText;
   }
 
-  // --- Serialization -------------------------------------------------------
-
   static override importJSON(serialized: SerializedMentionNode): MentionNode {
     return $createMentionNode(
       {
@@ -155,8 +137,6 @@ export class MentionNode extends DecoratorNode<ReactNode> {
     };
   }
 
-  // --- DOM -----------------------------------------------------------------
-
   override createDOM(_config: EditorConfig): HTMLElement {
     const span = document.createElement("span");
     span.style.display = "inline";
@@ -181,13 +161,9 @@ export class MentionNode extends DecoratorNode<ReactNode> {
     return null;
   }
 
-  // --- Text content --------------------------------------------------------
-
   override getTextContent(): string {
     return this.__directiveText;
   }
-
-  // --- Atomic behavior -----------------------------------------------------
 
   override isInline(): boolean {
     return true;
@@ -201,8 +177,6 @@ export class MentionNode extends DecoratorNode<ReactNode> {
     return true;
   }
 
-  // --- Decorator (React rendering) -----------------------------------------
-
   override decorate(_editor: LexicalEditor, _config: EditorConfig): ReactNode {
     return (
       <MentionChipRenderer
@@ -213,8 +187,6 @@ export class MentionNode extends DecoratorNode<ReactNode> {
       />
     );
   }
-
-  // --- Convenience getters -------------------------------------------------
 
   getMentionItem(): Unstable_MentionItem {
     return {
@@ -227,10 +199,6 @@ export class MentionNode extends DecoratorNode<ReactNode> {
     };
   }
 }
-
-// ---------------------------------------------------------------------------
-// Public helpers
-// ---------------------------------------------------------------------------
 
 export function $createMentionNode(
   item: Unstable_MentionItem,

@@ -26,18 +26,10 @@ import {
   type Unstable_RegisteredTrigger,
 } from "@assistant-ui/react";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 export type MentionPluginProps = {
   /** Callback fired after a mention is inserted. */
   onMentionSelect?: ((item: Unstable_TriggerItem) => void) | undefined;
 };
-
-// ---------------------------------------------------------------------------
-// Internal: find the trigger range in the current selection
-// ---------------------------------------------------------------------------
 
 type TriggerMatch = {
   /** The text after the trigger character (the query). */
@@ -82,11 +74,8 @@ export function findTriggerMatch(
   return null;
 }
 
-// ---------------------------------------------------------------------------
 // MentionPlugin — iterates all `insertDirective` triggers from the
 // TriggerPopoverRoot and wires each to Lexical MentionNode insertion.
-// ---------------------------------------------------------------------------
-
 type ActiveMatch = {
   readonly triggerId: string;
   readonly formatter: Unstable_DirectiveFormatter;
@@ -101,11 +90,6 @@ export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
   const triggersRef = useRef<ReadonlyMap<string, Unstable_RegisteredTrigger>>(
     root?.getTriggers() ?? new Map(),
   );
-
-  // -----------------------------------------------------------------------
-  // Watch text changes: update trigger match for whichever `insertDirective`
-  // trigger (if any) matches the current caret position.
-  // -----------------------------------------------------------------------
 
   useEffect(() => {
     return mergeRegister(
@@ -199,10 +183,6 @@ export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
     );
   }, [editor]);
 
-  // -----------------------------------------------------------------------
-  // Insert a mention — replaces the @query text with a MentionNode.
-  // -----------------------------------------------------------------------
-
   const insertMention = useCallback(
     (item: Unstable_TriggerItem, active: ActiveMatch) => {
       const { node, startOffset, endOffset } = active.match;
@@ -239,11 +219,6 @@ export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
     },
     [editor, onMentionSelect],
   );
-
-  // -----------------------------------------------------------------------
-  // Register a selectItem override on every `insertDirective` trigger so
-  // selecting an item routes to Lexical MentionNode insertion.
-  // -----------------------------------------------------------------------
 
   useEffect(() => {
     if (!root) return undefined;

@@ -43,10 +43,6 @@ import { SyncPlugin } from "./plugins/SyncPlugin";
 import { MentionPlugin } from "./plugins/MentionPlugin";
 import type { MentionPluginProps } from "./plugins/MentionPlugin";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 export type LexicalComposerInputProps = ComponentPropsWithoutRef<"div"> & {
   /** Controls how Enter submits. @default "enter" */
   submitMode?: "enter" | "ctrlEnter" | "none" | undefined;
@@ -61,10 +57,6 @@ export type LexicalComposerInputProps = ComponentPropsWithoutRef<"div"> & {
   /** Custom formatter for serializing/parsing mention directives. */
   formatter?: Unstable_DirectiveFormatter | undefined;
 };
-
-// ---------------------------------------------------------------------------
-// Internal: keyboard handler plugin (auto-wires to MentionContext)
-// ---------------------------------------------------------------------------
 
 function KeyboardPlugin({
   submitMode,
@@ -170,11 +162,8 @@ function KeyboardPlugin({
   return null;
 }
 
-// ---------------------------------------------------------------------------
-// Internal: report cursor position to all registered ComposerInput plugins
-// (needed for trigger systems like slash commands to detect their trigger char)
-// ---------------------------------------------------------------------------
-
+// Reports cursor position to registered ComposerInput plugins so trigger
+// systems (slash commands, mentions) can detect their trigger char.
 function CursorPlugin() {
   const [editor] = useLexicalComposerContext();
   const pluginRegistry = INTERNAL.useComposerInputPluginRegistryOptional();
@@ -250,10 +239,6 @@ function CursorPlugin() {
   return null;
 }
 
-// ---------------------------------------------------------------------------
-// Internal: focus management plugin
-// ---------------------------------------------------------------------------
-
 function FocusPlugin() {
   const [editor] = useLexicalComposerContext();
   const aui = useAui();
@@ -266,10 +251,6 @@ function FocusPlugin() {
 
   return null;
 }
-
-// ---------------------------------------------------------------------------
-// LexicalComposerInput
-// ---------------------------------------------------------------------------
 
 /**
  * A Lexical-based rich text input for the assistant-ui composer.
@@ -356,10 +337,6 @@ export const LexicalComposerInput = forwardRef<
 );
 
 LexicalComposerInput.displayName = "LexicalComposerInput";
-
-// ---------------------------------------------------------------------------
-// Internal: keep editable in sync with disabled state
-// ---------------------------------------------------------------------------
 
 function EditablePlugin({ isDisabled }: { isDisabled: boolean }) {
   const [editor] = useLexicalComposerContext();
