@@ -11,7 +11,7 @@ import { Grok } from "@/components/examples/grok";
 import { analytics } from "@/lib/analytics";
 
 const ExampleWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="not-prose h-full overflow-hidden rounded-lg border">
+  <div className="not-prose h-full overflow-hidden rounded-2xl border">
     {children}
   </div>
 );

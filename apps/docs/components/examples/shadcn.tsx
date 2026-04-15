@@ -83,15 +83,17 @@ const Sidebar: FC<{ collapsed?: boolean }> = ({ collapsed }) => {
   return (
     <aside
       className={cn(
-        "flex h-full flex-col bg-muted/30 transition-all duration-200",
+        "flex h-full flex-col transition-all duration-200",
         collapsed ? "w-0 overflow-hidden opacity-0" : "w-65 opacity-100",
       )}
     >
-      <div className="flex h-14 shrink-0 items-center px-4">
-        <Logo />
-      </div>
-      <div className="flex-1 overflow-y-auto p-3">
-        <ThreadList />
+      <div className="flex h-full w-65 shrink-0 flex-col">
+        <div className="flex h-14 shrink-0 items-center px-4">
+          <Logo />
+        </div>
+        <div className="flex-1 overflow-y-auto p-3">
+          <ThreadList />
+        </div>
       </div>
     </aside>
   );
@@ -592,18 +594,25 @@ export const Shadcn: FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex h-full w-full bg-background">
+    <div className="flex h-full w-full bg-muted/30">
       <div className="hidden md:block">
         <Sidebar collapsed={sidebarCollapsed} />
       </div>
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
-        <main className="flex-1 overflow-hidden">
-          <Thread />
-        </main>
+      <div
+        className={cn(
+          "flex flex-1 flex-col overflow-hidden p-2 transition-[padding] duration-200",
+          !sidebarCollapsed && "md:pl-0",
+        )}
+      >
+        <div className="flex flex-1 flex-col overflow-hidden rounded-lg bg-background">
+          <Header
+            sidebarCollapsed={sidebarCollapsed}
+            onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+          />
+          <main className="flex-1 overflow-hidden">
+            <Thread />
+          </main>
+        </div>
       </div>
     </div>
   );
