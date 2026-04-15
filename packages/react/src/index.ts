@@ -16,9 +16,6 @@ export {
   type AssistantEventCallback,
 } from "@assistant-ui/store";
 
-// ============================================================================
-// legacy-runtime/runtime
-// ============================================================================
 // Re-export public runtime types from @assistant-ui/core
 export type {
   AssistantRuntime,
@@ -45,15 +42,8 @@ export type {
   ThreadListItemState,
 } from "@assistant-ui/core";
 
-// ============================================================================
-// legacy-runtime/cloud
-// ============================================================================
 export { useCloudThreadListRuntime } from "./legacy-runtime/cloud/useCloudThreadListRuntime";
 export { AssistantCloud } from "assistant-cloud";
-
-// ============================================================================
-// legacy-runtime/runtime-cores
-// ============================================================================
 
 // --- adapters/attachment ---
 export type { AttachmentAdapter } from "@assistant-ui/core";
@@ -185,14 +175,8 @@ export { InMemoryThreadListAdapter as unstable_InMemoryThreadListAdapter } from 
 export type { ExportedMessageRepositoryItem } from "@assistant-ui/core";
 export { ExportedMessageRepository } from "@assistant-ui/core";
 
-// ============================================================================
-// context
-// ============================================================================
 export * from "./context";
 
-// ============================================================================
-// model-context
-// ============================================================================
 // Re-export shared from core/react
 export {
   makeAssistantTool,
@@ -223,7 +207,6 @@ export {
   type ToolArgsStatus,
 } from "@assistant-ui/core/react";
 
-// Core pass-through (unchanged)
 export type {
   ModelContext,
   ModelContextProvider,
@@ -244,7 +227,6 @@ export type {
 } from "@assistant-ui/core/store";
 export type { ComposerSendOptions } from "@assistant-ui/core/store";
 
-// React-only (stays)
 export { makeAssistantVisible } from "./model-context/makeAssistantVisible";
 
 // --- model-context/registry ---
@@ -267,9 +249,6 @@ export type {
 export { FRAME_MESSAGE_CHANNEL } from "@assistant-ui/core";
 export { useAssistantFrameHost } from "./model-context/frame/useAssistantFrameHost";
 
-// ============================================================================
-// primitives
-// ============================================================================
 export * as ActionBarPrimitive from "./primitives/actionBar";
 export * as ActionBarMorePrimitive from "./primitives/actionBarMore";
 export * as AssistantModalPrimitive from "./primitives/assistantModal";
@@ -299,9 +278,6 @@ export { useScrollLock } from "./primitives/reasoning/useScrollLock";
 export { useMessageQuote } from "./hooks/useMessageQuote";
 export { useMessageTiming } from "./hooks/useMessageTiming";
 
-// ============================================================================
-// types
-// ============================================================================
 // Re-export core types from @assistant-ui/core
 export type {
   Attachment,
@@ -361,15 +337,8 @@ export type {
 // Thread list item types
 export type { ThreadListItemStatus } from "@assistant-ui/core";
 
-// ============================================================================
-// devtools
-// ============================================================================
 export { DevToolsHooks, DevToolsProviderApi } from "./devtools/DevToolsHooks";
 
-// ============================================================================
-// client
-// ============================================================================
-// Note: Tools, DataRenderers, Suggestions, SuggestionConfig already exported above from model-context
 export { ModelContext as ModelContextClient } from "@assistant-ui/core/store";
 export { ChainOfThoughtClient } from "@assistant-ui/core/store";
 export {
@@ -384,9 +353,6 @@ export {
 } from "./client/InMemoryThreadList";
 export { SingleThreadList } from "./client/SingleThreadList";
 
-// ============================================================================
-// internal & augmentations
-// ============================================================================
 export * as INTERNAL from "./internal";
 
 // Unstable - mention (tool adapter helper)
@@ -417,9 +383,7 @@ export {
 
 export type { Assistant } from "./augmentations";
 
-// ============================================================================
-// Backwards compatibility - deprecated exports
-// ============================================================================
+// Backwards compatibility — deprecated exports, to be removed in v0.13
 
 /**
  * @deprecated Use `useAui` instead. This alias will be removed in v0.13.

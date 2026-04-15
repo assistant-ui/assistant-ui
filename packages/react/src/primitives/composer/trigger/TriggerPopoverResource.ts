@@ -29,10 +29,6 @@ function matchesQuery(item: Unstable_TriggerItem, lower: string): boolean {
   );
 }
 
-// =============================================================================
-// Types
-// =============================================================================
-
 export type TriggerPopoverKeyEvent = {
   readonly key: string;
   readonly shiftKey: boolean;
@@ -77,10 +73,6 @@ export type TriggerPopoverResourceOutput = {
   registerSelectItemOverride(fn: SelectItemOverride): () => void;
 };
 
-// =============================================================================
-// Resource
-// =============================================================================
-
 export const TriggerPopoverResource = resource(
   ({
     adapter,
@@ -98,10 +90,6 @@ export const TriggerPopoverResource = resource(
     /** Stable ID for accessible element IDs (pass React's useId() from component layer). */
     popoverId: string;
   }): TriggerPopoverResourceOutput => {
-    // -------------------------------------------------------------------------
-    // Cursor tracking + trigger detection
-    // -------------------------------------------------------------------------
-
     const [cursorPosition, setCursorPosition] = tapState(text.length);
 
     const trigger = tapMemo(() => {
@@ -111,10 +99,6 @@ export const TriggerPopoverResource = resource(
 
     const open = trigger !== null && adapter !== undefined;
     const query = trigger?.query ?? "";
-
-    // -------------------------------------------------------------------------
-    // Category navigation
-    // -------------------------------------------------------------------------
 
     const [activeCategoryId, setActiveCategoryId] = tapState<string | null>(
       null,
@@ -131,10 +115,6 @@ export const TriggerPopoverResource = resource(
     }, [open, adapter]);
 
     const effectiveActiveCategoryId = open ? activeCategoryId : null;
-
-    // -------------------------------------------------------------------------
-    // Items + search
-    // -------------------------------------------------------------------------
 
     const allItems = tapMemo<readonly Unstable_TriggerItem[]>(() => {
       if (!effectiveActiveCategoryId || !adapter) return [];
@@ -164,10 +144,6 @@ export const TriggerPopoverResource = resource(
 
     const isSearchMode = searchResults !== null;
 
-    // -------------------------------------------------------------------------
-    // Filtering
-    // -------------------------------------------------------------------------
-
     const filteredCategories = tapMemo(() => {
       if (isSearchMode) return [];
       if (!query) return categories;
@@ -183,10 +159,6 @@ export const TriggerPopoverResource = resource(
       const lower = query.toLowerCase();
       return allItems.filter((item) => matchesQuery(item, lower));
     }, [allItems, query, isSearchMode, searchResults]);
-
-    // -------------------------------------------------------------------------
-    // Keyboard navigation
-    // -------------------------------------------------------------------------
 
     const [highlightedIndex, setHighlightedIndex] = tapState(0);
 
@@ -208,10 +180,7 @@ export const TriggerPopoverResource = resource(
       setHighlightedIndex(0);
     }, [navigableList]);
 
-    // -------------------------------------------------------------------------
-    // Select-item override (for Lexical integration)
-    // -------------------------------------------------------------------------
-
+    // Select-item override: lets Lexical's MentionPlugin intercept selection and drive its own node insertion.
     const selectItemOverrideRef = tapRef<SelectItemOverride | null>(null);
 
     const registerSelectItemOverride = tapEffectEvent(
@@ -224,10 +193,6 @@ export const TriggerPopoverResource = resource(
         };
       },
     );
-
-    // -------------------------------------------------------------------------
-    // Actions (stable via tapEffectEvent)
-    // -------------------------------------------------------------------------
 
     const selectCategory = tapEffectEvent((categoryId: string) => {
       setActiveCategoryId(categoryId);
@@ -249,7 +214,6 @@ export const TriggerPopoverResource = resource(
         return;
       }
 
-      // Behavior depends on the onSelect configuration
       if (onSelect.type === "insertDirective") {
         // Insert directive text (mention path)
         const currentText = aui.composer().getState().text;
@@ -342,10 +306,6 @@ export const TriggerPopoverResource = resource(
         }
       },
     );
-
-    // -------------------------------------------------------------------------
-    // Output
-    // -------------------------------------------------------------------------
 
     // Compute highlighted item ID for aria-activedescendant
     const highlightedEntry = navigableList[highlightedIndex];

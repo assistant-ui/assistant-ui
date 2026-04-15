@@ -10,11 +10,6 @@ import {
   type FC,
 } from "react";
 
-// =============================================================================
-// Plugin interface — any trigger system (mention, slash command, emoji, etc.)
-// registers one of these with the input.
-// =============================================================================
-
 /**
  * A plugin that intercepts keyboard events and cursor changes in the composer
  * input. Used by trigger roots (MentionRoot, SlashCommandRoot, etc.) to handle
@@ -35,11 +30,7 @@ export type ComposerInputPlugin = {
   setCursorPosition(pos: number): void;
 };
 
-// =============================================================================
-// Registry — mutable, ref-based. No re-renders on register/unregister because
-// plugins are read imperatively at event time.
-// =============================================================================
-
+// Ref-based registry: plugins are read imperatively at event time, so register/unregister does not trigger re-renders.
 export type ComposerInputPluginRegistry = {
   register(plugin: ComposerInputPlugin): () => void;
   getPlugins(): readonly ComposerInputPlugin[];
@@ -62,10 +53,6 @@ export const useComposerInputPluginRegistryOptional =
   (): ComposerInputPluginRegistry | null => {
     return useContext(ComposerInputPluginRegistryContext);
   };
-
-// =============================================================================
-// Provider
-// =============================================================================
 
 export const ComposerInputPluginProvider: FC<{ children: ReactNode }> = ({
   children,

@@ -12,10 +12,6 @@ import { composeEventHandlers } from "@radix-ui/primitive";
 import { useTriggerPopoverScopeContext } from "./TriggerPopover";
 import type { Unstable_TriggerItem } from "@assistant-ui/core";
 
-// =============================================================================
-// TriggerPopoverItems — Renders the list of items within a category
-// =============================================================================
-
 export namespace ComposerPrimitiveTriggerPopoverItems {
   export type Element = ComponentRef<typeof Primitive.div>;
   export type Props = Omit<
@@ -53,10 +49,6 @@ export const ComposerPrimitiveTriggerPopoverItems = forwardRef<
 
 ComposerPrimitiveTriggerPopoverItems.displayName =
   "ComposerPrimitive.TriggerPopoverItems";
-
-// =============================================================================
-// TriggerPopoverItem — A single selectable item
-// =============================================================================
 
 export namespace ComposerPrimitiveTriggerPopoverItem {
   export type Element = ComponentRef<typeof Primitive.button>;
