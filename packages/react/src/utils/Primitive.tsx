@@ -3,6 +3,7 @@ import {
   type ComponentRef,
   type ElementType,
   type ForwardRefExoticComponent,
+  type PropsWithoutRef,
   type ReactElement,
   type ReactNode,
   type RefAttributes,
@@ -53,19 +54,27 @@ type PrimitiveProps<E extends PrimitiveNode> = WithRenderPropProps<
   (typeof RadixPrimitive)[E]
 >;
 
+type WithRenderPropRuntimeProps<T extends ElementType> =
+  WithRenderPropProps<T> & {
+    asChild?: boolean | undefined;
+    children?: ReactNode | undefined;
+  };
+
 type PrimitiveRef<E extends PrimitiveNode> = ComponentRef<
   (typeof RadixPrimitive)[E]
 >;
 
 function withRenderProp<T extends ElementType>(Component: T) {
-  const Wrapped = forwardRef<ComponentRef<T>, WithRenderPropProps<T>>(
-    ({ render, ...props }, ref) => {
-      const { asChild, children, ...rest } =
-        props as ComponentPropsWithoutRef<T> & {
-          asChild?: boolean | undefined;
-          children?: ReactNode | undefined;
-        };
-
+  const Wrapped = forwardRef<ComponentRef<T>, WithRenderPropRuntimeProps<T>>(
+    (
+      {
+        render,
+        asChild,
+        children,
+        ...rest
+      }: PropsWithoutRef<WithRenderPropRuntimeProps<T>>,
+      ref,
+    ) => {
       const Comp = Component as any;
 
       if (render && isValidElement(render)) {
