@@ -5,6 +5,7 @@ import type { TextMessagePartComponent } from "@assistant-ui/react";
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 import { WrenchIcon } from "lucide-react";
+import { Badge } from "./badge";
 
 /**
  * Creates a `Text` message part component that parses `:type[label]{name=id}`
@@ -36,17 +37,19 @@ export function createDirectiveText(
               {seg.text}
             </span>
           ) : (
-            <span
+            <Badge
               key={i}
+              variant="info"
+              size="sm"
               data-slot="directive-text-chip"
-              className="aui-mention-chip mx-0.5 inline-flex translate-y-[-1px] items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 font-medium text-[13px] text-primary leading-none"
               data-mention-type={seg.type}
               data-mention-id={seg.id}
+              className="aui-mention-chip items-baseline [&_svg]:self-center"
             >
               {/* Customize icon per type in your own copy (shadcn pattern) */}
-              <WrenchIcon className="size-3 shrink-0" />
+              <WrenchIcon />
               {seg.label}
-            </span>
+            </Badge>
           ),
         )}
       </>

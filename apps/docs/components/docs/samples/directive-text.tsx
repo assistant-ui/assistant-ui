@@ -1,17 +1,20 @@
 "use client";
 
 import { WrenchIcon } from "lucide-react";
+import { Badge } from "@/components/assistant-ui/badge";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
 function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <span
+    <Badge
+      variant="info"
+      size="sm"
       data-slot="directive-text-chip"
-      className="mx-0.5 inline-flex translate-y-[-1px] items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 font-medium text-[13px] text-primary leading-none"
+      className="items-baseline [&_svg]:self-center"
     >
-      <WrenchIcon className="size-3 shrink-0" />
+      <WrenchIcon />
       {children}
-    </span>
+    </Badge>
   );
 }
 
