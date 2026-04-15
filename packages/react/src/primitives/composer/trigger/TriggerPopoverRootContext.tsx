@@ -86,9 +86,9 @@ const TriggerPopoverRootInner: FC<
   ComposerPrimitiveTriggerPopoverRoot.Props
 > = ({ children }) => {
   const triggersRef = useRef<Map<string, RegisteredTrigger>>(new Map());
-  const snapshotRef = useRef<ReadonlyMap<string, RegisteredTrigger>>(
-    triggersRef.current,
-  );
+  // Independent empty Map so `getSnapshot` never returns the mutable internal
+  // map (would violate `useSyncExternalStore`'s stable-reference contract).
+  const snapshotRef = useRef<ReadonlyMap<string, RegisteredTrigger>>(new Map());
   const listenersRef = useRef<Set<() => void>>(new Set());
 
   const notify = useCallback(() => {
@@ -103,6 +103,14 @@ const TriggerPopoverRootInner: FC<
 
   const register = useCallback<TriggerPopoverRootContextValue["register"]>(
     (id, trigger) => {
+      if (
+        process.env.NODE_ENV !== "production" &&
+        triggersRef.current.has(id)
+      ) {
+        console.warn(
+          `[assistant-ui] Duplicate triggerId "${id}" registered in TriggerPopoverRoot. Each trigger must have a unique id.`,
+        );
+      }
       triggersRef.current.set(id, { id, ...trigger });
       refreshSnapshot();
       notify();
