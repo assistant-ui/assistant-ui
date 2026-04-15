@@ -1,18 +1,18 @@
 "use client";
 
-import {
-  type ComponentPropsWithoutRef,
-  type ComponentRef,
-  forwardRef,
-} from "react";
+import { type ComponentRef, forwardRef } from "react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
+import {
+  type WithRenderPropProps,
+  withRenderProp,
+} from "../../utils/withRenderProp";
 import { type ScopedProps, useDropdownMenuScope } from "./scope";
+
+const DropdownMenuTrigger = withRenderProp(DropdownMenuPrimitive.Trigger);
 
 export namespace ThreadListItemMorePrimitiveTrigger {
   export type Element = ComponentRef<typeof DropdownMenuPrimitive.Trigger>;
-  export type Props = ComponentPropsWithoutRef<
-    typeof DropdownMenuPrimitive.Trigger
-  >;
+  export type Props = WithRenderPropProps<typeof DropdownMenuPrimitive.Trigger>;
 }
 
 export const ThreadListItemMorePrimitiveTrigger = forwardRef<
@@ -28,7 +28,7 @@ export const ThreadListItemMorePrimitiveTrigger = forwardRef<
   ) => {
     const scope = useDropdownMenuScope(__scopeThreadListItemMore);
 
-    return <DropdownMenuPrimitive.Trigger {...scope} {...rest} ref={ref} />;
+    return <DropdownMenuTrigger {...scope} {...rest} ref={ref} />;
   },
 );
 

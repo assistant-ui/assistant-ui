@@ -1,18 +1,18 @@
 "use client";
 
-import {
-  type ComponentPropsWithoutRef,
-  type ComponentRef,
-  forwardRef,
-} from "react";
+import { type ComponentRef, forwardRef } from "react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
+import {
+  type WithRenderPropProps,
+  withRenderProp,
+} from "../../utils/withRenderProp";
 import { type ScopedProps, useDropdownMenuScope } from "./scope";
+
+const DropdownMenuItem = withRenderProp(DropdownMenuPrimitive.Item);
 
 export namespace ActionBarMorePrimitiveItem {
   export type Element = ComponentRef<typeof DropdownMenuPrimitive.Item>;
-  export type Props = ComponentPropsWithoutRef<
-    typeof DropdownMenuPrimitive.Item
-  >;
+  export type Props = WithRenderPropProps<typeof DropdownMenuPrimitive.Item>;
 }
 
 export const ActionBarMorePrimitiveItem = forwardRef<
@@ -28,7 +28,7 @@ export const ActionBarMorePrimitiveItem = forwardRef<
   ) => {
     const scope = useDropdownMenuScope(__scopeActionBarMore);
 
-    return <DropdownMenuPrimitive.Item {...scope} {...rest} ref={ref} />;
+    return <DropdownMenuItem {...scope} {...rest} ref={ref} />;
   },
 );
 
