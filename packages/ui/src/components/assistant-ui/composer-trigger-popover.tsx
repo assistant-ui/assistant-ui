@@ -1,17 +1,41 @@
 "use client";
 
-import { memo, type ComponentPropsWithoutRef, type FC } from "react";
+import { memo, useRef, type ComponentPropsWithoutRef, type FC } from "react";
 import { ComposerPrimitive } from "@assistant-ui/react";
+import type {
+  Unstable_DirectiveFormatter,
+  Unstable_TriggerItem,
+} from "@assistant-ui/core";
+import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 import { ChevronLeftIcon, ChevronRightIcon, SparklesIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type IconComponent = FC<{ className?: string }>;
 
-type ComposerTriggerPopoverProps = Omit<
+type DirectiveBehaviorProps = {
+  /** Formatter used to serialize the selected item into composer text. */
+  formatter?: Unstable_DirectiveFormatter | undefined;
+  /** Called after the directive text has been inserted into the composer. */
+  onInserted?: ((item: Unstable_TriggerItem) => void) | undefined;
+};
+
+type ActionBehaviorProps = {
+  /** Formatter used to serialize the audit-trail chip (when `removeOnExecute` is false). */
+  formatter?: Unstable_DirectiveFormatter | undefined;
+  /** Invoked with the selected item at the moment of selection. */
+  onExecute: (item: Unstable_TriggerItem) => void;
+  /** If `true`, strip the trigger text from the composer after executing. @default false */
+  removeOnExecute?: boolean | undefined;
+};
+
+type ComposerTriggerPopoverBaseProps = Omit<
   ComponentPropsWithoutRef<typeof ComposerPrimitive.Unstable_TriggerPopover>,
   "children"
 > & {
-  /** Maps an `item.icon` / `category.icon` string to an icon component. */
+  /**
+   * Maps icon keys to components. Items look up via `item.metadata?.icon`
+   * (string); categories look up via their `id`.
+   */
   iconMap?: Record<string, IconComponent>;
   /** Fallback icon when no entry in `iconMap` matches. */
   fallbackIcon?: IconComponent;
@@ -22,6 +46,20 @@ type ComposerTriggerPopoverProps = Omit<
   /** Label shown when no items match. @default "No matching items" */
   emptyItemsLabel?: string;
 };
+
+type ComposerTriggerPopoverProps = ComposerTriggerPopoverBaseProps &
+  (
+    | {
+        /** Insert-directive behavior. */
+        directive: DirectiveBehaviorProps;
+        action?: never;
+      }
+    | {
+        /** Action behavior. */
+        action: ActionBehaviorProps;
+        directive?: never;
+      }
+  );
 
 function resolveIcon(
   iconKey: string | undefined,
@@ -50,7 +88,7 @@ const Categories: FC<CategoriesProps> = ({
         className="flex flex-col py-1"
       >
         {categories.map((cat) => {
-          const Icon = resolveIcon(cat.icon, iconMap, fallbackIcon);
+          const Icon = resolveIcon(cat.id, iconMap, fallbackIcon);
           return (
             <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem
               key={cat.id}
@@ -102,7 +140,11 @@ const Items: FC<ItemsProps> = ({
 
           <div className="py-1">
             {items.map((item, index) => {
-              const Icon = resolveIcon(item.icon, iconMap, fallbackIcon);
+              const iconKey =
+                typeof item.metadata?.icon === "string"
+                  ? item.metadata.icon
+                  : undefined;
+              const Icon = resolveIcon(iconKey, iconMap, fallbackIcon);
               return (
                 <ComposerPrimitive.Unstable_TriggerPopoverItem
                   key={item.id}
@@ -135,33 +177,8 @@ const Items: FC<ItemsProps> = ({
 };
 
 /**
- * Pre-built popover UI for a trigger-driven picker (`@` mentions, `/` slash
- * commands, `:` emoji, etc.). Renders categories, items, and a back button,
- * all driven by the `adapter` and `onSelect` behavior you pass in.
- *
- * Must be placed inside `ComposerPrimitive.Unstable_TriggerPopoverRoot`.
- *
- * @example
- * ```tsx
- * // @ mention
- * <ComposerTriggerPopover
- *   triggerId="mention"
- *   char="@"
- *   adapter={mentionAdapter}
- *   onSelect={{ type: "insertDirective", formatter }}
- *   fallbackIcon={WrenchIcon}
- * />
- *
- * // / slash command
- * <ComposerTriggerPopover
- *   triggerId="slash"
- *   char="/"
- *   adapter={slashAdapter}
- *   onSelect={{ type: "action", handler: (item) => item.execute?.() }}
- *   iconMap={{ FileText: FileTextIcon }}
- *   fallbackIcon={SlashIcon}
- * />
- * ```
+ * Pre-built popover UI for a trigger-driven picker (mentions, slash commands, etc).
+ * Pass exactly one of `directive` (inserts a chip) or `action` (fires a handler).
  */
 const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
   iconMap,
@@ -170,8 +187,22 @@ const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
   emptyCategoriesLabel = "No items available",
   emptyItemsLabel = "No matching items",
   className,
+  directive,
+  action,
   ...props
 }) => {
+  const warnedRef = useRef(false);
+  if (
+    process.env.NODE_ENV !== "production" &&
+    !warnedRef.current &&
+    Boolean(directive) === Boolean(action)
+  ) {
+    warnedRef.current = true;
+    console.warn(
+      "[assistant-ui] ComposerTriggerPopover requires exactly one of `directive` or `action` props.",
+    );
+  }
+
   return (
     <ComposerPrimitive.Unstable_TriggerPopover
       data-slot="composer-trigger-popover"
@@ -181,6 +212,18 @@ const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
       )}
       {...props}
     >
+      {directive ? (
+        <ComposerPrimitive.Unstable_TriggerPopover.Directive
+          formatter={directive.formatter ?? unstable_defaultDirectiveFormatter}
+          onInserted={directive.onInserted}
+        />
+      ) : action ? (
+        <ComposerPrimitive.Unstable_TriggerPopover.Action
+          formatter={action.formatter ?? unstable_defaultDirectiveFormatter}
+          onExecute={action.onExecute}
+          removeOnExecute={action.removeOnExecute}
+        />
+      ) : null}
       <Categories
         iconMap={iconMap}
         fallbackIcon={fallbackIcon}
@@ -197,4 +240,6 @@ const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
 };
 ComposerTriggerPopoverImpl.displayName = "ComposerTriggerPopover";
 
-export const ComposerTriggerPopover = memo(ComposerTriggerPopoverImpl);
+export const ComposerTriggerPopover = memo(
+  ComposerTriggerPopoverImpl,
+) as FC<ComposerTriggerPopoverProps>;
