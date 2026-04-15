@@ -145,22 +145,24 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
       }),
     );
 
-    // Register with the root so MentionPlugin and other consumers can iterate
-    // all triggers.
+    // Wrapper changes per render, but tap-stable methods inside don't.
+    const resourceRef = useRef(resource);
+    resourceRef.current = resource;
+
     const root = useTriggerPopoverRootContext();
     useEffect(() => {
       return root.register(triggerId, {
         char,
         onSelect: stableOnSelect,
-        resource,
+        resource: resourceRef.current,
       });
-    }, [root, triggerId, char, stableOnSelect, resource]);
+    }, [root, triggerId, char, stableOnSelect]);
 
     const pluginRegistry = useComposerInputPluginRegistryOptional();
     useEffect(() => {
       if (!pluginRegistry) return undefined;
-      return pluginRegistry.register(resource);
-    }, [pluginRegistry, resource]);
+      return pluginRegistry.register(resourceRef.current);
+    }, [pluginRegistry]);
 
     if (!resource.open) return null;
 
