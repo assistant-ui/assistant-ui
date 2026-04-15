@@ -1,0 +1,92 @@
+---
+title: Sharing & Read-Only Views
+description: Export conversations and render read-only thread views.
+---
+
+assistant-ui provides utilities for sharing conversations: read-only thread views, serialization, and export formats.
+
+## ThreadReadOnly
+
+Renders a conversation in read-only mode. Accepts both live `ThreadMessage[]` and serialized `SerializedThreadMessage[]` (auto-detected). Copy is enabled; all other actions are disabled.
+
+```tsx
+import { ThreadReadOnly, ThreadPrimitive } from "@assistant-ui/react";
+
+const SharePage = ({ messages }) => (
+  <ThreadReadOnly messages={messages}>
+    <ThreadPrimitive.Messages>
+      {({ message }) => <MyMessageComponent />}
+    </ThreadPrimitive.Messages>
+  </ThreadReadOnly>
+);
+```
+
+<ParametersTable
+  type="ThreadReadOnlyProps"
+  parameters={[
+    {
+      name: "messages",
+      type: "ThreadMessage[] | SerializedThreadMessage[]",
+      description: "The messages to render. Serialized messages are auto-deserialized.",
+    },
+    {
+      name: "children",
+      type: "ReactNode",
+      description: "Thread primitives to compose the read-only view.",
+    },
+  ]}
+/>
+
+## Serialization
+
+Convert between `ThreadMessage` (runtime) and `SerializedThreadMessage` (JSON-safe) formats.
+
+```tsx
+import { serializeMessages, deserializeMessages } from "@assistant-ui/react";
+
+// Serialize for storage/transport
+const serialized = serializeMessages(messages);
+const json = JSON.stringify(serialized); // safe
+
+// Deserialize back to ThreadMessage[]
+const restored = deserializeMessages(serialized);
+```
+
+**What changes during serialization:**
+- `createdAt: Date` → `string` (ISO format)
+- `attachment.file` (File/Blob) → removed
+- `attachment.status` → omitted (re-added as `{ type: "complete" }` on deserialize)
+
+## Export Utilities
+
+### toMarkdown
+
+Converts messages to a human-readable Markdown string. Handles text, tool calls, reasoning, sources, images, and files.
+
+```tsx
+import { toMarkdown } from "@assistant-ui/react";
+
+const md = toMarkdown(messages);
+// **User:**
+// How do I use React hooks?
+//
+// ---
+//
+// **Assistant:**
+// React hooks are functions that...
+```
+
+### toJSON
+
+Exports messages as a JSON string. Messages are serialized automatically.
+
+```tsx
+import { toJSON } from "@assistant-ui/react";
+
+const json = toJSON(messages); // compact
+const pretty = toJSON(messages, { pretty: true }); // indented
+```
+
+## Share Primitives
+
+See [ThreadPrimitive.Share](/docs/primitives/thread#share) and [ActionBarPrimitive.Share](/docs/primitives/action-bar#share) for the share button primitives.

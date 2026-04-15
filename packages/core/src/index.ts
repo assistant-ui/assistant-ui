@@ -292,3 +292,22 @@ export {
   getEnabledTools,
   createRequestHeaders,
 } from "./runtimes/assistant-transport/utils";
+
+// === share ===
+
+export type {
+  SerializedThreadMessage,
+  SerializedAttachment,
+  SerializedSystemMessage,
+  SerializedUserMessage,
+  SerializedAssistantMessage,
+} from "./share/types";
+
+export {
+  serializeMessages,
+  deserializeMessages,
+  isSerializedMessages,
+} from "./share/serialization";
+
+export { toMarkdown } from "./share/export-markdown";
+export { toJSON, type ToJSONOptions } from "./share/export-json";

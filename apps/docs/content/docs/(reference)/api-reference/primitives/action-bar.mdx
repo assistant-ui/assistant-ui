@@ -322,3 +322,64 @@ Export as JSON:
   Export JSON
 </ActionBarPrimitive.ExportMarkdown>
 ```
+
+### Share
+
+Shares a single message (and optionally the full thread). Serializes the message to a JSON-safe format and passes it to the `onShare` callback. The developer handles persistence, link generation, etc.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ActionBarPrimitiveShareProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "onShare",
+      type: "(data: { message: SerializedThreadMessage; thread?: SerializedThreadMessage[] }) => void | Promise<void>",
+      description:
+        "Callback that receives the serialized message data.",
+    },
+    {
+      name: "includeThread",
+      type: "boolean",
+      default: "false",
+      description:
+        "When true, the full thread is included in the data passed to onShare.",
+    },
+  ]}
+/>
+
+#### Examples
+
+Share a single message:
+
+```tsx
+<ActionBarPrimitive.Share
+  onShare={async ({ message }) => {
+    await fetch("/api/share-message", {
+      method: "POST",
+      body: JSON.stringify(message),
+    });
+  }}
+>
+  Share
+</ActionBarPrimitive.Share>
+```
+
+Share with full thread context:
+
+```tsx
+<ActionBarPrimitive.Share
+  includeThread
+  onShare={async ({ message, thread }) => {
+    await fetch("/api/share", {
+      method: "POST",
+      body: JSON.stringify({ message, thread }),
+    });
+  }}
+>
+  Share with context
+</ActionBarPrimitive.Share>
+```

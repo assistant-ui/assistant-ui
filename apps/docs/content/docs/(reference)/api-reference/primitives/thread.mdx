@@ -372,3 +372,41 @@ const SuggestionItem = () => (
 <Callout type="info">
 Configure suggestions using the `Suggestions()` API in your runtime provider. See the [Suggestions guide](/docs/guides/suggestions) for details.
 </Callout>
+
+### Share
+
+Shares the entire thread conversation. Serializes all messages to a JSON-safe format and passes them to the `onShare` callback.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ThreadPrimitiveShareProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "onShare",
+      type: "(data: SerializedThreadMessage[]) => void | Promise<void>",
+      description:
+        "Callback that receives all thread messages in serialized (JSON-safe) format.",
+    },
+  ]}
+/>
+
+#### Examples
+
+```tsx
+<ThreadPrimitive.Share
+  onShare={async (messages) => {
+    const res = await fetch("/api/share", {
+      method: "POST",
+      body: JSON.stringify(messages),
+    });
+    const { url } = await res.json();
+    await navigator.clipboard.writeText(url);
+  }}
+>
+  Share conversation
+</ThreadPrimitive.Share>
+```
