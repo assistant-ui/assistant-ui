@@ -12,8 +12,8 @@ import {
 
 /**
  * A plugin that intercepts keyboard events and cursor changes in the composer
- * input. Used by trigger roots (MentionRoot, SlashCommandRoot, etc.) to handle
- * popover navigation without ComposerInput knowing about specific triggers.
+ * input. Used by trigger popover declarations to handle popover navigation
+ * without ComposerInput knowing about specific triggers.
  */
 export type ComposerInputPlugin = {
   /** Handle a key event. Return true if consumed (stops propagation to other plugins and default behavior). */
@@ -30,9 +30,21 @@ export type ComposerInputPlugin = {
   setCursorPosition(pos: number): void;
 };
 
+/** Options for registering a plugin. */
+export type ComposerInputPluginRegisterOptions = {
+  /**
+   * Relative priority. Plugins with higher priority receive events first.
+   * @default 0
+   */
+  priority?: number;
+};
+
 // Ref-based registry: plugins are read imperatively at event time, so register/unregister does not trigger re-renders.
 export type ComposerInputPluginRegistry = {
-  register(plugin: ComposerInputPlugin): () => void;
+  register(
+    plugin: ComposerInputPlugin,
+    opts?: ComposerInputPluginRegisterOptions,
+  ): () => void;
   getPlugins(): readonly ComposerInputPlugin[];
 };
 
@@ -57,17 +69,31 @@ export const useComposerInputPluginRegistryOptional =
 export const ComposerInputPluginProvider: FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const pluginsRef = useRef<Set<ComposerInputPlugin>>(new Set());
+  const pluginsRef = useRef<Map<ComposerInputPlugin, number>>(new Map());
   const snapshotRef = useRef<readonly ComposerInputPlugin[]>([]);
 
-  const register = useCallback((plugin: ComposerInputPlugin) => {
-    pluginsRef.current.add(plugin);
-    snapshotRef.current = Array.from(pluginsRef.current);
-    return () => {
-      pluginsRef.current.delete(plugin);
-      snapshotRef.current = Array.from(pluginsRef.current);
-    };
+  const refreshSnapshot = useCallback(() => {
+    const entries = Array.from(pluginsRef.current.entries());
+    // Sort by priority descending; stable insertion order for equal priorities.
+    entries.sort((a, b) => b[1] - a[1]);
+    snapshotRef.current = entries.map(([plugin]) => plugin);
   }, []);
+
+  const register = useCallback(
+    (
+      plugin: ComposerInputPlugin,
+      opts?: ComposerInputPluginRegisterOptions,
+    ) => {
+      const priority = opts?.priority ?? 0;
+      pluginsRef.current.set(plugin, priority);
+      refreshSnapshot();
+      return () => {
+        pluginsRef.current.delete(plugin);
+        refreshSnapshot();
+      };
+    },
+    [refreshSnapshot],
+  );
 
   const getPlugins = useCallback(
     (): readonly ComposerInputPlugin[] => snapshotRef.current,

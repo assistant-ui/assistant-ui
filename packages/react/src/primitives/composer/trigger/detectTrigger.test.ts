@@ -75,4 +75,40 @@ describe("detectTrigger", () => {
       offset: 6,
     });
   });
+
+  it("treats U+3000 full-width space before trigger as boundary", () => {
+    expect(detectTrigger("全角\u3000@foo", "@", 7)).toEqual({
+      query: "foo",
+      offset: 3,
+    });
+  });
+
+  it("treats U+00A0 NBSP before trigger as boundary", () => {
+    expect(detectTrigger("x\u00A0@foo", "@", 6)).toEqual({
+      query: "foo",
+      offset: 2,
+    });
+  });
+
+  it("stops at U+3000 full-width space inside query", () => {
+    expect(detectTrigger("@foo\u3000bar", "@", 8)).toBeNull();
+  });
+
+  it("IME full-width space before trigger char acts as boundary", () => {
+    expect(detectTrigger("hello\u3000@foo", "@", 10)).toEqual({
+      query: "foo",
+      offset: 6,
+    });
+  });
+
+  it("NBSP between word and trigger acts as boundary", () => {
+    expect(detectTrigger("hello\u00a0@foo", "@", 10)).toEqual({
+      query: "foo",
+      offset: 6,
+    });
+  });
+
+  it("full-width trigger char does NOT match ASCII trigger (literal comparison)", () => {
+    expect(detectTrigger("hello \uff20foo", "@", 10)).toBeNull();
+  });
 });

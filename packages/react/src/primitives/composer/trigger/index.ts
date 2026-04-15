@@ -8,7 +8,6 @@ export {
   type TriggerPopoverRootContextValue,
 } from "./TriggerPopoverRootContext";
 export {
-  ComposerPrimitiveTriggerPopover,
   useTriggerPopoverScopeContext,
   useTriggerPopoverScopeContextOptional,
 } from "./TriggerPopover";
@@ -21,4 +20,13 @@ export {
   ComposerPrimitiveTriggerPopoverItem,
 } from "./TriggerPopoverItems";
 export { ComposerPrimitiveTriggerPopoverBack } from "./TriggerPopoverBack";
-export type { OnSelectBehavior } from "./TriggerPopoverResource";
+export type { TriggerBehavior } from "./triggerSelectionResource";
+
+import { ComposerPrimitiveTriggerPopover as Base } from "./TriggerPopover";
+import { ComposerPrimitiveTriggerPopoverAction } from "./TriggerPopoverAction";
+import { ComposerPrimitiveTriggerPopoverDirective } from "./TriggerPopoverDirective";
+
+export const ComposerPrimitiveTriggerPopover = Object.assign(Base, {
+  Directive: ComposerPrimitiveTriggerPopoverDirective,
+  Action: ComposerPrimitiveTriggerPopoverAction,
+});

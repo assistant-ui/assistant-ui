@@ -22,10 +22,10 @@ export const ComposerPrimitiveTriggerPopoverBack = forwardRef<
   ComposerPrimitiveTriggerPopoverBack.Element,
   ComposerPrimitiveTriggerPopoverBack.Props
 >(({ onClick, ...props }, forwardedRef) => {
-  const { activeCategoryId, isSearchMode, goBack } =
+  const { activeCategoryId, isSearchMode, goBack, open } =
     useTriggerPopoverScopeContext();
 
-  if (!activeCategoryId || isSearchMode) return null;
+  if (!open || !activeCategoryId || isSearchMode) return null;
 
   return (
     <Primitive.button

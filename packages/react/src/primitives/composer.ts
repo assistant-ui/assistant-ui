@@ -15,11 +15,8 @@ export { ComposerPrimitiveQuoteText as QuoteText } from "./composer/ComposerQuot
 export { ComposerPrimitiveQuoteDismiss as QuoteDismiss } from "./composer/ComposerQuote";
 export { ComposerPrimitiveQueue as Queue } from "./composer/ComposerQueue";
 
-// --- Unified Trigger Popover primitives (unstable) ---
-// Root + per-trigger declarations + shared sub-primitives. Used for `@` mentions,
-// `/` slash commands, and any other trigger-driven popover.
-export { ComposerPrimitiveTriggerPopoverRoot as Unstable_TriggerPopoverRoot } from "./composer/trigger";
 export { ComposerPrimitiveTriggerPopover as Unstable_TriggerPopover } from "./composer/trigger";
+export { ComposerPrimitiveTriggerPopoverRoot as Unstable_TriggerPopoverRoot } from "./composer/trigger";
 export { ComposerPrimitiveTriggerPopoverCategories as Unstable_TriggerPopoverCategories } from "./composer/trigger";
 export { ComposerPrimitiveTriggerPopoverCategoryItem as Unstable_TriggerPopoverCategoryItem } from "./composer/trigger";
 export { ComposerPrimitiveTriggerPopoverItems as Unstable_TriggerPopoverItems } from "./composer/trigger";

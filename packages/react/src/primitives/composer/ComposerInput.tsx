@@ -157,6 +157,8 @@ export const ComposerPrimitiveInput = forwardRef<
       ) || disabledProp;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const ref = useComposedRefs(forwardedRef, textareaRef);
+    // suppress text/cursor broadcasts during IME composition
+    const compositionRef = useRef(false);
 
     useEscapeKeydown((e) => {
       // Only handle ESC if it originated from within this input
@@ -295,6 +297,10 @@ export const ComposerPrimitiveInput = forwardRef<
         onChange,
         (e: React.ChangeEvent<HTMLTextAreaElement>) => {
           if (!aui.composer().getState().isEditing) return;
+          const isComposing =
+            (e.nativeEvent as { isComposing?: boolean }).isComposing === true ||
+            compositionRef.current;
+          if (isComposing) return;
           flushResourcesSync(() => {
             aui.composer().setText(e.target.value);
           });
@@ -307,9 +313,35 @@ export const ComposerPrimitiveInput = forwardRef<
         },
       ),
       onKeyDown: composeEventHandlers(onKeyDown, handleKeyPress),
+      onCompositionStart: composeEventHandlers(
+        (rest as { onCompositionStart?: React.CompositionEventHandler })
+          .onCompositionStart,
+        () => {
+          compositionRef.current = true;
+        },
+      ),
+      onCompositionEnd: composeEventHandlers(
+        (rest as { onCompositionEnd?: React.CompositionEventHandler })
+          .onCompositionEnd,
+        (e: React.CompositionEvent<HTMLTextAreaElement>) => {
+          compositionRef.current = false;
+          if (!aui.composer().getState().isEditing) return;
+          const target = e.target as HTMLTextAreaElement;
+          flushResourcesSync(() => {
+            aui.composer().setText(target.value);
+          });
+          const pos = target.selectionStart ?? target.value.length;
+          if (pluginRegistry) {
+            for (const plugin of pluginRegistry.getPlugins()) {
+              plugin.setCursorPosition(pos);
+            }
+          }
+        },
+      ),
       onSelect: composeEventHandlers(
         onSelect,
         (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+          if (compositionRef.current) return;
           const target = e.target as HTMLTextAreaElement;
           const pos = target.selectionStart ?? target.value.length;
           if (pluginRegistry) {

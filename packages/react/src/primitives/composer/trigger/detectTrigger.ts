@@ -1,4 +1,4 @@
-const WHITESPACE_RE = /\s/;
+const WHITESPACE_RE = /\s/u;
 
 /**
  * Detect a trigger character in text relative to the cursor position.

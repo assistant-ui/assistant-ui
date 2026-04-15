@@ -2,18 +2,17 @@
 
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useResource } from "@assistant-ui/tap/react";
-import type {
-  Unstable_TriggerAdapter,
-  Unstable_TriggerItem,
-} from "@assistant-ui/core";
+import type { Unstable_TriggerAdapter } from "@assistant-ui/core";
 import {
   createContext,
   forwardRef,
+  useCallback,
   useContext,
   useEffect,
   useId,
   useMemo,
   useRef,
+  useState,
   type ComponentPropsWithoutRef,
   type ComponentRef,
 } from "react";
@@ -21,9 +20,9 @@ import { Primitive } from "../../../utils/Primitive";
 import { useComposerInputPluginRegistryOptional } from "../ComposerInputPluginContext";
 import {
   TriggerPopoverResource,
-  type OnSelectBehavior,
   type TriggerPopoverResourceOutput,
 } from "./TriggerPopoverResource";
+import type { TriggerBehavior } from "./triggerSelectionResource";
 import { useTriggerPopoverRootContext } from "./TriggerPopoverRootContext";
 
 const TriggerPopoverScopeContext =
@@ -41,38 +40,55 @@ export const useTriggerPopoverScopeContext = () => {
 export const useTriggerPopoverScopeContextOptional = () =>
   useContext(TriggerPopoverScopeContext);
 
+/** Registration API exposed to behavior sub-primitives. */
+export type TriggerBehaviorRegistration = {
+  register(behavior: TriggerBehavior): () => void;
+};
+
+const TriggerBehaviorRegistrationContext =
+  createContext<TriggerBehaviorRegistration | null>(null);
+
+/** Obtain the registration handle from the parent `<TriggerPopover>`. */
+export const useTriggerBehaviorRegistration = () => {
+  const ctx = useContext(TriggerBehaviorRegistrationContext);
+  if (!ctx)
+    throw new Error(
+      "TriggerPopover.Directive / TriggerPopover.Action must be rendered inside ComposerPrimitive.TriggerPopover",
+    );
+  return ctx;
+};
+
 export namespace ComposerPrimitiveTriggerPopover {
   export type Element = ComponentRef<typeof Primitive.div>;
   export type Props = Omit<
     ComponentPropsWithoutRef<typeof Primitive.div>,
     "onSelect"
   > & {
-    /** Unique identifier for this trigger within the root. */
-    readonly triggerId: string;
-    /** The character(s) that activate this trigger (e.g. `"@"`, `"/"`). */
+    /** The character(s) that activate this trigger (e.g. `"@"`, `"/"`). Also serves as the trigger identity within the root. */
     readonly char: string;
     /** Adapter providing categories and items. */
     readonly adapter?: Unstable_TriggerAdapter | undefined;
-    /** What happens when an item is selected. */
-    readonly onSelect: OnSelectBehavior;
   };
 }
 
 /**
  * Declares a trigger and renders its popover container. The popover only
  * renders its DOM (and children) when the trigger character is active in the
- * composer input.
+ * composer input and a behavior sub-primitive has been registered.
+ *
+ * A behavior is contributed by rendering exactly one of
+ * `<TriggerPopover.Directive>` or `<TriggerPopover.Action>` as a child. Without
+ * a behavior the trigger stays closed.
  *
  * Must be placed inside `ComposerPrimitive.Unstable_TriggerPopoverRoot`.
  *
  * @example
  * ```tsx
  * <ComposerPrimitive.Unstable_TriggerPopover
- *   triggerId="mention"
  *   char="@"
  *   adapter={mentionAdapter}
- *   onSelect={{ type: "insertDirective", formatter }}
  * >
+ *   <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
  *   <ComposerPrimitive.Unstable_TriggerPopoverCategories>
  *     {(cats) => cats.map(...)}
  *   </ComposerPrimitive.Unstable_TriggerPopoverCategories>
@@ -87,59 +103,56 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
   ComposerPrimitiveTriggerPopover.Props
 >(
   (
-    {
-      triggerId,
-      char,
-      adapter,
-      onSelect,
-      "aria-label": ariaLabel,
-      children,
-      ...props
-    },
+    { char, adapter, "aria-label": ariaLabel, children, ...props },
     forwardedRef,
   ) => {
     const aui = useAui();
     const text = useAuiState((s) => s.composer.text);
     const popoverId = useId();
 
-    // Inner guards no-op if the wrapper outlives its variant by one render.
-    const onSelectRef = useRef(onSelect);
-    onSelectRef.current = onSelect;
-    const stableOnSelect = useMemo<OnSelectBehavior>(() => {
-      if (onSelect.type === "insertDirective") {
-        return {
-          type: "insertDirective",
-          formatter: {
-            serialize: (item: Unstable_TriggerItem) => {
-              const cur = onSelectRef.current;
-              return cur.type === "insertDirective"
-                ? cur.formatter.serialize(item)
-                : "";
-            },
-            parse: (input: string) => {
-              const cur = onSelectRef.current;
-              return cur.type === "insertDirective"
-                ? cur.formatter.parse(input)
-                : [{ kind: "text", text: input }];
-            },
-          },
+    // Track in state (for resource reactivity) + ref (dev warning on duplicate registrations).
+    const behaviorRef = useRef<TriggerBehavior | null>(null);
+    const [behavior, setBehavior] = useState<TriggerBehavior | null>(null);
+    const registrationCountRef = useRef(0);
+
+    const register = useCallback<TriggerBehaviorRegistration["register"]>(
+      (next) => {
+        registrationCountRef.current += 1;
+        if (
+          process.env.NODE_ENV !== "production" &&
+          registrationCountRef.current > 1
+        ) {
+          console.warn(
+            `[assistant-ui] TriggerPopover "${char}" received more than one behavior child. Exactly one <TriggerPopover.Directive> or <TriggerPopover.Action> is allowed per TriggerPopover; the last registration wins.`,
+          );
+        }
+        behaviorRef.current = next;
+        setBehavior(next);
+        return () => {
+          registrationCountRef.current = Math.max(
+            0,
+            registrationCountRef.current - 1,
+          );
+          if (behaviorRef.current === next) {
+            behaviorRef.current = null;
+            setBehavior(null);
+          }
         };
-      }
-      return {
-        type: "action",
-        handler: (item: Unstable_TriggerItem) => {
-          const cur = onSelectRef.current;
-          if (cur.type === "action") cur.handler(item);
-        },
-      };
-    }, [onSelect.type]);
+      },
+      [char],
+    );
+
+    const registration = useMemo<TriggerBehaviorRegistration>(
+      () => ({ register }),
+      [register],
+    );
 
     const resource = useResource(
       TriggerPopoverResource({
         adapter,
         text,
         triggerChar: char,
-        onSelect: stableOnSelect,
+        behavior: behavior ?? undefined,
         aui,
         popoverId,
       }),
@@ -151,12 +164,12 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
 
     const root = useTriggerPopoverRootContext();
     useEffect(() => {
-      return root.register(triggerId, {
+      return root.register({
         char,
-        onSelect: stableOnSelect,
+        ...(behavior ? { behavior } : {}),
         resource: resourceRef.current,
       });
-    }, [root, triggerId, char, stableOnSelect]);
+    }, [root, char, behavior]);
 
     const pluginRegistry = useComposerInputPluginRegistryOptional();
     useEffect(() => {
@@ -164,22 +177,28 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
       return pluginRegistry.register(resourceRef.current);
     }, [pluginRegistry]);
 
-    if (!resource.open) return null;
+    const open = behavior !== null && resource.open;
 
     return (
-      <TriggerPopoverScopeContext.Provider value={resource}>
-        <Primitive.div
-          role="listbox"
-          id={popoverId}
-          aria-label={ariaLabel ?? "Suggestions"}
-          aria-activedescendant={resource.highlightedItemId}
-          data-state="open"
-          {...props}
-          ref={forwardedRef}
-        >
-          {children}
-        </Primitive.div>
-      </TriggerPopoverScopeContext.Provider>
+      <TriggerBehaviorRegistrationContext.Provider value={registration}>
+        <TriggerPopoverScopeContext.Provider value={resource}>
+          {open ? (
+            <Primitive.div
+              role="listbox"
+              id={popoverId}
+              aria-label={ariaLabel ?? "Suggestions"}
+              aria-activedescendant={resource.highlightedItemId}
+              data-state="open"
+              {...props}
+              ref={forwardedRef}
+            >
+              {children}
+            </Primitive.div>
+          ) : (
+            children
+          )}
+        </TriggerPopoverScopeContext.Provider>
+      </TriggerBehaviorRegistrationContext.Provider>
     );
   },
 );

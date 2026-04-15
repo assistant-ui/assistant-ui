@@ -30,10 +30,10 @@ export const ComposerPrimitiveTriggerPopoverCategories = forwardRef<
   ComposerPrimitiveTriggerPopoverCategories.Element,
   ComposerPrimitiveTriggerPopoverCategories.Props
 >(({ children, "aria-label": ariaLabel, ...props }, forwardedRef) => {
-  const { categories, activeCategoryId, isSearchMode } =
+  const { categories, activeCategoryId, isSearchMode, open } =
     useTriggerPopoverScopeContext();
 
-  if (activeCategoryId || isSearchMode) return null;
+  if (!open || activeCategoryId || isSearchMode) return null;
 
   return (
     <Primitive.div

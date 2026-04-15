@@ -14,25 +14,23 @@ import {
   ComposerInputPluginProvider,
   useComposerInputPluginRegistryOptional,
 } from "../ComposerInputPluginContext";
-import type {
-  OnSelectBehavior,
-  TriggerPopoverResourceOutput,
-} from "./TriggerPopoverResource";
+import type { TriggerPopoverResourceOutput } from "./TriggerPopoverResource";
+import type { TriggerBehavior } from "./triggerSelectionResource";
 
 export type RegisteredTrigger = {
-  readonly id: string;
   readonly char: string;
-  readonly onSelect: OnSelectBehavior;
+  /** Behavior contributed by a child `TriggerPopover.Directive` / `.Action`. */
+  readonly behavior?: TriggerBehavior;
   readonly resource: TriggerPopoverResourceOutput;
 };
 
 export type TriggerPopoverLifecycleListener = {
   added(trigger: RegisteredTrigger): void;
-  removed(id: string): void;
+  removed(char: string): void;
 };
 
 export type TriggerPopoverRootContextValue = {
-  register(id: string, trigger: Omit<RegisteredTrigger, "id">): () => void;
+  register(trigger: RegisteredTrigger): () => void;
   getTriggers(): ReadonlyMap<string, RegisteredTrigger>;
   subscribe(listener: () => void): () => void;
   /** Subscribe to per-trigger add/remove events. */
@@ -97,27 +95,39 @@ const TriggerPopoverRootInner: FC<
   }, []);
 
   const register = useCallback<TriggerPopoverRootContextValue["register"]>(
-    (id, trigger) => {
-      if (triggersRef.current.has(id)) {
+    (trigger) => {
+      const { char } = trigger;
+      if (triggersRef.current.has(char)) {
         if (process.env.NODE_ENV !== "production") {
           console.warn(
-            `[assistant-ui] Duplicate triggerId "${id}" registered in TriggerPopoverRoot. Each trigger must have a unique id; ignoring the second registration.`,
+            `[assistant-ui] Duplicate TriggerPopover for char "${char}". Ignoring the second registration.`,
           );
         }
         return () => {};
       }
-      const entry: RegisteredTrigger = { id, ...trigger };
+      if (process.env.NODE_ENV !== "production") {
+        for (const existing of triggersRef.current.values()) {
+          if (
+            char.startsWith(existing.char) ||
+            existing.char.startsWith(char)
+          ) {
+            console.warn(
+              `[assistant-ui] Trigger prefix collision between "${existing.char}" and "${char}". One char is a prefix of the other; only one will match reliably.`,
+            );
+          }
+        }
+      }
       const next = new Map(triggersRef.current);
-      next.set(id, entry);
+      next.set(char, trigger);
       triggersRef.current = next;
       notify();
-      for (const l of lifecycleListenersRef.current) l.added(entry);
+      for (const l of lifecycleListenersRef.current) l.added(trigger);
       return () => {
         const after = new Map(triggersRef.current);
-        after.delete(id);
+        after.delete(char);
         triggersRef.current = after;
         notify();
-        for (const l of lifecycleListenersRef.current) l.removed(id);
+        for (const l of lifecycleListenersRef.current) l.removed(char);
       };
     },
     [notify],
@@ -159,28 +169,20 @@ const TriggerPopoverRootInner: FC<
 };
 
 /**
- * Provider that groups one or more `TriggerPopover` declarations. Declare each
- * trigger as a `<ComposerPrimitive.Unstable_TriggerPopover>` child with its own
- * `triggerId`, `char`, `adapter` and `onSelect` behavior.
+ * Provider that groups one or more `TriggerPopover` declarations. Each trigger
+ * is identified by its `char` (unique within the root). Behavior is contributed
+ * by a child `TriggerPopover.Directive` or `TriggerPopover.Action`.
  *
  * @example
  * ```tsx
  * <ComposerPrimitive.Unstable_TriggerPopoverRoot>
- *   <ComposerPrimitive.Unstable_TriggerPopover
- *     triggerId="mention"
- *     char="@"
- *     adapter={mentionAdapter}
- *     onSelect={{ type: "insertDirective", formatter }}
- *   >
+ *   <ComposerPrimitive.Unstable_TriggerPopover char="@" adapter={mentionAdapter}>
+ *     <ComposerPrimitive.Unstable_TriggerPopover.Directive formatter={formatter} />
  *     ...
  *   </ComposerPrimitive.Unstable_TriggerPopover>
  *
- *   <ComposerPrimitive.Unstable_TriggerPopover
- *     triggerId="slash"
- *     char="/"
- *     adapter={slashAdapter}
- *     onSelect={{ type: "action", handler }}
- *   >
+ *   <ComposerPrimitive.Unstable_TriggerPopover char="/" adapter={slashAdapter}>
+ *     <ComposerPrimitive.Unstable_TriggerPopover.Action onExecute={handler} />
  *     ...
  *   </ComposerPrimitive.Unstable_TriggerPopover>
  *
