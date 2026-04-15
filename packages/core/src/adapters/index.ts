@@ -27,15 +27,8 @@ export type { SuggestionAdapter } from "./suggestion";
 // Trigger adapter (generic)
 export type { Unstable_TriggerAdapter } from "./trigger";
 
-// Slash command adapter
-export type {
-  Unstable_SlashCommandAdapter,
-  Unstable_SlashCommandItem,
-} from "./trigger";
-
-// Mention adapter
-export type { Unstable_MentionAdapter } from "./mention";
-export { unstable_defaultDirectiveFormatter } from "./mention";
+// Directive formatter
+export { unstable_defaultDirectiveFormatter } from "./directive-formatter";
 
 // Thread history adapters
 export type {

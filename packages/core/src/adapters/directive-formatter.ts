@@ -1,14 +1,11 @@
 import type {
-  Unstable_MentionItem,
-  Unstable_DirectiveSegment,
   Unstable_DirectiveFormatter,
-} from "../types/mention";
-import type { Unstable_TriggerAdapter } from "./trigger";
+  Unstable_DirectiveSegment,
+} from "../types/directive";
+import type { Unstable_TriggerItem } from "../types/trigger";
 
-// alias of TriggerAdapter
-export type Unstable_MentionAdapter = Unstable_TriggerAdapter;
-
-const DIRECTIVE_RE = /:([\w-]+)\[([^\]]+)\](?:\{name=([^}]+)\})?/g;
+const DIRECTIVE_RE =
+  /:([\w-]{1,64})\[([^\]\n]{1,1024})\](?:\{name=([^}\n]{1,1024})\})?/gu;
 
 /**
  * Default directive formatter using the `:type[label]{name=id}` syntax.
@@ -16,7 +13,7 @@ const DIRECTIVE_RE = /:([\w-]+)\[([^\]]+)\](?:\{name=([^}]+)\})?/g;
  * When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
  */
 export const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter = {
-  serialize(item: Unstable_MentionItem): string {
+  serialize(item: Unstable_TriggerItem): string {
     const attrs = item.id !== item.label ? `{name=${item.id}}` : "";
     return `:${item.type}[${item.label}]${attrs}`;
   },

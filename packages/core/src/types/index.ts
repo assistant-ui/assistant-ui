@@ -40,11 +40,9 @@ export type { Unsubscribe } from "./unsubscribe";
 export type { QuoteInfo } from "./quote";
 
 export type {
-  Unstable_MentionItem,
-  Unstable_MentionCategory,
   Unstable_DirectiveSegment,
   Unstable_DirectiveFormatter,
-} from "./mention";
+} from "./directive";
 
 export type {
   Unstable_TriggerItem,

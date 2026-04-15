@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { unstable_defaultDirectiveFormatter } from "../adapters/mention";
+import { unstable_defaultDirectiveFormatter } from "../adapters/directive-formatter";
 
 describe("unstable_defaultDirectiveFormatter", () => {
   describe("serialize", () => {
@@ -105,6 +105,31 @@ describe("unstable_defaultDirectiveFormatter", () => {
           type: "tool",
           label: "Weather",
           id: "get_weather",
+        },
+      ]);
+    });
+  });
+
+  describe("unicode support", () => {
+    it("serializes a directive with a CJK label", () => {
+      expect(
+        unstable_defaultDirectiveFormatter.serialize({
+          id: "天气",
+          type: "tool",
+          label: "天气",
+        }),
+      ).toBe(":tool[天气]");
+    });
+
+    it("parses a directive with a CJK label and name attr", () => {
+      expect(
+        unstable_defaultDirectiveFormatter.parse(":tool[天气]{name=w1}"),
+      ).toEqual([
+        {
+          kind: "mention",
+          type: "tool",
+          label: "天气",
+          id: "w1",
         },
       ]);
     });
