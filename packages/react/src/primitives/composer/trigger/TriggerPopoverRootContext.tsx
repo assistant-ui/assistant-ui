@@ -26,10 +26,17 @@ export type RegisteredTrigger = {
   readonly resource: TriggerPopoverResourceOutput;
 };
 
+export type TriggerPopoverLifecycleListener = {
+  added(trigger: RegisteredTrigger): void;
+  removed(id: string): void;
+};
+
 export type TriggerPopoverRootContextValue = {
   register(id: string, trigger: Omit<RegisteredTrigger, "id">): () => void;
   getTriggers(): ReadonlyMap<string, RegisteredTrigger>;
   subscribe(listener: () => void): () => void;
+  /** Subscribe to per-trigger add/remove events. */
+  subscribeLifecycle(listener: TriggerPopoverLifecycleListener): () => void;
 };
 
 const TriggerPopoverRootContext =
@@ -48,9 +55,8 @@ export const useTriggerPopoverRootContextOptional = () =>
   useContext(TriggerPopoverRootContext);
 
 /**
- * Hook that returns the live map of registered triggers and re-renders when it
- * changes. Use from consumers that need to iterate triggers reactively
- * (e.g. `@assistant-ui/react-lexical`'s `MentionPlugin`).
+ * Live map of registered triggers, re-rendering on change. Prefer
+ * `subscribeLifecycle` for incremental add/remove handling.
  */
 export const useTriggerPopoverTriggers = () => {
   const ctx = useTriggerPopoverRootContext();
@@ -61,12 +67,7 @@ const EMPTY_TRIGGERS: ReadonlyMap<string, RegisteredTrigger> = new Map();
 const noopSubscribe = () => () => {};
 const getEmptyTriggers = () => EMPTY_TRIGGERS;
 
-/**
- * Same as `useTriggerPopoverTriggers` but returns an empty map when used
- * outside a `TriggerPopoverRoot` instead of throwing. Intended for input-level
- * integrations (e.g. Lexical `MentionPlugin`) that must render even when no
- * trigger root is present.
- */
+/** Like `useTriggerPopoverTriggers` but returns an empty map outside a root. */
 export const useTriggerPopoverTriggersOptional = () => {
   const ctx = useTriggerPopoverRootContextOptional();
   return useSyncExternalStore(
@@ -85,47 +86,46 @@ export namespace ComposerPrimitiveTriggerPopoverRoot {
 const TriggerPopoverRootInner: FC<
   ComposerPrimitiveTriggerPopoverRoot.Props
 > = ({ children }) => {
-  const triggersRef = useRef<Map<string, RegisteredTrigger>>(new Map());
-  // Independent empty Map so `getSnapshot` never returns the mutable internal
-  // map (would violate `useSyncExternalStore`'s stable-reference contract).
-  const snapshotRef = useRef<ReadonlyMap<string, RegisteredTrigger>>(new Map());
+  const triggersRef = useRef<ReadonlyMap<string, RegisteredTrigger>>(new Map());
   const listenersRef = useRef<Set<() => void>>(new Set());
+  const lifecycleListenersRef = useRef<Set<TriggerPopoverLifecycleListener>>(
+    new Set(),
+  );
 
   const notify = useCallback(() => {
     for (const listener of listenersRef.current) listener();
   }, []);
 
-  // Rebuild the snapshot Map on every mutation so useSyncExternalStore sees a
-  // fresh reference and downstream `Object.is` checks fire correctly.
-  const refreshSnapshot = useCallback(() => {
-    snapshotRef.current = new Map(triggersRef.current);
-  }, []);
-
   const register = useCallback<TriggerPopoverRootContextValue["register"]>(
     (id, trigger) => {
-      if (
-        process.env.NODE_ENV !== "production" &&
-        triggersRef.current.has(id)
-      ) {
-        console.warn(
-          `[assistant-ui] Duplicate triggerId "${id}" registered in TriggerPopoverRoot. Each trigger must have a unique id.`,
-        );
+      if (triggersRef.current.has(id)) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn(
+            `[assistant-ui] Duplicate triggerId "${id}" registered in TriggerPopoverRoot. Each trigger must have a unique id; ignoring the second registration.`,
+          );
+        }
+        return () => {};
       }
-      triggersRef.current.set(id, { id, ...trigger });
-      refreshSnapshot();
+      const entry: RegisteredTrigger = { id, ...trigger };
+      const next = new Map(triggersRef.current);
+      next.set(id, entry);
+      triggersRef.current = next;
       notify();
+      for (const l of lifecycleListenersRef.current) l.added(entry);
       return () => {
-        triggersRef.current.delete(id);
-        refreshSnapshot();
+        const after = new Map(triggersRef.current);
+        after.delete(id);
+        triggersRef.current = after;
         notify();
+        for (const l of lifecycleListenersRef.current) l.removed(id);
       };
     },
-    [notify, refreshSnapshot],
+    [notify],
   );
 
   const getTriggers = useCallback<
     TriggerPopoverRootContextValue["getTriggers"]
-  >(() => snapshotRef.current, []);
+  >(() => triggersRef.current, []);
 
   const subscribe = useCallback<TriggerPopoverRootContextValue["subscribe"]>(
     (listener) => {
@@ -137,9 +137,18 @@ const TriggerPopoverRootInner: FC<
     [],
   );
 
+  const subscribeLifecycle = useCallback<
+    TriggerPopoverRootContextValue["subscribeLifecycle"]
+  >((listener) => {
+    lifecycleListenersRef.current.add(listener);
+    return () => {
+      lifecycleListenersRef.current.delete(listener);
+    };
+  }, []);
+
   const value = useMemo<TriggerPopoverRootContextValue>(
-    () => ({ register, getTriggers, subscribe }),
-    [register, getTriggers, subscribe],
+    () => ({ register, getTriggers, subscribe, subscribeLifecycle }),
+    [register, getTriggers, subscribe, subscribeLifecycle],
   );
 
   return (
