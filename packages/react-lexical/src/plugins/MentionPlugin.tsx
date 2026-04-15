@@ -97,13 +97,10 @@ export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
   const [editor] = useLexicalComposerContext();
   const triggers = unstable_useTriggerPopoverTriggersOptional();
 
-  // Keep the current match keyed so `insertMention` can resolve which trigger
-  // the user is interacting with (there's at most one active match at a time —
-  // trigger detection is scoped to the caret).
+  // At most one trigger matches at a time (detection is caret-scoped).
   const matchRef = useRef<ActiveMatch | null>(null);
 
-  // Mirror `triggers` into a ref so editor update + backspace handlers can
-  // read the latest map without re-subscribing on every change.
+  // Ref-mirror so command handlers below see the latest map without re-subscribing.
   const triggersRef = useRef(triggers);
   triggersRef.current = triggers;
 
@@ -252,15 +249,12 @@ export function MentionPlugin({ onMentionSelect }: MentionPluginProps = {}) {
 
   useEffect(() => {
     const unsubs: Array<() => void> = [];
-
     for (const [id, trigger] of triggers) {
       if (trigger.onSelect.type !== "insertDirective") continue;
       unsubs.push(wireTrigger(id, trigger, matchRef, insertMention));
     }
-
-    return () => {
-      for (const unsub of unsubs) unsub();
-    };
+    if (unsubs.length === 0) return undefined;
+    return mergeRegister(...unsubs);
   }, [triggers, insertMention]);
 
   return null;
