@@ -77,13 +77,10 @@ export const Thread: FC = () => {
 const ThreadMessage: FC = () => {
   const role = useAuiState((s) => s.message.role);
   const isEditing = useAuiState((s) => s.message.composer.isEditing);
-  return (
-    <>
-      {isEditing && <EditComposer />}
-      {role === "user" && <UserMessage />}
-      {role === "assistant" && <AssistantMessage />}
-    </>
-  );
+
+  if (isEditing) return <EditComposer />;
+  if (role === "user") return <UserMessage />;
+  return <AssistantMessage />;
 };
 
 const ThreadScrollToBottom: FC = () => {
@@ -304,7 +301,7 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       data-id="aui_user-message-root"
-      className="fade-in slide-in-from-bottom-1 grid animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start px-2 duration-150 [&:where(>*)]:col-start-2"
+      className="fade-in slide-in-from-bottom-1 grid animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 duration-150 [&:where(>*)]:col-start-2"
       data-role="user"
     >
       <UserMessageAttachments />
@@ -320,7 +317,7 @@ const UserMessage: FC = () => {
 
       <BranchPicker
         data-id="aui_user-branch-picker"
-        className="col-span-full col-start-1 row-start-3 mt-2 -mr-1 justify-end"
+        className="col-span-full col-start-1 row-start-3 mr-1 justify-end"
       />
     </MessagePrimitive.Root>
   );
