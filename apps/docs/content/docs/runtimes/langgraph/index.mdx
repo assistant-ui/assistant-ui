@@ -323,18 +323,38 @@ const runtime = useLangGraphRuntime({
   stream: async (messages, { initialize, ...config }) => { /* ... */ },
   eventHandlers: {
     onMessageChunk: (chunk, metadata) => {
-      // Fired for each chunk in messages-tuple mode
-      // metadata contains langgraph_step, langgraph_node, ls_model_name, etc.
+      // Fired for each chunk in messages-tuple mode.
+      // `metadata` contains langgraph_step, langgraph_node, ls_model_name, etc.
+      // For pipe-namespaced events emitted by subgraphs (e.g. `messages|tools:call_abc`),
+      // `metadata.namespace` holds the suffix ("tools:call_abc"). Use it to attribute
+      // a chunk to a specific subgraph.
     },
     onValues: (values) => {
-      // Fired when a "values" event is received
+      // Fired when a top-level `values` event is received.
+      // Subgraph `values` events are routed to `onSubgraphValues` instead.
     },
     onUpdates: (updates) => {
-      // Fired when an "updates" event is received
+      // Fired when a top-level `updates` event is received.
+      // Subgraph `updates` events are routed to `onSubgraphUpdates` instead.
+    },
+    onSubgraphValues: (namespace, values) => {
+      // Fired when a subgraph `values|<namespace>` event is received
+      // (e.g. `namespace === "tools:call_abc"`). Use this to observe
+      // subgraph-internal state without mixing it into `onValues`.
+    },
+    onSubgraphUpdates: (namespace, updates) => {
+      // Fired when a subgraph `updates|<namespace>` event is received.
     },
     onMetadata: (metadata) => { /* thread metadata */ },
     onInfo: (info) => { /* informational messages */ },
-    onError: (error) => { /* stream errors */ },
+    onError: (error) => {
+      // Fired for both top-level and subgraph errors.
+    },
+    onSubgraphError: (namespace, error) => {
+      // Additionally fired for subgraph errors with the namespace.
+      // Use to attribute a subgraph failure to its source without marking
+      // the parent message as incomplete (that only happens for top-level errors).
+    },
     onCustomEvent: (type, data) => { /* custom events */ },
   },
 });
