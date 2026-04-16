@@ -3223,4 +3223,228 @@ describe("useLangGraphMessages", {}, () => {
       expect(onCustomEvent).toHaveBeenCalledWith("my-channel", { payload: 42 });
     });
   });
+
+  it("fires onSubgraphValues with namespace for namespaced values events", async () => {
+    const onValues = vi.fn();
+    const onSubgraphValues = vi.fn();
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "values|tools:tc-1",
+        data: { messages: [{ id: "sub-1", type: "ai", content: "sub" }] },
+      },
+      {
+        event: "values",
+        data: { messages: [{ id: "p-1", type: "ai", content: "parent" }] },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: { onValues, onSubgraphValues },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(onSubgraphValues).toHaveBeenCalledTimes(1);
+      expect(onSubgraphValues).toHaveBeenCalledWith("tools:tc-1", {
+        messages: [{ id: "sub-1", type: "ai", content: "sub" }],
+      });
+      expect(onValues).toHaveBeenCalledTimes(1);
+      expect(onValues).toHaveBeenCalledWith({
+        messages: [{ id: "p-1", type: "ai", content: "parent" }],
+      });
+    });
+  });
+
+  it("fires onSubgraphUpdates with namespace for namespaced updates events", async () => {
+    const onUpdates = vi.fn();
+    const onSubgraphUpdates = vi.fn();
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "updates|tools:tc-1",
+        data: { some_subgraph_node: { messages: [] } },
+      },
+      {
+        event: "updates",
+        data: { agent: { messages: [] } },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: { onUpdates, onSubgraphUpdates },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(onSubgraphUpdates).toHaveBeenCalledTimes(1);
+      expect(onSubgraphUpdates).toHaveBeenCalledWith("tools:tc-1", {
+        some_subgraph_node: { messages: [] },
+      });
+      expect(onUpdates).toHaveBeenCalledTimes(1);
+      expect(onUpdates).toHaveBeenCalledWith({ agent: { messages: [] } });
+    });
+  });
+
+  it("routes events from multiple namespaces independently", async () => {
+    const onSubgraphUpdates = vi.fn();
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      { event: "updates|tools:tc-1", data: { node_a: { step: 1 } } },
+      { event: "updates|tools:tc-2", data: { node_b: { step: 1 } } },
+      { event: "updates|tools:tc-1", data: { node_a: { step: 2 } } },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: { onSubgraphUpdates },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(onSubgraphUpdates).toHaveBeenCalledTimes(3);
+    });
+    expect(onSubgraphUpdates.mock.calls).toEqual([
+      ["tools:tc-1", { node_a: { step: 1 } }],
+      ["tools:tc-2", { node_b: { step: 1 } }],
+      ["tools:tc-1", { node_a: { step: 2 } }],
+    ]);
+  });
+
+  it("fires onSubgraphValues when onValues is not registered", async () => {
+    const onSubgraphValues = vi.fn();
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "values|tools:tc-1",
+        data: { messages: [{ id: "s", type: "ai", content: "x" }] },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: { onSubgraphValues },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(onSubgraphValues).toHaveBeenCalledTimes(1);
+      expect(onSubgraphValues).toHaveBeenCalledWith("tools:tc-1", {
+        messages: [{ id: "s", type: "ai", content: "x" }],
+      });
+    });
+  });
+
+  it("fires onSubgraphError in addition to onError for namespaced errors", async () => {
+    const onError = vi.fn();
+    const onSubgraphError = vi.fn();
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            type: "AIMessageChunk",
+            content: "ok",
+            tool_call_chunks: [],
+          },
+          { langgraph_node: "agent" } satisfies LangGraphTupleMetadata,
+        ],
+      },
+      { event: "error|tools:tc-1", data: { message: "sub boom" } },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: { onError, onSubgraphError },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalledWith({ message: "sub boom" });
+      expect(onSubgraphError).toHaveBeenCalledWith("tools:tc-1", {
+        message: "sub boom",
+      });
+      // parent message is not marked incomplete for subgraph error
+      const parentAi = result.current.messages.find((m) => m.id === "ai-1");
+      expect(parentAi).toBeDefined();
+      expect(
+        (parentAi as unknown as { status?: { type: string } })?.status?.type,
+      ).not.toBe("incomplete");
+    });
+  });
+
+  it("merges event namespace into tupleMetadata passed to onMessageChunk", async () => {
+    const onMessageChunk = vi.fn();
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages|tools:tc-1",
+        data: [
+          {
+            id: "sub-chunk-1",
+            type: "AIMessageChunk",
+            content: "hello",
+            tool_call_chunks: [],
+          },
+          { langgraph_node: "tools" } satisfies LangGraphTupleMetadata,
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: { onMessageChunk },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(onMessageChunk).toHaveBeenCalled();
+      const [chunk, metadata] = onMessageChunk.mock.calls[0]!;
+      expect(chunk).toMatchObject({ id: "sub-chunk-1", content: "hello" });
+      expect(metadata).toMatchObject({
+        langgraph_node: "tools",
+        namespace: "tools:tc-1",
+      });
+    });
+  });
 });
