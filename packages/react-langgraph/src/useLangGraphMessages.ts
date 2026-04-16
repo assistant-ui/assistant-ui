@@ -207,21 +207,21 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
       config: LangGraphSendMessageConfig,
       onComplete?: () => void,
     ) => {
-      // ensure all messages have an ID
-      const newMessagesWithId = newMessages.map((m) =>
-        m.id ? m : { ...m, id: uuidv4() },
-      );
-
-      const accumulator = new LangGraphMessageAccumulator({
-        initialMessages: messagesRef.current,
-        initialUIMessages: uiMessagesRef.current,
-        appendMessage,
-      });
-      setMessagesImmediate(accumulator.addMessages(newMessagesWithId));
-
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
       try {
+        // ensure all messages have an ID
+        const newMessagesWithId = newMessages.map((m) =>
+          m.id ? m : { ...m, id: uuidv4() },
+        );
+
+        const accumulator = new LangGraphMessageAccumulator({
+          initialMessages: messagesRef.current,
+          initialUIMessages: uiMessagesRef.current,
+          appendMessage,
+        });
+        setMessagesImmediate(accumulator.addMessages(newMessagesWithId));
+
         const response = await stream(newMessagesWithId, {
           ...config,
           abortSignal: abortController.signal,
