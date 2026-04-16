@@ -111,7 +111,9 @@ export function createAdkSessionAdapter(
       return { threads };
     },
 
-    async initialize(): Promise<RemoteThreadInitializeResponse> {
+    async initialize(
+      _threadId: string,
+    ): Promise<RemoteThreadInitializeResponse> {
       const headers = await getHeaders();
       const res = await fetch(baseUrl, {
         method: "POST",
