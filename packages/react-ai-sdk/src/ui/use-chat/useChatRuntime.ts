@@ -84,7 +84,9 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
   if (transport instanceof AssistantChatTransport) {
     transport.setRuntime(runtime);
-    transport.__internal_setGetThreadListItem(() => aui.threadListItem());
+    transport.__internal_setGetThreadListItem(() =>
+      aui.threadListItem.source ? aui.threadListItem() : undefined,
+    );
   }
 
   return runtime;

@@ -1,4 +1,7 @@
-import type { AssistantRuntime } from "@assistant-ui/core";
+import type {
+  AssistantRuntime,
+  ThreadListItemRuntime,
+} from "@assistant-ui/core";
 import {
   DefaultChatTransport,
   type HttpChatTransportInitOptions,
@@ -6,12 +9,7 @@ import {
 } from "ai";
 import { toToolsJSONSchema } from "assistant-stream";
 
-type InitializableThreadListItem = {
-  initialize(): Promise<{
-    remoteId: string;
-    externalId: string | undefined;
-  }>;
-};
+type InitializableThreadListItem = Pick<ThreadListItemRuntime, "initialize">;
 
 export class AssistantChatTransport<
   UI_MESSAGE extends UIMessage,
