@@ -22,6 +22,17 @@ import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage
 
 const DEFAULT_UI_STATE_KEY = "ui";
 
+const parseEventType = (
+  event: string,
+): { type: string; namespace: string | undefined } => {
+  const pipeIndex = event.indexOf("|");
+  if (pipeIndex === -1) return { type: event, namespace: undefined };
+  return {
+    type: event.slice(0, pipeIndex),
+    namespace: event.slice(pipeIndex + 1),
+  };
+};
+
 const isUIUpdate = (
   value: unknown,
 ): value is
@@ -191,7 +202,11 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
 
   const aui = useAui();
   const sendMessage = useCallback(
-    async (newMessages: TMessage[], config: LangGraphSendMessageConfig) => {
+    async (
+      newMessages: TMessage[],
+      config: LangGraphSendMessageConfig,
+      onComplete?: () => void,
+    ) => {
       // ensure all messages have an ID
       const newMessagesWithId = newMessages.map((m) =>
         m.id ? m : { ...m, id: uuidv4() },
@@ -219,7 +234,10 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
         let lastValuesMessages: TMessage[] | null = null;
         let lastValuesUIMessages: UIMessage[] | null = null;
         for await (const chunk of response) {
-          switch (chunk.event) {
+          const { type: eventType, namespace: eventNamespace } = parseEventType(
+            chunk.event,
+          );
+          switch (eventType) {
             case LangGraphKnownEventTypes.MessagesPartial:
             case LangGraphKnownEventTypes.MessagesComplete:
               setMessagesImmediate(accumulator.addMessages(chunk.data));
@@ -305,29 +323,30 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               break;
             case LangGraphKnownEventTypes.Error: {
               onError?.(chunk.data);
-              // Update the last AI message with error status
-              // Assumes last AI message is the one the error relates to
-              const messages = accumulator.getMessages();
-              const lastAiMessage = messages.findLast(
-                (m): m is TMessage & { type: string; id: string } =>
-                  m != null && "type" in m && m.type === "ai" && m.id != null,
-              );
-              if (lastAiMessage) {
-                const errorMessage = {
-                  ...lastAiMessage,
-                  status: {
-                    type: "incomplete" as const,
-                    reason: "error" as const,
-                    error: chunk.data,
-                  },
-                };
-                setMessagesImmediate(accumulator.addMessages([errorMessage]));
+              // namespaced errors come from subgraphs, which the parent may recover from
+              if (!eventNamespace) {
+                const messages = accumulator.getMessages();
+                const lastAiMessage = messages.findLast(
+                  (m): m is TMessage & { type: string; id: string } =>
+                    m != null && "type" in m && m.type === "ai" && m.id != null,
+                );
+                if (lastAiMessage) {
+                  const errorMessage = {
+                    ...lastAiMessage,
+                    status: {
+                      type: "incomplete" as const,
+                      reason: "error" as const,
+                      error: chunk.data,
+                    },
+                  };
+                  setMessagesImmediate(accumulator.addMessages([errorMessage]));
+                }
               }
               break;
             }
             default: {
               // push_ui_message emits ui/remove-ui events on the "custom" channel
-              if (chunk.event === "custom" && isUIUpdate(chunk.data)) {
+              if (eventType === "custom" && isUIUpdate(chunk.data)) {
                 setUIMessagesImmediate(accumulator.applyUIUpdate(chunk.data));
                 break;
               }
@@ -347,7 +366,11 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
 
         // Final reconcile: use the last values snapshot as authoritative state
         if (lastValuesMessages && !abortController.signal.aborted) {
-          setMessagesImmediate(accumulator.replaceMessages(lastValuesMessages));
+          setMessagesImmediate(
+            hasTupleMessageEvents
+              ? accumulator.reconcileMessages(lastValuesMessages)
+              : accumulator.replaceMessages(lastValuesMessages),
+          );
           setMessageMetadata(new Map(accumulator.getMetadataMap()));
         }
         if (lastValuesUIMessages && !abortController.signal.aborted) {
@@ -366,6 +389,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = null;
         }
+        onComplete?.();
       }
     },
     [

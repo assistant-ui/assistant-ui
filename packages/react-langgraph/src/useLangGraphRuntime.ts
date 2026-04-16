@@ -366,16 +366,13 @@ const useLangGraphRuntimeImpl = ({
     [uiMessagesByParent],
   );
 
-  const handleSendMessage = async (
+  const handleSendMessage = (
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
   ) => {
-    try {
-      setIsRunning(true);
-      await sendMessage(messages, config);
-    } finally {
-      setIsRunning(false);
-    }
+    setIsRunning(true);
+    // setIsRunning(false) flips atomically with the final reconcile via onComplete
+    return sendMessage(messages, config, () => setIsRunning(false));
   };
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage

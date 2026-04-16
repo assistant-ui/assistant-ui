@@ -2721,4 +2721,381 @@ describe("useLangGraphMessages", {}, () => {
     });
     expect(result.current.uiMessages).toHaveLength(0);
   });
+
+  it("preserves metadata through final values reconcile when tuple events present", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "Hello",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          {
+            langgraph_step: 1,
+            langgraph_node: "agent",
+            ls_model_name: "claude-3-7-sonnet-latest",
+          } satisfies LangGraphTupleMetadata,
+        ],
+      },
+      {
+        event: "values",
+        data: {
+          messages: [
+            { id: "user-1", type: "human" as const, content: "hi" },
+            { id: "ai-1", type: "ai" as const, content: "Hello world" },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "hi" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const aiMessage = result.current.messages[1]!;
+      expect(aiMessage.content).toEqual("Hello world");
+      const metadata = result.current.messageMetadata.get("ai-1");
+      expect(metadata).toBeDefined();
+      expect(metadata!.langgraph_node).toBe("agent");
+      expect(metadata!.ls_model_name).toBe("claude-3-7-sonnet-latest");
+    });
+  });
+
+  it("does not drop tuple-only messages during final reconcile", async () => {
+    // subgraph scenario: tool result arrives via tuple after values snapshot was captured
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "Let me search",
+            type: "AIMessageChunk",
+            tool_call_chunks: [
+              { id: "tc-1", name: "search", args: '{"q":"test"}', index: 0 },
+            ],
+          },
+          { langgraph_node: "agent" } satisfies LangGraphTupleMetadata,
+        ],
+      },
+      // Values snapshot captured BEFORE tool result arrived
+      {
+        event: "values",
+        data: {
+          messages: [
+            { id: "user-1", type: "human" as const, content: "search test" },
+            {
+              id: "ai-1",
+              type: "ai" as const,
+              content: "Let me search",
+              tool_calls: [{ id: "tc-1", name: "search", args: { q: "test" } }],
+            },
+          ],
+        },
+      },
+      // Tool result arrives via tuple AFTER the values snapshot
+      {
+        event: "messages",
+        data: [
+          {
+            id: "tool-1",
+            type: "tool",
+            content: '{"results": ["found"]}',
+            tool_call_id: "tc-1",
+            name: "search",
+          },
+          { langgraph_node: "tools" } satisfies LangGraphTupleMetadata,
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "search test" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      // The values snapshot only has 2 messages (user + ai), but the tool
+      // result from the tuple event should NOT be dropped by reconcileMessages.
+      // All 3 messages should be present: user, ai, tool.
+      expect(result.current.messages).toHaveLength(3);
+      expect(result.current.messages[2]!.id).toBe("tool-1");
+      expect(result.current.messages[2]!.type).toBe("tool");
+      // Metadata should still be available for ai-1
+      const metadata = result.current.messageMetadata.get("ai-1");
+      expect(metadata).toBeDefined();
+      expect(metadata!.langgraph_node).toBe("agent");
+    });
+  });
+
+  it("handles pipe-separated subgraph event names", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      // Parent AI message via tuple
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "Processing",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { langgraph_node: "agent" } satisfies LangGraphTupleMetadata,
+        ],
+      },
+      // Subgraph tuple event with pipe-separated namespace
+      {
+        event: "messages|tools:tc-1",
+        data: [
+          {
+            id: "sub-ai-1",
+            content: "Subgraph thinking",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          {
+            langgraph_node: "sub_agent",
+            langgraph_checkpoint_ns: "tools:tc-1",
+          } satisfies LangGraphTupleMetadata,
+        ],
+      },
+      // Parent values event
+      {
+        event: "values",
+        data: {
+          messages: [
+            { id: "user-1", type: "human" as const, content: "hi" },
+            { id: "ai-1", type: "ai" as const, content: "Processing done" },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "hi" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      // Both parent and subgraph messages should be processed
+      expect(result.current.messages.length).toBeGreaterThanOrEqual(2);
+      // Parent AI message should have reconciled content
+      const parentAi = result.current.messages.find((m) => m.id === "ai-1");
+      expect(parentAi).toBeDefined();
+      expect(parentAi!.content).toEqual("Processing done");
+      // Subgraph message should also be present (accumulated from tuple)
+      const subAi = result.current.messages.find((m) => m.id === "sub-ai-1");
+      expect(subAi).toBeDefined();
+    });
+  });
+
+  it("does not mark parent message incomplete on subgraph error event", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "Working on it",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { langgraph_node: "agent" } satisfies LangGraphTupleMetadata,
+        ],
+      },
+      // Subgraph error event (pipe-separated namespace indicates subgraph)
+      {
+        event: "error|tools:tc-1|sub_agent",
+        data: {
+          error: "SubgraphError",
+          message: "Subgraph failed but parent handles it",
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "do it" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const aiMessage = result.current.messages[1]! as Record<string, unknown>;
+      // Should NOT have incomplete status since error is from a subgraph
+      expect(aiMessage.status).toBeUndefined();
+    });
+  });
+
+  it("still marks parent message incomplete on root-level error event", async () => {
+    const errorData = {
+      error: "ServerError",
+      message: "Top-level error",
+    };
+
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "Starting",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      // Root-level error (no pipe namespace)
+      {
+        event: "error",
+        data: errorData,
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "go" }], {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      const aiMessage = result.current.messages[1]! as Record<string, unknown>;
+      expect(aiMessage.status).toEqual({
+        type: "incomplete",
+        reason: "error",
+        error: errorData,
+      });
+    });
+  });
+
+  it("invokes onComplete on success path", async () => {
+    const onComplete = vi.fn();
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "Done",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ type: "human", content: "hi" }],
+        {},
+        onComplete,
+      );
+    });
+
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it("invokes onComplete on abort path", async () => {
+    const onComplete = vi.fn();
+    const streamSpy = vi.fn().mockImplementation(async (_messages, config) => {
+      async function* gen() {
+        yield metadataEvent;
+        await new Promise<void>((_resolve, reject) => {
+          const onAbort = () => {
+            const err = new Error("The operation was aborted.");
+            err.name = "AbortError";
+            reject(err);
+          };
+          if (config.abortSignal.aborted) {
+            onAbort();
+            return;
+          }
+          config.abortSignal.addEventListener("abort", onAbort, { once: true });
+        });
+      }
+      return gen();
+    });
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy as any,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ type: "human", content: "hi" }],
+        {},
+        onComplete,
+      );
+    });
+
+    act(() => {
+      result.current.cancel();
+    });
+
+    await waitFor(() => {
+      expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+  });
 });
