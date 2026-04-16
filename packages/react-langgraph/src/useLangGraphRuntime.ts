@@ -31,6 +31,7 @@ import {
 } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
+import type { RemoteThreadListAdapter } from "@assistant-ui/core";
 import { convertLangChainMessages } from "./convertLangChainMessages";
 import {
   type LangGraphCommand,
@@ -259,6 +260,17 @@ export type UseLangGraphRuntimeOptions = {
       }
     | undefined;
   cloud?: AssistantCloud | undefined;
+  /**
+   * A `RemoteThreadListAdapter` to use instead of the cloud adapter. Provide
+   * this to back the thread list with a custom store (e.g. LangGraph
+   * `client.threads.search()`) so pre-existing LangGraph thread ids appear in
+   * the UI and can be switched between without assistant-cloud.
+   *
+   * When provided, `cloud`, `create`, and `delete` are ignored — the adapter
+   * owns the full thread list lifecycle. The `externalId` returned by the
+   * adapter's `list()` / `initialize()` is what the `load` callback receives.
+   */
+  unstable_threadListAdapter?: RemoteThreadListAdapter | undefined;
 };
 
 const truncateLangChainMessages = (
@@ -578,6 +590,7 @@ const useLangGraphRuntimeImpl = ({
 
 export const useLangGraphRuntime = ({
   cloud,
+  unstable_threadListAdapter,
   create,
   delete: deleteFn,
   ...options
@@ -598,12 +611,15 @@ export const useLangGraphRuntime = ({
     },
     delete: deleteFn,
   });
+
+  const adapter = unstable_threadListAdapter ?? cloudAdapter;
+
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       return useLangGraphRuntimeImpl(options);
     },
-    adapter: cloudAdapter,
+    adapter,
     allowNesting: true,
   });
 };
