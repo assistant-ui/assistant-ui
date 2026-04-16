@@ -93,12 +93,15 @@ To persist conversations, add a database and modify the API route. `useChatRunti
 // In your POST /api/chat handler:
 const { id: threadId, messages } = await req.json();
 
-// Save messages to database
-await db.messages.create({
-  threadId,
-  role: message.role,
-  content: message.content,
-});
+// Save the latest user message
+const last = messages.at(-1);
+if (last) {
+  await db.messages.create({
+    threadId,
+    role: last.role,
+    parts: last.parts,
+  });
+}
 
 // Load messages when opening a thread (e.g., from a ThreadHistoryAdapter):
 const savedMessages = await db.messages.findMany({ threadId });
