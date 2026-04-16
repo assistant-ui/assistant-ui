@@ -326,12 +326,13 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
 
               const normalizedMessage =
                 normalizedTupleMessage.message as unknown as TMessage;
-              const updatedMessages = tupleMetadata
-                ? accumulator.addMessageWithMetadata(
-                    normalizedMessage,
-                    tupleMetadata,
-                  )
-                : accumulator.addMessages([normalizedMessage]);
+              const updatedMessages =
+                tupleMetadata || eventNamespace
+                  ? accumulator.addMessageWithMetadata(
+                      normalizedMessage,
+                      tupleMetadataWithNamespace,
+                    )
+                  : accumulator.addMessages([normalizedMessage]);
 
               setMessagesImmediate(updatedMessages);
               setMessageMetadata(new Map(accumulator.getMetadataMap()));

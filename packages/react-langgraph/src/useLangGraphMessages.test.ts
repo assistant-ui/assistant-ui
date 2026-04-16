@@ -3445,6 +3445,11 @@ describe("useLangGraphMessages", {}, () => {
         langgraph_node: "tools",
         namespace: "tools:tc-1",
       });
+      // also persisted in messageMetadata so useLangGraphMessageMetadata can see it
+      expect(result.current.messageMetadata.get("sub-chunk-1")).toMatchObject({
+        langgraph_node: "tools",
+        namespace: "tools:tc-1",
+      });
     });
   });
 });
