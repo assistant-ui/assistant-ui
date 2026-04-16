@@ -426,7 +426,10 @@ const AssistantMessage: FC = () => {
       data-role="assistant"
       className="fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in duration-150"
     >
-      <div data-slot="aui_assistant-message-content" className="wrap-break-word px-2 text-foreground leading-relaxed">
+      <div
+        data-slot="aui_assistant-message-content"
+        className="wrap-break-word px-2 text-foreground leading-relaxed"
+      >
         <MessagePrimitive.Parts>
           {({ part }) => {
             if (part.type === "text") return <MarkdownText />;
@@ -519,7 +522,10 @@ const UserMessage: FC = () => {
         </div>
       </div>
 
-      <BranchPicker data-slot="aui_user-branch-picker" className="col-span-full col-start-1 row-start-3 -mr-1 justify-end" />
+      <BranchPicker
+        data-slot="aui_user-branch-picker"
+        className="col-span-full col-start-1 row-start-3 -mr-1 justify-end"
+      />
     </MessagePrimitive.Root>
   );
 };
@@ -542,7 +548,10 @@ const UserActionBar: FC = () => {
 
 const EditComposer: FC = () => {
   return (
-    <MessagePrimitive.Root data-slot="aui_edit-composer-wrapper" className="mx-auto flex w-full max-w-(--thread-max-width) flex-col px-2">
+    <MessagePrimitive.Root
+      data-slot="aui_edit-composer-wrapper"
+      className="mx-auto flex w-full max-w-(--thread-max-width) flex-col px-2"
+    >
       <ComposerPrimitive.Unstable_TriggerPopoverRoot>
         <ComposerPrimitive.Root className="aui-edit-composer-root ml-auto flex w-full max-w-[85%] flex-col rounded-2xl bg-muted">
           <LexicalComposerInput
