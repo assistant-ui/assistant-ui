@@ -7,7 +7,7 @@ import {
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/core/react";
-import { useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import {
   useAISDKRuntime,
   type AISDKRuntimeAdapter,
@@ -68,6 +68,8 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const id = useAuiState((s) => s.threadListItem.id);
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const aui = useAui();
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const chat = useChat({
     ...chatOptions,
     id,
@@ -82,6 +84,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
   if (transport instanceof AssistantChatTransport) {
     transport.setRuntime(runtime);
+    transport.__internal_setGetThreadListItem(() => aui.threadListItem());
   }
 
   return runtime;

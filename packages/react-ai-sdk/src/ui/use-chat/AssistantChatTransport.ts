@@ -6,18 +6,28 @@ import {
 } from "ai";
 import { toToolsJSONSchema } from "assistant-stream";
 
+type InitializableThreadListItem = {
+  initialize(): Promise<{
+    remoteId: string;
+    externalId: string | undefined;
+  }>;
+};
+
 export class AssistantChatTransport<
   UI_MESSAGE extends UIMessage,
 > extends DefaultChatTransport<UI_MESSAGE> {
   private runtime: AssistantRuntime | undefined;
+  private getThreadListItem:
+    | (() => InitializableThreadListItem | undefined)
+    | undefined;
   constructor(initOptions?: HttpChatTransportInitOptions<UI_MESSAGE>) {
     super({
       ...initOptions,
       prepareSendMessagesRequest: async (options) => {
         const context = this.runtime?.thread.getModelContext();
-        const id =
-          (await this.runtime?.threads.mainItem.initialize())?.remoteId ??
-          options.id;
+        const threadListItem =
+          this.getThreadListItem?.() ?? this.runtime?.threads.mainItem;
+        const id = (await threadListItem?.initialize())?.remoteId ?? options.id;
 
         const optionsEx = {
           ...options,
@@ -49,5 +59,11 @@ export class AssistantChatTransport<
 
   setRuntime(runtime: AssistantRuntime) {
     this.runtime = runtime;
+  }
+
+  __internal_setGetThreadListItem(
+    getter: () => InitializableThreadListItem | undefined,
+  ) {
+    this.getThreadListItem = getter;
   }
 }
