@@ -421,9 +421,9 @@ const threadListAdapter: RemoteThreadListAdapter = {
       })),
     };
   },
-  async initialize(threadId) {
+  async initialize() {
     const t = await client.threads.create();
-    return { remoteId: threadId, externalId: t.thread_id };
+    return { remoteId: t.thread_id, externalId: t.thread_id };
   },
   async delete(remoteId) {
     await client.threads.delete(remoteId);
