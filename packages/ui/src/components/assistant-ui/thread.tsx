@@ -47,7 +47,7 @@ export const Thread: FC = () => {
     >
       <ThreadPrimitive.Viewport
         turnAnchor="top"
-        data-id="aui_thread-viewport"
+        data-slot="aui_thread-viewport"
         className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
       >
         <div className="mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col px-4 pt-4">
@@ -56,7 +56,7 @@ export const Thread: FC = () => {
           </AuiIf>
 
           <div
-            data-id="aui_message-group"
+            data-slot="aui_message-group"
             className="mb-10 flex flex-col gap-y-8 empty:hidden"
           >
             <ThreadPrimitive.Messages>
@@ -146,7 +146,7 @@ const Composer: FC = () => {
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone asChild>
         <div
-          data-id="aui_composer-shell"
+          data-slot="aui_composer-shell"
           className="flex w-full flex-col gap-2 rounded-(--composer-radius) border bg-background p-(--composer-padding) transition-shadow focus-within:border-ring/75 focus-within:ring-2 focus-within:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50"
         >
           <ComposerAttachments />
@@ -219,12 +219,12 @@ const AssistantMessage: FC = () => {
 
   return (
     <MessagePrimitive.Root
-      data-id="aui_assistant-message-root"
+      data-slot="aui_assistant-message-root"
       data-role="assistant"
       className="fade-in slide-in-from-bottom-1 relative animate-in duration-150"
     >
       <div
-        data-id="aui_assistant-message-content"
+        data-slot="aui_assistant-message-content"
         className="wrap-break-word px-2 text-foreground leading-relaxed"
       >
         <MessagePrimitive.Parts>
@@ -239,7 +239,7 @@ const AssistantMessage: FC = () => {
       </div>
 
       <div
-        data-id="aui_assistant-message-footer"
+        data-slot="aui_assistant-message-footer"
         className={cn("ml-2 flex items-center", ACTION_BAR_HEIGHT)}
       >
         <BranchPicker />
@@ -300,7 +300,7 @@ const AssistantActionBar: FC = () => {
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
-      data-id="aui_user-message-root"
+      data-slot="aui_user-message-root"
       className="fade-in slide-in-from-bottom-1 grid animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 duration-150 [&:where(>*)]:col-start-2"
       data-role="user"
     >
@@ -316,7 +316,7 @@ const UserMessage: FC = () => {
       </div>
 
       <BranchPicker
-        data-id="aui_user-branch-picker"
+        data-slot="aui_user-branch-picker"
         className="col-span-full col-start-1 row-start-3 -mr-1 justify-end"
       />
     </MessagePrimitive.Root>
@@ -342,7 +342,7 @@ const UserActionBar: FC = () => {
 const EditComposer: FC = () => {
   return (
     <MessagePrimitive.Root
-      data-id="aui_edit-composer-wrapper"
+      data-slot="aui_edit-composer-wrapper"
       className="flex flex-col px-2"
     >
       <ComposerPrimitive.Root className="aui-edit-composer-root ml-auto flex w-full max-w-[85%] flex-col rounded-2xl bg-muted">
