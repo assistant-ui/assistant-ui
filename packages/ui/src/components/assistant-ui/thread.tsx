@@ -317,7 +317,7 @@ const UserMessage: FC = () => {
 
       <BranchPicker
         data-id="aui_user-branch-picker"
-        className="col-span-full col-start-1 row-start-3 mr-1 justify-end"
+        className="col-span-full col-start-1 row-start-3 -mr-1 justify-end"
       />
     </MessagePrimitive.Root>
   );
