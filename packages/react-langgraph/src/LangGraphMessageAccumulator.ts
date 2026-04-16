@@ -85,6 +85,14 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
     return this.getMessages();
   }
 
+  // upsert-only: tuple-only messages (e.g. subgraph internals absent from parent `values`) are preserved
+  public reconcileMessages(serverMessages: TMessage[]): TMessage[] {
+    for (const message of serverMessages.map(this.ensureMessageId)) {
+      this.messagesMap.set(message.id!, message);
+    }
+    return this.getMessages();
+  }
+
   public applyUIUpdate(
     update:
       | UIMessage

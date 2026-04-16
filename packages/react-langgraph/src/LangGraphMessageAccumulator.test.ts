@@ -180,3 +180,96 @@ describe("LangGraphMessageAccumulator UI reducer", () => {
     expect(acc.getUIMessages()[0]!.id).toBe("ui-3");
   });
 });
+
+describe("LangGraphMessageAccumulator reconcileMessages", () => {
+  it("updates message content from server snapshot", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessages([{ id: "ai-1", type: "ai", content: "Streaming partial" }]);
+    const result = acc.reconcileMessages([
+      { id: "ai-1", type: "ai", content: "Final server content" },
+    ]);
+    const ai1 = result.find((m) => m.id === "ai-1");
+    expect(ai1!.content).toBe("Final server content");
+  });
+
+  it("preserves accumulator-only messages not in server snapshot", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessages([
+      { id: "ai-1", type: "ai", content: "Parent msg" },
+      { id: "sub-ai-1", type: "ai", content: "Subgraph msg" },
+    ]);
+    const result = acc.reconcileMessages([
+      { id: "ai-1", type: "ai", content: "Parent updated" },
+    ]);
+    expect(result).toHaveLength(2);
+    expect(result.find((m) => m.id === "ai-1")!.content).toBe("Parent updated");
+    expect(result.find((m) => m.id === "sub-ai-1")!.content).toBe(
+      "Subgraph msg",
+    );
+  });
+
+  it("preserves metadata for all surviving messages", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessageWithMetadata(
+      { id: "ai-1", type: "ai", content: "Hello" },
+      { langgraph_node: "agent", ls_model_name: "claude-3-7-sonnet-latest" },
+    );
+    acc.addMessageWithMetadata(
+      { id: "sub-ai-1", type: "ai", content: "Sub" },
+      { langgraph_node: "sub_agent" },
+    );
+    acc.reconcileMessages([{ id: "ai-1", type: "ai", content: "Hello world" }]);
+    const metadata = acc.getMetadataMap();
+    expect(metadata.get("ai-1")).toEqual({
+      langgraph_node: "agent",
+      ls_model_name: "claude-3-7-sonnet-latest",
+    });
+    // Subgraph message metadata preserved since the message still exists
+    expect(metadata.get("sub-ai-1")).toEqual({ langgraph_node: "sub_agent" });
+  });
+
+  it("adds new messages from server snapshot", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessages([{ id: "ai-1", type: "ai", content: "Hello" }]);
+    const result = acc.reconcileMessages([
+      { id: "ai-1", type: "ai", content: "Hello updated" },
+      { id: "ai-2", type: "ai", content: "New from server" },
+    ]);
+    expect(result).toHaveLength(2);
+    expect(result.find((m) => m.id === "ai-2")!.content).toBe(
+      "New from server",
+    );
+  });
+
+  it("returns a fresh array reference", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessages([{ id: "ai-1", type: "ai", content: "A" }]);
+    const result = acc.reconcileMessages([
+      { id: "ai-1", type: "ai", content: "B" },
+    ]);
+    result.push({ id: "fake", type: "ai", content: "injected" });
+    expect(acc.getMessages()).toHaveLength(1);
+  });
+
+  it("preserves insertion order when updating existing messages", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessages([
+      { id: "user-1", type: "human", content: "hi" },
+      { id: "ai-1", type: "ai", content: "partial" },
+      { id: "tool-1", type: "tool", content: "result", tool_call_id: "tc-1" },
+    ]);
+    const result = acc.reconcileMessages([
+      { id: "user-1", type: "human", content: "hi" },
+      { id: "ai-1", type: "ai", content: "final" },
+    ]);
+    expect(result.map((m) => m.id)).toEqual(["user-1", "ai-1", "tool-1"]);
+  });
+
+  it("handles empty server snapshot by preserving all accumulator state", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessages([{ id: "ai-1", type: "ai", content: "preserved" }]);
+    const result = acc.reconcileMessages([]);
+    expect(result).toHaveLength(1);
+    expect(result[0]!.id).toBe("ai-1");
+  });
+});
