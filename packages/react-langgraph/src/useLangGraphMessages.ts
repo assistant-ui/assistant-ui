@@ -312,27 +312,31 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                 break;
               }
 
-              const tupleMetadataWithNamespace: LangGraphTupleMetadata =
-                eventNamespace
-                  ? { ...(tupleMetadata ?? {}), namespace: eventNamespace }
-                  : (tupleMetadata ?? {});
+              const tupleMetadataWithNamespace:
+                | LangGraphTupleMetadata
+                | undefined =
+                tupleMetadata || eventNamespace
+                  ? {
+                      ...(tupleMetadata ?? {}),
+                      ...(eventNamespace ? { namespace: eventNamespace } : {}),
+                    }
+                  : undefined;
 
               if (normalizedTupleMessage.kind === "chunk") {
                 onMessageChunk?.(
                   normalizedTupleMessage.message,
-                  tupleMetadataWithNamespace,
+                  tupleMetadataWithNamespace ?? {},
                 );
               }
 
               const normalizedMessage =
                 normalizedTupleMessage.message as unknown as TMessage;
-              const updatedMessages =
-                tupleMetadata || eventNamespace
-                  ? accumulator.addMessageWithMetadata(
-                      normalizedMessage,
-                      tupleMetadataWithNamespace,
-                    )
-                  : accumulator.addMessages([normalizedMessage]);
+              const updatedMessages = tupleMetadataWithNamespace
+                ? accumulator.addMessageWithMetadata(
+                    normalizedMessage,
+                    tupleMetadataWithNamespace,
+                  )
+                : accumulator.addMessages([normalizedMessage]);
 
               setMessagesImmediate(updatedMessages);
               setMessageMetadata(new Map(accumulator.getMetadataMap()));
