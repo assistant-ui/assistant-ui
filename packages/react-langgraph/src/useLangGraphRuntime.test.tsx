@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import type { AssistantRuntime, AttachmentAdapter } from "@assistant-ui/core";
+import type {
+  AssistantRuntime,
+  AttachmentAdapter,
+  RemoteThreadListAdapter,
+} from "@assistant-ui/core";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
 import { useLangGraphRuntime, useLangGraphSend } from "./useLangGraphRuntime";
@@ -365,5 +369,50 @@ describe("useLangGraphRuntime", () => {
       },
     ]);
     expect(sentMessages?.[0]?.content?.[1]).not.toHaveProperty("file");
+  });
+
+  it("should use unstable_threadListAdapter in place of the cloud adapter", async () => {
+    const list = vi.fn(async () => ({
+      threads: [
+        {
+          status: "regular" as const,
+          remoteId: "lg-thread-1",
+          externalId: "lg-thread-1",
+          title: "Existing LangGraph thread",
+        },
+      ],
+    }));
+    const adapter: RemoteThreadListAdapter = {
+      list,
+      initialize: vi.fn(async () => ({
+        remoteId: "lg-thread-1",
+        externalId: "lg-thread-1",
+      })),
+      rename: vi.fn(async () => {}),
+      archive: vi.fn(async () => {}),
+      unarchive: vi.fn(async () => {}),
+      delete: vi.fn(async () => {}),
+      generateTitle: vi.fn(async () => new ReadableStream()),
+      fetch: vi.fn(async () => ({
+        status: "regular" as const,
+        remoteId: "lg-thread-1",
+        externalId: "lg-thread-1",
+      })),
+    };
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        unstable_threadListAdapter: adapter,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(list).toHaveBeenCalled();
+    });
   });
 });
