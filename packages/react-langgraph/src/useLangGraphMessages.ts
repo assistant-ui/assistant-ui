@@ -10,8 +10,11 @@ import {
   type OnMessageChunkCallback,
   type OnValuesEventCallback,
   type OnUpdatesEventCallback,
+  type OnSubgraphUpdatesEventCallback,
+  type OnSubgraphValuesEventCallback,
   type OnCustomEventCallback,
   type OnErrorEventCallback,
+  type OnSubgraphErrorEventCallback,
   type OnInfoEventCallback,
   type OnMetadataEventCallback,
   type RemoveUIMessage,
@@ -158,9 +161,12 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     onMessageChunk?: OnMessageChunkCallback;
     onValues?: OnValuesEventCallback;
     onUpdates?: OnUpdatesEventCallback;
+    onSubgraphValues?: OnSubgraphValuesEventCallback;
+    onSubgraphUpdates?: OnSubgraphUpdatesEventCallback;
     onMetadata?: OnMetadataEventCallback;
     onInfo?: OnInfoEventCallback;
     onError?: OnErrorEventCallback;
+    onSubgraphError?: OnSubgraphErrorEventCallback;
     onCustomEvent?: OnCustomEventCallback;
   };
 }) => {
@@ -194,9 +200,12 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     onMessageChunk,
     onValues,
     onUpdates,
+    onSubgraphValues,
+    onSubgraphUpdates,
     onMetadata,
     onInfo,
     onError,
+    onSubgraphError,
     onCustomEvent,
   } = useMemo(() => eventHandlers ?? {}, [eventHandlers]);
 
@@ -243,7 +252,10 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               setMessagesImmediate(accumulator.addMessages(chunk.data));
               break;
             case LangGraphKnownEventTypes.Updates: {
-              if (eventNamespace) break;
+              if (eventNamespace) {
+                onSubgraphUpdates?.(eventNamespace, chunk.data);
+                break;
+              }
               onUpdates?.(chunk.data);
               const extracted = extractMessagesFromUpdates<TMessage>(
                 chunk.data,
@@ -255,7 +267,10 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               break;
             }
             case LangGraphKnownEventTypes.Values:
-              if (eventNamespace) break;
+              if (eventNamespace) {
+                onSubgraphValues?.(eventNamespace, chunk.data);
+                break;
+              }
               onValues?.(chunk.data);
               if (Array.isArray(chunk.data?.messages)) {
                 lastValuesMessages = chunk.data.messages;
@@ -297,10 +312,15 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                 break;
               }
 
+              const tupleMetadataWithNamespace: LangGraphTupleMetadata =
+                eventNamespace
+                  ? { ...(tupleMetadata ?? {}), namespace: eventNamespace }
+                  : (tupleMetadata ?? {});
+
               if (normalizedTupleMessage.kind === "chunk") {
                 onMessageChunk?.(
                   normalizedTupleMessage.message,
-                  tupleMetadata ?? {},
+                  tupleMetadataWithNamespace,
                 );
               }
 
@@ -343,6 +363,8 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                   };
                   setMessagesImmediate(accumulator.addMessages([errorMessage]));
                 }
+              } else {
+                onSubgraphError?.(eventNamespace, chunk.data);
               }
               break;
             }
@@ -404,9 +426,12 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
       onMessageChunk,
       onValues,
       onUpdates,
+      onSubgraphValues,
+      onSubgraphUpdates,
       onMetadata,
       onInfo,
       onError,
+      onSubgraphError,
       onCustomEvent,
     ],
   );

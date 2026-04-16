@@ -203,11 +203,38 @@ export type OnMessageChunkCallback = (
 ) => void | Promise<void>;
 export type OnValuesEventCallback = (values: unknown) => void | Promise<void>;
 export type OnUpdatesEventCallback = (updates: unknown) => void | Promise<void>;
+/**
+ * Fired when a subgraph (namespaced) `values` event is received. The
+ * `namespace` mirrors the pipe-separated suffix on the event name
+ * (e.g. `values|tools:call_abc` → `"tools:call_abc"`).
+ */
+export type OnSubgraphValuesEventCallback = (
+  namespace: string,
+  values: unknown,
+) => void | Promise<void>;
+/**
+ * Fired when a subgraph (namespaced) `updates` event is received. The
+ * `namespace` mirrors the pipe-separated suffix on the event name
+ * (e.g. `updates|tools:call_abc` → `"tools:call_abc"`).
+ */
+export type OnSubgraphUpdatesEventCallback = (
+  namespace: string,
+  updates: unknown,
+) => void | Promise<void>;
 export type OnMetadataEventCallback = (
   metadata: unknown,
 ) => void | Promise<void>;
 export type OnInfoEventCallback = (info: unknown) => void | Promise<void>;
 export type OnErrorEventCallback = (error: unknown) => void | Promise<void>;
+/**
+ * Fired when a subgraph (namespaced) `error` event is received, in addition
+ * to `onError`. The `namespace` mirrors the pipe-separated suffix on the
+ * event name (e.g. `error|tools:call_abc` → `"tools:call_abc"`).
+ */
+export type OnSubgraphErrorEventCallback = (
+  namespace: string,
+  error: unknown,
+) => void | Promise<void>;
 export type OnCustomEventCallback = (
   type: string,
   data: unknown,

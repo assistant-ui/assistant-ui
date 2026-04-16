@@ -7,8 +7,11 @@ import type {
   OnMessageChunkCallback,
   OnValuesEventCallback,
   OnUpdatesEventCallback,
+  OnSubgraphValuesEventCallback,
+  OnSubgraphUpdatesEventCallback,
   OnCustomEventCallback,
   OnErrorEventCallback,
+  OnSubgraphErrorEventCallback,
   OnInfoEventCallback,
   OnMetadataEventCallback,
   UIMessage,
@@ -234,13 +237,19 @@ export type UseLangGraphRuntimeOptions = {
          */
         onMessageChunk?: OnMessageChunkCallback;
         /**
-         * Called when values events are received from the LangGraph stream
+         * Called when top-level values events are received from the LangGraph stream.
+         * Subgraph values are routed to `onSubgraphValues`.
          */
         onValues?: OnValuesEventCallback;
         /**
-         * Called when updates events are received from the LangGraph stream
+         * Called when top-level updates events are received from the LangGraph stream.
+         * Subgraph updates are routed to `onSubgraphUpdates`.
          */
         onUpdates?: OnUpdatesEventCallback;
+        /** Called when a subgraph (namespaced) values event is received. */
+        onSubgraphValues?: OnSubgraphValuesEventCallback;
+        /** Called when a subgraph (namespaced) updates event is received. */
+        onSubgraphUpdates?: OnSubgraphUpdatesEventCallback;
         /**
          * Called when metadata is received from the LangGraph stream
          */
@@ -250,9 +259,13 @@ export type UseLangGraphRuntimeOptions = {
          */
         onInfo?: OnInfoEventCallback;
         /**
-         * Called when errors occur during LangGraph stream processing
+         * Called when errors occur during LangGraph stream processing.
+         * Fires for both top-level and subgraph errors; subgraph errors
+         * additionally trigger `onSubgraphError` with the namespace.
          */
         onError?: OnErrorEventCallback;
+        /** Called when a subgraph (namespaced) error event is received, in addition to `onError`. */
+        onSubgraphError?: OnSubgraphErrorEventCallback;
         /**
          * Called when custom events are received from the LangGraph stream
          */
