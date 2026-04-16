@@ -3098,4 +3098,129 @@ describe("useLangGraphMessages", {}, () => {
       expect(onComplete).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("ignores subgraph values events (namespaced)", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "Parent msg",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { langgraph_node: "agent" } satisfies LangGraphTupleMetadata,
+        ],
+      },
+      // subgraph values event — must not overwrite lastValuesMessages
+      {
+        event: "values|tools:tc-1",
+        data: {
+          messages: [
+            {
+              id: "sub-internal",
+              type: "ai" as const,
+              content: "subgraph-only state",
+            },
+          ],
+        },
+      },
+      // parent values event with authoritative state
+      {
+        event: "values",
+        data: {
+          messages: [
+            { id: "user-1", type: "human" as const, content: "hi" },
+            { id: "ai-1", type: "ai" as const, content: "Parent final" },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "hi" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      const parentAi = result.current.messages.find((m) => m.id === "ai-1");
+      expect(parentAi).toBeDefined();
+      expect(parentAi!.content).toEqual("Parent final");
+      // subgraph values event did not leak into parent reconcile
+      const subInternal = result.current.messages.find(
+        (m) => m.id === "sub-internal",
+      );
+      expect(subInternal).toBeUndefined();
+    });
+  });
+
+  it("ignores subgraph updates events (namespaced)", async () => {
+    const onUpdates = vi.fn();
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "updates|tools:tc-1",
+        data: { some_subgraph_node: { messages: [] } },
+      },
+      {
+        event: "updates",
+        data: { agent: { messages: [] } },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: { onUpdates },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    await waitFor(() => {
+      // only the root-level updates event fires the handler
+      expect(onUpdates).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("passes stripped event type to onCustomEvent for namespaced events", async () => {
+    const onCustomEvent = vi.fn();
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "my-channel|subgraph:xyz",
+        data: { payload: 42 },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: { onCustomEvent },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    await waitFor(() => {
+      expect(onCustomEvent).toHaveBeenCalledWith("my-channel", { payload: 42 });
+    });
+  });
 });

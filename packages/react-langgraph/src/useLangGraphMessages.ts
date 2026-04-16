@@ -243,6 +243,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               setMessagesImmediate(accumulator.addMessages(chunk.data));
               break;
             case LangGraphKnownEventTypes.Updates: {
+              if (eventNamespace) break;
               onUpdates?.(chunk.data);
               const extracted = extractMessagesFromUpdates<TMessage>(
                 chunk.data,
@@ -254,6 +255,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               break;
             }
             case LangGraphKnownEventTypes.Values:
+              if (eventNamespace) break;
               onValues?.(chunk.data);
               if (Array.isArray(chunk.data?.messages)) {
                 lastValuesMessages = chunk.data.messages;
@@ -351,7 +353,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                 break;
               }
               if (onCustomEvent) {
-                onCustomEvent(chunk.event, chunk.data);
+                onCustomEvent(eventType, chunk.data);
               } else {
                 console.warn(
                   "Unhandled event received:",
