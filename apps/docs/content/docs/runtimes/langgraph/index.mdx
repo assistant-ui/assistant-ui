@@ -399,6 +399,51 @@ const runtime = useLangGraphRuntime({
 
 See the [Cloud Persistence guide](/docs/cloud/langgraph) for detailed setup instructions.
 
+### Custom Thread List
+
+To surface pre-existing LangGraph `thread_id`s in the thread picker without running assistant-cloud, pass a `RemoteThreadListAdapter` via `unstable_threadListAdapter`. A common implementation backs `list()` with `client.threads.search()` and `initialize()` with `client.threads.create()`.
+
+```typescript
+import type { RemoteThreadListAdapter } from "@assistant-ui/react";
+import { Client } from "@langchain/langgraph-sdk";
+
+const client = new Client({ apiUrl: process.env.NEXT_PUBLIC_LANGGRAPH_API_URL });
+
+const threadListAdapter: RemoteThreadListAdapter = {
+  async list() {
+    const threads = await client.threads.search({ limit: 50 });
+    return {
+      threads: threads.map((t) => ({
+        status: "regular",
+        remoteId: t.thread_id,
+        externalId: t.thread_id,
+        title: (t.metadata as { title?: string } | undefined)?.title,
+      })),
+    };
+  },
+  async initialize(threadId) {
+    const t = await client.threads.create();
+    return { remoteId: threadId, externalId: t.thread_id };
+  },
+  async delete(remoteId) {
+    await client.threads.delete(remoteId);
+  },
+  // rename, archive, unarchive, fetch, generateTitle — see link below
+};
+
+const runtime = useLangGraphRuntime({
+  stream: async function* (messages, { initialize }) { /* ... */ },
+  load: async (externalId) => { /* ... */ },
+  unstable_threadListAdapter: threadListAdapter,
+});
+```
+
+Setting `remoteId === externalId` keeps the ids assistant-ui stores aligned with the LangGraph thread ids your `load` and `stream` callbacks receive. See the [Custom Thread List guide](/docs/runtimes/custom/custom-thread-list) for the full adapter contract.
+
+<Callout type="info">
+  When `unstable_threadListAdapter` is provided, the `cloud`, `create`, and `delete` options are ignored — the adapter owns the full thread-list lifecycle.
+</Callout>
+
 ## Message Editing & Regeneration
 
 LangGraph uses server-side checkpoints for state management. To support message editing (branching) and regeneration, you need to provide a `getCheckpointId` callback that resolves the appropriate checkpoint for server-side forking.
