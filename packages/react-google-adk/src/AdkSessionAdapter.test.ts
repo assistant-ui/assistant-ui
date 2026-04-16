@@ -126,7 +126,7 @@ describe("createAdkSessionAdapter - initialize", () => {
     });
     expect(JSON.parse(init?.body as string)).toEqual({});
     expect(result).toMatchObject({
-      remoteId: "thread-1",
+      remoteId: "new-session-1",
       externalId: "new-session-1",
     });
   });

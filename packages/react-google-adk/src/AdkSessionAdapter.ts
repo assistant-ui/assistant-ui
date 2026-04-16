@@ -111,9 +111,7 @@ export function createAdkSessionAdapter(
       return { threads };
     },
 
-    async initialize(
-      threadId: string,
-    ): Promise<RemoteThreadInitializeResponse> {
+    async initialize(): Promise<RemoteThreadInitializeResponse> {
       const headers = await getHeaders();
       const res = await fetch(baseUrl, {
         method: "POST",
@@ -124,7 +122,7 @@ export function createAdkSessionAdapter(
         throw new Error(`Failed to create session: ${res.status}`);
       }
       const session = (await res.json()) as { id: string };
-      return { remoteId: threadId, externalId: session.id };
+      return { remoteId: session.id, externalId: session.id };
     },
 
     async delete(remoteId: string): Promise<void> {
