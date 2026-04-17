@@ -26,6 +26,7 @@ async function handleRequest(req: NextRequest, method: string) {
       headers: {
         "x-api-key": process.env.LANGCHAIN_API_KEY || "",
       },
+      signal: req.signal,
     };
 
     if (["POST", "PUT", "PATCH"].includes(method)) {
