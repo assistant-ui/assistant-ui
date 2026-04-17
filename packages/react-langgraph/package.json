@@ -41,16 +41,21 @@
     "uuid": "^13.0.0"
   },
   "peerDependencies": {
+    "@langchain/langgraph-sdk": "^1.8.0",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
+    "@langchain/langgraph-sdk": {
+      "optional": true
+    },
     "@types/react": {
       "optional": true
     }
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@langchain/langgraph-sdk": "^1.8.8",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^25.6.0",

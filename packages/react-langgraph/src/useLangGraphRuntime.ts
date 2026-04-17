@@ -183,6 +183,11 @@ export const useLangGraphUIMessages = () => {
 
 export type UseLangGraphRuntimeOptions = {
   autoCancelPendingToolCalls?: boolean | undefined;
+  /**
+   * When true, renders the Cancel button in the composer and aborts the
+   * `AbortController` whose signal is exposed to your `stream` callback
+   * as `config.abortSignal`.
+   */
   unstable_allowCancellation?: boolean | undefined;
   stream: LangGraphStreamCallback<LangChainMessage>;
   /**
