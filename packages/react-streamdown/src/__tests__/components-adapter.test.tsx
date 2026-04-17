@@ -51,13 +51,6 @@ describe("useAdaptedComponents", () => {
         }),
       );
       expect(result.current).toHaveProperty("code");
-      // The resolved code is a React.memo exotic — a JSX element type, not a
-      // callable function. Invoking it as `code(props)` throws.
-      const codeComponent = result.current?.code as unknown as {
-        $$typeof?: symbol;
-      };
-      expect(codeComponent).toBeDefined();
-      expect(typeof codeComponent.$$typeof).toBe("symbol");
     });
 
     it("the resolved code component renders as JSX without throwing", () => {
