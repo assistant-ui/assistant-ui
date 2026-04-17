@@ -90,16 +90,16 @@ describe("StreamdownTextPrimitive", () => {
       ));
       const components: StreamdownTextComponents = { CodeHeader };
 
-      expect(() =>
-        render(
-          <TextMessagePartProvider text={fencedMarkdown} isRunning={false}>
-            <StreamdownTextPrimitive components={components} />
-          </TextMessagePartProvider>,
-        ),
-      ).not.toThrow();
+      const { container } = render(
+        <TextMessagePartProvider text={fencedMarkdown} isRunning={false}>
+          <StreamdownTextPrimitive components={components} />
+        </TextMessagePartProvider>,
+      );
 
       expect(CodeHeader).toHaveBeenCalled();
       expect(screen.getByTestId("header").textContent).toBe("ts");
+      // Fallback must wrap <code> in <pre> so browsers preserve whitespace.
+      expect(container.querySelector("pre > code")).not.toBeNull();
     });
 
     it("renders without throwing when componentsByLanguage is provided for an unmatched language", () => {
@@ -107,20 +107,19 @@ describe("StreamdownTextPrimitive", () => {
         <div data-testid="python">python</div>
       ));
 
-      expect(() =>
-        render(
-          <TextMessagePartProvider text={fencedMarkdown} isRunning={false}>
-            <StreamdownTextPrimitive
-              componentsByLanguage={{
-                python: { SyntaxHighlighter: PythonHighlighter },
-              }}
-            />
-          </TextMessagePartProvider>,
-        ),
-      ).not.toThrow();
+      const { container } = render(
+        <TextMessagePartProvider text={fencedMarkdown} isRunning={false}>
+          <StreamdownTextPrimitive
+            componentsByLanguage={{
+              python: { SyntaxHighlighter: PythonHighlighter },
+            }}
+          />
+        </TextMessagePartProvider>,
+      );
 
       // block is typescript, python config must be ignored and not invoked
       expect(PythonHighlighter).not.toHaveBeenCalled();
+      expect(container.querySelector("pre > code")).not.toBeNull();
     });
 
     it("dispatches to language-specific SyntaxHighlighter", () => {

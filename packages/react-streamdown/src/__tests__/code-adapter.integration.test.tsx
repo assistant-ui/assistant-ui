@@ -247,7 +247,7 @@ describe("createCodeAdapter integration", () => {
   });
 
   describe("fallback when no custom SyntaxHighlighter", () => {
-    it("renders a plain block <code> element", () => {
+    it("wraps the fallback <code> in a <pre> to preserve whitespace", () => {
       const AdaptedCode = createCodeAdapter({});
 
       const { container } = render(
@@ -256,7 +256,7 @@ describe("createCodeAdapter integration", () => {
         </AdaptedCode>,
       );
 
-      const codeElement = container.querySelector("code");
+      const codeElement = container.querySelector("pre > code");
       expect(codeElement).not.toBeNull();
       expect(codeElement?.className).toBe("language-js");
       expect(codeElement?.textContent).toBe("code");
@@ -265,7 +265,7 @@ describe("createCodeAdapter integration", () => {
       );
     });
 
-    it("renders CodeHeader above plain block <code> when provided", () => {
+    it("renders CodeHeader above the <pre><code> fallback when provided", () => {
       const MockHeader = vi.fn(({ language }) => (
         <div data-testid="header">{language}</div>
       ));
@@ -278,12 +278,12 @@ describe("createCodeAdapter integration", () => {
       );
 
       expect(screen.getByTestId("header").textContent).toBe("python");
-      const codeElement = container.querySelector("code");
+      const codeElement = container.querySelector("pre > code");
       expect(codeElement).not.toBeNull();
       expect(codeElement?.textContent).toBe('print("hi")');
     });
 
-    it("renders block <code> for unmatched language in componentsByLanguage", () => {
+    it("renders <pre><code> fallback for unmatched language in componentsByLanguage", () => {
       const PythonSyntax = vi.fn(() => <div data-testid="python">py</div>);
       const AdaptedCode = createCodeAdapter({
         componentsByLanguage: { python: { SyntaxHighlighter: PythonSyntax } },
@@ -296,7 +296,7 @@ describe("createCodeAdapter integration", () => {
       );
 
       expect(PythonSyntax).not.toHaveBeenCalled();
-      const codeElement = container.querySelector("code");
+      const codeElement = container.querySelector("pre > code");
       expect(codeElement).not.toBeNull();
       expect(codeElement?.textContent).toBe("const x = 1;");
     });
