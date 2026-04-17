@@ -23,22 +23,26 @@ This adds a `/components/assistant-ui/reasoning.tsx` file to your project.
 
 ### Use in your application
 
-Pass the `Reasoning` and `ReasoningGroup` components to the `MessagePrimitive.Parts` component:
+Pass the `Reasoning` and `ReasoningGroup` components to `MessagePrimitive.Parts` via the `components` prop. Using them together is the recommended default — `ReasoningGroup` wraps consecutive reasoning parts in a collapsible container for a smooth out-of-the-box UI.
 
-```tsx title="/app/components/assistant-ui/thread.tsx" {2,10-11}
+```tsx title="/app/components/assistant-ui/thread.tsx"
 import { MessagePrimitive } from "@assistant-ui/react";
-import { Reasoning } from "@/components/assistant-ui/reasoning";
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning"; // [!code ++]
 
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="...">
       <div className="...">
-        <MessagePrimitive.Parts>
-          {({ part }) => {
-            if (part.type === "reasoning") return <Reasoning {...part} />;
-            return null;
+        <MessagePrimitive.Parts
+          components={{
+            Text: MarkdownText,
+            Reasoning, // [!code ++]
+            ReasoningGroup, // [!code ++]
+            tools: { Fallback: ToolFallback },
           }}
-        </MessagePrimitive.Parts>
+        />
       </div>
       <AssistantActionBar />
       <BranchPicker className="..." />
@@ -57,7 +61,7 @@ The component consists of two parts:
 1. `Reasoning`: Renders individual reasoning message part content (with markdown support)
 2. `ReasoningGroup`: Wraps consecutive reasoning parts in a collapsible container
 
-Consecutive reasoning parts are automatically grouped together by the `ReasoningGroup` component.
+Consecutive reasoning parts are automatically grouped together by `ReasoningGroup`. We recommend using both together as the default — you can drop `ReasoningGroup` or build your own layout with the composable API below if you need more flexibility.
 
 > When using the composable API, `Reasoning.Text` is a plain container. Add `<MarkdownText />` for markdown rendering.
 
