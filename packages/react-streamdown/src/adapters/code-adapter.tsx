@@ -119,11 +119,11 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     return (
       <>
         {headerElement}
-        <pre>
+        <DefaultPre node={node}>
           <code className={className} {...props}>
             {children}
           </code>
-        </pre>
+        </DefaultPre>
       </>
     );
   }
