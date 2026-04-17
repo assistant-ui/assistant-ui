@@ -11,11 +11,7 @@ import {
 import { createClient } from "@/lib/chatApi";
 import { Thread } from "@/components/assistant-ui/thread";
 
-const assistantIdFromEnv = process.env.NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID;
-if (!assistantIdFromEnv) {
-  throw new Error("NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID is not set");
-}
-const ASSISTANT_ID = assistantIdFromEnv;
+const ASSISTANT_ID = process.env.NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID!;
 
 export function Assistant() {
   const client = useMemo(() => createClient(), []);
