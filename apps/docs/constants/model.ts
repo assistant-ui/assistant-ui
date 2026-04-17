@@ -2,14 +2,14 @@ export const MODELS = [
   // OpenAI
   {
     name: "GPT-5.4 Nano",
-    value: "openai/gpt-5.4-nano",
+    value: "gpt-5.4-nano",
     icon: "/icons/openai.svg",
     disabled: false,
     contextWindow: 400_000,
   },
   {
     name: "GPT-5.4 Mini",
-    value: "openai/gpt-5.4-mini",
+    value: "gpt-5.4-mini",
     icon: "/icons/openai.svg",
     disabled: false,
     contextWindow: 400_000,
