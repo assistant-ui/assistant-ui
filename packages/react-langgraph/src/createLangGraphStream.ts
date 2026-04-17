@@ -18,7 +18,7 @@ export type CreateLangGraphStreamOptions = {
   client: LangGraphStreamClient;
   assistantId: string;
   streamMode?: StreamMode | StreamMode[];
-  onDisconnect?: "cancel" | "continue";
+  onDisconnect?: StreamPayload["onDisconnect"];
 };
 
 /**
