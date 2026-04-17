@@ -45,7 +45,7 @@ export function useAdaptedComponents({
     return {
       ...htmlComponents,
       ...baseComponents,
-      code: (props) => AdaptedCode(props) ?? undefined,
+      code: AdaptedCode,
     };
   }, [components, componentsByLanguage]);
 }
