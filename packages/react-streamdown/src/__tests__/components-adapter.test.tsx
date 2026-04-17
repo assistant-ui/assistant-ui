@@ -68,19 +68,18 @@ describe("useAdaptedComponents", () => {
       expect(CodeComponent).toBeDefined();
 
       // Render via createElement — the path streamdown + react-markdown take.
-      // Direct function invocation would crash on the memo exotic.
-      expect(() =>
-        render(
-          createElement(
-            CodeComponent as React.ComponentType<Record<string, unknown>>,
-            {
-              className: "language-ts",
-              "data-block": "true",
-            },
-            "const x = 1;",
-          ),
+      // Direct function invocation would crash on the memo exotic; a
+      // render failure here surfaces the TypeError directly.
+      render(
+        createElement(
+          CodeComponent as React.ComponentType<Record<string, unknown>>,
+          {
+            className: "language-ts",
+            "data-block": "true",
+          },
+          "const x = 1;",
         ),
-      ).not.toThrow();
+      );
 
       expect(screen.getByTestId("highlighter").textContent).toBe(
         "ts:const x = 1;",
