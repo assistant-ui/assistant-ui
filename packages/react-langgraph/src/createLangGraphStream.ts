@@ -43,8 +43,8 @@ export const unstable_createLangGraphStream = ({
       streamMode,
       signal: config.abortSignal,
       onDisconnect,
-      ...(config.command && { command: config.command }),
-      ...(config.checkpointId && {
+      ...(config.command != null && { command: config.command }),
+      ...(config.checkpointId != null && {
         checkpoint: { checkpoint_id: config.checkpointId },
       }),
       ...(config.runConfig !== undefined && { config: config.runConfig }),

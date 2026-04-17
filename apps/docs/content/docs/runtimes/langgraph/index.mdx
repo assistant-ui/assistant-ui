@@ -60,6 +60,8 @@ NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=your_graph_id
 ```tsx twoslash title="@/app/api/[...path]/route.ts"
 import { NextRequest, NextResponse } from "next/server";
 
+export const runtime = "edge";
+
 function getCorsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
