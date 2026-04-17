@@ -6,6 +6,7 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -227,14 +228,14 @@ const AssistantMessage: FC = () => {
         data-slot="aui_assistant-message-content"
         className="wrap-break-word px-2 text-foreground leading-relaxed"
       >
-        <MessagePrimitive.Parts>
-          {({ part }) => {
-            if (part.type === "text") return <MarkdownText />;
-            if (part.type === "tool-call")
-              return part.toolUI ?? <ToolFallback {...part} />;
-            return null;
+        <MessagePrimitive.Parts
+          components={{
+            Text: MarkdownText,
+            Reasoning,
+            ReasoningGroup,
+            tools: { Fallback: ToolFallback },
           }}
-        </MessagePrimitive.Parts>
+        />
         <MessageError />
       </div>
 
