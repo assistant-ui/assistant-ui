@@ -1,7 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { cleanup, render, renderHook, screen } from "@testing-library/react";
+import { createElement } from "react";
 import { useAdaptedComponents } from "../adapters/components-adapter";
 import type { StreamdownTextComponents } from "../types";
+
+afterEach(cleanup);
 
 describe("useAdaptedComponents", () => {
   describe("basic behavior", () => {
@@ -48,7 +51,47 @@ describe("useAdaptedComponents", () => {
         }),
       );
       expect(result.current).toHaveProperty("code");
-      expect(typeof result.current?.code).toBe("function");
+      // The resolved code is a React.memo exotic — a JSX element type, not a
+      // callable function. Invoking it as `code(props)` throws.
+      const codeComponent = result.current?.code as unknown as {
+        $$typeof?: symbol;
+      };
+      expect(codeComponent).toBeDefined();
+      expect(typeof codeComponent.$$typeof).toBe("symbol");
+    });
+
+    it("the resolved code component renders as JSX without throwing", () => {
+      const MockSyntax = vi.fn(
+        ({ code, language }: { code: string; language: string }) => (
+          <div data-testid="highlighter">{`${language}:${code}`}</div>
+        ),
+      );
+      const { result } = renderHook(() =>
+        useAdaptedComponents({
+          components: { SyntaxHighlighter: MockSyntax },
+        }),
+      );
+      const CodeComponent = result.current?.code;
+      expect(CodeComponent).toBeDefined();
+
+      // Render via createElement — the path streamdown + react-markdown take.
+      // Direct function invocation would crash on the memo exotic.
+      expect(() =>
+        render(
+          createElement(
+            CodeComponent as React.ComponentType<Record<string, unknown>>,
+            {
+              className: "language-ts",
+              "data-block": "true",
+            },
+            "const x = 1;",
+          ),
+        ),
+      ).not.toThrow();
+
+      expect(screen.getByTestId("highlighter").textContent).toBe(
+        "ts:const x = 1;",
+      );
     });
 
     it("creates code adapter when CodeHeader provided", () => {

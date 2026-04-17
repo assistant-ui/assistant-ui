@@ -246,8 +246,8 @@ describe("createCodeAdapter integration", () => {
     });
   });
 
-  describe("null return for streamdown default", () => {
-    it("returns null when no custom SyntaxHighlighter", () => {
+  describe("fallback when no custom SyntaxHighlighter", () => {
+    it("renders a plain block <code> element", () => {
       const AdaptedCode = createCodeAdapter({});
 
       const { container } = render(
@@ -256,7 +256,49 @@ describe("createCodeAdapter integration", () => {
         </AdaptedCode>,
       );
 
-      expect(container.querySelector("code")).toBeNull();
+      const codeElement = container.querySelector("code");
+      expect(codeElement).not.toBeNull();
+      expect(codeElement?.className).toBe("language-js");
+      expect(codeElement?.textContent).toBe("code");
+      expect(codeElement?.className).not.toContain(
+        "aui-streamdown-inline-code",
+      );
+    });
+
+    it("renders CodeHeader above plain block <code> when provided", () => {
+      const MockHeader = vi.fn(({ language }) => (
+        <div data-testid="header">{language}</div>
+      ));
+      const AdaptedCode = createCodeAdapter({ CodeHeader: MockHeader });
+
+      const { container } = render(
+        <AdaptedCode className="language-python" data-block="true">
+          print("hi")
+        </AdaptedCode>,
+      );
+
+      expect(screen.getByTestId("header").textContent).toBe("python");
+      const codeElement = container.querySelector("code");
+      expect(codeElement).not.toBeNull();
+      expect(codeElement?.textContent).toBe('print("hi")');
+    });
+
+    it("renders block <code> for unmatched language in componentsByLanguage", () => {
+      const PythonSyntax = vi.fn(() => <div data-testid="python">py</div>);
+      const AdaptedCode = createCodeAdapter({
+        componentsByLanguage: { python: { SyntaxHighlighter: PythonSyntax } },
+      });
+
+      const { container } = render(
+        <AdaptedCode className="language-javascript" data-block="true">
+          const x = 1;
+        </AdaptedCode>,
+      );
+
+      expect(PythonSyntax).not.toHaveBeenCalled();
+      const codeElement = container.querySelector("code");
+      expect(codeElement).not.toBeNull();
+      expect(codeElement?.textContent).toBe("const x = 1;");
     });
   });
 
