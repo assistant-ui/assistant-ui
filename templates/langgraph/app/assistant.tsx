@@ -37,6 +37,7 @@ export function Assistant() {
       }>(externalId);
       return {
         messages: state.values.messages,
+        interrupts: state.tasks[0]?.interrupts,
       };
     },
   });
