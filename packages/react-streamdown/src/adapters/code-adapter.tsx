@@ -119,9 +119,11 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     return (
       <>
         {headerElement}
-        <code className={className} {...props}>
-          {children}
-        </code>
+        <pre>
+          <code className={className} {...props}>
+            {children}
+          </code>
+        </pre>
       </>
     );
   }
