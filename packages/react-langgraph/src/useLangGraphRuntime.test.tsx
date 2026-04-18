@@ -542,4 +542,43 @@ describe("useLangGraphRuntime", () => {
     );
     consoleWarnSpy.mockRestore();
   });
+
+  it("should abort the pending load when the runtime unmounts", async () => {
+    const pending = deferred<LoadResult>();
+    const load = vi.fn(() => pending.promise);
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { unmount } = renderHook(
+      () => useAuiState((s) => s.thread.isLoading),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+
+    await waitFor(() =>
+      expect(load).toHaveBeenCalledWith("lg-thread-1", {
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    const signal = load.mock.calls[0]?.[1]?.signal;
+    expect(signal?.aborted).toBe(false);
+
+    unmount();
+
+    expect(signal?.aborted).toBe(true);
+  });
 });
