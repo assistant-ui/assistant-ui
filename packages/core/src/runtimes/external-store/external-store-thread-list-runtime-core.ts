@@ -113,31 +113,37 @@ export class ExternalStoreThreadListRuntimeCore
       return;
     }
 
-    this._threadData = {
-      ...DEFAULT_THREAD_DATA,
-      ...Object.fromEntries(
-        adapter.threads?.map((t) => [
-          t.id,
-          {
-            ...t,
-            remoteId: t.remoteId,
-            externalId: t.externalId,
-            status: "regular",
-          },
-        ]) ?? [],
-      ),
-      ...Object.fromEntries(
-        adapter.archivedThreads?.map((t) => [
-          t.id,
-          {
-            ...t,
-            remoteId: t.remoteId,
-            externalId: t.externalId,
-            status: "archived",
-          },
-        ]) ?? [],
-      ),
-    };
+    if (
+      initialLoad ||
+      previousThreads !== newThreads ||
+      previousArchivedThreads !== newArchivedThreads
+    ) {
+      this._threadData = {
+        ...DEFAULT_THREAD_DATA,
+        ...Object.fromEntries(
+          adapter.threads?.map((t) => [
+            t.id,
+            {
+              ...t,
+              remoteId: t.remoteId,
+              externalId: t.externalId,
+              status: "regular",
+            },
+          ]) ?? [],
+        ),
+        ...Object.fromEntries(
+          adapter.archivedThreads?.map((t) => [
+            t.id,
+            {
+              ...t,
+              remoteId: t.remoteId,
+              externalId: t.externalId,
+              status: "archived",
+            },
+          ]) ?? [],
+        ),
+      };
+    }
 
     if (previousThreads !== newThreads) {
       this._threads = this.adapter.threads?.map((t) => t.id) ?? EMPTY_ARRAY;
