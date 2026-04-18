@@ -4,7 +4,6 @@ import {
   clampScrollOffset,
   createInitialScrollState,
   deriveScrollState,
-  scrollInputsEqual,
   scrollStateReducer,
   type ScrollDerivedState,
   type ScrollState,
@@ -232,29 +231,5 @@ describe("useScrollState", () => {
 
     expect(next.fullState.scrollOffset).toBe(state.scrollOffset);
     expect(next.fullState.autoScroll).toBe(state.autoScroll);
-  });
-
-  it("treats scroll inputs as equal when maps and key order match by value", () => {
-    const state = createInitialScrollState({
-      viewportHeight: 4,
-      itemKeyOrder: ["a", "b"],
-      itemHeights: new Map([
-        ["a", 2],
-        ["b", 3],
-      ]),
-      itemCount: 2,
-    });
-
-    expect(
-      scrollInputsEqual(state, {
-        viewportHeight: 4,
-        itemHeights: new Map([
-          ["a", 2],
-          ["b", 3],
-        ]),
-        itemKeyOrder: ["a", "b"],
-        itemCount: 2,
-      }),
-    ).toBe(true);
   });
 });

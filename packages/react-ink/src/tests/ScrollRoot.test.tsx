@@ -205,16 +205,41 @@ describe("ScrollRoot", () => {
 
     const rendered = await renderFrame(
       <ScrollRoot
-        items={["one", "two", "three"]}
+        items={["one", "two", "three", "four", "five", "six"]}
         height={2}
-        initialScrollToBottom={false}
+        stickToBottomThreshold={0}
         renderItem={(item) => <Text>{item}</Text>}
       >
         <ScrollIndicator />
       </ScrollRoot>,
     );
 
+    const handler = getInputHandler();
+    handler?.("", { pageUp: true });
+    await tick();
+
     rendered.rerender(
+      <ScrollRoot
+        items={["one", "two", "three", "four", "five", "six", "seven"]}
+        height={2}
+        stickToBottomThreshold={0}
+        renderItem={(item) => <Text>{item}</Text>}
+      >
+        <ScrollIndicator />
+      </ScrollRoot>,
+    );
+
+    await tick();
+
+    expect(rendered.lastFrame() ?? "").toContain(
+      "[paused | End to resume | 3 new below]",
+    );
+  });
+
+  it("does not show the paused hint on first render when initialScrollToBottom is false", async () => {
+    mockUseBoxMetrics.mockReturnValue(createMetrics(1));
+
+    const rendered = await renderFrame(
       <ScrollRoot
         items={["one", "two", "three", "four"]}
         height={2}
@@ -225,11 +250,7 @@ describe("ScrollRoot", () => {
       </ScrollRoot>,
     );
 
-    await tick();
-
-    expect(rendered.lastFrame() ?? "").toContain(
-      "[paused | End to resume | 2 new below]",
-    );
+    expect(rendered.lastFrame() ?? "").not.toContain("[paused");
   });
 
   it("suppresses the paused hint when renderPausedHint is false", async () => {

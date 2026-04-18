@@ -72,21 +72,6 @@ const resolveAutoScroll = (
   return maxScrollOffset - scrollOffset <= stickToBottomThreshold;
 };
 
-export const scrollInputsEqual = (
-  state: ScrollState,
-  next: Pick<
-    ScrollState,
-    "viewportHeight" | "itemHeights" | "itemKeyOrder" | "itemCount"
-  >,
-) => {
-  return (
-    state.viewportHeight === next.viewportHeight &&
-    state.itemCount === next.itemCount &&
-    mapsEqual(state.itemHeights, next.itemHeights) &&
-    arraysEqual(state.itemKeyOrder, next.itemKeyOrder)
-  );
-};
-
 const getStateIfChanged = (
   previous: ScrollState,
   next: ScrollState,

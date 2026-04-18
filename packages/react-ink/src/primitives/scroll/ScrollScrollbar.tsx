@@ -51,9 +51,8 @@ export const ScrollScrollbar = ({ char, color }: ScrollScrollbarProps) => {
       Math.max(0, viewportHeight - thumbHeight),
   );
 
-  const topTrackRows = thumbTop;
   const bottomTrackRows = Math.max(0, rows - thumbTop - thumbHeight);
-  const topTrack = repeatRows(track, topTrackRows);
+  const topTrack = repeatRows(track, thumbTop);
   const thumbOutput = repeatRows(thumb, thumbHeight);
   const bottomTrack = repeatRows(track, bottomTrackRows);
 

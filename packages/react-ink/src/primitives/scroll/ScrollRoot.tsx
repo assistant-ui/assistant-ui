@@ -178,6 +178,7 @@ export const ScrollRoot = <T,>({
   children,
 }: ScrollRootProps<T>) => {
   const [measuredViewportHeight, setMeasuredViewportHeight] = useState(0);
+  const hasEverPinnedToBottomRef = useRef(initialScrollToBottom);
   const itemKeys = useMemo(
     () => items.map((item, index) => keyExtractor?.(item, index) ?? index),
     [items, keyExtractor],
@@ -239,9 +240,17 @@ export const ScrollRoot = <T,>({
     [actions, effectiveKeybindings],
   );
 
+  useEffect(() => {
+    if (derived.isAtBottom) {
+      hasEverPinnedToBottomRef.current = true;
+    }
+  }, [derived.isAtBottom]);
+
   const newBelow = Math.max(0, items.length - derived.visibleLastIndex - 1);
   const shouldShowPausedHint =
-    state.autoScroll === false && derived.maxScrollOffset > state.scrollOffset;
+    hasEverPinnedToBottomRef.current &&
+    state.autoScroll === false &&
+    derived.maxScrollOffset > state.scrollOffset;
 
   const contextValue = useMemo(
     () => ({
