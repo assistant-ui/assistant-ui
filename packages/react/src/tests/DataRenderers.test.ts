@@ -4,12 +4,8 @@ import type {
   DataRenderersState,
 } from "@assistant-ui/core/react";
 
-/**
- * Tests for the DataRenderers state management logic.
- *
- * Since the DataRenderers resource relies on @assistant-ui/tap's resource system
- * (which requires fiber infrastructure), we test the core state logic directly.
- */
+// The resource in DataRenderers.ts requires fiber infrastructure, so these
+// tests replicate the reducer directly and exercise it in isolation.
 
 type StateHarness = {
   state: DataRenderersState;
@@ -17,9 +13,6 @@ type StateHarness = {
   setFallbackDataUI: (render: DataMessagePartComponent) => () => void;
 };
 
-// Replicate the state management logic from DataRenderers.ts. Both `renderers`
-// and `fallbacks` use stack semantics with identity-keyed cleanup so nested
-// providers compose without one overwriting the other.
 const createState = (): StateHarness => {
   let state: DataRenderersState = { renderers: {}, fallbacks: [] };
 
@@ -221,8 +214,6 @@ describe("DataRenderers fallback state logic", () => {
 });
 
 describe("Data part component resolution", () => {
-  // Replicate the component lookup logic from MessageParts.tsx
-  // (named renderers win over stacked fallbacks win over inline config).
   const resolveDataComponent = (
     partName: string,
     inlineConfig?: {

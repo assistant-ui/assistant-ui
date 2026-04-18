@@ -285,12 +285,6 @@ const ToolUIDisplay = ({
   return <Render {...props} />;
 };
 
-/**
- * Resolve the data renderer component for `name`:
- * 1. first globally-registered named renderer (via `setDataUI`)
- * 2. first globally-registered fallback (via `setFallbackDataUI`)
- * 3. inline `Fallback` passed by the caller
- */
 const getDataRenderer = (
   dataRenderers: DataRenderersState,
   name: string,
@@ -598,9 +592,8 @@ const MessagePrimitivePartsInner: FC<{
 }> = ({ children }) => {
   const aui = useAui();
   const contentLength = useAuiState((s) => s.message.parts.length);
-  // Subscribe so late registrations (e.g. LangSmith's LoadExternalComponent
-  // loaded after the message first renders) trigger a re-render and the
-  // `hasUI` check below sees the new state.
+  // Subscribed (not snapshotted like `tools`) so fallbacks registered after
+  // the first render trigger a re-render and `hasUI` re-evaluates.
   const dataRenderers = useAuiState((s) => s.dataRenderers);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: aui accessors are stable refs
