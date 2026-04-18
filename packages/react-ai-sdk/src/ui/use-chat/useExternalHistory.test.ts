@@ -10,7 +10,9 @@ import type {
 } from "@assistant-ui/core";
 
 vi.mock("@assistant-ui/store", () => ({
-  useAui: () => ({ threadListItem: { source: undefined } }),
+  useAui: () => ({
+    threadListItem: Object.assign(() => null, { source: undefined }),
+  }),
 }));
 
 import { useExternalHistory } from "./useExternalHistory";
