@@ -1,8 +1,12 @@
 "use client";
 
-import { Primitive } from "@radix-ui/react-primitive";
-import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
-import { If } from "../message";
+import { Primitive } from "../../utils/Primitive";
+import {
+  type ComponentRef,
+  forwardRef,
+  type ComponentPropsWithoutRef,
+} from "react";
+import { MessagePrimitiveIf as If } from "../message/MessageIf";
 
 export namespace BranchPickerPrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;

@@ -1,5 +1,5 @@
+import type { Unsubscribe } from "@assistant-ui/core";
 import { useDebugValue, useSyncExternalStore } from "react";
-import { Unsubscribe } from "../../../types";
 import { ensureBinding } from "./ensureBinding";
 
 export type SubscribableRuntime<TState> = {

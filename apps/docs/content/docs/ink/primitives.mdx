@@ -1,0 +1,840 @@
+---
+title: Primitives
+description: Composable terminal components for building chat UIs with Ink.
+---
+
+Primitives are thin wrappers around Ink components (`Box`, `Text`, `TextInput`) that integrate with the assistant-ui runtime. They accept all standard Ink props and add runtime-aware behavior.
+
+Primitives use namespace imports, the same pattern as the web package (e.g. `ThreadPrimitive.Root`, `ComposerPrimitive.Input`).
+
+Many primitives share their core logic with `@assistant-ui/react` via `@assistant-ui/core/react` — only the UI layer (Ink vs DOM) differs.
+
+## Thread
+
+```tsx
+import { ThreadPrimitive } from "@assistant-ui/react-ink";
+```
+
+### Root
+
+Container `Box` for the thread area.
+
+```tsx
+<ThreadPrimitive.Root>
+  {children}
+</ThreadPrimitive.Root>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `...rest` | `BoxProps` | Standard Ink Box props |
+
+### Messages
+
+Renders the message list with automatic runtime integration. Each message is wrapped in a scoped context so that `useAuiState((s) => s.message)` works inside the message component.
+
+```tsx
+<ThreadPrimitive.Messages>
+  {() => <MyMessage />}
+</ThreadPrimitive.Messages>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `components` | `MessageComponents` | Component map with `Message`, `UserMessage`, `AssistantMessage`, `SystemMessage`, and edit composer variants |
+
+### AuiIf
+
+Conditional rendering based on assistant state. Replaces the deprecated `ThreadPrimitive.Empty`, `ThreadPrimitive.If`, `MessagePrimitive.If`, and `ComposerPrimitive.If`.
+
+```tsx
+import { AuiIf } from "@assistant-ui/react-ink";
+
+<AuiIf condition={(s) => s.thread.isEmpty}>
+  <Text dimColor>Send a message to get started</Text>
+</AuiIf>
+
+<AuiIf condition={(s) => s.thread.isRunning}>
+  <Text color="yellow">Generating...</Text>
+</AuiIf>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `condition` | `(state) => boolean` | Selector that determines whether children are rendered |
+
+### Empty (deprecated)
+
+<Callout type="warn">
+  Deprecated. Use `AuiIf` with `condition={(s) => s.thread.isEmpty}` instead.
+</Callout>
+
+Renders children only when the thread has no messages.
+
+```tsx
+<ThreadPrimitive.Empty>
+  <Text dimColor>Send a message to get started</Text>
+</ThreadPrimitive.Empty>
+```
+
+### If (deprecated)
+
+<Callout type="warn">
+  Deprecated. Use `AuiIf` instead.
+</Callout>
+
+Conditional rendering based on thread state.
+
+```tsx
+<ThreadPrimitive.If empty>
+  <Text>No messages yet</Text>
+</ThreadPrimitive.If>
+
+<ThreadPrimitive.If running>
+  <Text color="yellow">Generating...</Text>
+</ThreadPrimitive.If>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `empty` | `boolean` | Render when thread is empty |
+| `running` | `boolean` | Render when thread is running |
+
+### MessageByIndex
+
+Low-level provider that sets up the message context for a specific message by index. Used internally by `ThreadPrimitive.Messages`.
+
+```tsx
+<ThreadPrimitive.MessageByIndex index={0}>
+  {/* content rendered with message context */}
+</ThreadPrimitive.MessageByIndex>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `index` | `number` | Zero-based message index |
+
+### Suggestions
+
+Renders all thread suggestions using a provided component. Each suggestion is wrapped in a `SuggestionByIndexProvider` context.
+
+```tsx
+<ThreadPrimitive.Suggestions>
+  {() => <MySuggestion />}
+</ThreadPrimitive.Suggestions>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `() => ReactElement` | Render function for each suggestion |
+
+### SuggestionByIndex
+
+Low-level provider that sets up the suggestion context for a specific suggestion by index. Used internally by `ThreadPrimitive.Suggestions`.
+
+```tsx
+<ThreadPrimitive.SuggestionByIndex index={0}>
+  <SuggestionPrimitive.Title />
+</ThreadPrimitive.SuggestionByIndex>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `index` | `number` | Zero-based suggestion index |
+
+### Suggestion
+
+Renders a suggestion button. Uses Ink `Box` + `Text`.
+
+```tsx
+<ThreadPrimitive.Suggestion
+  prompt="What is the weather?"
+  send
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `prompt` | `string` | The suggestion text |
+| `send` | `boolean` | When true, automatically sends the message |
+| `clearComposer` | `boolean` | When true (default), replaces composer text; when false, appends |
+
+## Composer
+
+```tsx
+import { ComposerPrimitive } from "@assistant-ui/react-ink";
+```
+
+### Root
+
+Container `Box` for the composer area.
+
+```tsx
+<ComposerPrimitive.Root>
+  {children}
+</ComposerPrimitive.Root>
+```
+
+### Input
+
+Ink `TextInput` wired to the composer runtime. Value is managed automatically.
+
+```tsx
+<ComposerPrimitive.Input
+  submitOnEnter
+  placeholder="Type a message..."
+  autoFocus
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `submitOnEnter` | `boolean` | Whether Enter sends the message (default: `false`) |
+| `placeholder` | `string` | Placeholder text when empty |
+| `autoFocus` | `boolean` | Auto-focus on mount |
+
+### Send
+
+`Box` that triggers sending the current message. Typically used with a button-like UI.
+
+```tsx
+<ComposerPrimitive.Send>
+  <Text color="green">[Send]</Text>
+</ComposerPrimitive.Send>
+```
+
+### Cancel
+
+`Box` that cancels the current run.
+
+```tsx
+<ComposerPrimitive.Cancel>
+  <Text color="red">[Stop]</Text>
+</ComposerPrimitive.Cancel>
+```
+
+### Attachments
+
+Renders composer attachments using the provided component configuration.
+
+```tsx
+<ComposerPrimitive.Attachments>
+  {() => <MyAttachment />}
+</ComposerPrimitive.Attachments>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
+
+### AddAttachment
+
+Triggers attachment addition.
+
+```tsx
+<ComposerPrimitive.AddAttachment>
+  <Text>[Attach]</Text>
+</ComposerPrimitive.AddAttachment>
+```
+
+### Conditional Rendering (Composer)
+
+Use `AuiIf` for conditional rendering based on composer state:
+
+```tsx
+<AuiIf condition={(s) => s.composer.isEditing}>
+  <Text>Currently editing</Text>
+</AuiIf>
+```
+
+### AttachmentByIndex
+
+Low-level provider that sets up the attachment context for a specific attachment by index. Used internally by `ComposerPrimitive.Attachments`.
+
+```tsx
+<ComposerPrimitive.AttachmentByIndex index={0}>
+  <AttachmentPrimitive.Name />
+</ComposerPrimitive.AttachmentByIndex>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `index` | `number` | Zero-based attachment index |
+
+### If (deprecated)
+
+<Callout type="warn">
+  Deprecated. Use `AuiIf` instead.
+</Callout>
+
+Conditional rendering based on composer state. Shared from `@assistant-ui/core/react`.
+
+```tsx
+<ComposerPrimitive.If editing>
+  <Text>Currently editing</Text>
+</ComposerPrimitive.If>
+
+<ComposerPrimitive.If dictation>
+  <Text>Dictating...</Text>
+</ComposerPrimitive.If>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `editing` | `boolean` | Render when composer is in editing mode |
+| `dictation` | `boolean` | Render when dictation is currently active |
+
+## Message
+
+```tsx
+import { MessagePrimitive } from "@assistant-ui/react-ink";
+```
+
+### Root
+
+Container `Box` for a single message.
+
+```tsx
+<MessagePrimitive.Root>
+  {children}
+</MessagePrimitive.Root>
+```
+
+### Parts
+
+Renders message content parts via a `components` prop. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to components provided here. A default `Text` component using Ink's `<Text>` is provided out of the box.
+
+```tsx
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <Text>{part.text}</Text>;
+    if (part.type === "tool-call") return <Text dimColor>[Tool: {part.toolName}]</Text>;
+    return null;
+  }}
+</MessagePrimitive.Parts>
+```
+
+### Content (deprecated)
+
+<Callout type="warn">
+  Deprecated. Use `MessagePrimitive.Parts` instead. See the [v0.11 migration guide](/docs/reference/migrations/v0-11) for details.
+</Callout>
+
+Renders message content parts using render props. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to render props if provided.
+
+```tsx
+<MessagePrimitive.Content
+  renderText={({ part }) => <Text>{part.text}</Text>}
+  renderToolCall={({ part }) => <Text dimColor>[Tool: {part.toolName}]</Text>}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `renderText` | `(props: { part; index }) => ReactElement` | Text part renderer |
+| `renderToolCall` | `(props: { part; index }) => ReactElement` | Tool call fallback |
+| `renderImage` | `(props: { part; index }) => ReactElement` | Image part renderer |
+| `renderReasoning` | `(props: { part; index }) => ReactElement` | Reasoning part renderer |
+| `renderSource` | `(props: { part; index }) => ReactElement` | Source part renderer |
+| `renderFile` | `(props: { part; index }) => ReactElement` | File part renderer |
+| `renderData` | `(props: { part; index }) => ReactElement` | Data part fallback |
+
+### PartByIndex
+
+Low-level provider that sets up the part context for a specific message part by index. Used internally by `MessagePrimitive.Parts`.
+
+```tsx
+<MessagePrimitive.PartByIndex index={0}>
+  {/* content rendered with part context */}
+</MessagePrimitive.PartByIndex>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `index` | `number` | Zero-based part index |
+
+### AttachmentByIndex
+
+Low-level provider that sets up the attachment context for a specific message attachment by index. Used internally by `MessagePrimitive.Attachments`.
+
+```tsx
+<MessagePrimitive.AttachmentByIndex index={0}>
+  <AttachmentPrimitive.Name />
+</MessagePrimitive.AttachmentByIndex>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `index` | `number` | Zero-based attachment index |
+
+### Conditional Rendering (Message)
+
+Use `AuiIf` for conditional rendering based on message properties:
+
+```tsx
+<AuiIf condition={(s) => s.message.role === "user"}>
+  <Text bold color="green">You:</Text>
+</AuiIf>
+
+<AuiIf condition={(s) => s.message.role === "assistant" && s.message.isLast}>
+  <Text color="yellow">Thinking...</Text>
+</AuiIf>
+```
+
+### If (deprecated)
+
+<Callout type="warn">
+  Deprecated. Use `AuiIf` instead.
+</Callout>
+
+Conditional rendering based on message properties.
+
+```tsx
+<MessagePrimitive.If user>
+  <Text bold color="green">You:</Text>
+</MessagePrimitive.If>
+
+<MessagePrimitive.If assistant last>
+  <Text color="yellow">Thinking...</Text>
+</MessagePrimitive.If>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `user` | `boolean` | Render for user messages |
+| `assistant` | `boolean` | Render for assistant messages |
+| `running` | `boolean` | Render when message is being generated |
+| `last` | `boolean` | Render for the last message |
+
+### Attachments
+
+Renders user message attachments using the provided component configuration.
+
+```tsx
+<MessagePrimitive.Attachments>
+  {() => <Text>[attachment]</Text>}
+</MessagePrimitive.Attachments>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
+
+## Attachment
+
+```tsx
+import { AttachmentPrimitive } from "@assistant-ui/react-ink";
+```
+
+Primitives for rendering individual attachments.
+
+### Root
+
+Container `Box` for an attachment.
+
+### Name
+
+`Text` component displaying the attachment filename.
+
+### Thumb
+
+`Text` component displaying the file extension.
+
+### Remove
+
+Pressable that removes the attachment from the composer.
+
+```tsx
+<AttachmentPrimitive.Root>
+  <AttachmentPrimitive.Thumb />
+  <AttachmentPrimitive.Name />
+  <AttachmentPrimitive.Remove>
+    <Text color="red">[x]</Text>
+  </AttachmentPrimitive.Remove>
+</AttachmentPrimitive.Root>
+```
+
+## ActionBar
+
+```tsx
+import { ActionBarPrimitive } from "@assistant-ui/react-ink";
+```
+
+### Copy
+
+Pressable that copies the message content. Supports function-as-children for copy state feedback.
+
+```tsx
+<ActionBarPrimitive.Copy copiedDuration={3000}>
+  {({ isCopied }) => <Text>{isCopied ? "[Copied!]" : "[Copy]"}</Text>}
+</ActionBarPrimitive.Copy>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `copiedDuration` | `number` | Duration in ms to show "copied" state (default: 3000) |
+| `copyToClipboard` | `(text: string) => void` | Custom clipboard function |
+
+### Edit
+
+Pressable that enters edit mode for a message.
+
+```tsx
+<ActionBarPrimitive.Edit>
+  <Text>[Edit]</Text>
+</ActionBarPrimitive.Edit>
+```
+
+### Reload
+
+Pressable that regenerates an assistant message.
+
+```tsx
+<ActionBarPrimitive.Reload>
+  <Text>[Retry]</Text>
+</ActionBarPrimitive.Reload>
+```
+
+### FeedbackPositive / FeedbackNegative
+
+Pressable buttons for submitting message feedback.
+
+```tsx
+<ActionBarPrimitive.FeedbackPositive>
+  {({ isSubmitted }) => <Text>{isSubmitted ? "[Liked]" : "[Like]"}</Text>}
+</ActionBarPrimitive.FeedbackPositive>
+
+<ActionBarPrimitive.FeedbackNegative>
+  {({ isSubmitted }) => <Text>{isSubmitted ? "[Disliked]" : "[Dislike]"}</Text>}
+</ActionBarPrimitive.FeedbackNegative>
+```
+
+## BranchPicker
+
+```tsx
+import { BranchPickerPrimitive } from "@assistant-ui/react-ink";
+```
+
+### Previous / Next
+
+Pressable buttons to navigate between message branches.
+
+```tsx
+<Box>
+  <BranchPickerPrimitive.Previous>
+    <Text>{"<"}</Text>
+  </BranchPickerPrimitive.Previous>
+  <BranchPickerPrimitive.Number />
+  <Text>/</Text>
+  <BranchPickerPrimitive.Count />
+  <BranchPickerPrimitive.Next>
+    <Text>{">"}</Text>
+  </BranchPickerPrimitive.Next>
+</Box>
+```
+
+### Number / Count
+
+`Text` components displaying the current branch number and total count.
+
+## ThreadList
+
+```tsx
+import { ThreadListPrimitive } from "@assistant-ui/react-ink";
+```
+
+### Root
+
+Container `Box` for the thread list.
+
+### Items
+
+Renders thread list items with runtime integration.
+
+```tsx
+<ThreadListPrimitive.Items
+  renderItem={({ threadId }) => (
+    <ThreadEntry threadId={threadId} />
+  )}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `renderItem` | `(props: { threadId: string; index: number }) => ReactElement` | Thread item renderer |
+
+### New
+
+Pressable that creates a new thread.
+
+```tsx
+<ThreadListPrimitive.New>
+  <Text color="green">[New Chat]</Text>
+</ThreadListPrimitive.New>
+```
+
+## ThreadListItem
+
+```tsx
+import { ThreadListItemPrimitive } from "@assistant-ui/react-ink";
+```
+
+### Root
+
+Container `Box` for a thread list item.
+
+### Title
+
+`Text` component displaying the thread list item title. Shared from `@assistant-ui/core/react`.
+
+### Trigger
+
+Pressable that switches to the thread.
+
+### Delete
+
+Pressable that deletes the thread.
+
+### Archive / Unarchive
+
+Pressable buttons that archive or unarchive the thread.
+
+```tsx
+<ThreadListItemPrimitive.Root>
+  <ThreadListItemPrimitive.Trigger>
+    <ThreadListItemPrimitive.Title />
+  </ThreadListItemPrimitive.Trigger>
+  <ThreadListItemPrimitive.Delete>
+    <Text color="red">[x]</Text>
+  </ThreadListItemPrimitive.Delete>
+</ThreadListItemPrimitive.Root>
+```
+
+## Suggestion
+
+```tsx
+import { SuggestionPrimitive } from "@assistant-ui/react-ink";
+```
+
+### Title
+
+`Text` component displaying the suggestion title.
+
+### Description
+
+`Text` component displaying the suggestion label. Despite the component name, this reads from the `label` field of the suggestion state (not a separate `description` field).
+
+### Trigger
+
+Pressable that triggers the suggestion action.
+
+```tsx
+<SuggestionPrimitive.Trigger send>
+  <SuggestionPrimitive.Title />
+</SuggestionPrimitive.Trigger>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `send` | `boolean` | When true, sends immediately; when false, inserts into composer |
+| `clearComposer` | `boolean` | Whether to clear/replace composer text (default: true) |
+
+## ChainOfThought
+
+```tsx
+import { ChainOfThoughtPrimitive } from "@assistant-ui/react-ink";
+```
+
+### Root
+
+Container `Box` for chain of thought content.
+
+### AccordionTrigger
+
+Pressable that toggles the collapsed state of the chain of thought.
+
+### Parts
+
+Renders the individual parts of a chain of thought using a provided components map. Shared from `@assistant-ui/core/react`.
+
+```tsx
+<ChainOfThoughtPrimitive.Root>
+  <ChainOfThoughtPrimitive.AccordionTrigger>
+    <Text dimColor>[Toggle reasoning]</Text>
+  </ChainOfThoughtPrimitive.AccordionTrigger>
+  <ChainOfThoughtPrimitive.Parts>
+    {({ part }) => part.type === "text" ? <Text dimColor>{part.text}</Text> : null}
+  </ChainOfThoughtPrimitive.Parts>
+</ChainOfThoughtPrimitive.Root>
+```
+
+## ToolCall
+
+```tsx
+import { ToolCallPrimitive } from "@assistant-ui/react-ink";
+```
+
+### Fallback
+
+A built-in component for rendering tool calls with expandable/collapsible output. Includes a spinner for running tools, formatted JSON args and result output, and status icons for completed, errored, or interrupted calls.
+
+```tsx
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "tool-call") return <ToolCallPrimitive.Fallback part={part} />;
+    return null;
+  }}
+</MessagePrimitive.Parts>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `part` | `ToolCallMessagePartProps` | The tool call message part (pass the component prop directly) |
+| `expanded` | `boolean` | Force expanded or collapsed. When unset, auto-expands while running, awaiting action, or errored |
+| `maxArgLines` | `number` | Maximum lines to show for args when expanded (default: 20) |
+| `maxResultLines` | `number` | Maximum lines to show for result when expanded (default: 20) |
+| `maxResultPreviewLines` | `number` | Maximum lines to show for result preview when collapsed (default: 1) |
+| `renderHeader` | `(props: { toolName, status, expanded }) => ReactNode` | Custom header renderer |
+| `renderArgs` | `(props: { args, argsText }) => ReactNode` | Custom args renderer |
+| `renderResult` | `(props: { result, isError }) => ReactNode` | Custom result renderer |
+
+## Diff
+
+```tsx
+import { DiffPrimitive, DiffView } from "@assistant-ui/react-ink";
+```
+
+Components for rendering code diffs in the terminal.
+
+### DiffView
+
+Pre-composed component that combines all diff primitives for easy diff rendering. Accepts either a unified diff patch string or old/new file content for inline comparison.
+
+```tsx
+// From a patch string
+<DiffView
+  patch={unifiedDiffString}
+  showLineNumbers
+  contextLines={3}
+  maxLines={50}
+/>
+
+// From file contents
+<DiffView
+  oldFile={{ content: "old text", name: "file.txt" }}
+  newFile={{ content: "new text", name: "file.txt" }}
+  showLineNumbers
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `patch` | `string` | Unified diff patch string to parse and display |
+| `oldFile` | `{ content: string; name?: string }` | Old file content for inline comparison |
+| `newFile` | `{ content: string; name?: string }` | New file content for inline comparison |
+| `showLineNumbers` | `boolean` | Whether to show line numbers (default: true) |
+| `contextLines` | `number` | Number of context lines to show around changes |
+| `maxLines` | `number` | Maximum number of lines to display |
+
+### Root
+
+Container `Box` that provides diff context to child components. Parses the patch or computes the diff from old/new file content.
+
+```tsx
+<DiffPrimitive.Root
+  patch={patchString}
+  oldFile={{ content: oldContent, name: "file.txt" }}
+  newFile={{ content: newContent, name: "file.txt" }}
+>
+  {children}
+</DiffPrimitive.Root>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `patch` | `string` | Unified diff patch string |
+| `oldFile` | `{ content: string; name?: string }` | Old file for inline diff |
+| `newFile` | `{ content: string; name?: string }` | New file for inline diff |
+
+### Header
+
+Displays file header information including filename(s) and change statistics.
+
+```tsx
+<DiffPrimitive.Header fileIndex={0} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `fileIndex` | `number` | Index of file to display header for (default: 0) |
+
+### Content
+
+Renders the diff content with lines. Supports context folding and line truncation.
+
+```tsx
+<DiffPrimitive.Content
+  fileIndex={0}
+  showLineNumbers
+  contextLines={3}
+  maxLines={100}
+  renderLine={({ line, index }) => <CustomLine line={line} />}
+  renderFold={({ region, index }) => <CustomFold region={region} />}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `fileIndex` | `number` | Index of file to display (default: 0) |
+| `showLineNumbers` | `boolean` | Show line numbers (default: true) |
+| `contextLines` | `number` | Number of context lines around changes |
+| `maxLines` | `number` | Maximum lines to display |
+| `renderLine` | `(props: { line; index }) => ReactNode` | Custom line renderer |
+| `renderFold` | `(props: { region; index }) => ReactNode` | Custom fold region renderer |
+
+### Line
+
+Renders an individual diff line with appropriate coloring and indicators.
+
+```tsx
+<DiffPrimitive.Line
+  line={parsedLine}
+  showLineNumbers
+  lineNumberWidth={4}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `line` | `ParsedLine` | The parsed line object to render |
+| `showLineNumbers` | `boolean` | Show line numbers (default: true) |
+| `lineNumberWidth` | `number` | Width for line number padding (default: 4) |
+
+### Stats
+
+Displays diff statistics (additions and deletions count).
+
+```tsx
+<DiffPrimitive.Stats fileIndex={0} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `fileIndex` | `number` | Index of file to display stats for (default: 0) |
+
+### Composing with Primitives
+
+For custom layouts, use the primitives directly:
+
+```tsx
+<DiffPrimitive.Root patch={patchString}>
+  <Box flexDirection="column">
+    <DiffPrimitive.Header />
+    <DiffPrimitive.Stats />
+    <DiffPrimitive.Content
+      showLineNumbers
+      contextLines={2}
+    />
+  </Box>
+</DiffPrimitive.Root>
+```

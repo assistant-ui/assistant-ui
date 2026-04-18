@@ -1,0 +1,215 @@
+---
+title: AssistantModal
+description: A floating chat popover with a fixed-position trigger button that opens a chat panel.
+---
+
+import { AssistantModalSample } from "@/components/docs/samples/assistant-modal";
+import { AssistantModalPrimitive as AssistantModalPrimitiveDocs } from "@/generated/primitiveDocs";
+
+The AssistantModal primitive is a floating chat popover built on [Radix Popover](https://www.radix-ui.com/primitives/docs/components/popover). A trigger button opens a chat panel, which is a common floating assistant launcher pattern. You control the trigger, content, positioning, and animations.
+
+<Tabs items={["Preview", "Code"]}>
+  <Tab>
+    <AssistantModalSample />
+  </Tab>
+  <Tab>
+```tsx
+import { AssistantModalPrimitive } from "@assistant-ui/react";
+
+function MinimalAssistantModal() {
+  return (
+    <AssistantModalPrimitive.Root>
+      <AssistantModalPrimitive.Anchor>
+        <AssistantModalPrimitive.Trigger>
+          Open Chat
+        </AssistantModalPrimitive.Trigger>
+      </AssistantModalPrimitive.Anchor>
+      <AssistantModalPrimitive.Content>
+        {/* Your Thread goes here */}
+      </AssistantModalPrimitive.Content>
+    </AssistantModalPrimitive.Root>
+  );
+}
+```
+  </Tab>
+</Tabs>
+
+## Quick Start
+
+Minimal example:
+
+```tsx
+import { AssistantModalPrimitive } from "@assistant-ui/react";
+
+<AssistantModalPrimitive.Root>
+  <AssistantModalPrimitive.Anchor>
+    <AssistantModalPrimitive.Trigger>Open</AssistantModalPrimitive.Trigger>
+  </AssistantModalPrimitive.Anchor>
+  <AssistantModalPrimitive.Content>
+    <Thread />
+  </AssistantModalPrimitive.Content>
+</AssistantModalPrimitive.Root>
+```
+
+`Root` is a Radix Popover provider (no DOM), `Trigger` renders a `<button>`, `Anchor` renders a `<div>`, and `Content` renders a `<div>` inside a portal. Add your own classes, animations, and layout.
+
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
+
+## Core Concepts
+
+### Popover Architecture
+
+AssistantModal is built directly on Radix Popover. `Root` manages open/close state, `Trigger` toggles it, `Anchor` positions the popover, and `Content` is the floating panel. All Radix Popover props are available on the corresponding parts.
+
+### Anchor vs Trigger
+
+`Content` positions itself relative to `Anchor`, not `Trigger`. The common pattern is wrapping `Trigger` inside `Anchor` so the popover aligns to a larger area (like a fixed-position button container) rather than the button itself:
+
+```tsx
+<AssistantModalPrimitive.Anchor className="fixed right-4 bottom-4 size-11">
+  <AssistantModalPrimitive.Trigger>
+    Open
+  </AssistantModalPrimitive.Trigger>
+</AssistantModalPrimitive.Anchor>
+```
+
+### Auto-Open on Run Start
+
+The `unstable_openOnRunStart` prop (default `true`) automatically opens the modal when the assistant starts responding. This means if a user triggers a run programmatically while the modal is closed, it pops open to show the response. Set to `false` to disable.
+
+### Dismiss Behavior
+
+`Content` uses `dissmissOnInteractOutside` *(intentional current API spelling, with the extra `s`)* and defaults it to `false`. Clicking outside the modal does **not** close it. This matches expected chat UX where users interact with the page while keeping the chat open. Set it to `true` for standard popover dismiss behavior.
+
+### Open/Close Animations
+
+`Content` exposes `data-[state=open]` and `data-[state=closed]` attributes for CSS animations:
+
+```tsx
+<AssistantModalPrimitive.Content
+  className="data-[state=open]:animate-in data-[state=open]:fade-in data-[state=closed]:animate-out data-[state=closed]:fade-out"
+>
+```
+
+## Parts
+
+### Root
+
+Radix Popover provider, manages open/close state. No DOM element rendered.
+
+```tsx
+<AssistantModalPrimitive.Root unstable_openOnRunStart={false}>
+  ...
+</AssistantModalPrimitive.Root>
+```
+
+<PrimitivesTypeTable type="AssistantModalPrimitiveRootProps" parameters={AssistantModalPrimitiveDocs.Root.props} />
+
+### Trigger
+
+Button that toggles the modal open and closed. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<AssistantModalPrimitive.Trigger className="rounded-full bg-primary px-4 py-2 text-primary-foreground">
+  Open Chat
+</AssistantModalPrimitive.Trigger>
+```
+
+### Anchor
+
+Positions the trigger and content relative to a shared anchor. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<AssistantModalPrimitive.Anchor className="fixed right-4 bottom-4">
+  <AssistantModalPrimitive.Trigger>Chat</AssistantModalPrimitive.Trigger>
+</AssistantModalPrimitive.Anchor>
+```
+
+### Content
+
+The floating chat panel. Renders a `<div>` element inside a portal.
+
+```tsx
+<AssistantModalPrimitive.Content
+  sideOffset={16}
+  className="h-[600px] w-[400px] rounded-xl border bg-background shadow-lg"
+>
+  <Thread />
+</AssistantModalPrimitive.Content>
+```
+
+<PrimitivesTypeTable type="AssistantModalPrimitiveContentProps" parameters={AssistantModalPrimitiveDocs.Content.props} />
+
+## Patterns
+
+### Floating Bottom-Right Widget
+
+```tsx
+<AssistantModalPrimitive.Root>
+  <AssistantModalPrimitive.Anchor className="fixed right-4 bottom-4 size-11">
+    <AssistantModalPrimitive.Trigger className="size-full rounded-full bg-primary text-primary-foreground shadow-lg">
+      <BotIcon className="size-6" />
+    </AssistantModalPrimitive.Trigger>
+  </AssistantModalPrimitive.Anchor>
+  <AssistantModalPrimitive.Content
+    sideOffset={16}
+    className="h-[600px] w-[400px] rounded-xl border bg-background shadow-lg"
+  >
+    <Thread />
+  </AssistantModalPrimitive.Content>
+</AssistantModalPrimitive.Root>
+```
+
+### Trigger Icon Swap
+
+The `Trigger` button receives a `data-state` attribute from Radix (`"open"` or `"closed"`). To pass that state down to child icons, use `asChild` with a wrapper component that destructures and forwards it:
+
+```tsx
+import { forwardRef } from "react";
+
+const ModalButton = forwardRef<
+  HTMLButtonElement,
+  React.ComponentPropsWithoutRef<"button"> & { "data-state"?: string }
+>(({ "data-state": state, ...props }, ref) => (
+  <button ref={ref} {...props} className="relative size-11 rounded-full">
+    <BotIcon
+      data-state={state}
+      className="absolute size-6 transition-all data-[state=open]:rotate-90 data-[state=open]:scale-0"
+    />
+    <XIcon
+      data-state={state}
+      className="absolute size-6 transition-all data-[state=closed]:-rotate-90 data-[state=closed]:scale-0"
+    />
+  </button>
+));
+
+<AssistantModalPrimitive.Trigger asChild>
+  <ModalButton />
+</AssistantModalPrimitive.Trigger>
+```
+
+### Custom Portal Container
+
+Render the content inside a specific container instead of `document.body`:
+
+```tsx
+<AssistantModalPrimitive.Content
+  portalProps={{ container: myContainerRef.current }}
+>
+  <Thread />
+</AssistantModalPrimitive.Content>
+```
+
+## Relationship to Components
+
+The shadcn [AssistantModal](/docs/ui/assistant-modal) component wraps these primitives with slide/fade animations, icon transitions between open and closed states, and responsive sizing. Start there for a prebuilt floating chat widget.
+
+## API Reference
+
+For full prop details on every part, see the [AssistantModalPrimitive API Reference](/docs/api-reference/primitives/assistant-modal).
+
+Related:
+- [ThreadPrimitive](/docs/primitives/thread)
+- [ComposerPrimitive](/docs/primitives/composer)

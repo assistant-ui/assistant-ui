@@ -1,0 +1,138 @@
+---
+title: Badge
+description: A small label component for displaying status, categories, or metadata.
+links:
+  - label: Radix UI Slot
+    url: https://www.radix-ui.com/primitives/docs/utilities/slot
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import {
+  BadgeSample,
+  BadgeSizesSample,
+  BadgeWithIconSample,
+  BadgeAsLinkSample,
+  BadgeAnimatedSample,
+} from "@/components/docs/samples/badge";
+
+<Callout>
+  This is a **standalone component** that does not depend on the assistant-ui runtime. Use it anywhere in your application.
+</Callout>
+
+<BadgeSample />
+
+## Installation
+
+<InstallCommand shadcn={["badge"]} />
+
+## Usage
+
+```tsx
+import { Badge } from "@/components/assistant-ui/badge";
+
+export function Example() {
+  return <Badge>Label</Badge>;
+}
+```
+
+## Examples
+
+### Variants
+
+Use the `variant` prop to change the visual style.
+
+<BadgeSample />
+
+```tsx
+<Badge variant="outline" />     // Border (default)
+<Badge variant="secondary" />   // Secondary background
+<Badge variant="muted" />       // Muted background
+<Badge variant="ghost" />       // No background
+<Badge variant="info" />        // Blue/info style
+<Badge variant="warning" />     // Amber/warning style
+<Badge variant="success" />     // Green/success style
+<Badge variant="destructive" /> // Red/error style
+```
+
+### Sizes
+
+Use the `size` prop to change the badge size.
+
+<BadgeSizesSample />
+
+```tsx
+<Badge size="sm" />      // Small
+<Badge size="default" /> // Default
+<Badge size="lg" />      // Large
+```
+
+### With Icons
+
+Badges automatically style SVG icons.
+
+<PreviewCode file="components/docs/samples/badge" name="BadgeWithIconSample">
+  <BadgeWithIconSample />
+</PreviewCode>
+
+### As Link
+
+Use the `asChild` prop to render the badge as a different element, like a link.
+
+<PreviewCode file="components/docs/samples/badge" name="BadgeAsLinkSample">
+  <BadgeAsLinkSample />
+</PreviewCode>
+
+### Animated
+
+Combine with CSS transitions for scroll and color animations.
+
+<PreviewCode file="components/docs/samples/badge" name="BadgeAnimatedSample">
+  <BadgeAnimatedSample />
+</PreviewCode>
+
+## API Reference
+
+### Badge
+
+<ParametersTable
+  type="BadgeProps"
+  parameters={[
+    {
+      name: "variant",
+      type: '"outline" | "secondary" | "muted" | "ghost" | "info" | "warning" | "success" | "destructive"',
+      default: '"outline"',
+      description: "The visual style of the badge.",
+    },
+    {
+      name: "size",
+      type: '"sm" | "default" | "lg"',
+      default: '"default"',
+      description: "The size of the badge.",
+    },
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a span.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### Style Variants (CVA)
+
+| Export | Description |
+|--------|-------------|
+| `badgeVariants` | Styles for the badge component. |
+
+```tsx
+import { badgeVariants } from "@/components/assistant-ui/badge";
+
+<span className={badgeVariants({ variant: "muted", size: "sm" })}>
+  Custom Badge
+</span>
+```

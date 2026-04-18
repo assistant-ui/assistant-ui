@@ -1,9 +1,9 @@
 import type { UIMessage } from "ai";
-import {
+import type {
   MessageFormatAdapter,
   MessageFormatItem,
   MessageStorageEntry,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core";
 
 // Storage format for AI SDK messages - just the UIMessage
 export type AISDKStorageFormat = Omit<UIMessage, "id">;
@@ -17,10 +17,9 @@ export const aiSDKV6FormatAdapter: MessageFormatAdapter<
   encode({
     message: { id, parts, ...message },
   }: MessageFormatItem<UIMessage>): AISDKStorageFormat {
-    // Filter out FileContentParts until they are supported
     return {
       ...message,
-      parts: parts.filter((part) => part.type !== "file"),
+      parts,
     };
   },
 

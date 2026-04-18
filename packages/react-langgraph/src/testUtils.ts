@@ -1,5 +1,5 @@
-import { LangChainMessage } from "./types";
-import { LangGraphMessagesEvent } from "./useLangGraphMessages";
+import type { LangChainMessage } from "./types";
+import type { LangGraphMessagesEvent } from "./useLangGraphMessages";
 
 export const mockStreamCallbackFactory = (
   events: Array<LangGraphMessagesEvent<LangChainMessage>>,

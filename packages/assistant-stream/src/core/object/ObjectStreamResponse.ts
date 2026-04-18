@@ -1,7 +1,7 @@
 import { PipeableTransformStream } from "../utils/stream/PipeableTransformStream";
 import { ObjectStreamAccumulator } from "./ObjectStreamAccumulator";
 import { SSEDecoder, SSEEncoder } from "../utils/stream/SSE";
-import { ObjectStreamChunk, ObjectStreamOperation } from "./types";
+import type { ObjectStreamChunk, ObjectStreamOperation } from "./types";
 
 export class ObjectStreamEncoder extends PipeableTransformStream<
   ObjectStreamChunk,

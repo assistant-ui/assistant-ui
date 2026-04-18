@@ -1,15 +1,21 @@
 import type { BuilderConfig } from "@/components/builder/types";
 
+const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
+
 export function determineRegistryDependencies(config: BuilderConfig): string[] {
   const { components } = config;
-  const deps: string[] = ["thread", "tooltip-icon-button"];
+  const deps: string[] = [
+    "button",
+    `${REGISTRY_BASE_URL}/tooltip-icon-button.json`,
+  ];
 
   if (components.markdown) {
-    deps.push("markdown-text");
+    deps.push(`${REGISTRY_BASE_URL}/markdown-text.json`);
+    deps.push(`${REGISTRY_BASE_URL}/tool-fallback.json`);
   }
 
   if (components.attachments) {
-    deps.push("attachment");
+    deps.push(`${REGISTRY_BASE_URL}/attachment.json`);
   }
 
   return deps;
@@ -111,12 +117,13 @@ export function generateRegistryJson(config: BuilderConfig) {
     dependencies: [
       "@assistant-ui/react",
       "@assistant-ui/react-ui",
+      "lucide-react",
       ...(config.components.markdown ? ["@assistant-ui/react-markdown"] : []),
     ],
     registryDependencies,
     files: [
       {
-        path: "components/ui/assistant-ui/thread.tsx",
+        path: "components/assistant-ui/thread.tsx",
         content: threadCode,
         type: "registry:component",
       },
@@ -135,7 +142,7 @@ function generateThreadCode(config: BuilderConfig): string {
     generateIconImports(config),
     `import {`,
     `  ActionBarPrimitive,`,
-    `  AssistantIf,`,
+    `  AuiIf,`,
     components.branchPicker ? `  BranchPickerPrimitive,` : null,
     `  ComposerPrimitive,`,
     `  ErrorPrimitive,`,
@@ -199,9 +206,9 @@ export function Thread() {
       >
         ${
           components.threadWelcome
-            ? `<AssistantIf condition={({ thread }) => thread.isEmpty}>
+            ? `<AuiIf condition={(s) => s.thread.isEmpty}>
           <ThreadWelcome />
-        </AssistantIf>`
+        </AuiIf>`
             : ""
         }
 
@@ -366,7 +373,7 @@ function ComposerAction() {
     <div className="relative mx-2 mb-2 flex items-center justify-between">
       ${components.attachments ? "<ComposerAddAttachment />" : "<div />"}
 
-      <AssistantIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send message"
@@ -384,9 +391,9 @@ function ComposerAction() {
             <ArrowUpIcon className="size-4" />
           </TooltipIconButton>
         </ComposerPrimitive.Send>
-      </AssistantIf>
+      </AuiIf>
 
-      <AssistantIf condition={({ thread }) => thread.isRunning}>
+      <AuiIf condition={(s) => s.thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <Button
             type="button"
@@ -402,7 +409,7 @@ function ComposerAction() {
             <SquareIcon className="size-3 fill-current" />
           </Button>
         </ComposerPrimitive.Cancel>
-      </AssistantIf>
+      </AuiIf>
     </div>
   );
 }`;
@@ -554,7 +561,7 @@ function AssistantMessage() {
         <MessageError />${
           components.loadingIndicator !== "none"
             ? `
-        <AssistantIf condition={({ thread, message }) => thread.isRunning && message.content.length === 0}>
+        <AuiIf condition={(s) => s.thread.isRunning && s.message.content.length === 0}>
           <div className="flex items-center gap-2 text-muted-foreground">
             <LoaderIcon className="size-4 animate-spin" />${
               components.loadingIndicator === "text"
@@ -563,19 +570,19 @@ function AssistantMessage() {
                 : ""
             }
           </div>
-        </AssistantIf>`
+        </AuiIf>`
             : ""
         }
       </div>
 
-      <div className="mt-1 ml-2 flex">
+      <div className="mt-1 ml-2 flex min-h-6 items-center">
         ${components.branchPicker ? "<BranchPicker />" : ""}
         <AssistantActionBar />
       </div>
       ${
         components.followUpSuggestions
           ? `
-      <AssistantIf condition={({ thread }) => !thread.isRunning}>
+      <AuiIf condition={(s) => !s.thread.isRunning}>
         <div className="mt-4 flex flex-wrap gap-2">
           <ThreadPrimitive.Suggestion
             prompt="Tell me more"
@@ -590,7 +597,7 @@ function AssistantMessage() {
             Explain differently
           </ThreadPrimitive.Suggestion>
         </div>
-      </AssistantIf>`
+      </AuiIf>`
           : ""
       }
     </MessagePrimitive.Root>
@@ -631,19 +638,18 @@ function AssistantActionBar() {
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
-      autohideFloat="single-branch"
-      className="-ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
+      className="-ml-1 flex gap-1 text-muted-foreground"
     >
       ${
         components.actionBar.copy
           ? `<ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
-          <AssistantIf condition={({ message }) => message.isCopied}>
+          <AuiIf condition={(s) => s.message.isCopied}>
             <CheckIcon />
-          </AssistantIf>
-          <AssistantIf condition={({ message }) => !message.isCopied}>
+          </AuiIf>
+          <AuiIf condition={(s) => !s.message.isCopied}>
             <CopyIcon />
-          </AssistantIf>
+          </AuiIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>`
           : ""

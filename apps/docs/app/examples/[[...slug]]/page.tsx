@@ -5,7 +5,7 @@ import { DocsPage, DocsBody } from "fumadocs-ui/page";
 import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
-import { ExamplesNavbar } from "@/components/examples/ExamplesNavbar";
+import { ExamplesNavbar } from "@/components/docs/examples-navbar";
 import { TableOfContents } from "@/components/docs/layout/table-of-contents";
 import { DocsFooter } from "@/components/docs/layout/docs-footer";
 import { DocsPager } from "@/components/docs/layout/docs-pager";

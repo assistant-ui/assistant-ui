@@ -1,8 +1,8 @@
 import type { JSONSchema7 } from "json-schema";
-import { DeepPartial, TypeAtPath, TypePath } from "./type-path-utils";
-import { AsyncIterableStream } from "../../utils";
+import type { DeepPartial, TypeAtPath, TypePath } from "./type-path-utils";
+import type { AsyncIterableStream } from "../../utils";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import { ToolResponse } from "./ToolResponse";
+import type { ToolResponse } from "./ToolResponse";
 
 /**
  * Interface for reading tool call arguments from a stream, which are
@@ -115,7 +115,7 @@ type BackendTool<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
 > = ToolBase<TArgs, TResult> & {
-  type?: "backend" | undefined;
+  type: "backend";
 
   description?: undefined;
   parameters?: undefined;
@@ -128,12 +128,12 @@ type FrontendTool<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
 > = ToolBase<TArgs, TResult> & {
-  type?: "frontend" | undefined;
+  type: "frontend";
 
   description?: string | undefined;
   parameters: StandardSchemaV1<TArgs> | JSONSchema7;
   disabled?: boolean;
-  execute?: ToolExecuteFunction<TArgs, TResult>;
+  execute: ToolExecuteFunction<TArgs, TResult>;
   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
 };
 
@@ -141,7 +141,7 @@ type HumanTool<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
 > = ToolBase<TArgs, TResult> & {
-  type?: "human" | undefined;
+  type: "human";
 
   description?: string | undefined;
   parameters: StandardSchemaV1<TArgs> | JSONSchema7;
@@ -156,4 +156,17 @@ export type Tool<
 > =
   | FrontendTool<TArgs, TResult>
   | BackendTool<TArgs, TResult>
-  | HumanTool<TArgs, TResult>;
+  | HumanTool<TArgs, TResult>
+  | ToolWithoutType<TArgs, TResult>;
+
+/**
+ * @deprecated Use `Tool` with an explicit `type` field instead.
+ */
+export type ToolWithoutType<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
+> = (
+  | Omit<FrontendTool<TArgs, TResult>, "type">
+  | Omit<BackendTool<TArgs, TResult>, "type">
+  | Omit<HumanTool<TArgs, TResult>, "type">
+) & { type?: undefined };

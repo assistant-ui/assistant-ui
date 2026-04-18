@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
 
 const getMetadataBase = () => {
-  const appUrl = process.env["NEXT_PUBLIC_APP_URL"];
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
   if (appUrl) {
     return new URL(appUrl);
   }
@@ -58,12 +58,29 @@ export const metadata = {
 export default function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      {/* <head>
-        <script
+      <head>
+        {/*<script
           crossOrigin="anonymous"
           src="//unpkg.com/react-scan/dist/auto.global.js"
+        />*/}
+        <script
+          defer
+          src="/umami/script.js"
+          data-website-id="6f07c001-46a2-411f-9241-4f7f5afb60ee"
+          data-domains="www.assistant-ui.com"
+        ></script>
+        {/* biome-ignore lint/correctness/useUniqueElementIds: static page with unique context */}
+        <Script
+          id="vector-script"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: analytics script injection
+          dangerouslySetInnerHTML={{
+            __html: `
+        !function(e,r){try{if(e.vector)return void console.log("Vector snippet included more than once.");var t={};t.q=t.q||[];for(var o=["load","identify","on"],n=function(e){return function(){var r=Array.prototype.slice.call(arguments);t.q.push([e,r])}},c=0;c<o.length;c++){var a=o[c];t[a]=n(a)}if(e.vector=t,!t.loaded){var i=r.createElement("script");i.type="text/javascript",i.async=!0,i.src="https://cdn.vector.co/pixel.js";var l=r.getElementsByTagName("script")[0];l.parentNode.insertBefore(i,l),t.loaded=!0}}catch(e){console.error("Error loading Vector:",e)}}(window,document);
+        vector.load("d9af9bfb-c10c-4eed-9366-57cdc0a97ee9");
+    `,
+          }}
         />
-      </head> */}
+      </head>
       <body
         className={cn(
           "flex min-h-screen flex-col antialiased",
@@ -73,22 +90,6 @@ export default function Layout({ children }: { children: ReactNode }) {
       >
         <Provider>{children}</Provider>
         <Analytics />
-        <script
-          defer
-          src="/umami/script.js"
-          data-website-id="6f07c001-46a2-411f-9241-4f7f5afb60ee"
-          data-domains="www.assistant-ui.com"
-        ></script>
-
-        <Script
-          id="vector-script"
-          dangerouslySetInnerHTML={{
-            __html: `
-        !function(e,r){try{if(e.vector)return void console.log("Vector snippet included more than once.");var t={};t.q=t.q||[];for(var o=["load","identify","on"],n=function(e){return function(){var r=Array.prototype.slice.call(arguments);t.q.push([e,r])}},c=0;c<o.length;c++){var a=o[c];t[a]=n(a)}if(e.vector=t,!t.loaded){var i=r.createElement("script");i.type="text/javascript",i.async=!0,i.src="https://cdn.vector.co/pixel.js";var l=r.getElementsByTagName("script")[0];l.parentNode.insertBefore(i,l),t.loaded=!0}}catch(e){console.error("Error loading Vector:",e)}}(window,document);
-        vector.load("d9af9bfb-c10c-4eed-9366-57cdc0a97ee9");
-    `,
-          }}
-        />
       </body>
     </html>
   );

@@ -52,28 +52,26 @@ const formatTime = (value: Date) =>
 const extractModelContext = (state: any): ModelContext | undefined => {
   if (!isRecord(state)) return undefined;
 
-  const threadScope = state["thread"];
+  const threadScope = state.thread;
   if (!isRecord(threadScope)) return undefined;
 
-  const runtime = threadScope["runtime"];
+  const runtime = threadScope.runtime;
   if (!isRecord(runtime)) return undefined;
 
-  const modelContext = runtime["modelContext"];
+  const modelContext = runtime.modelContext;
   if (!isRecord(modelContext)) return undefined;
 
-  const tools = normalizeToolList(modelContext["tools"]);
+  const tools = normalizeToolList(modelContext.tools);
 
   return {
-    ...(typeof modelContext["system"] === "string"
-      ? { system: modelContext["system"] }
+    ...(typeof modelContext.system === "string"
+      ? { system: modelContext.system }
       : {}),
     ...(tools.length > 0 ? { tools } : {}),
-    ...(isRecord(modelContext["callSettings"])
-      ? { callSettings: modelContext["callSettings"] }
+    ...(isRecord(modelContext.callSettings)
+      ? { callSettings: modelContext.callSettings }
       : {}),
-    ...(isRecord(modelContext["config"])
-      ? { config: modelContext["config"] }
-      : {}),
+    ...(isRecord(modelContext.config) ? { config: modelContext.config } : {}),
   };
 };
 
@@ -326,28 +324,28 @@ const extractMessageSummary = (content: unknown): string => {
 
   for (const part of content) {
     if (!isRecord(part)) continue;
-    const type = typeof part["type"] === "string" ? part["type"] : undefined;
+    const type = typeof part.type === "string" ? part.type : undefined;
 
     if (
       (type === "text" || type === "reasoning") &&
-      typeof part["text"] === "string"
+      typeof part.text === "string"
     ) {
-      const text = part["text"].trim();
+      const text = part.text.trim();
       if (text.length > 0) {
         return truncate(text, 160);
       }
     }
 
-    if (type === "tool-call" && typeof part["toolName"] === "string") {
-      return `Tool call: ${part["toolName"]}`;
+    if (type === "tool-call" && typeof part.toolName === "string") {
+      return `Tool call: ${part.toolName}`;
     }
 
-    if (type === "image" && typeof part["filename"] === "string") {
-      return `Image: ${part["filename"]}`;
+    if (type === "image" && typeof part.filename === "string") {
+      return `Image: ${part.filename}`;
     }
 
-    if (type === "file" && typeof part["filename"] === "string") {
-      return `File: ${part["filename"]}`;
+    if (type === "file" && typeof part.filename === "string") {
+      return `File: ${part.filename}`;
     }
   }
 
@@ -368,29 +366,23 @@ const extractAttachmentNames = (value: unknown): string[] => {
     .map((attachment) => {
       if (!isRecord(attachment)) return null;
 
-      if (
-        typeof attachment["name"] === "string" &&
-        attachment["name"].length > 0
-      ) {
-        return attachment["name"];
+      if (typeof attachment.name === "string" && attachment.name.length > 0) {
+        return attachment.name;
       }
 
       if (
-        typeof attachment["filename"] === "string" &&
-        attachment["filename"].length > 0
+        typeof attachment.filename === "string" &&
+        attachment.filename.length > 0
       ) {
-        return attachment["filename"];
+        return attachment.filename;
       }
 
-      if (
-        typeof attachment["type"] === "string" &&
-        attachment["type"].length > 0
-      ) {
-        return attachment["type"];
+      if (typeof attachment.type === "string" && attachment.type.length > 0) {
+        return attachment.type;
       }
 
-      if (typeof attachment["id"] === "string" && attachment["id"].length > 0) {
-        return attachment["id"];
+      if (typeof attachment.id === "string" && attachment.id.length > 0) {
+        return attachment.id;
       }
 
       return null;
@@ -400,32 +392,30 @@ const extractAttachmentNames = (value: unknown): string[] => {
 
 const parseSuggestionPreview = (value: unknown): SuggestionPreview | null => {
   if (!isRecord(value)) return null;
-  if (typeof value["prompt"] !== "string") return null;
-  return { prompt: value["prompt"] };
+  if (typeof value.prompt !== "string") return null;
+  return { prompt: value.prompt };
 };
 
 const parseComposerPreview = (value: unknown): ComposerPreview | undefined => {
   if (!isRecord(value)) return undefined;
 
-  const text = typeof value["text"] === "string" ? value["text"] : "";
-  const attachments = Array.isArray(value["attachments"])
-    ? value["attachments"].length
+  const text = typeof value.text === "string" ? value.text : "";
+  const attachments = Array.isArray(value.attachments)
+    ? value.attachments.length
     : 0;
 
   return {
     textLength: text.length,
     attachments,
-    ...(typeof value["role"] === "string" ? { role: value["role"] } : {}),
-    ...(typeof value["isEditing"] === "boolean"
-      ? { isEditing: value["isEditing"] }
+    ...(typeof value.role === "string" ? { role: value.role } : {}),
+    ...(typeof value.isEditing === "boolean"
+      ? { isEditing: value.isEditing }
       : {}),
-    ...(typeof value["canCancel"] === "boolean"
-      ? { canCancel: value["canCancel"] }
+    ...(typeof value.canCancel === "boolean"
+      ? { canCancel: value.canCancel }
       : {}),
-    ...(typeof value["isEmpty"] === "boolean"
-      ? { isEmpty: value["isEmpty"] }
-      : {}),
-    ...(typeof value["type"] === "string" ? { type: value["type"] } : {}),
+    ...(typeof value.isEmpty === "boolean" ? { isEmpty: value.isEmpty } : {}),
+    ...(typeof value.type === "string" ? { type: value.type } : {}),
   };
 };
 
@@ -435,78 +425,76 @@ const parseMessagePreview = (
 ): MessagePreview | null => {
   if (!isRecord(value)) return null;
 
-  const id = typeof value["id"] === "string" ? value["id"] : `message-${index}`;
-  const role = typeof value["role"] === "string" ? value["role"] : "unknown";
-  const summary = extractMessageSummary(value["content"]);
+  const id = typeof value.id === "string" ? value.id : `message-${index}`;
+  const role = typeof value.role === "string" ? value.role : "unknown";
+  const summary = extractMessageSummary(value.content);
 
   return {
     id,
     role,
     summary,
-    attachments: extractAttachmentNames(value["attachments"]),
-    ...(typeof value["createdAt"] === "string"
-      ? { createdAt: value["createdAt"] }
+    attachments: extractAttachmentNames(value.attachments),
+    ...(typeof value.createdAt === "string"
+      ? { createdAt: value.createdAt }
       : {}),
-    ...(typeof value["status"] === "string" ? { status: value["status"] } : {}),
+    ...(typeof value.status === "string" ? { status: value.status } : {}),
   };
 };
 
 const parseThreadListItemPreview = (
   value: unknown,
 ): ThreadListItemPreview | null => {
-  if (!isRecord(value) || typeof value["id"] !== "string") return null;
+  if (!isRecord(value) || typeof value.id !== "string") return null;
 
   return {
-    id: value["id"],
-    ...(typeof value["title"] === "string" ? { title: value["title"] } : {}),
-    ...(typeof value["status"] === "string" ? { status: value["status"] } : {}),
-    ...(typeof value["externalId"] === "string"
-      ? { externalId: value["externalId"] }
+    id: value.id,
+    ...(typeof value.title === "string" ? { title: value.title } : {}),
+    ...(typeof value.status === "string" ? { status: value.status } : {}),
+    ...(typeof value.externalId === "string"
+      ? { externalId: value.externalId }
       : {}),
-    ...(typeof value["remoteId"] === "string"
-      ? { remoteId: value["remoteId"] }
-      : {}),
+    ...(typeof value.remoteId === "string" ? { remoteId: value.remoteId } : {}),
   };
 };
 
 const parseThreadPreview = (value: unknown): ThreadPreview | null => {
   if (!isRecord(value)) return null;
 
-  const messages = Array.isArray(value["messages"])
-    ? value["messages"]
+  const messages = Array.isArray(value.messages)
+    ? value.messages
         .map((message, index) => parseMessagePreview(message, index))
         .filter((message): message is MessagePreview => Boolean(message))
     : [];
 
-  const suggestions = Array.isArray(value["suggestions"])
-    ? value["suggestions"]
+  const suggestions = Array.isArray(value.suggestions)
+    ? value.suggestions
         .map((suggestion) => parseSuggestionPreview(suggestion))
         .filter((suggestion): suggestion is SuggestionPreview =>
           Boolean(suggestion),
         )
     : [];
 
-  const capabilities = isRecord(value["capabilities"])
-    ? Object.entries(value["capabilities"])
+  const capabilities = isRecord(value.capabilities)
+    ? Object.entries(value.capabilities)
         .filter(([, flag]) => flag === true)
         .map(([name]) => name)
     : [];
 
-  const composer = parseComposerPreview(value["composer"]);
+  const composer = parseComposerPreview(value.composer);
 
   return {
     messageCount: messages.length,
     messages,
     suggestions,
     capabilities,
-    ...(typeof value["isDisabled"] === "boolean"
-      ? { isDisabled: value["isDisabled"] }
+    ...(typeof value.isDisabled === "boolean"
+      ? { isDisabled: value.isDisabled }
       : {}),
-    ...(typeof value["isLoading"] === "boolean"
-      ? { isLoading: value["isLoading"] }
+    ...(typeof value.isLoading === "boolean"
+      ? { isLoading: value.isLoading }
       : {}),
-    ...(typeof value["isRunning"] === "boolean"
-      ? { isRunning: value["isRunning"] }
+    ...(typeof value.isRunning === "boolean"
+      ? { isRunning: value.isRunning }
       : {}),
     ...(composer ? { composer } : {}),
   };
@@ -515,28 +503,28 @@ const parseThreadPreview = (value: unknown): ThreadPreview | null => {
 const parseThreadListPreview = (value: unknown): ThreadListPreview | null => {
   if (!isRecord(value)) return null;
 
-  const threadItems = Array.isArray(value["threadItems"])
-    ? value["threadItems"]
+  const threadItems = Array.isArray(value.threadItems)
+    ? value.threadItems
         .map((item) => parseThreadListItemPreview(item))
         .filter((item): item is ThreadListItemPreview => Boolean(item))
     : [];
 
-  const main = parseThreadPreview(value["main"]);
+  const main = parseThreadPreview(value.main);
 
   return {
-    threadIds: isStringArray(value["threadIds"]),
-    archivedThreadIds: isStringArray(value["archivedThreadIds"]),
+    threadIds: isStringArray(value.threadIds),
+    archivedThreadIds: isStringArray(value.archivedThreadIds),
     threadItems,
-    ...(typeof value["mainThreadId"] === "string"
-      ? { mainThreadId: value["mainThreadId"] }
+    ...(typeof value.mainThreadId === "string"
+      ? { mainThreadId: value.mainThreadId }
       : {}),
-    ...(typeof value["newThreadId"] === "string"
-      ? { newThreadId: value["newThreadId"] }
-      : value["newThreadId"] === null
+    ...(typeof value.newThreadId === "string"
+      ? { newThreadId: value.newThreadId }
+      : value.newThreadId === null
         ? { newThreadId: null }
         : {}),
-    ...(typeof value["isLoading"] === "boolean"
-      ? { isLoading: value["isLoading"] }
+    ...(typeof value.isLoading === "boolean"
+      ? { isLoading: value.isLoading }
       : {}),
     ...(main ? { main } : {}),
   };
@@ -735,29 +723,26 @@ const renderComposerStatePreview = (value: unknown) => {
     return <JSONPreview value={value} />;
   }
 
-  const text = typeof value["text"] === "string" ? value["text"] : "";
-  const attachmentsDetail = Array.isArray(value["attachments"])
-    ? value["attachments"]
+  const text = typeof value.text === "string" ? value.text : "";
+  const attachmentsDetail = Array.isArray(value.attachments)
+    ? value.attachments
         .map((attachment) => {
           if (!isRecord(attachment)) return null;
-          if (typeof attachment["name"] === "string" && attachment["name"]) {
-            return attachment["name"];
+          if (typeof attachment.name === "string" && attachment.name) {
+            return attachment.name;
           }
-          if (
-            typeof attachment["filename"] === "string" &&
-            attachment["filename"]
-          ) {
-            return attachment["filename"];
+          if (typeof attachment.filename === "string" && attachment.filename) {
+            return attachment.filename;
           }
-          if (typeof attachment["type"] === "string" && attachment["type"]) {
-            return attachment["type"];
+          if (typeof attachment.type === "string" && attachment.type) {
+            return attachment.type;
           }
           return null;
         })
         .filter((name): name is string => Boolean(name))
     : [];
 
-  const runConfig = value["runConfig"];
+  const runConfig = value.runConfig;
 
   return (
     <div className="flex flex-col gap-3">
@@ -1013,6 +998,7 @@ export function DevToolsUI() {
   const eventTypes = useMemo(() => {
     const types = new Set<string>();
     apis.forEach((api) => {
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       api.logs.forEach((log) => types.add(log.event));
     });
     return Array.from(types).sort();
@@ -1167,6 +1153,7 @@ export function DevToolsUI() {
               className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition-colors dark:border-zinc-800 dark:bg-zinc-900"
             >
               <button
+                type="button"
                 onClick={() => toggleStateSection(key)}
                 className="flex w-full items-center justify-between bg-zinc-50 px-4 py-3 text-left font-semibold text-sm text-zinc-800 transition-colors hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
               >
@@ -1373,6 +1360,7 @@ export function DevToolsUI() {
           <div className="flex h-full items-center gap-1">
             {["state", "modelContext", "events"].map((tab) => (
               <button
+                type="button"
                 key={tab}
                 onClick={() => setActiveTab(tab as TabType)}
                 className={clsx(

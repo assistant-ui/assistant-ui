@@ -1,0 +1,23 @@
+{
+  "name": "with-react-ink",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --import tsx/esm src/dev.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@assistant-ui/react-ink": "workspace:*",
+    "@assistant-ui/react-ink-markdown": "workspace:*",
+    "ink": "^7.0.0",
+    "react": "^19.2.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "esbuild": "^0.28.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
+  }
+}

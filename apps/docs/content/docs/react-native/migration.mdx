@@ -1,0 +1,144 @@
+---
+title: Migration from Web
+description: Migrate an existing @assistant-ui/react app to React Native.
+---
+
+If you already have an assistant-ui web app, most of your code transfers directly. The runtime core is shared between `@assistant-ui/react` and `@assistant-ui/react-native` via `@assistant-ui/core` — only the UI layer changes.
+
+## What stays the same
+
+- **Runtime setup** — `useChatRuntime`, `useLocalRuntime`, `ChatModelAdapter`, and all runtime options work identically.
+- **AI SDK integration** — `@assistant-ui/react-ai-sdk` works with React Native. Your `useChatRuntime` + `AssistantChatTransport` setup transfers directly.
+- **Tool definitions** — `useAssistantTool`, `makeAssistantTool`, and tool UI renderers use the same API.
+- **State hooks** — `useAuiState`, `useAui`, and selector patterns are the same.
+- **Backend code** — Your API routes, streaming endpoints, and server-side logic need zero changes.
+
+## What changes
+
+| Web (`@assistant-ui/react`) | React Native (`@assistant-ui/react-native`) |
+|---|---|
+| `AssistantRuntimeProvider` | `AssistantRuntimeProvider` (same name) |
+| DOM primitives (`div`, `button`, `input`) | Native primitives (`View`, `Pressable`, `TextInput`) |
+| CSS / Tailwind styling | React Native `StyleSheet` or inline styles |
+| `@assistant-ui/ui` (shadcn components) | Build your own native UI with primitives |
+
+## Step-by-step
+
+<Steps>
+  <Step>
+
+### Install the React Native package
+
+```sh
+npx expo install @assistant-ui/react-native
+```
+
+  </Step>
+  <Step>
+
+### Keep your runtime hook
+
+Your `useChatRuntime` setup works as-is — no changes needed:
+
+```tsx title="hooks/use-app-runtime.ts"
+// This file is identical to your web version
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+
+export function useAppRuntime() {
+  return useChatRuntime({
+    transport: new AssistantChatTransport({
+      api: "/api/chat",
+    }),
+  });
+}
+```
+
+<Callout type="tip">
+  If you use a monorepo, you can share this file between web and native projects directly.
+</Callout>
+
+  </Step>
+  <Step>
+
+### Replace the provider
+
+```tsx
+// Before (web)
+// import { AssistantRuntimeProvider } from "@assistant-ui/react";
+
+// After (React Native) — same component name, different package
+import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
+
+export default function App() {
+  const runtime = useAppRuntime();
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {/* your native UI */}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Rebuild the UI layer
+
+This is the main migration effort. Web components (`Thread`, `ThreadList` from `@assistant-ui/ui`) don't render in React Native. Replace them with native primitives:
+
+```tsx
+// Web — DOM-based
+// import { Thread } from "@/components/assistant-ui/thread";
+
+// React Native — use primitives or build custom
+import {
+  ThreadPrimitive,
+  ComposerPrimitive,
+  MessagePrimitive,
+} from "@assistant-ui/react-native";
+import { View } from "react-native";
+
+function MyMessage() {
+  return (
+    <View style={{ padding: 12 }}>
+      <MessagePrimitive.Content />
+    </View>
+  );
+}
+
+function ChatScreen() {
+  return (
+    <ThreadPrimitive.Root style={{ flex: 1 }}>
+      <ThreadPrimitive.Messages>
+        {() => <MyMessage />}
+      </ThreadPrimitive.Messages>
+      <ComposerPrimitive.Root>
+        <ComposerPrimitive.Input placeholder="Message..." />
+        <ComposerPrimitive.Send />
+      </ComposerPrimitive.Root>
+    </ThreadPrimitive.Root>
+  );
+}
+```
+
+See the [Primitives reference](/docs/react-native/primitives) for the full list of available components.
+
+  </Step>
+</Steps>
+
+## Monorepo code sharing
+
+In a monorepo, you can share everything except the UI layer:
+
+```
+packages/
+  shared/
+    hooks/          ← useAppRuntime with useChatRuntime (shared)
+    tools/          ← tool definitions (shared)
+  web/
+    components/     ← DOM-based UI
+  native/
+    components/     ← React Native UI
+```
+
+The runtime hook, tool definitions, and backend code are platform-agnostic. Only the UI components need separate implementations for web and native.

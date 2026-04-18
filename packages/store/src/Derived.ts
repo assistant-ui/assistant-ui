@@ -1,4 +1,4 @@
-import { resource, ResourceElement } from "@assistant-ui/tap";
+import { resource, type ResourceElement } from "@assistant-ui/tap";
 import type {
   AssistantClient,
   ClientNames,
@@ -16,7 +16,7 @@ import type {
  *
  * @example
  * ```typescript
- * const aui = useAssistantClient({
+ * const aui = useAui({
  *   message: Derived({
  *     source: "thread",
  *     query: { index: 0 },

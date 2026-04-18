@@ -11,6 +11,8 @@
     "error",
     "message",
     "message-part",
+    "selection-toolbar",
+    "suggestion",
     "thread",
     "thread-list",
     "thread-list-item",

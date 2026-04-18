@@ -3,7 +3,6 @@ title: Reasoning
 description: Collapsible UI for displaying AI reasoning and thinking messages.
 ---
 
-import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 import { ReasoningSample, ReasoningGroupSample } from "@/components/docs/samples/reasoning";
 
 <ReasoningSample />
@@ -24,11 +23,13 @@ This adds a `/components/assistant-ui/reasoning.tsx` file to your project.
 
 ### Use in your application
 
-Pass the `Reasoning` and `ReasoningGroup` components to the `MessagePrimitive.Parts` component:
+Pass the `Reasoning` and `ReasoningGroup` components to `MessagePrimitive.Parts` via the `components` prop. Using them together is the recommended default — `ReasoningGroup` wraps consecutive reasoning parts in a collapsible container for a smooth out-of-the-box UI.
 
-```tsx title="/app/components/assistant-ui/thread.tsx" {2,10-11}
+```tsx title="/app/components/assistant-ui/thread.tsx"
 import { MessagePrimitive } from "@assistant-ui/react";
-import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning"; // [!code ++]
 
 const AssistantMessage: FC = () => {
   return (
@@ -36,8 +37,10 @@ const AssistantMessage: FC = () => {
       <div className="...">
         <MessagePrimitive.Parts
           components={{
-            Reasoning: Reasoning,
-            ReasoningGroup: ReasoningGroup
+            Text: MarkdownText,
+            Reasoning, // [!code ++]
+            ReasoningGroup, // [!code ++]
+            tools: { Fallback: ToolFallback },
           }}
         />
       </div>
@@ -55,10 +58,10 @@ const AssistantMessage: FC = () => {
 
 The component consists of two parts:
 
-1. **Reasoning**: Renders individual reasoning message part content (with markdown support)
-2. **ReasoningGroup**: Wraps consecutive reasoning parts in a collapsible container
+1. `Reasoning`: Renders individual reasoning message part content (with markdown support)
+2. `ReasoningGroup`: Wraps consecutive reasoning parts in a collapsible container
 
-Consecutive reasoning parts are automatically grouped together by the `ReasoningGroup` component.
+Consecutive reasoning parts are automatically grouped together by `ReasoningGroup`. We recommend using both together as the default — you can drop `ReasoningGroup` or build your own layout with the composable API below if you need more flexibility.
 
 > When using the composable API, `Reasoning.Text` is a plain container. Add `<MarkdownText />` for markdown rendering.
 
@@ -68,14 +71,15 @@ Use the `variant` prop on `Reasoning.Root` to change the visual style:
 
 ```tsx
 <Reasoning.Root variant="outline">...</Reasoning.Root>
+<Reasoning.Root variant="ghost">...</Reasoning.Root>
 <Reasoning.Root variant="muted">...</Reasoning.Root>
 ```
 
-| Variant   | Description                        |
-| --------- | ---------------------------------- |
-| `default` | No additional styling              |
-| `muted`   | Muted background                   |
-| `outline` | Rounded border                     |
+| Variant   | Description                                  |
+| --------- | -------------------------------------------- |
+| `outline` | Rounded border (default)                     |
+| `ghost`   | No additional styling                        |
+| `muted`   | Muted background                             |
 
 ## ReasoningGroup
 
@@ -91,11 +95,11 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
   startIndex,
   endIndex,
 }) => {
-  const isReasoningStreaming = useAssistantState(({ message }) => {
-    if (message.status?.type !== "running") return false;
-    const lastIndex = message.parts.length - 1;
+  const isReasoningStreaming = useAuiState((s) => {
+    if (s.message.status?.type !== "running") return false;
+    const lastIndex = s.message.parts.length - 1;
     if (lastIndex < 0) return false;
-    const lastType = message.parts[lastIndex]?.type;
+    const lastType = s.message.parts[lastIndex]?.type;
     if (lastType !== "reasoning") return false;
     return lastIndex >= startIndex && lastIndex <= endIndex;
   });
@@ -111,7 +115,9 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
 };
 ```
 
-## Composable API
+## API Reference
+
+### Composable API
 
 All sub-components are exported for custom layouts:
 

@@ -1,5 +1,119 @@
 # create-assistant-ui
 
+## 0.0.52
+
+### Patch Changes
+
+- Updated dependencies [8d334f9]
+- Updated dependencies [c988db8]
+  - assistant-ui@0.0.89
+
+## 0.0.51
+
+### Patch Changes
+
+- Updated dependencies [376bb00]
+  - assistant-ui@0.0.88
+
+## 0.0.50
+
+### Patch Changes
+
+- Updated dependencies [69eb0c5]
+- Updated dependencies [9103282]
+- Updated dependencies [bdce66f]
+- Updated dependencies [4abb898]
+  - assistant-ui@0.0.87
+
+## 0.0.49
+
+### Patch Changes
+
+- Updated dependencies [52403c3]
+  - assistant-ui@0.0.86
+
+## 0.0.48
+
+### Patch Changes
+
+- Updated dependencies [6becd84]
+- Updated dependencies [c71cb58]
+  - assistant-ui@0.0.85
+
+## 0.0.47
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- Updated dependencies [349f3c7]
+- Updated dependencies [dbb2929]
+  - assistant-ui@0.0.84
+
+## 0.0.46
+
+### Patch Changes
+
+- Updated dependencies [6cdc259]
+- Updated dependencies [6ef092a]
+- Updated dependencies [848b42c]
+- Updated dependencies [1b06c09]
+  - assistant-ui@0.0.83
+
+## 0.0.45
+
+### Patch Changes
+
+- Updated dependencies [5034b1e]
+- Updated dependencies [fb84e6c]
+  - assistant-ui@0.0.82
+
+## 0.0.44
+
+### Patch Changes
+
+- de45e19: fix(create): point the `cloud` template to the valid
+  `assistant-ui-starter-cloud` repository in both CLIs and aligned tests.
+- a3be526: refactor(create-assistant-ui): delegate directly to the installed `assistant-ui create` binary instead of re-implementing template selection and scaffolding logic.
+- Updated dependencies [a845911]
+- Updated dependencies [de45e19]
+  - assistant-ui@0.0.81
+
+## 0.0.43
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+
+## 0.0.42
+
+### Patch Changes
+
+- 91df50d: feat(cli): add template picker, preset support, and new templates
+
+## 0.0.41
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+
+## 0.0.40
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+
+## 0.0.39
+
+### Patch Changes
+
+- 96cb0fe: feat: use minimal template for init command
+
+## 0.0.38
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+
 ## 0.0.37
 
 ### Patch Changes

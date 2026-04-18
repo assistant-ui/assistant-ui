@@ -1,4 +1,4 @@
-import { DataStreamChunk, DataStreamStreamChunkType } from "./chunk-types";
+import type { DataStreamChunk, DataStreamStreamChunkType } from "./chunk-types";
 
 export class DataStreamChunkEncoder extends TransformStream<
   DataStreamChunk,

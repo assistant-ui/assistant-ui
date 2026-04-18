@@ -1,8 +1,12 @@
 "use client";
 
-import { Primitive } from "@radix-ui/react-primitive";
-import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
-import { useAssistantState } from "../../context";
+import { Primitive } from "../../utils/Primitive";
+import {
+  type ComponentRef,
+  forwardRef,
+  type ComponentPropsWithoutRef,
+} from "react";
+import { useMessageError } from "@assistant-ui/core/react";
 
 export namespace ErrorPrimitiveMessage {
   export type Element = ComponentRef<typeof Primitive.span>;
@@ -13,12 +17,7 @@ export const ErrorPrimitiveMessage = forwardRef<
   ErrorPrimitiveMessage.Element,
   ErrorPrimitiveMessage.Props
 >(({ children, ...props }, forwardRef) => {
-  const error = useAssistantState(({ message }) => {
-    return message.status?.type === "incomplete" &&
-      message.status.reason === "error"
-      ? message.status.error
-      : undefined;
-  });
+  const error = useMessageError();
 
   if (error === undefined) return null;
 

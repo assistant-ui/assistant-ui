@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import {
-  useAssistantClient,
-  AssistantProvider,
-  useAssistantState,
-  useAssistantEvent,
+  useAui,
+  AuiProvider,
+  useAuiState,
+  useAuiEvent,
 } from "@assistant-ui/store";
 import { FooList, FooListResource } from "./store/foo-store";
 
@@ -13,12 +13,12 @@ import { FooList, FooListResource } from "./store/foo-store";
  * Single Foo component - displays and allows editing a single foo
  */
 const Foo = () => {
-  const aui = useAssistantClient();
-  const fooId = useAssistantState(({ foo }) => foo.id);
-  const fooBar = useAssistantState(({ foo }) => foo.bar);
+  const aui = useAui();
+  const fooId = useAuiState((s) => s.foo.id);
+  const fooBar = useAuiState((s) => s.foo.bar);
 
   // Each foo logs its own events - only receives events from THIS foo instance
-  useAssistantEvent("foo.updated", (payload) => {
+  useAuiEvent("foo.updated", (payload) => {
     console.log(`[${fooId}] Updated to: ${payload.newValue}`);
   });
 
@@ -45,12 +45,14 @@ const Foo = () => {
         </div>
         <div className="mt-2 flex gap-2">
           <button
+            type="button"
             onClick={handleUpdate}
             className="flex-1 rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
           >
             Update
           </button>
           <button
+            type="button"
             onClick={() => aui.foo().remove()}
             className="rounded-md bg-red-600 px-4 py-2 font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
           >
@@ -63,7 +65,7 @@ const Foo = () => {
 };
 
 const FooListLength = () => {
-  const fooListLength = useAssistantState(({ fooList }) => fooList.foos.length);
+  const fooListLength = useAuiState((s) => s.fooList.foos.length);
   return (
     <span className="text-gray-500 dark:text-gray-400">
       ({fooListLength} items)
@@ -72,9 +74,10 @@ const FooListLength = () => {
 };
 
 const AddFooButton = () => {
-  const aui = useAssistantClient();
+  const aui = useAui();
   return (
     <button
+      type="button"
       onClick={() => aui.fooList().addFoo()}
       className="rounded-md bg-green-600 px-4 py-2 font-medium text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
     >
@@ -98,7 +101,7 @@ const EventLog = () => {
   const [logs, setLogs] = useState<EventLogEntry[]>([]);
 
   // Subscribe to all events using the wildcard selector
-  useAssistantEvent("*", (data) => {
+  useAuiEvent("*", (data) => {
     setLogs((prev) => [
       {
         id: ++idCounter,
@@ -150,12 +153,12 @@ const EventLog = () => {
  * but we're explicitly passing it here for clarity in the example.
  */
 export const ExampleApp = () => {
-  const aui = useAssistantClient({
+  const aui = useAui({
     fooList: FooListResource({ initialValues: true }),
   });
 
   return (
-    <AssistantProvider client={aui}>
+    <AuiProvider value={aui}>
       <div className="space-y-6">
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center justify-between">
@@ -169,10 +172,10 @@ export const ExampleApp = () => {
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <FooList components={{ Foo }} />
+          <FooList>{() => <Foo />}</FooList>
         </div>
         <EventLog />
       </div>
-    </AssistantProvider>
+    </AuiProvider>
   );
 };

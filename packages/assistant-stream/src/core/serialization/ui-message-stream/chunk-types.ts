@@ -10,8 +10,8 @@ type FinishReason =
   | "unknown";
 
 type Usage = {
-  promptTokens: number;
-  completionTokens: number;
+  inputTokens: number;
+  outputTokens: number;
 };
 
 export type UIMessageStreamChunk =
@@ -40,6 +40,7 @@ export type UIMessageStreamChunk =
       toolCallId: string;
       result: ReadonlyJSONValue;
       isError?: boolean;
+      messages?: ReadonlyJSONValue;
     }
   | { type: "start-step"; messageId?: string }
   | {

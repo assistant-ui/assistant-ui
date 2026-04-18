@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { createOgMetadata } from "@/lib/og";
-import { Github, Megaphone } from "lucide-react";
+import { Megaphone } from "lucide-react";
+import { GitHubIcon } from "@/components/icons/github";
 
 const title = "Showcase";
 const description = "Projects built with assistant-ui";
@@ -184,7 +185,7 @@ function ShowcaseCard({
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground"
               >
-                <Github className="h-3.5 w-3.5" />
+                <GitHubIcon className="h-3.5 w-3.5" />
                 <span>Source</span>
               </Link>
             )}

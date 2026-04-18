@@ -31,6 +31,7 @@ export function SampleFrame({ code, children, className }: SampleFrameProps) {
         <div className="flex justify-end gap-2 px-1 pb-2">
           {showCode && (
             <button
+              type="button"
               onClick={handleCopy}
               className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
             >
@@ -48,6 +49,7 @@ export function SampleFrame({ code, children, className }: SampleFrameProps) {
             </button>
           )}
           <button
+            type="button"
             onClick={() => setShowCode(!showCode)}
             className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
           >

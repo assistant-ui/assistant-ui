@@ -19,7 +19,7 @@ const withOptional = <T extends object>(
 export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
   if (!event || typeof event !== "object") return null;
   const payload = event as Record<string, unknown>;
-  const typeValue = payload["type"];
+  const typeValue = payload.type;
   if (!isString(typeValue)) return null;
 
   const getString = (key: string) =>
@@ -87,6 +87,33 @@ export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
       return { type: "THINKING_TEXT_MESSAGE_END" };
     case "THINKING_END":
       return { type: "THINKING_END" };
+    case "REASONING_START":
+      return withOptional(
+        { type: "REASONING_START" as const },
+        { messageId: getString("messageId") },
+      );
+    case "REASONING_MESSAGE_START":
+      return withOptional(
+        { type: "REASONING_MESSAGE_START" as const },
+        { messageId: getString("messageId") },
+      );
+    case "REASONING_MESSAGE_CONTENT": {
+      const delta = getString("delta") ?? "";
+      return withOptional(
+        { type: "REASONING_MESSAGE_CONTENT" as const, delta },
+        { messageId: getString("messageId") },
+      );
+    }
+    case "REASONING_MESSAGE_END":
+      return withOptional(
+        { type: "REASONING_MESSAGE_END" as const },
+        { messageId: getString("messageId") },
+      );
+    case "REASONING_END":
+      return withOptional(
+        { type: "REASONING_END" as const },
+        { messageId: getString("messageId") },
+      );
     case "TOOL_CALL_START": {
       const toolCallId = getString("toolCallId");
       if (!toolCallId) return null;
@@ -129,43 +156,39 @@ export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
         },
         {
           messageId: getString("messageId"),
-          role: payload["role"] === "tool" ? "tool" : undefined,
+          role: payload.role === "tool" ? "tool" : undefined,
         },
       );
     }
     case "STATE_SNAPSHOT":
-      return { type: "STATE_SNAPSHOT", snapshot: payload["snapshot"] };
+      return { type: "STATE_SNAPSHOT", snapshot: payload.snapshot };
     case "STATE_DELTA":
       return {
         type: "STATE_DELTA",
-        delta: Array.isArray(payload["delta"])
-          ? (payload["delta"] as any[])
-          : [],
+        delta: Array.isArray(payload.delta) ? (payload.delta as any[]) : [],
       };
     case "MESSAGES_SNAPSHOT":
       return {
         type: "MESSAGES_SNAPSHOT",
-        messages: Array.isArray(payload["messages"])
-          ? (payload["messages"] as any[])
+        messages: Array.isArray(payload.messages)
+          ? (payload.messages as any[])
           : [],
       };
     case "RAW":
       return withOptional(
-        { type: "RAW" as const, event: payload["event"] },
+        { type: "RAW" as const, event: payload.event },
         { source: getString("source") },
       );
     case "CUSTOM": {
       const name = getString("name");
       if (!name) return null;
-      return { type: "CUSTOM", name, value: payload["value"] };
+      return { type: "CUSTOM", name, value: payload.value };
     }
     default:
       return withOptional(
         { type: "RAW" as const, event: payload },
         {
-          source: isString(payload["type"])
-            ? (payload["type"] as string)
-            : undefined,
+          source: isString(payload.type) ? (payload.type as string) : undefined,
         },
       );
   }

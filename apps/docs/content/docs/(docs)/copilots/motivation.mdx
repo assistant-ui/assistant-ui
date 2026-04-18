@@ -144,14 +144,14 @@ function SmartTransactionHistory() {
 Finally, let's add dynamic context based on the user's transaction patterns:
 
 ```tsx
-import { useAssistantApi } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
 import { useEffect } from "react";
 
 function SmartTransactionHistory({ userProfile }) {
-  const api = useAssistantApi();
+  const aui = useAui();
 
   useEffect(() => {
-    return api.modelContext().register({
+    return aui.modelContext().register({
       getModelContext: () => ({
         system: `
           User spending patterns:
@@ -161,7 +161,7 @@ function SmartTransactionHistory({ userProfile }) {
         `,
       }),
     });
-  }, [api, userProfile]);
+  }, [aui, userProfile]);
 
   // Previous components...
 }
@@ -189,7 +189,7 @@ This creates a more intuitive and safer banking experience while maintaining the
 
 Learn more about each API:
 
-- [makeAssistantVisible](make-assistant-readable) for component understanding
+- [makeAssistantVisible](make-assistant-visible) for component understanding
 - [makeAssistantTool](make-assistant-tool) for transaction analysis
 - [useAssistantInstructions](use-assistant-instructions) for behavior guidance
 - [Model Context](model-context) for dynamic context management

@@ -10,13 +10,17 @@ const addAttachment = vi.fn<(file: File) => Promise<void>>();
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-vi.mock("../../context", () => ({
-  useAssistantApi: () => ({
-    composer: () => ({
-      addAttachment,
+vi.mock("@assistant-ui/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@assistant-ui/store")>();
+  return {
+    ...actual,
+    useAui: () => ({
+      composer: () => ({
+        addAttachment,
+      }),
     }),
-  }),
-}));
+  };
+});
 
 const createDropEvent = (files: File[]) => {
   const event = new Event("drop", { bubbles: true, cancelable: true });

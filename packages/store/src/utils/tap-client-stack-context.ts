@@ -1,6 +1,6 @@
 import {
-  createContext,
-  tapContext,
+  createResourceContext,
+  tap,
   withContextProvider,
   tapMemo,
 } from "@assistant-ui/tap";
@@ -25,13 +25,13 @@ export const getClientIndex = (client: ClientMethods): number => {
  */
 export type ClientStack = readonly ClientMethods[];
 
-const ClientStackContext = createContext<ClientStack>([]);
+const ClientStackContext = createResourceContext<ClientStack>([]);
 
 /**
  * Get the current client stack inside a tap resource.
  */
 export const tapClientStack = (): ClientStack => {
-  return tapContext(ClientStackContext);
+  return tap(ClientStackContext);
 };
 
 /**

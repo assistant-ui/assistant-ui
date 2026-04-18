@@ -1,17 +1,33 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { AssistantPanel } from "@/components/docs/assistant/panel";
+import {
+  AssistantPanelContent,
+  AssistantPanelToggle,
+} from "@/components/docs/assistant/panel";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
+import { cn } from "@/lib/utils";
+
+export const COLLAPSED_WIDTH = "12px";
+
+function getPanelWidth(open: boolean, width: number): string {
+  return open ? `${width}px` : COLLAPSED_WIDTH;
+}
 
 export function DocsContent({ children }: { children: ReactNode }): ReactNode {
-  const { open, width } = useAssistantPanel();
-  const panelWidth = open ? `${width}px` : "44px";
+  const { open, width, isResizing } = useAssistantPanel();
 
   return (
     <div
-      className="transition-[margin] duration-300 ease-out md:mr-(--chat-panel-width)"
-      style={{ "--chat-panel-width": panelWidth } as React.CSSProperties}
+      className={cn(
+        "@container md:mr-(--chat-panel-width)",
+        !isResizing && "transition-[margin] duration-300 ease-out",
+      )}
+      style={
+        {
+          "--chat-panel-width": getPanelWidth(open, width),
+        } as React.CSSProperties
+      }
     >
       {children}
     </div>
@@ -19,16 +35,25 @@ export function DocsContent({ children }: { children: ReactNode }): ReactNode {
 }
 
 export function DocsAssistantPanel(): ReactNode {
-  const { open, width } = useAssistantPanel();
+  const { open, width, isResizing } = useAssistantPanel();
 
   return (
     <div
-      className="fixed top-12 right-0 bottom-0 hidden w-(--panel-width) transition-[width] duration-300 ease-out md:block"
+      className={cn(
+        "fixed top-12 right-0 bottom-0 hidden w-(--panel-width) md:block",
+        !isResizing && "transition-[width] duration-300 ease-out",
+      )}
       style={
-        { "--panel-width": open ? `${width}px` : "44px" } as React.CSSProperties
+        {
+          "--panel-width": getPanelWidth(open, width),
+          "--panel-content-width": `${width}px`,
+        } as React.CSSProperties
       }
     >
-      <AssistantPanel />
+      <AssistantPanelToggle />
+      <div className="h-full overflow-hidden">
+        <AssistantPanelContent />
+      </div>
     </div>
   );
 }

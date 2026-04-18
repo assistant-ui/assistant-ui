@@ -1,0 +1,242 @@
+---
+title: Suggestion
+description: Suggested prompts that users can click to quickly send or populate the composer.
+---
+
+import { SuggestionPrimitiveSample } from "@/components/docs/samples/suggestion-primitive";
+import { SuggestionPrimitive as SuggestionPrimitiveDocs } from "@/generated/primitiveDocs";
+
+The Suggestion primitive renders suggested prompts as clickable pills that send a message or populate the composer. Use it for welcome screen suggestions, follow-up prompts, or quick actions. You provide the layout and styling.
+
+<Tabs items={["Preview", "Code"]}>
+  <Tab>
+    <SuggestionPrimitiveSample />
+  </Tab>
+  <Tab>
+```tsx
+import {
+  ThreadPrimitive,
+  SuggestionPrimitive,
+} from "@assistant-ui/react";
+
+function SuggestionList() {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <ThreadPrimitive.Suggestions>
+        {() => <SuggestionItem />}
+      </ThreadPrimitive.Suggestions>
+    </div>
+  );
+}
+
+function SuggestionItem() {
+  return (
+    <SuggestionPrimitive.Trigger
+      send
+      className="flex flex-col items-start gap-1 rounded-2xl border px-4 py-3 text-left text-sm hover:bg-muted"
+    >
+      <span className="font-medium">
+        <SuggestionPrimitive.Title />
+      </span>
+      <span className="text-muted-foreground">
+        <SuggestionPrimitive.Description />
+      </span>
+    </SuggestionPrimitive.Trigger>
+  );
+}
+```
+  </Tab>
+</Tabs>
+
+## Quick Start
+
+A suggestion list using the iterator pattern:
+
+```tsx
+import { ThreadPrimitive, SuggestionPrimitive } from "@assistant-ui/react";
+
+<ThreadPrimitive.Suggestions>
+  {() => <MySuggestionItem />}
+</ThreadPrimitive.Suggestions>
+
+function MySuggestionItem() {
+  return (
+    <SuggestionPrimitive.Trigger className="rounded-lg border px-3 py-2 hover:bg-muted">
+      <SuggestionPrimitive.Title />
+    </SuggestionPrimitive.Trigger>
+  );
+}
+```
+
+`ThreadPrimitive.Suggestions` iterates over available suggestions and renders your component for each one. Inside the component, `SuggestionPrimitive` parts read from the suggestion context automatically.
+
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
+
+## Core Concepts
+
+### Context-Based Rendering
+
+SuggestionPrimitive parts read from a suggestion context. Use `ThreadPrimitive.Suggestions` to provide this context. It iterates over the thread's suggestions and renders your component for each one:
+
+```tsx
+<ThreadPrimitive.Suggestions>
+  {() => <MySuggestion />}
+</ThreadPrimitive.Suggestions>
+```
+
+You can also use `ThreadPrimitive.SuggestionByIndex` to render a specific suggestion by index if you need more layout control.
+
+### Title and Description
+
+Suggestions support two text parts for structured display:
+
+- **`Title`**: the primary text (e.g., "Write a blog post")
+- **`Description`**: secondary text — renders the `label` field from the suggestion config (e.g., `{ prompt: "...", label: "About React Server Components" }`)
+
+Both render a `<span>` and accept `children` to override the value from state:
+
+```tsx
+<SuggestionPrimitive.Title>Custom title</SuggestionPrimitive.Title>
+```
+
+### Send vs Populate
+
+`Trigger`'s `send` prop controls what happens on click:
+
+- **`send={true}`**: immediately sends the suggestion as a new message. When the thread is running, it falls back to populating the composer instead.
+- **`send={false}`** (default): populates the composer text so the user can edit before sending
+
+```tsx
+// Send immediately
+<SuggestionPrimitive.Trigger send>
+  <SuggestionPrimitive.Title />
+</SuggestionPrimitive.Trigger>
+
+// Populate composer for editing
+<SuggestionPrimitive.Trigger>
+  <SuggestionPrimitive.Title />
+</SuggestionPrimitive.Trigger>
+```
+
+### clearComposer
+
+When `send={false}`, the `clearComposer` prop controls whether the suggestion replaces or appends to existing composer text:
+
+- **`clearComposer={true}`** (default): replaces the current composer text
+- **`clearComposer={false}`**: appends the suggestion to the existing text
+
+### ThreadPrimitive.Suggestion (Legacy)
+
+`ThreadPrimitive.Suggestion` is a self-contained button that takes a `prompt` prop directly. The newer pattern (`ThreadPrimitive.Suggestions` + `SuggestionPrimitive` parts) is preferred for structured suggestions with title and description:
+
+```tsx
+// Legacy: still works, but limited
+<ThreadPrimitive.Suggestion prompt="Write a blog post" />
+
+// Preferred: structured with title/description
+<ThreadPrimitive.Suggestions>
+  {() => <MySuggestionItem />}
+</ThreadPrimitive.Suggestions>
+```
+
+`ThreadPrimitive.Suggestion` also supports deprecated `autoSend` and `method` props for backwards compatibility. Prefer `send` and `clearComposer`.
+
+## Parts
+
+### Title
+
+Renders the suggestion title. Renders a `<span>` element unless `asChild` is set.
+
+```tsx
+<SuggestionPrimitive.Title />
+```
+
+### Description
+
+Renders the secondary suggestion description text. Renders a `<span>` element unless `asChild` is set.
+
+```tsx
+<SuggestionPrimitive.Description />
+```
+
+### Trigger
+
+Clickable button that sends or populates the suggestion. Renders a `<button>` element unless `asChild` is set.
+
+```tsx
+<SuggestionPrimitive.Trigger send className="rounded-lg border px-3 py-2 hover:bg-muted">
+  <SuggestionPrimitive.Title />
+</SuggestionPrimitive.Trigger>
+```
+
+<PrimitivesTypeTable type="SuggestionPrimitiveTriggerProps" parameters={SuggestionPrimitiveDocs.Trigger.props.filter(p => p.name !== "asChild")} />
+
+## Patterns
+
+### Welcome Screen Grid
+
+```tsx
+function WelcomeSuggestions() {
+  return (
+    <AuiIf condition={(s) => s.thread.isEmpty}>
+      <div className="text-center">
+        <h2 className="text-lg font-semibold">How can I help you?</h2>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <ThreadPrimitive.Suggestions>
+            {() => <SuggestionCard />}
+          </ThreadPrimitive.Suggestions>
+        </div>
+      </div>
+    </AuiIf>
+  );
+}
+
+function SuggestionCard() {
+  return (
+    <SuggestionPrimitive.Trigger
+      send
+      className="flex flex-col gap-1 rounded-2xl border px-4 py-3 text-left hover:bg-muted"
+    >
+      <span className="font-medium">
+        <SuggestionPrimitive.Title />
+      </span>
+      <span className="text-sm text-muted-foreground">
+        <SuggestionPrimitive.Description />
+      </span>
+    </SuggestionPrimitive.Trigger>
+  );
+}
+```
+
+### Send-On-Click Suggestions
+
+```tsx
+<SuggestionPrimitive.Trigger send className="rounded-full border px-4 py-2 hover:bg-muted">
+  <SuggestionPrimitive.Title />
+</SuggestionPrimitive.Trigger>
+```
+
+### Populate-Only Suggestions
+
+```tsx
+<SuggestionPrimitive.Trigger
+  send={false}
+  clearComposer={false}
+  className="rounded-lg border px-3 py-1.5 text-sm hover:bg-muted"
+>
+  <SuggestionPrimitive.Title />
+</SuggestionPrimitive.Trigger>
+```
+
+## Relationship to Components
+
+The shadcn [Thread](/docs/ui/thread) component includes suggestions in its welcome screen using `ThreadPrimitive.Suggestions` with `SuggestionPrimitive` parts in a responsive grid. Start there for a prebuilt welcome experience.
+
+## API Reference
+
+For full prop details on every part, see the [SuggestionPrimitive API Reference](/docs/api-reference/primitives/suggestion).
+
+Related:
+- [ThreadPrimitive API Reference](/docs/api-reference/primitives/thread)

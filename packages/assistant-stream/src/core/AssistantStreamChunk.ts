@@ -1,5 +1,5 @@
-import { ReadonlyJSONValue } from "../utils/json/json-value";
-import { ObjectStreamOperation } from "./object/types";
+import type { ReadonlyJSONValue } from "../utils/json/json-value";
+import type { ObjectStreamOperation } from "./object/types";
 
 export type PartInit =
   | {
@@ -24,6 +24,13 @@ export type PartInit =
       readonly type: "file";
       readonly data: string;
       readonly mimeType: string;
+      readonly parentId?: string;
+    }
+  | {
+      readonly type: "data";
+      readonly name: string;
+      readonly data: ReadonlyJSONValue;
+      readonly parentId?: string;
     };
 
 export type AssistantStreamChunk = { readonly path: readonly number[] } & (
@@ -64,8 +71,8 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
         | "other"
         | "unknown";
       readonly usage: {
-        readonly promptTokens: number;
-        readonly completionTokens: number;
+        readonly inputTokens: number;
+        readonly outputTokens: number;
       };
       readonly isContinued: boolean;
     }
@@ -80,8 +87,8 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
         | "other"
         | "unknown";
       readonly usage: {
-        readonly promptTokens: number;
-        readonly completionTokens: number;
+        readonly inputTokens: number;
+        readonly outputTokens: number;
       };
     }
   | {
@@ -89,6 +96,7 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
       readonly artifact?: ReadonlyJSONValue;
       readonly result: ReadonlyJSONValue;
       readonly isError: boolean;
+      readonly messages?: ReadonlyJSONValue;
     }
   | {
       readonly type: "error";

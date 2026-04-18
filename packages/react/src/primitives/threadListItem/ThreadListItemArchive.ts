@@ -1,18 +1,15 @@
 "use client";
 
 import {
-  ActionButtonElement,
-  ActionButtonProps,
+  type ActionButtonElement,
+  type ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useAssistantApi } from "../../context";
-import { useCallback } from "react";
+import { useThreadListItemArchive as useThreadListItemArchiveBehavior } from "@assistant-ui/core/react";
 
 const useThreadListItemArchive = () => {
-  const api = useAssistantApi();
-  return useCallback(() => {
-    api.threadListItem().archive();
-  }, [api]);
+  const { archive } = useThreadListItemArchiveBehavior();
+  return archive;
 };
 
 export namespace ThreadListItemPrimitiveArchive {

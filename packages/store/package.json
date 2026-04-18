@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/store",
-  "version": "0.0.6",
+  "version": "0.2.7",
   "description": "Tap-based state management for @assistant-ui",
   "keywords": [
     "state-management",
@@ -14,7 +14,6 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -28,12 +27,15 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build"
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/tap": "^0.3.6"
+    "use-effect-event": "^2.0.3"
   },
   "peerDependencies": {
+    "@assistant-ui/tap": "^0.5.8",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
@@ -43,9 +45,14 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.9",
-    "react": "^19.2.3"
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^29.0.2",
+    "react": "^19.2.5",
+    "vitest": "^4.1.4"
   },
   "publishConfig": {
     "access": "public",

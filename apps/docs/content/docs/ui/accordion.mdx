@@ -1,0 +1,259 @@
+---
+title: Accordion
+description: A vertically stacked set of interactive headings that reveal or hide content sections.
+links:
+  - label: Radix UI Accordion
+    url: https://www.radix-ui.com/primitives/docs/components/accordion
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import {
+  AccordionSample,
+  AccordionVariantsSample,
+  AccordionMultipleSample,
+  AccordionWithIconsSample,
+  AccordionControlledSample,
+  AccordionFAQSample,
+} from "@/components/docs/samples/accordion";
+
+<Callout>
+  This is a **standalone component** that does not depend on the assistant-ui runtime. Use it anywhere in your application.
+</Callout>
+
+<AccordionSample />
+
+## Installation
+
+<InstallCommand shadcn={["accordion"]} />
+
+## Usage
+
+```tsx
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/assistant-ui/accordion";
+
+export function Example() {
+  return (
+    <Accordion type="single" collapsible>
+      <AccordionItem value="item-1">
+        <AccordionTrigger>Section 1</AccordionTrigger>
+        <AccordionContent>Content for section 1.</AccordionContent>
+      </AccordionItem>
+      <AccordionItem value="item-2">
+        <AccordionTrigger>Section 2</AccordionTrigger>
+        <AccordionContent>Content for section 2.</AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  );
+}
+```
+
+## Examples
+
+### Variants
+
+Use the `variant` prop on `Accordion` to change the visual style. Child components inherit the variant automatically.
+
+<AccordionVariantsSample />
+
+```tsx
+// Default - border-bottom separator
+<Accordion type="single" collapsible variant="default">
+  <AccordionItem value="item-1">
+    <AccordionTrigger>...</AccordionTrigger>
+    <AccordionContent>...</AccordionContent>
+  </AccordionItem>
+</Accordion>
+
+// Outline - bordered container
+<Accordion type="single" collapsible variant="outline">
+  <AccordionItem value="item-1">
+    <AccordionTrigger>...</AccordionTrigger>
+    <AccordionContent>...</AccordionContent>
+  </AccordionItem>
+</Accordion>
+
+// Ghost - separated cards
+<Accordion type="single" collapsible variant="ghost">
+  <AccordionItem value="item-1">
+    <AccordionTrigger>...</AccordionTrigger>
+    <AccordionContent>...</AccordionContent>
+  </AccordionItem>
+</Accordion>
+```
+
+### Multiple Items Open
+
+Use `type="multiple"` to allow multiple items to be open simultaneously.
+
+<AccordionMultipleSample />
+
+```tsx
+<Accordion type="multiple">
+  <AccordionItem value="item-1">
+    <AccordionTrigger>First Section</AccordionTrigger>
+    <AccordionContent>Content 1</AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="item-2">
+    <AccordionTrigger>Second Section</AccordionTrigger>
+    <AccordionContent>Content 2</AccordionContent>
+  </AccordionItem>
+</Accordion>
+```
+
+### With Icons
+
+Add icons or custom elements inside the trigger.
+
+<PreviewCode file="components/docs/samples/accordion" name="AccordionWithIconsSample">
+  <AccordionWithIconsSample />
+</PreviewCode>
+
+### Controlled
+
+Use `value` and `onValueChange` for controlled accordion state.
+
+<PreviewCode file="components/docs/samples/accordion" name="AccordionControlledSample">
+  <AccordionControlledSample />
+</PreviewCode>
+
+### FAQ Section
+
+A practical example of using accordion for a FAQ section.
+
+<PreviewCode file="components/docs/samples/accordion" name="AccordionFAQSample">
+  <AccordionFAQSample />
+</PreviewCode>
+
+## API Reference
+
+### Composable API
+
+| Component | Description |
+|-----------|-------------|
+| `Accordion` | The root component that manages accordion state and variant. |
+| `AccordionItem` | A single collapsible section container. |
+| `AccordionTrigger` | The clickable header that toggles content visibility. |
+| `AccordionContent` | The collapsible content panel. |
+
+### Accordion
+
+The root component that manages accordion state. Set `variant` here to style all child components.
+
+<ParametersTable
+  type="AccordionProps"
+  parameters={[
+    {
+      name: "type",
+      type: '"single" | "multiple"',
+      required: true,
+      description: "Whether only one or multiple items can be open at once.",
+    },
+    {
+      name: "collapsible",
+      type: "boolean",
+      default: "false",
+      description: "When type is 'single', allows closing the open item by clicking it again.",
+    },
+    {
+      name: "defaultValue",
+      type: "string | string[]",
+      description: "The default open item(s) (uncontrolled).",
+    },
+    {
+      name: "value",
+      type: "string | string[]",
+      description: "The controlled open item(s).",
+    },
+    {
+      name: "onValueChange",
+      type: "(value: string | string[]) => void",
+      description: "Callback when the open item(s) change.",
+    },
+    {
+      name: "variant",
+      type: '"default" | "outline" | "ghost"',
+      default: '"default"',
+      description: "The visual style of the accordion. Child components inherit this automatically.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### AccordionItem
+
+A single collapsible section container.
+
+<ParametersTable
+  type="AccordionItemProps"
+  parameters={[
+    {
+      name: "value",
+      type: "string",
+      required: true,
+      description: "A unique identifier for this item.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      description: "Whether the item is disabled.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### AccordionTrigger
+
+The clickable header that toggles content visibility.
+
+<ParametersTable
+  type="AccordionTriggerProps"
+  parameters={[
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### AccordionContent
+
+The collapsible content panel.
+
+<ParametersTable
+  type="AccordionContentProps"
+  parameters={[
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### Style Variants (CVA)
+
+| Export | Description |
+|--------|-------------|
+| `accordionVariants` | Styles for the accordion container. |
+
+```tsx
+import { accordionVariants } from "@/components/assistant-ui/accordion";
+
+<div className={accordionVariants({ variant: "outline" })}>
+  Custom Accordion Container
+</div>
+```

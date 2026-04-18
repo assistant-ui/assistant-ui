@@ -1,18 +1,15 @@
 "use client";
 
 import {
-  ActionButtonElement,
-  ActionButtonProps,
+  type ActionButtonElement,
+  type ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useAssistantApi } from "../../context";
-import { useCallback } from "react";
+import { useThreadListItemDelete as useThreadListItemDeleteBehavior } from "@assistant-ui/core/react";
 
 const useThreadListItemDelete = () => {
-  const api = useAssistantApi();
-  return useCallback(() => {
-    api.threadListItem().delete();
-  }, [api]);
+  const { delete: deleteThread } = useThreadListItemDeleteBehavior();
+  return deleteThread;
 };
 
 export namespace ThreadListItemPrimitiveDelete {

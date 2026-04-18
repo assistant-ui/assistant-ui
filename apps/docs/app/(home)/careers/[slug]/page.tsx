@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 import { createOgMetadata } from "@/lib/og";
 import { careers, type CareerPage } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
-import { ApplyForm } from "@/components/careers/ApplyForm";
+import { ApplyForm } from "@/components/careers/apply-form";
 import { ArrowLeft } from "lucide-react";
 
 interface Params {

@@ -3,14 +3,10 @@ title: Modal
 description: Floating button that opens an AI assistant chat box
 ---
 
-import { ModalChat } from "@/components/example/modal/ModalChat";
-import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
-import { SourceLink } from "@/components/examples/SourceLink";
+import { ModalChat } from "@/components/examples/modal";
 
 <div className="h-[500px]">
-  <DocsRuntimeProvider>
-    <ModalChat />
-  </DocsRuntimeProvider>
+  <ModalChat />
 </div>
 
 ## Overview
@@ -38,6 +34,7 @@ The modal uses `AssistantModalPrimitive` to create a floating chat interface:
 ```tsx
 import { AssistantModalPrimitive } from "@assistant-ui/react";
 import { Thread } from "@/components/assistant-ui/thread";
+import { BotIcon } from "lucide-react";
 
 export const AssistantModal = () => {
   return (
@@ -79,4 +76,4 @@ export const AssistantModal = () => {
 
 ## Source
 
-<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/assistant-ui/assistant-modal.tsx" />
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/docs/samples/assistant-modal.tsx" />

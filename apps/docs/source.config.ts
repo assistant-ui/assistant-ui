@@ -25,6 +25,30 @@ function transformerLineNumbers(): ShikiTransformer {
 
 export const docs = defineDocs({
   docs: {
+    schema: frontmatterSchema.extend({
+      links: z
+        .array(
+          z.object({
+            label: z.string(),
+            url: z.string(),
+          }),
+        )
+        .optional(),
+    }),
+    postprocess: {
+      includeProcessedMarkdown: true,
+    },
+  },
+  meta: {
+    schema: metaSchema.extend({
+      description: z.string().optional(),
+    }),
+  },
+});
+
+export const tapDocs = defineDocs({
+  dir: "content/tap-docs",
+  docs: {
     schema: frontmatterSchema,
     postprocess: {
       includeProcessedMarkdown: true,
@@ -50,6 +74,9 @@ export const blog = defineCollections({
     author: z.string(),
     date: z.date().optional(),
   }),
+  postprocess: {
+    includeProcessedMarkdown: true,
+  },
 });
 
 export const careers = defineCollections({

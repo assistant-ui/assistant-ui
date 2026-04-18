@@ -1,0 +1,58 @@
+import { resource, tapState, tapCallback } from "@assistant-ui/tap";
+import type { ClientOutput } from "@assistant-ui/store";
+import type { DataRenderersState } from "../types/scopes/dataRenderers";
+import type { DataMessagePartComponent } from "../types/MessagePartComponentTypes";
+
+export const DataRenderers = resource((): ClientOutput<"dataRenderers"> => {
+  const [state, setState] = tapState<DataRenderersState>(() => ({
+    renderers: {},
+    fallbacks: [],
+  }));
+
+  const setDataUI = tapCallback(
+    (name: string, render: DataMessagePartComponent) => {
+      setState((prev) => {
+        return {
+          ...prev,
+          renderers: {
+            ...prev.renderers,
+            [name]: [...(prev.renderers[name] ?? []), render],
+          },
+        };
+      });
+
+      return () => {
+        setState((prev) => {
+          return {
+            ...prev,
+            renderers: {
+              ...prev.renderers,
+              [name]: prev.renderers[name]?.filter((r) => r !== render) ?? [],
+            },
+          };
+        });
+      };
+    },
+    [],
+  );
+
+  const setFallbackDataUI = tapCallback((render: DataMessagePartComponent) => {
+    setState((prev) => ({
+      ...prev,
+      fallbacks: [...prev.fallbacks, render],
+    }));
+
+    return () => {
+      setState((prev) => ({
+        ...prev,
+        fallbacks: prev.fallbacks.filter((r) => r !== render),
+      }));
+    };
+  }, []);
+
+  return {
+    getState: () => state,
+    setDataUI,
+    setFallbackDataUI,
+  };
+});

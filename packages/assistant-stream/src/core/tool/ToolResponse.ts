@@ -1,4 +1,4 @@
-import { ReadonlyJSONValue } from "../../utils/json/json-value";
+import type { ReadonlyJSONValue } from "../../utils/json/json-value";
 
 const TOOL_RESPONSE_SYMBOL = Symbol.for("aui.tool-response");
 
@@ -6,6 +6,7 @@ export type ToolResponseLike<TResult> = {
   result: TResult;
   artifact?: ReadonlyJSONValue | undefined;
   isError?: boolean | undefined;
+  messages?: ReadonlyJSONValue | undefined;
 };
 
 export class ToolResponse<TResult> {
@@ -16,6 +17,7 @@ export class ToolResponse<TResult> {
   readonly artifact?: ReadonlyJSONValue;
   readonly result: TResult;
   readonly isError: boolean;
+  readonly messages?: ReadonlyJSONValue;
 
   constructor(options: ToolResponseLike<TResult>) {
     if (options.artifact !== undefined) {
@@ -23,6 +25,9 @@ export class ToolResponse<TResult> {
     }
     this.result = options.result;
     this.isError = options.isError ?? false;
+    if (options.messages !== undefined) {
+      this.messages = options.messages;
+    }
   }
 
   static [Symbol.hasInstance](

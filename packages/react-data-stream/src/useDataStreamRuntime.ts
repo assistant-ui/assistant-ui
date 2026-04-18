@@ -1,27 +1,25 @@
 "use client";
 
-import { toLanguageModelMessages } from "./converters";
+import { toLanguageModelMessages } from "./converters/toLanguageModelMessages";
+import type {
+  AssistantRuntime,
+  ChatModelAdapter,
+  ChatModelRunOptions,
+  ThreadMessage,
+} from "@assistant-ui/core";
 import {
-  type AssistantRuntime,
-  type ChatModelAdapter,
-  type ChatModelRunOptions,
-  INTERNAL,
-  type LocalRuntimeOptions,
-  type ThreadMessage,
-  type Tool,
   useLocalRuntime,
-} from "@assistant-ui/react";
-import { z } from "zod";
-import type { JSONSchema7 } from "json-schema";
+  splitLocalRuntimeOptions,
+  type LocalRuntimeOptions,
+} from "@assistant-ui/core/react";
 import {
   AssistantMessageAccumulator,
   DataStreamDecoder,
+  toToolsJSONSchema,
   UIMessageStreamDecoder,
   unstable_toolResultStream,
 } from "assistant-stream";
 import { asAsyncIterableStream } from "assistant-stream/utils";
-
-const { splitLocalRuntimeOptions } = INTERNAL;
 
 type HeadersValue = Record<string, string> | Headers;
 
@@ -57,28 +55,6 @@ type DataStreamRuntimeRequestOptions = {
   threadId?: string;
   parentId?: string | null;
   state?: any;
-};
-
-const toAISDKTools = (tools: Record<string, Tool>) => {
-  return Object.fromEntries(
-    Object.entries(tools).map(([name, tool]) => [
-      name,
-      {
-        ...(tool.description ? { description: tool.description } : undefined),
-        parameters: (tool.parameters instanceof z.ZodType
-          ? z.toJSONSchema(tool.parameters)
-          : tool.parameters) as JSONSchema7,
-      },
-    ]),
-  );
-};
-
-const getEnabledTools = (tools: Record<string, Tool>) => {
-  return Object.fromEntries(
-    Object.entries(tools).filter(
-      ([, tool]) => !tool.disabled && tool.type !== "backend",
-    ),
-  );
 };
 
 class DataStreamRuntimeAdapter implements ChatModelAdapter {
@@ -129,8 +105,8 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
         messages: toLanguageModelMessages(messages, {
           unstable_includeId: this.options.sendExtraMessageFields,
         }) as DataStreamRuntimeRequestOptions["messages"],
-        tools: toAISDKTools(
-          getEnabledTools(context.tools ?? {}),
+        tools: toToolsJSONSchema(
+          context.tools ?? {},
         ) as unknown as DataStreamRuntimeRequestOptions["tools"],
         ...(unstable_assistantMessageId ? { unstable_assistantMessageId } : {}),
         ...(unstable_threadId ? { threadId: unstable_threadId } : {}),

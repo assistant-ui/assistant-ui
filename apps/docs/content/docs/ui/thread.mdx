@@ -3,8 +3,6 @@ title: Thread
 description: The main chat container with messages, composer, and auto-scroll.
 ---
 
-import { ParametersTable } from "@/components/docs/tables/ParametersTable";
-import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 import { ThreadSample } from "@/components/docs/samples/thread";
 
 A complete chat interface that combines message rendering, auto-scrolling, composer input,
@@ -15,25 +13,30 @@ attachments, and conditional UI states. Fully customizable and composable.
 
 ## Anatomy
 
-The Thread component is built with the following primitives:
+The `Thread` component is built with the following primitives:
 
 ```tsx
-import { ThreadPrimitive, AssistantIf } from "@assistant-ui/react";
+import { ThreadPrimitive, AuiIf } from "@assistant-ui/react";
 
 <ThreadPrimitive.Root>
   <ThreadPrimitive.Viewport>
-    <ThreadPrimitive.Empty />
-    <ThreadPrimitive.Messages
-      components={{
-        EditComposer,
-        UserMessage,
-        AssistantMessage,
+    <AuiIf condition={(s) => s.thread.isEmpty}>
+      <ThreadWelcome />
+      {/* ThreadWelcome includes ThreadPrimitive.Suggestions */}
+    </AuiIf>
+
+    <ThreadPrimitive.Messages>
+      {({ message }) => {
+        if (message.role === "user") return <UserMessage />;
+        return <AssistantMessage />;
       }}
-    />
-    <ThreadPrimitive.ScrollToBottom />
+    </ThreadPrimitive.Messages>
+
+    <ThreadPrimitive.ViewportFooter>
+      <ThreadPrimitive.ScrollToBottom />
+      <Composer />
+    </ThreadPrimitive.ViewportFooter>
   </ThreadPrimitive.Viewport>
-  <ThreadPrimitive.Suggestion />
-  <AssistantIf condition={...} />
 </ThreadPrimitive.Root>
 ```
 
@@ -73,42 +76,60 @@ export default function Chat() {
 ### Welcome Screen
 
 ```tsx
-<AssistantIf condition={({ thread }) => thread.isEmpty}>
+<AuiIf condition={(s) => s.thread.isEmpty}>
   <ThreadWelcome />
-</AssistantIf>
+</AuiIf>
 ```
 
 ### Viewport Spacer
 
 ```tsx
-<AssistantIf condition={({ thread }) => !thread.isEmpty}>
+<AuiIf condition={(s) => !s.thread.isEmpty}>
   <div className="min-h-8 grow" />
-</AssistantIf>
+</AuiIf>
 ```
 
 ### Conditional Send/Cancel Button
 
 ```tsx
-<AssistantIf condition={({ thread }) => !thread.isRunning}>
+<AuiIf condition={(s) => !s.thread.isRunning}>
   <ComposerPrimitive.Send>
     Send
   </ComposerPrimitive.Send>
-</AssistantIf>
+</AuiIf>
 
-<AssistantIf condition={({ thread }) => thread.isRunning}>
+<AuiIf condition={(s) => s.thread.isRunning}>
   <ComposerPrimitive.Cancel>
     Cancel
   </ComposerPrimitive.Cancel>
-</AssistantIf>
+</AuiIf>
 ```
 
 ### Suggestions
 
+Display suggested prompts using the Suggestions API. See the [Suggestions guide](/docs/guides/suggestions) for detailed configuration.
+
 ```tsx
-<ThreadPrimitive.Suggestion
-  prompt="What's the weather in San Francisco?"
-  send
-/>
+import { SuggestionPrimitive, ThreadPrimitive } from "@assistant-ui/react";
+
+// Configure suggestions in your runtime provider
+const aui = useAui({
+  suggestions: Suggestions(["What's the weather?", "Tell me a joke"]),
+});
+
+// Display suggestions in your thread component
+<ThreadPrimitive.Suggestions>
+  {() => <SuggestionItem />}
+</ThreadPrimitive.Suggestions>
+
+// Custom suggestion item
+const SuggestionItem = () => (
+  <SuggestionPrimitive.Trigger send asChild>
+    <button>
+      <SuggestionPrimitive.Title />
+    </button>
+  </SuggestionPrimitive.Trigger>
+);
 ```
 
 ## API Reference
@@ -173,13 +194,12 @@ This primitive renders a `<div>` element unless `asChild` is set.
 Renders all messages in the thread. This primitive renders a separate component for each message.
 
 ```tsx
-<ThreadPrimitive.Messages
-  components={{
-    UserMessage: UserMessage,
-    EditComposer: EditComposer,
-    AssistantMessage: AssistantMessage,
+<ThreadPrimitive.Messages>
+  {({ message }) => {
+    if (message.role === "user") return <UserMessage />;
+    return <AssistantMessage />;
   }}
-/>
+</ThreadPrimitive.Messages>
 ```
 
 <ParametersTable
@@ -297,89 +317,53 @@ A button to scroll the viewport to the bottom. Disabled when the viewport is alr
 
 This primitive renders a `<button>` element unless `asChild` is set.
 
-### Suggestion
+### Suggestions
 
-Shows a suggestion to the user. When clicked, replaces the composer's value with the suggestion and optionally sends it.
+Renders all configured suggestions. Configure suggestions using the `Suggestions()` API in your runtime provider.
 
 ```tsx
-<ThreadPrimitive.Suggestion
-  prompt="Tell me about React hooks"
-  send
-/>
+<ThreadPrimitive.Suggestions>
+  {() => <CustomSuggestionComponent />}
+</ThreadPrimitive.Suggestions>
 ```
 
 <ParametersTable
-  type="ThreadPrimitiveSuggestionProps"
+  type="ThreadPrimitiveSuggestionsProps"
   parameters={[
     {
-      name: "prompt",
-      type: "string",
-      required: true,
-      description: "The suggestion text to use when clicked.",
-    },
-    {
-      name: "send",
-      type: "boolean",
-      description:
-        "When true, automatically sends the message. When false, replaces or appends the composer text with the suggestion - depending on the value of `clearComposer`",
-    },
-    {
-      name: "clearComposer",
-      type: "boolean",
-      default: "true",
-      description:
-        "Whether to clear the composer after sending. When send is set to false, determines if composer text is replaced with suggestion (true, default), or if the suggestion's prompt is appended to the composer text (false).",
-    },
-    {
-      name: "autoSend",
-      type: "boolean",
-      deprecated: true,
-      description: "Deprecated. Use 'send' instead.",
-    },
-    {
-      name: "method",
-      type: "'replace'",
-      deprecated: true,
-      description: "Deprecated. This parameter is no longer used.",
-    },
-    {
-      name: "asChild",
-      type: "boolean",
-      default: "false",
-      description: "Merge props with child element instead of rendering a wrapper button.",
-    },
-    {
-      name: "className",
-      type: "string",
-      description: "CSS class name.",
+      name: "components",
+      type: "{ Suggestion: ComponentType }",
+      description: "Custom component to render each suggestion.",
     },
   ]}
 />
 
-This primitive renders a `<button>` element unless `asChild` is set.
+<Callout type="info">
+See the [Suggestions guide](/docs/guides/suggestions) for detailed information on configuring and customizing suggestions.
+</Callout>
 
-### AssistantIf
+### AuiIf
 
 Conditionally renders children based on assistant state. This is a generic component that can access thread, message, composer, and other state.
 
 ```tsx
-import { AssistantIf } from "@assistant-ui/react";
+import { AuiIf } from "@assistant-ui/react";
 
-<AssistantIf condition={({ thread }) => thread.isEmpty}>
+<AuiIf condition={(s) => s.thread.isEmpty}>
   <WelcomeScreen />
-</AssistantIf>
+</AuiIf>
 
-<AssistantIf condition={({ thread }) => thread.isRunning}>
+<AuiIf condition={(s) => s.thread.isRunning}>
   <LoadingIndicator />
-</AssistantIf>
+</AuiIf>
 
-<AssistantIf condition={({ message }) => message.role === "assistant"}>
+<AuiIf condition={(s) => s.message.role === "assistant"}>
   <AssistantAvatar />
-</AssistantIf>
+</AuiIf>
 ```
 
 <ParametersTable
-  type="AssistantIfProps"
+  type="AuiIfProps"
   parameters={[
     {
       name: "condition",
@@ -398,3 +382,5 @@ The condition function receives an `AssistantState` object with access to `threa
 ## Related Components
 
 - [ThreadList](/docs/ui/thread-list) - List of threads, with or without sidebar
+- [Quoting guide](/docs/guides/quoting) - Quote selected text from messages
+- [SelectionToolbarPrimitive](/docs/api-reference/primitives/selection-toolbar) - Floating toolbar API reference

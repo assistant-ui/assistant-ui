@@ -1,21 +1,26 @@
 "use client";
 
 import {
-  AssistantIf,
+  AuiIf,
   ThreadPrimitive,
-  useAssistantApi,
-  useAssistantState,
+  useAui,
+  useAuiState,
 } from "@assistant-ui/react";
 import { useEffect, useRef } from "react";
 import { AssistantMessage, UserMessage } from "./messages";
 import { AssistantComposer } from "./composer";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { AssistantFooter } from "@/components/docs/assistant/footer";
+import { analytics } from "@/lib/analytics";
+import { useCurrentPage } from "@/components/docs/contexts/current-page";
 
 function PendingMessageHandler() {
   const { pendingMessage, clearPendingMessage } = useAssistantPanel();
-  const api = useAssistantApi();
-  const isRunning = useAssistantState(({ thread }) => thread.isRunning);
+  const aui = useAui();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const threadId = useAuiState((s) => s.threadListItem.id);
+  const currentPage = useCurrentPage();
+  const pathname = currentPage?.pathname;
   const processedRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -24,8 +29,23 @@ function PendingMessageHandler() {
 
     processedRef.current = pendingMessage;
     clearPendingMessage();
-    api.thread().append(pendingMessage);
-  }, [pendingMessage, clearPendingMessage, api, isRunning]);
+    analytics.assistant.messageSent({
+      threadId,
+      source: "ask_ai",
+      message_length: pendingMessage.length,
+      attachments_count: 0,
+      ...(pathname ? { pathname } : {}),
+      ...(() => {
+        try {
+          const modelName = aui.thread().getModelContext()?.config?.modelName;
+          return modelName ? { model_name: modelName } : {};
+        } catch {
+          return {};
+        }
+      })(),
+    });
+    aui.thread().append(pendingMessage);
+  }, [pendingMessage, clearPendingMessage, aui, isRunning, threadId, pathname]);
 
   return null;
 }
@@ -35,18 +55,21 @@ export function AssistantThread(): React.ReactNode {
     <ThreadPrimitive.Root className="flex h-full flex-col bg-background">
       <PendingMessageHandler />
       <ThreadPrimitive.Viewport className="scrollbar-none flex flex-1 flex-col overflow-y-auto px-3 pt-3">
-        <AssistantIf condition={({ thread }) => thread.isEmpty}>
+        <AuiIf condition={(s) => s.thread.isEmpty}>
           <AssistantWelcome />
-        </AssistantIf>
+        </AuiIf>
 
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage,
-            AssistantMessage,
-          }}
-        />
+        <div className="px-1.5" data-slot="thread-messages">
+          <ThreadPrimitive.Messages>
+            {({ message }) => {
+              if (message.role === "user") return <UserMessage />;
+              if (message.role === "assistant") return <AssistantMessage />;
+              return null;
+            }}
+          </ThreadPrimitive.Messages>
+        </div>
 
-        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-background">
+        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto flex flex-col overflow-visible rounded-t-xl bg-background">
           <AssistantComposer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>

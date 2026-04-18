@@ -3,7 +3,7 @@ type Context<T> = {
   [contextValue]: T;
 };
 
-export const createContext = <T>(defaultValue: T): Context<T> => {
+export const createResourceContext = <T>(defaultValue: T): Context<T> => {
   return {
     [contextValue]: defaultValue,
   };
@@ -23,6 +23,6 @@ export const withContextProvider = <T, TResult>(
   }
 };
 
-export const tapContext = <T>(context: Context<T>) => {
+export const tap = <T>(context: Context<T>) => {
   return context[contextValue];
 };

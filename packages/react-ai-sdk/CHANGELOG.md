@@ -1,5 +1,275 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.19
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- a5bce86: fix: preserve latest thread token usage during pending turns
+- Updated dependencies [f20b9ca]
+- Updated dependencies [c988db8]
+  - @assistant-ui/core@0.1.14
+  - assistant-cloud@0.1.26
+  - @assistant-ui/store@0.2.7
+
+## 1.3.18
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+- Updated dependencies [42bc640]
+- Updated dependencies [376bb00]
+- Updated dependencies [87e7761]
+  - @assistant-ui/core@0.1.13
+  - assistant-cloud@0.1.25
+
+## 1.3.17
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [6554892]
+- Updated dependencies [9103282]
+- Updated dependencies [876f75d]
+- Updated dependencies [bdce66f]
+- Updated dependencies [4abb898]
+- Updated dependencies [209ae81]
+- Updated dependencies [2dd0c9f]
+- Updated dependencies [af70d7f]
+  - @assistant-ui/core@0.1.10
+  - assistant-cloud@0.1.24
+  - @assistant-ui/store@0.2.6
+
+## 1.3.16
+
+### Patch Changes
+
+- 781f28d: feat: accept all file types and validate against adapter's accept constraint
+- 0924711: fix(react-ai-sdk): convert assistant file parts to FileMessagePart instead of dropping them
+- 52403c3: chore: update dependencies
+- Updated dependencies [781f28d]
+- Updated dependencies [3227e71]
+- Updated dependencies [0f55ce8]
+- Updated dependencies [83a15f7]
+- Updated dependencies [52403c3]
+- Updated dependencies [ffa3a0f]
+  - @assistant-ui/core@0.1.9
+  - assistant-cloud@0.1.23
+  - @assistant-ui/store@0.2.5
+
+## 1.3.15
+
+### Patch Changes
+
+- 01a59da: fix(react-ai-sdk): preserve runConfig.custom metadata after tool call resume in human-in-the-loop tools
+- 736344c: chore: update dependencies
+- c71cb58: chore: update dependencies
+- Updated dependencies [1406aed]
+- Updated dependencies [9480f30]
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [ff3be2a]
+- Updated dependencies [70b19f3]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/core@0.1.8
+  - @assistant-ui/store@0.2.4
+
+## 1.3.14
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- 642bcda: Add `quote.tsx` registry components and `injectQuoteContext` helper
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [6cc4122]
+- Updated dependencies [642bcda]
+  - @assistant-ui/core@0.1.6
+  - assistant-cloud@0.1.22
+  - @assistant-ui/store@0.2.3
+
+## 1.3.13
+
+### Patch Changes
+
+- 8ed9d6f: Refactor React Native component API: move shared runtime logic (remote thread list, external store, cloud adapters, message converter, tool invocations) into @assistant-ui/core for reuse across React and React Native
+- Updated dependencies [5ae74fe]
+- Updated dependencies [8ed9d6f]
+- Updated dependencies [01bee2b]
+  - @assistant-ui/core@0.1.3
+
+## 1.3.12
+
+### Patch Changes
+
+- 57e26d2: chore: update dependencies
+
+## 1.3.11
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+- Updated dependencies [07dcce0]
+- Updated dependencies [a845911]
+- Updated dependencies [bc40eaf]
+- Updated dependencies [be23d74]
+- Updated dependencies [1eb059c]
+  - @assistant-ui/react@0.12.15
+  - assistant-cloud@0.1.21
+
+## 1.3.10
+
+### Patch Changes
+
+- 51de636: feat(react-ai-sdk): add thread token-usage extraction helpers and hook
+- 7ad20d1: fix(react-ai-sdk): stabilize tool args key order to prevent duplicate toolCallId crash in tapResources
+- Updated dependencies [17cf9a8]
+  - assistant-cloud@0.1.20
+  - @assistant-ui/react@0.12.13
+
+## 1.3.9
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+- Updated dependencies [36ef3a2]
+- Updated dependencies [6692226]
+- Updated dependencies [c31c0fa]
+- Updated dependencies [1672be8]
+- Updated dependencies [28f39fe]
+- Updated dependencies [3a1cb66]
+- Updated dependencies [14769af]
+- Updated dependencies [7c360ce]
+- Updated dependencies [a638f05]
+- Updated dependencies [8a78cd2]
+  - assistant-cloud@0.1.19
+  - @assistant-ui/react@0.12.12
+
+## 1.3.8
+
+### Patch Changes
+
+- aeec3b9: fix: handle AI SDK v6 approval tool states (approval-requested, approval-responded, output-denied)
+- 7836760: fix(assistant-cloud): expand joined messages for AI SDK v6 history export and telemetry reporting
+- 61b54e9: Add message timing metadata: `AssistantMessageTiming` type, automatic timing tracking in `AssistantMessageAccumulator`, `MessageTiming` type, `useMessageTiming()` hook, and client-side streaming timing for AI SDK runtime.
+- a247fc9: feat(assistant-cloud): allow save complete multi-step message
+- 93910bd: Rename .tsx files to .ts where no JSX syntax is used
+- Updated dependencies [d08a488]
+- Updated dependencies [5bbe8a9]
+- Updated dependencies [5e304ea]
+- Updated dependencies [546c053]
+- Updated dependencies [a7039e3]
+- Updated dependencies [16c10fd]
+- Updated dependencies [98c3d54]
+- Updated dependencies [b181803]
+- Updated dependencies [7836760]
+- Updated dependencies [9276547]
+- Updated dependencies [b65428e]
+- Updated dependencies [af5b085]
+- Updated dependencies [61b54e9]
+- Updated dependencies [a094c45]
+- Updated dependencies [4d7f712]
+- Updated dependencies [ecc29ec]
+- Updated dependencies [6e97999]
+- Updated dependencies [a247fc9]
+- Updated dependencies [f414af9]
+- Updated dependencies [b48912c]
+- Updated dependencies [93910bd]
+- Updated dependencies [58a8472]
+  - assistant-cloud@0.1.18
+  - @assistant-ui/react@0.12.11
+
+## 1.3.7
+
+### Patch Changes
+
+- afaaf3b: fix: duplicate key toolCallId error in HITL tools (#3197)
+- Updated dependencies [afaaf3b]
+- Updated dependencies [afaaf3b]
+- Updated dependencies [afaaf3b]
+- Updated dependencies [afaaf3b]
+- Updated dependencies [51d24be]
+- Updated dependencies [afaaf3b]
+  - @assistant-ui/react@0.12.10
+
+## 1.3.6
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+- Updated dependencies [a088518]
+- Updated dependencies [d8122cc]
+  - assistant-cloud@0.1.17
+  - @assistant-ui/react@0.12.9
+
+## 1.3.5
+
+### Patch Changes
+
+- 39fefec: feat: importExternalState API
+- Updated dependencies [39fefec]
+  - @assistant-ui/react@0.12.6
+
+## 1.3.4
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+- Updated dependencies [d45b893]
+- Updated dependencies [fe71bfc]
+  - assistant-cloud@0.1.16
+  - @assistant-ui/react@0.12.5
+
+## 1.3.3
+
+### Patch Changes
+
+- acbaf07: feat: add framework-agnostic `toToolsJSONSchema` and `toGenericMessages` utilities to `assistant-stream`
+- Updated dependencies [07d1c65]
+- Updated dependencies [b591d72]
+- Updated dependencies [59a338a]
+- Updated dependencies [acbaf07]
+- Updated dependencies [c665612]
+- Updated dependencies [0371d72]
+- Updated dependencies [e8b3f34]
+  - @assistant-ui/react@0.12.3
+  - assistant-cloud@0.1.15
+
+## 1.3.2
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+- Updated dependencies [1ea3e28]
+- Updated dependencies [8cbf686]
+- Updated dependencies [a8be364]
+- Updated dependencies [605d825]
+  - @assistant-ui/react@0.12.2
+  - assistant-cloud@0.1.14
+
+## 1.3.1
+
+### Patch Changes
+
+- 5876c0f: feat(react-ai-sdk): propagate ModelContext config (modelName) through AssistantChatTransport
+- Updated dependencies [8672695]
+  - @assistant-ui/react@0.12.1
+
+## 1.2.1
+
+### Patch Changes
+
+- 083ed83: fix(cloud): serialize image and file parts across all formats
+- Updated dependencies [6eab31e]
+- Updated dependencies [9314b36]
+- Updated dependencies [083ed83]
+- Updated dependencies [6511990]
+- Updated dependencies [a526e63]
+  - @assistant-ui/react@0.11.60
+
 ## 1.2.0
 
 ### Minor Changes

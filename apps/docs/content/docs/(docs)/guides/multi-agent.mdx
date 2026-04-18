@@ -1,0 +1,174 @@
+---
+title: Multi-Agent
+description: Render sub-agent conversations inside tool call UIs.
+---
+
+In a multi-agent (orchestrator) architecture, a main agent invokes sub-agents via tool calls. Each sub-agent may produce its own conversation (user/assistant messages, tool calls, etc.). assistant-ui supports rendering these nested conversations using the `MessagePartPrimitive.Messages` primitive.
+
+## Overview
+
+When a tool call includes a `messages` field (`ToolCallMessagePart.messages`), it represents a sub-agent's conversation history. `MessagePartPrimitive.Messages` reads this field from the current tool call part and renders it as a nested thread.
+
+Key behaviors:
+
+- **Scope inheritance** — Parent tool UI registrations are available in sub-agent messages. A `makeAssistantToolUI` registered at the top level works inside sub-agent conversations too.
+- **Recursive** — Sub-agent messages can contain tool calls that themselves have nested messages. Just use `MessagePartPrimitive.Messages` again.
+- **Read-only** — Sub-agent messages are rendered in a readonly context. No editing, branching, or composing.
+
+## Quick Start
+
+<Steps>
+  <Step>
+
+### Register a Tool UI for the Sub-Agent
+
+```tsx
+import {
+  makeAssistantToolUI,
+  MessagePartPrimitive,
+} from "@assistant-ui/react";
+
+const ResearchAgentToolUI = makeAssistantToolUI({
+  toolName: "invoke_researcher",
+  render: ({ args, status }) => (
+    <div className="my-2 rounded-lg border p-4">
+      <div className="mb-2 text-sm font-medium text-gray-500">
+        Researcher Agent {status.type === "running" && "(working...)"}
+      </div>
+      <MessagePartPrimitive.Messages>
+        {({ message }) => {
+          if (message.role === "user") return <MyUserMessage />;
+          return <MyAssistantMessage />;
+        }}
+      </MessagePartPrimitive.Messages>
+    </div>
+  ),
+});
+```
+
+  </Step>
+  <Step>
+
+### Provide the Messages from the Backend
+
+Your backend must populate the `messages` field on the tool call result. For example, with the AI SDK:
+
+```ts title="api/chat/route.ts"
+tools: {
+  invoke_researcher: tool({
+    description: "Invoke the researcher sub-agent",
+    parameters: z.object({ query: z.string() }),
+    execute: async ({ query }) => {
+      const subAgentMessages = await runResearcherAgent(query);
+      return {
+        answer: subAgentMessages.at(-1)?.content,
+        // The messages field is picked up by assistant-ui
+        messages: subAgentMessages,
+      };
+    },
+  }),
+},
+```
+
+<Callout type="info">
+  The exact mechanism for populating `messages` depends on your backend
+  framework. The key requirement is that the tool result's corresponding
+  `ToolCallMessagePart` includes a `messages` array of `ThreadMessage` objects.
+</Callout>
+
+  </Step>
+  <Step>
+
+### Register the Tool UI Component
+
+```tsx
+function App() {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+      <ResearchAgentToolUI />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+## Recursive Sub-Agents
+
+If a sub-agent's tool calls also have nested messages, the same pattern applies recursively:
+
+```tsx
+const OuterAgentToolUI = makeAssistantToolUI({
+  toolName: "invoke_planner",
+  render: () => (
+    <div className="rounded border p-3">
+      <h4>Planner Agent</h4>
+      <MessagePartPrimitive.Messages>
+        {({ message }) => {
+          if (message.role === "user") return <MyUserMessage />;
+          return (
+            <MessagePrimitive.Parts>
+              {({ part }) => {
+                if (part.type === "text") return <MyText />;
+                if (part.type === "tool-call" && part.toolName === "invoke_researcher") return (
+                  <div className="ml-4 rounded border p-3">
+                    <h5>Researcher Agent</h5>
+                    {/* Nested sub-agent renders recursively */}
+                    <MessagePartPrimitive.Messages>
+                      {({ message }) => {
+                        if (message.role === "user") return <MyUserMessage />;
+                        return <MyAssistantMessage />;
+                      }}
+                    </MessagePartPrimitive.Messages>
+                  </div>
+                );
+                if (part.type === "tool-call") return <MyToolFallback {...part} />;
+                return null;
+              }}
+            </MessagePrimitive.Parts>
+          );
+        }}
+      </MessagePartPrimitive.Messages>
+    </div>
+  ),
+});
+```
+
+## ReadonlyThreadProvider
+
+For advanced use cases where you have a `ThreadMessage[]` array and want to render it as a thread outside of a tool call context, use `ReadonlyThreadProvider` directly:
+
+```tsx
+import {
+  ReadonlyThreadProvider,
+  ThreadPrimitive,
+  type ThreadMessage,
+} from "@assistant-ui/react";
+
+function SubConversation({
+  messages,
+}: {
+  messages: readonly ThreadMessage[];
+}) {
+  return (
+    <ReadonlyThreadProvider messages={messages}>
+      <ThreadPrimitive.Messages>
+        {({ message }) => {
+          if (message.role === "user") return <MyUserMessage />;
+          return <MyAssistantMessage />;
+        }}
+      </ThreadPrimitive.Messages>
+    </ReadonlyThreadProvider>
+  );
+}
+```
+
+`ReadonlyThreadProvider` inherits the parent's tool UI registrations and model context through scope inheritance.
+
+## Related
+
+- [Generative UI](/docs/guides/tool-ui) — Creating tool call UIs
+- [MessagePartPrimitive](/docs/api-reference/primitives/message-part) — API reference for message part primitives
+- [Sub-Agent Model Tracking](/docs/cloud/ai-sdk#sub-agent-model-tracking) — Track delegated model usage and costs in the Cloud dashboard

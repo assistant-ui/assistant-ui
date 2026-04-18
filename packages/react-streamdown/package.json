@@ -1,0 +1,93 @@
+{
+  "name": "@assistant-ui/react-streamdown",
+  "version": "0.1.10",
+  "description": "Streamdown-based markdown rendering for assistant-ui",
+  "keywords": [
+    "markdown",
+    "streamdown",
+    "assistant-ui",
+    "react",
+    "ai",
+    "chat",
+    "streaming"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "rehype-harden": "^1.1.8",
+    "rehype-raw": "^7.0.0",
+    "rehype-sanitize": "^6.0.0",
+    "streamdown": "^2.5.0"
+  },
+  "peerDependencies": {
+    "@assistant-ui/react": "^0.12.25",
+    "@streamdown/code": "^1.0.0",
+    "@streamdown/cjk": "^1.0.0",
+    "@streamdown/math": "^1.0.0",
+    "@streamdown/mermaid": "^1.0.0",
+    "@types/react": "*",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    },
+    "@streamdown/code": {
+      "optional": true
+    },
+    "@streamdown/cjk": {
+      "optional": true
+    },
+    "@streamdown/math": {
+      "optional": true
+    },
+    "@streamdown/mermaid": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@streamdown/code": "^1.1.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/hast": "^3.0.4",
+    "@types/react": "^19.2.14",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "remark-rehype": "^11.1.2",
+    "vitest": "^4.1.4"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-streamdown"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}

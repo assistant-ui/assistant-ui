@@ -1,8 +1,12 @@
 "use client";
 
-import { ComponentPropsWithoutRef, forwardRef, type ComponentRef } from "react";
-import { useAssistantState } from "../../context";
-import { Primitive } from "@radix-ui/react-primitive";
+import {
+  type ComponentPropsWithoutRef,
+  forwardRef,
+  type ComponentRef,
+} from "react";
+import { useAuiState } from "@assistant-ui/store";
+import { Primitive } from "../../utils/Primitive";
 
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
@@ -15,8 +19,8 @@ export const AttachmentPrimitiveThumb = forwardRef<
   AttachmentPrimitiveThumb.Element,
   AttachmentPrimitiveThumb.Props
 >((props, ref) => {
-  const ext = useAssistantState(({ attachment }) => {
-    const parts = attachment.name.split(".");
+  const ext = useAuiState((s) => {
+    const parts = s.attachment.name.split(".");
     return parts.length > 1 ? parts.pop()! : "";
   });
   return (
@@ -26,4 +30,4 @@ export const AttachmentPrimitiveThumb = forwardRef<
   );
 });
 
-AttachmentPrimitiveThumb.displayName = "AttachmentPrimitive.Thumb";
+AttachmentPrimitiveThumb.displayName = "AttachmentPrimitive.unstable_Thumb";

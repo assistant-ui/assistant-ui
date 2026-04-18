@@ -1,6 +1,6 @@
 import debug from "debug";
-import { transform, TransformErrors, getRelevantFiles } from "./transform";
-import { TransformOptions } from "./transform-options";
+import { transform, type TransformErrors, getRelevantFiles } from "./transform";
+import type { TransformOptions } from "./transform-options";
 import { SingleBar, Presets } from "cli-progress";
 import installReactUILib from "./install-ui-lib";
 import installEdgeLib from "./install-edge-lib";
@@ -11,6 +11,9 @@ const bundle = [
   "v0-8/ui-package-split",
   "v0-9/edge-package-split",
   "v0-11/content-part-to-message-part",
+  "v0-12/assistant-api-to-aui",
+  "v0-12/event-names-to-camelcase",
+  "v0-12/primitive-if-to-aui-if",
 ];
 
 const log = debug("codemod:upgrade");

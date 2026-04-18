@@ -1,13 +1,14 @@
 "use client";
 
-import {
+import type {
   ActionButtonElement,
   ActionButtonProps,
 } from "../../utils/createActionButton";
 import { forwardRef } from "react";
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "../../utils/Primitive";
 import { composeEventHandlers } from "@radix-ui/primitive";
-import { useAssistantState, useAssistantApi } from "../../context";
+import { useAuiState } from "@assistant-ui/store";
+import { useThreadListNew as useThreadListNewBehavior } from "@assistant-ui/core/react";
 
 export namespace ThreadListPrimitiveNew {
   export type Element = ActionButtonElement;
@@ -18,11 +19,11 @@ export const ThreadListPrimitiveNew = forwardRef<
   ThreadListPrimitiveNew.Element,
   ThreadListPrimitiveNew.Props
 >(({ onClick, disabled, ...props }, forwardedRef) => {
-  const isMain = useAssistantState(
-    ({ threads }) => threads.newThreadId === threads.mainThreadId,
+  const isMain = useAuiState(
+    (s) => s.threads.newThreadId === s.threads.mainThreadId,
   );
 
-  const api = useAssistantApi();
+  const { switchToNewThread } = useThreadListNewBehavior();
 
   return (
     <Primitive.button
@@ -31,9 +32,7 @@ export const ThreadListPrimitiveNew = forwardRef<
       {...props}
       ref={forwardedRef}
       disabled={disabled}
-      onClick={composeEventHandlers(onClick, () => {
-        api.threads().switchToNewThread();
-      })}
+      onClick={composeEventHandlers(onClick, switchToNewThread)}
     />
   );
 });

@@ -60,7 +60,7 @@ describe("tapEffect - Basic Functionality", () => {
       expect(cleanup).toHaveBeenCalledTimes(1);
     });
 
-    it("should cleanup effects in reverse order", () => {
+    it("should cleanup effects in same order", () => {
       const cleanupOrder: string[] = [];
 
       const testFiber = createTestResource(() => {
@@ -84,7 +84,7 @@ describe("tapEffect - Basic Functionality", () => {
       manager.cleanup();
 
       // Cleanup should run in reverse order (LIFO)
-      expect(cleanupOrder).toEqual(["third", "second", "first"]);
+      expect(cleanupOrder).toEqual(["first", "second", "third"]);
     });
   });
 
@@ -104,6 +104,7 @@ describe("tapEffect - Basic Functionality", () => {
       ];
 
       const testFiber = createTestResource(() => {
+        // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
         effects.forEach((fn) => tapEffect(fn));
         return null;
       });
@@ -131,6 +132,7 @@ describe("tapEffect - Basic Functionality", () => {
         }, []);
 
         // Effect with deps - runs when deps change
+        // biome-ignore lint/correctness/useExhaustiveDependencies: test
         tapEffect(() => {
           effectCalls.conditional++;
         }, [props.value]);

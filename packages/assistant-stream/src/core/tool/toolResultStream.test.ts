@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { unstable_runPendingTools } from "./toolResultStream";
-import { AssistantMessage, ToolCallPart } from "../utils/types";
-import { Tool } from "./tool-types";
+import type { AssistantMessage, ToolCallPart } from "../utils/types";
+import type { Tool } from "./tool-types";
 
 const createDelayedTool = (delay: number, result?: string): Tool => ({
   parameters: { type: "object", properties: {} },
@@ -71,7 +71,7 @@ describe("unstable_runPendingTools", () => {
 
       const executionTime = endTime - startTime;
 
-      expect(executionTime).toBeGreaterThanOrEqual(100);
+      expect(executionTime).toBeGreaterThanOrEqual(90); // Allow for timer imprecision
       // The execution time should be less than the sum of the delays of both tools.
       expect(executionTime).toBeLessThan(300);
 

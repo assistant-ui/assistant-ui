@@ -1,8 +1,12 @@
 "use client";
 
-import { Primitive } from "@radix-ui/react-primitive";
-import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
-import { useAssistantState } from "../../context";
+import { Primitive } from "../../utils/Primitive";
+import {
+  type ComponentRef,
+  forwardRef,
+  type ComponentPropsWithoutRef,
+} from "react";
+import { useAuiState } from "@assistant-ui/store";
 
 type PrimitiveDivProps = ComponentPropsWithoutRef<typeof Primitive.div>;
 
@@ -15,8 +19,8 @@ export const ThreadListItemPrimitiveRoot = forwardRef<
   ThreadListItemPrimitiveRoot.Element,
   ThreadListItemPrimitiveRoot.Props
 >((props, ref) => {
-  const isMain = useAssistantState(
-    ({ threads, threadListItem }) => threads.mainThreadId === threadListItem.id,
+  const isMain = useAuiState(
+    (s) => s.threads.mainThreadId === s.threadListItem.id,
   );
 
   return (

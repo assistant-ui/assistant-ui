@@ -1,50 +1,25 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
+import { analytics } from "@/lib/analytics";
 
 interface SidebarContentProps {
   tree?: PageTree.Root;
   banner?: ReactNode;
 }
 
-function findTopLevelFolder(
-  nodes: PageTree.Node[],
-  pathname: string,
-): PageTree.Folder | null {
-  for (const node of nodes) {
-    if (node.type === "folder") {
-      if (node.index && pathname.startsWith(node.index.url)) {
-        return node;
-      }
-      if (containsPath(node, pathname)) {
-        return node;
-      }
-    }
-  }
-  return null;
-}
+function containsPath(node: PageTree.Node, pathname: string): boolean {
+  if (node.type === "page") return pathname === node.url;
+  if (node.type === "separator") return false;
 
-function containsPath(folder: PageTree.Folder, pathname: string): boolean {
-  for (const child of folder.children) {
-    if (child.type === "page" && pathname === child.url) {
-      return true;
-    }
-    if (child.type === "folder") {
-      if (child.index && pathname === child.index.url) {
-        return true;
-      }
-      if (containsPath(child, pathname)) {
-        return true;
-      }
-    }
-  }
-  return false;
+  if (node.index && pathname === node.index.url) return true;
+  return node.children.some((child) => containsPath(child, pathname));
 }
 
 function PageTreeItem({
@@ -57,11 +32,21 @@ function PageTreeItem({
   depth?: number;
 }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(true);
+  const isTopLevel = depth === 0;
+  const [open, setOpen] = useState(() => {
+    if (item.type !== "folder") return true;
+    if (!isTopLevel) return true;
+    return containsPath(item, pathname);
+  });
+
+  useEffect(() => {
+    if (item.type !== "folder" || !isTopLevel) return;
+    setOpen(containsPath(item, pathname));
+  }, [isTopLevel, item, pathname]);
 
   if (item.type === "separator") {
     return (
-      <p className="mt-4 mb-1 text-muted-foreground text-sm first:mt-0">
+      <p className="mt-5 mb-1.5 font-medium text-[11px] text-muted-foreground/60 uppercase tracking-wider first:mt-0">
         {item.name}
       </p>
     );
@@ -69,59 +54,92 @@ function PageTreeItem({
 
   if (item.type === "folder") {
     const isActive = item.index && pathname === item.index.url;
+    const hasChildren = item.children.length > 0;
+
+    const handleFolderLinkClick = () => {
+      if (item.index) {
+        analytics.docs.navigationClicked(
+          String(item.name),
+          item.index.url,
+          depth,
+        );
+      }
+      onNavigate();
+    };
+
+    const handleFolderToggle = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      analytics.docs.folderToggled(String(item.name), !open, depth);
+      setOpen(!open);
+    };
+
+    const handleFolderNameClick = () => {
+      if (item.index) {
+        handleFolderLinkClick();
+        return;
+      }
+
+      analytics.docs.folderToggled(String(item.name), !open, depth);
+      setOpen(!open);
+    };
+
     return (
-      <div>
-        {item.index ? (
-          <Link
-            href={item.index.url}
-            onClick={onNavigate}
-            className={cn(
-              "flex w-full items-center gap-2 py-2 transition-colors",
-              depth > 0 && "pl-4",
-              isActive
-                ? "font-medium text-foreground"
-                : "text-muted-foreground",
-            )}
-          >
-            {item.icon}
-            <span className="flex-1">{item.name}</span>
-            {item.children.length > 0 && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setOpen(!open);
-                }}
-                className="p-1 text-muted-foreground"
-              >
-                <ChevronDown
-                  className={cn(
-                    "size-4 transition-transform",
-                    !open && "-rotate-90",
-                  )}
-                />
-              </button>
-            )}
-          </Link>
-        ) : (
-          <button
-            onClick={() => setOpen(!open)}
-            className={cn(
-              "flex w-full items-center gap-2 py-2 text-muted-foreground transition-colors",
-              depth > 0 && "pl-4",
-            )}
-          >
-            {item.icon}
-            <span className="flex-1 text-left">{item.name}</span>
-            <ChevronDown
+      <div className={cn(isTopLevel && "mb-0.5")}>
+        <div
+          className={cn(
+            "group flex w-full items-center gap-2 py-1.5 transition-colors duration-150",
+            depth > 0 && "pl-4",
+            isTopLevel &&
+              "rounded-md px-2 hover:bg-accent/60 data-[active=true]:bg-accent/40",
+          )}
+          data-active={isActive ? "true" : "false"}
+        >
+          {item.icon}
+          {item.index ? (
+            <Link
+              href={item.index.url}
+              onClick={handleFolderLinkClick}
               className={cn(
-                "size-4 text-muted-foreground transition-transform",
-                !open && "-rotate-90",
+                "min-w-0 flex-1 truncate text-[13px]",
+                isActive
+                  ? "font-medium text-foreground"
+                  : "text-muted-foreground",
               )}
-            />
-          </button>
+            >
+              {item.name}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={handleFolderNameClick}
+              className="min-w-0 flex-1 text-left text-[13px] text-muted-foreground"
+            >
+              {item.name}
+            </button>
+          )}
+          {hasChildren && (
+            <button
+              type="button"
+              onClick={handleFolderToggle}
+              className="p-1 text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+              aria-label={open ? "Collapse section" : "Expand section"}
+            >
+              <ChevronDown
+                className={cn(
+                  "size-3.5 transition-transform duration-200",
+                  !open && "-rotate-90",
+                )}
+              />
+            </button>
+          )}
+        </div>
+        {typeof item.description === "string" && isTopLevel && (
+          <p className="px-2 pb-1 text-[11px] text-muted-foreground/60">
+            {item.description}
+          </p>
         )}
-        {open && item.children.length > 0 && (
+        {open && hasChildren && (
           <div className="pl-4">
             {item.children.map((child) => (
               <PageTreeItem
@@ -138,14 +156,22 @@ function PageTreeItem({
   }
 
   const isActive = pathname === item.url;
+
+  const handlePageClick = () => {
+    analytics.docs.navigationClicked(String(item.name), item.url, depth);
+    onNavigate();
+  };
+
   return (
     <Link
       href={item.url}
-      onClick={onNavigate}
+      onClick={handlePageClick}
       className={cn(
-        "flex items-center gap-2 py-2 transition-colors",
+        "flex items-center gap-2 py-1.5 text-[13px] transition-colors duration-150",
         depth > 0 && "pl-4",
-        isActive ? "font-medium text-foreground" : "text-muted-foreground",
+        isActive
+          ? "font-medium text-foreground"
+          : "text-muted-foreground hover:text-foreground/80",
       )}
     >
       {item.icon}
@@ -155,21 +181,29 @@ function PageTreeItem({
 }
 
 export function SidebarContent({ tree, banner }: SidebarContentProps) {
-  const pathname = usePathname();
   const { setOpen } = useDocsSidebar();
+  const pathname = usePathname();
 
-  const topLevelFolder = tree
-    ? findTopLevelFolder(tree.children, pathname)
-    : null;
-  const itemsToShow = topLevelFolder ? topLevelFolder.children : tree?.children;
+  // When banner (section tabs) is present, only show children of the active
+  // section — the tabs already handle section-level navigation.
+  const treeItems = useMemo(() => {
+    if (!tree?.children) return null;
+    if (!banner) return tree.children;
+    for (const item of tree.children) {
+      if (item.type === "folder" && containsPath(item, pathname)) {
+        return item.children;
+      }
+    }
+    return tree.children;
+  }, [tree, banner, pathname]);
 
   return (
     <div className="flex h-full flex-col">
-      {banner && <div className="shrink-0 px-4 pt-6 pb-4">{banner}</div>}
+      {banner && <div className="shrink-0 px-4 pt-5 pb-5">{banner}</div>}
 
-      {itemsToShow && (
-        <nav className="flex-1 overflow-y-auto px-6">
-          {itemsToShow.map((item) => (
+      {treeItems && (
+        <nav className="sidebar-tree-content flex-1 overflow-y-auto px-5 pb-12">
+          {treeItems.map((item) => (
             <PageTreeItem
               key={item.$id}
               item={item}

@@ -1,7 +1,12 @@
-import { ReadonlyJSONValue } from "assistant-stream/utils";
-import { ThreadMessage } from "../../../types";
-import { AttachmentAdapter, ThreadHistoryAdapter } from "..";
-import { UserCommands } from "../../../augmentations";
+import type { ThreadMessage } from "@assistant-ui/core";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import type {
+  AttachmentAdapter,
+  ThreadHistoryAdapter,
+  LanguageModelV1CallSettings,
+  LanguageModelConfig,
+} from "@assistant-ui/core";
+import type { UserCommands } from "../../../augmentations";
 import type { ToolExecutionStatus } from "./useToolInvocations";
 
 // Message part types
@@ -31,6 +36,8 @@ export type AssistantMessage = {
 export type AddMessageCommand = {
   readonly type: "add-message";
   readonly message: UserMessage | AssistantMessage;
+  readonly parentId: string | null;
+  readonly sourceId: string | null;
 };
 
 export type AddToolResultCommand = {
@@ -81,6 +88,21 @@ export type HeadersValue = Record<string, string> | Headers;
 
 export type AssistantTransportProtocol = "data-stream" | "assistant-transport";
 
+export type SendCommandsRequestBody = {
+  commands: QueuedCommand[];
+  state: unknown;
+  system: string | undefined;
+  tools: Record<string, unknown> | undefined;
+  callSettings: LanguageModelV1CallSettings | undefined;
+  config: LanguageModelConfig | undefined;
+  threadId: string | null;
+  parentId?: string | null;
+  // `callSettings` and `config` fields are also spread at the top level for
+  // backward compatibility (e.g. `body.modelName`). Use the nested objects
+  // instead. The top-level fields will be removed in a future version.
+  [key: string]: unknown;
+};
+
 export type AssistantTransportOptions<T> = {
   initialState: T;
   api: string;
@@ -89,6 +111,21 @@ export type AssistantTransportOptions<T> = {
   converter: AssistantTransportStateConverter<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);
   body?: object | (() => Promise<object | undefined>);
+  /**
+   * Transform the request body before it is sent to the API.
+   * Receives the fully assembled body and returns the (potentially transformed) body.
+   *
+   * @example
+   * ```ts
+   * prepareSendCommandsRequest: (body) => ({
+   *   ...body,
+   *   trackingId: crypto.randomUUID(),
+   * })
+   * ```
+   */
+  prepareSendCommandsRequest?: (
+    body: SendCommandsRequestBody,
+  ) => Record<string, unknown> | Promise<Record<string, unknown>>;
   onResponse?: (response: Response) => void;
   onFinish?: () => void;
   onError?: (
@@ -109,6 +146,9 @@ export type AssistantTransportOptions<T> = {
     updateState: (updater: (state: T) => T) => void;
     error?: Error;
   }) => void;
+  capabilities?: {
+    edit?: boolean;
+  };
   adapters?: {
     attachments?: AttachmentAdapter | undefined;
     history?: ThreadHistoryAdapter | undefined;

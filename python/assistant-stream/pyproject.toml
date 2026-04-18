@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "assistant-stream"
-version = "0.0.31"
+version = "0.0.32"
 description = ""
 authors = [
   { name="Simon Farshid", email="simon@assistant-ui.com" },

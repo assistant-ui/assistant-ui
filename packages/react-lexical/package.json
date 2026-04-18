@@ -1,0 +1,77 @@
+{
+  "name": "@assistant-ui/react-lexical",
+  "version": "0.0.6",
+  "description": "Lexical-based rich text composer for assistant-ui with @-mention support",
+  "keywords": [
+    "lexical",
+    "rich-text",
+    "mention",
+    "assistant-ui",
+    "react",
+    "ai",
+    "chat"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@lexical/react": "^0.43.0",
+    "@lexical/utils": "^0.43.0",
+    "lexical": "^0.43.0"
+  },
+  "peerDependencies": {
+    "@assistant-ui/react": "^0.12.25",
+    "@assistant-ui/core": "^0.1.14",
+    "@assistant-ui/store": "*",
+    "@types/react": "*",
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/core": "workspace:*",
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/store": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/react": "^19.2.14",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "vitest": "^4.1.4"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-lexical"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}

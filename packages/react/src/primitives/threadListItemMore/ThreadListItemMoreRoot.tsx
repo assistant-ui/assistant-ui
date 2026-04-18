@@ -1,8 +1,8 @@
 "use client";
 
-import { FC } from "react";
-import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
-import { ScopedProps, useDropdownMenuScope } from "./scope";
+import type { FC } from "react";
+import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
+import { type ScopedProps, useDropdownMenuScope } from "./scope";
 
 export namespace ThreadListItemMorePrimitiveRoot {
   export type Props = DropdownMenuPrimitive.DropdownMenuProps;

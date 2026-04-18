@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-langgraph",
-  "version": "0.7.15",
+  "version": "0.13.10",
   "description": "LangGraph adapter for assistant-ui",
   "keywords": [
     "langgraph",
@@ -16,7 +16,6 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -35,30 +34,36 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.2.47",
+    "@assistant-ui/core": "^0.1.14",
+    "@assistant-ui/store": "^0.2.7",
+    "assistant-cloud": "*",
+    "assistant-stream": "^0.3.11",
     "uuid": "^13.0.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.11.58",
+    "@langchain/langgraph-sdk": "^1.8.0",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
+    "@langchain/langgraph-sdk": {
+      "optional": true
+    },
     "@types/react": {
       "optional": true
     }
   },
   "devDependencies": {
-    "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@langchain/langgraph-sdk": "^1.8.8",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
-    "@types/node": "^25.0.9",
-    "@types/react": "^19.2.9",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
     "@types/uuid": "^11.0.0",
-    "jsdom": "^27.4.0",
-    "react": "^19.2.3",
-    "vitest": "^4.0.17"
+    "jsdom": "^29.0.2",
+    "react": "^19.2.5",
+    "vitest": "^4.1.4"
   },
   "publishConfig": {
     "access": "public",

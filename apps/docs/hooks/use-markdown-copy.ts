@@ -11,7 +11,7 @@ export function useMarkdownCopy(markdownUrl: string | undefined) {
   useEffect(() => {
     hasFetched.current = false;
     setContent(null);
-  }, [markdownUrl]);
+  }, []);
 
   const prefetch = useCallback(() => {
     if (!markdownUrl || hasFetched.current) return;

@@ -8,7 +8,7 @@ import {
 } from "../stores/ThreadViewport";
 import {
   ThreadViewportContext,
-  ThreadViewportContextValue,
+  type ThreadViewportContextValue,
   useThreadViewportStore,
 } from "../react/ThreadViewportContext";
 import { writableStore } from "../ReadonlyStore";

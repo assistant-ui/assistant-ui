@@ -1,32 +1,39 @@
-import { tapState } from "@assistant-ui/tap";
+import { tapConst, tapState, withKey } from "@assistant-ui/tap";
 import type { ContravariantResource } from "@assistant-ui/tap";
 import { tapClientLookup } from "./tapClientLookup";
-import type { ClientMethods, ClientOutputOf } from "./types/client";
+import type { ClientMethods } from "./types/client";
+
+type InferClientState<TMethods> = TMethods extends {
+  getState: () => infer S;
+}
+  ? S
+  : unknown;
+
+type DataHandle<TData> = { data: TData | undefined; hasData: boolean };
 
 const createProps = <TData>(
   key: string,
-  data: TData,
+  data: DataHandle<TData>,
   remove: () => void,
 ): tapClientList.ResourceProps<TData> => {
-  let initialData: { data: TData } | undefined = { data };
   return {
     key,
     getInitialData: () => {
-      if (!initialData) {
-        throw new Error("getInitialData may only be called once");
+      if (!data.hasData) {
+        throw new Error(
+          "getInitialData may only be called during initial render",
+        );
       }
-      const data = initialData.data;
-      initialData = undefined;
-      return data;
+      return data.data!;
     },
     remove,
   };
 };
 
-export const tapClientList = <TData, TState, TMethods extends ClientMethods>(
-  props: tapClientList.Props<TData, TState, TMethods>,
+export const tapClientList = <TData, TMethods extends ClientMethods>(
+  props: tapClientList.Props<TData, TMethods>,
 ): {
-  state: TState[];
+  state: InferClientState<TMethods>[];
   get: (lookup: { index: number } | { key: string }) => TMethods;
   add: (initialData: TData) => void;
 } => {
@@ -34,13 +41,16 @@ export const tapClientList = <TData, TState, TMethods extends ClientMethods>(
 
   type Props = tapClientList.ResourceProps<TData>;
 
+  const initialDataHandles: DataHandle<TData>[] = tapConst(() => [], []);
+
   const [items, setItems] = tapState<Record<string, Props>>(() => {
     const entries: [string, Props][] = [];
     for (const data of initialValues) {
       const key = getKey(data);
+      const handle = { data, hasData: true };
       entries.push([
         key,
-        createProps(key, data, () => {
+        createProps(key, handle, () => {
           setItems((items) => {
             const newItems = { ...items };
             delete newItems[key];
@@ -48,15 +58,21 @@ export const tapClientList = <TData, TState, TMethods extends ClientMethods>(
           });
         }),
       ]);
+      initialDataHandles.push(handle);
     }
     return Object.fromEntries(entries);
   });
 
-  const lookup = tapClientLookup<TState, TMethods, Record<string, Props>>(
-    items,
-    Resource,
-    [Resource],
+  const lookup = tapClientLookup<TMethods>(
+    () =>
+      Object.values(items).map((props) => withKey(props.key, Resource(props))),
+    [items, Resource],
   );
+
+  initialDataHandles.forEach((handle) => {
+    handle.data = undefined;
+    handle.hasData = false;
+  });
 
   const add = (data: TData) => {
     const key = getKey(data);
@@ -67,9 +83,12 @@ export const tapClientList = <TData, TState, TMethods extends ClientMethods>(
         );
       }
 
+      const handle = { data, hasData: true };
+      initialDataHandles.push(handle);
+
       return {
         ...items,
-        [key]: createProps(key, data, () => {
+        [key]: createProps(key, handle, () => {
           setItems((items) => {
             const newItems = { ...items };
             delete newItems[key];
@@ -94,12 +113,9 @@ export namespace tapClientList {
     remove: () => void;
   };
 
-  export type Props<TData, TState, TMethods extends ClientMethods> = {
+  export type Props<TData, TMethods extends ClientMethods> = {
     initialValues: TData[];
     getKey: (data: TData) => string;
-    resource: ContravariantResource<
-      ClientOutputOf<TState, TMethods>,
-      ResourceProps<TData>
-    >;
+    resource: ContravariantResource<TMethods, ResourceProps<TData>>;
   };
 }

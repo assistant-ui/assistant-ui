@@ -1,16 +1,9 @@
 "use client";
 
-import { Check, ChevronDownIcon } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/shared/dropdown-menu";
 import type { SidebarTab } from "./sidebar-tabs.server";
 
 export type { SidebarTab };
@@ -25,68 +18,221 @@ function isTabActive(tab: SidebarTab, pathname: string): boolean {
   return normalized.startsWith(normalizePathname(tab.url));
 }
 
-export function SidebarTabs({ tabs }: { tabs: SidebarTab[] }) {
-  const pathname = usePathname();
+type Rect = { top: number; height: number; left: number; width: number };
 
-  const selected = useMemo(() => {
-    return tabs.findLast((item) => isTabActive(item, pathname));
-  }, [tabs, pathname]);
+function useSlidingIndicator(
+  containerRef: React.RefObject<HTMLElement | null>,
+  activeIndex: number,
+  selector: string,
+) {
+  const [rect, setRect] = useState<Rect | null>(null);
+  const hasAnimated = useRef(false);
 
-  if (!selected) return null;
+  const update = useCallback(() => {
+    const container = containerRef.current;
+    if (!container || activeIndex < 0) {
+      setRect(null);
+      return;
+    }
+    const els = container.querySelectorAll<HTMLElement>(selector);
+    const el = els[activeIndex];
+    if (!el) {
+      setRect(null);
+      return;
+    }
+    setRect({
+      top: el.offsetTop,
+      left: el.offsetLeft,
+      height: el.offsetHeight,
+      width: el.offsetWidth,
+    });
+  }, [containerRef, activeIndex, selector]);
+
+  useEffect(() => {
+    update();
+    // After first render, enable transitions
+    requestAnimationFrame(() => {
+      hasAnimated.current = true;
+    });
+  }, [update]);
+
+  return { rect, animate: hasAnimated.current };
+}
+
+function ChildPills({
+  items,
+  pathname,
+}: {
+  items: SidebarTab[];
+  pathname: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const activeIndex = items.findIndex((child) => isTabActive(child, pathname));
+  const { rect, animate } = useSlidingIndicator(containerRef, activeIndex, "a");
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        data-sidebar-control
-        className="flex h-9 w-full items-center gap-2 rounded-lg bg-muted px-3 text-sm transition-colors hover:bg-accent hover:text-foreground"
-      >
-        {selected.icon && (
-          <span className="size-4 shrink-0 text-muted-foreground [&_svg]:size-full">
-            {selected.icon}
-          </span>
+    <div
+      ref={containerRef}
+      className="relative flex flex-wrap gap-1 pt-1 pr-3 pb-1.5 pl-7"
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute rounded-md bg-foreground/10",
+          animate && "transition-all duration-200 ease-out",
+          rect ? "opacity-100" : "opacity-0",
         )}
-        <span className="flex-1 text-left font-medium">{selected.title}</span>
-        <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
+        style={
+          rect
+            ? {
+                top: rect.top,
+                left: rect.left,
+                width: rect.width,
+                height: rect.height,
+              }
+            : undefined
+        }
+      />
+      {items.map((child) => {
+        const childActive = isTabActive(child, pathname);
+        return (
+          <Link
+            key={child.url}
+            href={child.url}
+            className={cn(
+              "relative z-[1] flex items-center gap-1 rounded-md px-2 py-0.5 font-medium text-[11.5px] transition-colors duration-200",
+              childActive
+                ? "text-foreground"
+                : "text-muted-foreground/70 hover:text-muted-foreground",
+            )}
+          >
+            {child.icon && (
+              <span className="size-3 shrink-0 [&_svg]:size-full">
+                {child.icon}
+              </span>
+            )}
+            {child.title}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+export function SidebarTabs({ tabs }: { tabs: SidebarTab[] }) {
+  const pathname = usePathname();
+  const navRef = useRef<HTMLElement>(null);
+
+  const activeIndex = useMemo(() => {
+    return tabs.findLastIndex((item) => isTabActive(item, pathname));
+  }, [tabs, pathname]);
+
+  const { rect, animate } = useSlidingIndicator(
+    navRef,
+    activeIndex,
+    "[data-tab-link]",
+  );
+
+  if (tabs.length === 0) return null;
+
+  return (
+    <div className="sidebar-tabs-container">
+      <nav
+        ref={navRef}
+        aria-label="Documentation sections"
+        className="relative flex flex-col gap-0.5 rounded-lg border border-border/50 bg-muted/20 p-1"
       >
+        {/* Sliding active background */}
+        <span
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute rounded-md bg-accent/80",
+            animate && "transition-all duration-250 ease-out",
+            rect ? "opacity-100" : "opacity-0",
+          )}
+          style={
+            rect
+              ? {
+                  top: rect.top,
+                  left: rect.left,
+                  width: rect.width,
+                  height: rect.height,
+                }
+              : undefined
+          }
+        />
+
         {tabs.map((tab) => {
-          const isActive = selected && tab.url === selected.url;
+          const isActive =
+            activeIndex >= 0 && tab.url === tabs[activeIndex]!.url;
+          const hasChildren = tab.children && tab.children.length > 0;
 
           return (
-            <DropdownMenuItem key={tab.url} asChild>
+            <div key={tab.url}>
               <Link
+                data-tab-link=""
                 href={tab.url}
-                className="flex items-start justify-between gap-2"
+                aria-current={isActive ? "true" : undefined}
+                className={cn(
+                  "group relative z-1 flex items-center gap-2.5 rounded-md px-3 py-2 outline-none transition-colors duration-200",
+                  "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+                  isActive
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:bg-accent/30 hover:text-foreground",
+                )}
               >
-                <span className="inline-flex items-start gap-2">
-                  {tab.icon && (
-                    <span className="mt-0.5 size-4 shrink-0 [&_svg]:size-full">
-                      {tab.icon}
-                    </span>
-                  )}
-                  <span className="flex flex-col">
-                    <span className="text-sm">{tab.title}</span>
-                    {tab.description && (
-                      <span className="text-muted-foreground text-xs">
-                        {tab.description}
-                      </span>
-                    )}
-                  </span>
-                </span>
-                <Check
+                {/* Left indicator bar */}
+                <span
+                  aria-hidden="true"
                   className={cn(
-                    "mt-0.5 size-4 shrink-0",
+                    "absolute inset-y-1.5 left-0 w-[2.5px] rounded-r-full bg-foreground/40 transition-opacity duration-200",
                     isActive ? "opacity-100" : "opacity-0",
                   )}
                 />
+                {tab.icon && (
+                  <span
+                    className={cn(
+                      "size-4 shrink-0 transition-colors duration-200 [&_svg]:size-full",
+                      isActive
+                        ? "text-foreground"
+                        : "text-muted-foreground/60 group-hover:text-muted-foreground",
+                    )}
+                  >
+                    {tab.icon}
+                  </span>
+                )}
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span
+                    className={cn(
+                      "truncate text-[13px] leading-tight tracking-[-0.01em] transition-all duration-200",
+                      isActive ? "font-semibold" : "font-medium",
+                    )}
+                  >
+                    {tab.title}
+                  </span>
+                  {tab.description && !hasChildren && (
+                    <span
+                      className={cn(
+                        "line-clamp-1 text-[11px] leading-snug transition-colors duration-200",
+                        isActive
+                          ? "text-muted-foreground"
+                          : "text-muted-foreground/60 group-hover:text-muted-foreground/80",
+                      )}
+                    >
+                      {tab.description}
+                    </span>
+                  )}
+                </span>
               </Link>
-            </DropdownMenuItem>
+
+              {/* Sub-items — always visible */}
+              {hasChildren && (
+                <ChildPills items={tab.children!} pathname={pathname} />
+              )}
+            </div>
           );
         })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </nav>
+    </div>
   );
 }

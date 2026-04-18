@@ -4,6 +4,7 @@
 
 #nd-docs-layout {
   --fd-banner-height: var(--docs-header-height);
+  --fd-layout-width: 9999px;
 }
 
 html:has(#nd-docs-layout) {
@@ -14,7 +15,7 @@ html:has(#nd-docs-layout) {
   }
 
   @media (min-width: 1280px) {
-    scroll-padding-top: var(--docs-header-height);
+    scroll-padding-top: calc(var(--docs-header-height) + 2rem);
   }
 }
 
@@ -22,6 +23,13 @@ html:has(#nd-docs-layout) {
   #nd-page[data-full="true"] {
     max-width: 70%;
     justify-self: center;
+  }
+}
+
+/* When container is narrow (e.g. assistant panel open), use full width */
+@container (max-width: 1200px) {
+  #nd-page[data-full="true"] {
+    max-width: 100%;
   }
 }
 
@@ -33,6 +41,13 @@ html:has(#nd-docs-layout) {
   padding-inline: 1rem !important;
   padding-top: 1.5rem !important;
   padding-bottom: 1.5rem !important;
+}
+
+/* When container is narrow, let content fill the column instead of capping at 900px */
+@container (max-width: 1500px) {
+  #nd-page {
+    max-width: 100% !important;
+  }
 }
 
 @media (min-width: 768px) {
@@ -52,13 +67,15 @@ html:has(#nd-docs-layout) {
 }
 
 :is(#nd-sidebar, #nd-sidebar-mobile) {
-  & :is(a, button):not([data-sidebar-control]) {
+  & :is(a, button):not([data-sidebar-control]):not(.sidebar-tabs-container *) {
     padding-block: 0.375rem !important;
     padding-inline-end: 0.625rem !important;
     border-radius: 0.375rem !important;
     font-size: 0.875rem !important;
     background: transparent !important;
-    transition: color 0.15s ease, background-color 0.15s ease !important;
+    transition:
+      color 0.15s ease,
+      background-color 0.15s ease !important;
 
     &:hover {
       color: var(--fd-foreground) !important;
@@ -66,7 +83,7 @@ html:has(#nd-docs-layout) {
     }
   }
 
-  & a[data-active="true"] {
+  & a[data-active="true"]:not(.sidebar-tabs-container *) {
     color: var(--fd-foreground) !important;
     font-weight: 500 !important;
     background: var(--fd-accent) !important;
@@ -90,7 +107,7 @@ html:has(#nd-docs-layout) {
     }
   }
 
-  & svg {
+  & svg:not(.sidebar-tabs-container *) {
     width: 1rem !important;
     height: 1rem !important;
     opacity: 0.7;
@@ -105,6 +122,11 @@ html:has(#nd-docs-layout) {
   & .border-t {
     border-top: none !important;
   }
+}
+
+/* Sidebar section tabs - tighten gap between tabs and page tree */
+#nd-sidebar .sidebar-tabs-container {
+  margin-bottom: -0.25rem;
 }
 
 #nd-sidebar [class*="before:bg-fd-border"] {
@@ -206,8 +228,8 @@ html:has(#nd-docs-layout) {
   }
 
   & [class~="not-prose"] :where(code):not(:where(pre code)) {
-    font-size: 0.8125rem !important;
-    padding: 0.125rem 0.375rem !important;
+    font-size: 0.75rem !important;
+    padding: 0.0625rem 0.25rem !important;
     border-radius: 0.375rem !important;
     border: none !important;
     background: var(--muted) !important;
@@ -243,7 +265,6 @@ html:has(#nd-docs-layout) {
   }
 
   & :where(table):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-    font-size: 0.8125rem !important;
     margin-top: 0rem !important;
     margin-bottom: 0rem !important;
     width: 100% !important;
@@ -258,7 +279,7 @@ html:has(#nd-docs-layout) {
     }
 
     & th {
-      padding: 0.75rem 1rem !important;
+      padding: 0.5rem 0.75rem !important;
       text-align: left !important;
       font-weight: 500 !important;
       color: var(--muted-foreground) !important;
@@ -266,7 +287,7 @@ html:has(#nd-docs-layout) {
     }
 
     & td {
-      padding: 0.75rem 1rem !important;
+      padding: 0.5rem 0.75rem !important;
       border: none !important;
       vertical-align: top !important;
     }
@@ -294,6 +315,11 @@ html:has(#nd-docs-layout) {
     & tbody tr:last-child td:last-child {
       border-bottom-right-radius: 0.5rem !important;
     }
+
+    & code {
+      font-size: 0.75rem !important;
+      padding: 0.0625rem 0.25rem !important;
+    }
   }
 
   & :where(hr):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
@@ -306,7 +332,10 @@ html:has(#nd-docs-layout) {
     margin-top: 0 !important;
   }
 
-  & :where(h2 + ul, h3 + ul, h4 + ul, h2 + ol, h3 + ol, h4 + ol):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  &
+    :where(h2 + ul, h3 + ul, h4 + ul, h2 + ol, h3 + ol, h4 + ol):not(
+      :where([class~="not-prose"], [class~="not-prose"] *)
+    ) {
     margin-top: 0.5rem !important;
   }
 
@@ -390,14 +419,6 @@ figure.shiki {
   /* Line numbers */
   & [data-line-numbers] .line {
     padding-left: calc(0.875rem + 2.25rem) !important;
-
-    &::after {
-      left: 0.875rem !important;
-      width: 1.5rem !important;
-      color: var(--muted-foreground) !important;
-      opacity: 0.5 !important;
-      font-size: 0.6875rem !important;
-    }
   }
 
   /* Highlighted lines */
@@ -452,4 +473,80 @@ figure.shiki {
 
 .step-number::before {
   content: counter(step);
+}
+
+/* PreviewCode component - remove nested SampleFrame styling */
+.preview-code-preview > .not-prose {
+  margin: 0 !important;
+}
+
+.preview-code-preview > .not-prose > div {
+  border: none !important;
+  border-radius: 0 !important;
+  height: auto !important;
+}
+
+.preview-code-block {
+  background: var(--muted) !important;
+  border-radius: 0.75rem !important;
+  border: none !important;
+
+  & pre {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    counter-reset: line !important;
+  }
+
+  & code {
+    display: block !important;
+    background: transparent !important;
+  }
+
+  /* Override Shiki theme background */
+  & .shiki {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  /* Dark mode: apply shiki-dark CSS variables */
+  :is(.dark *) & span {
+    color: var(--shiki-dark) !important;
+    font-style: var(--shiki-dark-font-style) !important;
+    font-weight: var(--shiki-dark-font-weight) !important;
+    text-decoration: var(--shiki-dark-text-decoration) !important;
+  }
+
+  & .line {
+    display: inline-block !important;
+    width: 100% !important;
+    padding-left: 2.5rem !important;
+    padding-right: 0.5rem !important;
+    position: relative !important;
+  }
+
+  & .line::before {
+    content: counter(line) !important;
+    counter-increment: line !important;
+    position: absolute !important;
+    left: 0.5rem !important;
+    width: 1.5rem !important;
+    text-align: right !important;
+    color: var(--muted-foreground) !important;
+    opacity: 0.5 !important;
+    font-size: 0.8125rem !important;
+    line-height: inherit !important;
+    user-select: none !important;
+  }
+
+}
+
+/* Override fumadocs line numbers to be right-aligned */
+figure.shiki pre[data-line-numbers] span.line::after,
+.shiki pre[data-line-numbers] span.line::after,
+pre.shiki[data-line-numbers] span.line::after,
+[data-line-numbers] span.line::after {
+  width: 1.5rem !important;
+  text-align: right !important;
+  left: 0.5rem !important;
 }

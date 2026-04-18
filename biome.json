@@ -27,26 +27,16 @@
       "suspicious": {
         "noExplicitAny": "off",
         "noArrayIndexKey": "off",
-        "noEmptyInterface": "off",
-        "useIterableCallbackReturn": "off",
-        "noThenProperty": "off",
-        "noConfusingVoidType": "off",
-        "noImplicitAnyLet": "off",
-        "noAssignInExpressions": "off",
-        "noRedeclare": "off",
         "noConfusingLabels": {
           "level": "error",
           "options": {
             "allowedLabels": ["DEV"]
           }
         },
-        "noDoubleEquals": "off",
-        "noPrototypeBuiltins": "off",
-        "noDocumentCookie": "off"
+        "noReactForwardRef": "off"
       },
       "style": {
         "noNamespace": "off",
-        "useImportType": "off",
         "noNonNullAssertion": "off",
         "useComponentExportOnlyModules": "off"
       },
@@ -57,35 +47,41 @@
             "ignoreRestSiblings": true
           }
         },
-        "useExhaustiveDependencies": "off",
-        "useHookAtTopLevel": "off",
-        "noSwitchDeclarations": "off",
-        "noUnsafeOptionalChaining": "off",
-        "useUniqueElementIds": "off"
+        "useExhaustiveDependencies": {
+          "level": "error",
+          "options": {
+            "hooks": [
+              {
+                "name": "tapEffect",
+                "closureIndex": 0,
+                "dependenciesIndex": 1
+              },
+              { "name": "tapMemo", "closureIndex": 0, "dependenciesIndex": 1 },
+              {
+                "name": "tapCallback",
+                "closureIndex": 0,
+                "dependenciesIndex": 1
+              },
+              { "name": "tapRef", "stableResult": true },
+              { "name": "tapState", "stableResult": [1] },
+              { "name": "tapEffectEvent", "stableResult": true },
+              {
+                "name": "tapConst",
+                "closureIndex": 0,
+                "dependenciesIndex": 1,
+                "stableResult": true
+              },
+              {
+                "name": "tapResources",
+                "closureIndex": 0,
+                "dependenciesIndex": 1
+              }
+            ]
+          }
+        }
       },
       "complexity": {
-        "noForEach": "off",
-        "noBannedTypes": "off",
-        "noUselessConstructor": "off",
-        "noStaticOnlyClass": "off",
-        "useArrowFunction": "off",
-        "noThisInStatic": "off",
-        "useFlatMap": "off",
-        "useLiteralKeys": "off"
-      },
-      "a11y": {
-        "useKeyWithClickEvents": "off",
-        "noSvgWithoutTitle": "off",
-        "noStaticElementInteractions": "off",
-        "useFocusableInteractive": "off",
-        "useButtonType": "off",
-        "useSemanticElements": "off"
-      },
-      "security": {
-        "noDangerouslySetInnerHtml": "off"
-      },
-      "performance": {
-        "noImgElement": "off"
+        "noForEach": "off"
       },
       "nursery": {
         "useSortedClasses": {
@@ -138,6 +134,63 @@
       "enabled": false
     }
   },
+  "overrides": [
+    {
+      "includes": ["apps/docs/app/tw-glass/**", "apps/docs/app/tw-shimmer/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useUniqueElementIds": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "apps/docs/components/tool-ui/weather-widget/generated/weather-runtime-core.generated.ts"
+      ],
+      "formatter": {
+        "enabled": false
+      },
+      "linter": {
+        "enabled": false
+      }
+    },
+    {
+      "includes": [
+        "packages/ui/src/components/ui/**",
+        "packages/ui/src/components/assistant-ui/**",
+        "packages/ui/src/components/icons/**",
+        "templates/*/components/ui/**",
+        "templates/*/components/assistant-ui/**",
+        "templates/*/components/icons/**"
+      ],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useExhaustiveDependencies": "off",
+            "noNestedComponentDefinitions": "off"
+          },
+          "suspicious": {
+            "noDocumentCookie": "off"
+          },
+          "a11y": {
+            "useAriaPropsForRole": "off",
+            "noRedundantRoles": "off",
+            "noRedundantAlt": "off",
+            "useFocusableInteractive": "off",
+            "useKeyWithClickEvents": "off",
+            "noStaticElementInteractions": "off",
+            "useSemanticElements": "off",
+            "noSvgWithoutTitle": "off"
+          },
+          "performance": {
+            "noImgElement": "off"
+          }
+        }
+      }
+    }
+  ],
   "files": {
     "includes": [
       "**",
@@ -151,7 +204,8 @@
       "!**/.tanstack",
       "!**/.output",
       "!**/routeTree.gen.ts",
-      "!**/packages/chatgpt-app-studio/templates"
+      "!**/packages/mcp-app-studio/templates",
+      "!**/*.html"
     ]
   }
 }

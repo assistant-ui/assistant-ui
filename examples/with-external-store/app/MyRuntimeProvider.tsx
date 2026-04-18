@@ -1,7 +1,7 @@
 "use client";
 
-import { ThreadMessageLike } from "@assistant-ui/react";
-import { AppendMessage } from "@assistant-ui/react";
+import type { ThreadMessageLike } from "@assistant-ui/react";
+import type { AppendMessage } from "@assistant-ui/react";
 import {
   AssistantRuntimeProvider,
   useExternalStoreRuntime,

@@ -5,9 +5,6 @@ description: Components for displaying and managing file attachments in messages
 
 Buttons to interact with attachments.
 
-import { ParametersTable } from "@/components/docs/tables/ParametersTable";
-import { DataAttributesTable } from "@/components/docs/tables/DataAttributesTable";
-import { Code } from "@radix-ui/themes";
 
 <Callout>
   **Dual Use!** Attachments can appear in both messages and composers.
@@ -20,14 +17,14 @@ import { AttachmentPrimitive } from "@assistant-ui/react";
 
 const MyMessageAttachment = () => (
   <AttachmentPrimitive.Root>
-    <AttachmentPrimitive.Thumbnail />
+    <AttachmentPrimitive.unstable_Thumb />
     <AttachmentPrimitive.Name />
   </AttachmentPrimitive.Root>
 );
 
 const MyComposerAttachment = () => (
   <AttachmentPrimitive.Root>
-    <AttachmentPrimitive.Thumbnail />
+    <AttachmentPrimitive.unstable_Thumb />
     <AttachmentPrimitive.Name />
     <AttachmentPrimitive.Remove />
   </AttachmentPrimitive.Root>
@@ -36,11 +33,11 @@ const MyComposerAttachment = () => (
 
 ## API Reference
 
-### Container
+### Root
 
-Containts all parts of the attachment.
+Contains all parts of the attachment.
 
-This primitive renders a `<div>` element unless `asChild` is set.
+This primitive renders a `<div>` element unless `asChild` is set. Accepts all standard HTML div element props.
 
 <ParametersTable
   type="AttachmentPrimitiveRootProps"
@@ -48,20 +45,30 @@ This primitive renders a `<div>` element unless `asChild` is set.
     {
       name: "asChild",
     },
+    {
+      name: "...props",
+      type: "HTMLAttributes<HTMLDivElement>",
+      description: "All standard div element props are forwarded to the underlying element.",
+    },
   ]}
 />
 
-### Thumbnail
+### unstable_Thumb
 
 The thumbnail of the attachment.
 
-This primitive renders a `<div>` element unless `asChild` is set.
+This primitive renders a `<div>` element unless `asChild` is set. Accepts all standard HTML div element props.
 
 <ParametersTable
-  type="AttachmentPrimitiveThumbnailProps"
+  type="AttachmentPrimitiveThumbProps"
   parameters={[
     {
       name: "asChild",
+    },
+    {
+      name: "...props",
+      type: "HTMLAttributes<HTMLDivElement>",
+      description: "All standard div element props are forwarded to the underlying element.",
     },
   ]}
 />
@@ -70,15 +77,11 @@ This primitive renders a `<div>` element unless `asChild` is set.
 
 The name of the attachment.
 
-This primitive renders a `<div>` element unless `asChild` is set.
+This primitive renders a text node with the attachment's file name. It accepts no props.
 
 <ParametersTable
   type="AttachmentPrimitiveNameProps"
-  parameters={[
-    {
-      name: "asChild",
-    },
-  ]}
+  parameters={[]}
 />
 
 ### Remove

@@ -1,6 +1,10 @@
-import { ComponentPropsWithoutRef, ComponentRef, forwardRef } from "react";
-import * as PopoverPrimitive from "@radix-ui/react-popover";
-import { ScopedProps, usePopoverScope } from "./scope";
+import {
+  type ComponentPropsWithoutRef,
+  type ComponentRef,
+  forwardRef,
+} from "react";
+import { Popover as PopoverPrimitive } from "radix-ui";
+import { type ScopedProps, usePopoverScope } from "./scope";
 
 export namespace AssistantModalPrimitiveTrigger {
   export type Element = ComponentRef<typeof PopoverPrimitive.Trigger>;

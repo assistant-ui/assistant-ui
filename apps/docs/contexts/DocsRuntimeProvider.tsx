@@ -1,40 +1,79 @@
 "use client";
 
-import { WeatherSearchToolUI } from "@/components/tools/weather-tool";
-import { GeocodeLocationToolUI } from "@/components/tools/weather-tool";
+import { useMemo } from "react";
 import {
   AssistantRuntimeProvider,
   WebSpeechSynthesisAdapter,
   WebSpeechDictationAdapter,
+  CloudFileAttachmentAdapter,
   AssistantCloud,
+  useAui,
+  Tools,
+  Suggestions,
+  type FeedbackAdapter,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import { docsToolkit } from "@/lib/docs-toolkit";
 
+// Stateless adapter - safe to share across instances
+const feedbackAdapter: FeedbackAdapter = {
+  submit: () => {
+    // Feedback is tracked via analytics in AssistantActionBar
+    // The runtime automatically updates message.metadata.submittedFeedback
+  },
+};
 export function DocsRuntimeProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const assistantCloud = new AssistantCloud({
-    baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
-    anonymous: true,
-  });
+  const assistantCloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+        anonymous: true,
+      }),
+    [],
+  );
+
+  // Speech/dictation adapters keep internal state; create per component instance.
+  const adapters = useMemo(
+    () => ({
+      speech: new WebSpeechSynthesisAdapter(),
+      dictation: new WebSpeechDictationAdapter(),
+      feedback: feedbackAdapter,
+      attachments: new CloudFileAttachmentAdapter(assistantCloud),
+    }),
+    [assistantCloud],
+  );
 
   const runtime = useChatRuntime({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    adapters: {
-      speech: new WebSpeechSynthesisAdapter(),
-      dictation: new WebSpeechDictationAdapter(),
-    },
+    adapters,
     cloud: assistantCloud,
   });
+
+  const aui = useAui({
+    tools: Tools({ toolkit: docsToolkit }),
+    suggestions: Suggestions([
+      {
+        title: "What's the weather",
+        label: "in San Francisco?",
+        prompt: "What's the weather in San Francisco?",
+      },
+      {
+        title: "Explain React hooks",
+        label: "like useState and useEffect",
+        prompt: "Explain React hooks like useState and useEffect",
+      },
+    ]),
+  });
+
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
       {children}
-      <WeatherSearchToolUI />
-      <GeocodeLocationToolUI />
 
       <DevToolsModal />
     </AssistantRuntimeProvider>

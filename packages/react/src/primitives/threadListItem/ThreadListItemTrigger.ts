@@ -1,18 +1,15 @@
 "use client";
 
 import {
-  ActionButtonElement,
-  ActionButtonProps,
+  type ActionButtonElement,
+  type ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useAssistantApi } from "../../context";
-import { useCallback } from "react";
+import { useThreadListItemTrigger as useThreadListItemTriggerBehavior } from "@assistant-ui/core/react";
 
 const useThreadListItemTrigger = () => {
-  const api = useAssistantApi();
-  return useCallback(() => {
-    api.threadListItem().switchTo();
-  }, [api]);
+  const { switchTo } = useThreadListItemTriggerBehavior();
+  return switchTo;
 };
 
 export namespace ThreadListItemPrimitiveTrigger {

@@ -43,6 +43,7 @@ export class FrameClient {
         this.notifyListeners(message.data);
       } else if (message.type === "host-connected") {
         // Host has reconnected (page refresh), notify listeners to re-subscribe
+        // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
         this.connectionListeners.forEach((listener) => listener());
       }
     });
@@ -89,6 +90,7 @@ export class FrameClient {
   }
 
   private notifyListeners(data: UpdateMessage["data"]) {
+    // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
     this.listeners.forEach((listener) => listener(data));
   }
 

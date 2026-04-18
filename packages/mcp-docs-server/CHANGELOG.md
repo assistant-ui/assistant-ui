@@ -1,5 +1,66 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.1.29
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+
+## 0.1.28
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+
+## 0.1.27
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+
+## 0.1.26
+
+### Patch Changes
+
+- 52403c3: chore: update dependencies
+
+## 0.1.25
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+
+## 0.1.24
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+
+## 0.1.23
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+
+## 0.1.22
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+
+## 0.1.21
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+
+## 0.1.20
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+
 ## 0.1.19
 
 ### Patch Changes

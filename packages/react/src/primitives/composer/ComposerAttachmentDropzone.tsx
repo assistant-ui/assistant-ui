@@ -1,15 +1,24 @@
 "use client";
 
-import { forwardRef, useCallback, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useState,
+  type ReactElement,
+  cloneElement,
+  isValidElement,
+} from "react";
 
-import { Slot } from "@radix-ui/react-slot";
-import React from "react";
-import { useAssistantApi } from "../../context";
+import { composeEventHandlers } from "@radix-ui/primitive";
+import { Slot } from "radix-ui";
+import type React from "react";
+import { useAui } from "@assistant-ui/store";
 
 export namespace ComposerPrimitiveAttachmentDropzone {
   export type Element = HTMLDivElement;
   export type Props = React.HTMLAttributes<HTMLDivElement> & {
     asChild?: boolean | undefined;
+    render?: ReactElement | undefined;
     disabled?: boolean | undefined;
   };
 }
@@ -17,9 +26,9 @@ export namespace ComposerPrimitiveAttachmentDropzone {
 export const ComposerPrimitiveAttachmentDropzone = forwardRef<
   HTMLDivElement,
   ComposerPrimitiveAttachmentDropzone.Props
->(({ disabled, asChild = false, children, ...rest }, ref) => {
+>(({ disabled, asChild = false, render, children, ...rest }, ref) => {
   const [isDragging, setIsDragging] = useState(false);
-  const api = useAssistantApi();
+  const aui = useAui();
 
   const handleDragEnterCapture = useCallback(
     (e: React.DragEvent) => {
@@ -61,35 +70,49 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
       await Promise.all(
         files.map(async (file) => {
           try {
-            await api.composer().addAttachment(file);
+            await aui.composer().addAttachment(file);
           } catch (error) {
             console.error("Failed to add attachment:", error);
           }
         }),
       );
     },
-    [disabled, api],
+    [disabled, aui],
   );
 
-  const dragProps = {
-    onDragEnterCapture: handleDragEnterCapture,
-    onDragOverCapture: handleDragOverCapture,
-    onDragLeaveCapture: handleDragLeaveCapture,
-    onDropCapture: handleDrop,
+  const mergedProps = {
+    ...(isDragging ? { "data-dragging": "true" } : null),
+    ...rest,
+    onDragEnterCapture: composeEventHandlers(
+      rest.onDragEnterCapture,
+      handleDragEnterCapture,
+    ),
+    onDragOverCapture: composeEventHandlers(
+      rest.onDragOverCapture,
+      handleDragOverCapture,
+    ),
+    onDragLeaveCapture: composeEventHandlers(
+      rest.onDragLeaveCapture,
+      handleDragLeaveCapture,
+    ),
+    onDropCapture: composeEventHandlers(rest.onDropCapture, handleDrop),
+    ref,
   };
 
-  const Comp = asChild ? Slot : "div";
+  if (render && isValidElement(render)) {
+    const renderChildren =
+      children !== undefined
+        ? children
+        : (render.props as Record<string, unknown>).children;
+    return (
+      <Slot.Root {...mergedProps}>
+        {cloneElement(render, undefined, renderChildren as React.ReactNode)}
+      </Slot.Root>
+    );
+  }
 
-  return (
-    <Comp
-      {...(isDragging ? { "data-dragging": "true" } : null)}
-      ref={ref}
-      {...dragProps}
-      {...rest}
-    >
-      {children}
-    </Comp>
-  );
+  const Comp = asChild ? Slot.Root : "div";
+  return <Comp {...mergedProps}>{children}</Comp>;
 });
 
 ComposerPrimitiveAttachmentDropzone.displayName =

@@ -1,9 +1,9 @@
 "use client";
 
-import { FC, useEffect, useState } from "react";
-import * as PopoverPrimitive from "@radix-ui/react-popover";
-import { ScopedProps, usePopoverScope } from "./scope";
-import { useAssistantApi } from "../../context";
+import { type FC, useEffect, useState } from "react";
+import { Popover as PopoverPrimitive } from "radix-ui";
+import { type ScopedProps, usePopoverScope } from "./scope";
+import { useAui } from "@assistant-ui/store";
 
 export namespace AssistantModalPrimitiveRoot {
   export type Props = PopoverPrimitive.PopoverProps & {
@@ -21,14 +21,14 @@ const useAssistantModalOpenState = ({
   const state = useState(defaultOpen);
 
   const [, setOpen] = state;
-  const api = useAssistantApi();
+  const aui = useAui();
   useEffect(() => {
     if (!unstable_openOnRunStart) return undefined;
 
-    return api.on("thread.run-start", () => {
+    return aui.on("thread.runStart", () => {
       setOpen(true);
     });
-  }, [unstable_openOnRunStart, setOpen, api]);
+  }, [unstable_openOnRunStart, aui]);
 
   return state;
 };

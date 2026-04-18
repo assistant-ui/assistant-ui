@@ -16,6 +16,11 @@ type Subscriber = {
   onThinkingTextMessageStartEvent?: (payload: { event: unknown }) => void;
   onThinkingTextMessageContentEvent?: (payload: { event: unknown }) => void;
   onThinkingTextMessageEndEvent?: (payload: { event: unknown }) => void;
+  onReasoningStartEvent?: (payload: { event: unknown }) => void;
+  onReasoningEndEvent?: (payload: { event: unknown }) => void;
+  onReasoningMessageStartEvent?: (payload: { event: unknown }) => void;
+  onReasoningMessageContentEvent?: (payload: { event: unknown }) => void;
+  onReasoningMessageEndEvent?: (payload: { event: unknown }) => void;
   onToolCallStartEvent?: (payload: { event: unknown }) => void;
   onToolCallArgsEvent?: (payload: { event: unknown }) => void;
   onToolCallEndEvent?: (payload: { event: unknown }) => void;
@@ -36,7 +41,7 @@ const ensureEvent = (
 ): AgUiEvent | null => {
   if (raw && typeof raw === "object") {
     const payload = raw as Record<string, unknown>;
-    if (typeof payload["type"] === "string") {
+    if (typeof payload.type === "string") {
       return parseAgUiEvent(payload);
     }
     return parseAgUiEvent({ type, ...payload });
@@ -68,7 +73,7 @@ export const createAgUiSubscriber = (
     onEvent: ({ event }) => {
       const typeCandidate =
         event && typeof event === "object"
-          ? (event as Record<string, unknown>)["type"]
+          ? (event as Record<string, unknown>).type
           : undefined;
       if (typeof typeCandidate === "string") {
         // Typed handlers will receive this via the discriminated callbacks; avoid duplicates.
@@ -95,6 +100,16 @@ export const createAgUiSubscriber = (
       dispatchIfValid(dispatch, event, "THINKING_TEXT_MESSAGE_CONTENT"),
     onThinkingTextMessageEndEvent: ({ event }) =>
       dispatchIfValid(dispatch, event, "THINKING_TEXT_MESSAGE_END"),
+    onReasoningStartEvent: ({ event }) =>
+      dispatchIfValid(dispatch, event, "REASONING_START"),
+    onReasoningEndEvent: ({ event }) =>
+      dispatchIfValid(dispatch, event, "REASONING_END"),
+    onReasoningMessageStartEvent: ({ event }) =>
+      dispatchIfValid(dispatch, event, "REASONING_MESSAGE_START"),
+    onReasoningMessageContentEvent: ({ event }) =>
+      dispatchIfValid(dispatch, event, "REASONING_MESSAGE_CONTENT"),
+    onReasoningMessageEndEvent: ({ event }) =>
+      dispatchIfValid(dispatch, event, "REASONING_MESSAGE_END"),
     onToolCallStartEvent: ({ event }) =>
       dispatchIfValid(dispatch, event, "TOOL_CALL_START"),
     onToolCallArgsEvent: ({ event }) =>

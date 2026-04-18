@@ -3,7 +3,6 @@ title: ToolFallback
 description: Default UI component for tools without dedicated custom renderers.
 ---
 
-import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 import {
   ToolFallbackSample,
   ToolFallbackRunningSample,
@@ -37,13 +36,12 @@ import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 const AssistantMessage = () => {
   return (
     <MessagePrimitive.Root>
-      <MessagePrimitive.Parts
-        components={{
-          tools: { 
-            Fallback: ToolFallback 
-          },
+      <MessagePrimitive.Parts>
+        {({ part }) => {
+          if (part.type === "tool-call") return <ToolFallback {...part} />;
+          return null;
         }}
-      />
+      </MessagePrimitive.Parts>
     </MessagePrimitive.Root>
   );
 };

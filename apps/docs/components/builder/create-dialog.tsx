@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Dialog as DialogPrimitive } from "radix-ui";
 import { XIcon } from "lucide-react";
 
 import type { BuilderConfig } from "./types";
 import { configMatchesPreset } from "./presets";
 import { encodeConfig } from "@/lib/playground-url-state";
 import { BASE_URL } from "@/lib/constants";
+import { analytics } from "@/lib/analytics";
 
 interface CreateDialogProps {
   config: BuilderConfig;
@@ -26,13 +27,20 @@ export function CreateDialog({
   const [open, setOpen] = useState(false);
   const commands = generateCliCommands(config);
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isOpen) {
+      analytics.builder.createDialogOpened();
+    }
+    setOpen(isOpen);
+  };
+
   const handleOpenCodeView = () => {
     setOpen(false);
     onOpenCodeView?.();
   };
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
+    <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
       <DialogPrimitive.Trigger asChild>{children}</DialogPrimitive.Trigger>
       <DialogPrimitive.Portal container={container?.current}>
         <DialogPrimitive.Overlay className="data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 absolute inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=open]:animate-in" />
@@ -49,6 +57,7 @@ export function CreateDialog({
               {...(commands.primary.command && {
                 command: commands.primary.command,
               })}
+              commandType="create"
             />
 
             <CommandBlock
@@ -56,6 +65,7 @@ export function CreateDialog({
               {...(commands.alternative.command && {
                 command: commands.alternative.command,
               })}
+              commandType="shadcn"
             />
 
             <div className="border-t pt-4">
@@ -67,6 +77,7 @@ export function CreateDialog({
                     label={`${index + 1}. ${cmd.label}`}
                     {...(cmd.command && { command: cmd.command })}
                     {...(cmd.description && { description: cmd.description })}
+                    commandType={index === 0 ? "manual_init" : "manual_add"}
                   />
                 ))}
                 <div>
@@ -76,6 +87,7 @@ export function CreateDialog({
                   <p className="text-muted-foreground">
                     Copy the code from the{" "}
                     <button
+                      type="button"
                       onClick={handleOpenCodeView}
                       className="text-foreground underline underline-offset-2 hover:text-foreground/80"
                     >
@@ -110,15 +122,20 @@ function CommandBlock({
   label,
   description,
   command,
+  commandType,
 }: {
   label: string;
   description?: string;
   command?: string;
+  commandType?: "create" | "shadcn" | "manual_init" | "manual_add";
 }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
     if (!command) return;
+    if (commandType) {
+      analytics.builder.commandCopied(commandType);
+    }
     await navigator.clipboard.writeText(command);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -138,6 +155,7 @@ function CommandBlock({
           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center rounded-r-md bg-muted px-1">
             <div className="pointer-events-none absolute inset-y-0 -left-3 w-3 bg-gradient-to-r from-transparent to-muted" />
             <button
+              type="button"
               onClick={handleCopy}
               className="pointer-events-auto rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/10 hover:text-foreground group-hover:opacity-100"
               title="Copy command"
@@ -225,7 +243,7 @@ function generateCliCommands(config: BuilderConfig): CliCommands {
     primary: {
       label: "One-command setup",
       description: "Install with your current configuration",
-      command: `npx assistant-ui@latest init --preset "${presetUrl}"`,
+      command: `npx assistant-ui@latest create my-app --preset "${presetUrl}"`,
     },
     alternative: {
       label: "Using shadcn",

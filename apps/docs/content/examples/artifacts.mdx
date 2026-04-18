@@ -3,14 +3,13 @@ title: Artifacts
 description: Open Source Claude Artifacts. You can ask the bot to generate websites.
 ---
 
-import { Artifacts } from "@/components/example/artifacts/Artifacts";
-import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
-import { SourceLink } from "@/components/examples/SourceLink";
+import { Artifacts } from "@/components/examples/artifacts";
+import { ArtifactsRuntimeProvider } from "@/contexts/ArtifactsRuntimeProvider";
 
 <div className="not-prose h-[600px]">
-  <DocsRuntimeProvider>
+  <ArtifactsRuntimeProvider>
     <Artifacts />
-  </DocsRuntimeProvider>
+  </ArtifactsRuntimeProvider>
 </div>
 
 ## Overview
@@ -43,6 +42,6 @@ An open-source implementation of Claude Artifacts that allows users to generate 
 
 ## Source
 
-This example is available as a standalone project:
+The implementation for this example is available in the docs:
 
-<SourceLink href="https://github.com/Yonom/assistant-ui-artifacts" />
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-artifacts" />

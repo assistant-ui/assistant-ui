@@ -54,7 +54,7 @@ describe("assistantUIExamples", () => {
     });
 
     expect(result.content).toContain("package.json");
-    expect(result.content).toContain("components/assistant-ui/thread.tsx");
+    expect(result.content).toContain("app/page.tsx");
   });
 
   it("should handle empty example parameter", async () => {

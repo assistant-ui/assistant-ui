@@ -1,5 +1,66 @@
 # safe-content-frame
 
+## 0.0.16
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+
+## 0.0.15
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+
+## 0.0.14
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+
+## 0.0.13
+
+### Patch Changes
+
+- 52403c3: chore: update dependencies
+
+## 0.0.12
+
+### Patch Changes
+
+- c71cb58: chore: update dependencies
+
+## 0.0.11
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+
+## 0.0.10
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+
+## 0.0.9
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+
+## 0.0.8
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+
+## 0.0.7
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+
 ## 0.0.6
 
 ### Patch Changes

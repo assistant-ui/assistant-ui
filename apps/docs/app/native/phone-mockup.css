@@ -1,0 +1,106 @@
+.phone-mockup-section {
+  padding: 2rem 0;
+  perspective: 1200px;
+}
+
+.phone-mockup-glow {
+  position: absolute;
+  inset: 0;
+  margin: 0 auto;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 40%,
+    rgba(139, 92, 246, 0.08) 0%,
+    transparent 70%
+  );
+}
+
+.phone-mockup-frame {
+  position: relative;
+  width: 320px;
+  margin: 0 auto;
+  border-radius: 2.5rem;
+  background: #1a1a1a;
+  padding: 12px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 80px rgba(139, 92, 246, 0.08);
+  transition: transform 0.4s ease;
+}
+
+.phone-mockup-frame:hover {
+  transform: translateY(-4px);
+}
+
+.phone-mockup-notch {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 28px;
+  background: #1a1a1a;
+  border-radius: 0 0 1rem 1rem;
+  z-index: 10;
+}
+
+.phone-mockup-screen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 9 / 19.5;
+  border-radius: 2rem;
+  overflow: hidden;
+  background: #000;
+}
+
+.phone-mockup-border {
+  position: absolute;
+  inset: -2px;
+  border-radius: 2.75rem;
+  padding: 2px;
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.4) 0%,
+    rgba(59, 130, 246, 0.3) 25%,
+    rgba(16, 185, 129, 0.3) 50%,
+    rgba(59, 130, 246, 0.3) 75%,
+    rgba(139, 92, 246, 0.4) 100%
+  );
+  background-size: 300% 300%;
+  animation: phone-gradient-shift 8s ease infinite;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+.phone-mockup-frame:hover .phone-mockup-border {
+  opacity: 1;
+}
+
+@keyframes phone-gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phone-mockup-border {
+    animation: none;
+  }
+  .phone-mockup-frame {
+    transition: none;
+  }
+  .phone-mockup-frame:hover {
+    transform: none;
+  }
+}

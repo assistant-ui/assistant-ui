@@ -4,7 +4,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
@@ -18,6 +20,8 @@ interface AssistantPanelContextValue {
   toggle: () => void;
   width: number;
   setWidth: (width: number) => void;
+  isResizing: boolean;
+  setIsResizing: (resizing: boolean) => void;
   pendingMessage: string | null;
   clearPendingMessage: () => void;
   askAI: (message: string) => void;
@@ -37,9 +41,27 @@ export function useAssistantPanel() {
   return ctx;
 }
 
+type AskAIFn = (message: string) => void;
+const askAIListeners = new Set<() => void>();
+let globalAskAI: AskAIFn | null = null;
+
+function subscribeAskAI(listener: () => void) {
+  askAIListeners.add(listener);
+  return () => askAIListeners.delete(listener);
+}
+
+function getAskAISnapshot() {
+  return globalAskAI;
+}
+
+export function useGlobalAskAI(): AskAIFn | null {
+  return useSyncExternalStore(subscribeAskAI, getAskAISnapshot, () => null);
+}
+
 export function AssistantPanelProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [width, setWidthState] = useState(DEFAULT_WIDTH);
+  const [isResizing, setIsResizing] = useState(false);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
 
   const toggle = useCallback(() => {
@@ -59,6 +81,15 @@ export function AssistantPanelProvider({ children }: { children: ReactNode }) {
     setOpen(true);
   }, []);
 
+  useEffect(() => {
+    globalAskAI = askAI;
+    for (const l of askAIListeners) l();
+    return () => {
+      globalAskAI = null;
+      for (const l of askAIListeners) l();
+    };
+  }, [askAI]);
+
   return (
     <AssistantPanelContext.Provider
       value={{
@@ -67,6 +98,8 @@ export function AssistantPanelProvider({ children }: { children: ReactNode }) {
         toggle,
         width,
         setWidth,
+        isResizing,
+        setIsResizing,
         pendingMessage,
         clearPendingMessage,
         askAI,

@@ -1,4 +1,4 @@
-import { AttachmentAdapter } from "@assistant-ui/react";
+import type { AttachmentAdapter } from "@assistant-ui/core";
 import { generateId } from "ai";
 
 const getFileDataURL = (file: File) =>
@@ -12,8 +12,7 @@ const getFileDataURL = (file: File) =>
   });
 
 export const vercelAttachmentAdapter: AttachmentAdapter = {
-  accept:
-    "image/*, text/plain, text/html, text/markdown, text/csv, text/xml, text/json, text/css",
+  accept: "*",
   async add({ file }) {
     return {
       id: generateId(),
@@ -33,7 +32,7 @@ export const vercelAttachmentAdapter: AttachmentAdapter = {
       content: [
         {
           type: "file",
-          mimeType: attachment.contentType,
+          mimeType: attachment.contentType ?? "",
           filename: attachment.name,
           data: await getFileDataURL(attachment.file),
         },

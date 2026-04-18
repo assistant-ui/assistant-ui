@@ -1,3 +1,5 @@
+import "@assistant-ui/store";
+
 type FooState = { id: string; bar: string };
 type FooMethods = {
   getState: () => FooState;
@@ -24,19 +26,15 @@ type FooListEvents = {
 };
 
 declare module "@assistant-ui/store" {
-  interface ClientRegistry {
+  interface ScopeRegistry {
     foo: {
-      state: FooState;
       methods: FooMethods;
       meta: FooMeta;
       events: FooEvents;
     };
     fooList: {
-      state: FooListState;
       methods: FooListMethods;
       events: FooListEvents;
     };
   }
 }
-
-export default {};

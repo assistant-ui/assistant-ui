@@ -1,7 +1,7 @@
-import { ReadonlyJSONValue } from "../../utils";
+import type { ReadonlyJSONValue } from "../../utils";
 import { withPromiseOrValue } from "../utils/withPromiseOrValue";
 import { ObjectStreamAccumulator } from "./ObjectStreamAccumulator";
-import { ObjectStreamOperation, ObjectStreamChunk } from "./types";
+import type { ObjectStreamOperation, ObjectStreamChunk } from "./types";
 
 type ObjectStreamController = {
   readonly abortSignal: AbortSignal;

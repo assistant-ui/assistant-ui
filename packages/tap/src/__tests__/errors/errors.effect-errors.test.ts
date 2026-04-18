@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/correctness/useExhaustiveDependencies: tests */
 import { describe, it, expect, vi } from "vitest";
 import { tapEffect } from "../../hooks/tap-effect";
 import { tapState } from "../../hooks/tap-state";
@@ -81,9 +82,13 @@ describe("Errors - Effect Errors", () => {
       return null;
     });
 
-    // Should throw first error
-    expect(() => renderTest(resource, undefined)).toThrow(error1);
-    expect(goodEffect).not.toHaveBeenCalled();
+    // Should throw aggregate error
+    expect(() =>
+      renderTest(resource, undefined),
+    ).toThrowErrorMatchingInlineSnapshot(`
+      [AggregateError: Errors during commit]
+    `);
+    expect(goodEffect).toHaveBeenCalledTimes(1);
   });
 
   it("should continue cleanup on unmount despite errors", () => {

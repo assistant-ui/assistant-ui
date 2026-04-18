@@ -1,35 +1,61 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { ExtractResourceOutput, ResourceElement } from "../core/types";
+import { useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
+import type {
+  ResourceFiberRoot,
+  ExtractResourceReturnType,
+  ResourceElement,
+} from "../core/types";
 import {
   createResourceFiber,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
+import { isDevelopment } from "../core/helpers/env";
+import {
+  commitRoot,
+  createResourceFiberRoot,
+  setRootVersion,
+} from "../core/helpers/root";
 
-const shouldAvoidLayoutEffect =
-  (globalThis as any).__ASSISTANT_UI_DISABLE_LAYOUT_EFFECT__ === true;
+const useDevStrictMode = () => {
+  if (!isDevelopment) return null;
 
-const useIsomorphicLayoutEffect = shouldAvoidLayoutEffect
-  ? useEffect
-  : useLayoutEffect;
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const count = useRef(0);
+  const isFirstRender = count.current === 0;
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  useState(() => count.current++);
+  if (count.current !== 2) return null;
+  return isFirstRender ? ("child" as const) : ("root" as const);
+};
 
 export function useResource<E extends ResourceElement<any, any>>(
   element: E,
-): ExtractResourceOutput<E> {
-  const [, rerender] = useState({});
-  const fiber = useMemo(
-    () => createResourceFiber(element.type, () => rerender({})),
-    [element.type],
-  );
+): ExtractResourceReturnType<E> {
+  const root = useMemo<ResourceFiberRoot>(() => {
+    return createResourceFiberRoot((cb) => dispatch(cb));
+  }, []);
+
+  const [version, dispatch] = useReducer((v: number, cb: () => boolean) => {
+    setRootVersion(root, v);
+    return v + (cb() ? 1 : 0);
+  }, 0);
+  setRootVersion(root, version);
+
+  const devStrictMode = useDevStrictMode();
+  const fiber = useMemo(() => {
+    void element.key;
+    return createResourceFiber(element.type, root, undefined, devStrictMode);
+  }, [element.type, element.key, root, devStrictMode]);
 
   const result = renderResourceFiber(fiber, element.props);
-  useIsomorphicLayoutEffect(() => {
+  useLayoutEffect(() => {
     return () => unmountResourceFiber(fiber);
   }, [fiber]);
-  useIsomorphicLayoutEffect(() => {
+  useLayoutEffect(() => {
+    commitRoot(root);
     commitResourceFiber(fiber, result);
   });
 
-  return result.state;
+  return result.output;
 }

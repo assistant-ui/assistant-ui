@@ -1,5 +1,146 @@
 # @assistant-ui/react-hook-form
 
+## 0.12.10
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- Updated dependencies [f20b9ca]
+- Updated dependencies [c988db8]
+  - @assistant-ui/core@0.1.14
+  - @assistant-ui/store@0.2.7
+
+## 0.12.9
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+- Updated dependencies [42bc640]
+- Updated dependencies [87e7761]
+  - @assistant-ui/core@0.1.13
+
+## 0.12.8
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [6554892]
+- Updated dependencies [9103282]
+- Updated dependencies [876f75d]
+- Updated dependencies [bdce66f]
+- Updated dependencies [4abb898]
+- Updated dependencies [209ae81]
+- Updated dependencies [2dd0c9f]
+- Updated dependencies [af70d7f]
+  - @assistant-ui/core@0.1.10
+  - @assistant-ui/store@0.2.6
+
+## 0.12.7
+
+### Patch Changes
+
+- 736344c: chore: update dependencies
+- c71cb58: chore: update dependencies
+- Updated dependencies [1406aed]
+- Updated dependencies [9480f30]
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [ff3be2a]
+- Updated dependencies [70b19f3]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/core@0.1.8
+  - @assistant-ui/store@0.2.4
+
+## 0.12.6
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- 619d923: Depend on @assistant-ui/core instead of @assistant-ui/react
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [6cc4122]
+- Updated dependencies [642bcda]
+  - @assistant-ui/core@0.1.6
+  - @assistant-ui/store@0.2.3
+
+## 0.12.5
+
+### Patch Changes
+
+- 36ef3a2: chore: update dependencies
+- Updated dependencies [36ef3a2]
+- Updated dependencies [6692226]
+- Updated dependencies [c31c0fa]
+- Updated dependencies [1672be8]
+- Updated dependencies [28f39fe]
+- Updated dependencies [3a1cb66]
+- Updated dependencies [14769af]
+- Updated dependencies [7c360ce]
+- Updated dependencies [a638f05]
+- Updated dependencies [8a78cd2]
+  - @assistant-ui/react@0.12.12
+
+## 0.12.4
+
+### Patch Changes
+
+- 93910bd: Rename .tsx files to .ts where no JSX syntax is used
+- Updated dependencies [5bbe8a9]
+- Updated dependencies [5e304ea]
+- Updated dependencies [546c053]
+- Updated dependencies [a7039e3]
+- Updated dependencies [16c10fd]
+- Updated dependencies [98c3d54]
+- Updated dependencies [b181803]
+- Updated dependencies [7836760]
+- Updated dependencies [9276547]
+- Updated dependencies [b65428e]
+- Updated dependencies [af5b085]
+- Updated dependencies [61b54e9]
+- Updated dependencies [a094c45]
+- Updated dependencies [4d7f712]
+- Updated dependencies [ecc29ec]
+- Updated dependencies [6e97999]
+- Updated dependencies [a247fc9]
+- Updated dependencies [f414af9]
+- Updated dependencies [b48912c]
+- Updated dependencies [93910bd]
+- Updated dependencies [58a8472]
+  - @assistant-ui/react@0.12.11
+
+## 0.12.3
+
+### Patch Changes
+
+- a088518: chore: update dependencies
+- Updated dependencies [a088518]
+- Updated dependencies [d8122cc]
+  - @assistant-ui/react@0.12.9
+
+## 0.12.2
+
+### Patch Changes
+
+- d45b893: chore: update dependencies
+- Updated dependencies [d45b893]
+- Updated dependencies [fe71bfc]
+  - @assistant-ui/react@0.12.5
+
+## 0.12.1
+
+### Patch Changes
+
+- 605d825: chore: update dependencies
+- Updated dependencies [1ea3e28]
+- Updated dependencies [8cbf686]
+- Updated dependencies [a8be364]
+- Updated dependencies [605d825]
+  - @assistant-ui/react@0.12.2
+
 ## 0.11.12
 
 ### Patch Changes

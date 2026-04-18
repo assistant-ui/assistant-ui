@@ -10,12 +10,16 @@
     "cssVariables": true,
     "prefix": ""
   },
+  "iconLibrary": "lucide",
   "aliases": {
     "components": "@/components",
     "utils": "@/lib/utils",
-    "ui": "@/components/ui",
+    "ui": "@assistant-ui/ui/components/ui",
     "lib": "@/lib",
     "hooks": "@/hooks"
   },
-  "iconLibrary": "lucide"
+  "registries": {
+    "@assistant-ui": "https://r.assistant-ui.com/{name}.json",
+    "@tool-ui": "https://tool-ui.com/r/{name}.json"
+  }
 }

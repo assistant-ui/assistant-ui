@@ -1,0 +1,61 @@
+---
+title: SelectionToolbarPrimitive
+description: A floating toolbar that appears when text is selected within a message.
+---
+
+A floating toolbar that appears near the user's text selection within a message. Used to provide contextual actions like quoting selected text.
+
+## Anatomy
+
+```tsx
+import { SelectionToolbarPrimitive } from "@assistant-ui/react";
+
+const FloatingSelectionToolbar = () => (
+  <SelectionToolbarPrimitive.Root>
+    <SelectionToolbarPrimitive.Quote>Quote</SelectionToolbarPrimitive.Quote>
+  </SelectionToolbarPrimitive.Root>
+);
+```
+
+Place this component inside `ThreadPrimitive.Root`:
+
+```tsx
+<ThreadPrimitive.Root>
+  <ThreadPrimitive.Viewport>...</ThreadPrimitive.Viewport>
+  <FloatingSelectionToolbar />
+</ThreadPrimitive.Root>
+```
+
+## API Reference
+
+### Root
+
+A floating container that renders as a portal positioned above the text selection. Only renders when there is a valid text selection within a single message.
+
+This primitive renders a `<div>` element.
+
+**Behavior:**
+
+- Listens for `mouseup` and `keyup` events to detect completed selections
+- Validates the selection is within a single message using `data-message-id` attributes
+- Renders a portal with `position: fixed`, centered above the selection
+- Prevents `mousedown` from clearing the text selection when clicking the toolbar
+- Hides automatically on scroll or when the selection is cleared
+- Cross-message selections are ignored
+
+### Quote
+
+A button that captures the currently selected text and sets it as a quote in the thread composer.
+
+This primitive renders a `<button>` element.
+
+**Behavior:**
+
+- Reads selection info from the Root context (not `window.getSelection()`)
+- Calls `composer.setQuote({ text, messageId })` on the thread composer
+- Clears the text selection after quoting
+- Disabled when no selection info is available
+
+<Callout type="info">
+See the [Quoting guide](/docs/guides/quoting) for a complete walkthrough including composer preview, sent message display, and backend handling.
+</Callout>

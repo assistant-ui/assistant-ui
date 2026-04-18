@@ -1,18 +1,54 @@
 import { createMDX } from "fumadocs-mdx/next";
-import { NextConfig } from "next";
+import type { NextConfig } from "next";
+
+const isDev = process.env.NODE_ENV === "development";
+
+const cspHeader = `
+    default-src 'self';
+    connect-src *;
+    frame-src *;
+    script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""};
+    style-src 'self' 'unsafe-inline';
+    img-src * blob: data:;
+    font-src 'self';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+    frame-ancestors 'none';
+    upgrade-insecure-requests;
+`;
 
 const config: NextConfig = {
   transpilePackages: ["@assistant-ui/*", "shiki"],
-  serverExternalPackages: ["twoslash"],
-  redirects: async () => [
+  serverExternalPackages: ["twoslash", "just-bash"],
+  skipTrailingSlashRedirect: true,
+  headers: async () => [
     {
-      source: "/docs/getting-started",
-      destination: "/docs",
-      permanent: true,
+      source: "/(.*)",
+      headers: [
+        {
+          key: "Content-Security-Policy",
+          value: cspHeader.replace(/\n/g, ""),
+        },
+      ],
     },
   ],
   rewrites: async () => ({
     beforeFiles: [
+      {
+        source: "/",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+        ],
+        destination: "/llms.txt",
+      },
+      {
+        source: "/docs/:path*",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+        ],
+        destination: "/llms.mdx/:path*",
+      },
       {
         source: "/umami/:path*",
         destination: "https://assistant-ui-umami.vercel.app/:path*",
@@ -20,6 +56,18 @@ const config: NextConfig = {
       {
         source: "/docs/:path*.mdx",
         destination: "/llms.mdx/:path*",
+      },
+      {
+        source: "/blog/:path.md",
+        destination: "/blog/llms.md/:path",
+      },
+      {
+        source: "/ph/static/:path*",
+        destination: "https://us-assets.i.posthog.com/static/:path*",
+      },
+      {
+        source: "/ph/:path*",
+        destination: "https://us.i.posthog.com/:path*",
       },
     ],
     fallback: [

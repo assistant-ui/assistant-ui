@@ -1,6 +1,7 @@
 export {
   parsePartialJsonObject,
   getPartialJsonObjectFieldState,
+  getPartialJsonObjectMeta,
 } from "./utils/json/parse-partial-json-object";
 export {
   type AsyncIterableStream,

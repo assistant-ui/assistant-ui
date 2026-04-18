@@ -1,5 +1,5 @@
-import { AppendMessage } from "@assistant-ui/react";
-import {
+import type { AppendMessage } from "@assistant-ui/core";
+import type {
   CreateUIMessage,
   UIDataTypes,
   UIMessage,

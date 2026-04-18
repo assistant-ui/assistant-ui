@@ -1,8 +1,12 @@
 "use client";
 
-import { Primitive } from "@radix-ui/react-primitive";
-import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
-import { useAssistantState } from "../../context";
+import { Primitive } from "../../utils/Primitive";
+import {
+  type ComponentRef,
+  forwardRef,
+  type ComponentPropsWithoutRef,
+} from "react";
+import { useAuiState } from "@assistant-ui/store";
 
 export namespace ComposerPrimitiveDictationTranscript {
   export type Element = ComponentRef<typeof Primitive.span>;
@@ -28,9 +32,7 @@ export const ComposerPrimitiveDictationTranscript = forwardRef<
   ComposerPrimitiveDictationTranscript.Element,
   ComposerPrimitiveDictationTranscript.Props
 >(({ children, ...props }, forwardRef) => {
-  const transcript = useAssistantState(
-    ({ composer }) => composer.dictation?.transcript,
-  );
+  const transcript = useAuiState((s) => s.composer.dictation?.transcript);
 
   if (!transcript) return null;
 
