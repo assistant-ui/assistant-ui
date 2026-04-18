@@ -249,12 +249,13 @@ export class RemoteThreadListThreadListRuntimeCore
       };
 
       const newThreadIds =
-        remoteMetadata.status === "regular"
+        remoteMetadata.status === "regular" &&
+        !state.threadIds.includes(remoteMetadata.remoteId)
           ? [...state.threadIds, remoteMetadata.remoteId]
           : state.threadIds;
-
       const newArchivedThreadIds =
-        remoteMetadata.status === "archived"
+        remoteMetadata.status === "archived" &&
+        !state.archivedThreadIds.includes(remoteMetadata.remoteId)
           ? [...state.archivedThreadIds, remoteMetadata.remoteId]
           : state.archivedThreadIds;
 
