@@ -3,6 +3,12 @@ import type {
   PendingAttachment,
   CompleteAttachment,
 } from "../types/attachment";
+import type {
+  ImageMessagePart,
+  ThreadMessage,
+  ThreadUserMessagePart,
+} from "../types/message";
+import { generateId } from "../utils/id";
 
 export type AttachmentAdapter = {
   accept: string;
@@ -131,6 +137,82 @@ export function fileMatchesAccept(
   }
 
   return false;
+}
+
+export function attachmentsEqual(
+  a: readonly CompleteAttachment[],
+  b: readonly CompleteAttachment[],
+): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((att, i) => att.id === b[i]!.id);
+}
+
+type NonTextUserMessagePart = Exclude<ThreadUserMessagePart, { type: "text" }>;
+
+const isImagePart = (part: NonTextUserMessagePart): part is ImageMessagePart =>
+  part.type === "image";
+
+export function partToCompleteAttachment(
+  part: NonTextUserMessagePart,
+): CompleteAttachment {
+  const id = generateId();
+
+  if (isImagePart(part)) {
+    return {
+      id,
+      type: "image",
+      name: part.filename ?? "image",
+      content: [part],
+      status: { type: "complete" },
+    };
+  }
+
+  if (part.type === "file") {
+    return {
+      id,
+      type: "document",
+      name: part.filename ?? "document",
+      contentType: part.mimeType,
+      content: [part],
+      status: { type: "complete" },
+    };
+  }
+
+  if (part.type === "audio") {
+    return {
+      id,
+      type: "audio",
+      name: `audio.${part.audio.format}`,
+      contentType: `audio/${part.audio.format}`,
+      content: [part],
+      status: { type: "complete" },
+    };
+  }
+
+  return {
+    id,
+    type: "data",
+    name: part.name,
+    content: [part],
+    status: { type: "complete" },
+  };
+}
+
+export function liftNonTextParts(
+  content: ThreadMessage["content"],
+): CompleteAttachment[] {
+  const result: CompleteAttachment[] = [];
+  for (const part of content) {
+    if (
+      part.type === "image" ||
+      part.type === "file" ||
+      part.type === "data" ||
+      part.type === "audio"
+    ) {
+      result.push(partToCompleteAttachment(part));
+    }
+  }
+  return result;
 }
 
 export class CompositeAttachmentAdapter implements AttachmentAdapter {
