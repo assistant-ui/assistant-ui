@@ -6,7 +6,7 @@ import { DataMessagePartComponent } from "../types/MessagePartComponentTypes";
 export const DataRenderers = resource((): ClientOutput<"dataRenderers"> => {
   const [state, setState] = tapState<DataRenderersState>(() => ({
     renderers: {},
-    fallback: undefined,
+    fallbacks: [],
   }));
 
   const setDataUI = tapCallback(
@@ -37,11 +37,16 @@ export const DataRenderers = resource((): ClientOutput<"dataRenderers"> => {
   );
 
   const setFallbackDataUI = tapCallback((render: DataMessagePartComponent) => {
-    setState((prev) => ({ ...prev, fallback: render }));
+    setState((prev) => ({
+      ...prev,
+      fallbacks: [...prev.fallbacks, render],
+    }));
+
     return () => {
-      setState((prev) =>
-        prev.fallback === render ? { ...prev, fallback: undefined } : prev,
-      );
+      setState((prev) => ({
+        ...prev,
+        fallbacks: prev.fallbacks.filter((r) => r !== render),
+      }));
     };
   }, []);
 

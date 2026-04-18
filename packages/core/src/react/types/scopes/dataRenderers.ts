@@ -3,7 +3,7 @@ import type { Unsubscribe } from "../../..";
 
 export type DataRenderersState = {
   renderers: Record<string, DataMessagePartComponent[]>;
-  fallback: DataMessagePartComponent | undefined;
+  fallbacks: DataMessagePartComponent[];
 };
 
 export type DataRenderersMethods = {

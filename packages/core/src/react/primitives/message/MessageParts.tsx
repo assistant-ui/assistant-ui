@@ -32,6 +32,7 @@ import type {
   QuoteMessagePartComponent,
 } from "../../types/MessagePartComponentTypes";
 import type { MessagePartStatus } from "../../../types/message";
+import type { DataRenderersState } from "../../types/scopes/dataRenderers";
 import { useShallow } from "zustand/shallow";
 
 type MessagePartRange =
@@ -284,17 +285,31 @@ const ToolUIDisplay = ({
   return <Render {...props} />;
 };
 
+/**
+ * Resolve the data renderer component for `name`:
+ * 1. first globally-registered named renderer (via `setDataUI`)
+ * 2. first globally-registered fallback (via `setFallbackDataUI`)
+ * 3. inline `Fallback` passed by the caller
+ */
+const getDataRenderer = (
+  dataRenderers: DataRenderersState,
+  name: string,
+  inlineFallback: DataMessagePartComponent | undefined,
+): DataMessagePartComponent | undefined => {
+  const named = dataRenderers.renderers[name]?.[0];
+  if (named) return named;
+  return dataRenderers.fallbacks[0] ?? inlineFallback;
+};
+
 const DataUIDisplay = ({
   Fallback,
   ...props
 }: {
   Fallback: DataMessagePartComponent | undefined;
 } & DataMessagePartProps) => {
-  const Render = useAuiState((s) => {
-    const entry = s.dataRenderers.renderers[props.name];
-    if (Array.isArray(entry) && entry[0]) return entry[0];
-    return s.dataRenderers.fallback ?? Fallback;
-  });
+  const Render = useAuiState((s) =>
+    getDataRenderer(s.dataRenderers, props.name, Fallback),
+  );
   if (!Render) return null;
   return <Render {...props} />;
 };
@@ -522,12 +537,11 @@ const RegisteredToolUI: FC = () => {
  */
 const RegisteredDataRendererUI: FC = () => {
   const part = useAuiState((s) => s.part);
-  const Render = useAuiState((s) => {
-    if (s.part.type !== "data") return null;
-    const entry = s.dataRenderers.renderers[s.part.name];
-    if (Array.isArray(entry) && entry[0]) return entry[0];
-    return s.dataRenderers.fallback ?? null;
-  });
+  const Render = useAuiState((s) =>
+    s.part.type === "data"
+      ? (getDataRenderer(s.dataRenderers, s.part.name, undefined) ?? null)
+      : null,
+  );
 
   if (!Render || part.type !== "data") return null;
 
@@ -574,7 +588,7 @@ export type EnrichedPartState =
       resume: ToolCallMessagePartProps["resume"];
     })
   | (Extract<PartState, { type: "data" }> & {
-      /** The registered data renderer UI element. Renders nothing when no renderer is registered. */
+      /** The registered data renderer UI element, or null if none registered. */
       readonly dataRendererUI: ReactNode;
     })
   | Exclude<PartState, { type: "tool-call" } | { type: "data" }>;
@@ -584,6 +598,10 @@ const MessagePrimitivePartsInner: FC<{
 }> = ({ children }) => {
   const aui = useAui();
   const contentLength = useAuiState((s) => s.message.parts.length);
+  // Subscribe so late registrations (e.g. LangSmith's LoadExternalComponent
+  // loaded after the message first renders) trigger a re-render and the
+  // `hasUI` check below sees the new state.
+  const dataRenderers = useAuiState((s) => s.dataRenderers);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: aui accessors are stable refs
   return useMemo(
@@ -609,9 +627,14 @@ const MessagePrimitivePartsInner: FC<{
                     };
                   }
                   if (state.type === "data") {
+                    const hasUI =
+                      getDataRenderer(dataRenderers, state.name, undefined) !==
+                      undefined;
                     return {
                       ...state,
-                      dataRendererUI: <RegisteredDataRendererUI />,
+                      dataRendererUI: hasUI ? (
+                        <RegisteredDataRendererUI />
+                      ) : null,
                     };
                   }
                   return state;
@@ -623,7 +646,7 @@ const MessagePrimitivePartsInner: FC<{
           </RenderChildrenWithAccessor>
         </PartByIndexProvider>
       )),
-    [contentLength, children],
+    [contentLength, children, dataRenderers],
   );
 };
 
