@@ -58,6 +58,7 @@ export type ThreadHistoryAdapter = {
     options: ChatModelRunOptions,
   ): AsyncGenerator<ChatModelRunResult, void, unknown>;
   append(item: ExportedMessageRepositoryItem): Promise<void>;
+  /** Required when used with `useAISDKRuntime` / `useChatRuntime`. */
   withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
   ): GenericThreadHistoryAdapter<TMessage>;

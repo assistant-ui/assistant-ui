@@ -181,9 +181,7 @@ const historyAdapter: ThreadHistoryAdapter = {
   },
   async append() {},
 
-  // Called once per thread; the returned object handles load / append.
-  // `fmt` is the ai-sdk/v6 format adapter: encode/decode between UIMessage
-  // and a serializable storage row.
+  // `fmt` encodes UIMessage ↔ storage rows (ai-sdk/v6 format).
   withFormat: (fmt) => ({
     async load() {
       const rows = await fetch("/api/history").then((r) => r.json());
