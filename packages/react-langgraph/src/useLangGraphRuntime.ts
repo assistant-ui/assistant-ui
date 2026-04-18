@@ -320,23 +320,26 @@ const useLangGraphRuntimeImpl = ({
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
 
-  // Reconcile uiComponents against the data renderers registry by identity.
-  // Using refs (instead of `useEffect` deps on inline `uiComponents`) so callers
-  // can pass inline objects without re-registering every render.
+  // Ref-based reconcile so inline `uiComponents` objects don't re-register
+  // every render via `useEffect` dependency identity.
   const uiFallback = uiComponents?.fallback;
   const uiRenderers = uiComponents?.renderers;
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const registeredRenderersRef = useRef<Map<string, DataMessagePartComponent>>(
     new Map(),
   );
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const rendererCleanupsRef = useRef<Map<string, () => void>>(new Map());
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const fallbackRef = useRef<DataMessagePartComponent | undefined>(undefined);
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const fallbackCleanupRef = useRef<(() => void) | undefined>(undefined);
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   useEffect(() => {
     const registered = registeredRenderersRef.current;
     const cleanups = rendererCleanupsRef.current;
 
-    // Drop renderers that changed identity or are no longer provided.
     for (const [name, prev] of registered) {
       if (uiRenderers?.[name] !== prev) {
         cleanups.get(name)?.();
@@ -344,7 +347,6 @@ const useLangGraphRuntimeImpl = ({
         registered.delete(name);
       }
     }
-    // Register renderers that are new or changed.
     if (uiRenderers) {
       for (const [name, component] of Object.entries(uiRenderers)) {
         if (component && registered.get(name) !== component) {
@@ -354,8 +356,6 @@ const useLangGraphRuntimeImpl = ({
       }
     }
 
-    // Only one fallback is registered through this hook (even though the core
-    // registry supports stacking via multiple providers); reconcile by identity.
     if (uiFallback !== fallbackRef.current) {
       fallbackCleanupRef.current?.();
       fallbackCleanupRef.current = uiFallback
@@ -365,6 +365,7 @@ const useLangGraphRuntimeImpl = ({
     }
   });
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   useEffect(() => {
     const cleanups = rendererCleanupsRef.current;
     const registered = registeredRenderersRef.current;
