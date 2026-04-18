@@ -166,7 +166,7 @@ export default function ChatPage() {
               name: "history",
               type: "ThreadHistoryAdapter",
               description:
-                "Adapter for loading and saving thread history. Used to restore previous messages when switching threads.",
+                "Adapter for loading and saving thread history. Used to restore previous messages when switching threads. The adapter must implement `withFormat` when used with AI SDK — see [Persisting Chat History](/docs/runtimes/ai-sdk/v6#persisting-chat-history).",
             },
           ],
         },

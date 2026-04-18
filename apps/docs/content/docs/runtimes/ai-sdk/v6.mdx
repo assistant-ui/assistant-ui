@@ -154,6 +154,65 @@ export function TokenCounter() {
   </Step>
 </Steps>
 
+## Persisting Chat History
+
+By default, messages live only in memory and reset on reload. To persist and restore history per thread, provide a `ThreadHistoryAdapter` via `adapters.history`.
+
+<Callout type="warn">
+  The adapter **must** implement `withFormat`. `useChatRuntime` persists history through `withFormat(fmt)` so messages round-trip as AI SDK `UIMessage` objects. An adapter without `withFormat` throws at runtime — `load` / `append` on the top level are unused in the AI SDK path.
+</Callout>
+
+<Callout type="info">
+  For server-side cloud persistence with zero adapter code, see the [AssistantCloud integration](/docs/cloud/ai-sdk-assistant-ui).
+</Callout>
+
+### Example
+
+```tsx
+"use client";
+
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import type { ThreadHistoryAdapter } from "@assistant-ui/react";
+
+const historyAdapter: ThreadHistoryAdapter = {
+  // Required by the type — unused by useChatRuntime.
+  async load() {
+    return { headId: null, messages: [] };
+  },
+  async append() {},
+
+  // Called once per thread; the returned object handles load / append.
+  // `fmt` is the ai-sdk/v6 format adapter: encode/decode between UIMessage
+  // and a serializable storage row.
+  withFormat: (fmt) => ({
+    async load() {
+      const rows = await fetch("/api/history").then((r) => r.json());
+      return { messages: rows.map(fmt.decode) };
+    },
+    async append(item) {
+      await fetch("/api/history", {
+        method: "POST",
+        body: JSON.stringify({
+          id: fmt.getId(item.message),
+          parent_id: item.parentId,
+          format: fmt.format,
+          content: fmt.encode(item),
+        }),
+      });
+    },
+  }),
+};
+
+function Chat() {
+  const runtime = useChatRuntime({
+    adapters: { history: historyAdapter },
+  });
+  // ...
+}
+```
+
+Each persisted row follows `{ id, parent_id, format, content }`; `fmt.encode` produces the `content` payload and `fmt.decode` reverses it, so your backend never needs to know about `UIMessage` internals.
+
 ## Key Changes from v5
 
 | Feature | v5 | v6 |
