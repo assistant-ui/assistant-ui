@@ -117,6 +117,8 @@ export const useExternalHistory = <TMessage>(
   const toolCallCountRef = useRef(0);
 
   useEffect(() => {
+    if (!formatAdapter) return;
+
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
       const { isRunning } = runtimeRef.current.thread.getState();
       const wasRunning = wasRunningRef.current;
@@ -243,7 +245,7 @@ export const useExternalHistory = <TMessage>(
               let parentId = lastInnerMessageId;
               for (const innerMessage of innerMessages) {
                 try {
-                  await formatAdapter?.update?.(
+                  await formatAdapter.update?.(
                     { parentId, message: innerMessage },
                     storageFormatAdapter.getId(innerMessage),
                   );
@@ -261,13 +263,13 @@ export const useExternalHistory = <TMessage>(
 
           const batchItems = toBatchItems(innerMessages);
           for (const item of batchItems) {
-            await formatAdapter?.append(item);
+            await formatAdapter.append(item);
           }
 
           lastInnerMessageId =
             getLastInnerId(innerMessages) ?? lastInnerMessageId;
 
-          formatAdapter?.reportTelemetry?.(batchItems, telemetryOptions);
+          formatAdapter.reportTelemetry?.(batchItems, telemetryOptions);
         }
       }, 0);
     });
