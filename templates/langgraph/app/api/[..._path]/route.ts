@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 export const runtime = "edge";
 
@@ -24,8 +24,9 @@ async function handleRequest(req: NextRequest, method: string) {
     const options: RequestInit = {
       method,
       headers: {
-        "x-api-key": process.env["LANGCHAIN_API_KEY"] || "",
+        "x-api-key": process.env.LANGCHAIN_API_KEY || "",
       },
+      signal: req.signal,
     };
 
     if (["POST", "PUT", "PATCH"].includes(method)) {
@@ -33,21 +34,33 @@ async function handleRequest(req: NextRequest, method: string) {
     }
 
     const res = await fetch(
-      `${process.env["LANGGRAPH_API_URL"]}/${path}${queryString}`,
+      `${process.env.LANGGRAPH_API_URL}/${path}${queryString}`,
       options,
     );
+
+    const headers = new Headers(res.headers);
+    headers.delete("content-encoding");
+    headers.delete("content-length");
+    headers.delete("transfer-encoding");
+    const corsHeaders = getCorsHeaders();
+    for (const [key, value] of Object.entries(corsHeaders)) {
+      headers.set(key, value);
+    }
 
     return new NextResponse(res.body, {
       status: res.status,
       statusText: res.statusText,
-      headers: {
-        ...res.headers,
-        ...getCorsHeaders(),
-      },
+      headers,
     });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: e.status ?? 500 });
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      const typedError = e as Error & { status?: number };
+      return NextResponse.json(
+        { error: typedError.message },
+        { status: typedError.status ?? 500 },
+      );
+    }
+    return NextResponse.json({ error: "Unknown error" }, { status: 500 });
   }
 }
 
@@ -56,13 +69,8 @@ export const POST = (req: NextRequest) => handleRequest(req, "POST");
 export const PUT = (req: NextRequest) => handleRequest(req, "PUT");
 export const PATCH = (req: NextRequest) => handleRequest(req, "PATCH");
 export const DELETE = (req: NextRequest) => handleRequest(req, "DELETE");
-
-// Add a new OPTIONS handler
-export const OPTIONS = () => {
-  return new NextResponse(null, {
+export const OPTIONS = () =>
+  new NextResponse(null, {
     status: 204,
-    headers: {
-      ...getCorsHeaders(),
-    },
+    headers: getCorsHeaders(),
   });
-};

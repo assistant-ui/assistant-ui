@@ -1,4 +1,4 @@
-This is the [assistant-ui](https://github.com/Yonom/assistant-ui) starter project with [Assistant Cloud](https://cloud.assistant-ui.com) integration.
+This is the [assistant-ui](https://github.com/assistant-ui/assistant-ui) starter project with [Assistant Cloud](https://cloud.assistant-ui.com) integration.
 
 ## Getting Started
 
@@ -22,8 +22,6 @@ OPENAI_API_KEY=your-openai-api-key
 NEXT_PUBLIC_ASSISTANT_BASE_URL=your-assistant-cloud-url
 ASSISTANT_API_KEY=your-assistant-cloud-api-key
 ```
-
-> **Note**: You can copy `.env.example` to `.env.local` and fill in your values.
 
 ### 3. Install Dependencies
 
@@ -60,4 +58,4 @@ You can start customizing the UI by modifying components in the `components/assi
 - `app/assistant.tsx` - Renders the chat interface and sets up the runtime provider with Assistant Cloud
 - `app/api/chat/route.ts` - Chat API endpoint
 - `components/assistant-ui/thread.tsx` - Chat thread component
-- `components/app-sidebar.tsx` - Sidebar with thread list
+- `components/assistant-ui/threadlist-sidebar.tsx` - Sidebar with thread list

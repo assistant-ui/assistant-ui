@@ -135,4 +135,47 @@ describe("CloudTelemetryReporter", () => {
 
     expect(reportMock).toHaveBeenCalledTimes(2);
   });
+
+  it("passes sampling_calls through to the report", async () => {
+    const { cloud, reportMock } = createCloud();
+    const reporter = new CloudTelemetryReporter(cloud);
+
+    const messages: UIMessage[] = [
+      {
+        id: "m-1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            toolName: "delegate",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { task: "summarize" },
+            output: { result: "done" },
+          } as unknown as UIMessage["parts"][number],
+          { type: "text", text: "result" },
+        ],
+        metadata: {
+          samplingCalls: {
+            "tc-1": [
+              {
+                model_id: "gemini-2.5-flash",
+                input_tokens: 100,
+                output_tokens: 50,
+              },
+            ],
+          },
+        },
+      } as UIMessage,
+    ];
+
+    await reporter.reportFromMessages("thread-1", messages);
+
+    expect(reportMock).toHaveBeenCalledOnce();
+    const payload = reportMock.mock.calls[0]![0]!;
+    expect(payload.tool_calls).toHaveLength(1);
+    expect(payload.tool_calls[0].sampling_calls).toEqual([
+      { model_id: "gemini-2.5-flash", input_tokens: 100, output_tokens: 50 },
+    ]);
+  });
 });

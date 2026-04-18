@@ -73,8 +73,8 @@ const MessageActions = () => {
     <button
       onClick={() => {
         // resolves at click time — always gets the current scope
-        aui.message().markAsRead();
-        aui.thread().deleteMessage(messageId);
+        aui.message().reload();
+        aui.thread().cancelRun();
       }}
     />
   );

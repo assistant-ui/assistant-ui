@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/react-a2a",
-  "version": "0.2.5",
-  "description": "A2A protocol adapter for assistant-ui",
+  "version": "0.2.11",
+  "description": "A2A (Agent-to-Agent) v1.0 protocol adapter for assistant-ui",
   "keywords": [
     "a2a",
     "agent-to-agent",
@@ -16,7 +16,6 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -30,14 +29,15 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build"
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.4",
-    "uuid": "^13.0.0"
+    "@assistant-ui/core": "^0.1.14",
+    "@assistant-ui/store": "^0.2.7"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.16",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
@@ -47,11 +47,10 @@
     }
   },
   "devDependencies": {
-    "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.14",
-    "@types/uuid": "^11.0.0",
-    "react": "^19.2.4"
+    "react": "^19.2.5",
+    "vitest": "^4.1.4"
   },
   "publishConfig": {
     "access": "public",

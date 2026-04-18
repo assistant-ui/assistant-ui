@@ -1,17 +1,17 @@
 "use client";
 
+import { type ModelContext, tool } from "@assistant-ui/core";
+import type {} from "@assistant-ui/core/store";
 import {
-  type ModelContext,
-  tool,
   type ToolCallMessagePartComponent,
-  useAui,
   useAssistantToolUI,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core/react";
+import { useAui } from "@assistant-ui/store";
 import { useEffect } from "react";
 import {
   type FieldValues,
-  Path,
-  PathValue,
+  type Path,
+  type PathValue,
   type UseFormProps,
   type UseFormReturn,
   useForm,

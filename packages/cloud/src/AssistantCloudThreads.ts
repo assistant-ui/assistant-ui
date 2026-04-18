@@ -1,4 +1,4 @@
-import { AssistantCloudAPI } from "./AssistantCloudAPI";
+import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import { AssistantCloudThreadMessages } from "./AssistantCloudThreadMessages";
 
 type AssistantCloudThreadsListQuery = {

@@ -70,7 +70,7 @@ const MCP_CONFIGS: Record<
     name: "Zed",
     getPath: () => {
       if (process.platform === "win32") {
-        return path.join(process.env["APPDATA"] || "", "Zed", "settings.json");
+        return path.join(process.env.APPDATA || "", "Zed", "settings.json");
       }
       if (process.platform === "darwin") {
         return path.join(os.homedir(), ".zed", "settings.json");
@@ -94,7 +94,7 @@ const MCP_CONFIGS: Record<
     getPath: () => {
       if (process.platform === "win32") {
         return path.join(
-          process.env["APPDATA"] || "",
+          process.env.APPDATA || "",
           "Claude",
           "claude_desktop_config.json",
         );

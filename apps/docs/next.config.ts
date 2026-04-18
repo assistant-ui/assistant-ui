@@ -1,5 +1,5 @@
 import { createMDX } from "fumadocs-mdx/next";
-import { NextConfig } from "next";
+import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -20,7 +20,7 @@ const cspHeader = `
 
 const config: NextConfig = {
   transpilePackages: ["@assistant-ui/*", "shiki"],
-  serverExternalPackages: ["twoslash"],
+  serverExternalPackages: ["twoslash", "just-bash"],
   skipTrailingSlashRedirect: true,
   headers: async () => [
     {
@@ -56,6 +56,10 @@ const config: NextConfig = {
       {
         source: "/docs/:path*.mdx",
         destination: "/llms.mdx/:path*",
+      },
+      {
+        source: "/blog/:path.md",
+        destination: "/blog/llms.md/:path",
       },
       {
         source: "/ph/static/:path*",

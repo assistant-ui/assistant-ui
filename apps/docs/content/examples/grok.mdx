@@ -34,6 +34,7 @@ The Grok clone uses clean minimalism with smooth animations:
 
 ```tsx
 import {
+  AuiIf,
   ThreadPrimitive,
   ComposerPrimitive,
   useAuiState,
@@ -50,7 +51,9 @@ export const Grok = () => {
       </AuiIf>
 
       <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">
-        <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+        <ThreadPrimitive.Messages>
+          {() => <ChatMessage />}
+        </ThreadPrimitive.Messages>
       </ThreadPrimitive.Viewport>
       <Composer />
     </ThreadPrimitive.Root>

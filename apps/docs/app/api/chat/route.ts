@@ -1,7 +1,8 @@
 import { getDistinctId, posthogServer } from "@/lib/posthog-server";
 import { createPrismTracer } from "@/lib/prism-server";
-import { injectQuoteContext } from "@/lib/quote";
+import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { prismAISDK } from "@aui-x/prism";
@@ -40,7 +41,23 @@ export async function POST(req: Request) {
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = await req.json();
-    const { messages, tools, config } = body;
+    const { messages, system: rawSystem, tools, config } = body;
+
+    // Basic validation: only accept short system prompts to limit abuse surface
+    const MAX_SYSTEM_LENGTH = 4000;
+    const system =
+      typeof rawSystem === "string" && rawSystem.length <= MAX_SYSTEM_LENGTH
+        ? rawSystem
+        : undefined;
+
+    const inputError = validateGeneralChatInput(messages);
+    if (inputError) {
+      const cors = corsHeaders(req);
+      for (const [key, value] of Object.entries(cors)) {
+        inputError.headers.set(key, value);
+      }
+      return inputError;
+    }
 
     const baseModel = getModel(config?.modelName);
     const distinctId = getDistinctId(req);
@@ -71,8 +88,9 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model: prism?.model ?? posthogModel,
+      ...(system ? { system } : {}),
       messages: prunedMessages,
-      maxOutputTokens: 15000,
+      maxOutputTokens: 4096,
       stopWhen: stepCountIs(10),
       tools: frontendTools(tools),
       onFinish: async () => {

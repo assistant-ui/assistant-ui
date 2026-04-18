@@ -1,7 +1,7 @@
-import { AssistantStreamChunk } from "../AssistantStreamChunk";
+import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { generateId } from "../utils/generateId";
 import { parsePartialJsonObject } from "../../utils/json/parse-partial-json-object";
-import {
+import type {
   AssistantMessage,
   AssistantMessageStatus,
   AssistantMessageTiming,
@@ -11,9 +11,10 @@ import {
   AssistantMessagePart,
   ReasoningPart,
   FilePart,
+  DataPart,
 } from "../utils/types";
 import { ObjectStreamAccumulator } from "../object/ObjectStreamAccumulator";
-import { ReadonlyJSONValue } from "../../utils";
+import type { ReadonlyJSONValue } from "../../utils";
 import { TimingTracker } from "./TimingTracker";
 
 export const createInitialMessage = ({
@@ -121,10 +122,25 @@ const handlePartStart = (
       type: "file",
       mimeType: partInit.mimeType,
       data: partInit.data,
+      ...(partInit.parentId && { parentId: partInit.parentId }),
     };
     return {
       ...message,
       parts: [...message.parts, newFilePart],
+      get content() {
+        return this.parts;
+      },
+    };
+  } else if (partInit.type === "data") {
+    const newDataPart: DataPart = {
+      type: "data",
+      name: partInit.name,
+      data: partInit.data,
+      ...(partInit.parentId && { parentId: partInit.parentId }),
+    };
+    return {
+      ...message,
+      parts: [...message.parts, newDataPart],
       get content() {
         return this.parts;
       },
@@ -200,6 +216,7 @@ const handleResult = (
         ...(chunk.artifact !== undefined ? { artifact: chunk.artifact } : {}),
         result: chunk.result,
         isError: chunk.isError ?? false,
+        ...(chunk.messages !== undefined ? { messages: chunk.messages } : {}),
         status: { type: "complete", reason: "stop" },
       };
     } else {

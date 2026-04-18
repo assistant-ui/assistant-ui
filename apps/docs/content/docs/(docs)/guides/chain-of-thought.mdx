@@ -47,9 +47,13 @@ const ChainOfThought: FC = () => {
         Thinking
       </ChainOfThoughtPrimitive.AccordionTrigger>
       <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
-        <ChainOfThoughtPrimitive.Parts
-          components={{ Reasoning, tools: { Fallback: ToolFallback } }}
-        />
+        <ChainOfThoughtPrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "reasoning") return <Reasoning {...part} />;
+            if (part.type === "tool-call") return <ToolFallback {...part} />;
+            return null;
+          }}
+        </ChainOfThoughtPrimitive.Parts>
       </AuiIf>
     </ChainOfThoughtPrimitive.Root>
   );
@@ -58,12 +62,12 @@ const ChainOfThought: FC = () => {
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root>
-      <MessagePrimitive.Parts
-        components={{
-          Text: MarkdownText,
-          ChainOfThought, // groups reasoning + tool parts
+      <MessagePrimitive.Parts>
+        {({ part }) => {
+          if (part.type === "text") return <MarkdownText />;
+          return null;
         }}
-      />
+      </MessagePrimitive.Parts>
     </MessagePrimitive.Root>
   );
 };
@@ -111,15 +115,13 @@ Renders the grouped parts when expanded (nothing when collapsed).
 
 ```tsx
 <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
-  <ChainOfThoughtPrimitive.Parts
-    components={{
-      Reasoning,
-      tools: { Fallback: ToolFallback },
-      Layout: ({ children }) => (
-        <div className="border-l-2 border-muted pl-4">{children}</div>
-      ),
+  <ChainOfThoughtPrimitive.Parts>
+    {({ part }) => {
+      if (part.type === "reasoning") return <Reasoning {...part} />;
+      if (part.type === "tool-call") return <ToolFallback {...part} />;
+      return null;
     }}
-  />
+  </ChainOfThoughtPrimitive.Parts>
 </AuiIf>
 ```
 

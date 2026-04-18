@@ -1,9 +1,9 @@
-import type { Unsubscribe } from "../../types";
-import type { ModelContextProvider } from "../../model-context";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { ModelContextProvider } from "../../model-context/types";
 import type { AssistantRuntimeCore } from "../interfaces/assistant-runtime-core";
 import type { ThreadRuntime } from "./thread-runtime";
 import {
-  ThreadListRuntime,
+  type ThreadListRuntime,
   ThreadListRuntimeImpl,
 } from "./thread-list-runtime";
 import { ExportedMessageRepository } from "../utils/message-repository";

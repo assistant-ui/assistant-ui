@@ -4,14 +4,12 @@ import {
   type ComponentType,
   type FC,
   memo,
-  PropsWithChildren,
+  type PropsWithChildren,
   useMemo,
 } from "react";
 import { useAuiState, useAui } from "@assistant-ui/store";
-import {
-  PartByIndexProvider,
-  TextMessagePartProvider,
-} from "../../context/providers";
+import { PartByIndexProvider } from "../../context/providers/PartByIndexProvider";
+import { TextMessagePartProvider } from "../../context/providers/TextMessagePartProvider";
 import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 import type {
@@ -26,7 +24,7 @@ import type {
   ToolCallMessagePartProps,
   FileMessagePartComponent,
   ReasoningMessagePartComponent,
-} from "../../types";
+} from "@assistant-ui/core/react";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
 import type { MessagePartStatus } from "@assistant-ui/core";
 

@@ -120,11 +120,9 @@ const ThreadWelcome = () => {
     <div>
       <h1>How can I help you?</h1>
       <div className="grid grid-cols-2 gap-2">
-        <ThreadPrimitive.Suggestions
-          components={{
-            Suggestion: SuggestionCard,
-          }}
-        />
+        <ThreadPrimitive.Suggestions>
+          {() => <SuggestionCard />}
+        </ThreadPrimitive.Suggestions>
       </div>
     </div>
   );
@@ -149,4 +147,4 @@ const SuggestionCard = () => {
 ## See Also
 
 - [Suggestions Guide](/docs/guides/suggestions) - Configure and customize suggestions
-- [ThreadPrimitive.Suggestions](/docs/reference/api-reference/primitives/thread#threadprimitive-suggestions) - Render all suggestions
+- [ThreadPrimitive.Suggestions](/docs/api-reference/primitives/thread#threadprimitive-suggestions) - Render all suggestions

@@ -70,7 +70,7 @@ export function detectPlatformDetailed(): DetectionResult {
   }
 
   // ChatGPT-only extension surface. Useful for diagnostics, but *not* a host marker.
-  if ((window as unknown as Record<string, unknown>)["openai"]) {
+  if ((window as unknown as Record<string, unknown>).openai) {
     checks.windowOpenai = true;
     debugLog("detectPlatform: Found window.openai (extensions)");
   }
@@ -169,7 +169,7 @@ export function detectPlatform(): Platform {
  */
 export function hasChatGPTExtensions(): boolean {
   if (typeof window === "undefined") return false;
-  return Boolean((window as unknown as Record<string, unknown>)["openai"]);
+  return Boolean((window as unknown as Record<string, unknown>).openai);
 }
 
 /**

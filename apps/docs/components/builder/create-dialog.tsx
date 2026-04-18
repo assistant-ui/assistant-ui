@@ -87,6 +87,7 @@ export function CreateDialog({
                   <p className="text-muted-foreground">
                     Copy the code from the{" "}
                     <button
+                      type="button"
                       onClick={handleOpenCodeView}
                       className="text-foreground underline underline-offset-2 hover:text-foreground/80"
                     >
@@ -154,6 +155,7 @@ function CommandBlock({
           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center rounded-r-md bg-muted px-1">
             <div className="pointer-events-none absolute inset-y-0 -left-3 w-3 bg-gradient-to-r from-transparent to-muted" />
             <button
+              type="button"
               onClick={handleCopy}
               className="pointer-events-auto rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/10 hover:text-foreground group-hover:opacity-100"
               title="Copy command"

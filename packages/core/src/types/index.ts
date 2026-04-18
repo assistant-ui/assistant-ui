@@ -38,3 +38,13 @@ export type {
 export type { Unsubscribe } from "./unsubscribe";
 
 export type { QuoteInfo } from "./quote";
+
+export type {
+  Unstable_DirectiveSegment,
+  Unstable_DirectiveFormatter,
+} from "./directive";
+
+export type {
+  Unstable_TriggerItem,
+  Unstable_TriggerCategory,
+} from "./trigger";

@@ -20,14 +20,16 @@ import { ComposerPrimitive } from "@assistant-ui/react";
 // creating a new message
 const Composer = () => (
   <ComposerPrimitive.Root>
-    <ComposerPrimitive.Quote>
-      <ComposerPrimitive.QuoteText />
-      <ComposerPrimitive.QuoteDismiss />
-    </ComposerPrimitive.Quote>
-    <ComposerPrimitive.Attachments />
-    <ComposerPrimitive.AddAttachment />
-    <ComposerPrimitive.Input />
-    <ComposerPrimitive.Send />
+    <ComposerPrimitive.AttachmentDropzone>
+      <ComposerPrimitive.Quote>
+        <ComposerPrimitive.QuoteText />
+        <ComposerPrimitive.QuoteDismiss />
+      </ComposerPrimitive.Quote>
+      <ComposerPrimitive.Attachments />
+      <ComposerPrimitive.AddAttachment />
+      <ComposerPrimitive.Input />
+      <ComposerPrimitive.Send />
+    </ComposerPrimitive.AttachmentDropzone>
   </ComposerPrimitive.Root>
 );
 
@@ -44,12 +46,12 @@ const EditComposer = () => (
 const ComposerWithDictation = () => (
   <ComposerPrimitive.Root>
     <ComposerPrimitive.Input />
-    <ComposerPrimitive.If dictation={false}>
+    <AuiIf condition={(s) => s.composer.dictation == null}>
       <ComposerPrimitive.Dictate />
-    </ComposerPrimitive.If>
-    <ComposerPrimitive.If dictation>
+    </AuiIf>
+    <AuiIf condition={(s) => s.composer.dictation != null}>
       <ComposerPrimitive.StopDictation />
-    </ComposerPrimitive.If>
+    </AuiIf>
     <ComposerPrimitive.Send />
   </ComposerPrimitive.Root>
 );
@@ -59,7 +61,7 @@ const ComposerWithDictation = () => (
 
 ### Root
 
-Containts all parts of the composer.
+Contains all parts of the composer.
 
 This primitive renders a `<form>` element unless `asChild` is set.
 
@@ -90,6 +92,41 @@ This primitive renders a `<textarea>` element unless `asChild` is set.
       default: '"enter"',
       description:
         'Controls how the Enter key submits messages. "enter": plain Enter submits (Shift+Enter for newline). "ctrlEnter": Ctrl/Cmd+Enter submits (plain Enter for newline). "none": keyboard submission disabled.',
+    },
+    {
+      name: "cancelOnEscape",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to cancel message composition when Escape is pressed.",
+    },
+    {
+      name: "unstable_focusOnRunStart",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to automatically focus the input when a new run starts.",
+    },
+    {
+      name: "unstable_focusOnScrollToBottom",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to automatically focus the input when scrolling to bottom.",
+    },
+    {
+      name: "unstable_focusOnThreadSwitched",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to automatically focus the input when switching threads.",
+    },
+    {
+      name: "addAttachmentOnPaste",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to automatically add pasted files as attachments.",
     },
   ]}
 />
@@ -123,12 +160,6 @@ This primitive renders a `<button>` element unless `asChild` is set.
   parameters={[
     {
       name: "asChild",
-    },
-    {
-      name: "multiple",
-      type: "boolean | undefined",
-      description: "Allow selecting multiple attachments at the same time.",
-      default: "true",
     },
   ]}
 />
@@ -183,9 +214,9 @@ Renders attachments. This primitive renders a separate component for each attach
               description: "The component to render for each file attachment.",
             },
             {
-              name: "Fallback",
+              name: "Attachment",
               type: "ComponentType",
-              description: "The component to render for each attachment type.",
+              description: "The fallback component to render for each attachment type.",
             },
           ],
         },
@@ -236,6 +267,41 @@ This primitive renders a `<button>` element unless `asChild` is set.
   parameters={[
     {
       name: "asChild",
+    },
+    {
+      name: "multiple",
+      type: "boolean | undefined",
+      description: "Allow selecting multiple attachments at the same time.",
+      default: "true",
+    },
+  ]}
+/>
+
+### AttachmentDropzone
+
+A drag-and-drop zone that accepts file drops and adds them as attachments to the composer.
+
+When a file is dragged over the zone, a `data-dragging="true"` attribute is set on the element, which can be used for styling the active drag state.
+
+This primitive renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<ComposerPrimitive.AttachmentDropzone className="relative data-[dragging]:ring-2">
+  <ComposerPrimitive.Input />
+  <ComposerPrimitive.Send />
+</ComposerPrimitive.AttachmentDropzone>
+```
+
+<ParametersTable
+  type="ComposerPrimitiveAttachmentDropzoneProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+    {
+      name: "disabled",
+      type: "boolean | undefined",
+      description: "When true, drag-and-drop is disabled and files will not be added on drop.",
     },
   ]}
 />
@@ -289,11 +355,11 @@ This primitive renders a `<span>` element.
 
 ```tsx
 {/* Optional: Display interim transcript separately with custom styling */}
-<ComposerPrimitive.If dictation>
+<AuiIf condition={(s) => s.composer.dictation != null}>
   <div className="dictation-preview">
     <ComposerPrimitive.DictationTranscript className="italic text-muted" />
   </div>
-</ComposerPrimitive.If>
+</AuiIf>
 ```
 
 ### Quote
@@ -334,30 +400,255 @@ This primitive renders a `<button>` element unless `asChild` is set.
 See the [Quoting guide](/docs/guides/quoting) for a complete walkthrough including the floating selection toolbar and backend handling.
 </Callout>
 
-### If
+### Conditional Rendering
 
-Renders children if a condition is met.
-
-<ParametersTable
-  type="UseComposerIfProps"
-  parameters={[
-    {
-      name: "editing",
-      required: false,
-      type: "boolean | undefined",
-      description: "Render children if the message is being edited.",
-    },
-    {
-      name: "dictation",
-      required: false,
-      type: "boolean | undefined",
-      description: "Render children if dictation is active.",
-    },
-  ]}
-/>
+Use `AuiIf` for conditional rendering based on composer state:
 
 ```tsx
-<Composer.If editing>{/* rendered if message is being edited */}</Composer.If>
+import { AuiIf } from "@assistant-ui/react";
 
-<Composer.If dictation>{/* rendered if dictation is active */}</Composer.If>
+<AuiIf condition={(s) => s.composer.isEditing}>
+  {/* rendered if message is being edited */}
+</AuiIf>
+
+<AuiIf condition={(s) => s.composer.dictation != null}>
+  {/* rendered if dictation is active */}
+</AuiIf>
 ```
+
+## Trigger Popover Primitives (Unstable)
+
+<Callout type="warn">
+  These primitives are under the `Unstable_` prefix and may change without notice.
+</Callout>
+
+Unified primitives for any character-triggered popover (`@` mentions, `/` slash commands, `:` emoji, etc.). Multiple triggers coexist under a single `TriggerPopoverRoot`. See the [Mentions guide](/docs/guides/mentions) and [Slash Commands guide](/docs/guides/slash-commands) for full documentation and the [ComposerTriggerPopover component](/docs/ui/composer-trigger-popover) for a pre-built implementation.
+
+### Anatomy
+
+```tsx
+import { ComposerPrimitive } from "@assistant-ui/react";
+import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+
+const Composer = () => (
+  <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+    <ComposerPrimitive.Root>
+      <ComposerPrimitive.Input />
+
+      <ComposerPrimitive.Unstable_TriggerPopover
+        char="@"
+        adapter={mention.adapter}
+      >
+        <ComposerPrimitive.Unstable_TriggerPopover.Directive
+          {...mention.directive}
+        />
+        <ComposerPrimitive.Unstable_TriggerPopoverCategories>
+          {(categories) =>
+            categories.map((cat) => (
+              <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem
+                key={cat.id}
+                categoryId={cat.id}
+              >
+                {cat.label}
+              </ComposerPrimitive.Unstable_TriggerPopoverCategoryItem>
+            ))
+          }
+        </ComposerPrimitive.Unstable_TriggerPopoverCategories>
+        <ComposerPrimitive.Unstable_TriggerPopoverItems>
+          {(items) =>
+            items.map((item) => (
+              <ComposerPrimitive.Unstable_TriggerPopoverItem
+                key={item.id}
+                item={item}
+              >
+                {item.label}
+              </ComposerPrimitive.Unstable_TriggerPopoverItem>
+            ))
+          }
+        </ComposerPrimitive.Unstable_TriggerPopoverItems>
+        <ComposerPrimitive.Unstable_TriggerPopoverBack>
+          Back
+        </ComposerPrimitive.Unstable_TriggerPopoverBack>
+      </ComposerPrimitive.Unstable_TriggerPopover>
+    </ComposerPrimitive.Root>
+  </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+);
+```
+
+### Unstable_TriggerPopoverRoot
+
+Root provider that groups one or more `TriggerPopover` declarations. Owns the shared `ComposerInputPluginRegistry` that routes cursor and keyboard events to each registered trigger.
+
+No props.
+
+### Unstable_TriggerPopover
+
+Declares a trigger and renders its popover container. Only renders its DOM (and children) while this trigger is active in the composer input. Each declaration has an isolated scope — sub-primitives placed inside read state from this declaration only.
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `char` | `string` | — | Character(s) that activate the trigger (e.g. `"@"`, `"/"`) — unique within the root |
+| `adapter` | `Unstable_TriggerAdapter` | — | Provides categories, items, and search |
+
+Selection behavior is declared by rendering **exactly one** behavior sub-primitive inside the `TriggerPopover`:
+
+- [`Unstable_TriggerPopover.Directive`](#unstable_triggerpopoverdirective) — inserts `:type[label]{name=id}` into the composer on selection (mention behavior).
+- [`Unstable_TriggerPopover.Action`](#unstable_triggerpopoveraction) — fires `onExecute` on selection; leaves a directive chip as an audit trail by default.
+
+Renders a `<div>` with `role="listbox"` when open.
+
+### Unstable_TriggerPopover.Directive
+
+Behavior sub-primitive. Placed inside a `<Unstable_TriggerPopover>`. Renders nothing — registers an `"directive"` behavior with its parent. Exactly one behavior sub-primitive is allowed per `TriggerPopover`.
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `formatter` | `Unstable_DirectiveFormatter` | `unstable_defaultDirectiveFormatter` | Serializes the selected item into composer text (and parses it back). |
+| `onInserted` | `(item) => void` | — | Fires after the directive text has been inserted. |
+
+### Unstable_TriggerPopover.Action
+
+Behavior sub-primitive. Placed inside a `<Unstable_TriggerPopover>`. Renders nothing — registers an `"action"` behavior with its parent. Exactly one behavior sub-primitive is allowed per `TriggerPopover`.
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `formatter` | `Unstable_DirectiveFormatter` | `unstable_defaultDirectiveFormatter` | Serializes the audit-trail chip (unused when `removeOnExecute` is true). |
+| `onExecute` | `(item) => void` | — | Called the moment an item is selected — typically routes to a handler map. Required. |
+| `removeOnExecute` | `boolean` | `false` | When `true`, strips the trigger text from the composer instead of leaving a chip. |
+
+### Unstable_TriggerBehavior
+
+Union type returned by the two behavior sub-primitives and consumed internally by the popover resources. Exported for advanced use cases (e.g. custom sub-primitives).
+
+```ts
+import type { Unstable_TriggerBehavior } from "@assistant-ui/react";
+
+// Equivalent shape:
+// Unstable_TriggerBehavior =
+//   | { kind: "directive"; formatter: Unstable_DirectiveFormatter; onInserted?: (item) => void }
+//   | { kind: "action"; formatter: Unstable_DirectiveFormatter; onExecute: (item) => void; removeOnExecute?: boolean }
+```
+
+### Unstable_TriggerPopoverCategories
+
+Renders the top-level category list. Accepts a render function `(categories) => ReactNode`. Hidden when a category is selected or when in search mode.
+
+### Unstable_TriggerPopoverCategoryItem
+
+A button that drills into a category. Renders `role="option"` with automatic `data-highlighted` and `aria-selected` when keyboard-navigated.
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `categoryId` | `string` | The category to select on click |
+
+### Unstable_TriggerPopoverItems
+
+Renders the item list for the active category or search results. Accepts a render function `(items) => ReactNode`. Hidden when no category is selected and not in search mode.
+
+### Unstable_TriggerPopoverItem
+
+A button that selects an item. Renders `role="option"` with automatic `data-highlighted` and `aria-selected` when keyboard-navigated.
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `item` | `Unstable_TriggerItem` | The item to select on click |
+| `index` | `number` | Optional index override for highlight matching |
+
+### Unstable_TriggerPopoverBack
+
+A button that navigates back from items to the category list. Only renders when a category is active.
+
+### unstable_useTriggerPopoverScopeContext
+
+Hook to access the popover state and actions for the nearest enclosing `Unstable_TriggerPopover`.
+
+```tsx
+const {
+  open,           // boolean — whether popover is visible
+  query,          // string — text after the trigger character
+  isSearchMode,   // boolean — whether showing search results
+  highlightedIndex,
+  categories,
+  items,
+  activeCategoryId,
+  selectCategory,
+  selectItem,
+  goBack,
+  close,
+  handleKeyDown,
+} = unstable_useTriggerPopoverScopeContext();
+```
+
+### unstable_useTriggerPopoverTriggers
+
+Hook to iterate every trigger registered under the current `Unstable_TriggerPopoverRoot`. Intended for input-level integrations (e.g. Lexical `DirectivePlugin`). Returns `ReadonlyMap<string, Unstable_RegisteredTrigger>`.
+
+### unstable_useMentionAdapter
+
+Returns a spreadable `{ adapter, directive }` bundle for `@` mentions. Reads tools registered via `useAssistantTool`, accepts explicit `items`, and supports multi-category drill-down.
+
+```tsx
+import {
+  unstable_useMentionAdapter,
+  type Unstable_Mention,
+} from "@assistant-ui/react";
+
+function MyComposer() {
+  // Default: tools from model context as a single "Tools" category
+  const mention = unstable_useMentionAdapter();
+
+  return (
+    <ComposerTriggerPopover char="@" {...mention} />
+  );
+}
+```
+
+```tsx
+// Multi-category + tools appended as their own category
+const mention = unstable_useMentionAdapter({
+  categories: [
+    { id: "users", label: "Users", items: [/* ... */] },
+    { id: "files", label: "Files", items: [/* ... */] },
+  ],
+  includeModelContextTools: true,
+});
+```
+
+Options:
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `items` | `Unstable_Mention[]` | Flat list; ignored when `categories` is set. |
+| `categories` | `{ id, label, items: Unstable_Mention[] }[]` | Drill-down groups. |
+| `includeModelContextTools` | `boolean \| { category?, formatLabel?, icon? }` | Tools integration. Defaults to `true` iff neither `items` nor `categories`. |
+| `formatter` | `Unstable_DirectiveFormatter` | Override directive serialization. |
+| `onInserted` | `(item) => void` | Fires after the directive is inserted. |
+| `iconMap` | `Record<string, Unstable_IconComponent>` | `metadata.icon` / category id → React component. |
+| `fallbackIcon` | `Unstable_IconComponent` | Fallback when no `iconMap` entry matches. |
+
+Returns `{ adapter, directive, iconMap?, fallbackIcon? }`.
+
+### unstable_useSlashCommandAdapter
+
+Returns a spreadable `{ adapter, action }` bundle for slash commands. Commands are declared as data + inline `execute` callbacks; `execute` lives in the hook closure and is never attached to the returned `Unstable_TriggerItem`, keeping items JSON-serializable.
+
+```tsx
+import {
+  unstable_useSlashCommandAdapter,
+  type Unstable_SlashCommand,
+} from "@assistant-ui/react";
+
+const SLASH_COMMANDS: readonly Unstable_SlashCommand[] = [
+  { id: "summarize", execute: () => runSummarize(), icon: "FileText" },
+  { id: "translate", execute: () => runTranslate(), icon: "Languages" },
+];
+
+function MyComposer() {
+  const slash = unstable_useSlashCommandAdapter({ commands: SLASH_COMMANDS });
+  return (
+    <ComposerTriggerPopover char="/" {...slash} />
+  );
+}
+```
+
+Pass `removeOnExecute: true` on the hook options to strip the trigger text from the composer after executing. The hook also accepts `iconMap` / `fallbackIcon` options that flow into the returned bundle — `{...slash}` spreads them into `ComposerTriggerPopover`.

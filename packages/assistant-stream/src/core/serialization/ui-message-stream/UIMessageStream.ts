@@ -4,9 +4,9 @@ import type { TextStreamController } from "../../modules/text";
 import { AssistantTransformStream } from "../../utils/stream/AssistantTransformStream";
 import { PipeableTransformStream } from "../../utils/stream/PipeableTransformStream";
 import { LineDecoderStream } from "../../utils/stream/LineDecoderStream";
-import {
-  type UIMessageStreamChunk,
-  type UIMessageStreamDataChunk,
+import type {
+  UIMessageStreamChunk,
+  UIMessageStreamDataChunk,
 } from "./chunk-types";
 import { generateId } from "../../utils/generateId";
 
@@ -215,6 +215,9 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               toolCallController.setResponse({
                 result: chunk.result,
                 isError: chunk.isError ?? false,
+                ...(chunk.messages !== undefined
+                  ? { messages: chunk.messages }
+                  : {}),
               });
               break;
             }
@@ -261,6 +264,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
         },
         flush() {
           activeToolCallArgsText?.close();
+          // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
           toolCallControllers.forEach((ctrl) => ctrl.close());
           toolCallControllers.clear();
         },

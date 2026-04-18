@@ -4,7 +4,7 @@ description: Connect to LangServe endpoints via Vercel AI SDK integration.
 ---
 
 <Callout type="warning">
-  This integration has not been tested with AI SDK v5.
+  This integration has not been tested with AI SDK v6.
 </Callout>
 
 ## Overview
@@ -67,7 +67,6 @@ export async function POST(req: Request) {
 // ---cut---
 "use client";
 
-import { useChat } from "@ai-sdk/react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
@@ -104,11 +103,11 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <MyRuntimeProvider>
-      <html lang="en">
-        <body>{children}</body>
-      </html>
-    </MyRuntimeProvider>
+    <html lang="en">
+      <body>
+        <MyRuntimeProvider>{children}</MyRuntimeProvider>
+      </body>
+    </html>
   );
 }
 ```

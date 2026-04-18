@@ -1,4 +1,4 @@
-import { type FC, type PropsWithChildren } from "react";
+import type { FC, PropsWithChildren } from "react";
 import { useAui, AuiProvider, type ClientOutput } from "@assistant-ui/store";
 import type { PartState } from "../../store/scopes/part";
 import { resource, tapMemo } from "@assistant-ui/tap";

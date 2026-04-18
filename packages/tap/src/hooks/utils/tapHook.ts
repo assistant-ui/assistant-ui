@@ -1,5 +1,5 @@
 import { getCurrentResourceFiber } from "../../core/helpers/execution-context";
-import { Cell } from "../../core/types";
+import type { Cell } from "../../core/types";
 
 export const tapHook = <T extends Cell["type"]>(
   type: T,

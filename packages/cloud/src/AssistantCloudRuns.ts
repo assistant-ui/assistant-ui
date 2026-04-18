@@ -1,10 +1,22 @@
-import { AssistantCloudAPI } from "./AssistantCloudAPI";
+import type { AssistantCloudAPI } from "./AssistantCloudAPI";
+import type { SamplingCallData } from "./instrumentMcpSampling";
 import { AssistantStream, PlainTextDecoder } from "assistant-stream";
 
 type AssistantCloudRunsStreamBody = {
   thread_id: string;
   assistant_id: "system/thread_title";
   messages: readonly unknown[]; // TODO type
+};
+
+type ReportToolCall = {
+  tool_name: string;
+  tool_call_id: string;
+  tool_args?: string;
+  tool_result?: string;
+  tool_source?: "mcp" | "frontend" | "backend";
+  start_ms?: number;
+  end_ms?: number;
+  sampling_calls?: SamplingCallData[];
 };
 
 // NOTE: Keep this payload shape aligned with the strict runtime validator in
@@ -14,45 +26,13 @@ export type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "incomplete" | "error";
   total_steps?: number;
-  tool_calls?: {
-    tool_name: string;
-    tool_call_id: string;
-    tool_args?: string;
-    tool_result?: string;
-    tool_source?: "mcp" | "frontend" | "backend";
-    start_ms?: number;
-    end_ms?: number;
-    sampling_calls?: {
-      model_id?: string;
-      input_tokens?: number;
-      output_tokens?: number;
-      reasoning_tokens?: number;
-      cached_input_tokens?: number;
-      duration_ms?: number;
-    }[];
-  }[];
+  tool_calls?: ReportToolCall[];
   steps?: {
     input_tokens?: number;
     output_tokens?: number;
     reasoning_tokens?: number;
     cached_input_tokens?: number;
-    tool_calls?: {
-      tool_name: string;
-      tool_call_id: string;
-      tool_args?: string;
-      tool_result?: string;
-      tool_source?: "mcp" | "frontend" | "backend";
-      start_ms?: number;
-      end_ms?: number;
-      sampling_calls?: {
-        model_id?: string;
-        input_tokens?: number;
-        output_tokens?: number;
-        reasoning_tokens?: number;
-        cached_input_tokens?: number;
-        duration_ms?: number;
-      }[];
-    }[];
+    tool_calls?: ReportToolCall[];
     start_ms?: number;
     end_ms?: number;
   }[];

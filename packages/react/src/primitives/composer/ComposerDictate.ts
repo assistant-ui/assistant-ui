@@ -1,28 +1,16 @@
 "use client";
 
-import { useCallback } from "react";
-import { useAui, useAuiState } from "@assistant-ui/store";
 import type {
   ActionButtonElement,
   ActionButtonProps,
 } from "../../utils/createActionButton";
 import { createActionButton } from "../../utils/createActionButton";
+import { useComposerDictate as useComposerDictateBehavior } from "@assistant-ui/core/react";
 
 const useComposerDictate = () => {
-  const aui = useAui();
-  const disabled = useAuiState(
-    (s) =>
-      s.composer.dictation != null ||
-      !s.thread.capabilities.dictation ||
-      !s.composer.isEditing,
-  );
-
-  const callback = useCallback(() => {
-    aui.composer().startDictation();
-  }, [aui]);
-
+  const { disabled, startDictation } = useComposerDictateBehavior();
   if (disabled) return null;
-  return callback;
+  return startDictation;
 };
 
 export namespace ComposerPrimitiveDictate {

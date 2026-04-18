@@ -19,10 +19,16 @@ export namespace MessagePrimitiveParts {
 /**
  * Renders the parts of a message with Ink-specific default components.
  */
-export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
-  components,
-  ...rest
-}) => {
+export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
+  props,
+) => {
+  if ("children" in props) {
+    return (
+      <MessagePrimitivePartsBase>{props.children}</MessagePrimitivePartsBase>
+    );
+  }
+
+  const { components, ...rest } = props;
   const merged = components
     ? {
         Text: components.Text ?? inkDefaultComponents.Text,

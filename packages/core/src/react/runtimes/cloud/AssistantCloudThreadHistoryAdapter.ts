@@ -1,19 +1,19 @@
-import { RefObject, useState } from "react";
+import { type RefObject, useState } from "react";
 import type {
   GenericThreadHistoryAdapter,
   ThreadHistoryAdapter,
   MessageFormatAdapter,
   MessageFormatItem,
   MessageFormatRepository,
-} from "../../../adapters";
+} from "../../../adapters/thread-history";
 import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/message-repository";
 import {
-  AssistantCloud,
+  type AssistantCloud,
   CloudMessagePersistence,
   createFormattedPersistence,
 } from "assistant-cloud";
 import { auiV0Decode, auiV0Encode } from "./auiV0";
-import { AssistantClient, useAui } from "@assistant-ui/store";
+import { type AssistantClient, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
 
 const globalPersistence = new WeakMap<

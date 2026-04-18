@@ -41,7 +41,7 @@ const ensureEvent = (
 ): AgUiEvent | null => {
   if (raw && typeof raw === "object") {
     const payload = raw as Record<string, unknown>;
-    if (typeof payload["type"] === "string") {
+    if (typeof payload.type === "string") {
       return parseAgUiEvent(payload);
     }
     return parseAgUiEvent({ type, ...payload });
@@ -73,7 +73,7 @@ export const createAgUiSubscriber = (
     onEvent: ({ event }) => {
       const typeCandidate =
         event && typeof event === "object"
-          ? (event as Record<string, unknown>)["type"]
+          ? (event as Record<string, unknown>).type
           : undefined;
       if (typeof typeCandidate === "string") {
         // Typed handlers will receive this via the discriminated callbacks; avoid duplicates.

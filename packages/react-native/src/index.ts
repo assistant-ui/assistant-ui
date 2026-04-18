@@ -1,4 +1,4 @@
-import "@assistant-ui/core/react"; // store-augmentation side-effect (tools, dataRenderers scopes)
+/// <reference types="@assistant-ui/core/react" />
 
 // Re-export core types
 export type {
@@ -46,6 +46,9 @@ export type {
   AttachmentAdapter,
   ThreadHistoryAdapter,
   FeedbackAdapter,
+  RealtimeVoiceAdapter,
+  VoiceSessionControls,
+  VoiceSessionHelpers,
   SuggestionAdapter,
   // Other
   Unsubscribe,
@@ -57,6 +60,7 @@ export type {
   RemoteThreadListOptions,
 } from "@assistant-ui/core";
 export { InMemoryThreadListAdapter } from "@assistant-ui/core";
+export { createVoiceSession } from "@assistant-ui/core";
 
 // Attachment adapter implementations
 export {
@@ -92,32 +96,14 @@ export {
 } from "@assistant-ui/store";
 
 // Context providers and hooks
-export { AssistantRuntimeProvider, useAssistantRuntime } from "./context";
-
-// Primitive hooks
-export {
-  useThreadMessages,
-  useThreadIsRunning,
-  useThreadIsEmpty,
-  useComposerSend,
-  useComposerCancel,
-  useMessageReload,
-  useMessageBranching,
-  useActionBarCopy,
-  type UseActionBarCopyOptions,
-  useActionBarEdit,
-  useActionBarReload,
-  useActionBarFeedbackPositive,
-  useActionBarFeedbackNegative,
-  useComposerAddAttachment,
-} from "./primitive-hooks";
+export { AssistantRuntimeProvider } from "./context/AssistantContext";
 
 // Runtime
 export {
   useLocalRuntime,
   type LocalRuntimeOptions,
-  useRemoteThreadListRuntime,
-} from "./runtimes";
+} from "./runtimes/useLocalRuntime";
+export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntime";
 
 // Primitives
 export * as ThreadPrimitive from "./primitives/thread";
@@ -130,6 +116,7 @@ export * as AttachmentPrimitive from "./primitives/attachment";
 export * as ThreadListItemPrimitive from "./primitives/threadListItem";
 export * as ChainOfThoughtPrimitive from "./primitives/chainOfThought";
 export * as SuggestionPrimitive from "./primitives/suggestion";
+export * as ErrorPrimitive from "./primitives/error";
 
 // Re-export shared providers from core/react
 export {
@@ -142,7 +129,91 @@ export {
   SuggestionByIndexProvider,
 } from "@assistant-ui/core/react";
 
-// Model context, tools & clients
-export * from "./model-context";
-export * from "./client";
-export * from "./types";
+// Model context, tools & clients (inlined from model-context)
+export {
+  makeAssistantTool,
+  type AssistantTool,
+  makeAssistantToolUI,
+  type AssistantToolUI,
+  makeAssistantDataUI,
+  type AssistantDataUI,
+  useAssistantTool,
+  type AssistantToolProps,
+  useAssistantToolUI,
+  type AssistantToolUIProps,
+  useAssistantDataUI,
+  type AssistantDataUIProps,
+  useAssistantInstructions,
+  useAssistantContext,
+  type AssistantContextConfig,
+  useInlineRender,
+  type Toolkit,
+  type ToolDefinition,
+  Tools,
+  DataRenderers,
+  Interactables,
+  useAssistantInteractable,
+  type AssistantInteractableProps,
+  useInteractableState,
+  useToolArgsStatus,
+  type ToolArgsStatus,
+} from "@assistant-ui/core/react";
+
+export type {
+  ModelContext,
+  ModelContextProvider,
+  LanguageModelConfig,
+  LanguageModelV1CallSettings,
+} from "@assistant-ui/core";
+
+export { mergeModelContexts } from "@assistant-ui/core";
+
+export type { ExportedMessageRepositoryItem } from "@assistant-ui/core";
+export { ExportedMessageRepository } from "@assistant-ui/core";
+
+export type { Tool } from "assistant-stream";
+
+export { tool } from "@assistant-ui/core";
+
+export { Suggestions, type SuggestionConfig } from "@assistant-ui/core/store";
+
+export { ModelContextRegistry } from "@assistant-ui/core";
+export type {
+  ModelContextRegistryToolHandle,
+  ModelContextRegistryInstructionHandle,
+  ModelContextRegistryProviderHandle,
+} from "@assistant-ui/core";
+
+// Client (inlined from client)
+export { ModelContext as ModelContextClient } from "@assistant-ui/core/store";
+export { ChainOfThoughtClient } from "@assistant-ui/core/store";
+
+// Component types (inlined from types)
+export type {
+  EmptyMessagePartComponent,
+  EmptyMessagePartProps,
+  TextMessagePartComponent,
+  TextMessagePartProps,
+  ReasoningMessagePartComponent,
+  ReasoningMessagePartProps,
+  ReasoningGroupProps,
+  ReasoningGroupComponent,
+  SourceMessagePartComponent,
+  SourceMessagePartProps,
+  ImageMessagePartComponent,
+  ImageMessagePartProps,
+  FileMessagePartComponent,
+  FileMessagePartProps,
+  Unstable_AudioMessagePartComponent,
+  Unstable_AudioMessagePartProps,
+  DataMessagePartComponent,
+  DataMessagePartProps,
+  ToolCallMessagePartComponent,
+  ToolCallMessagePartProps,
+} from "@assistant-ui/core/react";
+
+export {
+  useVoiceState,
+  useVoiceVolume,
+  useVoiceControls,
+} from "@assistant-ui/core/react";

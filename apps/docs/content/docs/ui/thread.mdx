@@ -16,27 +16,27 @@ attachments, and conditional UI states. Fully customizable and composable.
 The `Thread` component is built with the following primitives:
 
 ```tsx
-import { ThreadPrimitive, SelectionToolbarPrimitive, AuiIf } from "@assistant-ui/react";
+import { ThreadPrimitive, AuiIf } from "@assistant-ui/react";
 
 <ThreadPrimitive.Root>
   <ThreadPrimitive.Viewport>
-    <AuiIf condition={(s) => s.thread.isEmpty} />
-    <ThreadPrimitive.Messages
-      components={{
-        EditComposer,
-        UserMessage,
-        AssistantMessage,
-      }}
-    />
-    <ThreadPrimitive.ScrollToBottom />
-  </ThreadPrimitive.Viewport>
-  <ThreadPrimitive.Suggestions />
-  <AuiIf condition={...} />
+    <AuiIf condition={(s) => s.thread.isEmpty}>
+      <ThreadWelcome />
+      {/* ThreadWelcome includes ThreadPrimitive.Suggestions */}
+    </AuiIf>
 
-  {/* Floating toolbar — appears when text is selected in a message */}
-  <SelectionToolbarPrimitive.Root>
-    <SelectionToolbarPrimitive.Quote>Quote</SelectionToolbarPrimitive.Quote>
-  </SelectionToolbarPrimitive.Root>
+    <ThreadPrimitive.Messages>
+      {({ message }) => {
+        if (message.role === "user") return <UserMessage />;
+        return <AssistantMessage />;
+      }}
+    </ThreadPrimitive.Messages>
+
+    <ThreadPrimitive.ViewportFooter>
+      <ThreadPrimitive.ScrollToBottom />
+      <Composer />
+    </ThreadPrimitive.ViewportFooter>
+  </ThreadPrimitive.Viewport>
 </ThreadPrimitive.Root>
 ```
 
@@ -118,11 +118,9 @@ const aui = useAui({
 });
 
 // Display suggestions in your thread component
-<ThreadPrimitive.Suggestions
-  components={{
-    Suggestion: SuggestionItem,
-  }}
-/>
+<ThreadPrimitive.Suggestions>
+  {() => <SuggestionItem />}
+</ThreadPrimitive.Suggestions>
 
 // Custom suggestion item
 const SuggestionItem = () => (
@@ -196,13 +194,12 @@ This primitive renders a `<div>` element unless `asChild` is set.
 Renders all messages in the thread. This primitive renders a separate component for each message.
 
 ```tsx
-<ThreadPrimitive.Messages
-  components={{
-    UserMessage: UserMessage,
-    EditComposer: EditComposer,
-    AssistantMessage: AssistantMessage,
+<ThreadPrimitive.Messages>
+  {({ message }) => {
+    if (message.role === "user") return <UserMessage />;
+    return <AssistantMessage />;
   }}
-/>
+</ThreadPrimitive.Messages>
 ```
 
 <ParametersTable
@@ -325,11 +322,9 @@ This primitive renders a `<button>` element unless `asChild` is set.
 Renders all configured suggestions. Configure suggestions using the `Suggestions()` API in your runtime provider.
 
 ```tsx
-<ThreadPrimitive.Suggestions
-  components={{
-    Suggestion: CustomSuggestionComponent,
-  }}
-/>
+<ThreadPrimitive.Suggestions>
+  {() => <CustomSuggestionComponent />}
+</ThreadPrimitive.Suggestions>
 ```
 
 <ParametersTable
@@ -388,4 +383,4 @@ The condition function receives an `AssistantState` object with access to `threa
 
 - [ThreadList](/docs/ui/thread-list) - List of threads, with or without sidebar
 - [Quoting guide](/docs/guides/quoting) - Quote selected text from messages
-- [SelectionToolbarPrimitive](/docs/reference/primitives/selection-toolbar) - Floating toolbar API reference
+- [SelectionToolbarPrimitive](/docs/api-reference/primitives/selection-toolbar) - Floating toolbar API reference

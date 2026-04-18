@@ -36,6 +36,16 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
       description: "The API endpoint URL for the data stream protocol.",
     },
     {
+      name: "protocol",
+      type: '"ui-message-stream" | "data-stream"',
+      description: 'The streaming protocol to use. Defaults to "ui-message-stream". Use "data-stream" for legacy AI SDK compatibility.',
+    },
+    {
+      name: "onData",
+      type: "(data: { type: string; name: string; data: unknown; transient?: boolean }) => void",
+      description: "Optional callback for data-* parts. Only applies when using the ui-message-stream protocol.",
+    },
+    {
       name: "onResponse",
       type: "(response: Response) => void | Promise<void>",
       description: "Optional callback called when a response is received.",
@@ -67,8 +77,8 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
     },
     {
       name: "body",
-      type: "object",
-      description: "Optional additional body parameters to include in the request.",
+      type: "object | (() => Promise<object | undefined>)",
+      description: "Optional additional body parameters to include in the request. Can be an object or an async function that returns one.",
     },
     {
       name: "sendExtraMessageFields",
@@ -112,6 +122,16 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
       description: "The ID of the assistant to connect to.",
     },
     {
+      name: "protocol",
+      type: '"ui-message-stream" | "data-stream"',
+      description: 'The streaming protocol to use. Defaults to "ui-message-stream". Use "data-stream" for legacy AI SDK compatibility.',
+    },
+    {
+      name: "onData",
+      type: "(data: { type: string; name: string; data: unknown; transient?: boolean }) => void",
+      description: "Optional callback for data-* parts. Only applies when using the ui-message-stream protocol.",
+    },
+    {
       name: "onResponse",
       type: "(response: Response) => void | Promise<void>",
       description: "Optional callback called when a response is received.",
@@ -143,8 +163,8 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
     },
     {
       name: "body",
-      type: "object",
-      description: "Optional additional body parameters to include in the request.",
+      type: "object | (() => Promise<object | undefined>)",
+      description: "Optional additional body parameters to include in the request. Can be an object or an async function that returns one.",
     },
     {
       name: "sendExtraMessageFields",

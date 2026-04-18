@@ -1,19 +1,19 @@
-import { AssistantStreamChunk } from "../../AssistantStreamChunk";
-import { ToolCallStreamController } from "../../modules/tool-call";
+import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
+import type { ToolCallStreamController } from "../../modules/tool-call";
 import { AssistantTransformStream } from "../../utils/stream/AssistantTransformStream";
 import { PipeableTransformStream } from "../../utils/stream/PipeableTransformStream";
-import { DataStreamChunk, DataStreamStreamChunkType } from "./chunk-types";
+import { type DataStreamChunk, DataStreamStreamChunkType } from "./chunk-types";
 import { LineDecoderStream } from "../../utils/stream/LineDecoderStream";
 import {
   DataStreamChunkDecoder,
   DataStreamChunkEncoder,
 } from "./serialization";
 import {
-  AssistantMetaStreamChunk,
+  type AssistantMetaStreamChunk,
   AssistantMetaTransformStream,
 } from "../../utils/stream/AssistantMetaTransformStream";
-import { TextStreamController } from "../../modules/text";
-import { AssistantStreamEncoder } from "../../AssistantStream";
+import type { TextStreamController } from "../../modules/text";
+import type { AssistantStreamEncoder } from "../../AssistantStream";
 
 export class DataStreamEncoder
   extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>>
@@ -46,6 +46,13 @@ export class DataStreamEncoder
                 const { type, ...value } = part;
                 controller.enqueue({
                   type: DataStreamStreamChunkType.Source,
+                  value,
+                });
+              }
+              if (part.type === "data") {
+                const { type, ...value } = part;
+                controller.enqueue({
+                  type: DataStreamStreamChunkType.AuiDataPart,
                   value,
                 });
               }
@@ -212,6 +219,7 @@ const TOOL_CALL_ARGS_CLOSING_CHUNKS = [
   DataStreamStreamChunkType.FinishMessage,
   DataStreamStreamChunkType.AuiTextDelta,
   DataStreamStreamChunkType.AuiReasoningDelta,
+  DataStreamStreamChunkType.AuiDataPart,
 ];
 
 export class DataStreamDecoder extends PipeableTransformStream<
@@ -382,6 +390,13 @@ export class DataStreamDecoder extends PipeableTransformStream<
               });
               break;
 
+            case DataStreamStreamChunkType.AuiDataPart:
+              controller.appendData({
+                type: "data",
+                ...value,
+              });
+              break;
+
             case DataStreamStreamChunkType.AuiUpdateStateOperations:
               controller.enqueue({
                 type: "update-state",
@@ -404,6 +419,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
         flush() {
           activeToolCallArgsText?.close();
           activeToolCallArgsText = undefined;
+          // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
           toolCallControllers.forEach((controller) => controller.close());
           toolCallControllers.clear();
         },

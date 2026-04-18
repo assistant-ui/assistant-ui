@@ -1,21 +1,21 @@
-import type {
-  Attachment,
-  CreateAttachment,
-  MessageRole,
-  RunConfig,
-  QuoteInfo,
-  Unsubscribe,
-} from "../../types";
+import type { Attachment, CreateAttachment } from "../../types/attachment";
+import type { MessageRole } from "../../types/message";
+import type { QuoteInfo } from "../../types/quote";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { RunConfig } from "../../types/message";
 import {
   LazyMemoizeSubject,
+  EventSubscriptionSubject,
+} from "../../subscribable/subscribable";
+import {
   ShallowMemoizeSubject,
   SKIP_UPDATE,
-  EventSubscriptionSubject,
-} from "../../subscribable";
+} from "../../subscribable/subscribable";
 import type {
-  ComposerRuntimeCore,
   ComposerRuntimeEventType,
   DictationState,
+  EditComposerRuntimeCore,
+  SendOptions,
   ThreadComposerRuntimeCore,
 } from "../interfaces/composer-runtime-core";
 import type {
@@ -69,6 +69,8 @@ export type ThreadComposerState = BaseComposerState & {
 
 export type EditComposerState = BaseComposerState & {
   readonly type: "edit";
+  readonly parentId: string | null;
+  readonly sourceId: string | null;
 };
 
 export type ComposerState = ThreadComposerState | EditComposerState;
@@ -98,7 +100,7 @@ const getThreadComposerState = (
 };
 
 const getEditComposerState = (
-  runtime: ComposerRuntimeCore | undefined,
+  runtime: EditComposerRuntimeCore | undefined,
 ): EditComposerState => {
   return Object.freeze({
     type: "edit",
@@ -114,6 +116,9 @@ const getEditComposerState = (
     attachmentAccept: runtime?.attachmentAccept ?? "",
     dictation: runtime?.dictation,
     quote: runtime?.quote,
+
+    parentId: runtime?.parentId ?? null,
+    sourceId: runtime?.sourceId ?? null,
 
     value: runtime?.text ?? "",
   });
@@ -174,8 +179,9 @@ export type ComposerRuntime = {
 
   /**
    * Send a message. This will send whatever text or attachments are in the composer.
+   * @param options Optional send options. Use `{ startRun: true }` to force starting a new run.
    */
-  send(): void;
+  send(options?: SendOptions): void;
 
   /**
    * Cancel the current run. In edit mode, this will exit edit mode.
@@ -279,10 +285,10 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     return core.clearAttachments();
   }
 
-  public send() {
+  public send(options?: SendOptions) {
     const core = this._core.getState();
     if (!core) throw new Error("Composer is not available");
-    core.send();
+    core.send(options);
   }
 
   public cancel() {

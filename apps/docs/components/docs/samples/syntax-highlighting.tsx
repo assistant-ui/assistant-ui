@@ -17,7 +17,7 @@ export const SyntaxHighlightingSample = () => {
       <div className="overflow-hidden rounded-lg">
         <div className="flex items-center justify-between gap-4 rounded-t-lg bg-muted-foreground/15 px-4 py-2 font-semibold text-foreground text-sm dark:bg-muted-foreground/20">
           <span className="lowercase">typescript</span>
-          <button className="rounded p-1 hover:bg-muted">
+          <button type="button" className="rounded p-1 hover:bg-muted">
             <CopyIcon className="size-4" />
           </button>
         </div>

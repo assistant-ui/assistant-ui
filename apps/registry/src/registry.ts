@@ -1,4 +1,4 @@
-import { RegistryItem } from "./schema";
+import type { RegistryItem } from "./schema";
 
 export const registry: RegistryItem[] = [
   {
@@ -71,6 +71,22 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/markdown-text.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
       "https://r.assistant-ui.com/tool-fallback.json",
+    ],
+  },
+  {
+    name: "voice",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/voice.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/voice.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+    registryDependencies: [
+      "button",
+      "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
   },
   {
@@ -355,12 +371,30 @@ export const registry: RegistryItem[] = [
         sourcePath:
           "../../packages/ui/src/components/assistant-ui/threadlist-sidebar.tsx",
       },
+      {
+        type: "registry:component",
+        path: "components/icons/github.tsx",
+        sourcePath: "../../packages/ui/src/components/icons/github.tsx",
+      },
     ],
     dependencies: ["lucide-react"],
     registryDependencies: [
       "sidebar",
       "https://r.assistant-ui.com/thread-list.json",
     ],
+  },
+  {
+    name: "quote",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/quote.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/quote.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+    registryDependencies: [],
   },
   {
     name: "sources",
@@ -479,5 +513,47 @@ export const registry: RegistryItem[] = [
     ],
     dependencies: ["radix-ui", "lucide-react", "class-variance-authority"],
     registryDependencies: [],
+  },
+  {
+    name: "heat-graph",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/heat-graph.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/heat-graph.tsx",
+      },
+    ],
+    dependencies: ["heat-graph"],
+    registryDependencies: [],
+  },
+  {
+    name: "composer-trigger-popover",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/composer-trigger-popover.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/composer-trigger-popover.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+    registryDependencies: [],
+  },
+  {
+    name: "directive-text",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/directive-text.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/directive-text.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "@assistant-ui/core", "lucide-react"],
+    registryDependencies: ["https://r.assistant-ui.com/badge.json"],
   },
 ];

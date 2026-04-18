@@ -29,7 +29,9 @@ export const Claude: FC = () => {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#F5F5F0] p-4 pt-16 font-serif dark:bg-[#2b2a27]">
       <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll">
-        <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+        <ThreadPrimitive.Messages>
+          {() => <ChatMessage />}
+        </ThreadPrimitive.Messages>
         <div aria-hidden="true" className="h-4" />
       </ThreadPrimitive.Viewport>
 
@@ -79,9 +81,9 @@ export const Claude: FC = () => {
           <div className="overflow-hidden rounded-b-2xl">
             <div className="overflow-x-auto rounded-b-2xl border-[#00000015] border-t bg-[#f5f5f0] p-3.5 dark:border-[#6c6a6040] dark:bg-[#393937]">
               <div className="flex flex-row gap-3">
-                <ComposerPrimitive.Attachments
-                  components={{ Attachment: ClaudeAttachment }}
-                />
+                <ComposerPrimitive.Attachments>
+                  {() => <ClaudeAttachment />}
+                </ComposerPrimitive.Attachments>
               </div>
             </div>
           </div>
@@ -105,7 +107,12 @@ const ChatMessage: FC = () => {
             <div className="flex-1">
               <div className="relative grid grid-cols-1 gap-2 py-0.5">
                 <div className="wrap-break-word whitespace-pre-wrap">
-                  <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+                  <MessagePrimitive.Parts>
+                    {({ part }) => {
+                      if (part.type === "text") return <MarkdownText />;
+                      return null;
+                    }}
+                  </MessagePrimitive.Parts>
                 </div>
               </div>
             </div>
@@ -133,7 +140,12 @@ const ChatMessage: FC = () => {
           <div className="relative leading-[1.65rem]">
             <div className="grid grid-cols-1 gap-2.5">
               <div className="wrap-break-word whitespace-normal pr-8 pl-2 font-serif text-[#1a1a18] dark:text-[#eee]">
-                <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+                <MessagePrimitive.Parts>
+                  {({ part }) => {
+                    if (part.type === "text") return <MarkdownText />;
+                    return null;
+                  }}
+                </MessagePrimitive.Parts>
               </div>
             </div>
           </div>
@@ -226,6 +238,7 @@ const ClaudeAttachment: FC = () => {
           style={{ width: "120px", height: "120px" }}
         >
           {isImage && src ? (
+            // biome-ignore lint/performance/noImgElement: example component
             <img
               className="h-full w-full object-cover opacity-100 transition duration-400"
               alt="Attachment"

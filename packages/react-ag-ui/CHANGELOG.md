@@ -1,5 +1,90 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.26
+
+### Patch Changes
+
+- 43fb4f7: fix(react-ag-ui): preserve user message attachments when converting to AG-UI format
+  - `toAgUiMessages()` previously called `extractText()` for user messages, silently dropping image and file attachments
+  - User messages with attachments now emit AG-UI `InputContent[]`: images map to the `image` variant with a `data` or `url` source, files map to the `binary` variant preserving `filename`
+  - Falls back to plain string `content` when no binary parts are present, preserving backward compatibility
+
+- c988db8: chore: update dependencies
+- Updated dependencies [f20b9ca]
+- Updated dependencies [c988db8]
+  - @assistant-ui/core@0.1.14
+  - assistant-stream@0.3.11
+
+## 0.0.25
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+- Updated dependencies [42bc640]
+- Updated dependencies [87e7761]
+  - @assistant-ui/core@0.1.13
+
+## 0.0.24
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [dffb6b4]
+- Updated dependencies [6554892]
+- Updated dependencies [9103282]
+- Updated dependencies [876f75d]
+- Updated dependencies [bdce66f]
+- Updated dependencies [4abb898]
+- Updated dependencies [209ae81]
+- Updated dependencies [af70d7f]
+  - assistant-stream@0.3.9
+  - @assistant-ui/core@0.1.10
+
+## 0.0.23
+
+### Patch Changes
+
+- 52403c3: chore: update dependencies
+- Updated dependencies [781f28d]
+- Updated dependencies [3227e71]
+- Updated dependencies [3227e71]
+- Updated dependencies [0f55ce8]
+- Updated dependencies [83a15f7]
+- Updated dependencies [52403c3]
+- Updated dependencies [ffa3a0f]
+  - @assistant-ui/core@0.1.9
+  - assistant-stream@0.3.8
+
+## 0.0.22
+
+### Patch Changes
+
+- 736344c: chore: update dependencies
+- Updated dependencies [1406aed]
+- Updated dependencies [9480f30]
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [ff3be2a]
+- Updated dependencies [70b19f3]
+  - @assistant-ui/core@0.1.8
+  - assistant-stream@0.3.7
+
+## 0.0.21
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- 619d923: Depend on @assistant-ui/core instead of @assistant-ui/react
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [6cc4122]
+- Updated dependencies [642bcda]
+  - @assistant-ui/core@0.1.6
+  - assistant-stream@0.3.6
+
 ## 0.0.20
 
 ### Patch Changes

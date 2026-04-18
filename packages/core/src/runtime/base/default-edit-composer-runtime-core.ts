@@ -1,7 +1,10 @@
-import type { AppendMessage, ThreadMessage } from "../../types";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type { CompleteAttachment } from "../../types/attachment";
 import { getThreadMessageText } from "../../utils/text";
+import { attachmentsEqual, liftNonTextParts } from "../../adapters/attachment";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { DictationAdapter } from "../../adapters/speech";
+import type { SendOptions } from "../interfaces/composer-runtime-core";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
 
@@ -18,10 +21,11 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     return this.runtime.adapters?.dictation;
   }
 
-  private _nonTextParts;
   private _previousText;
-  private _parentId;
-  private _sourceId;
+  private _previousAttachments: readonly CompleteAttachment[];
+  private _nonTextPassthrough: readonly ThreadMessage["content"][number][];
+  private _parentId: string | null;
+  private _sourceId: string | null;
   constructor(
     private runtime: ThreadRuntimeCore & {
       adapters?:
@@ -41,23 +45,60 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     this.setText(this._previousText);
 
     this.setRole(message.role);
-    this.setAttachments(message.attachments ?? []);
 
-    this._nonTextParts = message.content.filter((part) => part.type !== "text");
+    if (message.role === "user") {
+      this._previousAttachments = [
+        ...(message.attachments ?? []),
+        ...liftNonTextParts(message.content),
+      ];
+      this._nonTextPassthrough = [];
+    } else {
+      this._previousAttachments = message.attachments ?? [];
+      this._nonTextPassthrough = message.content.filter(
+        (p) => p.type !== "text",
+      );
+    }
+    this.setAttachments(this._previousAttachments);
 
     this.setRunConfig({ ...runtime.composer.runConfig });
   }
 
+  public get parentId() {
+    return this._parentId;
+  }
+
+  public get sourceId() {
+    return this._sourceId;
+  }
+
   public async handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
+    options?: SendOptions,
   ) {
     const text = getThreadMessageText(message as AppendMessage);
-    if (text !== this._previousText) {
+    const attachmentsChanged = !attachmentsEqual(
+      message.attachments ?? [],
+      this._previousAttachments,
+    );
+
+    if (
+      text !== this._previousText ||
+      attachmentsChanged ||
+      options?.startRun
+    ) {
+      const content =
+        this._nonTextPassthrough.length > 0
+          ? ([
+              ...message.content,
+              ...this._nonTextPassthrough,
+            ] as AppendMessage["content"])
+          : message.content;
       this.runtime.append({
         ...message,
-        content: [...message.content, ...this._nonTextParts] as any,
+        content,
         parentId: this._parentId,
         sourceId: this._sourceId,
+        startRun: options?.startRun,
       });
     }
 

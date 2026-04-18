@@ -24,7 +24,7 @@ function calculateDepth(
   if (cached !== undefined) return cached;
 
   const span = spanMap.get(spanId);
-  if (!span || !span.parentSpanId) {
+  if (!span?.parentSpanId) {
     cache.set(spanId, 0);
     return 0;
   }

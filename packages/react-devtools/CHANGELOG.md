@@ -1,5 +1,56 @@
 # @assistant-ui/react-devtools
 
+## 1.0.6
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- Updated dependencies [c988db8]
+  - @assistant-ui/react@0.12.25
+  - @assistant-ui/tap@0.5.8
+
+## 1.0.5
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+- Updated dependencies [42bc640]
+- Updated dependencies [e82726c]
+- Updated dependencies [376bb00]
+- Updated dependencies [87e7761]
+  - @assistant-ui/react@0.12.24
+  - @assistant-ui/tap@0.5.7
+
+## 1.0.4
+
+### Patch Changes
+
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [6554892]
+- Updated dependencies [d726499]
+- Updated dependencies [876f75d]
+- Updated dependencies [bdce66f]
+- Updated dependencies [c362685]
+- Updated dependencies [4abb898]
+- Updated dependencies [209ae81]
+- Updated dependencies [50b3100]
+- Updated dependencies [af70d7f]
+  - @assistant-ui/react@0.12.22
+  - @assistant-ui/tap@0.5.6
+
+## 1.0.3
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [642bcda]
+  - @assistant-ui/react@0.12.18
+  - @assistant-ui/tap@0.5.3
+
 ## 1.0.2
 
 ### Patch Changes

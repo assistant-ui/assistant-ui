@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.3.5",
+  "version": "0.3.11",
   "description": "Streaming utilities for AI assistants",
   "keywords": [
     "ai",
@@ -16,12 +16,10 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./utils": {
-      "aui-source": "./src/utils.ts",
       "types": "./dist/utils.d.ts",
       "default": "./dist/utils.js"
     }
@@ -42,13 +40,13 @@
   },
   "dependencies": {
     "@standard-schema/spec": "^1.1.0",
-    "nanoid": "^5.1.6",
+    "nanoid": "^5.1.7",
     "secure-json-parse": "^4.1.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.4"
   },
   "publishConfig": {
     "access": "public",

@@ -2,11 +2,9 @@ import type {
   Attachment,
   PendingAttachment,
   CompleteAttachment,
-} from "../types";
-
-// =============================================================================
-// Adapter Type
-// =============================================================================
+} from "../types/attachment";
+import type { ThreadUserMessagePart } from "../types/message";
+import { generateId } from "../utils/id";
 
 export type AttachmentAdapter = {
   accept: string;
@@ -16,10 +14,6 @@ export type AttachmentAdapter = {
   remove(attachment: Attachment): Promise<void>;
   send(attachment: PendingAttachment): Promise<CompleteAttachment>;
 };
-
-// =============================================================================
-// Simple Image Attachment Adapter
-// =============================================================================
 
 export class SimpleImageAttachmentAdapter implements AttachmentAdapter {
   public accept = "image/*";
@@ -62,10 +56,6 @@ const getFileDataURL = (file: File) =>
     reader.onerror = (error) => reject(error);
     reader.readAsDataURL(file);
   });
-
-// =============================================================================
-// Simple Text Attachment Adapter
-// =============================================================================
 
 export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   public accept =
@@ -110,11 +100,7 @@ const getFileText = (file: File) =>
     reader.readAsText(file);
   });
 
-// =============================================================================
-// Composite Attachment Adapter
-// =============================================================================
-
-function fileMatchesAccept(
+export function fileMatchesAccept(
   file: { name: string; type: string },
   acceptString: string,
 ) {
@@ -147,6 +133,72 @@ function fileMatchesAccept(
   }
 
   return false;
+}
+
+export function attachmentsEqual(
+  a: readonly CompleteAttachment[],
+  b: readonly CompleteAttachment[],
+): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((att, i) => att.id === b[i]!.id);
+}
+
+export function partToCompleteAttachment(
+  part: Exclude<ThreadUserMessagePart, { type: "text" }>,
+): CompleteAttachment {
+  const id = generateId();
+
+  if (part.type === "image") {
+    return {
+      id,
+      type: "image",
+      name: part.filename ?? "image",
+      content: [part],
+      status: { type: "complete" },
+    };
+  }
+
+  if (part.type === "file") {
+    return {
+      id,
+      type: "document",
+      name: part.filename ?? "document",
+      contentType: part.mimeType,
+      content: [part],
+      status: { type: "complete" },
+    };
+  }
+
+  if (part.type === "audio") {
+    return {
+      id,
+      type: "audio",
+      name: `audio.${part.audio.format}`,
+      contentType: `audio/${part.audio.format}`,
+      content: [part],
+      status: { type: "complete" },
+    };
+  }
+
+  return {
+    id,
+    type: "data",
+    name: part.name,
+    content: [part],
+    status: { type: "complete" },
+  };
+}
+
+export function liftNonTextParts(
+  content: readonly ThreadUserMessagePart[],
+): CompleteAttachment[] {
+  const result: CompleteAttachment[] = [];
+  for (const part of content) {
+    if (part.type !== "text") {
+      result.push(partToCompleteAttachment(part));
+    }
+  }
+  return result;
 }
 
 export class CompositeAttachmentAdapter implements AttachmentAdapter {

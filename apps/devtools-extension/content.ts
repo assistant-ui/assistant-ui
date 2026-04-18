@@ -1,13 +1,13 @@
 // Content script - runs in isolated context
 // Bridges communication between the page (inject script) and the extension (background/devtools)
 
-(function () {
+(() => {
   console.log("[assistant-ui DevTools] Content script loaded");
 
   // Inject the inject.js script into the page context
   const script = document.createElement("script");
   script.src = chrome.runtime.getURL("inject.js");
-  script.onload = function () {
+  script.onload = () => {
     script.remove();
   };
   (document.head || document.documentElement).appendChild(script);

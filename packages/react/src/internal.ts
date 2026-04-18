@@ -28,4 +28,11 @@ export {
   type ToolExecutionStatus,
 } from "@assistant-ui/core/react";
 
-export * from "./utils/smooth";
+export { useSmooth } from "./utils/smooth/useSmooth";
+export {
+  useSmoothStatus,
+  withSmoothContextProvider,
+} from "./utils/smooth/SmoothContext";
+
+// ComposerInput plugin registry (used by react-lexical)
+export { useComposerInputPluginRegistryOptional } from "./primitives/composer/ComposerInputPluginContext";

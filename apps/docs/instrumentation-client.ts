@@ -4,7 +4,7 @@ if (process.env.NODE_ENV === "development") {
 
 import posthog from "posthog-js";
 
-const apiKey = process.env["NEXT_PUBLIC_POSTHOG_API_KEY"];
+const apiKey = process.env.NEXT_PUBLIC_POSTHOG_API_KEY;
 
 if (apiKey) {
   posthog.init(apiKey, {

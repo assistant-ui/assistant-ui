@@ -1,6 +1,6 @@
 "use client";
 
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "../../utils/Primitive";
 import { composeEventHandlers } from "@radix-ui/primitive";
 import {
   type ComponentPropsWithoutRef,

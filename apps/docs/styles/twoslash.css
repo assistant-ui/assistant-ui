@@ -1,6 +1,3 @@
-/* ===== Twoslash Custom Styles ===== */
-
-/* Override default theme colors */
 @theme {
   --color-twoslash-error-foreground: oklch(0.65 0.2 25);
   --color-twoslash-error: oklch(0.65 0.2 25 / 0.1);
@@ -12,7 +9,6 @@
   --color-twoslash-tag-annotate: oklch(0.6 0.15 160 / 0.1);
 }
 
-/* ===== Popup Container ===== */
 .fd-twoslash-popover {
   z-index: 50;
   min-width: 240px;
@@ -67,7 +63,6 @@
   outline: none;
 }
 
-/* ===== Completion List & Popup Container ===== */
 .twoslash-completion-list,
 .twoslash-popup-container {
   position: relative;
@@ -101,12 +96,10 @@
   user-select: auto;
 }
 
-/* ===== Popup Arrow ===== */
 .twoslash-popup-arrow {
   display: none;
 }
 
-/* ===== Popup Code ===== */
 .twoslash-popup-code {
   font-size: 0.8125rem !important;
   overflow-wrap: anywhere;
@@ -117,7 +110,6 @@
   padding-left: 0 !important;
 }
 
-/* ===== Popup Docs ===== */
 .twoslash-popup-docs,
 .twoslash-popup-docs-tags {
   font-size: 0.8125rem !important;
@@ -137,7 +129,6 @@
   color: var(--foreground);
 }
 
-/* ===== Hover Info ===== */
 .twoslash:hover .twoslash-hover {
   border-color: var(--muted-foreground);
 }
@@ -150,7 +141,6 @@
   cursor: help;
 }
 
-/* ===== Error Line ===== */
 .twoslash .twoslash-error-line {
   position: relative;
   background: var(--color-twoslash-error);
@@ -167,7 +157,6 @@
   text-underline-offset: 3px;
 }
 
-/* ===== Completions ===== */
 .twoslash-completion-cursor::before {
   width: 1px;
   height: 1.2em;
@@ -207,7 +196,6 @@
   color: var(--muted-foreground);
 }
 
-/* ===== Custom Tags ===== */
 .twoslash .twoslash-tag-line {
   position: relative;
   background: var(--color-twoslash-tag);
@@ -245,7 +233,6 @@
   color: var(--color-twoslash-tag-annotate-foreground);
 }
 
-/* ===== Meta Line ===== */
 .twoslash-meta-line {
   display: flex;
 }

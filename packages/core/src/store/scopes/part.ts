@@ -2,10 +2,10 @@ import type { ToolResponse } from "assistant-stream";
 import type {
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
-  MessagePartStatus,
   ToolCallMessagePartStatus,
-} from "../../types";
-import type { MessagePartRuntime } from "../../runtime";
+} from "../../types/message";
+import type { MessagePartStatus } from "../../types/message";
+import type { MessagePartRuntime } from "../../runtime/api/message-part-runtime";
 
 export type PartState = (ThreadUserMessagePart | ThreadAssistantMessagePart) & {
   readonly status: MessagePartStatus | ToolCallMessagePartStatus;

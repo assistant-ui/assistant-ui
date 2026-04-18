@@ -1,9 +1,5 @@
-import type { Unsubscribe } from "../types";
-import { Tool } from "assistant-stream";
-
-// =============================================================================
-// Language Model Settings
-// =============================================================================
+import type { Unsubscribe } from "../types/unsubscribe";
+import type { Tool } from "assistant-stream";
 
 export type LanguageModelV1CallSettings = {
   maxTokens?: number;
@@ -21,10 +17,6 @@ export type LanguageModelConfig = {
   modelName?: string;
 };
 
-// =============================================================================
-// Model Context
-// =============================================================================
-
 export type ModelContext = {
   priority?: number | undefined;
   system?: string | undefined;
@@ -37,10 +29,6 @@ export type ModelContextProvider = {
   getModelContext: () => ModelContext;
   subscribe?: (callback: () => void) => Unsubscribe;
 };
-
-// =============================================================================
-// Tool & Instruction Config
-// =============================================================================
 
 export type AssistantToolProps<
   TArgs extends Record<string, unknown>,
@@ -55,9 +43,10 @@ export type AssistantInstructionsConfig = {
   instruction: string;
 };
 
-// =============================================================================
-// Merging
-// =============================================================================
+export type AssistantContextConfig = {
+  getContext: () => string;
+  disabled?: boolean | undefined;
+};
 
 export const mergeModelContexts = (
   configSet: Set<ModelContextProvider>,

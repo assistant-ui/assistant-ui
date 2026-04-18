@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/agent-launcher",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "description": "Launch Claude Code with bundled plugins and skills",
   "keywords": [
     "claude",
@@ -14,7 +14,6 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -36,7 +35,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^25.3.3"
+    "@types/node": "^25.6.0"
   },
   "publishConfig": {
     "access": "public",

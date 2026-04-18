@@ -1,7 +1,7 @@
-import { Testimonial } from "@/components/home/testimonials/data";
+import type { Testimonial } from "@/components/home/testimonials/data";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { FC } from "react";
+import type { FC } from "react";
 
 export const TestimonialContainer: FC<{
   testimonials: Testimonial[];

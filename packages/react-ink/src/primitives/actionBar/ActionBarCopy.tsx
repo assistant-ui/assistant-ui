@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import {
   useActionBarCopy,
   type UseActionBarCopyOptions,
-} from "../../primitive-hooks/useActionBarCopy";
+} from "@assistant-ui/core/react";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 
 export type ActionBarCopyProps = Omit<PressableProps, "onPress" | "children"> &

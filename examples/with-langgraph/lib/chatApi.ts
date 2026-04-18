@@ -1,5 +1,5 @@
-import { ThreadState, Client } from "@langchain/langgraph-sdk";
-import {
+import { type ThreadState, Client } from "@langchain/langgraph-sdk";
+import type {
   LangChainMessage,
   LangGraphMessagesEvent,
   LangGraphSendMessageConfig,
@@ -7,21 +7,21 @@ import {
 
 const createClient = () => {
   const apiUrl =
-    process.env["NEXT_PUBLIC_LANGGRAPH_API_URL"] ||
+    process.env.NEXT_PUBLIC_LANGGRAPH_API_URL ||
     new URL("/api", window.location.href).href;
   return new Client({
     apiUrl,
   });
 };
 
-export const createAssistant = async (graphId: string) => {
-  const client = createClient();
-  return client.assistants.create({ graphId });
-};
-
 export const createThread = async () => {
   const client = createClient();
   return client.threads.create();
+};
+
+export const createAssistant = async (graphId: string) => {
+  const client = createClient();
+  return client.assistants.create({ graphId });
 };
 
 export const getThreadState = async (
@@ -93,7 +93,7 @@ export const sendMessage = (params: {
 
   return client.runs.stream(
     params.threadId,
-    process.env["NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID"]!,
+    process.env.NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID!,
     {
       input: params.messages.length > 0 ? { messages: params.messages } : null,
       config: {
@@ -101,7 +101,7 @@ export const sendMessage = (params: {
           model_name: "openai",
         },
       },
-      streamMode: "messages-tuple",
+      streamMode: ["messages-tuple", "values", "custom"],
       ...(checkpointId && { checkpoint_id: checkpointId }),
       ...restConfig,
     },

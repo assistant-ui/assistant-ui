@@ -1,4 +1,5 @@
-import type { AppendMessage, TextMessagePart, ThreadMessage } from "../types";
+import type { AppendMessage, ThreadMessage } from "../types/message";
+import type { TextMessagePart } from "../types/message";
 
 export const getThreadMessageText = (
   message: ThreadMessage | AppendMessage,

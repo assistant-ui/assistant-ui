@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "tw-glass by assistant-ui",

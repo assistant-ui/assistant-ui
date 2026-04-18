@@ -6,12 +6,14 @@ import type {
   AppendMessage,
   CreateAttachment,
   PendingAttachment,
+  SendOptions,
 } from "@assistant-ui/core";
 
 class TestComposerCore extends BaseComposerRuntimeCore {
   private _attachmentAdapter: AttachmentAdapter | undefined;
   private _dictationAdapter: DictationAdapter | undefined;
   public sentMessages: Array<Omit<AppendMessage, "parentId" | "sourceId">> = [];
+  public sentOptions: Array<SendOptions | undefined> = [];
   public cancelCalled = false;
 
   protected getAttachmentAdapter() {
@@ -33,8 +35,12 @@ class TestComposerCore extends BaseComposerRuntimeCore {
     return false;
   }
 
-  protected handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">) {
+  protected handleSend(
+    message: Omit<AppendMessage, "parentId" | "sourceId">,
+    options?: SendOptions,
+  ) {
     this.sentMessages.push(message);
+    this.sentOptions.push(options);
   }
 
   protected handleCancel() {
@@ -204,7 +210,9 @@ describe("BaseComposerRuntimeCore", () => {
     };
     composer.setAttachmentAdapter(adapter);
 
-    await composer.addAttachment(new File(["data"], "test.txt"));
+    await composer.addAttachment(
+      new File(["data"], "test.txt", { type: "text/plain" }),
+    );
 
     expect(composer.attachments).toHaveLength(1);
     expect(composer.attachments[0]!.id).toBe("att-1");
@@ -417,6 +425,32 @@ describe("BaseComposerRuntimeCore", () => {
       expect(msg.attachments).toHaveLength(2);
       // Pending was sent through adapter
       expect(adapter.send).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("send options", () => {
+    it("send() passes undefined options by default", async () => {
+      composer.setText("hello");
+      await composer.send();
+
+      expect(composer.sentOptions).toHaveLength(1);
+      expect(composer.sentOptions[0]).toBeUndefined();
+    });
+
+    it("send({ startRun: true }) forwards options to handleSend", async () => {
+      composer.setText("hello");
+      await composer.send({ startRun: true });
+
+      expect(composer.sentOptions).toHaveLength(1);
+      expect(composer.sentOptions[0]).toEqual({ startRun: true });
+    });
+
+    it("send({ startRun: false }) forwards options to handleSend", async () => {
+      composer.setText("hello");
+      await composer.send({ startRun: false });
+
+      expect(composer.sentOptions).toHaveLength(1);
+      expect(composer.sentOptions[0]).toEqual({ startRun: false });
     });
   });
 });

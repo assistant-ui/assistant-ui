@@ -9,6 +9,7 @@ import type { ModelContextClientSchema } from "./scopes/model-context";
 import type { SuggestionsClientSchema } from "./scopes/suggestions";
 import type { SuggestionClientSchema } from "./scopes/suggestion";
 import type { ChainOfThoughtClientSchema } from "./scopes/chain-of-thought";
+import type { QueueItemClientSchema } from "./scopes/queue-item";
 
 declare module "@assistant-ui/store" {
   interface ScopeRegistry {
@@ -23,5 +24,6 @@ declare module "@assistant-ui/store" {
     suggestions: SuggestionsClientSchema;
     suggestion: SuggestionClientSchema;
     chainOfThought: ChainOfThoughtClientSchema;
+    queueItem: QueueItemClientSchema;
   }
 }

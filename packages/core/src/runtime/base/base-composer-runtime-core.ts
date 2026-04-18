@@ -3,18 +3,21 @@ import type {
   CompleteAttachment,
   CreateAttachment,
   PendingAttachment,
-  MessageRole,
-  RunConfig,
-  QuoteInfo,
-  AppendMessage,
-  Unsubscribe,
-} from "../../types";
-import { BaseSubscribable } from "../../subscribable";
-import type { AttachmentAdapter } from "../../adapters/attachment";
+} from "../../types/attachment";
+import type { MessageRole, AppendMessage } from "../../types/message";
+import type { QuoteInfo } from "../../types/quote";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { RunConfig } from "../../types/message";
+import { BaseSubscribable } from "../../subscribable/subscribable";
+import {
+  type AttachmentAdapter,
+  fileMatchesAccept,
+} from "../../adapters/attachment";
 import type {
   ComposerRuntimeCore,
   ComposerRuntimeEventType,
   DictationState,
+  SendOptions,
 } from "../interfaces/composer-runtime-core";
 import type { DictationAdapter } from "../../adapters/speech";
 import { generateId } from "../../utils/id";
@@ -150,7 +153,7 @@ export abstract class BaseComposerRuntimeCore
     await task;
   }
 
-  public async send() {
+  public async send(options?: SendOptions) {
     if (this.isEmpty) return;
 
     if (this._dictationSession) {
@@ -185,7 +188,7 @@ export abstract class BaseComposerRuntimeCore
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 
-    this.handleSend(message);
+    this.handleSend(message, options);
     this._notifyEventSubscribers("send");
   }
 
@@ -195,6 +198,7 @@ export abstract class BaseComposerRuntimeCore
 
   protected abstract handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
+    options?: SendOptions,
   ): void;
   protected abstract handleCancel(): void;
 
@@ -217,6 +221,17 @@ export abstract class BaseComposerRuntimeCore
     const adapter = this.getAttachmentAdapter();
     if (!adapter) throw new Error("Attachments are not supported");
 
+    if (
+      !fileMatchesAccept(
+        { name: fileOrAttachment.name, type: fileOrAttachment.type },
+        adapter.accept,
+      )
+    ) {
+      throw new Error(
+        `File type ${fileOrAttachment.type || "unknown"} is not accepted. Accepted types: ${adapter.accept}`,
+      );
+    }
+
     const upsertAttachment = (a: PendingAttachment) => {
       const idx = this._attachments.findIndex(
         (attachment) => attachment.id === a.id,
@@ -234,17 +249,39 @@ export abstract class BaseComposerRuntimeCore
       this._notifySubscribers();
     };
 
-    const promiseOrGenerator = adapter.add({ file: fileOrAttachment });
-    if (Symbol.asyncIterator in promiseOrGenerator) {
-      for await (const r of promiseOrGenerator) {
-        upsertAttachment(r);
+    let lastAttachment: PendingAttachment | undefined;
+    try {
+      const promiseOrGenerator = adapter.add({ file: fileOrAttachment });
+      if (Symbol.asyncIterator in promiseOrGenerator) {
+        for await (const r of promiseOrGenerator) {
+          lastAttachment = r;
+          upsertAttachment(r);
+        }
+      } else {
+        lastAttachment = await promiseOrGenerator;
+        upsertAttachment(lastAttachment);
       }
-    } else {
-      upsertAttachment(await promiseOrGenerator);
+    } catch (e) {
+      if (lastAttachment) {
+        upsertAttachment({
+          ...lastAttachment,
+          status: { type: "incomplete", reason: "error" },
+        });
+      }
+      try {
+        this._notifyEventSubscribers("attachmentAddError");
+      } catch {
+        // prevent subscriber errors from masking the adapter error
+      }
+      throw e;
     }
 
-    this._notifyEventSubscribers("attachmentAdd");
-    this._notifySubscribers();
+    const hasError =
+      lastAttachment?.status.type === "incomplete" &&
+      lastAttachment.status.reason === "error";
+    this._notifyEventSubscribers(
+      hasError ? "attachmentAddError" : "attachmentAdd",
+    );
   }
 
   async removeAttachment(attachmentId: string) {

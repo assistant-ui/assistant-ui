@@ -1,5 +1,52 @@
 # @assistant-ui/store
 
+## 0.2.7
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- Updated dependencies [c988db8]
+  - @assistant-ui/tap@0.5.8
+
+## 0.2.6
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- 2dd0c9f: feat: add forwardTransformScopes utility
+- Updated dependencies [bdce66f]
+- Updated dependencies [209ae81]
+  - @assistant-ui/tap@0.5.6
+
+## 0.2.5
+
+### Patch Changes
+
+- 52403c3: chore: update dependencies
+- Updated dependencies [52403c3]
+  - @assistant-ui/tap@0.5.5
+
+## 0.2.4
+
+### Patch Changes
+
+- 28a987a: feat: SingleThreadList resource
+  refactor: attachTransformScopes should mutate the scopes instead of cloning it
+- 736344c: chore: update dependencies
+- c71cb58: chore: update dependencies
+- Updated dependencies [736344c]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/tap@0.5.4
+
+## 0.2.3
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- Updated dependencies [349f3c7]
+  - @assistant-ui/tap@0.5.3
+
 ## 0.2.2
 
 ### Patch Changes

@@ -1,7 +1,10 @@
-import type { AppendMessage } from "../../types";
+import type { AppendMessage } from "../../types/message";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { DictationAdapter } from "../../adapters/speech";
-import type { ThreadComposerRuntimeCore } from "../interfaces/composer-runtime-core";
+import type {
+  SendOptions,
+  ThreadComposerRuntimeCore,
+} from "../interfaces/composer-runtime-core";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
 
@@ -47,11 +50,13 @@ export class DefaultThreadComposerRuntimeCore
 
   public async handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
+    options?: SendOptions,
   ) {
     this.runtime.append({
       ...(message as AppendMessage),
       parentId: this.runtime.messages.at(-1)?.id ?? null,
       sourceId: null,
+      startRun: options?.startRun,
     });
   }
 

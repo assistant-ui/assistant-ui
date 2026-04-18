@@ -1,6 +1,14 @@
 import type { Element } from "hast";
-import { ComponentProps, ComponentType, ElementType, memo } from "react";
-import { CodeHeaderProps, SyntaxHighlighterProps } from "./overrides/types";
+import {
+  type ComponentProps,
+  type ComponentType,
+  type ElementType,
+  memo,
+} from "react";
+import type {
+  CodeHeaderProps,
+  SyntaxHighlighterProps,
+} from "./overrides/types";
 
 type Components = {
   [Key in Extract<ElementType, string>]?: ComponentType<ComponentProps<Key>>;

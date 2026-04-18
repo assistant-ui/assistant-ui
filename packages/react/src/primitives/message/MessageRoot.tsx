@@ -1,10 +1,10 @@
 "use client";
 
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "../../utils/Primitive";
 import {
   type ComponentRef,
   forwardRef,
-  ComponentPropsWithoutRef,
+  type ComponentPropsWithoutRef,
   useCallback,
 } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
@@ -79,9 +79,20 @@ export namespace MessagePrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;
   /**
    * Props for the MessagePrimitive.Root component.
-   * Accepts all standard div element props.
+   * Accepts all standard div element props plus optional viewport slack tuning.
    */
-  export type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
+  export type Props = ComponentPropsWithoutRef<typeof Primitive.div> & {
+    /**
+     * Threshold at which the user message height clamps to the offset.
+     * @default "10em"
+     */
+    fillClampThreshold?: string | undefined;
+    /**
+     * Offset used when clamping large user messages.
+     * @default "6em"
+     */
+    fillClampOffset?: string | undefined;
+  };
 }
 
 /**
@@ -108,7 +119,7 @@ export namespace MessagePrimitiveRoot {
 export const MessagePrimitiveRoot = forwardRef<
   MessagePrimitiveRoot.Element,
   MessagePrimitiveRoot.Props
->((props, forwardRef) => {
+>(({ fillClampThreshold, fillClampOffset, ...props }, forwardRef) => {
   const isHoveringRef = useIsHoveringRef();
   const anchorUserMessageRef = useMessageViewportRef();
   const ref = useComposedRefs<HTMLDivElement>(
@@ -119,7 +130,10 @@ export const MessagePrimitiveRoot = forwardRef<
   const messageId = useAuiState((s) => s.message.id);
 
   return (
-    <ThreadPrimitiveViewportSlack>
+    <ThreadPrimitiveViewportSlack
+      fillClampThreshold={fillClampThreshold}
+      fillClampOffset={fillClampOffset}
+    >
       <Primitive.div {...props} ref={ref} data-message-id={messageId} />
     </ThreadPrimitiveViewportSlack>
   );

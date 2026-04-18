@@ -1,39 +1,38 @@
-import {
+import type {
   SpeechState,
   SubmittedFeedback,
 } from "../interfaces/thread-runtime-core";
 import { symbolInnerMessage } from "../utils/external-store-message";
 import type {
-  MessagePartStatus,
-  RunConfig,
   ToolCallMessagePartStatus,
   ThreadMessage,
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
-  Unsubscribe,
-} from "../../types";
+} from "../../types/message";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { MessagePartStatus, RunConfig } from "../../types/message";
 import { getThreadMessageText } from "../../utils/text";
+import { NestedSubscriptionSubject } from "../../subscribable/subscribable";
 import {
-  NestedSubscriptionSubject,
   SKIP_UPDATE,
   ShallowMemoizeSubject,
-} from "../../subscribable";
+} from "../../subscribable/subscribable";
 import {
-  AttachmentRuntime,
-  AttachmentState,
+  type AttachmentRuntime,
+  type AttachmentState,
   MessageAttachmentRuntimeImpl,
 } from "./attachment-runtime";
 import {
-  EditComposerRuntime,
+  type EditComposerRuntime,
   EditComposerRuntimeImpl,
 } from "./composer-runtime";
 import {
-  MessagePartRuntime,
+  type MessagePartRuntime,
   MessagePartRuntimeImpl,
-  MessagePartState,
+  type MessagePartState,
 } from "./message-part-runtime";
-import { MessageRuntimePath } from "./paths";
-import { ThreadRuntimeCoreBinding } from "./thread-runtime";
+import type { MessageRuntimePath } from "./paths";
+import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
 import type { MessageStateBinding } from "./bindings";
 
 const COMPLETE_STATUS: MessagePartStatus = Object.freeze({

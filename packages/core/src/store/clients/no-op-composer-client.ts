@@ -1,6 +1,6 @@
 import { resource, tapMemo } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import type { ComposerState } from "../scopes";
+import type { ComposerState } from "../scopes/composer";
 
 export const NoOpComposerClient = resource(
   ({ type }: { type: "edit" | "thread" }): ClientOutput<"composer"> => {
@@ -17,6 +17,7 @@ export const NoOpComposerClient = resource(
         type: type,
         dictation: undefined,
         quote: undefined,
+        queue: [],
       };
     }, [type]);
 
@@ -59,6 +60,9 @@ export const NoOpComposerClient = resource(
         throw new Error("Not supported");
       },
       setQuote: () => {
+        throw new Error("Not supported");
+      },
+      queueItem: () => {
         throw new Error("Not supported");
       },
     };

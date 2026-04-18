@@ -1,4 +1,4 @@
-import { AssistantStreamChunk } from "../../AssistantStreamChunk";
+import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { promiseWithResolvers } from "../../../utils/promiseWithResolvers";
 
 type MergeStreamItem = {

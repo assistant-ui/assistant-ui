@@ -24,7 +24,7 @@ export function dlxCommand(pm: PackageManagerName): [string, string[]] {
 export interface TransformOptions {
   hasLocalComponents: boolean;
   skipInstall?: boolean;
-  packageManager?: PackageManagerName;
+  packageManager: PackageManagerName;
 }
 
 export async function resolveLatestReleaseRef(): Promise<string | undefined> {
@@ -51,9 +51,12 @@ export async function downloadProject(
     ? `gh:assistant-ui/assistant-ui/${repoPath}#${ref}`
     : `gh:assistant-ui/assistant-ui/${repoPath}`;
 
-  // Suppress giget's console.debug output
-  const origDebug = console.debug;
-  console.debug = () => {};
+  // Suppress giget's debug output. The `debug` package (used by the upgrade
+  // command) sets process.env.DEBUG at module-load time, and giget logs to
+  // console.debug whenever that env var is truthy — even for unrelated
+  // namespaces. Temporarily unsetting it targets the root cause.
+  const origDebug = process.env.DEBUG;
+  delete process.env.DEBUG;
   try {
     const downloadPromise = downloadTemplate(source, {
       dir: destDir,
@@ -80,8 +83,20 @@ export async function downloadProject(
       clearTimeout(timer!);
     }
   } finally {
-    console.debug = origDebug;
+    if (origDebug !== undefined) {
+      process.env.DEBUG = origDebug;
+    }
   }
+}
+
+function detectFromUserAgent(): PackageManagerName | undefined {
+  const ua = process.env.npm_config_user_agent;
+  if (!ua) return undefined;
+  if (ua.startsWith("bun/")) return "bun";
+  if (ua.startsWith("pnpm/")) return "pnpm";
+  if (ua.startsWith("yarn/")) return "yarn";
+  if (ua.startsWith("npm/")) return "npm";
+  return undefined;
 }
 
 export async function resolvePackageManagerName(
@@ -89,6 +104,8 @@ export async function resolvePackageManagerName(
   packageManager?: PackageManagerName,
 ): Promise<PackageManagerName> {
   if (packageManager) return packageManager;
+  const fromAgent = detectFromUserAgent();
+  if (fromAgent) return fromAgent;
   try {
     return await detect({ cwd: path.dirname(projectDir) });
   } catch {
@@ -110,21 +127,21 @@ export async function transformProject(
   if (!opts.hasLocalComponents) {
     logger.step("Transforming project files...");
 
-    // 2–5. Transform tsconfig, CSS, scan components, and remove workspace
-    // components — all independent, run in parallel
+    // 2–4. Transform tsconfig, CSS, and scan components in parallel
     const [, , components] = await Promise.all([
       transformTsConfig(projectDir),
       transformCssFiles(projectDir),
       scanRequiredComponents(projectDir),
-      removeWorkspaceComponents(projectDir),
     ]);
     assistantUI = components.assistantUI;
     shadcnUI = components.shadcnUI;
+
+    // 5. Remove workspace components (after scan completes — scan reads these files)
+    await removeWorkspaceComponents(projectDir);
   }
 
   // 6. Install dependencies
-  const pm =
-    opts.packageManager ?? (await resolvePackageManagerName(projectDir));
+  const pm = opts.packageManager;
   if (!opts.skipInstall) {
     logger.step("Installing dependencies...");
     await installDependencies(projectDir, pm);
@@ -153,7 +170,7 @@ async function transformPackageJson(projectDir: string): Promise<void> {
   const pkgPath = path.join(projectDir, "package.json");
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
 
-  // Remove @assistant-ui/ui (workspace-only package)
+  // Remove @assistant-ui/react-ui (workspace-only package)
   if (pkg.dependencies?.["@assistant-ui/ui"]) {
     delete pkg.dependencies["@assistant-ui/ui"];
   }
@@ -246,14 +263,16 @@ async function transformCssFiles(projectDir: string): Promise<void> {
   for (const file of cssFiles) {
     const fullPath = path.join(projectDir, file);
     try {
-      let content = fs.readFileSync(fullPath, "utf-8");
+      const content = fs.readFileSync(fullPath, "utf-8");
 
-      content = content.replace(
+      const newContent = content.replace(
         /@source\s+["'][^"']*packages\/ui\/src[^"']*["'];\s*\n?/g,
         "",
       );
 
-      fs.writeFileSync(fullPath, content);
+      if (newContent !== content) {
+        fs.writeFileSync(fullPath, newContent);
+      }
     } catch {
       // Ignore files that cannot be read/written
     }
@@ -283,13 +302,12 @@ async function scanRequiredComponents(
 
       const assistantUIRegex =
         /from\s+["']@\/components\/assistant-ui\/([^"']+)["']/g;
-      let match;
-      while ((match = assistantUIRegex.exec(content)) !== null) {
+      for (const match of content.matchAll(assistantUIRegex)) {
         assistantUIComponents.add(match[1]!);
       }
 
       const uiRegex = /from\s+["']@\/components\/ui\/([^"']+)["']/g;
-      while ((match = uiRegex.exec(content)) !== null) {
+      for (const match of content.matchAll(uiRegex)) {
         shadcnUIComponents.add(match[1]!);
       }
     } catch {

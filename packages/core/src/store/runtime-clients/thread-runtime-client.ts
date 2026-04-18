@@ -1,5 +1,6 @@
-import type { Unsubscribe } from "../../types";
-import { ThreadRuntimeEventType, ThreadRuntime } from "../../runtime";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { ThreadRuntimeEventType } from "../../runtime/interfaces/thread-runtime-core";
+import type { ThreadRuntime } from "../../runtime/api/thread-runtime";
 import {
   resource,
   tapResource,
@@ -17,7 +18,7 @@ import {
 import { ComposerClient } from "./composer-runtime-client";
 import { MessageClient } from "./message-runtime-client";
 import { tapSubscribable } from "./tap-subscribable";
-import { ThreadState } from "../scopes";
+import type { ThreadState } from "../scopes/thread";
 
 const MessageClientById = resource(
   ({
@@ -43,11 +44,9 @@ export const ThreadClient = resource(
     const runtimeState = tapSubscribable(runtime);
     const emit = tapAssistantEmit();
 
-    // Bind thread events to event manager
     tapEffect(() => {
       const unsubscribers: Unsubscribe[] = [];
 
-      // Subscribe to thread events
       const threadEvents: ThreadRuntimeEventType[] = [
         "runStart",
         "runEnd",
@@ -104,6 +103,7 @@ export const ThreadClient = resource(
         suggestions: runtimeState.suggestions,
         extras: runtimeState.extras,
         speech: runtimeState.speech,
+        voice: runtimeState.voice,
 
         composer: composer.state,
         messages: messages.state,
@@ -115,19 +115,20 @@ export const ThreadClient = resource(
       composer: () => composer.methods,
       append: runtime.append,
       startRun: runtime.startRun,
-      unstable_resumeRun: runtime.unstable_resumeRun,
+      resumeRun: runtime.resumeRun,
+      unstable_resumeRun: runtime.resumeRun,
       cancelRun: runtime.cancelRun,
       getModelContext: runtime.getModelContext,
       export: runtime.export,
       import: runtime.import,
       reset: runtime.reset,
       stopSpeaking: runtime.stopSpeaking,
-      startVoice: async () => {
-        throw new Error("startVoice is not supported in this runtime");
-      },
-      stopVoice: async () => {
-        throw new Error("stopVoice is not supported in this runtime");
-      },
+      connectVoice: runtime.connectVoice,
+      disconnectVoice: runtime.disconnectVoice,
+      getVoiceVolume: runtime.getVoiceVolume,
+      subscribeVoiceVolume: runtime.subscribeVoiceVolume,
+      muteVoice: runtime.muteVoice,
+      unmuteVoice: runtime.unmuteVoice,
       message: (selector) => {
         if ("id" in selector) {
           return messages.get({ key: selector.id });

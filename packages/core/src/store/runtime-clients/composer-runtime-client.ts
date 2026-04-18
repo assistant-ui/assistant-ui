@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "../../types";
+import type { Unsubscribe } from "../../types/unsubscribe";
 import {
   resource,
   tapMemo,
@@ -12,12 +12,11 @@ import {
   tapAssistantEmit,
   tapClientLookup,
 } from "@assistant-ui/store";
-import {
+import type {
   ComposerRuntime,
   EditComposerRuntime,
-  ComposerRuntimeEventType,
-} from "../../runtime";
-import { ComposerState } from "../scopes";
+} from "../../runtime/api/composer-runtime";
+import type { ComposerState } from "../scopes/composer";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 import { tapSubscribable } from "./tap-subscribable";
 
@@ -54,12 +53,7 @@ export const ComposerClient = resource(
       const unsubscribers: Unsubscribe[] = [];
 
       // Subscribe to composer events
-      const composerEvents: ComposerRuntimeEventType[] = [
-        "send",
-        "attachmentAdd",
-      ];
-
-      for (const event of composerEvents) {
+      for (const event of ["send", "attachmentAdd"] as const) {
         const unsubscribe = runtime.unstable_on(event, () => {
           emit(`composer.${event}`, {
             threadId: threadIdRef.current,
@@ -68,6 +62,23 @@ export const ComposerClient = resource(
         });
         unsubscribers.push(unsubscribe);
       }
+
+      // attachmentAddError carries the failed attachment ID
+      unsubscribers.push(
+        runtime.unstable_on("attachmentAddError", () => {
+          const errorAttachment = runtime
+            .getState()
+            .attachments.findLast(
+              (a) =>
+                a.status.type === "incomplete" && a.status.reason === "error",
+            );
+          emit("composer.attachmentAddError", {
+            threadId: threadIdRef.current,
+            ...(messageIdRef && { messageId: messageIdRef.current }),
+            ...(errorAttachment && { attachmentId: errorAttachment.id }),
+          });
+        }),
+      );
 
       return () => {
         for (const unsub of unsubscribers) unsub();
@@ -101,6 +112,7 @@ export const ComposerClient = resource(
         type: runtimeState.type ?? "thread",
         dictation: runtimeState.dictation,
         quote: runtimeState.quote,
+        queue: [],
       };
     }, [runtimeState, attachments.state]);
 
@@ -128,6 +140,9 @@ export const ComposerClient = resource(
         } else {
           return attachments.get(selector);
         }
+      },
+      queueItem: () => {
+        throw new Error("Queue is not supported in this runtime");
       },
       __internal_getRuntime: () => runtime,
     };

@@ -12,8 +12,7 @@ const getFileDataURL = (file: File) =>
   });
 
 export const vercelAttachmentAdapter: AttachmentAdapter = {
-  accept:
-    "image/*, text/plain, text/html, text/markdown, text/csv, text/xml, text/json, text/css",
+  accept: "*",
   async add({ file }) {
     return {
       id: generateId(),

@@ -2,7 +2,7 @@
 
 Lightweight cloud persistence for AI SDK apps without assistant-ui components.
 
-> **Want the full assistant-ui experience?** See [with-cloud](../with-cloud) instead, which uses `useChatRuntime` with `<Thread />` and other primitives.
+> **Want the full assistant-ui experience?** See [with-cloud](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud) instead, which uses `useChatRuntime` with `<Thread />` and other primitives.
 
 ## Setup
 

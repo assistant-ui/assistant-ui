@@ -1,0 +1,10 @@
+[project]
+name = "with-livekit-agent"
+version = "0.0.0"
+description = "LiveKit voice agent for the assistant-ui with-livekit example"
+requires-python = ">=3.10"
+dependencies = [
+    "livekit-agents>=1.0.0",
+    "livekit-plugins-openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+]

@@ -1,0 +1,21 @@
+{
+  "title": "Primitives",
+  "description": "Unstyled, accessible building blocks for AI chat interfaces",
+  "icon": "Blocks",
+  "root": true,
+  "pages": [
+    "index",
+    "composer",
+    "thread",
+    "message",
+    "action-bar",
+    "branch-picker",
+    "thread-list",
+    "assistant-modal",
+    "attachment",
+    "suggestion",
+    "selection-toolbar",
+    "error",
+    "chain-of-thought"
+  ]
+}

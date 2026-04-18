@@ -15,6 +15,7 @@ import {
 import * as Twoslash from "fumadocs-twoslash/ui";
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 import { ParametersTable } from "@/components/docs/parameters-table";
+import { PrimitivesTypeTable } from "@/components/docs/primitives-type-table";
 import { SourceLink } from "@/components/docs/source-link";
 import { Code } from "@radix-ui/themes";
 
@@ -33,7 +34,7 @@ function Kbd({ children, ...props }: ComponentProps<"kbd">) {
 
 export function getMDXComponents(components: MDXComponents): MDXComponents {
   return {
-    ...defaultComponents,
+    ...(defaultComponents as MDXComponents),
     ...Twoslash,
     pre: (props: CodeBlockProps) => (
       <CodeBlock {...props}>
@@ -53,6 +54,7 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     Kbd,
     InstallCommand,
     ParametersTable,
+    PrimitivesTypeTable,
     SourceLink,
     Code,
     blockquote: (props) => <Callout>{props.children}</Callout>,

@@ -1,5 +1,52 @@
 # assistant-stream
 
+## 0.3.11
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+
+## 0.3.10
+
+### Patch Changes
+
+- 2c5cd97: fix(assistant-stream): handle CRLF line endings in LineDecoderStream
+
+## 0.3.9
+
+### Patch Changes
+
+- dffb6b4: feat: add data part type to streaming pipeline
+
+  Add DataPart as a new streamable content part type, enabling AI to send structured named data that renders via makeAssistantDataUI. Includes appendData() controller method and DataStream serialization support.
+
+- 9103282: fix: resolve biome lint warnings (optional chaining, unused suppressions)
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+
+## 0.3.8
+
+### Patch Changes
+
+- 3227e71: feat: add `toPartialJSONSchema` utility for making JSON Schema properties optional
+- 52403c3: chore: update dependencies
+
+## 0.3.7
+
+### Patch Changes
+
+- 736344c: chore: update dependencies
+
+## 0.3.6
+
+### Patch Changes
+
+- 427ffaa: refactor: drop all barrel files
+- 349f3c7: chore: update deps
+- 02614aa: feat: add multi-agent support
+  - `ReadonlyThreadProvider` and `MessagePartPrimitive.Messages` for rendering sub-agent messages
+  - `assistant-stream`: add `messages` field to `tool-result` chunks, `ToolResponseLike`, and `ToolCallPart` types, enabling sub-agent messages to flow through the streaming protocol
+
 ## 0.3.5
 
 ### Patch Changes

@@ -1,4 +1,4 @@
-import { ModelContext } from "@assistant-ui/react";
+import type { ModelContext } from "@assistant-ui/react";
 import type { SerializedModelContext } from "../types";
 import { normalizeToolList } from "./toolNormalization";
 
@@ -62,12 +62,12 @@ export const serializeModelContext = (
   const modelContext = context as Record<string, unknown>;
   const result: SerializedModelContext = {};
 
-  const systemValue = modelContext["system"];
+  const systemValue = modelContext.system;
   if (typeof systemValue === "string" && systemValue.length > 0) {
     result.system = systemValue;
   }
 
-  const tools = normalizeToolList(modelContext["tools"]);
+  const tools = normalizeToolList(modelContext.tools);
   if (tools.length > 0) {
     result.tools = tools.map((tool) => ({
       ...tool,
@@ -75,8 +75,8 @@ export const serializeModelContext = (
     }));
   }
 
-  if (modelContext["callSettings"] !== undefined) {
-    const callSettings = sanitizeForMessage(modelContext["callSettings"]);
+  if (modelContext.callSettings !== undefined) {
+    const callSettings = sanitizeForMessage(modelContext.callSettings);
     if (
       callSettings &&
       typeof callSettings === "object" &&
@@ -86,8 +86,8 @@ export const serializeModelContext = (
     }
   }
 
-  if (modelContext["config"] !== undefined) {
-    const config = sanitizeForMessage(modelContext["config"]);
+  if (modelContext.config !== undefined) {
+    const config = sanitizeForMessage(modelContext.config);
     if (config && typeof config === "object" && !Array.isArray(config)) {
       result.config = config as Record<string, unknown>;
     }

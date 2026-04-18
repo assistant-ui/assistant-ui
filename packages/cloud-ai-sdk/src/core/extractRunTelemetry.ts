@@ -1,4 +1,5 @@
 import type { UIMessage } from "@ai-sdk/react";
+import type { SamplingCallData } from "assistant-cloud";
 
 const MAX_SPAN_CONTENT = 50_000;
 
@@ -50,6 +51,7 @@ export type TelemetryToolCall = {
   tool_args?: string;
   tool_result?: string;
   tool_source?: "mcp" | "frontend" | "backend";
+  sampling_calls?: SamplingCallData[];
 };
 
 export type RunTelemetryData = {
@@ -190,6 +192,23 @@ export function extractRunTelemetry(
     typeof metadata?.modelId === "string" ? metadata.modelId : undefined;
   const usage = metadata?.usage as UsageFields | undefined;
   const normalizedUsage = usage ? normalizeUsage(usage) : undefined;
+
+  // Sampling calls from sub-agent / delegated model invocations.
+  // Server attaches via messageMetadata: { samplingCalls: { [toolCallId]: SamplingCallData[] } }
+  const rawSamplingCalls = metadata?.samplingCalls;
+  const samplingCallsMap =
+    rawSamplingCalls != null && typeof rawSamplingCalls === "object"
+      ? (rawSamplingCalls as Record<string, SamplingCallData[]>)
+      : undefined;
+
+  if (samplingCallsMap) {
+    for (const tc of toolCalls) {
+      const calls = samplingCallsMap[tc.tool_call_id];
+      if (Array.isArray(calls) && calls.length > 0) {
+        tc.sampling_calls = calls;
+      }
+    }
+  }
 
   return {
     assistantMessageId: assistant.id,

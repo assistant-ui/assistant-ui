@@ -1,4 +1,4 @@
-import type { AssistantRuntime } from "../../runtime";
+import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type {
   ThreadListItemMethods,
   ThreadListItemState,
@@ -26,6 +26,7 @@ export type ThreadsMethods = {
       | { index: number; archived?: boolean },
   ): ThreadListItemMethods;
   thread(selector: "main"): ThreadMethods;
+  getLoadThreadsPromise(): Promise<void>;
   __internal_getAssistantRuntime?(): AssistantRuntime;
 };
 

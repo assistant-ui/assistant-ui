@@ -1,4 +1,4 @@
-import { createContext, FC, ReactNode, useContext } from "react";
+import { createContext, type FC, type ReactNode, useContext } from "react";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { ModelContextProvider } from "../../model-context/types";

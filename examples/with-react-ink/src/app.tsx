@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Box, Text } from "ink";
 import {
-  AssistantProvider,
+  AssistantRuntimeProvider,
   useLocalRuntime,
   type ChatModelAdapter,
 } from "@assistant-ui/react-ink";
@@ -63,7 +63,7 @@ export const App = () => {
   const runtime = useLocalRuntime(adapter);
 
   return (
-    <AssistantProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime}>
       <Box flexDirection="column" padding={1}>
         <Text bold color="cyan">
           assistant-ui Terminal Chat
@@ -75,6 +75,6 @@ export const App = () => {
           <Thread />
         </Box>
       </Box>
-    </AssistantProvider>
+    </AssistantRuntimeProvider>
   );
 };

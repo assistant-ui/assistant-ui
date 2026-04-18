@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-o11y",
-  "version": "0.0.3",
+  "version": "0.0.10",
   "description": "Observability primitives for @assistant-ui",
   "keywords": [
     "observability",
@@ -15,7 +15,6 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -48,7 +47,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.14",
-    "react": "^19.2.4"
+    "react": "^19.2.5"
   },
   "publishConfig": {
     "access": "public",

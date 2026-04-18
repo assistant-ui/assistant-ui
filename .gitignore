@@ -70,6 +70,12 @@ htmlcov/
 # Cursor
 .cursor
 
+# Husky
+.husky/_
+
+# Claude
+**/.claude/scheduled_tasks.lock
+
 # GitHub Spec Kit - https://github.com/github/spec-kit
 .specify/
 specs/*

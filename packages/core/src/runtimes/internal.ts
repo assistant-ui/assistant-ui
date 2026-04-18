@@ -17,6 +17,9 @@ export {
 export { ThreadMessageConverter } from "./external-store/thread-message-converter";
 export type { ConverterCallback } from "./external-store/thread-message-converter";
 
+// Readonly Runtime
+export { ReadonlyThreadRuntimeCore } from "./readonly/ReadonlyThreadRuntimeCore";
+
 // Remote Thread List
 export { OptimisticState } from "./remote-thread-list/optimistic-state";
 export { EMPTY_THREAD_CORE } from "./remote-thread-list/empty-thread-core";

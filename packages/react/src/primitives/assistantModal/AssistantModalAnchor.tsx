@@ -1,8 +1,12 @@
 "use client";
 
-import { ComponentPropsWithoutRef, ComponentRef, forwardRef } from "react";
+import {
+  type ComponentPropsWithoutRef,
+  type ComponentRef,
+  forwardRef,
+} from "react";
 import { Popover as PopoverPrimitive } from "radix-ui";
-import { ScopedProps, usePopoverScope } from "./scope";
+import { type ScopedProps, usePopoverScope } from "./scope";
 
 export namespace AssistantModalPrimitiveAnchor {
   export type Element = ComponentRef<typeof PopoverPrimitive.Anchor>;

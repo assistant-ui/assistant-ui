@@ -1,6 +1,6 @@
-import { AssistantStreamChunk } from "../../AssistantStreamChunk";
+import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import {
-  AssistantStreamController,
+  type AssistantStreamController,
   createAssistantStreamController,
 } from "../../modules/assistant-stream";
 

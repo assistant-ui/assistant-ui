@@ -1,5 +1,63 @@
 # assistant-ui
 
+## 0.0.89
+
+### Patch Changes
+
+- 8d334f9: fix(cli): detect package manager from npm_config_user_agent before falling back to detect-package-manager
+- c988db8: chore: update dependencies
+- Updated dependencies [c988db8]
+  - @assistant-ui/agent-launcher@0.1.4
+
+## 0.0.88
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+- Updated dependencies [376bb00]
+  - @assistant-ui/agent-launcher@0.1.3
+
+## 0.0.87
+
+### Patch Changes
+
+- 69eb0c5: chore: add shipables.json for CLI plugin skills
+- 9103282: fix: resolve biome lint warnings (optional chaining, unused suppressions)
+- bdce66f: chore: update dependencies
+- 4abb898: refactor: align interactables with codebase conventions
+  - Rename `useInteractable` to `useAssistantInteractable` (registration only, returns id)
+  - Add `useInteractableState` hook for reading/writing interactable state
+  - Remove `makeInteractable` and related types
+  - Rename `UseInteractableConfig` to `AssistantInteractableProps`
+  - Extract `buildInteractableModelContext` from `Interactables` resource
+  - Add `with-interactables` example to CLI
+
+- Updated dependencies [209ae81]
+  - @assistant-ui/agent-launcher@0.1.2
+
+## 0.0.86
+
+### Patch Changes
+
+- 52403c3: chore: update dependencies
+
+## 0.0.85
+
+### Patch Changes
+
+- 6becd84: feat: add `info` command to print environment and package versions for bug reports
+- c71cb58: chore: update dependencies
+
+## 0.0.84
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- dbb2929: Improve CLI project creation error handling and transform sequencing in
+  `assistant-ui`.
+- Updated dependencies [349f3c7]
+  - @assistant-ui/agent-launcher@0.1.1
+
 ## 0.0.83
 
 ### Patch Changes

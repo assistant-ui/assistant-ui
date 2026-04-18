@@ -43,10 +43,6 @@ export default function GlassTextStressTestPage() {
   );
 }
 
-// ============================================================================
-// TABLE OF CONTENTS
-// ============================================================================
-
 function TableOfContents() {
   const sections = [
     { id: "mass-grid", label: "Mass Grid" },
@@ -79,10 +75,6 @@ function TableOfContents() {
     </nav>
   );
 }
-
-// ============================================================================
-// SHARED COMPONENTS
-// ============================================================================
 
 function Section({
   id,
@@ -212,10 +204,6 @@ function FpsCounter() {
   );
 }
 
-// ============================================================================
-// MASS GRID SECTION
-// ============================================================================
-
 function MassGridSection() {
   const [count, setCount] = useState(24);
   const cols = Math.min(Math.ceil(Math.sqrt(count)), 8);
@@ -268,10 +256,6 @@ function MassGridSection() {
   );
 }
 
-// ============================================================================
-// FONT SIZE SECTION
-// ============================================================================
-
 const FONT_SIZES = [
   { label: "text-sm", cls: "text-sm" },
   { label: "text-base", cls: "text-base" },
@@ -314,10 +298,6 @@ function FontSizeSection() {
   );
 }
 
-// ============================================================================
-// FONT WEIGHT SECTION
-// ============================================================================
-
 const FONT_WEIGHTS = [
   { label: "font-thin", cls: "font-thin" },
   { label: "font-light", cls: "font-light" },
@@ -356,10 +336,6 @@ function FontWeightSection() {
     </Section>
   );
 }
-
-// ============================================================================
-// BACKGROUND VARIANTS SECTION
-// ============================================================================
 
 const BG_VARIANTS: {
   label: string;
@@ -436,10 +412,6 @@ function BackgroundVariantsSection() {
   );
 }
 
-// ============================================================================
-// LONG COPY SECTION
-// ============================================================================
-
 const LOREM =
   "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. How vexingly quick daft zebras jump. Sphinx of black quartz, judge my vow.";
 
@@ -495,10 +467,6 @@ function LongCopySection() {
   );
 }
 
-// ============================================================================
-// NESTED CONTAINERS SECTION
-// ============================================================================
-
 function NestedContainersSection() {
   return (
     <Section
@@ -544,10 +512,6 @@ function NestedContainersSection() {
   );
 }
 
-// ============================================================================
-// SCROLL STRESS SECTION
-// ============================================================================
-
 function ScrollStressSection() {
   return (
     <Section
@@ -577,10 +541,6 @@ function ScrollStressSection() {
     </Section>
   );
 }
-
-// ============================================================================
-// INTERACTIVE SECTION
-// ============================================================================
 
 const PHOTO_OPTIONS = [
   { label: "Aurora", id: "photo-1531366936337-7c912a4589a7" },

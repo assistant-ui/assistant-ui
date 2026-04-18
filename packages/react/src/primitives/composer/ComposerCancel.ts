@@ -1,23 +1,16 @@
 "use client";
 
 import {
-  ActionButtonElement,
-  ActionButtonProps,
+  type ActionButtonElement,
+  type ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useCallback } from "react";
-import { useAuiState, useAui } from "@assistant-ui/store";
+import { useComposerCancel as useComposerCancelBehavior } from "@assistant-ui/core/react";
 
 const useComposerCancel = () => {
-  const aui = useAui();
-  const disabled = useAuiState((s) => !s.composer.canCancel);
-
-  const callback = useCallback(() => {
-    aui.composer().cancel();
-  }, [aui]);
-
+  const { disabled, cancel } = useComposerCancelBehavior();
   if (disabled) return null;
-  return callback;
+  return cancel;
 };
 
 export namespace ComposerPrimitiveCancel {

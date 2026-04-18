@@ -4,12 +4,16 @@ import { composeEventHandlers } from "@radix-ui/primitive";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { Slot } from "radix-ui";
 import {
-  ClipboardEvent,
+  type ClipboardEvent,
   type KeyboardEvent,
+  type ReactElement,
+  type ReactNode,
   forwardRef,
   useCallback,
   useEffect,
   useRef,
+  cloneElement,
+  isValidElement,
 } from "react";
 import TextareaAutosize, {
   type TextareaAutosizeProps,
@@ -18,6 +22,7 @@ import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useAuiState, useAui } from "@assistant-ui/store";
 import { flushResourcesSync } from "@assistant-ui/tap";
+import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
 
 export namespace ComposerPrimitiveInput {
   export type Element = HTMLTextAreaElement;
@@ -28,6 +33,10 @@ export namespace ComposerPrimitiveInput {
      * When true, the component will merge its props with its child.
      */
     asChild?: boolean | undefined;
+    /**
+     * A React element to use as the input container, with props merged in.
+     */
+    render?: ReactElement | undefined;
     /**
      * Whether to cancel message composition when Escape is pressed.
      * @default true
@@ -114,10 +123,12 @@ export const ComposerPrimitiveInput = forwardRef<
     {
       autoFocus = false,
       asChild,
+      render,
       disabled: disabledProp,
       onChange,
       onKeyDown,
       onPaste,
+      onSelect,
       submitOnEnter,
       submitMode,
       cancelOnEscape = true,
@@ -130,6 +141,7 @@ export const ComposerPrimitiveInput = forwardRef<
     forwardedRef,
   ) => {
     const aui = useAui();
+    const pluginRegistry = useComposerInputPluginRegistryOptional();
 
     const effectiveSubmitMode =
       submitMode ?? (submitOnEnter === false ? "none" : "enter");
@@ -139,20 +151,27 @@ export const ComposerPrimitiveInput = forwardRef<
       return s.composer.text;
     });
 
-    const Component = asChild ? Slot.Root : TextareaAutosize;
-
     const isDisabled =
       useAuiState(
         (s) => s.thread.isDisabled || s.composer.dictation?.inputDisabled,
       ) || disabledProp;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const ref = useComposedRefs(forwardedRef, textareaRef);
+    // suppress text/cursor broadcasts during IME composition
+    const compositionRef = useRef(false);
 
     useEscapeKeydown((e) => {
-      if (!cancelOnEscape) return;
-
       // Only handle ESC if it originated from within this input
       if (!textareaRef.current?.contains(e.target as Node)) return;
+
+      // Let registered plugins (mention, slash command, etc.) handle Escape first
+      if (pluginRegistry) {
+        for (const plugin of pluginRegistry.getPlugins()) {
+          if (plugin.handleKeyDown(e)) return;
+        }
+      }
+
+      if (!cancelOnEscape) return;
 
       const composer = aui.composer();
       if (composer.getState().canCancel) {
@@ -167,9 +186,35 @@ export const ComposerPrimitiveInput = forwardRef<
       // ignore IME composition events
       if (e.nativeEvent.isComposing) return;
 
-      if (e.key === "Enter" && !e.shiftKey) {
-        const isRunning = aui.thread().getState().isRunning;
-        if (isRunning) return;
+      // Let registered plugins (mention, slash command, etc.) handle keyboard events first
+      if (pluginRegistry) {
+        for (const plugin of pluginRegistry.getPlugins()) {
+          if (plugin.handleKeyDown(e)) return;
+        }
+      }
+
+      if (e.key === "Enter") {
+        const threadState = aui.thread().getState();
+        const hasQueue = threadState.capabilities.queue;
+
+        // Steer hotkey: Cmd/Ctrl+Shift+Enter (respects submitMode="none" and isEmpty)
+        if (
+          e.shiftKey &&
+          (e.ctrlKey || e.metaKey) &&
+          hasQueue &&
+          effectiveSubmitMode !== "none" &&
+          !aui.composer().getState().isEmpty
+        ) {
+          e.preventDefault();
+          aui.composer().send({ steer: true });
+          return;
+        }
+
+        // Regular newline: Shift+Enter
+        if (e.shiftKey) return;
+
+        // Block submission when running unless queue is supported
+        if (threadState.isRunning && !hasQueue) return;
 
         let shouldSubmit = false;
         if (effectiveSubmitMode === "ctrlEnter") {
@@ -242,23 +287,87 @@ export const ComposerPrimitiveInput = forwardRef<
       return aui.on("threadListItem.switchedTo", focus);
     }, [unstable_focusOnThreadSwitched, focus, aui]);
 
-    return (
-      <Component
-        name="input"
-        value={value}
-        {...rest}
-        ref={ref as React.ForwardedRef<HTMLTextAreaElement>}
-        disabled={isDisabled}
-        onChange={composeEventHandlers(onChange, (e) => {
+    const inputProps = {
+      name: "input" as const,
+      value,
+      ...rest,
+      ref: ref as React.ForwardedRef<HTMLTextAreaElement>,
+      disabled: isDisabled,
+      onChange: composeEventHandlers(
+        onChange,
+        (e: React.ChangeEvent<HTMLTextAreaElement>) => {
           if (!aui.composer().getState().isEditing) return;
+          const isComposing =
+            (e.nativeEvent as { isComposing?: boolean }).isComposing === true ||
+            compositionRef.current;
+          if (isComposing) return;
           flushResourcesSync(() => {
             aui.composer().setText(e.target.value);
           });
-        })}
-        onKeyDown={composeEventHandlers(onKeyDown, handleKeyPress)}
-        onPaste={composeEventHandlers(onPaste, handlePaste)}
-      />
-    );
+          const pos = e.target.selectionStart ?? e.target.value.length;
+          if (pluginRegistry) {
+            for (const plugin of pluginRegistry.getPlugins()) {
+              plugin.setCursorPosition(pos);
+            }
+          }
+        },
+      ),
+      onKeyDown: composeEventHandlers(onKeyDown, handleKeyPress),
+      onCompositionStart: composeEventHandlers(
+        (rest as { onCompositionStart?: React.CompositionEventHandler })
+          .onCompositionStart,
+        () => {
+          compositionRef.current = true;
+        },
+      ),
+      onCompositionEnd: composeEventHandlers(
+        (rest as { onCompositionEnd?: React.CompositionEventHandler })
+          .onCompositionEnd,
+        (e: React.CompositionEvent<HTMLTextAreaElement>) => {
+          compositionRef.current = false;
+          if (!aui.composer().getState().isEditing) return;
+          const target = e.target as HTMLTextAreaElement;
+          flushResourcesSync(() => {
+            aui.composer().setText(target.value);
+          });
+          const pos = target.selectionStart ?? target.value.length;
+          if (pluginRegistry) {
+            for (const plugin of pluginRegistry.getPlugins()) {
+              plugin.setCursorPosition(pos);
+            }
+          }
+        },
+      ),
+      onSelect: composeEventHandlers(
+        onSelect,
+        (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+          if (compositionRef.current) return;
+          const target = e.target as HTMLTextAreaElement;
+          const pos = target.selectionStart ?? target.value.length;
+          if (pluginRegistry) {
+            for (const plugin of pluginRegistry.getPlugins()) {
+              plugin.setCursorPosition(pos);
+            }
+          }
+        },
+      ),
+      onPaste: composeEventHandlers(onPaste, handlePaste),
+    };
+
+    if (render && isValidElement(render)) {
+      const renderChildren =
+        (rest as any).children !== undefined
+          ? ((rest as any).children as ReactNode)
+          : ((render.props as Record<string, unknown>).children as ReactNode);
+      return (
+        <Slot.Root {...inputProps}>
+          {cloneElement(render, undefined, renderChildren)}
+        </Slot.Root>
+      );
+    }
+
+    const Component = asChild ? Slot.Root : TextareaAutosize;
+    return <Component {...inputProps} />;
   },
 );
 

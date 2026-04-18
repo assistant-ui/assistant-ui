@@ -1,28 +1,36 @@
 "use client";
 
-import {
+import type {
+  DataMessagePart,
   ThreadAssistantMessage,
-  useExternalMessageConverter,
-} from "@assistant-ui/react";
-import {
+  ThreadUserMessage,
+  ToolCallMessagePart,
+} from "@assistant-ui/core";
+import type { useExternalMessageConverter } from "@assistant-ui/core/react";
+import type {
   LangChainMessage,
   LangChainToolCall,
   LangChainToolCallChunk,
+  UIMessage,
 } from "./types";
-import { ToolCallMessagePart } from "@assistant-ui/react";
-import { ThreadUserMessage } from "@assistant-ui/react";
 import {
   parsePartialJsonObject,
-  ReadonlyJSONObject,
+  type ReadonlyJSONObject,
 } from "assistant-stream/utils";
 
 type LangGraphMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
+    uiMessagesByParent?: Map<string, UIMessage[]>;
   };
 
-const hasOwn = (value: object, key: string) =>
-  Object.prototype.hasOwnProperty.call(value, key);
+const uiMessageToDataPart = (ui: UIMessage): DataMessagePart => ({
+  type: "data",
+  name: ui.name,
+  data: ui.props,
+});
+
+const hasOwn = (value: object, key: string) => Object.hasOwn(value, key);
 
 const stabilizeToolArgsValue = (
   value: unknown,
@@ -141,7 +149,7 @@ const warnedMessagePartTypes = new Set<string>();
 const warnForUnknownMessagePartType = (type: string) => {
   if (
     typeof process === "undefined" ||
-    process?.env?.["NODE_ENV"] !== "development"
+    process?.env?.NODE_ENV !== "development"
   )
     return;
   if (warnedMessagePartTypes.has(type)) return;
@@ -153,7 +161,7 @@ const warnedFilePartShapes = new Set<string>();
 const warnForUnsupportedFilePartShape = (part: FileContentPart) => {
   if (
     typeof process === "undefined" ||
-    process?.env?.["NODE_ENV"] !== "development"
+    process?.env?.NODE_ENV !== "development"
   )
     return;
   const shape = Object.keys(part).sort().join(",");
@@ -247,7 +255,7 @@ const contentToParts = (
           case "input_json_delta":
             return null;
 
-          case "computer_call":
+          case "computer_call": {
             const args = part.action as ReadonlyJSONObject;
             return {
               type: "tool-call",
@@ -260,11 +268,13 @@ const contentToParts = (
                 args,
               ),
             };
+          }
 
-          default:
+          default: {
             const _exhaustiveCheck: never = type;
             warnForUnknownMessagePartType(_exhaustiveCheck);
             return null;
+          }
 
           // const _exhaustiveCheck: never = type;
           // throw new Error(`Unknown message part type: ${_exhaustiveCheck}`);
@@ -292,7 +302,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         content: contentToParts(message.content, metadata, message.id),
         metadata: { custom: getCustomMetadata(message.additional_kwargs) },
       };
-    case "ai":
+    case "ai": {
       const toolCallParts =
         message.tool_calls?.map((chunk): ToolCallMessagePart => {
           const matchingToolCallChunk = message.tool_call_chunks?.find(
@@ -325,16 +335,25 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         ...(message.additional_kwargs?.tool_outputs ?? []),
       ].filter((c) => c !== undefined);
 
+      const uiDataParts: readonly DataMessagePart[] =
+        (message.id
+          ? metadata.uiMessagesByParent
+              ?.get(message.id)
+              ?.map(uiMessageToDataPart)
+          : undefined) ?? [];
+
       return {
         role: "assistant",
         id: message.id,
         content: [
           ...contentToParts(allContent, metadata, message.id),
           ...toolCallParts,
+          ...uiDataParts,
         ],
         metadata: { custom: getCustomMetadata(message.additional_kwargs) },
         ...(message.status && { status: message.status }),
       };
+    }
     case "tool":
       return {
         role: "tool",

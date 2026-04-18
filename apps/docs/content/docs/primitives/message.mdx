@@ -1,0 +1,524 @@
+---
+title: Message
+description: Build custom message rendering with content parts, attachments, and hover state.
+---
+
+import { MessagePrimitiveSample } from "@/components/docs/samples/message-primitive";
+import { MessagePrimitive as MessagePrimitiveDocs } from "@/generated/primitiveDocs";
+
+The Message primitive handles individual message rendering: content parts, attachments, quotes, hover state, and error display. It's the building block inside each message bubble, resolving text, images, tool calls, and more through a parts pipeline.
+
+<Tabs items={["Preview", "Code"]}>
+  <Tab>
+    <MessagePrimitiveSample />
+  </Tab>
+  <Tab>
+```tsx
+import {
+  MessagePrimitive,
+  MessagePartPrimitive,
+} from "@assistant-ui/react";
+
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root className="flex justify-end">
+      <div className="max-w-[80%] rounded-2xl bg-primary px-4 py-2.5 text-sm text-primary-foreground">
+        <MessagePrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "text") return <UserText />;
+            return null;
+          }}
+        </MessagePrimitive.Parts>
+      </div>
+    </MessagePrimitive.Root>
+  );
+}
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root className="flex justify-start gap-3">
+      <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+        AI
+      </div>
+      <div className="max-w-[80%] rounded-2xl bg-muted px-4 py-2.5 text-sm">
+        <MessagePrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "text") return <AssistantText />;
+            return part.toolUI ?? null;
+          }}
+        </MessagePrimitive.Parts>
+      </div>
+    </MessagePrimitive.Root>
+  );
+}
+
+function UserText() {
+  return (
+    <p>
+      <MessagePartPrimitive.Text />
+    </p>
+  );
+}
+
+function AssistantText() {
+  return (
+    <p className="leading-relaxed">
+      <MessagePartPrimitive.Text />
+    </p>
+  );
+}
+```
+  </Tab>
+</Tabs>
+
+## Quick Start
+
+A minimal message with parts rendering:
+
+```tsx
+import { MessagePrimitive } from "@assistant-ui/react";
+
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts />
+</MessagePrimitive.Root>
+```
+
+`Root` renders a `<div>` that provides message context and tracks hover state. `Parts` iterates over the message's content parts and renders each one. Without custom components, parts render with sensible defaults: `Text` renders a `<p>` with `white-space: pre-line` and a streaming indicator, `Image` renders via `MessagePartPrimitive.Image`, and tool calls render nothing unless a tool UI is registered globally or inline. Reasoning, source, file, and audio parts render nothing by default.
+
+<Callout type="info">
+Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
+</Callout>
+
+## Core Concepts
+
+### Parts Pipeline
+
+`MessagePrimitive.Parts` now prefers a children render function. It gives you the current enriched part state directly, so you can branch inline and return exactly the UI you want:
+
+```tsx
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <MyTextRenderer />;
+    if (part.type === "image") return <MyImageRenderer />;
+    if (part.type === "tool-call")
+      return part.toolUI ?? <GenericToolUI {...part} />;
+    return null;
+  }}
+</MessagePrimitive.Parts>
+```
+
+<Callout type="info">
+For most new `MessagePrimitive.Parts` code, prefer the `children` render function. Grouped Chain of Thought is the current exception: it plugs into `MessagePrimitive.Parts` via `components.ChainOfThought`.
+</Callout>
+
+### Tool Resolution
+
+Tool call parts resolve in this order:
+
+1. **`tools.Override`**: if provided inline through the deprecated `components` prop, handles **all** tool calls
+2. **Globally registered tools**: tools registered via `makeAssistantTool` / `useAssistantToolUI`
+3. **`tools.by_name[toolName]`**: per-`MessagePrimitive.Parts` inline overrides from the deprecated `components` prop
+4. **`tools.Fallback`**: catch-all for unmatched tool calls from the deprecated `components` prop
+5. **`part.toolUI`**: the resolved tool UI exposed directly in the children render function
+
+In the children API, tool and data parts expose resolved UI helpers directly:
+
+```tsx
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "tool-call")
+      return part.toolUI ?? <ToolFallback {...part} />;
+
+    if (part.type === "data")
+      return part.dataRendererUI ?? null;
+
+    return null;
+  }}
+</MessagePrimitive.Parts>
+```
+
+Returning `null` still allows registered tool UIs and data renderer UIs to render automatically. Return `<></>` if you want to suppress them entirely.
+
+### Components Prop (Deprecated)
+
+`components` is deprecated. This section only documents it so older code is still understandable:
+
+- `ToolGroup` wraps consecutive tool-call parts
+- `ReasoningGroup` wraps consecutive reasoning parts
+- `components.ChainOfThought` takes over all reasoning and tool-call rendering (mutually exclusive with `ToolGroup`, `ReasoningGroup`, `tools`, and `Reasoning`). Despite the deprecation of `components` in general, this is still the current way to wire grouped Chain of Thought.
+- `data.by_name` and `data.Fallback` let you route custom data part types
+- `Quote` renders quoted message references from metadata
+- `Empty` and `Unstable_Audio` are available for edge and experimental rendering paths
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    Text: () => (
+      <p className="whitespace-pre-wrap">
+        <MessagePartPrimitive.Text />
+      </p>
+    ),
+    Image: () => <MessagePartPrimitive.Image className="max-w-sm rounded-xl" />,
+    File: () => <div className="rounded-md border px-2 py-1 text-xs">File part</div>,
+    tools: {
+      by_name: {
+        get_weather: () => <div>Weather tool</div>,
+      },
+      Fallback: ({ toolName }) => <div>Unknown tool: {toolName}</div>,
+    },
+    data: {
+      by_name: {
+        "my-event": ({ data }) => <pre>{JSON.stringify(data, null, 2)}</pre>,
+      },
+      Fallback: ({ name }) => <div>Unknown data event: {name}</div>,
+    },
+    ToolGroup: ({ children }) => (
+      <div className="space-y-2 rounded-lg border p-2">{children}</div>
+    ),
+    ReasoningGroup: ({ children }) => (
+      <details className="rounded-lg border p-2">
+        <summary>Reasoning</summary>
+        {children}
+      </details>
+    ),
+    Empty: () => <span className="text-muted-foreground">...</span>,
+    Unstable_Audio: () => null,
+  }}
+/>
+```
+
+For new code, use the `children` render function instead.
+
+### Hover State
+
+`MessagePrimitive.Root` automatically tracks mouse enter/leave events. This hover state is consumed by `ActionBarPrimitive` to implement auto-hide behavior, with no extra wiring needed.
+
+### MessagePartPrimitive
+
+Inside your custom part components, use these sub-primitives to access the actual content:
+
+- **`MessagePartPrimitive.Text`**: renders the text content of a text part
+- **`MessagePartPrimitive.Image`**: renders the image of an image part
+- **`MessagePartPrimitive.InProgress`**: renders only while the part is still streaming
+
+```tsx
+function MyText() {
+  return (
+    <p className="whitespace-pre-wrap">
+      <MessagePartPrimitive.Text />
+      <MessagePartPrimitive.InProgress>
+        <span className="animate-pulse">▊</span>
+      </MessagePartPrimitive.InProgress>
+    </p>
+  );
+}
+```
+
+## Parts
+
+### Root
+
+Container for a single message. Renders a `<div>` element unless `asChild` is set.
+
+```tsx
+<MessagePrimitive.Root className="flex flex-col gap-2">
+  <MessagePrimitive.Quote>
+    {({ text }) => <blockquote className="mb-2 border-l pl-3 italic">{text}</blockquote>}
+  </MessagePrimitive.Quote>
+  <MessagePrimitive.Parts />
+</MessagePrimitive.Root>
+```
+
+### Parts
+
+Renders each content part with type-based component resolution.
+
+```tsx
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <MyTextRenderer />;
+    if (part.type === "image") return <MyImageRenderer />;
+    if (part.type === "tool-call")
+      return part.toolUI ?? <GenericToolUI {...part} />;
+    return null;
+  }}
+</MessagePrimitive.Parts>
+```
+
+<PrimitivesTypeTable type="MessagePrimitivePartsProps" parameters={MessagePrimitiveDocs.Parts.props} />
+
+### Content
+
+Legacy alias for `Parts`.
+
+```tsx
+<MessagePrimitive.Content>
+  {({ part }) => {
+    if (part.type === "text") return <MyTextRenderer />;
+    return null;
+  }}
+</MessagePrimitive.Content>
+```
+
+### PartByIndex
+
+Renders a single part at a specific index.
+
+```tsx
+<MessagePrimitive.PartByIndex
+  index={0}
+  components={{ Text: MyTextRenderer }}
+/>
+```
+
+### Attachments
+
+Renders all user message attachments.
+
+```tsx
+<MessagePrimitive.Attachments>
+  {({ attachment }) => {
+    if (attachment.type === "image") {
+      const imageSrc = attachment.content?.find((part) => part.type === "image")?.image;
+      if (!imageSrc) return null;
+      return <img src={imageSrc} alt={attachment.name} className="max-w-xs rounded-lg" />;
+    }
+
+    if (attachment.type === "document") {
+      return (
+        <div className="rounded-lg border p-2 text-sm">
+          {attachment.name}
+        </div>
+      );
+    }
+
+    return null;
+  }}
+</MessagePrimitive.Attachments>
+```
+
+<PrimitivesTypeTable type="MessagePrimitiveAttachmentsProps" parameters={MessagePrimitiveDocs.Attachments.props} />
+
+### AttachmentByIndex
+
+Renders a single attachment at the specified index within the current message.
+
+```tsx
+<MessagePrimitive.AttachmentByIndex
+  index={0}
+  components={{ Attachment: MyAttachment }}
+/>
+```
+
+<PrimitivesTypeTable type="MessagePrimitiveAttachmentByIndexProps" parameters={MessagePrimitiveDocs.AttachmentByIndex.props} />
+
+### Error
+
+Renders children only when the message has an error.
+
+```tsx
+<MessagePrimitive.Error>
+  <ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive/20 bg-destructive/5 p-3">
+    <ErrorPrimitive.Message />
+  </ErrorPrimitive.Root>
+</MessagePrimitive.Error>
+```
+
+### Quote
+
+Renders quote metadata when the current message includes a quote. Place it above `MessagePrimitive.Parts`.
+
+```tsx
+<MessagePrimitive.Quote>
+  {({ text, messageId }) => (
+    <blockquote className="mb-2 border-l pl-3 italic" data-message-id={messageId}>
+      {text}
+    </blockquote>
+  )}
+</MessagePrimitive.Quote>
+```
+
+### Unstable_PartsGrouped
+
+Groups consecutive parts by a custom grouping function *(unstable)*.
+
+```tsx
+<MessagePrimitive.Unstable_PartsGrouped
+  groupingFunction={myGroupFn}
+  components={{ Text: MyText, Group: MyGroupWrapper }}
+/>
+```
+
+<PrimitivesTypeTable type="MessagePrimitiveUnstablePartsGroupedProps" parameters={MessagePrimitiveDocs.Unstable_PartsGrouped.props} />
+
+### Unstable_PartsGroupedByParentId
+
+Groups parts by parent ID *(unstable, deprecated; use `Unstable_PartsGrouped`)*.
+
+```tsx
+<MessagePrimitive.Unstable_PartsGroupedByParentId
+  components={{ Text: MyText, Group: MyGroupWrapper }}
+/>
+```
+
+### If (deprecated)
+
+<Callout type="warn">
+Deprecated. Use [`AuiIf`](/docs/api-reference/primitives/assistant-if) instead.
+</Callout>
+
+```tsx
+// Before (deprecated)
+<MessagePrimitive.If user>...</MessagePrimitive.If>
+<MessagePrimitive.If assistant>...</MessagePrimitive.If>
+
+// After
+<AuiIf condition={(s) => s.message.role === "user"}>...</AuiIf>
+<AuiIf condition={(s) => s.message.role === "assistant"}>...</AuiIf>
+```
+
+## Patterns
+
+### Custom Text Rendering
+
+```tsx
+function MarkdownText() {
+  return (
+    <div className="prose prose-sm">
+      <MessagePartPrimitive.Text />
+    </div>
+  );
+}
+
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <MarkdownText />;
+    return null;
+  }}
+</MessagePrimitive.Parts>
+```
+
+### Tool UI with by_name
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    Text: MyText,
+    tools: {
+      by_name: {
+        get_weather: ({ result }) => (
+          <div className="rounded-lg border p-3">
+            <p className="font-medium">Weather</p>
+            <p>{result?.temperature}°F, {result?.condition}</p>
+          </div>
+        ),
+      },
+      Fallback: ({ toolName, status }) => (
+        <div className="text-muted-foreground text-sm">
+          {status.type === "running" ? `Running ${toolName}...` : `${toolName} completed`}
+        </div>
+      ),
+    },
+  }}
+/>
+```
+
+### Error Display
+
+```tsx
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts />
+  <MessagePrimitive.Error>
+    <div className="mt-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive">
+      Something went wrong. Please try again.
+    </div>
+  </MessagePrimitive.Error>
+</MessagePrimitive.Root>
+```
+
+### Error Display with ErrorPrimitive
+
+For more control over error rendering, `ErrorPrimitive` provides a dedicated component that auto-reads the error string from the message status:
+
+```tsx
+import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
+
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts />
+  <ErrorPrimitive.Root className="mt-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive" role="alert">
+    <ErrorPrimitive.Message />
+  </ErrorPrimitive.Root>
+</MessagePrimitive.Root>
+```
+
+`ErrorPrimitive.Root` renders a `<div>` container with `role="alert"` and `ErrorPrimitive.Message` renders a `<span>` that displays the error text. `Root` always renders. Only `Message` conditionally returns `null` when there is no error. Wrap in `<MessagePrimitive.Error>` if you want the entire block to be conditional. See the [ErrorPrimitive API Reference](/docs/api-reference/primitives/error) for full details.
+
+### Legacy and Unstable APIs
+
+- `MessagePrimitive.Unstable_PartsGrouped` and `MessagePrimitive.Unstable_PartsGroupedByParentId` are unstable APIs for custom grouping.
+- `Unstable_PartsGroupedByParentId` is deprecated in favor of `Unstable_PartsGrouped`.
+
+### Role-Based Styling
+
+`MessagePrimitive.Root` sets `data-message-id` automatically but does not set a `data-role` attribute. Style by role in your message components:
+
+```tsx
+// In your ThreadPrimitive.Messages children render function:
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root data-role="user" className="flex justify-end">
+      <MessagePrimitive.Parts />
+    </MessagePrimitive.Root>
+  );
+}
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root data-role="assistant" className="flex justify-start">
+      <MessagePrimitive.Parts />
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+### Attachments
+
+```tsx
+<MessagePrimitive.Root>
+  <MessagePrimitive.Attachments>
+    {({ attachment }) => {
+      if (attachment.type === "image") {
+        const imageSrc = attachment.content?.find((part) => part.type === "image")?.image;
+        if (!imageSrc) return null;
+        return <img src={imageSrc} alt={attachment.name} className="max-w-xs rounded-lg" />;
+      }
+
+      if (attachment.type === "document") {
+        return (
+          <div className="flex items-center gap-2 rounded-lg border p-2 text-sm">
+            📄 {attachment.name}
+          </div>
+        );
+      }
+
+      return null;
+    }}
+  </MessagePrimitive.Attachments>
+  <MessagePrimitive.Parts />
+</MessagePrimitive.Root>
+```
+
+## Relationship to Components
+
+The shadcn [Thread](/docs/ui/thread) component renders user and assistant messages built from these primitives. The pre-built `AssistantMessage` and `UserMessage` components handle text rendering, tool UIs, error display, and action bars, all using `MessagePrimitive` under the hood.
+
+Messages are commonly paired with [ActionBar](/docs/primitives/action-bar) for copy/reload/edit actions and [BranchPicker](/docs/primitives/branch-picker) for navigating between alternative responses.
+
+## API Reference
+
+For full prop details on every part, see the [MessagePrimitive API Reference](/docs/api-reference/primitives/message).
+
+Related:
+- [MessagePartPrimitive API Reference](/docs/api-reference/primitives/message-part)
+- [ActionBarPrimitive API Reference](/docs/api-reference/primitives/action-bar)
+- [BranchPickerPrimitive API Reference](/docs/api-reference/primitives/branch-picker)

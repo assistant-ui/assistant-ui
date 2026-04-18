@@ -1,8 +1,8 @@
-import {
+import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "../../../utils/json/json-value";
-import { ObjectStreamOperation } from "../../object/types";
+import type { ObjectStreamOperation } from "../../object/types";
 
 export type DataStreamChunk = {
   [K in DataStreamStreamChunkType]: {
@@ -46,6 +46,7 @@ export enum DataStreamStreamChunkType {
   AuiUpdateStateOperations = "aui-state",
   AuiTextDelta = "aui-text-delta",
   AuiReasoningDelta = "aui-reasoning-delta",
+  AuiDataPart = "aui-data",
 }
 type DataStreamStreamChunkValue = {
   [DataStreamStreamChunkType.TextDelta]: string;
@@ -107,5 +108,10 @@ type DataStreamStreamChunkValue = {
   [DataStreamStreamChunkType.AuiReasoningDelta]: {
     reasoningDelta: string;
     parentId: string;
+  };
+  [DataStreamStreamChunkType.AuiDataPart]: {
+    name: string;
+    data: ReadonlyJSONValue;
+    parentId?: string;
   };
 };

@@ -1,4 +1,4 @@
-import { Cell, ResourceFiber, ResourceFiberRoot } from "../types";
+import type { Cell, ResourceFiber, ResourceFiberRoot } from "../types";
 
 export const createResourceFiberRoot = (
   dispatchUpdate: (cb: () => boolean) => void,
@@ -49,6 +49,7 @@ export const setRootVersion = (
         root.changelog.pop();
       }
 
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       root.changelog.forEach((apply) => apply());
       commitRoot(root);
     }

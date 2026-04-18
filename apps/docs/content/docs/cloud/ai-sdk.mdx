@@ -49,7 +49,7 @@ NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
 
 ### Install Dependencies
 
-<InstallCommand npm={["@assistant-ui/cloud-ai-sdk", "assistant-cloud", "@ai-sdk/react", "ai"]} />
+<InstallCommand npm={["@assistant-ui/cloud-ai-sdk", "@ai-sdk/react", "ai"]} />
 
 </Step>
 
@@ -151,7 +151,7 @@ const chat = useCloudChat({ threads: myThreads });
 | `options.threads` | `UseThreadsResult` | External thread management from `useThreads()`. Use when you need thread operations in a separate component or custom thread options like `includeArchived` |
 | `options.onSyncError` | `(error: Error) => void` | Callback invoked when a sync error occurs |
 
-All other [AI SDK `useChat` options](https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat) are also accepted.
+A subset of [AI SDK `useChat` options](https://sdk.vercel.ai/docs/reference/ai-sdk-ui/use-chat) are also accepted (those defined on `ChatInit`). Some options available on `useChat` such as `experimental_throttle` and `resume` are not supported.
 
 **Returns:** `UseCloudChatResult`
 
@@ -169,12 +169,15 @@ Plus all other properties from AI SDK's [`UseChatHelpers`](https://sdk.vercel.ai
 
 | Value | Type | Description |
 |-------|------|-------------|
+| `threads.cloud` | `AssistantCloud` | The cloud instance used for thread operations |
 | `threads.threads` | `CloudThread[]` | Active threads sorted by recency |
 | `threads.threadId` | `string \| null` | Current thread ID (`null` for a new unsaved chat) |
 | `threads.selectThread` | `(id: string \| null) => void` | Switch threads or pass `null` for a new chat |
 | `threads.isLoading` | `boolean` | `true` during initial load or refresh |
 | `threads.error` | `Error \| null` | Last error, if any |
 | `threads.refresh` | `() => Promise<boolean>` | Re-fetch the thread list |
+| `threads.get` | `(id: string) => Promise<CloudThread \| null>` | Fetch a single thread by ID |
+| `threads.create` | `(options?: \{ externalId?: string \}) => Promise<CloudThread \| null>` | Create a new thread |
 | `threads.delete` | `(id: string) => Promise<boolean>` | Delete a thread |
 | `threads.rename` | `(id: string, title: string) => Promise<boolean>` | Rename a thread |
 | `threads.archive` | `(id: string) => Promise<boolean>` | Archive a thread |
@@ -206,22 +209,27 @@ The `useCloudChat` hook automatically reports run telemetry to Assistant Cloud a
 
 **Automatically captured:**
 - `status` — `"completed"` or `"incomplete"` based on response content
-- `tool_calls` — Tool invocations with name, arguments, results, and source (MCP, frontend, or backend)
+- `tool_calls` — Tool invocations with name, arguments, and results. MCP tool calls are explicitly tagged with `tool_source: "mcp"`
 - `total_steps` — Number of reasoning/tool steps in the response
 - `output_text` — Full response text (truncated at 50K characters)
 
 **Requires route configuration:**
 - `model_id` — The model used for the response
 - `input_tokens` / `output_tokens` — Token usage statistics
+- `reasoning_tokens` — Tokens used for chain-of-thought reasoning (e.g. o1/o3 models)
+- `cached_input_tokens` — Input tokens served from the provider's prompt cache
 
 To capture model and usage data, configure the `messageMetadata` callback in your AI SDK route:
 
 ```tsx title="app/api/chat/route.ts"
 import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
 
 export async function POST(req: Request) {
+  const { messages } = await req.json();
+
   const result = streamText({
-    model: openai("gpt-5-mini"),
+    model: openai("gpt-4o-mini"),
     messages,
   });
 
@@ -244,7 +252,7 @@ export async function POST(req: Request) {
 ```
 
 <Callout type="info">
-  The standalone hook does not capture `duration_ms`, per-step breakdowns (`steps`), custom `metadata` pass-through, or `"error"` status. These require the full runtime integration available via [`useChatRuntime`](/docs/cloud/ai-sdk-assistant-ui).
+  The standalone hook captures message metadata when it is JSON-serializable, but it does not capture `duration_ms`, per-step breakdowns (`steps`), or `"error"` status. Those require the full runtime integration available via [`useChatRuntime`](/docs/cloud/ai-sdk-assistant-ui).
 </Callout>
 
 ### Customizing Reports
@@ -254,6 +262,7 @@ Use the `beforeReport` hook to enrich or filter telemetry:
 ```tsx
 const cloud = new AssistantCloud({
   baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  anonymous: true,
   telemetry: {
     beforeReport: (report) => ({
       ...report,
@@ -265,11 +274,92 @@ const cloud = new AssistantCloud({
 
 Return `null` from `beforeReport` to skip reporting a specific run. To disable telemetry entirely, pass `telemetry: false`.
 
+### Sub-Agent Model Tracking
+
+In multi-agent setups where tool calls delegate to a different model (e.g., the main run uses GPT but a tool invokes Gemini), you can track the delegated model's usage by passing sampling call data through `messageMetadata`.
+
+**Step 1: Collect sampling data on the server**
+
+Use `createSamplingCollector` and `wrapSamplingHandler` from `assistant-cloud` to capture LLM calls made during tool execution:
+
+```ts title="app/api/chat/route.ts"
+import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
+import {
+  createSamplingCollector,
+  wrapSamplingHandler,
+} from "assistant-cloud";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  // Collect sub-agent sampling calls per tool call
+  const samplingCalls: Record<string, SamplingCallData[]> = {};
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages,
+    tools: {
+      delegate_to_gemini: tool({
+        parameters: z.object({ task: z.string() }),
+        execute: async ({ task }, { toolCallId }) => {
+          const collector = createSamplingCollector();
+          // Your sub-agent logic that calls another model
+          const result = await runSubAgent(task, {
+            onSamplingCall: collector.collect,
+          });
+          samplingCalls[toolCallId] = collector.getCalls();
+          return result;
+        },
+      }),
+    },
+  });
+
+  return result.toUIMessageStreamResponse({
+    messageMetadata: ({ part }) => {
+      if (part.type === "finish") {
+        return {
+          usage: part.totalUsage,
+          samplingCalls, // attach collected sampling data
+        };
+      }
+      if (part.type === "finish-step") {
+        return { modelId: part.response.modelId };
+      }
+      return undefined;
+    },
+  });
+}
+```
+
+**Step 2: That's it.** The telemetry reporter automatically reads `samplingCalls` from message metadata and attaches the data to matching tool calls in the report. The Cloud dashboard will show each delegated model in the model distribution chart with its own token and cost breakdown.
+
+<Callout type="info">
+  For MCP tools that use the sampling protocol, `wrapSamplingHandler` can wrap the MCP client's sampling handler directly to capture all nested LLM calls transparently.
+</Callout>
+
+<Callout type="tip">
+  **On older versions** that don't yet read `samplingCalls` from metadata, use `beforeReport` to inject the data manually:
+
+  ```ts
+  telemetry: {
+    beforeReport: (report) => ({
+      ...report,
+      tool_calls: report.tool_calls?.map((tc) => ({
+        ...tc,
+        sampling_calls: samplingCalls[tc.tool_call_id],
+      })),
+    }),
+  }
+  ```
+</Callout>
+
 ## Authentication
 
 The example above uses anonymous mode (browser session-based user ID) via the env var. For production apps with user accounts, pass an explicit cloud instance:
 
 ```tsx
+import { useMemo } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { AssistantCloud } from "assistant-cloud";
 import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";

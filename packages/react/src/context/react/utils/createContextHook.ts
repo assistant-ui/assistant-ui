@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, Context } from "react";
+import { useContext, type Context } from "react";
 
 /**
  * Creates a context hook with optional support.

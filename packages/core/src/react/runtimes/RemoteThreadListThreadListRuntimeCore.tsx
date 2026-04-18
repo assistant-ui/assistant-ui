@@ -1,6 +1,6 @@
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
 import { generateId } from "../../utils/id";
-import { BaseSubscribable } from "../../subscribable";
+import { BaseSubscribable } from "../../subscribable/subscribable";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
 import type {
@@ -16,10 +16,10 @@ import {
 import type { RemoteThreadListOptions } from "../../runtimes/remote-thread-list/types";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 import {
-  ComponentType,
-  FC,
+  type ComponentType,
+  type FC,
   Fragment,
-  PropsWithChildren,
+  type PropsWithChildren,
   useEffect,
   useId,
 } from "react";
@@ -39,7 +39,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>({
-    isLoading: false,
+    isLoading: true,
     newThreadId: undefined,
     threadIds: [],
     archivedThreadIds: [],
@@ -63,6 +63,7 @@ export class RemoteThreadListThreadListRuntimeCore
               isLoading: true,
             };
           },
+          // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
           then: (state, l) => {
             const newThreadIds = [];
             const newArchivedThreadIds = [];
@@ -103,6 +104,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
             return {
               ...state,
+              isLoading: false,
               threadIds: newThreadIds,
               archivedThreadIds: newArchivedThreadIds,
               threadIdMap: {
@@ -115,6 +117,13 @@ export class RemoteThreadListThreadListRuntimeCore
               },
             };
           },
+        })
+        .catch(() => {
+          this._loadThreadsPromise = undefined;
+          this._state.update({
+            ...this._state.baseValue,
+            isLoading: false,
+          });
         })
         .then(() => {});
     }
@@ -144,6 +153,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this.switchToNewThread();
   }
 
+  private _initialThreadLoaded = false;
   private useProvider;
 
   public __internal_setOptions(options: RemoteThreadListOptions) {
@@ -162,6 +172,12 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public __internal_load() {
     this.getLoadThreadsPromise(); // begin loading on initial bind
+    const startThreadId =
+      this._options.threadId ?? this._options.initialThreadId;
+    if (!this._initialThreadLoaded && startThreadId) {
+      this._initialThreadLoaded = true;
+      this.switchToThread(startThreadId).catch(() => {});
+    }
   }
 
   public get isLoading() {
@@ -337,6 +353,7 @@ export class RemoteThreadListThreadListRuntimeCore
           },
         };
       },
+      // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
       then: (state, { remoteId, externalId }) => {
         const data = getThreadData(state, threadId);
         if (!data) return state;
@@ -480,6 +497,7 @@ export class RemoteThreadListThreadListRuntimeCore
       throw new Error("Thread is not yet initialized");
 
     await this._ensureThreadIsNotMain(data.id);
+    this._hookManager.stopThreadRuntime(data.id);
 
     return this._state.optimisticUpdate({
       execute: async () => {

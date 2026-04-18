@@ -83,6 +83,7 @@ const DevToolsModalImpl = () => {
     <>
       <div style={styles.floatingContainer}>
         <button
+          type="button"
           onClick={() => setIsOpen(true)}
           onMouseEnter={() => setButtonHover(true)}
           onMouseLeave={() => setButtonHover(false)}
@@ -94,6 +95,7 @@ const DevToolsModalImpl = () => {
           title="Open assistant-ui DevTools"
         >
           <svg
+            aria-hidden="true"
             width="20"
             height="20"
             viewBox="0 0 24 24"
@@ -115,10 +117,13 @@ const DevToolsModalImpl = () => {
 
       {isOpen && (
         <>
+          {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop click is a convenience; keyboard users use the close button */}
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: backdrop overlay */}
           <div style={styles.backdrop} onClick={() => setIsOpen(false)} />
 
           <div style={styles.modal} data-devtools-modal>
             <button
+              type="button"
               onClick={() => setIsOpen(false)}
               onMouseEnter={() => setCloseHover(true)}
               onMouseLeave={() => setCloseHover(false)}
@@ -129,6 +134,7 @@ const DevToolsModalImpl = () => {
               aria-label="Close DevTools"
             >
               <svg
+                aria-hidden="true"
                 width="14"
                 height="14"
                 viewBox="0 0 24 24"
@@ -176,7 +182,7 @@ export const DevToolsModal = () => {
   // This allows the entire component to be eliminated via dead code elimination
   if (
     typeof process !== "undefined" &&
-    process.env?.["NODE_ENV"] === "production"
+    process.env?.NODE_ENV === "production"
   ) {
     return null;
   }

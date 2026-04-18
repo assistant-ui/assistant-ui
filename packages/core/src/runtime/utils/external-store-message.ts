@@ -1,4 +1,4 @@
-import type { ThreadMessage } from "../../types";
+import type { ThreadMessage } from "../../types/message";
 
 export const symbolInnerMessage = Symbol("innerMessage");
 const symbolInnerMessages = Symbol("innerMessages");

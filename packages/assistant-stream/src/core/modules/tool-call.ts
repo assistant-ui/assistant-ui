@@ -1,9 +1,9 @@
-import { AssistantStream } from "../AssistantStream";
-import { AssistantStreamChunk } from "../AssistantStreamChunk";
-import { ToolResponseLike } from "../tool/ToolResponse";
-import { ReadonlyJSONValue } from "../../utils/json/json-value";
-import { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
-import { createTextStream, TextStreamController } from "./text";
+import type { AssistantStream } from "../AssistantStream";
+import type { AssistantStreamChunk } from "../AssistantStreamChunk";
+import type { ToolResponseLike } from "../tool/ToolResponse";
+import type { ReadonlyJSONValue } from "../../utils/json/json-value";
+import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
+import { createTextStream, type TextStreamController } from "./text";
 
 export type ToolCallStreamController = {
   argsText: TextStreamController;
@@ -76,6 +76,9 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
         : {}),
       result: response.result,
       isError: response.isError ?? false,
+      ...(response.messages !== undefined
+        ? { messages: response.messages }
+        : {}),
     });
   }
 

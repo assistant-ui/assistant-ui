@@ -1,20 +1,22 @@
-import type { Unsubscribe } from "../../types";
+import type { Unsubscribe } from "../../types/unsubscribe";
 import {
   LazyMemoizeSubject,
+  NestedSubscriptionSubject,
+} from "../../subscribable/subscribable";
+import {
   SKIP_UPDATE,
   ShallowMemoizeSubject,
-  NestedSubscriptionSubject,
-} from "../../subscribable";
+} from "../../subscribable/subscribable";
 import type { ThreadListRuntimeCore } from "../interfaces/thread-list-runtime-core";
 import {
-  ThreadListItemRuntime,
+  type ThreadListItemRuntime,
   ThreadListItemRuntimeImpl,
-  ThreadListItemState,
+  type ThreadListItemState,
 } from "./thread-list-item-runtime";
 import {
-  ThreadListItemRuntimeBinding,
-  ThreadRuntime,
-  ThreadRuntimeCoreBinding,
+  type ThreadListItemRuntimeBinding,
+  type ThreadRuntime,
+  type ThreadRuntimeCoreBinding,
   ThreadRuntimeImpl,
 } from "./thread-runtime";
 
@@ -44,6 +46,8 @@ export type ThreadListRuntime = {
 
   switchToThread(threadId: string): Promise<void>;
   switchToNewThread(): Promise<void>;
+
+  getLoadThreadsPromise(): Promise<void>;
 };
 
 const getThreadListState = (
@@ -128,6 +132,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
   protected __internal_bindMethods() {
     this.switchToThread = this.switchToThread.bind(this);
     this.switchToNewThread = this.switchToNewThread.bind(this);
+    this.getLoadThreadsPromise = this.getLoadThreadsPromise.bind(this);
     this.getState = this.getState.bind(this);
     this.subscribe = this.subscribe.bind(this);
     this.getById = this.getById.bind(this);
@@ -142,6 +147,10 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
 
   public switchToNewThread(): Promise<void> {
     return this._core.switchToNewThread();
+  }
+
+  public getLoadThreadsPromise(): Promise<void> {
+    return this._core.getLoadThreadsPromise();
   }
 
   public getState(): ThreadListState {

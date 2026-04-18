@@ -4,7 +4,7 @@ import type {
   AssistantEventName,
   AssistantEventPayload,
 } from "../types/events";
-import { Unsubscribe } from "../types/client";
+import type { Unsubscribe } from "../types/client";
 import { tapConst } from "@assistant-ui/tap";
 
 type InternalCallback = (payload: unknown, clientStack: ClientStack) => void;

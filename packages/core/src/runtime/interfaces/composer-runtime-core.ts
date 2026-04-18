@@ -1,19 +1,23 @@
-import type {
-  MessageRole,
-  RunConfig,
-  QuoteInfo,
-  Attachment,
-  CreateAttachment,
-  Unsubscribe,
-} from "../../types";
+import type { MessageRole } from "../../types/message";
+import type { QuoteInfo } from "../../types/quote";
+import type { Attachment, CreateAttachment } from "../../types/attachment";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { RunConfig } from "../../types/message";
 import type { DictationAdapter } from "../../adapters/speech";
 
-export type ComposerRuntimeEventType = "send" | "attachmentAdd";
+export type ComposerRuntimeEventType =
+  | "send"
+  | "attachmentAdd"
+  | "attachmentAddError";
 
 export type DictationState = {
   readonly status: DictationAdapter.Status;
   readonly transcript?: string;
   readonly inputDisabled?: boolean;
+};
+
+export type SendOptions = {
+  startRun?: boolean;
 };
 
 export type ComposerRuntimeCore = Readonly<{
@@ -43,7 +47,7 @@ export type ComposerRuntimeCore = Readonly<{
   reset: () => Promise<void>;
   clearAttachments: () => Promise<void>;
 
-  send: () => void;
+  send: (options?: SendOptions) => void;
   cancel: () => void;
 
   dictation: DictationState | undefined;
@@ -59,3 +63,9 @@ export type ComposerRuntimeCore = Readonly<{
 }>;
 
 export type ThreadComposerRuntimeCore = ComposerRuntimeCore;
+
+export type EditComposerRuntimeCore = ComposerRuntimeCore &
+  Readonly<{
+    parentId: string | null;
+    sourceId: string | null;
+  }>;

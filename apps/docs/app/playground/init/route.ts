@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { getPresetById } from "@/components/builder/presets";
 import { DEFAULT_CONFIG, type BuilderConfig } from "@/components/builder/types";
 import { decodeConfig } from "@/lib/playground-url-state";

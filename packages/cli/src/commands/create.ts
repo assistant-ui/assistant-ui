@@ -83,6 +83,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
+    name: "with-google-adk",
+    label: "Google ADK",
+    description: "Google ADK agent integration",
+    category: "example",
+    path: "examples/with-google-adk",
+    hasLocalComponents: false,
+  },
+  {
     name: "with-ai-sdk-v6",
     label: "AI SDK v6",
     description: "Vercel AI SDK v6",
@@ -131,6 +139,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
+    name: "with-elevenlabs-conversational",
+    label: "ElevenLabs Conversational",
+    description: "Realtime voice with ElevenLabs",
+    category: "example",
+    path: "examples/with-elevenlabs-conversational",
+    hasLocalComponents: true,
+  },
+  {
     name: "with-elevenlabs-scribe",
     label: "ElevenLabs Scribe",
     description: "Audio/speech integration",
@@ -139,11 +155,27 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: false,
   },
   {
+    name: "with-livekit",
+    label: "LiveKit Voice",
+    description: "Realtime voice with LiveKit",
+    category: "example",
+    path: "examples/with-livekit",
+    hasLocalComponents: true,
+  },
+  {
     name: "with-expo",
     label: "Expo",
     description: "Expo / React Native",
     category: "example",
     path: "examples/with-expo",
+    hasLocalComponents: true,
+  },
+  {
+    name: "with-interactables",
+    label: "Interactables",
+    description: "AI-driven interactive UI components",
+    category: "example",
+    path: "examples/with-interactables",
     hasLocalComponents: true,
   },
   {
@@ -352,7 +384,7 @@ export function resolveCreateProjectDirectory(params: {
   return undefined;
 }
 
-function resolvePackageManager(opts: {
+export function resolvePackageManager(opts: {
   useNpm?: boolean;
   usePnpm?: boolean;
   useYarn?: boolean;
@@ -397,10 +429,15 @@ export const create = new Command()
   .option("--use-yarn", "explicitly use yarn")
   .option("--use-bun", "explicitly use bun")
   .option("--native", "create an Expo / React Native project")
+  .option("--ink", "create a React Ink terminal project")
   .option("--skip-install", "skip installing packages")
   .action(async (projectDirectory, opts) => {
     if (opts.native) {
       opts.example = "with-expo";
+    }
+
+    if (opts.ink) {
+      opts.example = "with-react-ink";
     }
 
     if (opts.example && opts.preset) {
@@ -455,18 +492,19 @@ export const create = new Command()
         );
         process.exit(1);
       }
-    } catch (err: any) {
-      if (err.code === "ENOENT") {
+    } catch (err: unknown) {
+      const code =
+        err instanceof Error ? (err as NodeJS.ErrnoException).code : undefined;
+      if (code === "ENOENT") {
         // Directory doesn't exist — good, proceed
-      } else if (err.code === "ENOTDIR") {
+      } else if (code === "ENOTDIR") {
         logger.error(
           `${resolvedProjectDirectory} already exists and is not a directory`,
         );
         process.exit(1);
       } else {
-        logger.error(
-          `Cannot access ${resolvedProjectDirectory}: ${err.message}`,
-        );
+        const message = err instanceof Error ? err.message : String(err);
+        logger.error(`Cannot access ${resolvedProjectDirectory}: ${message}`);
         process.exit(1);
       }
     }

@@ -46,7 +46,7 @@ const geocodeLocationTool = {
       );
     }
 
-    const { name, latitude, longitude } = result?.result;
+    const { name, latitude, longitude } = result.result;
     return (
       <ToolCard>
         <ToolCardIcon>

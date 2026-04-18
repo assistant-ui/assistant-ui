@@ -16,7 +16,7 @@ import type { CloudChatCore } from "../core/CloudChatCore";
 
 const autoCloudBaseUrl =
   typeof process !== "undefined"
-    ? process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]
+    ? process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL
     : undefined;
 const autoCloud = autoCloudBaseUrl
   ? new AssistantCloud({ baseUrl: autoCloudBaseUrl, anonymous: true })

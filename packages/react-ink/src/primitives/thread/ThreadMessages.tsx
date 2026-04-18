@@ -1,43 +1,147 @@
-import { type ReactElement } from "react";
+import { type ComponentType, type FC, type ReactNode, useMemo } from "react";
 import { Box } from "ink";
 import type { ThreadMessage } from "@assistant-ui/core";
-import { useAui, useAuiState, AuiProvider, Derived } from "@assistant-ui/store";
+import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { MessageByIndexProvider } from "@assistant-ui/core/react";
 
-export type ThreadMessagesProps = {
-  renderMessage: (props: {
-    message: ThreadMessage;
-    index: number;
-  }) => ReactElement;
+type MessageComponents =
+  | {
+      Message: ComponentType;
+      EditComposer?: ComponentType | undefined;
+      UserEditComposer?: ComponentType | undefined;
+      AssistantEditComposer?: ComponentType | undefined;
+      SystemEditComposer?: ComponentType | undefined;
+      UserMessage?: ComponentType | undefined;
+      AssistantMessage?: ComponentType | undefined;
+      SystemMessage?: ComponentType | undefined;
+    }
+  | {
+      Message?: ComponentType | undefined;
+      EditComposer?: ComponentType | undefined;
+      UserEditComposer?: ComponentType | undefined;
+      AssistantEditComposer?: ComponentType | undefined;
+      SystemEditComposer?: ComponentType | undefined;
+      UserMessage: ComponentType;
+      AssistantMessage: ComponentType;
+      SystemMessage?: ComponentType | undefined;
+    };
+
+export type ThreadMessagesProps =
+  | {
+      components: MessageComponents;
+      children?: never;
+    }
+  | {
+      children: (value: { message: ThreadMessage }) => ReactNode;
+      components?: never;
+    };
+
+const DEFAULT_SYSTEM_MESSAGE = () => null;
+
+const getComponent = (
+  components: MessageComponents,
+  role: ThreadMessage["role"],
+  isEditing: boolean,
+) => {
+  switch (role) {
+    case "user":
+      if (isEditing) {
+        return (
+          components.UserEditComposer ??
+          components.EditComposer ??
+          components.UserMessage ??
+          (components.Message as ComponentType)
+        );
+      } else {
+        return components.UserMessage ?? (components.Message as ComponentType);
+      }
+    case "assistant":
+      if (isEditing) {
+        return (
+          components.AssistantEditComposer ??
+          components.EditComposer ??
+          components.AssistantMessage ??
+          (components.Message as ComponentType)
+        );
+      } else {
+        return (
+          components.AssistantMessage ?? (components.Message as ComponentType)
+        );
+      }
+    case "system":
+      if (isEditing) {
+        return (
+          components.SystemEditComposer ??
+          components.EditComposer ??
+          components.SystemMessage ??
+          (components.Message as ComponentType) ??
+          DEFAULT_SYSTEM_MESSAGE
+        );
+      } else {
+        return (
+          components.SystemMessage ??
+          (components.Message as ComponentType) ??
+          DEFAULT_SYSTEM_MESSAGE
+        );
+      }
+    default: {
+      const _exhaustiveCheck: never = role;
+      throw new Error(`Unknown message role: ${_exhaustiveCheck}`);
+    }
+  }
 };
 
-const MessageScope = ({
-  index,
-  children,
-}: {
-  index: number;
-  children: ReactElement;
+const ThreadMessageComponent: FC<{ components: MessageComponents }> = ({
+  components,
 }) => {
-  const aui = useAui({
-    message: Derived({
-      source: "thread",
-      query: { type: "index", index },
-      get: (aui) => aui.threads().thread("main").message({ index }),
-    }),
-  });
+  const role = useAuiState((s) => s.message.role);
+  const isEditing = useAuiState((s) => s.message.composer.isEditing);
+  const Component = getComponent(components, role, isEditing);
 
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return <Component />;
 };
 
-export const ThreadMessages = ({ renderMessage }: ThreadMessagesProps) => {
-  const messages = useAuiState((s) => s.thread.messages);
+const ThreadMessagesInner: FC<{
+  children: (value: { message: ThreadMessage }) => ReactNode;
+}> = ({ children }) => {
+  const messagesLength = useAuiState((s) => s.thread.messages.length);
 
+  return useMemo(() => {
+    if (messagesLength === 0) return null;
+    return Array.from({ length: messagesLength }, (_, index) => (
+      <MessageByIndexProvider key={index} index={index}>
+        <RenderChildrenWithAccessor
+          getItemState={(aui) => aui.thread().message({ index }).getState()}
+        >
+          {(getItem) =>
+            children({
+              get message() {
+                return getItem();
+              },
+            })
+          }
+        </RenderChildrenWithAccessor>
+      </MessageByIndexProvider>
+    ));
+  }, [messagesLength, children]);
+};
+
+export const ThreadMessages: FC<ThreadMessagesProps> = ({
+  components,
+  children,
+}) => {
+  if (components) {
+    return (
+      <Box flexDirection="column">
+        <ThreadMessagesInner>
+          {() => <ThreadMessageComponent components={components} />}
+        </ThreadMessagesInner>
+      </Box>
+    );
+  }
   return (
     <Box flexDirection="column">
-      {(messages as unknown as ThreadMessage[]).map((message, index) => (
-        <MessageScope key={message.id} index={index}>
-          {renderMessage({ message, index })}
-        </MessageScope>
-      ))}
+      <ThreadMessagesInner>{children}</ThreadMessagesInner>
     </Box>
   );
 };
