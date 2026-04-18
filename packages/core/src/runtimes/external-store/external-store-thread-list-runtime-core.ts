@@ -153,6 +153,7 @@ export class ExternalStoreThreadListRuntimeCore
         this.adapter.archivedThreads?.map((t) => t.id) ?? EMPTY_ARRAY;
     }
 
+    // `initialLoad ||`: `_mainThread!` must be assigned on construction.
     if (initialLoad || previousThreadId !== newThreadId) {
       this._mainThreadId = newThreadId;
       this._mainThread = this.threadFactory();
