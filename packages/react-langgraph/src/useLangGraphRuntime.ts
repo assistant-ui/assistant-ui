@@ -214,7 +214,10 @@ export type UseLangGraphRuntimeOptions = {
     interrupts?: LangGraphInterruptState[];
     uiMessages?: UIMessage[];
   }>;
-  load?: (threadId: string) => Promise<{
+  load?: (
+    threadId: string,
+    config?: { signal: AbortSignal },
+  ) => Promise<{
     messages: LangChainMessage[];
     interrupts?: LangGraphInterruptState[];
     /**
@@ -670,19 +673,22 @@ const useLangGraphRuntimeImpl = ({
       if (!load) return;
 
       const externalId = aui.threadListItem().getState().externalId;
-      if (externalId == null) {
-        setIsLoadingThread(false);
-        return;
-      }
+      if (externalId == null) return;
 
+      // drop stale callbacks and abort the pending load on thread switch/unmount
       let cancelled = false;
+      const controller = new AbortController();
       setIsLoadingThread(true);
-      load(externalId)
+      load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
           if (cancelled) return;
           setMessages(messages);
           setUIMessages(uiMessages ?? []);
           setInterrupt(interrupts?.[0]);
+        })
+        .catch((error) => {
+          if (cancelled) return;
+          console.warn("useLangGraphRuntime: load handler rejected", error);
         })
         .finally(() => {
           if (cancelled) return;
@@ -691,6 +697,7 @@ const useLangGraphRuntimeImpl = ({
 
       return () => {
         cancelled = true;
+        controller.abort();
         setIsLoadingThread(false);
       };
     }, [aui, setMessages, setUIMessages, setInterrupt]);
