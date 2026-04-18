@@ -30,14 +30,6 @@ export {
   useAssistantDataUI,
   type AssistantDataUIProps,
 } from "./model-context/useAssistantDataUI";
-export {
-  useAssistantFallbackDataUI,
-  type AssistantFallbackDataUIProps,
-} from "./model-context/useAssistantFallbackDataUI";
-export {
-  makeAssistantFallbackDataUI,
-  type AssistantFallbackDataUI,
-} from "./model-context/makeAssistantFallbackDataUI";
 export { useInlineRender } from "./model-context/useInlineRender";
 export type { Toolkit, ToolDefinition } from "./model-context/toolbox";
 export {
