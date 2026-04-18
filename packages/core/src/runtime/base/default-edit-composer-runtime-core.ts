@@ -1,4 +1,8 @@
-import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type {
+  AppendMessage,
+  ThreadAssistantMessagePart,
+  ThreadMessage,
+} from "../../types/message";
 import type { CompleteAttachment } from "../../types/attachment";
 import { getThreadMessageText } from "../../utils/text";
 import { attachmentsEqual, liftNonTextParts } from "../../adapters/attachment";
@@ -23,7 +27,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
 
   private _previousText;
   private _previousAttachments: readonly CompleteAttachment[];
-  private _nonTextPassthrough: readonly ThreadMessage["content"][number][];
+  private _nonTextPassthrough: readonly ThreadAssistantMessagePart[];
   private _parentId: string | null;
   private _sourceId: string | null;
   constructor(
@@ -56,7 +60,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
       this._previousAttachments = message.attachments ?? [];
       this._nonTextPassthrough = message.content.filter(
         (p) => p.type !== "text",
-      );
+      ) as ThreadAssistantMessagePart[];
     }
     this.setAttachments(this._previousAttachments);
 

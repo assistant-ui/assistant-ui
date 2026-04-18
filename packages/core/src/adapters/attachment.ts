@@ -3,11 +3,7 @@ import type {
   PendingAttachment,
   CompleteAttachment,
 } from "../types/attachment";
-import type {
-  ImageMessagePart,
-  ThreadMessage,
-  ThreadUserMessagePart,
-} from "../types/message";
+import type { ThreadUserMessagePart } from "../types/message";
 import { generateId } from "../utils/id";
 
 export type AttachmentAdapter = {
@@ -147,17 +143,12 @@ export function attachmentsEqual(
   return a.every((att, i) => att.id === b[i]!.id);
 }
 
-type NonTextUserMessagePart = Exclude<ThreadUserMessagePart, { type: "text" }>;
-
-const isImagePart = (part: NonTextUserMessagePart): part is ImageMessagePart =>
-  part.type === "image";
-
 export function partToCompleteAttachment(
-  part: NonTextUserMessagePart,
+  part: Exclude<ThreadUserMessagePart, { type: "text" }>,
 ): CompleteAttachment {
   const id = generateId();
 
-  if (isImagePart(part)) {
+  if (part.type === "image") {
     return {
       id,
       type: "image",
@@ -199,16 +190,11 @@ export function partToCompleteAttachment(
 }
 
 export function liftNonTextParts(
-  content: ThreadMessage["content"],
+  content: readonly ThreadUserMessagePart[],
 ): CompleteAttachment[] {
   const result: CompleteAttachment[] = [];
   for (const part of content) {
-    if (
-      part.type === "image" ||
-      part.type === "file" ||
-      part.type === "data" ||
-      part.type === "audio"
-    ) {
+    if (part.type !== "text") {
       result.push(partToCompleteAttachment(part));
     }
   }
