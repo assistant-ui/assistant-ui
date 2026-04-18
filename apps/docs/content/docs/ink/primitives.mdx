@@ -710,6 +710,8 @@ Components for rendering code diffs in the terminal.
 
 Pre-composed component that combines all diff primitives for easy diff rendering. Accepts either a unified diff patch string or old/new file content for inline comparison.
 
+When a replacement is rendered as an equal-length adjacent `-`/`+` run, `DiffView` also highlights the changed word spans inside those lines. The existing prefixes, line numbers, folding, and primitive API surface stay the same. This intra-line behavior is internal to `DiffView`; `DiffPrimitive.Line` remains a line-level primitive.
+
 ```tsx
 // From a patch string
 <DiffView

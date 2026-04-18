@@ -4,6 +4,11 @@ import { DiffContent } from "./DiffContent";
 import { useDiffContext } from "./DiffContext";
 import { DiffRoot } from "./DiffRoot";
 import { computeDiff, parsePatch } from "./diff-utils";
+import {
+  buildIntraLineSegments,
+  buildLinePairMap,
+  type StyledDiffSegment,
+} from "./intra-line-utils";
 import type {
   DiffFileInput,
   FoldedRegion,
@@ -32,14 +37,61 @@ const INDICATOR: Record<string, string> = {
   normal: " ",
 };
 
+const EMPTY_SEGMENT_MAP = new Map<ParsedLine, StyledDiffSegment[]>();
+
 const isDevNull = (n: string | undefined) => !n || n === "/dev/null";
+
+const buildSegmentMap = (lines: ParsedLine[]) => {
+  const pairMap = buildLinePairMap(lines);
+  const segmentMap = new Map<ParsedLine, StyledDiffSegment[]>();
+
+  for (const [line, pairInfo] of pairMap) {
+    if (pairInfo.role !== "del") {
+      continue;
+    }
+
+    const { delSegments, addSegments } = buildIntraLineSegments(
+      line.content,
+      pairInfo.counterpart.content,
+    );
+
+    segmentMap.set(line, delSegments);
+    segmentMap.set(pairInfo.counterpart, addSegments);
+  }
+
+  return segmentMap;
+};
+
+const renderSegmentedLine = (
+  line: ParsedLine,
+  segments: StyledDiffSegment[],
+) => {
+  const color = line.type === "add" ? "green" : "red";
+
+  return (
+    <Text color={color}>
+      {`${INDICATOR[line.type]} `}
+      {segments.map((segment, index) => (
+        <Text
+          key={`${line.type}-${index}`}
+          bold={segment.changed}
+          dimColor={!segment.changed}
+        >
+          {segment.text}
+        </Text>
+      ))}
+    </Text>
+  );
+};
 
 const StyledLine = ({
   line,
   showLineNumbers,
+  segmentMap,
 }: {
   line: ParsedLine;
   showLineNumbers: boolean;
+  segmentMap: Map<ParsedLine, StyledDiffSegment[]>;
 }) => {
   const lineNum =
     line.type === "del"
@@ -49,17 +101,19 @@ const StyledLine = ({
         : line.oldLineNumber;
   const numStr = lineNum !== undefined ? String(lineNum) : "";
   const padded = numStr.padStart(4);
-  const content = `${INDICATOR[line.type]} ${line.content}`;
+  const segments = segmentMap.get(line);
 
   return (
     <Box>
       {showLineNumbers && <Text dimColor>{padded} </Text>}
-      {line.type === "add" ? (
-        <Text color="green">{content}</Text>
+      {segments && line.type !== "normal" ? (
+        renderSegmentedLine(line, segments)
+      ) : line.type === "add" ? (
+        <Text color="green">{`+ ${line.content}`}</Text>
       ) : line.type === "del" ? (
-        <Text color="red">{content}</Text>
+        <Text color="red">{`- ${line.content}`}</Text>
       ) : (
-        <Text>{content}</Text>
+        <Text>{`  ${line.content}`}</Text>
       )}
     </Box>
   );
@@ -76,6 +130,10 @@ const DiffViewInner = ({
 }: DiffViewInnerProps) => {
   const { files } = useDiffContext();
   const shouldShowLineNumbers = showLineNumbers ?? true;
+  const segmentMaps = useMemo(
+    () => files.map((file) => buildSegmentMap(file.lines)),
+    [files],
+  );
 
   if (files.length === 0) {
     return <Text dimColor>No diff content</Text>;
@@ -117,6 +175,7 @@ const DiffViewInner = ({
                 <StyledLine
                   line={line}
                   showLineNumbers={shouldShowLineNumbers}
+                  segmentMap={segmentMaps[i] ?? EMPTY_SEGMENT_MAP}
                 />
               )}
               renderFold={({ region }) => <StyledFold region={region} />}
