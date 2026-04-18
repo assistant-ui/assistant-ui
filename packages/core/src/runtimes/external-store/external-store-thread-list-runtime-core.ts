@@ -114,7 +114,6 @@ export class ExternalStoreThreadListRuntimeCore
     }
 
     if (
-      initialLoad ||
       previousThreads !== newThreads ||
       previousArchivedThreads !== newArchivedThreads
     ) {

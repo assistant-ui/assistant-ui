@@ -76,6 +76,20 @@ describe("ExternalStoreThreadListRuntimeCore - construction", () => {
     );
     expect(core.getMainThreadRuntimeCore()).toBe(instance);
   });
+
+  it("preserves the frozen threadItems default when the adapter has no threads", () => {
+    const a = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      makeFactory(),
+    );
+    const b = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      makeFactory(),
+    );
+    // Two empty-adapter constructions should share the frozen DEFAULT_THREAD_DATA
+    // singleton rather than each getting a fresh `{ ... }` clone.
+    expect(a.threadItems).toBe(b.threadItems);
+  });
 });
 
 describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
