@@ -320,24 +320,63 @@ const useLangGraphRuntimeImpl = ({
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
 
+  // Reconcile uiComponents against the data renderers registry by identity.
+  // Using refs (instead of `useEffect` deps on inline `uiComponents`) so callers
+  // can pass inline objects without re-registering every render.
   const uiFallback = uiComponents?.fallback;
   const uiRenderers = uiComponents?.renderers;
+  const registeredRenderersRef = useRef<Map<string, DataMessagePartComponent>>(
+    new Map(),
+  );
+  const rendererCleanupsRef = useRef<Map<string, () => void>>(new Map());
+  const fallbackRef = useRef<DataMessagePartComponent | undefined>(undefined);
+  const fallbackCleanupRef = useRef<(() => void) | undefined>(undefined);
+
   useEffect(() => {
-    const cleanups: (() => void)[] = [];
-    if (uiFallback) {
-      cleanups.push(aui.dataRenderers().setFallbackDataUI(uiFallback));
+    const registered = registeredRenderersRef.current;
+    const cleanups = rendererCleanupsRef.current;
+
+    // Drop renderers that changed identity or are no longer provided.
+    for (const [name, prev] of registered) {
+      if (uiRenderers?.[name] !== prev) {
+        cleanups.get(name)?.();
+        cleanups.delete(name);
+        registered.delete(name);
+      }
     }
+    // Register renderers that are new or changed.
     if (uiRenderers) {
       for (const [name, component] of Object.entries(uiRenderers)) {
-        if (component) {
-          cleanups.push(aui.dataRenderers().setDataUI(name, component));
+        if (component && registered.get(name) !== component) {
+          cleanups.set(name, aui.dataRenderers().setDataUI(name, component));
+          registered.set(name, component);
         }
       }
     }
+
+    // Only one fallback is registered through this hook (even though the core
+    // registry supports stacking via multiple providers); reconcile by identity.
+    if (uiFallback !== fallbackRef.current) {
+      fallbackCleanupRef.current?.();
+      fallbackCleanupRef.current = uiFallback
+        ? aui.dataRenderers().setFallbackDataUI(uiFallback)
+        : undefined;
+      fallbackRef.current = uiFallback;
+    }
+  });
+
+  useEffect(() => {
+    const cleanups = rendererCleanupsRef.current;
+    const registered = registeredRenderersRef.current;
     return () => {
-      for (const cleanup of cleanups) cleanup();
+      for (const cleanup of cleanups.values()) cleanup();
+      cleanups.clear();
+      registered.clear();
+      fallbackCleanupRef.current?.();
+      fallbackCleanupRef.current = undefined;
+      fallbackRef.current = undefined;
     };
-  }, [aui, uiFallback, uiRenderers]);
+  }, []);
   const {
     interrupt,
     setInterrupt,
