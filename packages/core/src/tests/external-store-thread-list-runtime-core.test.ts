@@ -4,8 +4,6 @@ import type { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/
 import type { ExternalStoreThreadListAdapter } from "../runtimes/external-store/external-store-adapter";
 import { ThreadListRuntimeImpl } from "../runtime/api/thread-list-runtime";
 
-const DEFAULT_THREAD_ID = "DEFAULT_THREAD_ID";
-
 const makeFactory = () =>
   vi.fn(
     () =>
@@ -19,12 +17,14 @@ const makeAdapter = (
 ): ExternalStoreThreadListAdapter => ({ ...overrides });
 
 describe("ExternalStoreThreadListRuntimeCore - construction", () => {
-  it("defaults mainThreadId to DEFAULT_THREAD_ID when adapter has no threadId", () => {
+  it("assigns a resolvable fallback mainThreadId when adapter has no threadId", () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter(),
       makeFactory(),
     );
-    expect(core.mainThreadId).toBe(DEFAULT_THREAD_ID);
+    expect(typeof core.mainThreadId).toBe("string");
+    expect(core.mainThreadId.length).toBeGreaterThan(0);
+    expect(core.getItemById(core.mainThreadId)).toBeDefined();
   });
 
   it("picks up mainThreadId from adapter.threadId on construction (regression: #2577)", () => {
