@@ -6,10 +6,27 @@ import type {
   RemoteThreadListAdapter,
 } from "@assistant-ui/core";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
-import { useAui } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import { useLangGraphRuntime, useLangGraphSend } from "./useLangGraphRuntime";
 import { mockStreamCallbackFactory } from "./testUtils";
+import type { LangChainMessage } from "./types";
+import type { LangGraphInterruptState } from "./useLangGraphMessages";
 import type { ReactNode } from "react";
+
+type LoadResult = {
+  messages: LangChainMessage[];
+  interrupts?: LangGraphInterruptState[];
+};
+
+const deferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
 
 const metadataEvent = {
   event: "metadata",
@@ -414,5 +431,115 @@ describe("useLangGraphRuntime", () => {
     await waitFor(() => {
       expect(list).toHaveBeenCalled();
     });
+  });
+
+  const makeThreadListAdapter = (): RemoteThreadListAdapter => ({
+    list: vi.fn(async () => ({
+      threads: [
+        {
+          status: "regular" as const,
+          remoteId: "lg-thread-1",
+          externalId: "lg-thread-1",
+          title: "Existing LangGraph thread",
+        },
+      ],
+    })),
+    initialize: vi.fn(async () => ({
+      remoteId: "lg-thread-1",
+      externalId: "lg-thread-1",
+    })),
+    rename: vi.fn(async () => {}),
+    archive: vi.fn(async () => {}),
+    unarchive: vi.fn(async () => {}),
+    delete: vi.fn(async () => {}),
+    generateTitle: vi.fn(async () => new ReadableStream()),
+    fetch: vi.fn(async () => ({
+      status: "regular" as const,
+      remoteId: "lg-thread-1",
+      externalId: "lg-thread-1",
+    })),
+  });
+
+  it("should set thread.isLoading to true while load is pending and false after it resolves", async () => {
+    const pending = deferred<LoadResult>();
+    const load = vi.fn(() => pending.promise);
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: isLoadingResult } = renderHook(
+      () => useAuiState((s) => s.thread.isLoading),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+
+    await waitFor(() =>
+      expect(load).toHaveBeenCalledWith("lg-thread-1", {
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    await waitFor(() => expect(isLoadingResult.current).toBe(true));
+
+    await act(async () => {
+      pending.resolve({ messages: [] });
+    });
+
+    await waitFor(() => expect(isLoadingResult.current).toBe(false));
+  });
+
+  it("should reset thread.isLoading to false and surface the error when load rejects", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => {});
+    const loadError = new Error("failed to load thread");
+    const load = vi.fn(() => Promise.reject<LoadResult>(loadError));
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: isLoadingResult } = renderHook(
+      () => useAuiState((s) => s.thread.isLoading),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+
+    await waitFor(() =>
+      expect(load).toHaveBeenCalledWith("lg-thread-1", {
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    await waitFor(() => expect(isLoadingResult.current).toBe(false));
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "useLangGraphRuntime: load handler rejected",
+      loadError,
+    );
+    consoleWarnSpy.mockRestore();
   });
 });
