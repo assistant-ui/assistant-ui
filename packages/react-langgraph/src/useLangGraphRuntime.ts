@@ -676,27 +676,25 @@ const useLangGraphRuntimeImpl = ({
       if (externalId == null) return;
 
       // drop stale callbacks and abort the pending load on thread switch/unmount
-      let cancelled = false;
       const controller = new AbortController();
       setIsLoadingThread(true);
       load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
-          if (cancelled) return;
+          if (controller.signal.aborted) return;
           setMessages(messages);
           setUIMessages(uiMessages ?? []);
           setInterrupt(interrupts?.[0]);
         })
         .catch((error) => {
-          if (cancelled) return;
+          if (controller.signal.aborted) return;
           console.warn("useLangGraphRuntime: load handler rejected", error);
         })
         .finally(() => {
-          if (cancelled) return;
+          if (controller.signal.aborted) return;
           setIsLoadingThread(false);
         });
 
       return () => {
-        cancelled = true;
         controller.abort();
         setIsLoadingThread(false);
       };
