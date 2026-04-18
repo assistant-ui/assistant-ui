@@ -187,6 +187,8 @@ function MyComponent() {
 
 Each data component receives the full data part as props: `{ type: "data", name: string, data: T, status: MessagePartStatus }`.
 
+For a catch-all renderer (e.g. LangSmith's [`LoadExternalComponent`](/docs/runtimes/langgraph#dynamic-loading-with-fallback) loaded at runtime), pass `Fallback` via the inline `data` config on `MessagePrimitive.Parts`, or use the LangGraph adapter's [`uiComponents.fallback`](/docs/runtimes/langgraph#dynamic-loading-with-fallback) option.
+
 ### Messages (Sub-Agent)
 
 Renders nested messages from a tool call part's `messages` field. This is used in multi-agent setups where a sub-agent's conversation is embedded inside a tool call.

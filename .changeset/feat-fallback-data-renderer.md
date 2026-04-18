@@ -6,8 +6,8 @@
 "@assistant-ui/react-langgraph": patch
 ---
 
-feat: add fallback data renderer and LangGraph uiComponents integration
+feat(react-langgraph): add uiComponents option for static and dynamic data renderers
 
-Add `makeAssistantFallbackDataUI` and `useAssistantFallbackDataUI` to register a catch-all renderer that handles data UI parts with no name-specific renderer. This enables dynamic component loading (e.g., LangSmith's `LoadExternalComponent`) without requiring build-time registration of every component name.
+Add `uiComponents` option to `useLangGraphRuntime` for registering static data renderers by name and a `fallback` renderer for dynamic loading (e.g. LangSmith's `LoadExternalComponent`), directly from the runtime hook.
 
-Add `uiComponents` option to `useLangGraphRuntime` for registering static data renderers by name and a `loader` fallback for dynamic loading, directly from the runtime hook.
+Core `DataRenderers` scope also gains a `fallbacks` stack (plus `setFallbackDataUI` method) that the adapter registers into; resolution is `renderers[name][0]` → `fallbacks[0]` → inline `Fallback`.
