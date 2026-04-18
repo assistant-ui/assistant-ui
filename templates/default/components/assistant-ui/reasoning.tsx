@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import {
   useScrollLock,
-  useAssistantState,
+  useAuiState,
   type ReasoningMessagePartComponent,
   type ReasoningGroupComponent,
 } from "@assistant-ui/react";
@@ -22,13 +22,13 @@ const ANIMATION_DURATION = 200;
 const reasoningVariants = cva("aui-reasoning-root mb-4 w-full", {
   variants: {
     variant: {
-      default: "",
       outline: "rounded-lg border px-3 py-2",
+      ghost: "",
       muted: "rounded-lg bg-muted/50 px-3 py-2",
     },
   },
   defaultVariants: {
-    variant: "default",
+    variant: "outline",
   },
 });
 
@@ -78,7 +78,10 @@ function ReasoningRoot({
       data-variant={variant}
       open={isOpen}
       onOpenChange={handleOpenChange}
-      className={cn(reasoningVariants({ variant, className }))}
+      className={cn(
+        "group/reasoning-root",
+        reasoningVariants({ variant, className }),
+      )}
       style={
         {
           "--animation-duration": `${ANIMATION_DURATION}ms`,
@@ -98,6 +101,7 @@ function ReasoningFade({ className, ...props }: React.ComponentProps<"div">) {
       className={cn(
         "aui-reasoning-fade pointer-events-none absolute inset-x-0 bottom-0 z-10 h-8",
         "bg-[linear-gradient(to_top,var(--color-background),transparent)]",
+        "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_top,hsl(var(--muted)/0.5),transparent)]",
         "fade-in-0 animate-in",
         "group-data-[state=open]/collapsible-content:animate-out",
         "group-data-[state=open]/collapsible-content:fade-out-0",
@@ -196,7 +200,7 @@ function ReasoningText({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="reasoning-text"
       className={cn(
-        "aui-reasoning-text relative z-0 max-h-64 space-y-4 overflow-y-auto pt-2 pb-4 pl-6 leading-relaxed",
+        "aui-reasoning-text relative z-0 max-h-64 space-y-4 overflow-y-auto pt-2 pb-2 pl-6 leading-relaxed",
         "transform-gpu transition-[transform,opacity]",
         "group-data-[state=open]/collapsible-content:animate-in",
         "group-data-[state=closed]/collapsible-content:animate-out",
@@ -206,7 +210,6 @@ function ReasoningText({ className, ...props }: React.ComponentProps<"div">) {
         "group-data-[state=closed]/collapsible-content:slide-out-to-top-4",
         "group-data-[state=open]/collapsible-content:duration-(--animation-duration)",
         "group-data-[state=closed]/collapsible-content:duration-(--animation-duration)",
-        "[&_p]:-mb-2",
         className,
       )}
       {...props}
@@ -221,11 +224,11 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
   startIndex,
   endIndex,
 }) => {
-  const isReasoningStreaming = useAssistantState(({ message }) => {
-    if (message.status?.type !== "running") return false;
-    const lastIndex = message.parts.length - 1;
+  const isReasoningStreaming = useAuiState((s) => {
+    if (s.message.status?.type !== "running") return false;
+    const lastIndex = s.message.parts.length - 1;
     if (lastIndex < 0) return false;
-    const lastType = message.parts[lastIndex]?.type;
+    const lastType = s.message.parts[lastIndex]?.type;
     if (lastType !== "reasoning") return false;
     return lastIndex >= startIndex && lastIndex <= endIndex;
   });
