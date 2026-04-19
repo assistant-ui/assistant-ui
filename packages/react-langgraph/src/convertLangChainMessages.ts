@@ -108,13 +108,15 @@ const resolveToolCallArgs = ({
   matchingToolCallChunk,
   messageId,
   toolArgsKeyOrderCache,
+  toolCallId,
 }: {
   chunk: LangChainToolCall;
   matchingToolCallChunk: LangChainToolCallChunk | undefined;
   messageId: string | undefined;
   toolArgsKeyOrderCache: Map<string, Map<string, string[]>> | undefined;
+  toolCallId: string;
 }): Pick<ToolCallMessagePart, "args" | "argsText"> => {
-  const cacheKey = getToolArgsCacheKey(messageId, "tool", chunk.id);
+  const cacheKey = getToolArgsCacheKey(messageId, "tool", toolCallId);
   const providedArgsText =
     chunk.partial_json ??
     matchingToolCallChunk?.args ??
@@ -304,20 +306,25 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       };
     case "ai": {
       const toolCallParts =
-        message.tool_calls?.map((chunk): ToolCallMessagePart => {
-          const matchingToolCallChunk = message.tool_call_chunks?.find(
-            (c) => c.id === chunk.id,
+        message.tool_calls?.map((chunk, idx): ToolCallMessagePart => {
+          const fallbackIndex = chunk.index ?? idx;
+          const toolCallId = chunk.id
+            ? chunk.id
+            : `lc-toolcall-${message.id ?? "unknown"}-${fallbackIndex}`;
+          const matchingToolCallChunk = message.tool_call_chunks?.find((c) =>
+            chunk.id ? c.id === chunk.id : c.index === fallbackIndex,
           );
           const { args, argsText } = resolveToolCallArgs({
             chunk,
             matchingToolCallChunk,
             messageId: message.id,
             toolArgsKeyOrderCache: metadata.toolArgsKeyOrderCache,
+            toolCallId,
           });
 
           return {
             type: "tool-call",
-            toolCallId: chunk.id,
+            toolCallId,
             toolName: chunk.name,
             args,
             argsText,
