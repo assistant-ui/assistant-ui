@@ -1,8 +1,5 @@
 ---
-"@assistant-ui/react": patch
+"@assistant-ui/core": patch
 ---
 
-Fix duplicate thread entries in the sidebar when `switchToThread(id)` races
-with `list()` resolving. `RemoteThreadListThreadListRuntimeCore.switchToThread`
-now checks whether the id already exists in `threadIds` / `archivedThreadIds`
-before appending, making the operation idempotent.
+fix(core): `switchToThread` could duplicate a thread or leave it in both `threadIds` and `archivedThreadIds` when it raced with `list()`. Both arrays are now filtered before the status-keyed append, matching the `updateStatusReducer` pattern.
