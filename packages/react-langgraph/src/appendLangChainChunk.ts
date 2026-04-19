@@ -76,8 +76,10 @@ export const appendLangChainChunk = (
     let idx = newToolCalls.findIndex(
       (tc) => tc.id != null && tc.id !== "" && tc.id === chunk.id,
     );
-    if (idx === -1 && chunk.id === "" && chunk.index != null) {
-      idx = newToolCalls.findIndex((tc) => tc.index === chunk.index);
+    if (idx === -1 && chunk.index != null) {
+      idx = newToolCalls.findIndex(
+        (tc) => tc.index === chunk.index && (!tc.id || !chunk.id),
+      );
     }
     if (idx === -1) {
       newToolCalls.push(chunkToToolCall(chunk));
@@ -88,6 +90,7 @@ export const appendLangChainChunk = (
       newToolCalls[idx] = {
         ...chunk,
         ...existing,
+        id: existing.id || chunk.id,
         partial_json: partialJson,
         args:
           parsePartialJsonObject(partialJson) ??
