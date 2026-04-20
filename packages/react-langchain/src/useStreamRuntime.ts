@@ -31,6 +31,7 @@ type LangChainRuntimeExtras = {
     values: Record<string, unknown> | null | undefined,
     options?: Record<string, unknown>,
   ) => Promise<void>;
+  values: Record<string, unknown>;
 };
 
 const asLangChainRuntimeExtras = (extras: unknown): LangChainRuntimeExtras => {
@@ -183,8 +184,9 @@ const useStreamThreadRuntime = ({
       interrupt: stream.interrupt,
       interrupts: stream.interrupts,
       submit: stream.submit,
+      values: stream.values,
     }),
-    [stream.interrupt, stream.interrupts, stream.submit],
+    [stream.interrupt, stream.interrupts, stream.submit, stream.values],
   );
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
@@ -298,3 +300,30 @@ export const useLangChainSubmit = () => {
     return submit(values, options);
   };
 };
+
+/**
+ * Read a custom LangGraph state key from the current thread. Mirrors
+ * `useStream().values[key]` from `@langchain/react` and updates when the
+ * stream emits new state.
+ *
+ * @example
+ * ```tsx
+ * const todos = useLangChainState<Todo[]>("todos");
+ * const files = useLangChainState<Record<string, string>>("files", {});
+ * ```
+ */
+export function useLangChainState<T>(key: string): T | undefined;
+export function useLangChainState<T>(key: string, defaultValue: T): T;
+export function useLangChainState<T>(
+  key: string,
+  defaultValue?: T,
+): T | undefined {
+  return useAuiState((s) => {
+    const extras = s.thread.extras;
+    if (!extras) return defaultValue;
+    const value = asLangChainRuntimeExtras(extras).values?.[key] as
+      | T
+      | undefined;
+    return value ?? defaultValue;
+  });
+}
