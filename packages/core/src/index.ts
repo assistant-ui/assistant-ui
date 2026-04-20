@@ -44,6 +44,12 @@ export type { Unsubscribe } from "./types/unsubscribe";
 export type { QuoteInfo } from "./types/quote";
 
 export type {
+  ImageGenerationAdapter,
+  ImageGenerationOptions,
+  ImageGenerationResult,
+} from "./types/image-generation";
+
+export type {
   Unstable_DirectiveSegment,
   Unstable_DirectiveFormatter,
 } from "./types/directive";

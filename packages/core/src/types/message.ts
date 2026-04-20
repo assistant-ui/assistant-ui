@@ -27,8 +27,21 @@ export type SourceMessagePart = {
 
 export type ImageMessagePart = {
   readonly type: "image";
+  /** URL, blob URL, or base64 data URI for the image. */
   readonly image: string;
   readonly filename?: string;
+  /**
+   * Optional generation metadata. Meaningful for assistant-authored
+   * (generated) images; ignored for user-uploaded images.
+   */
+  readonly prompt?: string;
+  readonly revisedPrompt?: string;
+  readonly model?: string;
+  readonly seed?: string | number;
+  readonly width?: number;
+  readonly height?: number;
+  readonly mimeType?: string;
+  readonly generationId?: string;
 };
 
 export type FileMessagePart = {

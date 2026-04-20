@@ -129,6 +129,15 @@ function convertParts(
         (message.role !== "user" || p.type !== "file"),
     )
     .map((part) => {
+      if (part.type === "file") {
+        return {
+          type: "file",
+          data: part.url,
+          mimeType: part.mediaType,
+          ...(part.filename != null && { filename: part.filename }),
+        } satisfies FileMessagePart;
+      }
+
       if (part.type === "text") {
         return {
           type: "text",
@@ -200,15 +209,6 @@ function convertParts(
           url: part.url,
           title: part.title || "",
         } satisfies SourceMessagePart;
-      }
-
-      if (part.type === "file") {
-        return {
-          type: "file",
-          data: part.url,
-          mimeType: part.mediaType,
-          ...(part.filename != null && { filename: part.filename }),
-        } satisfies FileMessagePart;
       }
 
       if (part.type === "source-document") {

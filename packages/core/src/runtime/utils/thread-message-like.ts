@@ -105,10 +105,13 @@ export const fromThreadMessageLike = (
     image,
     ...rest
   }: ImageMessagePart): ImageMessagePart | null => {
-    const match = image.match(
-      /^data:image\/(png|jpeg|jpg|gif|webp);base64,(.*)$/,
+    const dataUri = image.match(
+      /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,(.*)$/,
     );
-    if (match) {
+    if (dataUri) {
+      return { ...rest, image };
+    }
+    if (/^(https?:|blob:)/.test(image)) {
       return { ...rest, image };
     }
     console.warn(`Invalid image data format detected`);

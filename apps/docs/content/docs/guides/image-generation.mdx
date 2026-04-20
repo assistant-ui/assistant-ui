@@ -1,0 +1,154 @@
+---
+title: Image Generation
+description: Generate and render images inline in an assistant-ui thread using a provider-agnostic adapter.
+---
+
+Generate images from text prompts, render them inline in a thread with loading and
+error states, and expose Download / Copy / Regenerate actions with built-in cost
+guardrails.
+
+<Callout type="info">
+  v0.1 covers non-streaming generation + render + actions. Streaming partial
+  images (`image-delta`) and multi-image gallery rendering are deferred to v0.2.
+</Callout>
+
+## The `ImageGenerationAdapter` contract
+
+Providers plug in through a minimal adapter:
+
+```ts
+import type { ImageGenerationAdapter } from "@assistant-ui/react";
+
+const adapter: ImageGenerationAdapter = {
+  async generate(prompt, options) {
+    // call your provider, return a data URI or URL
+    return {
+      image: "data:image/png;base64,...",
+      mimeType: "image/png",
+      metadata: { revisedPrompt: "..." },
+    };
+  },
+};
+```
+
+Provider-specific fields (`revisedPrompt`, `seed`, `generationId`, etc.) live
+in the generic `metadata` bag so the core stays provider-agnostic.
+
+## AI SDK adapter
+
+The `@assistant-ui/react-ai-sdk` package ships a factory that wraps AI SDK's
+`generateImage`:
+
+```ts
+import { generateImage } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { createAiSdkImageAdapter } from "@assistant-ui/react-ai-sdk";
+
+const adapter = createAiSdkImageAdapter({
+  generateImage,
+  model: openai.image("gpt-image-1"),
+});
+```
+
+Because the factory is duck-typed over `generateImage`, `@assistant-ui/react-ai-sdk`
+does not take a hard dependency on `ai` or any specific provider.
+
+## Rendering images
+
+`ImageMessagePart` now carries optional generation metadata (`prompt`,
+`revisedPrompt`, `model`, `seed`, `width`, `height`, `mimeType`,
+`generationId`). The `Image` component in `@assistant-ui/ui` handles three
+states automatically:
+
+1. **Running** — `status.type === "running"` renders a skeleton/spinner.
+2. **Content filter** — `status.type === "incomplete"` with `reason: "content-filter"`
+   renders an error card (no `<img src>`).
+3. **Complete** — renders an `<img>` with zoom + optional `Image.Actions`.
+
+```tsx
+import { Image } from "@assistant-ui/ui";
+
+<Image {...imagePart}>
+  <Image.Actions
+    part={imagePart}
+    adapter={adapter}
+    regenerateOptions={{
+      pricingHint: "~$0.19 per HD image",
+      rateLimit: { maxPerMinute: 3 },
+    }}
+  />
+</Image>
+```
+
+## Hooks
+
+### `useImageGeneration(adapter, observers?)`
+
+Minimal generate + isGenerating + error state. Pass an optional
+`{ onImageGenerated, onImageError }` bag for metrics / logging.
+
+```tsx
+const { generate, isGenerating, error } = useImageGeneration(adapter);
+await generate("a cat in a hat");
+```
+
+### `useImagePartRegenerate(part, adapter, options?)`
+
+Regenerates an existing `ImageMessagePart` by re-invoking the adapter with
+the stored `prompt`. Cost guardrails built in:
+
+| Option | Default | Purpose |
+|--------|---------|---------|
+| `debounceMs` | `1000` | Minimum wait between invocations. |
+| `rateLimit.maxPerMinute` | `5` | Sliding-window limit; triggers `rateLimited: true`. |
+| `confirmRegenerate(prompt) => Promise<boolean>` | — | Optional pre-call confirmation. |
+| `pricingHint` | — | Text surfaced by your confirmation UI. |
+
+```tsx
+const { regenerate, isRegenerating, rateLimited } = useImagePartRegenerate(
+  part,
+  adapter,
+  {
+    rateLimit: { maxPerMinute: 3 },
+    confirmRegenerate: async (p) =>
+      window.confirm(`Regenerate "${p}"? This costs ~$0.19.`),
+  },
+);
+```
+
+### `useImagePartDownload(part)`
+
+Returns a click handler that triggers a browser download. Filename defaults
+to `{generationId}.{ext}` or `image.{ext}` based on `part.mimeType`.
+
+### `useImagePartCopy(part)`
+
+Returns an async click handler that writes a `ClipboardItem` with the
+correct MIME type via `navigator.clipboard.write`. Safari requires transient
+user activation — call this from a click handler, not an effect.
+
+## Pipeline notes
+
+- AI SDK assistant-authored `file` parts with `image/*` mediaType are
+  promoted to `ImageMessagePart` content automatically by
+  `@assistant-ui/react-ai-sdk`. No custom converter wiring needed.
+- Cloud persistence (`auiV0`) round-trips all optional generation metadata.
+- Image URIs may be `data:` URIs, `https://` URLs, or `blob:` URLs.
+
+## Cost and storage guardrails
+
+Generation costs money and base64 storage bloats thread payloads. The v0.1
+primitives ship with these defaults:
+
+- `useImagePartRegenerate`: 1s debounce, 5/min rate limit.
+- `ImageMessagePart.image` accepts URLs so apps can swap base64 payloads
+  for an object-store URL when a storage backend is available.
+
+For production we recommend piping `onImageGenerated` into your analytics
+pipeline to track latency and payload sizes, and returning URLs (not base64)
+from the adapter where possible.
+
+## Example
+
+A complete Next.js + AI SDK example lives in
+[`examples/with-image-generation`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-image-generation).

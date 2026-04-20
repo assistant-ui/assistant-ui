@@ -43,6 +43,15 @@ type AuiV0MessagePart =
   | {
       readonly type: "image";
       readonly image: string;
+      readonly filename?: string;
+      readonly prompt?: string;
+      readonly revisedPrompt?: string;
+      readonly model?: string;
+      readonly seed?: string | number;
+      readonly width?: number;
+      readonly height?: number;
+      readonly mimeType?: string;
+      readonly generationId?: string;
     }
   | {
       readonly type: "file";
@@ -119,7 +128,23 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
         }
 
         case "image":
-          return { type: "image", image: part.image };
+          return {
+            type: "image",
+            image: part.image,
+            ...(part.filename !== undefined && { filename: part.filename }),
+            ...(part.prompt !== undefined && { prompt: part.prompt }),
+            ...(part.revisedPrompt !== undefined && {
+              revisedPrompt: part.revisedPrompt,
+            }),
+            ...(part.model !== undefined && { model: part.model }),
+            ...(part.seed !== undefined && { seed: part.seed }),
+            ...(part.width !== undefined && { width: part.width }),
+            ...(part.height !== undefined && { height: part.height }),
+            ...(part.mimeType !== undefined && { mimeType: part.mimeType }),
+            ...(part.generationId !== undefined && {
+              generationId: part.generationId,
+            }),
+          };
 
         case "file":
           return {

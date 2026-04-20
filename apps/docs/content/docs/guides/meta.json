@@ -22,6 +22,7 @@
     "tool-ui",
     "interactables",
     "multi-agent",
+    "image-generation",
     "---Display---",
     "chain-of-thought",
     "latex",
