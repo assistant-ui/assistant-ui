@@ -111,7 +111,7 @@ export const fromThreadMessageLike = (
     if (dataUri) {
       return { ...rest, image };
     }
-    if (/^(https?:|blob:)/.test(image)) {
+    if (/^(https:\/\/|blob:)/.test(image)) {
       return { ...rest, image };
     }
     console.warn(`Invalid image data format detected`);

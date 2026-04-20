@@ -129,16 +129,18 @@ export default function Home() {
                 );
               }}
               onRegenerated={(result) => {
-                setView({
+                setView((prev) => ({
                   type: "image",
                   image: result.image,
-                  prompt,
+                  // Preserve the prompt from the part that was regenerated,
+                  // not the current textbox state.
+                  prompt: prev?.prompt ?? prompt,
                   ...(result.mimeType && { mimeType: result.mimeType }),
                   ...(typeof result.metadata?.revisedPrompt === "string" && {
                     revisedPrompt: result.metadata.revisedPrompt as string,
                   }),
                   status: { type: "complete" },
-                });
+                }));
               }}
               onRegenerateError={() => {
                 setView((prev) =>

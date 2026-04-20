@@ -314,17 +314,30 @@ function RegenerateButton({
   onRegenerated?: ((result: ImageGenerationResult) => void) | undefined;
   onRegenerateError?: ((error: Error) => void) | undefined;
 }) {
+  const wiredOptions = regenerateOptions
+    ? {
+        ...regenerateOptions,
+        observers: {
+          ...regenerateOptions.observers,
+          onStart: (info: { prompt: string; model?: string | undefined }) => {
+            regenerateOptions.observers?.onStart?.(info);
+            onRegenerateStart?.();
+          },
+        },
+      }
+    : onRegenerateStart
+      ? { observers: { onStart: () => onRegenerateStart() } }
+      : undefined;
   const { regenerate, isRegenerating } = useImagePartRegenerate(
     part,
     adapter,
-    regenerateOptions,
+    wiredOptions,
   );
   return (
     <button
       type="button"
       onClick={async () => {
         try {
-          onRegenerateStart?.();
           const result = await regenerate();
           if (result) onRegenerated?.(result);
         } catch (err) {

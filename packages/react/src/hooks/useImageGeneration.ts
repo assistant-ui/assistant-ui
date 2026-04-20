@@ -25,6 +25,14 @@ import { useCallback, useRef, useState } from "react";
  * ```
  */
 export type ImageGenerationObservers = {
+  /**
+   * Fires after all guards (debounce, rate limit, confirm) pass and the
+   * adapter is about to be called. Only wired by `useImagePartRegenerate`.
+   */
+  readonly onStart?: (info: {
+    readonly prompt: string;
+    readonly model?: string | undefined;
+  }) => void;
   readonly onImageGenerated?: (info: {
     readonly prompt: string;
     readonly model?: string | undefined;
@@ -55,6 +63,7 @@ export const useImageGeneration = (
   const [error, setError] = useState<Error | null>(null);
   const adapterRef = useRef(adapter);
   const observersRef = useRef(observers);
+  const inflightRef = useRef(0);
   adapterRef.current = adapter;
   observersRef.current = observers;
 
@@ -63,6 +72,7 @@ export const useImageGeneration = (
       prompt: string,
       options?: ImageGenerationOptions,
     ): Promise<ImageGenerationResult> => {
+      inflightRef.current += 1;
       setIsGenerating(true);
       setError(null);
       const startedAt = Date.now();
@@ -85,7 +95,8 @@ export const useImageGeneration = (
         });
         throw normalized;
       } finally {
-        setIsGenerating(false);
+        inflightRef.current -= 1;
+        if (inflightRef.current === 0) setIsGenerating(false);
       }
     },
     [],
@@ -141,6 +152,7 @@ export const useImagePartRegenerate = (
   const [rateLimited, setRateLimited] = useState(false);
   const lastCallRef = useRef<number>(0);
   const windowRef = useRef<number[]>([]);
+  const inflightRef = useRef(false);
   const adapterRef = useRef(adapter);
   const partRef = useRef(part);
   const optionsRef = useRef(options);
@@ -149,6 +161,10 @@ export const useImagePartRegenerate = (
   optionsRef.current = options;
 
   const regenerate = useCallback(async () => {
+    // Lock out concurrent callers. Must come first so debounce/rate-limit
+    // guards below cannot be bypassed by in-flight sibling calls.
+    if (inflightRef.current) return null;
+
     const now = Date.now();
     const debounceMs = optionsRef.current?.debounceMs ?? DEFAULT_DEBOUNCE_MS;
     const maxPerMinute =
@@ -173,19 +189,27 @@ export const useImagePartRegenerate = (
       throw err;
     }
 
-    const confirm = optionsRef.current?.confirmRegenerate;
-    if (confirm) {
-      const ok = await confirm(currentPart.prompt);
-      if (!ok) return null;
-    }
-
+    // Claim the slot synchronously — before any await — so concurrent
+    // callers can't sneak past debounce/rate-limit guards.
+    inflightRef.current = true;
     lastCallRef.current = now;
     windowRef.current.push(now);
     setRateLimited(false);
-    setIsRegenerating(true);
     setError(null);
 
     try {
+      const confirm = optionsRef.current?.confirmRegenerate;
+      if (confirm) {
+        const ok = await confirm(currentPart.prompt);
+        if (!ok) return null;
+      }
+
+      setIsRegenerating(true);
+      optionsRef.current?.observers?.onStart?.({
+        prompt: currentPart.prompt,
+        model: currentPart.model,
+      });
+
       const seed = currentPart.seed;
       const seedNumber =
         typeof seed === "number"
@@ -215,6 +239,7 @@ export const useImagePartRegenerate = (
       });
       throw normalized;
     } finally {
+      inflightRef.current = false;
       setIsRegenerating(false);
     }
   }, []);
