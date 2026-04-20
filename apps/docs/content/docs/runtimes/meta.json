@@ -8,6 +8,7 @@
     "ai-sdk",
     "data-stream",
     "mastra",
+    "langchain",
     "langgraph",
     "google-adk",
     "a2a",

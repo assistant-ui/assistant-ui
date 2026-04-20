@@ -11,7 +11,8 @@ Choosing the right runtime is crucial for your assistant-ui implementation. This
 graph TD
     A[What's your starting point?] --> B{Existing Framework?}
     B -->|Vercel AI SDK| C[Use AI SDK Integration]
-    B -->|LangGraph| D[Use LangGraph Runtime]
+    B -->|LangGraph via langgraph-sdk| D1[Use react-langgraph]
+    B -->|LangChain via @langchain/react useStream| D2[Use react-langchain]
     B -->|LangServe| E[Use LangServe Runtime]
     B -->|Mastra| F[Use Mastra Runtime]
     B -->|AG-UI Protocol| J[Use AG-UI Runtime]
@@ -55,8 +56,13 @@ For popular frameworks, we provide ready-to-use integrations built on top of our
   />
   <Card
     title="LangGraph"
-    description="For complex agent workflows with LangChain's graph framework"
+    description="Integrates with `@langchain/langgraph-sdk` directly. Broader feature set: subgraph events, UI messages, message metadata, cancellation."
     href="/docs/runtimes/langgraph"
+  />
+  <Card
+    title="LangChain useStream"
+    description="Wraps `useStream` from `@langchain/react`. Lighter-weight, stays aligned with upstream. Fewer features today."
+    href="/docs/runtimes/langchain"
   />
   <Card
     title="LangServe"
@@ -87,7 +93,8 @@ For popular frameworks, we provide ready-to-use integrations built on top of our
 The pre-built integrations (AI SDK, LangGraph, etc.) are **not separate runtime types**. They're convenient wrappers built on top of our core runtimes:
 
 - **AI SDK Integration** → Built on `LocalRuntime` with streaming adapter
-- **LangGraph Runtime** → Built on `LocalRuntime` with graph execution adapter
+- **LangGraph Runtime** → Built on `ExternalStoreRuntime`, integrates with `@langchain/langgraph-sdk`
+- **LangChain useStream Runtime** → Built on `ExternalStoreRuntime`, wraps `useStream` from `@langchain/react`
 - **LangServe Runtime** → Built on `LocalRuntime` with LangServe client adapter
 - **Mastra Runtime** → Built on `LocalRuntime` with workflow adapter
 - **AG-UI Runtime** → Built on `LocalRuntime` with AG-UI protocol adapter
@@ -228,6 +235,7 @@ Explore our implementation examples:
    - [`LocalRuntime` Guide](/docs/runtimes/custom/local)
    - [`ExternalStoreRuntime` Guide](/docs/runtimes/custom/external-store)
    - [LangGraph Integration](/docs/runtimes/langgraph)
+   - [LangChain useStream Integration](/docs/runtimes/langchain)
 3. **Start with an example** from our [examples repository](https://github.com/assistant-ui/assistant-ui/tree/main/examples)
 4. **Add features progressively** using adapters
 5. **Consider Assistant Cloud** for production persistence

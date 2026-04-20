@@ -3,6 +3,10 @@ title: Getting Started
 description: Connect to LangGraph Cloud API for agent workflows with streaming.
 ---
 
+<Callout type="info">
+  If you are already using `@langchain/react`'s `useStream` hook, the alternative [`@assistant-ui/react-langchain`](/docs/runtimes/langchain) adapter may fit better. `@assistant-ui/react-langgraph` (this page) integrates with `@langchain/langgraph-sdk` directly and has the broader feature set — subgraph events, UI messages, message metadata, end-to-end cancellation. See the [comparison](/docs/runtimes/langchain/comparison).
+</Callout>
+
 ## Requirements
 
 You need a LangGraph Cloud API server. You can start a server locally via [LangGraph Studio](https://github.com/langchain-ai/langgraph-studio) or use [LangSmith](https://www.langchain.com/langsmith) for a hosted version.
