@@ -1,10 +1,17 @@
 import "./globals.css";
 
-import { cn } from "@/lib/utils";
-import { Montserrat } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { MyRuntimeProvider } from "./MyRuntimeProvider";
 
-const montserrat = Montserrat({ subsets: ["latin"] });
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export default function RootLayout({
   children,
@@ -14,7 +21,11 @@ export default function RootLayout({
   return (
     <MyRuntimeProvider>
       <html lang="en">
-        <body className={cn(montserrat.className, "h-dvh")}>{children}</body>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} h-dvh font-sans antialiased`}
+        >
+          {children}
+        </body>
       </html>
     </MyRuntimeProvider>
   );
