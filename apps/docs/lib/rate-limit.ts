@@ -2,10 +2,10 @@ const isDev = process.env.NODE_ENV === "development";
 
 const getRatelimit = async () => {
   if (isDev) return null;
-  const { kv } = await import("@vercel/kv");
+  const { Redis } = await import("@upstash/redis");
   const { Ratelimit } = await import("@upstash/ratelimit");
   return new Ratelimit({
-    redis: kv,
+    redis: Redis.fromEnv(),
     limiter: Ratelimit.fixedWindow(5, "30s"),
   });
 };
