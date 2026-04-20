@@ -279,10 +279,10 @@ export const useImagePartDownload = (
         : `image.${ext}`);
 
     const isDataUri = current.image.startsWith("data:");
-    let objectUrl: string | null = null;
-    const href = isDataUri
-      ? (objectUrl = URL.createObjectURL(dataUriToBlob(current.image)))
-      : current.image;
+    const objectUrl = isDataUri
+      ? URL.createObjectURL(dataUriToBlob(current.image))
+      : null;
+    const href = objectUrl ?? current.image;
 
     const a = document.createElement("a");
     a.href = href;

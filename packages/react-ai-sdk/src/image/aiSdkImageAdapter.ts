@@ -77,8 +77,8 @@ export const createAiSdkImageAdapter = (
         ...(config.abortSignal && { abortSignal: config.abortSignal }),
       });
       const revisedPrompt =
-        result.responses?.[0]?.providerMetadata?.openai?.["revisedPrompt"] ??
-        result.providerMetadata?.openai?.["revisedPrompt"];
+        result.responses?.[0]?.providerMetadata?.openai?.revisedPrompt ??
+        result.providerMetadata?.openai?.revisedPrompt;
 
       return {
         image: `data:${result.image.mediaType};base64,${result.image.base64}`,

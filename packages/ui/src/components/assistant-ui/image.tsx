@@ -232,7 +232,6 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
             onKeyDown={(e) => e.key === "Enter" && handleClose()}
             aria-label="Close zoomed image"
           >
-            {/* biome-ignore lint/a11y/useKeyWithClickEvents: parent handles keyboard events */}
             <img
               data-slot="image-zoom-content"
               src={src}

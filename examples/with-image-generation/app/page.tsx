@@ -58,8 +58,8 @@ export default function Home() {
           image: result.image,
           prompt,
           ...(result.mimeType && { mimeType: result.mimeType }),
-          ...(typeof result.metadata?.["revisedPrompt"] === "string" && {
-            revisedPrompt: result.metadata["revisedPrompt"] as string,
+          ...(typeof result.metadata?.revisedPrompt === "string" && {
+            revisedPrompt: result.metadata.revisedPrompt as string,
           }),
           status: { type: "complete" },
         });
@@ -134,9 +134,8 @@ export default function Home() {
                   image: result.image,
                   prompt,
                   ...(result.mimeType && { mimeType: result.mimeType }),
-                  ...(typeof result.metadata?.["revisedPrompt"] ===
-                    "string" && {
-                    revisedPrompt: result.metadata["revisedPrompt"] as string,
+                  ...(typeof result.metadata?.revisedPrompt === "string" && {
+                    revisedPrompt: result.metadata.revisedPrompt as string,
                   }),
                   status: { type: "complete" },
                 });

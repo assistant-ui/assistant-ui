@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Missing prompt" }, { status: 400 });
   }
 
-  if (!process.env["OPENAI_API_KEY"]) {
+  if (!process.env.OPENAI_API_KEY) {
     const mock = createMockImageAdapter({
       delayMs: 400,
       revisedPrompt: (p) => `${p} (mock)`,
@@ -40,8 +40,8 @@ export async function POST(req: Request) {
     result.providerMetadata as
       | Record<string, Record<string, unknown>>
       | undefined
-  )?.["openai"];
-  const revisedPrompt = openaiMeta?.["revisedPrompt"];
+  )?.openai;
+  const revisedPrompt = openaiMeta?.revisedPrompt;
   return Response.json({
     image: `data:${result.image.mediaType};base64,${result.image.base64}`,
     mimeType: result.image.mediaType,
