@@ -17,7 +17,6 @@ Create `.env.local`:
 
 ```
 OPENAI_API_KEY=sk-...
-JWT_SECRET=your-jwt-secret
 ASSISTANT_API_KEY=sk-aui-proj-...
 NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-xxxx.assistant-api.com
 ```
