@@ -65,38 +65,49 @@ export namespace ComposerPrimitiveTriggerPopoverItem {
 export const ComposerPrimitiveTriggerPopoverItem = forwardRef<
   ComposerPrimitiveTriggerPopoverItem.Element,
   ComposerPrimitiveTriggerPopoverItem.Props
->(({ item, index: indexProp, onClick, ...props }, forwardedRef) => {
-  const {
-    selectItem,
-    items,
-    highlightedIndex,
-    activeCategoryId,
-    isSearchMode,
-    popoverId,
-  } = useTriggerPopoverScopeContext();
+>(
+  (
+    { item, index: indexProp, onClick, onMouseMove, ...props },
+    forwardedRef,
+  ) => {
+    const {
+      selectItem,
+      highlightIndex,
+      items,
+      highlightedIndex,
+      activeCategoryId,
+      isSearchMode,
+      popoverId,
+    } = useTriggerPopoverScopeContext();
 
-  const handleClick = useCallback(() => {
-    selectItem(item);
-  }, [selectItem, item]);
+    const handleClick = useCallback(() => {
+      selectItem(item);
+    }, [selectItem, item]);
 
-  const itemIndex = indexProp ?? items.findIndex((i) => i.id === item.id);
-  const isHighlighted =
-    (isSearchMode || activeCategoryId !== null) &&
-    itemIndex === highlightedIndex;
+    const itemIndex = indexProp ?? items.findIndex((i) => i.id === item.id);
+    const isHighlighted =
+      (isSearchMode || activeCategoryId !== null) &&
+      itemIndex === highlightedIndex;
 
-  return (
-    <Primitive.button
-      type="button"
-      role="option"
-      id={`${popoverId}-option-${item.id}`}
-      aria-selected={isHighlighted}
-      data-highlighted={isHighlighted ? "" : undefined}
-      {...props}
-      ref={forwardedRef}
-      onClick={composeEventHandlers(onClick, handleClick)}
-    />
-  );
-});
+    const handleMouseMove = useCallback(() => {
+      highlightIndex(itemIndex);
+    }, [highlightIndex, itemIndex]);
+
+    return (
+      <Primitive.button
+        type="button"
+        role="option"
+        id={`${popoverId}-option-${item.id}`}
+        aria-selected={isHighlighted}
+        data-highlighted={isHighlighted ? "" : undefined}
+        {...props}
+        ref={forwardedRef}
+        onClick={composeEventHandlers(onClick, handleClick)}
+        onMouseMove={composeEventHandlers(onMouseMove, handleMouseMove)}
+      />
+    );
+  },
+);
 
 ComposerPrimitiveTriggerPopoverItem.displayName =
   "ComposerPrimitive.TriggerPopoverItem";

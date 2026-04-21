@@ -37,6 +37,8 @@ export type TriggerPopoverResourceOutput = {
   goBack(): void;
   selectItem(item: Unstable_TriggerItem): void;
   close(): void;
+  /** Move the highlight to an entry index (e.g. from pointer hover). Out-of-range values are ignored. */
+  highlightIndex(index: number): void;
   handleKeyDown(e: {
     readonly key: string;
     readonly shiftKey: boolean;
@@ -126,6 +128,7 @@ export const TriggerPopoverResource = resource(
       goBack: navigation.goBack,
       selectItem: selection.selectItem,
       close: selection.close,
+      highlightIndex: keyboard.highlightIndex,
       handleKeyDown: keyboard.handleKeyDown,
       setCursorPosition: detection.setCursorPosition,
       registerSelectItemOverride: selection.registerSelectItemOverride,

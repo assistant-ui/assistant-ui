@@ -64,9 +64,10 @@ export namespace ComposerPrimitiveTriggerPopoverCategoryItem {
 export const ComposerPrimitiveTriggerPopoverCategoryItem = forwardRef<
   ComposerPrimitiveTriggerPopoverCategoryItem.Element,
   ComposerPrimitiveTriggerPopoverCategoryItem.Props
->(({ categoryId, onClick, ...props }, forwardedRef) => {
+>(({ categoryId, onClick, onMouseMove, ...props }, forwardedRef) => {
   const {
     selectCategory,
+    highlightIndex,
     categories,
     highlightedIndex,
     activeCategoryId,
@@ -78,10 +79,13 @@ export const ComposerPrimitiveTriggerPopoverCategoryItem = forwardRef<
     selectCategory(categoryId);
   }, [selectCategory, categoryId]);
 
+  const categoryIndex = categories.findIndex((c) => c.id === categoryId);
   const isHighlighted =
-    !activeCategoryId &&
-    !isSearchMode &&
-    categories.findIndex((c) => c.id === categoryId) === highlightedIndex;
+    !activeCategoryId && !isSearchMode && categoryIndex === highlightedIndex;
+
+  const handleMouseMove = useCallback(() => {
+    highlightIndex(categoryIndex);
+  }, [highlightIndex, categoryIndex]);
 
   return (
     <Primitive.button
@@ -93,6 +97,7 @@ export const ComposerPrimitiveTriggerPopoverCategoryItem = forwardRef<
       {...props}
       ref={forwardedRef}
       onClick={composeEventHandlers(onClick, handleClick)}
+      onMouseMove={composeEventHandlers(onMouseMove, handleMouseMove)}
     />
   );
 });

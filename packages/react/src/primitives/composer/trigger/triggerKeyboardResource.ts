@@ -28,6 +28,8 @@ export type TriggerKeyboardResourceOutput = {
   readonly highlightedIndex: number;
   /** ID of the currently highlighted item (for `aria-activedescendant`). */
   readonly highlightedItemId: string | undefined;
+  /** Move the highlight to an entry index (e.g. from pointer hover). Out-of-range values are ignored. */
+  highlightIndex(index: number): void;
   /** Handle a key event; returns `true` if it was consumed. */
   handleKeyDown(e: TriggerPopoverKeyEvent): boolean;
 };
@@ -71,6 +73,12 @@ export const TriggerKeyboardResource = resource(
     tapEffect(() => {
       setHighlightedIndex(0);
     }, [isSearchMode, activeCategoryId]);
+
+    const highlightIndex = tapEffectEvent((index: number) => {
+      if (index < 0 || index >= navigableList.length) return;
+      if (index === highlightedIndex) return;
+      setHighlightedIndex(index);
+    });
 
     const handleKeyDown = tapEffectEvent(
       (e: TriggerPopoverKeyEvent): boolean => {
@@ -136,6 +144,7 @@ export const TriggerKeyboardResource = resource(
     return {
       highlightedIndex,
       highlightedItemId,
+      highlightIndex,
       handleKeyDown,
     };
   },
