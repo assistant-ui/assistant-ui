@@ -321,9 +321,7 @@ export function useLangChainState<T>(
   return useAuiState((s) => {
     const extras = s.thread.extras;
     if (!extras) return defaultValue;
-    const value = asLangChainRuntimeExtras(extras).values?.[key] as
-      | T
-      | undefined;
-    return value ?? defaultValue;
+    const value = asLangChainRuntimeExtras(extras).values[key] as T | undefined;
+    return value !== undefined ? value : defaultValue;
   });
 }

@@ -76,7 +76,17 @@ describe("useLangChainState", () => {
   it("returns the stored value (not default) when both are present", () => {
     runSelectorAgainst(makeExtras({ count: 0 }));
     const { result } = renderHook(() => useLangChainState<number>("count", 99));
-    // 0 is a valid value; `??` should keep it over the default.
+    // 0 is a valid value; must be preserved over the default.
     expect(result.current).toBe(0);
+  });
+
+  it("preserves explicit null over defaultValue", () => {
+    runSelectorAgainst(makeExtras({ flag: null }));
+    const { result } = renderHook(() =>
+      useLangChainState<string | null>("flag", "default"),
+    );
+    // LangGraph treats null as an explicit "cleared" value distinct
+    // from a missing key; the hook must not conflate them.
+    expect(result.current).toBeNull();
   });
 });
