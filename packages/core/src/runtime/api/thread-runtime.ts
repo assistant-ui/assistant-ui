@@ -204,9 +204,10 @@ export const getThreadState = (
     isDisabled: runtime.isDisabled,
     isLoading: runtime.isLoading,
     isRunning:
-      lastMessage?.role !== "assistant"
+      runtime.isRunning ??
+      (lastMessage?.role !== "assistant"
         ? false
-        : lastMessage.status.type === "running",
+        : lastMessage.status.type === "running"),
     messages: runtime.messages,
     state: runtime.state,
     suggestions: runtime.suggestions,

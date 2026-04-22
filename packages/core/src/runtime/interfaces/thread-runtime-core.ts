@@ -129,6 +129,13 @@ export type ThreadRuntimeCore = Readonly<{
   capabilities: Readonly<RuntimeCapabilities>;
   isDisabled: boolean;
   isLoading: boolean;
+  /**
+   * Optional explicit thread-level running flag. When provided, takes
+   * precedence over the last-message-status heuristic. When omitted, falls
+   * back to the legacy behavior. External-store runtimes surface this via
+   * `ExternalStoreAdapter.isRunning`.
+   */
+  isRunning?: boolean | undefined;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
   suggestions: readonly ThreadSuggestion[];

@@ -78,6 +78,10 @@ export class ExternalStoreThreadRuntimeCore
   public get isLoading() {
     return this._store.isLoading ?? false;
   }
+  // Unlike `isLoading`: pass `undefined` through to preserve the `getThreadState` fallback.
+  public get isRunning(): boolean | undefined {
+    return this._store.isRunning;
+  }
 
   protected override _getBaseMessages(): readonly ThreadMessage[] {
     return this._messages;
