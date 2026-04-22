@@ -1447,7 +1447,7 @@ The main interface for connecting your state to assistant-ui.
       name: "isRunning",
       type: "boolean",
       description:
-        "Whether the assistant is currently generating a response. When true, shows optimistic assistant message",
+        "Whether the assistant is currently generating a response. When true, shows an optimistic assistant message and flows directly to `thread.isRunning`, so the thread stays in a running state even after the last assistant message has completed (e.g. while suggestions or metadata chunks are still arriving). When omitted, `thread.isRunning` falls back to the last-message-status heuristic.",
       default: "false",
     },
     {
