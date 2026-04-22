@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { ThreadListRuntimeImpl } from "../runtime/api/thread-list-runtime";
 import type { ThreadListRuntimeCore } from "../runtime/interfaces/thread-list-runtime-core";
 import { EMPTY_THREAD_CORE } from "../runtimes/remote-thread-list/empty-thread-core";
@@ -71,5 +71,21 @@ describe("ThreadListRuntime.getLoadThreadsPromise", () => {
     expect(resolved).toBe(false);
     await runtime.getLoadThreadsPromise();
     expect(resolved).toBe(true);
+  });
+});
+
+describe("ThreadListRuntime.reload", () => {
+  it("resolves to undefined when core omits reload", async () => {
+    const runtime = new ThreadListRuntimeImpl(createMockCore());
+    await expect(runtime.reload()).resolves.toBeUndefined();
+  });
+
+  it("delegates to core.reload when implemented", async () => {
+    const reload = vi.fn<() => Promise<void>>(() => Promise.resolve());
+    const core = { ...createMockCore(), reload };
+    const runtime = new ThreadListRuntimeImpl(core);
+
+    await runtime.reload();
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });
