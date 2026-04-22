@@ -154,6 +154,7 @@ export const InMemoryThreadList = resource(
       switchToThread: handleSwitchToThread,
       switchToNewThread: handleSwitchToNewThread,
       getLoadThreadsPromise: () => RESOLVED_PROMISE,
+      reload: () => RESOLVED_PROMISE,
       item: (selector) => {
         if (selector === "main") {
           const index = threads.findIndex((t) => t.id === mainThreadId);

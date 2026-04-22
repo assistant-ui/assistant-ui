@@ -64,6 +64,7 @@ export const SingleThreadList = resource(
         throw new Error("SingleThreadList does not support switchToNewThread");
       },
       getLoadThreadsPromise: () => RESOLVED_PROMISE,
+      reload: () => RESOLVED_PROMISE,
       item: (selector) => {
         if (
           selector !== "main" &&
