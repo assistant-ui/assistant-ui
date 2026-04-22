@@ -18,6 +18,10 @@ const aui = useAui();
 await aui.threads().switchToNewThread();
 await aui.threads().switchToThread(threadId);
 
+// Re-fetch the thread list from the remote adapter
+// (e.g. after async auth completes)
+await aui.threads().reload();
+
 // Access the main thread runtime
 const mainThread = aui.threads().main;
 

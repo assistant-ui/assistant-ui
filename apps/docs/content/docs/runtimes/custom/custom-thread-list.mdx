@@ -216,11 +216,47 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
 
 ## Thread Lifecycle Cheatsheet
 
-- `list()` hydrates threads on mount and during refreshes.
+- `list()` hydrates threads on mount. It runs once; call `runtime.threads.reload()` to re-fetch.
 - Creating a new conversation calls `initialize()` once the user sends the first message.
 - `archive`, `unarchive`, and `delete` are called optimistically; throw to revert the UI.
 - `generateTitle()` powers the automatic title button and expects an `AssistantStream`.
 - Provide a `runtimeHook` that always returns a fresh runtime instance per active thread.
+
+## Reloading After Async Authentication
+
+If your adapter depends on an authenticated user (e.g. an OIDC provider, `better-auth`, `next-auth`) and the auth state resolves asynchronously after `useRemoteThreadListRuntime` has mounted, the initial `list()` call may run before the user is available. Call `runtime.threads.reload()` when auth completes to re-fetch with the authenticated request.
+
+```tsx title="app/ThreadListProvider.tsx"
+import { useEffect } from "react";
+import { useAuth } from "react-oidc-context";
+import {
+  AssistantRuntimeProvider,
+  useLocalRuntime,
+  useRemoteThreadListRuntime,
+} from "@assistant-ui/react";
+
+export function ThreadListProvider({ children }) {
+  const { isLoading, user } = useAuth();
+  const runtime = useRemoteThreadListRuntime({
+    runtimeHook: () => useLocalRuntime(myModelAdapter),
+    adapter: useThreadListAdapter(),
+  });
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      runtime.threads.reload();
+    }
+  }, [isLoading, user?.id, runtime]);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+`reload()` replaces the cached load promise and discards any in-flight response from a superseded call, so it is safe to invoke multiple times (for example, on logout followed by a new login).
 
 ## Avoiding Race Conditions in History Adapters
 
