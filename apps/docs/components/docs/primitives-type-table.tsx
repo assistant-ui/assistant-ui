@@ -42,6 +42,7 @@ async function highlightType(type: string): Promise<ReactNode> {
   return highlight(type, {
     lang: "typescript",
     themes: { light: "github-light", dark: "github-dark" },
+    defaultColor: false,
   });
 }
 
