@@ -20,6 +20,8 @@ import {
   ThreadRuntimeImpl,
 } from "./thread-runtime";
 
+const RESOLVED_PROMISE = Promise.resolve();
+
 export type ThreadListState = {
   readonly mainThreadId: string;
   readonly newThreadId: string | undefined;
@@ -156,7 +158,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
   }
 
   public reload(): Promise<void> {
-    return this._core.reload?.() ?? Promise.resolve();
+    return this._core.reload?.() ?? RESOLVED_PROMISE;
   }
 
   public getState(): ThreadListState {
