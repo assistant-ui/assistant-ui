@@ -7,6 +7,7 @@ import {
   createThreadMappingId,
   updateStatusReducer,
 } from "../runtimes/remote-thread-list/remote-thread-state";
+import { deferred } from "./remote-thread-list-test-helpers";
 
 /**
  * Reproduces the race condition where a stale list() response
@@ -74,15 +75,6 @@ const applyListResult = (
     threadData: { ...state.threadData, ...newThreadData },
   };
 };
-
-/** Creates a deferred promise for controlling resolution order. */
-function deferred<T>() {
-  let resolve!: (v: T) => void;
-  const promise = new Promise<T>((r) => {
-    resolve = r;
-  });
-  return { promise, resolve };
-}
 
 describe("list + delete race condition", () => {
   it("stale list() does not re-add a thread deleted while list was in flight", async () => {

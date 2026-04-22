@@ -6,6 +6,7 @@ import {
   type THREAD_MAPPING_ID,
   createThreadMappingId,
 } from "../runtimes/remote-thread-list/remote-thread-state";
+import { deferred } from "./remote-thread-list-test-helpers";
 
 /**
  * Tests for the isLoading lifecycle of RemoteThreadListThreadListRuntimeCore.
@@ -69,16 +70,6 @@ const applyListResult = (
     threadData: { ...state.threadData, ...newThreadData },
   };
 };
-
-function deferred<T>() {
-  let resolve!: (v: T) => void;
-  let reject!: (e: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
-}
 
 describe("RemoteThreadList isLoading lifecycle", () => {
   it("starts as true before any loading begins", () => {

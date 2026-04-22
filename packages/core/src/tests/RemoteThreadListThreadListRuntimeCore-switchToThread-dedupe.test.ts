@@ -1,77 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
-import { RemoteThreadListThreadListRuntimeCore } from "../react/runtimes/RemoteThreadListThreadListRuntimeCore";
 import type {
-  RemoteThreadListAdapter,
   RemoteThreadListResponse,
   RemoteThreadMetadata,
 } from "../runtimes/remote-thread-list/types";
-import type { ModelContextProvider } from "../model-context/types";
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  return { promise, resolve, reject };
-}
-
-const contextProvider: ModelContextProvider = {
-  getModelContext: () => ({}),
-  subscribe: () => () => {},
-};
-
-function makeAdapter(
-  overrides: Partial<RemoteThreadListAdapter> = {},
-): RemoteThreadListAdapter {
-  return {
-    list: vi.fn(async () => ({ threads: [] })),
-    initialize: vi.fn(async (threadId: string) => ({
-      remoteId: threadId,
-      externalId: threadId,
-    })),
-    rename: vi.fn(async () => {}),
-    archive: vi.fn(async () => {}),
-    unarchive: vi.fn(async () => {}),
-    delete: vi.fn(async () => {}),
-    generateTitle: vi.fn(
-      async () =>
-        new ReadableStream({
-          start(c) {
-            c.close();
-          },
-        }) as never,
-    ),
-    fetch: vi.fn(async (id: string) => ({
-      status: "regular" as const,
-      remoteId: id,
-      externalId: id,
-      title: "Test",
-    })),
-    ...overrides,
-  };
-}
-
-function createCore(
-  adapter: RemoteThreadListAdapter,
-  threadId?: string,
-): RemoteThreadListThreadListRuntimeCore {
-  const core = new RemoteThreadListThreadListRuntimeCore(
-    { adapter, runtimeHook: () => ({}) as never, threadId },
-    contextProvider,
-  );
-  // `startThreadRuntime` blocks until a React component attaches a runtime;
-  // stub it so non-React unit tests don't hang.
-  (
-    core as unknown as {
-      _hookManager: {
-        startThreadRuntime: (id: string) => Promise<unknown>;
-      };
-    }
-  )._hookManager.startThreadRuntime = async () => ({});
-  return core;
-}
+import {
+  createCore,
+  deferred,
+  makeAdapter,
+} from "./remote-thread-list-test-helpers";
 
 describe("RemoteThreadListThreadListRuntimeCore.switchToThread dedupe", () => {
   it("does not duplicate threadIds when list() resolves during fetch()", async () => {
