@@ -48,6 +48,7 @@ export type ThreadListRuntime = {
   switchToNewThread(): Promise<void>;
 
   getLoadThreadsPromise(): Promise<void>;
+  reload(): Promise<void>;
 };
 
 const getThreadListState = (
@@ -133,6 +134,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     this.switchToThread = this.switchToThread.bind(this);
     this.switchToNewThread = this.switchToNewThread.bind(this);
     this.getLoadThreadsPromise = this.getLoadThreadsPromise.bind(this);
+    this.reload = this.reload.bind(this);
     this.getState = this.getState.bind(this);
     this.subscribe = this.subscribe.bind(this);
     this.getById = this.getById.bind(this);
@@ -151,6 +153,10 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
 
   public getLoadThreadsPromise(): Promise<void> {
     return this._core.getLoadThreadsPromise();
+  }
+
+  public reload(): Promise<void> {
+    return this._core.reload?.() ?? Promise.resolve();
   }
 
   public getState(): ThreadListState {

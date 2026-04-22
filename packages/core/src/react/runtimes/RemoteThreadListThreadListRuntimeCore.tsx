@@ -36,6 +36,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private readonly _hookManager: RemoteThreadListHookInstanceManager;
 
   private _loadThreadsPromise: Promise<void> | undefined;
+  private _loadGeneration = 0;
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>({
@@ -54,6 +55,7 @@ export class RemoteThreadListThreadListRuntimeCore
   public getLoadThreadsPromise() {
     // TODO this needs to be cached in case this promise is loaded during suspense
     if (!this._loadThreadsPromise) {
+      const generation = this._loadGeneration;
       this._loadThreadsPromise = this._state
         .optimisticUpdate({
           execute: () => this._options.adapter.list(),
@@ -65,6 +67,7 @@ export class RemoteThreadListThreadListRuntimeCore
           },
           // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
           then: (state, l) => {
+            if (generation !== this._loadGeneration) return state;
             const newThreadIds = [];
             const newArchivedThreadIds = [];
             const newThreadIdMap = {} as Record<string, THREAD_MAPPING_ID>;
@@ -178,6 +181,12 @@ export class RemoteThreadListThreadListRuntimeCore
       this._initialThreadLoaded = true;
       this.switchToThread(startThreadId).catch(() => {});
     }
+  }
+
+  public reload() {
+    this._loadGeneration++;
+    this._loadThreadsPromise = undefined;
+    return this.getLoadThreadsPromise();
   }
 
   public get isLoading() {

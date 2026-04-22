@@ -33,6 +33,7 @@ export type ThreadListRuntimeCore = {
   switchToNewThread(): Promise<void>;
 
   getLoadThreadsPromise(): Promise<void>;
+  reload?(): Promise<void>;
 
   detach(threadId: string): Promise<void>;
   rename(threadId: string, newTitle: string): Promise<void>;

@@ -27,6 +27,7 @@ export type ThreadsMethods = {
   ): ThreadListItemMethods;
   thread(selector: "main"): ThreadMethods;
   getLoadThreadsPromise(): Promise<void>;
+  reload(): Promise<void>;
   __internal_getAssistantRuntime?(): AssistantRuntime;
 };
 
