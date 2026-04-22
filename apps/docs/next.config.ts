@@ -6,7 +6,7 @@ const isDev = process.env.NODE_ENV === "development";
 const cspHeader = `
     default-src 'self';
     connect-src *;
-    frame-src *;
+    frame-src * blob:;
     script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline';
     img-src * blob: data:;
