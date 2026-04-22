@@ -178,6 +178,39 @@ describe("RemoteThreadListThreadListRuntimeCore.reload", () => {
     expect(core.threadIds).toEqual(["t-1"]);
   });
 
+  it("does not clear the active reload's promise when a stale load rejects", async () => {
+    const first = deferred<RemoteThreadListResponse>();
+    const second = deferred<RemoteThreadListResponse>();
+    const listFn = vi
+      .fn<() => Promise<RemoteThreadListResponse>>()
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+
+    const adapter = makeAdapter({ list: listFn });
+    const core = createCore(adapter);
+
+    core.getLoadThreadsPromise();
+    const reloaded = core.reload();
+
+    first.reject(new Error("stale 401"));
+    await Promise.resolve();
+
+    second.resolve({
+      threads: [
+        {
+          status: "regular",
+          remoteId: "fresh",
+          externalId: "fresh",
+          title: "Fresh",
+        },
+      ],
+    });
+
+    await reloaded;
+    expect(core.threadIds).toEqual(["fresh"]);
+    expect(core.isLoading).toBe(false);
+  });
+
   it("only the last of several overlapping reloads wins", async () => {
     const deferreds = [
       deferred<RemoteThreadListResponse>(),
