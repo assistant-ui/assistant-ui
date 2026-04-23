@@ -38,7 +38,7 @@
     "@assistant-ui/store": "^0.2.7",
     "assistant-cloud": "*",
     "assistant-stream": "^0.3.11",
-    "uuid": "^13.0.0"
+    "uuid": "^14.0.0"
   },
   "peerDependencies": {
     "@langchain/langgraph-sdk": "^1.8.0",
@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@langchain/langgraph-sdk": "^1.8.8",
+    "@langchain/langgraph-sdk": "^1.8.9",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^25.6.0",
@@ -63,7 +63,7 @@
     "@types/uuid": "^11.0.0",
     "jsdom": "^29.0.2",
     "react": "^19.2.5",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.5"
   },
   "publishConfig": {
     "access": "public",

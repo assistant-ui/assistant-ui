@@ -51,7 +51,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.14",
     "react": "^19.2.5",
-    "vitest": "^4.1.4",
+    "vitest": "^4.1.5",
     "zod": "^4.3.6"
   },
   "publishConfig": {

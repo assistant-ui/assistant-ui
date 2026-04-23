@@ -75,7 +75,7 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "remark-rehype": "^11.1.2",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.5"
   },
   "publishConfig": {
     "access": "public",

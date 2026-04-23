@@ -81,17 +81,17 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@modelcontextprotocol/ext-apps": "^1.5.0",
+    "@modelcontextprotocol/ext-apps": "^1.7.0",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/tar": "^7.0.87",
-    "@vitest/coverage-v8": "^4.1.4",
+    "@vitest/coverage-v8": "^4.1.5",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.2",
-    "vitest": "^4.1.4"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
   },
   "publishConfig": {
     "access": "public"

@@ -40,13 +40,13 @@
   },
   "dependencies": {
     "@standard-schema/spec": "^1.1.0",
-    "nanoid": "^5.1.7",
+    "nanoid": "^5.1.9",
     "secure-json-parse": "^4.1.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.5"
   },
   "publishConfig": {
     "access": "public",

@@ -56,8 +56,8 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.14",
     "react": "^19.2.5",
-    "react-native": "^0.85.1",
-    "vitest": "^4.1.4"
+    "react-native": "^0.85.2",
+    "vitest": "^4.1.5"
   },
   "publishConfig": {
     "access": "public",

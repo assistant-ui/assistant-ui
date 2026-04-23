@@ -11,9 +11,9 @@
   "dependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
-    "@tailwindcss/vite": "^4.2.2",
-    "@tanstack/react-router": "^1.168.19",
-    "@tanstack/react-start": "^1.167.35",
+    "@tailwindcss/vite": "^4.2.4",
+    "@tanstack/react-router": "^1.168.23",
+    "@tanstack/react-start": "^1.167.42",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.8.0",
@@ -23,7 +23,7 @@
     "react-dom": "^19.2.5",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4.2.2",
+    "tailwindcss": "^4.2.4",
     "vite-tsconfig-paths": "^6.1.1"
   },
   "devDependencies": {
@@ -32,7 +32,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.8"
+    "typescript": "^6.0.3",
+    "vite": "^8.0.9"
   }
 }
