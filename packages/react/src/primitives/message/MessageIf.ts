@@ -55,7 +55,7 @@ const useMessageIf = (props: UseMessageIfProps) => {
     if (
       props.hasAttachments === false &&
       role === "user" &&
-      !!attachments?.length
+      attachments?.length
     )
       return false;
 
