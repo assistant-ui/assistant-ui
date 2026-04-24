@@ -14,12 +14,11 @@ The user has requested butflow mode. Implement features, open PRs via GitButler,
 
 Run every cycle:
 1. `gh pr checks <n>`
-2. `gh api repos/assistant-ui/assistant-ui/pulls/<n>/comments` — inline comments (returns REST `id` integers).
-3. Thread IDs + resolution state (GraphQL node IDs, needed for the resolve mutation):
+2. Review threads — resolution state, thread node IDs (for the resolve mutation), comment `databaseId`s (REST integers for the reply endpoint), bodies, authors:
    ```
-   gh api graphql -f query='query { repository(owner:"assistant-ui",name:"assistant-ui") { pullRequest(number:<n>) { reviewThreads(first:100) { nodes { id isResolved comments(first:1) { nodes { databaseId body author { login } } } } } } } }'
+   gh api graphql -f query='query { repository(owner:"assistant-ui",name:"assistant-ui") { pullRequest(number:<n>) { reviewThreads(first:100) { nodes { id isResolved comments(first:5) { nodes { databaseId body author { login } } } } } } } }'
    ```
-4. `gh pr view <n> --json reviews`
+3. `gh pr view <n> --json reviews`
 
 ## Before merging
 
@@ -27,12 +26,12 @@ Every review thread — human or bot — must be resolved. For each:
 - **Valid** → fix in a follow-up commit, then resolve the thread.
 - **Invalid** → reply with a short rationale, then resolve the thread.
 
-Reply to a specific inline comment (REST; `<comment_id>` is the integer from step 2):
+Reply to a specific inline comment (REST; `<comment_id>` is a comment's `databaseId` from step 2):
 ```
 gh api /repos/assistant-ui/assistant-ui/pulls/<n>/comments/<comment_id>/replies -f body='...'
 ```
 
-Resolve the thread (GraphQL; `<threadId>` is the node ID from step 3, e.g. `PRRT_kw...`):
+Resolve the thread (GraphQL; `<threadId>` is the thread `id` from step 2, e.g. `PRRT_kw...`):
 ```
 gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' -f id=<threadId>
 ```
