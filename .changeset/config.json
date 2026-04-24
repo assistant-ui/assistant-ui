@@ -1,5 +1,9 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.0.1/schema.json",
+  "changelog": [
+    "@changesets/changelog-github",
+    { "repo": "assistant-ui/assistant-ui" }
+  ],
   "access": "public",
   "privatePackages": {
     "version": false
