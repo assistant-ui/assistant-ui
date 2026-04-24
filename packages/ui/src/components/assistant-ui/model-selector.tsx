@@ -182,14 +182,14 @@ function ModelSelectorItem({
       value={model.id}
       textValue={model.name}
       className={cn(
-        "relative flex w-full cursor-default select-none items-center gap-2 rounded-lg py-2 pr-9 pl-3 text-sm outline-none",
+        "relative flex w-full cursor-default select-none items-center gap-2 rounded-lg py-2 ps-3 pe-9 text-sm outline-none",
         "focus:bg-accent focus:text-accent-foreground",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className,
       )}
       {...props}
     >
-      <span className="absolute right-3 flex size-4 items-center justify-center">
+      <span className="absolute end-3 flex size-4 items-center justify-center">
         <SelectPrimitive.ItemIndicator>
           <CheckIcon className="size-4" />
         </SelectPrimitive.ItemIndicator>

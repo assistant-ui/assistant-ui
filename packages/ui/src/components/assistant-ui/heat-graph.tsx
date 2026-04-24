@@ -25,7 +25,7 @@ export function HeatGraph({ data }: { data: HeatGraphPrimitive.DataPoint[] }) {
 
 function MonthLabels() {
   return (
-    <div className="relative ml-10 h-5">
+    <div className="relative ms-10 h-5">
       <HeatGraphPrimitive.MonthLabels>
         {({ label, totalWeeks }) => (
           <span
@@ -85,7 +85,7 @@ function CellTooltip() {
 
 function GraphLegend() {
   return (
-    <div className="ml-auto flex items-center gap-1 text-gray-500 text-xs">
+    <div className="ms-auto flex items-center gap-1 text-gray-500 text-xs">
       <span>Less</span>
       <HeatGraphPrimitive.Legend>
         {() => (

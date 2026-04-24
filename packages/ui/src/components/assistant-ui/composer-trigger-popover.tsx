@@ -150,14 +150,14 @@ const Items: FC<ItemsProps> = ({
                   key={item.id}
                   item={item}
                   index={index}
-                  className="flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-left outline-none transition-colors hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent"
+                  className="flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-start outline-none transition-colors hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent"
                 >
                   <span className="flex items-center gap-2 font-medium text-sm">
                     <Icon className="size-3.5 text-primary" />
                     {item.label}
                   </span>
                   {item.description && (
-                    <span className="ml-5.5 text-muted-foreground text-xs leading-tight">
+                    <span className="ms-5.5 text-muted-foreground text-xs leading-tight">
                       {item.description}
                     </span>
                   )}
@@ -207,7 +207,7 @@ const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
     <ComposerPrimitive.Unstable_TriggerPopover
       data-slot="composer-trigger-popover"
       className={cn(
-        "aui-composer-trigger-popover absolute bottom-full left-0 z-50 mb-2 w-64 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-lg",
+        "aui-composer-trigger-popover absolute start-0 bottom-full z-50 mb-2 w-64 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-lg",
         className,
       )}
       {...props}
