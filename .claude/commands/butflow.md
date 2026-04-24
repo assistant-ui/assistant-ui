@@ -16,14 +16,14 @@ Run every cycle:
 1. `gh pr checks <n>`
 2. Review threads — resolution state, thread node IDs (for the resolve mutation), comment `databaseId`s (REST integers for the reply endpoint), bodies, authors:
    ```
-   gh api graphql -f query='query { repository(owner:"assistant-ui",name:"assistant-ui") { pullRequest(number:<n>) { reviewThreads(first:100) { nodes { id isResolved comments(first:5) { nodes { databaseId body author { login } } } } } } } }'
+   gh api graphql -f query='query { repository(owner:"assistant-ui",name:"assistant-ui") { pullRequest(number:<n>) { reviewThreads(first:100) { nodes { id isResolved comments(first:10) { nodes { databaseId body author { login } } } } } } } }'
    ```
 3. `gh pr view <n> --json reviews`
 
 ## Before merging
 
 Every review thread — human or bot — must be resolved. For each:
-- **Valid** → fix in a follow-up commit, then resolve the thread.
+- **Valid** → fix in a follow-up commit, reply with the fix commit SHA, then resolve the thread.
 - **Invalid** → reply with a short rationale, then resolve the thread.
 
 Reply to a specific inline comment (REST; `<comment_id>` is a comment's `databaseId` from step 2):
