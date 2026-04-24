@@ -1,5 +1,6 @@
 {
   "$schema": "https://ui.shadcn.com/schema.json",
+  "rtl": true,
   "style": "new-york",
   "rsc": true,
   "tsx": true,
