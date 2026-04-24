@@ -6,7 +6,7 @@ GitButler CI flow. Multiple agents may run concurrently.
 
 ## Flow
 
-1. `but pull` → implement → lint/build/test → new branch → stage → commit → push → `gh pr create`.
+1. `but pull` → implement → lint/build/test → `but branch` → stage → commit → push → `gh pr create`.
 2. Add `.changeset/*.md` (patch) if a published package changed.
 3. Schedule a 2-min cron to monitor. Merge with `gh pr merge <n> --squash --admin`.
 
@@ -24,8 +24,8 @@ Run every cycle:
 ## Before merging
 
 Every review thread — human or bot — must be resolved. For each:
-- **Valid** → fix in a follow-up commit.
-- **Invalid** → reply with a short rationale, then resolve.
+- **Valid** → fix in a follow-up commit, then resolve the thread.
+- **Invalid** → reply with a short rationale, then resolve the thread.
 
 Reply to a specific inline comment (REST; `<comment_id>` is the integer from step 2):
 ```
