@@ -80,7 +80,7 @@ function ToolCallBlock({
         <Collapsible.Trigger className="group flex w-full items-center gap-1.5 text-start text-sm">
           <WrenchIcon className="size-3 text-muted-foreground" />
           <span className="font-medium">{toolName}</span>
-          <ChevronRightIcon className="ms-auto size-3.5 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-90" />
+          <ChevronRightIcon className="ms-auto size-3.5 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-90 rtl:group-data-[state=closed]:rotate-180" />
         </Collapsible.Trigger>
         <Collapsible.Content>
           <div className="mt-2 overflow-hidden rounded-md border bg-muted/40">
