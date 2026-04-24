@@ -23,7 +23,7 @@ Run every cycle:
 ## Before merging
 
 Every review thread — human or bot — must be resolved. For each:
-- **Valid** → fix in a follow-up commit, reply with the fix commit SHA, then resolve the thread.
+- **Valid** → fix in a follow-up commit (lint/build/test first), reply with the fix commit SHA, then resolve the thread.
 - **Invalid** → reply with a short rationale, then resolve the thread.
 
 Reply to a specific inline comment (REST; `<comment_id>` is a comment's `databaseId` from step 2):
