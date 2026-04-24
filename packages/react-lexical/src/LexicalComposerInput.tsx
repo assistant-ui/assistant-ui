@@ -304,6 +304,7 @@ export const LexicalComposerInput = forwardRef<
                 : "aui-lexical-editor"
             }
             {...rest}
+            style={{ overflowY: "auto", ...rest.style }}
           >
             <PlainTextPlugin
               contentEditable={
