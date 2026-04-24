@@ -475,6 +475,19 @@ export const registry: RegistryItem[] = [
     registryDependencies: [],
   },
   {
+    name: "direction",
+    type: "registry:ui",
+    files: [
+      {
+        type: "registry:ui",
+        path: "components/ui/direction.tsx",
+        sourcePath: "../../packages/ui/src/components/ui/direction.tsx",
+      },
+    ],
+    dependencies: ["radix-ui"],
+    registryDependencies: [],
+  },
+  {
     name: "badge",
     type: "registry:component",
     files: [
