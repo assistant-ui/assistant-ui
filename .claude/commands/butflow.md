@@ -18,7 +18,7 @@ Run every cycle:
    ```
    gh api graphql -f query='query { repository(owner:"assistant-ui",name:"assistant-ui") { pullRequest(number:<n>) { reviewThreads(first:100) { pageInfo { hasNextPage endCursor } nodes { id isResolved isOutdated comments(first:50) { pageInfo { hasNextPage endCursor } nodes { databaseId body author { login } } } } } } } }'
    ```
-3. `gh pr view <n> --json reviews`
+3. `gh pr view <n> --json reviews` — check review states and body text for actionable feedback.
 
 Steps 2 and 3 are independent — run them in parallel.
 
@@ -41,8 +41,8 @@ gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$
 Merge once:
 - All non-cubic CI checks pass.
 - Every thread is resolved (including `isOutdated` threads — diff moved under the comment, so skip re-fixing; still reply + resolve).
-- No non-cubic review on the current HEAD is in `CHANGES_REQUESTED` (from step 3). If one is, address it and wait for the reviewer to re-approve — don't dismiss or merge around it.
-- The GraphQL query's `pageInfo.hasNextPage` is `false` on both thread and comment pagination (else fetch the next page — don't silently miss threads).
+- No non-cubic reviewer's current state is `CHANGES_REQUESTED` (from step 3). If one is, address it and wait for the reviewer to re-approve — don't dismiss or merge around it.
+- The GraphQL query's `pageInfo.hasNextPage` is `false` on both thread and comment pagination. If `true`, re-run with `after:"<endCursor>"` added after `first:100` / `first:50` to fetch the next page — don't silently miss threads.
 
 ## Gotchas
 
