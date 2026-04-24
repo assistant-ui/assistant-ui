@@ -12,39 +12,34 @@ The user has requested butflow mode. Implement features, open PRs via GitButler,
 
 ## Cron cycle
 
-Run every cycle:
 1. `gh pr checks <n>`
-2. Review threads — resolution state, thread node IDs (for the resolve mutation), comment `databaseId`s (REST integers for the reply endpoint), bodies, authors:
+2. Review threads — `id` is the GraphQL node id for the resolve mutation; `databaseId` on each comment is the REST integer for replies:
    ```
-   gh api graphql -f query='query { repository(owner:"assistant-ui",name:"assistant-ui") { pullRequest(number:<n>) { reviewThreads(first:100) { pageInfo { hasNextPage endCursor } nodes { id isResolved isOutdated comments(first:50) { pageInfo { hasNextPage endCursor } nodes { databaseId body author { login } } } } } } } }'
+   gh api graphql -f query='query { repository(owner:"assistant-ui",name:"assistant-ui") { pullRequest(number:<n>) { reviewThreads(first:100) { nodes { id isResolved isOutdated comments(first:50) { nodes { databaseId body author { login } } } } } } } }'
    ```
-3. `gh pr view <n> --json reviews` — check review states and body text for actionable feedback.
+3. `gh pr view <n> --json reviews`
 
-Steps 2 and 3 are independent — run them in parallel.
+## Addressing threads
 
-## Before merging
+Every unresolved thread must get a reply and a resolve:
+- **Valid** → fix in a follow-up commit, reply with the fix SHA, resolve.
+- **Invalid** → reply with a short rationale, resolve.
+- **Outdated** (`isOutdated: true`) → the diff moved; reply noting that and resolve.
 
-Every review thread — human or bot — must be resolved. For each:
-- **Valid** → fix in a follow-up commit (lint/build/test first), reply with the fix commit SHA, then resolve the thread.
-- **Invalid** → reply with a short rationale, then resolve the thread.
+Use judgment on bot nits. Common-sense suggestions that just duplicate what a competent agent already knows aren't worth a fix commit — reply-and-resolve those. Scope creep from a long bot-feedback loop is a signal to cut and merge.
 
-Reply to a specific inline comment (REST; `<comment_id>` is a comment's `databaseId` from step 2):
 ```
-gh api /repos/assistant-ui/assistant-ui/pulls/<n>/comments/<comment_id>/replies -f body='...'
-```
-
-Resolve the thread (GraphQL; `<threadId>` is the thread `id` from step 2, e.g. `PRRT_kw...`):
-```
+gh api /repos/assistant-ui/assistant-ui/pulls/<n>/comments/<databaseId>/replies -f body='...'
 gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' -f id=<threadId>
 ```
 
-Merge once:
+## Merge gate
+
 - All non-cubic CI checks pass.
-- Every thread is resolved (including `isOutdated` threads — diff moved under the comment, so skip re-fixing; still reply + resolve).
-- No non-cubic reviewer's current state is `CHANGES_REQUESTED` (from step 3). If one is, address it and wait for the reviewer to re-approve — don't dismiss or merge around it.
-- The GraphQL query's `pageInfo.hasNextPage` is `false` on both thread and comment pagination. If `true`, re-run with `after:"<endCursor>"` added after `first:100` / `first:50` to fetch the next page — don't silently miss threads.
+- Every thread is resolved.
+- No non-cubic reviewer's current state is `CHANGES_REQUESTED` — address and wait for re-approve, don't dismiss.
 
 ## Gotchas
 
 - Ambiguous `but stage` id → `but status -j`, use the longer form.
-- One branch per change group; stage files to each, commit/push/PR independently.
+- One branch per change group; stage, commit, push, PR independently.
