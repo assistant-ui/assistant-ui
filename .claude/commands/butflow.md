@@ -20,6 +20,8 @@ Run every cycle:
    ```
 3. `gh pr view <n> --json reviews`
 
+Steps 2 and 3 are independent — run them in parallel.
+
 ## Before merging
 
 Every review thread — human or bot — must be resolved. For each:
