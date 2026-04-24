@@ -21,6 +21,7 @@
     "@biomejs/biome": "^2.4.12",
     "@changesets/changelog-github": "^0.6.0",
     "@changesets/cli": "^2.31.0",
+    "@changesets/get-github-info": "^0.8.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "turbo": "^2.9.6",
