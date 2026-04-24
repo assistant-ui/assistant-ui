@@ -2,13 +2,13 @@
 description: "GitButler CI review flow: implement, PR, monitor CI, address reviews, merge"
 ---
 
-GitButler CI flow. Multiple agents may run concurrently.
+The user has requested butflow mode. Implement features, open PRs via GitButler, iterate on CI/review feedback, and merge. Multiple agents may run concurrently.
 
 ## Flow
 
 1. `but pull` → implement → lint/build/test → `but branch` → stage → commit → push → `gh pr create`.
 2. Add `.changeset/*.md` (patch) if a published package changed.
-3. Schedule a 2-min cron to monitor. Merge with `gh pr merge <n> --squash --admin`.
+3. Schedule a 2-min cron to monitor. Merge with `gh pr merge <n> --squash --admin` (cubic is optional — don't wait for it).
 
 ## Cron cycle
 
@@ -42,4 +42,4 @@ Merge once all non-cubic checks pass and every thread is resolved.
 ## Gotchas
 
 - Ambiguous `but stage` id → `but status -j`, use the longer form.
-- One branch per change group.
+- One branch per change group; stage files to each, commit/push/PR independently.
