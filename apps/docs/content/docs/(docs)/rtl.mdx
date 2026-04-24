@@ -1,0 +1,79 @@
+---
+title: RTL Support
+description: Use assistant-ui with right-to-left languages like Arabic, Hebrew, and Persian.
+---
+
+Components shipped through `@assistant-ui/ui` (npm) and the shadcn registry (`npx shadcn@latest add https://r.assistant-ui.com/...`) use logical Tailwind classes (`ms-*`, `pe-*`, `text-start`, `end-*`, `border-s`, ...). They flip automatically under `dir="rtl"` and render byte-identically under `dir="ltr"` (the default) — there is nothing to opt out of.
+
+If you scaffolded from one of our templates (e.g. `npx assistant-ui@latest create -t default`), the generated `components/` folder still uses physical classes (`ml-*`, `text-left`, ...). Run shadcn's built-in migration **once** to convert both the shadcn primitives and assistant-ui's wrappers:
+
+```sh
+# shadcn primitives under components/ui/
+npx shadcn@latest migrate rtl
+
+# assistant-ui wrappers (pass a custom glob)
+npx shadcn@latest migrate rtl 'components/assistant-ui/**/*.tsx'
+```
+
+Commit the diff and do not re-run. The upstream migration is not fully idempotent on repeat runs ([#9891](https://github.com/shadcn-ui/ui/pull/9891)); you may end up with duplicated `rtl:translate-x-*` classes.
+
+After migrating, follow the setup below.
+
+## Setup
+
+### 1. Install the `direction` component
+
+```sh
+npx shadcn@latest add https://r.assistant-ui.com/direction.json
+```
+
+This adds `components/ui/direction.tsx`, a thin re-export of Radix UI's `DirectionProvider` and `useDirection`. It ensures Radix popovers, dropdowns, and menus pick up the current direction.
+
+### 2. Set `dir` on your root element
+
+```tsx title="app/layout.tsx"
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="ar" dir="rtl">
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+### 3. Wrap your app with `DirectionProvider`
+
+```tsx title="app/providers.tsx"
+"use client";
+
+import { DirectionProvider } from "@/components/ui/direction";
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return <DirectionProvider dir="rtl">{children}</DirectionProvider>;
+}
+```
+
+For apps that need to switch direction at runtime, drive `dir` from state and also update `document.documentElement.dir` to keep Tailwind's `[dir=rtl]` selector in sync.
+
+## How it works
+
+Every physical class (`ml-4`, `text-left`, `right-3`, `border-l`, ...) in `@assistant-ui/ui` is authored in logical form (`ms-4`, `text-start`, `end-3`, `border-s`, ...). Logical properties resolve to the matching physical side based on the ancestor with a `dir` attribute:
+
+| Class | `dir="ltr"` | `dir="rtl"` |
+| ----- | ----------- | ----------- |
+| `ms-4` | `margin-left: 1rem` | `margin-right: 1rem` |
+| `pe-2` | `padding-right: 0.5rem` | `padding-left: 0.5rem` |
+| `end-3` | `right: 0.75rem` | `left: 0.75rem` |
+| `text-start` | `text-align: left` | `text-align: right` |
+| `border-s` | `border-left` | `border-right` |
+
+A handful of Tailwind utilities have no logical equivalent, so we ship both the LTR value and an `rtl:` override:
+
+- `translate-x-*`: emits `-translate-x-*` plus `rtl:translate-x-*` (sign-flipped).
+- `space-x-*` / `divide-x-*`: emits the original plus `rtl:space-x-reverse` / `rtl:divide-x-reverse`.
+
+## Known edges
+
+- **Radix `data-[side=left|right]:slide-in-from-*`** animations are intentionally preserved as physical. Radix's `DirectionProvider` already flips the emitted `data-side` value, so no rewrite is needed.
+- **Third-party components and template scaffolds** may still use physical classes. Run `npx shadcn@latest migrate rtl` once per project (optionally with a path glob) to convert them. Do not re-run — see the note about upstream idempotency in the intro.
+- **Text that mixes LTR and RTL content** (e.g., English code inside Arabic prose) relies on the browser's bidi algorithm. Wrap unambiguous spans with `<bdi>` or `dir="ltr"` if you need to pin direction locally.
