@@ -28,7 +28,7 @@ const changelogFunctions = {
   ) => {
     if (!options.repo) {
       throw new Error(
-        'Please provide a repo to this changelog generator like this:\n"changelog": ["./.changeset/changelog.cjs", { "repo": "org/repo" }]',
+        'Please provide a repo to this changelog generator like this:\n"changelog": ["@assistant-ui/x-changelog", { "repo": "org/repo" }]',
       );
     }
     if (dependenciesUpdated.length === 0) return "";
@@ -59,7 +59,7 @@ const changelogFunctions = {
     const { GITHUB_SERVER_URL } = readEnv();
     if (!options || !options.repo) {
       throw new Error(
-        'Please provide a repo to this changelog generator like this:\n"changelog": ["./.changeset/changelog.cjs", { "repo": "org/repo" }]',
+        'Please provide a repo to this changelog generator like this:\n"changelog": ["@assistant-ui/x-changelog", { "repo": "org/repo" }]',
       );
     }
 

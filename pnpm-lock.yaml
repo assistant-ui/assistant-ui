@@ -8,15 +8,15 @@ importers:
 
   .:
     devDependencies:
+      '@assistant-ui/x-changelog':
+        specifier: workspace:*
+        version: link:packages/x-changelog
       '@biomejs/biome':
         specifier: ^2.4.12
         version: 2.4.12
       '@changesets/cli':
         specifier: ^2.31.0
         version: 2.31.0(@types/node@25.6.0)
-      '@changesets/get-github-info':
-        specifier: ^0.8.0
-        version: 0.8.0(encoding@0.1.13)
       husky:
         specifier: ^9.1.7
         version: 9.1.7
@@ -3773,6 +3773,12 @@ importers:
       '@types/node':
         specifier: ^25.6.0
         version: 25.6.0
+
+  packages/x-changelog:
+    dependencies:
+      '@changesets/get-github-info':
+        specifier: ^0.8.0
+        version: 0.8.0(encoding@0.1.13)
 
   templates/cloud:
     dependencies:

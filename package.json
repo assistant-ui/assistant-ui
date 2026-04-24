@@ -18,9 +18,9 @@
     "deps:update": "npx taze major -f -w -r && cd examples/with-expo && npx expo install --fix && cd ../.. && find . -name node_modules -prune -exec rm -rf {} + && rm -f pnpm-lock.yaml && pnpm install && pnpm dedupe && bash scripts/generate-deps-changeset.sh"
   },
   "devDependencies": {
+    "@assistant-ui/x-changelog": "workspace:*",
     "@biomejs/biome": "^2.4.12",
     "@changesets/cli": "^2.31.0",
-    "@changesets/get-github-info": "^0.8.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "turbo": "^2.9.6",
