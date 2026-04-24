@@ -77,10 +77,10 @@ function ToolCallBlock({
         <CheckCircle2Icon className="size-3 text-emerald-600 dark:text-emerald-400" />
       </div>
       <Collapsible.Root className="min-w-0 flex-1">
-        <Collapsible.Trigger className="group flex w-full items-center gap-1.5 text-left text-sm">
+        <Collapsible.Trigger className="group flex w-full items-center gap-1.5 text-start text-sm">
           <WrenchIcon className="size-3 text-muted-foreground" />
           <span className="font-medium">{toolName}</span>
-          <ChevronRightIcon className="ml-auto size-3.5 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-90" />
+          <ChevronRightIcon className="ms-auto size-3.5 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-90" />
         </Collapsible.Trigger>
         <Collapsible.Content>
           <div className="mt-2 overflow-hidden rounded-md border bg-muted/40">

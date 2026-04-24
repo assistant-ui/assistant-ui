@@ -62,37 +62,37 @@ export function ComposerTriggerPopoverSample() {
               <button
                 type="button"
                 data-highlighted=""
-                className="flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-left outline-none transition-colors data-[highlighted]:bg-accent"
+                className="flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-start outline-none transition-colors data-[highlighted]:bg-accent"
               >
                 <span className="flex items-center gap-2 font-medium text-sm">
                   <FileTextIcon className="size-3.5 text-primary" />
                   /summarize
                 </span>
-                <span className="ml-5.5 text-muted-foreground text-xs leading-tight">
+                <span className="ms-5.5 text-muted-foreground text-xs leading-tight">
                   Summarize the conversation
                 </span>
               </button>
               <button
                 type="button"
-                className="flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-left outline-none transition-colors hover:bg-accent"
+                className="flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-start outline-none transition-colors hover:bg-accent"
               >
                 <span className="flex items-center gap-2 font-medium text-sm">
                   <LanguagesIcon className="size-3.5 text-primary" />
                   /translate
                 </span>
-                <span className="ml-5.5 text-muted-foreground text-xs leading-tight">
+                <span className="ms-5.5 text-muted-foreground text-xs leading-tight">
                   Translate to another language
                 </span>
               </button>
               <button
                 type="button"
-                className="flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-left outline-none transition-colors hover:bg-accent"
+                className="flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-start outline-none transition-colors hover:bg-accent"
               >
                 <span className="flex items-center gap-2 font-medium text-sm">
                   <GlobeIcon className="size-3.5 text-primary" />
                   /search
                 </span>
-                <span className="ml-5.5 text-muted-foreground text-xs leading-tight">
+                <span className="ms-5.5 text-muted-foreground text-xs leading-tight">
                   Search the web
                 </span>
               </button>

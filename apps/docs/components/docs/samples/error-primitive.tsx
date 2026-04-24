@@ -15,7 +15,7 @@ export function ErrorPrimitiveSample() {
           </div>
         </div>
         <div
-          className="ml-11 rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm"
+          className="ms-11 rounded-md bg-destructive/10 px-3 py-2 text-destructive text-sm"
           role="alert"
         >
           An error occurred. Please try again.

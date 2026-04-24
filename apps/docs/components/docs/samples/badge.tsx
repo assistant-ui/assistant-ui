@@ -128,7 +128,7 @@ export function BadgeAnimatedSample() {
 
           <span
             className={cn(
-              "absolute inset-y-0 left-0 flex items-center gap-1 whitespace-nowrap transition-all duration-500",
+              "absolute inset-y-0 start-0 flex items-center gap-1 whitespace-nowrap transition-all duration-500",
               status === "loading"
                 ? "translate-y-0 opacity-100"
                 : "-translate-y-4 opacity-0",
@@ -139,7 +139,7 @@ export function BadgeAnimatedSample() {
           </span>
           <span
             className={cn(
-              "absolute inset-y-0 left-0 flex items-center gap-1 whitespace-nowrap transition-all duration-500",
+              "absolute inset-y-0 start-0 flex items-center gap-1 whitespace-nowrap transition-all duration-500",
               status === "success"
                 ? "translate-y-0 opacity-100"
                 : "translate-y-4 opacity-0",

@@ -126,12 +126,12 @@ const TaskBoard: FC = () => {
   const doneCount = state.tasks.filter((t) => t.done).length;
 
   return (
-    <div className="flex h-full flex-col border-l bg-muted/30">
+    <div className="flex h-full flex-col border-s bg-muted/30">
       <div className="flex items-center gap-2 border-b px-4 py-3">
         <ListTodoIcon className="size-4 text-muted-foreground" />
         <span className="font-medium text-sm">Task Board</span>
         {state.tasks.length > 0 && (
-          <span className="ml-auto text-muted-foreground text-xs">
+          <span className="ms-auto text-muted-foreground text-xs">
             {doneCount}/{state.tasks.length}
           </span>
         )}
@@ -152,7 +152,7 @@ const TaskBoard: FC = () => {
                   type="button"
                   onClick={() => toggleTask(task.id)}
                   className={cn(
-                    "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-muted",
+                    "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-start text-sm transition-colors hover:bg-muted",
                     task.done && "opacity-50",
                   )}
                 >
