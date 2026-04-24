@@ -1,27 +1,34 @@
 ---
-description: "GitButler CI review flow: implement task, create PR, monitor CI, fix review issues, auto-merge"
+description: "GitButler CI review flow: implement, PR, monitor CI, address reviews, merge"
 ---
 
-The user has requested butflow mode. Implement features, open PRs via GitButler, iterate on CI/review feedback, and merge. Multiple agents may work on the same codebase concurrently.
+GitButler CI flow. Multiple agents may run concurrently.
 
 ## Flow
 
-1. `but pull` → implement → lint/build/test → create GitButler branch → stage → commit → push → `gh pr create`
-2. Add `.changeset/*.md` (patch) if published packages changed.
-3. Set a 2-min cron to monitor CI and AI review comments. Don't wait for cubic (optional). Merge with `gh pr merge <n> --squash --admin`.
+1. `but pull` → implement → new branch → stage → commit → push → `gh pr create`.
+2. Add `.changeset/*.md` (patch) if a published package changed.
+3. Schedule a 2-min cron to monitor. Merge with `gh pr merge <n> --squash --admin`.
 
-## Cron prompt template
+## Cron cycle
 
-The cron prompt MUST run ALL of these commands every cycle before deciding to merge:
+Run every cycle:
+1. `gh pr checks <n>`
+2. `gh api repos/assistant-ui/assistant-ui/pulls/<n>/comments` — inline comments. For thread ids, GraphQL `reviewThreads { nodes { id isResolved comments { nodes { databaseId body author { login } } } } }`.
+3. `gh pr view <n> --json reviews`
 
-```
-1. `gh pr checks <n>` — check CI status
-2. `gh api repos/assistant-ui/assistant-ui/pulls/<n>/comments` — check for new review comments
-3. `gh pr view <n> --json reviews` — check for reviews
-```
+## Before merging
+
+Every review thread — human or bot — must be resolved. For each:
+- **Valid** → fix in a follow-up commit.
+- **Invalid** → reply with a short rationale via `gh api /repos/assistant-ui/assistant-ui/pulls/<n>/comments/<comment_id>/replies -f body=...`, then resolve:
+  ```
+  gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' -f id=<threadId>
+  ```
+
+Merge once all non-cubic checks pass and every thread is resolved.
 
 ## Gotchas
 
-- **Check for PR comments**: Review and address valid AI review bot comments, only auto-merge if all human comments are addressed.
-- **Ambiguous cliIds**: if `but stage` says an ID is ambiguous, re-run `but status -j` and use the longer form.
-- **Multiple PRs**: create one branch per change group, stage files to each, commit/push/PR independently.
+- Ambiguous `but stage` id → `but status -j`, use the longer form.
+- One branch per change group.
