@@ -16,7 +16,7 @@
     "@tanstack/react-start": "^1.167.42",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.8.0",
+    "lucide-react": "^1.9.0",
     "nitro": "^3.0.260311-beta",
     "openai": "^6.34.0",
     "react": "^19.2.5",
@@ -33,6 +33,6 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "typescript": "^6.0.3",
-    "vite": "^8.0.9"
+    "vite": "^8.0.10"
   }
 }

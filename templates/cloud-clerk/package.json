@@ -16,7 +16,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
-    "@clerk/nextjs": "^7.2.3",
+    "@clerk/nextjs": "^7.2.5",
     "@clerk/themes": "^2.4.57",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",
@@ -27,7 +27,7 @@
     "ai": "^6.0.168",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.8.0",
+    "lucide-react": "^1.9.0",
     "next": "^16.2.4",
     "radix-ui": "^1.4.3",
     "react": "^19.2.5",
@@ -39,7 +39,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.12",
+    "@biomejs/biome": "^2.4.13",
     "@tailwindcss/postcss": "^4.2.4",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
