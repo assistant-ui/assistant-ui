@@ -16,7 +16,7 @@ Run every cycle:
 1. `gh pr checks <n>`
 2. Review threads — resolution state, thread node IDs (for the resolve mutation), comment `databaseId`s (REST integers for the reply endpoint), bodies, authors:
    ```
-   gh api graphql -f query='query { repository(owner:"assistant-ui",name:"assistant-ui") { pullRequest(number:<n>) { reviewThreads(first:100) { pageInfo { hasNextPage } nodes { id isResolved isOutdated comments(first:50) { pageInfo { hasNextPage } nodes { databaseId body author { login } } } } } } } }'
+   gh api graphql -f query='query { repository(owner:"assistant-ui",name:"assistant-ui") { pullRequest(number:<n>) { reviewThreads(first:100) { pageInfo { hasNextPage endCursor } nodes { id isResolved isOutdated comments(first:50) { pageInfo { hasNextPage endCursor } nodes { databaseId body author { login } } } } } } } }'
    ```
 3. `gh pr view <n> --json reviews`
 
@@ -39,7 +39,7 @@ gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$
 Merge once:
 - All non-cubic CI checks pass.
 - Every thread is resolved (including `isOutdated` threads — diff moved under the comment, so skip re-fixing; still reply + resolve).
-- No non-cubic review on the current HEAD is in `CHANGES_REQUESTED` (from step 3). If one is, either address it and wait for the reviewer to re-approve, or dismiss it — don't merge around it.
+- No non-cubic review on the current HEAD is in `CHANGES_REQUESTED` (from step 3). If one is, address it and wait for the reviewer to re-approve — don't dismiss or merge around it.
 - The GraphQL query's `pageInfo.hasNextPage` is `false` on both thread and comment pagination (else fetch the next page — don't silently miss threads).
 
 ## Gotchas
