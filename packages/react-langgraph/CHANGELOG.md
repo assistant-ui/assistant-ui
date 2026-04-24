@@ -1,5 +1,35 @@
 # @assistant-ui/react-langgraph
 
+## 0.13.11
+
+### Patch Changes
+
+- [#3572](https://github.com/assistant-ui/assistant-ui/pull/3572) [`0ba98dc`](https://github.com/assistant-ui/assistant-ui/commit/0ba98dc070f913c1492b2cf7bbe4e1bb82fe33c6) - fix: set thread.isLoading during load handler in useLangGraphRuntime ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#3876](https://github.com/assistant-ui/assistant-ui/pull/3876) [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#3796](https://github.com/assistant-ui/assistant-ui/pull/3796) [`ca8f526`](https://github.com/assistant-ui/assistant-ui/commit/ca8f526944968036d47849a7659353765072a836) - feat(react-langgraph): add uiComponents option for static and dynamic data renderers ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+  Add `uiComponents` option to `useLangGraphRuntime` for registering static data renderers by name and a `fallback` renderer for dynamic loading (e.g. LangSmith's `LoadExternalComponent`), directly from the runtime hook.
+
+  Core `DataRenderers` scope also gains a `fallbacks` stack (plus `setFallbackDataUI` method) that the adapter registers into; resolution is `renderers[name][0]` → `fallbacks[0]` → inline `Fallback`.
+
+- [#3861](https://github.com/assistant-ui/assistant-ui/pull/3861) [`9211d3d`](https://github.com/assistant-ui/assistant-ui/commit/9211d3dca917c25cce480fa26248e886bb5e0736) - fix: prevent duplicate "Used tool" cards when LangGraph emits `tool_call_chunks` with an empty `id` followed by a chunk with the real `id` at the same index. `appendLangChainChunk` now also merges by `index` when either side has an empty `id`, and the resulting entry keeps whichever `id` is non-empty. As a defense-in-depth, `convertLangChainMessages` also synthesizes a stable `lc-toolcall-${messageId}-${index}` id when a `tool_call` still arrives at the converter with an empty `id`. ([@okisdev](https://github.com/okisdev))
+
+- [#3836](https://github.com/assistant-ui/assistant-ui/pull/3836) [`00a359d`](https://github.com/assistant-ui/assistant-ui/commit/00a359d6581c2f73708a1b4b2e3fe5f82c02ab55) - fix: tool call status briefly flickers `requires-action` (error icon) before settling on `complete` during LangGraph streaming with subgraphs. The final reconcile now merges the values snapshot with tuple-accumulated state instead of replacing it, so tool results and subgraph-internal messages aren't dropped; metadata survives reconcile; `isRunning` flips to `false` atomically with the final message update (via new `onComplete` callback); and subgraph-level `error` events (pipe-namespaced) no longer mark parent AI messages as incomplete. Pipe-separated subgraph event names (e.g. `messages|tools:call_abc`) are now handled by stripping the namespace before matching. ([@okisdev](https://github.com/okisdev))
+
+- [#3848](https://github.com/assistant-ui/assistant-ui/pull/3848) [`f4762e7`](https://github.com/assistant-ui/assistant-ui/commit/f4762e70f0270f6e6466b1c6fb735e7423c885ab) - feat: add `unstable_createLangGraphStream` helper that builds a `stream` callback for `useLangGraphRuntime` with `config.abortSignal` and `onDisconnect: "cancel"` wired to `client.runs.stream`. ([@okisdev](https://github.com/okisdev))
+
+- [#3842](https://github.com/assistant-ui/assistant-ui/pull/3842) [`3e8a67d`](https://github.com/assistant-ui/assistant-ui/commit/3e8a67dc4632f0e4e2a6e496f16637bfb1a81df9) - feat: add `unstable_threadListAdapter` option to `useLangGraphRuntime` for backing the thread list with a custom `RemoteThreadListAdapter` (e.g. one backed by `client.threads.search()`) without requiring assistant-cloud ([@okisdev](https://github.com/okisdev))
+
+- [#3844](https://github.com/assistant-ui/assistant-ui/pull/3844) [`aa0d509`](https://github.com/assistant-ui/assistant-ui/commit/aa0d50986eaf034789843574f25367a73039b56f) - feat: expose subgraph (namespaced) events to `useLangGraphRuntime` / `useLangGraphMessages` callers. `onMessageChunk` now receives a `namespace` field in `tupleMetadata` for pipe-namespaced `messages|<subgraph>` events, and three new `eventHandlers` are available: `onSubgraphValues(namespace, values)`, `onSubgraphUpdates(namespace, updates)`, and `onSubgraphError(namespace, error)`. Previously `values|<ns>` and `updates|<ns>` events were silently dropped, and `error|<ns>` events could not be attributed to a specific subgraph. Fully additive: top-level `onValues` / `onUpdates` / `onError` behaviour is unchanged (including the existing guarantee that subgraph errors do not mark the parent message as incomplete). ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`c7a274e`](https://github.com/assistant-ui/assistant-ui/commit/c7a274e968f8e081ded4c29cc37986392f04130e), [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6), [`ca8f526`](https://github.com/assistant-ui/assistant-ui/commit/ca8f526944968036d47849a7659353765072a836), [`c56f98f`](https://github.com/assistant-ui/assistant-ui/commit/c56f98f5759e710281fc57b343b41af102914f1a), [`974d15e`](https://github.com/assistant-ui/assistant-ui/commit/974d15e34675cc5a611f0297904f5cb2c1b3da8c), [`4b19d42`](https://github.com/assistant-ui/assistant-ui/commit/4b19d42970cb98cee6ea69e2c26dc22763091568), [`da0f598`](https://github.com/assistant-ui/assistant-ui/commit/da0f59818085c7b97d157da1260c5e20873c32c1), [`d53ff4f`](https://github.com/assistant-ui/assistant-ui/commit/d53ff4f3f8b7d7220c1cb274c4fda335598fb063), [`20f8404`](https://github.com/assistant-ui/assistant-ui/commit/20f8404b70098e4b7cbc8df5bbb47985ac81b52c), [`17958c9`](https://github.com/assistant-ui/assistant-ui/commit/17958c9234ccc42394260125df54d897c06a47fd)]:
+  - @assistant-ui/core@0.1.15
+  - assistant-stream@0.3.12
+  - assistant-cloud@0.1.27
+  - @assistant-ui/store@0.2.8
+
 ## 0.13.10
 
 ### Patch Changes

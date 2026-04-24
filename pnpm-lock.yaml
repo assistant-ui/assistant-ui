@@ -2642,7 +2642,7 @@ importers:
   packages/cloud:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -2683,7 +2683,7 @@ importers:
         specifier: ^6.0.168
         version: 6.0.168(zod@4.3.6)
       assistant-stream:
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../assistant-stream
       jsdom:
         specifier: ^29.0.2
@@ -2698,7 +2698,7 @@ importers:
   packages/core:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../assistant-stream
       nanoid:
         specifier: ^5.1.9
@@ -2853,13 +2853,13 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.14
+        specifier: ^0.1.15
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.7
+        specifier: ^0.2.8
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.5.8
+        specifier: ^0.5.9
         version: link:../tap
       '@radix-ui/primitive':
         specifier: ^1.1.3
@@ -2880,10 +2880,10 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1(@types/react@19.2.14)(react@19.2.5)
       assistant-cloud:
-        specifier: ^0.1.26
+        specifier: ^0.1.27
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../assistant-stream
       nanoid:
         specifier: ^5.1.9
@@ -2935,10 +2935,10 @@ importers:
   packages/react-a2a:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.14
+        specifier: ^0.1.15
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.7
+        specifier: ^0.2.8
         version: link:../store
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -2960,10 +2960,10 @@ importers:
         specifier: ^0.0.52
         version: 0.0.52
       '@assistant-ui/core':
-        specifier: ^0.1.14
+        specifier: ^0.1.15
         version: link:../core
       assistant-stream:
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -2988,10 +2988,10 @@ importers:
         specifier: ^3.0.170
         version: 3.0.170(react@19.2.5)(zod@4.3.6)
       '@assistant-ui/core':
-        specifier: ^0.1.14
+        specifier: ^0.1.15
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.7
+        specifier: ^0.2.8
         version: link:../store
       ai:
         specifier: ^6.0.168
@@ -3034,13 +3034,13 @@ importers:
         specifier: ^3.0.8
         version: 3.0.8
       '@assistant-ui/core':
-        specifier: ^0.1.14
+        specifier: ^0.1.15
         version: link:../core
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3090,19 +3090,19 @@ importers:
   packages/react-google-adk:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.14
+        specifier: ^0.1.15
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.7
+        specifier: ^0.2.8
         version: link:../store
       '@google/adk':
         specifier: '>=0.5.0'
-        version: 1.0.0(@bufbuild/protobuf@2.11.0)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.3)(@mikro-orm/mariadb@6.6.13(@mikro-orm/core@6.6.13)(pg@8.20.0))(@mikro-orm/mssql@6.6.13(@azure/core-client@1.10.1)(@mikro-orm/core@6.6.13)(mariadb@3.4.5)(pg@8.20.0))(@mikro-orm/mysql@6.6.13(@mikro-orm/core@6.6.13)(@types/node@25.6.0)(mariadb@3.4.5)(pg@8.20.0))(@mikro-orm/postgresql@6.6.13(@mikro-orm/core@6.6.13)(mariadb@3.4.5))(@mikro-orm/sqlite@6.6.13(@mikro-orm/core@6.6.13)(mariadb@3.4.5)(pg@8.20.0))(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)
+        version: 1.0.0(@bufbuild/protobuf@2.11.0)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.3)(@mikro-orm/mariadb@6.6.13(@mikro-orm/core@6.6.13))(@mikro-orm/mssql@6.6.13(@azure/core-client@1.10.1)(@mikro-orm/core@6.6.13)(mariadb@3.4.5))(@mikro-orm/mysql@6.6.13(@mikro-orm/core@6.6.13)(@types/node@25.6.0)(mariadb@3.4.5))(@mikro-orm/postgresql@6.6.13(@mikro-orm/core@6.6.13)(mariadb@3.4.5))(@mikro-orm/sqlite@6.6.13(@mikro-orm/core@6.6.13)(mariadb@3.4.5))(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.1))(encoding@0.1.13)
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../assistant-stream
       uuid:
         specifier: ^14.0.0
@@ -3122,15 +3122,15 @@ importers:
         version: 19.2.5
       vitest:
         specifier: ^4.1.5
-        version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@25.6.0)(@vitest/coverage-v8@4.1.5)(@vitest/ui@4.1.5)(jsdom@29.0.2)(vite@8.0.9(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+        version: 4.1.5(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/coverage-v8@4.1.5)(@vitest/ui@4.1.5)(jsdom@29.0.2)(vite@8.0.9(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/react-hook-form:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.14
+        specifier: ^0.1.15
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.7
+        specifier: ^0.2.8
         version: link:../store
       zod:
         specifier: ^4.3.6
@@ -3152,16 +3152,16 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.14
+        specifier: ^0.1.15
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.7
+        specifier: ^0.2.8
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.5.8
+        specifier: ^0.5.9
         version: link:../tap
       assistant-stream:
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../assistant-stream
       diff:
         specifier: ^9.0.0
@@ -3198,10 +3198,10 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.14
+        specifier: ^0.1.15
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.7
+        specifier: ^0.2.8
         version: link:../store
       markdansi:
         specifier: ^0.2.1
@@ -3235,16 +3235,16 @@ importers:
   packages/react-langchain:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.14
+        specifier: ^0.1.15
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.7
+        specifier: ^0.2.8
         version: link:../store
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3278,16 +3278,16 @@ importers:
   packages/react-langgraph:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.14
+        specifier: ^0.1.15
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.7
+        specifier: ^0.2.8
         version: link:../store
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../assistant-stream
       uuid:
         specifier: ^14.0.0
@@ -3401,16 +3401,16 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.14
+        specifier: ^0.1.15
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.2.7
+        specifier: ^0.2.8
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.5.8
+        specifier: ^0.5.9
         version: link:../tap
       assistant-stream:
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../assistant-stream
       zustand:
         specifier: ^5.0.12
@@ -17876,20 +17876,6 @@ snapshots:
   '@gar/promisify@1.1.3':
     optional: true
 
-  '@google-cloud/opentelemetry-cloud-monitoring-exporter@0.21.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.6.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-metrics@2.2.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)':
-    dependencies:
-      '@google-cloud/opentelemetry-resource-util': 3.0.0(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.6.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)
-      '@google-cloud/precise-date': 4.0.0
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/core': 2.6.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resources': 2.6.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-metrics': 2.2.0(@opentelemetry/api@1.9.0)
-      google-auth-library: 9.15.1(encoding@0.1.13)
-      googleapis: 137.1.0(encoding@0.1.13)
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
   '@google-cloud/opentelemetry-cloud-monitoring-exporter@0.21.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.1))(@opentelemetry/resources@2.6.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-metrics@2.2.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)':
     dependencies:
       '@google-cloud/opentelemetry-resource-util': 3.0.0(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.1))(@opentelemetry/resources@2.6.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)
@@ -17904,20 +17890,6 @@ snapshots:
       - encoding
       - supports-color
 
-  '@google-cloud/opentelemetry-cloud-trace-exporter@3.0.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.6.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.6.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)':
-    dependencies:
-      '@google-cloud/opentelemetry-resource-util': 3.0.0(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.6.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)
-      '@grpc/grpc-js': 1.14.3
-      '@grpc/proto-loader': 0.8.0
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/core': 2.6.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resources': 2.6.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-base': 2.6.1(@opentelemetry/api@1.9.0)
-      google-auth-library: 9.15.1(encoding@0.1.13)
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
   '@google-cloud/opentelemetry-cloud-trace-exporter@3.0.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.1))(@opentelemetry/resources@2.6.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.6.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)':
     dependencies:
       '@google-cloud/opentelemetry-resource-util': 3.0.0(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.1))(@opentelemetry/resources@2.6.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)
@@ -17928,16 +17900,6 @@ snapshots:
       '@opentelemetry/resources': 2.6.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/sdk-trace-base': 2.6.1(@opentelemetry/api@1.9.0)
       google-auth-library: 9.15.1(encoding@0.1.13)
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
-  '@google-cloud/opentelemetry-resource-util@3.0.0(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.6.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)':
-    dependencies:
-      '@opentelemetry/core': 2.6.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resources': 2.6.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/semantic-conventions': 1.40.0
-      gcp-metadata: 6.1.1(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -17983,50 +17945,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-
-  '@google/adk@1.0.0(@bufbuild/protobuf@2.11.0)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.3)(@mikro-orm/mariadb@6.6.13(@mikro-orm/core@6.6.13)(pg@8.20.0))(@mikro-orm/mssql@6.6.13(@azure/core-client@1.10.1)(@mikro-orm/core@6.6.13)(mariadb@3.4.5)(pg@8.20.0))(@mikro-orm/mysql@6.6.13(@mikro-orm/core@6.6.13)(@types/node@25.6.0)(mariadb@3.4.5)(pg@8.20.0))(@mikro-orm/postgresql@6.6.13(@mikro-orm/core@6.6.13)(mariadb@3.4.5))(@mikro-orm/sqlite@6.6.13(@mikro-orm/core@6.6.13)(mariadb@3.4.5)(pg@8.20.0))(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)':
-    dependencies:
-      '@a2a-js/sdk': 0.3.13(@bufbuild/protobuf@2.11.0)(@grpc/grpc-js@1.14.3)(express@4.22.1)
-      '@google-cloud/opentelemetry-cloud-monitoring-exporter': 0.21.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.6.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-metrics@2.2.0(@opentelemetry/api@1.9.0))(encoding@0.1.13)
-      '@google-cloud/opentelemetry-cloud-trace-exporter': 3.0.0(@opentelemetry/api@1.9.0)(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.6.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.6.1(@opentelemetry/api@1.9.0))(encoding@0.1.13)
-      '@google-cloud/storage': 7.19.0(encoding@0.1.13)
-      '@google/genai': 1.49.0(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6))
-      '@mikro-orm/core': 6.6.13
-      '@mikro-orm/mariadb': 6.6.13(@mikro-orm/core@6.6.13)(pg@8.20.0)
-      '@mikro-orm/mssql': 6.6.13(@azure/core-client@1.10.1)(@mikro-orm/core@6.6.13)(mariadb@3.4.5)(pg@8.20.0)
-      '@mikro-orm/mysql': 6.6.13(@mikro-orm/core@6.6.13)(@types/node@25.6.0)(mariadb@3.4.5)(pg@8.20.0)
-      '@mikro-orm/postgresql': 6.6.13(@mikro-orm/core@6.6.13)(mariadb@3.4.5)
-      '@mikro-orm/reflection': 6.6.13(@mikro-orm/core@6.6.13)
-      '@mikro-orm/sqlite': 6.6.13(@mikro-orm/core@6.6.13)(mariadb@3.4.5)(pg@8.20.0)
-      '@modelcontextprotocol/sdk': 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/api-logs': 0.205.0
-      '@opentelemetry/exporter-logs-otlp-http': 0.205.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/exporter-metrics-otlp-http': 0.205.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/exporter-trace-otlp-http': 0.205.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resource-detector-gcp': 0.40.3(@opentelemetry/api@1.9.0)(encoding@0.1.13)
-      '@opentelemetry/resources': 2.6.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-logs': 0.205.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-metrics': 2.2.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-base': 2.6.1(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-node': 2.6.1(@opentelemetry/api@1.9.0)
-      express: 4.22.1
-      google-auth-library: 10.6.2
-      js-yaml: 4.1.1
-      jsonpath-plus: 10.4.0
-      lodash-es: 4.18.1
-      winston: 3.19.0
-      zod: 4.3.6
-      zod-to-json-schema: 3.25.2(zod@4.3.6)
-    transitivePeerDependencies:
-      - '@bufbuild/protobuf'
-      - '@cfworker/json-schema'
-      - '@grpc/grpc-js'
-      - '@opentelemetry/core'
-      - bufferutil
-      - encoding
-      - supports-color
-      - utf-8-validate
 
   '@google/adk@1.0.0(@bufbuild/protobuf@2.11.0)(@cfworker/json-schema@4.1.1)(@grpc/grpc-js@1.14.3)(@mikro-orm/mariadb@6.6.13(@mikro-orm/core@6.6.13))(@mikro-orm/mssql@6.6.13(@azure/core-client@1.10.1)(@mikro-orm/core@6.6.13)(mariadb@3.4.5))(@mikro-orm/mysql@6.6.13(@mikro-orm/core@6.6.13)(@types/node@25.6.0)(mariadb@3.4.5))(@mikro-orm/postgresql@6.6.13(@mikro-orm/core@6.6.13)(mariadb@3.4.5))(@mikro-orm/sqlite@6.6.13(@mikro-orm/core@6.6.13)(mariadb@3.4.5))(@opentelemetry/core@2.6.1(@opentelemetry/api@1.9.1))(encoding@0.1.13)':
     dependencies:
@@ -29440,37 +29358,6 @@ snapshots:
   vitefu@1.1.3(vite@8.0.9(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)):
     optionalDependencies:
       vite: 8.0.9(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
-
-  vitest@4.1.5(@opentelemetry/api@1.9.0)(@types/node@25.6.0)(@vitest/coverage-v8@4.1.5)(@vitest/ui@4.1.5)(jsdom@29.0.2)(vite@8.0.9(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)):
-    dependencies:
-      '@vitest/expect': 4.1.5
-      '@vitest/mocker': 4.1.5(vite@8.0.9(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
-      '@vitest/pretty-format': 4.1.5
-      '@vitest/runner': 4.1.5
-      '@vitest/snapshot': 4.1.5
-      '@vitest/spy': 4.1.5
-      '@vitest/utils': 4.1.5
-      es-module-lexer: 2.0.0
-      expect-type: 1.3.0
-      magic-string: 0.30.21
-      obug: 2.1.1
-      pathe: 2.0.3
-      picomatch: 4.0.4
-      std-env: 4.0.0
-      tinybench: 2.9.0
-      tinyexec: 1.1.1
-      tinyglobby: 0.2.16
-      tinyrainbow: 3.1.0
-      vite: 8.0.9(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
-      why-is-node-running: 2.3.0
-    optionalDependencies:
-      '@opentelemetry/api': 1.9.0
-      '@types/node': 25.6.0
-      '@vitest/coverage-v8': 4.1.5(vitest@4.1.5)
-      '@vitest/ui': 4.1.5(vitest@4.1.5)
-      jsdom: 29.0.2
-    transitivePeerDependencies:
-      - msw
 
   vitest@4.1.5(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/coverage-v8@4.1.5)(@vitest/ui@4.1.5)(jsdom@29.0.2)(vite@8.0.9(@types/node@25.6.0)(esbuild@0.28.0)(jiti@2.6.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)):
     dependencies:

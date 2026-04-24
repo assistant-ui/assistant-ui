@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-langchain",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "LangChain useStream adapter for assistant-ui",
   "keywords": [
     "langchain",
@@ -34,10 +34,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.14",
-    "@assistant-ui/store": "^0.2.7",
+    "@assistant-ui/core": "^0.1.15",
+    "@assistant-ui/store": "^0.2.8",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.11"
+    "assistant-stream": "^0.3.12"
   },
   "peerDependencies": {
     "@langchain/react": "^0.3.3",
