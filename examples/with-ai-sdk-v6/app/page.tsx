@@ -9,7 +9,7 @@ import {
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
-function ThreadWithSuggestions() {
+export function ThreadWithSuggestions() {
   const aui = useAui({
     suggestions: Suggestions([
       {
