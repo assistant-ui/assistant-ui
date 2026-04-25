@@ -3,6 +3,7 @@
   "pages": [
     "attachments",
     "branching",
+    "chat-test-kit-quickstart",
     "chain-of-thought",
     "context-api",
     "dictation",

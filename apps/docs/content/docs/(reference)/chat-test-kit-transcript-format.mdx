@@ -1,14 +1,9 @@
-# @assistant-ui/chat-test-kit-core
+---
+title: Chat Test Kit Transcript Format
+description: Canonical transcript grammar and JSON contract for chat-test-kit.
+---
 
-Transcript-driven testing for AI chat UIs: format spec, replayer, runtime adapter interface.
-
-This package defines a portable transcript format for AI chat conversations and a runtime-agnostic replayer that drives any adapter implementing `RuntimeAdapter`
-
-## Install
-
-```bash
-pnpm add -D @assistant-ui/chat-test-kit-core
-```
+This page documents the transcript contract shipped by `@assistant-ui/chat-test-kit-core`.
 
 ## Grammar
 
@@ -41,7 +36,11 @@ pnpm add -D @assistant-ui/chat-test-kit-core
       "args": { "ticker": "AAPL" },
       "argsText": "{\"ticker\":\"AAPL\"}"
     },
-    { "kind": "toolResult", "toolCallId": "tc_1", "value": { "price": 212.44 } },
+    {
+      "kind": "toolResult",
+      "toolCallId": "tc_1",
+      "value": { "price": 212.44 }
+    },
     {
       "kind": "assistantStream",
       "text": "AAPL is at $212.44.",
@@ -50,15 +49,15 @@ pnpm add -D @assistant-ui/chat-test-kit-core
       "finish": { "reason": "stop" }
     }
   ],
-  "injections": [
-    { "kind": "disconnect", "at": { "turnIndex": 3, "afterChunk": 1 } }
-  ]
+  "injections": [{ "kind": "disconnect", "at": { "turnIndex": 3, "afterChunk": 1 } }]
 }
 ```
 
-JSON Schema is published at `@assistant-ui/chat-test-kit-core/schema/transcript.schema.json`.
+Schema location:
 
-## RuntimeAdapter
+`@assistant-ui/chat-test-kit-core/schema/transcript.schema.json`
+
+## Runtime Adapter Contract
 
 ```ts
 interface RuntimeAdapter {
@@ -69,22 +68,23 @@ interface RuntimeAdapter {
 }
 ```
 
-## Replayer
+## Replayer Contract
 
 ```ts
-const r = new Replayer({ transcript, adapter, clock: new VirtualClock() });
-await r.tick();
-await r.advanceToNextTurn();
-await r.advanceToIdle();
-await r.cancel();
-r.state;
+const replayer = new Replayer({ transcript, adapter, clock: new VirtualClock() });
+
+await replayer.tick();
+await replayer.advanceToNextTurn();
+await replayer.advanceToIdle();
+await replayer.cancel();
+
+replayer.state;
 ```
 
-## Format Version
+`VirtualClock` ensures deterministic replay of stream timing (including inter-chunk delays) without wall-clock waiting.
 
-`version` is the grammar version, independent of the package version. Today it is `"0"`. While in `0.x`, breaking format changes are allowed; they bump `version` and are documented here.
+## Versioning Policy
 
-## Documentation
+`version` in transcript JSON is the grammar version, independent from npm package version.
 
-- Quickstart guide: `/docs/guides/chat-test-kit-quickstart`
-- Transcript format reference: `/docs/chat-test-kit-transcript-format`
+Current grammar version is `"0"`. If a breaking grammar change is introduced while packages are still in `0.x`, transcript `version` must be bumped and documented.

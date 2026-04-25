@@ -85,6 +85,35 @@ harness.getRuntime();
 | `toolCall(name)` | `toRenderResult()` | Tool UI rendered a result |
 | `toolCall(name).on(harness)` | `toHaveReceivedArgs(args)` | Args seen by runtime |
 
+## Matcher DOM Contracts
+
+- `toolCall(name).toRenderResult()` looks for `[data-tool-name="<name>"]`.
+- `thread().toShowError()` looks for `[data-testid="aui-error"]`.
+
+If your app uses different attributes, render equivalent test-only wrappers so these matchers can resolve deterministic targets.
+
+## jsdom Caveats
+
+Some UI trees require browser APIs that jsdom does not fully emulate. Add these shims in your test setup when needed:
+
+```ts
+class ResizeObserverMock {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = ResizeObserverMock as typeof ResizeObserver;
+}
+
+if (!Element.prototype.scrollTo) {
+  Element.prototype.scrollTo = () => {};
+}
+```
+
+When full page composition is brittle under jsdom, prefer a minimal primitive-first harness that isolates only the behavior you are asserting.
+
 ## Notes
 
 - Tool results are delivered through yielded `tool-call` content parts with

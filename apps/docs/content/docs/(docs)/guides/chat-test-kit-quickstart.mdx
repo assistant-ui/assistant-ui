@@ -1,0 +1,118 @@
+---
+title: Chat Test Kit Quickstart
+description: Write deterministic transcript-driven tests for assistant-ui chat flows.
+---
+
+`@assistant-ui/chat-test-kit-react` is for UI behavior tests in chat apps: streaming text, tool call rendering, cancellation, and transport failures.
+
+It is not an eval framework for model-answer correctness.
+
+## Install
+
+```bash
+pnpm add -D @assistant-ui/chat-test-kit-react @testing-library/react @testing-library/user-event vitest jsdom
+```
+
+## Test Runner Setup
+
+`vitest.setup.ts`
+
+```ts
+import { setupChatTestKit } from "@assistant-ui/chat-test-kit-react";
+
+setupChatTestKit();
+```
+
+`vitest.config.ts`
+
+```ts
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./vitest.setup.ts"],
+  },
+});
+```
+
+## First Test
+
+```tsx
+import {
+  createChatTestHarness,
+  message,
+  thread,
+  transcript,
+} from "@assistant-ui/chat-test-kit-react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it } from "vitest";
+import Home from "../page";
+
+describe("chat", () => {
+  it("replays streamed assistant text", async () => {
+    const harness = createChatTestHarness({
+      transcript: transcript()
+        .user("Check AAPL")
+        .assistantStream("AAPL is at $212.44.", {
+          chunks: ["AAPL is ", "at $212.44."],
+          interChunkDelayMs: 20,
+          finish: { reason: "stop" },
+        })
+        .toJSON(),
+    });
+
+    const user = userEvent.setup();
+    render(<Home />, { wrapper: harness.wrapper });
+
+    await user.type(screen.getByRole("textbox"), "Check AAPL");
+    await user.click(screen.getByRole("button", { name: /send/i }));
+    await harness.waitForIdle();
+
+    expect(thread().on(harness)).toHaveAssistantText(/AAPL is at/);
+    expect(message(1).on(harness)).toStreamCompletely();
+  });
+});
+```
+
+## Common Pitfalls
+
+### jsdom Gaps
+
+Some full UI trees rely on browser APIs that jsdom does not implement fully (`ResizeObserver`, scroll behavior).
+
+Use a setup shim:
+
+```ts
+class ResizeObserverMock {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = ResizeObserverMock as typeof ResizeObserver;
+}
+
+if (!Element.prototype.scrollTo) {
+  Element.prototype.scrollTo = () => {};
+}
+```
+
+### Full Page vs Primitive-First Harness
+
+When full app composition is brittle in tests (for example, CSS/plugin or runtime constraints), use a minimal primitive-first harness to isolate the behavior under test.
+
+### Keep Tests Offline
+
+Do not use live network paths in these tests. Drive all behavior from transcript replay so test timing and outcomes stay deterministic.
+
+## Next Steps
+
+- [Transcript format reference](/docs/chat-test-kit-transcript-format)
+- [Core package README](https://github.com/assistant-ui/assistant-ui/blob/main/packages/chat-test-kit-core/README.md)
+- [React package README](https://github.com/assistant-ui/assistant-ui/blob/main/packages/chat-test-kit-react/README.md)
+- [AI SDK example test](https://github.com/assistant-ui/assistant-ui/blob/main/examples/with-ai-sdk-v6/app/__tests__/chat-stream.test.tsx)
+- [LangGraph example test](https://github.com/assistant-ui/assistant-ui/blob/main/examples/with-langgraph/app/__tests__/tool-calls.test.tsx)
+- [Assistant transport example test](https://github.com/assistant-ui/assistant-ui/blob/main/examples/with-assistant-transport/app/__tests__/transport-and-cancel.test.tsx)

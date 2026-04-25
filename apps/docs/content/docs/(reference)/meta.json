@@ -2,5 +2,10 @@
   "title": "API Reference",
   "icon": "FileCode",
   "root": true,
-  "pages": ["...api-reference", "...migrations", "react-compatibility"]
+  "pages": [
+    "...api-reference",
+    "...migrations",
+    "chat-test-kit-transcript-format",
+    "react-compatibility"
+  ]
 }
