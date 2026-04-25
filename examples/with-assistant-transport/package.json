@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@assistant-ui/react": "workspace:*",
@@ -23,14 +25,19 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@assistant-ui/chat-test-kit-react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.5.2",
     "@tailwindcss/postcss": "^4.2.4",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "jsdom": "^29.0.2",
     "postcss": "^8.5.10",
     "tailwindcss": "^4.2.4",
     "tw-animate-css": "^1.4.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
   }
 }
