@@ -8,6 +8,7 @@ import {
   type ComponentPropsWithoutRef,
   useCallback,
 } from "react";
+import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useThreadViewportAutoScroll } from "./useThreadViewportAutoScroll";
 import { ThreadPrimitiveViewportProvider } from "../../context/providers/ThreadViewportProvider";
 import { useSizeHandle } from "../../utils/hooks/useSizeHandle";
@@ -60,6 +61,14 @@ const useViewportSizeRef = () => {
   return useSizeHandle(register, getHeight);
 };
 
+const useViewportElementRef = () => {
+  const registerViewportElement = useThreadViewport(
+    (s) => s.registerViewportElement,
+  );
+
+  return useManagedRef(registerViewportElement);
+};
+
 const ThreadPrimitiveViewportScrollable = forwardRef<
   ThreadPrimitiveViewport.Element,
   ThreadPrimitiveViewport.Props
@@ -82,7 +91,13 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
       scrollToBottomOnThreadSwitch,
     });
     const viewportSizeRef = useViewportSizeRef();
-    const ref = useComposedRefs(forwardedRef, autoScrollRef, viewportSizeRef);
+    const viewportElementRef = useViewportElementRef();
+    const ref = useComposedRefs(
+      forwardedRef,
+      autoScrollRef,
+      viewportSizeRef,
+      viewportElementRef,
+    );
 
     return (
       <Primitive.div {...rest} ref={ref}>

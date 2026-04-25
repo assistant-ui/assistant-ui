@@ -70,6 +70,13 @@ export type ThreadViewportState = {
     readonly userMessage: number;
   };
 
+  /** Current DOM elements used for geometry-based top anchoring */
+  readonly element: {
+    readonly viewport: HTMLElement | null;
+    readonly anchor: HTMLElement | null;
+    readonly slack: HTMLElement | null;
+  };
+
   /** Register a viewport and get a handle to update its height */
   readonly registerViewport: () => SizeHandle;
 
@@ -78,6 +85,17 @@ export type ThreadViewportState = {
 
   /** Register the anchor user message height */
   readonly registerUserMessageHeight: () => SizeHandle;
+
+  /** Register the scroll viewport element */
+  readonly registerViewportElement: (
+    element: HTMLElement | null,
+  ) => Unsubscribe;
+
+  /** Register the current anchor user message element */
+  readonly registerAnchorElement: (element: HTMLElement | null) => Unsubscribe;
+
+  /** Register the current assistant slack element */
+  readonly registerSlackElement: (element: HTMLElement | null) => Unsubscribe;
 };
 
 export type ThreadViewportStoreOptions = {
@@ -137,10 +155,69 @@ export const makeThreadViewportStore = (
       inset: 0,
       userMessage: 0,
     },
+    element: {
+      viewport: null,
+      anchor: null,
+      slack: null,
+    },
 
     registerViewport: viewportRegistry.register,
     registerContentInset: insetRegistry.register,
     registerUserMessageHeight: userMessageRegistry.register,
+    registerViewportElement: (element) => {
+      store.setState({
+        element: {
+          ...store.getState().element,
+          viewport: element,
+        },
+      });
+
+      return () => {
+        if (store.getState().element.viewport !== element) return;
+        store.setState({
+          element: {
+            ...store.getState().element,
+            viewport: null,
+          },
+        });
+      };
+    },
+    registerAnchorElement: (element) => {
+      store.setState({
+        element: {
+          ...store.getState().element,
+          anchor: element,
+        },
+      });
+
+      return () => {
+        if (store.getState().element.anchor !== element) return;
+        store.setState({
+          element: {
+            ...store.getState().element,
+            anchor: null,
+          },
+        });
+      };
+    },
+    registerSlackElement: (element) => {
+      store.setState({
+        element: {
+          ...store.getState().element,
+          slack: element,
+        },
+      });
+
+      return () => {
+        if (store.getState().element.slack !== element) return;
+        store.setState({
+          element: {
+            ...store.getState().element,
+            slack: null,
+          },
+        });
+      };
+    },
   }));
 
   return store;

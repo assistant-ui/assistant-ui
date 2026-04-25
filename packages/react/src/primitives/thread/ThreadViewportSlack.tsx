@@ -11,6 +11,10 @@ import {
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 import { useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
+import {
+  computeTopAnchorTargetScrollTop,
+  computeTopAnchorSlack,
+} from "./computeTopAnchorSlack";
 
 const SlackNestingContext = createContext(false);
 
@@ -71,29 +75,123 @@ export const ThreadPrimitiveViewportSlack: FC<ThreadViewportSlackProps> = ({
   const callback = useCallback(
     (el: HTMLElement) => {
       if (!threadViewportStore || isNested) return;
+      const store = threadViewportStore;
 
-      const updateMinHeight = () => {
-        const state = threadViewportStore.getState();
-        if (state.turnAnchor === "top" && shouldApplySlack) {
-          const { viewport, inset, userMessage } = state.height;
-          const threshold = parseCssLength(fillClampThreshold, el);
-          const offset = parseCssLength(fillClampOffset, el);
-          const clampAdjustment =
-            userMessage <= threshold ? userMessage : offset;
+      let frame: number | null = null;
+      let isObservingMutations = false;
+      let anchoredAnchor: HTMLElement | null = null;
+      function scheduleUpdate() {
+        if (frame !== null) return;
+        frame = requestAnimationFrame(updateMinHeight);
+      }
 
-          const minHeight = Math.max(0, viewport - inset - clampAdjustment);
-          el.style.minHeight = `${minHeight}px`;
-          el.style.flexShrink = "0";
-          el.style.transition = "min-height 0s";
-        } else {
-          el.style.minHeight = "";
-          el.style.flexShrink = "";
-          el.style.transition = "";
-        }
+      const mutationObserver = new MutationObserver((mutations) => {
+        const hasRelevantMutation = mutations.some(
+          (m) => m.type !== "attributes" || m.attributeName !== "style",
+        );
+        if (hasRelevantMutation) scheduleUpdate();
+      });
+
+      const clearMinHeight = () => {
+        if (el.style.minHeight !== "") el.style.minHeight = "";
+        if (el.style.flexShrink !== "") el.style.flexShrink = "";
+        if (el.style.transition !== "") el.style.transition = "";
       };
 
-      updateMinHeight();
-      return threadViewportStore.subscribe(updateMinHeight);
+      const observeMutations = () => {
+        if (isObservingMutations) return;
+        mutationObserver.observe(el, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          characterData: true,
+        });
+        isObservingMutations = true;
+      };
+
+      const disconnectMutations = () => {
+        mutationObserver.disconnect();
+        isObservingMutations = false;
+      };
+
+      function updateMinHeight() {
+        frame = null;
+        const state = store.getState();
+        const { viewport, anchor, slack } = state.element;
+
+        if (
+          state.turnAnchor === "top" &&
+          shouldApplySlack &&
+          viewport &&
+          anchor &&
+          slack === el
+        ) {
+          observeMutations();
+          const threshold = parseCssLength(fillClampThreshold, el);
+          const offset = parseCssLength(fillClampOffset, el);
+          clearMinHeight();
+
+          const naturalHeight = el.offsetHeight;
+          const missingScrollRange = computeTopAnchorSlack({
+            viewport,
+            anchor,
+            fillClampThreshold: threshold,
+            fillClampOffset: offset,
+          });
+          const minHeight =
+            missingScrollRange > 0
+              ? `${naturalHeight + missingScrollRange}px`
+              : "";
+
+          if (el.style.minHeight !== minHeight) el.style.minHeight = minHeight;
+          if (el.style.flexShrink !== "0") el.style.flexShrink = "0";
+          if (el.style.transition !== "min-height 0s") {
+            el.style.transition = "min-height 0s";
+          }
+
+          if (anchoredAnchor !== anchor) {
+            anchoredAnchor = anchor;
+            const scrollTop = computeTopAnchorTargetScrollTop({
+              viewport,
+              anchor,
+              fillClampThreshold: threshold,
+              fillClampOffset: offset,
+            });
+            if (Math.abs(viewport.scrollTop - scrollTop) > 1) {
+              viewport.scrollTo({ top: scrollTop, behavior: "auto" });
+            }
+          }
+        } else {
+          anchoredAnchor = null;
+          clearMinHeight();
+          disconnectMutations();
+        }
+      }
+
+      const unregisterSlackElement = store.getState().registerSlackElement(el);
+      let lastLayoutState = store.getState();
+      scheduleUpdate();
+      const unsubscribe = store.subscribe((state) => {
+        const prev = lastLayoutState;
+        lastLayoutState = state;
+
+        if (
+          state.turnAnchor !== prev.turnAnchor ||
+          state.element.viewport !== prev.element.viewport ||
+          state.element.anchor !== prev.element.anchor ||
+          state.element.slack !== prev.element.slack
+        ) {
+          scheduleUpdate();
+        }
+      });
+
+      return () => {
+        if (frame !== null) cancelAnimationFrame(frame);
+        unregisterSlackElement();
+        unsubscribe();
+        disconnectMutations();
+        clearMinHeight();
+      };
     },
     [
       threadViewportStore,

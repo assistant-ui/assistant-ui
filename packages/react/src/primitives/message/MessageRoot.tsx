@@ -56,6 +56,9 @@ const useMessageViewportRef = () => {
   const registerUserHeight = useThreadViewport(
     (s) => s.registerUserMessageHeight,
   );
+  const registerAnchorElement = useThreadViewport(
+    (s) => s.registerAnchorElement,
+  );
 
   // inset rules:
   // - the previous user message before the last assistant message registers its full height
@@ -69,10 +72,16 @@ const useMessageViewportRef = () => {
 
   const getHeight = useCallback((el: HTMLElement) => el.offsetHeight, []);
 
-  return useSizeHandle(
+  const sizeRef = useSizeHandle(
     shouldRegisterAsInset ? registerUserHeight : null,
     getHeight,
   );
+  const elementRef = useManagedRef<HTMLElement>((el) => {
+    if (!shouldRegisterAsInset) return;
+    return registerAnchorElement(el);
+  });
+
+  return useComposedRefs(sizeRef, elementRef);
 };
 
 export namespace MessagePrimitiveRoot {
