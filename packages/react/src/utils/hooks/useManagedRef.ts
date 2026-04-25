@@ -10,6 +10,7 @@ export const useManagedRef = <TNode>(
       // Call the previous cleanup function
       if (cleanupRef.current) {
         cleanupRef.current();
+        cleanupRef.current = undefined;
       }
 
       // Call the new callback and store its cleanup function
