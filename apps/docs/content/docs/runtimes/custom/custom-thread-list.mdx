@@ -79,6 +79,10 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
             externalId: thread.external_id ?? undefined,
             status: thread.is_archived ? "archived" : "regular",
             title: thread.title ?? undefined,
+            custom: {
+              createdAt: thread.created_at,
+              ownerId: thread.owner_id,
+            },
           })),
         };
       },
@@ -114,6 +118,10 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
           status: thread.is_archived ? "archived" : "regular",
           remoteId: thread.id,
           title: thread.title,
+          custom: {
+            createdAt: thread.created_at,
+            ownerId: thread.owner_id,
+          },
         };
       },
       async generateTitle(remoteId, unstable_messages) {
@@ -157,7 +165,7 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
       name: "list",
       type: "() => Promise<{ threads: RemoteThreadMetadata[] }>",
       description:
-        "Return the current threads. Each thread must include status, remoteId, and any metadata you want to show immediately.",
+        "Return the current threads. Each thread must include status and remoteId, plus any optional title, externalId, or custom backend fields you want to surface in the UI.",
       required: true,
     },
     {
@@ -202,7 +210,7 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
       name: "fetch",
       type: "(threadId: string) => Promise<RemoteThreadMetadata>",
       description:
-        "Fetch metadata for a specific thread. Used when switching to a thread not in the initial list.",
+        "Fetch metadata for a specific thread. Used when switching to a thread not in the initial list. Return the same shape as list() entries, including any custom fields.",
       required: true,
     },
     {
@@ -213,6 +221,43 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
     },
   ]}
 />
+
+## Custom Metadata
+
+`RemoteThreadMetadata` includes an optional `custom?: Record<string, unknown>` slot for backend-specific fields (timestamps, owner ids, workspace ids, tags, model name, etc.). Whatever you return from `list()` and `fetch()` flows through to the thread list item state and is reachable from any UI primitive via `useAuiState`.
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+function ThreadListItemMeta() {
+  const custom = useAuiState((s) => s.threadListItem.custom);
+  const createdAt = custom?.createdAt as string | undefined;
+  const ownerId = custom?.ownerId as string | undefined;
+  return (
+    <span className="aui-thread-list-item-meta">
+      {ownerId} · {createdAt}
+    </span>
+  );
+}
+```
+
+For typed access, intersect `RemoteThreadMetadata` with your own `custom` shape at the adapter boundary instead of casting at every read site:
+
+```ts
+type MyThreadMetadata = RemoteThreadMetadata & {
+  readonly custom: {
+    readonly createdAt: string;
+    readonly ownerId: string;
+  };
+};
+```
+
+<Callout type="info">
+  `custom` is preserved across `rename`, `archive`, `unarchive`, and
+  `generateTitle`, so you don't need to re-send it on every adapter call. To
+  mutate it, return updated values from a subsequent `fetch()` or trigger
+  `runtime.threads.reload()`.
+</Callout>
 
 ## Thread Lifecycle Cheatsheet
 
