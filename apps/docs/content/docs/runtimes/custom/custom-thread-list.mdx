@@ -237,7 +237,7 @@ type MyThreadMetadata = RemoteThreadMetadata & {
 };
 ```
 
-Read it with `useAuiState`:
+Read it with `useAuiState`. The runtime stores `custom` as `Record<string, unknown>`, so cast back to your shape at the boundary — the adapter is responsible for actually returning that shape.
 
 ```tsx
 import { useAuiState } from "@assistant-ui/react";
