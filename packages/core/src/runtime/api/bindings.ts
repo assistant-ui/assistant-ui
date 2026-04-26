@@ -47,4 +47,5 @@ export type ThreadListItemState = {
   readonly externalId: string | undefined;
   readonly status: import("../interfaces/thread-list-runtime-core").ThreadListItemStatus;
   readonly title?: string | undefined;
+  readonly custom?: Record<string, unknown> | undefined;
 };

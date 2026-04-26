@@ -10,6 +10,7 @@ export type ThreadListItemCoreState = {
 
   readonly status: ThreadListItemStatus;
   readonly title?: string | undefined;
+  readonly custom?: Record<string, unknown> | undefined;
 
   readonly runtime?: ThreadRuntimeCore | undefined;
 };

@@ -98,6 +98,7 @@ export class RemoteThreadListThreadListRuntimeCore
                 externalId: thread.externalId,
                 status: thread.status,
                 title: thread.title,
+                custom: thread.custom,
                 initializeTask: Promise.resolve({
                   remoteId: thread.remoteId,
                   externalId: thread.externalId,
@@ -250,6 +251,7 @@ export class RemoteThreadListThreadListRuntimeCore
           externalId: remoteMetadata.externalId,
           status: remoteMetadata.status,
           title: remoteMetadata.title,
+          custom: remoteMetadata.custom,
         } as RemoteThreadData,
       };
 

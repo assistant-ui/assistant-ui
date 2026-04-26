@@ -80,6 +80,7 @@ const getThreadListItemState = (
     externalId: threadData.externalId,
     title: threadData.title,
     status: threadData.status,
+    custom: threadData.custom,
     isMain: threadData.id === threadList.mainThreadId,
   };
 };

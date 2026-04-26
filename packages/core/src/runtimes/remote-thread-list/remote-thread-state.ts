@@ -7,6 +7,7 @@ export type RemoteThreadData =
       readonly externalId: undefined;
       readonly status: "new";
       readonly title: undefined;
+      readonly custom?: Record<string, unknown> | undefined;
     }
   | {
       readonly id: string;
@@ -15,6 +16,7 @@ export type RemoteThreadData =
       readonly externalId: undefined;
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
+      readonly custom?: Record<string, unknown> | undefined;
     }
   | {
       readonly id: string;
@@ -23,6 +25,7 @@ export type RemoteThreadData =
       readonly externalId: string | undefined;
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
+      readonly custom?: Record<string, unknown> | undefined;
     };
 
 export type THREAD_MAPPING_ID = string & { __brand: "THREAD_MAPPING_ID" };
