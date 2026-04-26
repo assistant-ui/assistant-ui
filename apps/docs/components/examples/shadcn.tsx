@@ -11,6 +11,11 @@ import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
+import {
+  useUserMessageTruncate,
+  UserMessageExpandFade,
+  UserMessageCollapseButton,
+} from "@/components/assistant-ui/thread";
 import { cn } from "@/lib/utils";
 import icon from "@/public/favicon/icon.svg";
 import {
@@ -502,6 +507,9 @@ const AssistantActionBar: FC = () => {
 };
 
 const UserMessage: FC = () => {
+  const { contentRef, isOverflowing, isExpanded, setIsExpanded } =
+    useUserMessageTruncate();
+
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
@@ -512,10 +520,23 @@ const UserMessage: FC = () => {
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div className="aui-user-message-content wrap-break-word peer rounded-2xl bg-muted px-4 py-2.5 text-foreground empty:hidden">
-          <MessagePrimitive.Quote>
-            {(quote) => <QuoteBlock {...quote} />}
-          </MessagePrimitive.Quote>
-          <MessagePrimitive.Parts components={{ Text: DirectiveText }} />
+          <div className="relative">
+            <div
+              ref={contentRef}
+              className={cn(!isExpanded && "max-h-36 overflow-hidden")}
+            >
+              <MessagePrimitive.Quote>
+                {(quote) => <QuoteBlock {...quote} />}
+              </MessagePrimitive.Quote>
+              <MessagePrimitive.Parts components={{ Text: DirectiveText }} />
+            </div>
+            {!isExpanded && isOverflowing && (
+              <UserMessageExpandFade onClick={() => setIsExpanded(true)} />
+            )}
+          </div>
+          {isExpanded && (
+            <UserMessageCollapseButton onClick={() => setIsExpanded(false)} />
+          )}
         </div>
         <div className="aui-user-action-bar-wrapper absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2 peer-empty:hidden">
           <UserActionBar />

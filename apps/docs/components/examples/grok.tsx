@@ -12,13 +12,14 @@ import {
 } from "@assistant-ui/react";
 import {
   ArrowUpIcon,
-  ChevronDownIcon,
+  ChevronDownIcon as ChevronDownIconRadix,
   CopyIcon,
   Cross2Icon,
   Pencil1Icon,
   ReloadIcon,
 } from "@radix-ui/react-icons";
 import {
+  ChevronDownIcon,
   Mic,
   Moon,
   Paperclip,
@@ -29,7 +30,13 @@ import {
 import { useEffect, useState, type FC } from "react";
 import { useShallow } from "zustand/shallow";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import {
+  useUserMessageTruncate,
+  UserMessageExpandFade,
+  UserMessageCollapseButton,
+} from "@/components/assistant-ui/thread";
 import { GrokIcon } from "@/components/icons/grok";
+import { cn } from "@/lib/utils";
 
 export const Grok: FC = () => {
   return (
@@ -128,14 +135,7 @@ const ChatMessage: FC = () => {
       <AuiIf condition={(s) => s.message.role === "user"}>
         <div className="flex flex-col items-end">
           <div className="relative max-w-[90%] rounded-3xl rounded-br-lg border border-[#e5e5e5] bg-[#f0f0f0] px-4 py-3 text-[#0d0d0d] dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-white">
-            <div className="prose prose-sm dark:prose-invert wrap-break-word prose-p:my-0">
-              <MessagePrimitive.Parts>
-                {({ part }) => {
-                  if (part.type === "text") return <MarkdownText />;
-                  return null;
-                }}
-              </MessagePrimitive.Parts>
-            </div>
+            <GrokUserMessageContent />
           </div>
           <div className="mt-1 flex h-8 items-center justify-end gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
             <ActionBarPrimitive.Root className="flex items-center gap-0.5">
@@ -182,6 +182,41 @@ const ChatMessage: FC = () => {
         </div>
       </AuiIf>
     </MessagePrimitive.Root>
+  );
+};
+
+const GrokUserMessageContent: FC = () => {
+  const { contentRef, isOverflowing, isExpanded, setIsExpanded } =
+    useUserMessageTruncate();
+
+  return (
+    <div className="prose prose-sm dark:prose-invert wrap-break-word prose-p:my-0">
+      <div className="relative">
+        <div
+          ref={contentRef}
+          className={cn(!isExpanded && "max-h-36 overflow-hidden")}
+        >
+          <MessagePrimitive.Parts>
+            {({ part }) => {
+              if (part.type === "text") return <MarkdownText />;
+              return null;
+            }}
+          </MessagePrimitive.Parts>
+        </div>
+        {!isExpanded && isOverflowing && (
+          <UserMessageExpandFade
+            className="bg-[linear-gradient(to_top,var(--tw-gradient-from),transparent)] from-[#f0f0f0] text-[#6b6b6b] hover:text-[#0d0d0d] dark:from-[#1a1a1a] dark:text-[#9a9a9a] dark:hover:text-white"
+            onClick={() => setIsExpanded(true)}
+          />
+        )}
+        {isExpanded && (
+          <UserMessageCollapseButton
+            className="text-[#6b6b6b] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:text-white"
+            onClick={() => setIsExpanded(false)}
+          />
+        )}
+      </div>
+    </div>
   );
 };
 

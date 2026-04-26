@@ -25,6 +25,7 @@ import {
   ArrowDownIcon,
   ArrowUpIcon,
   CheckIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
@@ -34,7 +35,7 @@ import {
   RefreshCwIcon,
   SquareIcon,
 } from "lucide-react";
-import type { FC } from "react";
+import { useEffect, useRef, useState, type FC } from "react";
 
 export const Thread: FC = () => {
   return (
@@ -299,6 +300,16 @@ const AssistantActionBar: FC = () => {
 };
 
 const UserMessage: FC = () => {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    setIsOverflowing(el.scrollHeight > el.clientHeight + 1);
+  });
+
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
@@ -309,7 +320,20 @@ const UserMessage: FC = () => {
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div className="aui-user-message-content wrap-break-word peer rounded-2xl bg-muted px-4 py-2.5 text-foreground empty:hidden">
-          <MessagePrimitive.Parts />
+          <div className="relative">
+            <div
+              ref={contentRef}
+              className={cn(!isExpanded && "max-h-36 overflow-hidden")}
+            >
+              <MessagePrimitive.Parts />
+            </div>
+            {!isExpanded && isOverflowing && (
+              <UserMessageExpandFade onClick={() => setIsExpanded(true)} />
+            )}
+          </div>
+          {isExpanded && (
+            <UserMessageCollapseButton onClick={() => setIsExpanded(false)} />
+          )}
         </div>
         <div className="aui-user-action-bar-wrapper absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-2 peer-empty:hidden rtl:translate-x-full">
           <UserActionBar />
@@ -322,6 +346,58 @@ const UserMessage: FC = () => {
       />
     </MessagePrimitive.Root>
   );
+};
+
+export const UserMessageExpandFade: FC<
+  React.ButtonHTMLAttributes<HTMLButtonElement>
+> = ({ className, ...props }) => {
+  return (
+    <button
+      type="button"
+      data-slot="user-message-expand-fade"
+      className={cn(
+        "aui-user-message-expand-fade absolute inset-x-0 bottom-0 flex cursor-pointer items-end justify-center bg-[linear-gradient(to_top,var(--color-muted),transparent)] pt-8 pb-0.5 text-muted-foreground text-xs hover:text-foreground",
+        className,
+      )}
+      {...props}
+    >
+      Show more
+      <ChevronDownIcon className="size-3 shrink-0" />
+    </button>
+  );
+};
+
+export const UserMessageCollapseButton: FC<
+  React.ButtonHTMLAttributes<HTMLButtonElement>
+> = ({ className, ...props }) => {
+  return (
+    <button
+      type="button"
+      data-slot="user-message-collapse"
+      className={cn(
+        "aui-user-message-collapse mt-1 flex cursor-pointer items-center gap-0.5 text-muted-foreground text-xs hover:text-foreground",
+        className,
+      )}
+      {...props}
+    >
+      Show less
+      <ChevronDownIcon className="size-3 shrink-0 rotate-180" />
+    </button>
+  );
+};
+
+export const useUserMessageTruncate = () => {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    setIsOverflowing(el.scrollHeight > el.clientHeight + 1);
+  });
+
+  return { contentRef, isOverflowing, isExpanded, setIsExpanded } as const;
 };
 
 const UserActionBar: FC = () => {

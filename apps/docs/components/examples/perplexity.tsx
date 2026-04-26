@@ -14,6 +14,7 @@ import {
   ArrowRightIcon,
   ArrowUpIcon,
   CheckIcon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
@@ -25,6 +26,11 @@ import {
 import { cn } from "@/lib/utils";
 
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import {
+  useUserMessageTruncate,
+  UserMessageExpandFade,
+  UserMessageCollapseButton,
+} from "@/components/assistant-ui/thread";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import {
   ComposerAttachments,
@@ -181,10 +187,38 @@ const UserMessage: FC = () => {
     <MessagePrimitive.Root className="relative w-full max-w-(--thread-max-width) gap-y-2 py-4">
       <UserMessageAttachments />
 
-      <div className="wrap-break-word rounded-3xl py-2.5 text-3xl text-[#f5f5f5]">
-        <MessagePrimitive.Parts />
-      </div>
+      <PerplexityUserMessageContent />
     </MessagePrimitive.Root>
+  );
+};
+
+const PerplexityUserMessageContent: FC = () => {
+  const { contentRef, isOverflowing, isExpanded, setIsExpanded } =
+    useUserMessageTruncate();
+
+  return (
+    <div className="wrap-break-word rounded-3xl py-2.5 text-3xl text-[#f5f5f5]">
+      <div className="relative">
+        <div
+          ref={contentRef}
+          className={cn(!isExpanded && "max-h-36 overflow-hidden")}
+        >
+          <MessagePrimitive.Parts />
+        </div>
+        {!isExpanded && isOverflowing && (
+          <UserMessageExpandFade
+            className="bg-[linear-gradient(to_top,var(--tw-gradient-from),transparent)] from-[#1a1a1a] text-[#808080] hover:text-[#f5f5f5]"
+            onClick={() => setIsExpanded(true)}
+          />
+        )}
+        {isExpanded && (
+          <UserMessageCollapseButton
+            className="text-[#808080] hover:text-[#f5f5f5]"
+            onClick={() => setIsExpanded(false)}
+          />
+        )}
+      </div>
+    </div>
   );
 };
 

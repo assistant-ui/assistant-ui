@@ -12,7 +12,7 @@ import {
 import { Avatar } from "radix-ui";
 import {
   ArrowUpIcon,
-  ChevronDownIcon,
+  ChevronDownIcon as ChevronDownIconRadix,
   ClipboardIcon,
   Cross2Icon,
   MixerHorizontalIcon,
@@ -20,10 +20,16 @@ import {
   PlusIcon,
   ReloadIcon,
 } from "@radix-ui/react-icons";
-import { ThumbsDown, ThumbsUp } from "lucide-react";
+import { ChevronDownIcon, ThumbsDown, ThumbsUp } from "lucide-react";
 import { useEffect, useState, type FC } from "react";
 import { useShallow } from "zustand/shallow";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import {
+  useUserMessageTruncate,
+  UserMessageExpandFade,
+  UserMessageCollapseButton,
+} from "@/components/assistant-ui/thread";
+import { cn } from "@/lib/utils";
 
 export const Claude: FC = () => {
   return (
@@ -106,14 +112,7 @@ const ChatMessage: FC = () => {
             </div>
             <div className="flex-1">
               <div className="relative grid grid-cols-1 gap-2 py-0.5">
-                <div className="wrap-break-word whitespace-pre-wrap">
-                  <MessagePrimitive.Parts>
-                    {({ part }) => {
-                      if (part.type === "text") return <MarkdownText />;
-                      return null;
-                    }}
-                  </MessagePrimitive.Parts>
-                </div>
+                <ClaudeUserMessageContent />
               </div>
             </div>
           </div>
@@ -179,6 +178,39 @@ const ChatMessage: FC = () => {
         </div>
       </AuiIf>
     </MessagePrimitive.Root>
+  );
+};
+
+const ClaudeUserMessageContent: FC = () => {
+  const { contentRef, isOverflowing, isExpanded, setIsExpanded } =
+    useUserMessageTruncate();
+
+  return (
+    <div className="relative">
+      <div
+        ref={contentRef}
+        className={cn(!isExpanded && "max-h-36 overflow-hidden")}
+      >
+        <MessagePrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "text") return <MarkdownText />;
+            return null;
+          }}
+        </MessagePrimitive.Parts>
+      </div>
+      {!isExpanded && isOverflowing && (
+        <UserMessageExpandFade
+          className="bg-[linear-gradient(to_top,var(--tw-gradient-from),transparent)] from-[#DDD9CE] text-[#6b6a68] hover:text-[#1a1a18] dark:from-[#393937] dark:text-[#9a9893] dark:hover:text-[#eee]"
+          onClick={() => setIsExpanded(true)}
+        />
+      )}
+      {isExpanded && (
+        <UserMessageCollapseButton
+          className="text-[#6b6a68] hover:text-[#1a1a18] dark:text-[#9a9893] dark:hover:text-[#eee]"
+          onClick={() => setIsExpanded(false)}
+        />
+      )}
+    </div>
   );
 };
 

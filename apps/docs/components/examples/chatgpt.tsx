@@ -26,6 +26,11 @@ import {
 } from "@radix-ui/react-icons";
 import { useEffect, useState, type FC } from "react";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import {
+  useUserMessageTruncate,
+  UserMessageExpandFade,
+  UserMessageCollapseButton,
+} from "@/components/assistant-ui/thread";
 import { useShallow } from "zustand/shallow";
 import { PlusIcon } from "lucide-react";
 
@@ -129,7 +134,7 @@ const UserMessage: FC = () => {
         </ActionBarPrimitive.Root>
 
         <div className="rounded-3xl bg-secondary px-5 py-2 text-foreground dark:bg-white/5 dark:text-[#eee]">
-          <MessagePrimitive.Parts />
+          <ChatGPTUserMessageContent />
         </div>
       </div>
 
@@ -221,6 +226,31 @@ const BranchPicker: FC<{ className?: string }> = ({ className }) => {
         </TooltipIconButton>
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
+  );
+};
+
+const ChatGPTUserMessageContent: FC = () => {
+  const { contentRef, isOverflowing, isExpanded, setIsExpanded } =
+    useUserMessageTruncate();
+
+  return (
+    <div className="relative">
+      <div
+        ref={contentRef}
+        className={cn(!isExpanded && "max-h-36 overflow-hidden")}
+      >
+        <MessagePrimitive.Parts />
+      </div>
+      {!isExpanded && isOverflowing && (
+        <UserMessageExpandFade
+          className="bg-[linear-gradient(to_top,var(--tw-gradient-from),transparent)] from-[#f4f4f4] dark:from-[#2f2f2f]"
+          onClick={() => setIsExpanded(true)}
+        />
+      )}
+      {isExpanded && (
+        <UserMessageCollapseButton onClick={() => setIsExpanded(false)} />
+      )}
+    </div>
   );
 };
 
