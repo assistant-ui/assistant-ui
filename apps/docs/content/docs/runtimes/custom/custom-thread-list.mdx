@@ -226,22 +226,7 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
 
 `RemoteThreadMetadata` includes an optional `custom?: Record<string, unknown>` slot for backend-specific fields (timestamps, owner ids, workspace ids, tags, model name, etc.). Whatever you return from `list()` and `fetch()` flows through to the thread list item state and is reachable from any UI primitive via `useAuiState`.
 
-```tsx
-import { useAuiState } from "@assistant-ui/react";
-
-function ThreadListItemMeta() {
-  const custom = useAuiState((s) => s.threadListItem.custom);
-  const createdAt = custom?.createdAt as string | undefined;
-  const ownerId = custom?.ownerId as string | undefined;
-  return (
-    <span className="aui-thread-list-item-meta">
-      {ownerId} · {createdAt}
-    </span>
-  );
-}
-```
-
-For typed access, intersect `RemoteThreadMetadata` with your own `custom` shape at the adapter boundary instead of casting at every read site:
+Declare a typed shape at the adapter boundary by intersecting `RemoteThreadMetadata` with your own `custom` shape:
 
 ```ts
 type MyThreadMetadata = RemoteThreadMetadata & {
@@ -250,6 +235,23 @@ type MyThreadMetadata = RemoteThreadMetadata & {
     readonly ownerId: string;
   };
 };
+```
+
+Read it with `useAuiState`:
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+function ThreadListItemMeta() {
+  const custom = useAuiState(
+    (s) => s.threadListItem.custom as MyThreadMetadata["custom"] | undefined,
+  );
+  return (
+    <span className="aui-thread-list-item-meta">
+      {custom?.ownerId} · {custom?.createdAt}
+    </span>
+  );
+}
 ```
 
 <Callout type="info">

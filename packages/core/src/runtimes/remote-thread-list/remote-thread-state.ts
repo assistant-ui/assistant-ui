@@ -7,7 +7,7 @@ export type RemoteThreadData =
       readonly externalId: undefined;
       readonly status: "new";
       readonly title: undefined;
-      readonly custom?: Record<string, unknown> | undefined;
+      readonly custom: undefined;
     }
   | {
       readonly id: string;

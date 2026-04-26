@@ -28,6 +28,8 @@ type LocalStorageAdapterOptions = {
   titleGenerator?: TitleGenerationAdapter | undefined;
 };
 
+// `RemoteThreadMetadata.custom` is intentionally not persisted; consumers that
+// need it across reloads should fork this adapter or use a remote backend.
 type StoredThreadMetadata = {
   remoteId: string;
   externalId?: string;

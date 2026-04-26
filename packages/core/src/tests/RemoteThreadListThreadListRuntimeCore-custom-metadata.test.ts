@@ -89,4 +89,35 @@ describe("RemoteThreadListThreadListRuntimeCore custom metadata", () => {
     expect(item?.title).toBe("New");
     expect(item?.custom).toEqual({ tag: "important" });
   });
+
+  it("preserves custom across archive and unarchive optimistic updates", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-5",
+            externalId: "ext-5",
+            title: "Test",
+            custom: { workspaceId: "ws-1" },
+          },
+        ],
+      })),
+    });
+
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+
+    await core.archive("thread-5");
+    expect(core.getItemById("thread-5")?.status).toBe("archived");
+    expect(core.getItemById("thread-5")?.custom).toEqual({
+      workspaceId: "ws-1",
+    });
+
+    await core.unarchive("thread-5");
+    expect(core.getItemById("thread-5")?.status).toBe("regular");
+    expect(core.getItemById("thread-5")?.custom).toEqual({
+      workspaceId: "ws-1",
+    });
+  });
 });

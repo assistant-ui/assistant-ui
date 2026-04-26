@@ -337,6 +337,7 @@ export class RemoteThreadListThreadListRuntimeCore
             remoteId: undefined,
             externalId: undefined,
             title: undefined,
+            custom: undefined,
           } satisfies RemoteThreadData,
         },
       });
