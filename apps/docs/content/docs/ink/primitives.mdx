@@ -196,16 +196,25 @@ Terminal line editor wired to the composer runtime. Value is managed automatical
 | `multiLine` | `boolean` | When true, Enter inserts a newline unless `submitOnEnter` is enabled |
 | `onSubmit` | `(text: string) => void` | Overrides the default send behavior and receives the current composer text |
 
-Supported keyboard behavior:
+Supported keyboard bindings:
 
-- Left and right arrows move the cursor within the buffer
-- `Backspace` and `Delete` remove text relative to the cursor
-- `Home` and `End` jump to buffer boundaries in single-line mode, or line boundaries in multi-line mode
-- In multi-line mode, up and down arrows move between lines while preserving column when possible
-- `Ctrl+A`, `Ctrl+E`, `Ctrl+J`, `Ctrl+W`, `Ctrl+U`, and `Ctrl+K` provide readline-style editing
-- `Alt+B` and `Alt+F` move by word when the terminal reports them as meta-key input
-- `Ctrl+J` always inserts a newline in multi-line mode
-- `Shift+Enter` also inserts a newline in multi-line submit mode when the terminal reports it distinctly
+| Key | Action | Context |
+|-----|--------|---------|
+| `Left` / `Right` | Move cursor by one grapheme | Always |
+| `Backspace` / `Delete` | Remove the grapheme before / after the cursor | Always |
+| `Home` / `End` | Jump to buffer or line boundary | Buffer in single-line, line in multi-line |
+| `Up` / `Down` | Move between lines, preserving column when possible | Multi-line only |
+| `Ctrl+A` / `Ctrl+E` | Move to line start / end | Always |
+| `Ctrl+W` | Kill the word before the cursor | Always |
+| `Ctrl+U` / `Ctrl+K` | Kill from cursor to line start / end | Always |
+| `Ctrl+J` | Insert a newline | Multi-line only; swallowed in single-line so it never submits |
+| `Alt+B` / `Alt+F` | Move by word backward / forward | Terminals that emit meta-key sequences |
+| `Alt+D` | Kill the word after the cursor | Terminals that emit meta-key sequences |
+| `Shift+Enter` | Insert a newline | Multi-line submit mode, terminals that distinguish it |
+
+Word boundaries and grapheme stepping use `Intl.Segmenter`, so emoji, accented letters, skin-tone modifiers, ZWJ sequences, and CJK ideographs each move and delete as a single character.
+
+Some bindings depend on terminal capabilities. iTerm2, Windows Terminal, and most Linux terminals emit `Alt`-letter combinations as `Esc`-prefixed sequences that Ink decodes as meta-key input; macOS Terminal.app requires enabling "Use Option as Meta key" in its preferences before `Alt+B` / `Alt+F` / `Alt+D` work as expected. `Shift+Enter` requires a terminal that supports the CSI-u protocol (iTerm2 3.4+, kitty, foot, and similar) — terminals that conflate it with `Enter` will fall back to the `submitOnEnter` behaviour.
 
 Example with custom submit handling:
 
