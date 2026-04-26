@@ -14,7 +14,6 @@ import {
   ArrowRightIcon,
   ArrowUpIcon,
   CheckIcon,
-  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,

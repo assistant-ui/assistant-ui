@@ -12,7 +12,6 @@ import {
 } from "@assistant-ui/react";
 import {
   ArrowUpIcon,
-  ChevronDownIcon as ChevronDownIconRadix,
   CopyIcon,
   Cross2Icon,
   Pencil1Icon,

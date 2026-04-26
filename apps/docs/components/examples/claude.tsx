@@ -12,7 +12,6 @@ import {
 import { Avatar } from "radix-ui";
 import {
   ArrowUpIcon,
-  ChevronDownIcon as ChevronDownIconRadix,
   ClipboardIcon,
   Cross2Icon,
   MixerHorizontalIcon,

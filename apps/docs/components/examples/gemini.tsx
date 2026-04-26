@@ -11,7 +11,6 @@ import {
 } from "@assistant-ui/react";
 
 import {
-  ChevronDownIcon as ChevronDownIconRadix,
   Cross2Icon,
   MixerHorizontalIcon,
   Pencil1Icon,
@@ -32,16 +31,10 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
-import { useEffect, useState, type FC } from "react";
+import { type FC, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import {
-  useUserMessageTruncate,
-  UserMessageExpandFade,
-  UserMessageCollapseButton,
-} from "@/components/assistant-ui/thread";
 import { GeminiIcon } from "@/components/icons/gemini";
-import { cn } from "@/lib/utils";
 
 export const Gemini: FC = () => {
   return (
@@ -156,11 +149,7 @@ const Composer: FC = () => {
               className="flex h-10 items-center justify-center gap-1 whitespace-nowrap rounded-full px-3 text-sm transition hover:bg-[#444746]/8 dark:hover:bg-[#c4c7c5]/8"
             >
               <span>Flash</span>
-              <ChevronDownIconRadix
-                width={20}
-                height={20}
-                className="opacity-60"
-              />
+              <ChevronDownIcon width={20} height={20} className="opacity-60" />
             </button>
             <div className="relative size-10 shrink-0">
               <button
@@ -201,7 +190,9 @@ const ChatMessage: FC = () => {
             </ActionBarPrimitive.Edit>
           </ActionBarPrimitive.Root>
           <div className="max-w-[85%] rounded-3xl rounded-tr bg-[#e9eef6] px-4 py-3 text-[#1f1f1f] dark:bg-[#282a2c] dark:text-[#e3e3e3]">
-            <GeminiUserMessageContent />
+            <div className="prose prose-sm dark:prose-invert wrap-break-word">
+              <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+            </div>
           </div>
         </div>
       </AuiIf>
@@ -234,36 +225,6 @@ const ChatMessage: FC = () => {
         </div>
       </AuiIf>
     </MessagePrimitive.Root>
-  );
-};
-
-const GeminiUserMessageContent: FC = () => {
-  const { contentRef, isOverflowing, isExpanded, setIsExpanded } =
-    useUserMessageTruncate();
-
-  return (
-    <div className="prose prose-sm dark:prose-invert wrap-break-word">
-      <div className="relative">
-        <div
-          ref={contentRef}
-          className={cn(!isExpanded && "max-h-36 overflow-hidden")}
-        >
-          <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
-        </div>
-        {!isExpanded && isOverflowing && (
-          <UserMessageExpandFade
-            className="bg-[linear-gradient(to_top,var(--tw-gradient-from),transparent)] from-[#e9eef6] text-[#70757a] hover:text-[#1f1f1f] dark:from-[#282a2c] dark:text-[#9aa0a6] dark:hover:text-[#e3e3e3]"
-            onClick={() => setIsExpanded(true)}
-          />
-        )}
-        {isExpanded && (
-          <UserMessageCollapseButton
-            className="text-[#70757a] hover:text-[#1f1f1f] dark:text-[#9aa0a6] dark:hover:text-[#e3e3e3]"
-            onClick={() => setIsExpanded(false)}
-          />
-        )}
-      </div>
-    </div>
   );
 };
 
