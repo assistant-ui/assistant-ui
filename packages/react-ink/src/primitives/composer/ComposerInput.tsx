@@ -122,6 +122,10 @@ export const ComposerInput = ({
           applyAction({ type: "kill-end", multiLine });
           return;
         }
+        if (lowerInput === "d") {
+          applyAction({ type: "delete-forward" });
+          return;
+        }
       }
 
       if (key.meta) {

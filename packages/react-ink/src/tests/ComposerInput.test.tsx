@@ -396,6 +396,7 @@ describe("ComposerInput", () => {
     inputHandler?.("w", { ctrl: true });
     inputHandler?.("u", { ctrl: true });
     inputHandler?.("k", { ctrl: true });
+    inputHandler?.("d", { ctrl: true });
     await flush();
 
     expect(buffer.dispatchAction).toHaveBeenNthCalledWith(1, {
@@ -416,6 +417,9 @@ describe("ComposerInput", () => {
     expect(buffer.dispatchAction).toHaveBeenNthCalledWith(5, {
       type: "kill-end",
       multiLine: true,
+    });
+    expect(buffer.dispatchAction).toHaveBeenNthCalledWith(6, {
+      type: "delete-forward",
     });
   });
 

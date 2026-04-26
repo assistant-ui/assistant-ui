@@ -273,9 +273,16 @@ export const textBufferReducer = (
     }
 
     case "kill-end": {
-      const rangeEnd = action.multiLine
+      const lineEnd = action.multiLine
         ? getLineEnd(state.text, state.cursorOffset)
         : state.text.length;
+      // emacs convention: ctrl+k at EOL kills the trailing newline so the next line joins
+      const rangeEnd =
+        action.multiLine &&
+        lineEnd === state.cursorOffset &&
+        lineEnd < state.text.length
+          ? lineEnd + 1
+          : lineEnd;
       if (rangeEnd === state.cursorOffset) return state;
 
       const nextText =

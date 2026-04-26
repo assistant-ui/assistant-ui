@@ -206,7 +206,8 @@ Supported keyboard bindings:
 | `Up` / `Down` | Move between lines, preserving column when possible | Multi-line only |
 | `Ctrl+A` / `Ctrl+E` | Move to line start / end | Always |
 | `Ctrl+W` | Kill the word before the cursor | Always |
-| `Ctrl+U` / `Ctrl+K` | Kill from cursor to line start / end | Always |
+| `Ctrl+D` | Delete the grapheme after the cursor | Always |
+| `Ctrl+U` / `Ctrl+K` | Kill from cursor to line start / end; in multi-line, `Ctrl+K` at end-of-line joins the next line | Always |
 | `Ctrl+J` | Insert a newline | Multi-line only; swallowed in single-line so it never submits |
 | `Alt+B` / `Alt+F` | Move by word backward / forward | Terminals that emit meta-key sequences |
 | `Alt+D` | Kill the word after the cursor | Terminals that emit meta-key sequences |

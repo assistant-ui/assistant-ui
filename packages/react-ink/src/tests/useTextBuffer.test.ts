@@ -99,6 +99,17 @@ describe("textBufferReducer", () => {
     expect(killed.cursorOffset).toBe(11);
   });
 
+  it("joins the next line when killing forward at end-of-line in multi-line mode", () => {
+    const state = reduce(
+      createTextBufferState("one\ntwo\nthree"),
+      { type: "set-cursor", cursorOffset: 3 },
+      { type: "kill-end", multiLine: true },
+    );
+
+    expect(state.text).toBe("onetwo\nthree");
+    expect(state.cursorOffset).toBe(3);
+  });
+
   it("kills to line boundaries in multi-line mode", () => {
     const killStart = reduce(
       createTextBufferState("one\ntwo\nthree"),
