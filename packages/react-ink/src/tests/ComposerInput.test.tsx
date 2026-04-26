@@ -79,22 +79,7 @@ describe("ComposerInput", () => {
     cursorOffset,
     preferredColumn: undefined,
     dispatchAction: vi.fn(),
-    insertText: vi.fn(),
-    deleteBackward: vi.fn(),
-    deleteForward: vi.fn(),
-    moveLeft: vi.fn(),
-    moveRight: vi.fn(),
-    moveUp: vi.fn(),
-    moveDown: vi.fn(),
-    moveHome: vi.fn(),
-    moveEnd: vi.fn(),
-    moveWordLeft: vi.fn(),
-    moveWordRight: vi.fn(),
-    killWordBackward: vi.fn(),
-    killStart: vi.fn(),
-    killEnd: vi.fn(),
     setText: vi.fn(),
-    setCursorOffset: vi.fn(),
   });
 
   it("maps navigation and insert keys to the text buffer", async () => {
@@ -332,6 +317,176 @@ describe("ComposerInput", () => {
     await flush();
 
     expect(buffer.setText).toHaveBeenCalledWith("");
+  });
+
+  it("does not submit on ctrl-j in single-line mode", async () => {
+    const send = vi.fn();
+    const buffer = createBuffer("hello");
+
+    mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
+      selector({ composer: { text: "hello" } } as never),
+    );
+    mockUseTextBuffer.mockReturnValue(buffer);
+    mockUseAui.mockReturnValue({
+      composer: () => ({
+        send,
+        setText: vi.fn(),
+      }),
+    });
+    mockUseFocus.mockReturnValue({ isFocused: true });
+
+    render(<ComposerInput submitOnEnter />);
+    await flush();
+
+    inputHandler?.("j", { ctrl: true, return: true });
+    await flush();
+
+    expect(send).not.toHaveBeenCalled();
+    expect(buffer.dispatchAction).not.toHaveBeenCalled();
+  });
+
+  it("kills the word after the cursor on alt-d", async () => {
+    const buffer = createBuffer("alpha beta gamma", 0);
+    const setText = vi.fn();
+
+    mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
+      selector({ composer: { text: "alpha beta gamma" } } as never),
+    );
+    mockUseTextBuffer.mockReturnValue(buffer);
+    mockUseAui.mockReturnValue({
+      composer: () => ({
+        send: vi.fn(),
+        setText,
+      }),
+    });
+    mockUseFocus.mockReturnValue({ isFocused: true });
+
+    render(<ComposerInput />);
+    await flush();
+
+    inputHandler?.("d", { meta: true });
+    await flush();
+
+    expect(buffer.dispatchAction).toHaveBeenCalledWith({
+      type: "kill-word-forward",
+    });
+    expect(setText).toHaveBeenCalledWith(" beta gamma");
+  });
+
+  it("dispatches readline-style ctrl bindings", async () => {
+    const buffer = createBuffer("alpha beta gamma", 6);
+
+    mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
+      selector({ composer: { text: "alpha beta gamma" } } as never),
+    );
+    mockUseTextBuffer.mockReturnValue(buffer);
+    mockUseAui.mockReturnValue({
+      composer: () => ({
+        send: vi.fn(),
+        setText: vi.fn(),
+      }),
+    });
+    mockUseFocus.mockReturnValue({ isFocused: true });
+
+    render(<ComposerInput multiLine />);
+    await flush();
+
+    inputHandler?.("a", { ctrl: true });
+    inputHandler?.("e", { ctrl: true });
+    inputHandler?.("w", { ctrl: true });
+    inputHandler?.("u", { ctrl: true });
+    inputHandler?.("k", { ctrl: true });
+    await flush();
+
+    expect(buffer.dispatchAction).toHaveBeenNthCalledWith(1, {
+      type: "move-home",
+      multiLine: true,
+    });
+    expect(buffer.dispatchAction).toHaveBeenNthCalledWith(2, {
+      type: "move-end",
+      multiLine: true,
+    });
+    expect(buffer.dispatchAction).toHaveBeenNthCalledWith(3, {
+      type: "kill-word-backward",
+    });
+    expect(buffer.dispatchAction).toHaveBeenNthCalledWith(4, {
+      type: "kill-start",
+      multiLine: true,
+    });
+    expect(buffer.dispatchAction).toHaveBeenNthCalledWith(5, {
+      type: "kill-end",
+      multiLine: true,
+    });
+  });
+
+  it("dispatches alt-b and alt-f for word navigation", async () => {
+    const buffer = createBuffer("alpha beta gamma", 6);
+
+    mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
+      selector({ composer: { text: "alpha beta gamma" } } as never),
+    );
+    mockUseTextBuffer.mockReturnValue(buffer);
+    mockUseAui.mockReturnValue({
+      composer: () => ({
+        send: vi.fn(),
+        setText: vi.fn(),
+      }),
+    });
+    mockUseFocus.mockReturnValue({ isFocused: true });
+
+    render(<ComposerInput />);
+    await flush();
+
+    inputHandler?.("b", { meta: true });
+    inputHandler?.("f", { meta: true });
+    await flush();
+
+    expect(buffer.dispatchAction).toHaveBeenNthCalledWith(1, {
+      type: "move-word-left",
+    });
+    expect(buffer.dispatchAction).toHaveBeenNthCalledWith(2, {
+      type: "move-word-right",
+    });
+  });
+
+  it("dispatches Home/End and arrow navigation in multi-line mode", async () => {
+    const buffer = createBuffer("one\ntwo\nthree", 5);
+
+    mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
+      selector({ composer: { text: "one\ntwo\nthree" } } as never),
+    );
+    mockUseTextBuffer.mockReturnValue(buffer);
+    mockUseAui.mockReturnValue({
+      composer: () => ({
+        send: vi.fn(),
+        setText: vi.fn(),
+      }),
+    });
+    mockUseFocus.mockReturnValue({ isFocused: true });
+
+    render(<ComposerInput multiLine />);
+    await flush();
+
+    inputHandler?.("", { home: true });
+    inputHandler?.("", { end: true });
+    inputHandler?.("", { upArrow: true });
+    inputHandler?.("", { downArrow: true });
+    await flush();
+
+    expect(buffer.dispatchAction).toHaveBeenNthCalledWith(1, {
+      type: "move-home",
+      multiLine: true,
+    });
+    expect(buffer.dispatchAction).toHaveBeenNthCalledWith(2, {
+      type: "move-end",
+      multiLine: true,
+    });
+    expect(buffer.dispatchAction).toHaveBeenNthCalledWith(3, {
+      type: "move-up",
+    });
+    expect(buffer.dispatchAction).toHaveBeenNthCalledWith(4, {
+      type: "move-down",
+    });
   });
 
   it("does not treat local store echoes as external resets", async () => {

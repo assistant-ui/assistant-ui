@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createTextBufferState,
+  getGraphemeAt,
   textBufferReducer,
   type TextBufferAction,
   type TextBufferState,
@@ -124,5 +125,111 @@ describe("textBufferReducer", () => {
 
     expect(state.text).toBe("reset");
     expect(state.cursorOffset).toBe(5);
+  });
+
+  it("does not corrupt the buffer when killing from line start at offset 0", () => {
+    const state = reduce(
+      createTextBufferState("\nhello"),
+      { type: "set-cursor", cursorOffset: 0 },
+      { type: "kill-start", multiLine: true },
+    );
+
+    expect(state.text).toBe("\nhello");
+    expect(state.cursorOffset).toBe(0);
+  });
+
+  it("keeps the cursor at column 0 when moving home on a line beginning with a newline", () => {
+    const state = reduce(
+      createTextBufferState("\nhello"),
+      { type: "set-cursor", cursorOffset: 0 },
+      { type: "move-home", multiLine: true },
+    );
+
+    expect(state.cursorOffset).toBe(0);
+  });
+
+  it("steps over surrogate pairs when moving and deleting", () => {
+    const emoji = "😀";
+    const movedRight = reduce(
+      createTextBufferState(`a${emoji}b`),
+      { type: "set-cursor", cursorOffset: 1 },
+      { type: "move-right" },
+    );
+    const movedLeft = reduce(
+      createTextBufferState(`a${emoji}b`),
+      { type: "set-cursor", cursorOffset: 3 },
+      { type: "move-left" },
+    );
+    const deletedBackward = reduce(
+      createTextBufferState(`a${emoji}b`),
+      { type: "set-cursor", cursorOffset: 3 },
+      { type: "delete-backward" },
+    );
+    const deletedForward = reduce(
+      createTextBufferState(`a${emoji}b`),
+      { type: "set-cursor", cursorOffset: 1 },
+      { type: "delete-forward" },
+    );
+
+    expect(movedRight.cursorOffset).toBe(3);
+    expect(movedLeft.cursorOffset).toBe(1);
+    expect(deletedBackward.text).toBe("ab");
+    expect(deletedBackward.cursorOffset).toBe(1);
+    expect(deletedForward.text).toBe("ab");
+    expect(deletedForward.cursorOffset).toBe(1);
+  });
+
+  it("treats grapheme clusters as a single character", () => {
+    const skinToned = "👍🏽";
+    const deletedBackward = reduce(
+      createTextBufferState(`a${skinToned}b`),
+      { type: "set-cursor", cursorOffset: 1 + skinToned.length },
+      { type: "delete-backward" },
+    );
+    const deletedForward = reduce(
+      createTextBufferState(`a${skinToned}b`),
+      { type: "set-cursor", cursorOffset: 1 },
+      { type: "delete-forward" },
+    );
+    const movedRight = reduce(
+      createTextBufferState(`a${skinToned}b`),
+      { type: "set-cursor", cursorOffset: 1 },
+      { type: "move-right" },
+    );
+
+    expect(deletedBackward.text).toBe("ab");
+    expect(deletedForward.text).toBe("ab");
+    expect(movedRight.cursorOffset).toBe(1 + skinToned.length);
+  });
+
+  it("returns the full grapheme cluster at an offset", () => {
+    expect(getGraphemeAt("ab", 0)).toBe("a");
+    expect(getGraphemeAt("a😀b", 1)).toBe("😀");
+    expect(getGraphemeAt("a😀b", 3)).toBe("b");
+    expect(getGraphemeAt("a", 1)).toBe("");
+    expect(getGraphemeAt("a\nb", 1)).toBe("\n");
+    expect(getGraphemeAt("👍🏽", 0)).toBe("👍🏽");
+  });
+
+  it("advances by ideograph for CJK text without spaces", () => {
+    const movedRight = reduce(
+      createTextBufferState("你好世界"),
+      { type: "set-cursor", cursorOffset: 0 },
+      { type: "move-word-right" },
+    );
+
+    expect(movedRight.cursorOffset).toBeGreaterThan(0);
+    expect(movedRight.cursorOffset).toBeLessThanOrEqual(4);
+  });
+
+  it("kills the next word forward", () => {
+    const state = reduce(
+      createTextBufferState("alpha beta gamma"),
+      { type: "set-cursor", cursorOffset: 0 },
+      { type: "kill-word-forward" },
+    );
+
+    expect(state.text).toBe(" beta gamma");
+    expect(state.cursorOffset).toBe(0);
   });
 });

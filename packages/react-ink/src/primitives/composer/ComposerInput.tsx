@@ -2,18 +2,20 @@ import { useEffect, useRef } from "react";
 import type { ComponentProps } from "react";
 import { Box, Text, useFocus, useInput } from "ink";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import { textBufferReducer, useTextBuffer } from "./useTextBuffer";
+import {
+  getGraphemeAt,
+  textBufferReducer,
+  useTextBuffer,
+} from "./useTextBuffer";
+
+// cap dedup map so a store that drops echoes can't grow the counter without bound
+const PENDING_SYNC_CAP = 64;
 
 export type ComposerInputProps = ComponentProps<typeof Box> & {
-  /** Submit the message when Enter is pressed. @default false */
   submitOnEnter?: boolean | undefined;
-  /** Placeholder text shown when the input is empty. */
   placeholder?: string | undefined;
-  /** Whether this input should receive focus automatically. @default true */
   autoFocus?: boolean | undefined;
-  /** Allow multi-line editing. @default false */
   multiLine?: boolean | undefined;
-  /** Override the default submit behavior. */
   onSubmit?: ((text: string) => void) | undefined;
 };
 
@@ -33,21 +35,20 @@ export const ComposerInput = ({
   const { text, cursorOffset, preferredColumn, dispatchAction, setText } =
     useTextBuffer(storeText);
   const bufferStateRef = useRef({ text, cursorOffset, preferredColumn });
-  const pendingLocalSyncTextsRef = useRef<string[]>([]);
+  const pendingLocalSyncTextsRef = useRef(new Map<string, number>());
   bufferStateRef.current = { text, cursorOffset, preferredColumn };
 
   useEffect(() => {
-    const pendingLocalSyncIndex =
-      pendingLocalSyncTextsRef.current.indexOf(storeText);
-    if (pendingLocalSyncIndex !== -1) {
-      pendingLocalSyncTextsRef.current = pendingLocalSyncTextsRef.current.slice(
-        pendingLocalSyncIndex + 1,
-      );
+    const counter = pendingLocalSyncTextsRef.current;
+    const pending = counter.get(storeText) ?? 0;
+    if (pending > 0) {
+      if (pending === 1) counter.delete(storeText);
+      else counter.set(storeText, pending - 1);
       return;
     }
     if (storeText === text) return;
 
-    pendingLocalSyncTextsRef.current = [];
+    counter.clear();
     setText(storeText);
     bufferStateRef.current = {
       text: storeText,
@@ -61,15 +62,15 @@ export const ComposerInput = ({
     options?: { syncText?: boolean },
   ) => {
     const currentState = bufferStateRef.current;
+    // run the reducer eagerly so submit-after-edit sees post-action state before react commits
     const nextState = textBufferReducer(currentState, action);
     dispatchAction(action);
     bufferStateRef.current = nextState;
 
     if (options?.syncText !== false && nextState.text !== currentState.text) {
-      pendingLocalSyncTextsRef.current = [
-        ...pendingLocalSyncTextsRef.current,
-        nextState.text,
-      ];
+      const counter = pendingLocalSyncTextsRef.current;
+      if (counter.size >= PENDING_SYNC_CAP) counter.clear();
+      counter.set(nextState.text, (counter.get(nextState.text) ?? 0) + 1);
       auiRef.current.composer().setText(nextState.text);
     }
   };
@@ -94,8 +95,11 @@ export const ComposerInput = ({
       const lowerInput = input.toLowerCase();
 
       if (key.ctrl) {
-        if (lowerInput === "j" && multiLine) {
-          applyAction({ type: "insert", text: "\n" });
+        // ctrl+j may also report key.return; swallow so single-line never submits
+        if (lowerInput === "j") {
+          if (multiLine) {
+            applyAction({ type: "insert", text: "\n" });
+          }
           return;
         }
         if (lowerInput === "a") {
@@ -127,6 +131,10 @@ export const ComposerInput = ({
         }
         if (lowerInput === "f") {
           applyAction({ type: "move-word-right" }, { syncText: false });
+          return;
+        }
+        if (lowerInput === "d") {
+          applyAction({ type: "kill-word-forward" });
           return;
         }
       }
@@ -193,11 +201,16 @@ export const ComposerInput = ({
   );
 
   const hasText = text.length > 0;
-  const isShowingPlaceholder = !hasText && !!placeholder;
+  const isShowingPlaceholder = !hasText && placeholder.length > 0;
   const before = hasText ? text.slice(0, cursorOffset) : "";
-  const atCursor = hasText ? (text[cursorOffset] ?? " ") : " ";
+  const charAtCursor = hasText ? getGraphemeAt(text, cursorOffset) : "";
+  const isOnNewline = charAtCursor === "\n";
+  // render a space when on a newline so the inverse cursor cell stays visible
+  const atCursor = charAtCursor === "" || isOnNewline ? " " : charAtCursor;
   const after = hasText
-    ? text.slice(cursorOffset + (cursorOffset < text.length ? 1 : 0))
+    ? isOnNewline
+      ? text.slice(cursorOffset)
+      : text.slice(cursorOffset + charAtCursor.length)
     : placeholder;
 
   return (
@@ -208,7 +221,7 @@ export const ComposerInput = ({
         </Text>
       ) : (
         <Text dimColor={isShowingPlaceholder}>
-          {hasText ? before : ""}
+          {before}
           <Text inverse>{atCursor}</Text>
           {after}
         </Text>

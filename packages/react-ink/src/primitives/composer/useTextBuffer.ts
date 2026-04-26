@@ -19,6 +19,7 @@ export type TextBufferAction =
   | { type: "move-word-left" }
   | { type: "move-word-right" }
   | { type: "kill-word-backward" }
+  | { type: "kill-word-forward" }
   | { type: "kill-start"; multiLine: boolean }
   | { type: "kill-end"; multiLine: boolean }
   | { type: "set-text"; text: string }
@@ -27,8 +28,42 @@ export type TextBufferAction =
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
 
+const graphemeSegmenter = new Intl.Segmenter(undefined, {
+  granularity: "grapheme",
+});
+const wordSegmenter = new Intl.Segmenter(undefined, { granularity: "word" });
+
+const stepGraphemeLeft = (text: string, offset: number) => {
+  if (offset <= 0) return 0;
+  let previous = 0;
+  for (const { index } of graphemeSegmenter.segment(text)) {
+    if (index >= offset) break;
+    previous = index;
+  }
+  return previous;
+};
+
+const stepGraphemeRight = (text: string, offset: number) => {
+  if (offset >= text.length) return text.length;
+  for (const { index, segment } of graphemeSegmenter.segment(text)) {
+    const end = index + segment.length;
+    if (end > offset) return end;
+  }
+  return text.length;
+};
+
+export const getGraphemeAt = (text: string, offset: number) => {
+  if (offset >= text.length) return "";
+  for (const { index, segment } of graphemeSegmenter.segment(text)) {
+    if (index === offset) return segment;
+    if (index > offset) return "";
+  }
+  return "";
+};
+
 const getLineStart = (text: string, cursorOffset: number) => {
-  const lineBreakIndex = text.lastIndexOf("\n", Math.max(0, cursorOffset - 1));
+  if (cursorOffset === 0) return 0;
+  const lineBreakIndex = text.lastIndexOf("\n", cursorOffset - 1);
   return lineBreakIndex === -1 ? 0 : lineBreakIndex + 1;
 };
 
@@ -44,31 +79,21 @@ const getLineRange = (text: string, cursorOffset: number) => {
 };
 
 const getPreviousWordOffset = (text: string, cursorOffset: number) => {
-  let nextOffset = cursorOffset;
-
-  while (nextOffset > 0 && /\s/.test(text[nextOffset - 1]!)) {
-    nextOffset -= 1;
+  let result = 0;
+  for (const segment of wordSegmenter.segment(text)) {
+    if (segment.index >= cursorOffset) break;
+    if (segment.isWordLike) result = segment.index;
   }
-
-  while (nextOffset > 0 && !/\s/.test(text[nextOffset - 1]!)) {
-    nextOffset -= 1;
-  }
-
-  return nextOffset;
+  return result;
 };
 
 const getNextWordOffset = (text: string, cursorOffset: number) => {
-  let nextOffset = cursorOffset;
-
-  while (nextOffset < text.length && /\s/.test(text[nextOffset]!)) {
-    nextOffset += 1;
+  for (const segment of wordSegmenter.segment(text)) {
+    const end = segment.index + segment.segment.length;
+    if (end <= cursorOffset) continue;
+    if (segment.isWordLike) return end;
   }
-
-  while (nextOffset < text.length && !/\s/.test(text[nextOffset]!)) {
-    nextOffset += 1;
-  }
-
-  return nextOffset;
+  return text.length;
 };
 
 const moveVertical = (
@@ -131,21 +156,19 @@ export const textBufferReducer = (
     case "delete-backward": {
       if (state.cursorOffset === 0) return state;
 
+      const previousOffset = stepGraphemeLeft(state.text, state.cursorOffset);
       const nextText =
-        state.text.slice(0, state.cursorOffset - 1) +
+        state.text.slice(0, previousOffset) +
         state.text.slice(state.cursorOffset);
-      return clearPreferredColumn(
-        { ...state, text: nextText },
-        state.cursorOffset - 1,
-      );
+      return clearPreferredColumn({ ...state, text: nextText }, previousOffset);
     }
 
     case "delete-forward": {
       if (state.cursorOffset >= state.text.length) return state;
 
+      const nextOffset = stepGraphemeRight(state.text, state.cursorOffset);
       const nextText =
-        state.text.slice(0, state.cursorOffset) +
-        state.text.slice(state.cursorOffset + 1);
+        state.text.slice(0, state.cursorOffset) + state.text.slice(nextOffset);
       return clearPreferredColumn(
         { ...state, text: nextText },
         state.cursorOffset,
@@ -153,12 +176,15 @@ export const textBufferReducer = (
     }
 
     case "move-left":
-      return clearPreferredColumn(state, Math.max(0, state.cursorOffset - 1));
+      return clearPreferredColumn(
+        state,
+        stepGraphemeLeft(state.text, state.cursorOffset),
+      );
 
     case "move-right":
       return clearPreferredColumn(
         state,
-        Math.min(state.text.length, state.cursorOffset + 1),
+        stepGraphemeRight(state.text, state.cursorOffset),
       );
 
     case "move-up": {
@@ -223,6 +249,18 @@ export const textBufferReducer = (
       );
     }
 
+    case "kill-word-forward": {
+      const nextOffset = getNextWordOffset(state.text, state.cursorOffset);
+      if (nextOffset === state.cursorOffset) return state;
+
+      const nextText =
+        state.text.slice(0, state.cursorOffset) + state.text.slice(nextOffset);
+      return clearPreferredColumn(
+        { ...state, text: nextText },
+        state.cursorOffset,
+      );
+    }
+
     case "kill-start": {
       const rangeStart = action.multiLine
         ? getLineStart(state.text, state.cursorOffset)
@@ -274,56 +312,14 @@ export const useTextBuffer = (text = "") => {
     textBufferReducer,
     createTextBufferState(text),
   );
-  const dispatchAction = useCallback(
-    (action: TextBufferAction) => dispatch(action),
+  const setText = useCallback(
+    (nextText: string) => dispatch({ type: "set-text", text: nextText }),
     [],
   );
 
   return {
     ...state,
-    dispatchAction,
-    insertText: useCallback(
-      (nextText: string) => dispatch({ type: "insert", text: nextText }),
-      [],
-    ),
-    deleteBackward: useCallback(
-      () => dispatch({ type: "delete-backward" }),
-      [],
-    ),
-    deleteForward: useCallback(() => dispatch({ type: "delete-forward" }), []),
-    moveLeft: useCallback(() => dispatch({ type: "move-left" }), []),
-    moveRight: useCallback(() => dispatch({ type: "move-right" }), []),
-    moveUp: useCallback(() => dispatch({ type: "move-up" }), []),
-    moveDown: useCallback(() => dispatch({ type: "move-down" }), []),
-    moveHome: useCallback(
-      (multiLine: boolean) => dispatch({ type: "move-home", multiLine }),
-      [],
-    ),
-    moveEnd: useCallback(
-      (multiLine: boolean) => dispatch({ type: "move-end", multiLine }),
-      [],
-    ),
-    moveWordLeft: useCallback(() => dispatch({ type: "move-word-left" }), []),
-    moveWordRight: useCallback(() => dispatch({ type: "move-word-right" }), []),
-    killWordBackward: useCallback(
-      () => dispatch({ type: "kill-word-backward" }),
-      [],
-    ),
-    killStart: useCallback(
-      (multiLine: boolean) => dispatch({ type: "kill-start", multiLine }),
-      [],
-    ),
-    killEnd: useCallback(
-      (multiLine: boolean) => dispatch({ type: "kill-end", multiLine }),
-      [],
-    ),
-    setText: useCallback(
-      (nextText: string) => dispatch({ type: "set-text", text: nextText }),
-      [],
-    ),
-    setCursorOffset: useCallback(
-      (cursorOffset: number) => dispatch({ type: "set-cursor", cursorOffset }),
-      [],
-    ),
+    dispatchAction: dispatch,
+    setText,
   };
 };
