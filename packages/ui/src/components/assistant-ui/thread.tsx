@@ -300,15 +300,8 @@ const AssistantActionBar: FC = () => {
 };
 
 const UserMessage: FC = () => {
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [isOverflowing, setIsOverflowing] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    setIsOverflowing(el.scrollHeight > el.clientHeight + 1);
-  });
+  const { contentRef, isOverflowing, isExpanded, setIsExpanded } =
+    useUserMessageTruncate();
 
   return (
     <MessagePrimitive.Root
@@ -394,8 +387,14 @@ export const useUserMessageTruncate = () => {
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
-    setIsOverflowing(el.scrollHeight > el.clientHeight + 1);
-  });
+    const measure = () => {
+      if (!isExpanded) setIsOverflowing(el.scrollHeight > el.clientHeight + 1);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isExpanded]);
 
   return { contentRef, isOverflowing, isExpanded, setIsExpanded } as const;
 };
