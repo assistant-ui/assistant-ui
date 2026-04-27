@@ -1,6 +1,6 @@
 ---
 title: Perplexity Clone
-description: Dark theme with cyan accents for a Perplexity look and feel
+description: Theme-aware composer styling inspired by Perplexity
 ---
 
 import { Perplexity } from "@/components/examples/perplexity";
@@ -11,16 +11,16 @@ import { Perplexity } from "@/components/examples/perplexity";
 
 ## Overview
 
-The Perplexity Clone demonstrates how to customize assistant-ui to match Perplexity's search-focused interface. This example features their distinctive forced dark theme with cyan accents, large welcome typography, and answer-focused response formatting.
+The Perplexity Clone demonstrates how to customize assistant-ui to match Perplexity's search-focused interface. This version focuses on a modern composer surface with explicit light and dark theme styling, compact attachment chips, and stateful dictate, send, and cancel actions.
 
 ## Features
 
-- **Forced Dark Theme**: Consistent `#1a1a1a` background regardless of system preference
-- **Cyan Accent**: Signature `#20b8cd` for interactive elements
-- **Search-First Design**: Large welcome text with prominent input
-- **Answer Format**: Responses prefixed with sparkle icon and "Answer" heading
-- **Layered Surfaces**: Multiple dark shades for depth (`#1a1a1a`, `#242424`, `#3a3a3a`)
-- **Attachment Support**: File uploads with paperclip icon
+- **Theme-Aware Styling**: Separate light and dark palettes instead of a single forced theme
+- **Perplexity-Inspired Composer**: Centered card with a dedicated bottom action row
+- **Stateful Primary Action**: Dictate when empty, send when typing, cancel while running
+- **Attachment Chips**: Compact inline previews that sit above the input area
+- **Prompt-First Layout**: Large centered heading with a restrained transcript design
+- **Minimal Controls**: Add-attachment and model affordances keep the bottom row focused
 
 ## Quick Start
 
@@ -30,82 +30,75 @@ npx assistant-ui add thread
 
 ## Code
 
-The Perplexity clone uses a dark theme with cyan accents:
+The Perplexity clone uses a single shared composer with light and dark theme tokens:
 
 ```tsx
 import {
   AuiIf,
   ThreadPrimitive,
   ComposerPrimitive,
-  MessagePrimitive,
+  AttachmentPrimitive,
 } from "@assistant-ui/react";
 
 export const Thread = () => {
   return (
-    <ThreadPrimitive.Root
-      className="dark h-full bg-[#1a1a1a] text-[#f5f5f5]"
-      style={{ ["--thread-max-width"]: "42rem" }}
-    >
+    <ThreadPrimitive.Root className="bg-[#f6f2ec] text-[#1f1b17] dark:bg-[#171615] dark:text-[#f5f2ed]">
       <AuiIf condition={(s) => s.thread.isEmpty}>
-        <div className="flex h-full w-full items-center justify-center">
-          <div className="flex w-full max-w-[var(--thread-max-width)] flex-col gap-12">
-            <p className="text-4xl text-[#f5f5f5] md:text-5xl">
-              What do you want to know?
-            </p>
-            <ComposerPrimitive.Root className="rounded-xl border border-[#3a3a3a] bg-[#242424] focus-within:border-[#20b8cd] focus-within:ring-1 focus-within:ring-[#20b8cd]/30">
-              <ComposerPrimitive.Input
-                placeholder="Ask anything..."
-                className="text-[#f5f5f5] text-lg placeholder:text-[#808080]"
-              />
-              <ComposerPrimitive.Send className="rounded-full bg-[#20b8cd] text-[#1a1a1a] hover:bg-[#1aa3b5]">
-                <ArrowRightIcon />
-              </ComposerPrimitive.Send>
-            </ComposerPrimitive.Root>
+        <div className="flex h-full items-center justify-center">
+          <div className="w-full max-w-3xl">
+            <p className="mb-8 text-center font-display text-4xl">perplexity</p>
+            <Composer />
           </div>
         </div>
       </AuiIf>
 
       <ThreadPrimitive.Viewport>
-        <ThreadPrimitive.Messages>
-          {({ message }) => message.role === "user" ? <UserMessage /> : <AssistantMessage />}
-        </ThreadPrimitive.Messages>
+        <ThreadPrimitive.Messages />
         <Composer />
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
   );
 };
 
-const AssistantMessage = () => (
-  <MessagePrimitive.Root className="max-w-[var(--thread-max-width)]">
-    <h1 className="mb-4 inline-flex items-center gap-2 text-2xl text-[#20b8cd]">
-      <SparkleIcon /> Answer
-    </h1>
-    <MessagePrimitive.Parts>
-      {({ part }) => part.type === "text" ? <MarkdownText /> : null}
-    </MessagePrimitive.Parts>
-  </MessagePrimitive.Root>
+const Composer = () => (
+  <ComposerPrimitive.Root className="rounded-[28px] border border-[#d7d0c5] bg-[#fcfbf8] dark:border-[#4a433b] dark:bg-[#23211f]">
+    <ComposerPrimitive.Attachments components={{ Attachment: ComposerChip }} />
+    <ComposerPrimitive.Input placeholder="Ask anything..." />
+    <div className="flex items-center justify-between">
+      <ComposerPrimitive.AddAttachment />
+      <div className="flex items-center gap-2">
+        <button type="button">Model</button>
+        <ComposerPrimitive.Dictate />
+        <ComposerPrimitive.Send />
+        <ComposerPrimitive.Cancel />
+      </div>
+    </div>
+  </ComposerPrimitive.Root>
 );
+
+const ComposerChip = () => <AttachmentPrimitive.Root />;
 ```
 
 ### Color Palette
 
-| Element | Color |
-|---------|-------|
-| Background | `#1a1a1a` |
-| Surface | `#242424` |
-| Border | `#3a3a3a` |
-| Text | `#f5f5f5` |
-| Muted text | `#808080`, `#a0a0a0` |
-| Accent (cyan) | `#20b8cd` |
-| Accent hover | `#1aa3b5` |
+| Element | Light | Dark |
+|---------|-------|------|
+| Background | `#f6f2ec` | `#171615` |
+| Composer surface | `#fcfbf8` | `#23211f` |
+| Border | `#d7d0c5` | `#4a433b` |
+| Primary text | `#1f1b17` | `#f5f2ed` |
+| Muted text | `#7d7468` | `#a19a91` |
+| Primary action | `#25211c` | `#f5f2ed` |
+| Accent detail | `#746c62` | `#a19a91` |
 
 ### Styling Details
 
-- **Focus Ring**: `focus-within:border-[#20b8cd] focus-within:ring-1 focus-within:ring-[#20b8cd]/30`
-- **CSS Variable**: `--thread-max-width: 42rem` for consistent content width
-- **Welcome**: Large `text-4xl md:text-5xl` for impact
-- **Follow-up Composer**: Rounded pill with `rounded-full` in follow-up mode
-- **Answer Heading**: Cyan text with sparkle icon prefix
+- **Composer Shell**: Rounded card with explicit light and dark border colors
+- **Primary Action Swap**: Dictate, send, and cancel share the same trailing action slot
+- **Attachment Row**: Chips render inline above the input instead of as a detached block
+- **Bottom Row**: Attachment and model controls sit in a minimal trailing action bar
+- **Welcome Layout**: Centered wordmark treatment with the composer as the hero element
+- **Transcript Styling**: Simpler messages to keep the composer as the focal point
 
 ## Source
 
