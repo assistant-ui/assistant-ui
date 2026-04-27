@@ -218,20 +218,6 @@ export abstract class BaseComposerRuntimeCore
       return;
     }
 
-    const adapter = this.getAttachmentAdapter();
-    if (!adapter) throw new Error("Attachments are not supported");
-
-    if (
-      !fileMatchesAccept(
-        { name: fileOrAttachment.name, type: fileOrAttachment.type },
-        adapter.accept,
-      )
-    ) {
-      throw new Error(
-        `File type ${fileOrAttachment.type || "unknown"} is not accepted. Accepted types: ${adapter.accept}`,
-      );
-    }
-
     const upsertAttachment = (a: PendingAttachment) => {
       const idx = this._attachments.findIndex(
         (attachment) => attachment.id === a.id,
@@ -251,6 +237,20 @@ export abstract class BaseComposerRuntimeCore
 
     let lastAttachment: PendingAttachment | undefined;
     try {
+      const adapter = this.getAttachmentAdapter();
+      if (!adapter) throw new Error("Attachments are not supported");
+
+      if (
+        !fileMatchesAccept(
+          { name: fileOrAttachment.name, type: fileOrAttachment.type },
+          adapter.accept,
+        )
+      ) {
+        throw new Error(
+          `File type ${fileOrAttachment.type || "unknown"} is not accepted. Accepted types: ${adapter.accept}`,
+        );
+      }
+
       const promiseOrGenerator = adapter.add({ file: fileOrAttachment });
       if (Symbol.asyncIterator in promiseOrGenerator) {
         for await (const r of promiseOrGenerator) {
@@ -271,7 +271,7 @@ export abstract class BaseComposerRuntimeCore
       try {
         this._notifyEventSubscribers("attachmentAddError");
       } catch {
-        // prevent subscriber errors from masking the adapter error
+        // prevent subscriber errors from masking the original error
       }
       throw e;
     }
