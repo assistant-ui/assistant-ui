@@ -1,3 +1,4 @@
+import type { ComponentType, PropsWithChildren } from "react";
 import type { ThreadMessage } from "../../types/message";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { AssistantStream } from "assistant-stream";
@@ -33,7 +34,17 @@ export type RemoteThreadListAdapter = {
   ): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
 
-  unstable_Provider?: ((...args: any[]) => unknown) | undefined;
+  /**
+   * Optional React component wrapped around each active thread. Use it to
+   * inject per-thread context such as a history or attachments adapter (see
+   * `useCloudThreadListAdapter` for the canonical shape).
+   *
+   * The Provider must render `children` on its first commit; deferring them
+   * behind a loading state, a Suspense boundary, or a `useEffect`-gated render
+   * is unsupported and leaves thread context unavailable to downstream
+   * consumers. Load data inside an always-mounted child instead.
+   */
+  unstable_Provider?: ComponentType<PropsWithChildren> | undefined;
 };
 
 export type RemoteThreadListOptions = {

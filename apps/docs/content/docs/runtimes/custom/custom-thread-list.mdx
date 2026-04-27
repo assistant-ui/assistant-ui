@@ -217,7 +217,7 @@ When the hook mounts it calls `list()` on your adapter, hydrates existing thread
       name: "unstable_Provider",
       type: "ComponentType<PropsWithChildren>",
       description:
-        "Optional wrapper rendered around all thread runtimes. Use it to inject adapters such as history or attachments (see the Cloud adapter).",
+        "Optional wrapper rendered around each active thread. Use it to inject adapters such as history or attachments (see the Cloud adapter). MUST render `children` synchronously on first commit; deferring children behind a loading state, Suspense, or `useEffect` gate is unsupported and triggers a dev-mode warning.",
     },
   ]}
 />
@@ -359,3 +359,29 @@ If you need history or attachment support, expose them via `unstable_Provider`. 
 - `attachments` – e.g. `CloudFileAttachmentAdapter`
 
 Reuse that pattern to register any capability your runtime requires.
+
+<Callout type="warn">
+  `unstable_Provider` must render `children` synchronously on first commit. Do **not** gate `children` behind a loading state, a Suspense boundary, or a `useEffect`-only render — the runtime binder relies on the Provider mounting its children synchronously to deliver thread context to downstream consumers, and a Provider that defers `children` will leave the composer pointed at an empty thread.
+
+  If you need to load data before the thread is usable, do it inside an always-rendered child (for example via a `ThreadHistoryAdapter` returned from your `unstable_Provider`), not by withholding `children`. Real chat UIs keep the composer mounted at all times and stream history into it.
+
+  ```tsx
+  // ❌ unsupported — `children` are gated behind a loading state
+  unstable_Provider: ({ children }) => {
+    const [ready, setReady] = useState(false);
+    useEffect(() => { loadHistory().then(() => setReady(true)); }, []);
+    if (!ready) return <Spinner />;
+    return <>{children}</>;
+  };
+
+  // ✅ correct — render `children` immediately, hydrate adapters in place
+  unstable_Provider: ({ children }) => {
+    const history = useThreadHistoryAdapter();
+    return (
+      <RuntimeAdapterProvider adapters={{ history }}>
+        {children}
+      </RuntimeAdapterProvider>
+    );
+  };
+  ```
+</Callout>

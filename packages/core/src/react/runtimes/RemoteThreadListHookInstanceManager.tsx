@@ -1,12 +1,15 @@
 import {
   type FC,
+  type RefObject,
   useCallback,
   useRef,
   useEffect,
+  useLayoutEffect,
   memo,
   type PropsWithChildren,
   type ComponentType,
   useMemo,
+  Fragment,
 } from "react";
 import { type UseBoundStore, type StoreApi, create } from "zustand";
 import { useAui } from "@assistant-ui/store";
@@ -22,6 +25,15 @@ type RemoteThreadListHook = () => AssistantRuntime;
 
 type RemoteThreadListHookInstance = {
   runtime?: ThreadRuntimeCore;
+};
+
+const ProviderRenderDetector: FC<{
+  detectorRef: RefObject<boolean>;
+}> = ({ detectorRef }) => {
+  useLayoutEffect(() => {
+    detectorRef.current = true;
+  }, [detectorRef]);
+  return null;
 };
 export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   private useRuntimeHook: UseBoundStore<
@@ -82,9 +94,11 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     }
   }
 
-  private _InnerActiveThreadProvider: FC<{
-    threadId: string;
-  }> = ({ threadId }) => {
+  // Rendered outside the user's Provider so deferred `children` cannot strand the binding.
+  private _RuntimeBinder: FC<PropsWithChildren<{ threadId: string }>> = ({
+    threadId,
+    children,
+  }) => {
     const { useRuntime } = this.useRuntimeHook();
     const runtime = useRuntime();
 
@@ -138,7 +152,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       });
     }, [runtime, aui]);
 
-    return null;
+    return <>{children}</>;
   };
 
   private _OuterActiveThreadProvider: FC<{
@@ -150,11 +164,30 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       [threadId],
     );
 
+    const detectorRef = useRef(false);
+    useEffect(() => {
+      if (process.env.NODE_ENV !== "production" && Provider !== Fragment) {
+        const id = setTimeout(() => {
+          if (!detectorRef.current) {
+            console.warn(
+              "RemoteThreadListAdapter.unstable_Provider did not render its `children` synchronously. " +
+                "Render `children` on first commit; deferring them behind a loading state, Suspense boundary, " +
+                "or `useEffect` gate leaves thread context unavailable to downstream consumers.",
+            );
+          }
+        }, 100);
+        return () => clearTimeout(id);
+      }
+      return undefined;
+    }, [Provider]);
+
     return (
       <ThreadListItemRuntimeProvider runtime={runtime}>
-        <Provider>
-          <this._InnerActiveThreadProvider threadId={threadId} />
-        </Provider>
+        <this._RuntimeBinder threadId={threadId}>
+          <Provider>
+            <ProviderRenderDetector detectorRef={detectorRef} />
+          </Provider>
+        </this._RuntimeBinder>
       </ThreadListItemRuntimeProvider>
     );
   });
