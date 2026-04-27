@@ -22,6 +22,14 @@ const initialMessages: ThreadMessageLike[] = [
   },
 ];
 
+const completeInitialMessages: ThreadMessageLike[] = [
+  {
+    role: "assistant",
+    content: [],
+    status: { type: "complete", reason: "stop" },
+  },
+];
+
 const RunningText: FC = () => {
   return (
     <p>
@@ -48,8 +56,12 @@ const ChildrenMessage: FC = () => {
   );
 };
 
-const RuntimeProvider: FC<PropsWithChildren> = ({ children }) => {
-  const runtime = useLocalRuntime(noOpAdapter, { initialMessages });
+const RuntimeProvider: FC<
+  PropsWithChildren<{ messages?: ThreadMessageLike[] }>
+> = ({ children, messages = initialMessages }) => {
+  const runtime = useLocalRuntime(noOpAdapter, {
+    initialMessages: messages,
+  });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       {children}
@@ -57,9 +69,9 @@ const RuntimeProvider: FC<PropsWithChildren> = ({ children }) => {
   );
 };
 
-const renderThread = (MessageComponent: FC) => {
+const renderThread = (MessageComponent: FC, messages?: ThreadMessageLike[]) => {
   render(
-    <RuntimeProvider>
+    <RuntimeProvider messages={messages}>
       <ThreadPrimitive.Messages components={{ Message: MessageComponent }} />
     </RuntimeProvider>,
   );
@@ -79,6 +91,14 @@ describe("MessagePrimitive.Parts loading state", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("loading-dot")).toBeTruthy();
+    });
+  });
+
+  it("does not render the loading indicator when assistant parts are empty but the message is complete", async () => {
+    renderThread(ChildrenMessage, completeInitialMessages);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("loading-dot")).toBeNull();
     });
   });
 });

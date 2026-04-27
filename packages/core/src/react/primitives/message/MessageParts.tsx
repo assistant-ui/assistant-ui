@@ -575,6 +575,12 @@ export type { PartState };
  *
  * For tool-call parts, adds `toolUI`, `addResult`, and `resume`.
  * For data parts, adds `dataRendererUI`.
+ *
+ * The render function is also invoked once with a synthetic empty text part
+ * (`{ type: "text", text: "", status: { type: "running" } }`) when the
+ * assistant message has no parts yet but is in the running state, so a
+ * loading indicator can render. Differentiate this from a real empty text
+ * via `part.status?.type === "running" && part.text === ""`.
  */
 export type EnrichedPartState =
   | (Extract<PartState, { type: "tool-call" }> & {
@@ -591,21 +597,22 @@ export type EnrichedPartState =
     })
   | Exclude<PartState, { type: "tool-call" } | { type: "data" }>;
 
+const EMPTY_RUNNING_TEXT_PART: Extract<EnrichedPartState, { type: "text" }> =
+  Object.freeze({
+    type: "text",
+    text: "",
+    status: RUNNING_STATUS,
+  });
+
 const MessagePrimitivePartsInner: FC<{
   children: (value: { part: EnrichedPartState }) => ReactNode;
 }> = ({ children }) => {
   const aui = useAui();
-  const { contentLength, isEmptyRunning } = useAuiState(
-    useShallow((s) => {
-      const contentLength = s.message.parts.length;
-      const status = (s.message.status ?? COMPLETE_STATUS) as MessagePartStatus;
-
-      return {
-        contentLength,
-        isEmptyRunning: contentLength === 0 && status.type === "running",
-      };
-    }),
+  const contentLength = useAuiState((s) => s.message.parts.length);
+  const isRunning = useAuiState(
+    (s) => (s.message.status?.type ?? "complete") === "running",
   );
+  const isEmptyRunning = contentLength === 0 && isRunning;
   // Subscribed (not snapshotted like `tools`) so fallbacks registered after
   // the first render trigger a re-render and `hasUI` re-evaluates.
   const dataRenderers = useAuiState((s) => s.dataRenderers);
@@ -617,13 +624,7 @@ const MessagePrimitivePartsInner: FC<{
 
       return (
         <TextMessagePartProvider text="" isRunning>
-          {children({
-            part: {
-              type: "text",
-              text: "",
-              status: RUNNING_STATUS,
-            },
-          })}
+          {children({ part: EMPTY_RUNNING_TEXT_PART })}
         </TextMessagePartProvider>
       );
     }
@@ -654,9 +655,7 @@ const MessagePrimitivePartsInner: FC<{
                     undefined;
                   return {
                     ...state,
-                    dataRendererUI: hasUI ? (
-                      <RegisteredDataRendererUI />
-                    ) : null,
+                    dataRendererUI: hasUI ? <RegisteredDataRendererUI /> : null,
                   };
                 }
                 return state;
