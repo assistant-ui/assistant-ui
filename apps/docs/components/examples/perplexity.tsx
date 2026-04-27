@@ -10,6 +10,7 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  useAuiState,
 } from "@assistant-ui/react";
 import {
   CheckIcon,
@@ -21,12 +22,22 @@ import {
   Pencil1Icon,
   ReloadIcon,
 } from "@radix-ui/react-icons";
-import { ArrowRight, AudioLines, Plus, Search, Square } from "lucide-react";
+import {
+  ArrowRight,
+  AudioLines,
+  FileIcon,
+  Plus,
+  Search,
+  Square,
+} from "lucide-react";
 import { type FC, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 
 const composerPrimaryActionClassName =
   "absolute inset-0 flex items-center justify-center rounded-full transition-all duration-200 ease-out";
+
+const composerPrimaryActionColorsClassName =
+  "bg-[#25211c] text-[#f8f5f0] hover:bg-[#171411] dark:bg-[#f5f2ed] dark:text-[#1b1713] dark:hover:bg-white";
 
 const messageActionClassName =
   "flex size-8 items-center justify-center rounded-full text-[#7a7268] transition-colors hover:bg-[#f1ece5] hover:text-[#1f1b17] dark:text-[#9d968d] dark:hover:bg-[#2a2724] dark:hover:text-[#f5f2ed]";
@@ -77,7 +88,7 @@ const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
       <AuiIf condition={(s) => s.composer.attachments.length > 0}>
         <div className="flex flex-wrap gap-2 px-4 pt-4">
           <ComposerPrimitive.Attachments>
-            {() => <ComposerAttachmentChip />}
+            {() => <AttachmentPreview removable />}
           </ComposerPrimitive.Attachments>
         </div>
       </AuiIf>
@@ -102,13 +113,13 @@ const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
+          <div
+            aria-hidden="true"
             className="flex h-8 items-center gap-1 rounded-full px-2.5 text-[#746c62] text-sm transition-colors hover:bg-[#f2ede6] hover:text-[#1f1b17] dark:text-[#a19a91] dark:hover:bg-[#2b2825] dark:hover:text-[#f5f2ed]"
           >
             <span>Model</span>
             <ChevronDownIcon className="size-4 opacity-70" />
-          </button>
+          </div>
           <ComposerPrimaryAction />
         </div>
       </div>
@@ -123,7 +134,7 @@ const ComposerPrimaryAction: FC = () => {
         <ComposerPrimitive.Cancel
           className={cn(
             composerPrimaryActionClassName,
-            "bg-[#25211c] text-[#f8f5f0] hover:bg-[#171411] dark:bg-[#f5f2ed] dark:text-[#1b1713] dark:hover:bg-white",
+            composerPrimaryActionColorsClassName,
           )}
         >
           <Square className="size-3.5 fill-current" />
@@ -134,35 +145,45 @@ const ComposerPrimaryAction: FC = () => {
         <ComposerPrimitive.Send
           className={cn(
             composerPrimaryActionClassName,
-            "bg-[#25211c] text-[#f8f5f0] hover:bg-[#171411] dark:bg-[#f5f2ed] dark:text-[#1b1713] dark:hover:bg-white",
+            composerPrimaryActionColorsClassName,
           )}
         >
           <ArrowRight className="size-5" />
         </ComposerPrimitive.Send>
       </AuiIf>
 
-      <AuiIf condition={(s) => !s.thread.isRunning && s.composer.isEmpty}>
-        <ComposerPrimitive.If dictation={false}>
-          <ComposerPrimitive.Dictate
-            className={cn(
-              composerPrimaryActionClassName,
-              "bg-[#25211c] text-[#f8f5f0] hover:bg-[#171411] dark:bg-[#f5f2ed] dark:text-[#1b1713] dark:hover:bg-white",
-            )}
-          >
-            <AudioLines className="size-5" />
-          </ComposerPrimitive.Dictate>
-        </ComposerPrimitive.If>
+      <AuiIf
+        condition={(s) =>
+          !s.thread.isRunning &&
+          s.composer.isEmpty &&
+          s.composer.dictation == null
+        }
+      >
+        <ComposerPrimitive.Dictate
+          className={cn(
+            composerPrimaryActionClassName,
+            composerPrimaryActionColorsClassName,
+          )}
+        >
+          <AudioLines className="size-5" />
+        </ComposerPrimitive.Dictate>
+      </AuiIf>
 
-        <ComposerPrimitive.If dictation>
-          <ComposerPrimitive.StopDictation
-            className={cn(
-              composerPrimaryActionClassName,
-              "bg-[#25211c] text-[#f8f5f0] hover:bg-[#171411] dark:bg-[#f5f2ed] dark:text-[#1b1713] dark:hover:bg-white",
-            )}
-          >
-            <Square className="size-3.5 animate-pulse fill-current" />
-          </ComposerPrimitive.StopDictation>
-        </ComposerPrimitive.If>
+      <AuiIf
+        condition={(s) =>
+          !s.thread.isRunning &&
+          s.composer.isEmpty &&
+          s.composer.dictation != null
+        }
+      >
+        <ComposerPrimitive.StopDictation
+          className={cn(
+            composerPrimaryActionClassName,
+            composerPrimaryActionColorsClassName,
+          )}
+        >
+          <Square className="size-3.5 animate-pulse fill-current" />
+        </ComposerPrimitive.StopDictation>
       </AuiIf>
     </div>
   );
@@ -175,7 +196,7 @@ const ChatMessage: FC = () => {
         <div className="flex flex-col items-end gap-2">
           <div className="flex max-w-full flex-wrap justify-end gap-2">
             <MessagePrimitive.Attachments>
-              {() => <MessageAttachmentChip />}
+              {() => <AttachmentPreview removable={false} />}
             </MessagePrimitive.Attachments>
           </div>
 
@@ -213,7 +234,10 @@ const ChatMessage: FC = () => {
 
             <div className="mt-2 flex items-center gap-2">
               <BranchPicker />
-              <ActionBarPrimitive.Root className="flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
+              <ActionBarPrimitive.Root
+                hideWhenRunning
+                className="flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100"
+              >
                 <ActionBarPrimitive.Reload className={messageActionClassName}>
                   <ReloadIcon className="size-4" />
                 </ActionBarPrimitive.Reload>
@@ -327,7 +351,7 @@ const AttachmentPreview: FC<{ removable: boolean }> = ({ removable }) => {
               className="size-full object-cover"
             />
           ) : (
-            <AttachmentPrimitive.unstable_Thumb className="text-xs" />
+            <FileIcon className="size-4" />
           )}
         </div>
         <div className="min-w-0">
@@ -347,12 +371,4 @@ const AttachmentPreview: FC<{ removable: boolean }> = ({ removable }) => {
       ) : null}
     </AttachmentPrimitive.Root>
   );
-};
-
-const ComposerAttachmentChip: FC = () => {
-  return <AttachmentPreview removable />;
-};
-
-const MessageAttachmentChip: FC = () => {
-  return <AttachmentPreview removable={false} />;
 };
