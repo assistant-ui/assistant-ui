@@ -136,8 +136,10 @@ export type ComposerRuntime = {
   /**
    * Add an attachment to the composer. Accepts either a standard File object
    * (processed through the AttachmentAdapter) or a CreateAttachment descriptor
-   * for external-source attachments (URLs, API data, CMS references) that
-   * bypasses the adapter entirely.
+   * for external-source attachments (URLs, API data, CMS references). External
+   * descriptors bypass the adapter's `add()` step but still respect
+   * `adapter.accept` when an adapter is configured; without an adapter they
+   * are added as-is.
    * @param fileOrAttachment The file or attachment descriptor to add.
    */
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;

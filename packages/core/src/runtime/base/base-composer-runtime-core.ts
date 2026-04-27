@@ -204,17 +204,42 @@ export abstract class BaseComposerRuntimeCore
 
   async addAttachment(fileOrAttachment: File | CreateAttachment) {
     if (!(fileOrAttachment instanceof File)) {
-      const a: CompleteAttachment = {
-        id: fileOrAttachment.id ?? generateId(),
-        type: fileOrAttachment.type ?? "document",
-        name: fileOrAttachment.name,
-        contentType: fileOrAttachment.contentType,
-        content: fileOrAttachment.content,
-        status: { type: "complete" },
-      };
-      this._attachments = [...this._attachments, a];
+      try {
+        const adapter = this.getAttachmentAdapter();
+        if (
+          adapter &&
+          !fileMatchesAccept(
+            {
+              name: fileOrAttachment.name,
+              type: fileOrAttachment.contentType ?? "",
+            },
+            adapter.accept,
+          )
+        ) {
+          throw new Error(
+            `File type ${fileOrAttachment.contentType || "unknown"} is not accepted. Accepted types: ${adapter.accept}`,
+          );
+        }
+
+        const a: CompleteAttachment = {
+          id: fileOrAttachment.id ?? generateId(),
+          type: fileOrAttachment.type ?? "document",
+          name: fileOrAttachment.name,
+          contentType: fileOrAttachment.contentType,
+          content: fileOrAttachment.content,
+          status: { type: "complete" },
+        };
+        this._attachments = [...this._attachments, a];
+        this._notifySubscribers();
+      } catch (e) {
+        try {
+          this._notifyEventSubscribers("attachmentAddError");
+        } catch {
+          // prevent subscriber errors from masking the original error
+        }
+        throw e;
+      }
       this._notifyEventSubscribers("attachmentAdd");
-      this._notifySubscribers();
       return;
     }
 
