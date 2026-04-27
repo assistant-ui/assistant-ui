@@ -490,9 +490,13 @@ class ValidatedImageAdapter implements AttachmentAdapter {
 }
 ```
 
-To surface failures in the UI, subscribe to `composer.attachmentAddError`. It fires whenever `addAttachment` rejects, including when no adapter is configured, when the file type does not match `accept`, and when the adapter's `add` throws or yields an attachment with `status.reason === "error"`.
+To surface failures in the UI, subscribe to `composer.attachmentAddError`. It fires whenever an add operation produces a failure, in either of two ways:
+
+1. `addAttachment()` rejects: no adapter is configured, the file type does not match `accept`, or the adapter's `add()` throws.
+2. `addAttachment()` resolves but the adapter yielded an attachment whose `status.reason === "error"` (the promise resolves successfully, yet the event still fires so the UI can react).
 
 ```tsx
+import { toast } from "sonner"; // or your toast library of choice
 import { useAuiEvent } from "@assistant-ui/react";
 
 function AttachmentErrorToast() {
@@ -507,7 +511,7 @@ function AttachmentErrorToast() {
 }
 ```
 
-`attachmentId` is omitted when the failure happens before an attachment is registered (e.g. unsupported file type), so consumers should treat it as optional.
+`attachmentId` is best-effort and should always be treated as optional. It is resolved by scanning the composer's current attachment list for the most recently registered errored attachment, so it is `undefined` for failures that happen before any attachment is registered (e.g. unsupported file type) only when no prior errored attachment is still present.
 
 ### External Source Attachments
 
@@ -532,7 +536,7 @@ await aui.composer().addAttachment({
 });
 ```
 
-External attachments are added as complete attachments directly — they skip the `AttachmentAdapter` entirely and can be removed without one.
+External attachments are added as complete attachments directly. They bypass the `AttachmentAdapter`'s `add()` step (no upload), but `adapter.accept` is still enforced when an `AttachmentAdapter` is configured: a `CreateAttachment` whose `contentType` does not match `adapter.accept` is rejected and emits `composer.attachmentAddError`. If `contentType` is omitted, the descriptor's filename extension is matched against `adapter.accept` only when `accept` itself contains explicit extension entries (e.g. `.png,.pdf`); MIME-wildcard `accept` strings such as `image/*` always require a matching `contentType`. When no `AttachmentAdapter` is configured, external attachments are added without any content-type check, and they can be removed without an adapter.
 
 ### Multiple File Selection
 
