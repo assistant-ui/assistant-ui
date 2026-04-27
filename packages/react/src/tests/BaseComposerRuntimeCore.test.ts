@@ -426,6 +426,128 @@ describe("BaseComposerRuntimeCore", () => {
       // Pending was sent through adapter
       expect(adapter.send).toHaveBeenCalledTimes(1);
     });
+
+    describe("adapter.accept enforcement", () => {
+      const makeImageAdapter = (): AttachmentAdapter => ({
+        accept: "image/*",
+        add: vi.fn(),
+        remove: vi.fn(),
+        send: vi.fn(),
+      });
+
+      it("rejects external attachment with contentType not matching adapter.accept", async () => {
+        composer.setAttachmentAdapter(makeImageAdapter());
+        const onError = vi.fn();
+        const onAdd = vi.fn();
+        composer.unstable_on("attachmentAddError", onError);
+        composer.unstable_on("attachmentAdd", onAdd);
+
+        await expect(
+          composer.addAttachment(
+            makeCreateAttachment({
+              name: "doc.pdf",
+              contentType: "application/pdf",
+            }),
+          ),
+        ).rejects.toThrow(/File type application\/pdf is not accepted/);
+
+        expect(composer.attachments).toHaveLength(0);
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onAdd).not.toHaveBeenCalled();
+      });
+
+      it("accepts external attachment with contentType matching adapter.accept", async () => {
+        composer.setAttachmentAdapter(makeImageAdapter());
+        const onError = vi.fn();
+
+        composer.unstable_on("attachmentAddError", onError);
+        await composer.addAttachment(
+          makeCreateAttachment({
+            name: "photo.png",
+            contentType: "image/png",
+          }),
+        );
+
+        expect(composer.attachments).toHaveLength(1);
+        expect(onError).not.toHaveBeenCalled();
+      });
+
+      it("accepts external attachment when only filename extension matches adapter.accept", async () => {
+        composer.setAttachmentAdapter({
+          accept: ".pdf",
+          add: vi.fn(),
+          remove: vi.fn(),
+          send: vi.fn(),
+        });
+
+        await composer.addAttachment(
+          makeCreateAttachment({ name: "report.pdf" }),
+        );
+
+        expect(composer.attachments).toHaveLength(1);
+      });
+
+      it("rejects external attachment when contentType missing and extension does not match", async () => {
+        composer.setAttachmentAdapter(makeImageAdapter());
+        const onError = vi.fn();
+        composer.unstable_on("attachmentAddError", onError);
+
+        await expect(
+          composer.addAttachment(makeCreateAttachment({ name: "notes.txt" })),
+        ).rejects.toThrow(/is not accepted/);
+
+        expect(onError).toHaveBeenCalledTimes(1);
+      });
+
+      it("adds external attachment without check when no adapter is configured", async () => {
+        // No adapter — preserves the original "no adapter required" guarantee
+        await composer.addAttachment(
+          makeCreateAttachment({
+            name: "anything.xyz",
+            contentType: "application/x-anything",
+          }),
+        );
+
+        expect(composer.attachments).toHaveLength(1);
+      });
+
+      it("does not let subscriber errors mask the original throw", async () => {
+        composer.setAttachmentAdapter(makeImageAdapter());
+        composer.unstable_on("attachmentAddError", () => {
+          throw new Error("subscriber boom");
+        });
+
+        await expect(
+          composer.addAttachment(
+            makeCreateAttachment({
+              name: "doc.pdf",
+              contentType: "application/pdf",
+            }),
+          ),
+        ).rejects.toThrow(/is not accepted/);
+      });
+
+      it("does not fire attachmentAddError when an attachmentAdd subscriber throws", async () => {
+        composer.setAttachmentAdapter(makeImageAdapter());
+        const onError = vi.fn();
+        composer.unstable_on("attachmentAdd", () => {
+          throw new Error("add subscriber boom");
+        });
+        composer.unstable_on("attachmentAddError", onError);
+
+        await expect(
+          composer.addAttachment(
+            makeCreateAttachment({
+              name: "photo.png",
+              contentType: "image/png",
+            }),
+          ),
+        ).rejects.toThrow("add subscriber boom");
+
+        expect(composer.attachments).toHaveLength(1);
+        expect(onError).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe("send options", () => {
