@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   getExternalStoreMessages,
   type AttachmentAdapter,
+  type DictationAdapter,
   type FeedbackAdapter,
   type SpeechSynthesisAdapter,
   type AppendMessage,
@@ -144,6 +145,7 @@ export type UseAdkRuntimeOptions = {
     | {
         attachments?: AttachmentAdapter;
         speech?: SpeechSynthesisAdapter;
+        dictation?: DictationAdapter;
         feedback?: FeedbackAdapter;
       }
     | undefined;
@@ -164,7 +166,7 @@ export type UseAdkRuntimeOptions = {
 
 const useAdkRuntimeImpl = ({
   autoCancelPendingToolCalls,
-  adapters: { attachments, feedback, speech } = {},
+  adapters: { attachments, dictation, feedback, speech } = {},
   unstable_allowCancellation,
   stream,
   load,
@@ -261,7 +263,7 @@ const useAdkRuntimeImpl = ({
   const runtime = useExternalStoreRuntime({
     isRunning: effectiveIsRunning,
     messages: threadMessages,
-    adapters: { attachments, feedback, speech },
+    adapters: { attachments, dictation, feedback, speech },
     extras: {
       [symbolAdkRuntimeExtras]: true,
       agentInfo,
