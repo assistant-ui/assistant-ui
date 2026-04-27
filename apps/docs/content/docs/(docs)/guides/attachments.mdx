@@ -490,6 +490,25 @@ class ValidatedImageAdapter implements AttachmentAdapter {
 }
 ```
 
+To surface failures in the UI, subscribe to `composer.attachmentAddError`. It fires whenever `addAttachment` rejects, including when no adapter is configured, when the file type does not match `accept`, and when the adapter's `add` throws or yields an attachment with `status.reason === "error"`.
+
+```tsx
+import { useAuiEvent } from "@assistant-ui/react";
+
+function AttachmentErrorToast() {
+  useAuiEvent("composer.attachmentAddError", ({ attachmentId }) => {
+    toast.error(
+      attachmentId
+        ? "Attachment failed to upload."
+        : "This file could not be added.",
+    );
+  });
+  return null;
+}
+```
+
+`attachmentId` is omitted when the failure happens before an attachment is registered (e.g. unsupported file type), so consumers should treat it as optional.
+
 ### External Source Attachments
 
 Add attachments from external sources (URLs, API data, CMS references) without needing a `File` object or an `AttachmentAdapter`:
