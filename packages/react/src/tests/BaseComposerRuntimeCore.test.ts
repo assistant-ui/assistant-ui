@@ -547,6 +547,27 @@ describe("BaseComposerRuntimeCore", () => {
         expect(composer.attachments).toHaveLength(1);
         expect(onError).not.toHaveBeenCalled();
       });
+
+      it("does not fire attachmentAddError when a state subscriber throws on add", async () => {
+        composer.setAttachmentAdapter(makeImageAdapter());
+        const onError = vi.fn();
+        composer.subscribe(() => {
+          throw new Error("state subscriber boom");
+        });
+        composer.unstable_on("attachmentAddError", onError);
+
+        await expect(
+          composer.addAttachment(
+            makeCreateAttachment({
+              name: "photo.png",
+              contentType: "image/png",
+            }),
+          ),
+        ).rejects.toThrow("state subscriber boom");
+
+        expect(composer.attachments).toHaveLength(1);
+        expect(onError).not.toHaveBeenCalled();
+      });
     });
   });
 
