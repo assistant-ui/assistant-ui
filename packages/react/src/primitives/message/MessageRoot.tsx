@@ -9,7 +9,6 @@ import {
 } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
-import { useSizeHandle } from "../../utils/hooks/useSizeHandle";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { useThreadViewport } from "../../context/react/ThreadViewportContext";
 import { ThreadPrimitiveViewportSlack } from "../thread/ThreadViewportSlack";
@@ -48,21 +47,16 @@ const useIsHoveringRef = () => {
 };
 
 /**
- * Hook that registers the anchor user message as a content inset.
+ * Hook that registers the current top-anchor user message element.
  * Only registers if: user message, at index messages.length-2, and last message is assistant.
  */
 const useMessageViewportRef = () => {
   const turnAnchor = useThreadViewport((s) => s.turnAnchor);
-  const registerUserHeight = useThreadViewport(
-    (s) => s.registerUserMessageHeight,
-  );
   const registerAnchorElement = useThreadViewport(
     (s) => s.registerAnchorElement,
   );
 
-  // inset rules:
-  // - the previous user message before the last assistant message registers its full height
-  const shouldRegisterAsInset = useAuiState(
+  const shouldRegisterAsAnchor = useAuiState(
     (s) =>
       turnAnchor === "top" &&
       s.message.role === "user" &&
@@ -70,18 +64,10 @@ const useMessageViewportRef = () => {
       s.thread.messages.at(-1)?.role === "assistant",
   );
 
-  const getHeight = useCallback((el: HTMLElement) => el.offsetHeight, []);
-
-  const sizeRef = useSizeHandle(
-    shouldRegisterAsInset ? registerUserHeight : null,
-    getHeight,
-  );
-  const elementRef = useManagedRef<HTMLElement>((el) => {
-    if (!shouldRegisterAsInset) return;
+  return useManagedRef<HTMLElement>((el) => {
+    if (!shouldRegisterAsAnchor) return;
     return registerAnchorElement(el);
   });
-
-  return useComposedRefs(sizeRef, elementRef);
 };
 
 export namespace MessagePrimitiveRoot {

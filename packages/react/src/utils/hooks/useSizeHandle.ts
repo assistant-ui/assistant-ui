@@ -29,14 +29,6 @@ export const useSizeHandle = (
 
       const ro = new ResizeObserver(updateHeight);
       ro.observe(el);
-      if (el.parentElement) {
-        ro.observe(el.parentElement);
-        for (const child of el.parentElement.children) {
-          if (child instanceof HTMLElement) {
-            ro.observe(child);
-          }
-        }
-      }
       updateHeight();
 
       return () => {

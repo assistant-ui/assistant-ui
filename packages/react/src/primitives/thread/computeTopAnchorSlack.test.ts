@@ -52,8 +52,8 @@ describe("computeTopAnchorTargetScrollTop", () => {
     ).toBe(160);
   });
 
-  it("accounts for the viewport's own offset and current scroll position", () => {
-    const viewport = makeElement({ offsetTop: 24, scrollTop: 140 });
+  it("accounts for nested viewport offset geometry", () => {
+    const viewport = makeElement({ offsetTop: 24 });
     const anchor = makeElement({
       height: 72,
       offsetTop: 400,

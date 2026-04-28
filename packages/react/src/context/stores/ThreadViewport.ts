@@ -66,8 +66,6 @@ export type ThreadViewportState = {
     readonly viewport: number;
     /** Total content inset height (footer, anchor message, etc.) */
     readonly inset: number;
-    /** Height of the anchor user message (full height) */
-    readonly userMessage: number;
   };
 
   /** Current DOM elements used for geometry-based top anchoring */
@@ -82,9 +80,6 @@ export type ThreadViewportState = {
 
   /** Register a content inset (footer, anchor message, etc.) and get a handle to update its height */
   readonly registerContentInset: () => SizeHandle;
-
-  /** Register the anchor user message height */
-  readonly registerUserMessageHeight: () => SizeHandle;
 
   /** Register the scroll viewport element */
   readonly registerViewportElement: (
@@ -125,14 +120,6 @@ export const makeThreadViewportStore = (
       },
     });
   });
-  const userMessageRegistry = createSizeRegistry((total) => {
-    store.setState({
-      height: {
-        ...store.getState().height,
-        userMessage: total,
-      },
-    });
-  });
 
   const store = create<ThreadViewportState>(() => ({
     isAtBottom: true,
@@ -153,7 +140,6 @@ export const makeThreadViewportStore = (
     height: {
       viewport: 0,
       inset: 0,
-      userMessage: 0,
     },
     element: {
       viewport: null,
@@ -163,7 +149,6 @@ export const makeThreadViewportStore = (
 
     registerViewport: viewportRegistry.register,
     registerContentInset: insetRegistry.register,
-    registerUserMessageHeight: userMessageRegistry.register,
     registerViewportElement: (element) => {
       store.setState({
         element: {
