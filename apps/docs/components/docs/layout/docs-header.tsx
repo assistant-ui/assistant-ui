@@ -110,7 +110,7 @@ export function DocsHeader({
 
   return (
     <header className="sticky top-0 z-50 w-full">
-      <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-16 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl md:h-24 dark:via-50%" />
+      <div className="mask-[linear-gradient(to_bottom,black_75%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b from-background to-transparent backdrop-blur-xl" />
       <div className="relative flex h-12 w-full items-center px-4">
         <div className="flex shrink-0 items-center">
           <Link href="/" className="flex shrink-0 items-center gap-2">
