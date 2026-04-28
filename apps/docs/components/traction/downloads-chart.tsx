@@ -1,15 +1,23 @@
 "use client";
 
-import { useId } from "react";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { useId, useState } from "react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Line,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   ChartContainer,
   type ChartConfig,
   ChartLegend,
-  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { cn } from "@/lib/utils";
 import { formatCompact, type TimelineSeries } from "@/lib/traction";
 
 const MONTH_NAMES = [
@@ -41,6 +49,7 @@ const formatTooltipLabel = (yearMonth: string) => {
 
 export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
   const gradientPrefix = useId();
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
 
   if (timeline.data.length < 2 || timeline.series.length === 0) {
     return (
@@ -57,6 +66,15 @@ export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
       color: `var(--chart-${s.chartIndex})`,
     };
   }
+
+  const toggle = (key: string) => {
+    setHidden((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   return (
     <ChartContainer
@@ -106,51 +124,155 @@ export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
         />
         <ChartTooltip
           cursor={{ stroke: "var(--border)" }}
-          content={
-            <ChartTooltipContent
-              labelFormatter={(_, payload) => {
-                const ym = payload?.[0]?.payload?.date as string | undefined;
-                return ym ? formatTooltipLabel(ym) : "";
-              }}
-              formatter={(value, name, item) => {
-                const series = timeline.series.find((s) => s.key === name);
-                const color =
-                  (item as { color?: string } | undefined)?.color ??
-                  (item?.payload as { fill?: string } | undefined)?.fill;
-                return (
-                  <>
-                    <div
-                      className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
-                      style={{ backgroundColor: color }}
-                    />
-                    <div className="flex flex-1 items-center justify-between gap-3 leading-none">
-                      <span className="text-muted-foreground">
-                        {series?.label ?? String(name)}
-                      </span>
-                      <span className="font-medium font-mono text-foreground tabular-nums">
-                        {formatCompact(value as number)}
-                      </span>
-                    </div>
-                  </>
-                );
-              }}
-              indicator="dot"
-            />
-          }
+          content={(tooltipProps) => {
+            // hide _proj entries when their raw counterpart has a value (avoids empty rows on the bridging month).
+            const filtered = (
+              tooltipProps.payload as
+                | Array<{
+                    dataKey?: string | number;
+                    payload?: Record<string, number | undefined>;
+                  }>
+                | undefined
+            )?.filter((entry) => {
+              const key = String(entry?.dataKey ?? "");
+              if (!key.endsWith("_proj")) return true;
+              const baseKey = key.slice(0, -5);
+              return entry.payload?.[baseKey] === undefined;
+            });
+            return (
+              <ChartTooltipContent
+                {...(tooltipProps as Record<string, unknown>)}
+                payload={filtered}
+                labelFormatter={(_, p) => {
+                  const ym = p?.[0]?.payload?.date as string | undefined;
+                  return ym ? formatTooltipLabel(ym) : "";
+                }}
+                formatter={(value, name, item) => {
+                  const rawName = String(name);
+                  const isProjEntry = rawName.endsWith("_proj");
+                  const baseKey = isProjEntry ? rawName.slice(0, -5) : rawName;
+                  const series = timeline.series.find((s) => s.key === baseKey);
+                  let displayValue = value as number;
+                  const rowPayload = item?.payload as
+                    | Record<string, number | undefined>
+                    | undefined;
+                  if (isProjEntry && rowPayload) {
+                    const idx = timeline.series.findIndex(
+                      (s) => s.key === baseKey,
+                    );
+                    const prev = idx > 0 ? timeline.series[idx - 1]! : null;
+                    const prevCum = prev
+                      ? (rowPayload[`${prev.key}_proj`] ?? 0)
+                      : 0;
+                    displayValue = (value as number) - prevCum;
+                  }
+                  const color =
+                    (item as { color?: string } | undefined)?.color ??
+                    (item?.payload as { fill?: string } | undefined)?.fill;
+                  return (
+                    <>
+                      <div
+                        className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+                        style={{ backgroundColor: color }}
+                      />
+                      <div className="flex flex-1 items-center justify-between gap-3 leading-none">
+                        <span className="text-muted-foreground">
+                          {series?.label ?? rawName}
+                        </span>
+                        <span className="font-medium font-mono text-foreground tabular-nums">
+                          {formatCompact(displayValue)}
+                        </span>
+                      </div>
+                    </>
+                  );
+                }}
+                indicator="dot"
+              />
+            );
+          }}
         />
-        {timeline.series.map((s) => (
-          <Area
-            key={s.key}
-            dataKey={s.key}
-            stackId="downloads"
-            type="monotone"
-            stroke={`var(--color-${s.key})`}
-            strokeWidth={1.5}
-            fill={`url(#${gradientPrefix}-${s.key})`}
-          />
-        ))}
+        {timeline.series.map((s) => {
+          const isHidden = hidden.has(s.key);
+          return (
+            <Area
+              key={s.key}
+              dataKey={s.key}
+              stackId="downloads"
+              type="monotone"
+              // hide via transparent stroke/fill so toggled series keep their stack slot and siblings don't shift.
+              stroke={isHidden ? "transparent" : `var(--color-${s.key})`}
+              strokeWidth={1.5}
+              fill={
+                isHidden ? "transparent" : `url(#${gradientPrefix}-${s.key})`
+              }
+              isAnimationActive={false}
+            />
+          );
+        })}
+        {timeline.projectedMonth ? (
+          <>
+            <ReferenceLine
+              x={timeline.projectedMonth}
+              stroke="var(--muted-foreground)"
+              strokeDasharray="3 3"
+              strokeOpacity={0.4}
+            />
+            {timeline.series.map((s) => {
+              const isHidden = hidden.has(s.key);
+              return (
+                <Line
+                  key={`${s.key}-proj`}
+                  dataKey={`${s.key}_proj`}
+                  stroke={isHidden ? "transparent" : `var(--color-${s.key})`}
+                  strokeWidth={1.5}
+                  strokeDasharray="5 4"
+                  type="monotone"
+                  dot={false}
+                  activeDot={false}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                  legendType="none"
+                />
+              );
+            })}
+          </>
+        ) : null}
         <ChartLegend
-          content={<ChartLegendContent className="flex-wrap gap-x-4 gap-y-1" />}
+          content={({ payload }) => (
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pt-3">
+              {(
+                payload as
+                  | Array<{
+                      dataKey?: string | number;
+                      value?: string;
+                      color?: string;
+                    }>
+                  | undefined
+              )?.map((item) => {
+                const key = String(item.dataKey ?? item.value ?? "");
+                const series = timeline.series.find((s) => s.key === key);
+                if (!series) return null;
+                const isHidden = hidden.has(key);
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => toggle(key)}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-1.5 rounded-sm text-muted-foreground text-xs outline-none transition-opacity hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
+                      isHidden && "opacity-40",
+                    )}
+                  >
+                    <div
+                      className="h-2 w-2 shrink-0 rounded-[2px]"
+                      style={{ backgroundColor: `var(--color-${key})` }}
+                    />
+                    <span>{series.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         />
       </AreaChart>
     </ChartContainer>

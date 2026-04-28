@@ -271,6 +271,73 @@ const REPO_FALLBACK: RepoStats = {
   watchers: 80,
 };
 
+export type Contributor = {
+  login: string;
+  avatarUrl: string;
+  htmlUrl: string;
+  contributions: number;
+};
+
+export async function fetchDependents(): Promise<{
+  repos: number;
+  packages: number;
+} | null> {
+  try {
+    const res = await fetch(
+      "https://github.com/assistant-ui/assistant-ui/network/dependents",
+      {
+        headers: { "User-Agent": "Mozilla/5.0 (assistant-ui-traction)" },
+        next: { revalidate: 21600 },
+      },
+    );
+    if (!res.ok) return null;
+    const html = await res.text();
+    const reposMatch = html.match(/([\d,]+)\s+Repositories\b/);
+    const packagesMatch = html.match(/([\d,]+)\s+Packages\b/);
+    if (!reposMatch && !packagesMatch) return null;
+    return {
+      repos: reposMatch ? Number(reposMatch[1]!.replace(/,/g, "")) : 0,
+      packages: packagesMatch ? Number(packagesMatch[1]!.replace(/,/g, "")) : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchContributors(): Promise<Contributor[]> {
+  try {
+    const all: Contributor[] = [];
+    for (let page = 1; page <= 5; page++) {
+      const res = await fetch(
+        `https://api.github.com/repos/assistant-ui/assistant-ui/contributors?per_page=100&page=${page}`,
+        { headers: githubHeaders(), next: { revalidate: 21600 } },
+      );
+      if (!res.ok) break;
+      const data = (await res.json()) as Array<{
+        login: string;
+        avatar_url: string;
+        html_url: string;
+        contributions: number;
+        type?: string;
+      }>;
+      if (data.length === 0) break;
+      for (const c of data) {
+        if (c.type === "Bot" || /\[bot\]$/i.test(c.login)) continue;
+        all.push({
+          login: c.login,
+          avatarUrl: c.avatar_url,
+          htmlUrl: c.html_url,
+          contributions: c.contributions,
+        });
+      }
+      if (data.length < 100) break;
+    }
+    return all;
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchRepoStats(): Promise<RepoStats> {
   try {
     const res = await fetch(
@@ -377,6 +444,7 @@ export type TimelineSeries = {
     chartIndex: number;
   }[];
   data: { date: string; [key: string]: number | string }[];
+  projectedMonth?: string;
 };
 
 export async function fetchTimelineSeries(
@@ -398,14 +466,32 @@ export async function fetchTimelineSeries(
   }
   const months = Array.from(monthsSet).sort();
 
+  const cutoff = currentMonthKey();
   const data = months.map((date) => {
+    const isProjected = date === cutoff;
     const row: { date: string; [key: string]: number | string } = { date };
     for (const { key, points } of fetched) {
       const point = points.find((p) => p.date === date);
-      row[key] = point?.value ?? 0;
+      const value = point?.value ?? 0;
+      // omit projected month so its stacked area renders no fill; the per-series _proj line bridges that gap instead.
+      if (!isProjected) row[key] = value;
     }
     return row;
   });
+
+  const projectedIndex = data.findIndex((r) => r.date === cutoff);
+  if (projectedIndex >= 1) {
+    for (let idx = projectedIndex - 1; idx <= projectedIndex; idx++) {
+      const row = data[idx]!;
+      const rowDate = row.date as string;
+      let cum = 0;
+      for (const { key, points } of fetched) {
+        const val = points.find((p) => p.date === rowDate)?.value ?? 0;
+        cum += val;
+        row[`${key}_proj`] = cum;
+      }
+    }
+  }
 
   const series = fetched.map(({ key, pkg, label, chartIndex }) => ({
     key,
@@ -414,7 +500,11 @@ export async function fetchTimelineSeries(
     chartIndex,
   }));
 
-  return { series, data };
+  return {
+    series,
+    data,
+    projectedMonth: projectedIndex >= 0 ? cutoff : undefined,
+  };
 }
 
 export async function fetchDownloadsTimeline(
@@ -431,18 +521,85 @@ export async function fetchDownloadsTimeline(
     };
     if (!data.downloads?.length) return [];
     const cutoff = currentMonthKey();
-    const byMonth = new Map<string, number>();
+    type MonthBucket = {
+      sum: number;
+      dailies: { day: string; downloads: number }[];
+    };
+    const byMonth = new Map<string, MonthBucket>();
     for (const point of data.downloads) {
       const month = point.day.slice(0, 7);
-      if (month >= cutoff) continue;
-      byMonth.set(month, (byMonth.get(month) ?? 0) + point.downloads);
+      const entry = byMonth.get(month) ?? { sum: 0, dailies: [] };
+      entry.sum += point.downloads;
+      entry.dailies.push({ day: point.day, downloads: point.downloads });
+      byMonth.set(month, entry);
     }
-    return Array.from(byMonth.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, value]) => ({ date, value }));
+    const sorted = Array.from(byMonth.entries()).sort(([a], [b]) =>
+      a.localeCompare(b),
+    );
+    const fullMonths = sorted.filter(([k]) => k !== cutoff);
+    const lastFullMonth = fullMonths[fullMonths.length - 1];
+    const priorFullMonth = fullMonths[fullMonths.length - 2];
+
+    return sorted.map(([date, bucket]) => {
+      if (date !== cutoff || bucket.dailies.length === 0) {
+        return { date, value: bucket.sum };
+      }
+      return {
+        date,
+        value: projectInflightMonth(
+          date,
+          bucket,
+          lastFullMonth?.[1].sum,
+          priorFullMonth?.[1].sum,
+        ),
+      };
+    });
   } catch {
     return [];
   }
+}
+
+function projectInflightMonth(
+  date: string,
+  bucket: { sum: number; dailies: { day: string; downloads: number }[] },
+  lastFullMonthSum: number | undefined,
+  priorFullMonthSum: number | undefined,
+): number {
+  // npm aggregation lags 1-2 days; trailing days under-report and would drag the daily average down.
+  const TRAILING_LAG_DAYS = 2;
+  const dailies = [...bucket.dailies].sort((a, b) =>
+    a.day.localeCompare(b.day),
+  );
+  const stable = dailies.slice(
+    0,
+    Math.max(1, dailies.length - TRAILING_LAG_DAYS),
+  );
+  const stableSum = stable.reduce((s, d) => s + d.downloads, 0);
+  const stableDays = stable.length;
+
+  const totalDays = new Date(
+    Number(date.slice(0, 4)),
+    Number(date.slice(5, 7)),
+    0,
+  ).getDate();
+
+  const linear = (stableSum / stableDays) * totalDays;
+
+  if (!lastFullMonthSum || !priorFullMonthSum || priorFullMonthSum === 0) {
+    return Math.round(linear);
+  }
+
+  // cap growth so an outlier month doesn't produce a runaway projection.
+  const growth = Math.max(
+    -0.3,
+    Math.min(1.0, lastFullMonthSum / priorFullMonthSum - 1),
+  );
+  const trend = lastFullMonthSum * (1 + growth);
+  // early in the month trust the trend (little data); late, trust observed.
+  const elapsedFraction = stableDays / totalDays;
+  const blended = elapsedFraction * linear + (1 - elapsedFraction) * trend;
+
+  return Math.round(blended);
 }
 
 function githubHeaders(): HeadersInit {
@@ -483,7 +640,7 @@ export async function fetchStarHistory(
       Math.max(1, Math.ceil(totalStars / 100));
 
     const samples = new Set<number>([1, lastPage]);
-    const target = 8;
+    const target = 24;
     if (lastPage > 2) {
       const step = (lastPage - 1) / (target - 1);
       for (let i = 1; i < target - 1; i++) {
@@ -506,22 +663,77 @@ export async function fetchStarHistory(
       }),
     );
 
-    const points: TimelinePoint[] = fetched
+    const anchors: TimelinePoint[] = fetched
       .filter(({ data }) => data.length > 0)
       .map(({ page, data }) => ({
         date: data[0]!.starred_at,
         value: (page - 1) * 100 + 1,
-      }));
-
-    const cutoff = startOfCurrentMonthISO();
-
-    return points
-      .filter((p) => p.date < cutoff)
+      }))
       .sort((a, b) => a.date.localeCompare(b.date))
       .filter((p, i, arr) => i === 0 || p.value > arr[i - 1]!.value);
+
+    // page sampling stops at the first star on the last page; append (now, totalStars) so the chart reaches today.
+    const now = new Date().toISOString();
+    const lastAnchor = anchors[anchors.length - 1];
+    if (
+      !lastAnchor ||
+      (totalStars > lastAnchor.value && now > lastAnchor.date)
+    ) {
+      anchors.push({ date: now, value: totalStars });
+    }
+
+    if (anchors.length < 2) return anchors;
+
+    return resampleMonthly(anchors);
   } catch {
     return [];
   }
+}
+
+// page-based sampling clusters unevenly in time; resample on a monthly grid so the chart shows real acceleration, not straight segments.
+function resampleMonthly(anchors: TimelinePoint[]): TimelinePoint[] {
+  const startMs = new Date(anchors[0]!.date).getTime();
+  const endAnchor = anchors[anchors.length - 1]!;
+  const endMs = new Date(endAnchor.date).getTime();
+
+  const startDate = new Date(startMs);
+  const cursor = new Date(
+    Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() + 1, 1),
+  );
+
+  const out: TimelinePoint[] = [
+    { date: anchors[0]!.date, value: anchors[0]!.value },
+  ];
+
+  let i = 0;
+  while (cursor.getTime() <= endMs) {
+    const t = cursor.getTime();
+    while (
+      i < anchors.length - 1 &&
+      new Date(anchors[i + 1]!.date).getTime() < t
+    ) {
+      i++;
+    }
+    const a = anchors[i]!;
+    const b = anchors[Math.min(i + 1, anchors.length - 1)]!;
+    const aT = new Date(a.date).getTime();
+    const bT = new Date(b.date).getTime();
+    const ratio =
+      bT === aT ? 0 : Math.min(1, Math.max(0, (t - aT) / (bT - aT)));
+    const value = Math.round(a.value + (b.value - a.value) * ratio);
+    out.push({ date: cursor.toISOString(), value });
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+
+  // tail point so the line reaches today instead of the latest crossed month boundary.
+  const tailExisting = out[out.length - 1]!;
+  if (
+    new Date(endAnchor.date).getTime() > new Date(tailExisting.date).getTime()
+  ) {
+    out.push(endAnchor);
+  }
+
+  return out;
 }
 
 export function formatNumber(value: number): string {
