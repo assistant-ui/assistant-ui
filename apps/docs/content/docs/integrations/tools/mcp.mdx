@@ -1,0 +1,205 @@
+---
+title: Model Context Protocol (MCP)
+description: Connect MCP servers as a tool catalog in your assistant-ui app.
+---
+
+[MCP](https://modelcontextprotocol.io/) is an open protocol for exposing tools, resources, and prompts to LLMs. One MCP server can publish many tools (file system, GitHub, Slack, your own service) and any MCP-aware client can use them. The AI SDK has a built-in MCP client; this page is the wiring guide for plugging it into an assistant-ui app.
+
+## How it works
+
+```
+browser  ──►  /api/chat  ──►  MCP client  ──►  MCP server (HTTP, SSE, stdio)
+                              │
+                              └─ tools()  ──►  passed to streamText({ tools })
+```
+
+The MCP client lives on the server inside your AI SDK route handler. It connects to one or more MCP servers, calls `tools()` to get a tool map, and hands that map to `streamText`. assistant-ui's existing tool-call UI (`ToolFallback`, `makeAssistantToolUI`) renders the results.
+
+## Setup
+
+<Steps>
+<Step>
+
+### Install the MCP client
+
+<InstallCommand npm={["@ai-sdk/mcp"]} />
+
+For stdio transports (local dev only), also install the official MCP SDK:
+
+<InstallCommand npm={["@modelcontextprotocol/sdk"]} />
+
+</Step>
+<Step>
+
+### Connect to an MCP server
+
+Set the server URL and any auth token your server requires:
+
+```sh title=".env.local"
+MCP_SERVER_URL=https://your-mcp-server.example/mcp
+MCP_TOKEN=...
+```
+
+Then inside your AI SDK route handler, create the client with the transport that matches your server. **HTTP** is the production transport; **SSE** is the legacy streaming transport; **stdio** spawns a local process and is dev-only.
+
+```ts title="app/api/chat/route.ts"
+import { createMCPClient } from "@ai-sdk/mcp";
+
+const mcpClient = await createMCPClient({
+  transport: {
+    type: "http",
+    url: process.env.MCP_SERVER_URL!,
+    headers: { Authorization: `Bearer ${process.env.MCP_TOKEN}` },
+  },
+});
+```
+
+For stdio:
+
+```ts
+import { createMCPClient } from "@ai-sdk/mcp";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+
+const mcpClient = await createMCPClient({
+  transport: new StdioClientTransport({
+    command: "node",
+    args: ["./mcp-server/dist/index.js"],
+  }),
+});
+```
+
+</Step>
+<Step>
+
+### Wire the tools into the route
+
+`mcpClient.tools()` returns an object shaped exactly like the `tools` argument of `streamText`. Spread it in alongside any of your own tools, and close the client when the response finishes:
+
+```ts title="app/api/chat/route.ts"
+import { createMCPClient } from "@ai-sdk/mcp";
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages } from "ai";
+import type { UIMessage } from "ai";
+
+export const maxDuration = 60;
+
+export async function POST(req: Request) {
+  const { messages }: { messages: UIMessage[] } = await req.json();
+
+  const mcpClient = await createMCPClient({
+    transport: {
+      type: "http",
+      url: process.env.MCP_SERVER_URL!,
+      headers: { Authorization: `Bearer ${process.env.MCP_TOKEN}` },
+    },
+  });
+
+  const tools = await mcpClient.tools();
+
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages: await convertToModelMessages(messages),
+    tools,
+    onFinish: async () => {
+      await mcpClient.close();
+    },
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+`onFinish` is the right place to call `close()`: it fires after the stream completes, so the connection stays open as long as the model is still calling tools.
+
+</Step>
+<Step>
+
+### Combine multiple MCP servers
+
+Each server has its own client. Spread their tool maps together:
+
+```ts
+const githubClient = await createMCPClient({
+  transport: { type: "http", url: process.env.GITHUB_MCP_URL! },
+});
+const filesClient = await createMCPClient({
+  transport: { type: "http", url: process.env.FILES_MCP_URL! },
+});
+
+const tools = {
+  ...(await githubClient.tools()),
+  ...(await filesClient.tools()),
+};
+
+// remember to close both in onFinish
+```
+
+If two servers expose tools with the same name, the later spread wins. Rename or scope as needed.
+
+</Step>
+<Step>
+
+### Render results in the UI
+
+Tool calls flow through the existing assistant-ui tool-call rendering. With no setup, the bundled `<ToolFallback>` component renders the call name, arguments, and result. To customize the appearance for a specific tool, use `makeAssistantToolUI`:
+
+```tsx title="app/components/GitHubIssueToolUI.tsx"
+"use client";
+
+import { makeAssistantToolUI } from "@assistant-ui/react";
+
+type Args = { repo: string; number: number };
+type Result = { title: string; state: string; url: string };
+
+export const GitHubIssueToolUI = makeAssistantToolUI<Args, Result>({
+  toolName: "github_get_issue",
+  render: ({ args, result }) => (
+    <div className="rounded border p-3">
+      <div className="font-mono text-sm">{args.repo}#{args.number}</div>
+      {result && (
+        <a href={result.url} className="underline">
+          {result.title} ({result.state})
+        </a>
+      )}
+    </div>
+  ),
+});
+```
+
+Mount it once anywhere inside `<AssistantRuntimeProvider>`. The `toolName` must match the name your MCP server publishes.
+
+</Step>
+<Step>
+
+### Run and verify
+
+Start the app and trigger a tool call (e.g., ask the assistant to do something the MCP server can do). Confirm:
+
+- The tool call appears in the chat with the expected arguments.
+- The result renders (either via your custom `ToolUI` or the fallback).
+- No connection leaks: the MCP client closes after each response. If you see open connections accumulating, check `onFinish`.
+
+</Step>
+</Steps>
+
+## Notes
+
+- **Server-side only.** The MCP client uses Node APIs (sockets, optionally child processes). Never instantiate it in browser code.
+- **Per-request lifecycle.** A fresh client per request keeps connection state simple. For high-throughput servers, pool clients yourself with care: the AI SDK's `tools()` call assumes the connection is alive when `streamText` runs.
+- **Sampling.** If your MCP server uses `sampling/createMessage` (lets the server ask the LLM mid-call), assistant-cloud users can instrument it via [`instrumentMcpSampling`](/docs/cloud) for observability. This is independent of the wiring above.
+- **Transport choice.** HTTP for any networked server. SSE only if the server doesn't speak HTTP. stdio is for local development against an MCP server in your monorepo.
+
+## Related
+
+<Cards>
+  <Card
+    title="AI SDK runtime"
+    description="The runtime that ferries MCP tool calls to the chat UI."
+    href="/docs/runtimes/ai-sdk/v6"
+  />
+  <Card
+    title="Tools and tool UI"
+    description="Build custom renderers for tool calls and approvals."
+    href="/docs/guides/tools"
+  />
+</Cards>

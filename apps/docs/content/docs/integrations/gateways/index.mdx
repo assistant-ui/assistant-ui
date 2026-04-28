@@ -1,0 +1,157 @@
+---
+title: LLM gateways
+description: Route assistant-ui traffic through OpenAI-compatible gateways for cost, fallback, and BYOK.
+---
+
+LLM gateways sit between your route handler and the upstream provider. They give you a single endpoint that fronts many providers, plus features like multi-provider fallback, prompt caching, and BYOK (bring-your-own-key) flows. Most are OpenAI API-compatible, so the integration is a `baseURL` swap on `createOpenAI` from `@ai-sdk/openai`.
+
+For pure observability (proxy that logs every call) see [Helicone](/docs/integrations/observability/helicone). The gateways here overlap in spirit but are positioned around routing rather than logging.
+
+## Compare
+
+| Gateway | Base URL | Auth header | Distinguishing feature |
+| --- | --- | --- | --- |
+| [OpenRouter](#openrouter) | `https://openrouter.ai/api/v1` | `Authorization: Bearer <key>` | Catalog of 100+ models with `vendor/model` IDs |
+| [Portkey](#portkey) | `https://api.portkey.ai/v1` | `x-portkey-api-key` | Config-driven multi-provider fallback |
+| [LiteLLM Proxy](#litellm-proxy) | Self-hosted | `Authorization: Bearer <virtual key>` | OSS, self-host, virtual keys per tenant |
+
+If your need is only request logging, Helicone fits the same shape and is documented separately.
+
+## Common pattern
+
+All three gateways below speak OpenAI's API. Wire them with `createOpenAI`:
+
+```ts title="app/api/chat/route.ts"
+import { createOpenAI } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages } from "ai";
+import type { UIMessage } from "ai";
+
+const openai = createOpenAI({
+  baseURL: "<gateway base url>",
+  headers: { /* gateway-specific auth */ },
+});
+
+export async function POST(req: Request) {
+  const { messages }: { messages: UIMessage[] } = await req.json();
+  const result = streamText({
+    model: openai("<model id>"),
+    messages: await convertToModelMessages(messages),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+The rest of this page is what to put in `baseURL`, `headers`, and `model(...)` for each gateway.
+
+## OpenRouter
+
+[OpenRouter](https://openrouter.ai/) aggregates 100+ models behind one OpenAI-compatible endpoint. The model ID is `provider/model` (e.g., `anthropic/claude-sonnet-4`, `openai/gpt-4o`, `meta-llama/llama-3.3-70b-instruct`).
+
+```sh title=".env.local"
+OPENROUTER_API_KEY=sk-or-...
+SITE_URL=https://your-app.example
+```
+
+```ts title="app/api/chat/route.ts"
+import { createOpenAI } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages } from "ai";
+import type { UIMessage } from "ai";
+
+const openrouter = createOpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.OPENROUTER_API_KEY,
+  headers: {
+    "HTTP-Referer": process.env.SITE_URL ?? "http://localhost:3000",
+    "X-Title": "My App",
+  },
+});
+
+export async function POST(req: Request) {
+  const { messages }: { messages: UIMessage[] } = await req.json();
+  const result = streamText({
+    model: openrouter("anthropic/claude-sonnet-4"),
+    messages: await convertToModelMessages(messages),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+`HTTP-Referer` and `X-Title` are optional attribution headers; OpenRouter shows them in your usage dashboard.
+
+When to pick: you want a single bill across many models, or you let users pick the model from a long list, or you need to run open-weights models without managing the inference yourself.
+
+## Portkey
+
+[Portkey](https://portkey.ai/) is a gateway plus observability with a config-driven router. The differentiating feature is the *config*: a server-defined object that describes routing rules (try Anthropic first, fall back to OpenAI, fall back to a local model), retries, and caching.
+
+```sh title=".env.local"
+PORTKEY_API_KEY=...
+PORTKEY_VIRTUAL_KEY=...
+```
+
+```ts title="app/api/chat/route.ts"
+import { createOpenAI } from "@ai-sdk/openai";
+
+const portkey = createOpenAI({
+  baseURL: "https://api.portkey.ai/v1",
+  apiKey: "no-auth-here",
+  headers: {
+    "x-portkey-api-key": process.env.PORTKEY_API_KEY!,
+    "x-portkey-virtual-key": process.env.PORTKEY_VIRTUAL_KEY!,
+  },
+});
+```
+
+Configs live in the Portkey dashboard; reference them with `x-portkey-config: <config-id>` in the headers when you want a specific routing strategy.
+
+When to pick: you need cross-provider fallback or prompt-cache hit rates that the AI SDK doesn't give you out of the box.
+
+## LiteLLM Proxy
+
+[LiteLLM Proxy](https://docs.litellm.ai/docs/simple_proxy) is OSS and self-hostable. You run it, you configure provider keys server-side, and you hand virtual keys (per-tenant, per-user) to clients. It's the only viable path for BYOK SaaS or air-gapped deployments.
+
+Run the proxy first (Docker, k8s, or a single Node process). Then point the AI SDK at your instance:
+
+```sh title=".env.local"
+LITELLM_BASE_URL=https://litellm.example.com
+LITELLM_VIRTUAL_KEY=sk-...
+```
+
+```ts title="app/api/chat/route.ts"
+import { createOpenAI } from "@ai-sdk/openai";
+
+const litellm = createOpenAI({
+  baseURL: process.env.LITELLM_BASE_URL!,
+  apiKey: process.env.LITELLM_VIRTUAL_KEY!,
+});
+
+const result = streamText({
+  model: litellm("gpt-4o"),
+  messages: await convertToModelMessages(messages),
+});
+```
+
+Model IDs depend on how you configured the proxy. LiteLLM rewrites them to upstream providers based on your config.
+
+When to pick: self-host requirement, BYOK metering for end-users, or unified billing across providers managed by your platform team.
+
+## Notes
+
+- **Server-side only.** A gateway key is a write capability against your billing account. Never set it in browser code; the route handler is the right boundary.
+- **Streaming, tools, attachments.** All three gateways are transparent to the AI SDK; everything that works against OpenAI directly works through them.
+- **Combining with observability.** A gateway and an observability tool are not mutually exclusive. Helicone in front of OpenRouter is a common stack: OpenRouter does the routing, Helicone logs the calls.
+
+## Related
+
+<Cards>
+  <Card
+    title="Helicone"
+    description="The observability-first proxy. Same shape, different goal."
+    href="/docs/integrations/observability/helicone"
+  />
+  <Card
+    title="AI SDK runtime"
+    description="The runtime that ferries gateway responses to the chat UI."
+    href="/docs/runtimes/ai-sdk/v6"
+  />
+</Cards>
