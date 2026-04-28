@@ -1,0 +1,132 @@
+---
+title: Helicone
+description: Log and monitor LLM calls by routing them through the Helicone proxy.
+---
+
+import { VercelIcon } from "@/components/icons/vercel";
+
+[Helicone](https://www.helicone.ai/) is an observability proxy for LLM APIs. You point your provider client at Helicone's URL, add an auth header, and Helicone records every request and response with cost, latency, and prompt-level diffs.
+
+Helicone is independent of which assistant-ui runtime you use. It slots in at the LLM-client layer (OpenAI SDK, AI SDK provider, LangChain `ChatOpenAI`) on your server, not at the runtime layer in the browser. This means you can pair it with any backend setup: Vercel AI SDK, LangGraph, custom backends, anything that talks to OpenAI or another supported provider.
+
+## How it works
+
+```
+your server  →  Helicone proxy (oai.helicone.ai)  →  OpenAI / Anthropic / etc.
+                  │
+                  └─ logs request, response, tokens, cost
+```
+
+Every call passes through Helicone's edge before reaching the upstream provider. The proxy is transparent, so the response shape and streaming behavior are unchanged; you just get a dashboard of every call.
+
+## Setup
+
+<Steps>
+<Step>
+
+### Get a Helicone API key
+
+Sign up at [helicone.ai](https://www.helicone.ai/) and grab the key from the dashboard. Add it to your environment alongside your provider key:
+
+```sh title=".env.local"
+HELICONE_API_KEY=sk-helicone-...
+OPENAI_API_KEY=sk-...
+```
+
+</Step>
+<Step>
+
+### Point your provider client at the proxy
+
+Swap the provider's base URL for Helicone's proxy URL and forward your provider key inside an `Authorization` header. Add `Helicone-Auth` with your Helicone key.
+
+<Tabs items={["AI SDK", "OpenAI SDK", "LangChain (Python)"]}>
+<Tab value="AI SDK">
+
+```ts title="app/api/chat/route.ts"
+import { createOpenAI } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages } from "ai";
+import type { UIMessage } from "ai";
+
+const openai = createOpenAI({
+  baseURL: "https://oai.helicone.ai/v1",
+  headers: {
+    "Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`,
+  },
+});
+
+export async function POST(req: Request) {
+  const { messages }: { messages: UIMessage[] } = await req.json();
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages: await convertToModelMessages(messages),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+</Tab>
+<Tab value="OpenAI SDK">
+
+```ts title="app/api/chat/route.ts"
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  baseURL: "https://oai.helicone.ai/v1",
+  defaultHeaders: {
+    "Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`,
+  },
+});
+```
+
+</Tab>
+<Tab value="LangChain (Python)">
+
+```python title="app.py"
+from langchain_openai import ChatOpenAI
+import os
+
+llm = ChatOpenAI(
+    model_name="gpt-4o",
+    base_url="https://oai.helicone.ai/v1",
+    api_key=os.environ["OPENAI_API_KEY"],
+    default_headers={
+        "Helicone-Auth": f"Bearer {os.environ['HELICONE_API_KEY']}"
+    },
+)
+```
+
+</Tab>
+</Tabs>
+
+</Step>
+<Step>
+
+### Verify in the dashboard
+
+Send a request through your assistant. The call should appear in the Helicone dashboard within seconds, with token counts, latency, and the full prompt and completion text.
+
+</Step>
+</Steps>
+
+## Notes
+
+- Helicone supports OpenAI, Anthropic, and several other providers. For non-OpenAI providers, swap the base URL: see Helicone's [provider docs](https://docs.helicone.ai/getting-started/integration-method/gateway).
+- The proxy is server-side only. Never set the Helicone key in browser code.
+- Because Helicone wraps the underlying provider, all assistant-ui features (streaming, tool calls, attachments, multi-step agents) keep working unchanged.
+
+## Related
+
+<Cards>
+  <Card
+    title="Pick a runtime"
+    description="Choose a backend integration; Helicone pairs with any of them."
+    href="/docs/runtimes/pick-a-runtime"
+  />
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="AI SDK runtime"
+    description="The most common pairing: AI SDK + Helicone."
+    href="/docs/runtimes/ai-sdk/v6"
+  />
+</Cards>

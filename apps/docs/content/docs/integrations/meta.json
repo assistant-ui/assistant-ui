@@ -1,0 +1,6 @@
+{
+  "title": "Integrations",
+  "icon": "Plug",
+  "root": true,
+  "pages": ["frameworks", "observability"]
+}

@@ -1,8 +1,10 @@
 ---
-title: Full-Stack Integration
+title: Full-stack integration
 description: Integrate Mastra directly into Next.js API routes.
 ---
 
+import { MastraIcon } from "@/components/icons/mastra";
+import { VercelIcon } from "@/components/icons/vercel";
 
 Integrate Mastra directly into your Next.js application's API routes. This approach keeps your backend and frontend code within the same project.
 
@@ -23,20 +25,20 @@ npx assistant-ui@latest init
 
 This command installs necessary dependencies and creates basic configuration files, including a default chat API route.
 
-<Callout title="Need Help?">
+<Callout type="info" title="Need help?">
   For detailed setup instructions, including adding API keys, basic
-  configuration, and manual setup steps, please refer to the main [Getting
+  configuration, and manual setup steps, see the main [Getting
   Started guide](/docs).
 </Callout>
 
 </Step>
 <Step>
 
-### Review Initial API Route
+### Review the initial API route
 
 The initialization command creates a basic API route at `app/api/chat/route.ts` (or `src/app/api/chat/route.ts`). It typically looks like this:
 
-```typescript title="app/api/chat/route.ts"
+```ts title="app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
@@ -60,7 +62,7 @@ This default route uses the Vercel AI SDK directly with OpenAI. In the following
 </Step>
 <Step>
 
-### Install Mastra Packages
+### Install Mastra packages
 
 Add the `@mastra/core` package and its peer dependency `zod` (which you can use later inside tools for example). Also add `@mastra/ai-sdk` to convert Mastra's stream to an AI SDK-compatible format:
 
@@ -90,7 +92,7 @@ This tells Next.js to treat Mastra packages as external dependencies on the serv
 </Step>
 <Step>
 
-### Create Mastra Files
+### Create Mastra files
 
 Set up the basic folder structure for your Mastra configuration. Create a `mastra` folder (e.g., in your `src` or root directory) with the following structure:
 
@@ -105,7 +107,7 @@ Set up the basic folder structure for your Mastra configuration. Create a `mastr
 
 You can create these files and folders manually or use the following commands in your terminal:
 
-```bash
+```sh
 mkdir -p mastra/agents
 touch mastra/index.ts mastra/agents/chefAgent.ts
 ```
@@ -115,11 +117,11 @@ These files will be used in the next steps to define your Mastra agent and confi
 </Step>
 <Step>
 
-### Define the Agent
+### Define the agent
 
 Now, let's define the behavior of our AI agent. Open the `mastra/agents/chefAgent.ts` file and add the following code:
 
-```typescript title="mastra/agents/chefAgent.ts"
+```ts title="mastra/agents/chefAgent.ts"
 import { Agent } from "@mastra/core/agent";
 
 export const chefAgent = new Agent({
@@ -141,11 +143,11 @@ Make sure you have set up your OpenAI API key as described in the [Getting Start
 </Step>
 <Step>
 
-### Register the Agent
+### Register the agent
 
 Next, register the agent with your Mastra instance. Open the `mastra/index.ts` file and add the following code:
 
-```typescript title="mastra/index.ts"
+```ts title="mastra/index.ts"
 import { Mastra } from "@mastra/core";
 import { chefAgent } from "./agents/chefAgent";
 
@@ -159,11 +161,11 @@ This code initializes Mastra and makes the `chefAgent` available for use in your
 </Step>
 <Step>
 
-### Modify the API Route
+### Modify the API route
 
 Now, update your API route (`app/api/chat/route.ts`) to use the Mastra agent you just configured. Replace the existing content with the following:
 
-```typescript title="app/api/chat/route.ts"
+```ts title="app/api/chat/route.ts"
 import { createUIMessageStreamResponse } from "ai";
 import { toAISdkFormat } from "@mastra/ai-sdk";
 import { mastra } from "@/mastra"; // Adjust the import path if necessary
@@ -200,7 +202,7 @@ Your API route is now powered by Mastra!
 </Step>
 <Step>
 
-### Run the Application
+### Run the application
 
 You're all set! Start your Next.js development server:
 
@@ -213,6 +215,21 @@ Open your browser to `http://localhost:3000` (or the port specified in your term
 </Step>
 </Steps>
 
-Congratulations! You have successfully integrated Mastra into your Next.js application using the full-stack approach. Your assistant-ui frontend now communicates with a Mastra agent running in your Next.js backend API route.
+Your assistant-ui frontend now communicates with a Mastra agent running in your Next.js backend API route. To explore advanced Mastra features (memory, tools, workflows), refer to the [official Mastra documentation](https://mastra.ai/docs).
 
-To explore more advanced Mastra features like memory, tools, workflows, and more, please refer to the [official Mastra documentation](https://mastra.ai/docs).
+## Related
+
+<Cards>
+  <Card
+    icon={<MastraIcon width={20} height={20} />}
+    title="Separate server integration"
+    description="Run Mastra as a standalone server, connect via API."
+    href="/docs/integrations/frameworks/mastra/separate-server"
+  />
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="AI SDK runtime"
+    description="The runtime that handles the client side of this integration."
+    href="/docs/runtimes/ai-sdk/v6"
+  />
+</Cards>

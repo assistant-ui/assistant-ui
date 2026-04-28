@@ -4,6 +4,7 @@
     "primitives",
     "ui",
     "runtimes",
+    "integrations",
     "react-native",
     "ink",
     "cloud",

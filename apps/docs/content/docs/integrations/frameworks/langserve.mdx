@@ -1,0 +1,42 @@
+---
+title: LangServe
+description: Deprecated. Migrate to react-langgraph for new LangChain-ecosystem integrations.
+---
+
+import { LangChainIcon } from "@/components/icons/langchain";
+import { LangGraphIcon } from "@/components/icons/langgraph";
+
+<Callout type="warn">
+LangServe is deprecated. It relies on `RemoteRunnable` from `@langchain/core`, which LangChain has deprecated upstream. New projects should use [`@assistant-ui/react-langgraph`](/docs/runtimes/langgraph) instead.
+</Callout>
+
+## Why deprecated
+
+LangServe targeted simple chain deployment. LangChain has since unified chain and agent execution under LangGraph, and `RemoteRunnable` (the client this integration depended on) is no longer recommended. assistant-ui's LangServe path was never validated against AI SDK v6 either, so the previous example pattern is unverified on current package versions.
+
+## Migration to LangGraph
+
+If you have a LangServe deployment today:
+
+1. Rebuild your chain as a LangGraph graph. LangChain's [migration guide](https://docs.langchain.com/oss/python/langgraph/migration) covers the shape change.
+2. Deploy via LangGraph Cloud or self-host LangGraph Studio.
+3. Switch the frontend to [`@assistant-ui/react-langgraph`](/docs/runtimes/langgraph). The runtime gives you streaming, interrupts, generative UI, message metadata, and end-to-end cancellation that LangServe never exposed.
+
+If you cannot migrate yet, you can still call a LangServe endpoint from a Vercel AI SDK route handler manually using `fetch` and `streamText`. That path is undocumented and unsupported here; treat it as glue you maintain yourself.
+
+## Related
+
+<Cards>
+  <Card
+    icon={<LangGraphIcon width={20} height={20} className="text-[#1C3C3C] dark:text-[#5b9595]" />}
+    title="LangGraph"
+    description="The current LangChain-ecosystem integration."
+    href="/docs/runtimes/langgraph"
+  />
+  <Card
+    icon={<LangChainIcon width={20} height={20} className="text-[#7FC8FF]" />}
+    title="LangChain useStream"
+    description="Lighter-weight wrapper around @langchain/react's useStream."
+    href="/docs/runtimes/langchain"
+  />
+</Cards>

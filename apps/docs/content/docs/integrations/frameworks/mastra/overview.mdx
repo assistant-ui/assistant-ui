@@ -1,0 +1,57 @@
+---
+title: Overview
+description: Wire up the Mastra TypeScript agent framework with assistant-ui.
+---
+
+import { MastraIcon } from "@/components/icons/mastra";
+import { VercelIcon } from "@/components/icons/vercel";
+
+[Mastra](https://mastra.ai/) is an open-source TypeScript agent framework. It provides primitives for AI applications: agents with memory and tool calling, deterministic LLM workflows, RAG, model routing, workflow graphs, and automated evals.
+
+<Callout type="info">
+This is an integration guide, not a runtime adapter. assistant-ui does not ship a `@assistant-ui/react-mastra` package. You wire up Mastra through the standard [Vercel AI SDK runtime](/docs/runtimes/ai-sdk/v6) by routing your API endpoint through Mastra's agent stream. The guides below show the two common shapes.
+</Callout>
+
+## Two integration patterns
+
+| Pattern | When to pick |
+| --- | --- |
+| [full-stack](/docs/integrations/frameworks/mastra/full-stack) | One Next.js app: API routes call Mastra in-process. Simpler deployment, single repo. |
+| [separate server](/docs/integrations/frameworks/mastra/separate-server) | Mastra runs as its own service; the Next.js frontend hits its API. Independent scaling, clearer separation of concerns. |
+
+Both use the same client-side `useChatRuntime` from [`@assistant-ui/react-ai-sdk`](/docs/runtimes/ai-sdk/v6); the only difference is where the Mastra agent lives.
+
+## Architecture
+
+Mastra integrates at the LLM-client layer (server-side). assistant-ui talks to your API route via the AI SDK runtime; your API route asks Mastra to run an agent and returns the stream. This is layered on `ExternalStoreRuntime` (see [architecture](/docs/runtimes/concepts/architecture)) through the AI SDK adapter.
+
+Shared adapters (attachments, speech, feedback, history) work the same way described in [adapters](/docs/runtimes/concepts/adapters). Multi-thread support uses [AssistantCloud](/docs/cloud) or a [custom thread list](/docs/runtimes/concepts/threads).
+
+## Requirements
+
+- A Next.js project (or another framework that can run AI SDK route handlers).
+- Model API keys (OpenAI, Anthropic, etc.) configured in your environment.
+- Node 18 or newer.
+
+## Next
+
+<Cards>
+  <Card
+    icon={<MastraIcon width={20} height={20} />}
+    title="Full-stack integration"
+    description="Run Mastra inside your Next.js API routes."
+    href="/docs/integrations/frameworks/mastra/full-stack"
+  />
+  <Card
+    icon={<MastraIcon width={20} height={20} />}
+    title="Separate server integration"
+    description="Run Mastra as a standalone server, frontend connects via API."
+    href="/docs/integrations/frameworks/mastra/separate-server"
+  />
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="AI SDK runtime"
+    description="The runtime that handles the client side of this integration."
+    href="/docs/runtimes/ai-sdk/v6"
+  />
+</Cards>

@@ -1,245 +1,107 @@
 ---
-title: Picking a Runtime
-description: Which runtime fits your backend? Decision guide for common setups.
+title: Picking a runtime
+description: Decision guide for choosing the right runtime, by framework or by feature.
 ---
 
-Choosing the right runtime is crucial for your assistant-ui implementation. This guide helps you navigate the options based on your specific needs.
+import { AguiIcon } from "@/components/icons/agui";
+import { GeminiIcon } from "@/components/icons/gemini";
+import { LangChainIcon } from "@/components/icons/langchain";
+import { LangGraphIcon } from "@/components/icons/langgraph";
+import { MastraIcon } from "@/components/icons/mastra";
+import { OpenCodeIcon } from "@/components/icons/opencode";
+import { VercelIcon } from "@/components/icons/vercel";
+import { Network } from "lucide-react";
 
-## Quick Decision Tree
+A runtime is the connection between assistant-ui's UI primitives and your AI backend. This page helps you pick one. Two lenses, pick whichever maps to what you already know.
 
-```mermaid
-graph TD
-    A[What's your starting point?] --> B{Existing Framework?}
-    B -->|Vercel AI SDK| C[Use AI SDK Integration]
-    B -->|LangGraph via langgraph-sdk| D1[Use react-langgraph]
-    B -->|LangChain via @langchain/react useStream| D2[Use react-langchain]
-    B -->|LangServe| E[Use LangServe Runtime]
-    B -->|Mastra| F[Use Mastra Runtime]
-    B -->|AG-UI Protocol| J[Use AG-UI Runtime]
-    B -->|A2A Protocol| K[Use A2A Runtime]
-    B -->|Custom Backend| G{State Management?}
-    G -->|Let assistant-ui handle it| H[Use LocalRuntime]
-    G -->|I'll manage it myself| I[Use ExternalStoreRuntime]
-```
+## Lens 1: by framework
 
-## Core Runtimes
+If you are already using one of these frameworks, the choice is mechanical.
 
-These are the foundational runtimes that power assistant-ui:
+### First-party adapters
+
+assistant-ui ships React adapter packages for these. Pick the matching card and follow its overview.
 
 <Cards>
   <Card
-    title="`LocalRuntime`"
-    description="assistant-ui manages chat state internally. Simple adapter pattern for any backend."
-    href="/docs/runtimes/custom/local"
-  />
-  <Card
-    title="`ExternalStoreRuntime`"
-    description="You control the state. Perfect for Redux, Zustand, or existing state management."
-    href="/docs/runtimes/custom/external-store"
-  />
-</Cards>
-
-## Pre-Built Integrations
-
-For popular frameworks, we provide ready-to-use integrations built on top of our core runtimes:
-
-<Cards>
-  <Card
+    icon={<VercelIcon width={20} height={20} />}
     title="Vercel AI SDK"
-    description="For useChat hook - streaming with all major providers"
-    href="/docs/runtimes/ai-sdk/v6"
+    description="useChat hook, streaming, tools, attachments, multi-step. v6 current; v5 / v4 legacy."
+    href="/docs/runtimes/ai-sdk"
   />
   <Card
-    title="Data Stream Protocol"
-    description="For custom backends using the data stream protocol standard"
-    href="/docs/runtimes/data-stream"
-  />
-  <Card
+    icon={<LangGraphIcon width={20} height={20} className="text-[#1C3C3C] dark:text-[#5b9595]" />}
     title="LangGraph"
-    description="Integrates with `@langchain/langgraph-sdk` directly. Broader feature set: subgraph events, UI messages, message metadata, cancellation."
+    description="Direct integration with @langchain/langgraph-sdk. Subgraph events, UI messages, message metadata."
     href="/docs/runtimes/langgraph"
   />
   <Card
+    icon={<LangChainIcon width={20} height={20} className="text-[#7FC8FF]" />}
     title="LangChain useStream"
-    description="Wraps `useStream` from `@langchain/react`. Lighter-weight, stays aligned with upstream. Fewer features today."
+    description="Wraps @langchain/react's useStream. Lighter-weight, tracks upstream."
     href="/docs/runtimes/langchain"
   />
   <Card
-    title="LangServe"
-    description="For LangChain applications deployed with LangServe"
-    href="/docs/runtimes/langserve"
+    icon={<GeminiIcon width={20} height={20} />}
+    title="Google ADK"
+    description="ADK JS or Python agents. Tool confirmations, auth flows, multi-agent, code execution."
+    href="/docs/runtimes/google-adk"
   />
   <Card
-    title="Mastra"
-    description="For workflow orchestration with Mastra's ecosystem"
-    href="/docs/runtimes/mastra/overview"
-  />
-  <Card
-    title="AG-UI Protocol"
-    description="For backends implementing the AG-UI (Agent-User Interaction) protocol"
-    href="https://www.npmjs.com/package/@assistant-ui/react-ag-ui"
-  />
-  <Card
+    icon={<Network width={20} height={20} />}
     title="A2A Protocol"
-    description="For Agent-to-Agent protocol communication between AI agents"
+    description="Any A2A v1.0-compliant agent server. Streaming task state, artifacts, multi-tenancy."
     href="/docs/runtimes/a2a"
+  />
+  <Card
+    icon={<AguiIcon width={20} height={20} />}
+    title="AG-UI Protocol"
+    description="AG-UI agents (CopilotKit, custom servers). Streaming text, thinking, tool calls, state snapshots."
+    href="/docs/runtimes/ag-ui"
+  />
+  <Card
+    icon={<OpenCodeIcon width={20} height={20} />}
+    title="OpenCode"
+    description="OpenCode coding-agent server. Permission flows, questions, fork / revert. Experimental."
+    href="/docs/runtimes/opencode"
   />
 </Cards>
 
-## Understanding Runtime Architecture
+### Integration guides
 
-### How Pre-Built Integrations Work
+For frameworks without a dedicated adapter, these wiring guides route through one of the adapters above.
 
-The pre-built integrations (AI SDK, LangGraph, etc.) are **not separate runtime types**. They're convenient wrappers built on top of our core runtimes:
+<Cards>
+  <Card
+    icon={<MastraIcon width={20} height={20} />}
+    title="Mastra"
+    description="TypeScript agent framework. Wired through the Vercel AI SDK runtime."
+    href="/docs/integrations/frameworks/mastra/overview"
+  />
+</Cards>
 
-- **AI SDK Integration** → Built on `LocalRuntime` with streaming adapter
-- **LangGraph Runtime** → Built on `ExternalStoreRuntime`, integrates with `@langchain/langgraph-sdk`
-- **LangChain useStream Runtime** → Built on `ExternalStoreRuntime`, wraps `useStream` from `@langchain/react`
-- **LangServe Runtime** → Built on `LocalRuntime` with LangServe client adapter
-- **Mastra Runtime** → Built on `LocalRuntime` with workflow adapter
-- **AG-UI Runtime** → Built on `LocalRuntime` with AG-UI protocol adapter
-- **A2A Runtime** → Built on `LocalRuntime` with Agent-to-Agent protocol adapter
+## Lens 2: by needs
 
-This means pre-built integrations give you assistant-ui's features — state management, streaming, UI primitives — with zero configuration for your specific framework, regardless of whether the adapter happens to build on `LocalRuntime` or `ExternalStoreRuntime` internally. The list above tells you which core runtime each adapter uses.
+If you do not know your framework yet, or your backend is custom, pick by what you need:
 
-### When to Use Pre-Built vs Core Runtimes
+| You need | Use |
+| --- | --- |
+| Simple `fetch` call to your API, runtime owns state | [LocalRuntime](/docs/runtimes/custom/local-runtime) |
+| Keep messages in redux, zustand, tanstack-query, etc. | [ExternalStoreRuntime](/docs/runtimes/custom/external-store) |
+| Backend that already speaks the data stream protocol | [DataStream](/docs/runtimes/custom/data-stream) |
+| Stream full agent state snapshots (not just messages) | [AssistantTransport](/docs/runtimes/custom/assistant-transport) |
 
-**Use a pre-built integration when:**
-- You're already using that framework
-- You want the fastest possible setup
-- The integration covers your needs
+If none of the framework adapters fits, start at [custom backend](/docs/runtimes/custom).
 
-**Use a core runtime when:**
-- You have a custom backend
-- You need features not exposed by the integration
-- You want full control over the implementation
+## Shared concepts
 
-<Callout>
-Pre-built integrations can always be replaced with a custom `LocalRuntime` or `ExternalStoreRuntime` implementation if you need more control later.
-</Callout>
+Regardless of which runtime you pick, four ideas apply across the board.
 
-## Feature Comparison
-
-### Core Runtime Capabilities
-
-| Feature | `LocalRuntime` | `ExternalStoreRuntime` |
-| ------- | -------------- | ---------------------- |
-| **State Management** | Automatic | You control |
-| **Setup Complexity** | Simple | Moderate |
-| **Message Editing** | Built-in | Implement `onEdit` |
-| **Branch Switching** | Built-in | Implement `setMessages` |
-| **Regeneration** | Built-in | Implement `onReload` |
-| **Cancellation** | Built-in | Implement `onCancel` |
-| **Multi-thread** | Via adapters | Via adapters |
-
-### Available Adapters
-
-| Adapter | `LocalRuntime` | `ExternalStoreRuntime` |
-| ------- | -------------- | ---------------------- |
-| ChatModel | ✅ Required | ❌ N/A |
-| Attachments | ✅ | ✅ |
-| Speech | ✅ | ✅ |
-| Feedback | ✅ | ✅ |
-| History | ✅ | ❌ Use your state |
-| Suggestions | ✅ | ❌ Use your state |
-
-## Common Implementation Patterns
-
-### Vercel AI SDK with Streaming
-
-```tsx
-import { AssistantRuntimeProvider, Thread } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
-
-export function MyAssistant() {
-  const runtime = useChatRuntime();
-
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <Thread />
-    </AssistantRuntimeProvider>
-  );
-}
-```
-
-### Custom Backend with `LocalRuntime`
-
-```tsx
-import { useLocalRuntime } from "@assistant-ui/react";
-
-const runtime = useLocalRuntime({
-  async run({ messages, abortSignal }) {
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages }),
-      signal: abortSignal,
-    });
-    return response.json();
-  },
-});
-```
-
-### Redux Integration with `ExternalStoreRuntime`
-
-```tsx
-import { useExternalStoreRuntime } from "@assistant-ui/react";
-
-const messages = useSelector(selectMessages);
-const dispatch = useDispatch();
-
-const runtime = useExternalStoreRuntime({
-  messages,
-  onNew: async (message) => {
-    dispatch(addUserMessage(message));
-    const response = await api.chat(message);
-    dispatch(addAssistantMessage(response));
-  },
-  setMessages: (messages) => dispatch(setMessages(messages)),
-  onEdit: async (message) => dispatch(editMessage(message)),
-  onReload: async (parentId) => dispatch(reloadMessage(parentId)),
-});
-```
-
-## Examples
-
-Explore our implementation examples:
-
-- **[AI SDK v6 Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v6)** - Vercel AI SDK with `useChatRuntime`
-- **[External Store Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-external-store)** - `ExternalStoreRuntime` with custom state
-- **[Assistant Cloud Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud)** - Multi-thread with cloud persistence
-- **[LangGraph Example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-langgraph)** - Agent workflows
-
-## Common Pitfalls to Avoid
-
-### LocalRuntime Pitfalls
-- **Forgetting the adapter**: `LocalRuntime` requires a `ChatModelAdapter` - it won't work without one
-- **Not handling errors**: Always handle API errors in your adapter's `run` function
-- **Missing abort signal**: Pass `abortSignal` to your fetch calls for proper cancellation
-
-### ExternalStoreRuntime Pitfalls
-- **Mutating state**: Always create new arrays/objects when updating messages
-- **Missing handlers**: Each UI feature requires its corresponding handler (e.g., no edit button without `onEdit`)
-- **Forgetting optimistic updates**: Set `isRunning` to `true` for loading states
-
-### General Pitfalls
-- **Wrong integration level**: Don't use `LocalRuntime` if you already have Vercel AI SDK - use the AI SDK integration instead
-- **Over-engineering**: Start with pre-built integrations before building custom solutions
-- **Ignoring TypeScript**: The types will guide you to the correct implementation
-
-## Next Steps
-
-1. **Choose your runtime** based on the decision tree above
-2. **Follow the specific guide**:
-   - [AI SDK Integration](/docs/runtimes/ai-sdk/v6)
-   - [`LocalRuntime` Guide](/docs/runtimes/custom/local)
-   - [`ExternalStoreRuntime` Guide](/docs/runtimes/custom/external-store)
-   - [LangGraph Integration](/docs/runtimes/langgraph)
-   - [LangChain useStream Integration](/docs/runtimes/langchain)
-3. **Start with an example** from our [examples repository](https://github.com/assistant-ui/assistant-ui/tree/main/examples)
-4. **Add features progressively** using adapters
-5. **Consider Assistant Cloud** for production persistence
+- **Architecture** — Framework adapters wrap one of two **core runtimes** (`LocalRuntime`, `ExternalStoreRuntime`). See [architecture](/docs/runtimes/concepts/architecture) for the full layering.
+- **Adapters** (attachments, speech, feedback, history, suggestions) work the same way across runtimes. See [adapters](/docs/runtimes/concepts/adapters).
+- **Threads** (single, cloud, custom database) follow the same model. See [threads](/docs/runtimes/concepts/threads).
+- **Stability** policy: APIs prefixed with `unstable_` may change in any release. See [stability](/docs/runtimes/concepts/stability).
 
 <Callout type="info">
-Need help? Join our [Discord community](https://discord.gg/S9dwgCNEFs) or check the [GitHub](https://github.com/assistant-ui/assistant-ui).
+Need help? Join our [Discord community](https://discord.gg/S9dwgCNEFs) or check the [GitHub repo](https://github.com/assistant-ui/assistant-ui).
 </Callout>
