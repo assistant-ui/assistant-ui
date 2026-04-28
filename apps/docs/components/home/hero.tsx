@@ -38,6 +38,14 @@ export function Hero() {
           </Link>
           <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
           <Link
+            href="/traction"
+            onClick={() => analytics.cta.clicked("why_us", "hero")}
+            className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+          >
+            Why us?
+          </Link>
+          <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
+          <Link
             href="https://cal.com/simon-farshid/assistant-ui"
             onClick={() => analytics.cta.clicked("contact_sales", "hero")}
             className="font-medium text-foreground/60 transition-colors hover:text-foreground"

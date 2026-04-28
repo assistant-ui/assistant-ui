@@ -112,6 +112,12 @@ export const NAV_ITEMS: NavItem[] = [
         external: false,
       },
       {
+        label: "Traction",
+        href: "/traction",
+        description: "Packages, stars, and adoption",
+        external: false,
+      },
+      {
         label: "Changelog",
         href: "/changelog",
         description: "Release notes and version history",
