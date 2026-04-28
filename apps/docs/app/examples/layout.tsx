@@ -9,23 +9,26 @@ import {
 } from "@/components/docs/contexts/sidebar";
 import { SidebarContent } from "@/components/docs/layout/sidebar-content";
 import { AssistantPanelProvider } from "@/components/docs/assistant/context";
+import { PlatformProvider } from "@/components/docs/contexts/platform";
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <AssistantPanelProvider>
-      <DocsSidebarProvider>
-        <DocsHeader section="Examples" sectionHref="/examples" />
-        <DocsLayout
-          {...sharedDocsOptions}
-          tree={examples.pageTree}
-          nav={{ enabled: false }}
-        >
-          {children}
-        </DocsLayout>
-        <DocsSidebar>
-          <SidebarContent tree={examples.pageTree} />
-        </DocsSidebar>
-      </DocsSidebarProvider>
-    </AssistantPanelProvider>
+    <PlatformProvider>
+      <AssistantPanelProvider>
+        <DocsSidebarProvider>
+          <DocsHeader section="Examples" sectionHref="/examples" />
+          <DocsLayout
+            {...sharedDocsOptions}
+            tree={examples.pageTree}
+            nav={{ enabled: false }}
+          >
+            {children}
+          </DocsLayout>
+          <DocsSidebar>
+            <SidebarContent tree={examples.pageTree} />
+          </DocsSidebar>
+        </DocsSidebarProvider>
+      </AssistantPanelProvider>
+    </PlatformProvider>
   );
 }
