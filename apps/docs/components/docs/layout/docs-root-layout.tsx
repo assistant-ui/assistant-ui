@@ -2,8 +2,6 @@ import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import type * as PageTree from "fumadocs-core/page-tree";
 import type { ReactNode } from "react";
 import { sharedDocsOptions } from "@/lib/layout.shared";
-import { SidebarTabs } from "@/components/docs/layout/sidebar-tabs";
-import { getSidebarTabs } from "@/components/docs/layout/sidebar-tabs.server";
 import { DocsHeader } from "@/components/docs/layout/docs-header";
 import {
   DocsSidebarProvider,
@@ -33,8 +31,6 @@ export function DocsRootLayout({
   sectionHref,
   children,
 }: DocsRootLayoutProps) {
-  const tabs = getSidebarTabs(tree);
-
   return (
     <CurrentPageProvider>
       <AssistantPanelProvider>
@@ -46,20 +42,13 @@ export function DocsRootLayout({
                 {...sharedDocsOptions}
                 tree={tree}
                 nav={{ enabled: false }}
-                sidebar={{
-                  ...sharedDocsOptions.sidebar,
-                  tabs: false,
-                  banner: <SidebarTabs tabs={tabs} />,
-                }}
+                sidebar={{ enabled: false }}
               >
                 {children}
               </DocsLayout>
             </DocsContent>
             <DocsSidebar>
-              <SidebarContent
-                tree={tree}
-                banner={<SidebarTabs tabs={tabs} />}
-              />
+              <SidebarContent tree={tree} />
             </DocsSidebar>
           </DocsSidebarProvider>
         </DocsRuntimeProvider>

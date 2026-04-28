@@ -6,6 +6,7 @@ import {
   AssistantPanelToggle,
 } from "@/components/docs/assistant/panel";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
+import { DOCS_SIDEBAR_WIDTH } from "@/components/docs/contexts/sidebar";
 import { cn } from "@/lib/utils";
 
 export const COLLAPSED_WIDTH = "12px";
@@ -20,12 +21,13 @@ export function DocsContent({ children }: { children: ReactNode }): ReactNode {
   return (
     <div
       className={cn(
-        "@container md:mr-(--chat-panel-width)",
+        "@container md:mr-(--chat-panel-width) md:ml-(--sidebar-width)",
         !isResizing && "transition-[margin] duration-300 ease-out",
       )}
       style={
         {
           "--chat-panel-width": getPanelWidth(open, width),
+          "--sidebar-width": `${DOCS_SIDEBAR_WIDTH}px`,
         } as React.CSSProperties
       }
     >
