@@ -421,13 +421,6 @@ function currentMonthKey(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
-function startOfCurrentMonthISO(): string {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-  ).toISOString();
-}
-
 export const TIMELINE_PACKAGES = [
   "@assistant-ui/react",
   "@assistant-ui/react-ai-sdk",
@@ -503,7 +496,7 @@ export async function fetchTimelineSeries(
   return {
     series,
     data,
-    projectedMonth: projectedIndex >= 0 ? cutoff : undefined,
+    ...(projectedIndex >= 0 ? { projectedMonth: cutoff } : {}),
   };
 }
 

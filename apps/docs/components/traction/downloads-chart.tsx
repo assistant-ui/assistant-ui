@@ -126,18 +126,14 @@ export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
           cursor={{ stroke: "var(--border)" }}
           content={(tooltipProps) => {
             // hide _proj entries when their raw counterpart has a value (avoids empty rows on the bridging month).
-            const filtered = (
-              tooltipProps.payload as
-                | Array<{
-                    dataKey?: string | number;
-                    payload?: Record<string, number | undefined>;
-                  }>
-                | undefined
-            )?.filter((entry) => {
+            const filtered = tooltipProps.payload?.filter((entry) => {
               const key = String(entry?.dataKey ?? "");
               if (!key.endsWith("_proj")) return true;
               const baseKey = key.slice(0, -5);
-              return entry.payload?.[baseKey] === undefined;
+              const rowPayload = entry.payload as
+                | Record<string, number | undefined>
+                | undefined;
+              return rowPayload?.[baseKey] === undefined;
             });
             return (
               <ChartTooltipContent
