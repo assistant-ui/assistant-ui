@@ -43,7 +43,6 @@ const contentToParts = (content: AdkMessage["content"]): ContentPart[] => {
             data: {
               url: part.url,
               ...(part.mimeType != null && { mimeType: part.mimeType }),
-              ...(part.filename != null && { filename: part.filename }),
             },
           };
         case "code":

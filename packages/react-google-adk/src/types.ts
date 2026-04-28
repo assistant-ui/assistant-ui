@@ -119,7 +119,6 @@ export type AdkMessageContentPart =
       type: "file_url";
       url: string;
       mimeType?: string | undefined;
-      filename?: string | undefined;
     }
   | { type: "code"; code: string; language: string }
   | { type: "code_result"; output: string; outcome: string }
