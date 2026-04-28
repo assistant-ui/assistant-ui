@@ -1,0 +1,71 @@
+---
+title: Overview
+description: Four ways to wire assistant-ui to a backend without a framework adapter.
+---
+
+If no [framework adapter](/docs/runtimes/pick-a-runtime) fits your backend, this section gives you four building blocks. All four are built on one of the two core runtimes; understanding the layering (see [architecture](/docs/runtimes/concepts/architecture)) makes the choice clear.
+
+## The four paths
+
+| Path | Layered on | Wire shape | Choose when |
+| --- | --- | --- | --- |
+| [`LocalRuntime`](/docs/runtimes/custom/local-runtime) | Core | You write a `ChatModelAdapter.run` function | The simplest case: you have a `fetch` call to make, want assistant-ui to handle state |
+| [`ExternalStoreRuntime`](/docs/runtimes/custom/external-store) | Core | You provide messages + callbacks | You already have state in redux, zustand, tanstack-query, or anywhere |
+| [`DataStream`](/docs/runtimes/custom/data-stream) | LocalRuntime + protocol | Your backend emits the data stream protocol | You want a thin message-stream contract, or you are migrating from AI SDK v4 |
+| [`AssistantTransport`](/docs/runtimes/custom/assistant-transport) | ExternalStoreRuntime + protocol | Your backend streams agent state snapshots | Your agent has rich internal state and you want it surfaced in the UI; or you need bidirectional commands |
+
+## Decision tree
+
+```text
+do you have an AI SDK / LangGraph / Google ADK / A2A backend?
+└── yes → use that framework adapter; you do not need this section
+└── no → continue
+    │
+    do you already have message state in redux / zustand / tanstack-query?
+    └── yes → ExternalStoreRuntime
+    └── no → continue
+        │
+        do you control the backend wire format?
+        └── yes, and i want simple fetch calls → LocalRuntime
+        └── yes, and i want to stream a structured agent state → AssistantTransport
+        └── no, the backend already speaks data stream protocol → DataStream
+```
+
+## What each path gives you
+
+**`LocalRuntime`** is the lowest-friction path. You implement one method (`run` or `async *run`). Branching, editing, regeneration, multi-thread, and adapter slots all work without extra code.
+
+**`ExternalStoreRuntime`** is the inverse: you own the message array and provide callbacks for each interaction. UI features turn on based on which callbacks you provide. Ideal when chat state is a first-class entity in your existing store.
+
+**`DataStream`** is `LocalRuntime` plus a wire protocol. You do not write a `ChatModelAdapter`; your backend emits a standardized stream of message parts and the runtime consumes it directly.
+
+**`AssistantTransport`** is `ExternalStoreRuntime` plus a state-streaming protocol. Instead of sending message parts, your backend sends snapshots of its full agent state. The UI is a stateless view on top of that state. Supports custom commands beyond the built-in `add-message` and `add-tool-result`.
+
+## Common building blocks
+
+Regardless of which path you pick, the [adapter](/docs/runtimes/concepts/adapters) and [thread](/docs/runtimes/concepts/threads) interfaces work the same way. Wire attachments, history, speech, feedback, suggestions, and multi-thread support through those shared contracts.
+
+## Next
+
+<Cards>
+  <Card
+    title="LocalRuntime"
+    description="Write a single ChatModelAdapter.run function."
+    href="/docs/runtimes/custom/local-runtime"
+  />
+  <Card
+    title="ExternalStoreRuntime"
+    description="Bring redux, zustand, tanstack-query, or your own state."
+    href="/docs/runtimes/custom/external-store"
+  />
+  <Card
+    title="Data Stream"
+    description="Standard message-stream protocol on top of LocalRuntime."
+    href="/docs/runtimes/custom/data-stream"
+  />
+  <Card
+    title="Assistant Transport"
+    description="Stream full agent state snapshots and bidirectional commands."
+    href="/docs/runtimes/custom/assistant-transport"
+  />
+</Cards>

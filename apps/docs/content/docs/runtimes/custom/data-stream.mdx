@@ -1,0 +1,253 @@
+---
+title: Data Stream Protocol
+description: Standard message-streaming protocol on top of LocalRuntime.
+---
+
+`@assistant-ui/react-data-stream` consumes the data stream protocol, a standardized format for streaming AI responses. It is layered on `LocalRuntime` (see [architecture](/docs/runtimes/concepts/architecture)), so all `LocalRuntime` features apply.
+
+The protocol supports streaming text, tool calls, conversation context, error handling, cancellation, and attachments.
+
+## When to use it
+
+Pick this runtime when:
+
+- Your backend already speaks the data stream protocol (or you can make it do so).
+- You want a thin message-stream contract without writing a `ChatModelAdapter`.
+- You are migrating from AI SDK v4 and want the v4 pattern preserved (see [v4 docs](/docs/runtimes/ai-sdk/v4-legacy)).
+
+If your backend exposes a richer state surface, consider [`AssistantTransport`](/docs/runtimes/custom/assistant-transport) instead.
+
+## Install
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-data-stream"]} />
+
+## Quickstart
+
+<Steps>
+<Step>
+
+### Set up the runtime
+
+```tsx title="app/page.tsx"
+"use client";
+
+import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/thread";
+
+export default function ChatPage() {
+  const runtime = useDataStreamRuntime({ api: "/api/chat" });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Step>
+<Step>
+
+### Create the backend endpoint
+
+Your backend should accept POST requests and return data stream responses:
+
+```ts title="app/api/chat/route.ts"
+import { createAssistantStreamResponse } from "assistant-stream";
+
+export async function POST(request: Request) {
+  const { messages, tools, system, threadId } = await request.json();
+
+  return createAssistantStreamResponse(async (controller) => {
+    const stream = await processWithAI({ messages, tools, system });
+    for await (const chunk of stream) {
+      controller.appendText(chunk.text);
+    }
+  });
+}
+```
+
+The request body includes `messages`, `tools`, `system` (if configured), and `threadId`.
+
+</Step>
+</Steps>
+
+## Headers and authentication
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  headers: { Authorization: `Bearer ${token}`, "X-Custom-Header": "value" },
+  credentials: "include",
+});
+```
+
+Evaluate per-request:
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  headers: async () => ({
+    Authorization: `Bearer ${await getAuthToken()}`,
+  }),
+  body: async () => ({
+    requestId: crypto.randomUUID(),
+    timestamp: Date.now(),
+    signature: await computeSignature(),
+  }),
+});
+```
+
+## Event callbacks
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  onResponse: (response) => console.log("status:", response.status),
+  onFinish: (message) => console.log("done:", message),
+  onError: (error) => console.error(error),
+  onCancel: () => console.log("cancelled"),
+});
+```
+
+## Tool integration
+
+<Callout type="warn">
+Human-in-the-loop tools (`unstable_humanToolNames`, `human()` interrupts) are not supported in the data stream runtime. Use [`LocalRuntime`](/docs/runtimes/custom/local-runtime) directly if you need approval flows.
+</Callout>
+
+### Frontend tools
+
+Serialize client-side tools with `toToolsJSONSchema`:
+
+```tsx
+import { tool } from "@assistant-ui/react";
+import { toToolsJSONSchema } from "assistant-stream";
+
+const myTools = {
+  get_weather: tool({
+    description: "Get current weather",
+    parameters: z.object({ location: z.string() }),
+    execute: async ({ location }) => {
+      const weather = await fetchWeather(location);
+      return `Weather in ${location}: ${weather}`;
+    },
+  }),
+};
+
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  body: { tools: toToolsJSONSchema(myTools) },
+});
+```
+
+### Backend tool processing
+
+```ts title="Backend tool handling"
+const { tools } = await request.json();
+const response = await ai.generateText({ messages, tools });
+```
+
+Tool results stream back automatically.
+
+## Message conversion
+
+### Generic (recommended)
+
+```tsx
+import { toGenericMessages, toToolsJSONSchema } from "assistant-stream";
+
+const genericMessages = toGenericMessages(messages);
+const toolSchemas = toToolsJSONSchema(tools);
+```
+
+`GenericMessage` is a union of `system`, `user` (with text and file parts), `assistant` (with text and tool-call parts), and `tool` (with tool-result parts). It is easy to convert to any LLM provider format.
+
+### AI SDK specific
+
+```tsx
+import { toLanguageModelMessages } from "@assistant-ui/react-data-stream";
+
+const languageModelMessages = toLanguageModelMessages(messages, {
+  unstable_includeId: true,
+});
+```
+
+`toLanguageModelMessages` internally uses `toGenericMessages` with AI-SDK-specific transformations. For new integrations prefer `toGenericMessages` directly.
+
+## Assistant Cloud integration
+
+```tsx
+import { useCloudRuntime } from "@assistant-ui/react-data-stream";
+
+const runtime = useCloudRuntime({
+  cloud: assistantCloud,
+  assistantId: "my-assistant-id",
+});
+```
+
+<Callout type="info">
+`useCloudRuntime` is currently under active development and not yet ready for production.
+</Callout>
+
+## LocalRuntimeOptions
+
+`useDataStreamRuntime` accepts every `LocalRuntimeOptions` option in addition to its own. The `chatModel` adapter slot is handled internally and cannot be overridden.
+
+```tsx
+const runtime = useDataStreamRuntime({
+  api: "/api/chat",
+  initialMessages: [
+    { role: "user", content: [{ type: "text", text: "Hello" }] },
+    { role: "assistant", content: [{ type: "text", text: "Hi!" }] },
+  ],
+  maxSteps: 5,
+  cloud, // see "AssistantCloud" in /docs/runtimes/concepts/threads
+  adapters: {
+    attachments: myAttachmentAdapter,
+    history: myHistoryAdapter,
+    speech: mySpeechAdapter,
+    feedback: myFeedbackAdapter,
+    suggestion: mySuggestionAdapter,
+  },
+});
+```
+
+See [adapters](/docs/runtimes/concepts/adapters) for adapter contracts and [LocalRuntime](/docs/runtimes/custom/local-runtime) for inherited options.
+
+## Error handling
+
+The runtime handles common error scenarios automatically:
+
+- Network errors: retried with exponential backoff.
+- Stream interruptions: gracefully handled with partial content preserved.
+- Tool execution errors: displayed in the UI with error states.
+- Cancellation: clean abort signal handling.
+
+## Examples
+
+[`examples/`](https://github.com/assistant-ui/assistant-ui/tree/main/examples) contains reference implementations.
+
+## API reference
+
+For the full hook reference, see [`@assistant-ui/react-data-stream` API](/docs/api-reference/integrations/react-data-stream).
+
+## Related
+
+<Cards>
+  <Card
+    title="LocalRuntime"
+    description="The core runtime data-stream is built on."
+    href="/docs/runtimes/custom/local-runtime"
+  />
+  <Card
+    title="Assistant Transport"
+    description="State-streaming protocol alternative."
+    href="/docs/runtimes/custom/assistant-transport"
+  />
+  <Card
+    title="Adapters"
+    description="Attachments, speech, feedback, history, suggestions."
+    href="/docs/runtimes/concepts/adapters"
+  />
+</Cards>

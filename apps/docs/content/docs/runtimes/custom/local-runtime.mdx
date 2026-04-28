@@ -1,0 +1,536 @@
+---
+title: LocalRuntime
+description: Quickest path to a working chat. Handles state while you handle the API.
+---
+
+`LocalRuntime` is the simplest way to connect a custom backend. You implement a single `ChatModelAdapter` (one `run` function) and the runtime handles everything else: messages, threads, branching, editing, regeneration, cancellation.
+
+State lives inside the runtime by default. Multi-thread persistence and shared adapters are added via the standard interfaces, see [adapters](/docs/runtimes/concepts/adapters) and [threads](/docs/runtimes/concepts/threads).
+
+## When to use it
+
+Pick `LocalRuntime` when:
+
+- You want assistant-ui to manage chat state for you.
+- Your backend exposes a function-call shaped API (REST, OpenAI SDK, your own model client).
+- Branching, editing, and regeneration should work without you writing extra code.
+- You want to compose adapters (attachments, speech, feedback, history, suggestions).
+
+If you already keep messages in redux, zustand, tanstack-query, or another store, use [`ExternalStoreRuntime`](/docs/runtimes/custom/external-store) instead.
+
+## Quickstart
+
+<Steps>
+<Step>
+
+### Create a Next.js project
+
+```sh
+npx create-next-app@latest my-app
+cd my-app
+```
+
+</Step>
+<Step>
+
+### Install `@assistant-ui/react`
+
+<InstallCommand npm={["@assistant-ui/react"]} />
+
+</Step>
+<Step>
+
+### Add the Thread component
+
+```sh
+npx assistant-ui@latest add thread
+```
+
+</Step>
+<Step>
+
+### Define a `MyRuntimeProvider`
+
+Replace the `MyModelAdapter` body with your backend call.
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import type { ReactNode } from "react";
+import {
+  AssistantRuntimeProvider,
+  useLocalRuntime,
+  type ChatModelAdapter,
+} from "@assistant-ui/react";
+
+const MyModelAdapter: ChatModelAdapter = {
+  async run({ messages, abortSignal }) {
+    const result = await fetch("<YOUR_API_ENDPOINT>", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+      signal: abortSignal,
+    });
+    const data = await result.json();
+    return {
+      content: [{ type: "text", text: data.text }],
+    };
+  },
+};
+
+export function MyRuntimeProvider({
+  children,
+}: Readonly<{ children: ReactNode }>) {
+  const runtime = useLocalRuntime(MyModelAdapter);
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Step>
+<Step>
+
+### Wrap your app
+
+```tsx title="app/layout.tsx"
+import type { ReactNode } from "react";
+import { MyRuntimeProvider } from "@/app/MyRuntimeProvider";
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <MyRuntimeProvider>
+      <html lang="en">
+        <body>{children}</body>
+      </html>
+    </MyRuntimeProvider>
+  );
+}
+```
+
+</Step>
+<Step>
+
+### Render the Thread
+
+```tsx title="app/page.tsx"
+import { Thread } from "@/components/assistant-ui/thread";
+
+export default function Page() {
+  return <Thread />;
+}
+```
+
+</Step>
+</Steps>
+
+## Streaming responses
+
+Declare `run` as an `async *` generator and yield the full cumulative content on each iteration:
+
+```tsx
+import {
+  ChatModelAdapter,
+  ThreadMessage,
+  type ModelContext,
+} from "@assistant-ui/react";
+import { OpenAI } from "openai";
+
+const openai = new OpenAI();
+
+const MyModelAdapter: ChatModelAdapter = {
+  async *run({ messages, abortSignal, context }) {
+    const stream = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: convertToOpenAIMessages(messages),
+      stream: true,
+      signal: abortSignal,
+    });
+
+    let text = "";
+    for await (const part of stream) {
+      text += part.choices[0]?.delta?.content || "";
+      yield {
+        content: [{ type: "text", text }],
+      };
+    }
+  },
+};
+```
+
+Each yield replaces the previous content. Yield the full state every time, not deltas.
+
+### Streaming with tool calls
+
+Accumulate tool calls in a `Map` outside the streaming loop so they persist across chunks:
+
+```tsx
+async *run({ messages, abortSignal, context }) {
+  const stream = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: convertToOpenAIMessages(messages),
+    tools: context.tools,
+    stream: true,
+    signal: abortSignal,
+  });
+
+  let text = "";
+  const toolCallsMap = new Map();
+
+  for await (const chunk of stream) {
+    text += chunk.choices[0]?.delta?.content ?? "";
+
+    for (const toolCall of chunk.choices[0]?.delta?.tool_calls ?? []) {
+      toolCallsMap.set(toolCall.id, {
+        type: "tool-call",
+        toolName: toolCall.function?.name,
+        toolCallId: toolCall.id,
+        args: JSON.parse(toolCall.function?.arguments ?? "{}"),
+      });
+    }
+
+    yield {
+      content: [
+        ...(text ? [{ type: "text" as const, text }] : []),
+        ...Array.from(toolCallsMap.values()),
+      ],
+    };
+  }
+}
+```
+
+If you build the `content` array fresh from the current chunk each iteration, tool calls from earlier chunks will disappear when a later chunk carries only text. The Map outside the loop is the fix.
+
+## Tool calling
+
+`LocalRuntime` supports OpenAI-compatible function calling. Register tools through `useAui` so the runtime exposes them to your adapter via `context.tools`:
+
+```tsx
+import { useAui, Tools, type Toolkit } from "@assistant-ui/react";
+import { z } from "zod";
+
+const myToolkit: Toolkit = {
+  getWeather: {
+    description: "Get the current weather in a location",
+    parameters: z.object({
+      location: z.string(),
+      unit: z.enum(["celsius", "fahrenheit"]).default("celsius"),
+    }),
+    execute: async ({ location, unit }) => fetchWeather(location, unit),
+  },
+};
+
+function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useLocalRuntime(MyModelAdapter);
+  const aui = useAui({ tools: Tools({ toolkit: myToolkit }) });
+
+  return (
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+See the [tools guide](/docs/guides/tools) for advanced patterns.
+
+### Human-in-the-loop approval
+
+Require user confirmation before specific tools execute:
+
+```ts
+const runtime = useLocalRuntime(MyModelAdapter, {
+  unstable_humanToolNames: ["delete_file", "send_email"],
+});
+```
+
+`unstable_humanToolNames` is unstable; see [stability](/docs/runtimes/concepts/stability).
+
+## Resuming a run
+
+`resumeRun` reconnects to an in-progress assistant run. Useful for page refresh, network reconnect, tab backgrounding, or thread switching when the backend is still generating.
+
+Unlike `startRun` (which uses the `ChatModelAdapter`), `resumeRun` requires a `stream` parameter; you provide the async generator that produces the response.
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+import type { ChatModelRunResult } from "@assistant-ui/core";
+
+const aui = useAui();
+
+async function* createCustomStream(): AsyncGenerator<ChatModelRunResult> {
+  yield { content: [{ type: "text", text: "Initial response" }] };
+  await new Promise((r) => setTimeout(r, 500));
+  yield {
+    content: [
+      { type: "text", text: "Initial response. And here's more content..." },
+    ],
+  };
+}
+
+aui.thread().resumeRun({
+  parentId: "message-id",
+  stream: createCustomStream,
+});
+```
+
+A common pattern is to check whether the backend is still running on mount, then reconnect:
+
+```tsx
+function useStreamReconnect(threadId: string) {
+  const aui = useAui();
+  const checkedRef = useRef(false);
+
+  useEffect(() => {
+    if (checkedRef.current) return;
+    checkedRef.current = true;
+
+    (async () => {
+      const status = await fetch(`/api/status/${threadId}`).then((r) =>
+        r.json(),
+      );
+      if (status.isRunning) {
+        const parentId = aui.thread().getState().messages.at(-1)?.id ?? null;
+        aui.thread().resumeRun({ parentId });
+      }
+    })();
+  }, [aui, threadId]);
+}
+```
+
+## Adapters
+
+Attachments, speech, feedback, history, and suggestions are wired through the standard adapter contracts, see [adapters](/docs/runtimes/concepts/adapters):
+
+```tsx
+const runtime = useLocalRuntime(MyModelAdapter, {
+  adapters: {
+    attachments: myAttachmentAdapter,
+    speech: mySpeechAdapter,
+    feedback: myFeedbackAdapter,
+    history: myHistoryAdapter,
+    suggestion: mySuggestionAdapter,
+  },
+});
+```
+
+## Multi-thread
+
+`LocalRuntime` supports multi-thread either via [AssistantCloud](/docs/cloud) or via a custom `RemoteThreadListAdapter`. See [threads](/docs/runtimes/concepts/threads) for the contract and full examples.
+
+```tsx
+// managed (see "AssistantCloud" in /docs/runtimes/concepts/threads for cloud setup)
+const runtime = useLocalRuntime(MyModelAdapter, { cloud });
+```
+
+## Integration examples
+
+### OpenAI
+
+```tsx
+import { OpenAI } from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const OpenAIAdapter: ChatModelAdapter = {
+  async *run({ messages, abortSignal, context }) {
+    const stream = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: messages.map((m) => ({
+        role: m.role,
+        content: m.content
+          .filter((c) => c.type === "text")
+          .map((c) => c.text)
+          .join("\n"),
+      })),
+      stream: true,
+      signal: abortSignal,
+    });
+
+    let fullText = "";
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) {
+        fullText += content;
+        yield { content: [{ type: "text", text: fullText }] };
+      }
+    }
+  },
+};
+```
+
+### Custom REST API
+
+```tsx
+const CustomAPIAdapter: ChatModelAdapter = {
+  async run({ messages, abortSignal, unstable_threadId }) {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+        threadId: unstable_threadId,
+      }),
+      signal: abortSignal,
+    });
+    if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+    const data = await response.json();
+    return { content: [{ type: "text", text: data.message }] };
+  },
+};
+```
+
+## Best practices
+
+1. **Always pass `abortSignal`** to `fetch` and SDK calls so cancel works:
+   ```tsx
+   fetch(url, { signal: abortSignal });
+   ```
+2. **Handle errors gracefully.** Swallow `AbortError` (it is the user cancelling); rethrow others to surface in the UI.
+3. **Yield cumulative state, not deltas.** Each yield replaces the previous content; if you yield deltas the UI flickers.
+4. **Accumulate tool calls outside the streaming loop**, otherwise they vanish on the first text-only chunk.
+
+## Troubleshooting
+
+**Messages not appearing.** Ensure your adapter returns the correct shape: `{ content: [{ type: "text", text: "..." }] }`.
+
+**Streaming not working.** Use `async *run` (with the asterisk). A plain `async run` cannot yield.
+
+**Tool UI flickers and disappears.** state is being reset between chunks. Accumulate tool calls in a `Map` declared outside the `for await` loop.
+
+## API reference
+
+### `ChatModelAdapter`
+
+<ParametersTable
+  type="ChatModelAdapter"
+  parameters={[
+    {
+      name: "run",
+      type: "ChatModelRunOptions => ChatModelRunResult | AsyncGenerator<ChatModelRunResult>",
+      description:
+        "Function that sends messages to your API and returns the response.",
+      required: true,
+    },
+  ]}
+/>
+
+### `ChatModelRunOptions`
+
+<ParametersTable
+  type="ChatModelRunOptions"
+  parameters={[
+    {
+      name: "messages",
+      type: "readonly ThreadMessage[]",
+      description: "The conversation history to send to your API.",
+      required: true,
+    },
+    {
+      name: "runConfig",
+      type: "RunConfig",
+      description:
+        "Run configuration with optional custom metadata. RunConfig is { readonly custom?: Record<string, unknown> }.",
+      required: true,
+    },
+    {
+      name: "abortSignal",
+      type: "AbortSignal",
+      description: "Signal to cancel the request if user interrupts.",
+      required: true,
+    },
+    {
+      name: "context",
+      type: "ModelContext",
+      description: "Additional context including configuration and tools.",
+      required: true,
+    },
+    {
+      name: "unstable_assistantMessageId",
+      type: "string | Undefined",
+      description:
+        "ID of the assistant message being generated. Useful for tracking or updating specific messages.",
+    },
+    {
+      name: "unstable_threadId",
+      type: "string | Undefined",
+      description:
+        "Current thread/conversation identifier. Useful for passing to your backend API.",
+    },
+    {
+      name: "unstable_parentId",
+      type: "string | Null | Undefined",
+      description:
+        "ID of the parent message this response is replying to. null if this is the first message.",
+    },
+    {
+      name: "unstable_getMessage",
+      type: "() => ThreadMessage",
+      description:
+        "Returns the current assistant message being generated. Useful during streaming.",
+    },
+  ]}
+/>
+
+### `LocalRuntimeOptions`
+
+<ParametersTable
+  type="LocalRuntimeOptions"
+  parameters={[
+    {
+      name: "initialMessages",
+      type: "readonly ThreadMessageLike[]",
+      description: "Pre-populate the thread with messages.",
+    },
+    {
+      name: "maxSteps",
+      type: "number",
+      description:
+        "Maximum number of sequential tool calls before requiring user input.",
+      default: "2",
+    },
+    {
+      name: "cloud",
+      type: "AssistantCloud",
+      description:
+        "Enable Assistant Cloud integration for multi-thread support and persistence.",
+    },
+    {
+      name: "adapters",
+      type: "LocalRuntimeAdapters",
+      description:
+        "Capability adapters. UI features automatically enable based on which adapters are provided. See /docs/runtimes/concepts/adapters.",
+    },
+    {
+      name: "unstable_humanToolNames",
+      type: "string[]",
+      description:
+        "Tool names that require human approval before execution (unstable).",
+    },
+  ]}
+/>
+
+## Related
+
+<Cards>
+  <Card
+    title="ExternalStoreRuntime"
+    description="Bring your own state store."
+    href="/docs/runtimes/custom/external-store"
+  />
+  <Card
+    title="Adapters"
+    description="Attachments, speech, feedback, history, suggestions."
+    href="/docs/runtimes/concepts/adapters"
+  />
+  <Card
+    title="Threads"
+    description="Cloud, custom database, ExternalStore-based."
+    href="/docs/runtimes/concepts/threads"
+  />
+</Cards>
