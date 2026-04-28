@@ -137,6 +137,37 @@ describe("createAdkStream - proxy mode", () => {
     });
   });
 
+  it("sends file parts as inlineData in proxy mode", async () => {
+    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const messages: AdkMessage[] = [
+      {
+        id: "m1",
+        type: "human",
+        content: [
+          { type: "text", text: "see attached" },
+          {
+            type: "file",
+            mimeType: "application/pdf",
+            data: "JVBERi0xLjQK",
+            filename: "report.pdf",
+          },
+        ],
+      },
+    ];
+    const gen = await stream(messages, makeConfig());
+    for await (const _ of gen) {
+      /* noop */
+    }
+
+    const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
+    expect(body.parts).toHaveLength(2);
+    expect(body.parts[1]).toEqual({
+      inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQK" },
+    });
+  });
+
   it("sends parts array when multiple messages are provided", async () => {
     mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
 
@@ -605,6 +636,74 @@ describe("createAdkStream - content conversion", () => {
     const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
     expect(body.newMessage.parts[0]).toEqual({
       fileData: { fileUri: "https://example.com/img.png" },
+    });
+  });
+
+  it("converts file content parts to inlineData in direct mode", async () => {
+    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+
+    const stream = createAdkStream({
+      api: "http://localhost:8000",
+      appName: "app",
+      userId: "u",
+    });
+    const messages: AdkMessage[] = [
+      {
+        id: "m1",
+        type: "human",
+        content: [
+          {
+            type: "file",
+            mimeType: "application/pdf",
+            data: "JVBERi0xLjQK",
+            filename: "report.pdf",
+          },
+        ],
+      },
+    ];
+    const gen = await stream(messages, makeConfig());
+    for await (const _ of gen) {
+      /* noop */
+    }
+
+    const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
+    expect(body.newMessage.parts[0]).toEqual({
+      inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQK" },
+    });
+  });
+
+  it("converts file_url content parts to fileData with mimeType in direct mode", async () => {
+    mockFetch.mockResolvedValueOnce(new Response(sseBody(""), { status: 200 }));
+
+    const stream = createAdkStream({
+      api: "http://localhost:8000",
+      appName: "app",
+      userId: "u",
+    });
+    const messages: AdkMessage[] = [
+      {
+        id: "m1",
+        type: "human",
+        content: [
+          {
+            type: "file_url",
+            url: "gs://bucket/report.pdf",
+            mimeType: "application/pdf",
+          },
+        ],
+      },
+    ];
+    const gen = await stream(messages, makeConfig());
+    for await (const _ of gen) {
+      /* noop */
+    }
+
+    const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
+    expect(body.newMessage.parts[0]).toEqual({
+      fileData: {
+        fileUri: "gs://bucket/report.pdf",
+        mimeType: "application/pdf",
+      },
     });
   });
 

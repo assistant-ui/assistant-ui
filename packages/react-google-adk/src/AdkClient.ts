@@ -223,6 +223,15 @@ function contentToParts(
         return { inlineData: { mimeType: part.mimeType, data: part.data } };
       case "image_url":
         return { fileData: { fileUri: part.url } };
+      case "file":
+        return { inlineData: { mimeType: part.mimeType, data: part.data } };
+      case "file_url":
+        return {
+          fileData: {
+            fileUri: part.url,
+            ...(part.mimeType != null && { mimeType: part.mimeType }),
+          },
+        };
       case "code":
         return {
           executableCode: { code: part.code, language: part.language },

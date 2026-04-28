@@ -33,7 +33,8 @@ import { convertAdkMessage } from "./convertAdkMessages";
 import { symbolAdkRuntimeExtras, type AdkRuntimeExtras } from "./hooks";
 import { v4 as uuidv4 } from "uuid";
 
-const getMessageContent = (msg: AppendMessage) => {
+/** @internal — exported for unit tests. */
+export const getMessageContent = (msg: AppendMessage) => {
   const allContent = [
     ...msg.content,
     ...(msg.attachments?.flatMap((a) => a.content) ?? []),
@@ -47,8 +48,10 @@ const getMessageContent = (msg: AppendMessage) => {
         return { type: "image_url" as const, url: part.image };
       case "file":
         return {
-          type: "text" as const,
-          text: `[File: ${part.filename ?? "file"}]`,
+          type: "file" as const,
+          mimeType: part.mimeType,
+          data: part.data,
+          ...(part.filename != null && { filename: part.filename }),
         };
 
       case "tool-call":
