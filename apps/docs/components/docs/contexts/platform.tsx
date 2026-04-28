@@ -4,8 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
@@ -40,26 +39,77 @@ function isPlatform(value: string | null): value is Platform {
   return value !== null && (PLATFORMS as readonly string[]).includes(value);
 }
 
-export function PlatformProvider({ children }: { children: ReactNode }) {
-  const [platform, setPlatformState] = useState<Platform>(DEFAULT_PLATFORM);
+const isBrowser = () => typeof window !== "undefined";
 
-  // Hydrate from localStorage after mount to keep SSR markup deterministic.
-  useEffect(() => {
+/**
+ * Singleton store fronting localStorage for the platform selection. Backs
+ * useSyncExternalStore so SSR renders the default deterministically, the
+ * client reads localStorage synchronously on hydration (no flash), and
+ * setting the value broadcasts to other tabs via the standard `storage`
+ * event plus same-tab listeners.
+ */
+class PlatformStore {
+  private listeners = new Set<() => void>();
+
+  constructor() {
+    if (isBrowser()) {
+      window.addEventListener("storage", this.handleStorage);
+    }
+  }
+
+  private handleStorage = (e: StorageEvent) => {
+    if (e.storageArea !== window.localStorage) return;
+    if (e.key !== STORAGE_KEY) return;
+    this.notify();
+  };
+
+  private notify = () => {
+    this.listeners.forEach((l) => {
+      l();
+    });
+  };
+
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+
+  getSnapshot = (): Platform => {
+    if (!isBrowser()) return DEFAULT_PLATFORM;
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (isPlatform(stored)) setPlatformState(stored);
+      return isPlatform(stored) ? stored : DEFAULT_PLATFORM;
     } catch {
-      // ignore (private mode, blocked storage)
+      return DEFAULT_PLATFORM;
     }
-  }, []);
+  };
 
-  const setPlatform = useCallback((next: Platform) => {
-    setPlatformState(next);
+  getServerSnapshot = (): Platform => DEFAULT_PLATFORM;
+
+  setValue = (next: Platform) => {
+    if (!isBrowser()) return;
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
+      this.notify();
     } catch {
-      // ignore
+      // ignore write errors
     }
+  };
+}
+
+const platformStore = new PlatformStore();
+
+export function PlatformProvider({ children }: { children: ReactNode }) {
+  const platform = useSyncExternalStore(
+    platformStore.subscribe,
+    platformStore.getSnapshot,
+    platformStore.getServerSnapshot,
+  );
+
+  const setPlatform = useCallback((next: Platform) => {
+    platformStore.setValue(next);
   }, []);
 
   return (
