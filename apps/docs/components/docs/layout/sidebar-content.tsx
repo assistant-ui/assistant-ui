@@ -224,14 +224,48 @@ export function SidebarContent({ tree }: SidebarContentProps) {
     setPlatform(platforms[0] as Platform);
   }, [pathname, tree, platform, setPlatform]);
 
-  // Top-level folders become the chevron sections, filtered by the active
-  // platform (folders with no `platforms` field are universal).
+  // Top-level folders become the chevron sections. The standalone
+  // platform-specific top-levels ("React Native", "React Ink") never render
+  // as their own sections; instead, when their platform is active, their
+  // children are merged into the main "Docs" section so the sidebar
+  // structure stays unified across platforms. Per-page `platforms` filtering
+  // is handled by SectionItem.
   const sections = useMemo<PageTree.Folder[]>(() => {
     if (!tree?.children) return [];
-    return tree.children.filter(
-      (n): n is PageTree.Folder =>
-        n.type === "folder" && isNodeVisible(n, platform),
+    const allFolders = tree.children.filter(
+      (n): n is PageTree.Folder => n.type === "folder",
     );
+
+    const PLATFORM_FOLDER_BY_PLATFORM: Record<Platform, string | null> = {
+      react: null,
+      rn: "React Native",
+      ink: "React Ink",
+    };
+    const PLATFORM_FOLDER_NAMES = new Set(["React Native", "React Ink"]);
+
+    const injectName = PLATFORM_FOLDER_BY_PLATFORM[platform];
+    const injectFolder = injectName
+      ? allFolders.find((f) => f.name === injectName)
+      : undefined;
+
+    return allFolders
+      .filter(
+        (f) =>
+          !PLATFORM_FOLDER_NAMES.has(String(f.name)) &&
+          isNodeVisible(f, platform),
+      )
+      .map((f) => {
+        if (!injectFolder || f.name !== "Docs") return f;
+        const separator: PageTree.Separator = {
+          type: "separator",
+          name: injectFolder.name,
+          $id: `platform-injected-${injectFolder.$id ?? "sep"}`,
+        };
+        return {
+          ...f,
+          children: [...f.children, separator, ...injectFolder.children],
+        };
+      });
   }, [tree, platform]);
 
   const activeSectionId = useMemo(() => {
