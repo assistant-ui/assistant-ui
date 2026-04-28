@@ -24,6 +24,48 @@ function isNodeVisible(node: PageTree.Node, platform: Platform): boolean {
   return isVisibleForPlatform(nodePlatforms(node), platform);
 }
 
+/**
+ * True when this node would render at least one page or folder under the
+ * given platform — i.e., the section / folder is not empty after filtering.
+ */
+function hasVisibleContent(node: PageTree.Node, platform: Platform): boolean {
+  if (!isNodeVisible(node, platform)) return false;
+  if (node.type === "page") return true;
+  if (node.type === "separator") return false;
+  if (node.index && isNodeVisible(node.index, platform)) return true;
+  return node.children.some((c) => hasVisibleContent(c, platform));
+}
+
+/**
+ * Drop separators that have no visible content between them and the next
+ * separator (or end of list). Pages / folders that are themselves invisible
+ * are preserved here — SectionItem handles per-node visibility — but we use
+ * isNodeVisible/hasVisibleContent to decide whether the *segment* under each
+ * separator has anything worth rendering.
+ */
+function pruneEmptySeparators(
+  items: readonly PageTree.Node[],
+  platform: Platform,
+): PageTree.Node[] {
+  const result: PageTree.Node[] = [];
+  items.forEach((item, i) => {
+    if (item.type !== "separator") {
+      result.push(item);
+      return;
+    }
+    let hasVisible = false;
+    for (const next of items.slice(i + 1)) {
+      if (next.type === "separator") break;
+      if (hasVisibleContent(next, platform)) {
+        hasVisible = true;
+        break;
+      }
+    }
+    if (hasVisible) result.push(item);
+  });
+  return result;
+}
+
 interface SidebarContentProps {
   tree?: PageTree.Root;
 }
@@ -265,7 +307,12 @@ export function SidebarContent({ tree }: SidebarContentProps) {
           ...f,
           children: [...f.children, separator, ...injectFolder.children],
         };
-      });
+      })
+      .map((f) => ({
+        ...f,
+        children: pruneEmptySeparators(f.children, platform),
+      }))
+      .filter((f) => hasVisibleContent(f, platform));
   }, [tree, platform]);
 
   const activeSectionId = useMemo(() => {

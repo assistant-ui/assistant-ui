@@ -1,6 +1,7 @@
 ---
 title: RTL Support
 description: Use assistant-ui with right-to-left languages like Arabic, Hebrew, and Persian.
+platforms: ["react"]
 ---
 
 Components shipped through `@assistant-ui/ui` (npm) and the shadcn registry (`npx shadcn@latest add https://r.assistant-ui.com/...`) use logical Tailwind classes (`ms-*`, `pe-*`, `text-start`, `end-*`, `border-s`, ...). They flip automatically under `dir="rtl"` and render byte-identically under `dir="ltr"` (the default) — there is nothing to opt out of.
