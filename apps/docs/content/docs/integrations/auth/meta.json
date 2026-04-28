@@ -1,0 +1,4 @@
+{
+  "title": "Auth",
+  "pages": ["clerk", "better-auth", "next-auth"]
+}

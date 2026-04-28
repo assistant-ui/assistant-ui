@@ -1,0 +1,191 @@
+---
+title: better-auth
+description: TypeScript-first auth with database-owned sessions; gate the chat route and scope threads to the signed-in user.
+---
+
+[better-auth](https://www.better-auth.com/) is a TypeScript-first auth library that owns the session, the user table, and the cookie story end to end. It pairs naturally with assistant-ui's [custom thread persistence](/docs/integrations/persistence/custom-adapter): the same database holds users and threads, and `session.user.id` flows directly into your where clauses.
+
+This page covers the non-cloud path. AssistantCloud users should see [cloud authorization](/docs/cloud/authorization) for the JWT-exchange pattern.
+
+## How it works
+
+```
+browser  ──►  /api/auth/[...all]  ──►  better-auth handlers
+              /api/chat                 │
+              /api/threads/*            │
+                  │                     │
+                  ▼                     ▼
+         auth.api.getSession({ headers })  ──►  session.user.id
+                                                     │
+                                                     ▼
+                                          scope queries by userId
+```
+
+Three integration points:
+
+1. **Auth handlers** mounted at `/api/auth/[...all]/route.ts` via `toNextJsHandler(auth)`.
+2. **API routes** read the session server-side with `auth.api.getSession({ headers: await headers() })`.
+3. **Reload-on-auth** uses better-auth's React client to detect sign-in and trigger `aui.threads().reload()`.
+
+`session.user.id` is exposed on the session object directly, so route handlers can scope queries against it.
+
+## Setup
+
+This guide assumes you already have better-auth configured. If not, follow the [better-auth Next.js guide](https://www.better-auth.com/docs/integrations/next) first; the steps below pick up after `auth.ts` exports a `betterAuth(...)` instance.
+
+<Steps>
+<Step>
+
+### Confirm the auth handler is mounted
+
+better-auth ships its own catch-all handler. Make sure it's wired:
+
+```ts title="app/api/auth/[...all]/route.ts"
+import { auth } from "@/auth";
+import { toNextJsHandler } from "better-auth/next-js";
+
+export const { GET, POST } = toNextJsHandler(auth);
+```
+
+Without this, sign-in, sign-out, and session refresh requests have nowhere to land.
+
+</Step>
+<Step>
+
+### Gate the chat route
+
+Resolve the session server-side with `auth.api.getSession`. It accepts request headers (which carry the session cookie) and returns `null` for unauthenticated requests.
+
+```ts title="app/api/chat/route.ts"
+import { auth } from "@/auth";
+import { headers } from "next/headers";
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages } from "ai";
+import type { UIMessage } from "ai";
+
+export async function POST(req: Request) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return new Response("Unauthorized", { status: 401 });
+
+  const { messages }: { messages: UIMessage[] } = await req.json();
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages: await convertToModelMessages(messages),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+`headers()` from `next/headers` returns the active request's headers in App Router route handlers. Always `await` it.
+
+</Step>
+<Step>
+
+### Scope thread queries by user
+
+If you use [custom thread persistence](/docs/integrations/persistence/custom-adapter), every endpoint must filter by `session.user.id`. The pattern mirrors the chat route:
+
+```ts title="app/api/threads/route.ts"
+import { auth } from "@/auth";
+import { headers } from "next/headers";
+import { db } from "@/db";
+import { threads } from "@/db/schema";
+import { eq, desc } from "drizzle-orm";
+
+export async function GET() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return new Response(null, { status: 401 });
+
+  const rows = await db
+    .select()
+    .from(threads)
+    .where(eq(threads.userId, session.user.id))
+    .orderBy(desc(threads.updatedAt));
+
+  return Response.json(rows);
+}
+```
+
+If your better-auth schema lives in the same database as your threads table, you can also reference `users.id` as a foreign key for cascading deletes.
+
+</Step>
+<Step>
+
+### Set up the React client
+
+Create the client once and import it from a shared module so all hooks share state:
+
+```ts title="lib/auth-client.ts"
+import { createAuthClient } from "better-auth/react";
+
+export const authClient = createAuthClient();
+```
+
+</Step>
+<Step>
+
+### Reload threads after async auth
+
+`useSession` from the React client tracks the live session. Drop a small effect inside `<AssistantRuntimeProvider>` that reloads the thread list when the user signs in:
+
+```tsx title="app/components/ReloadOnAuth.tsx"
+"use client";
+
+import { useAui } from "@assistant-ui/react";
+import { authClient } from "@/lib/auth-client";
+import { useEffect } from "react";
+
+export function ReloadOnAuth() {
+  const aui = useAui();
+  const { data: session, isPending } = authClient.useSession();
+  useEffect(() => {
+    if (!isPending && session) aui.threads().reload();
+  }, [isPending, session?.user?.id]);
+  return null;
+}
+```
+
+Mount this component anywhere inside your `<AssistantRuntimeProvider>` subtree (typically next to the runtime's provider in `MyProvider`). `reload()` discards in-flight responses from superseded calls, so it is safe to invoke on every auth transition.
+
+</Step>
+<Step>
+
+### Run and verify
+
+Sign in. Check:
+
+- `/api/chat` returns `200` when authenticated; `401` when not.
+- `/api/threads` returns only the current user's threads.
+- A second user (incognito tab) sees a different thread list.
+- The session cookie set by `/api/auth/sign-in/*` is `HttpOnly` and travels with same-origin fetches.
+
+</Step>
+</Steps>
+
+## Notes
+
+- **`session.user.id` is populated by default.** The `id` field comes from the user row better-auth manages, so route handlers can scope queries without any callback configuration.
+- **Cookie-based, same-origin.** Browser fetches automatically include the session cookie. If you split the API onto a different host, set `credentials: "include"` and configure CORS on the API.
+- **Database alignment.** If you use Drizzle and put both better-auth's user schema and your threads schema in the same database, foreign keys keep deletes consistent. better-auth's CLI generates the user schema; add your `threads` table referencing `user.id`.
+- **Edge runtime.** `auth.api.getSession` works in both Node and Edge runtimes when better-auth is configured for an edge-compatible adapter.
+- **Cloud users.** [AssistantCloud's auth-provider integrations](/docs/cloud/authorization) cover Clerk, Auth0, Supabase, and Firebase via JWT exchange. To pair Cloud with better-auth, use the [backend-server token approach](/docs/cloud/authorization#backend-server-approach): resolve `session.user.id` server-side, mint an Assistant Cloud token with that id as the `userId`, and return it from a token endpoint.
+
+## Related
+
+<Cards>
+  <Card
+    title="Custom thread persistence"
+    description="The persistence story this page builds on; required for per-user threads outside AssistantCloud."
+    href="/docs/integrations/persistence/custom-adapter"
+  />
+  <Card
+    title="Auth.js (next-auth)"
+    description="The other common Next.js auth library. Different session shape; same wiring approach."
+    href="/docs/integrations/auth/next-auth"
+  />
+  <Card
+    title="Threads (concepts)"
+    description="The full RemoteThreadListAdapter contract and reload-on-auth pattern."
+    href="/docs/runtimes/concepts/threads"
+  />
+</Cards>
