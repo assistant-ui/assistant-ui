@@ -1,4 +1,4 @@
 {
   "title": "Observability",
-  "pages": ["helicone"]
+  "pages": ["helicone", "langfuse", "langsmith"]
 }
