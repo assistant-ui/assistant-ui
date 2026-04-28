@@ -38,7 +38,11 @@ export function DocsRootLayout({
         <DocsRuntimeProvider>
           <PlatformProvider>
             <DocsSidebarProvider>
-              <DocsHeader section={section} sectionHref={sectionHref} />
+              <DocsHeader
+                section={section}
+                sectionHref={sectionHref}
+                platformSwitcher
+              />
               <DocsContent>
                 <DocsLayout
                   {...sharedDocsOptions}

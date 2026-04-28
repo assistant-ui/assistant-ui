@@ -25,6 +25,8 @@ import { cn } from "@/lib/utils";
 interface DocsHeaderProps {
   section: string;
   sectionHref: string;
+  /** When true, render the platform (React/RN/Ink) switcher. Docs route only. */
+  platformSwitcher?: boolean;
 }
 
 function AskAIButton() {
@@ -72,7 +74,11 @@ function HeaderSearch() {
 
 const CONDENSED_HIDDEN = new Set(["Showcase", "Playground", "Pricing"]);
 
-export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
+export function DocsHeader({
+  section,
+  sectionHref,
+  platformSwitcher = false,
+}: DocsHeaderProps) {
   const { setOpenSearch } = useSearchContext();
   const {
     open: sidebarOpen,
@@ -126,12 +132,16 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
           >
             {section}
           </Link>
-          <span className="mx-2 hidden text-muted-foreground/40 sm:inline">
-            ·
-          </span>
-          <div className="hidden sm:block">
-            <PlatformSwitcher />
-          </div>
+          {platformSwitcher && (
+            <>
+              <span className="mx-2 hidden text-muted-foreground/40 sm:inline">
+                ·
+              </span>
+              <div className="hidden sm:block">
+                <PlatformSwitcher />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Mobile controls */}
@@ -215,9 +225,11 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
         )}
       >
         <nav className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
-          <div className="pb-3">
-            <PlatformSwitcher />
-          </div>
+          {platformSwitcher && (
+            <div className="pb-3">
+              <PlatformSwitcher />
+            </div>
+          )}
           {filteredItems.map((item) =>
             item.type === "link" ? (
               item.href.startsWith("http") ? (
