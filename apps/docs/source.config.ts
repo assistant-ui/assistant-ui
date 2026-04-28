@@ -6,11 +6,9 @@ import {
   metaSchema,
 } from "fumadocs-mdx/config";
 import { rehypeCodeDefaultOptions } from "fumadocs-core/mdx-plugins";
-import { transformerTwoslash } from "fumadocs-twoslash";
 import { transformerMetaHighlight } from "@shikijs/transformers";
 import { z } from "zod";
 import { remarkMermaid } from "@theguild/remark-mermaid";
-import { createFileSystemTypesCache } from "fumadocs-twoslash/cache-fs";
 import lastModified from "fumadocs-mdx/plugins/last-modified";
 import type { ShikiTransformer } from "shiki";
 
@@ -114,17 +112,6 @@ export default defineConfig({
         ...(rehypeCodeDefaultOptions.transformers ?? []),
         transformerLineNumbers(),
         transformerMetaHighlight(),
-        transformerTwoslash({
-          typesCache: createFileSystemTypesCache(),
-          twoslashOptions: {
-            compilerOptions: {
-              jsx: 1, // JSX preserve
-              paths: {
-                "@/*": ["./*"],
-              },
-            },
-          },
-        }),
       ],
     },
   },
