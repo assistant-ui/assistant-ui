@@ -114,7 +114,13 @@ export const NAV_ITEMS: NavItem[] = [
       {
         label: "Traction",
         href: "/traction",
-        description: "Packages, stars, and adoption",
+        description: "Stars, downloads, and adoption",
+        external: false,
+      },
+      {
+        label: "Packages",
+        href: "/packages",
+        description: "Every distribution on npm",
         external: false,
       },
       {
