@@ -1165,6 +1165,31 @@ describe("AdkEventAccumulator - user message handling", () => {
     });
   });
 
+  it("coerces fileData with image mime to image_url even if it originated as file_url (intentional, image mime is canonical)", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            {
+              fileData: {
+                fileUri: "https://example.com/photo.jpg",
+                mimeType: "image/jpeg",
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      type: "human",
+      content: [{ type: "image_url", url: "https://example.com/photo.jpg" }],
+    });
+  });
+
   it("falls back to image_url for fileData with no mimeType (preserves legacy round-trip)", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(
