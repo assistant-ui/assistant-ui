@@ -13,6 +13,7 @@ import { useThreadViewportAutoScroll } from "./useThreadViewportAutoScroll";
 import { ThreadPrimitiveViewportProvider } from "../../context/providers/ThreadViewportProvider";
 import { useSizeHandle } from "../../utils/hooks/useSizeHandle";
 import { useThreadViewport } from "../../context/react/ThreadViewportContext";
+import { ThreadPrimitiveViewportTopAnchorReserve } from "./ThreadViewportTopAnchorReserve";
 
 export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -102,6 +103,7 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     return (
       <Primitive.div {...rest} ref={ref}>
         {children}
+        <ThreadPrimitiveViewportTopAnchorReserve />
       </Primitive.div>
     );
   },

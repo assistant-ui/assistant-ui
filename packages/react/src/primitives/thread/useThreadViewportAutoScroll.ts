@@ -70,6 +70,15 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     div.scrollTo({ top: div.scrollHeight, behavior });
   }, []);
 
+  const hasActiveTopAnchor = useCallback(() => {
+    const state = threadViewportStore.getState();
+    return (
+      state.turnAnchor === "top" &&
+      state.element.viewport === divRef.current &&
+      state.element.anchor !== null
+    );
+  }, [threadViewportStore]);
+
   const handleScroll = () => {
     const div = divRef.current;
     if (!div) return;
@@ -101,7 +110,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
   const resizeRef = useOnResizeContent(() => {
     const scrollBehavior = scrollingToBottomBehaviorRef.current;
-    if (scrollBehavior) {
+    if (scrollBehavior && hasActiveTopAnchor()) {
+      scrollingToBottomBehaviorRef.current = null;
+    } else if (scrollBehavior) {
       scrollToBottom(scrollBehavior);
     } else if (autoScroll && threadViewportStore.getState().isAtBottom) {
       scrollToBottom("instant");
@@ -124,8 +135,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // autoscroll on run start
   useAuiEvent("thread.runStart", () => {
     if (!scrollToBottomOnRunStart) return;
-    scrollingToBottomBehaviorRef.current = "auto";
+    if (threadViewportStore.getState().turnAnchor === "top") return;
+
     requestAnimationFrame(() => {
+      scrollingToBottomBehaviorRef.current = "auto";
       scrollToBottom("auto");
     });
   });

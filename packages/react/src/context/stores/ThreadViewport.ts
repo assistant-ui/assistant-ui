@@ -94,7 +94,7 @@ export type ThreadViewportState = {
   /** Register the current anchor user message element */
   readonly registerAnchorElement: (element: HTMLElement | null) => Unsubscribe;
 
-  /** Register the current assistant slack element */
+  /** Register the current assistant response element */
   readonly registerSlackElement: (element: HTMLElement | null) => Unsubscribe;
 };
 
