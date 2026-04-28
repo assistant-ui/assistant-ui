@@ -217,8 +217,11 @@ export function SidebarContent({ tree }: SidebarContentProps) {
   }, [activeSectionId, pathname]);
 
   // After expand animation, scroll the active link into view if off-screen.
+  // Skip when the active link's section is collapsed — the link is hidden
+  // inside an overflow-hidden region, scrolling to it would be incorrect.
   // biome-ignore lint/correctness/useExhaustiveDependencies: deps are change triggers
   useEffect(() => {
+    if (openSectionId !== activeSectionId) return;
     const timer = setTimeout(() => {
       const nav = navRef.current;
       if (!nav) return;
@@ -231,7 +234,7 @@ export function SidebarContent({ tree }: SidebarContentProps) {
       }
     }, 260);
     return () => clearTimeout(timer);
-  }, [pathname, openSectionId]);
+  }, [pathname, openSectionId, activeSectionId]);
 
   const onNavigate = () => setSidebarOpen(false);
 
@@ -247,7 +250,9 @@ export function SidebarContent({ tree }: SidebarContentProps) {
           isOpen={openSectionId === section.$id}
           onToggle={() => {
             const id = section.$id ?? null;
-            setOpenSectionId((prev) => (prev === id ? null : id));
+            const willOpen = openSectionId !== id;
+            analytics.docs.folderToggled(String(section.name), willOpen, 0);
+            setOpenSectionId(willOpen ? id : null);
           }}
           onNavigate={onNavigate}
         />
