@@ -46,7 +46,6 @@
     "fast-glob": "^3.3.3",
     "fumadocs-core": "^16.8.2",
     "fumadocs-mdx": "^14.3.1",
-    "fumadocs-twoslash": "^3.2.0",
     "fumadocs-ui": "^16.8.3",
     "geist": "^1.7.0",
     "heat-graph": "workspace:*",
