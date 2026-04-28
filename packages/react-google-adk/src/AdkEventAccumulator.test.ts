@@ -1165,7 +1165,7 @@ describe("AdkEventAccumulator - user message handling", () => {
     });
   });
 
-  it("routes fileData with no mimeType to file_url (cannot assume image)", () => {
+  it("falls back to image_url for fileData with no mimeType (preserves legacy round-trip)", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(
       makeEvent({
@@ -1179,7 +1179,7 @@ describe("AdkEventAccumulator - user message handling", () => {
     expect(msgs).toHaveLength(1);
     expect(msgs[0]).toMatchObject({
       type: "human",
-      content: [{ type: "file_url", url: "gs://bucket/unknown" }],
+      content: [{ type: "image_url", url: "gs://bucket/unknown" }],
     });
   });
 
