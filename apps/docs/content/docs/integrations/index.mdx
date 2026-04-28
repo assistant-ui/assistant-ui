@@ -1,0 +1,167 @@
+---
+title: Integrations
+description: Third-party services and adapter recipes that plug into a working assistant-ui app.
+---
+
+import { MastraIcon } from "@/components/icons/mastra";
+import { VercelIcon } from "@/components/icons/vercel";
+import { LangChainIcon } from "@/components/icons/langchain";
+
+Integrations are wiring guides for using third-party services with assistant-ui, plus canonical recipes for the adapter slots (persistence, attachments). They are distinct from [runtimes](/docs/runtimes/pick-a-runtime), which are the React adapter packages (`@assistant-ui/react-ai-sdk`, `@assistant-ui/react-langgraph`, etc.) that connect the UI to a backend. An integration assumes you already have a working runtime and adds something on top.
+
+## Where integrations slot in
+
+```
+browser  ──►  your API route  ──►  LLM provider
+                  │                    ▲
+                  │                    │
+       agent      │                    │  observability
+       frameworks │                    │  proxies
+       (e.g.      │                    │  (e.g. Helicone,
+       Mastra)    │                    │   Langfuse)
+                  ▼                    │
+            run on the server,         │
+            then forward calls   ──────┘
+            to the provider
+```
+
+Integrations live on the server. **Agent frameworks** like Mastra take over the API route. **Gateways** swap the upstream provider URL. **Observability** logs or traces every call. **Auth** gates the route and scopes per-user data. **Persistence** and **attachments** are adapter recipes for storing chat data outside the default in-memory path.
+
+## Frameworks
+
+Framework integrations that pair with assistant-ui at the API-route layer.
+
+<Cards>
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="Vercel AI SDK"
+    description="The canonical first-party adapter. Full setup lives under runtimes; this entry is the architectural pointer."
+    href="/docs/integrations/frameworks/ai-sdk"
+  />
+  <Card
+    icon={<MastraIcon width={20} height={20} />}
+    title="Mastra"
+    description="TypeScript agent framework. Routed through the AI SDK runtime, full-stack or separate server."
+    href="/docs/integrations/frameworks/mastra/overview"
+  />
+</Cards>
+
+## Tools
+
+Pluggable tool catalogs and protocols.
+
+<Cards>
+  <Card
+    title="Model Context Protocol (MCP)"
+    description="Connect any MCP server as a tool catalog through the AI SDK MCP client."
+    href="/docs/integrations/tools/mcp"
+  />
+</Cards>
+
+## Gateways
+
+OpenAI-compatible proxies that add catalog routing, fallback, BYOK, or self-hosting.
+
+<Cards>
+  <Card
+    title="LLM gateways"
+    description="OpenRouter, Portkey, LiteLLM Proxy. Swap baseURL, route across providers."
+    href="/docs/integrations/gateways"
+  />
+</Cards>
+
+## Observability
+
+Log, monitor, trace, and evaluate LLM calls. These pair with any runtime.
+
+<Cards>
+  <Card
+    title="Helicone"
+    description="Observability proxy. Drop-in baseURL swap that logs cost, latency, and prompts."
+    href="/docs/integrations/observability/helicone"
+  />
+  <Card
+    icon={<LangChainIcon width={20} height={20} className="text-[#7FC8FF]" />}
+    title="Langfuse"
+    description="OpenTelemetry-based tracing and evals. Open source, self-hostable."
+    href="/docs/integrations/observability/langfuse"
+  />
+  <Card
+    icon={<LangChainIcon width={20} height={20} className="text-[#7FC8FF]" />}
+    title="LangSmith"
+    description="LangChain ecosystem tracing via wrapAISDK. Datasets and evals included."
+    href="/docs/integrations/observability/langsmith"
+  />
+</Cards>
+
+## Auth
+
+Gate the chat route and scope thread data to the signed-in user. These pages are the **non-cloud** path; pair with [custom thread persistence](/docs/integrations/persistence/custom-adapter) when you own the database.
+
+<Cards>
+  <Card
+    title="Clerk"
+    description="Hosted auth with a Next.js middleware. auth() returns userId; Clerk Orgs map to multi-tenant chat."
+    href="/docs/integrations/auth/clerk"
+  />
+  <Card
+    title="better-auth"
+    description="TypeScript-first, owns the user table and session. session.user.id is populated by default."
+    href="/docs/integrations/auth/better-auth"
+  />
+  <Card
+    title="Auth.js (next-auth)"
+    description="The OSS Next.js standard. Requires jwt/session callbacks to populate session.user.id."
+    href="/docs/integrations/auth/next-auth"
+  />
+</Cards>
+
+For AssistantCloud users, [cloud authorization](/docs/cloud/authorization) handles the JWT exchange for Clerk, Auth0, Supabase, and Firebase without DB code.
+
+## Persistence
+
+Store threads and messages outside AssistantCloud.
+
+<Cards>
+  <Card
+    title="Custom thread persistence"
+    description="Worked example: Postgres + Drizzle, RemoteThreadListAdapter, ThreadHistoryAdapter with withFormat."
+    href="/docs/integrations/persistence/custom-adapter"
+  />
+</Cards>
+
+## Attachments
+
+Upload chat attachments to object storage instead of inlining as data URLs.
+
+<Cards>
+  <Card
+    title="Custom attachment uploads"
+    description="Production AttachmentAdapter with presigned URLs. Tabs for S3/R2, Vercel Blob, Uploadthing."
+    href="/docs/integrations/attachments/custom-adapter"
+  />
+</Cards>
+
+## Don't see your service?
+
+assistant-ui doesn't ship a guide for every tool, but most fit one of two patterns:
+
+- **Routes through your AI SDK handler** (agent frameworks, observability proxies, gateways): adapt the [Mastra full-stack](/docs/integrations/frameworks/mastra/full-stack) or [Helicone proxy](/docs/integrations/observability/helicone) pattern using the service's own SDK.
+- **Replaces the runtime entirely** (custom backends): see [custom backend](/docs/runtimes/custom).
+
+If you build something useful, [open an issue](https://github.com/assistant-ui/assistant-ui/issues) or post in [Discord](https://discord.gg/S9dwgCNEFs); the docs are open to contributions.
+
+## Related
+
+<Cards>
+  <Card
+    title="Pick a runtime"
+    description="Choose the React adapter that matches your backend before adding integrations."
+    href="/docs/runtimes/pick-a-runtime"
+  />
+  <Card
+    title="Runtime concepts"
+    description="Architecture, adapters, threads, and stability across all runtimes."
+    href="/docs/runtimes/concepts/architecture"
+  />
+</Cards>

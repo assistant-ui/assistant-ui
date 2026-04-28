@@ -2,5 +2,14 @@
   "title": "Integrations",
   "icon": "Plug",
   "root": true,
-  "pages": ["frameworks", "observability"]
+  "pages": [
+    "index",
+    "frameworks",
+    "tools",
+    "gateways",
+    "observability",
+    "auth",
+    "persistence",
+    "attachments"
+  ]
 }
