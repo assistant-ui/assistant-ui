@@ -18,7 +18,7 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
   ink: "React Ink",
 };
 
-const STORAGE_KEY = "aui-docs-platform";
+const STORAGE_KEY = "assistant-ui::docs:platform";
 const DEFAULT_PLATFORM: Platform = "react";
 
 interface PlatformContextValue {

@@ -21,12 +21,16 @@ import { analytics } from "@/lib/analytics";
  * filter / merge isn't silently broken if a meta title is renamed.
  */
 const INJECT_TARGET_FOLDER = "Docs";
-const PLATFORM_FOLDER_NAMES = new Set(["React Native", "React Ink"]);
 const PLATFORM_INJECTED_FOLDER: Record<Platform, string | null> = {
   react: null,
   rn: "React Native",
   ink: "React Ink",
 };
+const PLATFORM_FOLDER_NAMES = new Set(
+  Object.values(PLATFORM_INJECTED_FOLDER).filter(
+    (v): v is string => v !== null,
+  ),
+);
 
 /** Read the optional `platforms` field from a page tree node. */
 function nodePlatforms(node: PageTree.Node): readonly string[] | undefined {
