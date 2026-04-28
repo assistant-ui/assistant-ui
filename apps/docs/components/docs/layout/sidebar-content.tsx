@@ -15,6 +15,19 @@ import {
 } from "@/components/docs/contexts/platform";
 import { analytics } from "@/lib/analytics";
 
+/**
+ * Top-level docs folder names (from each folder's meta.json `title`) that this
+ * sidebar treats specially. Kept here as named constants so the platform
+ * filter / merge isn't silently broken if a meta title is renamed.
+ */
+const INJECT_TARGET_FOLDER = "Docs";
+const PLATFORM_FOLDER_NAMES = new Set(["React Native", "React Ink"]);
+const PLATFORM_INJECTED_FOLDER: Record<Platform, string | null> = {
+  react: null,
+  rn: "React Native",
+  ink: "React Ink",
+};
+
 /** Read the optional `platforms` field from a page tree node. */
 function nodePlatforms(node: PageTree.Node): readonly string[] | undefined {
   return (node as unknown as { platforms?: readonly string[] }).platforms;
@@ -250,11 +263,18 @@ export function SidebarContent({ tree }: SidebarContentProps) {
   const { platform, setPlatform } = usePlatform();
   const navRef = useRef<HTMLElement>(null);
 
+  // Read latest platform via ref so the auto-switch effect below depends only
+  // on pathname — without this, the effect re-fires whenever the user clicks
+  // the platform switcher, immediately reverting their selection on
+  // platform-specific pages (e.g. /docs/react-native/...).
+  const platformRef = useRef(platform);
+  platformRef.current = platform;
+
   // If the user lands on a page (e.g. from a search result) whose containing
   // section is hidden under the current platform, switch to a platform that
   // makes it visible. Sections with no `platforms` field are universal and
-  // never trigger this.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the change trigger
+  // never trigger this. Only fires on pathname change, not platform change.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the only intended trigger
   useEffect(() => {
     const allFolders = (tree?.children ?? []).filter(
       (n): n is PageTree.Folder => n.type === "folder",
@@ -262,9 +282,9 @@ export function SidebarContent({ tree }: SidebarContentProps) {
     const active = allFolders.find((s) => containsPath(s, pathname));
     const platforms = active ? nodePlatforms(active) : undefined;
     if (!platforms || platforms.length === 0) return;
-    if (platforms.includes(platform)) return;
+    if (platforms.includes(platformRef.current)) return;
     setPlatform(platforms[0] as Platform);
-  }, [pathname, tree, platform, setPlatform]);
+  }, [pathname]);
 
   // Top-level folders become the chevron sections. The standalone
   // platform-specific top-levels ("React Native", "React Ink") never render
@@ -278,14 +298,7 @@ export function SidebarContent({ tree }: SidebarContentProps) {
       (n): n is PageTree.Folder => n.type === "folder",
     );
 
-    const PLATFORM_FOLDER_BY_PLATFORM: Record<Platform, string | null> = {
-      react: null,
-      rn: "React Native",
-      ink: "React Ink",
-    };
-    const PLATFORM_FOLDER_NAMES = new Set(["React Native", "React Ink"]);
-
-    const injectName = PLATFORM_FOLDER_BY_PLATFORM[platform];
+    const injectName = PLATFORM_INJECTED_FOLDER[platform];
     const injectFolder = injectName
       ? allFolders.find((f) => f.name === injectName)
       : undefined;
@@ -297,7 +310,7 @@ export function SidebarContent({ tree }: SidebarContentProps) {
           isNodeVisible(f, platform),
       )
       .map((f) => {
-        if (!injectFolder || f.name !== "Docs") return f;
+        if (!injectFolder || f.name !== INJECT_TARGET_FOLDER) return f;
         const separator: PageTree.Separator = {
           type: "separator",
           name: injectFolder.name,

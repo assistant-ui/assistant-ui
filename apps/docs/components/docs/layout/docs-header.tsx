@@ -215,6 +215,9 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
         )}
       >
         <nav className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
+          <div className="pb-3">
+            <PlatformSwitcher />
+          </div>
           {filteredItems.map((item) =>
             item.type === "link" ? (
               item.href.startsWith("http") ? (
