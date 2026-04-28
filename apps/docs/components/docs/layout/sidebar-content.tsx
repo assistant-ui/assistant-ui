@@ -13,6 +13,8 @@ import {
   usePlatform,
   type Platform,
 } from "@/components/docs/contexts/platform";
+import { GitHubIcon } from "@/components/icons/github";
+import { DiscordIcon } from "@/components/icons/discord";
 import { analytics } from "@/lib/analytics";
 
 /**
@@ -142,8 +144,8 @@ function SectionItem({
             className={cn(
               "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors duration-150",
               isActive
-                ? "bg-accent/40 font-medium text-foreground"
-                : "text-muted-foreground hover:bg-accent/40 hover:text-foreground/90",
+                ? "bg-accent/20 font-medium text-foreground dark:bg-accent/50"
+                : "text-muted-foreground hover:bg-accent/30 hover:text-foreground/90 dark:hover:bg-accent/40",
             )}
           >
             {item.icon}
@@ -156,7 +158,7 @@ function SectionItem({
           </p>
         )}
         {hasChildren && (containsActive || !item.index) && (
-          <div className="ml-2 border-border/50 border-l pl-2">
+          <div className="ml-2 flex flex-col gap-0.5 border-border/50 border-l pl-2">
             {item.children.map((child) => (
               <SectionItem
                 key={child.$id}
@@ -184,8 +186,8 @@ function SectionItem({
       className={cn(
         "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors duration-150",
         isActive
-          ? "bg-accent/40 font-medium text-foreground"
-          : "text-muted-foreground hover:bg-accent/40 hover:text-foreground/90",
+          ? "bg-accent/20 font-medium text-foreground dark:bg-accent/50"
+          : "text-muted-foreground hover:bg-accent/30 hover:text-foreground/90 dark:hover:bg-accent/40",
       )}
     >
       {item.icon}
@@ -219,7 +221,7 @@ function SidebarSection({
         onClick={onToggle}
         aria-expanded={isOpen}
         className={cn(
-          "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[13px] transition-colors duration-150 hover:bg-accent/40",
+          "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[13px] transition-colors duration-150 hover:bg-accent/30 dark:hover:bg-accent/40",
           isActive || isOpen
             ? "font-medium text-foreground"
             : "text-muted-foreground/90",
@@ -245,7 +247,7 @@ function SidebarSection({
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <div className="mt-0.5 mb-1 ml-3 border-border/50 border-l pl-2">
+            <div className="mt-0.5 mb-1 ml-3 flex flex-col gap-0.5 border-border/50 border-l pl-2">
               {folder.children.map((child) => (
                 <SectionItem
                   key={child.$id}
@@ -373,24 +375,46 @@ export function SidebarContent({ tree }: SidebarContentProps) {
   const onNavigate = () => setSidebarOpen(false);
 
   return (
-    <nav
-      ref={navRef}
-      className="sidebar-tree-content flex h-full flex-col gap-0.5 overflow-y-auto px-3 pt-4 pb-12"
-    >
-      {sections.map((section) => (
-        <SidebarSection
-          key={section.$id}
-          folder={section}
-          isOpen={openSectionId === section.$id}
-          onToggle={() => {
-            const id = section.$id ?? null;
-            const willOpen = openSectionId !== id;
-            analytics.docs.folderToggled(String(section.name), willOpen, 0);
-            setOpenSectionId(willOpen ? id : null);
-          }}
-          onNavigate={onNavigate}
-        />
-      ))}
-    </nav>
+    <div className="flex h-full flex-col">
+      <nav
+        ref={navRef}
+        className="sidebar-tree-content flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pt-4 pb-4"
+      >
+        {sections.map((section) => (
+          <SidebarSection
+            key={section.$id}
+            folder={section}
+            isOpen={openSectionId === section.$id}
+            onToggle={() => {
+              const id = section.$id ?? null;
+              const willOpen = openSectionId !== id;
+              analytics.docs.folderToggled(String(section.name), willOpen, 0);
+              setOpenSectionId(willOpen ? id : null);
+            }}
+            onNavigate={onNavigate}
+          />
+        ))}
+      </nav>
+      <div className="flex shrink-0 items-center gap-1 border-border/50 border-t px-3 py-2">
+        <a
+          href="https://github.com/assistant-ui/assistant-ui"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/30 hover:text-foreground dark:hover:bg-accent/40"
+          aria-label="GitHub"
+        >
+          <GitHubIcon className="size-4" />
+        </a>
+        <a
+          href="https://discord.gg/S9dwgCNEFs"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/30 hover:text-foreground dark:hover:bg-accent/40"
+          aria-label="Discord"
+        >
+          <DiscordIcon className="size-4" />
+        </a>
+      </div>
+    </div>
   );
 }
