@@ -16,14 +16,7 @@ import { PartGroupingSample } from "@/components/docs/samples/part-grouping";
 
 Use the `MessagePrimitive.Unstable_PartsGrouped` component with a custom grouping function:
 
-```tsx twoslash title="/components/assistant-ui/thread.tsx"
-import { FC, PropsWithChildren } from "react";
-import { MessagePrimitive } from "@assistant-ui/react";
-
-const AssistantActionBar: FC = () => null;
-const BranchPicker: FC<{ className?: string }> = () => null;
-
-// ---cut---
+```tsx title="/components/assistant-ui/thread.tsx"
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="...">
