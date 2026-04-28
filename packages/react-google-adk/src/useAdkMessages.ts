@@ -200,7 +200,8 @@ export const useAdkMessages = ({
   };
 };
 
-const messageToEvent = (msg: AdkMessage): AdkEvent => {
+/** @internal — exported for unit tests. */
+export const messageToEvent = (msg: AdkMessage): AdkEvent => {
   if (msg.type === "human") {
     return {
       id: msg.id ?? uuidv4(),
