@@ -5,6 +5,10 @@ description: Connect to LangGraph Cloud for agent workflows with streaming.
 
 `@assistant-ui/react-langgraph` integrates with [`@langchain/langgraph-sdk`](https://docs.langchain.com/oss/javascript/langgraph-sdk) directly, exposing the full LangGraph Cloud feature set in assistant-ui: streaming, subgraph events, UI messages, message metadata, interrupts, and end-to-end cancellation.
 
+<Callout type="info">
+**Migrating from LangServe?** LangChain has deprecated `RemoteRunnable` upstream and consolidated the chain and agent execution stories under LangGraph. Rebuild your chain as a LangGraph graph (LangChain's [LangServe → LangGraph migration guide](https://github.com/langchain-ai/langserve/blob/main/MIGRATION.md) covers the shape change), deploy via LangGraph Cloud or self-host LangGraph Studio, and use this runtime on the frontend. The runtime ships streaming, interrupts, generative UI, message metadata, and end-to-end cancellation out of the box.
+</Callout>
+
 ## When to use it
 
 Pick the LangGraph runtime when:
@@ -14,7 +18,7 @@ Pick the LangGraph runtime when:
 - You want generative UI (`ui_message`), per-message metadata, subgraph events, or checkpoint-based message editing.
 
 <Callout type="info">
-If you are already using `@langchain/react`'s `useStream` hook, the alternative [`@assistant-ui/react-langchain`](/docs/runtimes/langchain) adapter may fit better. It is a thinner wrapper but currently exposes fewer features. See [LangChain useStream](/docs/runtimes/langchain) for a feature gap table.
+If you are already using `@langchain/react`'s `useStream` hook, the alternative [`@assistant-ui/react-langchain`](/docs/runtimes/langchain) adapter may fit better. It delegates the stream plumbing to the upstream hook; the feature surface differs, see [LangChain useStream](/docs/runtimes/langchain) for the comparison table.
 </Callout>
 
 ## Architecture
