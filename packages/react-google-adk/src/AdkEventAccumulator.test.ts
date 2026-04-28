@@ -1085,14 +1085,21 @@ describe("AdkEventAccumulator - user message handling", () => {
     });
   });
 
-  it("creates human message with fileData content", () => {
+  it("creates human message with image fileData content", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(
       makeEvent({
         author: "user",
         content: {
           role: "user",
-          parts: [{ fileData: { fileUri: "gs://bucket/image.png" } }],
+          parts: [
+            {
+              fileData: {
+                fileUri: "gs://bucket/image.png",
+                mimeType: "image/png",
+              },
+            },
+          ],
         },
       }),
     );
@@ -1100,6 +1107,97 @@ describe("AdkEventAccumulator - user message handling", () => {
     expect(msgs[0]).toMatchObject({
       type: "human",
       content: [{ type: "image_url", url: "gs://bucket/image.png" }],
+    });
+  });
+
+  it("routes non-image inlineData to a file part", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            {
+              inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQK" },
+            },
+          ],
+        },
+      }),
+    );
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      type: "human",
+      content: [
+        { type: "file", mimeType: "application/pdf", data: "JVBERi0xLjQK" },
+      ],
+    });
+  });
+
+  it("routes non-image fileData to a file_url part", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            {
+              fileData: {
+                fileUri: "gs://bucket/report.pdf",
+                mimeType: "application/pdf",
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      type: "human",
+      content: [
+        {
+          type: "file_url",
+          url: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+        },
+      ],
+    });
+  });
+
+  it("routes fileData with no mimeType to file_url (cannot assume image)", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [{ fileData: { fileUri: "gs://bucket/unknown" } }],
+        },
+      }),
+    );
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      type: "human",
+      content: [{ type: "file_url", url: "gs://bucket/unknown" }],
+    });
+  });
+
+  it("routes assistant non-image inlineData to a file part", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "assistant",
+        content: {
+          role: "model",
+          parts: [{ inlineData: { mimeType: "audio/mpeg", data: "QUJDRA==" } }],
+        },
+      }),
+    );
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      type: "ai",
+      content: [{ type: "file", mimeType: "audio/mpeg", data: "QUJDRA==" }],
     });
   });
 

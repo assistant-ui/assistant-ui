@@ -78,6 +78,59 @@ describe("convertAdkMessage - ai messages", () => {
     });
   });
 
+  it("converts file content parts to file message parts", () => {
+    const msg: AdkMessage = {
+      id: "m1",
+      type: "ai",
+      content: [
+        {
+          type: "file",
+          mimeType: "application/pdf",
+          data: "JVBERi0xLjQK",
+          filename: "report.pdf",
+        },
+      ],
+    };
+    const result = convertAdkMessage(msg);
+    expect(result).toMatchObject({
+      content: [
+        {
+          type: "file",
+          mimeType: "application/pdf",
+          data: "JVBERi0xLjQK",
+          filename: "report.pdf",
+        },
+      ],
+    });
+  });
+
+  it("converts file_url content parts to data parts", () => {
+    const msg: AdkMessage = {
+      id: "m1",
+      type: "ai",
+      content: [
+        {
+          type: "file_url",
+          url: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+        },
+      ],
+    };
+    const result = convertAdkMessage(msg);
+    expect(result).toMatchObject({
+      content: [
+        {
+          type: "data",
+          name: "file_url",
+          data: {
+            url: "gs://bucket/report.pdf",
+            mimeType: "application/pdf",
+          },
+        },
+      ],
+    });
+  });
+
   it("converts code content parts to data parts", () => {
     const msg: AdkMessage = {
       id: "m1",

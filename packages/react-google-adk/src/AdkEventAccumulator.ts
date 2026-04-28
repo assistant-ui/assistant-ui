@@ -299,16 +299,23 @@ export class AdkEventAccumulator {
         if (part.text != null && !part.thought) {
           humanParts.push({ type: "text", text: part.text });
         } else if (part.inlineData) {
-          humanParts.push({
-            type: "image",
-            mimeType: part.inlineData.mimeType,
-            data: part.inlineData.data,
-          });
+          const { mimeType, data } = part.inlineData;
+          humanParts.push(
+            mimeType.startsWith("image/")
+              ? { type: "image", mimeType, data }
+              : { type: "file", mimeType, data },
+          );
         } else if (part.fileData) {
-          humanParts.push({
-            type: "image_url",
-            url: part.fileData.fileUri,
-          });
+          const { fileUri, mimeType } = part.fileData;
+          humanParts.push(
+            mimeType?.startsWith("image/")
+              ? { type: "image_url", url: fileUri }
+              : {
+                  type: "file_url",
+                  url: fileUri,
+                  ...(mimeType != null && { mimeType }),
+                },
+          );
         }
       }
       if (humanParts.length > 0) {
@@ -495,24 +502,33 @@ export class AdkEventAccumulator {
       return;
     }
 
-    // Inline data (images etc)
+    // Inline data (images, audio, files)
     if (part.inlineData) {
       const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(msg, {
-        type: "image",
-        mimeType: part.inlineData.mimeType,
-        data: part.inlineData.data,
-      });
+      const { mimeType, data } = part.inlineData;
+      this.appendContent(
+        msg,
+        mimeType.startsWith("image/")
+          ? { type: "image", mimeType, data }
+          : { type: "file", mimeType, data },
+      );
       return;
     }
 
     // File data (URI reference)
     if (part.fileData) {
       const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(msg, {
-        type: "image_url",
-        url: part.fileData.fileUri,
-      });
+      const { fileUri, mimeType } = part.fileData;
+      this.appendContent(
+        msg,
+        mimeType?.startsWith("image/")
+          ? { type: "image_url", url: fileUri }
+          : {
+              type: "file_url",
+              url: fileUri,
+              ...(mimeType != null && { mimeType }),
+            },
+      );
     }
   }
 
