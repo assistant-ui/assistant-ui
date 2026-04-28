@@ -207,10 +207,14 @@ export function SidebarContent({ tree }: SidebarContentProps) {
     activeSectionId,
   );
 
-  // When the route changes, ensure the section containing the active page is open.
+  // When the route changes, ensure the section containing the active page is
+  // open — even if the user previously collapsed it manually. Depending on
+  // pathname (not just activeSectionId) re-fires the effect on every route
+  // change, including intra-section nav where activeSectionId is unchanged.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the change trigger
   useEffect(() => {
     if (activeSectionId) setOpenSectionId(activeSectionId);
-  }, [activeSectionId]);
+  }, [activeSectionId, pathname]);
 
   // After expand animation, scroll the active link into view if off-screen.
   // biome-ignore lint/correctness/useExhaustiveDependencies: deps are change triggers
