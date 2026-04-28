@@ -2,4 +2,4 @@
 "@assistant-ui/react": patch
 ---
 
-fix: improve top-turn anchoring, use DOM scroll geometry so it doesn't break on custom layout/spacing
+fix: move top-turn reserved scroll space to a stable viewport-owned reserve so assistant streaming shrinks the reserve instead of replacing message-level min-height.
