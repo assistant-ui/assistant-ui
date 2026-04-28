@@ -1,0 +1,48 @@
+---
+title: Overview
+description: Connect to an OpenCode coding-agent server.
+---
+
+`@assistant-ui/react-opencode` is a runtime adapter for [OpenCode](https://opencode.ai/), an open-source AI coding agent. It wires the OpenCode server's session and event APIs into an assistant-ui thread, including tool permissions, interactive questions, and session state.
+
+<Callout type="warn">
+This adapter is at v0.0.3 and is experimental. The runtime API and exported hooks may change without notice.
+</Callout>
+
+## When to use it
+
+Pick the OpenCode runtime when:
+
+- You are building a UI on top of an OpenCode agent server.
+- You need first-class support for OpenCode's permission and question flows.
+- You want session-aware features: fork, revert, unrevert, refresh.
+
+If your backend is not OpenCode-based, see [picking a runtime](/docs/runtimes/pick-a-runtime) for alternatives.
+
+## Architecture
+
+`@assistant-ui/react-opencode` is layered on `ExternalStoreRuntime` plus a `RemoteThreadList` for session-backed thread management (see [architecture](/docs/runtimes/concepts/architecture)). OpenCode sessions map to assistant-ui threads; the runtime subscribes to a server-sent event stream and projects messages into the thread.
+
+## Requirements
+
+- A running [OpenCode](https://opencode.ai/) server (defaults to `http://localhost:4096`).
+- React 18 or 19.
+
+## Install
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-opencode", "@opencode-ai/sdk"]} />
+
+## Next
+
+<Cards>
+  <Card
+    title="Quickstart"
+    description="Minimal useOpenCodeRuntime setup against a local OpenCode server."
+    href="/docs/runtimes/opencode/quickstart"
+  />
+  <Card
+    title="Hooks"
+    description="Permissions, questions, session state, runtime extras."
+    href="/docs/runtimes/opencode/hooks"
+  />
+</Cards>

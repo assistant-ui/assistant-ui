@@ -1,0 +1,127 @@
+---
+title: Streaming
+description: Event handlers, message accumulator, conversion, metadata, and generative UI.
+---
+
+LangGraph emits a rich stream of events: top-level message chunks, subgraph events, custom UI messages, errors, and metadata. This page documents how to observe and react to each.
+
+## Message accumulator
+
+`LangGraphMessageAccumulator` lets you append messages incoming from the server to replicate the messages state client-side.
+
+```ts
+import {
+  LangGraphMessageAccumulator,
+  appendLangChainChunk,
+} from "@assistant-ui/react-langgraph";
+
+const accumulator = new LangGraphMessageAccumulator({
+  appendMessage: appendLangChainChunk,
+});
+
+if (event.event === "messages/partial") {
+  accumulator.addMessages(event.data);
+}
+```
+
+## Message conversion
+
+`convertLangChainMessages` transforms LangChain messages to assistant-ui's format. Use it when bridging into a custom adapter or rendering messages outside the runtime.
+
+```ts
+import { convertLangChainMessages } from "@assistant-ui/react-langgraph";
+
+const threadMessage = convertLangChainMessages(langChainMessage);
+```
+
+## Event handlers
+
+Listen to streaming events by passing `eventHandlers` to `useLangGraphRuntime`:
+
+```ts
+const runtime = useLangGraphRuntime({
+  stream: async (messages, { initialize, ...config }) => {
+    /* ... */
+  },
+  eventHandlers: {
+    onMessageChunk: (chunk, metadata) => {
+      // Fired for each chunk in messages-tuple mode.
+      // metadata contains langgraph_step, langgraph_node, ls_model_name, etc.
+      // For pipe-namespaced events emitted by subgraphs (e.g. messages|tools:call_abc),
+      // metadata.namespace holds the suffix ("tools:call_abc"). Use it to attribute
+      // a chunk to a specific subgraph.
+    },
+    onValues: (values) => {
+      // Fired when a top-level values event is received.
+      // Subgraph values events are routed to onSubgraphValues instead.
+    },
+    onUpdates: (updates) => {
+      // Fired when a top-level updates event is received.
+      // Subgraph updates events are routed to onSubgraphUpdates instead.
+    },
+    onSubgraphValues: (namespace, values) => {
+      // Fired when a subgraph values|<namespace> event is received
+      // (e.g. namespace === "tools:call_abc").
+    },
+    onSubgraphUpdates: (namespace, updates) => {
+      // Fired when a subgraph updates|<namespace> event is received.
+    },
+    onMetadata: (metadata) => {
+      /* thread metadata */
+    },
+    onInfo: (info) => {
+      /* informational messages */
+    },
+    onError: (error) => {
+      // Fired for both top-level and subgraph errors.
+    },
+    onSubgraphError: (namespace, error) => {
+      // Additionally fired for subgraph errors with the namespace.
+      // Use this to attribute a subgraph failure to its source without marking
+      // the parent message as incomplete (that only happens for top-level errors).
+    },
+    onCustomEvent: (type, data) => {
+      /* custom events */
+    },
+  },
+});
+```
+
+## Message metadata
+
+When using `streamMode: "messages-tuple"`, each chunk includes metadata from the LangGraph server. Access accumulated metadata per message with `useLangGraphMessageMetadata`:
+
+```ts
+import { useLangGraphMessageMetadata } from "@assistant-ui/react-langgraph";
+
+function MyComponent() {
+  const metadata = useLangGraphMessageMetadata();
+  // Map<string, LangGraphTupleMetadata> keyed by message ID
+}
+```
+
+## Generative UI
+
+LangGraph can emit structured UI components alongside assistant messages via `push_ui_message` (Python) or `typedUi().push()` (TypeScript). The assistant-ui adapter translates these into [`DataMessagePart`s](/docs/guides/tool-ui) on the associated assistant message, which you render with the existing `makeAssistantDataUI` API.
+
+See [Generative UI](/docs/runtimes/langgraph/generative-ui) for full setup: enabling the `custom` stream channel, emitting UI messages, registering renderers, dynamic loading, and persisting UI state across thread switches.
+
+## Next
+
+<Cards>
+  <Card
+    title="Generative UI"
+    description="Structured UI components emitted by your graph."
+    href="/docs/runtimes/langgraph/generative-ui"
+  />
+  <Card
+    title="Interrupts"
+    description="Interrupt persistence and checkpoint-based message editing."
+    href="/docs/runtimes/langgraph/interrupts"
+  />
+  <Card
+    title="Threads"
+    description="Basic thread support, AssistantCloud, custom thread list adapter."
+    href="/docs/runtimes/langgraph/threads"
+  />
+</Cards>

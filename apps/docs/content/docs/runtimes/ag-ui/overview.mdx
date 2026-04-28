@@ -1,0 +1,54 @@
+---
+title: Overview
+description: Connect to AG-UI (Agent-User Interaction) protocol agents.
+---
+
+`@assistant-ui/react-ag-ui` is a runtime adapter for the [AG-UI (Agent-User Interaction) protocol](https://github.com/ag-ui-protocol/ag-ui). It lets your assistant-ui frontend speak to any AG-UI-compliant agent server, including CopilotKit-based backends.
+
+## When to use it
+
+Pick the AG-UI runtime when:
+
+- Your backend implements the AG-UI protocol (e.g. CopilotKit agents, custom AG-UI servers).
+- You want streaming text, thinking events, reasoning events, tool calls, and state snapshots in one protocol.
+- You need agent-side state synchronization via `STATE_SNAPSHOT` and `STATE_DELTA` events.
+
+If your backend is not AG-UI-compliant, see [picking a runtime](/docs/runtimes/pick-a-runtime) for alternatives.
+
+## Architecture
+
+`@assistant-ui/react-ag-ui` is layered on `ExternalStoreRuntime` (see [architecture](/docs/runtimes/concepts/architecture)). The runtime owns AG-UI event parsing and message reconstruction; you provide an `HttpAgent` from `@ag-ui/client` and the adapter handles the wire protocol.
+
+Shared adapters (attachments, speech, dictation, feedback, history) work the same way described in [adapters](/docs/runtimes/concepts/adapters).
+
+## Requirements
+
+- An AG-UI-compatible agent server.
+- React 18 or 19.
+
+## Install
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ag-ui", "@ag-ui/client"]} />
+
+## Example
+
+[`examples/with-ag-ui`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ag-ui) shows a complete reference implementation. Or scaffold one directly:
+
+```sh
+npx assistant-ui@latest create my-app -e with-ag-ui
+```
+
+## Next
+
+<Cards>
+  <Card
+    title="Quickstart"
+    description="Minimal HttpAgent + useAgUiRuntime setup."
+    href="/docs/runtimes/ag-ui/quickstart"
+  />
+  <Card
+    title="Runtime options"
+    description="useAgUiRuntime options, adapters, events, thread list."
+    href="/docs/runtimes/ag-ui/runtime-options"
+  />
+</Cards>

@@ -1,0 +1,123 @@
+---
+title: Runtime options
+description: useAgUiRuntime options, adapters, supported events, thread list.
+---
+
+import { AguiIcon } from "@/components/icons/agui";
+
+Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/ag-ui/quickstart) if you have not already.
+
+## useAgUiRuntime options
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `agent` | `HttpAgent` | An AG-UI client agent (from `@ag-ui/client`). Required. |
+| `logger` | `Partial<Logger>` | Optional logger overrides. The runtime logs event-parser warnings and run lifecycle events. |
+| `showThinking` | `boolean` | Whether to render `THINKING_*` and `REASONING_*` events as visible reasoning. Defaults to `true`. |
+| `onError` | `(e: Error) => void` | Error callback fired on `RUN_ERROR` events and protocol errors. |
+| `onCancel` | `() => void` | Cancellation callback fired when the user cancels a run. |
+| `adapters` | `UseAgUiRuntimeAdapters` | Standard adapter slots (see below). |
+
+## Adapter slots
+
+| Adapter | Slot | Notes |
+| --- | --- | --- |
+| Attachments | `adapters.attachments` | See [attachment adapter](/docs/runtimes/concepts/adapters#attachment-adapter). |
+| Speech | `adapters.speech` | Text-to-speech. See [speech adapter](/docs/runtimes/concepts/adapters#speech-adapter). |
+| Dictation | `adapters.dictation` | Speech-to-text input. |
+| Feedback | `adapters.feedback` | Thumbs up / down. See [feedback adapter](/docs/runtimes/concepts/adapters#feedback-adapter). |
+| History | `adapters.history` | Per-thread message persistence. |
+| Thread list | `adapters.threadList` | Multi-thread switching (experimental, see below). |
+
+## Thread list (experimental)
+
+<Callout type="warn">
+The thread list adapter is currently experimental and may change without notice.
+</Callout>
+
+`UseAgUiThreadListAdapter` lets you back the thread list with your own state.
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `threadId` | `string` | The currently active thread ID. |
+| `onSwitchToNewThread` | `() => Promise<void>` | Called when the user creates a new thread. Reset your thread state here. |
+| `onSwitchToThread` | `(threadId: string) => Promise<{ messages, state? }>` | Called when the user switches threads. Return the persisted messages (and optional opaque state). |
+
+```tsx
+const runtime = useAgUiRuntime({
+  agent,
+  adapters: {
+    threadList: {
+      threadId: currentThreadId,
+      onSwitchToNewThread: async () => {
+        setCurrentThreadId(await createThread());
+      },
+      onSwitchToThread: async (id) => {
+        const { messages, state } = await loadThread(id);
+        setCurrentThreadId(id);
+        return { messages, state };
+      },
+    },
+  },
+});
+```
+
+## Supported events
+
+The runtime parses the AG-UI event stream and maps each event type to assistant-ui state.
+
+| Event | Effect |
+| --- | --- |
+| `RUN_STARTED` / `RUN_FINISHED` | Toggles thread `isRunning`. |
+| `RUN_CANCELLED` | Marks the in-flight assistant message as cancelled. |
+| `RUN_ERROR` | Marks the message as errored; fires `onError`. |
+| `TEXT_MESSAGE_START` / `_CONTENT` / `_END` | Streams text content into an assistant message. |
+| `TEXT_MESSAGE_CHUNK` | Appends a delta without explicit lifecycle. |
+| `THINKING_START` / `_END` | Wraps reasoning blocks (when `showThinking` is on). |
+| `THINKING_TEXT_MESSAGE_*` | Streams thinking text deltas. |
+| `REASONING_START` / `_MESSAGE_*` / `_END` | Streams structured reasoning per message. |
+| `TOOL_CALL_START` / `_ARGS` / `_END` | Streams tool calls into the current assistant message. |
+| `TOOL_CALL_CHUNK` | Streams tool deltas without explicit lifecycle. |
+| `TOOL_CALL_RESULT` | Attaches a tool result to a tool call. |
+| `STATE_SNAPSHOT` | Replaces the agent's external state. |
+| `STATE_DELTA` | Applies a JSON-patch-style delta to the agent's state. |
+| `MESSAGES_SNAPSHOT` | Replaces the full message list (used for thread restore). |
+| `CUSTOM` | Forwarded to your custom event handling. |
+| `RAW` | Untyped passthrough for unrecognized events. |
+
+## Feature support
+
+| Feature | Supported |
+| --- | --- |
+| Streaming text | Yes |
+| Thinking / reasoning blocks | Yes |
+| Tool calls and results | Yes |
+| Tool result handoff (client-side execution) | Yes |
+| State snapshots and deltas | Yes |
+| Cancellation | Yes |
+| Message editing | Yes |
+| Message reload | Yes |
+| Run resumption | Yes |
+| Multi-thread | Experimental (`adapters.threadList`) |
+| History persistence | Via [history adapter](/docs/runtimes/concepts/adapters#history-adapter) |
+
+## Related
+
+<Cards>
+  <Card
+    icon={<AguiIcon width={20} height={20} />}
+    title="AG-UI overview"
+    description="What AG-UI is and when to pick it."
+    href="/docs/runtimes/ag-ui"
+  />
+  <Card
+    title="Quickstart"
+    description="Minimal runtime + Thread setup."
+    href="/docs/runtimes/ag-ui/quickstart"
+  />
+  <Card
+    title="Adapters"
+    description="Attachments, speech, feedback, history, thread list."
+    href="/docs/runtimes/concepts/adapters"
+  />
+</Cards>

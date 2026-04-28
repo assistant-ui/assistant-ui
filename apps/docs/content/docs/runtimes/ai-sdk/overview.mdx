@@ -1,0 +1,52 @@
+---
+title: Overview
+description: Vercel AI SDK integration for assistant-ui across major versions.
+---
+
+import { VercelIcon } from "@/components/icons/vercel";
+
+`@assistant-ui/react-ai-sdk` integrates assistant-ui with the [Vercel AI SDK](https://ai-sdk.dev/). It covers `useChat` flows, custom transports, frontend tools, attachments, quote context, multi-step agents, token usage, and cloud persistence.
+
+## Pick a version
+
+| AI SDK | Runtime package | Docs |
+| --- | --- | --- |
+| `ai@^6` + `@ai-sdk/react@^3` | `@assistant-ui/react-ai-sdk` (latest) | [v6 (current)](/docs/runtimes/ai-sdk/v6) |
+| `ai@^5` + `@ai-sdk/react@^2` | `@assistant-ui/react-ai-sdk@0.x` | [v5 (legacy)](/docs/runtimes/ai-sdk/v5-legacy) |
+| `ai@^4` | `@assistant-ui/react-data-stream` | [v4 (legacy)](/docs/runtimes/ai-sdk/v4-legacy) |
+
+New projects should target v6. v5 and v4 are documented for projects that have not migrated yet; both have known compatibility gaps and receive no new features.
+
+## Architecture
+
+`@assistant-ui/react-ai-sdk` is layered on `ExternalStoreRuntime` (see [architecture](/docs/runtimes/concepts/architecture)). Features that ship as runtime adapters work the same way they do everywhere else; see [adapters](/docs/runtimes/concepts/adapters).
+
+## Choosing useChatRuntime vs useAISDKRuntime
+
+Both ship in the same package.
+
+- **`useChatRuntime`** (recommended) wraps the AI SDK's `useChat` hook and adds cloud thread support, the standard adapter slots, and `AssistantChatTransport` (which forwards system messages and frontend tools by default). Use this unless you have a reason not to.
+- **`useAISDKRuntime`** is a lower-level hook that takes an existing `useChat` instance you control directly. Use it when you need to share the chat instance with non-assistant-ui code or wire in a custom transport that does not inherit from `AssistantChatTransport`.
+
+## Next
+
+<Cards>
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="v6 (current)"
+    description="Quickstart, frontend tools, attachments, quotes, history, multi-step, useAISDKRuntime."
+    href="/docs/runtimes/ai-sdk/v6"
+  />
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="v5 (legacy)"
+    description="Reference for projects still on AI SDK v5."
+    href="/docs/runtimes/ai-sdk/v5-legacy"
+  />
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="v4 (legacy)"
+    description="Reference for projects still on AI SDK v4."
+    href="/docs/runtimes/ai-sdk/v4-legacy"
+  />
+</Cards>

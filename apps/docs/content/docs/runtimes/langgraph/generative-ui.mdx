@@ -1,0 +1,217 @@
+---
+title: Generative UI
+description: Render structured UI components emitted by LangGraph alongside assistant messages.
+---
+
+LangGraph's [Generative UI](https://docs.langchain.com/langsmith/generative-ui-react) lets your graph emit structured UI components alongside assistant messages via `push_ui_message` (Python) or `typedUi().push()` (TypeScript). The assistant-ui adapter translates these into [`DataMessagePart`s](/docs/guides/tool-ui) on the associated assistant message, which you render with the existing `makeAssistantDataUI` API.
+
+## Enable the `custom` stream mode
+
+UI messages are emitted through LangGraph's `custom` stream channel. Make sure your `sendMessage` helper includes `"custom"` in `streamMode`:
+
+```ts
+streamMode: ["messages", "updates", "custom"];
+```
+
+If your graph accumulates UI messages in state under the `ui` key (the default for `typedUi`), `"values"` also works; the adapter reads both paths.
+
+## Custom state key
+
+If your graph uses a non-default `stateKey` with `typedUi(config, { stateKey: "my_ui" })` on the server, pass the matching `uiStateKey` option to `useLangGraphRuntime`:
+
+```ts
+const runtime = useLangGraphRuntime({
+  stream: async function* (messages, { initialize }) {
+    /* ... */
+  },
+  uiStateKey: "my_ui",
+});
+```
+
+This only affects the `values` stream path; the `custom` channel carries each UI event individually and does not rely on the state key.
+
+## Emit a UI message from your graph
+
+<Tabs items={["Python", "TypeScript"]}>
+<Tab value="Python">
+
+```python
+from langgraph.graph.ui import push_ui_message
+from langchain_core.messages import AIMessage
+
+async def chart_node(state, config):
+    message = AIMessage(id="msg-1", content="Here's your chart.")
+    push_ui_message(
+        "chart",
+        {"series": [1, 2, 3], "title": "Sales"},
+        message=message,  # Links the UI to this AI message
+    )
+    return {"messages": [message]}
+```
+
+</Tab>
+<Tab value="TypeScript">
+
+```ts
+import { typedUi } from "@langchain/langgraph-sdk/react-ui/server";
+import type { ComponentRegistry } from "./components";
+
+export async function chartNode(state, config) {
+  const ui = typedUi<ComponentRegistry>(config);
+  const message = { id: "msg-1", type: "ai", content: "Here's your chart." };
+  ui.push(
+    { name: "chart", props: { series: [1, 2, 3], title: "Sales" } },
+    { message },
+  );
+  return { messages: [message] };
+}
+```
+
+</Tab>
+</Tabs>
+
+Passing `message` (Python) or `{ message }` (TypeScript) is what links the UI component to a specific assistant message. The adapter reads `metadata.message_id` to attach the generated `DataMessagePart` to the correct message in the thread.
+
+## Register a renderer on the client
+
+```tsx title="@/components/ChartUI.tsx"
+import { makeAssistantDataUI } from "@assistant-ui/react";
+
+type ChartProps = {
+  series: number[];
+  title: string;
+};
+
+export const ChartUI = makeAssistantDataUI<ChartProps>({
+  name: "chart",
+  render: ({ data }) => (
+    <div>
+      <h3>{data.title}</h3>
+      <Chart series={data.series} />
+    </div>
+  ),
+});
+```
+
+Mount the component once somewhere inside the `AssistantRuntimeProvider` tree. It renders nothing itself; it only registers the renderer:
+
+```tsx title="@/components/MyAssistant.tsx"
+<AssistantRuntimeProvider runtime={runtime}>
+  <ChartUI />
+  <Thread />
+</AssistantRuntimeProvider>
+```
+
+When a matching UI message arrives, the adapter appends a `{ type: "data", name: "chart", data: { series, title } }` part to the parent assistant message and the registered component renders inline.
+
+## Register renderers via `uiComponents`
+
+Instead of mounting separate `makeAssistantDataUI` components, register renderers directly on the runtime hook:
+
+```tsx
+const runtime = useLangGraphRuntime({
+  stream: async function* (messages, { initialize }) {
+    /* ... */
+  },
+  uiComponents: {
+    renderers: {
+      chart: ({ data }) => <Chart series={data.series} title={data.title} />,
+      table: ({ data }) => <DataTable rows={data.rows} />,
+    },
+  },
+});
+```
+
+Static `renderers` are matched by `ui_message` name. If no match is found, the part renders nothing unless a `fallback` is provided.
+
+## Dynamic loading with `fallback`
+
+LangSmith's [Generative UI](https://docs.langchain.com/langsmith/generative-ui-react) supports colocating UI code with your graph and loading it at runtime via `LoadExternalComponent`. The `fallback` option handles any `ui_message` name that has no static renderer:
+
+```tsx
+import { LoadExternalComponent } from "@langchain/langgraph-sdk/react-ui";
+
+const runtime = useLangGraphRuntime({
+  stream: async function* (messages, { initialize }) {
+    /* ... */
+  },
+  uiComponents: {
+    fallback: ({ name, data }) => (
+      <LoadExternalComponent name={name} props={data} />
+    ),
+    renderers: {
+      chart: ({ data }) => <Chart {...data} />,
+    },
+  },
+});
+```
+
+With this setup:
+
+- A `ui_message` with `name: "chart"` renders the static `Chart` component.
+- Any other name (e.g. `"dashboard"`, `"form"`) is handled by `fallback`, which fetches the component from LangSmith at runtime.
+
+`fallback` receives the same props as any data renderer: `name`, `data`, and part state metadata.
+
+## Semantics
+
+The adapter mirrors the reducer in `@langchain/langgraph-sdk/react-ui` exactly:
+
+- UI messages are keyed by their own `id`. Pushing the same id again **replaces** the existing entry.
+- Passing `metadata: { merge: true }` shallow-merges `props` onto the previous entry.
+- Emitting `{ type: "remove-ui", id }` (via `delete_ui_message` or `ui.delete(id)`) removes the entry.
+- UI messages without `metadata.message_id` are held in the runtime but not injected into any message; use `useLangGraphUIMessages()` to access the raw list if needed.
+
+## Restore persisted UI messages on thread switch
+
+If your graph persists UI messages in state via `typedUi`, return them from the `load` callback so they are restored when the user switches threads or refreshes the page:
+
+```tsx
+const runtime = useLangGraphRuntime({
+  stream: async function* (messages, { initialize }) {
+    /* ... */
+  },
+  load: async (externalId) => {
+    const state = await getThreadState(externalId);
+    return {
+      messages: state.values.messages,
+      uiMessages: state.values.ui,
+      interrupts: state.tasks[0]?.interrupts,
+    };
+  },
+});
+```
+
+Without this, each reload starts with an empty UI list even though the messages themselves are loaded.
+
+## Escape hatch: `useLangGraphUIMessages`
+
+```tsx
+import { useLangGraphUIMessages } from "@assistant-ui/react-langgraph";
+
+function Sidebar() {
+  const uiMessages = useLangGraphUIMessages();
+  // Filter, group, or render UI messages outside the thread
+  return <>{uiMessages.map(/* ... */)}</>;
+}
+```
+
+## Related
+
+<Cards>
+  <Card
+    title="Streaming"
+    description="Event handlers, message accumulator, conversion, metadata."
+    href="/docs/runtimes/langgraph/streaming"
+  />
+  <Card
+    title="Interrupts"
+    description="Interrupt persistence and checkpoint-based message editing."
+    href="/docs/runtimes/langgraph/interrupts"
+  />
+  <Card
+    title="Threads"
+    description="Basic thread support, AssistantCloud, custom thread list adapter."
+    href="/docs/runtimes/langgraph/threads"
+  />
+</Cards>

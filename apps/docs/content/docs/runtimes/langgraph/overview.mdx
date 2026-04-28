@@ -1,0 +1,64 @@
+---
+title: Overview
+description: Connect to LangGraph Cloud for agent workflows with streaming.
+---
+
+`@assistant-ui/react-langgraph` integrates with [`@langchain/langgraph-sdk`](https://docs.langchain.com/oss/javascript/langgraph-sdk) directly, exposing the full LangGraph Cloud feature set in assistant-ui: streaming, subgraph events, UI messages, message metadata, interrupts, and end-to-end cancellation.
+
+## When to use it
+
+Pick the LangGraph runtime when:
+
+- You have (or want) a LangGraph Cloud server, locally via [LangGraph Studio](https://github.com/langchain-ai/langgraph-studio) or hosted via [LangSmith](https://www.langchain.com/langsmith).
+- Your graph state has a `messages` key with LangChain-alike messages.
+- You want generative UI (`ui_message`), per-message metadata, subgraph events, or checkpoint-based message editing.
+
+<Callout type="info">
+If you are already using `@langchain/react`'s `useStream` hook, the alternative [`@assistant-ui/react-langchain`](/docs/runtimes/langchain) adapter may fit better. It is a thinner wrapper but currently exposes fewer features. See [LangChain useStream](/docs/runtimes/langchain) for a feature gap table.
+</Callout>
+
+## Architecture
+
+`@assistant-ui/react-langgraph` is layered on `ExternalStoreRuntime` (see [architecture](/docs/runtimes/concepts/architecture)). Graph state is the source of truth; the runtime renders messages from `state.values.messages` and submits user input back to the graph.
+
+Shared adapters (attachments, speech, feedback, history) work the same way described in [adapters](/docs/runtimes/concepts/adapters).
+
+## Requirements
+
+- A LangGraph Cloud API server.
+- React 18 or 19.
+- The graph state must include a `messages` key with LangChain-alike messages.
+
+## Install
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-langgraph", "@langchain/langgraph-sdk"]} />
+
+## Next
+
+<Cards>
+  <Card
+    title="Quickstart"
+    description="From-template and manual setup paths to a working LangGraph chat."
+    href="/docs/runtimes/langgraph/quickstart"
+  />
+  <Card
+    title="Streaming"
+    description="Event handlers, message metadata, generative UI."
+    href="/docs/runtimes/langgraph/streaming"
+  />
+  <Card
+    title="Interrupts"
+    description="Interrupt persistence and checkpoint-based message editing."
+    href="/docs/runtimes/langgraph/interrupts"
+  />
+  <Card
+    title="Threads"
+    description="Basic thread support, AssistantCloud, custom thread list adapter."
+    href="/docs/runtimes/langgraph/threads"
+  />
+  <Card
+    title="Tutorial: Stockbroker"
+    description="End-to-end stockbroker assistant with generative UI and approval flows."
+    href="/docs/runtimes/langgraph/tutorial/introduction"
+  />
+</Cards>

@@ -1,4 +1,4 @@
 {
   "title": "Google ADK",
-  "pages": ["index"]
+  "pages": ["overview", "quickstart", "api", "hooks"]
 }
