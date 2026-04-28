@@ -5,19 +5,19 @@ description: Log and monitor LLM calls by routing them through the Helicone prox
 
 import { VercelIcon } from "@/components/icons/vercel";
 
-[Helicone](https://www.helicone.ai/) is an observability proxy for LLM APIs. You point your provider client at Helicone's URL, add an auth header, and Helicone records every request and response with cost, latency, and prompt-level diffs.
+[Helicone](https://www.helicone.ai/) is an LLM observability proxy. Point your provider client at Helicone's URL, add an auth header, and every request and response is recorded with cost, latency, and prompt-level diffs.
 
-Helicone is independent of which assistant-ui runtime you use. It slots in at the LLM-client layer (OpenAI SDK, AI SDK provider, LangChain `ChatOpenAI`) on your server, not at the runtime layer in the browser. This means you can pair it with any backend setup: Vercel AI SDK, LangGraph, custom backends, anything that talks to OpenAI or another supported provider.
+Helicone is independent of which assistant-ui runtime you use. It slots in at the LLM-client layer (OpenAI SDK, AI SDK provider, or any HTTP-based provider client) on the server, not at the runtime layer in the browser. So it pairs with any backend: AI SDK, LangGraph, Mastra, custom.
 
 ## How it works
 
 ```
-your server  →  Helicone proxy (oai.helicone.ai)  →  OpenAI / Anthropic / etc.
+your server  ──►  Helicone proxy  ──►  OpenAI / Anthropic / etc.
                   │
                   └─ logs request, response, tokens, cost
 ```
 
-Every call passes through Helicone's edge before reaching the upstream provider. The proxy is transparent, so the response shape and streaming behavior are unchanged; you just get a dashboard of every call.
+Calls pass through Helicone's edge before reaching the upstream provider. The proxy is transparent: response shape and streaming behavior are unchanged, you just gain a dashboard of every call.
 
 ## Setup
 
@@ -26,7 +26,7 @@ Every call passes through Helicone's edge before reaching the upstream provider.
 
 ### Get a Helicone API key
 
-Sign up at [helicone.ai](https://www.helicone.ai/) and grab the key from the dashboard. Add it to your environment alongside your provider key:
+Sign up at [helicone.ai](https://www.helicone.ai/) and copy the key from the dashboard. Add it to your environment alongside the provider key:
 
 ```sh title=".env.local"
 HELICONE_API_KEY=sk-helicone-...
@@ -36,11 +36,11 @@ OPENAI_API_KEY=sk-...
 </Step>
 <Step>
 
-### Point your provider client at the proxy
+### Point the provider client at the proxy
 
-Swap the provider's base URL for Helicone's proxy URL and forward your provider key inside an `Authorization` header. Add `Helicone-Auth` with your Helicone key.
+Swap the provider's `baseURL` for Helicone's proxy URL and add the `Helicone-Auth` header.
 
-<Tabs items={["AI SDK", "OpenAI SDK", "LangChain (Python)"]}>
+<Tabs items={["AI SDK", "OpenAI SDK"]}>
 <Tab value="AI SDK">
 
 ```ts title="app/api/chat/route.ts"
@@ -77,24 +77,19 @@ const openai = new OpenAI({
     "Helicone-Auth": `Bearer ${process.env.HELICONE_API_KEY}`,
   },
 });
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const stream = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages,
+    stream: true,
+  });
+  return new Response(stream.toReadableStream());
+}
 ```
 
-</Tab>
-<Tab value="LangChain (Python)">
-
-```python title="app.py"
-from langchain_openai import ChatOpenAI
-import os
-
-llm = ChatOpenAI(
-    model_name="gpt-4o",
-    base_url="https://oai.helicone.ai/v1",
-    api_key=os.environ["OPENAI_API_KEY"],
-    default_headers={
-        "Helicone-Auth": f"Bearer {os.environ['HELICONE_API_KEY']}"
-    },
-)
-```
+If you're calling the OpenAI SDK directly, you'll also need to adapt the response into a stream `useChatRuntime` understands. The AI SDK tab above handles this for you.
 
 </Tab>
 </Tabs>
@@ -104,16 +99,19 @@ llm = ChatOpenAI(
 
 ### Verify in the dashboard
 
-Send a request through your assistant. The call should appear in the Helicone dashboard within seconds, with token counts, latency, and the full prompt and completion text.
+Send a message through your assistant. The call should appear in the Helicone dashboard within a few seconds, with token counts, latency, and the full prompt and completion text.
+
+If nothing appears, check the request in your network tab. The host should be `oai.helicone.ai`, not `api.openai.com`; the request should carry `Helicone-Auth` (added explicitly above) and `Authorization` (added automatically by the OpenAI client from `OPENAI_API_KEY`).
 
 </Step>
 </Steps>
 
 ## Notes
 
-- Helicone supports OpenAI, Anthropic, and several other providers. For non-OpenAI providers, swap the base URL: see Helicone's [provider docs](https://docs.helicone.ai/getting-started/integration-method/gateway).
-- The proxy is server-side only. Never set the Helicone key in browser code.
-- Because Helicone wraps the underlying provider, all assistant-ui features (streaming, tool calls, attachments, multi-step agents) keep working unchanged.
+- **Server-side only.** Never set the Helicone key in browser code; the proxy receives your provider key and must run server-side.
+- **Other providers.** For Anthropic, Gemini, and others, swap the base URL: see Helicone's [provider docs](https://docs.helicone.ai/getting-started/integration-method/gateway).
+- **Custom metadata.** Add `Helicone-User-Id`, `Helicone-Property-*`, or session headers per request to filter and aggregate in the dashboard. The headers are in the [request headers reference](https://docs.helicone.ai/helicone-headers/header-directory).
+- **Streaming, tools, attachments** all keep working unchanged because Helicone wraps the underlying provider transparently.
 
 ## Related
 
@@ -126,7 +124,7 @@ Send a request through your assistant. The call should appear in the Helicone da
   <Card
     icon={<VercelIcon width={20} height={20} />}
     title="AI SDK runtime"
-    description="The most common pairing: AI SDK + Helicone."
+    description="The most common pairing: AI SDK route handler proxied through Helicone."
     href="/docs/runtimes/ai-sdk/v6"
   />
 </Cards>

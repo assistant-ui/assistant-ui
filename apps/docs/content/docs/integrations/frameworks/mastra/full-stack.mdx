@@ -1,70 +1,40 @@
 ---
 title: Full-stack integration
-description: Integrate Mastra directly into Next.js API routes.
+description: Run Mastra agents inside your Next.js API routes.
 ---
 
 import { MastraIcon } from "@/components/icons/mastra";
 import { VercelIcon } from "@/components/icons/vercel";
 
-Integrate Mastra directly into your Next.js application's API routes. This approach keeps your backend and frontend code within the same project.
+Run Mastra in-process inside your Next.js application. The agent code, the API route, and the assistant-ui frontend all live in one project. This is the lowest-friction path: one deploy target, one set of env vars, no cross-origin plumbing.
+
+For independent scaling, see [separate server](/docs/integrations/frameworks/mastra/separate-server) instead.
+
+## Setup
 
 <Steps>
 <Step>
 
 ### Initialize assistant-ui
 
-Start by setting up assistant-ui in your project. Run one of the following commands:
+Set up assistant-ui in your project:
 
-```sh title="New Project"
+```sh title="New project"
 npx assistant-ui@latest create
 ```
 
-```sh title="Existing Project"
+```sh title="Existing project"
 npx assistant-ui@latest init
 ```
 
-This command installs necessary dependencies and creates basic configuration files, including a default chat API route.
-
-<Callout type="info" title="Need help?">
-  For detailed setup instructions, including adding API keys, basic
-  configuration, and manual setup steps, see the main [Getting
-  Started guide](/docs).
-</Callout>
-
-</Step>
-<Step>
-
-### Review the initial API route
-
-The initialization command creates a basic API route at `app/api/chat/route.ts` (or `src/app/api/chat/route.ts`). It typically looks like this:
-
-```ts title="app/api/chat/route.ts"
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
-
-// Allow streaming responses up to 30 seconds
-export const maxDuration = 30;
-
-export async function POST(req: Request) {
-  const { messages } = await req.json();
-
-  const result = streamText({
-    model: openai("gpt-4o-mini"),
-    messages,
-  });
-
-  return result.toUIMessageStreamResponse();
-}
-```
-
-This default route uses the Vercel AI SDK directly with OpenAI. In the following steps, we will modify this route to integrate Mastra.
+This installs dependencies and creates a default chat API route at `app/api/chat/route.ts`. For manual setup, see the [getting started guide](/docs).
 
 </Step>
 <Step>
 
 ### Install Mastra packages
 
-Add the `@mastra/core` package and its peer dependency `zod` (which you can use later inside tools for example). Also add `@mastra/ai-sdk` to convert Mastra's stream to an AI SDK-compatible format:
+`@mastra/core` provides the agent runtime; `@mastra/ai-sdk` converts Mastra's stream format to AI SDK's UI message stream; `zod` is required for tool schemas.
 
 <InstallCommand npm={["@mastra/core@latest", "@mastra/ai-sdk@latest", "zod@latest"]} />
 
@@ -73,53 +43,34 @@ Add the `@mastra/core` package and its peer dependency `zod` (which you can use 
 
 ### Configure Next.js
 
-To ensure Next.js correctly bundles your application when using Mastra directly in API routes, you need to configure `serverExternalPackages`.
-
-Update your `next.config.mjs` (or `next.config.js`) file to include `@mastra/*`:
+Mastra's runtime depends on Node-only modules. Tell Next.js to bundle Mastra packages externally on the server so they aren't traced into the edge runtime.
 
 ```js title="next.config.mjs"
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ["@mastra/*"],
-  // ... other configurations
 };
 
 export default nextConfig;
 ```
 
-This tells Next.js to treat Mastra packages as external dependencies on the server-side.
+If you skip this step you'll see opaque bundling errors at request time, not at build time.
 
 </Step>
 <Step>
 
-### Create Mastra files
+### Define an agent
 
-Set up the basic folder structure for your Mastra configuration. Create a `mastra` folder (e.g., in your `src` or root directory) with the following structure:
+Create a `mastra/` folder at the project root with two files:
 
-```txt title="Project Structure"
-/
-├── mastra/
-│   ├── agents/
-│   │   └── chefAgent.ts
-│   └── index.ts
-└── ... (rest of your project)
+```txt title="Project layout"
+mastra/
+├── agents/
+│   └── chefAgent.ts
+└── index.ts
 ```
 
-You can create these files and folders manually or use the following commands in your terminal:
-
-```sh
-mkdir -p mastra/agents
-touch mastra/index.ts mastra/agents/chefAgent.ts
-```
-
-These files will be used in the next steps to define your Mastra agent and configuration.
-
-</Step>
-<Step>
-
-### Define the agent
-
-Now, let's define the behavior of our AI agent. Open the `mastra/agents/chefAgent.ts` file and add the following code:
+Define the agent in `chefAgent.ts`:
 
 ```ts title="mastra/agents/chefAgent.ts"
 import { Agent } from "@mastra/core/agent";
@@ -133,19 +84,18 @@ export const chefAgent = new Agent({
 });
 ```
 
-This code creates a new Mastra `Agent` named `chef-agent`.
+`model: "openai/gpt-4o-mini"` uses Mastra's model router. Set the provider key in `.env.local` so Next.js auto-loads it:
 
-- `instructions`: Defines the agent's persona and primary goal.
-- `model`: Specifies the language model the agent will use (in this case, OpenAI's GPT-4o Mini via Mastra's model router).
-
-Make sure you have set up your OpenAI API key as described in the [Getting Started guide](/docs).
+```sh title=".env.local"
+OPENAI_API_KEY=sk-...
+```
 
 </Step>
 <Step>
 
 ### Register the agent
 
-Next, register the agent with your Mastra instance. Open the `mastra/index.ts` file and add the following code:
+Initialize Mastra with the agent so it can be looked up by name:
 
 ```ts title="mastra/index.ts"
 import { Mastra } from "@mastra/core";
@@ -156,66 +106,68 @@ export const mastra = new Mastra({
 });
 ```
 
-This code initializes Mastra and makes the `chefAgent` available for use in your application's API routes.
-
 </Step>
 <Step>
 
-### Modify the API route
+### Wire the API route
 
-Now, update your API route (`app/api/chat/route.ts`) to use the Mastra agent you just configured. Replace the existing content with the following:
+Replace the default route with one that streams from the Mastra agent:
 
 ```ts title="app/api/chat/route.ts"
-import { createUIMessageStreamResponse } from "ai";
-import { toAISdkFormat } from "@mastra/ai-sdk";
-import { mastra } from "@/mastra"; // Adjust the import path if necessary
+import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import { toAISdkStream } from "@mastra/ai-sdk";
+import { mastra } from "@/mastra";
 
-// Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-  // Extract the messages from the request body
   const { messages } = await req.json();
 
-  // Get the chefAgent instance from Mastra
   const agent = mastra.getAgent("chefAgent");
-
-  // Stream the response using the agent
   const stream = await agent.stream(messages);
 
-  // Create a Response that streams the UI message stream to the client
-  return createUIMessageStreamResponse({
-    stream: toAISdkFormat(stream, { from: "agent" }),
+  const uiMessageStream = createUIMessageStream({
+    originalMessages: messages,
+    execute: async ({ writer }) => {
+      for await (const part of toAISdkStream(stream, { from: "agent" })) {
+        await writer.write(part);
+      }
+    },
   });
+
+  return createUIMessageStreamResponse({ stream: uiMessageStream });
 }
 ```
 
-Key changes:
+`agent.stream()` returns a Mastra-native stream. `toAISdkStream` (from `@mastra/ai-sdk`) adapts each part to the AI SDK shape; `createUIMessageStream` wraps the part loop into the UI message stream that `useChatRuntime` consumes; `createUIMessageStreamResponse` returns it as an HTTP response.
 
-- We import the `mastra` instance created in `mastra/index.ts`. Make sure the import path (`@/mastra`) is correct for your project setup (you might need `~/mastra`, `../../../mastra`, etc., depending on your path aliases and project structure).
-- We retrieve the `chefAgent` using `mastra.getAgent("chefAgent")`.
-- Instead of calling the AI SDK's `streamText` directly, we call `agent.stream(messages)` to process the chat messages using the agent's configuration and model.
-- The result is still returned in a format compatible with assistant-ui using `createUIMessageStreamResponse()` and `toAISdkFormat()`.
-
-Your API route is now powered by Mastra!
+The `@/mastra` import assumes the `@/*` path alias is configured in `tsconfig.json` (the assistant-ui starter sets this up). If your project uses a different alias, adjust the import path.
 
 </Step>
 <Step>
 
-### Run the application
+### Run and verify
 
-You're all set! Start your Next.js development server:
+Start the dev server:
 
 ```bash npm2yarn
 npm run dev
 ```
 
-Open your browser to `http://localhost:3000` (or the port specified in your terminal). You should now be able to interact with your `chefAgent` through the assistant-ui chat interface. Ask it for cooking advice based on ingredients you have!
+Open `http://localhost:3000`, send a message like *"What can I make with eggs and rice?"*, and confirm:
+
+- The response streams in token by token.
+- The browser's network tab shows a single `POST /api/chat` returning `text/event-stream`.
+- No console errors about missing modules; if you see `Cannot find module '@mastra/...'`, revisit the `serverExternalPackages` step.
 
 </Step>
 </Steps>
 
-Your assistant-ui frontend now communicates with a Mastra agent running in your Next.js backend API route. To explore advanced Mastra features (memory, tools, workflows), refer to the [official Mastra documentation](https://mastra.ai/docs).
+## Notes
+
+- **Errors in the route bubble to the client as a stream error.** Wrap `agent.stream()` in `try/catch` if you need to log structured errors before they reach the client.
+- **Pin compatible versions.** `@mastra/ai-sdk` tracks the AI SDK v6 contract. If you upgrade `ai` to a future major, verify the `toAISdkStream` shape against Mastra's release notes.
+- **Advanced Mastra features** (memory, tools, workflows, evals) live entirely in the agent definition. assistant-ui sees only the resulting stream, so anything Mastra supports works without further frontend changes. See the [Mastra docs](https://mastra.ai/docs).
 
 ## Related
 
