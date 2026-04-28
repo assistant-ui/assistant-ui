@@ -11,6 +11,27 @@ export type ComputeTopAnchorReserveOptions = ComputeTopAnchorTargetOptions & {
   reserve: HTMLElement;
 };
 
+const getDocumentOffsetTop = (element: HTMLElement): number => {
+  let top = 0;
+  let current: HTMLElement | null = element;
+
+  while (current) {
+    top += current.offsetTop;
+    current = current.offsetParent as HTMLElement | null;
+  }
+
+  return top;
+};
+
+const getLayoutOffsetTop = (
+  element: HTMLElement,
+  ancestor: HTMLElement,
+): number => {
+  // Use layout geometry, not visual rects, so entrance transforms/animations
+  // on the anchor do not shift the scroll target while they settle.
+  return getDocumentOffsetTop(element) - getDocumentOffsetTop(ancestor);
+};
+
 /**
  * Compute the scroll position that pins the anchor (last user message) to the
  * top of the viewport. For tall user messages the anchor is intentionally
@@ -27,10 +48,8 @@ export const computeTopAnchorTargetScrollTop = ({
   fillClampThreshold,
   fillClampOffset,
 }: ComputeTopAnchorTargetOptions): number => {
-  const viewportRect = viewport.getBoundingClientRect();
-  const anchorRect = anchor.getBoundingClientRect();
-  const anchorTop = anchorRect.top - viewportRect.top + viewport.scrollTop;
-  const anchorHeight = anchorRect.height;
+  const anchorTop = getLayoutOffsetTop(anchor, viewport);
+  const anchorHeight = anchor.offsetHeight;
   const visibleAnchorHeight =
     anchorHeight <= fillClampThreshold ? anchorHeight : fillClampOffset;
 

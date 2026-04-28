@@ -12,6 +12,8 @@ const makeElement = ({
   scrollHeight = 0,
   clientHeight = 0,
   offsetHeight = height,
+  offsetTop = top,
+  offsetParent = null,
 }: {
   top?: number;
   height?: number;
@@ -19,12 +21,16 @@ const makeElement = ({
   scrollHeight?: number;
   clientHeight?: number;
   offsetHeight?: number;
+  offsetTop?: number;
+  offsetParent?: HTMLElement | null;
 }) =>
   ({
     scrollTop,
     scrollHeight,
     clientHeight,
     offsetHeight,
+    offsetTop,
+    offsetParent,
     getBoundingClientRect: () => ({
       top,
       height,
@@ -33,8 +39,8 @@ const makeElement = ({
 
 describe("computeTopAnchorTargetScrollTop", () => {
   it("targets the anchor's offset within the scroll content for short anchors", () => {
-    const viewport = makeElement({ top: 0, scrollTop: 0 });
-    const anchor = makeElement({ top: 160, height: 60 });
+    const viewport = makeElement({ offsetTop: 0 });
+    const anchor = makeElement({ height: 60, offsetTop: 160 });
 
     expect(
       computeTopAnchorTargetScrollTop({
@@ -47,10 +53,13 @@ describe("computeTopAnchorTargetScrollTop", () => {
   });
 
   it("accounts for the viewport's own offset and current scroll position", () => {
-    const viewport = makeElement({ top: 24, scrollTop: 140 });
-    const anchor = makeElement({ top: 284, height: 72 });
+    const viewport = makeElement({ offsetTop: 24, scrollTop: 140 });
+    const anchor = makeElement({
+      height: 72,
+      offsetTop: 400,
+      offsetParent: viewport,
+    });
 
-    // anchor offset within scroll content = (284 - 24) + 140 = 400
     expect(
       computeTopAnchorTargetScrollTop({
         viewport,
@@ -61,9 +70,28 @@ describe("computeTopAnchorTargetScrollTop", () => {
     ).toBe(400);
   });
 
+  it("uses layout offset geometry instead of the anchor's transformed visual position", () => {
+    const viewport = makeElement({ offsetTop: 0 });
+    const anchor = makeElement({
+      top: 160,
+      height: 60,
+      offsetTop: 156,
+      offsetParent: viewport,
+    });
+
+    expect(
+      computeTopAnchorTargetScrollTop({
+        viewport,
+        anchor,
+        fillClampThreshold: 160,
+        fillClampOffset: 96,
+      }),
+    ).toBe(156);
+  });
+
   it("over-scrolls tall anchors so only fillClampOffset is visible", () => {
-    const viewport = makeElement({ top: 0, scrollTop: 0 });
-    const anchor = makeElement({ top: 200, height: 240 });
+    const viewport = makeElement({ offsetTop: 0 });
+    const anchor = makeElement({ height: 240, offsetTop: 200 });
 
     // 240 > 160 threshold => keep 96 visible => over-scroll by 240 - 96 = 144
     expect(
@@ -80,12 +108,12 @@ describe("computeTopAnchorTargetScrollTop", () => {
 describe("computeTopAnchorSlack", () => {
   it("returns 0 when the anchor target already fits in the scroll range", () => {
     const viewport = makeElement({
-      top: 100,
+      offsetTop: 100,
       scrollTop: 20,
       scrollHeight: 700,
       clientHeight: 300,
     });
-    const anchor = makeElement({ top: 180, height: 60 });
+    const anchor = makeElement({ height: 60, offsetTop: 180 });
 
     expect(
       computeTopAnchorSlack({
@@ -99,12 +127,12 @@ describe("computeTopAnchorSlack", () => {
 
   it("returns the exact missing scroll range", () => {
     const viewport = makeElement({
-      top: 0,
+      offsetTop: 0,
       scrollTop: 10,
       scrollHeight: 360,
       clientHeight: 200,
     });
-    const anchor = makeElement({ top: 170, height: 40 });
+    const anchor = makeElement({ height: 40, offsetTop: 180 });
 
     expect(
       computeTopAnchorSlack({
@@ -118,12 +146,12 @@ describe("computeTopAnchorSlack", () => {
 
   it("uses the tall-anchor target when computing missing range", () => {
     const viewport = makeElement({
-      top: 0,
+      offsetTop: 0,
       scrollTop: 0,
       scrollHeight: 500,
       clientHeight: 300,
     });
-    const anchor = makeElement({ top: 260, height: 240 });
+    const anchor = makeElement({ height: 240, offsetTop: 260 });
 
     expect(
       computeTopAnchorSlack({
@@ -139,12 +167,12 @@ describe("computeTopAnchorSlack", () => {
 describe("computeTopAnchorReserve", () => {
   it("reserves only the extra height needed to make the anchor target reachable", () => {
     const viewport = makeElement({
-      top: 0,
+      offsetTop: 0,
       scrollTop: 0,
       scrollHeight: 560,
       clientHeight: 400,
     });
-    const anchor = makeElement({ top: 220, height: 64 });
+    const anchor = makeElement({ height: 64, offsetTop: 220 });
     const reserve = makeElement({ offsetHeight: 0 });
 
     expect(
@@ -159,13 +187,13 @@ describe("computeTopAnchorReserve", () => {
   });
 
   it("shrinks as the response content grows", () => {
-    const anchor = makeElement({ top: 220, height: 64 });
+    const anchor = makeElement({ height: 64, offsetTop: 220 });
     const reserve = makeElement({ offsetHeight: 60 });
 
     expect(
       computeTopAnchorReserve({
         viewport: makeElement({
-          top: 0,
+          offsetTop: 0,
           scrollTop: 0,
           scrollHeight: 620,
           clientHeight: 400,
@@ -180,7 +208,7 @@ describe("computeTopAnchorReserve", () => {
     expect(
       computeTopAnchorReserve({
         viewport: makeElement({
-          top: 0,
+          offsetTop: 0,
           scrollTop: 0,
           scrollHeight: 680,
           clientHeight: 400,
