@@ -23,6 +23,12 @@ function transformerLineNumbers(): ShikiTransformer {
   };
 }
 
+// Platform a doc page or section applies to. Used by the docs sidebar to
+// filter content based on the user's selected platform in the header dropdown.
+// Pages / folders with no `platforms` field are universal.
+// fumadocs-mdx forbids non-collection exports here, so this is local-only.
+const platformSchema = z.enum(["react", "rn", "ink"]);
+
 export const docs = defineDocs({
   docs: {
     schema: frontmatterSchema.extend({
@@ -34,6 +40,7 @@ export const docs = defineDocs({
           }),
         )
         .optional(),
+      platforms: z.array(platformSchema).optional(),
     }),
     postprocess: {
       includeProcessedMarkdown: true,
@@ -42,6 +49,7 @@ export const docs = defineDocs({
   meta: {
     schema: metaSchema.extend({
       description: z.string().optional(),
+      platforms: z.array(platformSchema).optional(),
     }),
   },
 });

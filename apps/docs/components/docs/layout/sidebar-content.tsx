@@ -8,7 +8,21 @@ import { ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
+import {
+  isVisibleForPlatform,
+  usePlatform,
+  type Platform,
+} from "@/components/docs/contexts/platform";
 import { analytics } from "@/lib/analytics";
+
+/** Read the optional `platforms` field from a page tree node. */
+function nodePlatforms(node: PageTree.Node): readonly string[] | undefined {
+  return (node as unknown as { platforms?: readonly string[] }).platforms;
+}
+
+function isNodeVisible(node: PageTree.Node, platform: Platform): boolean {
+  return isVisibleForPlatform(nodePlatforms(node), platform);
+}
 
 interface SidebarContentProps {
   tree?: PageTree.Root;
@@ -35,6 +49,9 @@ function SectionItem({
   depth?: number;
 }) {
   const pathname = usePathname();
+  const { platform } = usePlatform();
+
+  if (!isNodeVisible(item, platform)) return null;
 
   if (item.type === "separator") {
     return (
@@ -188,15 +205,34 @@ function SidebarSection({
 export function SidebarContent({ tree }: SidebarContentProps) {
   const { setOpen: setSidebarOpen } = useDocsSidebar();
   const pathname = usePathname();
+  const { platform, setPlatform } = usePlatform();
   const navRef = useRef<HTMLElement>(null);
 
-  // Top-level folders become the chevron sections.
+  // If the user lands on a page (e.g. from a search result) whose containing
+  // section is hidden under the current platform, switch to a platform that
+  // makes it visible. Sections with no `platforms` field are universal and
+  // never trigger this.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the change trigger
+  useEffect(() => {
+    const allFolders = (tree?.children ?? []).filter(
+      (n): n is PageTree.Folder => n.type === "folder",
+    );
+    const active = allFolders.find((s) => containsPath(s, pathname));
+    const platforms = active ? nodePlatforms(active) : undefined;
+    if (!platforms || platforms.length === 0) return;
+    if (platforms.includes(platform)) return;
+    setPlatform(platforms[0] as Platform);
+  }, [pathname, tree, platform, setPlatform]);
+
+  // Top-level folders become the chevron sections, filtered by the active
+  // platform (folders with no `platforms` field are universal).
   const sections = useMemo<PageTree.Folder[]>(() => {
     if (!tree?.children) return [];
     return tree.children.filter(
-      (n): n is PageTree.Folder => n.type === "folder",
+      (n): n is PageTree.Folder =>
+        n.type === "folder" && isNodeVisible(n, platform),
     );
-  }, [tree]);
+  }, [tree, platform]);
 
   const activeSectionId = useMemo(() => {
     const match = sections.find((s) => containsPath(s, pathname));

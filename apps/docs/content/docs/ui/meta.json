@@ -3,6 +3,7 @@
   "description": "shadcn/ui components",
   "icon": "PanelsTopLeft",
   "root": true,
+  "platforms": ["react"],
   "pages": [
     "---Functional---",
     "thread",

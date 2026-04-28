@@ -16,6 +16,7 @@ import {
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { DocsAssistantRuntimeProvider } from "@/contexts/AssistantRuntimeProvider";
 import { CurrentPageProvider } from "@/components/docs/contexts/current-page";
+import { PlatformProvider } from "@/components/docs/contexts/platform";
 import { FloatingComposer } from "@/components/docs/assistant/floating-composer";
 
 type DocsRootLayoutProps = {
@@ -35,22 +36,24 @@ export function DocsRootLayout({
     <CurrentPageProvider>
       <AssistantPanelProvider>
         <DocsRuntimeProvider>
-          <DocsSidebarProvider>
-            <DocsHeader section={section} sectionHref={sectionHref} />
-            <DocsContent>
-              <DocsLayout
-                {...sharedDocsOptions}
-                tree={tree}
-                nav={{ enabled: false }}
-                sidebar={{ enabled: false }}
-              >
-                {children}
-              </DocsLayout>
-            </DocsContent>
-            <DocsSidebar>
-              <SidebarContent tree={tree} />
-            </DocsSidebar>
-          </DocsSidebarProvider>
+          <PlatformProvider>
+            <DocsSidebarProvider>
+              <DocsHeader section={section} sectionHref={sectionHref} />
+              <DocsContent>
+                <DocsLayout
+                  {...sharedDocsOptions}
+                  tree={tree}
+                  nav={{ enabled: false }}
+                  sidebar={{ enabled: false }}
+                >
+                  {children}
+                </DocsLayout>
+              </DocsContent>
+              <DocsSidebar>
+                <SidebarContent tree={tree} />
+              </DocsSidebar>
+            </DocsSidebarProvider>
+          </PlatformProvider>
         </DocsRuntimeProvider>
         <DocsAssistantRuntimeProvider>
           <DocsAssistantPanel />
