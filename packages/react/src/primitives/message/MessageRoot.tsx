@@ -48,7 +48,8 @@ const useIsHoveringRef = () => {
 
 /**
  * Predicate: this user message is the anchor target of an in-flight top-turn
- * (second-to-last message, with the last being an assistant response).
+ * (second-to-last message after the first turn, with the last being an
+ * assistant response).
  */
 const useIsTopAnchorUser = () => {
   const turnAnchor = useThreadViewport((s) => s.turnAnchor);
@@ -56,6 +57,7 @@ const useIsTopAnchorUser = () => {
     (s) =>
       turnAnchor === "top" &&
       s.message.role === "user" &&
+      s.message.index > 0 &&
       s.message.index === s.thread.messages.length - 2 &&
       s.thread.messages.at(-1)?.role === "assistant",
   );

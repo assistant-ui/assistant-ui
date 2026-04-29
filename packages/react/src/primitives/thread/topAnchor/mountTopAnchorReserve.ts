@@ -95,10 +95,15 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
 
     observers.target(viewport, anchor, target);
 
-    setReserveHeight(
+    const reserveChanged = setReserveHeight(
       reserve,
       computeTopAnchorReserve({ viewport, anchor, reserve, ...clamp }),
     );
+
+    if (reserveChanged) {
+      scheduler.schedule();
+      return;
+    }
 
     const anchorId = getAnchorId(anchor);
     if (anchorId !== undefined && anchoredIds.has(anchorId)) return;

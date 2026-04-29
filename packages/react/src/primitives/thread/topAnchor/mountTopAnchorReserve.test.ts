@@ -113,6 +113,12 @@ describe("mountTopAnchorReserve", () => {
     mountTopAnchorReserve(store);
     vi.runOnlyPendingTimers();
 
+    expect(viewport.scrollTo).not.toHaveBeenCalled();
+
+    vi.runOnlyPendingTimers();
+
+    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
+
     setState({
       turnAnchor: "top",
       element: { viewport, anchor, target },

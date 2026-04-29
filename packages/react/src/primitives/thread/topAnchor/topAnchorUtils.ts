@@ -45,7 +45,10 @@ export const setReserveHeight = (reserve: HTMLElement, height: number) => {
   const nextHeight = `${height}px`;
   if (reserve.style.height !== nextHeight) {
     reserve.style.height = nextHeight;
+    return true;
   }
+
+  return false;
 };
 
 export const snapScrollTop = (top: number) => {
