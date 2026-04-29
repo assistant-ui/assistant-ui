@@ -6,7 +6,6 @@ import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/mdx-components";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { ExamplesNavbar } from "@/components/docs/examples-navbar";
-import { TableOfContents } from "@/components/docs/layout/table-of-contents";
 import { DocsFooter } from "@/components/docs/layout/docs-footer";
 import { DocsPager } from "@/components/docs/layout/docs-pager";
 import { findNeighbour } from "fumadocs-core/page-tree";
@@ -27,9 +26,7 @@ export default async function Page(props: {
   const page = getPage(params.slug);
   const isIndex = !params.slug || params.slug.length === 0;
 
-  const path = `apps/docs/content/examples/${page.path}`;
   const markdownUrl = `${page.url}.mdx`;
-  const githubEditUrl = `https://github.com/assistant-ui/assistant-ui/edit/main/${path}`;
 
   const neighbours = findNeighbour(examples.pageTree, page.url);
   const footerPrevious = neighbours.previous
@@ -44,14 +41,7 @@ export default async function Page(props: {
       toc={page.data.toc}
       full={true}
       tableOfContent={{
-        enabled: !isIndex,
-        component: !isIndex ? (
-          <TableOfContents
-            items={page.data.toc}
-            githubEditUrl={githubEditUrl}
-            markdownUrl={markdownUrl}
-          />
-        ) : undefined,
+        enabled: false,
       }}
       tableOfContentPopover={{
         enabled: false,
