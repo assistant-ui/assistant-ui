@@ -4,9 +4,20 @@ import {
   UserMessageAttachments,
 } from "@/components/assistant-ui/attachment";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningRoot,
+  ReasoningText,
+  ReasoningTrigger,
+} from "@/components/assistant-ui/reasoning";
+import {
+  ToolGroupContent,
+  ToolGroupRoot,
+  ToolGroupTrigger,
+} from "@/components/assistant-ui/tool-group";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -228,14 +239,51 @@ const AssistantMessage: FC = () => {
         data-slot="aui_assistant-message-content"
         className="wrap-break-word px-2 text-foreground leading-relaxed"
       >
-        <MessagePrimitive.Parts
-          components={{
-            Text: MarkdownText,
-            Reasoning,
-            ReasoningGroup,
-            tools: { Fallback: ToolFallback },
+        <MessagePrimitive.GroupedParts
+          groupBy={(part) => {
+            if (part.type === "reasoning")
+              return ["group-chainOfThought", "group-reasoning"];
+            if (part.type === "tool-call")
+              return ["group-chainOfThought", "group-tool"];
+            return null;
           }}
-        />
+        >
+          {({ part, children }) => {
+            switch (part.type) {
+              case "group-chainOfThought":
+                return <div data-slot="aui_chain-of-thought">{children}</div>;
+              case "group-reasoning": {
+                const running = part.status.type === "running";
+                return (
+                  <ReasoningRoot defaultOpen={running}>
+                    <ReasoningTrigger active={running} />
+                    <ReasoningContent aria-busy={running}>
+                      <ReasoningText>{children}</ReasoningText>
+                    </ReasoningContent>
+                  </ReasoningRoot>
+                );
+              }
+              case "group-tool":
+                return (
+                  <ToolGroupRoot>
+                    <ToolGroupTrigger
+                      count={part.indices.length}
+                      active={part.status.type === "running"}
+                    />
+                    <ToolGroupContent>{children}</ToolGroupContent>
+                  </ToolGroupRoot>
+                );
+              case "text":
+                return <MarkdownText />;
+              case "reasoning":
+                return <Reasoning {...part} />;
+              case "tool-call":
+                return part.toolUI ?? <ToolFallback {...part} />;
+              default:
+                return null;
+            }
+          }}
+        </MessagePrimitive.GroupedParts>
         <MessageError />
       </div>
 
