@@ -3,6 +3,7 @@
   "description": "Unstyled, accessible building blocks for AI chat interfaces",
   "icon": "Blocks",
   "root": true,
+  "platforms": ["react"],
   "pages": [
     "index",
     "composer",

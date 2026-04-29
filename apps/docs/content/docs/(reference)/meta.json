@@ -2,5 +2,6 @@
   "title": "API Reference",
   "icon": "FileCode",
   "root": true,
+  "platforms": ["react"],
   "pages": ["...api-reference", "...migrations", "react-compatibility"]
 }

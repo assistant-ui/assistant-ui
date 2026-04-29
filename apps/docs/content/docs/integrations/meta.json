@@ -2,6 +2,7 @@
   "title": "Integrations",
   "icon": "Plug",
   "root": true,
+  "platforms": ["react"],
   "pages": [
     "index",
     "frameworks",

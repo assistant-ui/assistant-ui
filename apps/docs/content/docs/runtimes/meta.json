@@ -3,6 +3,7 @@
   "description": "Backend integrations",
   "icon": "Server",
   "root": true,
+  "platforms": ["react"],
   "pages": [
     "pick-a-runtime",
     "concepts",
