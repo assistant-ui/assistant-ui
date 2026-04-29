@@ -12,6 +12,7 @@ import {
   SKIP_UPDATE,
 } from "../../subscribable/subscribable";
 import type {
+  ComposerRuntimeEventCallback,
   ComposerRuntimeEventType,
   DictationState,
   EditComposerRuntimeCore,
@@ -222,9 +223,9 @@ export type ComposerRuntime = {
   /**
    * @deprecated This API is still under active development and might change without notice.
    */
-  unstable_on(
-    event: ComposerRuntimeEventType,
-    callback: () => void,
+  unstable_on<E extends ComposerRuntimeEventType>(
+    event: E,
+    callback: ComposerRuntimeEventCallback<E>,
   ): Unsubscribe;
 };
 
@@ -332,19 +333,19 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     EventSubscriptionSubject<ComposerRuntimeEventType>
   >();
 
-  public unstable_on(
-    event: ComposerRuntimeEventType,
-    callback: () => void,
+  public unstable_on<E extends ComposerRuntimeEventType>(
+    event: E,
+    callback: ComposerRuntimeEventCallback<E>,
   ): Unsubscribe {
     let subject = this._eventSubscriptionSubjects.get(event);
     if (!subject) {
-      subject = new EventSubscriptionSubject({
-        event: event,
+      subject = new EventSubscriptionSubject<ComposerRuntimeEventType>({
+        event,
         binding: this._core,
       });
       this._eventSubscriptionSubjects.set(event, subject);
     }
-    return subject.subscribe(callback);
+    return subject.subscribe(callback as (payload?: unknown) => void);
   }
 
   public abstract getAttachmentByIndex(idx: number): AttachmentRuntime;

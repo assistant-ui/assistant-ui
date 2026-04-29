@@ -4,6 +4,7 @@ import type { QuoteInfo } from "../../types/quote";
 import type { RunConfig } from "../../types/message";
 import type { ComposerRuntime } from "../../runtime/api/composer-runtime";
 import type {
+  AttachmentAddErrorReason,
   DictationState,
   SendOptions,
 } from "../../runtime/interfaces/composer-runtime-core";
@@ -91,12 +92,22 @@ export type ComposerMeta = {
 };
 
 export type ComposerEvents = {
+  /**
+   * @deprecated State-derivable. Observe composer `text` clearing via
+   * `useAuiState` instead. Kept for backward compatibility.
+   */
   "composer.send": { threadId: string; messageId?: string };
+  /**
+   * @deprecated State-derivable. Observe composer `attachments` via
+   * `useAuiState` instead. Kept for backward compatibility.
+   */
   "composer.attachmentAdd": { threadId: string; messageId?: string };
   "composer.attachmentAddError": {
     threadId: string;
     messageId?: string;
     attachmentId?: string;
+    reason: AttachmentAddErrorReason;
+    message: string;
   };
 };
 

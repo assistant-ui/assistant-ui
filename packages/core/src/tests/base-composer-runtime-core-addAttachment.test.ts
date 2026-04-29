@@ -48,6 +48,12 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     ).rejects.toThrow("Attachments are not supported");
 
     expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "no-adapter",
+        message: "Attachments are not supported",
+      }),
+    );
     expect(onAdd).not.toHaveBeenCalled();
   });
 
@@ -63,6 +69,14 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     ).rejects.toThrow(/File type text\/plain is not accepted/);
 
     expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "not-accepted",
+        message: expect.stringContaining(
+          "File type text/plain is not accepted",
+        ),
+      }),
+    );
     expect(onAdd).not.toHaveBeenCalled();
   });
 
@@ -84,6 +98,12 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     ).rejects.toThrow("upload failed");
 
     expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "adapter-error",
+        message: "upload failed",
+      }),
+    );
     expect(onAdd).not.toHaveBeenCalled();
   });
 
@@ -143,6 +163,13 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     ).rejects.toThrow("network error");
 
     expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "adapter-error",
+        message: "network error",
+        attachmentId: "att-1",
+      }),
+    );
     expect(onAdd).not.toHaveBeenCalled();
     expect(composer.attachments).toHaveLength(1);
     const att = composer.attachments[0]!;
@@ -150,5 +177,37 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     if (att.status.type === "incomplete") {
       expect(att.status.reason).toBe("error");
     }
+  });
+
+  it("emits attachmentAddError with attachment id when adapter yields an errored attachment", async () => {
+    const composer = makeComposer(
+      makeAdapter({
+        add: async ({ file }) => ({
+          id: "att-2",
+          type: "image",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "incomplete", reason: "error" },
+        }),
+      }),
+    );
+    const onError = vi.fn();
+    const onAdd = vi.fn();
+    composer.unstable_on("attachmentAddError", onError);
+    composer.unstable_on("attachmentAdd", onAdd);
+
+    await composer.addAttachment(
+      new File(["x"], "f.png", { type: "image/png" }),
+    );
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "adapter-error",
+        attachmentId: "att-2",
+      }),
+    );
+    expect(onAdd).not.toHaveBeenCalled();
   });
 });

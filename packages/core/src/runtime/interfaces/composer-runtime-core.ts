@@ -5,10 +5,37 @@ import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
 import type { DictationAdapter } from "../../adapters/speech";
 
-export type ComposerRuntimeEventType =
-  | "send"
-  | "attachmentAdd"
-  | "attachmentAddError";
+export type AttachmentAddErrorReason =
+  | "no-adapter"
+  | "not-accepted"
+  | "adapter-error";
+
+export type AttachmentAddErrorEvent = {
+  readonly reason: AttachmentAddErrorReason;
+  readonly message: string;
+  readonly attachmentId?: string;
+  readonly error?: Error;
+};
+
+export type ComposerRuntimeEventPayload = {
+  /**
+   * @deprecated State-derivable. Observe `state.text` clearing via
+   * `subscribe` + `getState` instead. Kept for backward compatibility.
+   */
+  send: Record<string, never>;
+  /**
+   * @deprecated State-derivable. Observe `state.attachments` via `subscribe` +
+   * `getState` instead. Kept for backward compatibility.
+   */
+  attachmentAdd: Record<string, never>;
+  attachmentAddError: AttachmentAddErrorEvent;
+};
+
+export type ComposerRuntimeEventType = keyof ComposerRuntimeEventPayload;
+
+export type ComposerRuntimeEventCallback<E extends ComposerRuntimeEventType> = (
+  payload: ComposerRuntimeEventPayload[E],
+) => void;
 
 export type DictationState = {
   readonly status: DictationAdapter.Status;
@@ -56,9 +83,14 @@ export type ComposerRuntimeCore = Readonly<{
 
   subscribe: (callback: () => void) => Unsubscribe;
 
-  unstable_on: (
-    event: ComposerRuntimeEventType,
-    callback: () => void,
+  /**
+   * @deprecated This API is still under active development and might change without notice.
+   * For state-derivable transitions, prefer `subscribe` + `getState`. This channel is the
+   * escape hatch for transient occurrences not represented in state.
+   */
+  unstable_on: <E extends ComposerRuntimeEventType>(
+    event: E,
+    callback: ComposerRuntimeEventCallback<E>,
   ) => Unsubscribe;
 }>;
 

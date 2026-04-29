@@ -453,6 +453,14 @@ describe("BaseComposerRuntimeCore", () => {
 
         expect(composer.attachments).toHaveLength(0);
         expect(onError).toHaveBeenCalledTimes(1);
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            reason: "not-accepted",
+            message: expect.stringContaining(
+              "File type application/pdf is not accepted",
+            ),
+          }),
+        );
         expect(onAdd).not.toHaveBeenCalled();
       });
 

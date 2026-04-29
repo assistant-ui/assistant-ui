@@ -63,19 +63,14 @@ export const ComposerClient = resource(
         unsubscribers.push(unsubscribe);
       }
 
-      // attachmentAddError carries the failed attachment ID
       unsubscribers.push(
-        runtime.unstable_on("attachmentAddError", () => {
-          const errorAttachment = runtime
-            .getState()
-            .attachments.findLast(
-              (a) =>
-                a.status.type === "incomplete" && a.status.reason === "error",
-            );
+        runtime.unstable_on("attachmentAddError", (payload) => {
           emit("composer.attachmentAddError", {
             threadId: threadIdRef.current,
             ...(messageIdRef && { messageId: messageIdRef.current }),
-            ...(errorAttachment && { attachmentId: errorAttachment.id }),
+            ...(payload.attachmentId && { attachmentId: payload.attachmentId }),
+            reason: payload.reason,
+            message: payload.message,
           });
         }),
       );

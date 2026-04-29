@@ -14,7 +14,10 @@ import {
   fileMatchesAccept,
 } from "../../adapters/attachment";
 import type {
+  AttachmentAddErrorReason,
   ComposerRuntimeCore,
+  ComposerRuntimeEventCallback,
+  ComposerRuntimeEventPayload,
   ComposerRuntimeEventType,
   DictationState,
   SendOptions,
@@ -189,7 +192,7 @@ export abstract class BaseComposerRuntimeCore
     };
 
     this.handleSend(message, options);
-    this._notifyEventSubscribers("send");
+    this._notifyEventSubscribers("send", {});
   }
 
   public cancel() {
@@ -215,14 +218,15 @@ export abstract class BaseComposerRuntimeCore
           adapter.accept,
         )
       ) {
-        try {
-          this._notifyEventSubscribers("attachmentAddError");
-        } catch {
-          // prevent subscriber errors from masking the original error
-        }
-        throw new Error(
-          `File type ${fileOrAttachment.contentType || "unknown"} is not accepted. Accepted types: ${adapter.accept}`,
+        const message = `File type ${fileOrAttachment.contentType || "unknown"} is not accepted. Accepted types: ${adapter.accept}`;
+        const err = new Error(message);
+        this._safeEmitAttachmentAddError(
+          "not-accepted",
+          message,
+          undefined,
+          err,
         );
+        throw err;
       }
 
       const a: CompleteAttachment = {
@@ -235,7 +239,7 @@ export abstract class BaseComposerRuntimeCore
       };
       this._attachments = [...this._attachments, a];
       this._notifySubscribers();
-      this._notifyEventSubscribers("attachmentAdd");
+      this._notifyEventSubscribers("attachmentAdd", {});
       return;
     }
 
@@ -256,22 +260,28 @@ export abstract class BaseComposerRuntimeCore
       this._notifySubscribers();
     };
 
+    const adapter = this.getAttachmentAdapter();
+    if (!adapter) {
+      const message = "Attachments are not supported";
+      const err = new Error(message);
+      this._safeEmitAttachmentAddError("no-adapter", message, undefined, err);
+      throw err;
+    }
+
+    if (
+      !fileMatchesAccept(
+        { name: fileOrAttachment.name, type: fileOrAttachment.type },
+        adapter.accept,
+      )
+    ) {
+      const message = `File type ${fileOrAttachment.type || "unknown"} is not accepted. Accepted types: ${adapter.accept}`;
+      const err = new Error(message);
+      this._safeEmitAttachmentAddError("not-accepted", message, undefined, err);
+      throw err;
+    }
+
     let lastAttachment: PendingAttachment | undefined;
     try {
-      const adapter = this.getAttachmentAdapter();
-      if (!adapter) throw new Error("Attachments are not supported");
-
-      if (
-        !fileMatchesAccept(
-          { name: fileOrAttachment.name, type: fileOrAttachment.type },
-          adapter.accept,
-        )
-      ) {
-        throw new Error(
-          `File type ${fileOrAttachment.type || "unknown"} is not accepted. Accepted types: ${adapter.accept}`,
-        );
-      }
-
       const promiseOrGenerator = adapter.add({ file: fileOrAttachment });
       if (Symbol.asyncIterator in promiseOrGenerator) {
         for await (const r of promiseOrGenerator) {
@@ -289,20 +299,45 @@ export abstract class BaseComposerRuntimeCore
           status: { type: "incomplete", reason: "error" },
         });
       }
-      try {
-        this._notifyEventSubscribers("attachmentAddError");
-      } catch {
-        // prevent subscriber errors from masking the original error
-      }
+      this._safeEmitAttachmentAddError(
+        "adapter-error",
+        e instanceof Error ? e.message : String(e),
+        lastAttachment?.id,
+        e instanceof Error ? e : undefined,
+      );
       throw e;
     }
 
     const hasError =
       lastAttachment?.status.type === "incomplete" &&
       lastAttachment.status.reason === "error";
-    this._notifyEventSubscribers(
-      hasError ? "attachmentAddError" : "attachmentAdd",
-    );
+    if (hasError) {
+      this._safeEmitAttachmentAddError(
+        "adapter-error",
+        "Attachment upload did not complete successfully.",
+        lastAttachment?.id,
+      );
+    } else {
+      this._notifyEventSubscribers("attachmentAdd", {});
+    }
+  }
+
+  private _safeEmitAttachmentAddError(
+    reason: AttachmentAddErrorReason,
+    message: string,
+    attachmentId?: string,
+    error?: Error,
+  ) {
+    try {
+      this._notifyEventSubscribers("attachmentAddError", {
+        reason,
+        message,
+        ...(attachmentId !== undefined && { attachmentId }),
+        ...(error !== undefined && { error }),
+      });
+    } catch {
+      // prevent subscriber errors from masking the original error
+    }
   }
 
   async removeAttachment(attachmentId: string) {
@@ -471,28 +506,33 @@ export abstract class BaseComposerRuntimeCore
 
   private _eventSubscribers = new Map<
     ComposerRuntimeEventType,
-    Set<() => void>
+    Set<(payload?: unknown) => void>
   >();
 
-  protected _notifyEventSubscribers(event: ComposerRuntimeEventType) {
+  protected _notifyEventSubscribers<E extends ComposerRuntimeEventType>(
+    event: E,
+    payload: ComposerRuntimeEventPayload[E],
+  ) {
     const subscribers = this._eventSubscribers.get(event);
     if (!subscribers) return;
 
-    for (const callback of subscribers) callback();
+    for (const callback of subscribers) callback(payload);
   }
 
-  public unstable_on(event: ComposerRuntimeEventType, callback: () => void) {
-    const subscribers = this._eventSubscribers.get(event);
+  public unstable_on<E extends ComposerRuntimeEventType>(
+    event: E,
+    callback: ComposerRuntimeEventCallback<E>,
+  ) {
+    const wrapped = callback as (payload?: unknown) => void;
+    let subscribers = this._eventSubscribers.get(event);
     if (!subscribers) {
-      this._eventSubscribers.set(event, new Set([callback]));
-    } else {
-      subscribers.add(callback);
+      subscribers = new Set();
+      this._eventSubscribers.set(event, subscribers);
     }
+    subscribers.add(wrapped);
 
     return () => {
-      const subscribers = this._eventSubscribers.get(event);
-      if (!subscribers) return;
-      subscribers.delete(callback);
+      this._eventSubscribers.get(event)?.delete(wrapped);
     };
   }
 }
