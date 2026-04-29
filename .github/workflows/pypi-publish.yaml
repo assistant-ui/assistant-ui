@@ -1,15 +1,5 @@
 name: PyPI Publish
 
-# Publishes `assistant-stream` to PyPI via OIDC trusted publishing — no
-# secrets required. The PyPI project's trusted-publisher config must point
-# at this workflow file (`pypi-publish.yaml`) and the `pypi publish`
-# environment used below.
-#
-# Triggered by:
-#   - workflow_dispatch (manual; optionally pin a release SHA)
-#   - repository_dispatch with type `pypi-publish` and an optional
-#     `releaseSha` field on the client_payload (chains from another job)
-
 on:
   repository_dispatch:
     types: [pypi-publish]
@@ -170,6 +160,19 @@ jobs:
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+          latest=$(curl -s --max-time 30 \
+            "https://pypi.org/pypi/$PYTHON_PACKAGE_NAME/json" \
+            | python3 -c 'import sys, json; print(json.load(sys.stdin).get("info", {}).get("version") or "")' \
+            || true)
+
+          if [ -n "$latest" ] && [ "$version" != "$latest" ]; then
+            highest=$(printf '%s\n%s\n' "$latest" "$version" | sort -V | tail -n1)
+            if [ "$highest" != "$version" ]; then
+              echo "Refusing to publish $PYTHON_PACKAGE_NAME@$version: lower than current PyPI latest ($latest)" >&2
+              exit 1
+            fi
+          fi
+
           status=$(curl -s --max-time 30 -o /dev/null -w "%{http_code}" \
             "https://pypi.org/pypi/$PYTHON_PACKAGE_NAME/$version/json")
 
@@ -212,7 +215,8 @@ jobs:
     environment: pypi publish
     runs-on: ubuntu-24.04
     permissions:
-      contents: read
+      # Required to create GitHub releases.
+      contents: write
       # Required for PyPI trusted publishing (OIDC).
       id-token: write
     concurrency:
@@ -226,10 +230,14 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 1
+          fetch-tags: true
           ref: ${{ env.RELEASE_SHA }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@cb5e2bb1f6e4a3caf6dd3bb691baad1d8b9ea98e # v6.10.0
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          # No cache - hardened against cache poisoning for sensitive publish operations
+          enable-cache: false
 
       - name: Build sdist + wheel
         working-directory: ${{ env.PYTHON_PACKAGE_DIR }}
@@ -256,8 +264,27 @@ jobs:
         uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # v1.13.0
         with:
           packages-dir: ${{ env.PYTHON_PACKAGE_DIR }}/dist
-          # No `password` — the action uses GitHub OIDC + the trusted-publisher
-          # configuration on PyPI to mint a short-lived token at publish time.
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="pypi/${PYTHON_PACKAGE_NAME}@${VERSION}"
+          prev=$(git tag --list "pypi/${PYTHON_PACKAGE_NAME}@*" | sort -V | tail -n1)
+
+          if [ -n "$prev" ]; then
+            gh release create "$tag" \
+              --target "$RELEASE_SHA" \
+              --title "$tag" \
+              --notes-start-tag "$prev" \
+              --generate-notes
+          else
+            gh release create "$tag" \
+              --target "$RELEASE_SHA" \
+              --title "$tag" \
+              --notes "First $PYTHON_PACKAGE_NAME release published via this workflow."
+          fi
 
       - name: Recovery guidance
         if: failure()
