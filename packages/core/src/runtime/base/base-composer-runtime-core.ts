@@ -335,8 +335,11 @@ export abstract class BaseComposerRuntimeCore
         ...(attachmentId !== undefined && { attachmentId }),
         ...(error !== undefined && { error }),
       });
-    } catch {
-      // prevent subscriber errors from masking the original error
+    } catch (subscriberError) {
+      console.error(
+        "[assistant-ui] attachmentAddError subscriber threw:",
+        subscriberError,
+      );
     }
   }
 

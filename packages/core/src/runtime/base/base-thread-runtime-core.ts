@@ -467,19 +467,19 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   ) {
     const wrapped = callback as (payload?: unknown) => void;
     if (event === "modelContextUpdate") {
-      return this._contextProvider.subscribe?.(wrapped) ?? (() => {});
+      // provider.subscribe is `() => void`; pump the typed empty payload to the user callback.
+      return this._contextProvider.subscribe?.(() => wrapped({})) ?? (() => {});
     }
 
-    const subscribers = this._eventSubscribers.get(event);
+    let subscribers = this._eventSubscribers.get(event);
     if (!subscribers) {
-      this._eventSubscribers.set(event, new Set([wrapped]));
-    } else {
-      subscribers.add(wrapped);
+      subscribers = new Set();
+      this._eventSubscribers.set(event, subscribers);
     }
+    subscribers.add(wrapped);
 
     return () => {
-      const subscribers = this._eventSubscribers.get(event)!;
-      subscribers.delete(wrapped);
+      this._eventSubscribers.get(event)?.delete(wrapped);
     };
   }
 }

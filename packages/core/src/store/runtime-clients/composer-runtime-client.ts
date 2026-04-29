@@ -65,6 +65,7 @@ export const ComposerClient = resource(
 
       unsubscribers.push(
         runtime.unstable_on("attachmentAddError", (payload) => {
+          // payload.error omitted: raw Error is not store-serializable; use runtime.unstable_on for it.
           emit("composer.attachmentAddError", {
             threadId: threadIdRef.current,
             ...(messageIdRef && { messageId: messageIdRef.current }),
