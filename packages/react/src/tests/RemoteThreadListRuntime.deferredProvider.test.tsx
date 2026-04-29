@@ -4,7 +4,7 @@ import { render } from "@testing-library/react";
 import { type FC, type PropsWithChildren, useState } from "react";
 import { describe, expect, it } from "vitest";
 import { useRemoteThreadListRuntime } from "@assistant-ui/core/react";
-import { makeAdapter } from "@assistant-ui/core/tests/remote-thread-list-test-helpers";
+import { makeAdapter } from "./remote-thread-list-test-helpers";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { AssistantRuntimeProvider } from "../context";
 import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";

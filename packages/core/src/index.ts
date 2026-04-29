@@ -32,7 +32,9 @@ export type {
 export type {
   Attachment,
   PendingAttachment,
+  PendingAttachmentStatus,
   CompleteAttachment,
+  CompleteAttachmentStatus,
   AttachmentStatus,
   CreateAttachment,
 } from "./types/attachment";
