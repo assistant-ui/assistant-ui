@@ -494,25 +494,35 @@ class ValidatedImageAdapter implements AttachmentAdapter {
 To surface failures in the UI, subscribe to `composer.attachmentAddError`. It fires whenever an add operation produces a failure, in either of two ways:
 
 1. `addAttachment()` rejects: no adapter is configured, the file type does not match `accept`, or the adapter's `add()` throws.
-2. `addAttachment()` resolves but the adapter yielded an attachment whose `status.reason === "error"` (the promise resolves successfully, yet the event still fires so the UI can react).
+2. `addAttachment()` resolves but the adapter returned (or, for async-iterator adapters, yielded) an attachment whose `status.reason === "error"`. The promise resolves successfully, yet the event still fires so the UI can react.
+
+The event payload carries a `reason` discriminator and a human-readable `message`, so you can branch UI on the failure mode:
+
+| `reason`         | When It Fires                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------------ |
+| `no-adapter`     | `addAttachment(File)` was called but no `AttachmentAdapter` is configured.                             |
+| `not-accepted`   | The file's content type (or filename extension) did not match `adapter.accept`.                        |
+| `adapter-error`  | The adapter's `add()` threw, or returned/yielded an attachment with `status.reason === "error"`. If the adapter produced any attachment before failing, the errored attachment is also visible in `composer.attachments`; if it threw before producing one, the event is the only signal. |
 
 ```tsx
 import { toast } from "sonner"; // or your toast library of choice
 import { useAuiEvent } from "@assistant-ui/react";
 
 function AttachmentErrorToast() {
-  useAuiEvent("composer.attachmentAddError", ({ attachmentId }) => {
-    toast.error(
-      attachmentId
-        ? "Attachment failed to upload."
-        : "This file could not be added.",
-    );
+  useAuiEvent("composer.attachmentAddError", ({ reason, message }) => {
+    if (reason === "not-accepted") {
+      toast.error("This file type is not supported.");
+    } else if (reason === "no-adapter") {
+      toast.error("Attachments are not configured for this composer.");
+    } else {
+      toast.error(message || "Attachment failed to upload.");
+    }
   });
   return null;
 }
 ```
 
-`attachmentId` is best-effort and should always be treated as optional. It is resolved by scanning the composer's current attachment list for the most recently registered errored attachment, so it is `undefined` for failures that happen before any attachment is registered (e.g. unsupported file type) only when no prior errored attachment is still present.
+`attachmentId` is included when the failure is associated with an attachment that was registered (typically `adapter-error` cases). It is `undefined` for `no-adapter` and `not-accepted` failures because those reject before any attachment is registered.
 
 ### External Source Attachments
 

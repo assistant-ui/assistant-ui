@@ -519,19 +519,36 @@ const isRunning = useAuiState((s) => s.thread.isRunning);
 | Suggestion     | `getState()`                                                                                                      | Read individual suggestion data            |
 | ModelContext   | `register(provider)`, `getState()`                                                                                | Register model context providers           |
 
-### Common Events
+### Events vs State Observation
 
-| Event                         | Description                   |
-| ----------------------------- | ----------------------------- |
-| `thread.runStart`             | Assistant starts generating   |
-| `thread.runEnd`               | Assistant finishes generating |
-| `thread.initialize`           | Thread is initialized         |
-| `thread.modelContextUpdate`   | Model context is updated      |
-| `composer.send`               | Message is sent               |
-| `composer.attachmentAdd`      | Attachment added to composer  |
-| `composer.attachmentAddError` | Attachment add failed         |
-| `threadListItem.switchedTo`   | Switched to a thread          |
-| `threadListItem.switchedAway` | Switched away from a thread   |
+`useAuiEvent` is the escape hatch for **transient occurrences that are not derivable from state**. State-derivable transitions (attachment list changing, run progress, thread switching) should be observed with `useAuiState`, not subscribed via events.
+
+The rule of thumb:
+
+1. Can you read the new value from state right now? → use `useAuiState`.
+2. Are you the caller and want immediate feedback? → catch the rejection / read the return value.
+3. Did something happen that has no representation in state at all? → use `useAuiEvent`.
+
+Most existing events are kept for backward compatibility but duplicate state. They are marked `@deprecated` in the type definitions; new code should follow the rule above.
+
+#### Currently Recommended (Truly Transient)
+
+| Event                         | When It Fires                                                                |
+| ----------------------------- | ---------------------------------------------------------------------------- |
+| `composer.attachmentAddError` | An `addAttachment()` call failed. Payload `reason` discriminates `no-adapter` / `not-accepted` / `adapter-error`. `no-adapter` and `not-accepted` are non-state-derivable. `adapter-error` is partially state-derivable: if the adapter produced any attachment before failing, the errored attachment also appears in `composer.attachments` with `status.reason === "error"`. The event additionally surfaces the human-readable `message` and the original `Error`, which are not represented in state. |
+| `thread.modelContextUpdate`   | The model context provider notified a change. The model context lives in a provider, not in thread state, so this event has no state-derivable equivalent. |
+
+#### Legacy (State-Derivable, Prefer `useAuiState`)
+
+These events fire at the same transition you can observe via state. They are kept for backward compatibility but new code should observe state instead.
+
+| Legacy Event                                 | Observe Instead                                                |
+| -------------------------------------------- | -------------------------------------------------------------- |
+| `composer.send`                              | composer `text` clearing                                       |
+| `composer.attachmentAdd`                     | composer `attachments`                                         |
+| `thread.runStart` / `runEnd`                 | thread `isRunning` flipping to `true` / `false`                |
+| `thread.initialize`                          | thread `messages` becoming non-empty (or `isEmpty` flipping)   |
+| `threadListItem.switchedTo` / `switchedAway` | compare `s.threads.mainThreadId` against `s.threadListItem.id` |
 
 ## Troubleshooting
 
