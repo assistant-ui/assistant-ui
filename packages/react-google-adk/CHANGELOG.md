@@ -1,5 +1,19 @@
 # @assistant-ui/react-google-adk
 
+## 0.0.8
+
+### Patch Changes
+
+- [#3894](https://github.com/assistant-ui/assistant-ui/pull/3894) [`d3380f4`](https://github.com/assistant-ui/assistant-ui/commit/d3380f4bb7b93960a7e7be86aceb3428ea29e4f2) - fix(react-google-adk): add missing DictationAdapter to UseAdkRuntimeOptions ([@okisdev](https://github.com/okisdev))
+
+- [#3905](https://github.com/assistant-ui/assistant-ui/pull/3905) [`d0b72cb`](https://github.com/assistant-ui/assistant-ui/commit/d0b72cba74bc8f3acfd6b3d1ca065c3270d092b7) - fix(react-google-adk): preserve file attachment data on the wire ([@okisdev](https://github.com/okisdev))
+
+  `useAdkRuntime.getMessageContent` previously collapsed file message parts into a `[File: <name>]` text marker before sending to ADK, dropping the base64 payload entirely. new `file` and `file_url` variants on `AdkMessageContentPart` carry the binary through `AdkClient` and `useAdkMessages.contentToParts`, which serialize them as `inlineData` and `fileData` on the wire. inbound, `AdkEventAccumulator` sniffs MIME type so non-image `inlineData` produces a `file` part (rather than being silently coerced into `image`), and explicitly non-image `fileData` produces `file_url`; `fileData` with no MIME type falls back to `image_url` to preserve the legacy round-trip. `convertAdkMessage` maps `file` to a core `FileMessagePart` and `file_url` to a `data` part named `"file_url"`.
+
+- Updated dependencies [[`549037a`](https://github.com/assistant-ui/assistant-ui/commit/549037ac77aed8736823cfb82baf9645e3364adf), [`005f83f`](https://github.com/assistant-ui/assistant-ui/commit/005f83f3ebfb94b3a9d7c34bc7d2a71bbaf63a9e), [`976aec5`](https://github.com/assistant-ui/assistant-ui/commit/976aec566330bee3c607cfb356f3358eefe28ac1), [`25b97d5`](https://github.com/assistant-ui/assistant-ui/commit/25b97d5c62fb038471b06eaa784ad4b7e23ef533), [`2008fc9`](https://github.com/assistant-ui/assistant-ui/commit/2008fc9af3d6fe05604d6b08275c2e9cec099bd9), [`88fcd35`](https://github.com/assistant-ui/assistant-ui/commit/88fcd352ecffd12f124abe988cc5499f784f81d6)]:
+  - @assistant-ui/core@0.1.16
+  - @assistant-ui/store@0.2.9
+
 ## 0.0.7
 
 ### Patch Changes
