@@ -21,6 +21,8 @@ import type {
   SpeechState,
   VoiceSessionState,
   RuntimeCapabilities,
+  ThreadRuntimeEventCallback,
+  ThreadRuntimeEventPayload,
   ThreadRuntimeEventType,
   StartRunConfig,
   ResumeRunConfig,
@@ -168,11 +170,14 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     for (const callback of this._subscriptions) callback();
   }
 
-  public _notifyEventSubscribers(event: ThreadRuntimeEventType) {
+  public _notifyEventSubscribers<E extends ThreadRuntimeEventType>(
+    event: E,
+    payload: ThreadRuntimeEventPayload[E],
+  ) {
     const subscribers = this._eventSubscribers.get(event);
     if (!subscribers) return;
 
-    for (const callback of subscribers) callback();
+    for (const callback of subscribers) callback(payload);
   }
 
   public subscribe(callback: () => void): Unsubscribe {
@@ -432,7 +437,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   protected ensureInitialized() {
     if (!this._isInitialized) {
       this._isInitialized = true;
-      this._notifyEventSubscribers("initialize");
+      this._notifyEventSubscribers("initialize", {});
     }
   }
 
@@ -453,24 +458,28 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
   private _eventSubscribers = new Map<
     ThreadRuntimeEventType,
-    Set<() => void>
+    Set<(payload?: unknown) => void>
   >();
 
-  public unstable_on(event: ThreadRuntimeEventType, callback: () => void) {
+  public unstable_on<E extends ThreadRuntimeEventType>(
+    event: E,
+    callback: ThreadRuntimeEventCallback<E>,
+  ) {
+    const wrapped = callback as (payload?: unknown) => void;
     if (event === "modelContextUpdate") {
-      return this._contextProvider.subscribe?.(callback) ?? (() => {});
+      return this._contextProvider.subscribe?.(wrapped) ?? (() => {});
     }
 
     const subscribers = this._eventSubscribers.get(event);
     if (!subscribers) {
-      this._eventSubscribers.set(event, new Set([callback]));
+      this._eventSubscribers.set(event, new Set([wrapped]));
     } else {
-      subscribers.add(callback);
+      subscribers.add(wrapped);
     }
 
     return () => {
       const subscribers = this._eventSubscribers.get(event)!;
-      subscribers.delete(callback);
+      subscribers.delete(wrapped);
     };
   }
 }

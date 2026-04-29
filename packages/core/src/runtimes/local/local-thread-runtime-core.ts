@@ -253,7 +253,7 @@ export class LocalThreadRuntimeCore
       createdAt: new Date(),
     };
 
-    this._notifyEventSubscribers("runStart");
+    this._notifyEventSubscribers("runStart", {});
 
     try {
       this._suggestions = [];
@@ -271,7 +271,7 @@ export class LocalThreadRuntimeCore
         runCallback = undefined;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
-      this._notifyEventSubscribers("runEnd");
+      this._notifyEventSubscribers("runEnd", {});
     }
 
     this._suggestionsController = new AbortController();

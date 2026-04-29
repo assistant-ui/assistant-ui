@@ -236,9 +236,9 @@ export class ExternalStoreThreadRuntimeCore
 
     if ((oldStore?.isRunning ?? false) !== (store.isRunning ?? false)) {
       if (store.isRunning) {
-        this._notifyEventSubscribers("runStart");
+        this._notifyEventSubscribers("runStart", {});
       } else {
-        this._notifyEventSubscribers("runEnd");
+        this._notifyEventSubscribers("runEnd", {});
       }
     }
 

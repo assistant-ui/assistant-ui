@@ -69,11 +69,41 @@ export type SubmittedFeedback = {
   readonly type: "negative" | "positive";
 };
 
-export type ThreadRuntimeEventType =
-  | "runStart"
-  | "runEnd"
-  | "initialize"
-  | "modelContextUpdate";
+export type ThreadRuntimeEventPayload = {
+  /**
+   * @deprecated State-derivable. Observe `state.isRunning` flipping to `true`
+   * via `subscribe` + `getState` instead. Note: this event fires at the
+   * transition point and may run before the next subscriber notification.
+   * Kept for backward compatibility.
+   */
+  runStart: Record<string, never>;
+  /**
+   * @deprecated State-derivable. Observe `state.isRunning` flipping to `false`
+   * via `subscribe` + `getState` instead. Note: this event fires at the
+   * transition point and may run before the next subscriber notification.
+   * Kept for backward compatibility.
+   */
+  runEnd: Record<string, never>;
+  /**
+   * @deprecated State-derivable. This event fires at the initialization
+   * transition immediately BEFORE the first message is added, so reading state
+   * inside the handler still sees an empty thread; observe `state.messages`
+   * becoming non-empty via a regular `subscribe` callback instead. Kept for
+   * backward compatibility.
+   */
+  initialize: Record<string, never>;
+  /**
+   * Truly transient. The model context lives in a provider, not in thread
+   * state, so this event has no state-derivable equivalent.
+   */
+  modelContextUpdate: Record<string, never>;
+};
+
+export type ThreadRuntimeEventType = keyof ThreadRuntimeEventPayload;
+
+export type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (
+  payload: ThreadRuntimeEventPayload[E],
+) => void;
 
 export type StartRunConfig = {
   parentId: string | null;
@@ -155,7 +185,15 @@ export type ThreadRuntimeCore = Readonly<{
 
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
 
-  unstable_on(event: ThreadRuntimeEventType, callback: () => void): Unsubscribe;
+  /**
+   * @deprecated This API is still under active development and might change without notice.
+   * For state-derivable transitions, prefer `subscribe` + `getState`. This channel is the
+   * escape hatch for transient occurrences not represented in state.
+   */
+  unstable_on<E extends ThreadRuntimeEventType>(
+    event: E,
+    callback: ThreadRuntimeEventCallback<E>,
+  ): Unsubscribe;
 
   /**
    * @deprecated Use importExternalState instead. This method will be removed in 0.12.0.

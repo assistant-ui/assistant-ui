@@ -130,9 +130,26 @@ export type ThreadMeta = {
 };
 
 export type ThreadEvents = {
+  /**
+   * @deprecated State-derivable. Observe `isRunning` flipping to `true` via
+   * `useAuiState` instead. Kept for backward compatibility.
+   */
   "thread.runStart": { threadId: string };
+  /**
+   * @deprecated State-derivable. Observe `isRunning` flipping to `false` via
+   * `useAuiState` instead. Kept for backward compatibility.
+   */
   "thread.runEnd": { threadId: string };
+  /**
+   * @deprecated State-derivable. This event fires before the first message is
+   * added; observe `messages` becoming non-empty via `useAuiState` instead of
+   * reading state inside this event handler. Kept for backward compatibility.
+   */
   "thread.initialize": { threadId: string };
+  /**
+   * Truly transient. Model context lives in a provider, not in thread state,
+   * so this event has no state-derivable equivalent.
+   */
   "thread.modelContextUpdate": { threadId: string };
 };
 

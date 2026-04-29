@@ -4,6 +4,7 @@ import type {
   ThreadRuntimeCore,
   SpeechState,
   VoiceSessionState,
+  ThreadRuntimeEventCallback,
   ThreadRuntimeEventType,
   StartRunConfig,
   ResumeRunConfig,
@@ -329,7 +330,10 @@ export type ThreadRuntime = {
   muteVoice(): void;
   unmuteVoice(): void;
 
-  unstable_on(event: ThreadRuntimeEventType, callback: () => void): Unsubscribe;
+  unstable_on<E extends ThreadRuntimeEventType>(
+    event: E,
+    callback: ThreadRuntimeEventCallback<E>,
+  ): Unsubscribe;
 };
 
 export class ThreadRuntimeImpl implements ThreadRuntime {
@@ -601,18 +605,18 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     EventSubscriptionSubject<ThreadRuntimeEventType>
   >();
 
-  public unstable_on(
-    event: ThreadRuntimeEventType,
-    callback: () => void,
+  public unstable_on<E extends ThreadRuntimeEventType>(
+    event: E,
+    callback: ThreadRuntimeEventCallback<E>,
   ): Unsubscribe {
     let subject = this._eventSubscriptionSubjects.get(event);
     if (!subject) {
-      subject = new EventSubscriptionSubject({
-        event: event,
+      subject = new EventSubscriptionSubject<ThreadRuntimeEventType>({
+        event,
         binding: this._threadBinding,
       });
       this._eventSubscriptionSubjects.set(event, subject);
     }
-    return subject.subscribe(callback);
+    return subject.subscribe(callback as (payload?: unknown) => void);
   }
 }
