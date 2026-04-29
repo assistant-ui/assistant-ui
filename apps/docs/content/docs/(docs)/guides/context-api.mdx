@@ -535,7 +535,7 @@ Most existing events are kept for backward compatibility but duplicate state. Th
 
 | Event                         | When It Fires                                                                |
 | ----------------------------- | ---------------------------------------------------------------------------- |
-| `composer.attachmentAddError` | An `addAttachment()` call failed. Payload `reason` discriminates `no-adapter` / `not-accepted` / `adapter-error`. `no-adapter` and `not-accepted` are non-state-derivable. `adapter-error` is partially state-derivable: if the adapter produced any attachment before failing, the errored attachment also appears in `composer.attachments` with `status.reason === "error"`. The event additionally surfaces the human-readable `message` and the original `Error`, which are not represented in state. |
+| `composer.attachmentAddError` | An `addAttachment()` call failed. Payload `reason` discriminates `no-adapter` / `not-accepted` / `adapter-error`. `no-adapter` and `not-accepted` are non-state-derivable. `adapter-error` is partially state-derivable: if the adapter produced any attachment before failing, the errored attachment also appears in `composer.attachments` with `status.reason === "error"`. The event additionally surfaces a human-readable `message` (and the underlying `Error` instance via the low-level `runtime.unstable_on("attachmentAddError")` API; `useAuiEvent` payloads omit it because raw `Error` objects are not store-serializable). |
 | `thread.modelContextUpdate`   | The model context provider notified a change. The model context lives in a provider, not in thread state, so this event has no state-derivable equivalent. |
 
 #### Legacy (State-Derivable, Prefer `useAuiState`)

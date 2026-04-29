@@ -52,6 +52,7 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
       expect.objectContaining({
         reason: "no-adapter",
         message: "Attachments are not supported",
+        error: expect.any(Error),
       }),
     );
     expect(onAdd).not.toHaveBeenCalled();
@@ -75,6 +76,7 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
         message: expect.stringContaining(
           "File type text/plain is not accepted",
         ),
+        error: expect.any(Error),
       }),
     );
     expect(onAdd).not.toHaveBeenCalled();
@@ -102,6 +104,7 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
       expect.objectContaining({
         reason: "adapter-error",
         message: "upload failed",
+        error: expect.any(Error),
       }),
     );
     expect(onAdd).not.toHaveBeenCalled();
@@ -168,6 +171,7 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
         reason: "adapter-error",
         message: "network error",
         attachmentId: "att-1",
+        error: expect.any(Error),
       }),
     );
     expect(onAdd).not.toHaveBeenCalled();

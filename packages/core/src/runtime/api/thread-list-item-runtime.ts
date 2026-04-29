@@ -147,7 +147,7 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
 
       if (event === "switchedTo" && !newIsMain) return;
       if (event === "switchedAway" && newIsMain) return;
-      (callback as (payload: Record<string, never>) => void)({});
+      (callback as (payload?: unknown) => void)({});
     });
   }
 

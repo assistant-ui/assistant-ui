@@ -459,6 +459,7 @@ describe("BaseComposerRuntimeCore", () => {
             message: expect.stringContaining(
               "File type application/pdf is not accepted",
             ),
+            error: expect.any(Error),
           }),
         );
         expect(onAdd).not.toHaveBeenCalled();
