@@ -150,19 +150,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          version=$(awk -F'"' '/^version[[:space:]]*=/ {print $2; exit}' "$PYTHON_PACKAGE_DIR/pyproject.toml")
-          if [ -z "$version" ]; then
-            echo "Failed to parse version from $PYTHON_PACKAGE_DIR/pyproject.toml" >&2
+          version=$(python3 - <<'PY' "$PYTHON_PACKAGE_DIR/pyproject.toml"
+          import sys, tomllib
+          with open(sys.argv[1], "rb") as f:
+              data = tomllib.load(f)
+          v = data.get("project", {}).get("version")
+          if not v:
+              sys.exit("[project].version missing from pyproject.toml")
+          print(v)
+          PY
+          )
+
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Refusing to publish non-stable version: $version" >&2
             exit 1
           fi
-
-          # Reject prereleases on default-branch publishes.
-          case "$version" in
-            *[!0-9.]*)
-              echo "Refusing to publish non-stable version: $version" >&2
-              exit 1
-              ;;
-          esac
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
@@ -221,7 +223,7 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           ref: ${{ env.RELEASE_SHA }}
 
       - name: Install uv
@@ -239,15 +241,14 @@ jobs:
         working-directory: ${{ env.PYTHON_PACKAGE_DIR }}
         run: |
           set -euo pipefail
-          expected_wheel="dist/${PYTHON_PACKAGE_NAME//-/_}-${VERSION}-py3-none-any.whl"
-          expected_sdist="dist/${PYTHON_PACKAGE_NAME//-/_}-${VERSION}.tar.gz"
-          for f in "$expected_wheel" "$expected_sdist"; do
-            if [ ! -f "$f" ]; then
-              echo "Expected build artifact missing: $f" >&2
-              ls dist >&2 || true
-              exit 1
-            fi
-          done
+          dist_name="${PYTHON_PACKAGE_NAME//-/_}-${VERSION}"
+          shopt -s nullglob
+          wheels=( "dist/${dist_name}"-*.whl )
+          if [ "${#wheels[@]}" -eq 0 ] || [ ! -f "dist/${dist_name}.tar.gz" ]; then
+            echo "Expected build artifacts for ${dist_name} are missing." >&2
+            ls dist >&2 || true
+            exit 1
+          fi
 
       - name: Publish to PyPI via OIDC
         uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # v1.13.0
