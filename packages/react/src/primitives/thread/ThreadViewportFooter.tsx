@@ -20,7 +20,8 @@ export namespace ThreadPrimitiveViewportFooter {
  * A footer container that measures its height for scroll calculations.
  *
  * This component measures its height and provides it to the viewport context
- * for use in scroll calculations (e.g., ViewportSlack min-height).
+ * so the auto-scroll system can account for any sticky footer overlapping the
+ * message list.
  *
  * Multiple ViewportFooter components can be used - their heights are summed.
  *

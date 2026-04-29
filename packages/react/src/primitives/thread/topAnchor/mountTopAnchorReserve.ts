@@ -8,7 +8,6 @@ import { createReserveObservers } from "./createReserveObservers";
 import {
   createReserveElement,
   getAnchorId,
-  getClampConfig,
   setReserveHeight,
   snapScrollTop,
 } from "./topAnchorUtils";
@@ -24,8 +23,12 @@ export type TopAnchorStore = {
     element: {
       viewport: HTMLElement | null;
       anchor: HTMLElement | null;
-      slack: HTMLElement | null;
+      target: HTMLElement | null;
     };
+    targetConfig: {
+      fillClampThreshold: number;
+      fillClampOffset: number;
+    } | null;
   };
   subscribe(fn: () => void): () => void;
 };
@@ -67,9 +70,16 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
 
   function apply() {
     const state = store.getState();
-    const { viewport, anchor, slack } = state.element;
+    const { viewport, anchor, target } = state.element;
+    const clamp = state.targetConfig;
 
-    if (state.turnAnchor !== "top" || !viewport || !anchor || !slack) {
+    if (
+      state.turnAnchor !== "top" ||
+      !viewport ||
+      !anchor ||
+      !target ||
+      !clamp
+    ) {
       observers.disconnect();
       setReserveHeight(reserve, 0);
       reserve.remove();
@@ -77,15 +87,14 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     }
 
     if (
-      reserve.parentElement !== slack.parentElement ||
-      reserve.previousElementSibling !== slack
+      reserve.parentElement !== target.parentElement ||
+      reserve.previousElementSibling !== target
     ) {
-      slack.after(reserve);
+      target.after(reserve);
     }
 
-    observers.target(viewport, anchor, slack);
+    observers.target(viewport, anchor, target);
 
-    const clamp = getClampConfig(slack);
     setReserveHeight(
       reserve,
       computeTopAnchorReserve({ viewport, anchor, reserve, ...clamp }),

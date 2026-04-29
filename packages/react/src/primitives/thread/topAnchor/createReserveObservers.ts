@@ -12,26 +12,26 @@ export const createReserveObservers = (onChange: () => void) => {
 
   let observedViewport: HTMLElement | null = null;
   let observedAnchor: HTMLElement | null = null;
-  let observedSlack: HTMLElement | null = null;
+  let observedTarget: HTMLElement | null = null;
 
   const disconnect = () => {
     resizeObserver.disconnect();
     mutationObserver.disconnect();
     observedViewport = null;
     observedAnchor = null;
-    observedSlack = null;
+    observedTarget = null;
   };
 
   return {
     target: (
       viewport: HTMLElement,
       anchor: HTMLElement,
-      slack: HTMLElement,
+      target: HTMLElement,
     ) => {
       if (
         observedViewport === viewport &&
         observedAnchor === anchor &&
-        observedSlack === slack
+        observedTarget === target
       ) {
         return;
       }
@@ -40,8 +40,8 @@ export const createReserveObservers = (onChange: () => void) => {
 
       resizeObserver.observe(viewport);
       resizeObserver.observe(anchor);
-      resizeObserver.observe(slack);
-      mutationObserver.observe(slack, {
+      resizeObserver.observe(target);
+      mutationObserver.observe(target, {
         childList: true,
         subtree: true,
         characterData: true,
@@ -49,7 +49,7 @@ export const createReserveObservers = (onChange: () => void) => {
 
       observedViewport = viewport;
       observedAnchor = anchor;
-      observedSlack = slack;
+      observedTarget = target;
     },
     disconnect,
   };

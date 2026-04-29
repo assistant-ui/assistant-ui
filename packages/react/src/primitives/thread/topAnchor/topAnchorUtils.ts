@@ -1,11 +1,14 @@
 "use client";
 
-import {
-  TOP_ANCHOR_FILL_CLAMP_OFFSET_ATTR,
-  TOP_ANCHOR_FILL_CLAMP_THRESHOLD_ATTR,
-} from "../ThreadViewportSlack";
-
-const parseCssLength = (value: string, element: HTMLElement): number => {
+/**
+ * Convert a CSS length string (`"10em"`, `"96px"`, `"6rem"`) into pixels,
+ * resolving font-relative units against the supplied element's computed style.
+ *
+ * Part of the top-anchor package's public input contract: consumers may pass
+ * clamp configuration as CSS-length strings, and this function is the single
+ * place that converts them into the pixel values the package operates on.
+ */
+export const parseCssLength = (value: string, element: HTMLElement): number => {
   const match = value.match(/^([\d.]+)(em|px|rem)$/);
   if (!match) return 0;
 
@@ -23,18 +26,6 @@ const parseCssLength = (value: string, element: HTMLElement): number => {
     return num * rootFontSize;
   }
   return 0;
-};
-
-export const getClampConfig = (slack: HTMLElement) => {
-  const fillClampThreshold =
-    slack.getAttribute(TOP_ANCHOR_FILL_CLAMP_THRESHOLD_ATTR) ?? "10em";
-  const fillClampOffset =
-    slack.getAttribute(TOP_ANCHOR_FILL_CLAMP_OFFSET_ATTR) ?? "6em";
-
-  return {
-    fillClampThreshold: parseCssLength(fillClampThreshold, slack),
-    fillClampOffset: parseCssLength(fillClampOffset, slack),
-  };
 };
 
 export const getAnchorId = (anchor: HTMLElement) => anchor.dataset.messageId;

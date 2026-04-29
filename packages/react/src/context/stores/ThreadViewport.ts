@@ -72,8 +72,14 @@ export type ThreadViewportState = {
   readonly element: {
     readonly viewport: HTMLElement | null;
     readonly anchor: HTMLElement | null;
-    readonly slack: HTMLElement | null;
+    readonly target: HTMLElement | null;
   };
+
+  /** Numeric clamp configuration for the active top-anchor target message */
+  readonly targetConfig: {
+    fillClampThreshold: number;
+    fillClampOffset: number;
+  } | null;
 
   /** Register a viewport and get a handle to update its height */
   readonly registerViewport: () => SizeHandle;
@@ -89,8 +95,15 @@ export type ThreadViewportState = {
   /** Register the current anchor user message element */
   readonly registerAnchorElement: (element: HTMLElement | null) => Unsubscribe;
 
-  /** Register the current assistant response element */
-  readonly registerSlackElement: (element: HTMLElement | null) => Unsubscribe;
+  /**
+   * Register the current top-anchor target (last assistant response) element
+   * along with its numeric clamp configuration. When unregistered, both
+   * `element.target` and `targetConfig` clear together.
+   */
+  readonly registerAnchorTargetElement: (
+    element: HTMLElement | null,
+    config?: { fillClampThreshold: number; fillClampOffset: number },
+  ) => Unsubscribe;
 };
 
 export type ThreadViewportStoreOptions = {
@@ -144,8 +157,9 @@ export const makeThreadViewportStore = (
     element: {
       viewport: null,
       anchor: null,
-      slack: null,
+      target: null,
     },
+    targetConfig: null,
 
     registerViewport: viewportRegistry.register,
     registerContentInset: insetRegistry.register,
@@ -185,21 +199,23 @@ export const makeThreadViewportStore = (
         });
       };
     },
-    registerSlackElement: (element) => {
+    registerAnchorTargetElement: (element, config) => {
       store.setState({
         element: {
           ...store.getState().element,
-          slack: element,
+          target: element,
         },
+        targetConfig: element && config ? config : null,
       });
 
       return () => {
-        if (store.getState().element.slack !== element) return;
+        if (store.getState().element.target !== element) return;
         store.setState({
           element: {
             ...store.getState().element,
-            slack: null,
+            target: null,
           },
+          targetConfig: null,
         });
       };
     },

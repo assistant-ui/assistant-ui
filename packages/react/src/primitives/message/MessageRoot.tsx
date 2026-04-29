@@ -11,7 +11,7 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { useThreadViewport } from "../../context/react/ThreadViewportContext";
-import { ThreadPrimitiveViewportSlack } from "../thread/ThreadViewportSlack";
+import { parseCssLength } from "../thread/topAnchor/topAnchorUtils";
 
 const useIsHoveringRef = () => {
   const aui = useAui();
@@ -47,26 +47,72 @@ const useIsHoveringRef = () => {
 };
 
 /**
- * Hook that registers the current top-anchor user message element.
- * Only registers if: user message, at index messages.length-2, and last message is assistant.
+ * Predicate: this user message is the anchor target of an in-flight top-turn
+ * (second-to-last message, with the last being an assistant response).
  */
-const useMessageViewportRef = () => {
+const useIsTopAnchorUser = () => {
   const turnAnchor = useThreadViewport((s) => s.turnAnchor);
-  const registerAnchorElement = useThreadViewport(
-    (s) => s.registerAnchorElement,
-  );
-
-  const shouldRegisterAsAnchor = useAuiState(
+  return useAuiState(
     (s) =>
       turnAnchor === "top" &&
       s.message.role === "user" &&
       s.message.index === s.thread.messages.length - 2 &&
       s.thread.messages.at(-1)?.role === "assistant",
   );
+};
+
+/**
+ * Predicate: this assistant message is the streaming response paired with the
+ * preceding user message under top-turn anchoring.
+ */
+const useIsTopAnchorTarget = () => {
+  const turnAnchor = useThreadViewport((s) => s.turnAnchor);
+  return useAuiState(
+    (s) =>
+      turnAnchor === "top" &&
+      s.message.isLast &&
+      s.message.role === "assistant" &&
+      s.message.index >= 1 &&
+      s.thread.messages.at(s.message.index - 1)?.role === "user",
+  );
+};
+
+/** Registers the user message as the top-anchor user reference element. */
+const useTopAnchorUserRef = (active: boolean) => {
+  const registerAnchorElement = useThreadViewport(
+    (s) => s.registerAnchorElement,
+  );
 
   return useManagedRef<HTMLElement>((el) => {
-    if (!shouldRegisterAsAnchor) return;
+    if (!active) return;
     return registerAnchorElement(el);
+  });
+};
+
+/**
+ * Registers the assistant message as the top-anchor target element. CSS-length
+ * clamp config is parsed once at register time using the registered element's
+ * computed style, then stored as numeric pixels.
+ */
+const useTopAnchorTargetRef = ({
+  active,
+  fillClampThreshold,
+  fillClampOffset,
+}: {
+  active: boolean;
+  fillClampThreshold: string;
+  fillClampOffset: string;
+}) => {
+  const registerAnchorTargetElement = useThreadViewport(
+    (s) => s.registerAnchorTargetElement,
+  );
+
+  return useManagedRef<HTMLElement>((el) => {
+    if (!active) return;
+    return registerAnchorTargetElement(el, {
+      fillClampThreshold: parseCssLength(fillClampThreshold, el),
+      fillClampOffset: parseCssLength(fillClampOffset, el),
+    });
   });
 };
 
@@ -74,7 +120,7 @@ export namespace MessagePrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;
   /**
    * Props for the MessagePrimitive.Root component.
-   * Accepts all standard div element props plus optional viewport slack tuning.
+   * Accepts all standard div element props plus optional top-anchor clamp tuning.
    */
   export type Props = ComponentPropsWithoutRef<typeof Primitive.div> & {
     /**
@@ -97,8 +143,10 @@ export namespace MessagePrimitiveRoot {
  * hover state management for the message. It automatically tracks when the user
  * is hovering over the message, which can be used by child components like action bars.
  *
- * When `turnAnchor="top"` is set on the viewport, this component
- * registers itself as the scroll anchor if it's the last user message.
+ * When `turnAnchor="top"` is set on the viewport, this component automatically
+ * registers itself as the top-anchor user message (when it's the previous user
+ * message) or as the top-anchor target (when it's the streaming assistant
+ * response). No additional component is required.
  *
  * @example
  * ```tsx
@@ -114,24 +162,39 @@ export namespace MessagePrimitiveRoot {
 export const MessagePrimitiveRoot = forwardRef<
   MessagePrimitiveRoot.Element,
   MessagePrimitiveRoot.Props
->(({ fillClampThreshold, fillClampOffset, ...props }, forwardRef) => {
-  const isHoveringRef = useIsHoveringRef();
-  const anchorUserMessageRef = useMessageViewportRef();
-  const ref = useComposedRefs<HTMLDivElement>(
+>(
+  (
+    { fillClampThreshold = "10em", fillClampOffset = "6em", ...props },
     forwardRef,
-    isHoveringRef,
-    anchorUserMessageRef,
-  );
-  const messageId = useAuiState((s) => s.message.id);
+  ) => {
+    const isHoveringRef = useIsHoveringRef();
+    const isTopAnchorUser = useIsTopAnchorUser();
+    const isTopAnchorTarget = useIsTopAnchorTarget();
+    const topAnchorUserRef = useTopAnchorUserRef(isTopAnchorUser);
+    const topAnchorTargetRef = useTopAnchorTargetRef({
+      active: isTopAnchorTarget,
+      fillClampThreshold,
+      fillClampOffset,
+    });
+    const ref = useComposedRefs<HTMLDivElement>(
+      forwardRef,
+      isHoveringRef,
+      topAnchorUserRef,
+      topAnchorTargetRef,
+    );
+    const messageId = useAuiState((s) => s.message.id);
 
-  return (
-    <ThreadPrimitiveViewportSlack
-      fillClampThreshold={fillClampThreshold}
-      fillClampOffset={fillClampOffset}
-    >
-      <Primitive.div {...props} ref={ref} data-message-id={messageId} />
-    </ThreadPrimitiveViewportSlack>
-  );
-});
+    return (
+      <Primitive.div
+        {...props}
+        ref={ref}
+        data-message-id={messageId}
+        data-aui-top-anchor-target={isTopAnchorTarget ? "" : undefined}
+        // deprecated alias for `data-aui-top-anchor-target`; kept for one minor
+        data-aui-top-anchor-slack={isTopAnchorTarget ? "" : undefined}
+      />
+    );
+  },
+);
 
 MessagePrimitiveRoot.displayName = "MessagePrimitive.Root";

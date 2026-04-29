@@ -124,7 +124,7 @@ By default, new messages appear at the bottom and scroll down. With `turnAnchor=
 </ThreadPrimitive.Viewport>
 ```
 
-This is what the shadcn Thread component uses by default. For scroll anchoring to work correctly, `ViewportSlack` is needed on the last assistant message to provide enough min-height for the user message to anchor at the top. This is included automatically in the shadcn component.
+This is what the shadcn Thread component uses by default. When `turnAnchor="top"` is set, `MessagePrimitive.Root` automatically registers the streaming-assistant message as the top-anchor target and the preceding user message as the anchor — no additional component is required. The viewport itself manages a stable reserve element that provides the missing scroll range as the response streams in.
 
 ### Viewport Scroll Options
 
@@ -275,18 +275,9 @@ Provides viewport context without rendering a scrollable element. Use this when 
 
 ### ViewportSlack
 
-Adds min-height for scroll anchoring with `turnAnchor="top"`. It wraps its child element via `Slot` and does not render a DOM element of its own.
-
-```tsx
-<MessagePrimitive.Root>
-  <MessagePrimitive.Parts />
-  <ThreadPrimitive.ViewportSlack>
-    <div className="min-h-[40vh]" />
-  </ThreadPrimitive.ViewportSlack>
-</MessagePrimitive.Root>
-```
-
-Props: `fillClampThreshold` and `fillClampOffset` control how the slack height is calculated. `children` is required.
+<Callout type="warn">
+  `ThreadPrimitive.ViewportSlack` is deprecated and is now a no-op pass-through. Top-anchor target registration is handled automatically by `MessagePrimitive.Root` when `turnAnchor="top"`. Remove `ViewportSlack` from your tree; if you need to tune the tall-user clamp, pass `fillClampThreshold` and `fillClampOffset` directly to `MessagePrimitive.Root`.
+</Callout>
 
 ### Messages
 

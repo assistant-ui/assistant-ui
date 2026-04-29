@@ -92,7 +92,7 @@ This primitive renders a `<div>` element unless `asChild` is set.
 
 ### ViewportFooter
 
-A footer container placed inside `ThreadPrimitive.Viewport` that measures its own height (including top margin) and reports it to the viewport context. The viewport uses this measurement in scroll calculations — for example, as the minimum height for `ViewportSlack` — so that the scroll-to-bottom behaviour accounts for any sticky footer overlapping the message list.
+A footer container placed inside `ThreadPrimitive.Viewport` that measures its own height (including top margin) and reports it to the viewport context. The viewport uses this measurement in scroll calculations so the scroll-to-bottom behaviour accounts for any sticky footer overlapping the message list.
 
 Multiple `ViewportFooter` components may be used; their heights are summed.
 
