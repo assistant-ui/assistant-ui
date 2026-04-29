@@ -2,12 +2,8 @@
 
 export const createReserveObservers = (onChange: () => void) => {
   const resizeObserver = new ResizeObserver(onChange);
-  const mutationObserver = new MutationObserver((mutations) => {
-    const hasRelevantMutation = mutations.some(
-      (mutation) =>
-        mutation.type !== "attributes" || mutation.attributeName !== "style",
-    );
-    if (hasRelevantMutation) onChange();
+  const mutationObserver = new MutationObserver(() => {
+    onChange();
   });
 
   let observedViewport: HTMLElement | null = null;

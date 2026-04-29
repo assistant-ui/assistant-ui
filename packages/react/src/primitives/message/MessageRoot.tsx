@@ -51,8 +51,7 @@ const useIsHoveringRef = () => {
  * (second-to-last message after the first turn, with the last being an
  * assistant response).
  */
-const useIsTopAnchorUser = () => {
-  const turnAnchor = useThreadViewport((s) => s.turnAnchor);
+const useIsTopAnchorUser = (turnAnchor: "top" | "bottom") => {
   return useAuiState(
     (s) =>
       turnAnchor === "top" &&
@@ -67,8 +66,7 @@ const useIsTopAnchorUser = () => {
  * Predicate: this assistant message is the streaming response paired with the
  * preceding user message under top-turn anchoring.
  */
-const useIsTopAnchorTarget = () => {
-  const turnAnchor = useThreadViewport((s) => s.turnAnchor);
+const useIsTopAnchorTarget = (turnAnchor: "top" | "bottom") => {
   return useAuiState(
     (s) =>
       turnAnchor === "top" &&
@@ -109,13 +107,18 @@ const useTopAnchorTargetRef = ({
     (s) => s.registerAnchorTargetElement,
   );
 
-  return useManagedRef<HTMLElement>((el) => {
-    if (!active) return;
-    return registerAnchorTargetElement(el, {
-      fillClampThreshold: parseCssLength(fillClampThreshold, el),
-      fillClampOffset: parseCssLength(fillClampOffset, el),
-    });
-  });
+  const targetRefCallback = useCallback(
+    (el: HTMLElement) => {
+      if (!active) return;
+      return registerAnchorTargetElement(el, {
+        fillClampThreshold: parseCssLength(fillClampThreshold, el),
+        fillClampOffset: parseCssLength(fillClampOffset, el),
+      });
+    },
+    [active, fillClampOffset, fillClampThreshold, registerAnchorTargetElement],
+  );
+
+  return useManagedRef<HTMLElement>(targetRefCallback);
 };
 
 export namespace MessagePrimitiveRoot {
@@ -170,8 +173,9 @@ export const MessagePrimitiveRoot = forwardRef<
     forwardRef,
   ) => {
     const isHoveringRef = useIsHoveringRef();
-    const isTopAnchorUser = useIsTopAnchorUser();
-    const isTopAnchorTarget = useIsTopAnchorTarget();
+    const turnAnchor = useThreadViewport((s) => s.turnAnchor);
+    const isTopAnchorUser = useIsTopAnchorUser(turnAnchor);
+    const isTopAnchorTarget = useIsTopAnchorTarget(turnAnchor);
     const topAnchorUserRef = useTopAnchorUserRef(isTopAnchorUser);
     const topAnchorTargetRef = useTopAnchorTargetRef({
       active: isTopAnchorTarget,

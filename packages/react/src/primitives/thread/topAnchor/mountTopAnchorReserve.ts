@@ -33,17 +33,6 @@ export type TopAnchorStore = {
   subscribe(fn: () => void): () => void;
 };
 
-const ANCHORED_MESSAGE_IDS = new WeakMap<object, Set<string>>();
-
-const getAnchoredMessageIds = (key: object) => {
-  let ids = ANCHORED_MESSAGE_IDS.get(key);
-  if (!ids) {
-    ids = new Set();
-    ANCHORED_MESSAGE_IDS.set(key, ids);
-  }
-  return ids;
-};
-
 const createFrameScheduler = (fn: () => void) => {
   let frame: number | null = null;
 
@@ -66,7 +55,7 @@ const createFrameScheduler = (fn: () => void) => {
 
 export const mountTopAnchorReserve = (store: TopAnchorStore) => {
   const reserve = createReserveElement();
-  const anchoredIds = getAnchoredMessageIds(store);
+  let lastScrolledAnchorId: string | undefined;
 
   function apply() {
     const state = store.getState();
@@ -106,7 +95,7 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     }
 
     const anchorId = getAnchorId(anchor);
-    if (anchorId !== undefined && anchoredIds.has(anchorId)) return;
+    if (anchorId !== undefined && lastScrolledAnchorId === anchorId) return;
 
     const targetScrollTop = snapScrollTop(
       computeTopAnchorTargetScrollTop({ viewport, anchor, ...clamp }),
@@ -116,7 +105,7 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
       viewport.scrollTo({ top: targetScrollTop, behavior: "smooth" });
     }
 
-    if (anchorId !== undefined) anchoredIds.add(anchorId);
+    if (anchorId !== undefined) lastScrolledAnchorId = anchorId;
   }
 
   const scheduler = createFrameScheduler(apply);

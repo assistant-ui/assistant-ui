@@ -137,8 +137,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     if (!scrollToBottomOnRunStart) return;
     if (threadViewportStore.getState().turnAnchor === "top") return;
 
+    scrollingToBottomBehaviorRef.current = "auto";
     requestAnimationFrame(() => {
-      scrollingToBottomBehaviorRef.current = "auto";
       scrollToBottom("auto");
     });
   });
