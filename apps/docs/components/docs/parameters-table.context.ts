@@ -110,10 +110,24 @@ export const ThreadViewportState: ParametersTableProps = {
     },
     {
       name: "height",
-      type: "{ viewport: number; inset: number; userMessage: number }",
+      type: "{ viewport: number; inset: number }",
       required: true,
       description:
-        "Raw height values from registered elements: total viewport height, total content inset height (footer, anchor message, etc.), and height of the anchor user message.",
+        "Raw height values from registered elements: total viewport height and total content inset height.",
+    },
+    {
+      name: "element",
+      type: "{ viewport: HTMLElement | null; anchor: HTMLElement | null; target: HTMLElement | null }",
+      required: true,
+      description:
+        "Current DOM elements used for geometry-based top anchoring.",
+    },
+    {
+      name: "targetConfig",
+      type: "{ fillClampThreshold: number; fillClampOffset: number } | null",
+      required: true,
+      description:
+        "Numeric clamp configuration for the active top-anchor target message.",
     },
     {
       name: "registerViewport",
@@ -129,10 +143,23 @@ export const ThreadViewportState: ParametersTableProps = {
         "Register a content inset (footer, anchor message, etc.) and get a handle to update its height.",
     },
     {
-      name: "registerUserMessageHeight",
-      type: "() => SizeHandle",
+      name: "registerViewportElement",
+      type: "(element: HTMLElement | null) => Unsubscribe",
       required: true,
-      description: "Register the anchor user message height.",
+      description: "Register the scroll viewport element.",
+    },
+    {
+      name: "registerAnchorElement",
+      type: "(element: HTMLElement | null) => Unsubscribe",
+      required: true,
+      description: "Register the current anchor user message element.",
+    },
+    {
+      name: "registerAnchorTargetElement",
+      type: "(element: HTMLElement | null, config?: { fillClampThreshold: number; fillClampOffset: number }) => Unsubscribe",
+      required: true,
+      description:
+        "Register the current top-anchor target element with its numeric clamp configuration.",
     },
   ],
 };
