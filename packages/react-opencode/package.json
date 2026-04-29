@@ -46,7 +46,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@opencode-ai/sdk": "^1.14.24"
+    "@opencode-ai/sdk": "^1.14.29"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.12.26",
