@@ -139,9 +139,11 @@ jobs:
           fi
 
           git fetch origin "$DEFAULT_BRANCH"
+          origin_default_sha=$(git rev-parse "origin/$DEFAULT_BRANCH")
           if ! git merge-base --is-ancestor "$RELEASE_SHA" "origin/$DEFAULT_BRANCH"; then
             echo "releaseSha is not an ancestor of origin/$DEFAULT_BRANCH; refusing to publish" >&2
             echo "releaseSha=$RELEASE_SHA" >&2
+            echo "origin/$DEFAULT_BRANCH SHA=$origin_default_sha" >&2
             exit 1
           fi
 
@@ -168,7 +170,7 @@ jobs:
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-          status=$(curl -s -o /dev/null -w "%{http_code}" \
+          status=$(curl -s --max-time 30 -o /dev/null -w "%{http_code}" \
             "https://pypi.org/pypi/$PYTHON_PACKAGE_NAME/$version/json")
 
           case "$status" in
