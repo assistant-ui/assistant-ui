@@ -36,6 +36,7 @@ const contentToParts = (content: AdkMessage["content"]): ContentPart[] => {
               type: "video",
               url: `data:${part.mimeType};base64,${part.data}`,
               mimeType: part.mimeType,
+              ...(part.filename != null && { filename: part.filename }),
             };
           }
           return {

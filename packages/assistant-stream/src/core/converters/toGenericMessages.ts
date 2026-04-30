@@ -121,6 +121,12 @@ function inferImageMediaType(url: string): string {
 function inferVideoMediaType(part: MessagePartLike): string {
   if (part.mimeType?.startsWith("video/")) return part.mimeType;
   const value = part.url ?? part.filename ?? "";
+
+  if (value.startsWith("data:")) {
+    const match = value.match(/^data:([^;,]+)/);
+    if (match?.[1]) return match[1];
+  }
+
   const [pathWithoutParams = ""] = value.split(/[?#]/);
   const ext = pathWithoutParams.split(".").pop()?.toLowerCase() ?? "";
   return VIDEO_MEDIA_TYPES[ext] ?? "video/mp4";

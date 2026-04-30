@@ -145,6 +145,33 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("infers mediaType from data URL when video part has no explicit mimeType", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "video",
+              url: "data:video/webm;base64,GkXfo0AgQoaB",
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL("data:video/webm;base64,GkXfo0AgQoaB"),
+              mediaType: "video/webm",
+            },
+          ],
+        },
+      ]);
+    });
+
     it("converts video attachment content to generic file parts", () => {
       const result = toGenericMessages([
         {
