@@ -284,12 +284,6 @@ Provides viewport context without rendering a scrollable element. Use this when 
 </ThreadPrimitive.ViewportProvider>
 ```
 
-### ViewportSlack
-
-<Callout type="warn">
-  `ThreadPrimitive.ViewportSlack` is deprecated and is now a no-op pass-through. Top-anchor target registration is handled automatically by `MessagePrimitive.Root` when `turnAnchor="top"`. Remove `ViewportSlack` from your tree; if you need to tune the tall-message clamp, pass `topAnchorMessageClamp` directly to `ThreadPrimitive.Viewport`.
-</Callout>
-
 ### Messages
 
 Renders a component for each message in the thread, resolved by role and edit state.

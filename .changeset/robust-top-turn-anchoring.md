@@ -6,7 +6,7 @@ fix: robust top-turn anchoring with viewport-owned reserve
 
 **Migration:**
 
-- Remove `ThreadPrimitive.ViewportSlack` from your tree (now a no-op).
+- Remove `ThreadPrimitive.ViewportSlack` from your tree. It has been removed from the public API because top-anchor target registration is now handled automatically.
 - If you customized `fillClampThreshold` / `fillClampOffset`, replace with `topAnchorMessageClamp` on `ThreadPrimitive.Viewport`:
 
 ```tsx
