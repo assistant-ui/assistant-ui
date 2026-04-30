@@ -3,8 +3,8 @@
 export type ComputeTopAnchorTargetOptions = {
   viewport: HTMLElement;
   anchor: HTMLElement;
-  fillClampThreshold: number;
-  fillClampOffset: number;
+  tallerThan: number;
+  visibleHeight: number;
 };
 
 export type ComputeTopAnchorReserveOptions = ComputeTopAnchorTargetOptions & {
@@ -39,7 +39,7 @@ const getLayoutOffsetTop = (
 /**
  * Compute the scroll position that pins the anchor (last user message) to the
  * top of the viewport. For tall user messages the anchor is intentionally
- * over-scrolled so only `fillClampOffset` of it remains visible, leaving room
+ * over-scrolled so only `visibleHeight` of it remains visible, leaving room
  * for the assistant message below.
  *
  * Depends only on the anchor's offset within the scroll content; never reads
@@ -49,13 +49,13 @@ const getLayoutOffsetTop = (
 export const computeTopAnchorTargetScrollTop = ({
   viewport,
   anchor,
-  fillClampThreshold,
-  fillClampOffset,
+  tallerThan,
+  visibleHeight,
 }: ComputeTopAnchorTargetOptions): number => {
   const anchorTop = getLayoutOffsetTop(anchor, viewport);
   const anchorHeight = anchor.offsetHeight;
   const visibleAnchorHeight =
-    anchorHeight <= fillClampThreshold ? anchorHeight : fillClampOffset;
+    anchorHeight <= tallerThan ? anchorHeight : visibleHeight;
 
   return anchorTop + Math.max(0, anchorHeight - visibleAnchorHeight);
 };

@@ -42,7 +42,7 @@ const makeStore = (state: ReturnType<TopAnchorStore["getState"]>) => {
   };
 };
 
-const numericClamp = { fillClampThreshold: 160, fillClampOffset: 96 };
+const numericClamp = { tallerThan: 160, visibleHeight: 96 };
 
 describe("mountTopAnchorReserve", () => {
   beforeEach(() => {

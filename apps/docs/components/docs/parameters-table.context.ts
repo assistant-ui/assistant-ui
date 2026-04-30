@@ -124,7 +124,7 @@ export const ThreadViewportState: ParametersTableProps = {
     },
     {
       name: "targetConfig",
-      type: "{ fillClampThreshold: number; fillClampOffset: number } | null",
+      type: "{ tallerThan: number; visibleHeight: number } | null",
       required: true,
       description:
         "Numeric clamp configuration for the active top-anchor target message.",
@@ -156,7 +156,7 @@ export const ThreadViewportState: ParametersTableProps = {
     },
     {
       name: "registerAnchorTargetElement",
-      type: "(element: HTMLElement | null, config?: { fillClampThreshold: number; fillClampOffset: number }) => Unsubscribe",
+      type: "(element: HTMLElement | null, config?: { tallerThan: number; visibleHeight: number }) => Unsubscribe",
       required: true,
       description:
         "Register the current top-anchor target element with its numeric clamp configuration.",

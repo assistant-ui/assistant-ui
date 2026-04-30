@@ -26,8 +26,8 @@ export type TopAnchorStore = {
       target: HTMLElement | null;
     };
     targetConfig: {
-      fillClampThreshold: number;
-      fillClampOffset: number;
+      tallerThan: number;
+      visibleHeight: number;
     } | null;
   };
   subscribe(fn: () => void): () => void;

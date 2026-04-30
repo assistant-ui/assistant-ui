@@ -126,13 +126,12 @@ By default, new messages appear at the bottom and scroll down. With `turnAnchor=
 
 This is what the shadcn Thread component uses by default. When `turnAnchor="top"` is set, `MessagePrimitive.Root` automatically registers the latest assistant message as the top-anchor target and the preceding user message as the anchor — no additional component is required. The viewport itself manages a stable reserve element that provides the missing scroll range while the assistant response grows.
 
-Use `fillClampThreshold` and `fillClampOffset` to control how much of a long user message remains visible when `turnAnchor="top"`. Messages up to `fillClampThreshold` stay fully visible. For messages taller than `fillClampThreshold`, `fillClampOffset` controls how much of the message's bottom edge remains visible above the assistant response:
+Use `topAnchorMessageClamp` to control how much of a long user message remains visible when `turnAnchor="top"`. Messages up to `tallerThan` stay fully visible. For messages taller than that, `visibleHeight` controls how much of the message's bottom edge remains visible above the assistant response:
 
 ```tsx
 <ThreadPrimitive.Viewport
   turnAnchor="top"
-  fillClampThreshold="10em"
-  fillClampOffset="6em"
+  topAnchorMessageClamp={{ tallerThan: "10em", visibleHeight: "6em" }}
 >
   {/* messages */}
 </ThreadPrimitive.Viewport>
@@ -288,7 +287,7 @@ Provides viewport context without rendering a scrollable element. Use this when 
 ### ViewportSlack
 
 <Callout type="warn">
-  `ThreadPrimitive.ViewportSlack` is deprecated and is now a no-op pass-through. Top-anchor target registration is handled automatically by `MessagePrimitive.Root` when `turnAnchor="top"`. Remove `ViewportSlack` from your tree; if you need to tune the tall-user clamp, pass `fillClampThreshold` and `fillClampOffset` directly to `ThreadPrimitive.Viewport`.
+  `ThreadPrimitive.ViewportSlack` is deprecated and is now a no-op pass-through. Top-anchor target registration is handled automatically by `MessagePrimitive.Root` when `turnAnchor="top"`. Remove `ViewportSlack` from your tree; if you need to tune the tall-message clamp, pass `topAnchorMessageClamp` directly to `ThreadPrimitive.Viewport`.
 </Callout>
 
 ### Messages

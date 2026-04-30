@@ -50,13 +50,13 @@ describe("computeTopAnchorTargetScrollTop", () => {
       computeTopAnchorTargetScrollTop({
         viewport,
         anchor,
-        fillClampThreshold: 160,
-        fillClampOffset: 96,
+        tallerThan: 160,
+        visibleHeight: 96,
       }),
     ).toBe(156);
   });
 
-  it("over-scrolls tall anchors so only fillClampOffset is visible", () => {
+  it("over-scrolls tall anchors so only visibleHeight is visible", () => {
     const viewport = makeElement({ offsetTop: 0 });
     const anchor = makeElement({ height: 240, offsetTop: 200 });
 
@@ -65,8 +65,8 @@ describe("computeTopAnchorTargetScrollTop", () => {
       computeTopAnchorTargetScrollTop({
         viewport,
         anchor,
-        fillClampThreshold: 160,
-        fillClampOffset: 96,
+        tallerThan: 160,
+        visibleHeight: 96,
       }),
     ).toBe(200 + 144);
   });
@@ -88,8 +88,8 @@ describe("computeTopAnchorReserve", () => {
         viewport,
         anchor,
         reserve,
-        fillClampThreshold: 160,
-        fillClampOffset: 96,
+        tallerThan: 160,
+        visibleHeight: 96,
       }),
     ).toBe(60);
   });
@@ -108,8 +108,8 @@ describe("computeTopAnchorReserve", () => {
         }),
         anchor,
         reserve,
-        fillClampThreshold: 160,
-        fillClampOffset: 96,
+        tallerThan: 160,
+        visibleHeight: 96,
       }),
     ).toBe(60);
 
@@ -123,8 +123,8 @@ describe("computeTopAnchorReserve", () => {
         }),
         anchor,
         reserve,
-        fillClampThreshold: 160,
-        fillClampOffset: 96,
+        tallerThan: 160,
+        visibleHeight: 96,
       }),
     ).toBe(0);
   });

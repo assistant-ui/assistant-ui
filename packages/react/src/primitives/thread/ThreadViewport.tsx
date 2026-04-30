@@ -33,19 +33,13 @@ export namespace ThreadPrimitiveViewport {
      */
     turnAnchor?: "top" | "bottom" | undefined;
 
-    /**
-     * Threshold at which the anchored user message height clamps to the offset.
-     *
-     * Defaults to "10em".
-     */
-    fillClampThreshold?: string | undefined;
-
-    /**
-     * Offset used when clamping large anchored user messages.
-     *
-     * Defaults to "6em".
-     */
-    fillClampOffset?: string | undefined;
+    /** Clamps tall user messages so the assistant response stays in view. Default `{ tallerThan: "10em", visibleHeight: "6em" }`. */
+    topAnchorMessageClamp?: {
+      /** Clamp messages taller than this. Default "10em". */
+      tallerThan?: string;
+      /** Visible portion of clamped messages. Default "6em". */
+      visibleHeight?: string;
+    };
 
     /**
      * Whether to scroll to bottom when a new run starts.
@@ -146,10 +140,10 @@ ThreadPrimitiveViewportScrollable.displayName =
 export const ThreadPrimitiveViewport = forwardRef<
   ThreadPrimitiveViewport.Element,
   ThreadPrimitiveViewport.Props
->(({ turnAnchor, fillClampThreshold, fillClampOffset, ...props }, ref) => {
+>(({ turnAnchor, topAnchorMessageClamp, ...props }, ref) => {
   return (
     <ThreadPrimitiveViewportProvider
-      options={{ turnAnchor, fillClampThreshold, fillClampOffset }}
+      options={{ turnAnchor, topAnchorMessageClamp }}
     >
       <ThreadPrimitiveViewportScrollable {...props} ref={ref} />
     </ThreadPrimitiveViewportProvider>

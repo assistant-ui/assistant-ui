@@ -39,24 +39,25 @@ const useThreadViewportStoreValue = (options: ThreadViewportStoreOptions) => {
 
   // Sync options to store when they change
   useEffect(() => {
+    const tallerThan = options.topAnchorMessageClamp?.tallerThan ?? "10em";
+    const visibleHeight = options.topAnchorMessageClamp?.visibleHeight ?? "6em";
     const nextState = {
       turnAnchor: options.turnAnchor ?? "bottom",
-      fillClampThreshold: options.fillClampThreshold ?? "10em",
-      fillClampOffset: options.fillClampOffset ?? "6em",
+      topAnchorMessageClamp: { tallerThan, visibleHeight },
     };
 
     const currentState = store.getState();
     if (
       currentState.turnAnchor !== nextState.turnAnchor ||
-      currentState.fillClampThreshold !== nextState.fillClampThreshold ||
-      currentState.fillClampOffset !== nextState.fillClampOffset
+      currentState.topAnchorMessageClamp.tallerThan !== tallerThan ||
+      currentState.topAnchorMessageClamp.visibleHeight !== visibleHeight
     ) {
       writableStore(store).setState(nextState);
     }
   }, [
     store,
-    options.fillClampOffset,
-    options.fillClampThreshold,
+    options.topAnchorMessageClamp?.tallerThan,
+    options.topAnchorMessageClamp?.visibleHeight,
     options.turnAnchor,
   ]);
 

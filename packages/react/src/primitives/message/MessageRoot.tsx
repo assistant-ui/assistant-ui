@@ -102,18 +102,17 @@ const useTopAnchorUserRef = (active: boolean) => {
  */
 const useTopAnchorTargetRef = ({ active }: { active: boolean }) => {
   const threadViewportStore = useThreadViewportStore();
-  const fillClampThreshold = useThreadViewport((s) => s.fillClampThreshold);
-  const fillClampOffset = useThreadViewport((s) => s.fillClampOffset);
+  const clamp = useThreadViewport((s) => s.topAnchorMessageClamp);
 
   const targetRefCallback = useCallback(
     (el: HTMLElement) => {
       if (!active) return;
       return threadViewportStore.getState().registerAnchorTargetElement(el, {
-        fillClampThreshold: parseCssLength(fillClampThreshold, el),
-        fillClampOffset: parseCssLength(fillClampOffset, el),
+        tallerThan: parseCssLength(clamp.tallerThan, el),
+        visibleHeight: parseCssLength(clamp.visibleHeight, el),
       });
     },
-    [active, fillClampOffset, fillClampThreshold, threadViewportStore],
+    [active, clamp.tallerThan, clamp.visibleHeight, threadViewportStore],
   );
 
   return useManagedRef<HTMLElement>(targetRefCallback);
@@ -173,8 +172,6 @@ export const MessagePrimitiveRoot = forwardRef<
       ref={ref}
       data-message-id={messageId}
       data-aui-top-anchor-target={isTopAnchorTarget ? "" : undefined}
-      // deprecated alias for `data-aui-top-anchor-target`; kept for one minor
-      data-aui-top-anchor-slack={isTopAnchorTarget ? "" : undefined}
     />
   );
 });

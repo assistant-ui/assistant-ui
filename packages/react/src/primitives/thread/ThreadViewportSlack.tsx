@@ -14,7 +14,7 @@ export type ThreadViewportSlackProps = {
  * @deprecated Top-anchor target registration is now automatic when using
  * `MessagePrimitive.Root`. This component is a no-op pass-through retained for
  * backwards compatibility and will be removed in a future minor. Remove it
- * from your tree and pass `fillClampThreshold` / `fillClampOffset` to
+ * from your tree and pass `topAnchorMessageClamp` to
  * `ThreadPrimitive.Viewport` instead, if needed.
  */
 export const ThreadPrimitiveViewportSlack: FC<ThreadViewportSlackProps> = ({

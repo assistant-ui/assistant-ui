@@ -60,11 +60,11 @@ export type ThreadViewportState = {
   /** Controls scroll anchoring: "top" anchors user messages at top, "bottom" is classic behavior */
   readonly turnAnchor: "top" | "bottom";
 
-  /** CSS length at which the anchored user message height clamps to the offset. */
-  readonly fillClampThreshold: string;
-
-  /** CSS length used when clamping large anchored user messages. */
-  readonly fillClampOffset: string;
+  /** Clamps tall user messages so the assistant response stays in view. */
+  readonly topAnchorMessageClamp: {
+    readonly tallerThan: string;
+    readonly visibleHeight: string;
+  };
 
   /** Raw height values from registered elements */
   readonly height: {
@@ -83,8 +83,8 @@ export type ThreadViewportState = {
 
   /** Numeric clamp configuration for the active top-anchor target message */
   readonly targetConfig: {
-    fillClampThreshold: number;
-    fillClampOffset: number;
+    tallerThan: number;
+    visibleHeight: number;
   } | null;
 
   /** Register a viewport and get a handle to update its height */
@@ -108,14 +108,18 @@ export type ThreadViewportState = {
    */
   readonly registerAnchorTargetElement: (
     element: HTMLElement | null,
-    config?: { fillClampThreshold: number; fillClampOffset: number },
+    config?: { tallerThan: number; visibleHeight: number },
   ) => Unsubscribe;
 };
 
 export type ThreadViewportStoreOptions = {
   turnAnchor?: "top" | "bottom" | undefined;
-  fillClampThreshold?: string | undefined;
-  fillClampOffset?: string | undefined;
+  topAnchorMessageClamp?:
+    | {
+        tallerThan?: string | undefined;
+        visibleHeight?: string | undefined;
+      }
+    | undefined;
 };
 
 export const makeThreadViewportStore = (
@@ -178,8 +182,10 @@ export const makeThreadViewportStore = (
     },
 
     turnAnchor: options.turnAnchor ?? "bottom",
-    fillClampThreshold: options.fillClampThreshold ?? "10em",
-    fillClampOffset: options.fillClampOffset ?? "6em",
+    topAnchorMessageClamp: {
+      tallerThan: options.topAnchorMessageClamp?.tallerThan ?? "10em",
+      visibleHeight: options.topAnchorMessageClamp?.visibleHeight ?? "6em",
+    },
 
     height: {
       viewport: 0,
