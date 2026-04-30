@@ -111,6 +111,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   const resizeRef = useOnResizeContent(() => {
     const scrollBehavior = scrollingToBottomBehaviorRef.current;
     if (scrollBehavior && hasActiveTopAnchor()) {
+      // Let the top-anchor reserve own scrolling while a run starts to avoid a bottom-scroll race.
       scrollingToBottomBehaviorRef.current = null;
     } else if (scrollBehavior) {
       scrollToBottom(scrollBehavior);

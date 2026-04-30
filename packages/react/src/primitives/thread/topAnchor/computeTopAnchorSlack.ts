@@ -11,6 +11,10 @@ export type ComputeTopAnchorReserveOptions = ComputeTopAnchorTargetOptions & {
   reserve: HTMLElement;
 };
 
+type ComputeTopAnchorSlackOptions = ComputeTopAnchorTargetOptions & {
+  scrollHeight: number;
+};
+
 const getDocumentOffsetTop = (element: HTMLElement): number => {
   let top = 0;
   let current: HTMLElement | null = element;
@@ -56,14 +60,15 @@ export const computeTopAnchorTargetScrollTop = ({
   return anchorTop + Math.max(0, anchorHeight - visibleAnchorHeight);
 };
 
-export const computeTopAnchorSlack = (
-  options: ComputeTopAnchorTargetOptions,
-): number => {
-  const { viewport } = options;
-  const targetScrollTop = computeTopAnchorTargetScrollTop(options);
-  const maxScrollTop = viewport.scrollHeight - viewport.clientHeight;
+const computeTopAnchorSlack = ({
+  scrollHeight,
+  ...targetOptions
+}: ComputeTopAnchorSlackOptions): number => {
+  const { viewport } = targetOptions;
+  const targetScrollTop = computeTopAnchorTargetScrollTop(targetOptions);
+  const targetScrollHeight = targetScrollTop + viewport.clientHeight;
 
-  return Math.max(0, targetScrollTop - maxScrollTop);
+  return Math.max(0, targetScrollHeight - scrollHeight);
 };
 
 export const computeTopAnchorReserve = ({
@@ -71,13 +76,9 @@ export const computeTopAnchorReserve = ({
   reserve,
   ...targetOptions
 }: ComputeTopAnchorReserveOptions): number => {
-  const targetScrollTop = computeTopAnchorTargetScrollTop({
+  return computeTopAnchorSlack({
     viewport,
     ...targetOptions,
+    scrollHeight: viewport.scrollHeight - reserve.offsetHeight,
   });
-  const scrollHeightWithoutReserve =
-    viewport.scrollHeight - reserve.offsetHeight;
-  const targetScrollHeight = targetScrollTop + viewport.clientHeight;
-
-  return Math.max(0, targetScrollHeight - scrollHeightWithoutReserve);
 };
