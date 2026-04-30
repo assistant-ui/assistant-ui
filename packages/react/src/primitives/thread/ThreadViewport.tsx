@@ -34,6 +34,20 @@ export namespace ThreadPrimitiveViewport {
     turnAnchor?: "top" | "bottom" | undefined;
 
     /**
+     * Threshold at which the anchored user message height clamps to the offset.
+     *
+     * Defaults to "10em".
+     */
+    fillClampThreshold?: string | undefined;
+
+    /**
+     * Offset used when clamping large anchored user messages.
+     *
+     * Defaults to "6em".
+     */
+    fillClampOffset?: string | undefined;
+
+    /**
      * Whether to scroll to bottom when a new run starts.
      *
      * Defaults to true.
@@ -132,9 +146,11 @@ ThreadPrimitiveViewportScrollable.displayName =
 export const ThreadPrimitiveViewport = forwardRef<
   ThreadPrimitiveViewport.Element,
   ThreadPrimitiveViewport.Props
->(({ turnAnchor, ...props }, ref) => {
+>(({ turnAnchor, fillClampThreshold, fillClampOffset, ...props }, ref) => {
   return (
-    <ThreadPrimitiveViewportProvider options={{ turnAnchor }}>
+    <ThreadPrimitiveViewportProvider
+      options={{ turnAnchor, fillClampThreshold, fillClampOffset }}
+    >
       <ThreadPrimitiveViewportScrollable {...props} ref={ref} />
     </ThreadPrimitiveViewportProvider>
   );

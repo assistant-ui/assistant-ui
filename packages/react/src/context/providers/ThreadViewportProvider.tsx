@@ -41,13 +41,24 @@ const useThreadViewportStoreValue = (options: ThreadViewportStoreOptions) => {
   useEffect(() => {
     const nextState = {
       turnAnchor: options.turnAnchor ?? "bottom",
+      fillClampThreshold: options.fillClampThreshold ?? "10em",
+      fillClampOffset: options.fillClampOffset ?? "6em",
     };
 
     const currentState = store.getState();
-    if (currentState.turnAnchor !== nextState.turnAnchor) {
+    if (
+      currentState.turnAnchor !== nextState.turnAnchor ||
+      currentState.fillClampThreshold !== nextState.fillClampThreshold ||
+      currentState.fillClampOffset !== nextState.fillClampOffset
+    ) {
       writableStore(store).setState(nextState);
     }
-  }, [store, options.turnAnchor]);
+  }, [
+    store,
+    options.fillClampOffset,
+    options.fillClampThreshold,
+    options.turnAnchor,
+  ]);
 
   return store;
 };

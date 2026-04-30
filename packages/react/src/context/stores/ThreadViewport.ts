@@ -60,6 +60,12 @@ export type ThreadViewportState = {
   /** Controls scroll anchoring: "top" anchors user messages at top, "bottom" is classic behavior */
   readonly turnAnchor: "top" | "bottom";
 
+  /** CSS length at which the anchored user message height clamps to the offset. */
+  readonly fillClampThreshold: string;
+
+  /** CSS length used when clamping large anchored user messages. */
+  readonly fillClampOffset: string;
+
   /** Raw height values from registered elements */
   readonly height: {
     /** Total viewport height */
@@ -108,6 +114,8 @@ export type ThreadViewportState = {
 
 export type ThreadViewportStoreOptions = {
   turnAnchor?: "top" | "bottom" | undefined;
+  fillClampThreshold?: string | undefined;
+  fillClampOffset?: string | undefined;
 };
 
 export const makeThreadViewportStore = (
@@ -170,6 +178,8 @@ export const makeThreadViewportStore = (
     },
 
     turnAnchor: options.turnAnchor ?? "bottom",
+    fillClampThreshold: options.fillClampThreshold ?? "10em",
+    fillClampOffset: options.fillClampOffset ?? "6em",
 
     height: {
       viewport: 0,

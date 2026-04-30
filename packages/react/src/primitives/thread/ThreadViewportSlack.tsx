@@ -15,7 +15,7 @@ export type ThreadViewportSlackProps = {
  * `MessagePrimitive.Root`. This component is a no-op pass-through retained for
  * backwards compatibility and will be removed in a future minor. Remove it
  * from your tree and pass `fillClampThreshold` / `fillClampOffset` to
- * `MessagePrimitive.Root` instead, if needed.
+ * `ThreadPrimitive.Viewport` instead, if needed.
  */
 export const ThreadPrimitiveViewportSlack: FC<ThreadViewportSlackProps> = ({
   children,

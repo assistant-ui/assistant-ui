@@ -68,6 +68,20 @@ This primitive renders a `<div>` element unless `asChild` is set.
         'Controls scroll anchoring behavior for new messages. "bottom" is the classic chat behavior where messages anchor at the bottom. "top" anchors new user messages at the top of the viewport for a focused reading experience.',
     },
     {
+      name: "fillClampThreshold",
+      type: "string",
+      default: '"10em"',
+      description:
+        'Anchored user messages up to this height remain fully visible when turnAnchor is "top". Taller messages are clamped to fillClampOffset.',
+    },
+    {
+      name: "fillClampOffset",
+      type: "string",
+      default: '"6em"',
+      description:
+        'Visible height retained for anchored user messages taller than fillClampThreshold when turnAnchor is "top".',
+    },
+    {
       name: "scrollToBottomOnRunStart",
       type: "boolean",
       default: "true",

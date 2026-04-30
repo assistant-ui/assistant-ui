@@ -100,16 +100,10 @@ const useTopAnchorUserRef = (active: boolean) => {
  * clamp config is parsed once at register time using the registered element's
  * computed style, then stored as numeric pixels.
  */
-const useTopAnchorTargetRef = ({
-  active,
-  fillClampThreshold,
-  fillClampOffset,
-}: {
-  active: boolean;
-  fillClampThreshold: string;
-  fillClampOffset: string;
-}) => {
+const useTopAnchorTargetRef = ({ active }: { active: boolean }) => {
   const threadViewportStore = useThreadViewportStore();
+  const fillClampThreshold = useThreadViewport((s) => s.fillClampThreshold);
+  const fillClampOffset = useThreadViewport((s) => s.fillClampOffset);
 
   const targetRefCallback = useCallback(
     (el: HTMLElement) => {
@@ -127,22 +121,7 @@ const useTopAnchorTargetRef = ({
 
 export namespace MessagePrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;
-  /**
-   * Props for the MessagePrimitive.Root component.
-   * Accepts all standard div element props plus optional top-anchor clamp tuning.
-   */
-  export type Props = ComponentPropsWithoutRef<typeof Primitive.div> & {
-    /**
-     * Threshold at which the user message height clamps to the offset.
-     * @default "10em"
-     */
-    fillClampThreshold?: string | undefined;
-    /**
-     * Offset used when clamping large user messages.
-     * @default "6em"
-     */
-    fillClampOffset?: string | undefined;
-  };
+  export type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
 }
 
 /**
@@ -171,40 +150,33 @@ export namespace MessagePrimitiveRoot {
 export const MessagePrimitiveRoot = forwardRef<
   MessagePrimitiveRoot.Element,
   MessagePrimitiveRoot.Props
->(
-  (
-    { fillClampThreshold = "10em", fillClampOffset = "6em", ...props },
+>((props, forwardRef) => {
+  const isHoveringRef = useIsHoveringRef();
+  const turnAnchor = useThreadViewport((s) => s.turnAnchor);
+  const isTopAnchorUser = useIsTopAnchorUser(turnAnchor);
+  const isTopAnchorTarget = useIsTopAnchorTarget(turnAnchor);
+  const topAnchorUserRef = useTopAnchorUserRef(isTopAnchorUser);
+  const topAnchorTargetRef = useTopAnchorTargetRef({
+    active: isTopAnchorTarget,
+  });
+  const ref = useComposedRefs<HTMLDivElement>(
     forwardRef,
-  ) => {
-    const isHoveringRef = useIsHoveringRef();
-    const turnAnchor = useThreadViewport((s) => s.turnAnchor);
-    const isTopAnchorUser = useIsTopAnchorUser(turnAnchor);
-    const isTopAnchorTarget = useIsTopAnchorTarget(turnAnchor);
-    const topAnchorUserRef = useTopAnchorUserRef(isTopAnchorUser);
-    const topAnchorTargetRef = useTopAnchorTargetRef({
-      active: isTopAnchorTarget,
-      fillClampThreshold,
-      fillClampOffset,
-    });
-    const ref = useComposedRefs<HTMLDivElement>(
-      forwardRef,
-      isHoveringRef,
-      topAnchorUserRef,
-      topAnchorTargetRef,
-    );
-    const messageId = useAuiState((s) => s.message.id);
+    isHoveringRef,
+    topAnchorUserRef,
+    topAnchorTargetRef,
+  );
+  const messageId = useAuiState((s) => s.message.id);
 
-    return (
-      <Primitive.div
-        {...props}
-        ref={ref}
-        data-message-id={messageId}
-        data-aui-top-anchor-target={isTopAnchorTarget ? "" : undefined}
-        // deprecated alias for `data-aui-top-anchor-target`; kept for one minor
-        data-aui-top-anchor-slack={isTopAnchorTarget ? "" : undefined}
-      />
-    );
-  },
-);
+  return (
+    <Primitive.div
+      {...props}
+      ref={ref}
+      data-message-id={messageId}
+      data-aui-top-anchor-target={isTopAnchorTarget ? "" : undefined}
+      // deprecated alias for `data-aui-top-anchor-target`; kept for one minor
+      data-aui-top-anchor-slack={isTopAnchorTarget ? "" : undefined}
+    />
+  );
+});
 
 MessagePrimitiveRoot.displayName = "MessagePrimitive.Root";
