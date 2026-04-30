@@ -297,13 +297,28 @@ export const ComposerPrimitiveInput = forwardRef<
         onChange,
         (e: React.ChangeEvent<HTMLTextAreaElement>) => {
           if (!aui.composer().getState().isEditing) return;
-          const isComposing =
-            (e.nativeEvent as { isComposing?: boolean }).isComposing === true ||
-            compositionRef.current;
-          if (isComposing) return;
+          const nativeIsComposing =
+            (e.nativeEvent as { isComposing?: boolean }).isComposing === true;
+          // Recover from a stuck composition: if compositionEnd was dropped
+          // (e.g. dead-key layouts, unfocus during composition, browser
+          // quirks), the ref can stay true forever and silently swallow input.
+          // When the native event reports no active composition, reset the
+          // ref so subsequent events are processed normally.
+          if (compositionRef.current && !nativeIsComposing) {
+            compositionRef.current = false;
+          }
+          const isComposing = nativeIsComposing || compositionRef.current;
+          // Always sync the controlled value to the DOM value, even mid-IME.
+          // React 19 reconciles controlled inputs more aggressively than 18
+          // and will reset the textarea to the stale `value` prop while a CJK
+          // IME composition is in progress, causing characters to disappear.
+          // Keeping the controlled value in sync prevents that reset.
           flushResourcesSync(() => {
             aui.composer().setText(e.target.value);
           });
+          // Skip plugin cursor tracking during composition — the selection
+          // position is unreliable until the composition resolves.
+          if (isComposing) return;
           const pos = e.target.selectionStart ?? e.target.value.length;
           if (pluginRegistry) {
             for (const plugin of pluginRegistry.getPlugins()) {
