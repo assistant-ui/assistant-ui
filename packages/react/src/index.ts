@@ -263,7 +263,9 @@ export { useMessagePartReasoning } from "./primitives/messagePart/useMessagePart
 export { useMessagePartSource } from "./primitives/messagePart/useMessagePartSource";
 export { useMessagePartFile } from "./primitives/messagePart/useMessagePartFile";
 export { useMessagePartImage } from "./primitives/messagePart/useMessagePartImage";
+export { useMessagePartVideo } from "./primitives/messagePart/useMessagePartVideo";
 export { useMessagePartData } from "./primitives/messagePart/useMessagePartData";
+export { MessagePartPrimitiveVideo } from "./primitives/messagePart/MessagePartVideo";
 export { useThreadViewportAutoScroll } from "./primitives/thread/useThreadViewportAutoScroll";
 export { useScrollLock } from "./primitives/reasoning/useScrollLock";
 export { useMessageQuote } from "./hooks/useMessageQuote";
@@ -281,6 +283,7 @@ export type {
   SourceProviderMetadata,
   SourceMessagePart,
   ImageMessagePart,
+  VideoMessagePart,
   FileMessagePart,
   DataMessagePart,
   GenerativeUIMessagePart,
@@ -316,6 +319,8 @@ export type {
   SourceMessagePartProps,
   ImageMessagePartComponent,
   ImageMessagePartProps,
+  VideoMessagePartComponent,
+  VideoMessagePartProps,
   FileMessagePartComponent,
   FileMessagePartProps,
   Unstable_AudioMessagePartComponent,

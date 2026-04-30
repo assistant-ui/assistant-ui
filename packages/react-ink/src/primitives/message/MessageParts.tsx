@@ -36,6 +36,7 @@ const mergeWithInkDefaults = (
   const shared = {
     Text: components.Text ?? inkDefaultComponents.Text,
     Image: components.Image ?? inkDefaultComponents.Image,
+    Video: components.Video ?? inkDefaultComponents.Video,
     Source: components.Source ?? inkDefaultComponents.Source,
     File: components.File ?? inkDefaultComponents.File,
     Unstable_Audio:

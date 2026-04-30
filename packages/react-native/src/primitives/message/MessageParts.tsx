@@ -33,6 +33,7 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
     ? {
         Text: components.Text ?? rnDefaultComponents.Text,
         Image: components.Image ?? messagePartsDefaultComponents.Image,
+        Video: components.Video ?? messagePartsDefaultComponents.Video,
         Reasoning:
           components.Reasoning ?? messagePartsDefaultComponents.Reasoning,
         Source: components.Source ?? messagePartsDefaultComponents.Source,

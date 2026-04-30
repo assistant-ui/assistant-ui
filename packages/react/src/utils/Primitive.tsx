@@ -12,6 +12,7 @@ import {
   isValidElement,
 } from "react";
 import { Primitive as RadixPrimitive } from "@radix-ui/react-primitive";
+import { Slot } from "radix-ui";
 
 /**
  * Thin wrapper around `@radix-ui/react-primitive` that adds `render` prop support.
@@ -42,17 +43,17 @@ const NODES = [
   "span",
   "svg",
   "ul",
+  "video",
 ] as const;
 type PrimitiveNode = (typeof NODES)[number];
 
 type WithRenderPropProps<T extends ElementType> =
   ComponentPropsWithoutRef<T> & {
+    asChild?: boolean | undefined;
     render?: ReactElement | undefined;
   };
 
-type PrimitiveProps<E extends PrimitiveNode> = WithRenderPropProps<
-  (typeof RadixPrimitive)[E]
->;
+type PrimitiveProps<E extends PrimitiveNode> = WithRenderPropProps<E>;
 
 type WithRenderPropRuntimeProps<T extends ElementType> =
   WithRenderPropProps<T> & {
@@ -60,9 +61,7 @@ type WithRenderPropRuntimeProps<T extends ElementType> =
     children?: ReactNode | undefined;
   };
 
-type PrimitiveRef<E extends PrimitiveNode> = ComponentRef<
-  (typeof RadixPrimitive)[E]
->;
+type PrimitiveRef<E extends PrimitiveNode> = ComponentRef<E>;
 
 function withRenderProp<T extends ElementType>(Component: T) {
   const Wrapped = forwardRef<ComponentRef<T>, WithRenderPropRuntimeProps<T>>(
@@ -110,7 +109,18 @@ function withRenderProp<T extends ElementType>(Component: T) {
 }
 
 function createPrimitive<E extends PrimitiveNode>(node: E) {
-  const RadixComp = RadixPrimitive[node];
+  const RadixComp =
+    (RadixPrimitive as Record<string, ElementType | undefined>)[node] ??
+    forwardRef<ComponentRef<E>, WithRenderPropRuntimeProps<E>>(
+      ({ asChild, children, ...rest }, ref) => {
+        const Comp = (asChild ? Slot.Root : node) as ElementType;
+        return (
+          <Comp {...(rest as any)} ref={ref}>
+            {children}
+          </Comp>
+        );
+      },
+    );
   const Component = withRenderProp(RadixComp);
 
   Component.displayName = `Primitive.${node}`;
