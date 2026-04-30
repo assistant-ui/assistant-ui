@@ -8,7 +8,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { formatCompact } from "@/lib/traction";
+import { formatCompact } from "@/lib/format";
 
 type Point = { date: string; value: number };
 

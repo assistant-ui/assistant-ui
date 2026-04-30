@@ -18,7 +18,8 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
-import { formatCompact, type TimelineSeries } from "@/lib/traction";
+import { formatCompact } from "@/lib/format";
+import type { TimelineSeries } from "@/lib/traction";
 
 const MONTH_NAMES = [
   "Jan",
@@ -98,12 +99,12 @@ export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
               <stop
                 offset="0%"
                 stopColor={`var(--color-${s.key})`}
-                stopOpacity={0.55}
+                stopOpacity={0.18}
               />
               <stop
                 offset="100%"
                 stopColor={`var(--color-${s.key})`}
-                stopOpacity={0.05}
+                stopOpacity={0}
               />
             </linearGradient>
           ))}
@@ -125,16 +126,19 @@ export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
         <ChartTooltip
           cursor={{ stroke: "var(--border)" }}
           content={(tooltipProps) => {
-            // hide _proj entries when their raw counterpart has a value (avoids empty rows on the bridging month).
-            const filtered = tooltipProps.payload?.filter((entry) => {
-              const key = String(entry?.dataKey ?? "");
-              if (!key.endsWith("_proj")) return true;
-              const baseKey = key.slice(0, -5);
-              const rowPayload = entry.payload as
-                | Record<string, number | undefined>
-                | undefined;
-              return rowPayload?.[baseKey] === undefined;
-            });
+            // hide _proj entries when their raw counterpart has a value (avoids dup rows on the bridging month).
+            const filtered = tooltipProps.payload
+              ?.filter((entry) => {
+                const key = String(entry?.dataKey ?? "");
+                if (!key.endsWith("_proj")) return true;
+                const baseKey = key.slice(0, -5);
+                const rowPayload = entry.payload as
+                  | Record<string, number | undefined>
+                  | undefined;
+                return rowPayload?.[baseKey] === undefined;
+              })
+              .slice()
+              .sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0));
             return (
               <ChartTooltipContent
                 {...(tooltipProps as Record<string, unknown>)}
@@ -145,23 +149,10 @@ export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
                 }}
                 formatter={(value, name, item) => {
                   const rawName = String(name);
-                  const isProjEntry = rawName.endsWith("_proj");
-                  const baseKey = isProjEntry ? rawName.slice(0, -5) : rawName;
+                  const baseKey = rawName.endsWith("_proj")
+                    ? rawName.slice(0, -5)
+                    : rawName;
                   const series = timeline.series.find((s) => s.key === baseKey);
-                  let displayValue = value as number;
-                  const rowPayload = item?.payload as
-                    | Record<string, number | undefined>
-                    | undefined;
-                  if (isProjEntry && rowPayload) {
-                    const idx = timeline.series.findIndex(
-                      (s) => s.key === baseKey,
-                    );
-                    const prev = idx > 0 ? timeline.series[idx - 1]! : null;
-                    const prevCum = prev
-                      ? (rowPayload[`${prev.key}_proj`] ?? 0)
-                      : 0;
-                    displayValue = (value as number) - prevCum;
-                  }
                   const color =
                     (item as { color?: string } | undefined)?.color ??
                     (item?.payload as { fill?: string } | undefined)?.fill;
@@ -176,7 +167,7 @@ export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
                           {series?.label ?? rawName}
                         </span>
                         <span className="font-medium font-mono text-foreground tabular-nums">
-                          {formatCompact(displayValue)}
+                          {formatCompact(value as number)}
                         </span>
                       </div>
                     </>
@@ -193,11 +184,9 @@ export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
             <Area
               key={s.key}
               dataKey={s.key}
-              stackId="downloads"
               type="monotone"
-              // hide via transparent stroke/fill so toggled series keep their stack slot and siblings don't shift.
               stroke={isHidden ? "transparent" : `var(--color-${s.key})`}
-              strokeWidth={1.5}
+              strokeWidth={1.75}
               fill={
                 isHidden ? "transparent" : `url(#${gradientPrefix}-${s.key})`
               }

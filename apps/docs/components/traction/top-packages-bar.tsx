@@ -7,7 +7,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { formatCompact, formatNumber } from "@/lib/traction";
+import { formatCompact, formatNumber } from "@/lib/format";
 
 type Row = { name: string; weekly: number };
 

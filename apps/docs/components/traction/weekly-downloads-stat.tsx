@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ArrowLeftRight, ArrowUpRight } from "lucide-react";
-import { formatCompact } from "@/lib/traction";
+import { formatCompact } from "@/lib/format";
 
 type Mode = { value: number; caption: string };
 

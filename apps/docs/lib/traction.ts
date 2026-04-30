@@ -1,3 +1,12 @@
+import {
+  getCommitActivityStats,
+  getCommitsSince,
+  getContributors,
+  getReleases,
+  getStargazersPage,
+} from "./github";
+import { getDownloadsLastYear, getDownloadsRange } from "./npm";
+
 export type PackageInfo = {
   name: string;
   description: string;
@@ -240,13 +249,6 @@ export const PACKAGES: PackageInfo[] = [
   },
 ];
 
-export type RepoStats = {
-  stars: number;
-  forks: number;
-  openIssues: number;
-  watchers: number;
-};
-
 export type PackageDownloads = {
   weekly: number;
   series: number[];
@@ -264,13 +266,6 @@ export type TimelinePoint = {
   value: number;
 };
 
-const REPO_FALLBACK: RepoStats = {
-  stars: 9700,
-  forks: 990,
-  openIssues: 60,
-  watchers: 80,
-};
-
 export type Contributor = {
   login: string;
   avatarUrl: string;
@@ -278,83 +273,66 @@ export type Contributor = {
   contributions: number;
 };
 
-export async function fetchDependents(): Promise<{
-  repos: number;
-  packages: number;
-} | null> {
-  try {
-    const res = await fetch(
-      "https://github.com/assistant-ui/assistant-ui/network/dependents",
-      {
-        headers: { "User-Agent": "Mozilla/5.0 (assistant-ui-traction)" },
-        next: { revalidate: 21600 },
-      },
-    );
-    if (!res.ok) return null;
-    const html = await res.text();
-    const reposMatch = html.match(/([\d,]+)\s+Repositories\b/);
-    const packagesMatch = html.match(/([\d,]+)\s+Packages\b/);
-    if (!reposMatch && !packagesMatch) return null;
-    return {
-      repos: reposMatch ? Number(reposMatch[1]!.replace(/,/g, "")) : 0,
-      packages: packagesMatch ? Number(packagesMatch[1]!.replace(/,/g, "")) : 0,
-    };
-  } catch {
-    return null;
+export type ActivityPoint = {
+  date: string;
+  count: number;
+};
+
+export async function fetchCommitActivity(): Promise<ActivityPoint[]> {
+  const stats = await getCommitActivityStats();
+  if (stats && stats.length > 0) {
+    const points: ActivityPoint[] = [];
+    for (const week of stats) {
+      for (let i = 0; i < 7; i++) {
+        const ms = (week.week + i * 86_400) * 1000;
+        const d = new Date(ms);
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+        const day = String(d.getUTCDate()).padStart(2, "0");
+        points.push({ date: `${y}-${m}-${day}`, count: week.days[i] ?? 0 });
+      }
+    }
+    return points;
   }
+
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - 365);
+  const items = await getCommitsSince(since.toISOString());
+
+  const counts = new Map<string, number>();
+  for (const c of items) {
+    const iso = c.commit?.author?.date ?? c.commit?.committer?.date;
+    if (!iso) continue;
+    const day = iso.slice(0, 10);
+    counts.set(day, (counts.get(day) ?? 0) + 1);
+  }
+  return Array.from(counts.entries()).map(([date, count]) => ({ date, count }));
+}
+
+export async function fetchReleaseActivity(): Promise<ActivityPoint[]> {
+  const cutoff = Date.now() - 365 * 86_400_000;
+  const releases = await getReleases();
+
+  const counts = new Map<string, number>();
+  for (const r of releases) {
+    const iso = r.published_at ?? r.created_at;
+    if (new Date(iso).getTime() < cutoff) continue;
+    const day = iso.slice(0, 10);
+    counts.set(day, (counts.get(day) ?? 0) + 1);
+  }
+  return Array.from(counts.entries()).map(([date, count]) => ({ date, count }));
 }
 
 export async function fetchContributors(): Promise<Contributor[]> {
-  try {
-    const all: Contributor[] = [];
-    for (let page = 1; page <= 5; page++) {
-      const res = await fetch(
-        `https://api.github.com/repos/assistant-ui/assistant-ui/contributors?per_page=100&page=${page}`,
-        { headers: githubHeaders(), next: { revalidate: 21600 } },
-      );
-      if (!res.ok) break;
-      const data = (await res.json()) as Array<{
-        login: string;
-        avatar_url: string;
-        html_url: string;
-        contributions: number;
-        type?: string;
-      }>;
-      if (data.length === 0) break;
-      for (const c of data) {
-        if (c.type === "Bot" || /\[bot\]$/i.test(c.login)) continue;
-        all.push({
-          login: c.login,
-          avatarUrl: c.avatar_url,
-          htmlUrl: c.html_url,
-          contributions: c.contributions,
-        });
-      }
-      if (data.length < 100) break;
-    }
-    return all;
-  } catch {
-    return [];
-  }
-}
-
-export async function fetchRepoStats(): Promise<RepoStats> {
-  try {
-    const res = await fetch(
-      "https://api.github.com/repos/assistant-ui/assistant-ui",
-      { headers: githubHeaders(), next: { revalidate: 21600 } },
-    );
-    if (!res.ok) return REPO_FALLBACK;
-    const data = await res.json();
-    return {
-      stars: data.stargazers_count ?? REPO_FALLBACK.stars,
-      forks: data.forks_count ?? REPO_FALLBACK.forks,
-      openIssues: data.open_issues_count ?? REPO_FALLBACK.openIssues,
-      watchers: data.subscribers_count ?? REPO_FALLBACK.watchers,
-    };
-  } catch {
-    return REPO_FALLBACK;
-  }
+  const raw = await getContributors();
+  return raw
+    .filter((c) => c.type !== "Bot" && !/\[bot\]$/i.test(c.login))
+    .map((c) => ({
+      login: c.login,
+      avatarUrl: c.avatar_url,
+      htmlUrl: c.html_url,
+      contributions: c.contributions,
+    }));
 }
 
 const EMPTY_DOWNLOADS: PackageDownloads = {
@@ -369,36 +347,27 @@ const sum = (arr: number[]) => arr.reduce((acc, n) => acc + n, 0);
 async function fetchPackageDownloadRange(
   name: string,
 ): Promise<PackageDownloads> {
-  try {
-    const today = new Date();
-    const end = today.toISOString().slice(0, 10);
-    const start = new Date(today);
-    start.setUTCDate(today.getUTCDate() - 60);
-    const startStr = start.toISOString().slice(0, 10);
-    const url = `https://api.npmjs.org/downloads/range/${startStr}:${end}/${name}`;
+  const today = new Date();
+  const end = today.toISOString().slice(0, 10);
+  const start = new Date(today);
+  start.setUTCDate(today.getUTCDate() - 60);
+  const startStr = start.toISOString().slice(0, 10);
 
-    const res = await fetch(url, { next: { revalidate: 3600 } });
-    if (!res.ok) return EMPTY_DOWNLOADS;
-    const data = (await res.json()) as {
-      downloads: { day: string; downloads: number }[];
-    };
-    const all = data.downloads?.map((d) => d.downloads) ?? [];
-    if (all.length === 0) return EMPTY_DOWNLOADS;
+  const downloads = await getDownloadsRange(name, startStr, end);
+  const all = downloads.map((d) => d.downloads);
+  if (all.length === 0) return EMPTY_DOWNLOADS;
 
-    const last60 = all.slice(-60);
-    const last30 = last60.slice(-30);
-    const prior30 = last60.slice(-60, -30);
-    const last7 = last60.slice(-7);
+  const last60 = all.slice(-60);
+  const last30 = last60.slice(-30);
+  const prior30 = last60.slice(-60, -30);
+  const last7 = last60.slice(-7);
 
-    return {
-      weekly: sum(last7),
-      series: last30,
-      monthly: sum(last30),
-      prevMonthly: sum(prior30),
-    };
-  } catch {
-    return EMPTY_DOWNLOADS;
-  }
+  return {
+    weekly: sum(last7),
+    series: last30,
+    monthly: sum(last30),
+    prevMonthly: sum(prior30),
+  };
 }
 
 export async function fetchNpmDownloads(): Promise<NpmDownloads> {
@@ -466,7 +435,6 @@ export async function fetchTimelineSeries(
     for (const { key, points } of fetched) {
       const point = points.find((p) => p.date === date);
       const value = point?.value ?? 0;
-      // omit projected month so its stacked area renders no fill; the per-series _proj line bridges that gap instead.
       if (!isProjected) row[key] = value;
     }
     return row;
@@ -477,11 +445,9 @@ export async function fetchTimelineSeries(
     for (let idx = projectedIndex - 1; idx <= projectedIndex; idx++) {
       const row = data[idx]!;
       const rowDate = row.date as string;
-      let cum = 0;
       for (const { key, points } of fetched) {
         const val = points.find((p) => p.date === rowDate)?.value ?? 0;
-        cum += val;
-        row[`${key}_proj`] = cum;
+        row[`${key}_proj`] = val;
       }
     }
   }
@@ -503,53 +469,42 @@ export async function fetchTimelineSeries(
 export async function fetchDownloadsTimeline(
   name: string,
 ): Promise<TimelinePoint[]> {
-  try {
-    const res = await fetch(
-      `https://api.npmjs.org/downloads/range/last-year/${name}`,
-      { next: { revalidate: 3600 } },
-    );
-    if (!res.ok) return [];
-    const data = (await res.json()) as {
-      downloads: { day: string; downloads: number }[];
-    };
-    if (!data.downloads?.length) return [];
-    const cutoff = currentMonthKey();
-    type MonthBucket = {
-      sum: number;
-      dailies: { day: string; downloads: number }[];
-    };
-    const byMonth = new Map<string, MonthBucket>();
-    for (const point of data.downloads) {
-      const month = point.day.slice(0, 7);
-      const entry = byMonth.get(month) ?? { sum: 0, dailies: [] };
-      entry.sum += point.downloads;
-      entry.dailies.push({ day: point.day, downloads: point.downloads });
-      byMonth.set(month, entry);
-    }
-    const sorted = Array.from(byMonth.entries()).sort(([a], [b]) =>
-      a.localeCompare(b),
-    );
-    const fullMonths = sorted.filter(([k]) => k !== cutoff);
-    const lastFullMonth = fullMonths[fullMonths.length - 1];
-    const priorFullMonth = fullMonths[fullMonths.length - 2];
-
-    return sorted.map(([date, bucket]) => {
-      if (date !== cutoff || bucket.dailies.length === 0) {
-        return { date, value: bucket.sum };
-      }
-      return {
-        date,
-        value: projectInflightMonth(
-          date,
-          bucket,
-          lastFullMonth?.[1].sum,
-          priorFullMonth?.[1].sum,
-        ),
-      };
-    });
-  } catch {
-    return [];
+  const downloads = await getDownloadsLastYear(name);
+  if (!downloads.length) return [];
+  const cutoff = currentMonthKey();
+  type MonthBucket = {
+    sum: number;
+    dailies: { day: string; downloads: number }[];
+  };
+  const byMonth = new Map<string, MonthBucket>();
+  for (const point of downloads) {
+    const month = point.day.slice(0, 7);
+    const entry = byMonth.get(month) ?? { sum: 0, dailies: [] };
+    entry.sum += point.downloads;
+    entry.dailies.push({ day: point.day, downloads: point.downloads });
+    byMonth.set(month, entry);
   }
+  const sorted = Array.from(byMonth.entries()).sort(([a], [b]) =>
+    a.localeCompare(b),
+  );
+  const fullMonths = sorted.filter(([k]) => k !== cutoff);
+  const lastFullMonth = fullMonths[fullMonths.length - 1];
+  const priorFullMonth = fullMonths[fullMonths.length - 2];
+
+  return sorted.map(([date, bucket]) => {
+    if (date !== cutoff || bucket.dailies.length === 0) {
+      return { date, value: bucket.sum };
+    }
+    return {
+      date,
+      value: projectInflightMonth(
+        date,
+        bucket,
+        lastFullMonth?.[1].sum,
+        priorFullMonth?.[1].sum,
+      ),
+    };
+  });
 }
 
 function projectInflightMonth(
@@ -595,45 +550,17 @@ function projectInflightMonth(
   return Math.round(blended);
 }
 
-function githubHeaders(): HeadersInit {
-  const headers: Record<string, string> = {
-    Accept: "application/vnd.github+json",
-    "X-GitHub-Api-Version": "2022-11-28",
-  };
-  if (process.env.GITHUB_TOKEN) {
-    headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-  }
-  return headers;
-}
-
-function parseLastPage(linkHeader: string | null): number | null {
-  if (!linkHeader) return null;
-  const match = linkHeader.match(/<[^>]*[?&]page=(\d+)[^>]*>;\s*rel="last"/);
-  return match ? Number(match[1]) : null;
-}
-
 export async function fetchStarHistory(
   totalStars: number,
 ): Promise<TimelinePoint[]> {
   try {
-    const headers = {
-      ...githubHeaders(),
-      Accept: "application/vnd.github.star+json",
-    };
+    const first = await getStargazersPage(1);
+    if (first.data.length === 0) return [];
 
-    const firstRes = await fetch(
-      "https://api.github.com/repos/assistant-ui/assistant-ui/stargazers?per_page=100&page=1",
-      { headers, next: { revalidate: 21600 } },
-    );
-    if (!firstRes.ok) return [];
-
-    const firstData = (await firstRes.json()) as { starred_at: string }[];
-    const lastPage =
-      parseLastPage(firstRes.headers.get("Link")) ??
-      Math.max(1, Math.ceil(totalStars / 100));
+    const lastPage = first.lastPage ?? Math.max(1, Math.ceil(totalStars / 100));
 
     const samples = new Set<number>([1, lastPage]);
-    const target = 24;
+    const target = 12;
     if (lastPage > 2) {
       const step = (lastPage - 1) / (target - 1);
       for (let i = 1; i < target - 1; i++) {
@@ -646,13 +573,9 @@ export async function fetchStarHistory(
 
     const fetched = await Promise.all(
       pages.map(async (page) => {
-        if (page === 1) return { page, data: firstData };
-        const res = await fetch(
-          `https://api.github.com/repos/assistant-ui/assistant-ui/stargazers?per_page=100&page=${page}`,
-          { headers, next: { revalidate: 21600 } },
-        );
-        if (!res.ok) return { page, data: [] as { starred_at: string }[] };
-        return { page, data: (await res.json()) as { starred_at: string }[] };
+        if (page === 1) return { page, data: first.data };
+        const result = await getStargazersPage(page);
+        return { page, data: result.data };
       }),
     );
 
@@ -727,19 +650,6 @@ function resampleMonthly(anchors: TimelinePoint[]): TimelinePoint[] {
   }
 
   return out;
-}
-
-export function formatNumber(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
-  return value.toString();
-}
-
-export function formatCompact(value: number): string {
-  if (value >= 1_000_000) return `${Math.round(value / 100_000) / 10}M`;
-  if (value >= 10_000) return `${Math.round(value / 100) / 10}k`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
-  return value.toString();
 }
 
 export const PROJECT_FACTS = {

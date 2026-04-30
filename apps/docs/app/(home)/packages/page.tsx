@@ -11,11 +11,10 @@ import {
   PACKAGES,
   PACKAGE_CATEGORIES,
   fetchNpmDownloads,
-  formatCompact,
-  formatNumber,
   type PackageCategory,
   type PackageInfo,
 } from "@/lib/traction";
+import { formatCompact, formatNumber } from "@/lib/format";
 import { Sparkline } from "@/components/traction/sparkline";
 import { TopPackagesBar } from "@/components/traction/top-packages-bar";
 import { createOgMetadata } from "@/lib/og";
