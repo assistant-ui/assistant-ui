@@ -454,6 +454,29 @@ import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
 
 `ErrorPrimitive.Root` renders a `<div>` container with `role="alert"` and `ErrorPrimitive.Message` renders a `<span>` that displays the error text. `Root` always renders. Only `Message` conditionally returns `null` when there is no error. Wrap in `<MessagePrimitive.Error>` if you want the entire block to be conditional. See the [ErrorPrimitive API Reference](/docs/api-reference/primitives/error) for full details.
 
+### Render After Stream Completes
+
+To render content only once the assistant message has finished streaming (a follow-up card, a feedback prompt, a generated component that should not flicker through partial states), gate it with [`AuiIf`](/docs/api-reference/primitives/assistant-if) on `s.message.status`:
+
+```tsx
+import { MessagePrimitive, AuiIf } from "@assistant-ui/react";
+
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts />
+
+  <AuiIf
+    condition={(s) =>
+      s.message.role === "assistant" &&
+      s.message.status?.type === "complete"
+    }
+  >
+    <FollowUpCard />
+  </AuiIf>
+</MessagePrimitive.Root>;
+```
+
+`s.message.status` is a discriminated union of `running | requires-action | complete | incomplete`, defined only on assistant messages. The `role === "assistant"` guard keeps the predicate type-safe. For tool-call-driven generative UI that defers rendering inside the part itself, see [Deferred Rendering](/docs/guides/tool-ui#deferred-rendering) in the Generative UI guide.
+
 ### Legacy and Unstable APIs
 
 - `MessagePrimitive.Unstable_PartsGrouped` and `MessagePrimitive.Unstable_PartsGroupedByParentId` are unstable APIs for custom grouping.

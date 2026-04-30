@@ -504,6 +504,63 @@ render: ({ status, args }) => {
 };
 ```
 
+### Deferred Rendering
+
+Sometimes you want to capture a tool call's streaming arguments but only render the final UI once the call completes. This is useful when partial args would render misleading or jarring intermediate states (a chart that flashes through half-populated data), when the component is expensive to mount (heavy visualizations, embedded iframes, third-party widgets), or when the model controls *whether* the component appears at all.
+
+#### Inline at the end of streaming
+
+Return `null` from the tool UI's `render` until `status.type === "complete"`. The streaming args still arrive in `args` as the model emits them, you just ignore them until the call is done:
+
+```tsx
+const ChartToolUI = makeAssistantToolUI<
+  { title: string; series: number[] },
+  void
+>({
+  toolName: "renderChart",
+  render: ({ args, status }) => {
+    if (status.type !== "complete") return null;
+    return <Chart title={args.title} data={args.series} />;
+  },
+});
+```
+
+The chart mounts once, with the final args, after streaming finishes. No re-renders during the stream.
+
+#### Below the message body
+
+If the component should sit *outside* the message parts (for example, a card attached under the avatar block rather than inline with text), gate at the message level with [`AuiIf`](/docs/api-reference/primitives/assistant-if) and read `s.message.status`:
+
+```tsx
+import { MessagePrimitive, AuiIf, useAuiState } from "@assistant-ui/react";
+
+function PostMessageCard() {
+  const parts = useAuiState((s) => s.message.parts);
+  const chartCall = parts.find(
+    (p) => p.type === "tool-call" && p.toolName === "renderChart",
+  );
+  if (!chartCall) return null;
+  return <Chart {...chartCall.args} />;
+}
+
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts />
+
+  <AuiIf
+    condition={(s) =>
+      s.message.role === "assistant" &&
+      s.message.status?.type === "complete"
+    }
+  >
+    <PostMessageCard />
+  </AuiIf>
+</MessagePrimitive.Root>;
+```
+
+The `AuiIf` predicate fires whenever the assistant state changes; children mount only when both checks pass. `PostMessageCard` then reads the captured tool-call part from `s.message.parts` and renders from its args.
+
+For the opposite pattern (showing partial data as it streams in), see [Field-Level Streaming State](#field-level-streaming-state) and [Partial Results & Streaming](#partial-results--streaming) below.
+
 ### Field-Level Streaming State
 
 Use `useToolArgsStatus` to react to per-field streaming state. The hook returns a `propStatus` map where each top-level key in the args object resolves from `"streaming"` to `"complete"` as the partial JSON arrives. Call it inside a tool-call message part context:
