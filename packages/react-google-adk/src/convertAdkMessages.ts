@@ -8,6 +8,7 @@ type ContentPart =
   | { type: "text"; text: string }
   | { type: "reasoning"; text: string }
   | { type: "image"; image: string }
+  | { type: "video"; url: string; mimeType?: string }
   | { type: "file"; data: string; mimeType: string; filename?: string }
   | { type: "data"; name: string; data: unknown };
 
@@ -30,6 +31,13 @@ const contentToParts = (content: AdkMessage["content"]): ContentPart[] => {
         case "image_url":
           return { type: "image", image: part.url };
         case "file":
+          if (part.mimeType.startsWith("video/")) {
+            return {
+              type: "video",
+              url: `data:${part.mimeType};base64,${part.data}`,
+              mimeType: part.mimeType,
+            };
+          }
           return {
             type: "file",
             data: part.data,
@@ -37,6 +45,13 @@ const contentToParts = (content: AdkMessage["content"]): ContentPart[] => {
             ...(part.filename != null && { filename: part.filename }),
           };
         case "file_url":
+          if (part.mimeType?.startsWith("video/")) {
+            return {
+              type: "video",
+              url: part.url,
+              mimeType: part.mimeType,
+            };
+          }
           return {
             type: "data",
             name: "file_url",

@@ -388,6 +388,81 @@ describe("useLangGraphRuntime", () => {
     expect(sentMessages?.[0]?.content?.[1]).not.toHaveProperty("file");
   });
 
+  it("serializes attachment video content as a URL-based LangGraph video block", async () => {
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const attachmentAdapter: AttachmentAdapter = {
+      accept: "video/mp4",
+      add: async ({ file }) => ({
+        id: "pending-video-1",
+        type: "document",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      remove: async () => {},
+      send: async (attachment) => ({
+        ...attachment,
+        status: { type: "complete" },
+        content: [
+          {
+            type: "video",
+            url: "https://example.com/video.mp4",
+            mimeType: attachment.contentType ?? "video/mp4",
+            filename: attachment.name,
+          },
+        ],
+      }),
+    };
+
+    const { result: runtimeResult } = renderHook(
+      () =>
+        useLangGraphRuntime({
+          stream: streamMock,
+          adapters: {
+            attachments: attachmentAdapter,
+          },
+        }),
+      {},
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+    await act(async () => {
+      await auiResult.current
+        .composer()
+        .addAttachment(
+          new File(["fake-video"], "video.mp4", { type: "video/mp4" }),
+        );
+      await auiResult.current.composer().send();
+    });
+
+    await waitFor(() => {
+      expect(streamMock).toHaveBeenCalledTimes(1);
+    });
+
+    const sentMessages = streamMock.mock.calls[0]?.[0];
+    expect(sentMessages).toMatchObject([
+      {
+        type: "human",
+        content: [
+          { type: "text", text: " " },
+          {
+            type: "video",
+            source_type: "url",
+            url: "https://example.com/video.mp4",
+            mime_type: "video/mp4",
+            metadata: { filename: "video.mp4" },
+          },
+        ],
+      },
+    ]);
+  });
+
   it("should use unstable_threadListAdapter in place of the cloud adapter", async () => {
     const list = vi.fn(async () => ({
       threads: [

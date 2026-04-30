@@ -23,6 +23,7 @@ import type {
 } from "./types";
 import {
   a2aMessageToContent,
+  contentPartsToA2AParts,
   isTerminalTaskState,
   taskStateToMessageStatus,
 } from "./conversions";
@@ -484,13 +485,7 @@ export class A2AThreadRuntimeCore {
     const parts: A2APart[] = [];
 
     if (message.role === "user") {
-      for (const part of message.content) {
-        if (part.type === "text") {
-          parts.push({ text: part.text });
-        } else if (part.type === "image") {
-          parts.push({ url: part.image, mediaType: "image/*" });
-        }
-      }
+      parts.push(...contentPartsToA2AParts(message.content));
     }
 
     const a2aMsg: A2AMessage = {

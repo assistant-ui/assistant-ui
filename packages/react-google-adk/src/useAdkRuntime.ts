@@ -47,6 +47,12 @@ export const getMessageContent = (msg: AppendMessage) => {
         return { type: "text" as const, text: part.text };
       case "image":
         return { type: "image_url" as const, url: part.image };
+      case "video":
+        return {
+          type: "file_url" as const,
+          url: part.url,
+          ...(part.mimeType != null && { mimeType: part.mimeType }),
+        };
       case "file":
         return {
           type: "file" as const,

@@ -208,4 +208,25 @@ describe("getMessageContent", () => {
       { type: "file", mimeType: "application/pdf", data: "AAAA" },
     ]);
   });
+
+  it("converts video URL parts to ADK file_url content", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "video",
+          url: "https://example.com/video.mp4",
+          mimeType: "video/mp4",
+          filename: "video.mp4",
+        },
+      ]),
+    );
+
+    expect(result).toEqual([
+      {
+        type: "file_url",
+        url: "https://example.com/video.mp4",
+        mimeType: "video/mp4",
+      },
+    ]);
+  });
 });

@@ -302,6 +302,36 @@ describe("convertLangChainMessages metadata", () => {
 });
 
 describe("convertLangChainMessages file content", () => {
+  it("converts URL-based video content blocks", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "human-video",
+      content: [
+        {
+          type: "video",
+          source_type: "url",
+          url: "https://example.com/video.mp4",
+          mime_type: "video/mp4",
+          metadata: {
+            filename: "video.mp4",
+          },
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "video",
+          url: "https://example.com/video.mp4",
+          mimeType: "video/mp4",
+          filename: "video.mp4",
+        },
+      ],
+    });
+  });
+
   it("converts legacy nested file content blocks", () => {
     const result = convertLangChainMessages({
       type: "human",

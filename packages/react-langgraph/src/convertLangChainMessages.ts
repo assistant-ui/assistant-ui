@@ -242,6 +242,15 @@ const contentToParts = (
                 image: part.image_url.url,
               };
             }
+          case "video":
+            return {
+              type: "video",
+              url: part.url,
+              ...(part.mime_type != null && { mimeType: part.mime_type }),
+              ...(part.metadata?.filename != null && {
+                filename: part.metadata.filename,
+              }),
+            };
           case "file":
             return contentFilePartToThreadPart(part);
 

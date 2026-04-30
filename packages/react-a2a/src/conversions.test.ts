@@ -30,6 +30,19 @@ describe("a2aPartToContent", () => {
     });
   });
 
+  it("converts A2A video URL parts to video content parts", () => {
+    const result = a2aPartToContent({
+      url: "https://cdn.example.com/video.mp4",
+      mediaType: "video/mp4",
+    });
+
+    expect(result).toEqual({
+      type: "video",
+      url: "https://cdn.example.com/video.mp4",
+      mimeType: "video/mp4",
+    });
+  });
+
   it("converts non-image URL as text link", () => {
     const part: A2APart = {
       url: "https://example.com/doc.pdf",
@@ -251,6 +264,20 @@ describe("contentPartsToA2AParts", () => {
     ]);
     expect(result).toEqual([
       { url: "https://img.com/a.png", mediaType: "image/*" },
+    ]);
+  });
+
+  it("converts video content parts to A2A URL parts", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "video",
+        url: "https://cdn.example.com/video.mp4",
+        mimeType: "video/mp4",
+      },
+    ]);
+
+    expect(result).toEqual([
+      { url: "https://cdn.example.com/video.mp4", mediaType: "video/mp4" },
     ]);
   });
 
