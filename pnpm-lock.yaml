@@ -2850,7 +2850,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.16
+        specifier: ^0.1.17
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.9
@@ -3195,7 +3195,7 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.16
+        specifier: ^0.1.17
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.9
@@ -3398,7 +3398,7 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.15
+        specifier: ^0.1.17
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.8
