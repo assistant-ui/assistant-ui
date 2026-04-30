@@ -84,7 +84,7 @@ import { MessagePrimitive } from "@assistant-ui/react";
 </MessagePrimitive.Root>
 ```
 
-`Root` renders a `<div>` that provides message context and tracks hover state. `Parts` iterates over the message's content parts and renders each one. Without custom components, parts render with sensible defaults: `Text` renders a `<p>` with `white-space: pre-line` and a streaming indicator, `Image` renders via `MessagePartPrimitive.Image`, and tool calls render nothing unless a tool UI is registered globally or inline. Reasoning, source, file, and audio parts render nothing by default.
+`Root` renders a `<div>` that provides message context and tracks hover state. `Parts` iterates over the message's content parts and renders each one. Without custom components, parts render with sensible defaults: `Text` renders a `<p>` with `white-space: pre-line` and a streaming indicator, `Image` renders via `MessagePartPrimitive.Image`, `Video` renders via `MessagePartPrimitive.Video`, and tool calls render nothing unless a tool UI is registered globally or inline. Reasoning, source, file, and audio parts render nothing by default.
 
 <Callout type="info">
 Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
@@ -101,6 +101,7 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
   {({ part }) => {
     if (part.type === "text") return <MyTextRenderer />;
     if (part.type === "image") return <MyImageRenderer />;
+    if (part.type === "video") return <MyVideoRenderer />;
     if (part.type === "tool-call")
       return part.toolUI ?? <GenericToolUI {...part} />;
     return null;
@@ -160,6 +161,7 @@ Returning `null` still allows registered tool UIs and data renderer UIs to rende
       </p>
     ),
     Image: () => <MessagePartPrimitive.Image className="max-w-sm rounded-xl" />,
+    Video: () => <MessagePartPrimitive.Video className="max-w-sm rounded-xl" />,
     File: () => <div className="rounded-md border px-2 py-1 text-xs">File part</div>,
     tools: {
       by_name: {
@@ -200,6 +202,7 @@ Inside your custom part components, use these sub-primitives to access the actua
 
 - **`MessagePartPrimitive.Text`**: renders the text content of a text part
 - **`MessagePartPrimitive.Image`**: renders the image of an image part
+- **`MessagePartPrimitive.Video`**: renders the video of a video part
 - **`MessagePartPrimitive.InProgress`**: renders only while the part is still streaming
 
 ```tsx

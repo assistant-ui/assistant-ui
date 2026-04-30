@@ -1,0 +1,145 @@
+---
+title: Video
+description: Display video message parts with playback controls, poster support, and download action.
+platforms: ["react"]
+---
+
+import { VideoSample } from "@/components/docs/samples/video";
+
+<VideoSample />
+
+<Callout type="info">
+  assistant-ui renders completed video URLs. Your application or backend owns
+  video generation, storage, polling, and provider-specific integration.
+</Callout>
+
+The preview above lists the remote sample video first and a local docs asset as
+the fallback source so the showcase can still play if the remote host is
+unavailable.
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `video`
+
+<InstallCommand shadcn={["video"]} />
+
+  </Step>
+  <Step>
+
+### Use in your application
+
+Pass `Video` to `MessagePrimitive.Parts`:
+
+```tsx title="/components/assistant-ui/thread.tsx" {1,8}
+import { Video } from "@/components/assistant-ui/video";
+
+const AssistantMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root className="...">
+      <MessagePrimitive.Parts>
+        {({ part }) => {
+          if (part.type === "video") return <Video {...part} />;
+          return null;
+        }}
+      </MessagePrimitive.Parts>
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+  </Step>
+</Steps>
+
+## Emitting Video Parts
+
+Return a video message part from your runtime, adapter, tool, or backend route:
+
+```ts
+return {
+  content: [
+    {
+      type: "video",
+      url: "https://cdn.example.com/videos/output.mp4",
+      mimeType: "video/mp4",
+      filename: "output.mp4",
+      posterUrl: "https://cdn.example.com/videos/output-poster.jpg",
+    },
+  ],
+};
+```
+
+Use durable `https:` or app-relative URLs for persisted conversations. `blob:`
+URLs are useful for local previews, but they do not survive reloads.
+
+## Variants
+
+Use the `variant` prop to change the visual style.
+
+```tsx
+<Video.Root variant="outline" /> // Border (default)
+<Video.Root variant="ghost" />   // No border
+<Video.Root variant="muted" />   // Background fill
+```
+
+## Sizes
+
+Use the `size` prop to control the maximum width.
+
+```tsx
+<Video.Root size="sm" />      // max-w-64 (256px)
+<Video.Root size="default" /> // max-w-96 (384px)
+<Video.Root size="lg" />      // max-w-[512px]
+<Video.Root size="full" />    // w-full
+```
+
+## API Reference
+
+### Composable API
+
+The component exports composable sub-components:
+
+```tsx
+import {
+  VideoDownload,
+  VideoFilename,
+  VideoOverlay,
+  VideoPlayer,
+  VideoRoot,
+  VideoZoom,
+} from "@/components/assistant-ui/video";
+
+<VideoRoot variant="muted" size="lg">
+  <VideoZoom
+    src="https://example.com/video.mp4"
+    poster="https://example.com/poster.jpg"
+  >
+    <VideoPlayer
+      src="https://example.com/video.mp4"
+      poster="https://example.com/poster.jpg"
+    />
+  </VideoZoom>
+  <VideoDownload url="https://example.com/video.mp4" filename="video.mp4" />
+  <VideoOverlay>
+    <VideoFilename>video.mp4</VideoFilename>
+  </VideoOverlay>
+</VideoRoot>
+```
+
+| Component | Description |
+|-----------|-------------|
+| `Video` | Default export, renders complete video part |
+| `Video.Root` | Container with variant and size styling |
+| `Video.Player` | Video player with controls, metadata preload, poster support, and error state |
+| `Video.Poster` | Standalone poster image or placeholder |
+| `Video.Filename` | Optional filename display |
+| `Video.Download` | Download link button |
+| `Video.Overlay` | Optional overlay region for labels or actions |
+| `Video.Zoom` | Expand button and fullscreen-style video overlay |
+
+## Related Components
+
+- [Image](/docs/ui/image) - Image message parts
+- [File](/docs/ui/file) - Non-video file message parts
