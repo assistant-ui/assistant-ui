@@ -1,6 +1,7 @@
 {
   "pages": [
     "(docs)",
+    "guides",
     "primitives",
     "ui",
     "runtimes",

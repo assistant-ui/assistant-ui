@@ -1,5 +1,9 @@
 {
   "title": "Guides",
+  "description": "Practical patterns for building features with assistant-ui",
+  "icon": "Lightbulb",
+  "root": true,
+  "platforms": ["react"],
   "pages": [
     "attachments",
     "branching",
