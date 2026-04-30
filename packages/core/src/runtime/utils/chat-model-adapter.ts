@@ -7,6 +7,7 @@ import type {
   ThreadMessage,
   ThreadStep,
   ToolCallMessagePart,
+  VideoMessagePart,
 } from "../../types/message";
 import type {
   MessageTiming,
@@ -41,6 +42,7 @@ export type CoreChatModelRunResult = Omit<ChatModelRunResult, "content"> & {
     | ToolCallMessagePart
     | SourceMessagePart
     | FileMessagePart
+    | VideoMessagePart
   )[];
 };
 

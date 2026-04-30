@@ -60,6 +60,8 @@ type MessagePartLike = {
   type: string;
   text?: string;
   image?: string;
+  url?: string;
+  filename?: string;
   data?: string;
   mimeType?: string;
   toolCallId?: string;
@@ -95,6 +97,14 @@ const IMAGE_MEDIA_TYPES: Record<string, string> = {
   heif: "image/heif",
 };
 
+const VIDEO_MEDIA_TYPES: Record<string, string> = {
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+  m4v: "video/x-m4v",
+  ogv: "video/ogg",
+};
+
 function inferImageMediaType(url: string): string {
   // Handle data URLs: data:[<mediatype>][;base64],<data>
   if (url.startsWith("data:")) {
@@ -106,6 +116,14 @@ function inferImageMediaType(url: string): string {
   const [pathWithoutParams = ""] = url.split(/[?#]/);
   const ext = pathWithoutParams.split(".").pop()?.toLowerCase() ?? "";
   return IMAGE_MEDIA_TYPES[ext] ?? "image/png";
+}
+
+function inferVideoMediaType(part: MessagePartLike): string {
+  if (part.mimeType?.startsWith("video/")) return part.mimeType;
+  const value = part.url ?? part.filename ?? "";
+  const [pathWithoutParams = ""] = value.split(/[?#]/);
+  const ext = pathWithoutParams.split(".").pop()?.toLowerCase() ?? "";
+  return VIDEO_MEDIA_TYPES[ext] ?? "video/mp4";
 }
 
 function toUrlOrString(value: string): string | URL {
@@ -194,6 +212,12 @@ function convertUserMessage(
         type: "file",
         data: toUrlOrString(part.image),
         mediaType: inferImageMediaType(part.image),
+      });
+    } else if (part.type === "video" && part.url) {
+      content.push({
+        type: "file",
+        data: toUrlOrString(part.url),
+        mediaType: inferVideoMediaType(part),
       });
     } else if (part.type === "file" && part.data && part.mimeType) {
       content.push({

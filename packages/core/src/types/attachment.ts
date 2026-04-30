@@ -25,7 +25,7 @@ export type AttachmentStatus =
 
 type BaseAttachment = {
   id: string;
-  type: "image" | "document" | "file" | (string & {});
+  type: "image" | "video" | "document" | "file" | (string & {});
   name: string;
   contentType?: string | undefined;
   file?: File;
@@ -46,7 +46,7 @@ export type Attachment = PendingAttachment | CompleteAttachment;
 
 export type CreateAttachment = {
   id?: string;
-  type?: "image" | "document" | "file" | (string & {});
+  type?: "image" | "video" | "document" | "file" | (string & {});
   name: string;
   contentType?: string;
   content: ThreadUserMessagePart[];

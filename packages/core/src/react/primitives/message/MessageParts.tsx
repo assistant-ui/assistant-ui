@@ -23,6 +23,7 @@ import type {
   EmptyMessagePartComponent,
   TextMessagePartComponent,
   ImageMessagePartComponent,
+  VideoMessagePartComponent,
   SourceMessagePartComponent,
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
@@ -172,6 +173,8 @@ export namespace MessagePrimitiveParts {
     Source?: SourceMessagePartComponent | undefined;
     /** Component for rendering image content */
     Image?: ImageMessagePartComponent | undefined;
+    /** Component for rendering video content */
+    Video?: VideoMessagePartComponent | undefined;
     /** Component for rendering file content */
     File?: FileMessagePartComponent | undefined;
     /** Component for rendering audio content (experimental) */
@@ -347,6 +350,7 @@ export const defaultComponents = {
   Reasoning: () => null,
   Source: () => null,
   Image: () => null,
+  Video: () => null,
   File: () => null,
   Unstable_Audio: () => null,
   ToolGroup: ({ children }: PropsWithChildren) => children,
@@ -362,6 +366,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     Text = defaultComponents.Text,
     Reasoning = defaultComponents.Reasoning,
     Image = defaultComponents.Image,
+    Video = defaultComponents.Video,
     Source = defaultComponents.Source,
     File = defaultComponents.File,
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
@@ -414,6 +419,9 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
 
     case "image":
       return <Image {...part} />;
+
+    case "video":
+      return <Video {...part} />;
 
     case "file":
       return <File {...part} />;
@@ -480,6 +488,7 @@ export const MessagePrimitivePartByIndex: FC<MessagePrimitivePartByIndex.Props> 
       prev.components?.Reasoning === next.components?.Reasoning &&
       prev.components?.Source === next.components?.Source &&
       prev.components?.Image === next.components?.Image &&
+      prev.components?.Video === next.components?.Video &&
       prev.components?.File === next.components?.File &&
       prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
       prev.components?.tools === next.components?.tools &&

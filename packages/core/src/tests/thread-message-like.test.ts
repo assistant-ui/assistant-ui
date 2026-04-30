@@ -110,4 +110,87 @@ describe("fromThreadMessageLike", () => {
       ).toThrow("Unsupported user message part type: tool-call");
     });
   });
+
+  describe("video parts", () => {
+    it("normalizes assistant video parts", () => {
+      const message = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "video",
+              url: "https://cdn.example.com/output.mp4",
+              mimeType: "video/mp4",
+              filename: "output.mp4",
+              posterUrl: "https://cdn.example.com/poster.jpg",
+              width: 1280,
+              height: 720,
+              durationSeconds: 4,
+              providerMetadata: { model: "example" },
+              parentId: "tool_1",
+            },
+          ],
+        },
+        "msg_1",
+        { type: "complete", reason: "unknown" },
+      );
+
+      expect(message.content[0]).toEqual({
+        type: "video",
+        url: "https://cdn.example.com/output.mp4",
+        mimeType: "video/mp4",
+        filename: "output.mp4",
+        posterUrl: "https://cdn.example.com/poster.jpg",
+        width: 1280,
+        height: 720,
+        durationSeconds: 4,
+        providerMetadata: { model: "example" },
+        parentId: "tool_1",
+      });
+    });
+
+    it("normalizes user video parts and video attachment content", () => {
+      const message = fromThreadMessageLike(
+        {
+          role: "user",
+          content: [
+            {
+              type: "video",
+              url: "/api/videos/vid_123",
+              mimeType: "video/mp4",
+            },
+          ],
+          attachments: [
+            {
+              id: "att_1",
+              type: "video",
+              name: "output.mp4",
+              contentType: "video/mp4",
+              status: { type: "complete" },
+              content: [
+                {
+                  type: "video",
+                  url: "https://cdn.example.com/output.mp4",
+                  mimeType: "video/mp4",
+                  filename: "output.mp4",
+                },
+              ],
+            },
+          ],
+        },
+        "msg_1",
+        { type: "complete", reason: "unknown" },
+      );
+
+      expect(message.content[0]).toMatchObject({
+        type: "video",
+        url: "/api/videos/vid_123",
+      });
+      if (message.role !== "user") throw new Error("Expected a user message");
+      expect(message.attachments[0]?.content[0]).toMatchObject({
+        type: "video",
+        url: "https://cdn.example.com/output.mp4",
+      });
+    });
+  });
 });

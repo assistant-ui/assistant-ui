@@ -11,6 +11,7 @@ import type {
   TextMessagePart,
   ToolCallMessagePart,
   Unstable_AudioMessagePart,
+  VideoMessagePart,
   QuoteInfo,
 } from "../..";
 import type { MessagePartState } from "../..";
@@ -39,6 +40,9 @@ export type SourceMessagePartComponent = ComponentType<SourceMessagePartProps>;
 
 export type ImageMessagePartProps = MessagePartState & ImageMessagePart;
 export type ImageMessagePartComponent = ComponentType<ImageMessagePartProps>;
+
+export type VideoMessagePartProps = MessagePartState & VideoMessagePart;
+export type VideoMessagePartComponent = ComponentType<VideoMessagePartProps>;
 
 export type FileMessagePartProps = MessagePartState & FileMessagePart;
 export type FileMessagePartComponent = ComponentType<FileMessagePartProps>;

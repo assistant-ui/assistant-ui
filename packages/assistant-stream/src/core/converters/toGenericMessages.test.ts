@@ -117,6 +117,68 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("converts user video URL parts to generic file parts", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "video",
+              url: "https://cdn.example.com/output.mp4",
+              mimeType: "video/mp4",
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL("https://cdn.example.com/output.mp4"),
+              mediaType: "video/mp4",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("converts video attachment content to generic file parts", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [{ type: "text", text: "Watch this" }],
+          attachments: [
+            {
+              content: [
+                {
+                  type: "video",
+                  url: "/api/videos/vid_123",
+                  filename: "output.mp4",
+                },
+              ],
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Watch this" },
+            {
+              type: "file",
+              data: "/api/videos/vid_123",
+              mediaType: "video/mp4",
+            },
+          ],
+        },
+      ]);
+    });
+
     it("handles attachments", () => {
       const result = toGenericMessages([
         {

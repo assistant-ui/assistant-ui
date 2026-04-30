@@ -15,6 +15,7 @@ export type {
   SourceProviderMetadata,
   SourceMessagePart,
   ImageMessagePart,
+  VideoMessagePart,
   FileMessagePart,
   DataMessagePart,
   GenerativeUIMessagePart,

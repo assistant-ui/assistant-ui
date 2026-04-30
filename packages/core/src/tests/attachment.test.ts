@@ -67,6 +67,34 @@ describe("partToCompleteAttachment", () => {
     expect(result.name).toBe("image");
   });
 
+  it("converts a video part to a complete video attachment", () => {
+    const result = partToCompleteAttachment({
+      type: "video",
+      url: "https://cdn.example.com/output.mp4",
+      mimeType: "video/mp4",
+      filename: "output.mp4",
+    });
+
+    expect(result.type).toBe("video");
+    expect(result.name).toBe("output.mp4");
+    expect(result.contentType).toBe("video/mp4");
+    expect(result.content[0]).toMatchObject({
+      type: "video",
+      url: "https://cdn.example.com/output.mp4",
+    });
+  });
+
+  it("falls back to video name and content type defaults for video parts", () => {
+    const result = partToCompleteAttachment({
+      type: "video",
+      url: "/api/videos/vid_123",
+    });
+
+    expect(result.type).toBe("video");
+    expect(result.name).toBe("video");
+    expect(result.contentType).toBe("video/mp4");
+  });
+
   it("converts a file part to a document attachment with contentType", () => {
     const result = partToCompleteAttachment({
       type: "file",

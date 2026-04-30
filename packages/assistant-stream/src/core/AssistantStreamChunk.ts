@@ -1,4 +1,7 @@
-import type { ReadonlyJSONValue } from "../utils/json/json-value";
+import type {
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "../utils/json/json-value";
 import type { ObjectStreamOperation } from "./object/types";
 import type { ToolModelContentPart } from "./tool/tool-types";
 
@@ -31,6 +34,18 @@ export type PartInit =
       readonly type: "file";
       readonly data: string;
       readonly mimeType: string;
+      readonly parentId?: string;
+    }
+  | {
+      readonly type: "video";
+      readonly url: string;
+      readonly mimeType?: string;
+      readonly filename?: string;
+      readonly posterUrl?: string;
+      readonly width?: number;
+      readonly height?: number;
+      readonly durationSeconds?: number;
+      readonly providerMetadata?: ReadonlyJSONObject;
       readonly parentId?: string;
     }
   | {
