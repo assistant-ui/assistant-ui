@@ -18,15 +18,16 @@ import {
   PROJECT_FACTS,
   TIMELINE_PACKAGES,
   daysSince,
+  fetchCommitActivity,
   fetchContributors,
-  fetchDependents,
   fetchNpmDownloads,
-  fetchRepoStats,
+  fetchReleaseActivity,
   fetchStarHistory,
   fetchTimelineSeries,
-  formatCompact,
-  formatNumber,
 } from "@/lib/traction";
+import { getDependents, getRepo } from "@/lib/github";
+import { formatCompact, formatNumber } from "@/lib/format";
+import { ActivityHeatmap } from "@/components/traction/activity-heatmap";
 import { DownloadsChart } from "@/components/traction/downloads-chart";
 import { StarHistoryChart } from "@/components/traction/star-history-chart";
 import { WeeklyDownloadsStat } from "@/components/traction/weekly-downloads-stat";
@@ -53,16 +54,25 @@ type HeroStat = {
 const FLAGSHIP_PACKAGE = "@assistant-ui/react";
 
 export default async function TractionPage() {
-  const repo = await fetchRepoStats();
+  const repo = await getRepo();
 
-  const [npm, starHistory, downloadsTimeline, contributors, dependents] =
-    await Promise.all([
-      fetchNpmDownloads(),
-      fetchStarHistory(repo.stars),
-      fetchTimelineSeries(TIMELINE_PACKAGES),
-      fetchContributors(),
-      fetchDependents(),
-    ]);
+  const [
+    npm,
+    starHistory,
+    downloadsTimeline,
+    contributors,
+    dependents,
+    commitActivity,
+    releaseActivity,
+  ] = await Promise.all([
+    fetchNpmDownloads(),
+    fetchStarHistory(repo.stars),
+    fetchTimelineSeries(TIMELINE_PACKAGES),
+    fetchContributors(),
+    getDependents(),
+    fetchCommitActivity(),
+    fetchReleaseActivity(),
+  ]);
 
   const days = daysSince(PROJECT_FACTS.firstCommitDate);
   const flagshipWeekly = npm.perPackage[FLAGSHIP_PACKAGE]?.weekly ?? 0;
@@ -220,12 +230,25 @@ export default async function TractionPage() {
               Ecosystem downloads
             </h2>
             <p className="text-muted-foreground text-sm">
-              Monthly npm downloads, stacked across the{" "}
-              {TIMELINE_PACKAGES.length} core packages.
+              Monthly npm downloads for the {TIMELINE_PACKAGES.length} core
+              packages.
             </p>
           </div>
           <DownloadsChart timeline={downloadsTimeline} />
         </div>
+      </section>
+
+      <section className="mb-20 flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h2 className="font-medium text-xl tracking-tight">
+            Shipping cadence
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            Daily commits over the last year. Cells with a ring mark the days we
+            shipped a release.
+          </p>
+        </div>
+        <ActivityHeatmap commits={commitActivity} releases={releaseActivity} />
       </section>
 
       <section className="mb-20">
