@@ -2,12 +2,11 @@
 
 import {
   memo,
-  useEffect,
   useState,
   type ComponentProps,
   type PropsWithChildren,
 } from "react";
-import { createPortal } from "react-dom";
+import { Dialog as DialogPrimitive } from "radix-ui";
 import { cva, type VariantProps } from "class-variance-authority";
 import {
   DownloadIcon,
@@ -18,9 +17,6 @@ import {
 } from "lucide-react";
 import type { VideoMessagePartComponent } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
-
-let videoZoomLockCount = 0;
-let originalBodyOverflow: string | undefined;
 
 const videoVariants = cva(
   "aui-video-root relative overflow-hidden rounded-lg",
@@ -229,90 +225,55 @@ function VideoZoom({
   sources,
   children,
 }: VideoZoomProps) {
-  const [isMounted, setIsMounted] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  const handleOpen = () => setIsOpen(true);
-  const handleClose = () => setIsOpen(false);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsOpen(false);
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    if (videoZoomLockCount === 0) {
-      originalBodyOverflow = document.body.style.overflow;
-    }
-    videoZoomLockCount += 1;
-    document.body.style.overflow = "hidden";
-    return () => {
-      videoZoomLockCount -= 1;
-      if (videoZoomLockCount === 0) {
-        document.body.style.overflow = originalBodyOverflow ?? "";
-        originalBodyOverflow = undefined;
-      }
-    };
-  }, [isOpen]);
-
   return (
-    <>
+    <DialogPrimitive.Root>
       {children}
-      <button
-        type="button"
-        data-slot="video-zoom-trigger"
-        className="absolute end-12 top-2 inline-flex size-8 items-center justify-center rounded-md bg-background/80 text-foreground shadow-sm backdrop-blur hover:bg-background"
-        aria-label="Expand video"
-        onClick={handleOpen}
-      >
-        <Maximize2Icon className="size-4" />
-      </button>
-      {isMounted &&
-        isOpen &&
-        createPortal(
-          <div
-            data-slot="video-zoom-overlay"
-            role="dialog"
-            aria-modal="true"
-            className="aui-video-zoom-overlay fade-in fixed inset-0 z-50 flex animate-in items-center justify-center bg-black/80 p-4 duration-200"
-            aria-label="Expanded video"
+      <DialogPrimitive.Trigger asChild>
+        <button
+          type="button"
+          data-slot="video-zoom-trigger"
+          className="absolute end-12 top-2 inline-flex size-8 items-center justify-center rounded-md bg-background/80 text-foreground shadow-sm backdrop-blur hover:bg-background"
+          aria-label="Expand video"
+        >
+          <Maximize2Icon className="size-4" />
+        </button>
+      </DialogPrimitive.Trigger>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay
+          data-slot="video-zoom-overlay"
+          className="aui-video-zoom-overlay data-[state=closed]:fade-out data-[state=open]:fade-in fixed inset-0 z-50 bg-black/80 duration-200 data-[state=closed]:animate-out data-[state=open]:animate-in"
+        />
+        <DialogPrimitive.Content
+          data-slot="video-zoom-content-wrapper"
+          aria-label={label}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 outline-none"
+        >
+          <DialogPrimitive.Title className="sr-only">
+            {label}
+          </DialogPrimitive.Title>
+          <DialogPrimitive.Close
+            data-slot="video-zoom-close"
+            className="absolute top-4 right-4 inline-flex size-9 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm backdrop-blur hover:bg-background"
+            aria-label="Close expanded video"
           >
-            <button
-              type="button"
-              data-slot="video-zoom-close"
-              className="absolute top-4 right-4 inline-flex size-9 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm backdrop-blur hover:bg-background"
-              aria-label="Close expanded video"
-              onClick={handleClose}
-            >
-              <XIcon className="size-4" />
-            </button>
-            {/* biome-ignore lint/a11y/useMediaCaption: videos may be generated content without captions */}
-            <video
-              data-slot="video-zoom-content"
-              src={src}
-              poster={poster}
-              controls
-              autoPlay
-              className="aui-video-zoom-content fade-in zoom-in-95 max-h-[90vh] max-w-[90vw] animate-in bg-black object-contain duration-200"
-              aria-label={label}
-            >
-              {sources?.map((source) => (
-                <source key={source.src} src={source.src} type={source.type} />
-              ))}
-            </video>
-          </div>,
-          document.body,
-        )}
-    </>
+            <XIcon className="size-4" />
+          </DialogPrimitive.Close>
+          {/* biome-ignore lint/a11y/useMediaCaption: videos may be generated content without captions */}
+          <video
+            data-slot="video-zoom-content"
+            src={src}
+            poster={poster}
+            controls
+            autoPlay
+            className="aui-video-zoom-content data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=open]:fade-in data-[state=open]:zoom-in-95 max-h-[90vh] max-w-[90vw] bg-black object-contain duration-200 data-[state=closed]:animate-out data-[state=open]:animate-in"
+          >
+            {sources?.map((source) => (
+              <source key={source.src} src={source.src} type={source.type} />
+            ))}
+          </video>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 
