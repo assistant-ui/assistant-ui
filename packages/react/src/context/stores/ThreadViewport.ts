@@ -83,8 +83,8 @@ export type ThreadViewportState = {
 
   /** Numeric clamp configuration for the active top-anchor target message */
   readonly targetConfig: {
-    tallerThan: number;
-    visibleHeight: number;
+    readonly tallerThan: number;
+    readonly visibleHeight: number;
   } | null;
 
   /** Register a viewport and get a handle to update its height */
@@ -108,7 +108,7 @@ export type ThreadViewportState = {
    */
   readonly registerAnchorTargetElement: (
     element: HTMLElement | null,
-    config?: { tallerThan: number; visibleHeight: number },
+    config?: { readonly tallerThan: number; readonly visibleHeight: number },
   ) => Unsubscribe;
 };
 
