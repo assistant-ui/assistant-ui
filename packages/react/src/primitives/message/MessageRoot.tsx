@@ -10,7 +10,7 @@ import {
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { useThreadViewport } from "../../context/react/ThreadViewportContext";
+import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 import { parseCssLength } from "../thread/topAnchor/topAnchorUtils";
 
 const useIsHoveringRef = () => {
@@ -51,10 +51,12 @@ const useIsHoveringRef = () => {
  * (second-to-last message after the first turn, with the last being an
  * assistant response).
  */
-const useIsTopAnchorUser = (turnAnchor: "top" | "bottom") => {
+const useIsTopAnchorUser = () => {
+  const threadViewportStore = useThreadViewportStore();
+
   return useAuiState(
     (s) =>
-      turnAnchor === "top" &&
+      threadViewportStore.getState().turnAnchor === "top" &&
       s.message.role === "user" &&
       s.message.index > 0 &&
       s.message.index === s.thread.messages.length - 2 &&
@@ -66,10 +68,12 @@ const useIsTopAnchorUser = (turnAnchor: "top" | "bottom") => {
  * Predicate: this assistant message is the streaming response paired with the
  * preceding user message under top-turn anchoring.
  */
-const useIsTopAnchorTarget = (turnAnchor: "top" | "bottom") => {
+const useIsTopAnchorTarget = () => {
+  const threadViewportStore = useThreadViewportStore();
+
   return useAuiState(
     (s) =>
-      turnAnchor === "top" &&
+      threadViewportStore.getState().turnAnchor === "top" &&
       s.message.isLast &&
       s.message.role === "assistant" &&
       s.message.index >= 1 &&
@@ -79,16 +83,14 @@ const useIsTopAnchorTarget = (turnAnchor: "top" | "bottom") => {
 
 /** Registers the user message as the top-anchor user reference element. */
 const useTopAnchorUserRef = (active: boolean) => {
-  const registerAnchorElement = useThreadViewport(
-    (s) => s.registerAnchorElement,
-  );
+  const threadViewportStore = useThreadViewportStore();
 
   const callback = useCallback(
     (el: HTMLElement) => {
       if (!active) return;
-      return registerAnchorElement(el);
+      return threadViewportStore.getState().registerAnchorElement(el);
     },
-    [active, registerAnchorElement],
+    [active, threadViewportStore],
   );
 
   return useManagedRef<HTMLElement>(callback);
@@ -108,19 +110,17 @@ const useTopAnchorTargetRef = ({
   fillClampThreshold: string;
   fillClampOffset: string;
 }) => {
-  const registerAnchorTargetElement = useThreadViewport(
-    (s) => s.registerAnchorTargetElement,
-  );
+  const threadViewportStore = useThreadViewportStore();
 
   const targetRefCallback = useCallback(
     (el: HTMLElement) => {
       if (!active) return;
-      return registerAnchorTargetElement(el, {
+      return threadViewportStore.getState().registerAnchorTargetElement(el, {
         fillClampThreshold: parseCssLength(fillClampThreshold, el),
         fillClampOffset: parseCssLength(fillClampOffset, el),
       });
     },
-    [active, fillClampOffset, fillClampThreshold, registerAnchorTargetElement],
+    [active, fillClampOffset, fillClampThreshold, threadViewportStore],
   );
 
   return useManagedRef<HTMLElement>(targetRefCallback);
@@ -178,9 +178,8 @@ export const MessagePrimitiveRoot = forwardRef<
     forwardRef,
   ) => {
     const isHoveringRef = useIsHoveringRef();
-    const turnAnchor = useThreadViewport((s) => s.turnAnchor);
-    const isTopAnchorUser = useIsTopAnchorUser(turnAnchor);
-    const isTopAnchorTarget = useIsTopAnchorTarget(turnAnchor);
+    const isTopAnchorUser = useIsTopAnchorUser();
+    const isTopAnchorTarget = useIsTopAnchorTarget();
     const topAnchorUserRef = useTopAnchorUserRef(isTopAnchorUser);
     const topAnchorTargetRef = useTopAnchorTargetRef({
       active: isTopAnchorTarget,

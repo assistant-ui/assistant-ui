@@ -12,8 +12,11 @@ import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useThreadViewportAutoScroll } from "./useThreadViewportAutoScroll";
 import { ThreadPrimitiveViewportProvider } from "../../context/providers/ThreadViewportProvider";
 import { useSizeHandle } from "../../utils/hooks/useSizeHandle";
-import { useThreadViewport } from "../../context/react/ThreadViewportContext";
-import { ThreadPrimitiveViewportTopAnchorReserve } from "./ThreadViewportTopAnchorReserve";
+import {
+  useThreadViewport,
+  useThreadViewportStore,
+} from "../../context/react/ThreadViewportContext";
+import { useTopAnchorReserve } from "./topAnchor/useTopAnchorReserve";
 
 export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -93,6 +96,8 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     });
     const viewportSizeRef = useViewportSizeRef();
     const viewportElementRef = useViewportElementRef();
+    const threadViewportStore = useThreadViewportStore();
+    useTopAnchorReserve(threadViewportStore.getState().turnAnchor === "top");
     const ref = useComposedRefs(
       forwardedRef,
       autoScrollRef,
@@ -103,7 +108,6 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     return (
       <Primitive.div {...rest} ref={ref}>
         {children}
-        <ThreadPrimitiveViewportTopAnchorReserve />
       </Primitive.div>
     );
   },

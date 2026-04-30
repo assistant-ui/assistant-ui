@@ -9,11 +9,11 @@ import { mountTopAnchorReserve } from "./mountTopAnchorReserve";
  * `ThreadViewport` store. Call this from inside the scrollable viewport so
  * the reserve `<div>` is appended next to the streaming assistant message.
  */
-export const useTopAnchorReserve = () => {
+export const useTopAnchorReserve = (enabled: boolean) => {
   const threadViewportStore = useThreadViewportStore({ optional: true });
 
   useLayoutEffect(() => {
-    if (!threadViewportStore) return;
+    if (!enabled || !threadViewportStore) return;
     return mountTopAnchorReserve(threadViewportStore);
-  }, [threadViewportStore]);
+  }, [enabled, threadViewportStore]);
 };
