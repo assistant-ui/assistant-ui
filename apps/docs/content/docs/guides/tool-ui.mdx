@@ -506,6 +506,10 @@ render: ({ status, args }) => {
 
 ### Deferred Rendering
 
+<Callout type="info">
+This section applies when the model **drives** the component through a tool call (args arrive incrementally and you want to wait for the final shape). If your backend or orchestrator pushes the component instead, prefer [Data-Part Generative UI](#data-part-generative-ui) with `makeAssistantDataUI`. Data parts arrive as terminal events, so the renderer only fires once with the final data, no deferred rendering needed.
+</Callout>
+
 Sometimes you want to capture a tool call's streaming arguments but only render the final UI once the call completes. This is useful when partial args would render misleading or jarring intermediate states (a chart that flashes through half-populated data), when the component is expensive to mount (heavy visualizations, embedded iframes, third-party widgets), or when the model controls *whether* the component appears at all.
 
 #### Inline at the end of streaming
@@ -526,6 +530,8 @@ const ChartToolUI = makeAssistantToolUI<
 ```
 
 The chart mounts once, with the final args, after streaming finishes. No re-renders during the stream.
+
+The same `render` shape works inside the [`Tools()`](/docs/guides/tools) toolkit's `render` field, with `useAssistantToolUI`, and with `MessagePrimitive.Parts`'s inline `tools.by_name` overrides. The deferred-rendering pattern applies regardless of how you registered the tool UI.
 
 #### Below the message body
 
@@ -811,6 +817,13 @@ const WeatherUI = makeAssistantToolUI({
 ## Data-Part Generative UI
 
 Alongside tool-call rendering, assistant-ui supports a second generative UI mechanism based on `DataMessagePart`. Instead of attaching UI to a tool invocation, the backend (or the LangGraph graph) emits named data events that are appended as `{ type: "data", name, data }` parts on the parent assistant message.
+
+**When to choose which:**
+
+- **Tool UI**: the **model** decides what to render by calling a tool whose args become the component's data. Register the renderer via the [`Tools()`](/docs/guides/tools) toolkit's `render` field (recommended), or standalone with `makeAssistantToolUI` / `useAssistantToolUI` when the tool itself is defined elsewhere (backend, MCP, LangGraph). Args stream incrementally, so you observe partial state via `status` / `useToolArgsStatus` and may need [Deferred Rendering](#deferred-rendering) for components that should only mount with final data.
+- **Data UI** (`makeAssistantDataUI`): the **backend or orchestrator** decides what to render and pushes a named data event onto the assistant message. Data parts arrive as terminal events with no streaming partials, so the renderer naturally fires once with the final data.
+
+If you want a component to appear only after the message is complete and you control the backend, Data UI is usually the more direct fit; reach for Tool UI's deferred pattern when the model itself must drive the choice.
 
 Use `makeAssistantDataUI` to register a renderer for a named data part:
 
