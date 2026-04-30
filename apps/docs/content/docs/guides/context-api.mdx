@@ -498,7 +498,7 @@ const isRunning = useAuiState((s) => s.thread.isRunning);
 
 | Scope          | Key State Properties                                                                             | Description                                        |
 | -------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| ThreadList     | `mainThreadId`, `newThreadId`, `threadIds`, `archivedThreadIds`, `isLoading`, `threadItems` (Record\<string, ThreadListItemState\>) | Manages all available conversation threads |
+| ThreadList     | `mainThreadId`, `newThreadId`, `threadIds`, `archivedThreadIds`, `isLoading`, `threadItems` (`readonly ThreadListItemState[]`) | Manages all available conversation threads |
 | ThreadListItem | `id`, `title`, `status`, `remoteId`, `externalId`, `custom?: Record<string, unknown>`           | Individual thread metadata and status; `custom` carries arbitrary per-thread metadata set by remote runtimes |
 | Thread         | `isRunning` (may be explicitly set by the runtime rather than derived from last-message status), `isLoading`, `isDisabled`, `isEmpty`, `messages`, `capabilities`, `suggestions` | Active conversation state and message history |
 | Message        | `role`, `content`, `status`, `attachments`, `parts`, `parentId`, `branchNumber`, `branchCount`, `isLast`, `index` | Individual message content and metadata |

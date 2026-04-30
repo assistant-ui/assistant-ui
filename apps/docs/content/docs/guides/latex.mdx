@@ -148,5 +148,5 @@ function normalizeCustomMathTags(input: string): string {
 ```
 
 <Callout type="tip">
-Both `preprocess` and `useSmooth` run before markdown parsing inside `MarkdownTextPrimitive`. This means delimiter normalization (and smooth-streaming character accumulation) happen before remark-math sees the text, so escape rules and delimiter replacement are streaming-safe — a partially-received `\[` fragment is held in the streaming buffer until the full delimiter arrives.
+Inside `MarkdownTextPrimitive`, the streamed text first passes through `preprocess` (delimiter normalization) and then through `useSmooth` (character-by-character accumulation), and only then reaches the markdown parser. Both run before remark-math sees the text, so delimiter replacement and the streaming smoothing are streaming-safe — partially-received delimiters are accumulated in the smoothing buffer rather than parsed mid-fragment.
 </Callout>

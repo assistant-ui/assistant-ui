@@ -289,30 +289,29 @@ const confirmationToolkit: Toolkit = {
 
 ### Streaming Tool Args
 
-While a tool is running, its arguments arrive as partial JSON. Use `useToolArgsStatus` (whole-args status) and `useToolArgsFieldStatus` (per-field status) inside a tool UI render function to react to each field as it streams in. Both are exported from `@assistant-ui/react`.
+While a tool is running, its arguments arrive as partial JSON. Use `useToolArgsStatus` inside a tool UI render function to react to each top-level field as it streams in. The hook is exported from `@assistant-ui/react`.
 
 ```tsx
-import { useToolArgsStatus, useToolArgsFieldStatus } from "@assistant-ui/react";
+import { useToolArgsStatus } from "@assistant-ui/react";
 
 const SearchToolUI = makeAssistantToolUI<{ query: string; limit: number }, unknown>({
   toolName: "search",
   render: ({ args }) => {
     const { propStatus } = useToolArgsStatus<{ query: string; limit: number }>();
-    const limitStatus = useToolArgsFieldStatus(["limit"]);
 
     return (
       <div>
         <span className={propStatus.query === "streaming" ? "animate-pulse" : ""}>
           {args.query ?? "..."}
         </span>
-        {limitStatus.type !== "running" && <span> (limit: {args.limit})</span>}
+        {propStatus.limit === "complete" && <span> (limit: {args.limit})</span>}
       </div>
     );
   },
 });
 ```
 
-`propStatus` maps each key to `"streaming"` | `"complete"` once that key appears in the partial JSON stream. `useToolArgsFieldStatus` returns the full status object for a nested path and resolves to `"complete"` once the field is fully parsed.
+`propStatus` maps each top-level key in the args object to `"streaming"` while it is still being parsed and to `"complete"` once that field is fully present.
 
 ## Component-Based APIs
 

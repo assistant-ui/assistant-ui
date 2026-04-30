@@ -184,11 +184,11 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 5. **Limit the number**: 3-6 suggestions work best to avoid overwhelming users
 6. **Make them actionable**: Each suggestion should lead to a meaningful interaction
 
-## Migration from Legacy API
+## Switching from `ThreadPrimitive.Suggestion`
 
-If you're using the deprecated `ThreadPrimitive.Suggestion` component, migrate to the new API:
+If your codebase uses the inline `ThreadPrimitive.Suggestion` component (which renders one suggestion at a time with hardcoded `prompt` / `send` props), you can move to the runtime-driven `Suggestions()` API for centralized configuration. The inline component is still supported, but the runtime-driven approach scales better when suggestions need to update dynamically.
 
-### Before (Deprecated)
+### Inline form
 
 ```tsx
 <ThreadPrimitive.Suggestion
@@ -197,7 +197,7 @@ If you're using the deprecated `ThreadPrimitive.Suggestion` component, migrate t
 />
 ```
 
-### After (Recommended)
+### Runtime-driven form
 
 1. Configure suggestions in your runtime provider:
 

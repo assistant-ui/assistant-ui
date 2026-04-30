@@ -504,38 +504,34 @@ render: ({ status, args }) => {
 };
 ```
 
-### Field-Level Validation
+### Field-Level Streaming State
 
-Use `useToolArgsFieldStatus` to show validation states for individual fields during streaming. It is exported from `@assistant-ui/react` and must be called inside a tool-call message part context:
+Use `useToolArgsStatus` to react to per-field streaming state. The hook returns a `propStatus` map where each top-level key in the args object resolves from `"streaming"` to `"complete"` as the partial JSON arrives. Call it inside a tool-call message part context:
 
 ```tsx
-import { useToolArgsFieldStatus } from "@assistant-ui/react";
+import { useToolArgsStatus } from "@assistant-ui/react";
 
-const FormToolUI = makeAssistantToolUI({
+const FormToolUI = makeAssistantToolUI<{ email: string; phone: string }, unknown>({
   toolName: "submitForm",
   render: ({ args }) => {
-    const emailStatus = useToolArgsFieldStatus(["email"]);
-    const phoneStatus = useToolArgsFieldStatus(["phone"]);
+    const { propStatus } = useToolArgsStatus<{ email: string; phone: string }>();
 
     return (
       <form className="space-y-4">
         <div>
           <input
             type="email"
-            value={args.email}
-            className={emailStatus.type === "running" ? "loading" : ""}
+            value={args.email ?? ""}
+            className={propStatus.email === "streaming" ? "loading" : ""}
             disabled
           />
-          {emailStatus.type === "incomplete" && (
-            <span className="text-red-500">Invalid email</span>
-          )}
         </div>
 
         <div>
           <input
             type="tel"
-            value={args.phone}
-            className={phoneStatus.type === "running" ? "loading" : ""}
+            value={args.phone ?? ""}
+            className={propStatus.phone === "streaming" ? "loading" : ""}
             disabled
           />
         </div>

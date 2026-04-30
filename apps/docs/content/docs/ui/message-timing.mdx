@@ -66,9 +66,9 @@ The badge displays `totalStreamTime` inline and reveals a popover on hover with 
 
 Timing accuracy depends on how your backend is connected.
 
-### assistant-stream (accurate)
+### Data Stream (accurate)
 
-When using `assistant-stream` on the backend, token counts come directly from the model's usage data sent in `step-finish` chunks. The `tokensPerSecond` metric is exact whenever your backend reports `outputTokens`.
+When using the [Data Stream](/docs/runtimes/custom/data-stream) protocol on the backend (via `assistant-stream`), token counts come directly from the model's usage data sent in `step-finish` chunks. The `tokensPerSecond` metric is exact whenever your backend reports `outputTokens`.
 
 ### Vercel AI SDK (estimated)
 

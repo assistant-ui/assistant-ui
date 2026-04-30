@@ -347,17 +347,22 @@ const aui = useAui({
 
 ## Streaming Updates
 
-While the AI is generating tool arguments, `useInteractableState` reflects the partial state in real time. You can use this to show a loading or skeleton UI while the AI is mid-stream:
+While the AI is generating tool arguments, `useInteractableState` reflects the partial state in real time as fields stream in. You can use the partial state itself plus the thread's running status to show a skeleton UI while the AI is mid-stream:
 
 ```tsx
+import { useAuiState } from "@assistant-ui/react";
+
 function TaskBoard() {
   const id = useAssistantInteractable("taskBoard", config);
-  const [state, { isPending }] = useInteractableState(id, taskBoardInitialState);
+  const [state] = useInteractableState(id, taskBoardInitialState);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+
+  const isLoading = isRunning && state.tasks.length === 0;
 
   return (
     <div>
-      <h2>Tasks {isPending && <span className="animate-spin">⋯</span>}</h2>
-      {state.tasks.length === 0 ? (
+      <h2>Tasks</h2>
+      {isLoading ? (
         <div className="animate-pulse h-8 rounded bg-muted" />
       ) : (
         <ul>
@@ -371,7 +376,7 @@ function TaskBoard() {
 }
 ```
 
-`isPending` is true while a persistence save is in-flight. For streaming-driven skeleton state (before any tasks exist), check `state.tasks.length === 0` alongside the running status from your runtime.
+The state object updates progressively as the AI streams in each field, so partial renders work without any extra wiring. Use the runtime's `isRunning` to distinguish "still streaming, no fields yet" from "model returned an empty result".
 
 ## Schema Evolution
 

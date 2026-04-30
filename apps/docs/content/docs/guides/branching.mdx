@@ -31,41 +31,46 @@ const BranchPicker = () => (
 );
 ```
 
-For the full primitive API and prop reference, see [BranchPickerPrimitive](/docs/primitives/branch-picker).
+`BranchPickerPrimitive.Previous` and `.Next` automatically disable at branch boundaries and while a run is in flight (unless the runtime supports `switchBranchDuringRun`). For the full primitive API, see [BranchPickerPrimitive](/docs/primitives/branch-picker).
 
-## API Hooks
+## Triggering Reload
 
-These hooks require message scope and may only be called inside a message component.
-
-### `useMessageBranching`
+`ActionBarPrimitive.Reload` creates a new branch on an assistant message and re-runs from there:
 
 ```tsx
-import { useMessageBranching } from "@assistant-ui/react";
+import { ActionBarPrimitive, MessagePrimitive } from "@assistant-ui/react";
 
-const { branchNumber, branchCount, goToPrev, goToNext } = useMessageBranching();
+const AssistantMessage = () => (
+  <MessagePrimitive.Root>
+    <MessagePrimitive.Parts />
+    <ActionBarPrimitive.Root>
+      <ActionBarPrimitive.Reload />
+    </ActionBarPrimitive.Root>
+  </MessagePrimitive.Root>
+);
 ```
 
-`goToPrev` and `goToNext` disable at branch boundaries. Both also disable while the thread is running unless the runtime supports `switchBranchDuringRun`. See [BranchPickerPrimitive](/docs/primitives/branch-picker) for that capability detail.
+`Reload` is disabled while `thread.isRunning` or `thread.isDisabled` is true. See [ActionBarPrimitive](/docs/primitives/action-bar) for the full reference.
 
-To navigate directly to a specific branch by id, use `useAui`:
+## Programmatic Branch Navigation
+
+For headless or keyboard-shortcut flows, navigate directly to a branch by id via `aui.message().switchToBranch`:
 
 ```tsx
 import { useAui } from "@assistant-ui/react";
 
-const aui = useAui();
-aui.message().switchToBranch({ branchId: "some-id" });
+const SwitchToBranch = ({ branchId }: { branchId: string }) => {
+  const aui = useAui();
+  return (
+    <button onClick={() => aui.message().switchToBranch({ branchId })}>
+      Go to branch
+    </button>
+  );
+};
 ```
 
-### `useActionBarReload`
+This must be called inside a message context (e.g. nested within `MessagePrimitive.Root`).
 
-```tsx
-import { useActionBarReload } from "@assistant-ui/react";
+## Grouped Parts After Branching
 
-const { reload, disabled } = useActionBarReload();
-```
-
-`disabled` is `true` when `thread.isRunning` or `thread.isDisabled`.
-
-## Part Groups After Branching
-
-Each branch is a distinct message version with its own content parts. `MessagePrimitive.PartGroups` enables hierarchical adjacent grouping of those parts, useful when a message mixes tool calls and text across branches. See the [MessagePrimitive](/docs/primitives/message) reference for usage.
+Each branch is a distinct message version with its own content parts. `MessagePrimitive.GroupedParts` provides hierarchical adjacent grouping of those parts, useful when a message mixes tool calls and text across branches. See the [MessagePrimitive](/docs/primitives/message) reference for `GroupedParts` usage.
