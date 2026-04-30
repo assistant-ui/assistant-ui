@@ -1,11 +1,13 @@
 /**
  * @vitest-environment jsdom
  */
-import { fireEvent, render } from "@testing-library/react";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposerPrimitiveInput } from "./ComposerInput";
 
 const setText = vi.fn<(text: string) => void>();
+const setCursorPosition = vi.fn<(pos: number) => void>();
 
 const composerState = {
   isEditing: true,
@@ -22,13 +24,14 @@ const threadState = {
   capabilities: { queue: false, attachments: false },
 };
 
-const setCursorPosition = vi.fn<(pos: number) => void>();
 const plugin = {
   handleKeyDown: () => false,
   setCursorPosition,
 };
 
 let pluginRegistry: { getPlugins: () => (typeof plugin)[] } | null = null;
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock("@assistant-ui/store", () => {
   const aui = {
@@ -71,22 +74,41 @@ vi.mock("../../utils/hooks/useOnScrollToBottom", () => ({
   useOnScrollToBottom: () => {},
 }));
 
+const setNativeValue = (textarea: HTMLTextAreaElement, value: string) => {
+  const setter = Object.getOwnPropertyDescriptor(
+    HTMLTextAreaElement.prototype,
+    "value",
+  )?.set;
+  setter?.call(textarea, value);
+};
+
 const fireInput = (
   textarea: HTMLTextAreaElement,
   value: string,
   isComposing: boolean,
 ) => {
-  // fireEvent.change uses the prototype value setter so React 19 detects
-  // the change. We override isComposing on the synthetic native event so
-  // the IME branch in onChange is exercised correctly.
-  fireEvent.input(textarea, {
-    target: { value },
-    isComposing,
-  });
+  setNativeValue(textarea, value);
+  textarea.dispatchEvent(
+    new InputEvent("input", { bubbles: true, isComposing }),
+  );
+};
+
+const fireCompositionStart = (textarea: HTMLTextAreaElement) => {
+  textarea.dispatchEvent(
+    new CompositionEvent("compositionstart", { bubbles: true }),
+  );
+};
+
+const fireCompositionEnd = (textarea: HTMLTextAreaElement, value: string) => {
+  setNativeValue(textarea, value);
+  textarea.dispatchEvent(
+    new CompositionEvent("compositionend", { bubbles: true }),
+  );
 };
 
 describe("ComposerPrimitiveInput", () => {
-  let textarea: HTMLTextAreaElement;
+  let container: HTMLDivElement;
+  let root: Root;
 
   beforeEach(() => {
     setText.mockReset();
@@ -99,93 +121,112 @@ describe("ComposerPrimitiveInput", () => {
     threadState.isRunning = false;
     threadState.capabilities = { queue: false, attachments: false };
     pluginRegistry = null;
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
     vi.restoreAllMocks();
   });
 
-  const renderInput = () => {
-    const { container } = render(
-      <ComposerPrimitiveInput data-testid="input" />,
-    );
-    textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+  const mount = async () => {
+    await act(async () => {
+      root.render(<ComposerPrimitiveInput data-testid="input" />);
+    });
+    const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
     expect(textarea).not.toBeNull();
+    return textarea;
   };
 
-  describe("IME composition", () => {
-    it("calls setText during active composition so React 19 cannot reset the textarea value", () => {
-      renderInput();
+  it("syncs setText during active composition so React 19 cannot reset the textarea", async () => {
+    const textarea = await mount();
 
-      // Korean IME starts composing
-      fireEvent.compositionStart(textarea);
-
-      // While composing, the input event reports isComposing=true.
-      // Previously this skipped setText and the controlled value stayed
-      // stale, letting React 19's reconciliation wipe the textarea.
+    await act(async () => {
+      fireCompositionStart(textarea);
       fireInput(textarea, "ㄱ", true);
-      expect(setText).toHaveBeenCalledWith("ㄱ");
+    });
+    expect(setText).toHaveBeenCalledWith("ㄱ");
 
+    await act(async () => {
       fireInput(textarea, "가", true);
-      expect(setText).toHaveBeenLastCalledWith("가");
     });
-
-    it("commits the final value on compositionend", () => {
-      renderInput();
-
-      fireEvent.compositionStart(textarea);
-      fireInput(textarea, "가", true);
-      fireEvent.compositionEnd(textarea, { target: { value: "가" } });
-
-      expect(setText).toHaveBeenLastCalledWith("가");
-    });
-
-    it("recovers from a stuck composition state when compositionend is dropped", () => {
-      renderInput();
-
-      // Some browsers and dead-key layouts drop compositionend, leaving
-      // compositionRef stuck at true and freezing the input. Once the next
-      // input event arrives without isComposing, the ref must self-heal.
-      fireEvent.compositionStart(textarea);
-
-      // No compositionend fires here.
-
-      // A regular keystroke now arrives with isComposing=false.
-      fireInput(textarea, "hello", false);
-      expect(setText).toHaveBeenCalledWith("hello");
-
-      // A subsequent regular input continues to work, proving the ref reset.
-      fireInput(textarea, "hello!", false);
-      expect(setText).toHaveBeenLastCalledWith("hello!");
-    });
-
-    it("skips plugin cursor tracking during composition but resumes after", () => {
-      pluginRegistry = { getPlugins: () => [plugin] };
-      renderInput();
-
-      fireEvent.compositionStart(textarea);
-      fireInput(textarea, "ㄱ", true);
-
-      expect(setText).toHaveBeenCalledWith("ㄱ");
-      // Cursor should NOT be tracked while composing — the selection
-      // position is unstable until the composition resolves.
-      expect(setCursorPosition).not.toHaveBeenCalled();
-
-      fireEvent.compositionEnd(textarea, { target: { value: "가" } });
-      // After compositionend the plugin gets the final cursor position.
-      expect(setCursorPosition).toHaveBeenCalled();
-    });
+    expect(setText).toHaveBeenLastCalledWith("가");
   });
 
-  describe("non-composition input", () => {
-    it("calls setText and tracks plugin cursor for normal keystrokes", () => {
-      pluginRegistry = { getPlugins: () => [plugin] };
-      renderInput();
+  it("commits the final value on compositionend", async () => {
+    const textarea = await mount();
 
-      fireInput(textarea, "abc", false);
-
-      expect(setText).toHaveBeenCalledWith("abc");
-      expect(setCursorPosition).toHaveBeenCalled();
+    await act(async () => {
+      fireCompositionStart(textarea);
+      fireInput(textarea, "가", true);
     });
+    expect(setText).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      fireCompositionEnd(textarea, "가");
+    });
+    expect(setText).toHaveBeenCalledTimes(2);
+    expect(setText).toHaveBeenLastCalledWith("가");
+  });
+
+  it("recovers when compositionend is dropped before the next input", async () => {
+    const textarea = await mount();
+
+    await act(async () => {
+      fireCompositionStart(textarea);
+      fireInput(textarea, "hello", false);
+    });
+    expect(setText).toHaveBeenCalledWith("hello");
+
+    await act(async () => {
+      fireInput(textarea, "hello!", false);
+    });
+    expect(setText).toHaveBeenLastCalledWith("hello!");
+  });
+
+  it("skips plugin cursor tracking during composition but resumes after", async () => {
+    pluginRegistry = { getPlugins: () => [plugin] };
+    const textarea = await mount();
+
+    await act(async () => {
+      fireCompositionStart(textarea);
+      fireInput(textarea, "ㄱ", true);
+    });
+    expect(setText).toHaveBeenCalledWith("ㄱ");
+    expect(setCursorPosition).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireCompositionEnd(textarea, "가");
+    });
+    expect(setCursorPosition).toHaveBeenCalled();
+  });
+
+  it("tracks plugin cursor for non-composition input", async () => {
+    pluginRegistry = { getPlugins: () => [plugin] };
+    const textarea = await mount();
+
+    await act(async () => {
+      fireInput(textarea, "abc", false);
+    });
+    expect(setText).toHaveBeenCalledWith("abc");
+    expect(setCursorPosition).toHaveBeenCalled();
+  });
+
+  it("ignores input and compositionend when the composer is not editing", async () => {
+    composerState.isEditing = false;
+    const textarea = await mount();
+
+    await act(async () => {
+      fireInput(textarea, "abc", false);
+      fireCompositionStart(textarea);
+      fireCompositionEnd(textarea, "가");
+    });
+    expect(setText).not.toHaveBeenCalled();
   });
 });
