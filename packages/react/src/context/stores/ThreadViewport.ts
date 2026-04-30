@@ -133,6 +133,27 @@ export const makeThreadViewportStore = (
       },
     });
   });
+  const registerElementSlot = (
+    key: "viewport" | "anchor",
+    element: HTMLElement | null,
+  ) => {
+    store.setState({
+      element: {
+        ...store.getState().element,
+        [key]: element,
+      },
+    });
+
+    return () => {
+      if (store.getState().element[key] !== element) return;
+      store.setState({
+        element: {
+          ...store.getState().element,
+          [key]: null,
+        },
+      });
+    };
+  };
 
   const store = create<ThreadViewportState>(() => ({
     isAtBottom: true,
@@ -163,42 +184,9 @@ export const makeThreadViewportStore = (
 
     registerViewport: viewportRegistry.register,
     registerContentInset: insetRegistry.register,
-    registerViewportElement: (element) => {
-      store.setState({
-        element: {
-          ...store.getState().element,
-          viewport: element,
-        },
-      });
-
-      return () => {
-        if (store.getState().element.viewport !== element) return;
-        store.setState({
-          element: {
-            ...store.getState().element,
-            viewport: null,
-          },
-        });
-      };
-    },
-    registerAnchorElement: (element) => {
-      store.setState({
-        element: {
-          ...store.getState().element,
-          anchor: element,
-        },
-      });
-
-      return () => {
-        if (store.getState().element.anchor !== element) return;
-        store.setState({
-          element: {
-            ...store.getState().element,
-            anchor: null,
-          },
-        });
-      };
-    },
+    registerViewportElement: (element) =>
+      registerElementSlot("viewport", element),
+    registerAnchorElement: (element) => registerElementSlot("anchor", element),
     registerAnchorTargetElement: (element, config) => {
       store.setState({
         element: {

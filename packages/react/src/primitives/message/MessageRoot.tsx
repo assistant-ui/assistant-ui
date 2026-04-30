@@ -83,10 +83,15 @@ const useTopAnchorUserRef = (active: boolean) => {
     (s) => s.registerAnchorElement,
   );
 
-  return useManagedRef<HTMLElement>((el) => {
-    if (!active) return;
-    return registerAnchorElement(el);
-  });
+  const callback = useCallback(
+    (el: HTMLElement) => {
+      if (!active) return;
+      return registerAnchorElement(el);
+    },
+    [active, registerAnchorElement],
+  );
+
+  return useManagedRef<HTMLElement>(callback);
 };
 
 /**

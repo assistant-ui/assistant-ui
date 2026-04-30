@@ -2,9 +2,7 @@
 
 export const createReserveObservers = (onChange: () => void) => {
   const resizeObserver = new ResizeObserver(onChange);
-  const mutationObserver = new MutationObserver(() => {
-    onChange();
-  });
+  const mutationObserver = new MutationObserver(onChange);
 
   let observedViewport: HTMLElement | null = null;
   let observedAnchor: HTMLElement | null = null;

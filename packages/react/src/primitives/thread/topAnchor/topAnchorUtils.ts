@@ -3,7 +3,7 @@
 /**
  * Convert a supported CSS length string (`px`, `em`, `rem`) into pixels,
  * resolving font-relative units against the supplied element's computed style.
- * Unsupported or malformed values return 0.
+ * Unsupported or malformed values disable the tall-message clamp.
  *
  * Part of the top-anchor package's public input contract: consumers may pass
  * clamp configuration as supported CSS-length strings, and this function is the
@@ -11,7 +11,7 @@
  */
 export const parseCssLength = (value: string, element: HTMLElement): number => {
   const match = value.trim().match(/^(\d+(?:\.\d+)?|\.\d+)(em|px|rem)$/);
-  if (!match) return 0;
+  if (!match) return Number.POSITIVE_INFINITY;
 
   const num = Number(match[1]);
   const unit = match[2];
@@ -26,7 +26,7 @@ export const parseCssLength = (value: string, element: HTMLElement): number => {
       parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
     return num * rootFontSize;
   }
-  return 0;
+  return Number.POSITIVE_INFINITY;
 };
 
 export const getAnchorId = (anchor: HTMLElement) => anchor.dataset.messageId;
