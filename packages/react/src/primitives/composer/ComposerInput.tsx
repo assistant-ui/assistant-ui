@@ -297,10 +297,20 @@ export const ComposerPrimitiveInput = forwardRef<
         onChange,
         (e: React.ChangeEvent<HTMLTextAreaElement>) => {
           if (!aui.composer().getState().isEditing) return;
-          const isComposing =
-            (e.nativeEvent as { isComposing?: boolean }).isComposing === true ||
-            compositionRef.current;
-          if (isComposing) return;
+          const nativeEvent = e.nativeEvent as {
+            isComposing?: boolean;
+            inputType?: string;
+          };
+          const isCompositionInput =
+            nativeEvent.isComposing === true ||
+            nativeEvent.inputType === "insertCompositionText";
+
+          if (isCompositionInput) return;
+          // Some browser/keyboard combinations can drop compositionend, leaving
+          // compositionRef stuck forever. The next non-composition input means
+          // composition has ended, so recover and sync the DOM value.
+          compositionRef.current = false;
+
           flushResourcesSync(() => {
             aui.composer().setText(e.target.value);
           });
