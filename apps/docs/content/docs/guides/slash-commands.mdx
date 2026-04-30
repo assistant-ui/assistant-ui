@@ -90,6 +90,17 @@ function MyComposer() {
 
 The label defaults to `/${id}`; override via `label` on the command. Icons are strings that your `iconMap` on the picker UI resolves to components (see [ComposerTriggerPopover](/docs/ui/composer-trigger-popover)).
 
+### `unstable_useSlashCommandAdapter` options
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `commands` | `Unstable_SlashCommand[]` | — | Command definitions — each has `id`, optional `label`, `description`, `icon`, and an `execute` callback (required) |
+| `removeOnExecute` | `boolean` | `false` | When `true`, strips the trigger text from the composer after executing instead of leaving a directive chip |
+| `iconMap` | `Record<string, IconComponent>` | — | Maps `metadata.icon` / category `id` strings to React icon components; forwarded to `ComposerTriggerPopover` |
+| `fallbackIcon` | `IconComponent` | — | Fallback when no `iconMap` entry matches; forwarded to `ComposerTriggerPopover` |
+
+The hook returns `{ adapter, action, iconMap?, fallbackIcon? }` — spread directly into `<ComposerTriggerPopover char="/" {...slash} />` for one-line wiring.
+
 ### 2. Controlling the Chip
 
 By default, a selected `/summarize` is converted into a directive chip (`:command[/summarize]{name=summarize}`) in the composer text and the command's `execute` fires. This keeps an audit trail of which commands were invoked.
@@ -237,57 +248,111 @@ Slash commands and mentions live under the same `TriggerPopoverRoot`. Declare on
 
 Each `TriggerPopover` is its own scope — the `@` popover and the `/` popover read state from their own declaration and never collide. Keyboard events route to whichever popover is currently active.
 
+## Commands with Arguments
+
+Some commands accept inline arguments typed after the command word — for example `/translate en` or `/ask what is TypeScript`. Because the adapter's `search` method receives the full text after `/`, you can split on the first space to separate the command from its arguments:
+
+```tsx
+const SLASH_COMMANDS: readonly Unstable_SlashCommand[] = [
+  {
+    id: "translate",
+    description: "Translate to a language, e.g. /translate en",
+    execute: () => {/* arguments extracted separately, see below */},
+  },
+  {
+    id: "ask",
+    description: "Ask about a topic, e.g. /ask what is TypeScript",
+    execute: () => {/* arguments extracted separately, see below */},
+  },
+];
+
+function MyComposer() {
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const slash = unstable_useSlashCommandAdapter({
+    commands: SLASH_COMMANDS.map((cmd) => ({
+      ...cmd,
+      execute: () => {
+        // Read the full composer text to extract arguments
+        const raw = composerRef.current?.value ?? "";
+        // Match "/<id> <args>" at start of input
+        const match = raw.match(new RegExp(`^\\/${cmd.id}\\s+(.*)`));
+        const args = match?.[1]?.trim() ?? "";
+        handleCommand(cmd.id, args);
+      },
+    })),
+    removeOnExecute: true,
+  });
+
+  return (
+    <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+      <ComposerPrimitive.Root>
+        <ComposerPrimitive.Input ref={composerRef} placeholder="Type / for commands..." />
+        <ComposerPrimitive.Unstable_TriggerPopover char="/" adapter={slash.adapter}>
+          <ComposerPrimitive.Unstable_TriggerPopover.Action {...slash.action} />
+          <ComposerPrimitive.Unstable_TriggerPopoverItems>
+            {(items) => items.map((item, i) => (
+              <ComposerPrimitive.Unstable_TriggerPopoverItem key={item.id} item={item} index={i}>
+                <strong>{item.label}</strong>
+                {item.description && <span>{item.description}</span>}
+              </ComposerPrimitive.Unstable_TriggerPopoverItem>
+            ))}
+          </ComposerPrimitive.Unstable_TriggerPopoverItems>
+        </ComposerPrimitive.Unstable_TriggerPopover>
+        <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+      </ComposerPrimitive.Root>
+    </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+  );
+}
+```
+
+`removeOnExecute: true` strips the `/translate en` text from the composer so the argument is consumed by the handler rather than sent to the LLM.
+
+## Async Command Loading
+
+The adapter interface is synchronous, but the command list can come from any async source. Load commands into state (or a query cache) and pass the current snapshot to the hook. Because `unstable_useSlashCommandAdapter` re-runs on every render, the adapter always reflects the latest list.
+
+**With React state:**
+
+```tsx
+function MyComposer() {
+  const [commands, setCommands] = useState<Unstable_SlashCommand[]>([]);
+
+  useEffect(() => {
+    fetchAvailableCommands().then(setCommands);
+  }, []);
+
+  const slash = unstable_useSlashCommandAdapter({ commands });
+
+  return (/* ... */);
+}
+```
+
+**With React Query:**
+
+```tsx
+function MyComposer() {
+  const { data: commands = [] } = useQuery({
+    queryKey: ["slash-commands"],
+    queryFn: fetchAvailableCommands,
+  });
+
+  const slash = unstable_useSlashCommandAdapter({ commands });
+
+  return (/* ... */);
+}
+```
+
 ## Keyboard Navigation
 
-Same keyboard bindings as mentions:
-
-| Key | Action |
-| --- | --- |
-| <Kbd>ArrowDown</Kbd> | Highlight next item |
-| <Kbd>ArrowUp</Kbd> | Highlight previous item |
-| <Kbd>Enter</Kbd> | Execute highlighted command / drill into category |
-| <Kbd>Escape</Kbd> | Close popover |
-| <Kbd>Backspace</Kbd> | Go back to categories (when query is empty) |
+See [ComposerTriggerPopover keyboard navigation](/docs/ui/composer-trigger-popover#keyboard-navigation) for the full key bindings table.
 
 ## Trigger Popover Architecture
 
-Both mentions and slash commands are built on a generic **trigger popover** system:
-
-- `ComposerPrimitive.Unstable_TriggerPopoverRoot` — root provider that groups triggers and owns the input plugin registry
-- `ComposerPrimitive.Unstable_TriggerPopover` — declares one trigger (id, char, adapter) and renders its popover container
-- Behavior sub-primitives — exactly one per `TriggerPopover`:
-  - `Unstable_TriggerPopover.Directive` — writes a formatted directive on selection ("mention" path)
-  - `Unstable_TriggerPopover.Action` — fires a callback on selection ("slash" path); inserts a chip by default, strip with `removeOnExecute`
-- Shared sub-primitives (`TriggerPopoverCategories`, `TriggerPopoverItems`, `TriggerPopoverBack`) live inside a `TriggerPopover`
-
-You can declare any number of triggers under one root and mix behavior types.
-
-### ComposerInput Plugin Protocol
-
-Under the hood, each `TriggerPopover` registers a **ComposerInputPlugin** with the composer input. This is a generic protocol that decouples the input from any specific trigger:
-
-```ts
-type ComposerInputPlugin = {
-  handleKeyDown(e: KeyboardEvent): boolean;
-  setCursorPosition(pos: number): void;
-};
-```
-
-The input iterates over registered plugins for keyboard events and cursor changes. This is what enables multiple triggers to coexist without conflict.
+Both mentions and slash commands are built on a generic trigger popover system where each `Unstable_TriggerPopover` declares one trigger character, an adapter, and exactly one behavior sub-primitive (`Directive` or `Action`). Multiple triggers coexist under a single `Unstable_TriggerPopoverRoot`. See the [Composer Primitives](/docs/primitives/composer) reference for the complete API.
 
 ## Primitives Reference
 
-| Primitive | Description |
-| --- | --- |
-| `Unstable_TriggerPopoverRoot` | Root — groups triggers, provides input plugin registry |
-| `Unstable_TriggerPopover` | Declares a trigger and renders its popover container |
-| `Unstable_TriggerPopover.Directive` | Behavior sub-primitive — inserts a formatted directive on selection |
-| `Unstable_TriggerPopover.Action` | Behavior sub-primitive — runs `onExecute` on selection; chip-by-default |
-| `Unstable_TriggerPopoverCategories` | Render-function for the top-level category list |
-| `Unstable_TriggerPopoverCategoryItem` | Button that drills into a category (`role="option"`, auto `data-highlighted`) |
-| `Unstable_TriggerPopoverItems` | Render-function for items within the active category or search results |
-| `Unstable_TriggerPopoverItem` | Button that selects an item (`role="option"`, auto `data-highlighted`) |
-| `Unstable_TriggerPopoverBack` | Button that navigates back from items to categories |
+See the [Composer Primitives](/docs/primitives/composer) reference for the full list of trigger popover primitives and their props.
 
 ## Related
 

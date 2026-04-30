@@ -25,7 +25,7 @@ When tools are executed, you can display custom generative UI components that pr
   creating your own Tool UI component for the tool's name.
 </Callout>
 
-## Recommended: Tools() API
+## Tools() API
 
 The `Tools()` API is the recommended way to register tools in assistant-ui. It provides centralized tool registration that prevents duplicate registrations and works seamlessly with all runtimes.
 
@@ -208,6 +208,32 @@ execute: async (args, context) => {
 };
 ```
 
+### Cancellation
+
+`context.abortSignal` is an `AbortSignal` that fires when the user stops the run. Pass it to any async I/O so the work stops immediately:
+
+```tsx
+execute: async ({ query }, { abortSignal }) => {
+  const res = await fetch(`/api/search?q=${query}`, { signal: abortSignal });
+  return res.json();
+},
+```
+
+When using LangGraph with `unstable_createLangGraphStream`, the default `onDisconnect` value is already `"cancel"`, which tells the LangGraph server to cancel the run on abort:
+
+```ts
+import { unstable_createLangGraphStream } from "@assistant-ui/react-langgraph";
+
+const stream = unstable_createLangGraphStream({
+  client,
+  assistantId,
+  // onDisconnect defaults to "cancel"; the server cancels the run when the
+  // client disconnects or the user stops the message.
+});
+```
+
+See the [LangGraph quickstart](/docs/runtimes/langgraph/quickstart) for full setup.
+
 ### Human-in-the-Loop
 
 Tools can pause execution to request user input or approval:
@@ -261,15 +287,43 @@ const confirmationToolkit: Toolkit = {
 };
 ```
 
-## Alternative Methods (Legacy)
+### Streaming Tool Args
 
-<Callout type="warning">
-  The following methods are supported for backwards compatibility but are not
-  recommended for new code. They can cause duplicate registration errors and are
-  harder to maintain. Use the `Tools()` API instead.
+While a tool is running, its arguments arrive as partial JSON. Use `useToolArgsStatus` (whole-args status) and `useToolArgsFieldStatus` (per-field status) inside a tool UI render function to react to each field as it streams in. Both are exported from `@assistant-ui/react`.
+
+```tsx
+import { useToolArgsStatus, useToolArgsFieldStatus } from "@assistant-ui/react";
+
+const SearchToolUI = makeAssistantToolUI<{ query: string; limit: number }, unknown>({
+  toolName: "search",
+  render: ({ args }) => {
+    const { propStatus } = useToolArgsStatus<{ query: string; limit: number }>();
+    const limitStatus = useToolArgsFieldStatus(["limit"]);
+
+    return (
+      <div>
+        <span className={propStatus.query === "streaming" ? "animate-pulse" : ""}>
+          {args.query ?? "..."}
+        </span>
+        {limitStatus.type !== "running" && <span> (limit: {args.limit})</span>}
+      </div>
+    );
+  },
+});
+```
+
+`propStatus` maps each key to `"streaming"` | `"complete"` once that key appears in the partial JSON stream. `useToolArgsFieldStatus` returns the full status object for a nested path and resolves to `"complete"` once the field is fully parsed.
+
+## Component-Based APIs
+
+`makeAssistantTool`, `useAssistantTool`, and `makeAssistantToolUI` are component-and-hook-based APIs that coexist with the [`Tools()`](#tools-api) toolkit pattern. They are fully supported and useful when you want tool registration tied to the React tree rather than declared in a toolkit object. The toolkit pattern is generally more ergonomic for larger tool sets; pick whichever fits your codebase.
+
+<Callout type="info">
+  Be careful not to register the same tool from both APIs at once: each API
+  registers under `toolName`, and duplicate registrations will be rejected.
 </Callout>
 
-### Using `makeAssistantTool` (Deprecated)
+### Using `makeAssistantTool`
 
 Register tools with the assistant context. Returns a React component that registers the tool when rendered:
 
@@ -304,9 +358,9 @@ function App() {
 }
 ```
 
-**Why this is deprecated**: Component-based registration can lead to duplicate registrations if components are remounted or if the same tool is defined in multiple places.
+Tradeoff: component-based registration is tied to React lifecycle, so the tool is registered when the component mounts and unregistered when it unmounts. Take care not to remount it accidentally if you also register the same tool elsewhere.
 
-### Using `useAssistantTool` Hook (Deprecated)
+### Using the `useAssistantTool` Hook
 
 Register tools dynamically using React hooks:
 
@@ -330,9 +384,9 @@ function DynamicTools() {
 }
 ```
 
-**Why this is deprecated**: Hook-based registration ties tool definitions to component lifecycle, making them harder to test and potentially causing duplicate registrations.
+Tradeoff: like `makeAssistantTool`, the registration follows the component lifecycle. Useful for dynamic tools that depend on component state or props.
 
-### Using `makeAssistantToolUI` (Deprecated)
+### Using `makeAssistantToolUI`
 
 Create UI-only components for tools defined elsewhere:
 
@@ -366,7 +420,7 @@ function App() {
 }
 ```
 
-**Why this is deprecated**: Component-based UI registration can cause issues with tool UI not appearing or appearing multiple times.
+Tradeoff: like the other component-based APIs, the UI is registered while the component is mounted. Useful when the tool UI needs access to surrounding component state or context.
 
 ## Tool Paradigms
 
@@ -392,36 +446,31 @@ const frontendToolkit: Toolkit = {
 
 ### Backend Tools
 
-Tools executed server-side:
+Tools executed server-side live in your API route. A minimal example with the AI SDK:
 
-```tsx
-// Backend route (AI SDK)
+```ts title="@/app/api/chat/route.ts"
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages, tool, zodSchema } from "ai";
+import { z } from "zod";
+
 export async function POST(req: Request) {
   const { messages } = await req.json();
-
   const result = streamText({
     model: openai("gpt-4o"),
     messages: await convertToModelMessages(messages),
     tools: {
-      queryDatabase: {
+      queryDatabase: tool({
         description: "Query the application database",
-        inputSchema: zodSchema(
-          z.object({
-            query: z.string(),
-            table: z.string(),
-          }),
-        ),
-        execute: async ({ query, table }) => {
-          const results = await db.query(query, { table });
-          return results;
-        },
-      },
+        inputSchema: zodSchema(z.object({ query: z.string(), table: z.string() })),
+        execute: async ({ query, table }) => db.query(query, { table }),
+      }),
     },
   });
-
   return result.toUIMessageStreamResponse();
 }
 ```
+
+For the full AI SDK v6 backend setup including multi-step tool calls, frontend tools, history persistence with `withFormat`, and more, see the [AI SDK v6 guide](/docs/runtimes/ai-sdk/v6).
 
 ### Client-Defined Tools with frontendTools
 
@@ -513,9 +562,47 @@ export async function POST(req: Request) {
 }
 ```
 
+## LangGraph subgraph events
+
+When a LangGraph graph contains sub-agents (nested subgraphs), events from those subgraphs arrive with a `metadata.namespace` field identifying the originating subgraph. Pass event handlers to `useLangGraphRuntime` (or `useLangGraphMessages`) to react to them:
+
+```ts
+const runtime = useLangGraphRuntime({
+  stream,
+  eventHandlers: {
+    onSubgraphValues: (namespace, values) => {
+      console.log("subgraph", namespace, "state:", values);
+    },
+    onSubgraphUpdates: (namespace, updates) => {
+      console.log("subgraph", namespace, "updates:", updates);
+    },
+    onSubgraphError: (namespace, error) => {
+      console.error("subgraph", namespace, "error:", error);
+    },
+  },
+});
+```
+
+`namespace` is a pipe-separated string like `"parent|child_agent"`. Messages emitted by a subgraph include `metadata.namespace` so you can attribute tool results to the correct sub-agent.
+
+## `useLangChainState`
+
+When using `@assistant-ui/react-langchain` (`useStreamRuntime`), the `useLangChainState` hook lets you read any key from the current LangChain/LangGraph state on the client without a separate API call:
+
+```tsx
+import { useLangChainState } from "@assistant-ui/react-langchain";
+
+function TodoSidebar() {
+  const todos = useLangChainState<string[]>("todos", []);
+  return <ul>{todos.map((t) => <li key={t}>{t}</li>)}</ul>;
+}
+```
+
+The second argument is an optional default value. The hook re-renders whenever the state key changes during a stream.
+
 ## Best Practices
 
-1. **Use Tools() API**: Always prefer the `Tools()` API over legacy component/hook-based registration
+1. **Pick one registration style per tool**: avoid registering the same tool through both the `Tools()` toolkit and a component-based API; both routes will register, and duplicates are rejected
 2. **Centralize Definitions**: Keep all tools in a toolkit file for easy management
 3. **Clear Descriptions**: Write descriptive tool descriptions that help the LLM understand when to use each tool
 4. **Parameter Validation**: Use Zod schemas to ensure type safety
@@ -525,9 +612,9 @@ export async function POST(req: Request) {
 8. **Performance**: Use abort signals for cancellable operations
 9. **Testing**: Test tools in isolation and with the full assistant flow
 
-## Migration from Legacy APIs
+## Switching from Component-Based to Toolkit
 
-To migrate from legacy APIs to the `Tools()` API:
+If you prefer the toolkit shape, switching is mechanical:
 
 1. **Create a toolkit object** with all your tools
 2. **Move tool definitions** from `makeAssistantTool`/`useAssistantTool` calls into the toolkit
@@ -538,7 +625,7 @@ To migrate from legacy APIs to the `Tools()` API:
 Example migration:
 
 ```tsx
-// Before (Legacy)
+// Component-based API
 const WeatherTool = makeAssistantTool({
   toolName: "getWeather",
   description: "Get weather",
@@ -555,7 +642,7 @@ function App() {
   );
 }
 
-// After (Recommended)
+// Toolkit API
 const toolkit: Toolkit = {
   getWeather: {
     description: "Get weather",

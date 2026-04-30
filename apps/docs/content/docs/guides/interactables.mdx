@@ -345,6 +345,44 @@ const aui = useAui({
 });
 ```
 
+## Streaming Updates
+
+While the AI is generating tool arguments, `useInteractableState` reflects the partial state in real time. You can use this to show a loading or skeleton UI while the AI is mid-stream:
+
+```tsx
+function TaskBoard() {
+  const id = useAssistantInteractable("taskBoard", config);
+  const [state, { isPending }] = useInteractableState(id, taskBoardInitialState);
+
+  return (
+    <div>
+      <h2>Tasks {isPending && <span className="animate-spin">⋯</span>}</h2>
+      {state.tasks.length === 0 ? (
+        <div className="animate-pulse h-8 rounded bg-muted" />
+      ) : (
+        <ul>
+          {state.tasks.map((task) => (
+            <li key={task.id}>{task.title}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+```
+
+`isPending` is true while a persistence save is in-flight. For streaming-driven skeleton state (before any tasks exist), check `state.tasks.length === 0` alongside the running status from your runtime.
+
+## Schema Evolution
+
+<Callout type="warn">
+  If you change a Zod schema after state has been persisted, the imported snapshot may silently mis-match the new shape. The adapter does a shallow merge, so extra fields are preserved and missing fields keep their initial values, but type mismatches are not caught at runtime. To avoid silent corruption, version your schema key (e.g. `"taskBoard_v2"`) or namespace it by schema hash whenever you make breaking changes. Alternatively, add a migration step in your `importState` call.
+</Callout>
+
+## Unmount Behavior
+
+When a component that called `useAssistantInteractable` unmounts, the interactable is unregistered from the AI's tool list and system prompt. However, its state is preserved in the `Interactables` scope. When the component mounts again with the same name and id, the scope re-merges the preserved state rather than resetting to `initialState`. This means transient unmounts (such as React Strict Mode double-mounts or tab switches) do not lose state.
+
 ## Full Example
 
 See the complete [with-interactables example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-interactables) for a working implementation featuring:
@@ -353,3 +391,8 @@ See the complete [with-interactables example](https://github.com/assistant-ui/as
 - **Sticky Notes** — multi-instance interactables with selection and partial updates
 - **localStorage persistence** — state survives page refresh via `setPersistenceAdapter`
 - **Sync indicator** — spinning icon while a save is in-flight (`isPending`)
+
+## Related
+
+- [Generative UI](/docs/guides/tool-ui) — Inline tool call UIs rendered inside messages
+- [LangGraph Generative UI](/docs/runtimes/langgraph/generative-ui) — Structured UI components emitted by a LangGraph graph alongside messages

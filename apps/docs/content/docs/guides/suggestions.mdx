@@ -86,7 +86,7 @@ The default Thread component from the shadcn registry already includes suggestio
 
 ### Customizing Suggestion Display
 
-If you want to customize how suggestions are displayed, you can modify your Thread component:
+If you want to customize how suggestions are displayed, you can modify your Thread component. The idiomatic pattern is to wrap the suggestions in `AuiIf` so they only appear when the thread is empty:
 
 ```tsx
 import {
@@ -97,17 +97,18 @@ import {
 
 const ThreadWelcome = () => {
   return (
-    <div className="flex flex-col items-center justify-center">
-      <h1>Welcome!</h1>
-      <p>How can I help you today?</p>
+    <AuiIf condition={(s) => s.thread.isEmpty}>
+      <div className="flex flex-col items-center justify-center">
+        <h1>Welcome!</h1>
+        <p>How can I help you today?</p>
 
-      {/* Display suggestions */}
-      <div className="grid grid-cols-2 gap-2">
-        <ThreadPrimitive.Suggestions>
-          {() => <SuggestionItem />}
-        </ThreadPrimitive.Suggestions>
+        <div className="grid grid-cols-2 gap-2">
+          <ThreadPrimitive.Suggestions>
+            {() => <SuggestionItem />}
+          </ThreadPrimitive.Suggestions>
+        </div>
       </div>
-    </div>
+    </AuiIf>
   );
 };
 
@@ -127,53 +128,13 @@ const SuggestionItem = () => {
 };
 ```
 
+### Dismissal
+
+Suggestions dismiss automatically once the user sends a message because `thread.isEmpty` becomes false. No extra state management is needed. If you want to dismiss suggestions without sending (for example, after a user clicks away), manage a local boolean and combine it with the `AuiIf` condition or a plain conditional render.
+
 ## Suggestion Primitives
 
-### ThreadPrimitive.Suggestions
-
-Renders all suggestions from the suggestions scope.
-
-```tsx
-<ThreadPrimitive.Suggestions>
-  {() => <CustomSuggestionComponent />}
-</ThreadPrimitive.Suggestions>
-```
-
-### SuggestionPrimitive.Title
-
-Displays the suggestion's title (the first part when using object format, or the full text when using strings).
-
-```tsx
-<SuggestionPrimitive.Title />
-```
-
-### SuggestionPrimitive.Description
-
-Displays the suggestion's description/label (only shown when using object format).
-
-```tsx
-<SuggestionPrimitive.Description />
-```
-
-### SuggestionPrimitive.Trigger
-
-A button that triggers the suggestion action when clicked.
-
-```tsx
-<SuggestionPrimitive.Trigger
-  send={true}
-  clearComposer={true}
-  asChild
->
-  <button>Click me</button>
-</SuggestionPrimitive.Trigger>
-```
-
-**Props:**
-
-- `send` (boolean): When true, automatically sends the message. When false, only populates the composer.
-- `clearComposer` (boolean, default: true): When `send` is false, determines if the composer is cleared before adding the suggestion (true) or if the suggestion is appended (false).
-- `asChild` (boolean): Merge props with child element instead of rendering a button.
+The primitives available for rendering suggestions are `ThreadPrimitive.Suggestions`, `ThreadPrimitive.SuggestionByIndex`, `SuggestionPrimitive.Title`, `SuggestionPrimitive.Description`, and `SuggestionPrimitive.Trigger`. `ThreadPrimitive.SuggestionByIndex` is useful when you need layout control over a specific suggestion slot rather than iterating all of them. For the full prop reference and usage patterns, see the [Suggestion primitive docs](/docs/primitives/suggestion).
 
 ## Dynamic Suggestions
 
@@ -212,30 +173,6 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
     </AssistantRuntimeProvider>
   );
 }
-```
-
-## Context-Aware Suggestions
-
-Suggestions can be tailored to different contexts or user intents:
-
-```tsx
-const suggestions = [
-  {
-    title: "Code Review",
-    label: "Get feedback on your code",
-    prompt: "Can you review this code for me?",
-  },
-  {
-    title: "Debug Help",
-    label: "Find and fix issues",
-    prompt: "Help me debug this error",
-  },
-  {
-    title: "Best Practices",
-    label: "Learn recommended patterns",
-    prompt: "What are the best practices for this?",
-  },
-];
 ```
 
 ## Best Practices

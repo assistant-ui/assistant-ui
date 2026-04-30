@@ -58,37 +58,7 @@ const runtime = useChatRuntime();
 
 ### Add UI Components
 
-Integrate attachment components into your chat interface:
-
-```tsx title="/components/assistant-ui/thread.tsx"
-// In your Composer component
-import {
-  ComposerAttachments,
-  ComposerAddAttachment,
-} from "@/components/assistant-ui/attachment";
-
-const Composer = () => {
-  return (
-    <ComposerPrimitive.Root>
-      <ComposerAttachments />
-      <ComposerAddAttachment />
-      <ComposerPrimitive.Input placeholder="Type a message..." />
-    </ComposerPrimitive.Root>
-  );
-};
-
-// In your UserMessage component
-import { UserMessageAttachments } from "@/components/assistant-ui/attachment";
-
-const UserMessage = () => {
-  return (
-    <MessagePrimitive.Root>
-      <UserMessageAttachments />
-      <MessagePrimitive.Parts />
-    </MessagePrimitive.Root>
-  );
-};
-```
+Integrate the attachment components into your chat interface. See [Attachment UI components](/docs/ui/attachment) for the full install and usage guide.
 
   </Step>
 </Steps>
@@ -144,7 +114,7 @@ const compositeAdapter = new CompositeAttachmentAdapter([
 
 ## Creating Custom Attachment Adapters
 
-Build your own adapters for specialized file handling. Below are complete examples for common use cases.
+Build your own adapters for specialized file handling. Below are complete examples for common use cases. For `PendingAttachment` and `CompleteAttachment` type definitions, see [Attachment types](/docs/ui/attachment#attachment-types).
 
 ### Vision-Capable Image Adapter
 
@@ -365,7 +335,7 @@ Provide real-time upload progress using async generators:
 
 ```tsx
 class UploadAttachmentAdapter implements AttachmentAdapter {
-  accept = "*/*";
+  accept = "*";
 
   async *add({ file }: { file: File }) {
     const id = generateId();
@@ -392,8 +362,8 @@ class UploadAttachmentAdapter implements AttachmentAdapter {
       } as PendingAttachment;
     }
 
-    // Return final pending state
-    return {
+    // Yield final progress so the 100% state reaches the composer
+    yield {
       id,
       type: "file",
       name: file.name,
@@ -501,7 +471,7 @@ The event payload carries a `reason` discriminator and a human-readable `message
 | `reason`         | When It Fires                                                                                          |
 | ---------------- | ------------------------------------------------------------------------------------------------------ |
 | `no-adapter`     | `addAttachment(File)` was called but no `AttachmentAdapter` is configured.                             |
-| `not-accepted`   | The file's content type (or filename extension) did not match `adapter.accept`.                        |
+| `not-accepted`   | The file's content type (or filename extension) did not match `adapter.accept`. External `CreateAttachment` descriptors also trigger this when their `contentType` does not match `adapter.accept`. |
 | `adapter-error`  | The adapter's `add()` threw, or returned/yielded an attachment with `status.reason === "error"`. If the adapter produced any attachment before failing, the errored attachment is also visible in `composer.attachments`; if it threw before producing one, the event is the only signal. |
 
 ```tsx
@@ -509,12 +479,13 @@ import { toast } from "sonner"; // or your toast library of choice
 import { useAuiEvent } from "@assistant-ui/react";
 
 function AttachmentErrorToast() {
-  useAuiEvent("composer.attachmentAddError", ({ reason, message }) => {
+  useAuiEvent("composer.attachmentAddError", ({ reason, message, error }) => {
     if (reason === "not-accepted") {
       toast.error("This file type is not supported.");
     } else if (reason === "no-adapter") {
       toast.error("Attachments are not configured for this composer.");
     } else {
+      if (error) console.error(error); // underlying Error, useful for logging
       toast.error(message || "Attachment failed to upload.");
     }
   });

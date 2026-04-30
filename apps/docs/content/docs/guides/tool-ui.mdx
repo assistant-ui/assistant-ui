@@ -27,7 +27,7 @@ There are two main approaches to creating tool UIs in assistant-ui:
 
 ### 1. Client-Defined Tools (`makeAssistantTool`)
 
-If you're creating tools on the client side, use `makeAssistantTool` to register them with the assistant context. Then create a UI component with `makeAssistantToolUI`:
+If you're creating tools on the client side, use `makeAssistantTool` to register them with the assistant context. Then create a UI component with `makeAssistantToolUI`. This component-based API coexists with the [Tools()](/docs/guides/tools) toolkit API; pick whichever fits your codebase better.
 
 ```tsx
 import { makeAssistantTool, tool } from "@assistant-ui/react";
@@ -506,13 +506,7 @@ render: ({ status, args }) => {
 
 ### Field-Level Validation
 
-<Callout type="warn">
-  `useToolArgsFieldStatus` is not currently exported from `@assistant-ui/react`.
-  The hook exists internally but is not part of the public API. This section is
-  included for reference and may become available in a future release.
-</Callout>
-
-Use `useToolArgsFieldStatus` to show validation states:
+Use `useToolArgsFieldStatus` to show validation states for individual fields during streaming. It is exported from `@assistant-ui/react` and must be called inside a tool-call message part context:
 
 ```tsx
 import { useToolArgsFieldStatus } from "@assistant-ui/react";
@@ -597,24 +591,7 @@ const AnalysisToolUI = makeAssistantToolUI<
 
 ### Custom Tool Fallback
 
-Provide a custom UI for tools without specific UIs:
-
-```tsx
-<Thread
-  components={{
-    ToolFallback: ({ toolName, args, result }) => (
-      <div className="tool-fallback rounded bg-gray-100 p-3">
-        <code className="text-sm">
-          {toolName}({JSON.stringify(args)})
-        </code>
-        {result && (
-          <pre className="mt-2 text-xs">{JSON.stringify(result, null, 2)}</pre>
-        )}
-      </div>
-    ),
-  }}
-/>
-```
+For tools that have no dedicated UI, add the `ToolFallback` shadcn component to your project. See the [ToolFallback install guide](/docs/ui/tool-fallback) for setup instructions and the [ToolGroup guide](/docs/ui/tool-group) for grouping consecutive tool calls into a collapsible container.
 
 ## Execution Context
 
@@ -777,6 +754,34 @@ const WeatherUI = makeAssistantToolUI({
 ```
 
 `propStatus` maps each key to `"streaming"` | `"complete"` once the key appears in the partial JSON. Keys not yet present in the stream are absent from `propStatus`.
+
+## Data-Part Generative UI
+
+Alongside tool-call rendering, assistant-ui supports a second generative UI mechanism based on `DataMessagePart`. Instead of attaching UI to a tool invocation, the backend (or the LangGraph graph) emits named data events that are appended as `{ type: "data", name, data }` parts on the parent assistant message.
+
+Use `makeAssistantDataUI` to register a renderer for a named data part:
+
+```tsx
+import { makeAssistantDataUI } from "@assistant-ui/react";
+
+type ChartProps = { series: number[]; title: string };
+
+export const ChartUI = makeAssistantDataUI<ChartProps>({
+  name: "chart",
+  render: ({ data }) => (
+    <div>
+      <h3>{data.title}</h3>
+      <Chart series={data.series} />
+    </div>
+  ),
+});
+```
+
+Mount `<ChartUI />` once inside the `AssistantRuntimeProvider` tree; it renders nothing itself and only registers the renderer.
+
+For LangGraph-specific patterns (emitting UI from a Python/TypeScript graph node via `push_ui_message` / `typedUi`, dynamic loading with `LoadExternalComponent`, and the `useLangGraphUIMessages` escape hatch), see [LangGraph Generative UI](/docs/runtimes/langgraph/generative-ui).
+
+A fallback renderer for unmatched data parts is available internally but `setFallbackDataUI` is not yet a public API.
 
 ## Related Guides
 

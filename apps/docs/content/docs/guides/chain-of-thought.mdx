@@ -8,22 +8,20 @@ LLMs often produce reasoning steps and tool calls in succession. Chain of Though
 
 ## Overview
 
-When a model like OpenAI's `o4-mini` responds, it may emit a sequence of reasoning tokens and tool calls before producing its final text answer. By default, these parts render individually. `ChainOfThoughtPrimitive` groups consecutive reasoning + tool-call parts together and renders them through a single component.
+When a model like OpenAI's `o4-mini` responds, it may emit a sequence of reasoning tokens and tool calls before producing its final text answer. By default, these parts render individually. Passing a `ChainOfThought` component to `MessagePrimitive.Parts` groups consecutive reasoning and tool-call parts and renders them through that component.
 
-Key benefits:
-
-- **Cleaner UI** — Collapse intermediate steps behind a "Thinking" toggle
-- **Better context** — Users see that reasoning and tool calls are related
-- **Built-in accordion** — Expand/collapse with a single click; collapsed by default
+<Callout type="warn">
+**Legacy API.** The `components.ChainOfThought` prop on `MessagePrimitive.Parts` and the `components` prop on `ChainOfThoughtPrimitive.Parts` are both `@deprecated`. For new code, prefer `MessagePrimitive.Parts` with `components={{ Reasoning, ReasoningGroup }}` — see [Reasoning](/docs/ui/reasoning) for the recommended pattern. The examples below show the legacy path; use them as a reference when maintaining existing code.
+</Callout>
 
 ## Quick Start
 
 <Steps>
   <Step>
 
-### Pass a ChainOfThought component to MessagePrimitive.Parts
+### Wire ChainOfThought into MessagePrimitive.Parts
 
-`MessagePrimitive.Parts` accepts a `ChainOfThought` component. When provided, consecutive reasoning and tool-call parts are automatically grouped and rendered through it.
+Pass a `ChainOfThought` component through the `components` prop. `MessagePrimitive.Parts` activates grouping only when this key is present — placing `ChainOfThoughtPrimitive` as a sibling outside `MessagePrimitive.Parts` does not work.
 
 ```tsx
 import {
@@ -63,12 +61,9 @@ const ChainOfThought: FC = () => {
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root>
-      <MessagePrimitive.Parts>
-        {({ part }) => {
-          if (part.type === "text") return <MarkdownText />;
-          return null;
-        }}
-      </MessagePrimitive.Parts>
+      <MessagePrimitive.Parts
+        components={{ ChainOfThought, Text: MarkdownText }}
+      />
     </MessagePrimitive.Root>
   );
 };
@@ -77,9 +72,9 @@ const AssistantMessage: FC = () => {
   </Step>
   <Step>
 
-### Use a reasoning model
+### Use a Reasoning Model
 
-Chain of Thought is most useful with models that produce reasoning tokens (e.g. OpenAI `o4-mini`). Here's an example backend route using the Vercel AI SDK:
+Chain of Thought is most useful with models that produce reasoning tokens (e.g. OpenAI `o4-mini`). Here's an example backend route using the AI SDK:
 
 ```tsx title="app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
@@ -100,37 +95,9 @@ export async function POST(req: Request) {
   </Step>
 </Steps>
 
-## API Reference
+## LangGraph
 
-### ChainOfThoughtPrimitive.Root
-
-Container element for the chain of thought group. Renders a `<div>`.
-
-### ChainOfThoughtPrimitive.AccordionTrigger
-
-A button that toggles the collapsed/expanded state. Collapsed by default.
-
-### ChainOfThoughtPrimitive.Parts
-
-Renders the grouped parts when expanded (nothing when collapsed).
-
-```tsx
-<AuiIf condition={(s) => !s.chainOfThought.collapsed}>
-  <ChainOfThoughtPrimitive.Parts>
-    {({ part }) => {
-      if (part.type === "reasoning") return <Reasoning {...part} />;
-      if (part.type === "tool-call") return <ToolFallback {...part} />;
-      return null;
-    }}
-  </ChainOfThoughtPrimitive.Parts>
-</AuiIf>
-```
-
-| Prop | Type | Description |
-| --- | --- | --- |
-| `components.Reasoning` | `FC<{ text: string }>` | Component to render reasoning parts |
-| `components.tools.Fallback` | `ToolCallMessagePartComponent` | Fallback component for tool-call parts |
-| `components.Layout` | `ComponentType<PropsWithChildren>` | Wrapper component around each rendered part when expanded |
+Chain-of-thought parts are surfaced by the AI SDK's built-in reasoning stream. LangGraph does not emit reasoning tokens in that format, so the `ChainOfThought` grouping will not activate automatically. If you want to display reasoning text from a LangGraph agent, emit it as a custom data part from your graph and render it with `makeAssistantDataUI`. See [generative UI with LangGraph](/docs/runtimes/langgraph/generative-ui) for details.
 
 ## Reading Collapsed State
 
@@ -155,11 +122,16 @@ const ChainOfThoughtAccordionTrigger = () => {
 };
 ```
 
+## API Reference
+
+For the full component API, see the [`ChainOfThought` primitive reference](/docs/primitives/chain-of-thought).
+
 ## Full Example
 
 See the complete [with-chain-of-thought example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-chain-of-thought) for a working implementation with tool calls and reasoning.
 
 ## Related Guides
 
-- [Generative UI](/docs/guides/tool-ui) — Custom UI for tool calls
-- [Tools](/docs/guides/tools) — Defining and using tools
+- [Reasoning](/docs/ui/reasoning) — recommended `ReasoningGroup` pattern for new code
+- [Generative UI](/docs/guides/tool-ui) — custom UI for tool calls
+- [Tools](/docs/guides/tools) — defining and using tools

@@ -1,66 +1,71 @@
 ---
 title: Message Branching
-description: Navigate between different conversation branches when editing or reloading messages.
+description: Navigate between alternative message versions created by editing or reloading.
 platforms: ["react"]
 ---
 
 import { BranchingSample } from "@/components/docs/samples/branching";
 
-Switch between different conversation branches.
+Branching lets users navigate between alternative versions of a message. A new branch is created when:
 
-<BranchingSample />
-
-A new branch is created when:
-
-- a user message is edited
-- an assistant message is reloaded
+- A user message is edited
+- An assistant message is reloaded (reload creates a new branch on the same message)
 
 Branches are automatically tracked by assistant-ui by observing changes to the `messages` array.
 
-## Enabling branch support
+## Shortest Working Pattern
 
-You can show a branch picker by using `BranchPickerPrimitive`.
+<BranchingSample />
 
-```tsx {1, 8, 15-30}
-import { BranchPickerPrimitive } from "@assistant-ui/react";
-
-
-const Message = () => {
-  return (
-    <MessagePrimitive.Root>
-      ...
-      <BranchPicker /> {/* <-- show the branch picker */}
-      ...
-    </MessagePrimitive.Root>
-  );
-};
-
-
-const BranchPicker = () => {
-  return (
-    <BranchPickerPrimitive.Root hideWhenSingleBranch>
-      <BranchPickerPrimitive.Previous />
-      <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
-      <BranchPickerPrimitive.Next />
-    </BranchPickerPrimitive.Root>
-  );
-};
-```
-
-## API
-
-You can access the current branch state or navigate via the API as well.
-These APIs rely on the message scope and may only be called inside a message component.
+Place a branch picker inside your message component:
 
 ```tsx
-import { useAui, useAuiState } from "@assistant-ui/react";
+import { BranchPickerPrimitive } from "@assistant-ui/react";
 
-// read branch state
-const { branchNumber, branchCount } = useAuiState((s) => s.message);
+const BranchPicker = () => (
+  <BranchPickerPrimitive.Root hideWhenSingleBranch>
+    <BranchPickerPrimitive.Previous />
+    <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
+    <BranchPickerPrimitive.Next />
+  </BranchPickerPrimitive.Root>
+);
+```
 
-// navigation
+For the full primitive API and prop reference, see [BranchPickerPrimitive](/docs/primitives/branch-picker).
+
+## API Hooks
+
+These hooks require message scope and may only be called inside a message component.
+
+### `useMessageBranching`
+
+```tsx
+import { useMessageBranching } from "@assistant-ui/react";
+
+const { branchNumber, branchCount, goToPrev, goToNext } = useMessageBranching();
+```
+
+`goToPrev` and `goToNext` disable at branch boundaries. Both also disable while the thread is running unless the runtime supports `switchBranchDuringRun`. See [BranchPickerPrimitive](/docs/primitives/branch-picker) for that capability detail.
+
+To navigate directly to a specific branch by id, use `useAui`:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
 const aui = useAui();
-aui.message().switchToBranch({ position: "next" });
-aui.message().switchToBranch({ position: "previous" });
 aui.message().switchToBranch({ branchId: "some-id" });
 ```
+
+### `useActionBarReload`
+
+```tsx
+import { useActionBarReload } from "@assistant-ui/react";
+
+const { reload, disabled } = useActionBarReload();
+```
+
+`disabled` is `true` when `thread.isRunning` or `thread.isDisabled`.
+
+## Part Groups After Branching
+
+Each branch is a distinct message version with its own content parts. `MessagePrimitive.PartGroups` enables hierarchical adjacent grouping of those parts, useful when a message mixes tool calls and text across branches. See the [MessagePrimitive](/docs/primitives/message) reference for usage.

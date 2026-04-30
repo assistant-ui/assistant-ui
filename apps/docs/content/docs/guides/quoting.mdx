@@ -10,17 +10,11 @@ import { QuoteComposerSample } from "@/components/docs/samples/quote-composer";
 
 ## Get Started
 
-The **[Quote](/docs/ui/quote)** registry component gives you everything you need out of the box, including a floating selection toolbar, composer quote preview, and inline quote display.
+Install and wire up the `quote` registry component by following the [Quote component page](/docs/ui/quote). It covers the install command, component placement, and the `injectQuoteContext` helper for forwarding quote data to the LLM.
 
-<InstallCommand shadcn={["quote"]} />
-
-It ships three composable pieces:
-
-- **QuoteBlock** renders quoted text inline in user messages
-- **SelectionToolbar** is a floating toolbar that appears on text selection
-- **ComposerQuotePreview** shows the pending quote inside the composer
-
-See the [Quote component page](/docs/ui/quote) for full setup steps and API reference.
+<Callout type="warn">
+  **Limitations:** only one quote can be active at a time. `setQuote` replaces the previous quote instead of appending. The floating toolbar only appears when the selection is entirely within a single message part; cross-message and cross-part selections are ignored.
+</Callout>
 
 ---
 
@@ -133,7 +127,7 @@ function CustomQuoteDisplay() {
 
 ## Programmatic API
 
-Set or clear quotes via the composer runtime:
+Set or clear quotes via `useAui` from `@assistant-ui/react`. Call `aui.thread().composer().setQuote()` when your component is rendered outside of a specific thread context, or `aui.composer().setQuote()` when it is rendered inside a thread:
 
 ```tsx
 import { useAui } from "@assistant-ui/react";
@@ -163,12 +157,10 @@ function MyComponent() {
 
 ## Design Notes
 
-- **Single quote:** `setQuote` replaces the current quote instead of appending. Only one quote can be active at a time.
-- **Snapshot text:** The selected text is captured when the quote is created and is not linked to the source message afterward.
-- **Cross-message selection:** The toolbar only appears when the selection stays within a single message.
-- **Streaming messages:** The toolbar still works while a message is streaming because it relies on the captured selection rather than message status.
-- **`isEmpty` unchanged:** A quote by itself does not make the composer non-empty. The user still needs to type a reply.
-- **Scroll hides toolbar:** The toolbar hides on scroll because its position would otherwise become stale.
+- **snapshot text:** the selected text is captured when the quote is created and is not linked to the source message afterward.
+- **streaming messages:** the toolbar still works while a message is streaming because it relies on the captured selection rather than message status.
+- **`isEmpty` unchanged:** a quote by itself does not make the composer non-empty; the user still needs to type a reply.
+- **scroll hides toolbar:** the toolbar hides on scroll because its position would otherwise become stale.
 
 ## Related
 

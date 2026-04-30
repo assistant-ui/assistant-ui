@@ -4,19 +4,21 @@ description: Render mathematical expressions in chat messages using KaTeX.
 platforms: ["react"]
 ---
 
+import { PackageManagerTabs } from "@/components/docs/fumadocs/install/package-manager-tabs";
 
 Render LaTeX mathematical expressions in chat messages using KaTeX.
 
-<Callout type="warn">LaTeX rendering is not enabled in markdown by default.</Callout>
+<Callout type="warn">LaTeX rendering is not enabled by default.</Callout>
+
+<Tabs items={["react-markdown", "Streamdown"]}>
+  <Tab value="react-markdown">
 
 <Steps>
   <Step>
 
 ### Install dependencies
 
-```bash
-npm i katex rehype-katex remark-math
-```
+<PackageManagerTabs packages={["katex", "rehype-katex", "remark-math"]} />
 
   </Step>
   <Step>
@@ -54,9 +56,50 @@ export const MarkdownText = memo(MarkdownTextImpl);
   </Step>
 </Steps>
 
+  </Tab>
+  <Tab value="Streamdown">
+
+<Callout type="info">
+  Using [Streamdown](/docs/ui/streamdown) as your renderer? Math support is a first-party plugin — no remark or rehype packages needed.
+</Callout>
+
+<Steps>
+  <Step>
+
+### Install dependencies
+
+<PackageManagerTabs packages={["@streamdown/math", "katex"]} />
+
+  </Step>
+  <Step>
+
+### Add KaTeX CSS to your layout
+
+```tsx title="/app/layout.tsx"
+import "katex/dist/katex.min.css"; // [!code ++]
+```
+
+  </Step>
+  <Step>
+
+### Pass the `math` plugin to `StreamdownTextPrimitive`
+
+```tsx title="/components/assistant-ui/streamdown-text.tsx"
+import { math } from "@streamdown/math"; // [!code ++]
+import "katex/dist/katex.min.css";       // [!code ++]
+
+<StreamdownTextPrimitive plugins={{ math }} /> // [!code ++]
+```
+
+  </Step>
+</Steps>
+
+  </Tab>
+</Tabs>
+
 ## Supported Formats
 
-By default, remark-math supports:
+By default, remark-math (react-markdown path) supports:
 - `$...$` for inline math
 - `$$...$$` for display math
 - Fenced code blocks with the `math` language identifier
@@ -68,7 +111,7 @@ Many language models generate LaTeX using different delimiter formats:
 - `\[...\]` for display math
 - Custom formats like `[/math]...[/math]`
 
-You can use the `preprocess` prop to normalize these formats:
+You can use the `preprocess` prop on `MarkdownTextPrimitive` to normalize these formats before parsing:
 
 ```tsx title="/components/assistant-ui/markdown-text.tsx"
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
@@ -105,6 +148,5 @@ function normalizeCustomMathTags(input: string): string {
 ```
 
 <Callout type="tip">
-The preprocessing function runs before markdown parsing, allowing you to transform any delimiter format into the standard `$` and `$$` format.
+Both `preprocess` and `useSmooth` run before markdown parsing inside `MarkdownTextPrimitive`. This means delimiter normalization (and smooth-streaming character accumulation) happen before remark-math sees the text, so escape rules and delimiter replacement are streaming-safe — a partially-received `\[` fragment is held in the streaming buffer until the full delimiter arrives.
 </Callout>
-

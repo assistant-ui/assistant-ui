@@ -6,6 +6,10 @@ platforms: ["react"]
 
 Display stream performance metrics — duration, tokens per second, TTFT — on assistant messages.
 
+<Callout type="warn">
+  This feature is experimental. The `useMessageTiming()` API and the set of tracked fields may change in future versions.
+</Callout>
+
 <Callout type="info">
   The [`MessageTiming`](/docs/ui/message-timing) registry component provides a ready-made badge + popover UI. This guide covers the underlying `useMessageTiming()` hook for custom implementations and runtime-specific setup.
 </Callout>
@@ -68,7 +72,7 @@ const AssistantMessage: FC = () => {
 
 | Runtime | Supported | Notes |
 |---------|:-:|-------|
-| DataStream | Yes | Automatic via `AssistantMessageAccumulator` |
+| [Data Stream](/docs/runtimes/custom/data-stream) | Yes | Automatic via `AssistantMessageAccumulator` |
 | AI SDK (`useChatRuntime`) | Yes | Automatic via client-side tracking |
 | Local (`useLocalRuntime`) | Yes | Pass timing in `ChatModelRunResult.metadata` |
 | ExternalStore | Yes | Pass timing in `ThreadMessageLike.metadata` |
@@ -76,7 +80,7 @@ const AssistantMessage: FC = () => {
 | AG-UI | No | Not yet implemented |
 | OpenCode | No | Not yet implemented |
 
-### DataStream
+### Data Stream
 
 Timing is tracked automatically inside `AssistantMessageAccumulator`. No setup required.
 

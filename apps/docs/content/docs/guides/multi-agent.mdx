@@ -52,7 +52,10 @@ const ResearchAgentToolUI = makeAssistantToolUI({
 
 ### Provide the Messages from the Backend
 
-Your backend must populate the `messages` field on the tool call result. For example, with the AI SDK:
+Your backend must populate the `messages` field on the tool call result.
+
+<Tabs items={["AI SDK", "LangGraph"]}>
+<Tab value="AI SDK">
 
 ```ts title="api/chat/route.ts"
 tools: {
@@ -63,7 +66,6 @@ tools: {
       const subAgentMessages = await runResearcherAgent(query);
       return {
         answer: subAgentMessages.at(-1)?.content,
-        // The messages field is picked up by assistant-ui
         messages: subAgentMessages,
       };
     },
@@ -71,9 +73,53 @@ tools: {
 },
 ```
 
+</Tab>
+<Tab value="LangGraph">
+
+With `@assistant-ui/react-langgraph`, use `unstable_createLangGraphStream` and set `unstable_allowCancellation: true` to wire up the stop button. When your graph runs a subgraph, the subgraph's messages appear on `ToolCallMessagePart.messages` automatically once you handle the `onSubgraphValues` / `onSubgraphUpdates` events.
+
+```ts title="runtime.ts"
+import {
+  useLangGraphRuntime,
+  unstable_createLangGraphStream,
+} from "@assistant-ui/react-langgraph";
+
+const runtime = useLangGraphRuntime({
+  unstable_allowCancellation: true,
+  stream: unstable_createLangGraphStream({
+    client,
+    assistantId,
+    // "custom" is required for generative UI; "updates" for subgraph events
+    streamMode: ["messages", "updates", "custom"],
+    // abort the run server-side when the user clicks stop
+    onDisconnect: "cancel",
+  }),
+  eventHandlers: {
+    onSubgraphValues: (namespace, values) => {
+      // namespace = e.g. "tools:call_abc" — the sub-agent's node path
+      // values contains the subgraph state, including its messages array
+    },
+    onSubgraphUpdates: (namespace, updates) => {
+      // incremental state updates from the subgraph
+    },
+    onSubgraphError: (namespace, error) => {
+      // error scoped to the subgraph; does not mark the parent message failed
+    },
+    onMessageChunk: (chunk, metadata) => {
+      // metadata.namespace is set when the chunk originates from a subgraph
+      // use it to attribute the chunk to the correct sub-agent
+    },
+  },
+});
+```
+
+See [LangGraph Streaming](/docs/runtimes/langgraph/streaming) for the full event handler reference.
+
+</Tab>
+</Tabs>
+
 <Callout type="info">
-  The exact mechanism for populating `messages` depends on your backend
-  framework. The key requirement is that the tool result's corresponding
+  The key requirement is that the tool result's corresponding
   `ToolCallMessagePart` includes a `messages` array of `ThreadMessage` objects.
 </Callout>
 
@@ -95,6 +141,17 @@ function App() {
 
   </Step>
 </Steps>
+
+## Subgraph Namespace Events
+
+When using LangGraph, subgraph events carry a `namespace` that identifies which sub-agent emitted them. This lets you attribute messages and state to specific sub-agents without polling or manual coordination.
+
+- `onSubgraphValues(namespace, values)` fires when a subgraph emits a full state snapshot. Use the `values.messages` array to populate `ToolCallMessagePart.messages` for that sub-agent.
+- `onSubgraphUpdates(namespace, updates)` fires for incremental state patches from a subgraph.
+- `onSubgraphError(namespace, error)` fires when a subgraph fails. The parent message is not marked incomplete; only top-level errors trigger that.
+- `onMessageChunk(chunk, metadata)` includes `metadata.namespace` when the chunk originates from a subgraph. Use this to display per-sub-agent streaming indicators.
+
+The `namespace` value mirrors the pipe-separated suffix on the LangGraph event name (e.g. `values|tools:call_abc` gives `"tools:call_abc"`).
 
 ## Recursive Sub-Agents
 
@@ -173,3 +230,5 @@ function SubConversation({
 - [Generative UI](/docs/guides/tool-ui) — Creating tool call UIs
 - [MessagePartPrimitive](/docs/api-reference/primitives/message-part) — API reference for message part primitives
 - [Sub-Agent Model Tracking](/docs/cloud/ai-sdk#sub-agent-model-tracking) — Track delegated model usage and costs in the Cloud dashboard
+- [LangGraph Streaming](/docs/runtimes/langgraph/streaming) — Event handlers, subgraph events, and message metadata
+- [LangGraph Generative UI](/docs/runtimes/langgraph/generative-ui) — Structured UI components emitted by your graph

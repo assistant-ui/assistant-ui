@@ -64,6 +64,10 @@ const { connect, disconnect, mute, unmute } = useVoiceControls();
 
 ## UI Example
 
+<Callout type="info">
+  For a ready-made control bar with a voice orb and call controls, see the [Voice component](/docs/ui/voice).
+</Callout>
+
 ```tsx
 import { useVoiceState, useVoiceControls } from "@assistant-ui/react";
 import { PhoneIcon, PhoneOffIcon, MicIcon, MicOffIcon } from "lucide-react";
@@ -301,6 +305,40 @@ const runtime = useChatRuntime({
   },
 });
 ```
+
+## Using `createVoiceSession`
+
+`createVoiceSession` is a helper that eliminates the manual `Set<callback>` boilerplate shown in the ElevenLabs example above. Pass it an async `setup` function that receives a `helpers` object and returns `{ disconnect, mute, unmute }`. The helper wires up all callback sets, status tracking, and abort-signal handling for you.
+
+```tsx title="lib/my-voice-adapter.ts"
+import { createVoiceSession, type RealtimeVoiceAdapter } from "@assistant-ui/react";
+
+export class MyVoiceAdapter implements RealtimeVoiceAdapter {
+  connect(options: { abortSignal?: AbortSignal }): RealtimeVoiceAdapter.Session {
+    return createVoiceSession(options, async (helpers) => {
+      // Connect to your provider
+      const client = await MyVoiceClient.connect();
+
+      client.on("open", () => helpers.setStatus({ type: "running" }));
+      client.on("close", () => helpers.end("finished"));
+      client.on("error", (err) => helpers.end("error", err));
+
+      client.on("transcript", (item) => helpers.emitTranscript(item));
+      client.on("mode", (mode) => helpers.emitMode(mode));
+      client.on("volume", (v) => helpers.emitVolume(v));
+
+      // Return controls — createVoiceSession calls these on disconnect/mute/unmute
+      return {
+        disconnect: () => client.close(),
+        mute: () => client.setMuted(true),
+        unmute: () => client.setMuted(false),
+      };
+    });
+  }
+}
+```
+
+The `helpers` object exposes `setStatus`, `end`, `emitTranscript`, `emitMode`, `emitVolume`, and `isDisposed`. When `isDisposed()` is true the session has been torn down and you can skip further event handling.
 
 ## Example: LiveKit
 

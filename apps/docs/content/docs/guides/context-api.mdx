@@ -212,6 +212,8 @@ aui.attachment().getState();
 // ThreadList actions
 aui.threads().switchToNewThread();
 aui.threads().switchToThread(threadId);
+aui.threads().reload();
+await aui.threads().getLoadThreadsPromise();
 aui.threads().getState();
 
 // ThreadListItem actions
@@ -234,9 +236,9 @@ aui.chainOfThought().getState();
 aui.chainOfThought().setCollapsed(collapsed);
 aui.chainOfThought().part({ index: 0 });
 
-// ModelContext actions
-aui.modelContext().getState();
+// ModelContext actions — see /docs/copilots/model-context for full usage
 aui.modelContext().register(provider);
+aui.modelContext().getState();
 
 // Tools actions
 aui.tools().setToolUI(toolName, render);
@@ -356,9 +358,14 @@ const partByToolCall = aui.message().part({ toolCallId: "call_123" });
 // Access attachment by index
 const attachment = aui.composer().attachment({ index: 0 }).getState();
 
-// Access thread list item by ID or index
+// Access thread list item by ID, index, or the "main" selector
 const threadItem = aui.threads().item({ id: "thread_123" });
 const threadByIndex = aui.threads().item({ index: 0 });
+const archivedThread = aui.threads().item({ index: 0, archived: true });
+
+// Traverse to the main thread directly
+const mainThread = aui.threads().thread("main");
+const message = aui.threads().thread("main").message({ id: "msg_123" });
 ```
 
 ## Common Patterns
@@ -491,9 +498,9 @@ const isRunning = useAuiState((s) => s.thread.isRunning);
 
 | Scope          | Key State Properties                                                                             | Description                                        |
 | -------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| ThreadList     | `mainThreadId`, `newThreadId`, `threadIds`, `archivedThreadIds`, `isLoading`, `threadItems`     | Manages all available conversation threads         |
-| ThreadListItem | `id`, `title`, `status`, `remoteId`, `externalId`                                               | Individual thread metadata and status              |
-| Thread         | `isRunning`, `isLoading`, `isDisabled`, `isEmpty`, `messages`, `capabilities`, `suggestions`    | Active conversation state and message history      |
+| ThreadList     | `mainThreadId`, `newThreadId`, `threadIds`, `archivedThreadIds`, `isLoading`, `threadItems` (Record\<string, ThreadListItemState\>) | Manages all available conversation threads |
+| ThreadListItem | `id`, `title`, `status`, `remoteId`, `externalId`, `custom?: Record<string, unknown>`           | Individual thread metadata and status; `custom` carries arbitrary per-thread metadata set by remote runtimes |
+| Thread         | `isRunning` (may be explicitly set by the runtime rather than derived from last-message status), `isLoading`, `isDisabled`, `isEmpty`, `messages`, `capabilities`, `suggestions` | Active conversation state and message history |
 | Message        | `role`, `content`, `status`, `attachments`, `parts`, `parentId`, `branchNumber`, `branchCount`, `isLast`, `index` | Individual message content and metadata |
 | Part           | `type`, `status`, `text`, `toolCallId`, `toolName`                                              | Content parts within messages (text, tool calls)   |
 | ChainOfThought | `parts`, `collapsed`, `status`                                                                   | Reasoning steps grouped within a message           |
@@ -501,13 +508,15 @@ const isRunning = useAuiState((s) => s.thread.isRunning);
 | Attachment     | `id`, `type`, `name`, `contentType`, `status`                                                   | File attachments metadata and content              |
 | Suggestions    | `suggestions`                                                                                    | Collection of follow-up message suggestions        |
 | Suggestion     | `title`, `label`, `prompt`                                                                       | Individual suggestion with title, label, and prompt |
-| ModelContext   | *(empty — use `register()` / `getToolCallParams()` methods)*                                     | Model context and tool registration                |
+| ModelContext   | *(empty — use `register()` / `getToolCallParams()` methods; see [Model Context](/docs/copilots/model-context))* | System instructions, tools, and context providers |
 
 ### Available Actions by Scope
 
+The table below covers the most commonly used actions. For the full catalog, see the [API Reference](/docs/api-reference/overview).
+
 | Scope          | Actions                                                                                                           | Use Cases                                  |
 | -------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| ThreadList     | `switchToNewThread()`, `switchToThread(id)`, `item(selector)`, `thread("main")`, `getState()`                    | Thread navigation and creation             |
+| ThreadList     | `switchToNewThread()`, `switchToThread(id)`, `reload()`, `getLoadThreadsPromise()`, `item(selector)`, `thread("main")`, `getState()` | Thread navigation, creation, and sync |
 | ThreadListItem | `switchTo()`, `rename(title)`, `archive()`, `unarchive()`, `delete()`, `getState()`                              | Thread management operations               |
 | Thread         | `append(message)`, `startRun(config)`, `resumeRun(config)`, `cancelRun()`, `reset()`, `export()`, `import(repository)`, `message(selector)`, `composer()`, `getState()` | Message handling and conversation control |
 | Message        | `reload()`, `speak()`, `stopSpeaking()`, `submitFeedback(feedback)`, `switchToBranch(options)`, `getCopyText()`, `part(selector)`, `attachment(selector)`, `composer()`, `setIsCopied(value)`, `setIsHovering(value)`, `getState()` | Message interactions and regeneration |
@@ -517,7 +526,7 @@ const isRunning = useAuiState((s) => s.thread.isRunning);
 | Attachment     | `remove()`, `getState()`                                                                                          | File management                            |
 | Suggestions    | `suggestion({ index })`, `getState()`                                                                             | Access follow-up suggestions               |
 | Suggestion     | `getState()`                                                                                                      | Read individual suggestion data            |
-| ModelContext   | `register(provider)`, `getState()`                                                                                | Register model context providers           |
+| ModelContext   | `register(provider)`, `getState()`                                                                                | Register providers; full details in [Model Context](/docs/copilots/model-context) |
 
 ### Events vs State Observation
 
