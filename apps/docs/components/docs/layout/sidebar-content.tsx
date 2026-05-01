@@ -374,18 +374,31 @@ export function SidebarContent({ tree }: SidebarContentProps) {
         $id: `platform-${platform}-getting-started`,
       };
 
-      return [
-        {
-          ...docsFolder,
-          children: [
-            gettingStartedSeparator,
-            ...sharedDocs,
-            platformSeparator,
-            ...pagesBeforeFirstSeparator,
-            ...remainingChildren,
-          ],
-        },
-      ].filter((f) => hasVisibleContent(f, platform));
+      const platformDocsSection = {
+        ...docsFolder,
+        children: [
+          gettingStartedSeparator,
+          ...sharedDocs,
+          platformSeparator,
+          ...pagesBeforeFirstSeparator,
+          ...remainingChildren,
+        ],
+      };
+      const sharedSections = allFolders
+        .filter(
+          (f) =>
+            f.name !== INJECT_TARGET_FOLDER &&
+            !PLATFORM_FOLDER_NAMES.has(String(f.name)) &&
+            isNodeVisible(f, platform),
+        )
+        .map((f) => ({
+          ...f,
+          children: pruneEmptySeparators(f.children, platform),
+        }));
+
+      return [platformDocsSection, ...sharedSections].filter((f) =>
+        hasVisibleContent(f, platform),
+      );
     }
 
     return allFolders
