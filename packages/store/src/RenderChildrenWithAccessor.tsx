@@ -10,18 +10,17 @@ export const useGetItemAccessor = <T,>(
 ) => {
   const aui = useAui();
 
-  // if the consumer never accesses the item, do not trigger rerenders
-  const cacheRef = useRef<T | undefined>(undefined);
+  // Track access with a dedicated flag rather than reusing the snapshot value:
+  // useSyncExternalStore may call getSnapshot() after commit (tearing checks),
+  // which would re-cache the current state and mask later real updates.
+  const accessedRef = useRef(false);
   useAuiState(() => {
-    if (cacheRef.current === undefined) {
-      cacheRef.current = getItemState(aui);
-    }
-    return cacheRef.current;
+    if (!accessedRef.current) return undefined;
+    return getItemState(aui);
   });
 
   return () => {
-    cacheRef.current = undefined; // clear the cache (rerender on next state change)
-
+    accessedRef.current = true;
     return getItemState(aui);
   };
 };

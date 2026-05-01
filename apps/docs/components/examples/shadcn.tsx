@@ -30,7 +30,6 @@ import {
   MessagePrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
-  useAuiState,
   unstable_useMentionAdapter,
   unstable_useSlashCommandAdapter,
   type Unstable_SlashCommand,
@@ -193,7 +192,11 @@ const Thread: FC = () => {
           className="mb-10 flex flex-col gap-y-8 empty:hidden"
         >
           <ThreadPrimitive.Messages>
-            {() => <ThreadMessage />}
+            {({ message }) => {
+              if (message.composer.isEditing) return <EditComposer />;
+              if (message.role === "user") return <UserMessage />;
+              return <AssistantMessage />;
+            }}
           </ThreadPrimitive.Messages>
         </div>
 
@@ -206,15 +209,6 @@ const Thread: FC = () => {
       <SelectionToolbar />
     </ThreadPrimitive.Root>
   );
-};
-
-const ThreadMessage: FC = () => {
-  const role = useAuiState((s) => s.message.role);
-  const isEditing = useAuiState((s) => s.message.composer.isEditing);
-
-  if (isEditing) return <EditComposer />;
-  if (role === "user") return <UserMessage />;
-  return <AssistantMessage />;
 };
 
 const ThreadScrollToBottom: FC = () => {
