@@ -10,7 +10,7 @@ export type TypeTableRow = {
   type: ReactNode;
   typeFull?: ReactNode | undefined;
   description?: ReactNode | undefined;
-  default?: string | undefined;
+  default?: ReactNode | undefined;
   required: boolean;
   deprecated: boolean;
   children?: { type?: string | undefined; rows: TypeTableRow[] }[] | undefined;
@@ -41,6 +41,7 @@ function TypeCell({
     <span
       className={cn(
         "[&>figure]:!my-0 [&_pre]:!bg-transparent [&_pre]:!p-0 [&_code]:!text-[0.8125rem] [&_code]:!bg-transparent [&_code]:!border-0 [&_code]:!p-0 min-w-0 flex-1 overflow-hidden",
+        "overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         className,
       )}
     >
@@ -108,10 +109,10 @@ function Item({
           : "border-transparent",
       )}
     >
-      <Collapsible.Trigger className="group not-prose relative flex w-full flex-row items-center px-3 py-2 text-start hover:bg-fd-accent">
+      <Collapsible.Trigger className="not-prose group/trigger relative flex w-full flex-row items-center px-3 py-2 text-start hover:bg-fd-accent">
         <PropName row={row} />
         <TypeCell className="@max-xl:hidden">{row.type}</TypeCell>
-        <ChevronDown className="absolute end-2 size-4 text-fd-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+        <ChevronDown className="absolute end-2 size-4 text-fd-muted-foreground transition-transform group-data-[state=open]/trigger:rotate-180" />
       </Collapsible.Trigger>
 
       <Collapsible.Content
@@ -140,9 +141,9 @@ function Item({
               <span className="not-prose pe-2 text-fd-muted-foreground">
                 Default
               </span>
-              <span className="not-prose my-auto pl-4">
-                <code>{row.default}</code>
-              </span>
+              <TypeCell className="my-auto">
+                <span className="[&_pre]:inline">{row.default}</span>
+              </TypeCell>
             </>
           )}
           {row.children?.map((child, i) => (
