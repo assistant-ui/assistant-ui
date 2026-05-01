@@ -33,6 +33,16 @@ const getLayoutOffsetTop = (
 ): number => {
   // Use layout geometry, not visual rects, so entrance transforms/animations
   // on the anchor do not shift the scroll target while they settle.
+  let top = 0;
+  let current: HTMLElement | null = element;
+
+  while (current && current !== ancestor) {
+    top += current.offsetTop;
+    current = current.offsetParent as HTMLElement | null;
+  }
+
+  if (current === ancestor) return top;
+
   return getDocumentOffsetTop(element) - getDocumentOffsetTop(ancestor);
 };
 

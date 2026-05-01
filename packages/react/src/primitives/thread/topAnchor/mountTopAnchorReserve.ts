@@ -54,7 +54,7 @@ const createFrameScheduler = (fn: () => void) => {
 };
 
 export const mountTopAnchorReserve = (store: TopAnchorStore) => {
-  const reserve = createReserveElement();
+  let reserve: HTMLElement | null = null;
   let lastScrolledAnchorId: string | undefined;
 
   function apply() {
@@ -70,10 +70,14 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
       !clamp
     ) {
       observers.disconnect();
-      setReserveHeight(reserve, 0);
-      reserve.remove();
+      if (reserve) {
+        setReserveHeight(reserve, 0);
+        reserve.remove();
+      }
       return;
     }
+
+    reserve ??= createReserveElement();
 
     if (
       reserve.parentElement !== target.parentElement ||
@@ -118,6 +122,6 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     scheduler.cancel();
     unsubscribe();
     observers.disconnect();
-    reserve.remove();
+    reserve?.remove();
   };
 };
