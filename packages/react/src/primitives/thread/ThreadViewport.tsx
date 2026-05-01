@@ -43,13 +43,13 @@ export namespace ThreadPrimitiveViewport {
      */
     topAnchorMessageClamp?: {
       /**
-       * Clamp messages taller than this.
+       * Clamp messages taller than this. Supports `px`, `em`, and `rem`.
        *
        * @default "10em"
        */
       tallerThan?: string;
       /**
-       * Visible portion of clamped messages.
+       * Visible portion of clamped messages. Supports `px`, `em`, and `rem`.
        *
        * @default "6em"
        */
