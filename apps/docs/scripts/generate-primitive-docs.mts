@@ -243,6 +243,43 @@ function isInheritedProp(prop: TsMorphSymbol): boolean {
   return false;
 }
 
+function extractJsDocMeta(decl: Node): {
+  description?: string;
+  default?: string;
+  deprecated?: string;
+} {
+  if (!Node.isPropertySignature(decl) && !Node.isPropertyDeclaration(decl)) {
+    return {};
+  }
+
+  const jsDocs = decl.getJsDocs?.();
+  if (!jsDocs || jsDocs.length === 0) return {};
+
+  const doc = jsDocs[0]!;
+  const meta: {
+    description?: string;
+    default?: string;
+    deprecated?: string;
+  } = {};
+
+  const comment = doc.getComment();
+  if (typeof comment === "string") {
+    meta.description = comment.trim();
+  }
+
+  for (const tag of doc.getTags()) {
+    const tagName = tag.getTagName();
+    if (tagName === "default") {
+      meta.default = tag.getComment()?.toString().trim();
+    }
+    if (tagName === "deprecated") {
+      meta.deprecated = tag.getComment()?.toString().trim() || "true";
+    }
+  }
+
+  return meta;
+}
+
 function extractPropsFromType(
   typeAlias: TypeAliasDeclaration | InterfaceDeclaration,
   sourceFile: SourceFile,
@@ -321,31 +358,7 @@ function extractPropsFromType(
       propType = "unknown";
     }
 
-    // Get JSDoc
-    let description: string | undefined;
-    let defaultValue: string | undefined;
-    let deprecated: string | undefined;
-
-    if (Node.isPropertySignature(decl) || Node.isPropertyDeclaration(decl)) {
-      const jsDocs = (decl as PropertySignature).getJsDocs?.();
-      if (jsDocs && jsDocs.length > 0) {
-        const doc = jsDocs[0]!;
-        const comment = doc.getComment();
-        if (typeof comment === "string") {
-          description = comment.trim();
-        }
-
-        for (const tag of doc.getTags()) {
-          const tagName = tag.getTagName();
-          if (tagName === "default") {
-            defaultValue = tag.getComment()?.toString().trim();
-          }
-          if (tagName === "deprecated") {
-            deprecated = tag.getComment()?.toString().trim() || "true";
-          }
-        }
-      }
-    }
+    const jsDoc = extractJsDocMeta(decl);
 
     // Determine if required
     const isOptional = isRequireAtLeastOne
@@ -362,14 +375,14 @@ function extractPropsFromType(
     if (!isOptional) {
       propDef.required = true;
     }
-    if (description) {
-      propDef.description = description;
+    if (jsDoc.description) {
+      propDef.description = jsDoc.description;
     }
-    if (defaultValue) {
-      propDef.default = defaultValue;
+    if (jsDoc.default) {
+      propDef.default = jsDoc.default;
     }
-    if (deprecated) {
-      propDef.deprecated = deprecated;
+    if (jsDoc.deprecated) {
+      propDef.deprecated = jsDoc.deprecated;
     }
 
     // Handle nested component props
@@ -439,34 +452,13 @@ function extractObjectChildren(
       childType = "unknown";
     }
 
-    let childDesc: string | undefined;
-    let childDefault: string | undefined;
-    let childDeprecated: string | undefined;
-    if (Node.isPropertySignature(childDecl)) {
-      const jsDocs = (childDecl as PropertySignature).getJsDocs?.();
-      if (jsDocs && jsDocs.length > 0) {
-        const doc = jsDocs[0]!;
-        const comment = doc.getComment();
-        if (typeof comment === "string") {
-          childDesc = comment.trim();
-        }
-        for (const tag of doc.getTags()) {
-          const tagName = tag.getTagName();
-          if (tagName === "default") {
-            childDefault = tag.getComment()?.toString().trim();
-          }
-          if (tagName === "deprecated") {
-            childDeprecated = tag.getComment()?.toString().trim() || "true";
-          }
-        }
-      }
-    }
+    const childJsDoc = extractJsDocMeta(childDecl);
 
     const childDef: PropDef = { name: childName };
     if (childType) childDef.type = childType;
-    if (childDesc) childDef.description = childDesc;
-    if (childDefault) childDef.default = childDefault;
-    if (childDeprecated) childDef.deprecated = childDeprecated;
+    if (childJsDoc.description) childDef.description = childJsDoc.description;
+    if (childJsDoc.default) childDef.default = childJsDoc.default;
+    if (childJsDoc.deprecated) childDef.deprecated = childJsDoc.deprecated;
     if (
       Node.isPropertySignature(childDecl) &&
       !(childDecl as PropertySignature).hasQuestionToken()

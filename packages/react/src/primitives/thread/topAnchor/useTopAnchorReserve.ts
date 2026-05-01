@@ -10,10 +10,10 @@ import { mountTopAnchorReserve } from "./mountTopAnchorReserve";
  * the reserve `<div>` is appended next to the streaming assistant message.
  */
 export const useTopAnchorReserve = (enabled: boolean) => {
-  const threadViewportStore = useThreadViewportStore({ optional: true });
+  const threadViewportStore = useThreadViewportStore();
 
   useLayoutEffect(() => {
-    if (!enabled || !threadViewportStore) return;
+    if (!enabled) return;
     return mountTopAnchorReserve(threadViewportStore);
   }, [enabled, threadViewportStore]);
 };
