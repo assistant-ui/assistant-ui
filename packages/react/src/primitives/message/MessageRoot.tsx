@@ -10,11 +10,12 @@ import {
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import {
-  useThreadViewport,
-  useThreadViewportStore,
-} from "../../context/react/ThreadViewportContext";
+import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
 import { parseCssLength } from "../thread/topAnchor/topAnchorUtils";
+
+type ThreadViewportStore = NonNullable<
+  ReturnType<typeof useThreadViewportStore>
+>;
 
 const useIsHoveringRef = () => {
   const aui = useAui();
@@ -81,9 +82,10 @@ const useIsTopAnchorTarget = (turnAnchor: "top" | "bottom") => {
 };
 
 /** Registers the user message as the top-anchor user reference element. */
-const useTopAnchorUserRef = (active: boolean) => {
-  const threadViewportStore = useThreadViewportStore();
-
+const useTopAnchorUserRef = (
+  active: boolean,
+  threadViewportStore: ThreadViewportStore,
+) => {
   const callback = useCallback(
     (el: HTMLElement) => {
       if (!active) return;
@@ -100,19 +102,25 @@ const useTopAnchorUserRef = (active: boolean) => {
  * clamp config is parsed once at register time using the registered element's
  * computed style, then stored as numeric pixels.
  */
-const useTopAnchorTargetRef = ({ active }: { active: boolean }) => {
-  const threadViewportStore = useThreadViewportStore();
-  const clamp = useThreadViewport((s) => s.topAnchorMessageClamp);
-
+const useTopAnchorTargetRef = ({
+  active,
+  threadViewportStore,
+}: {
+  active: boolean;
+  threadViewportStore: ThreadViewportStore;
+}) => {
   const targetRefCallback = useCallback(
     (el: HTMLElement) => {
       if (!active) return;
-      return threadViewportStore.getState().registerAnchorTargetElement(el, {
+      const state = threadViewportStore.getState();
+      const clamp = state.topAnchorMessageClamp;
+
+      return state.registerAnchorTargetElement(el, {
         tallerThan: parseCssLength(clamp.tallerThan, el),
         visibleHeight: parseCssLength(clamp.visibleHeight, el),
       });
     },
-    [active, clamp.tallerThan, clamp.visibleHeight, threadViewportStore],
+    [active, threadViewportStore],
   );
 
   return useManagedRef<HTMLElement>(targetRefCallback);
@@ -151,12 +159,17 @@ export const MessagePrimitiveRoot = forwardRef<
   MessagePrimitiveRoot.Props
 >((props, forwardRef) => {
   const isHoveringRef = useIsHoveringRef();
-  const turnAnchor = useThreadViewport((s) => s.turnAnchor);
+  const threadViewportStore = useThreadViewportStore();
+  const turnAnchor = threadViewportStore.getState().turnAnchor;
   const isTopAnchorUser = useIsTopAnchorUser(turnAnchor);
   const isTopAnchorTarget = useIsTopAnchorTarget(turnAnchor);
-  const topAnchorUserRef = useTopAnchorUserRef(isTopAnchorUser);
+  const topAnchorUserRef = useTopAnchorUserRef(
+    isTopAnchorUser,
+    threadViewportStore,
+  );
   const topAnchorTargetRef = useTopAnchorTargetRef({
     active: isTopAnchorTarget,
+    threadViewportStore,
   });
   const ref = useComposedRefs<HTMLDivElement>(
     forwardRef,
