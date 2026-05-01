@@ -1,5 +1,5 @@
 ---
-"@assistant-ui/react": patch
+"@assistant-ui/react": minor
 ---
 
 fix: robust top-turn anchoring with viewport-owned reserve
