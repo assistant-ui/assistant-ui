@@ -378,12 +378,107 @@ function extractPropsFromType(
       if (children) {
         propDef.children = children;
       }
+    } else if (isObjectPropWithDocumentableProperties(prop, decl)) {
+      const children = extractObjectChildren(prop, decl, propType);
+      if (children) {
+        propDef.children = children;
+      }
     }
 
     props.push(propDef);
   }
 
   return props;
+}
+
+function isObjectPropWithDocumentableProperties(
+  prop: TsMorphSymbol,
+  decl: Node,
+): boolean {
+  if (!Node.isPropertySignature(decl)) return false;
+  const typeNode = decl.getTypeNode();
+  if (!typeNode || !Node.isTypeLiteral(typeNode)) return false;
+
+  const type = prop.getTypeAtLocation(decl);
+  if (type.getCallSignatures().length > 0) return false;
+
+  const properties = type.getProperties();
+  if (properties.length === 0) return false;
+
+  return properties.every((childProp) =>
+    childProp
+      .getDeclarations()
+      .some((childDecl) => Node.isPropertySignature(childDecl)),
+  );
+}
+
+function extractObjectChildren(
+  prop: TsMorphSymbol,
+  decl: Node,
+  typeName: string,
+): Array<{ type?: string; parameters: PropDef[] }> | undefined {
+  const type = prop.getTypeAtLocation(decl);
+  const properties = type.getProperties();
+  if (properties.length === 0) return undefined;
+
+  const childProps: PropDef[] = [];
+  for (const childProp of properties) {
+    const childDecl = childProp.getDeclarations()[0];
+    if (!childDecl) continue;
+    if (isInheritedProp(childProp)) continue;
+
+    const childName = childProp.getName();
+    if (childName.startsWith("__")) continue;
+
+    let childType: string;
+    try {
+      childType = cleanTypeText(
+        childProp.getTypeAtLocation(childDecl).getText(),
+      );
+    } catch {
+      childType = "unknown";
+    }
+
+    let childDesc: string | undefined;
+    let childDefault: string | undefined;
+    let childDeprecated: string | undefined;
+    if (Node.isPropertySignature(childDecl)) {
+      const jsDocs = (childDecl as PropertySignature).getJsDocs?.();
+      if (jsDocs && jsDocs.length > 0) {
+        const doc = jsDocs[0]!;
+        const comment = doc.getComment();
+        if (typeof comment === "string") {
+          childDesc = comment.trim();
+        }
+        for (const tag of doc.getTags()) {
+          const tagName = tag.getTagName();
+          if (tagName === "default") {
+            childDefault = tag.getComment()?.toString().trim();
+          }
+          if (tagName === "deprecated") {
+            childDeprecated = tag.getComment()?.toString().trim() || "true";
+          }
+        }
+      }
+    }
+
+    const childDef: PropDef = { name: childName };
+    if (childType) childDef.type = childType;
+    if (childDesc) childDef.description = childDesc;
+    if (childDefault) childDef.default = childDefault;
+    if (childDeprecated) childDef.deprecated = childDeprecated;
+    if (
+      Node.isPropertySignature(childDecl) &&
+      !(childDecl as PropertySignature).hasQuestionToken()
+    ) {
+      childDef.required = true;
+    }
+
+    childProps.push(childDef);
+  }
+
+  if (childProps.length === 0) return undefined;
+  return [{ type: typeName, parameters: childProps }];
 }
 
 function extractComponentsChildren(

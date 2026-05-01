@@ -176,9 +176,63 @@ The scrollable area containing all messages. Automatically scrolls to the bottom
     {
       name: "autoScroll",
       type: "boolean",
-      default: "true",
+      default: 'true (false when turnAnchor is "top")',
       description:
         "Whether to automatically scroll to the bottom when new messages are added while the viewport was previously scrolled to the bottom.",
+    },
+    {
+      name: "turnAnchor",
+      type: '"top" | "bottom"',
+      default: '"bottom"',
+      description:
+        'Controls scroll anchoring behavior for new messages. "top" anchors new user messages at the top of the viewport.',
+    },
+    {
+      name: "topAnchorMessageClamp",
+      type: '{ tallerThan?: string; visibleHeight?: string }',
+      default: '{ tallerThan: "10em", visibleHeight: "6em" }',
+      description:
+        'Clamps tall user messages when turnAnchor is "top". Messages up to `tallerThan` stay fully visible; taller messages show only `visibleHeight` of their bottom edge above the assistant response.',
+      children: [
+        {
+          type: '{ tallerThan?: string; visibleHeight?: string }',
+          parameters: [
+            {
+              name: "tallerThan",
+              type: "string",
+              default: '"10em"',
+              description: "Clamp messages taller than this CSS length.",
+            },
+            {
+              name: "visibleHeight",
+              type: "string",
+              default: '"6em"',
+              description:
+                "Visible portion of a clamped message's bottom edge.",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: "scrollToBottomOnRunStart",
+      type: "boolean",
+      default: "true",
+      description: "Whether to scroll to bottom when a new run starts.",
+    },
+    {
+      name: "scrollToBottomOnInitialize",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to scroll to bottom when thread history is first loaded.",
+    },
+    {
+      name: "scrollToBottomOnThreadSwitch",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether to scroll to bottom when switching to a different thread.",
     },
     {
       name: "className",

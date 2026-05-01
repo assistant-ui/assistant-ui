@@ -109,6 +109,33 @@ export const ThreadViewportState: ParametersTableProps = {
         'Controls scroll anchoring: "top" anchors user messages at top, "bottom" is classic behavior.',
     },
     {
+      name: "topAnchorMessageClamp",
+      type: "{ tallerThan: string; visibleHeight: string }",
+      required: true,
+      description:
+        "CSS-length clamp configuration for tall user messages when top anchoring is enabled.",
+      children: [
+        {
+          type: "{ tallerThan: string; visibleHeight: string }",
+          parameters: [
+            {
+              name: "tallerThan",
+              type: "string",
+              required: true,
+              description: "Clamp messages taller than this CSS length.",
+            },
+            {
+              name: "visibleHeight",
+              type: "string",
+              required: true,
+              description:
+                "Visible portion of a clamped message's bottom edge.",
+            },
+          ],
+        },
+      ],
+    },
+    {
       name: "height",
       type: "{ viewport: number; inset: number }",
       required: true,

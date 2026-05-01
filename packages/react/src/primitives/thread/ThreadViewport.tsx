@@ -33,11 +33,23 @@ export namespace ThreadPrimitiveViewport {
      */
     turnAnchor?: "top" | "bottom" | undefined;
 
-    /** Clamps tall user messages so the assistant response stays in view. Default `{ tallerThan: "10em", visibleHeight: "6em" }`. */
+    /**
+     * Clamps tall user messages so the assistant response stays in view.
+     *
+     * @default { tallerThan: "10em", visibleHeight: "6em" }
+     */
     topAnchorMessageClamp?: {
-      /** Clamp messages taller than this. Default "10em". */
+      /**
+       * Clamp messages taller than this.
+       *
+       * @default "10em"
+       */
       tallerThan?: string;
-      /** Visible portion of clamped messages. Default "6em". */
+      /**
+       * Visible portion of clamped messages.
+       *
+       * @default "6em"
+       */
       visibleHeight?: string;
     };
 
