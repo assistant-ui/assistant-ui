@@ -14,6 +14,7 @@ import {
 } from "fumadocs-ui/components/codeblock";
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 import { ParametersTable } from "@/components/docs/parameters-table";
+import { PlatformAwareCode } from "@/components/docs/platform-aware-code";
 import { PrimitivesTypeTable } from "@/components/docs/primitives-type-table";
 import { SourceLink } from "@/components/docs/source-link";
 import { Code } from "@radix-ui/themes";
@@ -34,7 +35,9 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     ...(defaultComponents as MDXComponents),
     pre: (props: CodeBlockProps) => (
       <CodeBlock {...props}>
-        <Pre className="max-h-87.5">{props.children}</Pre>
+        <Pre className="max-h-87.5">
+          <PlatformAwareCode>{props.children}</PlatformAwareCode>
+        </Pre>
       </CodeBlock>
     ),
     Tabs,
