@@ -1,25 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
-import { SidebarProvider as FumadocsSidebarProvider } from "fumadocs-ui/components/sidebar/base";
-import { SidebarTabsDropdown } from "fumadocs-ui/components/sidebar/tabs/dropdown";
-import { ChevronDown, Monitor, Smartphone, Terminal } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
 import {
   isVisibleForPlatform,
-  PLATFORM_LABELS,
-  PLATFORMS,
   usePlatform,
   type Platform,
 } from "@/components/docs/contexts/platform";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import { analytics } from "@/lib/analytics";
+import { PlatformSwitcher } from "./platform-switcher";
 
 /**
  * Top-level docs folder names (from each folder's meta.json `title`) that this
@@ -38,19 +35,7 @@ const PLATFORM_FOLDER_NAMES = new Set(
   ),
 );
 
-const PLATFORM_DESCRIPTIONS: Record<Platform, string> = {
-  react: "For React web apps",
-  rn: "For React Native apps",
-  ink: "For Ink CLI apps",
-};
-
-const PLATFORM_ICONS: Record<Platform, typeof Monitor> = {
-  react: Monitor,
-  rn: Smartphone,
-  ink: Terminal,
-};
-
-const SHARED_PLATFORM_DOCS = new Set(["Agent Skills", "Architecture"]);
+const SHARED_PLATFORM_DOC_URLS = new Set(["/docs/llm", "/docs/architecture"]);
 
 /** Read the optional `platforms` field from a page tree node. */
 function nodePlatforms(node: PageTree.Node): readonly string[] | undefined {
@@ -113,43 +98,27 @@ interface SidebarContentProps {
   tree?: PageTree.Root;
 }
 
-function PlatformTabsDropdown() {
-  const pathname = usePathname();
-  const { platform, setPlatform } = usePlatform();
-
-  const options = PLATFORMS.map((p) => {
-    const Icon = PLATFORM_ICONS[p];
-
-    return {
-      title: PLATFORM_LABELS[p],
-      description: PLATFORM_DESCRIPTIONS[p],
-      icon: <Icon className="size-4 translate-y-0.5 text-muted-foreground" />,
-      url: `${pathname}#platform-${p}`,
-      urls: p === platform ? new Set([pathname]) : new Set<string>(),
-      props: {
-        onClickCapture: (event: MouseEvent<HTMLAnchorElement>) => {
-          event.preventDefault();
-          setPlatform(p);
-        },
-      },
-    };
-  });
-
-  return (
-    <FumadocsSidebarProvider>
-      <SidebarTabsDropdown
-        options={options}
-        className="mb-3 w-full rounded-md"
-      />
-    </FumadocsSidebarProvider>
-  );
-}
-
 function containsPath(node: PageTree.Node, pathname: string): boolean {
   if (node.type === "page") return pathname === node.url;
   if (node.type === "separator") return false;
   if (node.index && pathname === node.index.url) return true;
   return node.children.some((child) => containsPath(child, pathname));
+}
+
+function findPathToNode(
+  node: PageTree.Node,
+  pathname: string,
+): PageTree.Node[] | null {
+  if (node.type === "page") return pathname === node.url ? [node] : null;
+  if (node.type === "separator") return null;
+  if (node.index && pathname === node.index.url) return [node, node.index];
+
+  for (const child of node.children) {
+    const childPath = findPathToNode(child, pathname);
+    if (childPath) return [node, ...childPath];
+  }
+
+  return null;
 }
 
 /**
@@ -327,8 +296,31 @@ function SidebarSection({
 export function SidebarContent({ tree }: SidebarContentProps) {
   const { setOpen: setSidebarOpen } = useDocsSidebar();
   const pathname = usePathname();
-  const { platform } = usePlatform();
+  const { platform, setPlatform } = usePlatform();
   const navRef = useRef<HTMLElement>(null);
+
+  const platformRef = useRef(platform);
+  platformRef.current = platform;
+
+  useEffect(() => {
+    const allFolders = (tree?.children ?? []).filter(
+      (n): n is PageTree.Folder => n.type === "folder",
+    );
+    const activePath = allFolders
+      .map((folder) => findPathToNode(folder, pathname))
+      .find((path) => path !== null);
+    const platformNode = activePath
+      ?.slice()
+      .reverse()
+      .find((node) => {
+        const platforms = nodePlatforms(node);
+        return platforms !== undefined && platforms.length > 0;
+      });
+    const platforms = platformNode ? nodePlatforms(platformNode) : undefined;
+    if (!platforms || platforms.length === 0) return;
+    if (platforms.includes(platformRef.current)) return;
+    setPlatform(platforms[0] as Platform);
+  }, [pathname, setPlatform, tree]);
 
   // React keeps the full docs tree. React Native and React Ink use only their
   // own platform folder, displayed under the normal "Docs" section label.
@@ -349,20 +341,10 @@ export function SidebarContent({ tree }: SidebarContentProps) {
       const sharedDocs = docsFolder.children
         .filter(
           (child) =>
-            child.type === "page" &&
-            SHARED_PLATFORM_DOCS.has(String(child.name)),
+            child.type === "page" && SHARED_PLATFORM_DOC_URLS.has(child.url),
         )
         .map(withoutPlatformFilter);
       const children = pruneEmptySeparators(injectFolder.children, platform);
-      const firstSeparatorIndex = children.findIndex(
-        (child) => child.type === "separator",
-      );
-      const pagesBeforeFirstSeparator =
-        firstSeparatorIndex === -1
-          ? children
-          : children.slice(0, firstSeparatorIndex);
-      const remainingChildren =
-        firstSeparatorIndex === -1 ? [] : children.slice(firstSeparatorIndex);
       const platformSeparator: PageTree.Separator = {
         type: "separator",
         name: injectFolder.name,
@@ -380,8 +362,7 @@ export function SidebarContent({ tree }: SidebarContentProps) {
           gettingStartedSeparator,
           ...sharedDocs,
           platformSeparator,
-          ...pagesBeforeFirstSeparator,
-          ...remainingChildren,
+          ...children,
         ],
       };
       const sharedSections = allFolders
@@ -460,7 +441,7 @@ export function SidebarContent({ tree }: SidebarContentProps) {
         ref={navRef}
         className="sidebar-tree-content flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pt-4 pb-4"
       >
-        <PlatformTabsDropdown />
+        <PlatformSwitcher />
         {sections.map((section) => (
           <SidebarSection
             key={section.$id}

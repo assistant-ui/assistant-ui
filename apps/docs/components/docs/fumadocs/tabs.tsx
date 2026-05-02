@@ -35,6 +35,16 @@ export interface TabsProps extends React.ComponentProps<"div"> {
    * Additional label in tabs list
    */
   label?: ReactNode;
+
+  /**
+   * Controlled escaped value of the active tab. Pair with `onValueChange`.
+   */
+  value?: string;
+
+  /**
+   * Called with the escaped value when the active tab changes (controlled mode).
+   */
+  onValueChange?: (value: string) => void;
 }
 
 const TabsContext = createContext<{
@@ -50,7 +60,7 @@ function useTabContext() {
   return ctx;
 }
 
-function escapeValue(v: string): string {
+export function escapeValue(v: string): string {
   return v.toLowerCase().replace(/\s/g, "-");
 }
 
@@ -60,12 +70,22 @@ export function Tabs({
   label,
   defaultIndex = 0,
   groupId,
+  value: controlledValue,
+  onValueChange,
   children,
   ...props
 }: TabsProps): React.ReactElement {
   const defaultItem = items?.[defaultIndex];
   const defaultValue = defaultItem ? escapeValue(defaultItem) : undefined;
-  const [value, setValue] = useState(defaultValue);
+  const [internalValue, setInternalValue] = useState(defaultValue);
+  const value = controlledValue ?? internalValue;
+  const setValue = (v: string | undefined) => {
+    if (onValueChange) {
+      if (v !== undefined) onValueChange(v);
+    } else {
+      setInternalValue(v);
+    }
+  };
   const collection = useMemo<CollectionKey[]>(() => [], []);
 
   const activeIndex = items

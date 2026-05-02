@@ -143,6 +143,9 @@ If two servers expose tools with the same name, the later spread wins. Rename or
 
 Tool calls flow through the existing assistant-ui tool-call rendering. With no setup, the bundled `<ToolFallback>` component renders the call name, arguments, and result. To customize the appearance for a specific tool, use `makeAssistantToolUI`:
 
+<PlatformTabs>
+<Tab value="React">
+
 ```tsx title="app/components/GitHubIssueToolUI.tsx"
 "use client";
 
@@ -165,6 +168,65 @@ export const GitHubIssueToolUI = makeAssistantToolUI<Args, Result>({
   ),
 });
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```tsx title="components/GitHubIssueToolUI.tsx"
+import { makeAssistantToolUI } from "@assistant-ui/react-native";
+import { Linking, Pressable, Text, View } from "react-native";
+
+type Args = { repo: string; number: number };
+type Result = { title: string; state: string; url: string };
+
+export const GitHubIssueToolUI = makeAssistantToolUI<Args, Result>({
+  toolName: "github_get_issue",
+  render: ({ args, result }) => (
+    <View style={{ borderWidth: 1, borderRadius: 6, padding: 12 }}>
+      <Text style={{ fontFamily: "Menlo", fontSize: 13 }}>
+        {args.repo}#{args.number}
+      </Text>
+      {result && (
+        <Pressable onPress={() => Linking.openURL(result.url)}>
+          <Text style={{ textDecorationLine: "underline" }}>
+            {result.title} ({result.state})
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  ),
+});
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="components/GitHubIssueToolUI.tsx"
+import { makeAssistantToolUI } from "@assistant-ui/react-ink";
+import { Box, Text } from "ink";
+
+type Args = { repo: string; number: number };
+type Result = { title: string; state: string; url: string };
+
+export const GitHubIssueToolUI = makeAssistantToolUI<Args, Result>({
+  toolName: "github_get_issue",
+  render: ({ args, result }) => (
+    <Box borderStyle="round" paddingX={1} flexDirection="column">
+      <Text>
+        {args.repo}#{args.number}
+      </Text>
+      {result && (
+        <Text>
+          {result.title} ({result.state}) — {result.url}
+        </Text>
+      )}
+    </Box>
+  ),
+});
+```
+
+</Tab>
+</PlatformTabs>
 
 Mount it once anywhere inside `<AssistantRuntimeProvider>`. The `toolName` must match the name your MCP server publishes.
 

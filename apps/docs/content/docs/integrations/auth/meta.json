@@ -1,4 +1,5 @@
 {
   "title": "Auth",
+  "platforms": ["react"],
   "pages": ["clerk", "better-auth", "next-auth"]
 }
