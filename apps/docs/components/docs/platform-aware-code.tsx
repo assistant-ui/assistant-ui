@@ -2,7 +2,7 @@
 
 import { cloneElement, isValidElement, useMemo, type ReactNode } from "react";
 import {
-  usePlatform,
+  usePlatformOrDefault,
   type Platform,
 } from "@/components/docs/contexts/platform";
 
@@ -31,7 +31,7 @@ function rewrite(node: ReactNode, replacement: string): ReactNode {
 }
 
 export function PlatformAwareCode({ children }: { children: ReactNode }) {
-  const { platform } = usePlatform();
+  const platform = usePlatformOrDefault();
   const replacement = PLATFORM_PACKAGE[platform];
   const rewritten = useMemo(
     () => (platform === "react" ? children : rewrite(children, replacement)),

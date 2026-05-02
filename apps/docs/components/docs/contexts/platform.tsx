@@ -35,6 +35,11 @@ export function usePlatform() {
   return ctx;
 }
 
+// Non-throwing variant for shared MDX components that may render outside a provider.
+export function usePlatformOrDefault(): Platform {
+  return useContext(PlatformContext)?.platform ?? DEFAULT_PLATFORM;
+}
+
 function isPlatform(value: string | null): value is Platform {
   return value !== null && (PLATFORMS as readonly string[]).includes(value);
 }
