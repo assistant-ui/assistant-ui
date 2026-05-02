@@ -47,6 +47,22 @@ npx assistant-ui@latest create -t mcp
 npx assistant-ui@latest init
 ```
 
+If you add assistant-ui to an existing project, make sure your app is wrapped in the generated `TooltipProvider` from `@/components/ui/tooltip`. The starter templates include this in `app/layout.tsx`, but existing apps may need to add it manually:
+
+```tsx title="app/layout.tsx"
+import { TooltipProvider } from "@/components/ui/tooltip";
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <TooltipProvider>{children}</TooltipProvider>
+      </body>
+    </html>
+  );
+}
+```
+
   </Step>
   <Step>
 
