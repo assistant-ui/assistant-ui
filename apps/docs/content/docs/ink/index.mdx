@@ -179,9 +179,11 @@ export const Thread = () => {
         </Box>
       </ThreadPrimitive.Empty>
 
-      <ThreadPrimitive.Messages>
-        {() => <Message />}
-      </ThreadPrimitive.Messages>
+      <ThreadPrimitive.Viewport height={20}>
+        <ThreadPrimitive.Messages>
+          {() => <Message />}
+        </ThreadPrimitive.Messages>
+      </ThreadPrimitive.Viewport>
 
       <StatusIndicator />
 

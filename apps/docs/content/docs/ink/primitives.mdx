@@ -29,9 +29,107 @@ Container `Box` for the thread area.
 |------|------|-------------|
 | `...rest` | `BoxProps` | Standard Ink Box props |
 
+### Viewport
+
+Bounded terminal viewport for thread history. It keeps the latest messages visible by default, supports PageUp/PageDown/Home/End scrolling, and clips message history to the configured height.
+
+```tsx
+<ThreadPrimitive.Viewport height={20}>
+  <ThreadPrimitive.Messages>
+    {() => <MyMessage />}
+  </ThreadPrimitive.Messages>
+</ThreadPrimitive.Viewport>
+```
+
+When `height` is omitted, the parent Ink layout must constrain the viewport height.
+
+When `ThreadPrimitive.Viewport` creates its own provider, `autoScroll`, `initialScrollToBottom`, and `stickToBottomThreshold` can be passed directly to `Viewport`. In explicit-provider layouts, pass those values to `ThreadPrimitive.ViewportProvider options` instead because the provider owns viewport state.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Usually `ThreadPrimitive.Messages` |
+| `height` | `number` | Fixed viewport height in terminal rows |
+| `autoScroll` | `boolean` | Whether the viewport initially follows the bottom. Defaults to `true` |
+| `initialScrollToBottom` | `boolean` | Start pinned to the newest messages. Defaults to `true` |
+| `scrollToBottomOnRunStart` | `boolean` | Jump to bottom when a run starts. Defaults to `true` |
+| `scrollToBottomOnInitialize` | `boolean` | Jump to bottom when the thread initializes. Defaults to `true` |
+| `scrollToBottomOnThreadSwitch` | `boolean` | Jump to bottom when switching threads. Defaults to `true` |
+| `stickToBottomThreshold` | `number` | Rows from the bottom that still count as sticky. Defaults to `2` |
+| `keybindings` | `ThreadViewportKeybindings \| false` | Override PageUp/PageDown/Home/End bindings, or disable them |
+| `renderPausedHint` | `(state) => ReactNode \| false` | Customize or disable the paused-scroll hint |
+| `...rest` | `BoxProps` | Standard Ink Box props |
+
+Disable default keybindings when another component owns those keys:
+
+```tsx
+<ThreadPrimitive.Viewport height={12} keybindings={false}>
+  <ThreadPrimitive.Messages>
+    {() => <MyMessage />}
+  </ThreadPrimitive.Messages>
+</ThreadPrimitive.Viewport>
+```
+
+Ink input events are global. If a focused composer or text input should own navigation keys such as Home, End, PageUp, or PageDown, disable viewport keybindings and handle scrolling from your app-level keyboard coordination.
+
+Customize the paused hint:
+
+```tsx
+<ThreadPrimitive.Viewport
+  height={12}
+  renderPausedHint={(state) => (
+    <Text dimColor>{state.messageKeys.length - state.visibleLastIndex - 1} new</Text>
+  )}
+>
+  <ThreadPrimitive.Messages>
+    {() => <MyMessage />}
+  </ThreadPrimitive.Messages>
+</ThreadPrimitive.Viewport>
+```
+
+### ViewportProvider
+
+Advanced composition provider for viewport state. Use it when controls such as `ScrollToBottom` should render outside the clipped message area while observing the same viewport.
+
+```tsx
+<ThreadPrimitive.ViewportProvider>
+  <ThreadPrimitive.Viewport height={20}>
+    <ThreadPrimitive.Messages>
+      {() => <MyMessage />}
+    </ThreadPrimitive.Messages>
+  </ThreadPrimitive.Viewport>
+
+  <ThreadPrimitive.ScrollToBottom>
+    <Text>[Jump to bottom]</Text>
+  </ThreadPrimitive.ScrollToBottom>
+</ThreadPrimitive.ViewportProvider>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Viewport and controls that share viewport state |
+| `options.autoScroll` | `boolean` | Whether the viewport initially follows the bottom |
+| `options.initialScrollToBottom` | `boolean` | Start pinned to the newest messages |
+| `options.stickToBottomThreshold` | `number` | Rows from the bottom that still count as sticky |
+
+### ScrollToBottom
+
+Action component that renders only when the nearest thread viewport is not at the bottom.
+
+```tsx
+<ThreadPrimitive.ScrollToBottom>
+  <Text>[Jump to bottom]</Text>
+</ThreadPrimitive.ScrollToBottom>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Content rendered as the action |
+| `behavior` | `"auto" \| "instant"` | Accepted for web parity; both are instant in Ink |
+| `...rest` | `BoxProps` | Standard Ink Box props |
+
 ### Messages
 
-Renders the message list with automatic runtime integration. Each message is wrapped in a scoped context so that `useAuiState((s) => s.message)` works inside the message component.
+Renders the message list with automatic runtime integration. Each message is wrapped in a scoped context so that `useAuiState((s) => s.message)` works inside the message component. Wrap it in `ThreadPrimitive.Viewport` for bounded terminal history.
 
 ```tsx
 <ThreadPrimitive.Messages>
@@ -42,6 +140,8 @@ Renders the message list with automatic runtime integration. Each message is wra
 | Prop | Type | Description |
 |------|------|-------------|
 | `components` | `MessageComponents` | Component map with `Message`, `UserMessage`, `AssistantMessage`, `SystemMessage`, and edit composer variants |
+
+`ThreadPrimitive.ViewportFooter` is intentionally not part of the Ink API. The web footer measures sticky DOM overlap, which does not map cleanly to Ink layout.
 
 ### AuiIf
 

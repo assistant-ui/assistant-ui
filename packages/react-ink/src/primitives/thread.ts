@@ -3,6 +3,18 @@ export {
   type ThreadRootProps as RootProps,
 } from "./thread/ThreadRoot";
 export {
+  ThreadViewport as Viewport,
+  type ThreadViewportProps as ViewportProps,
+} from "./thread/ThreadViewport";
+export {
+  ThreadViewportProvider as ViewportProvider,
+  type ThreadViewportProviderProps as ViewportProviderProps,
+} from "./thread/ThreadViewportProvider";
+export {
+  ThreadScrollToBottom as ScrollToBottom,
+  type ThreadScrollToBottomProps as ScrollToBottomProps,
+} from "./thread/ThreadScrollToBottom";
+export {
   ThreadMessages as Messages,
   type ThreadMessagesProps as MessagesProps,
 } from "./thread/ThreadMessages";

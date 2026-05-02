@@ -1,8 +1,20 @@
-import { type ComponentType, type FC, type ReactNode, useMemo } from "react";
-import { Box } from "ink";
+import {
+  type ComponentType,
+  type FC,
+  type ReactNode,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from "react";
+import { Box, useBoxMetrics, type DOMElement } from "ink";
 import type { ThreadMessage } from "@assistant-ui/core";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import { MessageByIndexProvider } from "@assistant-ui/core/react";
+import {
+  useOptionalThreadViewport,
+  type ThreadViewportContextValue,
+} from "./useThreadViewport";
+import type { ThreadMessageKey } from "./useThreadViewportState";
 
 type MessageComponents =
   | {
@@ -103,45 +115,135 @@ const ThreadMessageComponent: FC<{ components: MessageComponents }> = ({
 
 const ThreadMessagesInner: FC<{
   children: (value: { message: ThreadMessage }) => ReactNode;
-}> = ({ children }) => {
+  messageKeys: readonly ThreadMessageKey[];
+  estimatedHeights: readonly number[];
+  setMessageHeight: ThreadViewportContextValue["setMessageHeight"] | undefined;
+}> = ({ children, messageKeys, estimatedHeights, setMessageHeight }) => {
   const messagesLength = useAuiState((s) => s.thread.messages.length);
 
   return useMemo(() => {
     if (messagesLength === 0) return null;
     return Array.from({ length: messagesLength }, (_, index) => (
-      <MessageByIndexProvider key={index} index={index}>
-        <RenderChildrenWithAccessor
-          getItemState={(aui) => aui.thread().message({ index }).getState()}
-        >
-          {(getItem) =>
-            children({
-              get message() {
-                return getItem();
-              },
-            })
-          }
-        </RenderChildrenWithAccessor>
-      </MessageByIndexProvider>
+      <MeasuredThreadMessage
+        key={String(messageKeys[index] ?? index)}
+        messageKey={messageKeys[index] ?? index}
+        estimatedHeight={estimatedHeights[index] ?? 1}
+        setMessageHeight={setMessageHeight}
+      >
+        <MessageByIndexProvider index={index}>
+          <RenderChildrenWithAccessor
+            getItemState={(aui) => aui.thread().message({ index }).getState()}
+          >
+            {(getItem) =>
+              children({
+                get message() {
+                  return getItem();
+                },
+              })
+            }
+          </RenderChildrenWithAccessor>
+        </MessageByIndexProvider>
+      </MeasuredThreadMessage>
     ));
-  }, [messagesLength, children]);
+  }, [
+    messagesLength,
+    messageKeys,
+    estimatedHeights,
+    setMessageHeight,
+    children,
+  ]);
+};
+
+const getMessageKey = (message: ThreadMessage, index: number) =>
+  message.id ?? index;
+
+const getTextHeightEstimate = (message: ThreadMessage, width: number) => {
+  const text = message.content
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("");
+
+  if (!text) return 1;
+
+  const contentWidth = Math.max(20, width - 4);
+  const textRows = text
+    .split("\n")
+    .reduce(
+      (rows, line) => rows + Math.max(1, Math.ceil(line.length / contentWidth)),
+      0,
+    );
+
+  return textRows + (message.role === "assistant" ? 2 : 1);
+};
+
+const MeasuredThreadMessage: FC<{
+  messageKey: ThreadMessageKey;
+  estimatedHeight: number;
+  setMessageHeight: ThreadViewportContextValue["setMessageHeight"] | undefined;
+  children: ReactNode;
+}> = ({ messageKey, estimatedHeight, setMessageHeight, children }) => {
+  const ref = useRef<DOMElement>(null!);
+  const { height, hasMeasured } = useBoxMetrics(ref);
+
+  useLayoutEffect(() => {
+    if (!setMessageHeight || !hasMeasured) return;
+    setMessageHeight(messageKey, Math.max(height, estimatedHeight));
+  }, [estimatedHeight, height, hasMeasured, messageKey, setMessageHeight]);
+
+  if (!setMessageHeight) return <>{children}</>;
+
+  return (
+    <Box ref={ref} flexShrink={0}>
+      {children}
+    </Box>
+  );
 };
 
 export const ThreadMessages: FC<ThreadMessagesProps> = ({
   components,
   children,
 }) => {
-  if (components) {
-    return (
-      <Box flexDirection="column">
-        <ThreadMessagesInner>
-          {() => <ThreadMessageComponent components={components} />}
-        </ThreadMessagesInner>
-      </Box>
-    );
-  }
+  const viewport = useOptionalThreadViewport();
+  const setMessageKeys = viewport?.setMessageKeys;
+  const setMessageHeight = viewport?.setMessageHeight;
+  const viewportWidth = viewport?.viewportWidth;
+  const scrollOffset = viewport?.state.scrollOffset;
+  const messages = useAuiState((s) => s.thread.messages);
+  const messageKeys = useMemo(
+    () => messages.map((message, index) => getMessageKey(message, index)),
+    [messages],
+  );
+
+  useLayoutEffect(() => {
+    setMessageKeys?.(messageKeys);
+  }, [messageKeys, setMessageKeys]);
+
+  const estimatedHeights = useMemo(
+    () =>
+      messages.map((message) =>
+        getTextHeightEstimate(message, viewportWidth ?? 80),
+      ),
+    [messages, viewportWidth],
+  );
+  const renderMessage = components
+    ? () => <ThreadMessageComponent components={components} />
+    : children;
+
+  const content = (
+    <ThreadMessagesInner
+      messageKeys={messageKeys}
+      estimatedHeights={estimatedHeights}
+      setMessageHeight={setMessageHeight}
+    >
+      {renderMessage}
+    </ThreadMessagesInner>
+  );
+
+  const marginTop = scrollOffset !== undefined ? -scrollOffset : undefined;
+
   return (
-    <Box flexDirection="column">
-      <ThreadMessagesInner>{children}</ThreadMessagesInner>
+    <Box flexDirection="column" marginTop={marginTop} flexShrink={0}>
+      {content}
     </Box>
   );
 };
