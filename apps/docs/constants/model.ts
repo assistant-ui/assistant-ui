@@ -14,50 +14,42 @@ export const MODELS = [
     disabled: false,
     contextWindow: 400_000,
   },
-  // Anthropic
-  {
-    name: "Claude Haiku 4.5",
-    value: "anthropic/claude-haiku-4-5",
-    icon: "/icons/anthropic.svg",
-    disabled: true,
-    contextWindow: 200_000,
-  },
   // Google
   {
-    name: "Gemini 3 Flash",
-    value: "google-ai-studio/gemini-3-flash",
+    name: "Gemini 3.1 Flash Lite",
+    value: "google-ai-studio/gemini-3.1-flash-lite-preview",
     icon: "/icons/google.svg",
-    disabled: true,
-    contextWindow: 1_000_000,
+    disabled: false,
+    contextWindow: 1_048_576,
   },
   // xAI
   {
     name: "Grok 4.1 Fast",
     value: "grok/grok-4-1-fast",
     icon: "/icons/xai.svg",
-    disabled: true,
-    contextWindow: 131_072,
+    disabled: false,
+    contextWindow: 2_000_000,
   },
   {
-    name: "Grok 3 Mini Fast",
-    value: "grok/grok-3-mini-fast",
+    name: "Grok 3 Mini",
+    value: "grok/grok-3-mini",
     icon: "/icons/xai.svg",
-    disabled: true,
+    disabled: false,
     contextWindow: 131_072,
   },
   // Groq
   {
-    name: "Llama 3.3 70B",
-    value: "groq/llama-3.3-70b-versatile",
+    name: "Llama 4 Scout 17B",
+    value: "groq/meta-llama/llama-4-scout-17b-16e-instruct",
     icon: "/icons/meta.svg",
-    disabled: true,
+    disabled: false,
     contextWindow: 131_072,
   },
   {
     name: "Qwen3 32B",
     value: "groq/qwen/qwen3-32b",
     icon: "/icons/groq.svg",
-    disabled: true,
+    disabled: false,
     contextWindow: 131_072,
   },
 ] as const;
