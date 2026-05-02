@@ -2,6 +2,7 @@ import {
   type ComponentType,
   type FC,
   type ReactNode,
+  useCallback,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -225,9 +226,12 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({
       ),
     [messages, viewportWidth],
   );
-  const renderMessage = components
-    ? () => <ThreadMessageComponent components={components} />
-    : children;
+  const renderComponentMessage = useCallback(
+    () =>
+      components ? <ThreadMessageComponent components={components} /> : null,
+    [components],
+  );
+  const renderMessage = components ? renderComponentMessage : children;
 
   const content = (
     <ThreadMessagesInner

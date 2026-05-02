@@ -111,16 +111,21 @@ const ThreadViewportInner = ({
   ...boxProps
 }: ThreadViewportProps) => {
   const viewport = useThreadViewport();
+  const setViewportHeight = viewport.setViewportHeight;
+  const setViewportWidth = viewport.setViewportWidth;
   const viewportRef = useRef<DOMElement>(null!);
   const viewportMetrics = useBoxMetrics(viewportRef);
   const effectiveHeight = height ?? viewportMetrics.height ?? 1;
 
   useLayoutEffect(() => {
-    viewport.setViewportHeight(effectiveHeight > 0 ? effectiveHeight : 1);
-    viewport.setViewportWidth(
-      viewportMetrics.width > 0 ? viewportMetrics.width : 80,
-    );
-  }, [effectiveHeight, viewport, viewportMetrics.width]);
+    setViewportHeight(effectiveHeight > 0 ? effectiveHeight : 1);
+    setViewportWidth(viewportMetrics.width > 0 ? viewportMetrics.width : 80);
+  }, [
+    effectiveHeight,
+    setViewportHeight,
+    setViewportWidth,
+    viewportMetrics.width,
+  ]);
 
   useAuiEvent("thread.runStart", () => {
     if (scrollToBottomOnRunStart) viewport.actions.scrollToBottom();
