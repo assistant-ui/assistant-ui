@@ -6,8 +6,9 @@ import {
   type Platform,
 } from "@/components/docs/contexts/platform";
 
-// Negative lookahead avoids rewriting sibling packages like react-langgraph.
-const PACKAGE_PATTERN = /@assistant-ui\/react(?!-)/g;
+// Negative lookahead avoids rewriting sibling packages like react-langgraph
+// or names where `react` is a prefix (e.g. `reactive`).
+const PACKAGE_PATTERN = /@assistant-ui\/react(?![-\w])/g;
 
 const PLATFORM_PACKAGE: Record<Platform, string> = {
   react: "@assistant-ui/react",
