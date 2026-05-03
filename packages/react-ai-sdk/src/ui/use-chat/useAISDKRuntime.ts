@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef } from "react";
 import type { UIMessage, useChat, CreateUIMessage } from "@ai-sdk/react";
-import { isToolUIPart } from "ai";
+import { isToolUIPart, generateId } from "ai";
 import {
   useExternalStoreRuntime,
   useRuntimeAdapters,
@@ -41,6 +41,16 @@ export type CustomToCreateMessageFunction = <
 >(
   message: AppendMessage,
 ) => CreateUIMessage<UI_MESSAGE>;
+
+const toUIMessage = <UI_MESSAGE extends UIMessage>(
+  createMessage: CreateUIMessage<UI_MESSAGE>,
+  fallbackRole: UI_MESSAGE["role"],
+): UI_MESSAGE =>
+  ({
+    ...createMessage,
+    id: createMessage.id ?? generateId(),
+    role: createMessage.role ?? fallbackRole,
+  }) as UI_MESSAGE;
 
 export type AISDKRuntimeAdapter = {
   adapters?:
@@ -241,11 +251,20 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     onNew: async (message) => {
       lastRunConfigRef.current = message.runConfig;
-      await completePendingToolCalls();
 
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
+
+      if (message.startRun === false) {
+        chatHelpers.setMessages([
+          ...chatHelpers.messages,
+          toUIMessage<UI_MESSAGE>(createMessage, message.role),
+        ]);
+        return;
+      }
+
+      await completePendingToolCalls();
       await chatHelpers.sendMessage(createMessage, {
         metadata: message.runConfig,
       });
@@ -256,11 +275,20 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         chatHelpers.messages,
         message.parentId,
       );
-      chatHelpers.setMessages(newMessages);
 
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
+
+      if (message.startRun === false) {
+        chatHelpers.setMessages([
+          ...newMessages,
+          toUIMessage<UI_MESSAGE>(createMessage, message.role),
+        ]);
+        return;
+      }
+
+      chatHelpers.setMessages(newMessages);
       await chatHelpers.sendMessage(createMessage, {
         metadata: message.runConfig,
       });

@@ -1,8 +1,7 @@
 ---
-"@assistant-ui/core": patch
-"@assistant-ui/react": patch
+"@assistant-ui/react-ai-sdk": patch
 ---
 
-fix: `aui.thread().append({ startRun: false })` no longer triggers a run on external-store runtimes
+fix: `aui.thread().append({ startRun: false })` no longer triggers a run on AI SDK runtime
 
-`ExternalStoreThreadRuntimeCore` and the new aui-flavored `ExternalThread` were calling `onNew`/`onEdit` (and `queue.enqueue`) regardless of `message.startRun`. Since `onNew` is the trigger for the user's run logic, callers passing `startRun: false` still saw a run start. The runtime now early-returns when `startRun: false`, matching `LocalThreadRuntimeCore`'s behavior. Callers opting out of the run are responsible for updating their externally-managed `messages` array themselves.
+`useAISDKRuntime`'s `onNew` and `onEdit` always called `chatHelpers.sendMessage`, ignoring `message.startRun`. The hook now appends the message via `chatHelpers.setMessages` (with a generated id when needed) and returns early when `startRun: false`, so the message lands in the chat without kicking off a model call.

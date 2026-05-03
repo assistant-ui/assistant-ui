@@ -186,52 +186,6 @@ describe("ExternalStoreThreadRuntimeCore", () => {
       expect(onNew).not.toHaveBeenCalled();
     });
 
-    it("skips onNew when startRun is false", async () => {
-      const onNew = vi.fn(async () => {});
-      const messages = [createUserMessage("u1"), createAssistantMessage("a1")];
-      const adapter = createBaseAdapter({ messages, onNew });
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
-
-      const appendMessage: AppendMessage = {
-        role: "user",
-        content: [{ type: "text", text: "no run" }],
-        attachments: [],
-        createdAt: new Date(),
-        parentId: "a1",
-        sourceId: null,
-        runConfig: undefined,
-        metadata: { custom: {} },
-        startRun: false,
-      } as AppendMessage;
-
-      await core.append(appendMessage);
-      expect(onNew).not.toHaveBeenCalled();
-    });
-
-    it("skips onEdit when startRun is false", async () => {
-      const onEdit = vi.fn(async () => {});
-      const onNew = vi.fn(async () => {});
-      const messages = [createUserMessage("u1"), createAssistantMessage("a1")];
-      const adapter = createBaseAdapter({ messages, onNew, onEdit });
-      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
-
-      const appendMessage: AppendMessage = {
-        role: "user",
-        content: [{ type: "text", text: "no run edit" }],
-        attachments: [],
-        createdAt: new Date(),
-        parentId: "u1",
-        sourceId: null,
-        runConfig: undefined,
-        metadata: { custom: {} },
-        startRun: false,
-      } as AppendMessage;
-
-      await core.append(appendMessage);
-      expect(onEdit).not.toHaveBeenCalled();
-      expect(onNew).not.toHaveBeenCalled();
-    });
-
     it("throws when adapter has no onEdit and parentId differs from head", async () => {
       const messages = [createUserMessage("u1"), createAssistantMessage("a1")];
       const adapter = createBaseAdapter({ messages });
