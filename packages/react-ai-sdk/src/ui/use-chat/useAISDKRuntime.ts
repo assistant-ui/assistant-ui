@@ -256,9 +256,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
 
-      if (message.startRun === false) {
-        chatHelpers.setMessages([
-          ...chatHelpers.messages,
+      if (!(message.startRun ?? message.role === "user")) {
+        chatHelpers.setMessages((current) => [
+          ...current,
           toUIMessage<UI_MESSAGE>(createMessage, message.role),
         ]);
         return;
@@ -271,24 +271,22 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     onEdit: async (message) => {
       lastRunConfigRef.current = message.runConfig;
-      const newMessages = sliceMessagesUntil(
-        chatHelpers.messages,
-        message.parentId,
-      );
 
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
 
-      if (message.startRun === false) {
-        chatHelpers.setMessages([
-          ...newMessages,
+      if (!(message.startRun ?? message.role === "user")) {
+        chatHelpers.setMessages((current) => [
+          ...sliceMessagesUntil(current, message.parentId),
           toUIMessage<UI_MESSAGE>(createMessage, message.role),
         ]);
         return;
       }
 
-      chatHelpers.setMessages(newMessages);
+      chatHelpers.setMessages(
+        sliceMessagesUntil(chatHelpers.messages, message.parentId),
+      );
       await chatHelpers.sendMessage(createMessage, {
         metadata: message.runConfig,
       });
