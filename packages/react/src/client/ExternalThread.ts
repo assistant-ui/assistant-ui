@@ -579,6 +579,9 @@ export const ExternalThread = resource(
                 runConfig: message.runConfig ?? {},
                 startRun: message.startRun,
               };
+        // startRun: false opts out of running; onNew/queue.enqueue are the only
+        // run triggers here, so skip them. Callers must update `messages` themselves.
+        if (appendMessage.startRun === false) return;
         if (queue) {
           queue.enqueue(appendMessage, { steer: false });
         } else {

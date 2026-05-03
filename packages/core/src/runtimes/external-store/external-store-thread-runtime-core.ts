@@ -279,6 +279,9 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(message: AppendMessage): Promise<void> {
+    // startRun: false opts out of running; onNew/onEdit are the only run
+    // triggers here, so skip them. Callers must update messages themselves.
+    if (message.startRun === false) return;
     if (message.parentId !== (this.messages.at(-1)?.id ?? null)) {
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
