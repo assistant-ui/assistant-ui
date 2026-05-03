@@ -250,8 +250,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       await toolInvocations.abort();
     },
     onNew: async (message) => {
-      lastRunConfigRef.current = message.runConfig;
-
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
@@ -264,14 +262,13 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         return;
       }
 
+      lastRunConfigRef.current = message.runConfig;
       await completePendingToolCalls();
       await chatHelpers.sendMessage(createMessage, {
         metadata: message.runConfig,
       });
     },
     onEdit: async (message) => {
-      lastRunConfigRef.current = message.runConfig;
-
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
@@ -284,6 +281,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         return;
       }
 
+      lastRunConfigRef.current = message.runConfig;
       chatHelpers.setMessages(
         sliceMessagesUntil(chatHelpers.messages, message.parentId),
       );
