@@ -282,8 +282,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       }
 
       lastRunConfigRef.current = message.runConfig;
-      chatHelpers.setMessages(
-        sliceMessagesUntil(chatHelpers.messages, message.parentId),
+      chatHelpers.setMessages((current) =>
+        sliceMessagesUntil(current, message.parentId),
       );
       await chatHelpers.sendMessage(createMessage, {
         metadata: message.runConfig,
