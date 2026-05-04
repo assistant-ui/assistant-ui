@@ -12,7 +12,7 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
-import { parseCssLength } from "../thread/topAnchor/topAnchorUtils";
+import { scheduleAnchorTargetRegistration } from "../thread/topAnchor/scheduleAnchorTargetRegistration";
 
 type ThreadViewportStore = NonNullable<
   ReturnType<typeof useThreadViewportStore>
@@ -51,13 +51,6 @@ const useIsHoveringRef = () => {
   return useManagedRef(callbackRef);
 };
 
-/**
- * Predicate: this user message is the anchor target of an in-flight top-turn
- * (second-to-last message after the first turn, with the last being an
- * assistant response). Only call this when the viewport is in "top" turnAnchor
- * mode; in "bottom" mode the predicate is always false and the selector
- * subscription is pure overhead.
- */
 const useIsTopAnchorUser = () => {
   return useAuiState(
     (s) =>
@@ -68,11 +61,6 @@ const useIsTopAnchorUser = () => {
   );
 };
 
-/**
- * Predicate: this assistant message is the streaming response paired with the
- * preceding user message under top-turn anchoring. Same caller contract as
- * `useIsTopAnchorUser`.
- */
 const useIsTopAnchorTarget = () => {
   return useAuiState(
     (s) =>
@@ -83,7 +71,6 @@ const useIsTopAnchorTarget = () => {
   );
 };
 
-/** Registers the user message as the top-anchor user reference element. */
 const useTopAnchorUserRef = (
   active: boolean,
   threadViewportStore: ThreadViewportStore,
@@ -99,15 +86,6 @@ const useTopAnchorUserRef = (
   return useManagedRef<HTMLElement>(callback);
 };
 
-/**
- * Registers the assistant message as the top-anchor target element. CSS-length
- * clamp config is parsed against the registered element's computed style and
- * stored as numeric pixels.
- *
- * The parse (which calls `getComputedStyle`) is deferred to the next animation
- * frame so it cannot force a synchronous layout during the bulk-mount phase of
- * a long thread.
- */
 const useTopAnchorTargetRef = ({
   active,
   threadViewportStore,
@@ -118,22 +96,7 @@ const useTopAnchorTargetRef = ({
   const targetRefCallback = useCallback(
     (el: HTMLElement) => {
       if (!active) return;
-
-      let unregister: (() => void) | undefined;
-      let frameHandle: number | null = requestAnimationFrame(() => {
-        frameHandle = null;
-        const state = threadViewportStore.getState();
-        const clamp = state.topAnchorMessageClamp;
-        unregister = state.registerAnchorTargetElement(el, {
-          tallerThan: parseCssLength(clamp.tallerThan, el),
-          visibleHeight: parseCssLength(clamp.visibleHeight, el),
-        });
-      });
-
-      return () => {
-        if (frameHandle !== null) cancelAnimationFrame(frameHandle);
-        unregister?.();
-      };
+      return scheduleAnchorTargetRegistration(el, threadViewportStore);
     },
     [active, threadViewportStore],
   );
@@ -209,10 +172,6 @@ const MessagePrimitiveRootTopAnchor = ({
  * message) or as the top-anchor target (when it's the streaming assistant
  * response). No additional component is required.
  *
- * Internally splits into a default path and a top-anchor path so that threads
- * running with the default `turnAnchor="bottom"` do not pay the per-message
- * cost of the top-anchor selector subscriptions.
- *
  * @example
  * ```tsx
  * <MessagePrimitive.Root>
@@ -229,8 +188,7 @@ export const MessagePrimitiveRoot = forwardRef<
   MessagePrimitiveRoot.Props
 >((props, forwardedRef) => {
   const threadViewportStore = useThreadViewportStore();
-  // turnAnchor is an initial viewport option (see ThreadViewportProvider) and
-  // therefore safe to read non-reactively here.
+  // turnAnchor is initial-only viewport config (see ThreadViewportProvider).
   const turnAnchor = threadViewportStore.getState().turnAnchor;
 
   if (turnAnchor === "top") {
