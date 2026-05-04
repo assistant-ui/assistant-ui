@@ -27,12 +27,9 @@ function assistantMsgWithParts(
 }
 
 function event(
-  messages: UIMessage[],
   overrides?: Partial<TelemetryFinishEvent>,
 ): TelemetryFinishEvent {
   return {
-    message: messages[messages.length - 1]!,
-    messages,
     isAbort: false,
     isDisconnect: false,
     isError: false,
@@ -168,7 +165,7 @@ describe("CloudTelemetryReporter", () => {
     await reporter.reportFromMessages(
       "thread-1",
       messages,
-      event(messages, { finishReason: "stop" }),
+      event({ finishReason: "stop" }),
     );
 
     expect(reportMock).toHaveBeenCalledOnce();
@@ -182,14 +179,14 @@ describe("CloudTelemetryReporter", () => {
     await reporter.reportFromMessages(
       "thread-1",
       [assistantMsg("m-1", "truncated...")],
-      event([assistantMsg("m-1", "truncated...")], { finishReason: "length" }),
+      event({ finishReason: "length" }),
     );
     expect(reportMock.mock.calls[0]![0]!.status).toBe("incomplete");
 
     await reporter.reportFromMessages(
       "thread-2",
       [assistantMsg("m-2", "blocked")],
-      event([assistantMsg("m-2", "blocked")], {
+      event({
         finishReason: "content-filter",
       }),
     );
@@ -204,7 +201,21 @@ describe("CloudTelemetryReporter", () => {
     await reporter.reportFromMessages(
       "thread-1",
       messages,
-      event(messages, { isError: true }),
+      event({ isError: true }),
+    );
+
+    expect(reportMock.mock.calls[0]![0]!.status).toBe("error");
+  });
+
+  it("maps finishReason='error' (without isError) to error status", async () => {
+    const { cloud, reportMock } = createCloud();
+    const reporter = new CloudTelemetryReporter(cloud);
+    const messages = [assistantMsg("m-1", "partial")];
+
+    await reporter.reportFromMessages(
+      "thread-1",
+      messages,
+      event({ finishReason: "error" }),
     );
 
     expect(reportMock.mock.calls[0]![0]!.status).toBe("error");
@@ -217,14 +228,14 @@ describe("CloudTelemetryReporter", () => {
     await reporter.reportFromMessages(
       "thread-1",
       [assistantMsg("m-1", "aborted")],
-      event([assistantMsg("m-1", "aborted")], { isAbort: true }),
+      event({ isAbort: true }),
     );
     expect(reportMock.mock.calls[0]![0]!.status).toBe("incomplete");
 
     await reporter.reportFromMessages(
       "thread-2",
       [assistantMsg("m-2", "disconnected")],
-      event([assistantMsg("m-2", "disconnected")], { isDisconnect: true }),
+      event({ isDisconnect: true }),
     );
     expect(reportMock.mock.calls[1]![0]!.status).toBe("incomplete");
   });
@@ -232,9 +243,6 @@ describe("CloudTelemetryReporter", () => {
   it("skips mid-loop reports when finishReason='tool-calls' and tools are resolved", async () => {
     const { cloud, reportMock } = createCloud();
     const reporter = new CloudTelemetryReporter(cloud);
-    // Last assistant message: step-start + tool call with output → all
-    // client-side tools in the last step are resolved. SDK's
-    // sendAutomaticallyWhen would resubmit; we should defer the report.
     const messages = [
       assistantMsgWithParts("m-1", [
         { type: "step-start" },
@@ -251,13 +259,11 @@ describe("CloudTelemetryReporter", () => {
     await reporter.reportFromMessages(
       "thread-1",
       messages,
-      event(messages, { finishReason: "tool-calls" }),
+      event({ finishReason: "tool-calls" }),
     );
 
     expect(reportMock).not.toHaveBeenCalled();
 
-    // The continuation arrives later with finishReason='stop' and text. The
-    // dedupe slot is still empty (we never inserted), so this report fires.
     const continuation = [
       assistantMsgWithParts("m-1", [
         { type: "step-start" },
@@ -276,7 +282,7 @@ describe("CloudTelemetryReporter", () => {
     await reporter.reportFromMessages(
       "thread-1",
       continuation,
-      event(continuation, { finishReason: "stop" }),
+      event({ finishReason: "stop" }),
     );
 
     expect(reportMock).toHaveBeenCalledOnce();
@@ -288,8 +294,6 @@ describe("CloudTelemetryReporter", () => {
   it("reports finishReason='tool-calls' when tools are not all resolved (terminal)", async () => {
     const { cloud, reportMock } = createCloud();
     const reporter = new CloudTelemetryReporter(cloud);
-    // Tool call without output → lastAssistantMessageIsCompleteWithToolCalls
-    // is false → no auto-resubmit will happen → report as terminal.
     const messages = [
       assistantMsgWithParts("m-1", [
         { type: "step-start" },
@@ -305,7 +309,7 @@ describe("CloudTelemetryReporter", () => {
     await reporter.reportFromMessages(
       "thread-1",
       messages,
-      event(messages, { finishReason: "tool-calls" }),
+      event({ finishReason: "tool-calls" }),
     );
 
     expect(reportMock).toHaveBeenCalledOnce();

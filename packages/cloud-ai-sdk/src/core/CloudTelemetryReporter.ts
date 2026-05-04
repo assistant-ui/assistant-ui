@@ -10,8 +10,6 @@ import {
 } from "./extractRunTelemetry";
 
 export type TelemetryFinishEvent = {
-  message: UIMessage;
-  messages: UIMessage[];
   finishReason?: FinishReason;
   isAbort: boolean;
   isDisconnect: boolean;

@@ -66,6 +66,7 @@ describe("extractRunTelemetry", () => {
       {
         tool_name: "search",
         tool_call_id: "tc-1",
+        tool_source: "frontend",
         tool_args: '{"query":"test"}',
         tool_result: '{"results":["a","b"]}',
       },
@@ -100,7 +101,7 @@ describe("extractRunTelemetry", () => {
       ]),
     ])!;
     expect(result.toolCalls).toEqual([
-      { tool_name: "noop", tool_call_id: "tc-3" },
+      { tool_name: "noop", tool_call_id: "tc-3", tool_source: "frontend" },
     ]);
   });
 
@@ -201,33 +202,6 @@ describe("extractRunTelemetry", () => {
     expect(result.toolCalls![0]!.sampling_calls).toEqual([
       { model_id: "gemini-2.5-flash", input_tokens: 100, output_tokens: 50 },
     ]);
-  });
-
-  it("flags hasReasoning when assistant message contains a reasoning part", () => {
-    const withReasoning = extractRunTelemetry([
-      assistantMsg("m-1", [
-        {
-          type: "reasoning",
-          text: "thinking...",
-        } as UIMessage["parts"][number],
-        { type: "text", text: "answer" },
-      ]),
-    ])!;
-    expect(withReasoning.hasReasoning).toBe(true);
-
-    const withoutReasoning = extractRunTelemetry([
-      assistantMsg("m-2", [{ type: "text", text: "answer" }]),
-    ])!;
-    expect(withoutReasoning.hasReasoning).toBe(false);
-
-    // empty reasoning text shouldn't count
-    const emptyReasoning = extractRunTelemetry([
-      assistantMsg("m-3", [
-        { type: "reasoning", text: "" } as UIMessage["parts"][number],
-        { type: "text", text: "answer" },
-      ]),
-    ])!;
-    expect(emptyReasoning.hasReasoning).toBe(false);
   });
 
   it("ignores sampling calls for non-matching tool call ids", () => {

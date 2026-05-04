@@ -1,10 +1,5 @@
 import type { UIMessage } from "@ai-sdk/react";
-import {
-  getToolName,
-  isReasoningUIPart,
-  isStaticToolUIPart,
-  isToolUIPart,
-} from "ai";
+import { getToolName, isStaticToolUIPart, isToolUIPart } from "ai";
 import type { SamplingCallData } from "assistant-cloud";
 
 const MAX_SPAN_CONTENT = 50_000;
@@ -63,7 +58,6 @@ export type TelemetryToolCall = {
 export type RunTelemetryData = {
   assistantMessageId: string;
   status: "completed" | "incomplete";
-  hasReasoning: boolean;
   toolCalls?: TelemetryToolCall[];
   totalSteps?: number;
   outputText?: string;
@@ -119,11 +113,13 @@ type Part = UIMessage["parts"][number];
 type ToolPart = Extract<Part, { toolCallId: string }>;
 
 function buildToolCall(part: ToolPart): TelemetryToolCall {
-  // ai sdk does not publicly export isDynamicToolUIPart; invert the static check.
+  // dynamic-tool → mcp, static `tool-*` → frontend. matches server-side
+  // createAssistantRun (apps/cloud-api/src/endpoints/runs/stream.ts).
   const isMcp = !isStaticToolUIPart(part);
   const call: TelemetryToolCall = {
     tool_name: getToolName(part),
     tool_call_id: part.toolCallId,
+    tool_source: isMcp ? "mcp" : "frontend",
   };
 
   const input = "input" in part ? part.input : undefined;
@@ -134,7 +130,6 @@ function buildToolCall(part: ToolPart): TelemetryToolCall {
   const toolResult = isMcp ? summarizeMcpResult(output) : safeStringify(output);
   if (toolResult !== undefined) call.tool_result = toolResult;
 
-  if (isMcp) call.tool_source = "mcp";
   return call;
 }
 
@@ -153,15 +148,12 @@ export function extractRunTelemetry(
   const textParts: string[] = [];
   const toolCalls: TelemetryToolCall[] = [];
   let stepCount = 0;
-  let hasReasoning = false;
 
   for (const part of assistant.parts) {
     if (part.type === "step-start") {
       stepCount++;
     } else if (part.type === "text" && part.text) {
       textParts.push(part.text);
-    } else if (isReasoningUIPart(part)) {
-      if (part.text) hasReasoning = true;
     } else if (isToolUIPart(part)) {
       toolCalls.push(buildToolCall(part));
     }
@@ -198,7 +190,6 @@ export function extractRunTelemetry(
   return {
     assistantMessageId: assistant.id,
     status,
-    hasReasoning,
     ...(toolCalls.length > 0 ? { toolCalls } : undefined),
     ...(stepCount > 0 ? { totalSteps: stepCount } : undefined),
     ...(outputText != null ? { outputText } : undefined),
