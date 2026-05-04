@@ -47,6 +47,22 @@ npx assistant-ui@latest create -t mcp
 npx assistant-ui@latest init
 ```
 
+When adding assistant-ui to an existing app, make sure your root layout wraps the app with the generated `TooltipProvider`. Components such as `AssistantModal` use tooltip primitives and need this provider to avoid runtime errors.
+
+```tsx title="app/layout.tsx"
+import { TooltipProvider } from "@/components/ui/tooltip";
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <TooltipProvider>{children}</TooltipProvider>
+      </body>
+    </html>
+  );
+}
+```
+
   </Step>
   <Step>
 
