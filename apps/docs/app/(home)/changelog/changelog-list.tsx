@@ -16,7 +16,6 @@ import {
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 10;
-const COLLAPSE_BODY_THRESHOLD = 240;
 
 function formatDate(date: string): string {
   return new Date(date).toLocaleDateString("en-US", {
@@ -189,8 +188,6 @@ function MetaLine({ item }: { item: ParsedBullet }) {
 function BulletItem({ item }: { item: ParsedBullet }) {
   const [expanded, setExpanded] = useState(false);
   const hasBody = item.body.length > 0;
-  const isLong = hasBody && item.body.length > COLLAPSE_BODY_THRESHOLD;
-  const showFull = expanded || !isLong;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -205,19 +202,19 @@ function BulletItem({ item }: { item: ParsedBullet }) {
       <MetaLine item={item} />
       {hasBody ? (
         <div className="text-muted-foreground text-sm">
-          <div className={cn(!showFull && "line-clamp-2")}>
-            <ReactMarkdown components={bodyMarkdownComponents}>
-              {item.body}
-            </ReactMarkdown>
-          </div>
-          {isLong ? (
-            <button
-              type="button"
-              onClick={() => setExpanded((e) => !e)}
-              className="mt-1 text-muted-foreground/70 text-xs transition-colors hover:text-foreground"
-            >
-              {expanded ? "Show less" : "Show more"}
-            </button>
+          <button
+            type="button"
+            onClick={() => setExpanded((e) => !e)}
+            className="text-muted-foreground/70 text-xs transition-colors hover:text-foreground"
+          >
+            {expanded ? "Hide description" : "Show description"}
+          </button>
+          {expanded ? (
+            <div className="mt-2">
+              <ReactMarkdown components={bodyMarkdownComponents}>
+                {item.body}
+              </ReactMarkdown>
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -257,7 +254,7 @@ function ReleaseEntry({ release }: { release: PackageRelease }) {
   const groups = useMemo(() => groupByType(parsed.bullets), [parsed.bullets]);
 
   return (
-    <details className="group/release">
+    <details className="group/release" open>
       <summary className="flex cursor-pointer list-none items-center gap-2 py-1 [&::-webkit-details-marker]:hidden">
         <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open/release:rotate-90" />
         <span className="font-medium font-mono text-foreground/80 text-sm transition-colors group-hover/release:text-foreground">
