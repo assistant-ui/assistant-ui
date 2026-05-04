@@ -1,13 +1,18 @@
 "use client";
 
-import { cloneElement, isValidElement, useMemo, type ReactNode } from "react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useMemo,
+  type ReactNode,
+} from "react";
 import {
   usePlatformOrDefault,
   type Platform,
 } from "@/components/docs/contexts/platform";
 
-// Negative lookahead avoids rewriting sibling packages like react-langgraph
-// or names where `react` is a prefix (e.g. `reactive`).
+// Negative lookahead avoids matching siblings like `@assistant-ui/react-langgraph`.
 const PACKAGE_PATTERN = /@assistant-ui\/react(?![-\w])/g;
 
 const PLATFORM_PACKAGE: Record<Platform, string> = {
@@ -21,7 +26,8 @@ function rewrite(node: ReactNode, replacement: string): ReactNode {
     return node.replace(PACKAGE_PATTERN, replacement);
   }
   if (Array.isArray(node)) {
-    return node.map((child) => rewrite(child, replacement));
+    // Children.map auto-keys the siblings; bare Array.map would warn on Shiki spans.
+    return Children.map(node, (child) => rewrite(child, replacement));
   }
   if (isValidElement<{ children?: ReactNode }>(node)) {
     const { children } = node.props;
