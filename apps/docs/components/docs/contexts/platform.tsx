@@ -4,9 +4,11 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 
 export const PLATFORMS = ["react", "rn", "ink"] as const;
 export type Platform = (typeof PLATFORMS)[number];
@@ -18,6 +20,7 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
 };
 
 const STORAGE_KEY = "assistant-ui::docs:platform";
+const URL_PARAM = "platform";
 const DEFAULT_PLATFORM: Platform = "react";
 
 interface PlatformContextValue {
@@ -35,7 +38,6 @@ export function usePlatform() {
   return ctx;
 }
 
-// Non-throwing variant for shared MDX components that may render outside a provider.
 export function usePlatformOrDefault(): Platform {
   return useContext(PlatformContext)?.platform ?? DEFAULT_PLATFORM;
 }
@@ -46,13 +48,51 @@ function isPlatform(value: string | null): value is Platform {
 
 const isBrowser = () => typeof window !== "undefined";
 
-/**
- * Singleton store fronting localStorage for the platform selection. Backs
- * useSyncExternalStore so SSR renders the default deterministically, the
- * client reads localStorage synchronously on hydration (no flash), and
- * setting the value broadcasts to other tabs via the standard `storage`
- * event plus same-tab listeners.
- */
+// Avoid useSearchParams so the docs layout isn't opted out of static rendering.
+function readUrlPlatform(): Platform | null {
+  if (!isBrowser()) return null;
+  try {
+    const value = new URLSearchParams(window.location.search).get(URL_PARAM);
+    return isPlatform(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+// replaceState (not router.replace) so URL fixups don't pollute back/forward
+// history and Next.js doesn't treat the param change as a refetch trigger.
+function writeUrlPlatform(next: Platform): void {
+  if (!isBrowser()) return;
+  try {
+    const url = new URL(window.location.href);
+    if (next === DEFAULT_PLATFORM) {
+      if (!url.searchParams.has(URL_PARAM)) return;
+      url.searchParams.delete(URL_PARAM);
+    } else {
+      if (url.searchParams.get(URL_PARAM) === next) return;
+      url.searchParams.set(URL_PARAM, next);
+    }
+    window.history.replaceState(window.history.state, "", url.toString());
+  } catch {}
+}
+
+function syncUrlAndStore(): void {
+  if (!isBrowser()) return;
+  const fromUrl = readUrlPlatform();
+  if (fromUrl) {
+    if (fromUrl !== platformStore.getSnapshot()) {
+      platformStore.setValue(fromUrl);
+    }
+    if (fromUrl === DEFAULT_PLATFORM) {
+      writeUrlPlatform(DEFAULT_PLATFORM);
+    }
+    return;
+  }
+  writeUrlPlatform(platformStore.getSnapshot());
+}
+
+// SSR-safe localStorage backing for useSyncExternalStore, with cross-tab sync
+// via the storage event.
 class PlatformStore {
   private listeners = new Set<() => void>();
 
@@ -98,23 +138,38 @@ class PlatformStore {
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
       this.notify();
-    } catch {
-      // ignore write errors
-    }
+    } catch {}
   };
 }
 
 const platformStore = new PlatformStore();
 
 export function PlatformProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+
   const platform = useSyncExternalStore(
     platformStore.subscribe,
     platformStore.getSnapshot,
     platformStore.getServerSnapshot,
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the only intended trigger
+  useEffect(() => {
+    syncUrlAndStore();
+  }, [pathname]);
+
+  // popstate covers search-only changes (back/forward to a different
+  // ?platform=) which usePathname doesn't fire for.
+  useEffect(() => {
+    window.addEventListener("popstate", syncUrlAndStore);
+    return () => {
+      window.removeEventListener("popstate", syncUrlAndStore);
+    };
+  }, []);
+
   const setPlatform = useCallback((next: Platform) => {
     platformStore.setValue(next);
+    writeUrlPlatform(next);
   }, []);
 
   return (
@@ -124,10 +179,6 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * Returns true when an entry with optional `platforms` allowlist is visible
- * for the given platform. No allowlist (undefined or empty) means universal.
- */
 export function isVisibleForPlatform(
   platforms: readonly string[] | undefined,
   active: Platform,
