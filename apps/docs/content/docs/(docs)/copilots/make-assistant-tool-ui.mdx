@@ -4,9 +4,15 @@ description: Register custom UI components to render tool executions and their s
 platforms: ["react"]
 ---
 
-<Callout type="warn">
-  `makeAssistantToolUI` is deprecated. Use the `Tools()` API instead. See the
-  [Tools guide](/docs/guides/tools) for the recommended approach.
+<Callout type="info">
+  Prefer pre-registering tool UIs via the [`Tools()` API](/docs/guides/tools)
+  (set `render` on the tool definition) or by mounting `makeAssistantToolUI`
+  near the root of your tree. A tool UI that is only registered while a
+  specific component is mounted will not appear when chat history is replayed
+  or during server-side rendering, since the registering component may not be
+  mounted at that point. Tool execution can still be registered dynamically
+  via [`makeAssistantTool`](/docs/copilots/make-assistant-tool); this caveat
+  applies specifically to the UI render function.
 </Callout>
 
 The `makeAssistantToolUI` utility is used to register a tool UI component with the Assistant.

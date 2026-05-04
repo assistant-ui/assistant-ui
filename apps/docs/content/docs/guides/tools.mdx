@@ -27,7 +27,7 @@ When tools are executed, you can display custom generative UI components that pr
 
 ## Tools() API
 
-The `Tools()` API is the recommended way to register tools in assistant-ui. It provides centralized tool registration that prevents duplicate registrations and works seamlessly with all runtimes.
+The `Tools()` API is the recommended starting point for registering tools in assistant-ui. It provides centralized tool registration that prevents duplicate registrations and works seamlessly with all runtimes. For tools whose availability depends on a specific part of your UI being mounted, see the [component-based APIs](#component-based-apis) below; both styles are supported and can be mixed in the same app.
 
 ### Quick Start
 
@@ -315,11 +315,20 @@ const SearchToolUI = makeAssistantToolUI<{ query: string; limit: number }, unkno
 
 ## Component-Based APIs
 
-`makeAssistantTool`, `useAssistantTool`, and `makeAssistantToolUI` are component-and-hook-based APIs that coexist with the [`Tools()`](#tools-api) toolkit pattern. They are fully supported and useful when you want tool registration tied to the React tree rather than declared in a toolkit object. The toolkit pattern is generally more ergonomic for larger tool sets; pick whichever fits your codebase.
+`makeAssistantTool`, `useAssistantTool`, and `makeAssistantToolUI` are component-and-hook-based APIs that coexist with the [`Tools()`](#tools-api) toolkit pattern. They are fully supported and the natural fit for the [intelligent components](/docs/copilots/motivation) pattern, where each part of your UI registers the tools it owns when it is mounted, for example a product-specific tool that should only be exposed while that product's screen is open.
 
 <Callout type="info">
   Be careful not to register the same tool from both APIs at once: each API
   registers under `toolName`, and duplicate registrations will be rejected.
+</Callout>
+
+<Callout type="warn">
+  Tool **execution** can be registered dynamically (when a component mounts),
+  but tool **UI** should generally be pre-registered. A `render` function that
+  is only registered while a specific component is mounted will not render
+  when chat history is replayed or during server-side rendering. Either
+  declare the tool's `render` in a `Tools()` toolkit, or mount
+  `makeAssistantToolUI` near the root of your tree.
 </Callout>
 
 ### Using `makeAssistantTool`
