@@ -5,6 +5,7 @@ import {
   type ComponentRef,
   forwardRef,
   type ComponentPropsWithoutRef,
+  type ForwardedRef,
   useCallback,
 } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
@@ -53,12 +54,13 @@ const useIsHoveringRef = () => {
 /**
  * Predicate: this user message is the anchor target of an in-flight top-turn
  * (second-to-last message after the first turn, with the last being an
- * assistant response).
+ * assistant response). Only call this when the viewport is in "top" turnAnchor
+ * mode; in "bottom" mode the predicate is always false and the selector
+ * subscription is pure overhead.
  */
-const useIsTopAnchorUser = (turnAnchor: "top" | "bottom") => {
+const useIsTopAnchorUser = () => {
   return useAuiState(
     (s) =>
-      turnAnchor === "top" &&
       s.message.role === "user" &&
       s.message.index > 0 &&
       s.message.index === s.thread.messages.length - 2 &&
@@ -68,12 +70,12 @@ const useIsTopAnchorUser = (turnAnchor: "top" | "bottom") => {
 
 /**
  * Predicate: this assistant message is the streaming response paired with the
- * preceding user message under top-turn anchoring.
+ * preceding user message under top-turn anchoring. Same caller contract as
+ * `useIsTopAnchorUser`.
  */
-const useIsTopAnchorTarget = (turnAnchor: "top" | "bottom") => {
+const useIsTopAnchorTarget = () => {
   return useAuiState(
     (s) =>
-      turnAnchor === "top" &&
       s.message.isLast &&
       s.message.role === "assistant" &&
       s.message.index >= 1 &&
@@ -99,8 +101,12 @@ const useTopAnchorUserRef = (
 
 /**
  * Registers the assistant message as the top-anchor target element. CSS-length
- * clamp config is parsed once at register time using the registered element's
- * computed style, then stored as numeric pixels.
+ * clamp config is parsed against the registered element's computed style and
+ * stored as numeric pixels.
+ *
+ * The parse (which calls `getComputedStyle`) is deferred to the next animation
+ * frame so it cannot force a synchronous layout during the bulk-mount phase of
+ * a long thread.
  */
 const useTopAnchorTargetRef = ({
   active,
@@ -112,13 +118,22 @@ const useTopAnchorTargetRef = ({
   const targetRefCallback = useCallback(
     (el: HTMLElement) => {
       if (!active) return;
-      const state = threadViewportStore.getState();
-      const clamp = state.topAnchorMessageClamp;
 
-      return state.registerAnchorTargetElement(el, {
-        tallerThan: parseCssLength(clamp.tallerThan, el),
-        visibleHeight: parseCssLength(clamp.visibleHeight, el),
+      let unregister: (() => void) | undefined;
+      let frameHandle: number | null = requestAnimationFrame(() => {
+        frameHandle = null;
+        const state = threadViewportStore.getState();
+        const clamp = state.topAnchorMessageClamp;
+        unregister = state.registerAnchorTargetElement(el, {
+          tallerThan: parseCssLength(clamp.tallerThan, el),
+          visibleHeight: parseCssLength(clamp.visibleHeight, el),
+        });
       });
+
+      return () => {
+        if (frameHandle !== null) cancelAnimationFrame(frameHandle);
+        unregister?.();
+      };
     },
     [active, threadViewportStore],
   );
@@ -131,6 +146,57 @@ export namespace MessagePrimitiveRoot {
   export type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
 }
 
+type MessagePrimitiveRootInternalProps = MessagePrimitiveRoot.Props & {
+  forwardedRef: ForwardedRef<MessagePrimitiveRoot.Element>;
+};
+
+const MessagePrimitiveRootDefault = ({
+  forwardedRef,
+  ...props
+}: MessagePrimitiveRootInternalProps) => {
+  const isHoveringRef = useIsHoveringRef();
+  const ref = useComposedRefs<HTMLDivElement>(forwardedRef, isHoveringRef);
+  const messageId = useAuiState((s) => s.message.id);
+
+  return <Primitive.div {...props} ref={ref} data-message-id={messageId} />;
+};
+
+const MessagePrimitiveRootTopAnchor = ({
+  forwardedRef,
+  threadViewportStore,
+  ...props
+}: MessagePrimitiveRootInternalProps & {
+  threadViewportStore: ThreadViewportStore;
+}) => {
+  const isHoveringRef = useIsHoveringRef();
+  const isTopAnchorUser = useIsTopAnchorUser();
+  const isTopAnchorTarget = useIsTopAnchorTarget();
+  const topAnchorUserRef = useTopAnchorUserRef(
+    isTopAnchorUser,
+    threadViewportStore,
+  );
+  const topAnchorTargetRef = useTopAnchorTargetRef({
+    active: isTopAnchorTarget,
+    threadViewportStore,
+  });
+  const ref = useComposedRefs<HTMLDivElement>(
+    forwardedRef,
+    isHoveringRef,
+    topAnchorUserRef,
+    topAnchorTargetRef,
+  );
+  const messageId = useAuiState((s) => s.message.id);
+
+  return (
+    <Primitive.div
+      {...props}
+      ref={ref}
+      data-message-id={messageId}
+      data-aui-top-anchor-target={isTopAnchorTarget ? "" : undefined}
+    />
+  );
+};
+
 /**
  * The root container component for a message.
  *
@@ -142,6 +208,10 @@ export namespace MessagePrimitiveRoot {
  * registers itself as the top-anchor user message (when it's the previous user
  * message) or as the top-anchor target (when it's the streaming assistant
  * response). No additional component is required.
+ *
+ * Internally splits into a default path and a top-anchor path so that threads
+ * running with the default `turnAnchor="bottom"` do not pay the per-message
+ * cost of the top-anchor selector subscriptions.
  *
  * @example
  * ```tsx
@@ -157,36 +227,22 @@ export namespace MessagePrimitiveRoot {
 export const MessagePrimitiveRoot = forwardRef<
   MessagePrimitiveRoot.Element,
   MessagePrimitiveRoot.Props
->((props, forwardRef) => {
-  const isHoveringRef = useIsHoveringRef();
+>((props, forwardedRef) => {
   const threadViewportStore = useThreadViewportStore();
+  // turnAnchor is an initial viewport option (see ThreadViewportProvider) and
+  // therefore safe to read non-reactively here.
   const turnAnchor = threadViewportStore.getState().turnAnchor;
-  const isTopAnchorUser = useIsTopAnchorUser(turnAnchor);
-  const isTopAnchorTarget = useIsTopAnchorTarget(turnAnchor);
-  const topAnchorUserRef = useTopAnchorUserRef(
-    isTopAnchorUser,
-    threadViewportStore,
-  );
-  const topAnchorTargetRef = useTopAnchorTargetRef({
-    active: isTopAnchorTarget,
-    threadViewportStore,
-  });
-  const ref = useComposedRefs<HTMLDivElement>(
-    forwardRef,
-    isHoveringRef,
-    topAnchorUserRef,
-    topAnchorTargetRef,
-  );
-  const messageId = useAuiState((s) => s.message.id);
 
-  return (
-    <Primitive.div
-      {...props}
-      ref={ref}
-      data-message-id={messageId}
-      data-aui-top-anchor-target={isTopAnchorTarget ? "" : undefined}
-    />
-  );
+  if (turnAnchor === "top") {
+    return (
+      <MessagePrimitiveRootTopAnchor
+        {...props}
+        forwardedRef={forwardedRef}
+        threadViewportStore={threadViewportStore}
+      />
+    );
+  }
+  return <MessagePrimitiveRootDefault {...props} forwardedRef={forwardedRef} />;
 });
 
 MessagePrimitiveRoot.displayName = "MessagePrimitive.Root";
