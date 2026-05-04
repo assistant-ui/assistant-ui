@@ -12,6 +12,7 @@
     "build": "turbo build",
     "lint": "pnpm exec biome check",
     "lint:fix": "pnpm exec biome check --fix",
+    "sync-templates": "bash scripts/sync-templates.sh",
     "test": "turbo test",
     "prepare": "husky",
     "deps:check": "npx taze major -f -r",
