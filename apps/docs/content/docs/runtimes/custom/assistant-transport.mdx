@@ -1,6 +1,7 @@
 ---
 title: Assistant Transport
 description: Stream agent state to the frontend and handle user commands for custom agents.
+platforms: ["react"]
 ---
 
 `AssistantTransport` is a state-streaming protocol layered on `ExternalStoreRuntime` (see [architecture](/docs/runtimes/concepts/architecture)). Instead of streaming message parts, your backend streams snapshots of its full agent state and the runtime converts them into UI messages.

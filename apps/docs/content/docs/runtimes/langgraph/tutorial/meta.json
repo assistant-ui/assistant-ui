@@ -1,4 +1,5 @@
 {
   "title": "Tutorial: Stockbroker",
+  "platforms": ["react"],
   "pages": ["introduction", "part-1", "part-2", "part-3"]
 }
