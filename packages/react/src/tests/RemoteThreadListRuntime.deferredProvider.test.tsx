@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { type FC, type PropsWithChildren, useState } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useRemoteThreadListRuntime } from "@assistant-ui/core/react";
 import { makeAdapter } from "./remote-thread-list-test-helpers";
 import type { AssistantRuntime } from "@assistant-ui/core";
@@ -39,14 +39,13 @@ const RuntimeCapture: FC<{
   return null;
 };
 
-// regression for #3678: deferred unstable_Provider must not strand the runtime binder.
-describe("useRemoteThreadListRuntime with a deferred unstable_Provider", () => {
-  it("composer.setText does not throw EMPTY_THREAD_ERROR when unstable_Provider defers children", () => {
-    const Provider: FC<PropsWithChildren> = ({ children }) => {
-      const [ready] = useState(false);
-      if (!ready) return null;
-      return <>{children}</>;
-    };
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("useRemoteThreadListRuntime with unstable_Provider", () => {
+  it("composer.setText works when unstable_Provider renders children unconditionally", () => {
+    const Provider: FC<PropsWithChildren> = ({ children }) => <>{children}</>;
     const adapter = makeAdapter({ unstable_Provider: Provider });
 
     const runtimeRef: { current: AssistantRuntime | null } = { current: null };
@@ -61,19 +60,31 @@ describe("useRemoteThreadListRuntime with a deferred unstable_Provider", () => {
     expect(() => runtime!.thread.composer.setText("hello")).not.toThrow();
   });
 
-  it("composer.setText still works when unstable_Provider renders children unconditionally", () => {
-    const Provider: FC<PropsWithChildren> = ({ children }) => <>{children}</>;
+  it("warns in dev when unstable_Provider defers children", () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const Provider: FC<PropsWithChildren> = ({ children }) => {
+      const [ready] = useState(false);
+      if (!ready) return null;
+      return <>{children}</>;
+    };
     const adapter = makeAdapter({ unstable_Provider: Provider });
 
-    const runtimeRef: { current: AssistantRuntime | null } = { current: null };
     render(
       <RuntimeProvider adapter={adapter}>
-        <RuntimeCapture runtimeRef={runtimeRef} />
+        <div />
       </RuntimeProvider>,
     );
 
-    const runtime = runtimeRef.current;
-    expect(runtime).toBeTruthy();
-    expect(() => runtime!.thread.composer.setText("hello")).not.toThrow();
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("did not render its `children` synchronously"),
+    );
+
+    warn.mockRestore();
   });
 });
