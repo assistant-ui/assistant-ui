@@ -271,7 +271,7 @@ export type {
   RemoteThreadInitializeResponse,
   RemoteThreadMetadata,
   RemoteThreadListResponse,
-  RemoteThreadListListParams,
+  RemoteThreadListPageOptions,
 } from "./runtimes/remote-thread-list/types";
 
 export { InMemoryThreadListAdapter } from "./runtimes/remote-thread-list/adapter/in-memory";

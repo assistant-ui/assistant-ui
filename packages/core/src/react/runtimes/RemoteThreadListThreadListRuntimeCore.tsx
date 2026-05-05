@@ -145,8 +145,7 @@ export class RemoteThreadListThreadListRuntimeCore
     const adapter = this._options.adapter;
     const cursor = initialState.cursor;
 
-    let promise!: Promise<void>;
-    promise = this._state
+    const dedup = this._state
       .optimisticUpdate({
         execute: () => adapter.list({ after: cursor }),
         loading: (state) => ({ ...state, isLoadingMore: true }),
@@ -205,13 +204,13 @@ export class RemoteThreadListThreadListRuntimeCore
       })
       .catch(() => {})
       .then(() => {
-        if (this._loadMorePromise === promise) {
+        if (this._loadMorePromise === dedup) {
           this._loadMorePromise = undefined;
         }
       });
 
-    this._loadMorePromise = promise;
-    return promise;
+    this._loadMorePromise = dedup;
+    return dedup;
   }
 
   private readonly contextProvider: ModelContextProvider;

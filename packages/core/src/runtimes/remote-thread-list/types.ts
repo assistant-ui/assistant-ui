@@ -21,12 +21,12 @@ export type RemoteThreadListResponse = {
   nextCursor?: string | undefined;
 };
 
-export type RemoteThreadListListParams = {
+export type RemoteThreadListPageOptions = {
   after?: string | undefined;
 };
 
 export type RemoteThreadListAdapter = {
-  list(params?: RemoteThreadListListParams): Promise<RemoteThreadListResponse>;
+  list(params?: RemoteThreadListPageOptions): Promise<RemoteThreadListResponse>;
 
   rename(remoteId: string, newTitle: string): Promise<void>;
   archive(remoteId: string): Promise<void>;

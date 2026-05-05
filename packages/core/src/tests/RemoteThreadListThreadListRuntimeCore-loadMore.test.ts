@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type {
-  RemoteThreadListListParams,
+  RemoteThreadListPageOptions,
   RemoteThreadListResponse,
 } from "../runtimes/remote-thread-list/types";
 import {
@@ -54,7 +54,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const listFn = vi
       .fn<
         (
-          params?: RemoteThreadListListParams,
+          params?: RemoteThreadListPageOptions,
         ) => Promise<RemoteThreadListResponse>
       >()
       .mockResolvedValueOnce({
@@ -89,7 +89,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const listFn = vi
       .fn<
         (
-          params?: RemoteThreadListListParams,
+          params?: RemoteThreadListPageOptions,
         ) => Promise<RemoteThreadListResponse>
       >()
       .mockResolvedValueOnce({
@@ -113,7 +113,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const listFn = vi
       .fn<
         (
-          params?: RemoteThreadListListParams,
+          params?: RemoteThreadListPageOptions,
         ) => Promise<RemoteThreadListResponse>
       >()
       .mockResolvedValueOnce({
@@ -134,7 +134,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const listFn = vi
       .fn<
         (
-          params?: RemoteThreadListListParams,
+          params?: RemoteThreadListPageOptions,
         ) => Promise<RemoteThreadListResponse>
       >()
       .mockReturnValueOnce(first.promise);
@@ -153,7 +153,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const listFn = vi
       .fn<
         (
-          params?: RemoteThreadListListParams,
+          params?: RemoteThreadListPageOptions,
         ) => Promise<RemoteThreadListResponse>
       >()
       .mockResolvedValueOnce({
@@ -184,7 +184,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const listFn = vi
       .fn<
         (
-          params?: RemoteThreadListListParams,
+          params?: RemoteThreadListPageOptions,
         ) => Promise<RemoteThreadListResponse>
       >()
       .mockResolvedValueOnce({
@@ -219,7 +219,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const listFn = vi
       .fn<
         (
-          params?: RemoteThreadListListParams,
+          params?: RemoteThreadListPageOptions,
         ) => Promise<RemoteThreadListResponse>
       >()
       .mockResolvedValueOnce({
@@ -246,7 +246,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const listFn = vi
       .fn<
         (
-          params?: RemoteThreadListListParams,
+          params?: RemoteThreadListPageOptions,
         ) => Promise<RemoteThreadListResponse>
       >()
       .mockResolvedValueOnce({
@@ -302,7 +302,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const firstList = vi
       .fn<
         (
-          params?: RemoteThreadListListParams,
+          params?: RemoteThreadListPageOptions,
         ) => Promise<RemoteThreadListResponse>
       >()
       .mockResolvedValueOnce({
@@ -341,7 +341,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const listFn = vi
       .fn<
         (
-          params?: RemoteThreadListListParams,
+          params?: RemoteThreadListPageOptions,
         ) => Promise<RemoteThreadListResponse>
       >()
       .mockResolvedValueOnce({
@@ -367,7 +367,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const listFn = vi
       .fn<
         (
-          params?: RemoteThreadListListParams,
+          params?: RemoteThreadListPageOptions,
         ) => Promise<RemoteThreadListResponse>
       >()
       .mockResolvedValueOnce({
@@ -388,7 +388,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const listFn = vi
       .fn<
         (
-          params?: RemoteThreadListListParams,
+          params?: RemoteThreadListPageOptions,
         ) => Promise<RemoteThreadListResponse>
       >()
       .mockResolvedValueOnce({
@@ -432,7 +432,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const listFn = vi
       .fn<
         (
-          params?: RemoteThreadListListParams,
+          params?: RemoteThreadListPageOptions,
         ) => Promise<RemoteThreadListResponse>
       >()
       .mockResolvedValueOnce({
