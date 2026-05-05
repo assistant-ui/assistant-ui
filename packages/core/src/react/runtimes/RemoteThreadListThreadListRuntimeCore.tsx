@@ -119,8 +119,9 @@ export class RemoteThreadListThreadListRuntimeCore
             };
           },
         })
-        .catch(() => {
+        .catch((error: unknown) => {
           if (generation !== this._loadGeneration) return;
+          console.error("[assistant-ui] thread list load failed:", error);
           this._loadThreadsPromise = undefined;
           this._state.update({
             ...this._state.baseValue,
@@ -202,7 +203,9 @@ export class RemoteThreadListThreadListRuntimeCore
           };
         },
       })
-      .catch(() => {})
+      .catch((error: unknown) => {
+        console.error("[assistant-ui] thread list loadMore failed:", error);
+      })
       .then(() => {
         if (this._loadMorePromise === dedup) {
           this._loadMorePromise = undefined;
