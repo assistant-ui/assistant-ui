@@ -120,7 +120,10 @@ function getJsDocCommentText(doc: JSDoc): string | undefined {
     .split("\n")
     .map((line) => line.replace(/^\s*\*\s?/, ""))
     .join("\n")
-    .replace(/\{@link\s+([^}\s]+)(?:\s+([^}]+))?\}/g, (_, path, label) => (label?.trim() || path) + " ")
+    .replace(
+      /\{@link\s+([^}\s]+)(?:\s+([^}]+))?\}/g,
+      (_, path, label) => (label?.trim() || path) + " ",
+    )
     .replace(/\s+([.,;:])/g, "$1")
     .trim();
 
