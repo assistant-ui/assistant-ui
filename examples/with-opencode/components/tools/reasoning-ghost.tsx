@@ -1,15 +1,23 @@
 "use client";
 
-import { memo } from "react";
+import { memo, type FC, type PropsWithChildren } from "react";
 import { BrainIcon } from "lucide-react";
-import { useAuiState, type ReasoningGroupComponent } from "@assistant-ui/react";
+import { useAuiState } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
 
-const ReasoningGroupImpl: ReasoningGroupComponent = ({
+type GroupedPartsGroup = {
+  indices: readonly number[];
+};
+
+const ReasoningGroupImpl: FC<
+  PropsWithChildren<{ group: GroupedPartsGroup }>
+> = ({
   children,
-  startIndex,
-  endIndex,
+  group,
 }) => {
+  const startIndex = group.indices[0]!;
+  const endIndex = group.indices.at(-1)!;
+
   const isMultiLine = useAuiState((s) => {
     let totalLength = 0;
     for (let i = startIndex; i <= endIndex; i++) {
