@@ -265,6 +265,9 @@ Follow the [Ink setup](/docs/ink).
 
 LangGraph agents often expose structured state beyond messages (plans, todos, scratch files, generative-UI artifacts). Read them directly with `useLangChainState`. It mirrors `useStream().values[key]` upstream and updates when the stream emits new state.
 
+<PlatformTabs>
+<Tab value="React">
+
 ```tsx
 import { useLangChainState } from "@assistant-ui/react-langchain";
 
@@ -284,6 +287,55 @@ function TodoList() {
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx
+import { useLangChainState } from "@assistant-ui/react-langchain";
+import { Text, View } from "react-native";
+
+type Todo = { id: string; title: string; done: boolean };
+
+function TodoList() {
+  const todos = useLangChainState<Todo[]>("todos", []);
+  return (
+    <View>
+      {todos.map((t) => (
+        <Text key={t.id}>
+          {t.done ? "✓" : "○"} {t.title}
+        </Text>
+      ))}
+    </View>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx
+import { useLangChainState } from "@assistant-ui/react-langchain";
+import { Box, Text } from "ink";
+
+type Todo = { id: string; title: string; done: boolean };
+
+function TodoList() {
+  const todos = useLangChainState<Todo[]>("todos", []);
+  return (
+    <Box flexDirection="column">
+      {todos.map((t) => (
+        <Text key={t.id}>
+          {t.done ? "✓" : "○"} {t.title}
+        </Text>
+      ))}
+    </Box>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 Signatures:
 
 ```ts
@@ -300,6 +352,9 @@ Added in v0.0.2 — see issue [#3862](https://github.com/assistant-ui/assistant-
 ## Interrupts
 
 LangGraph interrupts pause the graph and wait for client input. `useLangChainInterruptState` exposes the current interrupt; `useLangChainSubmit` resumes the graph with a raw state update.
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx
 import {
@@ -326,6 +381,69 @@ function InterruptPrompt() {
   );
 }
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```tsx
+import {
+  useLangChainInterruptState,
+  useLangChainSubmit,
+} from "@assistant-ui/react-langchain";
+import { Command } from "@langchain/langgraph-sdk";
+import { Pressable, Text, View } from "react-native";
+
+function InterruptPrompt() {
+  const interrupt = useLangChainInterruptState();
+  const submit = useLangChainSubmit();
+  if (!interrupt) return null;
+  return (
+    <View>
+      <Text>{JSON.stringify(interrupt.value, null, 2)}</Text>
+      <Pressable
+        onPress={() =>
+          submit(null, { command: new Command({ resume: "approved" }) })
+        }
+      >
+        <Text>Approve</Text>
+      </Pressable>
+    </View>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx
+import {
+  useLangChainInterruptState,
+  useLangChainSubmit,
+} from "@assistant-ui/react-langchain";
+import { Command } from "@langchain/langgraph-sdk";
+import { Box, Text, useInput } from "ink";
+
+function InterruptPrompt() {
+  const interrupt = useLangChainInterruptState();
+  const submit = useLangChainSubmit();
+
+  useInput((input) => {
+    if (!interrupt || input !== "a") return;
+    submit(null, { command: new Command({ resume: "approved" }) });
+  });
+
+  if (!interrupt) return null;
+  return (
+    <Box flexDirection="column">
+      <Text>{JSON.stringify(interrupt.value, null, 2)}</Text>
+      <Text>Press a to approve.</Text>
+    </Box>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
 
 ## Message conversion
 
