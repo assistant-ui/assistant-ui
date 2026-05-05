@@ -58,7 +58,7 @@ const openai = createOpenAI({
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-mini"),
     messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
@@ -81,7 +81,7 @@ const openai = new OpenAI({
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const stream = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.4-mini",
     messages,
     stream: true,
   });

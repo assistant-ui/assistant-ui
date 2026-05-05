@@ -353,7 +353,7 @@ const openai = new OpenAI();
 const MyModelAdapter: ChatModelAdapter = {
   async *run({ messages, abortSignal, context }) {
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.4-mini",
       messages: convertToOpenAIMessages(messages),
       stream: true,
       signal: abortSignal,
@@ -379,7 +379,7 @@ Accumulate tool calls in a `Map` outside the streaming loop so they persist acro
 ```tsx
 async *run({ messages, abortSignal, context }) {
   const stream = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.4-mini",
     messages: convertToOpenAIMessages(messages),
     tools: context.tools,
     stream: true,
@@ -547,7 +547,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const OpenAIAdapter: ChatModelAdapter = {
   async *run({ messages, abortSignal, context }) {
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.4-mini",
       messages: messages.map((m) => ({
         role: m.role,
         content: m.content
