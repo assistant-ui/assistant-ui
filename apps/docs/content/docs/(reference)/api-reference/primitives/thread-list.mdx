@@ -124,3 +124,18 @@ Renders a single thread list item at the specified index.
     },
   ]}
 />
+
+### LoadMore
+
+A button that calls `aui.threads().loadMore()` to append the next page. See the [LoadMore primitive reference](/docs/primitives/thread-list#loadmore) for usage and [Threads concepts](/docs/runtimes/concepts/threads#paginating-the-thread-list) for the adapter contract.
+
+This primitive renders a `<button>` element unless `asChild` is set.
+
+<ParametersTable
+  type="ThreadListPrimitiveLoadMoreProps"
+  parameters={[
+    {
+      name: "asChild",
+    },
+  ]}
+/>
