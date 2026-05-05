@@ -2,6 +2,7 @@ import {
   Project,
   Node,
   SyntaxKind,
+  type JSDoc,
   type SourceFile,
   type ModuleDeclaration,
   type TypeAliasDeclaration,
@@ -243,6 +244,32 @@ function isInheritedProp(prop: TsMorphSymbol): boolean {
   return false;
 }
 
+function getJsDocCommentText(doc: JSDoc): string | undefined {
+  const comment = doc.getComment();
+  let text: string | undefined;
+  if (typeof comment === "string") {
+    text = comment;
+  } else if (Array.isArray(comment)) {
+    text = comment
+      .map((part) => part.getText())
+      .join("")
+      .trim();
+  }
+  if (!text) return undefined;
+
+  const cleaned = text
+    .replace(/^\/\*\*?/, "")
+    .replace(/\*\/$/, "")
+    .split("\n")
+    .map((line) => line.replace(/^\s*\*\s?/, ""))
+    .join("\n")
+    .replace(/\{@link\s+([^}\s]+)(?:\s+([^}]+))?\}/g, "$2$1 ")
+    .replace(/\s+([.,;:])/g, "$1")
+    .trim();
+
+  return cleaned || undefined;
+}
+
 function extractJsDocMeta(decl: Node): {
   description?: string;
   default?: string;
@@ -262,9 +289,9 @@ function extractJsDocMeta(decl: Node): {
     deprecated?: string;
   } = {};
 
-  const comment = doc.getComment();
-  if (typeof comment === "string") {
-    meta.description = comment.trim();
+  const comment = getJsDocCommentText(doc);
+  if (comment) {
+    meta.description = comment;
   }
 
   for (const tag of doc.getTags()) {
@@ -500,10 +527,7 @@ function extractComponentsChildren(
     if (Node.isPropertySignature(childDecl)) {
       const jsDocs = (childDecl as PropertySignature).getJsDocs?.();
       if (jsDocs && jsDocs.length > 0) {
-        const comment = jsDocs[0]!.getComment();
-        if (typeof comment === "string") {
-          childDesc = comment.trim();
-        }
+        childDesc = getJsDocCommentText(jsDocs[0]!);
       }
     }
 
@@ -586,10 +610,7 @@ function extractActionButtonProps(
           if (Node.isPropertySignature(decl)) {
             const jsDocs = (decl as PropertySignature).getJsDocs?.();
             if (jsDocs && jsDocs.length > 0) {
-              const comment = jsDocs[0]!.getComment();
-              if (typeof comment === "string") {
-                description = comment.trim();
-              }
+              description = getJsDocCommentText(jsDocs[0]!);
               for (const tag of jsDocs[0]!.getTags()) {
                 if (tag.getTagName() === "default") {
                   defaultValue = tag.getComment()?.toString().trim();
