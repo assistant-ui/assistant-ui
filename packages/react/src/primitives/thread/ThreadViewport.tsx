@@ -20,6 +20,10 @@ import {
   useThreadViewportStore,
 } from "../../context/react/ThreadViewportContext";
 import { useTopAnchorReserve } from "./topAnchor/useTopAnchorReserve";
+import {
+  getActiveTopAnchorAnchorId,
+  getActiveTopAnchorTargetId,
+} from "./topAnchor/topAnchorTurn";
 
 export namespace ThreadPrimitiveViewport {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -99,26 +103,12 @@ const useViewportElementRef = () => {
 const useTopAnchorTurn = (enabled: boolean) => {
   const threadViewportStore = useThreadViewportStore();
   const activeAnchorId = useAuiState((s) => {
-    if (!enabled || !s.thread.isRunning) return undefined;
-
-    const target = s.thread.messages.at(-1);
-    const anchor = s.thread.messages.at(-2);
-    if (anchor?.role !== "user" || target?.role !== "assistant") {
-      return undefined;
-    }
-
-    return anchor.id;
+    if (!enabled) return undefined;
+    return getActiveTopAnchorAnchorId(s.thread);
   });
   const activeTargetId = useAuiState((s) => {
-    if (!enabled || !s.thread.isRunning) return undefined;
-
-    const target = s.thread.messages.at(-1);
-    const anchor = s.thread.messages.at(-2);
-    if (anchor?.role !== "user" || target?.role !== "assistant") {
-      return undefined;
-    }
-
-    return target.id;
+    if (!enabled) return undefined;
+    return getActiveTopAnchorTargetId(s.thread);
   });
   const activeTurn = useMemo(() => {
     if (!activeAnchorId || !activeTargetId) return null;
