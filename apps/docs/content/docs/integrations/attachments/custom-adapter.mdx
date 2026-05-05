@@ -36,7 +36,7 @@ Three ideas to internalize before reading the code:
 
 ### Build the presign endpoint
 
-The browser cannot mint upload credentials safely; the server creates a short-lived presigned URL. The example below uses S3, but R2, GCS, and Vercel Blob have nearly identical shapes.
+The client cannot mint upload credentials safely; the server creates a short-lived presigned URL. The example below uses S3, but R2, GCS, and Vercel Blob have nearly identical shapes.
 
 ```sh title=".env.local"
 AWS_REGION=us-east-1
@@ -502,7 +502,7 @@ In the adapter's `add`, call Uploadthing's client upload and read `url` from the
 - **Persistence.** A URL the model sees on Monday must still resolve next week if the thread is reloaded. Either use storage with no expiry on the public URL, or have your [history adapter](/docs/integrations/persistence/custom-adapter) regenerate signed URLs on `load`. Don't store presigned URLs in the message row.
 - **Cleanup.** `remove` runs only if the user dismisses the attachment before sending. Files in sent messages are kept; deleting them later breaks message rendering.
 - **`accept` string.** Comma-separated MIME types or extensions, including wildcards (`image/*`). The composer file picker uses this directly. To handle multiple type families with different upload paths, use [`CompositeAttachmentAdapter`](/docs/runtimes/concepts/adapters#attachment-adapter).
-- **Server-side validation.** Even with presigning, validate `contentType` and file size on the server. The browser controls what it sends; trust nothing.
+- **Server-side validation.** Even with presigning, validate `contentType` and file size on the server. The client controls what it sends; trust nothing.
 
 ## Related
 

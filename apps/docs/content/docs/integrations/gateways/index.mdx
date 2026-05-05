@@ -137,7 +137,7 @@ When to pick: self-host requirement, BYOK metering for end-users, or unified bil
 
 ## Notes
 
-- **Server-side only.** A gateway key is a write capability against your billing account. Never set it in browser code; the route handler is the right boundary.
+- **Server-side only.** A gateway key is a write capability against your billing account. Never set it in client code; the route handler is the right boundary.
 - **Streaming, tools, attachments.** All three gateways are transparent to the AI SDK; everything that works against OpenAI directly works through them.
 - **Combining with observability.** A gateway and an observability tool are not mutually exclusive. Helicone in front of OpenRouter is a common stack: OpenRouter does the routing, Helicone logs the calls.
 

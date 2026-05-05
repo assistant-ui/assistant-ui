@@ -405,7 +405,7 @@ Follow the [Ink setup](/docs/ink) to add a terminal Thread, composer, and suppor
 
 ## Production proxy backend
 
-For development, the client above hits LangGraph Cloud directly using `NEXT_PUBLIC_LANGGRAPH_API_URL`. For production, proxy through your own backend so your API key never reaches the browser. Limit the proxy to the endpoints you actually need.
+For development, the client above hits LangGraph Cloud directly using `NEXT_PUBLIC_LANGGRAPH_API_URL`. For production, proxy through your own backend so your API key never reaches the client. Limit the proxy to the endpoints you actually need.
 
 ```ts title="@/app/api/[...path]/route.ts"
 import { NextRequest, NextResponse } from "next/server";

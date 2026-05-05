@@ -8,9 +8,9 @@ description: Connect MCP servers as a tool catalog in your assistant-ui app.
 ## How it works
 
 ```
-browser  ──►  /api/chat  ──►  MCP client  ──►  MCP server (HTTP, SSE, stdio)
-                              │
-                              └─ tools()  ──►  passed to streamText({ tools })
+client  ──►  /api/chat  ──►  MCP client  ──►  MCP server (HTTP, SSE, stdio)
+                            │
+                            └─ tools()  ──►  passed to streamText({ tools })
 ```
 
 The MCP client lives on the server inside your AI SDK route handler. It connects to one or more MCP servers, calls `tools()` to get a tool map, and hands that map to `streamText`. assistant-ui's existing tool-call UI (`ToolFallback`, `makeAssistantToolUI`) renders the results.
@@ -246,7 +246,7 @@ Start the app and trigger a tool call (e.g., ask the assistant to do something t
 
 ## Notes
 
-- **Server-side only.** The MCP client uses Node APIs (sockets, optionally child processes). Never instantiate it in browser code.
+- **Server-side only.** The MCP client uses Node APIs (sockets, optionally child processes). Never instantiate it in client code.
 - **Per-request lifecycle.** A fresh client per request keeps connection state simple. For high-throughput servers, pool clients yourself with care: the AI SDK's `tools()` call assumes the connection is alive when `streamText` runs.
 - **Sampling.** If your MCP server uses `sampling/createMessage` (lets the server ask the LLM mid-call), assistant-cloud users can instrument it via [`instrumentMcpSampling`](/docs/cloud) for observability. This is independent of the wiring above.
 - **Transport choice.** HTTP for any networked server. SSE only if the server doesn't speak HTTP. stdio is for local development against an MCP server in your monorepo.

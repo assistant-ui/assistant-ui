@@ -19,8 +19,8 @@ If you're rolling your own auth, replace `auth()` calls with whatever your stack
 ## How it works
 
 ```
-browser  ──►  /api/threads/*   (RemoteThreadListAdapter)  ──►  threads table
-              /api/messages/*  (ThreadHistoryAdapter)     ──►  messages table
+client  ──►  /api/threads/*   (RemoteThreadListAdapter)  ──►  threads table
+             /api/messages/*  (ThreadHistoryAdapter)     ──►  messages table
 ```
 
 Two adapters, two tables:

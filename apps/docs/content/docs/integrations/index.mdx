@@ -12,17 +12,17 @@ Integrations are wiring guides for using third-party services with assistant-ui,
 ## Where integrations slot in
 
 ```
-browser  ──►  your API route  ──►  LLM provider
-                  │                    ▲
-                  │                    │
-       agent      │                    │  observability
-       frameworks │                    │  proxies
-       (e.g.      │                    │  (e.g. Helicone,
-       Mastra)    │                    │   Langfuse)
-                  ▼                    │
-            run on the server,         │
-            then forward calls   ──────┘
-            to the provider
+client  ──►  your API route  ──►  LLM provider
+                │                    ▲
+                │                    │
+     agent      │                    │  observability
+     frameworks │                    │  proxies
+     (e.g.      │                    │  (e.g. Helicone,
+     Mastra)    │                    │   Langfuse)
+                ▼                    │
+          run on the server,         │
+          then forward calls   ──────┘
+          to the provider
 ```
 
 Integrations live on the server. **Agent frameworks** like Mastra take over the API route. **Gateways** swap the upstream provider URL. **Observability** logs or traces every call. **Auth** gates the route and scopes per-user data. **Persistence** and **attachments** are adapter recipes for storing chat data outside the default in-memory path.

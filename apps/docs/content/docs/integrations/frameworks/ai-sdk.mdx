@@ -14,10 +14,10 @@ If you arrived here looking to wire up your first chat: jump to [AI SDK v6 quick
 ## Where it slots in
 
 ```
-browser  ──►  useChatRuntime (react-ai-sdk)  ──►  /api/chat (streamText)  ──►  provider
-                  │
-                  └─ thread state, tool calls, attachments,
-                     speech / dictation / feedback adapters
+client  ──►  useChatRuntime (react-ai-sdk)  ──►  /api/chat (streamText)  ──►  provider
+                │
+                └─ thread state, tool calls, attachments,
+                   speech / dictation / feedback adapters
 ```
 
 `@assistant-ui/react-ai-sdk` wraps the AI SDK's `useChat` hook and exposes it as an assistant-ui runtime. The runtime owns conversation state on the client; your `/api/chat` route returns a UI message stream from `streamText`. Everything else (tools, attachments, observability, gateways, custom persistence) layers on top of this base.
