@@ -60,6 +60,36 @@ useAuiEvent("thread.runStart", (payload) => {
 });
 ```
 
+## Message Part Hooks
+
+These hooks read the current message part context. Use them inside renderers mounted by `MessagePrimitive.Parts` or inside `MessagePrimitive.PartByIndex` / `PartByIndexProvider`. Each hook expects the current part to match its type and throws otherwise — only `useMessagePartText` is also valid inside a `TextMessagePartProvider` (or a reasoning part), and `useMessagePartData` returns `null` rather than throwing when the part is not data.
+
+```tsx
+import {
+  useMessagePartText,
+  useMessagePartImage,
+} from "@assistant-ui/react-ink";
+
+const TextPart = () => {
+  const { text } = useMessagePartText();
+  return <Text>{text}</Text>;
+};
+
+const ImagePart = () => {
+  const { filename } = useMessagePartImage();
+  return <Text>{filename ? `[image: ${filename}]` : "[image]"}</Text>;
+};
+```
+
+| Hook | Returns |
+|------|---------|
+| `useMessagePartText()` | Current text or reasoning part |
+| `useMessagePartReasoning()` | Current reasoning part |
+| `useMessagePartSource()` | Current source part |
+| `useMessagePartFile()` | Current file part |
+| `useMessagePartImage()` | Current image part |
+| `useMessagePartData(name?)` | Current data part, or `null` when the current part is not data or the optional name does not match |
+
 ## Runtime Hooks
 
 ### useLocalRuntime

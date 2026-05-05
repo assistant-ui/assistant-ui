@@ -323,7 +323,7 @@ Conditional rendering based on composer state. Shared from `@assistant-ui/core/r
 ## Message
 
 ```tsx
-import { MessagePrimitive } from "@assistant-ui/react-ink";
+import { MessagePartPrimitive, MessagePrimitive } from "@assistant-ui/react-ink";
 ```
 
 ### Root
@@ -338,7 +338,7 @@ Container `Box` for a single message.
 
 ### Parts
 
-Renders message content parts via a `components` prop. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to components provided here. A default `Text` component using Ink's `<Text>` is provided out of the box.
+Renders message content parts via a `components` prop. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to components provided here. Default terminal-safe renderers are provided for text, reasoning, source, image, file, and data parts.
 
 ```tsx
 <MessagePrimitive.Parts>
@@ -348,6 +348,22 @@ Renders message content parts via a `components` prop. Tool call and data parts 
     return null;
   }}
 </MessagePrimitive.Parts>
+```
+
+Override part rendering with app-owned components when you need richer terminal UI:
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    Image: () => <Text color="cyan">image available</Text>,
+    Reasoning: () => null,
+    data: {
+      by_name: {
+        weather_card: ({ data }) => <Text>{data.city}: {data.temperature}</Text>,
+      },
+    },
+  }}
+/>
 ```
 
 ### Content (deprecated)
@@ -374,6 +390,36 @@ Renders message content parts using render props. Tool call and data parts autom
 | `renderSource` | `(props: { part; index }) => ReactElement` | Source part renderer |
 | `renderFile` | `(props: { part; index }) => ReactElement` | File part renderer |
 | `renderData` | `(props: { part; index }) => ReactElement` | Data part fallback |
+
+## MessagePartPrimitive
+
+Composable primitives for rendering the current message part inside part context from `MessagePrimitive.Parts`, `MessagePrimitive.PartByIndex`, or `PartByIndexProvider`.
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    Text: () => (
+      <>
+        <MessagePartPrimitive.Text />
+        <MessagePartPrimitive.InProgress>
+          <Text color="yellow"> ...</Text>
+        </MessagePartPrimitive.InProgress>
+      </>
+    ),
+    File: () => <MessagePartPrimitive.File dimColor />,
+  }}
+/>
+```
+
+| Primitive | Default terminal behavior |
+|-----------|---------------------------|
+| `MessagePartPrimitive.Text` | Renders text with Ink `<Text>` |
+| `MessagePartPrimitive.InProgress` | Renders children only while the current part status is `running` |
+| `MessagePartPrimitive.Image` | Renders `[image: filename]` or `[image]`; never emits image data or terminal image protocols |
+| `MessagePartPrimitive.File` | Renders `[file: filename mimeType]` or `[file: mimeType]`; never prints file data |
+| `MessagePartPrimitive.Source` | Renders source title and/or URL metadata |
+| `MessagePartPrimitive.Reasoning` | Renders conservative reasoning text by default; override or return `null` to suppress |
+| `MessagePartPrimitive.Data` | Renders `[data: name]` when no registered data renderer is available |
 
 ### PartByIndex
 

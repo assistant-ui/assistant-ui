@@ -238,6 +238,12 @@ export { useThreadListNew } from "./primitive-hooks/useThreadListNew";
 export { useEditComposerCancel } from "./primitive-hooks/useEditComposerCancel";
 export { useEditComposerSend } from "./primitive-hooks/useEditComposerSend";
 export { useMessageError } from "./primitive-hooks/useMessageError";
+export { useMessagePartText } from "./primitive-hooks/useMessagePartText";
+export { useMessagePartReasoning } from "./primitive-hooks/useMessagePartReasoning";
+export { useMessagePartSource } from "./primitive-hooks/useMessagePartSource";
+export { useMessagePartFile } from "./primitive-hooks/useMessagePartFile";
+export { useMessagePartImage } from "./primitive-hooks/useMessagePartImage";
+export { useMessagePartData } from "./primitive-hooks/useMessagePartData";
 
 // Shared AssistantRuntimeProvider
 export { AssistantRuntimeProvider } from "./AssistantRuntimeProvider";

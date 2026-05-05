@@ -1,15 +1,30 @@
 import type { FC } from "react";
-import { Text } from "ink";
+import { Text as InkText } from "ink";
 import {
   MessagePrimitiveParts as MessagePrimitivePartsBase,
   MessagePartComponent as MessagePartComponentBase,
   MessagePrimitivePartByIndex as MessagePrimitivePartByIndexBase,
   messagePartsDefaultComponents,
 } from "@assistant-ui/core/react";
+import * as MessagePartPrimitive from "../messagePart";
 
 const inkDefaultComponents = {
   ...messagePartsDefaultComponents,
-  Text: ({ text }: { text: string }) => <Text>{text}</Text>,
+  Text: () => (
+    <>
+      <MessagePartPrimitive.Text />
+      <MessagePartPrimitive.InProgress>
+        <InkText color="yellow"> ...</InkText>
+      </MessagePartPrimitive.InProgress>
+    </>
+  ),
+  Image: () => <MessagePartPrimitive.Image />,
+  Reasoning: () => <MessagePartPrimitive.Reasoning />,
+  Source: () => <MessagePartPrimitive.Source />,
+  File: () => <MessagePartPrimitive.File />,
+  data: {
+    Fallback: () => <MessagePartPrimitive.Data />,
+  },
 } satisfies MessagePrimitiveParts.Props["components"];
 
 export namespace MessagePrimitiveParts {
@@ -32,19 +47,25 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
   const merged = components
     ? {
         Text: components.Text ?? inkDefaultComponents.Text,
-        Image: components.Image ?? messagePartsDefaultComponents.Image,
-        Reasoning:
-          components.Reasoning ?? messagePartsDefaultComponents.Reasoning,
-        Source: components.Source ?? messagePartsDefaultComponents.Source,
-        File: components.File ?? messagePartsDefaultComponents.File,
+        Image: components.Image ?? inkDefaultComponents.Image,
+        Reasoning: components.Reasoning ?? inkDefaultComponents.Reasoning,
+        Source: components.Source ?? inkDefaultComponents.Source,
+        File: components.File ?? inkDefaultComponents.File,
         Unstable_Audio:
           components.Unstable_Audio ??
           messagePartsDefaultComponents.Unstable_Audio,
+        data: components.data
+          ? {
+              by_name: components.data.by_name,
+              Fallback:
+                components.data.Fallback ?? inkDefaultComponents.data.Fallback,
+            }
+          : inkDefaultComponents.data,
+        Quote: components.Quote,
         ...("ChainOfThought" in components
           ? { ChainOfThought: components.ChainOfThought }
           : {
               tools: components.tools,
-              data: components.data,
               ToolGroup:
                 components.ToolGroup ?? messagePartsDefaultComponents.ToolGroup,
               ReasoningGroup:

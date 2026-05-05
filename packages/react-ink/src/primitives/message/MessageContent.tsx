@@ -1,5 +1,4 @@
 import { type ReactElement, Fragment, useMemo } from "react";
-import { Text } from "ink";
 import type {
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
@@ -9,8 +8,11 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 import type {
   ToolCallMessagePartProps,
   DataMessagePartProps,
+  DataMessagePartComponent,
 } from "@assistant-ui/core/react";
+import { PartByIndexProvider } from "@assistant-ui/core/react";
 import { ToolFallback } from "../toolCall/ToolFallback";
+import * as MessagePartPrimitive from "../messagePart";
 
 type MessageContentPart = ThreadUserMessagePart | ThreadAssistantMessagePart;
 type MessageContentStatePart = MessagePartState;
@@ -46,12 +48,12 @@ export type MessageContentProps = {
   }) => ReactElement;
 };
 
-const DefaultTextRenderer = ({
-  part,
-}: {
-  part: Extract<MessageContentPart, { type: "text" }>;
-}) => {
-  return <Text>{part.text}</Text>;
+const DefaultTextRenderer = ({ index }: { index: number }) => {
+  return (
+    <PartByIndexProvider index={index}>
+      <MessagePartPrimitive.Text />
+    </PartByIndexProvider>
+  );
 };
 
 const ToolUIDisplay = ({
@@ -106,15 +108,46 @@ const DataUIDisplay = ({
   part: Extract<MessageContentStatePart, { type: "data" }>;
   index: number;
 }) => {
-  const Render = useAuiState((s) => {
-    const renders = s.dataRenderers.renderers[part.name];
-    if (Array.isArray(renders)) return renders[0];
-    return renders;
+  const Render = useAuiState<DataMessagePartComponent | undefined>((s) => {
+    const named = s.dataRenderers.renderers[part.name];
+    if (Array.isArray(named)) return named[0];
+    if (named) return named;
+    const fallback = s.dataRenderers.fallbacks?.[0];
+    if (fallback) return fallback;
+    return undefined;
   });
   if (Render) return <Render {...(part as DataMessagePartProps)} />;
   if (Fallback) return <Fallback part={part} index={index} />;
-  return null;
+  return (
+    <PartByIndexProvider index={index}>
+      <MessagePartPrimitive.Data />
+    </PartByIndexProvider>
+  );
 };
+
+const DefaultImageRenderer = ({ index }: { index: number }) => (
+  <PartByIndexProvider index={index}>
+    <MessagePartPrimitive.Image />
+  </PartByIndexProvider>
+);
+
+const DefaultReasoningRenderer = ({ index }: { index: number }) => (
+  <PartByIndexProvider index={index}>
+    <MessagePartPrimitive.Reasoning />
+  </PartByIndexProvider>
+);
+
+const DefaultSourceRenderer = ({ index }: { index: number }) => (
+  <PartByIndexProvider index={index}>
+    <MessagePartPrimitive.Source />
+  </PartByIndexProvider>
+);
+
+const DefaultFileRenderer = ({ index }: { index: number }) => (
+  <PartByIndexProvider index={index}>
+    <MessagePartPrimitive.File />
+  </PartByIndexProvider>
+);
 
 export const MessageContent = ({
   renderText,
@@ -138,7 +171,7 @@ export const MessageContent = ({
                 {renderText ? (
                   renderText({ part, index })
                 ) : (
-                  <DefaultTextRenderer part={part} />
+                  <DefaultTextRenderer index={index} />
                 )}
               </Fragment>
             );
@@ -153,23 +186,45 @@ export const MessageContent = ({
               </Fragment>
             );
           case "image":
-            if (!renderImage) return null;
             return (
-              <Fragment key={key}>{renderImage({ part, index })}</Fragment>
+              <Fragment key={key}>
+                {renderImage ? (
+                  renderImage({ part, index })
+                ) : (
+                  <DefaultImageRenderer index={index} />
+                )}
+              </Fragment>
             );
           case "reasoning":
-            if (!renderReasoning) return null;
             return (
-              <Fragment key={key}>{renderReasoning({ part, index })}</Fragment>
+              <Fragment key={key}>
+                {renderReasoning ? (
+                  renderReasoning({ part, index })
+                ) : (
+                  <DefaultReasoningRenderer index={index} />
+                )}
+              </Fragment>
             );
           case "source":
-            if (!renderSource) return null;
             return (
-              <Fragment key={key}>{renderSource({ part, index })}</Fragment>
+              <Fragment key={key}>
+                {renderSource ? (
+                  renderSource({ part, index })
+                ) : (
+                  <DefaultSourceRenderer index={index} />
+                )}
+              </Fragment>
             );
           case "file":
-            if (!renderFile) return null;
-            return <Fragment key={key}>{renderFile({ part, index })}</Fragment>;
+            return (
+              <Fragment key={key}>
+                {renderFile ? (
+                  renderFile({ part, index })
+                ) : (
+                  <DefaultFileRenderer index={index} />
+                )}
+              </Fragment>
+            );
           case "data":
             return (
               <Fragment key={key}>
