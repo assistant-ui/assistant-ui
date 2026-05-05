@@ -172,7 +172,11 @@ const ToolCall: FC<{ toolName: string; status: { type: string } }> = ({
     <div className="px-4 py-2 text-sm">
       {status.type === "running"
         ? `Running ${toolName}...`
-        : `${toolName} completed`}
+        : status.type === "complete"
+          ? `${toolName} completed`
+          : status.type === "incomplete"
+            ? `${toolName} failed`
+            : `${toolName} requires action`}
     </div>
   );
 };

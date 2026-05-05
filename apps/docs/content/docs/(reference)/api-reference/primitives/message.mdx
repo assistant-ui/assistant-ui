@@ -426,6 +426,8 @@ Renders adjacent message parts through a hierarchical grouping tree. Use this fo
         return <ToolGroupRoot>{children}</ToolGroupRoot>;
       case "text":
         return <MarkdownText />;
+      case "reasoning":
+        return <Reasoning {...part} />;
       case "tool-call":
         return part.toolUI ?? <ToolFallback {...part} />;
       case "data":
