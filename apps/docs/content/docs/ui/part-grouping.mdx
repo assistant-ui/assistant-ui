@@ -8,31 +8,32 @@ import { PartGroupingSample } from "@/components/docs/samples/part-grouping";
 
 <PartGroupingSample />
 
-<Callout type="warn">
-  This feature is experimental and the API may change in future versions.
-</Callout>
-
 ## Basic Usage
 
-Use the `MessagePrimitive.Unstable_PartsGrouped` component with a custom grouping function:
+For adjacent grouping, use `MessagePrimitive.GroupedParts`. Return a group-key path for each part; adjacent parts that share a group key are coalesced and rendered through the group case.
 
 ```tsx title="/components/assistant-ui/thread.tsx"
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="...">
       <div className="...">
-        <MessagePrimitive.Unstable_PartsGrouped
-          groupingFunction={(parts) => {
-            // Your custom grouping logic here
-            return [{ groupKey: undefined, indices: [0, 1, 2] }];
+        <MessagePrimitive.GroupedParts
+          groupBy={(part) => {
+            if (part.type === "tool-call") return ["group-tool"];
+            return null;
           }}
-          components={{
-            Group: ({ groupKey, indices, children }) => {
-              // Your custom group rendering
-              return <div className="group">{children}</div>;
-            },
+        >
+          {({ part, children }) => {
+            switch (part.type) {
+              case "group-tool":
+                return <div className="group">{children}</div>;
+              case "tool-call":
+                return part.toolUI ?? null;
+              default:
+                return null;
+            }
           }}
-        />
+        </MessagePrimitive.GroupedParts>
       </div>
       <AssistantActionBar />
       <BranchPicker className="..." />
@@ -41,107 +42,103 @@ const AssistantMessage: FC = () => {
 };
 ```
 
-## How Grouping Works
+## How Adjacent Grouping Works
 
-The grouping function receives all message parts and returns an array of groups. Each group contains:
+`groupBy` receives each part and returns either `null` for an ungrouped leaf or a group-key path such as `["group-chainOfThought", "group-tool"]`. Group keys must start with `"group-"` so your render function can distinguish synthetic groups from real part types.
 
-- `groupKey`: A string identifier for the group (or `undefined` for ungrouped parts)
-- `indices`: An array of indices indicating which parts belong to this group
+The render function receives both group nodes and leaf parts through `{ part, children }`. Only group cases should render `children`; leaf cases should render their own UI or return `null`.
+
+<Callout type="warn">
+  `MessagePrimitive.Unstable_PartsGrouped` remains available for rare non-adjacent clustering where one group needs to collect parts from different positions in the message. For normal consecutive reasoning/tool grouping, use `GroupedParts`.
+</Callout>
 
 ## Use Cases & Examples
 
 ### Group by Parent ID
 
-Group related content together using a parent-child relationship:
+Group adjacent content that shares the same parent relationship:
 
 ```tsx
-import { FC, PropsWithChildren, useState } from "react";
+import { useState, type PropsWithChildren } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { MessagePrimitive } from "@assistant-ui/react";
 
-const groupByParentId = (parts: readonly any[]) => {
-  const groups = new Map<string, number[]>();
-
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
-    const groupId = part?.parentId ?? `__ungrouped_${i}`;
-
-    const indices = groups.get(groupId) ?? [];
-    indices.push(i);
-    groups.set(groupId, indices);
-  }
-
-  return Array.from(groups.entries()).map(([groupId, indices]) => ({
-    groupKey: groupId.startsWith("__ungrouped_") ? undefined : groupId,
-    indices,
-  }));
-};
-
-// Usage with collapsible groups
-const CollapsibleGroup: FC<
-  PropsWithChildren<{ groupKey: string | undefined; indices: number[] }>
-> = ({ groupKey, indices, children }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
-  if (!groupKey) return <>{children}</>;
+function ParentGroup({
+  id,
+  count,
+  children,
+}: PropsWithChildren<{ id: string; count: number }>) {
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <div className="my-2 overflow-hidden rounded-lg border">
       <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
+        type="button"
+        onClick={() => setCollapsed((value) => !value)}
         className="hover:bg-muted/50 flex w-full items-center justify-between p-3"
       >
         <span>
-          Group {groupKey} ({indices.length} items)
+          Group {id} ({count} items)
         </span>
-        {isCollapsed ? <ChevronDownIcon /> : <ChevronUpIcon />}
+        {collapsed ? <ChevronDownIcon /> : <ChevronUpIcon />}
       </button>
-      {!isCollapsed && <div className="border-t p-3">{children}</div>}
+      {!collapsed && <div className="border-t p-3">{children}</div>}
     </div>
   );
-};
+}
+
+<MessagePrimitive.GroupedParts
+  groupBy={(part) => {
+    if (!part.parentId) return null;
+    return [`group-parent-${part.parentId}`];
+  }}
+>
+  {({ part, children }) => {
+    if (part.type.startsWith("group-parent-")) {
+      const id = part.type.replace("group-parent-", "");
+      return (
+        <ParentGroup id={id} count={part.indices.length}>
+          {children}
+        </ParentGroup>
+      );
+    }
+
+    if (part.type === "text") return <MarkdownText />;
+    if (part.type === "tool-call") return part.toolUI ?? <ToolFallback {...part} />;
+    return null;
+  }}
+</MessagePrimitive.GroupedParts>
 ```
 
 ### Group by Tool Name
 
-Organize tool calls by their type:
+Organize adjacent tool calls by tool name:
 
 ```tsx
-import { FC, PropsWithChildren } from "react";
+<MessagePrimitive.GroupedParts
+  groupBy={(part) => {
+    if (part.type !== "tool-call") return null;
+    return [`group-tool-${part.toolName}`];
+  }}
+>
+  {({ part, children }) => {
+    if (part.type.startsWith("group-tool-")) {
+      const toolName = part.type.replace("group-tool-", "");
+      return (
+        <div className="tool-group my-2 rounded-lg border">
+          <div className="bg-muted/50 px-4 py-2 text-sm font-medium">
+            Tool: {toolName} ({part.indices.length} calls)
+          </div>
+          <div className="p-4">{children}</div>
+        </div>
+      );
+    }
 
-const groupByToolName = (parts: readonly any[]) => {
-  const groups = new Map<string, number[]>();
-
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
-    // Group tool calls by tool name, everything else ungrouped
-    const groupKey = part.type === "tool-call" ? part.toolName : `__other_${i}`;
-
-    const indices = groups.get(groupKey) ?? [];
-    indices.push(i);
-    groups.set(groupKey, indices);
-  }
-
-  return Array.from(groups.entries()).map(([groupKey, indices]) => ({
-    groupKey: groupKey.startsWith("__other_") ? undefined : groupKey,
-    indices,
-  }));
-};
-
-// Render tool groups with custom styling
-const ToolGroup: FC<
-  PropsWithChildren<{ groupKey: string | undefined; indices: number[] }>
-> = ({ groupKey, indices, children }) => {
-  if (!groupKey) return <>{children}</>;
-
-  return (
-    <div className="tool-group my-2 rounded-lg border">
-      <div className="bg-muted/50 px-4 py-2 text-sm font-medium">
-        Tool: {groupKey} ({indices.length} calls)
-      </div>
-      <div className="p-4">{children}</div>
-    </div>
-  );
-};
+    if (part.type === "text") return <MarkdownText />;
+    if (part.type === "tool-call") return part.toolUI ?? <ToolFallback {...part} />;
+    return null;
+  }}
+</MessagePrimitive.GroupedParts>
 ```
 
 ### Group Consecutive Text Parts
@@ -149,58 +146,29 @@ const ToolGroup: FC<
 Combine multiple text parts into cohesive blocks:
 
 ```tsx
-import { FC, PropsWithChildren } from "react";
-
-type MessagePartGroup = {
-  groupKey: string | undefined;
-  indices: number[];
-};
-
-const groupConsecutiveText = (parts: readonly any[]) => {
-  const groups: MessagePartGroup[] = [];
-  let currentGroup: number[] = [];
-  let isTextGroup = false;
-
-  for (let i = 0; i < parts.length; i++) {
-    const isText = parts[i].type === "text";
-
-    if (isText === isTextGroup && currentGroup.length > 0) {
-      currentGroup.push(i);
-    } else {
-      if (currentGroup.length > 0) {
-        groups.push({
-          groupKey: isTextGroup ? "text-block" : undefined,
-          indices: currentGroup,
-        });
-      }
-      currentGroup = [i];
-      isTextGroup = isText;
+<MessagePrimitive.GroupedParts
+  groupBy={(part) => {
+    if (part.type === "text") return ["group-text-block"];
+    return null;
+  }}
+>
+  {({ part, children }) => {
+    switch (part.type) {
+      case "group-text-block":
+        return (
+          <div className="prose prose-sm my-2 rounded-lg bg-gray-50 p-4">
+            {children}
+          </div>
+        );
+      case "text":
+        return <MarkdownText />;
+      case "tool-call":
+        return part.toolUI ?? <ToolFallback {...part} />;
+      default:
+        return null;
     }
-  }
-
-  if (currentGroup.length > 0) {
-    groups.push({
-      groupKey: isTextGroup ? "text-block" : undefined,
-      indices: currentGroup,
-    });
-  }
-
-  return groups;
-};
-
-// Render text blocks with special formatting
-const TextBlockGroup: FC<
-  PropsWithChildren<{ groupKey: string | undefined; indices: number[] }>
-> = ({ groupKey, indices, children }) => {
-  if (groupKey === "text-block") {
-    return (
-      <div className="prose prose-sm my-2 rounded-lg bg-gray-50 p-4">
-        {children}
-      </div>
-    );
-  }
-  return <>{children}</>;
-};
+  }}
+</MessagePrimitive.GroupedParts>
 ```
 
 ### Group by Content Type
@@ -208,50 +176,33 @@ const TextBlockGroup: FC<
 Separate different types of content for distinct visual treatment:
 
 ```tsx
-type MessagePartGroup = {
-  groupKey: string | undefined;
-  indices: number[];
-};
-
-const groupByContentType = (parts: readonly any[]) => {
-  const typeGroups = new Map<string, number[]>();
-
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
-    const type = part.type;
-
-    const indices = typeGroups.get(type) ?? [];
-    indices.push(i);
-    typeGroups.set(type, indices);
-  }
-
-  // Order groups by type priority
-  const typeOrder = [
-    "reasoning",
-    "tool-call",
-    "source",
-    "text",
-    "image",
-    "file",
-  ];
-  const orderedGroups: MessagePartGroup[] = [];
-
-  for (const type of typeOrder) {
-    const indices = typeGroups.get(type);
-    if (indices && indices.length > 0) {
-      orderedGroups.push({ groupKey: type, indices });
+<MessagePrimitive.GroupedParts
+  groupBy={(part) => {
+    if (part.type === "text") return ["group-content-text"];
+    if (part.type === "tool-call") return ["group-content-tools"];
+    if (part.type === "reasoning") return ["group-content-reasoning"];
+    return null;
+  }}
+>
+  {({ part, children }) => {
+    switch (part.type) {
+      case "group-content-text":
+        return <div className="space-y-2">{children}</div>;
+      case "group-content-tools":
+        return <div className="my-2 rounded-lg border p-3">{children}</div>;
+      case "group-content-reasoning":
+        return <div className="my-2 text-muted-foreground">{children}</div>;
+      case "text":
+        return <MarkdownText />;
+      case "reasoning":
+        return <Reasoning {...part} />;
+      case "tool-call":
+        return part.toolUI ?? <ToolFallback {...part} />;
+      default:
+        return null;
     }
-  }
-
-  // Add any remaining types
-  for (const [type, indices] of typeGroups) {
-    if (!typeOrder.includes(type)) {
-      orderedGroups.push({ groupKey: type, indices });
-    }
-  }
-
-  return orderedGroups;
-};
+  }}
+</MessagePrimitive.GroupedParts>
 ```
 
 ### Group by Custom Metadata
@@ -259,63 +210,39 @@ const groupByContentType = (parts: readonly any[]) => {
 Use any custom metadata in your parts for grouping:
 
 ```tsx
-import { FC, PropsWithChildren } from "react";
-
-type MessagePartGroup = {
-  groupKey: string | undefined;
-  indices: number[];
+const priorityStyles = {
+  high: "border-red-500 bg-red-50",
+  normal: "border-gray-300 bg-white",
+  low: "border-gray-200 bg-gray-50",
 };
 
-const groupByPriority = (parts: readonly any[]) => {
-  const priorityGroups = new Map<string, number[]>();
-
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
-    // Assume parts have a custom priority field
-    const priority = part.priority || "normal";
-
-    const indices = priorityGroups.get(priority) ?? [];
-    indices.push(i);
-    priorityGroups.set(priority, indices);
-  }
-
-  // Order by priority
-  const priorityOrder = ["high", "normal", "low"];
-  const orderedGroups: MessagePartGroup[] = [];
-
-  for (const priority of priorityOrder) {
-    const indices = priorityGroups.get(priority);
-    if (indices) {
-      orderedGroups.push({ groupKey: priority, indices });
+<MessagePrimitive.GroupedParts
+  groupBy={(part) => {
+    const priority = part.metadata?.priority;
+    if (!priority) return null;
+    return [`group-priority-${priority}`];
+  }}
+>
+  {({ part, children }) => {
+    if (part.type.startsWith("group-priority-")) {
+      const priority = part.type.replace("group-priority-", "");
+      return (
+        <div
+          className={`my-2 rounded-lg border-2 p-4 ${priorityStyles[priority] || ""}`}
+        >
+          <div className="mb-2 text-xs font-semibold uppercase text-gray-600">
+            {priority} Priority
+          </div>
+          {children}
+        </div>
+      );
     }
-  }
 
-  return orderedGroups;
-};
-
-// Render with priority indicators
-const PriorityGroup: FC<
-  PropsWithChildren<{ groupKey: string | undefined; indices: number[] }>
-> = ({ groupKey, indices, children }) => {
-  if (!groupKey) return <>{children}</>;
-
-  const priorityStyles = {
-    high: "border-red-500 bg-red-50",
-    normal: "border-gray-300 bg-white",
-    low: "border-gray-200 bg-gray-50",
-  };
-
-  return (
-    <div
-      className={`my-2 rounded-lg border-2 p-4 ${priorityStyles[groupKey] || ""}`}
-    >
-      <div className="mb-2 text-xs font-semibold uppercase text-gray-600">
-        {groupKey} Priority
-      </div>
-      {children}
-    </div>
-  );
-};
+    if (part.type === "text") return <MarkdownText />;
+    if (part.type === "tool-call") return part.toolUI ?? <ToolFallback {...part} />;
+    return null;
+  }}
+</MessagePrimitive.GroupedParts>
 ```
 
 ## Integration with Assistant Streams
@@ -366,23 +293,181 @@ const stream = createAssistantStream(async (controller) => {
 
 ## API Reference
 
-### MessagePrimitive.Unstable_PartsGrouped
+### MessagePrimitive.GroupedParts
+
+<ParametersTable
+  type="MessagePrimitiveGroupedPartsProps"
+  parameters={[
+    {
+      name: "groupBy",
+      type: "(part: PartState, index: number, parts: readonly PartState[]) => GroupKey",
+      description:
+        "Maps a part to a group-key path. Return null, undefined, or [] to leave the part ungrouped. Group keys must start with group-.",
+      required: true,
+    },
+    {
+      name: "children",
+      type: "({ part, children }) => ReactNode",
+      description:
+        "Render function called for group nodes and leaf parts. Group nodes expose children; leaf parts should render their own UI or return null.",
+      required: true,
+    },
+  ]}
+/>
+
+### GroupPart Type
+
+```typescript
+type GroupPart<TKey extends `group-${string}` = `group-${string}`> = {
+  readonly type: TKey;
+  readonly status: MessagePartStatus | ToolCallMessagePartStatus;
+  readonly indices: readonly number[];
+};
+```
+
+## Best Practices
+
+1. **Keep grouping local**: `GroupedParts` groups adjacent runs. If the same key appears again later, it becomes a new group in that position.
+2. **Handle ungrouped parts**: Always include leaf cases for the part types your message can render.
+3. **Only render `children` for groups**: Leaf parts receive a sentinel `children` value that throws if rendered accidentally.
+4. **Use `group-` prefixes**: Synthetic group keys must start with `group-` so they cannot collide with real part types.
+5. **Keep `groupBy` stable**: Prefer a module-level function or `useCallback` for frequently re-rendering message trees.
+
+## Common Patterns
+
+### Conditional Grouping
+
+Only group when certain conditions are met:
+
+```tsx
+<MessagePrimitive.GroupedParts
+  groupBy={(part, index, parts) => {
+    const hasManyParts = parts.length >= 5;
+    if (!hasManyParts) return null;
+    if (part.type === "tool-call") return ["group-tools"];
+    return null;
+  }}
+>
+  {({ part, children }) => {
+    if (part.type === "group-tools") {
+      return <div className="rounded-lg border p-3">{children}</div>;
+    }
+    if (part.type === "tool-call") return part.toolUI ?? <ToolFallback {...part} />;
+    if (part.type === "text") return <MarkdownText />;
+    return null;
+  }}
+</MessagePrimitive.GroupedParts>
+```
+
+### Nested Grouping
+
+Create hierarchical adjacent groups by returning multiple keys:
+
+```tsx
+<MessagePrimitive.GroupedParts
+  groupBy={(part) => {
+    if (part.type === "reasoning")
+      return ["group-chainOfThought", "group-reasoning"];
+    if (part.type === "tool-call")
+      return ["group-chainOfThought", `group-tool-${part.toolName}`];
+    return null;
+  }}
+>
+  {({ part, children }) => {
+    if (part.type === "group-chainOfThought") return <div>{children}</div>;
+    if (part.type === "group-reasoning") return <ReasoningRoot>{children}</ReasoningRoot>;
+    if (part.type.startsWith("group-tool-")) return <div>{children}</div>;
+    if (part.type === "reasoning") return <Reasoning {...part} />;
+    if (part.type === "tool-call") return part.toolUI ?? <ToolFallback {...part} />;
+    if (part.type === "text") return <MarkdownText />;
+    return null;
+  }}
+</MessagePrimitive.GroupedParts>
+```
+
+### Dynamic Group Rendering
+
+Adjust group appearance based on the group node's status or indices:
+
+```tsx
+<MessagePrimitive.GroupedParts
+  groupBy={(part) => {
+    if (part.type === "tool-call") return ["group-tools"];
+    return null;
+  }}
+>
+  {({ part, children }) => {
+    if (part.type === "group-tools") {
+      const isRunning = part.status.type === "running";
+
+      return (
+        <div
+          className={`my-2 rounded-lg border p-4 ${
+            isRunning ? "animate-pulse border-blue-500" : ""
+          }`}
+        >
+          <div className="mb-2 text-sm text-muted-foreground">
+            {part.indices.length} tool calls
+          </div>
+          {children}
+        </div>
+      );
+    }
+
+    if (part.type === "tool-call") return part.toolUI ?? <ToolFallback {...part} />;
+    if (part.type === "text") return <MarkdownText />;
+    return null;
+  }}
+</MessagePrimitive.GroupedParts>
+```
+
+## Non-adjacent grouping (Unstable)
+
+Use `MessagePrimitive.Unstable_PartsGrouped` only when you need to collect non-adjacent parts into the same rendered group, such as gathering every part with the same parent ID even when other parts appear between them. This API is unstable and should not be used for normal consecutive reasoning or tool-call grouping.
+
+```tsx
+<MessagePrimitive.Unstable_PartsGrouped
+  groupingFunction={(parts) => {
+    const groups = new Map<string, number[]>();
+
+    parts.forEach((part, index) => {
+      const key = part.parentId ?? `__ungrouped_${index}`;
+      const indices = groups.get(key) ?? [];
+      indices.push(index);
+      groups.set(key, indices);
+    });
+
+    return Array.from(groups.entries()).map(([key, indices]) => ({
+      groupKey: key.startsWith("__ungrouped_") ? undefined : key,
+      indices,
+    }));
+  }}
+  components={{
+    Text: MarkdownText,
+    tools: { Fallback: ToolFallback },
+    Group: ({ groupKey, children }) => {
+      if (!groupKey) return <>{children}</>;
+      return <div className="rounded-lg border p-3">{children}</div>;
+    },
+  }}
+/>
+```
 
 <ParametersTable
   type="MessagePrimitiveUnstable_PartsGroupedProps"
   parameters={[
     {
       name: "groupingFunction",
-      type: "(parts: readonly any[]) => MessagePartGroup[]",
+      type: "(parts: readonly PartState[]) => MessagePartGroup[]",
       description:
-        "Function that takes an array of message parts and returns an array of groups. Each group contains a groupKey (for identification) and an array of indices.",
+        "Function that takes all message parts and returns non-adjacent group descriptors.",
       required: true,
     },
     {
       name: "components",
       type: "object",
       description:
-        "Component configuration for rendering different types of message content and groups.",
+        "Legacy component map used to render message part types and group wrappers.",
       children: [
         {
           type: "Components",
@@ -459,70 +544,3 @@ The `Group` component receives:
 - `groupKey`: The group identifier (or `undefined` for ungrouped parts)
 - `indices`: Array of indices for the parts in this group
 - `children`: The rendered message part components
-
-## Best Practices
-
-1. **Keep grouping logic simple**: Complex grouping functions can impact performance
-2. **Handle ungrouped parts**: Always consider parts that don't match any group criteria
-3. **Maintain order**: Consider the visual flow when ordering groups
-4. **Use meaningful keys**: Group keys should be descriptive for debugging
-5. **Test edge cases**: Empty messages, single parts, and large numbers of parts
-
-## Common Patterns
-
-### Conditional Grouping
-
-Only group when certain conditions are met:
-
-```tsx
-const conditionalGrouping = (parts: readonly any[]) => {
-  // Only group if there are enough parts
-  if (parts.length < 5) {
-    return [{ groupKey: undefined, indices: parts.map((_, i) => i) }];
-  }
-
-  // Your grouping logic here
-};
-```
-
-### Nested Grouping
-
-Create hierarchical groups:
-
-```tsx
-const nestedGrouping = (parts: readonly any[]) => {
-  // First level: group by type
-  // Second level: group by subtype or metadata
-  // Implementation depends on your specific needs
-};
-```
-
-### Dynamic Group Rendering
-
-Adjust group appearance based on content:
-
-```tsx
-import { FC, PropsWithChildren } from "react";
-import { useAuiState } from "@assistant-ui/react";
-
-const DynamicGroup: FC<
-  PropsWithChildren<{ groupKey: string | undefined; indices: number[] }>
-> = ({ groupKey, indices, children }) => {
-  const parts = useAuiState((s) => s.message.parts);
-  const groupParts = indices.map((i) => parts[i]);
-
-  // Analyze group content
-  const hasErrors = groupParts.some((p) => p.error);
-  const isLoading = groupParts.some((p) => p.status?.type === "running");
-
-  if (!groupKey) return <>{children}</>;
-
-  return (
-    <div
-      className={`my-2 rounded-lg border p-4 ${hasErrors ? "border-red-500 bg-red-50" : ""} ${isLoading ? "animate-pulse" : ""} `}
-    >
-      {children}
-    </div>
-  );
-};
-```

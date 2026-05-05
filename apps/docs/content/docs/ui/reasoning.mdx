@@ -24,26 +24,58 @@ This adds a `/components/assistant-ui/reasoning.tsx` file to your project.
 
 ### Use in your application
 
-Pass the `Reasoning` and `ReasoningGroup` components to `MessagePrimitive.Parts` via the `components` prop. Using them together is the recommended default — `ReasoningGroup` wraps consecutive reasoning parts in a collapsible container for a smooth out-of-the-box UI.
+Previously, reasoning parts were rendered via `components.Reasoning` and grouped via `components.ReasoningGroup` on `MessagePrimitive.Parts`. Both are deprecated; `MessagePrimitive.GroupedParts` is the supported replacement, and the highlighted lines below show the new pieces.
+
+Render reasoning parts through `MessagePrimitive.GroupedParts`. Group consecutive reasoning parts with `"group-reasoning"`, then compose `ReasoningRoot`, `ReasoningTrigger`, `ReasoningContent`, and `ReasoningText` around the grouped children.
+
+While reasoning is streaming, `part.status.type === "running"`. Pass that to `defaultOpen` so the accordion auto-opens during streaming and lets the user collapse it once the model moves on.
 
 ```tsx title="/app/components/assistant-ui/thread.tsx"
 import { MessagePrimitive } from "@assistant-ui/react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
-import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning"; // [!code ++]
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningRoot,
+  ReasoningText,
+  ReasoningTrigger,
+} from "@/components/assistant-ui/reasoning"; // [!code ++]
 
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="...">
       <div className="...">
-        <MessagePrimitive.Parts
-          components={{
-            Text: MarkdownText,
-            Reasoning, // [!code ++]
-            ReasoningGroup, // [!code ++]
-            tools: { Fallback: ToolFallback },
-          }}
-        />
+        <MessagePrimitive.GroupedParts // [!code ++]
+          groupBy={(part) => { // [!code ++]
+            if (part.type === "reasoning") return ["group-reasoning"]; // [!code ++]
+            return null; // [!code ++]
+          }} // [!code ++]
+        > // [!code ++]
+          {({ part, children }) => { // [!code ++]
+            switch (part.type) { // [!code ++]
+              case "group-reasoning": { // [!code ++]
+                const running = part.status.type === "running"; // [!code ++]
+                return ( // [!code ++]
+                  <ReasoningRoot defaultOpen={running}> // [!code ++]
+                    <ReasoningTrigger active={running} /> // [!code ++]
+                    <ReasoningContent aria-busy={running}> // [!code ++]
+                      <ReasoningText>{children}</ReasoningText> // [!code ++]
+                    </ReasoningContent> // [!code ++]
+                  </ReasoningRoot> // [!code ++]
+                ); // [!code ++]
+              } // [!code ++]
+              case "text": // [!code ++]
+                return <MarkdownText />; // [!code ++]
+              case "reasoning": // [!code ++]
+                return <Reasoning {...part} />; // [!code ++]
+              case "tool-call": // [!code ++]
+                return part.toolUI ?? <ToolFallback {...part} />; // [!code ++]
+              default: // [!code ++]
+                return null; // [!code ++]
+            } // [!code ++]
+          }} // [!code ++]
+        </MessagePrimitive.GroupedParts> // [!code ++]
       </div>
       <AssistantActionBar />
       <BranchPicker className="..." />
@@ -51,6 +83,8 @@ const AssistantMessage: FC = () => {
   );
 };
 ```
+
+`GroupedParts` calls your render function for both group nodes and leaf parts. The `case "group-reasoning"` branch renders the collapsible shell and must render `{children}`; that is where the individual reasoning parts get placed. The `case "reasoning"` branch renders each individual reasoning part inside that shell and must not render `children`. Removing either case breaks rendering.
 
   </Step>
 </Steps>
@@ -60,20 +94,20 @@ const AssistantMessage: FC = () => {
 The component consists of two parts:
 
 1. `Reasoning`: Renders individual reasoning message part content (with markdown support)
-2. `ReasoningGroup`: Wraps consecutive reasoning parts in a collapsible container
+2. Composable group pieces (`ReasoningRoot`, `ReasoningTrigger`, `ReasoningContent`, `ReasoningText`): Wrap grouped reasoning children in a collapsible container
 
-Consecutive reasoning parts are automatically grouped together by `ReasoningGroup`. We recommend using both together as the default — you can drop `ReasoningGroup` or build your own layout with the composable API below if you need more flexibility.
+Consecutive reasoning parts are grouped by `MessagePrimitive.GroupedParts`. Use the composable API below to control the grouped layout.
 
-> When using the composable API, `Reasoning.Text` is a plain container. Add `<MarkdownText />` for markdown rendering.
+> When using the composable API, `ReasoningText` is a plain container. Add `<MarkdownText />` for markdown rendering.
 
 ## Variants
 
-Use the `variant` prop on `Reasoning.Root` to change the visual style:
+Use the `variant` prop on `ReasoningRoot` to change the visual style:
 
 ```tsx
-<Reasoning.Root variant="outline">...</Reasoning.Root>
-<Reasoning.Root variant="ghost">...</Reasoning.Root>
-<Reasoning.Root variant="muted">...</Reasoning.Root>
+<ReasoningRoot variant="outline">...</ReasoningRoot>
+<ReasoningRoot variant="ghost">...</ReasoningRoot>
+<ReasoningRoot variant="muted">...</ReasoningRoot>
 ```
 
 | Variant   | Description                                  |
@@ -82,9 +116,9 @@ Use the `variant` prop on `Reasoning.Root` to change the visual style:
 | `ghost`   | No additional styling                        |
 | `muted`   | Muted background                             |
 
-## ReasoningGroup
+## Legacy ReasoningGroup
 
-`ReasoningGroup` wraps consecutive reasoning parts in a collapsible container. It auto-expands during streaming.
+`ReasoningGroup` is kept for existing code that still uses the deprecated `components.ReasoningGroup` prop on `MessagePrimitive.Parts`. New code should use `MessagePrimitive.GroupedParts` and compose the root/trigger/content pieces directly.
 
 <ReasoningGroupSample />
 
@@ -124,15 +158,14 @@ All sub-components are exported for custom layouts:
 
 | Component             | Description                                |
 | --------------------- | ------------------------------------------ |
-| `Reasoning.Root`      | Collapsible container with scroll lock     |
-| `Reasoning.Trigger`   | Button with icon, label, and shimmer       |
-| `Reasoning.Content`   | Animated collapsible content wrapper       |
-| `Reasoning.Text`      | Text wrapper with slide/fade animation     |
-| `Reasoning.Fade`      | Gradient fade overlay at bottom            |
+| `ReasoningRoot`      | Collapsible container with scroll lock     |
+| `ReasoningTrigger`   | Button with icon, label, and shimmer       |
+| `ReasoningContent`   | Animated collapsible content wrapper       |
+| `ReasoningText`      | Text wrapper with slide/fade animation     |
+| `ReasoningFade`      | Gradient fade overlay at bottom            |
 
 ```tsx
 import {
-  Reasoning,
   ReasoningRoot,
   ReasoningTrigger,
   ReasoningContent,
@@ -140,16 +173,15 @@ import {
   ReasoningFade,
 } from "@/components/assistant-ui/reasoning";
 
-// Compound component syntax
-<Reasoning.Root variant="muted">
-  <Reasoning.Trigger active={isStreaming} />
-  <Reasoning.Content>
-    <Reasoning.Text>{children}</Reasoning.Text>
-  </Reasoning.Content>
-</Reasoning.Root>
+<ReasoningRoot variant="muted">
+  <ReasoningTrigger active={isStreaming} />
+  <ReasoningContent>
+    <ReasoningText>{children}</ReasoningText>
+  </ReasoningContent>
+</ReasoningRoot>
 ```
 
 ## Related Components
 
 - [ToolGroup](/docs/ui/tool-group) - Similar grouping pattern for tool calls
-- [PartGrouping](/docs/ui/part-grouping) - Experimental API for grouping message parts
+- [PartGrouping](/docs/ui/part-grouping) - Advanced grouping options for message parts

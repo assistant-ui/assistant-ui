@@ -8,10 +8,10 @@ LLMs often produce reasoning steps and tool calls in succession. Chain of Though
 
 ## Overview
 
-When a model like OpenAI's `o4-mini` responds, it may emit a sequence of reasoning tokens and tool calls before producing its final text answer. By default, these parts render individually. Passing a `ChainOfThought` component to `MessagePrimitive.Parts` groups consecutive reasoning and tool-call parts and renders them through that component.
+When a model like OpenAI's `o4-mini` responds, it may emit a sequence of reasoning tokens and tool calls before producing its final text answer. Use `MessagePrimitive.GroupedParts` to group those adjacent reasoning and tool-call parts into a single collapsible "thinking" section.
 
-<Callout type="warn">
-**Legacy API.** The `components.ChainOfThought` prop on `MessagePrimitive.Parts` and the `components` prop on `ChainOfThoughtPrimitive.Parts` are both `@deprecated`. For new code, prefer `MessagePrimitive.Parts` with `components={{ Reasoning, ReasoningGroup }}` — see [Reasoning](/docs/ui/reasoning) for the recommended pattern. The examples below show the legacy path; use them as a reference when maintaining existing code.
+<Callout type="info">
+The older `components.ChainOfThought` prop on `MessagePrimitive.Parts` and `components` prop on `ChainOfThoughtPrimitive.Parts` are legacy APIs. They still work for existing code, but new code should use `MessagePrimitive.GroupedParts`.
 </Callout>
 
 ## Quick Start
@@ -19,52 +19,78 @@ When a model like OpenAI's `o4-mini` responds, it may emit a sequence of reasoni
 <Steps>
   <Step>
 
-### Wire ChainOfThought into MessagePrimitive.Parts
+### Wire GroupedParts into your assistant message
 
-Pass a `ChainOfThought` component through the `components` prop. `MessagePrimitive.Parts` activates grouping only when this key is present — placing `ChainOfThoughtPrimitive` as a sibling outside `MessagePrimitive.Parts` does not work.
+Return the same top-level group for reasoning and tool calls, with nested groups for each type:
 
 ```tsx
 import {
-  AuiIf,
-  ChainOfThoughtPrimitive,
   MessagePrimitive,
 } from "@assistant-ui/react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningRoot,
+  ReasoningText,
+  ReasoningTrigger,
+} from "@/components/assistant-ui/reasoning";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import {
+  ToolGroupContent,
+  ToolGroupRoot,
+  ToolGroupTrigger,
+} from "@/components/assistant-ui/tool-group";
 import type { FC } from "react";
-
-const Reasoning: FC<{ text: string }> = ({ text }) => {
-  return (
-    <p className="whitespace-pre-wrap px-4 py-2 text-muted-foreground text-sm italic">
-      {text}
-    </p>
-  );
-};
-
-const ChainOfThought: FC = () => {
-  return (
-    <ChainOfThoughtPrimitive.Root className="my-2 rounded-lg border">
-      <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 font-medium text-sm hover:bg-muted/50">
-        Thinking
-      </ChainOfThoughtPrimitive.AccordionTrigger>
-      <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
-        <ChainOfThoughtPrimitive.Parts>
-          {({ part }) => {
-            if (part.type === "reasoning") return <Reasoning {...part} />;
-            if (part.type === "tool-call") return <ToolFallback {...part} />;
-            return null;
-          }}
-        </ChainOfThoughtPrimitive.Parts>
-      </AuiIf>
-    </ChainOfThoughtPrimitive.Root>
-  );
-};
 
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root>
-      <MessagePrimitive.Parts
-        components={{ ChainOfThought, Text: MarkdownText }}
-      />
+      <MessagePrimitive.GroupedParts
+        groupBy={(part) => {
+          if (part.type === "reasoning")
+            return ["group-chainOfThought", "group-reasoning"];
+          if (part.type === "tool-call")
+            return ["group-chainOfThought", "group-tool"];
+          return null;
+        }}
+      >
+        {({ part, children }) => {
+          switch (part.type) {
+            case "group-chainOfThought":
+              return <div className="my-2">{children}</div>;
+            case "group-reasoning": {
+              const running = part.status.type === "running";
+              return (
+                <ReasoningRoot defaultOpen={running}>
+                  <ReasoningTrigger active={running} />
+                  <ReasoningContent aria-busy={running}>
+                    <ReasoningText>{children}</ReasoningText>
+                  </ReasoningContent>
+                </ReasoningRoot>
+              );
+            }
+            case "group-tool":
+              return (
+                <ToolGroupRoot>
+                  <ToolGroupTrigger
+                    count={part.indices.length}
+                    active={part.status.type === "running"}
+                  />
+                  <ToolGroupContent>{children}</ToolGroupContent>
+                </ToolGroupRoot>
+              );
+            case "text":
+              return <MarkdownText />;
+            case "reasoning":
+              return <Reasoning {...part} />;
+            case "tool-call":
+              return part.toolUI ?? <ToolFallback {...part} />;
+            default:
+              return null;
+          }
+        }}
+      </MessagePrimitive.GroupedParts>
     </MessagePrimitive.Root>
   );
 };
@@ -98,11 +124,13 @@ export async function POST(req: Request) {
 
 ## LangGraph
 
-Chain-of-thought parts are surfaced by the AI SDK's built-in reasoning stream. LangGraph does not emit reasoning tokens in that format, so the `ChainOfThought` grouping will not activate automatically. If you want to display reasoning text from a LangGraph agent, emit it as a custom data part from your graph and render it with `makeAssistantDataUI`. See [generative UI with LangGraph](/docs/runtimes/langgraph/generative-ui) for details.
+Chain-of-thought parts are surfaced by the AI SDK's built-in reasoning stream. LangGraph does not emit reasoning tokens in that format, so reasoning grouping will not activate automatically. If you want to display reasoning text from a LangGraph agent, emit it as a custom data part from your graph and render it with `makeAssistantDataUI`. See [generative UI with LangGraph](/docs/runtimes/langgraph/generative-ui) for details.
 
-## Reading Collapsed State
+## Legacy: ChainOfThoughtPrimitive
 
-Use `AuiIf` to conditionally render based on the accordion state:
+### Reading Collapsed State
+
+For existing `ChainOfThoughtPrimitive` code, use `AuiIf` to conditionally render based on the accordion state:
 
 ```tsx
 import { AuiIf, ChainOfThoughtPrimitive } from "@assistant-ui/react";
@@ -123,9 +151,9 @@ const ChainOfThoughtAccordionTrigger = () => {
 };
 ```
 
-## API Reference
+### API Reference
 
-For the full component API, see the [`ChainOfThought` primitive reference](/docs/primitives/chain-of-thought).
+For lower-level legacy compatibility details, see the [`ChainOfThought` primitive reference](/docs/primitives/chain-of-thought).
 
 ## Full Example
 
@@ -133,6 +161,6 @@ See the complete [with-chain-of-thought example](https://github.com/assistant-ui
 
 ## Related Guides
 
-- [Reasoning](/docs/ui/reasoning) — recommended `ReasoningGroup` pattern for new code
+- [Reasoning](/docs/ui/reasoning) — reasoning UI primitives for grouped parts
 - [Generative UI](/docs/guides/tool-ui) — custom UI for tool calls
 - [Tools](/docs/guides/tools) — defining and using tools

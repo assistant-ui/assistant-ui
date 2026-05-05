@@ -2,12 +2,9 @@
 
 import { Collapsible } from "radix-ui";
 import {
-  AuiIf,
-  ChainOfThoughtPrimitive,
   MessagePrimitive,
   MessagePartPrimitive,
   ThreadPrimitive,
-  useAui,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
 import {
@@ -17,7 +14,7 @@ import {
   ChevronRightIcon,
   WrenchIcon,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useState, type PropsWithChildren } from "react";
 import { SampleRuntimeProvider } from "./sample-runtime-provider";
 
 const sampleMessages: ThreadMessageLike[] = [
@@ -109,61 +106,26 @@ function ToolCallBlock({
   );
 }
 
-function ChainOfThoughtReasoning({ text }: { text: string }) {
-  return <ReasoningBlock text={text} />;
-}
+function AssistantChainOfThought({ children }: PropsWithChildren) {
+  const [open, setOpen] = useState(true);
 
-function ChainOfThoughtToolFallback({
-  toolName,
-  argsText,
-  result,
-}: {
-  toolName: string;
-  argsText: string;
-  result?: unknown;
-}) {
   return (
-    <ToolCallBlock toolName={toolName} argsText={argsText} result={result} />
-  );
-}
-
-function AssistantChainOfThought() {
-  return (
-    <ChainOfThoughtPrimitive.Root className="overflow-hidden rounded-xl border border-border/80 bg-background/90 shadow-sm">
-      <ChainOfThoughtAutoOpen />
-      <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 font-medium text-sm transition-colors hover:bg-muted/50">
-        <AuiIf condition={(s) => s.chainOfThought.collapsed}>
-          <ChevronRightIcon className="size-4 shrink-0" />
-        </AuiIf>
-        <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
+    <div className="overflow-hidden rounded-xl border border-border/80 bg-background/90 shadow-sm">
+      <button
+        type="button"
+        className="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 font-medium text-sm transition-colors hover:bg-muted/50"
+        onClick={() => setOpen((value) => !value)}
+      >
+        {open ? (
           <ChevronDownIcon className="size-4 shrink-0" />
-        </AuiIf>
+        ) : (
+          <ChevronRightIcon className="size-4 shrink-0" />
+        )}
         Thinking
-      </ChainOfThoughtPrimitive.AccordionTrigger>
-      <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
-        <div className="border-t pb-3">
-          <ChainOfThoughtPrimitive.Parts
-            components={{
-              Reasoning: ChainOfThoughtReasoning,
-              tools: {
-                Fallback: ChainOfThoughtToolFallback,
-              },
-            }}
-          />
-        </div>
-      </AuiIf>
-    </ChainOfThoughtPrimitive.Root>
+      </button>
+      {open && <div className="border-t pb-3">{children}</div>}
+    </div>
   );
-}
-
-function ChainOfThoughtAutoOpen() {
-  const aui = useAui();
-
-  useEffect(() => {
-    aui.chainOfThought().setCollapsed(false);
-  }, [aui]);
-
-  return null;
 }
 
 function AssistantMessageText() {
@@ -194,12 +156,43 @@ function AssistantMessage() {
       </div>
       <div className="min-w-0 flex-1">
         <div className="space-y-2">
-          <MessagePrimitive.Parts
-            components={{
-              Text: AssistantMessageText,
-              ChainOfThought: AssistantChainOfThought,
+          <MessagePrimitive.GroupedParts
+            groupBy={(part) => {
+              if (part.type === "reasoning")
+                return ["group-chainOfThought", "group-reasoning"];
+              if (part.type === "tool-call")
+                return ["group-chainOfThought", "group-tool"];
+              return null;
             }}
-          />
+          >
+            {({ part, children }) => {
+              switch (part.type) {
+                case "group-chainOfThought":
+                  return (
+                    <AssistantChainOfThought>
+                      {children}
+                    </AssistantChainOfThought>
+                  );
+                case "group-reasoning":
+                case "group-tool":
+                  return <>{children}</>;
+                case "text":
+                  return <AssistantMessageText />;
+                case "reasoning":
+                  return <ReasoningBlock text={part.text} />;
+                case "tool-call":
+                  return (
+                    <ToolCallBlock
+                      toolName={part.toolName}
+                      argsText={part.argsText}
+                      result={part.result}
+                    />
+                  );
+                default:
+                  return null;
+              }
+            }}
+          </MessagePrimitive.GroupedParts>
         </div>
       </div>
     </MessagePrimitive.Root>
