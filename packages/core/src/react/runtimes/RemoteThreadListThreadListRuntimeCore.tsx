@@ -5,12 +5,13 @@ import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-st
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
 import type {
   RemoteThreadData,
-  THREAD_MAPPING_ID,
   RemoteThreadState,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import {
+  classifyThreads,
   createThreadMappingId,
   getThreadData,
+  normalizeCursor,
   updateStatusReducer,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import type { RemoteThreadListOptions } from "../../runtimes/remote-thread-list/types";
@@ -64,57 +65,26 @@ export class RemoteThreadListThreadListRuntimeCore
           // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
           then: (state, l) => {
             if (generation !== this._loadGeneration) return state;
-            const newThreadIds = [];
-            const newArchivedThreadIds = [];
-            const newThreadIdMap = {} as Record<string, THREAD_MAPPING_ID>;
-            const newThreadData = {} as Record<
-              THREAD_MAPPING_ID,
-              RemoteThreadData
-            >;
-
-            for (const thread of l.threads) {
-              switch (thread.status) {
-                case "regular":
-                  newThreadIds.push(thread.remoteId);
-                  break;
-                case "archived":
-                  newArchivedThreadIds.push(thread.remoteId);
-                  break;
-                default: {
-                  const _exhaustiveCheck: never = thread.status;
-                  throw new Error(`Unsupported state: ${_exhaustiveCheck}`);
-                }
-              }
-
-              const mappingId = createThreadMappingId(thread.remoteId);
-              newThreadIdMap[thread.remoteId] = mappingId;
-              newThreadData[mappingId] = {
-                id: thread.remoteId,
-                remoteId: thread.remoteId,
-                externalId: thread.externalId,
-                status: thread.status,
-                title: thread.title,
-                custom: thread.custom,
-                initializeTask: Promise.resolve({
-                  remoteId: thread.remoteId,
-                  externalId: thread.externalId,
-                }),
-              };
-            }
+            const fresh = classifyThreads(l.threads, {
+              threadIds: [],
+              archivedThreadIds: [],
+              threadIdMap: {},
+              threadData: {},
+            });
 
             return {
               ...state,
               isLoading: false,
-              cursor: l.nextCursor || undefined,
-              threadIds: newThreadIds,
-              archivedThreadIds: newArchivedThreadIds,
+              cursor: normalizeCursor(l.nextCursor),
+              threadIds: fresh.threadIds,
+              archivedThreadIds: fresh.archivedThreadIds,
               threadIdMap: {
                 ...state.threadIdMap,
-                ...newThreadIdMap,
+                ...fresh.threadIdMap,
               },
               threadData: {
                 ...state.threadData,
-                ...newThreadData,
+                ...fresh.threadData,
               },
             };
           },
@@ -155,51 +125,21 @@ export class RemoteThreadListThreadListRuntimeCore
           if (generation !== this._loadGeneration) return state;
           if (adapter !== this._options.adapter) return state;
 
-          const appendedThreadIds = [...state.threadIds];
-          const appendedArchivedThreadIds = [...state.archivedThreadIds];
-          const appendedThreadIdMap = { ...state.threadIdMap };
-          const appendedThreadData = { ...state.threadData };
-
-          for (const thread of l.threads) {
-            if (appendedThreadIdMap[thread.remoteId] !== undefined) continue;
-
-            switch (thread.status) {
-              case "regular":
-                appendedThreadIds.push(thread.remoteId);
-                break;
-              case "archived":
-                appendedArchivedThreadIds.push(thread.remoteId);
-                break;
-              default: {
-                const _exhaustiveCheck: never = thread.status;
-                throw new Error(`Unsupported state: ${_exhaustiveCheck}`);
-              }
-            }
-
-            const mappingId = createThreadMappingId(thread.remoteId);
-            appendedThreadIdMap[thread.remoteId] = mappingId;
-            appendedThreadData[mappingId] = {
-              id: thread.remoteId,
-              remoteId: thread.remoteId,
-              externalId: thread.externalId,
-              status: thread.status,
-              title: thread.title,
-              custom: thread.custom,
-              initializeTask: Promise.resolve({
-                remoteId: thread.remoteId,
-                externalId: thread.externalId,
-              }),
-            };
-          }
+          const appended = classifyThreads(l.threads, {
+            threadIds: [...state.threadIds],
+            archivedThreadIds: [...state.archivedThreadIds],
+            threadIdMap: { ...state.threadIdMap },
+            threadData: { ...state.threadData },
+          });
 
           return {
             ...state,
             isLoadingMore: false,
-            cursor: l.nextCursor || undefined,
-            threadIds: appendedThreadIds,
-            archivedThreadIds: appendedArchivedThreadIds,
-            threadIdMap: appendedThreadIdMap,
-            threadData: appendedThreadData,
+            cursor: normalizeCursor(l.nextCursor),
+            threadIds: appended.threadIds,
+            archivedThreadIds: appended.archivedThreadIds,
+            threadIdMap: appended.threadIdMap,
+            threadData: appended.threadData,
           };
         },
       })
@@ -278,6 +218,10 @@ export class RemoteThreadListThreadListRuntimeCore
     this._loadGeneration++;
     this._loadThreadsPromise = undefined;
     this._loadMorePromise = undefined;
+    this._state.update({
+      ...this._state.baseValue,
+      cursor: undefined,
+    });
     return this.getLoadThreadsPromise();
   }
 

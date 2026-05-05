@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import type {
   RemoteThreadListPageOptions,
   RemoteThreadListResponse,
@@ -9,7 +9,15 @@ import {
   makeAdapter,
 } from "./remote-thread-list-test-helpers";
 
+type ListFn = (
+  params?: RemoteThreadListPageOptions,
+) => Promise<RemoteThreadListResponse>;
+
 describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("initial list response with nextCursor sets hasMore=true", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
@@ -52,11 +60,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
 
   it("loadMore appends the next page and advances the cursor", async () => {
     const listFn = vi
-      .fn<
-        (
-          params?: RemoteThreadListPageOptions,
-        ) => Promise<RemoteThreadListResponse>
-      >()
+      .fn<ListFn>()
       .mockResolvedValueOnce({
         threads: [
           { status: "regular", remoteId: "p1-a", externalId: "p1-a" },
@@ -87,11 +91,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
 
   it("loadMore without nextCursor flips hasMore to false", async () => {
     const listFn = vi
-      .fn<
-        (
-          params?: RemoteThreadListPageOptions,
-        ) => Promise<RemoteThreadListResponse>
-      >()
+      .fn<ListFn>()
       .mockResolvedValueOnce({
         threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
         nextCursor: "c1",
@@ -110,15 +110,9 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
   });
 
   it("loadMore is a no-op when hasMore is false", async () => {
-    const listFn = vi
-      .fn<
-        (
-          params?: RemoteThreadListPageOptions,
-        ) => Promise<RemoteThreadListResponse>
-      >()
-      .mockResolvedValueOnce({
-        threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
-      });
+    const listFn = vi.fn<ListFn>().mockResolvedValueOnce({
+      threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
+    });
     const adapter = makeAdapter({ list: listFn });
     const core = createCore(adapter);
 
@@ -131,13 +125,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
 
   it("loadMore is a no-op while the initial list is in flight", async () => {
     const first = deferred<RemoteThreadListResponse>();
-    const listFn = vi
-      .fn<
-        (
-          params?: RemoteThreadListPageOptions,
-        ) => Promise<RemoteThreadListResponse>
-      >()
-      .mockReturnValueOnce(first.promise);
+    const listFn = vi.fn<ListFn>().mockReturnValueOnce(first.promise);
     const adapter = makeAdapter({ list: listFn });
     const core = createCore(adapter);
 
@@ -151,11 +139,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
   it("concurrent loadMore calls dedupe to a single in-flight request", async () => {
     const first = deferred<RemoteThreadListResponse>();
     const listFn = vi
-      .fn<
-        (
-          params?: RemoteThreadListPageOptions,
-        ) => Promise<RemoteThreadListResponse>
-      >()
+      .fn<ListFn>()
       .mockResolvedValueOnce({
         threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
         nextCursor: "c1",
@@ -182,11 +166,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
   it("drops a stale loadMore when reload bumps the generation mid-flight", async () => {
     const loadMoreCall = deferred<RemoteThreadListResponse>();
     const listFn = vi
-      .fn<
-        (
-          params?: RemoteThreadListPageOptions,
-        ) => Promise<RemoteThreadListResponse>
-      >()
+      .fn<ListFn>()
       .mockResolvedValueOnce({
         threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
         nextCursor: "c1",
@@ -216,12 +196,9 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
   });
 
   it("releases the dedup handle after a rejection so retries can proceed", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const listFn = vi
-      .fn<
-        (
-          params?: RemoteThreadListPageOptions,
-        ) => Promise<RemoteThreadListResponse>
-      >()
+      .fn<ListFn>()
       .mockResolvedValueOnce({
         threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
         nextCursor: "c1",
@@ -244,11 +221,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
 
   it("dedupes thread ids that appear on more than one page", async () => {
     const listFn = vi
-      .fn<
-        (
-          params?: RemoteThreadListPageOptions,
-        ) => Promise<RemoteThreadListResponse>
-      >()
+      .fn<ListFn>()
       .mockResolvedValueOnce({
         threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
         nextCursor: "c1",
@@ -339,11 +312,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
 
   it("dedupes thread ids that appear twice within a single page", async () => {
     const listFn = vi
-      .fn<
-        (
-          params?: RemoteThreadListPageOptions,
-        ) => Promise<RemoteThreadListResponse>
-      >()
+      .fn<ListFn>()
       .mockResolvedValueOnce({
         threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
         nextCursor: "c1",
@@ -364,16 +333,10 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
   });
 
   it("treats an empty-string nextCursor as no more pages", async () => {
-    const listFn = vi
-      .fn<
-        (
-          params?: RemoteThreadListPageOptions,
-        ) => Promise<RemoteThreadListResponse>
-      >()
-      .mockResolvedValueOnce({
-        threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
-        nextCursor: "",
-      });
+    const listFn = vi.fn<ListFn>().mockResolvedValueOnce({
+      threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
+      nextCursor: "",
+    });
     const adapter = makeAdapter({ list: listFn });
     const core = createCore(adapter);
 
@@ -385,12 +348,9 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
   });
 
   it("does not advance the cursor when the reducer rejects an unknown thread status", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const listFn = vi
-      .fn<
-        (
-          params?: RemoteThreadListPageOptions,
-        ) => Promise<RemoteThreadListResponse>
-      >()
+      .fn<ListFn>()
       .mockResolvedValueOnce({
         threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
         nextCursor: "c1",
@@ -430,11 +390,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
 
   it("reload resets cursor and hasMore so loadMore becomes a no-op", async () => {
     const listFn = vi
-      .fn<
-        (
-          params?: RemoteThreadListPageOptions,
-        ) => Promise<RemoteThreadListResponse>
-      >()
+      .fn<ListFn>()
       .mockResolvedValueOnce({
         threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
         nextCursor: "c1",

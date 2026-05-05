@@ -229,25 +229,29 @@ Button that appends the next page of threads. Renders a `<button>` element unles
 </ThreadListPrimitive.LoadMore>
 ```
 
-For scroll-driven loading, wrap the `useThreadListLoadMore` hook in your own `IntersectionObserver` at the application layer; assistant-ui ships the explicit button to keep the primitive surface predictable.
+For scroll-driven loading, wrap `aui.threads().loadMore()` in your own `IntersectionObserver` at the application layer; assistant-ui ships the explicit button to keep the primitive surface predictable.
 
 ```tsx
-import { useThreadListLoadMore } from "@assistant-ui/core/react";
+import { useAui, useAuiState } from "@assistant-ui/react";
 import { useEffect, useRef } from "react";
 
 function LoadMoreSentinel() {
-  const { loadMore, disabled } = useThreadListLoadMore();
+  const aui = useAui();
+  const disabled = useAuiState(
+    (s) =>
+      !s.threads.hasMore || s.threads.isLoading || s.threads.isLoadingMore,
+  );
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el || disabled) return;
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry?.isIntersecting) loadMore();
+      if (entry?.isIntersecting) aui.threads().loadMore();
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [loadMore, disabled]);
+  }, [aui, disabled]);
 
   return disabled ? null : <div ref={ref} className="h-9" />;
 }
