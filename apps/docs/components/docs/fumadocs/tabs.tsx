@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useId,
@@ -79,13 +80,16 @@ export function Tabs({
   const defaultValue = defaultItem ? escapeValue(defaultItem) : undefined;
   const [internalValue, setInternalValue] = useState(defaultValue);
   const value = controlledValue ?? internalValue;
-  const setValue = (v: string | undefined) => {
-    if (onValueChange) {
-      if (v !== undefined) onValueChange(v);
-    } else {
-      setInternalValue(v);
-    }
-  };
+  const setValue = useCallback(
+    (v: string | undefined) => {
+      if (onValueChange) {
+        if (v !== undefined) onValueChange(v);
+      } else {
+        setInternalValue(v);
+      }
+    },
+    [onValueChange],
+  );
   const collection = useMemo<CollectionKey[]>(() => [], []);
 
   const activeIndex = items
@@ -164,7 +168,7 @@ export function Tabs({
       <TabsContext.Provider
         value={useMemo(
           () => ({ items, collection, value, setValue }),
-          [items, collection, value],
+          [items, collection, value, setValue],
         )}
       >
         {children}
