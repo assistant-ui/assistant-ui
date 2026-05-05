@@ -161,7 +161,7 @@ export class RemoteThreadListThreadListRuntimeCore
           const appendedThreadData = { ...state.threadData };
 
           for (const thread of l.threads) {
-            if (state.threadIdMap[thread.remoteId] !== undefined) continue;
+            if (appendedThreadIdMap[thread.remoteId] !== undefined) continue;
 
             switch (thread.status) {
               case "regular":
@@ -194,6 +194,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
           return {
             ...state,
+            isLoadingMore: false,
             cursor: l.nextCursor || undefined,
             threadIds: appendedThreadIds,
             archivedThreadIds: appendedArchivedThreadIds,

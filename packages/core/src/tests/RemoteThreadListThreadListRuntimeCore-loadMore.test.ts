@@ -334,6 +334,33 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
 
     expect(core.threadIds).toEqual(["p1"]);
     expect(core.hasMore).toBe(false);
+    expect(core.isLoadingMore).toBe(false);
+  });
+
+  it("dedupes thread ids that appear twice within a single page", async () => {
+    const listFn = vi
+      .fn<
+        (
+          params?: RemoteThreadListListParams,
+        ) => Promise<RemoteThreadListResponse>
+      >()
+      .mockResolvedValueOnce({
+        threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
+        nextCursor: "c1",
+      })
+      .mockResolvedValueOnce({
+        threads: [
+          { status: "regular", remoteId: "b", externalId: "b" },
+          { status: "regular", remoteId: "b", externalId: "b" },
+        ],
+      });
+    const adapter = makeAdapter({ list: listFn });
+    const core = createCore(adapter);
+
+    await core.getLoadThreadsPromise();
+    await core.loadMore();
+
+    expect(core.threadIds).toEqual(["a", "b"]);
   });
 
   it("treats an empty-string nextCursor as no more pages", async () => {
