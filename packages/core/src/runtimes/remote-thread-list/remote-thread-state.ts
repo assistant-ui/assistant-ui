@@ -36,6 +36,8 @@ export function createThreadMappingId(id: string): THREAD_MAPPING_ID {
 
 export type RemoteThreadState = {
   readonly isLoading: boolean;
+  readonly isLoadingMore: boolean;
+  readonly cursor: string | undefined;
   readonly newThreadId: string | undefined;
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];

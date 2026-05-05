@@ -29,11 +29,14 @@ export class RemoteThreadListThreadListRuntimeCore
   private readonly _hookManager: RemoteThreadListHookInstanceManager;
 
   private _loadThreadsPromise: Promise<void> | undefined;
+  private _loadMorePromise: Promise<void> | undefined;
   private _loadGeneration = 0;
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>({
     isLoading: true,
+    isLoadingMore: false,
+    cursor: undefined,
     newThreadId: undefined,
     threadIds: [],
     archivedThreadIds: [],
@@ -102,6 +105,7 @@ export class RemoteThreadListThreadListRuntimeCore
             return {
               ...state,
               isLoading: false,
+              cursor: l.nextCursor || undefined,
               threadIds: newThreadIds,
               archivedThreadIds: newArchivedThreadIds,
               threadIdMap: {
@@ -127,6 +131,86 @@ export class RemoteThreadListThreadListRuntimeCore
     }
 
     return this._loadThreadsPromise;
+  }
+
+  public loadMore(): Promise<void> {
+    if (this._loadMorePromise) return this._loadMorePromise;
+
+    const initialState = this._state.value;
+    if (initialState.cursor === undefined || initialState.isLoading) {
+      return Promise.resolve();
+    }
+
+    const generation = this._loadGeneration;
+    const adapter = this._options.adapter;
+    const cursor = initialState.cursor;
+
+    let promise!: Promise<void>;
+    promise = this._state
+      .optimisticUpdate({
+        execute: () => adapter.list({ after: cursor }),
+        loading: (state) => ({ ...state, isLoadingMore: true }),
+        // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
+        then: (state, l) => {
+          if (generation !== this._loadGeneration) return state;
+          if (adapter !== this._options.adapter) return state;
+
+          const appendedThreadIds = [...state.threadIds];
+          const appendedArchivedThreadIds = [...state.archivedThreadIds];
+          const appendedThreadIdMap = { ...state.threadIdMap };
+          const appendedThreadData = { ...state.threadData };
+
+          for (const thread of l.threads) {
+            if (state.threadIdMap[thread.remoteId] !== undefined) continue;
+
+            switch (thread.status) {
+              case "regular":
+                appendedThreadIds.push(thread.remoteId);
+                break;
+              case "archived":
+                appendedArchivedThreadIds.push(thread.remoteId);
+                break;
+              default: {
+                const _exhaustiveCheck: never = thread.status;
+                throw new Error(`Unsupported state: ${_exhaustiveCheck}`);
+              }
+            }
+
+            const mappingId = createThreadMappingId(thread.remoteId);
+            appendedThreadIdMap[thread.remoteId] = mappingId;
+            appendedThreadData[mappingId] = {
+              id: thread.remoteId,
+              remoteId: thread.remoteId,
+              externalId: thread.externalId,
+              status: thread.status,
+              title: thread.title,
+              custom: thread.custom,
+              initializeTask: Promise.resolve({
+                remoteId: thread.remoteId,
+                externalId: thread.externalId,
+              }),
+            };
+          }
+
+          return {
+            ...state,
+            cursor: l.nextCursor || undefined,
+            threadIds: appendedThreadIds,
+            archivedThreadIds: appendedArchivedThreadIds,
+            threadIdMap: appendedThreadIdMap,
+            threadData: appendedThreadData,
+          };
+        },
+      })
+      .catch(() => {})
+      .then(() => {
+        if (this._loadMorePromise === promise) {
+          this._loadMorePromise = undefined;
+        }
+      });
+
+    this._loadMorePromise = promise;
+    return promise;
   }
 
   private readonly contextProvider: ModelContextProvider;
@@ -156,6 +240,9 @@ export class RemoteThreadListThreadListRuntimeCore
   public __internal_setOptions(options: RemoteThreadListOptions) {
     if (this._options === options) return;
 
+    const adapterChanged =
+      this._options !== undefined && this._options.adapter !== options.adapter;
+
     this._options = options;
 
     const Provider = options.adapter.unstable_Provider ?? Fragment;
@@ -164,6 +251,14 @@ export class RemoteThreadListThreadListRuntimeCore
     }
 
     this._hookManager.setRuntimeHook(options.runtimeHook);
+
+    if (adapterChanged) {
+      this._loadMorePromise = undefined;
+      this._state.update({
+        ...this._state.baseValue,
+        cursor: undefined,
+      });
+    }
   }
 
   public __internal_load() {
@@ -179,11 +274,20 @@ export class RemoteThreadListThreadListRuntimeCore
   public reload() {
     this._loadGeneration++;
     this._loadThreadsPromise = undefined;
+    this._loadMorePromise = undefined;
     return this.getLoadThreadsPromise();
   }
 
   public get isLoading() {
     return this._state.value.isLoading;
+  }
+
+  public get isLoadingMore() {
+    return this._state.value.isLoadingMore;
+  }
+
+  public get hasMore() {
+    return this._state.value.cursor !== undefined;
   }
 
   public get threadIds() {
