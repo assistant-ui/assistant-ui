@@ -7,7 +7,10 @@ import {
   forwardRef,
   type ComponentPropsWithoutRef,
   useCallback,
+  useLayoutEffect,
+  useMemo,
 } from "react";
+import { useAuiEvent, useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useThreadViewportAutoScroll } from "./useThreadViewportAutoScroll";
 import { ThreadPrimitiveViewportProvider } from "../../context/providers/ThreadViewportProvider";
@@ -93,6 +96,58 @@ const useViewportElementRef = () => {
   return useManagedRef(registerViewportElement);
 };
 
+const useTopAnchorTurn = (enabled: boolean) => {
+  const threadViewportStore = useThreadViewportStore();
+  const activeAnchorId = useAuiState((s) => {
+    if (!enabled || !s.thread.isRunning) return undefined;
+
+    const target = s.thread.messages.at(-1);
+    const anchor = s.thread.messages.at(-2);
+    if (anchor?.role !== "user" || target?.role !== "assistant") {
+      return undefined;
+    }
+
+    return anchor.id;
+  });
+  const activeTargetId = useAuiState((s) => {
+    if (!enabled || !s.thread.isRunning) return undefined;
+
+    const target = s.thread.messages.at(-1);
+    const anchor = s.thread.messages.at(-2);
+    if (anchor?.role !== "user" || target?.role !== "assistant") {
+      return undefined;
+    }
+
+    return target.id;
+  });
+  const activeTurn = useMemo(() => {
+    if (!activeAnchorId || !activeTargetId) return null;
+    return { anchorId: activeAnchorId, targetId: activeTargetId };
+  }, [activeAnchorId, activeTargetId]);
+
+  useLayoutEffect(() => {
+    if (!activeTurn) return;
+
+    const state = threadViewportStore.getState();
+    const current = state.topAnchorTurn;
+    if (
+      current?.anchorId === activeTurn.anchorId &&
+      current.targetId === activeTurn.targetId
+    ) {
+      return;
+    }
+
+    state.setTopAnchorTurn(activeTurn);
+  }, [activeTurn, threadViewportStore]);
+
+  const clearTopAnchorTurn = useCallback(() => {
+    threadViewportStore.getState().setTopAnchorTurn(null);
+  }, [threadViewportStore]);
+
+  useAuiEvent("thread.initialize", clearTopAnchorTurn);
+  useAuiEvent("threadListItem.switchedTo", clearTopAnchorTurn);
+};
+
 const ThreadPrimitiveViewportScrollable = forwardRef<
   ThreadPrimitiveViewport.Element,
   ThreadPrimitiveViewport.Props
@@ -118,7 +173,9 @@ const ThreadPrimitiveViewportScrollable = forwardRef<
     const viewportElementRef = useViewportElementRef();
     const threadViewportStore = useThreadViewportStore();
     const turnAnchor = threadViewportStore.getState().turnAnchor;
-    useTopAnchorReserve(turnAnchor === "top");
+    const topAnchorEnabled = turnAnchor === "top";
+    useTopAnchorTurn(topAnchorEnabled);
+    useTopAnchorReserve(topAnchorEnabled);
     const ref = useComposedRefs(
       forwardedRef,
       autoScrollRef,

@@ -11,8 +11,11 @@ import {
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
-import { scheduleAnchorTargetRegistration } from "../thread/topAnchor/scheduleAnchorTargetRegistration";
+import {
+  useThreadViewport,
+  useThreadViewportStore,
+} from "../../context/react/ThreadViewportContext";
+import { parseCssLength } from "../thread/topAnchor/topAnchorUtils";
 
 type ThreadViewportStore = NonNullable<
   ReturnType<typeof useThreadViewportStore>
@@ -52,22 +55,26 @@ const useIsHoveringRef = () => {
 };
 
 const useIsTopAnchorUser = () => {
+  const activeAnchorId = useThreadViewport((s) => s.topAnchorTurn?.anchorId);
   return useAuiState(
     (s) =>
       s.message.role === "user" &&
       s.message.index > 0 &&
       s.message.index === s.thread.messages.length - 2 &&
-      s.thread.messages.at(-1)?.role === "assistant",
+      s.thread.messages.at(-1)?.role === "assistant" &&
+      (s.message.id === activeAnchorId || s.thread.isRunning),
   );
 };
 
 const useIsTopAnchorTarget = () => {
+  const activeTargetId = useThreadViewport((s) => s.topAnchorTurn?.targetId);
   return useAuiState(
     (s) =>
       s.message.isLast &&
       s.message.role === "assistant" &&
       s.message.index >= 1 &&
-      s.thread.messages.at(s.message.index - 1)?.role === "user",
+      s.thread.messages.at(s.message.index - 1)?.role === "user" &&
+      (s.message.id === activeTargetId || s.thread.isRunning),
   );
 };
 
@@ -96,7 +103,13 @@ const useTopAnchorTargetRef = ({
   const targetRefCallback = useCallback(
     (el: HTMLElement) => {
       if (!active) return;
-      return scheduleAnchorTargetRegistration(el, threadViewportStore);
+      const state = threadViewportStore.getState();
+      const clamp = state.topAnchorMessageClamp;
+
+      return state.registerAnchorTargetElement(el, {
+        tallerThan: parseCssLength(clamp.tallerThan, el),
+        visibleHeight: parseCssLength(clamp.visibleHeight, el),
+      });
     },
     [active, threadViewportStore],
   );
@@ -155,6 +168,7 @@ const MessagePrimitiveRootTopAnchor = ({
       {...props}
       ref={ref}
       data-message-id={messageId}
+      data-aui-top-anchor-user={isTopAnchorUser ? "" : undefined}
       data-aui-top-anchor-target={isTopAnchorTarget ? "" : undefined}
     />
   );
