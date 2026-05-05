@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Tabs, escapeValue, type TabsProps } from "./tabs";
 import {
-  usePlatform,
+  PlatformScope,
   PLATFORM_LABELS,
   PLATFORMS,
   type Platform,
+  usePlatform,
 } from "@/components/docs/contexts/platform";
 
 const ITEMS = PLATFORMS.map((p) => PLATFORM_LABELS[p]);
@@ -19,16 +21,24 @@ export type PlatformTabsProps = Omit<
 >;
 
 export function PlatformTabs(props: PlatformTabsProps): React.ReactElement {
-  const { platform, setPlatform } = usePlatform();
+  const { platform } = usePlatform();
+  const [localPlatform, setLocalPlatform] = useState(platform);
+
+  useEffect(() => {
+    setLocalPlatform(platform);
+  }, [platform]);
+
   return (
-    <Tabs
-      {...props}
-      items={ITEMS}
-      value={escapeValue(PLATFORM_LABELS[platform])}
-      onValueChange={(v) => {
-        const next = VALUE_TO_PLATFORM[v];
-        if (next) setPlatform(next);
-      }}
-    />
+    <PlatformScope platform={localPlatform}>
+      <Tabs
+        {...props}
+        items={ITEMS}
+        value={escapeValue(PLATFORM_LABELS[localPlatform])}
+        onValueChange={(v) => {
+          const next = VALUE_TO_PLATFORM[v];
+          if (next) setLocalPlatform(next);
+        }}
+      />
+    </PlatformScope>
   );
 }

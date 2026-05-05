@@ -29,6 +29,7 @@ interface PlatformContextValue {
 }
 
 const PlatformContext = createContext<PlatformContextValue | null>(null);
+const PlatformScopeContext = createContext<Platform | null>(null);
 
 export function usePlatform() {
   const ctx = useContext(PlatformContext);
@@ -39,7 +40,23 @@ export function usePlatform() {
 }
 
 export function usePlatformOrDefault(): Platform {
-  return useContext(PlatformContext)?.platform ?? DEFAULT_PLATFORM;
+  const scopedPlatform = useContext(PlatformScopeContext);
+  const globalPlatform = useContext(PlatformContext)?.platform;
+  return scopedPlatform ?? globalPlatform ?? DEFAULT_PLATFORM;
+}
+
+export function PlatformScope({
+  children,
+  platform,
+}: {
+  children: ReactNode;
+  platform: Platform;
+}) {
+  return (
+    <PlatformScopeContext.Provider value={platform}>
+      {children}
+    </PlatformScopeContext.Provider>
+  );
 }
 
 function isPlatform(value: string | null): value is Platform {
