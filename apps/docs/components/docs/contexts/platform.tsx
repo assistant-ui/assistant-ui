@@ -19,6 +19,12 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
   ink: "React Ink",
 };
 
+const PLATFORM_DOC_BASE_PATHS: Record<Platform, string> = {
+  react: "/docs",
+  rn: "/docs/react-native",
+  ink: "/docs/ink",
+};
+
 const STORAGE_KEY = "assistant-ui::docs:platform";
 const URL_PARAM = "platform";
 const DEFAULT_PLATFORM: Platform = "react";
@@ -65,7 +71,7 @@ function isPlatform(value: string | null): value is Platform {
 
 const isBrowser = () => typeof window !== "undefined";
 
-// Avoid useSearchParams so the docs layout isn't opted out of static rendering.
+// Avoid useSearchParams so the docs layout stays statically renderable.
 function readUrlPlatform(): Platform | null {
   if (!isBrowser()) return null;
   try {
@@ -76,8 +82,18 @@ function readUrlPlatform(): Platform | null {
   }
 }
 
-// replaceState (not router.replace) so URL fixups don't pollute back/forward
-// history and Next.js doesn't treat the param change as a refetch trigger.
+function readStoredPlatform(): Platform | null {
+  if (!isBrowser()) return null;
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    return isPlatform(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+// replaceState keeps platform selection shareable without adding noisy
+// back/forward entries for every dropdown change.
 function writeUrlPlatform(next: Platform): void {
   if (!isBrowser()) return;
   try {
@@ -93,19 +109,38 @@ function writeUrlPlatform(next: Platform): void {
   } catch {}
 }
 
-function syncUrlAndStore(): void {
-  if (!isBrowser()) return;
-  const fromUrl = readUrlPlatform();
-  if (fromUrl) {
-    if (fromUrl !== platformStore.getSnapshot()) {
-      platformStore.setValue(fromUrl);
+function platformDocPathSuffix(
+  pathname: string,
+  platform: Extract<Platform, "rn" | "ink">,
+): string | null {
+  const basePath = PLATFORM_DOC_BASE_PATHS[platform];
+  if (pathname === basePath) return "";
+  if (!pathname.startsWith(`${basePath}/`)) return null;
+
+  return pathname.slice(basePath.length);
+}
+
+export function getPlatformSwitchHref(
+  pathname: string,
+  nextPlatform: Platform,
+): string | null {
+  const currentPlatformSuffix =
+    platformDocPathSuffix(pathname, "rn") ??
+    platformDocPathSuffix(pathname, "ink");
+
+  if (currentPlatformSuffix === null) {
+    if (
+      pathname === PLATFORM_DOC_BASE_PATHS.react &&
+      nextPlatform !== "react"
+    ) {
+      return PLATFORM_DOC_BASE_PATHS[nextPlatform];
     }
-    if (fromUrl === DEFAULT_PLATFORM) {
-      writeUrlPlatform(DEFAULT_PLATFORM);
-    }
-    return;
+    return null;
   }
-  writeUrlPlatform(platformStore.getSnapshot());
+
+  if (nextPlatform === "react") return PLATFORM_DOC_BASE_PATHS.react;
+
+  return `${PLATFORM_DOC_BASE_PATHS[nextPlatform]}${currentPlatformSuffix}`;
 }
 
 // SSR-safe localStorage backing for useSyncExternalStore, with cross-tab sync
@@ -139,13 +174,7 @@ class PlatformStore {
   };
 
   getSnapshot = (): Platform => {
-    if (!isBrowser()) return DEFAULT_PLATFORM;
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      return isPlatform(stored) ? stored : DEFAULT_PLATFORM;
-    } catch {
-      return DEFAULT_PLATFORM;
-    }
+    return readUrlPlatform() ?? readStoredPlatform() ?? DEFAULT_PLATFORM;
   };
 
   getServerSnapshot = (): Platform => DEFAULT_PLATFORM;
@@ -154,8 +183,19 @@ class PlatformStore {
     if (!isBrowser()) return;
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
-      this.notify();
     } catch {}
+    writeUrlPlatform(next);
+    this.notify();
+  };
+
+  syncUrlAndStore = () => {
+    if (!isBrowser()) return;
+    const next = this.getSnapshot();
+    try {
+      window.localStorage.setItem(STORAGE_KEY, next);
+    } catch {}
+    writeUrlPlatform(next);
+    this.notify();
   };
 }
 
@@ -170,23 +210,20 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     platformStore.getServerSnapshot,
   );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the only intended trigger
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the route-change trigger
   useEffect(() => {
-    syncUrlAndStore();
+    platformStore.syncUrlAndStore();
   }, [pathname]);
 
-  // popstate covers search-only changes (back/forward to a different
-  // ?platform=) which usePathname doesn't fire for.
   useEffect(() => {
-    window.addEventListener("popstate", syncUrlAndStore);
+    window.addEventListener("popstate", platformStore.syncUrlAndStore);
     return () => {
-      window.removeEventListener("popstate", syncUrlAndStore);
+      window.removeEventListener("popstate", platformStore.syncUrlAndStore);
     };
   }, []);
 
   const setPlatform = useCallback((next: Platform) => {
     platformStore.setValue(next);
-    writeUrlPlatform(next);
   }, []);
 
   return (

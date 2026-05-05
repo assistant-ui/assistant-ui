@@ -98,13 +98,6 @@ interface SidebarContentProps {
   tree?: PageTree.Root;
 }
 
-function containsPath(node: PageTree.Node, pathname: string): boolean {
-  if (node.type === "page") return pathname === node.url;
-  if (node.type === "separator") return false;
-  if (node.index && pathname === node.index.url) return true;
-  return node.children.some((child) => containsPath(child, pathname));
-}
-
 function findPathToNode(
   node: PageTree.Node,
   pathname: string,
@@ -150,7 +143,7 @@ function SectionItem({
 
   if (item.type === "folder") {
     const isActive = item.index && pathname === item.index.url;
-    const containsActive = containsPath(item, pathname);
+    const containsActive = findPathToNode(item, pathname) !== null;
     const hasChildren = item.children.length > 0;
 
     return (
@@ -306,9 +299,11 @@ export function SidebarContent({ tree }: SidebarContentProps) {
     const allFolders = (tree?.children ?? []).filter(
       (n): n is PageTree.Folder => n.type === "folder",
     );
-    const activePath = allFolders
-      .map((folder) => findPathToNode(folder, pathname))
-      .find((path) => path !== null);
+    let activePath: PageTree.Node[] | null = null;
+    for (const folder of allFolders) {
+      activePath = findPathToNode(folder, pathname);
+      if (activePath) break;
+    }
     const platformNode = activePath
       ?.slice()
       .reverse()
@@ -319,7 +314,8 @@ export function SidebarContent({ tree }: SidebarContentProps) {
     const platforms = platformNode ? nodePlatforms(platformNode) : undefined;
     if (!platforms || platforms.length === 0) return;
     if (platforms.includes(platformRef.current)) return;
-    setPlatform(platforms[0] as Platform);
+    const next = platforms.find((p) => p === "rn" || p === "ink");
+    if (next) setPlatform(next);
   }, [pathname, setPlatform, tree]);
 
   // React keeps the full docs tree. React Native and React Ink use only their
@@ -396,7 +392,7 @@ export function SidebarContent({ tree }: SidebarContentProps) {
   }, [tree, platform]);
 
   const activeSectionId = useMemo(() => {
-    const match = sections.find((s) => containsPath(s, pathname));
+    const match = sections.find((s) => findPathToNode(s, pathname) !== null);
     return match?.$id ?? sections[0]?.$id ?? null;
   }, [sections, pathname]);
 
