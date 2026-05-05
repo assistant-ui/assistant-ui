@@ -110,9 +110,7 @@ function getJsDocCommentText(doc: JSDoc): string | undefined {
   if (typeof comment === "string") {
     text = comment;
   } else if (Array.isArray(comment)) {
-    text = comment
-      .map((part) => part.getText())
-      .join("")
+    text = comment.map((part) => part.getText()).join("");
   }
   if (!text) return undefined;
 

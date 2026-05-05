@@ -45,7 +45,7 @@ export async function POST(req: Request) {
         reasoningEffort: "high",
         reasoningSummary: "auto",
       },
-    }
+    },
   });
 
   return result.toUIMessageStreamResponse({ sendReasoning: true });

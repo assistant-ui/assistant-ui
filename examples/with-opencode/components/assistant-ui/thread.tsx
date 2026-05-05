@@ -297,11 +297,7 @@ const AssistantMessage: FC = () => {
                   </ReasoningGhostGroup>
                 );
               case "group-tool":
-                return (
-                  <ToolCallGroup group={part}>
-                    {children}
-                  </ToolCallGroup>
-                );
+                return <ToolCallGroup group={part}>{children}</ToolCallGroup>;
               case "text":
                 return <MarkdownText />;
               case "reasoning":

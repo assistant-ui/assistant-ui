@@ -11,10 +11,7 @@ type GroupedPartsGroup = {
 
 const ReasoningGroupImpl: FC<
   PropsWithChildren<{ group: GroupedPartsGroup }>
-> = ({
-  children,
-  group,
-}) => {
+> = ({ children, group }) => {
   const startIndex = group.indices[0]!;
   const endIndex = group.indices.at(-1)!;
 
