@@ -56,16 +56,14 @@ function getExpoInstallCommand(pm: PackageManager, packages: string[]): string {
   }
 }
 
-function CommandTabs<TPackageManager extends PackageManager>({
+function CommandTabs({
   getCommand,
-  packageManagers = PACKAGE_MANAGERS as readonly TPackageManager[],
+  packageManagers = PACKAGE_MANAGERS,
 }: {
-  getCommand: (pm: TPackageManager) => string;
-  packageManagers?: readonly TPackageManager[];
+  getCommand: (pm: PackageManager) => string;
+  packageManagers?: readonly PackageManager[];
 }) {
-  const [pm, setPm] = useState<TPackageManager>(
-    packageManagers[0] ?? ("npm" as TPackageManager),
-  );
+  const [pm, setPm] = useState<PackageManager>(packageManagers[0] ?? "npm");
   const activeIndex = packageManagers.indexOf(pm);
 
   const {
