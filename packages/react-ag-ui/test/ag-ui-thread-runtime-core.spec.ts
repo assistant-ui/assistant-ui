@@ -550,6 +550,304 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runAgent).toHaveBeenCalledTimes(2);
   });
 
+  it("stores pending interrupts from run finished outcomes", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            threadId: "main",
+            runId: "run-1",
+            outcome: {
+              type: "interrupt",
+              interrupts: [
+                {
+                  id: "interrupt-1",
+                  reason: "confirmation",
+                  message: "Continue?",
+                },
+              ],
+            },
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(core.getInterrupts()).toEqual([
+      {
+        id: "interrupt-1",
+        reason: "confirmation",
+        message: "Continue?",
+      },
+    ]);
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+
+  it("sends resume entries in the next run input", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        runCount++;
+        if (runCount === 1) {
+          subscriber.onRunFinishedEvent?.({
+            event: {
+              type: "RUN_FINISHED",
+              threadId: "main",
+              runId: "run-1",
+              outcome: {
+                type: "interrupt",
+                interrupts: [
+                  {
+                    id: "interrupt-1",
+                    reason: "input_required",
+                    message: "Need details",
+                  },
+                ],
+              },
+            },
+          });
+          subscriber.onRunFinalized?.();
+        } else {
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", delta: "Resumed" },
+          });
+          subscriber.onRunFinalized?.();
+        }
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await core.resumeInterrupts([
+      {
+        interruptId: "interrupt-1",
+        status: "resolved",
+        payload: { value: "details" },
+      },
+    ]);
+
+    expect(runInputs[1]?.resume).toEqual([
+      {
+        interruptId: "interrupt-1",
+        status: "resolved",
+        payload: { value: "details" },
+      },
+    ]);
+    expect(core.getInterrupts()).toEqual([]);
+  });
+
+  it("rejects normal user messages while interrupts are pending", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          threadId: "main",
+          runId: "run-1",
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "interrupt-1", reason: "confirmation" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(core.append(createAppendMessage())).rejects.toThrow(
+      "Cannot start a new AG-UI run while interrupts are pending",
+    );
+
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(core.getInterrupts()).toHaveLength(1);
+  });
+
+  it("rejects interrupt resumes while a run is already in progress", async () => {
+    const runAgent = vi.fn(async () => {});
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    Object.assign(core as unknown as Record<string, unknown>, {
+      isRunningFlag: true,
+      pendingInterrupts: [{ id: "interrupt-1", reason: "confirmation" }],
+    });
+
+    await expect(
+      core.resumeInterrupts([
+        { interruptId: "interrupt-1", status: "resolved", payload: true },
+      ]),
+    ).rejects.toThrow("Cannot resume AG-UI interrupts while a run is active");
+
+    expect(runAgent).not.toHaveBeenCalled();
+  });
+
+  it("rejects partial resume entries for parallel interrupts", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          threadId: "main",
+          runId: "run-1",
+          outcome: {
+            type: "interrupt",
+            interrupts: [
+              { id: "interrupt-1", reason: "confirmation" },
+              { id: "interrupt-2", reason: "confirmation" },
+            ],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.resumeInterrupts([
+        { interruptId: "interrupt-1", status: "resolved", payload: true },
+      ]),
+    ).rejects.toThrow("must address every pending interrupt");
+
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects resume entries for unknown interrupts", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          threadId: "main",
+          runId: "run-1",
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "interrupt-1", reason: "confirmation" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.resumeInterrupts([
+        { interruptId: "interrupt-1", status: "resolved", payload: true },
+        { interruptId: "missing", status: "cancelled" },
+      ]),
+    ).rejects.toThrow("unknown interrupt");
+
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves tool-bound interrupts and sends approval payloads", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        runCount++;
+        if (runCount === 1) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "call-1",
+              toolCallName: "send_email",
+            },
+          });
+          subscriber.onToolCallArgsEvent?.({
+            event: {
+              type: "TOOL_CALL_ARGS",
+              toolCallId: "call-1",
+              delta: '{"to":"a@example.com"}',
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+          });
+          subscriber.onRunFinishedEvent?.({
+            event: {
+              type: "RUN_FINISHED",
+              threadId: "main",
+              runId: "run-1",
+              outcome: {
+                type: "interrupt",
+                interrupts: [
+                  {
+                    id: "interrupt-1",
+                    reason: "tool_call",
+                    toolCallId: "call-1",
+                    responseSchema: {
+                      type: "object",
+                      properties: { approved: { type: "boolean" } },
+                    },
+                  },
+                ],
+              },
+            },
+          });
+          subscriber.onRunFinalized?.();
+        } else {
+          subscriber.onToolCallResultEvent?.({
+            event: {
+              type: "TOOL_CALL_RESULT",
+              toolCallId: "call-1",
+              content: '{"sent":true}',
+            },
+          });
+          subscriber.onRunFinalized?.();
+        }
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.content[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "send_email",
+    });
+    expect(core.getInterrupts()[0]).toMatchObject({
+      id: "interrupt-1",
+      reason: "tool_call",
+      toolCallId: "call-1",
+    });
+
+    await core.resumeInterrupts([
+      {
+        interruptId: "interrupt-1",
+        status: "resolved",
+        payload: { approved: true },
+      },
+    ]);
+
+    expect(runInputs[1]?.resume).toEqual([
+      {
+        interruptId: "interrupt-1",
+        status: "resolved",
+        payload: { approved: true },
+      },
+    ]);
+  });
+
   it("omits the placeholder assistant message from run input history", async () => {
     const runAgent = vi.fn(async (_input, subscriber) => {
       subscriber.onRunFinalized?.();

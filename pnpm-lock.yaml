@@ -2959,6 +2959,9 @@ importers:
       '@assistant-ui/core':
         specifier: ^0.1.15
         version: link:../core
+      '@assistant-ui/store':
+        specifier: ^0.2.9
+        version: link:../store
       assistant-stream:
         specifier: ^0.3.12
         version: link:../assistant-stream

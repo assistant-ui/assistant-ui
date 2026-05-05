@@ -6,6 +6,7 @@ import {
   useRuntimeAdapters,
   useToolInvocations,
 } from "@assistant-ui/core/react";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import type { ToolExecutionStatus } from "@assistant-ui/core/react";
 import type {
   AssistantRuntime,
@@ -15,8 +16,54 @@ import type {
 } from "@assistant-ui/core";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { makeLogger } from "./runtime/logger";
-import type { UseAgUiRuntimeOptions } from "./runtime/types";
+import type {
+  AgUiInterrupt,
+  AgUiResumeEntry,
+  UseAgUiRuntimeOptions,
+} from "./runtime/types";
 import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
+
+const symbolAgUiRuntimeExtras = Symbol("ag-ui-runtime-extras");
+const EMPTY_INTERRUPTS: readonly AgUiInterrupt[] = Object.freeze([]);
+
+type AgUiRuntimeExtras = {
+  [symbolAgUiRuntimeExtras]: true;
+  interrupts: readonly AgUiInterrupt[];
+  resumeInterrupts: (entries: readonly AgUiResumeEntry[]) => Promise<void>;
+};
+
+const asAgUiRuntimeExtras = (extras: unknown): AgUiRuntimeExtras => {
+  if (
+    typeof extras !== "object" ||
+    extras === null ||
+    !(symbolAgUiRuntimeExtras in extras)
+  ) {
+    throw new Error(
+      "This method can only be called when you are using useAgUiRuntime",
+    );
+  }
+  return extras as AgUiRuntimeExtras;
+};
+
+export const useAgUiInterrupts = () => {
+  return useAuiState((s) => {
+    const extras = s.thread.extras;
+    if (!extras) return EMPTY_INTERRUPTS;
+    return asAgUiRuntimeExtras(extras).interrupts;
+  });
+};
+
+export const useAgUiResumeInterrupts = () => {
+  const aui = useAui();
+  return useCallback(
+    (entries: readonly AgUiResumeEntry[]) => {
+      const extras = aui.thread().getState().extras;
+      const { resumeInterrupts } = asAgUiRuntimeExtras(extras);
+      return resumeInterrupts(entries);
+    },
+    [aui],
+  );
+};
 
 export function useAgUiRuntime(
   options: UseAgUiRuntimeOptions,
@@ -160,6 +207,11 @@ export function useAgUiRuntime(
             options.toolCallId,
             options.payload,
           ),
+        extras: {
+          [symbolAgUiRuntimeExtras]: true,
+          interrupts: core.getInterrupts(),
+          resumeInterrupts: (entries) => core.resumeInterrupts(entries),
+        } satisfies AgUiRuntimeExtras,
         setMessages: (messages: readonly ThreadMessage[]) =>
           core.applyExternalMessages(messages),
         onImport: (messages: readonly ThreadMessage[]) =>

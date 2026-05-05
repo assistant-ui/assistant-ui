@@ -36,6 +36,7 @@
   "dependencies": {
     "@ag-ui/client": "^0.0.52",
     "@assistant-ui/core": "^0.1.15",
+    "@assistant-ui/store": "^0.2.9",
     "assistant-stream": "^0.3.12"
   },
   "peerDependencies": {

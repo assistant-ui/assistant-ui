@@ -182,6 +182,49 @@ describe("RunAggregator", () => {
     expect(last?.status?.type).toBe("complete");
   });
 
+  it("sets requires-action status for interrupt run finished outcomes", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [
+          {
+            id: "interrupt-1",
+            reason: "confirmation",
+            message: "Continue?",
+          },
+        ],
+      },
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(last?.status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+
+  it("sets complete status for success run finished outcomes", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: { type: "success" },
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(last?.status).toMatchObject({
+      type: "complete",
+      reason: "unknown",
+    });
+  });
+
   it("respects event ordering between tool calls and text", () => {
     const aggregator = createAggregator(false);
 

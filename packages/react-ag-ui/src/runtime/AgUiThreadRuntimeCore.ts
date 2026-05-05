@@ -13,7 +13,7 @@ import type {
 } from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
-import type { AgUiEvent } from "./types";
+import type { AgUiEvent, AgUiInterrupt, AgUiResumeEntry } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { RunAggregator } from "./adapter/run-aggregator";
 import {
@@ -61,6 +61,7 @@ export class AgUiThreadRuntimeCore {
   private lastRunConfig: RunConfig | undefined;
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly recordedHistoryIds = new Set<string>();
+  private pendingInterrupts: readonly AgUiInterrupt[] = [];
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
 
@@ -97,6 +98,10 @@ export class AgUiThreadRuntimeCore {
 
   getState(): ReadonlyJSONValue | undefined {
     return this.stateSnapshot;
+  }
+
+  getInterrupts(): readonly AgUiInterrupt[] {
+    return this.pendingInterrupts;
   }
 
   isRunning(): boolean {
@@ -156,6 +161,7 @@ export class AgUiThreadRuntimeCore {
     this.recordHistoryEntry(message.parentId ?? null, threadMessage);
 
     if (!startRun) return;
+    this.assertNoPendingInterrupts();
     await this.startRun(threadMessage.id, message.runConfig);
   }
 
@@ -167,6 +173,7 @@ export class AgUiThreadRuntimeCore {
     parentId: string | null,
     config: { runConfig?: RunConfig } = {},
   ): Promise<void> {
+    this.assertNoPendingInterrupts();
     this.resetHead(parentId);
     this.notifyUpdate();
     await this.startRun(parentId, config.runConfig);
@@ -178,6 +185,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   async resume(config: ResumeRunConfig): Promise<void> {
+    this.assertNoPendingInterrupts();
     if (config.stream) {
       this.logger.debug?.(
         "[agui] resume stream is not supported, falling back to regular run",
@@ -187,6 +195,15 @@ export class AgUiThreadRuntimeCore {
       config.parentId,
       config.runConfig ?? this.lastRunConfig,
     );
+  }
+
+  async resumeInterrupts(entries: readonly AgUiResumeEntry[]): Promise<void> {
+    if (this.isRunningFlag) {
+      throw new Error("Cannot resume AG-UI interrupts while a run is active");
+    }
+    this.validateResumeEntries(entries);
+    const parentId = this.messages.at(-1)?.id ?? null;
+    await this.startRun(parentId, this.lastRunConfig, entries);
   }
 
   findMessageIdForToolCall(toolCallId: string): string | undefined {
@@ -272,6 +289,11 @@ export class AgUiThreadRuntimeCore {
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
     this.assistantHistoryParents.clear();
+    /**
+     * Thread switch/import replaces the active AG-UI thread state, so pending
+     * interrupts from the previous thread must not remain resumable.
+     */
+    this.pendingInterrupts = [];
     this.messages = [...messages];
     this.recordedHistoryIds.clear();
     for (const message of this.messages) {
@@ -288,11 +310,15 @@ export class AgUiThreadRuntimeCore {
   private async startRun(
     parentId: string | null,
     runConfig?: RunConfig,
+    resumeEntries?: readonly AgUiResumeEntry[],
   ): Promise<void> {
     const normalizedRunConfig = runConfig ?? {};
     this.lastRunConfig = normalizedRunConfig;
     this.resetHead(parentId);
     const historicalMessages = [...this.messages];
+    if (this.pendingInterrupts.length > 0 || resumeEntries) {
+      this.pendingInterrupts = [];
+    }
 
     const runId = generateId();
     this.pendingError = null;
@@ -300,6 +326,7 @@ export class AgUiThreadRuntimeCore {
       runId,
       normalizedRunConfig,
       historicalMessages,
+      resumeEntries,
     );
     const assistantParentId = parentId ?? this.messages.at(-1)?.id ?? null;
     let assistantMessageId: string | undefined;
@@ -376,6 +403,7 @@ export class AgUiThreadRuntimeCore {
     runId: string,
     runConfig: RunConfig | undefined,
     historyMessages: readonly ThreadMessage[] | undefined,
+    resumeEntries?: readonly AgUiResumeEntry[],
   ) {
     const threadId = this.agent.threadId || "main";
     const messages = toAgUiMessages(historyMessages ?? this.messages);
@@ -394,6 +422,7 @@ export class AgUiThreadRuntimeCore {
         ...(context?.config ?? {}),
         ...(runConfig?.custom ? { runConfig: runConfig.custom } : {}),
       },
+      ...(resumeEntries ? { resume: resumeEntries } : {}),
     };
   }
 
@@ -490,6 +519,13 @@ export class AgUiThreadRuntimeCore {
 
   private handleEvent(aggregator: RunAggregator, event: AgUiEvent) {
     switch (event.type) {
+      case "RUN_FINISHED": {
+        this.pendingInterrupts =
+          event.outcome?.type === "interrupt" ? event.outcome.interrupts : [];
+        this.notifyUpdate();
+        aggregator.handle(event);
+        return;
+      }
       case "STATE_SNAPSHOT": {
         this.stateSnapshot = event.snapshot as ReadonlyJSONValue;
         this.notifyUpdate();
@@ -506,6 +542,45 @@ export class AgUiThreadRuntimeCore {
       default:
         aggregator.handle(event);
     }
+  }
+
+  private validateResumeEntries(entries: readonly AgUiResumeEntry[]) {
+    if (this.pendingInterrupts.length === 0) {
+      throw new Error("No pending AG-UI interrupts to resume");
+    }
+
+    const pendingIds = new Set(
+      this.pendingInterrupts.map((interrupt) => interrupt.id),
+    );
+    const seenIds = new Set<string>();
+
+    for (const entry of entries) {
+      if (entry.status !== "resolved" && entry.status !== "cancelled") {
+        throw new Error(`Invalid interrupt resume status: ${entry.status}`);
+      }
+      if (!pendingIds.has(entry.interruptId)) {
+        throw new Error(
+          `Cannot resume unknown interrupt: ${entry.interruptId}`,
+        );
+      }
+      if (seenIds.has(entry.interruptId)) {
+        throw new Error(
+          `Duplicate resume entry for interrupt: ${entry.interruptId}`,
+        );
+      }
+      seenIds.add(entry.interruptId);
+    }
+
+    if (seenIds.size !== pendingIds.size) {
+      throw new Error("Resume entries must address every pending interrupt");
+    }
+  }
+
+  private assertNoPendingInterrupts() {
+    if (this.pendingInterrupts.length === 0) return;
+    throw new Error(
+      "Cannot start a new AG-UI run while interrupts are pending. Resolve them with useAgUiResumeInterrupts().",
+    );
   }
 
   private importMessagesSnapshot(rawMessages: readonly unknown[]) {

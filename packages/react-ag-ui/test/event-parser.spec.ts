@@ -43,4 +43,92 @@ describe("parseAgUiEvent", () => {
       source: "UNKNOWN_EVENT",
     });
   });
+
+  it("parses legacy run finished events without an outcome", () => {
+    const event = parseAgUiEvent({
+      type: "RUN_FINISHED",
+      runId: "run-1",
+    });
+
+    expect(event).toEqual({
+      type: "RUN_FINISHED",
+      runId: "run-1",
+    });
+  });
+
+  it("preserves success run finished outcomes", () => {
+    const event = parseAgUiEvent({
+      type: "RUN_FINISHED",
+      runId: "run-1",
+      outcome: { type: "success" },
+    });
+
+    expect(event).toEqual({
+      type: "RUN_FINISHED",
+      runId: "run-1",
+      outcome: { type: "success" },
+    });
+  });
+
+  it("preserves interrupt run finished outcomes", () => {
+    const event = parseAgUiEvent({
+      type: "RUN_FINISHED",
+      runId: "run-1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [
+          {
+            id: "interrupt-1",
+            reason: "tool_call",
+            message: "Approve search?",
+            toolCallId: "call-1",
+            responseSchema: {
+              type: "object",
+              properties: { approved: { type: "boolean" } },
+            },
+            expiresAt: "2026-05-05T10:00:00Z",
+            metadata: { source: "test" },
+          },
+        ],
+      },
+    });
+
+    expect(event).toEqual({
+      type: "RUN_FINISHED",
+      runId: "run-1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [
+          {
+            id: "interrupt-1",
+            reason: "tool_call",
+            message: "Approve search?",
+            toolCallId: "call-1",
+            responseSchema: {
+              type: "object",
+              properties: { approved: { type: "boolean" } },
+            },
+            expiresAt: "2026-05-05T10:00:00Z",
+            metadata: { source: "test" },
+          },
+        ],
+      },
+    });
+  });
+
+  it("drops malformed interrupt outcomes", () => {
+    const event = parseAgUiEvent({
+      type: "RUN_FINISHED",
+      runId: "run-1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [{ id: "missing-reason" }],
+      },
+    });
+
+    expect(event).toEqual({
+      type: "RUN_FINISHED",
+      runId: "run-1",
+    });
+  });
 });

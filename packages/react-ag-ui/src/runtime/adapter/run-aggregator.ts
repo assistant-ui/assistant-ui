@@ -76,13 +76,17 @@ export class RunAggregator {
         break;
       }
       case "RUN_FINISHED": {
-        const hasUnresolvedToolCalls = Array.from(this.toolCalls.values()).some(
-          (tc) => tc.result === undefined,
-        );
+        if (event.outcome?.type === "interrupt") {
+          this.status = { type: "requires-action", reason: "interrupt" };
+        } else {
+          const hasUnresolvedToolCalls = Array.from(
+            this.toolCalls.values(),
+          ).some((tc) => tc.result === undefined);
 
-        this.status = hasUnresolvedToolCalls
-          ? { type: "requires-action", reason: "tool-calls" }
-          : { type: "complete", reason: "unknown" };
+          this.status = hasUnresolvedToolCalls
+            ? { type: "requires-action", reason: "tool-calls" }
+            : { type: "complete", reason: "unknown" };
+        }
         this.emit();
         break;
       }
