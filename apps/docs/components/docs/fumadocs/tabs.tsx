@@ -205,6 +205,7 @@ export function Tab({
       hidden={!isActive}
       className={cn(
         "prose-no-margin mt-4 min-w-0 text-sm",
+        "[&_a]:font-medium [&_a]:text-fd-primary [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:text-fd-primary/80",
         "data-[state=inactive]:hidden",
         className,
       )}
