@@ -728,6 +728,36 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runAgent).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects duplicate resume entries for the same interrupt", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          threadId: "main",
+          runId: "run-1",
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "interrupt-1", reason: "confirmation" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.resumeInterrupts([
+        { interruptId: "interrupt-1", status: "resolved", payload: true },
+        { interruptId: "interrupt-1", status: "cancelled" },
+      ]),
+    ).rejects.toThrow("Duplicate resume entry");
+
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects resume entries for unknown interrupts", async () => {
     const runAgent = vi.fn(async (_input, subscriber) => {
       subscriber.onRunFinishedEvent?.({

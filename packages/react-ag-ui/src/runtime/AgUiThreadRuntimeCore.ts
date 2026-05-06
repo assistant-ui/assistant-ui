@@ -529,7 +529,6 @@ export class AgUiThreadRuntimeCore {
       case "RUN_FINISHED": {
         this.pendingInterrupts =
           event.outcome?.type === "interrupt" ? event.outcome.interrupts : [];
-        this.notifyUpdate();
         aggregator.handle(event);
         return;
       }
