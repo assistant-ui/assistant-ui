@@ -66,7 +66,7 @@
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.14",
-    "ink": "^7.0.1",
+    "ink": "^7.0.2",
     "ink-testing-library": "^4.0.0",
     "react": "^19.2.5",
     "shiki": "^4.0.2",

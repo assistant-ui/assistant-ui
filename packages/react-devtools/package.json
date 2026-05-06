@@ -30,7 +30,7 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.12.28",

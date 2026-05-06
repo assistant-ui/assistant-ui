@@ -34,8 +34,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ag-ui/client": "^0.0.52",
-    "@assistant-ui/core": "^0.1.15",
+    "@ag-ui/client": "^0.0.53",
+    "@assistant-ui/core": "^0.1.17",
     "assistant-stream": "^0.3.12"
   },
   "peerDependencies": {
@@ -52,7 +52,7 @@
     "@types/react": "^19.2.14",
     "react": "^19.2.5",
     "vitest": "^4.1.5",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "publishConfig": {
     "access": "public",

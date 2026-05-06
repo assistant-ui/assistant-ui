@@ -39,7 +39,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.16",
+    "@assistant-ui/core": "^0.1.17",
     "@assistant-ui/store": "^0.2.9",
     "assistant-cloud": "*",
     "assistant-stream": "^0.3.12",
