@@ -65,8 +65,10 @@ export function PlatformScope({
   );
 }
 
-function isPlatform(value: string | null): value is Platform {
-  return value !== null && (PLATFORMS as readonly string[]).includes(value);
+export function isPlatform(
+  value: string | null | undefined,
+): value is Platform {
+  return value != null && (PLATFORMS as readonly string[]).includes(value);
 }
 
 const isBrowser = () => typeof window !== "undefined";
