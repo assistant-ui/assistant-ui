@@ -30,6 +30,22 @@ export function isNodeVisible(
   return isVisibleForPlatform(nodePlatforms(node), platform);
 }
 
+export function findPathToNode(
+  node: PageTree.Node,
+  pathname: string,
+): PageTree.Node[] | null {
+  if (node.type === "page") return pathname === node.url ? [node] : null;
+  if (node.type === "separator") return null;
+  if (node.index && pathname === node.index.url) return [node, node.index];
+
+  for (const child of node.children) {
+    const childPath = findPathToNode(child, pathname);
+    if (childPath) return [node, ...childPath];
+  }
+
+  return null;
+}
+
 function withoutPlatformFilter<T extends PageTree.Node>(node: T): T {
   const clone = { ...node } as T & { platforms?: readonly string[] };
   delete clone.platforms;

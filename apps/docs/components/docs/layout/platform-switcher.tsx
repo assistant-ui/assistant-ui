@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import type * as PageTree from "fumadocs-core/page-tree";
 import {
   Popover,
   PopoverContent,
@@ -16,12 +17,14 @@ import {
 } from "lucide-react";
 import {
   getPlatformSwitchHref,
+  PLATFORM_DOC_BASE_PATHS,
   PLATFORM_LABELS,
   PLATFORMS,
   type Platform,
   usePlatform,
 } from "@/components/docs/contexts/platform";
 import { cn } from "@/lib/utils";
+import { buildPlatformSections, isNodeVisible } from "./platform-tree";
 
 const PLATFORM_OPTIONS: Record<
   Platform,
@@ -48,12 +51,88 @@ const PLATFORM_OPTIONS: Record<
   },
 };
 
-export function PlatformSwitcher() {
+function isPathVisibleForPlatform(
+  visibleUrls: ReadonlySet<string>,
+  pathname: string,
+): boolean {
+  return visibleUrls.has(pathname);
+}
+
+function collectVisibleUrls(
+  node: PageTree.Node,
+  platform: Platform,
+  urls: Set<string>,
+): void {
+  if (!isNodeVisible(node, platform)) return;
+
+  if (node.type === "page") {
+    urls.add(node.url);
+    return;
+  }
+
+  if (node.type === "separator") return;
+
+  if (node.index && isNodeVisible(node.index, platform)) {
+    urls.add(node.index.url);
+  }
+
+  node.children.forEach((child) => {
+    collectVisibleUrls(child, platform, urls);
+  });
+}
+
+function getVisibleUrlsByPlatform(
+  tree: PageTree.Root | undefined,
+): Record<Platform, ReadonlySet<string>> {
+  const folders = (tree?.children ?? []).filter(
+    (node): node is PageTree.Folder => node.type === "folder",
+  );
+  const result: Record<Platform, Set<string>> = {
+    react: new Set(),
+    rn: new Set(),
+    ink: new Set(),
+  };
+
+  PLATFORMS.forEach((platform) => {
+    buildPlatformSections(folders, platform).forEach((section) => {
+      collectVisibleUrls(section, platform, result[platform]);
+    });
+  });
+
+  return result;
+}
+
+function getVisiblePlatformSwitchHref(
+  visibleUrls: ReadonlySet<string>,
+  pathname: string,
+  nextPlatform: Platform,
+): string {
+  const equivalentHref = getPlatformSwitchHref(pathname, nextPlatform);
+  if (equivalentHref && isPathVisibleForPlatform(visibleUrls, equivalentHref)) {
+    return equivalentHref;
+  }
+
+  if (isPathVisibleForPlatform(visibleUrls, pathname)) {
+    return pathname;
+  }
+
+  return PLATFORM_DOC_BASE_PATHS[nextPlatform];
+}
+
+export function PlatformSwitcher({
+  tree,
+}: {
+  tree?: PageTree.Root | undefined;
+}) {
   const [open, setOpen] = useState(false);
   const { platform, setPlatform } = usePlatform();
   const pathname = usePathname();
   const router = useRouter();
   const selected = PLATFORM_OPTIONS[platform];
+  const visibleUrlsByPlatform = useMemo(
+    () => getVisibleUrlsByPlatform(tree),
+    [tree],
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -82,9 +161,13 @@ export function PlatformSwitcher() {
               key={p}
               type="button"
               onClick={() => {
-                const href = getPlatformSwitchHref(pathname, p);
+                const href = getVisiblePlatformSwitchHref(
+                  visibleUrlsByPlatform[p],
+                  pathname,
+                  p,
+                );
+                if (href !== pathname) router.replace(href);
                 setPlatform(p);
-                if (href && href !== pathname) router.replace(href);
                 setOpen(false);
               }}
               className="flex items-center gap-2 rounded-lg p-1.5 text-start hover:bg-fd-accent hover:text-fd-accent-foreground"

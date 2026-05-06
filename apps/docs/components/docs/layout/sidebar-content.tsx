@@ -19,25 +19,10 @@ import { analytics } from "@/lib/analytics";
 import { PlatformSwitcher } from "./platform-switcher";
 import {
   buildPlatformSections,
+  findPathToNode,
   isNodeVisible,
   nodePlatforms,
 } from "./platform-tree";
-
-function findPathToNode(
-  node: PageTree.Node,
-  pathname: string,
-): PageTree.Node[] | null {
-  if (node.type === "page") return pathname === node.url ? [node] : null;
-  if (node.type === "separator") return null;
-  if (node.index && pathname === node.index.url) return [node, node.index];
-
-  for (const child of node.children) {
-    const childPath = findPathToNode(child, pathname);
-    if (childPath) return [node, ...childPath];
-  }
-
-  return null;
-}
 
 function SectionItem({
   item,
@@ -291,7 +276,7 @@ export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
         ref={navRef}
         className="sidebar-tree-content flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pt-4 pb-4"
       >
-        <PlatformSwitcher />
+        <PlatformSwitcher tree={tree} />
         {sections.map((section) => (
           <SidebarSection
             key={section.$id}

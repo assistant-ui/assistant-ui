@@ -19,7 +19,7 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
   ink: "React Ink",
 };
 
-const PLATFORM_DOC_BASE_PATHS: Record<Platform, string> = {
+export const PLATFORM_DOC_BASE_PATHS: Record<Platform, string> = {
   react: "/docs",
   rn: "/docs/react-native",
   ink: "/docs/ink",
