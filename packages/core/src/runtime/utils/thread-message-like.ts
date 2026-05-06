@@ -14,6 +14,7 @@ import type {
   ThreadSystemMessage,
   FileMessagePart,
   DataMessagePart,
+  GenerativeUIMessagePart,
   Unstable_AudioMessagePart,
 } from "../../types/message";
 import type { CompleteAttachment } from "../../types/attachment";
@@ -39,6 +40,7 @@ export type ThreadMessageLike = {
         | ImageMessagePart
         | FileMessagePart
         | DataMessagePart
+        | GenerativeUIMessagePart
         | Unstable_AudioMessagePart
         | DataPrefixedPart
         | {
@@ -146,6 +148,9 @@ export const fromThreadMessageLike = (
                 return sanitizeImageContent(part);
 
               case "data":
+                return part;
+
+              case "generative-ui":
                 return part;
 
               case "tool-call": {

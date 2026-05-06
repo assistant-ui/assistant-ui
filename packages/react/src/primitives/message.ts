@@ -8,6 +8,7 @@ export { MessagePrimitiveAttachmentByIndex as AttachmentByIndex } from "./messag
 export { MessagePrimitiveQuote as Quote } from "@assistant-ui/core/react";
 export { MessagePrimitiveError as Error } from "./message/MessageError";
 export { MessagePrimitiveGroupedParts as GroupedParts } from "@assistant-ui/core/react";
+export { MessagePrimitiveGenerativeUI as GenerativeUI } from "./generativeUI/MessageGenerativeUI";
 export {
   MessagePrimitiveUnstable_PartsGrouped as Unstable_PartsGrouped,
   MessagePrimitiveUnstable_PartsGroupedByParentId as Unstable_PartsGroupedByParentId,

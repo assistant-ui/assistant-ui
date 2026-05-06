@@ -291,6 +291,9 @@ export type {
   ImageMessagePart,
   FileMessagePart,
   DataMessagePart,
+  GenerativeUIMessagePart,
+  GenerativeUINode,
+  GenerativeUISpec,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
   MessageStatus,
@@ -332,8 +335,18 @@ export type {
   ReasoningGroupComponent,
   QuoteMessagePartComponent,
   QuoteMessagePartProps,
+  GenerativeUIComponentRegistry,
+  GenerativeUIMessagePartComponent,
+  GenerativeUIMessagePartProps,
+  GenerativeUIRenderProps,
   EnrichedPartState,
   PartState,
+} from "@assistant-ui/core/react";
+
+// Generative UI runtime error + headless renderer (re-exported from core)
+export {
+  GenerativeUIRender,
+  GenerativeUIRenderError,
 } from "@assistant-ui/core/react";
 
 // Thread list item types

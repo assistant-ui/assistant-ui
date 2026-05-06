@@ -3,6 +3,8 @@ import type {
   MessagePartStatus,
   DataMessagePart,
   FileMessagePart,
+  GenerativeUIMessagePart,
+  GenerativeUISpec,
   ImageMessagePart,
   ReasoningMessagePart,
   SourceMessagePart,
@@ -68,3 +70,36 @@ export type ToolCallMessagePartComponent<
 
 export type QuoteMessagePartProps = QuoteInfo;
 export type QuoteMessagePartComponent = ComponentType<QuoteMessagePartProps>;
+
+/**
+ * The consumer-provided allowlist of components a generative-ui spec is
+ * permitted to render. Keys are the component names referenced in the spec
+ * (e.g. `"Card"`, `"Button"`); values are the React components.
+ *
+ * This registry is the security boundary in the same-realm rendering path —
+ * any name not present in the registry is rejected with a typed error.
+ */
+export type GenerativeUIComponentRegistry = Record<string, ComponentType<any>>;
+
+export type GenerativeUIMessagePartProps = MessagePartState &
+  GenerativeUIMessagePart;
+export type GenerativeUIMessagePartComponent =
+  ComponentType<GenerativeUIMessagePartProps>;
+
+export type GenerativeUIRenderProps = {
+  /** The JSON spec to render. */
+  spec: GenerativeUISpec;
+  /** The component allowlist. */
+  components: GenerativeUIComponentRegistry;
+  /**
+   * Rendering strategy:
+   * - `"same-realm"` (default): render directly in the host realm, with the
+   *   allowlist as the security boundary.
+   * - `"iframe"`: render inside an isolated iframe via `safe-content-frame`.
+   *   The component instances run in the host realm but the spec is shipped
+   *   across the boundary, allowing CSS/origin isolation.
+   */
+  sandbox?: "same-realm" | "iframe" | undefined;
+  /** Optional fallback for unknown component names. */
+  Fallback?: ComponentType<{ component: string; props?: unknown }> | undefined;
+};
