@@ -666,6 +666,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
     const core = createCore(agent);
     await core.append(createAppendMessage());
+    const messageCountBeforeReject = core.getMessages().length;
 
     await expect(core.append(createAppendMessage())).rejects.toThrow(
       "Cannot start a new AG-UI run while interrupts are pending",
@@ -673,6 +674,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
     expect(runAgent).toHaveBeenCalledTimes(1);
     expect(core.getInterrupts()).toHaveLength(1);
+    expect(core.getMessages()).toHaveLength(messageCountBeforeReject);
   });
 
   it("rejects interrupt resumes while a run is already in progress", async () => {

@@ -148,6 +148,7 @@ export class AgUiThreadRuntimeCore {
 
   async append(message: AppendMessage): Promise<void> {
     const startRun = message.startRun ?? message.role === "user";
+    if (startRun) this.assertNoPendingInterrupts();
     if (message.sourceId) {
       this.messages = this.messages.filter(
         (entry) => entry.id !== message.sourceId,
@@ -161,7 +162,6 @@ export class AgUiThreadRuntimeCore {
     this.recordHistoryEntry(message.parentId ?? null, threadMessage);
 
     if (!startRun) return;
-    this.assertNoPendingInterrupts();
     await this.startRun(threadMessage.id, message.runConfig);
   }
 
