@@ -196,6 +196,8 @@ export class RemoteThreadListThreadListRuntimeCore
     this._hookManager.setRuntimeHook(options.runtimeHook);
 
     if (adapterChanged) {
+      this._loadGeneration++;
+      this._loadThreadsPromise = undefined;
       this._loadMorePromise = undefined;
       this._state.update({
         ...this._state.baseValue,

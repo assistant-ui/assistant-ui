@@ -241,7 +241,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     expect(core.threadIds).toEqual(["a", "b"]);
   });
 
-  it("__internal_setOptions clears the cursor on adapter swap without forcing a re-list", async () => {
+  it("__internal_setOptions clears cursor and dedup handles on adapter swap, then refetches via the new adapter", async () => {
     const firstAdapter = makeAdapter({
       list: vi.fn(async () => ({
         threads: [{ status: "regular", remoteId: "old", externalId: "old" }],
@@ -266,8 +266,8 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     expect(core.threadIds).toEqual(["old"]);
 
     await core.getLoadThreadsPromise();
-    expect(secondList).not.toHaveBeenCalled();
-    expect(core.threadIds).toEqual(["old"]);
+    expect(secondList).toHaveBeenCalledTimes(1);
+    expect(core.threadIds).toEqual(["new"]);
   });
 
   it("ignores an in-flight loadMore response when the adapter swaps mid-flight", async () => {
@@ -308,6 +308,38 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     expect(core.threadIds).toEqual(["p1"]);
     expect(core.hasMore).toBe(false);
     expect(core.isLoadingMore).toBe(false);
+  });
+
+  it("drops the in-flight initial list when the adapter swaps mid-flight", async () => {
+    const slow = deferred<RemoteThreadListResponse>();
+    const firstList = vi.fn<ListFn>().mockReturnValueOnce(slow.promise);
+    const firstAdapter = makeAdapter({ list: firstList });
+    const core = createCore(firstAdapter);
+
+    core.getLoadThreadsPromise();
+
+    const secondList = vi.fn<ListFn>().mockResolvedValueOnce({
+      threads: [{ status: "regular", remoteId: "fresh", externalId: "fresh" }],
+    });
+    const secondAdapter = makeAdapter({ list: secondList });
+    core.__internal_setOptions({
+      adapter: secondAdapter,
+      runtimeHook: () => ({}) as never,
+    });
+
+    slow.resolve({
+      threads: [{ status: "regular", remoteId: "stale", externalId: "stale" }],
+      nextCursor: "stale-cursor",
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(core.threadIds).toEqual([]);
+    expect(core.hasMore).toBe(false);
+
+    await core.getLoadThreadsPromise();
+    expect(secondList).toHaveBeenCalledTimes(1);
+    expect(core.threadIds).toEqual(["fresh"]);
   });
 
   it("dedupes thread ids that appear twice within a single page", async () => {
