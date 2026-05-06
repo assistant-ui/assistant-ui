@@ -233,14 +233,14 @@ export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
   }, [allFolders, pathname]);
 
   const activeNodePlatforms = useMemo(() => {
-    const platformNode = activePath
-      ?.slice()
-      .reverse()
-      .find((node) => {
-        const p = nodePlatforms(node);
-        return p !== undefined && p.length > 0;
-      });
-    return platformNode ? nodePlatforms(platformNode) : undefined;
+    if (!activePath) return undefined;
+
+    for (let i = activePath.length - 1; i >= 0; i--) {
+      const platforms = nodePlatforms(activePath[i]!);
+      if (platforms !== undefined && platforms.length > 0) return platforms;
+    }
+
+    return undefined;
   }, [activePath]);
 
   useEffect(() => {

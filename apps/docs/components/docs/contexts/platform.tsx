@@ -191,7 +191,9 @@ class PlatformStore {
   };
 
   syncUrlAndStore = () => {
-    this.setValue(this.getSnapshot());
+    const next = this.getSnapshot();
+    if (next === readStoredPlatform()) return;
+    this.setValue(next);
   };
 }
 

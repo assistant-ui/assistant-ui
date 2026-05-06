@@ -36,10 +36,7 @@ function withoutPlatformFilter<T extends PageTree.Node>(node: T): T {
   return clone;
 }
 
-export function hasVisibleContent(
-  node: PageTree.Node,
-  platform: Platform,
-): boolean {
+function hasVisibleContent(node: PageTree.Node, platform: Platform): boolean {
   if (!isNodeVisible(node, platform)) return false;
   if (node.type === "page") return true;
   if (node.type === "separator") return false;
@@ -121,7 +118,23 @@ export function buildPlatformSections(
   if (platformFolderName) {
     const platformFolder = folders.find((f) => f.name === platformFolderName);
     const docsFolder = folders.find((f) => f.name === config.mainDocsFolder);
-    if (!platformFolder || !docsFolder) return [];
+    if (!platformFolder || !docsFolder) {
+      const missingFolder = !docsFolder
+        ? config.mainDocsFolder
+        : platformFolderName;
+      if (process.env.NODE_ENV !== "production") {
+        throw new Error(`[platform-tree] Missing folder: ${missingFolder}`);
+      }
+
+      return folders
+        .filter(
+          (f) =>
+            !allPlatformFolderNames.has(String(f.name)) &&
+            isNodeVisible(f, platform),
+        )
+        .map((f) => filterChildren(f, platform))
+        .filter((f) => hasVisibleContent(f, platform));
+    }
 
     const merged = mergePlatformDocs(
       docsFolder,

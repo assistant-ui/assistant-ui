@@ -7,7 +7,7 @@ import {
   PLATFORM_LABELS,
   PLATFORMS,
   type Platform,
-  usePlatform,
+  usePlatformOrDefault,
 } from "@/components/docs/contexts/platform";
 
 const ITEMS = PLATFORMS.map((p) => PLATFORM_LABELS[p]);
@@ -21,7 +21,7 @@ export type PlatformTabsProps = Omit<
 >;
 
 export function PlatformTabs(props: PlatformTabsProps): React.ReactElement {
-  const { platform } = usePlatform();
+  const platform = usePlatformOrDefault();
   return (
     <PlatformTabsInner key={platform} defaultPlatform={platform} {...props} />
   );
