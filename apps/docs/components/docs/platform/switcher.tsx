@@ -22,9 +22,9 @@ import {
   PLATFORMS,
   type Platform,
   usePlatform,
-} from "@/components/docs/contexts/platform";
+} from "./context";
 import { cn } from "@/lib/utils";
-import { buildPlatformSections, isNodeVisible } from "./platform-tree";
+import { buildPlatformSections, isNodeVisible } from "./tree";
 
 const PLATFORM_OPTIONS: Record<
   Platform,

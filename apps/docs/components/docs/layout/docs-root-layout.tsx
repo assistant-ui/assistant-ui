@@ -16,7 +16,7 @@ import {
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { DocsAssistantRuntimeProvider } from "@/contexts/AssistantRuntimeProvider";
 import { CurrentPageProvider } from "@/components/docs/contexts/current-page";
-import { PlatformProvider } from "@/components/docs/contexts/platform";
+import { PlatformProvider } from "@/components/docs/platform/context";
 import { FloatingComposer } from "@/components/docs/assistant/floating-composer";
 
 type DocsRootLayoutProps = {

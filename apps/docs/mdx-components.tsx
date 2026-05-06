@@ -5,7 +5,6 @@ import { Callout } from "@/components/docs/fumadocs/callout";
 import { Card, Cards } from "@/components/docs/fumadocs/card";
 import { Step, Steps } from "@/components/docs/fumadocs/steps";
 import { Tab, Tabs } from "@/components/docs/fumadocs/tabs";
-import { PlatformTabs } from "@/components/docs/fumadocs/platform-tabs";
 import { TypeTable } from "fumadocs-ui/components/type-table";
 import defaultComponents from "fumadocs-ui/mdx";
 import {
@@ -15,8 +14,11 @@ import {
 } from "fumadocs-ui/components/codeblock";
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 import { ParametersTable } from "@/components/docs/parameters-table";
-import { PlatformAwareCode } from "@/components/docs/platform-aware-code";
-import { PlatformOnly } from "@/components/docs/platform-only";
+import {
+  PlatformAwareCode,
+  PlatformOnly,
+  PlatformTabs,
+} from "@/components/docs/platform/mdx";
 import { PrimitivesTypeTable } from "@/components/docs/primitives-type-table";
 import { SourceLink } from "@/components/docs/source-link";
 import { Code } from "@radix-ui/themes";

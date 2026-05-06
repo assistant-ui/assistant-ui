@@ -1,9 +1,6 @@
 import type { ReactNode } from "react";
 import type * as PageTree from "fumadocs-core/page-tree";
-import {
-  isVisibleForPlatform,
-  type Platform,
-} from "@/components/docs/contexts/platform";
+import { isVisibleForPlatform, type Platform } from "./context";
 
 export interface PlatformTreeConfig {
   mainDocsFolder: string;

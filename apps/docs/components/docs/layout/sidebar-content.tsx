@@ -12,17 +12,17 @@ import {
   isPlatform,
   usePlatform,
   type Platform,
-} from "@/components/docs/contexts/platform";
+} from "@/components/docs/platform/context";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import { analytics } from "@/lib/analytics";
-import { PlatformSwitcher } from "./platform-switcher";
+import { PlatformSwitcher } from "@/components/docs/platform/switcher";
 import {
   buildPlatformSections,
   findPathToNode,
   isNodeVisible,
   nodePlatforms,
-} from "./platform-tree";
+} from "@/components/docs/platform/tree";
 
 function SectionItem({
   item,
