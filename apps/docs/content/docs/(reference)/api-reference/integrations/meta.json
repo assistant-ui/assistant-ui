@@ -1,3 +1,6 @@
 {
-  "pages": ["vercel-ai-sdk", "react-data-stream", "react-hook-form"]
+  "title": "Integrations",
+  "description": "Package-level API reference for assistant-ui React integrations.",
+  "overview": "Integration packages adapt assistant-ui to framework libraries and adjacent React ecosystems. Use these pages when you need package-specific hook names, options, and helper exports.",
+  "pages": ["index", "vercel-ai-sdk", "react-data-stream", "react-hook-form"]
 }

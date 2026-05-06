@@ -1,6 +1,9 @@
 {
-  "title": "Runtime Hooks",
+  "title": "Runtime State",
+  "description": "Runtime action and state references used by useAui and useAuiState.",
+  "overview": "Runtime state pages document the objects exposed through `useAui` and `useAuiState`. Use this section when you need to control assistant-ui programmatically or inspect the exact state available in a context.",
   "pages": [
+    "index",
     "assistant-runtime",
     "attachment-runtime",
     "composer-runtime",

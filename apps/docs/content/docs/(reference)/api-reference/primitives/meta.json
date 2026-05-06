@@ -1,6 +1,9 @@
 {
-  "title": "Radix UI Primitives",
+  "title": "Primitives",
+  "description": "Generated API reference for assistant-ui React primitive namespaces and parts.",
+  "overview": "Primitives are the composable React components exported from `@assistant-ui/react`. These pages focus on parts, props, rendered elements, and composition behavior.",
   "pages": [
+    "index",
     "action-bar",
     "action-bar-more",
     "assistant-if",

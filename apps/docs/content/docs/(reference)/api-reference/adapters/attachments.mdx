@@ -1,0 +1,34 @@
+---
+title: Attachment Adapters
+description: Upload and compose file attachment handlers.
+---
+
+Attachment adapters control how files become assistant-ui attachments.
+
+```tsx
+import {
+  CompositeAttachmentAdapter,
+  SimpleImageAttachmentAdapter,
+  SimpleTextAttachmentAdapter,
+  useLocalRuntime,
+} from "@assistant-ui/react";
+
+const attachments = new CompositeAttachmentAdapter([
+  new SimpleImageAttachmentAdapter(),
+  new SimpleTextAttachmentAdapter(),
+]);
+
+const runtime = useLocalRuntime(chatModelAdapter, {
+  adapters: { attachments },
+});
+```
+
+## Common Exports
+
+- `AttachmentAdapter` is the interface for custom attachment handling.
+- `SimpleImageAttachmentAdapter` converts supported image files.
+- `SimpleTextAttachmentAdapter` converts supported text files.
+- `CompositeAttachmentAdapter` tries multiple attachment adapters in order.
+- `CloudFileAttachmentAdapter` uploads files through Assistant Cloud.
+
+For a custom implementation guide, see [Custom Attachment Adapter](/docs/integrations/attachments/custom-adapter).

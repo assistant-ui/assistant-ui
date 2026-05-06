@@ -1,0 +1,6 @@
+{
+  "title": "Context Providers",
+  "description": "Context providers that establish assistant-ui runtime and message-part scopes.",
+  "overview": "Context providers establish the scopes that primitives and hooks read from. Most apps only use `AssistantRuntimeProvider` directly; lower-level providers are for custom renderers and advanced composition.",
+  "pages": ["index", "assistant-runtime-provider", "text-message-part-provider"]
+}

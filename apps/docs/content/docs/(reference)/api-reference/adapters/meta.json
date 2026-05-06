@@ -1,0 +1,6 @@
+{
+  "title": "Adapters",
+  "description": "Interfaces for persistence, files, speech, dictation, feedback, suggestions, and runtime composition.",
+  "overview": "Adapters let you replace runtime behavior without replacing the UI. They are usually passed through runtime options or provided by integration packages.",
+  "pages": ["index", "runtime", "attachments", "persistence", "feedback-speech"]
+}

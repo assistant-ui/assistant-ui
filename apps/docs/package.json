@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "pnpm generate:docs && next build",
-    "generate:docs": "tsx ./scripts/generate-docs.mts && tsx ./scripts/generate-primitive-docs.mts && tsx ./scripts/generate-source-snapshot.mts",
+    "generate:docs": "tsx ./scripts/generate-docs.mts && tsx ./scripts/generate-primitive-docs.mts && tsx ./scripts/generate-api-reference-overviews.mts && tsx ./scripts/generate-source-snapshot.mts",
     "dev": "pnpm generate:docs && next dev",
     "start": "next start",
     "postinstall": "fumadocs-mdx"

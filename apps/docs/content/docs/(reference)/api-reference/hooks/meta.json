@@ -1,0 +1,6 @@
+{
+  "title": "Hooks",
+  "description": "Reactive state, runtime creation, model context, and utility hooks for React.",
+  "overview": "Hooks are the programmatic layer of `@assistant-ui/react`. Use them when primitives are not enough: reading state, creating runtimes, registering tools, wiring model context, or building custom behavior around the assistant runtime.",
+  "pages": ["index", "state", "runtimes", "model-context", "utilities"]
+}
