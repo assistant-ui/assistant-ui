@@ -38,12 +38,14 @@ Framework integrations that pair with assistant-ui at the API-route layer.
     description="The canonical first-party adapter. Full setup lives under runtimes; this entry is the architectural pointer."
     href="/docs/integrations/frameworks/ai-sdk"
   />
-  <Card
-    icon={<MastraIcon width={20} height={20} />}
-    title="Mastra"
-    description="TypeScript agent framework. Routed through the AI SDK runtime, full-stack or separate server."
-    href="/docs/integrations/frameworks/mastra/overview"
-  />
+  <PlatformOnly platforms={["react"]}>
+    <Card
+      icon={<MastraIcon width={20} height={20} />}
+      title="Mastra"
+      description="TypeScript agent framework. Routed through the AI SDK runtime, full-stack or separate server."
+      href="/docs/integrations/frameworks/mastra/overview"
+    />
+  </PlatformOnly>
 </Cards>
 
 ## Tools
@@ -94,6 +96,8 @@ Log, monitor, trace, and evaluate LLM calls. These pair with any runtime.
   />
 </Cards>
 
+<PlatformOnly platforms={["react"]}>
+
 ## Auth
 
 Gate the chat route and scope thread data to the signed-in user. These pages are the **non-cloud** path; pair with [custom thread persistence](/docs/integrations/persistence/custom-adapter) when you own the database.
@@ -117,6 +121,8 @@ Gate the chat route and scope thread data to the signed-in user. These pages are
 </Cards>
 
 For AssistantCloud users, [cloud authorization](/docs/cloud/authorization) handles the JWT exchange for Clerk, Auth0, Supabase, and Firebase without DB code.
+
+</PlatformOnly>
 
 ## Persistence
 

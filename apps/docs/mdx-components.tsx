@@ -16,6 +16,7 @@ import {
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 import { ParametersTable } from "@/components/docs/parameters-table";
 import { PlatformAwareCode } from "@/components/docs/platform-aware-code";
+import { PlatformOnly } from "@/components/docs/platform-only";
 import { PrimitivesTypeTable } from "@/components/docs/primitives-type-table";
 import { SourceLink } from "@/components/docs/source-link";
 import { Code } from "@radix-ui/themes";
@@ -53,6 +54,7 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     Accordion,
     Accordions,
     Kbd,
+    PlatformOnly,
     InstallCommand,
     ParametersTable,
     PrimitivesTypeTable,
