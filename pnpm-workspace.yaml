@@ -5,6 +5,7 @@ packages:
   - templates/*
 
 ignoredBuiltDependencies:
+  - '@google/genai'
   - '@modelcontextprotocol/ext-apps'
   - '@mongodb-js/zstd'
   - node-liblzma
