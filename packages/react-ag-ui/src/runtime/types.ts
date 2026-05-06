@@ -48,9 +48,10 @@ export type UseAgUiRuntimeOptions = {
 };
 
 /**
- * Compatibility contracts for the AG-UI interrupt protocol.
- * Replace these with imports from @ag-ui/client once a release after the
- * checked 0.0.52/0.0.53 packages exports the official types.
+ * Compatibility contracts for the AG-UI interrupt protocol. Replace with
+ * imports from @ag-ui/client once it exports the official types.
+ *
+ * @experimental
  */
 export type AgUiInterruptReason =
   | "tool_call"
@@ -58,6 +59,9 @@ export type AgUiInterruptReason =
   | "confirmation"
   | (string & {});
 
+/**
+ * @experimental
+ */
 export type AgUiInterrupt = {
   id: string;
   reason: AgUiInterruptReason;
@@ -68,12 +72,18 @@ export type AgUiInterrupt = {
   metadata?: Record<string, unknown>;
 };
 
+/**
+ * @experimental
+ */
 export type AgUiResumeEntry = {
   interruptId: string;
   status: "resolved" | "cancelled";
   payload?: unknown;
 };
 
+/**
+ * @experimental
+ */
 export type AgUiRunFinishedOutcome =
   | { type: "success" }
   | { type: "interrupt"; interrupts: readonly AgUiInterrupt[] };

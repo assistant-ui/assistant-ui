@@ -70,6 +70,9 @@ export const createAgUiSubscriber = (
   options: SubscriberOptions,
 ): Subscriber => {
   const { dispatch, runId, onRunFailed } = options;
+  // RUN_FINISHED arrives via onRunFinishedEvent (with outcome) or
+  // onRunFinalized (lifecycle-only); suppress the latter when the former fired
+  // so the parsed outcome isn't clobbered by a synthetic duplicate.
   let runFinishedDispatched = false;
   return {
     onEvent: ({ event }) => {
@@ -132,7 +135,7 @@ export const createAgUiSubscriber = (
     onRawEvent: ({ event }) => dispatchIfValid(dispatch, event, "RAW"),
     onRunFinishedEvent: ({ event }) => {
       const parsed = ensureEvent(event, "RUN_FINISHED");
-      if (!parsed) return;
+      if (!parsed || parsed.type !== "RUN_FINISHED") return;
       runFinishedDispatched = true;
       dispatch(parsed);
     },

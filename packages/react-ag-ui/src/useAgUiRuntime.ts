@@ -45,14 +45,25 @@ const asAgUiRuntimeExtras = (extras: unknown): AgUiRuntimeExtras => {
   return extras as AgUiRuntimeExtras;
 };
 
+/**
+ * @experimental
+ */
 export const useAgUiInterrupts = () => {
   return useAuiState((s) => {
+    // empty-thread-core ships extras: undefined, so guard before unwrapping
     const extras = s.thread.extras;
     if (!extras) return EMPTY_INTERRUPTS;
     return asAgUiRuntimeExtras(extras).interrupts;
   });
 };
 
+/**
+ * Submits resume decisions for the pending AG-UI interrupts. The protocol is
+ * all-or-nothing: every pending interrupt id must appear exactly once with
+ * status `resolved` or `cancelled`.
+ *
+ * @experimental
+ */
 export const useAgUiResumeInterrupts = () => {
   const aui = useAui();
   return useCallback(
@@ -158,6 +169,16 @@ export function useAgUiRuntime(
     [adapters, runtimeAdapters, threadList],
   );
 
+  const interrupts = core.getInterrupts();
+  const extras = useMemo<AgUiRuntimeExtras>(
+    () => ({
+      [symbolAgUiRuntimeExtras]: true,
+      interrupts,
+      resumeInterrupts: (entries) => core.resumeInterrupts(entries),
+    }),
+    [core, interrupts],
+  );
+
   const toolInvocations = useToolInvocations({
     state: {
       messages: core.getMessages(),
@@ -207,11 +228,7 @@ export function useAgUiRuntime(
             options.toolCallId,
             options.payload,
           ),
-        extras: {
-          [symbolAgUiRuntimeExtras]: true,
-          interrupts: core.getInterrupts(),
-          resumeInterrupts: (entries) => core.resumeInterrupts(entries),
-        } satisfies AgUiRuntimeExtras,
+        extras,
         setMessages: (messages: readonly ThreadMessage[]) =>
           core.applyExternalMessages(messages),
         onImport: (messages: readonly ThreadMessage[]) =>
@@ -223,7 +240,7 @@ export function useAgUiRuntime(
     },
     // _version is intentionally included to trigger re-computation when core state changes via notifyUpdate
     // toolInvocations intentionally excluded: abort/resume use refs internally and work with stale captures
-    [adapterAdapters, core, _version, hasExecutingTools],
+    [adapterAdapters, core, _version, hasExecutingTools, extras],
   );
 
   const runtime = useExternalStoreRuntime(store);

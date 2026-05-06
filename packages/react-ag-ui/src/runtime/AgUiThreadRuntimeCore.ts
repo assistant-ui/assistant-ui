@@ -197,6 +197,15 @@ export class AgUiThreadRuntimeCore {
     );
   }
 
+  /**
+   * Resume a paused run by submitting decisions for every pending interrupt.
+   *
+   * The AG-UI interrupt protocol is all-or-nothing: `entries` must address
+   * every pending interrupt id exactly once with `resolved` or `cancelled`.
+   * Throws if a run is already in progress, if any entry references an
+   * unknown id, if any id appears twice, or if any pending interrupt is
+   * unaddressed.
+   */
   async resumeInterrupts(entries: readonly AgUiResumeEntry[]): Promise<void> {
     if (this.isRunningFlag) {
       throw new Error("Cannot resume AG-UI interrupts while a run is active");
@@ -316,9 +325,7 @@ export class AgUiThreadRuntimeCore {
     this.lastRunConfig = normalizedRunConfig;
     this.resetHead(parentId);
     const historicalMessages = [...this.messages];
-    if (this.pendingInterrupts.length > 0 || resumeEntries) {
-      this.pendingInterrupts = [];
-    }
+    this.pendingInterrupts = [];
 
     const runId = generateId();
     this.pendingError = null;
