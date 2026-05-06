@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Tabs, escapeValue, type TabsProps } from "./tabs";
 import {
   PlatformScope,
@@ -22,11 +22,19 @@ export type PlatformTabsProps = Omit<
 
 export function PlatformTabs(props: PlatformTabsProps): React.ReactElement {
   const { platform } = usePlatform();
+
+  // Local tab selection previews this group only, does not update
+  // global platform, global overrides this on navigation.
   const [localPlatform, setLocalPlatform] = useState(platform);
 
   useEffect(() => {
     setLocalPlatform(platform);
   }, [platform]);
+
+  const handleValueChange = useCallback((value: string) => {
+    const next = VALUE_TO_PLATFORM[value];
+    if (next) setLocalPlatform(next);
+  }, []);
 
   return (
     <PlatformScope platform={localPlatform}>
@@ -34,10 +42,7 @@ export function PlatformTabs(props: PlatformTabsProps): React.ReactElement {
         {...props}
         items={ITEMS}
         value={escapeValue(PLATFORM_LABELS[localPlatform])}
-        onValueChange={(v) => {
-          const next = VALUE_TO_PLATFORM[v];
-          if (next) setLocalPlatform(next);
-        }}
+        onValueChange={handleValueChange}
       />
     </PlatformScope>
   );

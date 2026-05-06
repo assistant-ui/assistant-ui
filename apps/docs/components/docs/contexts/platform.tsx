@@ -189,13 +189,7 @@ class PlatformStore {
   };
 
   syncUrlAndStore = () => {
-    if (!isBrowser()) return;
-    const next = this.getSnapshot();
-    try {
-      window.localStorage.setItem(STORAGE_KEY, next);
-    } catch {}
-    writeUrlPlatform(next);
-    this.notify();
+    this.setValue(this.getSnapshot());
   };
 }
 

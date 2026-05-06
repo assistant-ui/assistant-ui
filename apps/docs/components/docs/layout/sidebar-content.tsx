@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
 import {
   isVisibleForPlatform,
+  PLATFORMS,
   usePlatform,
   type Platform,
 } from "@/components/docs/contexts/platform";
@@ -44,6 +45,10 @@ function nodePlatforms(node: PageTree.Node): readonly string[] | undefined {
 
 function isNodeVisible(node: PageTree.Node, platform: Platform): boolean {
   return isVisibleForPlatform(nodePlatforms(node), platform);
+}
+
+function isPlatform(value: string): value is Platform {
+  return (PLATFORMS as readonly string[]).includes(value);
 }
 
 function withoutPlatformFilter<T extends PageTree.Node>(node: T): T {
@@ -295,15 +300,24 @@ export function SidebarContent({ tree }: SidebarContentProps) {
   const platformRef = useRef(platform);
   platformRef.current = platform;
 
-  useEffect(() => {
-    const allFolders = (tree?.children ?? []).filter(
-      (n): n is PageTree.Folder => n.type === "folder",
-    );
-    let activePath: PageTree.Node[] | null = null;
+  const allFolders = useMemo(
+    () =>
+      (tree?.children ?? []).filter(
+        (n): n is PageTree.Folder => n.type === "folder",
+      ),
+    [tree],
+  );
+
+  const activePath = useMemo(() => {
     for (const folder of allFolders) {
-      activePath = findPathToNode(folder, pathname);
-      if (activePath) break;
+      const path = findPathToNode(folder, pathname);
+      if (path) return path;
     }
+
+    return null;
+  }, [allFolders, pathname]);
+
+  const activeNodePlatforms = useMemo(() => {
     const platformNode = activePath
       ?.slice()
       .reverse()
@@ -311,20 +325,22 @@ export function SidebarContent({ tree }: SidebarContentProps) {
         const platforms = nodePlatforms(node);
         return platforms !== undefined && platforms.length > 0;
       });
-    const platforms = platformNode ? nodePlatforms(platformNode) : undefined;
-    if (!platforms || platforms.length === 0) return;
-    if (platforms.includes(platformRef.current)) return;
-    const next = platforms.find((p) => p === "rn" || p === "ink");
+
+    return platformNode ? nodePlatforms(platformNode) : undefined;
+  }, [activePath]);
+
+  useEffect(() => {
+    if (!activeNodePlatforms || activeNodePlatforms.length === 0) return;
+    if (activeNodePlatforms.includes(platformRef.current)) return;
+
+    const next = activeNodePlatforms.find(isPlatform);
     if (next) setPlatform(next);
-  }, [pathname, setPlatform, tree]);
+  }, [activeNodePlatforms, setPlatform]);
 
   // React keeps the full docs tree. React Native and React Ink use only their
   // own platform folder, displayed under the normal "Docs" section label.
   const sections = useMemo<PageTree.Folder[]>(() => {
-    if (!tree?.children) return [];
-    const allFolders = tree.children.filter(
-      (n): n is PageTree.Folder => n.type === "folder",
-    );
+    if (allFolders.length === 0) return [];
 
     const injectName = PLATFORM_INJECTED_FOLDER[platform];
     const injectFolder = injectName
@@ -389,12 +405,13 @@ export function SidebarContent({ tree }: SidebarContentProps) {
         children: pruneEmptySeparators(f.children, platform),
       }))
       .filter((f) => hasVisibleContent(f, platform));
-  }, [tree, platform]);
+  }, [allFolders, platform]);
 
   const activeSectionId = useMemo(() => {
-    const match = sections.find((s) => findPathToNode(s, pathname) !== null);
+    const activeIds = new Set(activePath?.map((node) => node.$id));
+    const match = sections.find((section) => activeIds.has(section.$id));
     return match?.$id ?? sections[0]?.$id ?? null;
-  }, [sections, pathname]);
+  }, [sections, activePath]);
 
   const [openSectionId, setOpenSectionId] = useState<string | null>(
     activeSectionId,

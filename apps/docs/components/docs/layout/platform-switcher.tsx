@@ -23,18 +23,6 @@ import {
 } from "@/components/docs/contexts/platform";
 import { cn } from "@/lib/utils";
 
-const PLATFORM_DESCRIPTIONS: Record<Platform, string> = {
-  react: "For React web apps",
-  rn: "For React Native apps",
-  ink: "For Ink CLI apps",
-};
-
-const PLATFORM_ICONS: Record<Platform, typeof Monitor> = {
-  react: Monitor,
-  rn: Smartphone,
-  ink: Terminal,
-};
-
 const PLATFORM_OPTIONS: Record<
   Platform,
   {
@@ -42,23 +30,23 @@ const PLATFORM_OPTIONS: Record<
     description: string;
     Icon: typeof Monitor;
   }
-> = Object.fromEntries(
-  PLATFORMS.map((p) => [
-    p,
-    {
-      label: PLATFORM_LABELS[p],
-      description: PLATFORM_DESCRIPTIONS[p],
-      Icon: PLATFORM_ICONS[p],
-    },
-  ]),
-) as Record<
-  Platform,
-  {
-    label: string;
-    description: string;
-    Icon: typeof Monitor;
-  }
->;
+> = {
+  react: {
+    label: PLATFORM_LABELS.react,
+    description: "For React web apps",
+    Icon: Monitor,
+  },
+  rn: {
+    label: PLATFORM_LABELS.rn,
+    description: "For React Native apps",
+    Icon: Smartphone,
+  },
+  ink: {
+    label: PLATFORM_LABELS.ink,
+    description: "For Ink CLI apps",
+    Icon: Terminal,
+  },
+};
 
 export function PlatformSwitcher() {
   const [open, setOpen] = useState(false);
@@ -71,7 +59,7 @@ export function PlatformSwitcher() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         className={cn(
-          "mb-3 flex w-full items-center gap-2 rounded-lg rounded-md border bg-fd-secondary/50 p-2 text-start text-fd-secondary-foreground transition-colors hover:bg-fd-accent data-[state=open]:bg-fd-accent data-[state=open]:text-fd-accent-foreground",
+          "mb-3 flex w-full items-center gap-2 rounded-lg border bg-fd-secondary/50 p-2 text-start text-fd-secondary-foreground transition-colors hover:bg-fd-accent data-[state=open]:bg-fd-accent data-[state=open]:text-fd-accent-foreground",
         )}
       >
         <div className="size-9 shrink-0 empty:hidden md:size-5">
