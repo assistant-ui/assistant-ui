@@ -14,7 +14,7 @@
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "@langchain/langgraph-sdk": "^1.9.1",
-    "@langchain/react": "^1.0.1",
+    "@langchain/react": "^0.3.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.14.0",

@@ -40,7 +40,7 @@
     "assistant-stream": "^0.3.12"
   },
   "peerDependencies": {
-    "@langchain/react": "^0.3.3 || ^1.0.1",
+    "@langchain/react": "^0.3.3",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
@@ -53,7 +53,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@langchain/core": "^1.1.44",
     "@langchain/langgraph-sdk": "^1.9.1",
-    "@langchain/react": "^1.0.1",
+    "@langchain/react": "^0.3.3",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
     "jsdom": "^29.1.1",
