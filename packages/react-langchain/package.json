@@ -40,7 +40,7 @@
     "assistant-stream": "^0.3.12"
   },
   "peerDependencies": {
-    "@langchain/react": "^0.3.3",
+    "@langchain/react": "^0.3.3 || ^1.0.1",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
