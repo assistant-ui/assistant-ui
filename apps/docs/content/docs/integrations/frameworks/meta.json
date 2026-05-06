@@ -1,5 +1,4 @@
 {
   "title": "Frameworks",
-  "platforms": ["react"],
   "pages": ["ai-sdk", "mastra"]
 }
