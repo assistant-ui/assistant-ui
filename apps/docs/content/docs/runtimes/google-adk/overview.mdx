@@ -26,7 +26,23 @@ The package automatically normalizes snake_case event fields from ADK Python bac
 
 ## Install
 
+<PlatformTabs>
+<Tab value="React">
+
 <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-google-adk", "@google/adk"]} />
+
+</Tab>
+<Tab value="React Native">
+
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-google-adk"]} />
+
+</Tab>
+<Tab value="React Ink">
+
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/react-google-adk", "ink", "react"]} />
+
+</Tab>
+</PlatformTabs>
 
 <Callout type="info">
 `@google/adk` is only needed on the server side. The client-side runtime has no dependency on it.
