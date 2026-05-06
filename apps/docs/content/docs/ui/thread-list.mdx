@@ -172,6 +172,22 @@ A button to create a new thread.
   ]}
 />
 
+### ThreadListPrimitive.LoadMore
+
+A button that appends the next page of threads. See the [LoadMore primitive reference](/docs/primitives/thread-list#loadmore) for usage and [Threads concepts](/docs/runtimes/concepts/threads#paginating-the-thread-list) for the adapter contract.
+
+<ParametersTable
+  type="ThreadListPrimitiveLoadMoreProps"
+  parameters={[
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Merge props with child element instead of rendering a wrapper button.",
+    },
+  ]}
+/>
+
 ### ThreadListItemPrimitive.Root
 
 Container for a single thread item. Automatically sets `data-active` and `aria-current` when this is the current thread.

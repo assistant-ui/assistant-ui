@@ -235,6 +235,7 @@ export { useThreadListItemDelete } from "./primitive-hooks/useThreadListItemDele
 export { useThreadListItemUnarchive } from "./primitive-hooks/useThreadListItemUnarchive";
 export { useThreadListItemTrigger } from "./primitive-hooks/useThreadListItemTrigger";
 export { useThreadListNew } from "./primitive-hooks/useThreadListNew";
+export { useThreadListLoadMore } from "./primitive-hooks/useThreadListLoadMore";
 export { useEditComposerCancel } from "./primitive-hooks/useEditComposerCancel";
 export { useEditComposerSend } from "./primitive-hooks/useEditComposerSend";
 export { useMessageError } from "./primitive-hooks/useMessageError";

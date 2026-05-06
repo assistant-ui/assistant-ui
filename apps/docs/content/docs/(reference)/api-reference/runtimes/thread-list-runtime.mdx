@@ -22,6 +22,9 @@ await aui.threads().switchToThread(threadId);
 // (e.g. after async auth completes)
 await aui.threads().reload();
 
+// Append the next page of threads when the adapter returned a `nextCursor`
+await aui.threads().loadMore();
+
 // Access the main thread runtime
 const mainThread = aui.threads().main;
 
@@ -51,6 +54,8 @@ import { useAuiState } from "@assistant-ui/react";
 
 const threads = useAuiState((s) => s.threads.threadIds);
 const isLoading = useAuiState((s) => s.threads.isLoading);
+const hasMore = useAuiState((s) => s.threads.hasMore);
+const isLoadingMore = useAuiState((s) => s.threads.isLoadingMore);
 ```
 
 <ParametersTable {...ThreadListState} />

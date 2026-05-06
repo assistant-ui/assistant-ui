@@ -63,9 +63,9 @@
     "prepack": "pnpm run build"
   },
   "dependencies": {
-    "@clack/prompts": "^1.2.0",
+    "@clack/prompts": "^1.3.0",
     "picocolors": "^1.1.1",
-    "tar": "^7.5.13"
+    "tar": "^7.5.14"
   },
   "peerDependencies": {
     "@modelcontextprotocol/ext-apps": ">=0.4.0",

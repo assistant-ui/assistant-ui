@@ -31,8 +31,8 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^3.0.8",
-    "@assistant-ui/core": "^0.1.15",
+    "@ai-sdk/provider": "^3.0.10",
+    "@assistant-ui/core": "^0.1.17",
     "assistant-cloud": "*",
     "assistant-stream": "^0.3.12"
   },

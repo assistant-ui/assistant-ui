@@ -34,7 +34,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.16",
+    "@assistant-ui/core": "^0.1.17",
     "@assistant-ui/store": "^0.2.9",
     "assistant-cloud": "*",
     "assistant-stream": "^0.3.12"
@@ -51,12 +51,12 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@langchain/core": "^1.1.42",
-    "@langchain/langgraph-sdk": "^1.8.9",
+    "@langchain/core": "^1.1.44",
+    "@langchain/langgraph-sdk": "^1.9.1",
     "@langchain/react": "^0.3.3",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.14",
-    "jsdom": "^29.1.0",
+    "jsdom": "^29.1.1",
     "react": "^19.2.5",
     "vitest": "^4.1.5"
   },

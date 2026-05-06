@@ -1,0 +1,28 @@
+---
+"assistant-stream": patch
+"assistant-ui": patch
+"@assistant-ui/cloud-ai-sdk": patch
+"@assistant-ui/core": patch
+"heat-graph": patch
+"mcp-app-studio": patch
+"@assistant-ui/mcp-docs-server": patch
+"@assistant-ui/react-a2a": patch
+"@assistant-ui/react-ag-ui": patch
+"@assistant-ui/react-ai-sdk": patch
+"@assistant-ui/react-data-stream": patch
+"@assistant-ui/react-devtools": patch
+"@assistant-ui/react-google-adk": patch
+"@assistant-ui/react-hook-form": patch
+"@assistant-ui/react-ink-markdown": patch
+"@assistant-ui/react-ink": patch
+"@assistant-ui/react-langchain": patch
+"@assistant-ui/react-langgraph": patch
+"@assistant-ui/react-native": patch
+"@assistant-ui/react-opencode": patch
+"@assistant-ui/react": patch
+"@assistant-ui/store": patch
+"@assistant-ui/tap": patch
+"@assistant-ui/x-buildutils": patch
+---
+
+chore: update dependencies
