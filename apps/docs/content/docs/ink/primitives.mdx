@@ -273,6 +273,30 @@ Triggers attachment addition.
 </ComposerPrimitive.AddAttachment>
 ```
 
+### Queue
+
+Renders all queued composer items. Each item is wrapped in a `QueueItemByIndexProvider`, so `QueueItemPrimitive.*` can read item state and call queue actions inside the render prop. Backed by the shared `ComposerPrimitiveQueue` from `@assistant-ui/core/react`.
+
+```tsx
+<ComposerPrimitive.Queue>
+  {({ queueItem }) => (
+    <Box>
+      <QueueItemPrimitive.Text />
+      <QueueItemPrimitive.Steer>
+        <Text color="cyan">[Run Now]</Text>
+      </QueueItemPrimitive.Steer>
+      <QueueItemPrimitive.Remove>
+        <Text color="red">[x]</Text>
+      </QueueItemPrimitive.Remove>
+    </Box>
+  )}
+</ComposerPrimitive.Queue>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `(value: { queueItem: QueueItemState }) => ReactNode` | Render function called for each queue item |
+
 ### Conditional Rendering (Composer)
 
 Use `AuiIf` for conditional rendering based on composer state:
@@ -488,6 +512,75 @@ Pressable that removes the attachment from the composer.
     <Text color="red">[x]</Text>
   </AttachmentPrimitive.Remove>
 </AttachmentPrimitive.Root>
+```
+
+## QueueItem
+
+```tsx
+import { QueueItemPrimitive } from "@assistant-ui/react-ink";
+```
+
+Primitives for rendering individual queued composer items. Use inside a `ComposerPrimitive.Queue` render prop, where the queue item context is set up by `QueueItemByIndexProvider`.
+
+### Text
+
+Renders the queue item's prompt with Ink `<Text>`. Pass `children` to override the displayed value.
+
+```tsx
+<QueueItemPrimitive.Text color="gray" />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Override content; defaults to `s.queueItem.prompt` |
+| `...rest` | `TextProps` | Standard Ink Text props |
+
+### Remove
+
+Pressable that removes the queue item by calling `aui.queueItem().remove()`.
+
+```tsx
+<QueueItemPrimitive.Remove>
+  <Text color="red">[x]</Text>
+</QueueItemPrimitive.Remove>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Button content |
+| `disabled` | `boolean` | Disable Enter activation and focus |
+| `...rest` | `Omit<PressableProps, "onPress" \| "children" \| "disabled">` | Standard Ink Box props forwarded to the underlying `Pressable` |
+
+### Steer
+
+Pressable that promotes the queue item to run next by calling `aui.queueItem().steer()`.
+
+```tsx
+<QueueItemPrimitive.Steer>
+  <Text color="cyan">[Run Now]</Text>
+</QueueItemPrimitive.Steer>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Button content |
+| `disabled` | `boolean` | Disable Enter activation and focus |
+| `...rest` | `Omit<PressableProps, "onPress" \| "children" \| "disabled">` | Standard Ink Box props forwarded to the underlying `Pressable` |
+
+```tsx
+<ComposerPrimitive.Queue>
+  {({ queueItem }) => (
+    <Box gap={1}>
+      <QueueItemPrimitive.Text color="gray" />
+      <QueueItemPrimitive.Steer>
+        <Text color="cyan">[Run Now]</Text>
+      </QueueItemPrimitive.Steer>
+      <QueueItemPrimitive.Remove>
+        <Text color="red">[x]</Text>
+      </QueueItemPrimitive.Remove>
+    </Box>
+  )}
+</ComposerPrimitive.Queue>
 ```
 
 ## ActionBar

@@ -23,3 +23,4 @@ export {
   type ComposerAddAttachmentProps as AddAttachmentProps,
 } from "./composer/ComposerAddAttachment";
 export { ComposerIf as If } from "./composer/ComposerIf";
+export { ComposerQueue as Queue } from "./composer/ComposerQueue";
