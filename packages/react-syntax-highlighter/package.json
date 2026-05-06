@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-syntax-highlighter",
-  "version": "0.12.9",
+  "version": "1.0.0",
   "description": "Syntax highlighting for assistant-ui",
   "keywords": [
     "syntax-highlighter",
@@ -37,8 +37,8 @@
     "build": "aui-build"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.28",
-    "@assistant-ui/react-markdown": "^0.12.11",
+    "@assistant-ui/react": "^0.13.0",
+    "@assistant-ui/react-markdown": "^1.0.0",
     "@types/react": "*",
     "@types/react-syntax-highlighter": "*",
     "react": "^18 || ^19",

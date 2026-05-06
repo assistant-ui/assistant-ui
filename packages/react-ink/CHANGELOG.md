@@ -1,5 +1,19 @@
 # @assistant-ui/react-ink
 
+## 0.0.14
+
+### Patch Changes
+
+- [#3932](https://github.com/assistant-ui/assistant-ui/pull/3932) [`6700da5`](https://github.com/assistant-ui/assistant-ui/commit/6700da5a4a435779311eb7db90211738b18f55c9) - feat: re-export RuntimeAdapterProvider, useRuntimeAdapters, and CompleteAttachment ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+- [#3962](https://github.com/assistant-ui/assistant-ui/pull/3962) [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`7098bab`](https://github.com/assistant-ui/assistant-ui/commit/7098bab4c67fbd507c3fad746ef130daa01b3fd6), [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94), [`5fdf17e`](https://github.com/assistant-ui/assistant-ui/commit/5fdf17e019c91b000c6f4cf9e3e56c89d764a435)]:
+  - @assistant-ui/core@0.1.18
+  - assistant-stream@0.3.13
+  - @assistant-ui/store@0.2.10
+  - @assistant-ui/tap@0.5.11
+
 ## 0.0.13
 
 ### Patch Changes

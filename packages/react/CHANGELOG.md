@@ -1,5 +1,75 @@
 # @assistant-ui/react
 
+## 0.13.0
+
+### Minor Changes
+
+- [#3908](https://github.com/assistant-ui/assistant-ui/pull/3908) [`d864d07`](https://github.com/assistant-ui/assistant-ui/commit/d864d0709d9db5f8e042e62cf1f40669f087ba68) - fix: robust top-turn anchoring with viewport-owned reserve ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+  **Migration:**
+  - Remove `ThreadPrimitive.ViewportSlack` from your tree. It has been removed from the public API because top-anchor target registration is now handled automatically by `MessagePrimitive.Root` when `turnAnchor="top"`.
+  - If you customized `fillClampThreshold` / `fillClampOffset` on `ThreadPrimitive.ViewportSlack` or `MessagePrimitive.Root`, replace them with `topAnchorMessageClamp` on `ThreadPrimitive.Viewport`:
+
+  ```tsx
+  // Before, either:
+  <MessagePrimitive.Root fillClampThreshold="10em" fillClampOffset="6em" />
+
+  // or:
+  <ThreadPrimitive.ViewportSlack fillClampThreshold="10em" fillClampOffset="6em">
+    ...
+  </ThreadPrimitive.ViewportSlack>
+
+  // After
+  <ThreadPrimitive.Viewport
+    turnAnchor="top"
+    topAnchorMessageClamp={{ tallerThan: "10em", visibleHeight: "6em" }}
+  >
+    ...
+  </ThreadPrimitive.Viewport>
+  ```
+
+### Patch Changes
+
+- [#3924](https://github.com/assistant-ui/assistant-ui/pull/3924) [`801b9a6`](https://github.com/assistant-ui/assistant-ui/commit/801b9a68d9c7c70ab15ca53842d0df6adacb7b86) - fix(react): recover ComposerPrimitive.Input from dropped compositionend ([@nitnizzie](https://github.com/nitnizzie))
+
+  reset `compositionRef` when the next change event reports `isComposing: false` so a dropped `compositionend` (chromium dead-key layouts, mid-composition focus loss) can no longer freeze the input. additionally call `setText` during composition so React 19's stricter controlled-input reconciliation does not reset the textarea mid-IME. fixes [#3923](https://github.com/assistant-ui/assistant-ui/issues/3923).
+
+- [#3953](https://github.com/assistant-ui/assistant-ui/pull/3953) [`7098bab`](https://github.com/assistant-ui/assistant-ui/commit/7098bab4c67fbd507c3fad746ef130daa01b3fd6) - Add cursor-based pagination to the thread list. `RemoteThreadListAdapter.list()` accepts an optional `{ after }` cursor and may return `nextCursor` on the response. The runtime exposes `loadMore()`, `hasMore`, and `isLoadingMore` through both the legacy `ThreadListRuntime` API and the tap-only `aui.threads()` path; `ThreadListRuntimeCore.loadMore?()`, `hasMore?`, and `isLoadingMore?` are optional, so non-paginating cores (local, external-store, single-thread, in-memory) remain conformant. ([@okisdev](https://github.com/okisdev))
+
+  `@assistant-ui/react` ships a matching `ThreadListPrimitive.LoadMore` button built on `createActionButton`, plus a `useThreadListLoadMore` primitive hook. Consumers wanting an `IntersectionObserver` sentinel can read `s.threads.hasMore` / `isLoadingMore` from `useAuiState` and call `aui.threads().loadMore()` directly.
+
+  In-flight `loadMore()` calls dedup via a single promise. The existing `_loadGeneration` counter drops stale append callbacks when a `reload()` interleaves a `loadMore()`. The loadMore reducer captures the active adapter so a mid-flight adapter swap cannot leak a stale page. Empty-string `nextCursor` is normalised to `undefined`. `reload()` pre-clears the cursor so consumers reading `hasMore` directly during a reload do not observe a stale value.
+
+  Adapter rejections are surfaced via `console.error` in both the initial-load and `loadMore` paths, matching the pattern in `RemoteThreadListHookInstanceManager` and `useToolInvocations`.
+
+- [#3954](https://github.com/assistant-ui/assistant-ui/pull/3954) [`aa6e071`](https://github.com/assistant-ui/assistant-ui/commit/aa6e071fdd6ea832c5aff3f6cf817b2e3eb6ceb0) - fix: keep active top-anchored messages visible to layout ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+- [#3962](https://github.com/assistant-ui/assistant-ui/pull/3962) [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#3952](https://github.com/assistant-ui/assistant-ui/pull/3952) [`df7eb3e`](https://github.com/assistant-ui/assistant-ui/commit/df7eb3eee6beeac72d3220707cf4660adf932586) - perf: cut per-message overhead in long threads ([@okisdev](https://github.com/okisdev))
+
+  Two `MessagePrimitive.Root` changes remove work that scaled with message count:
+  - Defer the `parseCssLength` call inside the top-anchor target ref to the next animation frame. The synchronous `getComputedStyle` read previously forced a full-tree layout during the bulk-mount of a long thread (a 335 ms forced reflow at 100 messages in our trace). Deferring past first paint lets the browser do the layout naturally.
+  - Split the root into a default and a top-anchor path. Threads using the default `turnAnchor="bottom"` no longer subscribe to the top-anchor `useAuiState` selectors per message.
+
+  The only observable change is that top-anchor target registration is now async by one frame.
+
+  Note: `@assistant-ui/ui` (private, copy-into-project) gains a `content-visibility: auto` default on message wrappers in the same PR. On a cold load with pre-existing history taller than the viewport, the placeholder-based `scrollHeight` can transiently disagree with the at-bottom check until off-screen messages are measured. `useOnResizeContent` resyncs within a frame, and the auto-scroll path uses an explicit "scrolling" flag rather than trusting `isAtBottom` alone, so run-start scrolling is unaffected.
+
+- [#3948](https://github.com/assistant-ui/assistant-ui/pull/3948) [`f4a693e`](https://github.com/assistant-ui/assistant-ui/commit/f4a693ec1898f6ed0b81be47512fe51fd93a2de8) - fix(core): restore adapter context flow through RemoteThreadListAdapter.unstable_Provider ([@okisdev](https://github.com/okisdev))
+
+  PR [#3891](https://github.com/assistant-ui/assistant-ui/issues/3891) hoisted the runtime binder out of `RemoteThreadListAdapter.unstable_Provider` so that user-supplied loading / Suspense wrappers no longer strand the runtime binding. as a side effect, any `RuntimeAdapterProvider` mounted inside `unstable_Provider` (history, attachments — what `useCloudThreadListAdapter` and `LocalStorageThreadListAdapter` both do) ended up below the binder in the render tree. `useRuntimeAdapters()` reads context from above, so the runtime hook saw `null` and `useExternalHistory` early-returned.
+
+  for `useChatRuntime({ cloud })` setups this silently disabled message persistence (`POST /v1/threads/:id/messages`), thread history loading, run telemetry (`POST /v1/runs`), and forced cloud attachments to fall back to `vercelAttachmentAdapter`'s base64 inlining. the same regression hits `useA2ARuntime`, `useAgUiRuntime`, and `useLocalRuntime` whenever they are wrapped by `useRemoteThreadListRuntime` with a similar adapter.
+
+  restore the pre-[#3891](https://github.com/assistant-ui/assistant-ui/issues/3891) layering: the binder once again renders inside `unstable_Provider`, so the runtime hook reads any context the Provider injects. the `ProviderRenderDetector` warning introduced by [#3891](https://github.com/assistant-ui/assistant-ui/issues/3891) is kept and now fires whenever Provider gates `children` behind suspense, loading state, or `useEffect` (the original [#3678](https://github.com/assistant-ui/assistant-ui/issues/3678) case), pointing the user at the synchronous-children rule. no API surface changes; first-party adapters keep working unchanged.
+
+- Updated dependencies [[`7098bab`](https://github.com/assistant-ui/assistant-ui/commit/7098bab4c67fbd507c3fad746ef130daa01b3fd6), [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94), [`5fdf17e`](https://github.com/assistant-ui/assistant-ui/commit/5fdf17e019c91b000c6f4cf9e3e56c89d764a435)]:
+  - @assistant-ui/core@0.1.18
+  - assistant-stream@0.3.13
+  - @assistant-ui/store@0.2.10
+  - @assistant-ui/tap@0.5.11
+
 ## 0.12.28
 
 ### Patch Changes

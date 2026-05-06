@@ -1,5 +1,19 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.22
+
+### Patch Changes
+
+- [#3942](https://github.com/assistant-ui/assistant-ui/pull/3942) [`fbd7ce3`](https://github.com/assistant-ui/assistant-ui/commit/fbd7ce38d5a8d3992ad44acf7c6f29e115a43681) - fix: `aui.thread().append({ startRun: false })` no longer triggers a run on AI SDK runtime ([@Yonom](https://github.com/Yonom))
+
+  `useAISDKRuntime`'s `onNew` and `onEdit` always called `chatHelpers.sendMessage`, ignoring `message.startRun`. The hook now appends the message via `chatHelpers.setMessages` (with a generated id when needed) and returns early when `startRun: false`, so the message lands in the chat without kicking off a model call.
+
+- [#3962](https://github.com/assistant-ui/assistant-ui/pull/3962) [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`7098bab`](https://github.com/assistant-ui/assistant-ui/commit/7098bab4c67fbd507c3fad746ef130daa01b3fd6), [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94), [`5fdf17e`](https://github.com/assistant-ui/assistant-ui/commit/5fdf17e019c91b000c6f4cf9e3e56c89d764a435)]:
+  - @assistant-ui/core@0.1.18
+  - @assistant-ui/store@0.2.10
+
 ## 1.3.21
 
 ### Patch Changes
