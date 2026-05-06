@@ -149,6 +149,8 @@ export function getPlatformSwitchHref(
 // via the storage event.
 class PlatformStore {
   private listeners = new Set<() => void>();
+  private urlPlatform: Platform | null = readUrlPlatform();
+  private storedPlatform: Platform | null = readStoredPlatform();
 
   constructor() {
     if (isBrowser()) {
@@ -156,9 +158,15 @@ class PlatformStore {
     }
   }
 
+  private refreshFromBrowser = () => {
+    this.urlPlatform = readUrlPlatform();
+    this.storedPlatform = readStoredPlatform();
+  };
+
   private handleStorage = (e: StorageEvent) => {
     if (e.storageArea !== window.localStorage) return;
     if (e.key !== STORAGE_KEY) return;
+    this.storedPlatform = readStoredPlatform();
     this.notify();
   };
 
@@ -176,7 +184,7 @@ class PlatformStore {
   };
 
   getSnapshot = (): Platform => {
-    return readUrlPlatform() ?? readStoredPlatform() ?? DEFAULT_PLATFORM;
+    return this.urlPlatform ?? this.storedPlatform ?? DEFAULT_PLATFORM;
   };
 
   getServerSnapshot = (): Platform => DEFAULT_PLATFORM;
@@ -185,14 +193,17 @@ class PlatformStore {
     if (!isBrowser()) return;
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
+      this.storedPlatform = next;
     } catch {}
     writeUrlPlatform(next);
+    this.urlPlatform = next === DEFAULT_PLATFORM ? null : next;
     this.notify();
   };
 
   syncUrlAndStore = () => {
+    this.refreshFromBrowser();
     const next = this.getSnapshot();
-    if (next === readStoredPlatform()) return;
+    if (next === this.storedPlatform) return;
     this.setValue(next);
   };
 }

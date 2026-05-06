@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type * as PageTree from "fumadocs-core/page-tree";
-import { isVisibleForPlatform, type Platform } from "./context";
+import { isVisibleForPlatform, PLATFORMS, type Platform } from "./context";
 
 export interface PlatformTreeConfig {
   mainDocsFolder: string;
@@ -25,6 +25,50 @@ export function isNodeVisible(
   platform: Platform,
 ): boolean {
   return isVisibleForPlatform(nodePlatforms(node), platform);
+}
+
+function collectVisibleUrls(
+  node: PageTree.Node,
+  platform: Platform,
+  urls: Set<string>,
+): void {
+  if (!isNodeVisible(node, platform)) return;
+
+  if (node.type === "page") {
+    urls.add(node.url);
+    return;
+  }
+
+  if (node.type === "separator") return;
+
+  if (node.index && isNodeVisible(node.index, platform)) {
+    urls.add(node.index.url);
+  }
+
+  node.children.forEach((child) => {
+    collectVisibleUrls(child, platform, urls);
+  });
+}
+
+export function getVisibleUrlsByPlatform(
+  tree: PageTree.Root | undefined,
+): Record<Platform, ReadonlySet<string>> {
+  const folders = (tree?.children ?? []).filter(
+    (node): node is PageTree.Folder => node.type === "folder",
+  );
+  const result: Record<Platform, Set<string>> = {
+    react: new Set(),
+    rn: new Set(),
+    ink: new Set(),
+  };
+
+  PLATFORMS.forEach((platform) => {
+    buildPlatformSections(folders, platform).forEach((section) => {
+      collectVisibleUrls(section, platform, result[platform]);
+    });
+  });
+
+  return result;
 }
 
 export function findPathToNode(
