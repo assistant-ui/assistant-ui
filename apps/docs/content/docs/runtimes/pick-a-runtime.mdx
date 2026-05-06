@@ -59,26 +59,32 @@ assistant-ui ships React adapter packages for these. Pick the matching card and 
     description="AG-UI agents (CopilotKit, custom servers). Streaming text, thinking, tool calls, state snapshots."
     href="/docs/runtimes/ag-ui"
   />
-  <Card
-    icon={<OpenCodeIcon width={20} height={20} />}
-    title="OpenCode"
-    description="OpenCode coding-agent server. Permission flows, questions, fork / revert. Experimental."
-    href="/docs/runtimes/opencode"
-  />
+  <PlatformOnly platforms={["react"]}>
+    <Card
+      icon={<OpenCodeIcon width={20} height={20} />}
+      title="OpenCode"
+      description="OpenCode coding-agent server. Permission flows, questions, fork / revert. Experimental."
+      href="/docs/runtimes/opencode"
+    />
+  </PlatformOnly>
 </Cards>
+
+<PlatformOnly platforms={["react"]}>
 
 ### Integration guides
 
 For frameworks without a dedicated adapter, these wiring guides route through one of the adapters above.
 
-<Cards>
-  <Card
-    icon={<MastraIcon width={20} height={20} />}
-    title="Mastra"
-    description="TypeScript agent framework. Wired through the Vercel AI SDK runtime."
-    href="/docs/integrations/frameworks/mastra/overview"
-  />
-</Cards>
+  <Cards>
+    <Card
+      icon={<MastraIcon width={20} height={20} />}
+      title="Mastra"
+      description="TypeScript agent framework. Wired through the Vercel AI SDK runtime."
+      href="/docs/integrations/frameworks/mastra/overview"
+    />
+  </Cards>
+
+</PlatformOnly>
 
 ## Lens 2: by needs
 
