@@ -13,15 +13,21 @@ import type {
 } from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
-import type { AgUiEvent } from "./types";
+import type { AgUiEvent, AgUiInterrupt, AgUiResumeEntry } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
-import { RunAggregator } from "./adapter/run-aggregator";
+import {
+  AG_UI_METADATA_NAMESPACE,
+  type AgUiCustomMetadata,
+  RunAggregator,
+} from "./adapter/run-aggregator";
 import {
   fromAgUiMessages,
   toAgUiMessages,
   toAgUiTools,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
+
+const symbolResumeShim = Symbol("agui-resume-shim");
 
 type RunConfig = NonNullable<AppendMessage["runConfig"]>;
 type ResumeRunConfig = {
@@ -189,6 +195,117 @@ export class AgUiThreadRuntimeCore {
     );
   }
 
+  getPendingInterrupts(): {
+    messageId: string;
+    interrupts: readonly AgUiInterrupt[];
+  } | null {
+    for (let index = this.messages.length - 1; index >= 0; index--) {
+      const message = this.messages[index];
+      if (!message || message.role !== "assistant") continue;
+      const assistant = message as ThreadAssistantMessage;
+      if (
+        assistant.status?.type !== "requires-action" ||
+        assistant.status.reason !== "interrupt"
+      ) {
+        return null;
+      }
+      const stored = (
+        assistant.metadata.custom[AG_UI_METADATA_NAMESPACE] as
+          | AgUiCustomMetadata
+          | undefined
+      )?.interrupts;
+      if (!stored?.length) return null;
+      return { messageId: assistant.id, interrupts: stored };
+    }
+    return null;
+  }
+
+  async submitInterruptResponses(
+    responses: readonly AgUiResumeEntry[],
+  ): Promise<void> {
+    const pending = this.getPendingInterrupts();
+    if (!pending) {
+      throw new Error(
+        "[agui] submitInterruptResponses: no pending interrupts on this thread",
+      );
+    }
+
+    const responsesById = new Map<string, AgUiResumeEntry>();
+    for (const entry of responses) {
+      if (!entry || typeof entry.interruptId !== "string") {
+        throw new Error(
+          "[agui] submitInterruptResponses: every entry must have an interruptId",
+        );
+      }
+      if (entry.status !== "resolved" && entry.status !== "cancelled") {
+        throw new Error(
+          `[agui] submitInterruptResponses: invalid status "${entry.status}" for interrupt ${entry.interruptId}`,
+        );
+      }
+      responsesById.set(entry.interruptId, entry);
+    }
+
+    const openIds = pending.interrupts.map((i) => i.id);
+    const missing = openIds.filter((id) => !responsesById.has(id));
+    if (missing.length > 0) {
+      throw new Error(
+        `[agui] submitInterruptResponses: missing responses for open interrupts: ${missing.join(", ")}`,
+      );
+    }
+    const known = new Set(openIds);
+    const unknown = [...responsesById.keys()].filter((id) => !known.has(id));
+    if (unknown.length > 0) {
+      throw new Error(
+        `[agui] submitInterruptResponses: unknown interrupt ids: ${unknown.join(", ")}`,
+      );
+    }
+
+    const now = new Date();
+    for (const interrupt of pending.interrupts) {
+      if (!interrupt.expiresAt) continue;
+      if (new Date(interrupt.expiresAt) <= now) {
+        throw new Error(
+          `[agui] submitInterruptResponses: interrupt ${interrupt.id} expired at ${interrupt.expiresAt}`,
+        );
+      }
+    }
+
+    const resume: AgUiResumeEntry[] = openIds.map((id) => {
+      const entry = responsesById.get(id)!;
+      return entry.payload === undefined
+        ? { interruptId: id, status: entry.status }
+        : { interruptId: id, status: entry.status, payload: entry.payload };
+    });
+
+    this.clearPendingInterrupts(pending.messageId);
+    this.persistAssistantHistory(pending.messageId);
+    await this.startRun(pending.messageId, this.lastRunConfig, { resume });
+  }
+
+  private clearPendingInterrupts(messageId: string): void {
+    let touched = false;
+    this.messages = this.messages.map((message) => {
+      if (message.id !== messageId || message.role !== "assistant")
+        return message;
+      const assistant = message as ThreadAssistantMessage;
+      if (
+        assistant.status?.type !== "requires-action" ||
+        assistant.status.reason !== "interrupt"
+      ) {
+        return assistant;
+      }
+      touched = true;
+      const { [AG_UI_METADATA_NAMESPACE]: _drop, ...restCustom } =
+        assistant.metadata.custom;
+      return {
+        ...assistant,
+        status: { type: "complete" as const, reason: "unknown" as const },
+        metadata: { ...assistant.metadata, custom: restCustom },
+      };
+    });
+    if (touched) this.notifyUpdate();
+  }
+
   findMessageIdForToolCall(toolCallId: string): string | undefined {
     let fallbackMessageId: string | undefined;
     for (let index = this.messages.length - 1; index >= 0; index--) {
@@ -288,6 +405,7 @@ export class AgUiThreadRuntimeCore {
   private async startRun(
     parentId: string | null,
     runConfig?: RunConfig,
+    extra?: { resume?: AgUiResumeEntry[] },
   ): Promise<void> {
     const normalizedRunConfig = runConfig ?? {};
     this.lastRunConfig = normalizedRunConfig;
@@ -300,6 +418,7 @@ export class AgUiThreadRuntimeCore {
       runId,
       normalizedRunConfig,
       historicalMessages,
+      extra?.resume,
     );
     const assistantParentId = parentId ?? this.messages.at(-1)?.id ?? null;
     let assistantMessageId: string | undefined;
@@ -348,9 +467,11 @@ export class AgUiThreadRuntimeCore {
       try {
         (this.agent as any).messages = input.messages;
         (this.agent as any).threadId = input.threadId;
+        (this.agent as any).state = input.state ?? null;
       } catch {
         // ignore
       }
+      this.installResumeShim();
       await (this.agent as any).runAgent(input, subscriber, {
         signal: abortSignal,
       });
@@ -376,6 +497,7 @@ export class AgUiThreadRuntimeCore {
     runId: string,
     runConfig: RunConfig | undefined,
     historyMessages: readonly ThreadMessage[] | undefined,
+    resume?: AgUiResumeEntry[],
   ) {
     const threadId = this.agent.threadId || "main";
     const messages = toAgUiMessages(historyMessages ?? this.messages);
@@ -394,7 +516,29 @@ export class AgUiThreadRuntimeCore {
         ...(context?.config ?? {}),
         ...(runConfig?.custom ? { runConfig: runConfig.custom } : {}),
       },
+      ...(resume !== undefined ? { resume } : {}),
     };
+  }
+
+  private installResumeShim(): void {
+    const agent = this.agent as any;
+    if (agent[symbolResumeShim]) return;
+    const onInstance = Object.hasOwn(agent, "prepareRunAgentInput");
+    const original = onInstance
+      ? agent.prepareRunAgentInput
+      : Object.getPrototypeOf(agent)?.prepareRunAgentInput;
+    if (typeof original !== "function") return;
+    agent.prepareRunAgentInput = function (
+      this: unknown,
+      params: { resume?: unknown } | undefined,
+    ) {
+      const input = original.call(this, params);
+      if (params?.resume !== undefined && input && typeof input === "object") {
+        return { ...(input as object), resume: params.resume };
+      }
+      return input;
+    };
+    agent[symbolResumeShim] = true;
   }
 
   private setRunning(running: boolean) {

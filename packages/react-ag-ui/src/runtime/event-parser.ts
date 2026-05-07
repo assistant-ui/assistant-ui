@@ -1,4 +1,4 @@
-import type { AgUiEvent } from "./types";
+import type { AgUiEvent, AgUiInterrupt, AgUiRunFinishedOutcome } from "./types";
 
 const isString = (value: unknown): value is string => typeof value === "string";
 const isNonEmptyString = (value: unknown): value is string =>
@@ -14,6 +14,44 @@ const withOptional = <T extends object>(
   return definedEntries.length === 0
     ? base
     : ({ ...base, ...Object.fromEntries(definedEntries) } as T);
+};
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === "object" && !Array.isArray(value);
+
+const parseInterrupt = (raw: unknown): AgUiInterrupt | null => {
+  if (!isPlainObject(raw)) return null;
+  const id = raw.id;
+  const reason = raw.reason;
+  if (typeof id !== "string" || typeof reason !== "string") return null;
+  const interrupt: AgUiInterrupt = { id, reason };
+  if (typeof raw.message === "string") interrupt.message = raw.message;
+  if (typeof raw.toolCallId === "string") interrupt.toolCallId = raw.toolCallId;
+  if (typeof raw.expiresAt === "string") interrupt.expiresAt = raw.expiresAt;
+  if (isPlainObject(raw.responseSchema))
+    interrupt.responseSchema = raw.responseSchema;
+  if (isPlainObject(raw.metadata)) interrupt.metadata = raw.metadata;
+  return interrupt;
+};
+
+const parseRunFinishedOutcome = (
+  raw: unknown,
+): AgUiRunFinishedOutcome | undefined => {
+  if (!isPlainObject(raw)) return undefined;
+  if (raw.type === "success") {
+    return raw.result !== undefined
+      ? { type: "success", result: raw.result }
+      : { type: "success" };
+  }
+  if (raw.type === "interrupt") {
+    if (!Array.isArray(raw.interrupts)) return undefined;
+    const parsed = raw.interrupts
+      .map((entry) => parseInterrupt(entry))
+      .filter((entry): entry is AgUiInterrupt => entry !== null);
+    if (parsed.length === 0) return undefined;
+    return { type: "interrupt", interrupts: parsed };
+  }
+  return undefined;
 };
 
 export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
@@ -32,7 +70,15 @@ export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
     }
     case "RUN_FINISHED": {
       const runId = getString("runId");
-      return runId ? { type: "RUN_FINISHED", runId } : null;
+      if (!runId) return null;
+      const outcome = parseRunFinishedOutcome(payload.outcome);
+      return withOptional(
+        { type: "RUN_FINISHED" as const, runId },
+        {
+          outcome,
+          result: payload.result,
+        },
+      );
     }
     case "RUN_CANCELLED": {
       const runId = getString("runId");

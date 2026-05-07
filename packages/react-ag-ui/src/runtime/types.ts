@@ -47,9 +47,34 @@ export type UseAgUiRuntimeOptions = {
   adapters?: UseAgUiRuntimeAdapters;
 };
 
+export type AgUiInterrupt = {
+  id: string;
+  reason: string;
+  message?: string;
+  toolCallId?: string;
+  responseSchema?: Record<string, unknown>;
+  expiresAt?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type AgUiResumeEntry = {
+  interruptId: string;
+  status: "resolved" | "cancelled";
+  payload?: unknown;
+};
+
+export type AgUiRunFinishedOutcome =
+  | { type: "success"; result?: unknown }
+  | { type: "interrupt"; interrupts: AgUiInterrupt[] };
+
 export type AgUiEvent =
   | { type: "RUN_STARTED"; runId: string }
-  | { type: "RUN_FINISHED"; runId: string }
+  | {
+      type: "RUN_FINISHED";
+      runId: string;
+      outcome?: AgUiRunFinishedOutcome;
+      result?: unknown;
+    }
   | { type: "RUN_CANCELLED"; runId?: string }
   | { type: "RUN_ERROR"; message?: string; code?: string }
   | { type: "TEXT_MESSAGE_START"; messageId?: string }

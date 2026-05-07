@@ -15,12 +15,23 @@ import type {
 } from "@assistant-ui/core";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { makeLogger } from "./runtime/logger";
-import type { UseAgUiRuntimeOptions } from "./runtime/types";
+import type {
+  AgUiInterrupt,
+  AgUiResumeEntry,
+  UseAgUiRuntimeOptions,
+} from "./runtime/types";
 import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
+
+export type AgUiAssistantRuntime = AssistantRuntime & {
+  unstable_getPendingInterrupts: () => readonly AgUiInterrupt[];
+  unstable_submitInterruptResponses: (
+    responses: readonly AgUiResumeEntry[],
+  ) => Promise<void>;
+};
 
 export function useAgUiRuntime(
   options: UseAgUiRuntimeOptions,
-): AssistantRuntime {
+): AgUiAssistantRuntime {
   const logger = useMemo(() => makeLogger(options.logger), [options.logger]);
   const [_version, setVersion] = useState(0);
   const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
@@ -174,7 +185,21 @@ export function useAgUiRuntime(
     [adapterAdapters, core, _version, hasExecutingTools],
   );
 
-  const runtime = useExternalStoreRuntime(store);
+  const runtime = useExternalStoreRuntime(store) as AgUiAssistantRuntime;
+
+  if (!Object.hasOwn(runtime, "unstable_submitInterruptResponses")) {
+    Object.defineProperty(runtime, "unstable_getPendingInterrupts", {
+      configurable: true,
+      enumerable: false,
+      value: () => core.getPendingInterrupts()?.interrupts ?? [],
+    });
+    Object.defineProperty(runtime, "unstable_submitInterruptResponses", {
+      configurable: true,
+      enumerable: false,
+      value: (responses: readonly AgUiResumeEntry[]) =>
+        core.submitInterruptResponses(responses),
+    });
+  }
 
   useEffect(() => {
     core.attachRuntime(runtime);

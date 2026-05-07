@@ -31,6 +31,7 @@ type Subscriber = {
   onMessagesSnapshotEvent?: (payload: { event: unknown }) => void;
   onCustomEvent?: (payload: { event: unknown }) => void;
   onRawEvent?: (payload: { event: unknown }) => void;
+  onRunFinishedEvent?: (payload: { event: unknown }) => void;
   onRunFinalized?: () => void;
   onRunFailed?: (payload: { error: Error }) => void;
 };
@@ -69,6 +70,7 @@ export const createAgUiSubscriber = (
   options: SubscriberOptions,
 ): Subscriber => {
   const { dispatch, runId, onRunFailed } = options;
+  let runFinishedDispatched = false;
   return {
     onEvent: ({ event }) => {
       const typeCandidate =
@@ -128,7 +130,14 @@ export const createAgUiSubscriber = (
       dispatchIfValid(dispatch, event, "MESSAGES_SNAPSHOT"),
     onCustomEvent: ({ event }) => dispatchIfValid(dispatch, event, "CUSTOM"),
     onRawEvent: ({ event }) => dispatchIfValid(dispatch, event, "RAW"),
-    onRunFinalized: () => dispatch({ type: "RUN_FINISHED", runId }),
+    onRunFinishedEvent: ({ event }) => {
+      runFinishedDispatched = true;
+      dispatchIfValid(dispatch, event, "RUN_FINISHED");
+    },
+    onRunFinalized: () => {
+      if (runFinishedDispatched) return;
+      dispatch({ type: "RUN_FINISHED", runId });
+    },
     onRunFailed: ({ error }) => {
       onRunFailed?.(error);
       const message =
