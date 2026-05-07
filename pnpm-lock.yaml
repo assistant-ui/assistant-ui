@@ -2850,7 +2850,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.18
+        specifier: ^0.2.0
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.10
@@ -2932,7 +2932,7 @@ importers:
   packages/react-a2a:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.18
+        specifier: ^0.2.0
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.10
@@ -2957,7 +2957,7 @@ importers:
         specifier: ^0.0.53
         version: 0.0.53
       '@assistant-ui/core':
-        specifier: ^0.1.18
+        specifier: ^0.2.0
         version: link:../core
       assistant-stream:
         specifier: ^0.3.13
@@ -2985,7 +2985,7 @@ importers:
         specifier: ^3.0.177
         version: 3.0.177(react@19.2.5)(zod@4.4.3)
       '@assistant-ui/core':
-        specifier: ^0.1.18
+        specifier: ^0.2.0
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.10
@@ -3031,7 +3031,7 @@ importers:
         specifier: ^3.0.10
         version: 3.0.10
       '@assistant-ui/core':
-        specifier: ^0.1.18
+        specifier: ^0.2.0
         version: link:../core
       assistant-cloud:
         specifier: '*'
@@ -3087,7 +3087,7 @@ importers:
   packages/react-google-adk:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.18
+        specifier: ^0.2.0
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.10
@@ -3124,7 +3124,7 @@ importers:
   packages/react-hook-form:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.18
+        specifier: ^0.2.0
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.10
@@ -3149,7 +3149,7 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.18
+        specifier: ^0.2.0
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.10
@@ -3195,7 +3195,7 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.18
+        specifier: ^0.2.0
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.10
@@ -3232,7 +3232,7 @@ importers:
   packages/react-langchain:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.18
+        specifier: ^0.2.0
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.10
@@ -3275,7 +3275,7 @@ importers:
   packages/react-langgraph:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.18
+        specifier: ^0.2.0
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.10
@@ -3398,7 +3398,7 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.1.18
+        specifier: ^0.2.0
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.10

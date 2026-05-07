@@ -1,5 +1,12 @@
 # @assistant-ui/react-hook-form
 
+## 0.12.14
+
+### Patch Changes
+
+- Updated dependencies [[`040d469`](https://github.com/assistant-ui/assistant-ui/commit/040d469acfcf782de6fc188c646dfd8732d27088)]:
+  - @assistant-ui/core@0.2.0
+
 ## 0.12.13
 
 ### Patch Changes

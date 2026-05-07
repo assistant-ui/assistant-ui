@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ag-ui",
-  "version": "0.0.28",
+  "version": "0.0.29",
   "description": "AG-UI protocol adapter for assistant-ui",
   "keywords": [
     "ag-ui",
@@ -35,7 +35,7 @@
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.53",
-    "@assistant-ui/core": "^0.1.18",
+    "@assistant-ui/core": "^0.2.0",
     "assistant-stream": "^0.3.13"
   },
   "peerDependencies": {
