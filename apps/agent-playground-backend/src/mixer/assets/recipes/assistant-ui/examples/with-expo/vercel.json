@@ -1,0 +1,5 @@
+{
+  "buildCommand": "cd ../.. && pnpm turbo build --filter=@assistant-ui/react-native --filter=@assistant-ui/react-ai-sdk && cd examples/with-expo && pnpm run export:web",
+  "outputDirectory": "dist",
+  "framework": null
+}

@@ -45,6 +45,7 @@ build/
 
 # production
 dist
+.agent-playground
 apps/docs/generated
 packages/*/generated
 

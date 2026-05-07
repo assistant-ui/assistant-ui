@@ -1,5 +1,7 @@
 "use client";
 
+import { AgentPlaygroundApp } from "@/components/agent-playground/AgentPlaygroundApp";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CodeIcon,
@@ -42,7 +44,7 @@ const VIEWPORT_PRESETS = {
   mobile: { width: 375, label: "Mobile", icon: Smartphone },
 } as const;
 
-export default function PlaygroundPage() {
+function BuilderPlayground() {
   const {
     config,
     showCode,
@@ -341,5 +343,46 @@ export default function PlaygroundPage() {
         )}
       </div>
     </PlaygroundChatProvider>
+  );
+}
+
+
+export default function PlaygroundPage() {
+  const [mode, setMode] = useState<"builder" | "agent">("builder");
+
+  return (
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background">
+      <div className="flex shrink-0 items-center justify-between border-b bg-background px-3 py-2">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Sparkles className="size-4" />
+          <span>Playground</span>
+        </div>
+        <div className="grid grid-cols-2 rounded-md border bg-muted/40 p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => setMode("builder")}
+            className={cn(
+              "rounded px-3 py-1.5 font-medium transition-colors",
+              mode === "builder" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Builder
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("agent")}
+            className={cn(
+              "rounded px-3 py-1.5 font-medium transition-colors",
+              mode === "agent" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Agent
+          </button>
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {mode === "builder" ? <BuilderPlayground /> : <AgentPlaygroundApp />}
+      </div>
+    </div>
   );
 }

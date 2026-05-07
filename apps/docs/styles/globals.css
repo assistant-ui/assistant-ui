@@ -12,6 +12,7 @@
 @plugin "tailwind-scrollbar";
 
 @source "../../../packages/ui/src";
+@source "../components/agent-playground";
 
 @custom-variant dark (&:is(.dark *));
 

@@ -1,0 +1,30 @@
+{
+  "name": "@assistant-ui/agent-playground-backend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/copy-recipe-assets.mjs",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "node --test dist/**/*.test.js"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "3.0.69",
+    "@ai-sdk/google": "3.0.61",
+    "@ai-sdk/openai": "3.0.52",
+    "@blaxel/core": "0.2.79",
+    "@mastra/core": "1.24.1",
+    "@mastra/libsql": "1.8.0",
+    "ai": "6.0.158",
+    "dotenv": "17.4.1",
+    "express": "5.2.1",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "25.6.0",
+    "tsx": "4.21.0",
+    "typescript": "6.0.2"
+  }
+}

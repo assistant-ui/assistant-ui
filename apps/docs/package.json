@@ -84,7 +84,9 @@
     "tw-shimmer": "workspace:*",
     "vaul": "^1.1.2",
     "zod": "^4.4.3",
-    "zustand": "^5.0.13"
+    "zustand": "^5.0.13",
+    "@base-ui/react": "^1.4.1",
+    "@streamdown/code": "^1.1.1"
   },
   "devDependencies": {
     "@assistant-ui/shadcn-registry": "workspace:*",
