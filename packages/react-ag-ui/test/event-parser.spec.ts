@@ -43,4 +43,70 @@ describe("parseAgUiEvent", () => {
       source: "UNKNOWN_EVENT",
     });
   });
+
+  it("passes RUN_FINISHED through with no outcome (legacy)", () => {
+    const event = parseAgUiEvent({ type: "RUN_FINISHED", runId: "r1" });
+    expect(event).toEqual({ type: "RUN_FINISHED", runId: "r1" });
+  });
+
+  it("parses RUN_FINISHED success outcome including result", () => {
+    const event = parseAgUiEvent({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: { type: "success" },
+      result: { ok: true },
+    });
+    expect(event).toEqual({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: { type: "success" },
+      result: { ok: true },
+    });
+  });
+
+  it("parses RUN_FINISHED interrupt outcome with interrupts", () => {
+    const event = parseAgUiEvent({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [
+          {
+            id: "int-1",
+            reason: "tool_call",
+            message: "approve?",
+            toolCallId: "call-1",
+            responseSchema: { type: "object" },
+            metadata: { foo: "bar" },
+          },
+        ],
+      },
+    });
+    expect(event).toMatchObject({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [
+          {
+            id: "int-1",
+            reason: "tool_call",
+            message: "approve?",
+            toolCallId: "call-1",
+            responseSchema: { type: "object" },
+            metadata: { foo: "bar" },
+          },
+        ],
+      },
+    });
+  });
+
+  it("drops malformed interrupt outcomes (no interrupts)", () => {
+    const event = parseAgUiEvent({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: { type: "interrupt", interrupts: [] },
+    });
+    expect(event).toEqual({ type: "RUN_FINISHED", runId: "r1" });
+  });
 });

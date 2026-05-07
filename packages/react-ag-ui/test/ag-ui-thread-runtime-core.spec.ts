@@ -732,4 +732,152 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(onError).toHaveBeenCalledWith(expect.any(Error));
     expect(onError.mock.calls[0][0].message).toBe("string error");
   });
+
+  it("captures pending interrupts and resumes via submitInterruptResponses", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+
+      if (runCount === 1) {
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: {
+              type: "interrupt",
+              interrupts: [
+                {
+                  id: "int-1",
+                  reason: "tool_call",
+                  toolCallId: "call-1",
+                  message: "approve?",
+                },
+              ],
+            },
+          },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      subscriber.onTextMessageContentEvent?.({
+        event: { type: "TEXT_MESSAGE_CONTENT", delta: "Done." },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const pending = core.getPendingInterrupts();
+    expect(pending).toBeTruthy();
+    expect(pending?.interrupts).toEqual([
+      expect.objectContaining({ id: "int-1", reason: "tool_call" }),
+    ]);
+
+    await core.submitInterruptResponses([
+      { interruptId: "int-1", status: "resolved", payload: { ok: true } },
+    ]);
+
+    expect(runCount).toBe(2);
+    expect(runInputs[1].resume).toEqual([
+      { interruptId: "int-1", status: "resolved", payload: { ok: true } },
+    ]);
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(assistant.status).toMatchObject({ type: "complete" });
+    expect(assistant.metadata.custom.agui).toBeUndefined();
+  });
+
+  it("rejects interrupt resume that does not cover every open interrupt", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [
+              { id: "int-1", reason: "tool_call" },
+              { id: "int-2", reason: "input_required" },
+            ],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.submitInterruptResponses([
+        { interruptId: "int-1", status: "resolved" },
+      ]),
+    ).rejects.toThrow(/missing responses for open interrupts: int-2/);
+
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects interrupt resume past expiresAt", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [
+              {
+                id: "int-1",
+                reason: "tool_call",
+                expiresAt: new Date(Date.now() - 1000).toISOString(),
+              },
+            ],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.submitInterruptResponses([
+        { interruptId: "int-1", status: "resolved" },
+      ]),
+    ).rejects.toThrow(/expired/);
+  });
+
+  it("syncs runtime state snapshot onto the agent before runAgent", async () => {
+    let stateAtRun: unknown;
+    const agent = {
+      state: { initial: true },
+      runAgent: vi.fn(async function (this: any, _input: any, subscriber: any) {
+        stateAtRun = this.state;
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    core.loadExternalState({ initial: false, snapshot: 42 } as any);
+    await core.append(createAppendMessage());
+
+    expect(stateAtRun).toEqual({ initial: false, snapshot: 42 });
+  });
 });
