@@ -419,11 +419,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     return this._threadBinding.getState().getModelContext();
   }
 
-  public startRun(configOrParentId: string | null | CreateStartRunConfig) {
-    const config =
-      configOrParentId === null || typeof configOrParentId === "string"
-        ? { parentId: configOrParentId }
-        : configOrParentId;
+  public startRun(config: CreateStartRunConfig) {
     return this._threadBinding.getState().startRun(toStartRunConfig(config));
   }
 

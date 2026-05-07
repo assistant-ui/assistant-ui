@@ -107,10 +107,10 @@ const schemas = toAISDKTools(tools);
 
 // After
 import { toToolsJSONSchema } from "assistant-stream";
-const schemas = toToolsJSONSchema(tools, { filter: () => true });
+const schemas = toToolsJSONSchema(tools);
 ```
 
-`toToolsJSONSchema` filters out `disabled` and `backend` tools by default, so most callers can drop the `filter` option entirely.
+`toToolsJSONSchema` filters out `disabled` and `backend` tools by default. To replicate the old `toAISDKTools` behavior exactly (include all tools regardless), pass `{ filter: () => true }`.
 
 ## react-langgraph
 
