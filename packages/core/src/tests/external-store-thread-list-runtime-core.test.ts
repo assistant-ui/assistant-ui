@@ -187,6 +187,24 @@ describe("ExternalStoreThreadListRuntimeCore - isMain via ThreadListRuntimeImpl"
     expect(state.mainThreadId).toBe("thread-alpha");
     expect(state.threadIds).toEqual(["thread-alpha", "thread-beta"]);
   });
+
+  it("does not throw when adapter.threadId has no matching threads entry (regression: #3971)", () => {
+    expect(() => buildImpl({ threadId: "thread-alpha" })).not.toThrow();
+    const impl = buildImpl({ threadId: "thread-alpha" });
+    expect(impl.mainItem.getState().id).toBe("thread-alpha");
+    expect(impl.mainItem.getState().isMain).toBe(true);
+    expect(impl.mainItem.getState().status).toBe("regular");
+  });
+
+  it("synthesizes mainThreadId entry after a switch to a threadId not in the threads list (regression: #3971)", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha" }),
+      makeFactory(),
+    );
+    core.__internal_setAdapter(makeAdapter({ threadId: "thread-beta" }));
+    expect(core.getItemById("thread-beta")).toBeDefined();
+    expect(core.getItemById("thread-beta")?.id).toBe("thread-beta");
+  });
 });
 
 describe("ExternalStoreThreadListRuntimeCore - switchToThread", () => {
