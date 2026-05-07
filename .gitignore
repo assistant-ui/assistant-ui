@@ -17,6 +17,8 @@ yarn-error.log*
 # env files
 .env*.local
 .env
+apps/agent-playground-backend/.env
+apps/docs/.env.local
 
 # typescript
 *.tsbuildinfo
@@ -46,6 +48,8 @@ build/
 # production
 dist
 .agent-playground
+apps/agent-playground-backend/.agent-playground
+apps/agent-playground-backend/manual-tests
 apps/docs/generated
 packages/*/generated
 
