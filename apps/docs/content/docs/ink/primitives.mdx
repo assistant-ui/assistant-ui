@@ -273,6 +273,56 @@ Triggers attachment addition.
 </ComposerPrimitive.AddAttachment>
 ```
 
+### Quote
+
+Renders the active composer quote preview. Children are only rendered while `s.composer.quote` is set, so this acts as both a container and a gate.
+
+```tsx
+<ComposerPrimitive.Quote>
+  <Box>
+    <Text dimColor>Quoting:</Text>
+    <ComposerPrimitive.QuoteText color="gray" />
+    <ComposerPrimitive.QuoteDismiss>
+      <Text color="red">[x]</Text>
+    </ComposerPrimitive.QuoteDismiss>
+  </Box>
+</ComposerPrimitive.Quote>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Quote preview content; only rendered when a quote is set |
+| `...rest` | `BoxProps` | Standard Ink Box props |
+
+### QuoteText
+
+Renders the quoted text from `s.composer.quote?.text`. Pass `children` to override the displayed value.
+
+```tsx
+<ComposerPrimitive.QuoteText color="gray" />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Override content; defaults to `s.composer.quote?.text` |
+| `...rest` | `TextProps` | Standard Ink Text props |
+
+### QuoteDismiss
+
+Pressable that clears the active quote by calling `aui.composer().setQuote(undefined)`.
+
+```tsx
+<ComposerPrimitive.QuoteDismiss>
+  <Text color="red">[x]</Text>
+</ComposerPrimitive.QuoteDismiss>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Button content |
+| `disabled` | `boolean` | Disable Enter activation and focus |
+| `...rest` | `BoxProps` | Standard Ink Box props |
+
 ### Conditional Rendering (Composer)
 
 Use `AuiIf` for conditional rendering based on composer state:
