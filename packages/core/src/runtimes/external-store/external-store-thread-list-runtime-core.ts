@@ -108,7 +108,8 @@ export class ExternalStoreThreadListRuntimeCore
 
     if (
       previousThreads !== newThreads ||
-      previousArchivedThreads !== newArchivedThreads
+      previousArchivedThreads !== newArchivedThreads ||
+      previousThreadId !== newThreadId
     ) {
       this._threadData = {
         ...DEFAULT_THREAD_DATA,
@@ -152,16 +153,12 @@ export class ExternalStoreThreadListRuntimeCore
       this._mainThread = this.threadFactory();
     }
 
-    // mainThreadId must resolve via getItemById; ShallowMemoizeSubject reads
-    // it synchronously on construction and throws if missing.
     if (!this._threadData[this._mainThreadId]) {
       this._threadData = {
         ...this._threadData,
         [this._mainThreadId]: {
+          ...DEFAULT_THREAD,
           id: this._mainThreadId,
-          remoteId: undefined,
-          externalId: undefined,
-          status: "regular",
         },
       };
     }
