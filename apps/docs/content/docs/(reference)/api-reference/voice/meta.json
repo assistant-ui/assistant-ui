@@ -1,0 +1,9 @@
+{
+  "title": "Voice",
+  "description": "Voice session, speech, and dictation APIs for realtime assistant experiences.",
+  "overview": "Voice APIs connect realtime voice sessions, speech synthesis, and dictation controls to assistant-ui.",
+  "pages": [
+    "session",
+    "speech-dictation"
+  ]
+}

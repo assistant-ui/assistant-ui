@@ -1,14 +1,14 @@
 {
-  "title": "Runtime State",
-  "description": "Reference for the runtime actions and state used by useAui and useAuiState — typed contracts for the assistant-ui runtime API in React.",
-  "overview": "Runtime state pages document the objects exposed through `useAui` and `useAuiState`. Use this section when you need to control assistant-ui programmatically or inspect the exact state available in a context.",
+  "title": "Runtimes",
+  "description": "Reference for runtime actions and state used by useAui and useAuiState, including typed contracts for controlling assistant-ui in React.",
+  "overview": "Runtime pages document the objects and state exposed through assistant-ui runtimes. Use this section when controlling assistant-ui programmatically or inspecting exact state shapes.",
   "pages": [
-    "index",
     "assistant-runtime",
     "attachment-runtime",
     "composer-runtime",
     "message-part-runtime",
     "message-runtime",
+    "queue-state",
     "thread-list-item-runtime",
     "thread-list-runtime",
     "thread-runtime"

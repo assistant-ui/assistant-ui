@@ -1,10 +1,10 @@
 ---
 title: API Reference
-description: Complete API reference for assistant-ui — primitives, hooks, context providers, runtimes, adapters, and integrations for building React AI chat.
+description: Complete API reference for assistant-ui React APIs, including primitives, hooks, runtimes, adapters, tools, model context, transport, voice, and integrations.
 ---
 
 
-import { Component, ContextLevel, RuntimeHooks } from "./context";
+import { Component, ContextLevel } from "./context";
 
 export const contextColors = {
   "Assistant Context": "#4a86e8",
@@ -21,80 +21,39 @@ export const contextColors = {
 The React API reference is organized by how you build with assistant-ui:
 
 <Cards>
-  <Card title="Primitives" href="/docs/api-reference/primitives">
-    Composable React components such as `ThreadPrimitive`, `MessagePrimitive`, and `ComposerPrimitive`. These pages are generated from the package source where possible.
+  <Card title="Tools" href="/docs/api-reference/tools/definition">
+    Define tools, compose toolkits, register tool UIs, and render tool or data parts.
   </Card>
-  <Card title="Hooks" href="/docs/api-reference/hooks">
+  <Card title="Model Context" href="/docs/api-reference/model-context/context">
+    Provide instructions, merge model context, and register inline renderers for model-facing state.
+  </Card>
+  <Card title="Transport" href="/docs/api-reference/transport/assistant-transport">
+    Assistant transport, frame provider, and serialized frame protocol APIs for cross-boundary runtimes.
+  </Card>
+  <Card title="External Store" href="/docs/api-reference/external-store/runtime">
+    Runtime and message conversion APIs for apps that own their message store.
+  </Card>
+  <Card title="Voice" href="/docs/api-reference/voice/session">
+    Realtime voice sessions, speech synthesis adapters, and dictation adapters.
+  </Card>
+  <Card title="Primitives" href="/docs/api-reference/primitives/thread">
+    Composable React components such as `ThreadPrimitive`, `MessagePrimitive`, and `ComposerPrimitive`.
+  </Card>
+  <Card title="Hooks" href="/docs/api-reference/hooks/state">
     Reactive state hooks, runtime hooks, model context hooks, and utility hooks.
   </Card>
-  <Card title="Adapters" href="/docs/api-reference/adapters">
+  <Card title="Adapters" href="/docs/api-reference/adapters/model">
     Runtime extension points for attachments, persistence, feedback, speech, dictation, and suggestions.
+  </Card>
+  <Card title="Integrations" href="/docs/api-reference/integrations/react-ai-sdk">
+    Package-level APIs for integrations such as `@assistant-ui/react-ai-sdk` and `@assistant-ui/cloud-ai-sdk`.
   </Card>
   <Card title="Runtime State" href="/docs/api-reference/runtimes/assistant-runtime">
     Runtime action and state shapes used by `useAui` and `useAuiState`.
   </Card>
 </Cards>
 
-The lower sections on this page show how the contexts nest and where each primitive, hook, and runtime object is available.
-
-## Cloud
-
-- [`AssistantCloud`](#assistant-cloud)
-
-## Runtime API
-
-### AI SDK
-
-- [`useChatRuntime`](#use-chat-runtime)
-- [`useAISDKRuntime`](#use-aisdk-runtime)
-
-### Data Stream
-
-- [`useDataStreamRuntime`](#use-data-stream-runtime)
-- [`useCloudRuntime`](#use-cloud-runtime)
-- [`toLanguageModelMessages`](#to-language-model-messages) (AI SDK specific)
-
-### assistant-stream (Framework-Agnostic)
-
-- [`toGenericMessages`](#to-generic-messages)
-- [`toToolsJSONSchema`](#to-tools-json-schema)
-- [`GenericMessage`](#generic-message)
-
-### LangGraph
-
-- [`useLangGraphRuntime`](#use-lang-graph-runtime)
-
-### Local Runtime
-
-- [`useLocalRuntime`](#use-local-runtime)
-
-### External Store Runtime
-
-- [`useExternalStoreRuntime`](#use-external-store-runtime)
-- [`createMessageConverter`](#create-message-converter)
-
-### Thread List Runtime
-
-- [`useRemoteThreadListRuntime`](#use-remote-thread-list-runtime)
-- [`useCloudThreadListRuntime`](#use-cloud-thread-list-runtime)
-
-## Runtime Adapters
-
-### Attachment
-
-- [`AttachmentAdapter`](#attachment-adapter)
-- [`SimpleImageAttachmentAdapter`](#simple-image-attachment-adapter)
-- [`SimpleTextAttachmentAdapter`](#simple-text-attachment-adapter)
-- [`CompositeAttachmentAdapter`](#composite-attachment-adapter)
-
-### Feedback
-
-- [`FeedbackAdapter`](#feedback-adapter)
-
-### Speech
-
-- [`SpeechSynthesisAdapter`](#speech-synthesis-adapter)
-- [`WebSpeechSynthesisAdapter`](#web-speech-synthesis-adapter)
+The lower sections on this page show how the core React contexts nest and where the primary primitives, hooks, and runtime objects are available. Feature-first APIs such as tools, model context, transport, external store, and voice now live in their own generated sections.
 
 ## Highest Level Context Providers
 
@@ -110,12 +69,20 @@ The lower sections on this page show how the contexts nest and where each primit
       link: "#composer-context",
     },
   ]}
-  docsLink="./context-providers/assistant-runtime-provider"
+  docsLink="/docs/api-reference/context-providers/assistant-runtime-provider"
   tooltip="Provides the highest level context for the assistant-ui"
   props="runtime={runtime}"
 >
-  <Component name="Thread" isLink={true} />
-  <Component name="ThreadList" isLink={true} />
+  <Component
+    name="ThreadPrimitive"
+    docsLink="/docs/api-reference/primitives/thread"
+    tooltip="Thread primitive components"
+  />
+  <Component
+    name="ThreadListPrimitive"
+    docsLink="/docs/api-reference/primitives/thread-list"
+    tooltip="Thread list primitive components"
+  />
 </Component>
 
 <Component
@@ -125,14 +92,18 @@ The lower sections on this page show how the contexts nest and where each primit
     {
       name: "Text MessagePart Context",
       color: contextColors["MessagePart Context"],
-      link: "#MessagePart-context",
+      link: "#messagepart-context",
     },
   ]}
-  docsLink="./context-providers/text-message-part-provider"
+  docsLink="/docs/api-reference/context-providers/scoped-providers"
   tooltip="Provides context for text message parts"
   props="text={text}"
 >
-  <Component name="MessagePart" isLink={true} />
+  <Component
+    name="MessagePartPrimitive"
+    docsLink="/docs/api-reference/primitives/message-part"
+    tooltip="Message part primitive components"
+  />
 </Component>
 
 <ContextLevel color={contextColors["Assistant Context"]}>
@@ -149,16 +120,16 @@ Programmatically access the assistant's state and actions via `useAui()`.
 
 Add system prompt instructions
 
-- [`useAssistantInstructions`](#use-assistant-instructions)
+- [`useAssistantInstructions`](/docs/api-reference/model-context/context)
 
 ### Tool UI
 
 Register tool UIs
 
-- [`makeAssistantTool`](#make-assistant-tool)
-- [`makeAssistantToolUI`](#make-assistant-tool-ui)
-- [`useAssistantTool`](#use-assistant-tool)
-- [`useAssistantToolUI`](#use-assistant-tool-ui)
+- [`makeAssistantTool`](/docs/api-reference/tools/definition)
+- [`makeAssistantToolUI`](/docs/api-reference/tools/rendering)
+- [`useAssistantTool`](/docs/api-reference/tools/definition)
+- [`useAssistantToolUI`](/docs/api-reference/tools/rendering)
 
 Programmatically access the list of registered tool UIs via `useAuiState((s) => s.tools)` and `useAui().tools()`.
 
@@ -168,12 +139,12 @@ Shows a list of threads and allows the user to switch between them.
 
 <Component
   name="ThreadListPrimitive.Root"
-  docsLink="#thread-list-primitive-root"
+  docsLink="/docs/api-reference/primitives/thread-list"
   tooltip="Root component for the thread list"
 >
   <Component
     name="ThreadListPrimitive.New"
-    docsLink="#thread-list-primitive-new"
+    docsLink="/docs/api-reference/primitives/thread-list"
     tooltip="Component for creating a new thread"
   />
   <Component
@@ -185,7 +156,7 @@ Shows a list of threads and allows the user to switch between them.
         color: contextColors["ThreadListItem Context"],
       },
     ]}
-    docsLink="#thread-list-primitive-items"
+    docsLink="/docs/api-reference/primitives/thread-list"
     tooltip="Container for thread list items, provides context for individual items"
     props="components={...}"
   />
@@ -213,8 +184,8 @@ Programmatically access the thread's state and actions.
 
 ### ThreadViewportStore
 
-- [`useThreadViewport`](#use-thread-viewport)
-- [`useThreadViewportStore`](#use-thread-viewport-store)
+- [`useThreadViewport`](/docs/api-reference/hooks/primitives)
+- [`useThreadViewportStore`](/docs/api-reference/hooks/primitives)
 
 ### ThreadPrimitive
 
@@ -222,12 +193,12 @@ A conversation thread.
 
 <Component
   name="ThreadPrimitive.Root"
-  docsLink="#thread-primitive-root"
+  docsLink="/docs/api-reference/primitives/thread"
   tooltip="Root component for a thread"
 >
   <Component
     name="ThreadPrimitive.Viewport"
-    docsLink="#thread-primitive-viewport"
+    docsLink="/docs/api-reference/primitives/thread"
     tooltip="Viewport for the thread content"
   >
     <Component
@@ -241,27 +212,35 @@ A conversation thread.
           link: "#composer-context",
         },
       ]}
-      docsLink="#thread-primitive-messages"
+      docsLink="/docs/api-reference/primitives/thread"
       tooltip="Container for thread messages, provides context for messages and edit composer"
     >
-      <Component name="Message" isLink={true} />
+      <Component
+        name="MessagePrimitive"
+        docsLink="/docs/api-reference/primitives/message"
+        tooltip="Message primitive components"
+      />
     </Component>
     <Component
       name="ThreadPrimitive.ScrollToBottom"
-      docsLink="#thread-primitive-scroll-to-bottom"
+      docsLink="/docs/api-reference/primitives/thread"
       tooltip="Scrolls to the bottom of the thread"
     />
     <Component
       name="AuiIf"
-      docsLink="#assistant-if"
+      docsLink="/docs/api-reference/primitives/assistant-if"
       tooltip="Conditional rendering based on assistant state"
     />
     <Component
       name="ThreadPrimitive.Suggestion"
-      docsLink="#thread-primitive-suggestion"
+      docsLink="/docs/api-reference/primitives/thread"
       tooltip="Displays suggestions in the thread"
     />
-    <Component name="Composer" isLink={true} />
+    <Component
+      name="ComposerPrimitive"
+      docsLink="/docs/api-reference/primitives/composer"
+      tooltip="Composer primitive components"
+    />
   </Component>
 </Component>
 
@@ -271,22 +250,22 @@ A floating modal that usually appears in the lower right corner of the screen. C
 
 <Component
   name="AssistantModalPrimitive.Root"
-  docsLink="#assistant-modal-primitive-root"
+  docsLink="/docs/api-reference/primitives/assistant-modal"
   tooltip="Root component for the assistant modal"
 >
   <Component
     name="AssistantModalPrimitive.Trigger"
-    docsLink="#assistant-modal-primitive-trigger"
+    docsLink="/docs/api-reference/primitives/assistant-modal"
     tooltip="Trigger to open the assistant modal"
   />
   <Component
     name="AssistantModalPrimitive.Anchor"
-    docsLink="#assistant-modal-primitive-anchor"
+    docsLink="/docs/api-reference/primitives/assistant-modal"
     tooltip="Anchor point for the assistant modal"
   />
   <Component
     name="AssistantModalPrimitive.Content"
-    docsLink="#assistant-modal-primitive-content"
+    docsLink="/docs/api-reference/primitives/assistant-modal"
     tooltip="Content of the assistant modal"
   />
 </Component>
@@ -308,22 +287,22 @@ Manages the state and actions for the message composer
 
 <Component
   name="ComposerPrimitive.Root"
-  docsLink="#composer-primitive-root"
+  docsLink="/docs/api-reference/primitives/composer"
   tooltip="Root component for the composer"
 >
   <Component
     name="ComposerPrimitive.Input"
-    docsLink="#composer-primitive-input"
+    docsLink="/docs/api-reference/primitives/composer"
     tooltip="Input field for composing messages"
   />
   <Component
     name="ComposerPrimitive.Send"
-    docsLink="#composer-primitive-send"
+    docsLink="/docs/api-reference/primitives/composer"
     tooltip="Button to send the composed message"
   />
   <Component
     name="ComposerPrimitive.Cancel"
-    docsLink="#composer-primitive-cancel"
+    docsLink="/docs/api-reference/primitives/composer"
     tooltip="Button to cancel composing"
   />
   <Component
@@ -335,12 +314,12 @@ Manages the state and actions for the message composer
         color: contextColors["Attachment Context"],
       },
     ]}
-    docsLink="#composer-primitive-attachments"
+    docsLink="/docs/api-reference/primitives/composer"
     tooltip="Manages attachments in the composer"
   />
   <Component
     name="ComposerPrimitive.AddAttachment"
-    docsLink="#composer-primitive-add-attachment"
+    docsLink="/docs/api-reference/primitives/composer"
     tooltip="Button to add an attachment"
   />
 </Component>
@@ -364,7 +343,7 @@ Manages the state and actions for individual messages
 
 <Component
   name="MessagePrimitive.Root"
-  docsLink="#message-primitive-root"
+  docsLink="/docs/api-reference/primitives/message"
   tooltip="Root component for a message"
 >
   <Component
@@ -376,7 +355,7 @@ Manages the state and actions for individual messages
         color: contextColors["MessagePart Context"],
       },
     ]}
-    docsLink="#message-primitive-parts"
+    docsLink="/docs/api-reference/primitives/message"
     tooltip="Displays the parts of the message"
   />
   <Component
@@ -388,12 +367,12 @@ Manages the state and actions for individual messages
         color: contextColors["Attachment Context"],
       },
     ]}
-    docsLink="#message-primitive-attachments"
+    docsLink="/docs/api-reference/primitives/message"
     tooltip="Displays attachments in the message"
   />
   <Component
     name="AuiIf"
-    docsLink="#assistant-if"
+    docsLink="/docs/api-reference/primitives/assistant-if"
     tooltip="Conditional rendering based on assistant state"
   />
 </Component>
@@ -402,42 +381,42 @@ Manages the state and actions for individual messages
 
 <Component
   name="ActionBarPrimitive.Root"
-  docsLink="#action-bar-primitive-root"
+  docsLink="/docs/api-reference/primitives/action-bar"
   tooltip="Root component for the action bar"
 >
   <Component
     name="ActionBarPrimitive.Copy"
-    docsLink="#action-bar-primitive-copy"
+    docsLink="/docs/api-reference/primitives/action-bar"
     tooltip="Copies the message content"
   />
   <Component
     name="ActionBarPrimitive.Edit"
-    docsLink="#action-bar-primitive-edit"
+    docsLink="/docs/api-reference/primitives/action-bar"
     tooltip="Edits the message"
   />
   <Component
     name="ActionBarPrimitive.Reload"
-    docsLink="#action-bar-primitive-reload"
+    docsLink="/docs/api-reference/primitives/action-bar"
     tooltip="Reloads the message"
   />
   <Component
     name="ActionBarPrimitive.Speak"
-    docsLink="#action-bar-primitive-speak"
+    docsLink="/docs/api-reference/primitives/action-bar"
     tooltip="Speaks the message content"
   />
   <Component
     name="ActionBarPrimitive.StopSpeaking"
-    docsLink="#action-bar-primitive-stop-speaking"
+    docsLink="/docs/api-reference/primitives/action-bar"
     tooltip="Stops speaking the message"
   />
   <Component
     name="ActionBarPrimitive.FeedbackPositive"
-    docsLink="#action-bar-primitive-feedback-positive"
+    docsLink="/docs/api-reference/primitives/action-bar"
     tooltip="Provides positive feedback"
   />
   <Component
     name="ActionBarPrimitive.FeedbackNegative"
-    docsLink="#action-bar-primitive-feedback-negative"
+    docsLink="/docs/api-reference/primitives/action-bar"
     tooltip="Provides negative feedback"
   />
 </Component>
@@ -446,22 +425,22 @@ Manages the state and actions for individual messages
 
 <Component
   name="BranchPickerPrimitive.Root"
-  docsLink="#branch-picker-primitive-root"
+  docsLink="/docs/api-reference/primitives/branch-picker"
   tooltip="Root component for the branch picker"
 >
   <Component
     name="BranchPickerPrimitive.Previous"
-    docsLink="#branch-picker-primitive-previous"
+    docsLink="/docs/api-reference/primitives/branch-picker"
     tooltip="Navigates to the previous branch"
   />
   <Component
     name="BranchPickerPrimitive.Number"
-    docsLink="#branch-picker-primitive-number"
+    docsLink="/docs/api-reference/primitives/branch-picker"
     tooltip="Displays the current branch number"
   />
   <Component
     name="BranchPickerPrimitive.Next"
-    docsLink="#branch-picker-primitive-next"
+    docsLink="/docs/api-reference/primitives/branch-picker"
     tooltip="Navigates to the next branch"
   />
 </Component>
@@ -483,7 +462,7 @@ Manages the state and actions for message parts within messages
 
 <Component
   name="MessagePartPrimitive.Text"
-  docsLink="#content-part-text"
+  docsLink="/docs/api-reference/primitives/message-part"
   tooltip="Represents a text part of the message content"
 />
 
@@ -491,7 +470,7 @@ Manages the state and actions for message parts within messages
 
 <Component
   name="MarkdownText"
-  docsLink="#markdown-text"
+  docsLink="/docs/api-reference/primitives/message-part"
   tooltip="Renders markdown text in the message"
 />
 
@@ -512,22 +491,22 @@ Manages the state and actions for attachments in messages and composer
 
 <Component
   name="AttachmentPrimitive.Root"
-  docsLink="#attachment-primitive-root"
+  docsLink="/docs/api-reference/primitives/attachment"
   tooltip="Root component for an attachment"
 >
   <Component
     name="AttachmentPrimitive.Name"
-    docsLink="#attachment-primitive-name"
+    docsLink="/docs/api-reference/primitives/attachment"
     tooltip="Displays the name of the attachment"
   />
   <Component
     name="AttachmentPrimitive.Remove"
-    docsLink="#attachment-primitive-remove"
+    docsLink="/docs/api-reference/primitives/attachment"
     tooltip="Removes the attachment"
   />
   <Component
     name="AttachmentPrimitive.unstable_Thumb"
-    docsLink="#attachment-primitive-thumb"
+    docsLink="/docs/api-reference/primitives/attachment"
     tooltip="Displays a thumbnail of the attachment"
   />
 </Component>
@@ -549,33 +528,33 @@ Manages the state and actions for individual thread list items
 
 <Component
   name="ThreadListItemPrimitive.Root"
-  docsLink="#thread-list-item-primitive-root"
+  docsLink="/docs/api-reference/primitives/thread-list-item"
   tooltip="Root component for a thread list item"
 >
   <Component
     name="ThreadListItemPrimitive.Trigger"
-    docsLink="#thread-list-item-primitive-trigger"
+    docsLink="/docs/api-reference/primitives/thread-list-item"
     tooltip="Trigger for thread list item actions"
   >
     <Component
       name="ThreadListItemPrimitive.Title"
-      docsLink="#thread-list-item-primitive-title"
+      docsLink="/docs/api-reference/primitives/thread-list-item"
       tooltip="Displays the title of the thread"
     />
   </Component>
   <Component
     name="ThreadListItemPrimitive.Archive"
-    docsLink="#thread-list-item-primitive-archive"
+    docsLink="/docs/api-reference/primitives/thread-list-item"
     tooltip="Archives the thread"
   />
   <Component
     name="ThreadListItemPrimitive.Unarchive"
-    docsLink="#thread-list-item-primitive-unarchive"
+    docsLink="/docs/api-reference/primitives/thread-list-item"
     tooltip="Unarchives the thread"
   />
   <Component
     name="ThreadListItemPrimitive.Delete"
-    docsLink="#thread-list-item-primitive-delete"
+    docsLink="/docs/api-reference/primitives/thread-list-item"
     tooltip="Deletes the thread"
   />
 </Component>
@@ -584,5 +563,5 @@ Manages the state and actions for individual thread list items
 
 ## Utilities
 
-- [`useThreadViewportAutoScroll`](#use-thread-viewport-autoscroll)
-- [`useInlineRender`](#use-inline-render)
+- [`useThreadViewportAutoScroll`](/docs/api-reference/hooks/primitives)
+- [`useInlineRender`](/docs/api-reference/model-context/context)

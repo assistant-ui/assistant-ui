@@ -1,0 +1,10 @@
+{
+  "title": "Tools",
+  "description": "APIs for defining tools, registering tool UIs, rendering tool calls, and composing toolkits.",
+  "overview": "Tool APIs define the callable capabilities an assistant can use and the React UI used to render tool calls and results.",
+  "pages": [
+    "definition",
+    "rendering",
+    "status"
+  ]
+}

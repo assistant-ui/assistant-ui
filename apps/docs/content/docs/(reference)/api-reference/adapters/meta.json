@@ -1,6 +1,13 @@
 {
   "title": "Adapters",
-  "description": "Reference for assistant-ui adapter interfaces — persistence, attachments, speech, dictation, feedback, suggestions, and runtime composition for React chat UIs.",
+  "description": "Reference for assistant-ui adapter interfaces and helpers for chat models, persistence, attachments, speech, feedback, suggestions, and runtime composition.",
   "overview": "Adapters let you replace runtime behavior without replacing the UI. They are usually passed through runtime options or provided by integration packages.",
-  "pages": ["index", "runtime", "attachments", "persistence", "feedback-speech"]
+  "pages": [
+    "attachments",
+    "feedback-speech",
+    "model",
+    "persistence",
+    "runtime",
+    "suggestions"
+  ]
 }

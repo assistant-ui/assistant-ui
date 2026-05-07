@@ -1,0 +1,9 @@
+{
+  "title": "Transport",
+  "description": "Assistant transport, frame, and protocol APIs for cross-boundary communication.",
+  "overview": "Transport APIs describe the message protocol and frame bridge used to connect assistant-ui to external execution contexts.",
+  "pages": [
+    "assistant-transport",
+    "frame"
+  ]
+}
