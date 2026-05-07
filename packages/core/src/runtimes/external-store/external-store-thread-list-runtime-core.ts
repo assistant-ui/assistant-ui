@@ -157,8 +157,10 @@ export class ExternalStoreThreadListRuntimeCore
       this._threadData = {
         ...this._threadData,
         [this._mainThreadId]: {
-          ...DEFAULT_THREAD,
           id: this._mainThreadId,
+          remoteId: undefined,
+          externalId: undefined,
+          status: "regular",
         },
       };
     }
