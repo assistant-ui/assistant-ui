@@ -146,7 +146,6 @@ const MessageClient = resource(
         branchNumber: 1,
         branchCount: 1,
         speech: undefined,
-        submittedFeedback: undefined,
         parts: partClients.state,
         isCopied,
         isHovering,
@@ -589,7 +588,6 @@ export const ExternalThread = resource(
         onStartRun?.();
       },
       resumeRun: () => {},
-      unstable_resumeRun: () => {},
       cancelRun: handleCancelRun,
       getModelContext: () => ({ tools: {}, config: {} }),
       export: () => ({ messages: [] }),

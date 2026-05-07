@@ -1,7 +1,138 @@
 ---
 title: Migration to v0.14
-description: Primitives migrate from components prop to children render functions.
+description: Drops APIs deprecated since v0.11/v0.12, and primitives migrate from components prop to children render functions.
 ---
+
+Version 0.14 finishes deprecation cycles started in v0.11 and v0.12, and replaces the `components` prop on primitives with a children render function pattern. If your app is on v0.13 and free of deprecation warnings, the only required change is the children API migration.
+
+## Automatic Migration
+
+The codemod that ships with the CLI handles the v0.12 hook renames (`useAssistantApi` → `useAui`, etc.) which are also removed in v0.14:
+
+```bash
+npx assistant-ui@latest upgrade
+```
+
+The other removals listed below are simple renames you can apply with find-and-replace.
+
+## Hook Aliases Removed
+
+These thin aliases existed only for backwards compatibility:
+
+| Removed                              | Replacement                  |
+| ------------------------------------ | ---------------------------- |
+| `useAssistantApi`                    | `useAui`                     |
+| `useAssistantState`                  | `useAuiState`                |
+| `useAssistantEvent`                  | `useAuiEvent`                |
+| `AssistantIf`                        | `AuiIf`                      |
+| `useLocalThreadRuntime`              | `useLocalRuntime`            |
+| `unstable_useRemoteThreadListRuntime`| `useRemoteThreadListRuntime` |
+| `unstable_useCloudThreadListAdapter` | `useCloudThreadListAdapter`  |
+| `unstable_RemoteThreadListAdapter`   | `RemoteThreadListAdapter`    |
+| `unstable_InMemoryThreadListAdapter` | `InMemoryThreadListAdapter`  |
+
+## Runtime API Cleanups
+
+### `AssistantRuntime`
+
+| Removed                                  | Replacement                               |
+| ---------------------------------------- | ----------------------------------------- |
+| `runtime.threadList`                     | `runtime.threads`                         |
+| `runtime.switchToNewThread()`            | `runtime.threads.switchToNewThread()`     |
+| `runtime.switchToThread(id)`             | `runtime.threads.switchToThread(id)`      |
+| `runtime.registerModelConfigProvider(p)` | `runtime.registerModelContextProvider(p)` |
+| `runtime.reset({ initialMessages })`     | `runtime.thread.reset(initialMessages)`   |
+
+### `ThreadRuntime`
+
+| Removed                                    | Replacement                         |
+| ------------------------------------------ | ----------------------------------- |
+| `thread.startRun(parentId)` (positional)   | `thread.startRun({ parentId })`     |
+| `thread.unstable_resumeRun(config)`        | `thread.resumeRun(config)`          |
+| `thread.unstable_loadExternalState(state)` | `thread.importExternalState(state)` |
+| `thread.getModelConfig()`                  | `thread.getModelContext()`          |
+
+### `MessageState` / `MessageRuntime`
+
+The duplicate top-level `submittedFeedback` field has been removed. It has always been mirrored from `message.metadata.submittedFeedback`, which remains the source of truth:
+
+```tsx
+// Before
+useAuiState((s) => s.message.submittedFeedback);
+
+// After
+useAuiState((s) => s.message.metadata.submittedFeedback);
+```
+
+### `ChatModelRunOptions`
+
+If you wrote a custom `ChatModelAdapter`, the legacy alias `options.config` (which mirrored `options.context`) is gone:
+
+```ts
+// Before
+const adapter: ChatModelAdapter = {
+  async run({ messages, config }) {
+    /* config.tools, config.config, ... */
+  },
+};
+
+// After
+const adapter: ChatModelAdapter = {
+  async run({ messages, context }) {
+    /* context.tools, context.config, ... */
+  },
+};
+```
+
+## External Store Helpers
+
+`getExternalStoreMessage` (singular) has been removed. Use `getExternalStoreMessages` (plural), which always returns an array — even when only one source message is bound:
+
+```ts
+// Before
+const original = getExternalStoreMessage<MyMessage>(threadMessage);
+
+// After
+const [original] = getExternalStoreMessages<MyMessage>(threadMessage);
+```
+
+## Assistant Transport Helpers
+
+`toAISDKTools` and `getEnabledTools` (re-exported from `@assistant-ui/react`) have been removed. Both wrapped functionality that's now exposed directly by `assistant-stream`:
+
+```ts
+// Before
+import { toAISDKTools } from "@assistant-ui/react";
+const schemas = toAISDKTools(tools);
+
+// After
+import { toToolsJSONSchema } from "assistant-stream";
+const schemas = toToolsJSONSchema(tools, { filter: () => true });
+```
+
+`toToolsJSONSchema` filters out `disabled` and `backend` tools by default, so most callers can drop the `filter` option entirely.
+
+## react-langgraph
+
+`useLangGraphRuntime`'s `onSwitchToThread` option has been removed. Use `load`, which has the same signature plus an optional `AbortSignal`:
+
+```ts
+// Before
+useLangGraphRuntime({
+  stream,
+  onSwitchToThread: async (threadId) => {
+    return await fetchThread(threadId);
+  },
+});
+
+// After
+useLangGraphRuntime({
+  stream,
+  load: async (threadId, { signal } = {}) => {
+    return await fetchThread(threadId, { signal });
+  },
+});
+```
 
 ## Children API for Primitives
 
@@ -150,10 +281,17 @@ When using the children API, tool-call parts include `addResult` and `resume` me
 
 The `components` prop is still supported on all primitives but is deprecated and will be removed in a future version.
 
+## Still Deprecated (not removed)
+
+Some APIs marked `@deprecated` are intentionally kept for one more release to give downstream runtimes time to migrate:
+
+- `ThreadState.threadId` and `ThreadState.metadata` — use `useThreadListItem()` (see [v0.12 guide](/docs/migrations/v0-12)). Will be removed in a future minor release.
+- Legacy context hooks under `legacy-runtime/hooks/*` (`useThreadRuntime`, `useMessageRuntime`, etc.) — replaced by `useAui()` / `useAuiState()` in v0.12. The codemod migrates these.
+- Primitive `If` components (`ThreadIf`, `MessageIf`, `ComposerIf`, `ThreadEmpty`) — replaced by `AuiIf`. The codemod migrates these.
+
+You'll continue to see deprecation warnings on these; expect removal in a future minor release.
+
 ## Getting Help
 
-If you encounter issues during migration:
-
-1. Check the updated API documentation for detailed examples
-2. Review the example applications in the repository
-3. Report issues at https://github.com/assistant-ui/assistant-ui/issues
+- File issues at https://github.com/assistant-ui/assistant-ui/issues
+- See the [deprecation policy](/docs/migrations/deprecation-policy) for the support window

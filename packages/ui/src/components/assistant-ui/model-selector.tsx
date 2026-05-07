@@ -12,7 +12,7 @@ import {
 import { Select as SelectPrimitive } from "radix-ui";
 import type { VariantProps } from "class-variance-authority";
 import { CheckIcon } from "lucide-react";
-import { useAssistantApi } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
 import {
   SelectRoot,
@@ -236,7 +236,7 @@ const ModelSelectorImpl = ({
   const value = isControlled ? controlledValue : internalValue;
   const onValueChange = controlledOnValueChange ?? setInternalValue;
 
-  const api = useAssistantApi();
+  const api = useAui();
 
   useEffect(() => {
     const config = { config: { modelName: value } };

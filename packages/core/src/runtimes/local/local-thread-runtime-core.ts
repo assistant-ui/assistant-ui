@@ -226,10 +226,6 @@ export class LocalThreadRuntimeCore
     throw new Error("Runtime does not support importing external states.");
   }
 
-  public unstable_loadExternalState(): void {
-    throw new Error("Runtime does not support importing external states.");
-  }
-
   public async startRun(
     { parentId, runConfig }: StartRunConfig,
     runCallback?: ChatModelAdapter["run"],
@@ -405,7 +401,6 @@ export class LocalThreadRuntimeCore
         runConfig: this._lastRunConfig,
         abortSignal,
         context,
-        config: context,
         unstable_assistantMessageId: message.id,
         unstable_threadId: threadId,
         unstable_parentId: parentId,

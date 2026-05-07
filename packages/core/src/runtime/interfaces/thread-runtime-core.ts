@@ -194,9 +194,4 @@ export type ThreadRuntimeCore = Readonly<{
     event: E,
     callback: ThreadRuntimeEventCallback<E>,
   ): Unsubscribe;
-
-  /**
-   * @deprecated Use importExternalState instead. This method will be removed in 0.12.0.
-   */
-  unstable_loadExternalState: (state: any) => void;
 }>;

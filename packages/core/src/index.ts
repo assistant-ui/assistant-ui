@@ -244,7 +244,6 @@ export type { ThreadMessageLike } from "./runtime/utils/thread-message-like";
 
 // External Store Message Utilities
 export {
-  getExternalStoreMessage,
   getExternalStoreMessages,
   bindExternalStoreMessage,
 } from "./runtime/utils/external-store-message";
@@ -277,8 +276,4 @@ export type {
 export { InMemoryThreadListAdapter } from "./runtimes/remote-thread-list/adapter/in-memory";
 
 // Assistant Transport Utilities
-export {
-  toAISDKTools,
-  getEnabledTools,
-  createRequestHeaders,
-} from "./runtimes/assistant-transport/utils";
+export { createRequestHeaders } from "./runtimes/assistant-transport/utils";

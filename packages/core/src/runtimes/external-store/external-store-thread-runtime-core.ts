@@ -316,10 +316,6 @@ export class ExternalStoreThreadRuntimeCore
     this._store.onLoadExternalState(state);
   }
 
-  public unstable_loadExternalState(state: any): void {
-    this.importExternalState(state);
-  }
-
   public cancelRun(): void {
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");

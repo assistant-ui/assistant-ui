@@ -104,10 +104,6 @@ export class ReadonlyThreadRuntimeCore
     throw READONLY_THREAD_ERROR;
   }
 
-  unstable_loadExternalState(): void {
-    throw READONLY_THREAD_ERROR;
-  }
-
   composer = {
     attachments: [] as never[],
     attachmentAccept: "*",
