@@ -85,6 +85,21 @@ describe("createAgUiSubscriber", () => {
     expect(events).toEqual([{ type: "RUN_FINISHED", runId: "run" }]);
   });
 
+  it("falls back to onRunFinalized when RunFinishedEvent has no runId", () => {
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => events.push(evt),
+      runId: "run",
+    });
+
+    subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED" },
+    });
+    subscriber.onRunFinalized?.();
+
+    expect(events).toEqual([{ type: "RUN_FINISHED", runId: "run" }]);
+  });
+
   it("dispatches reasoning handlers without duplication", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({

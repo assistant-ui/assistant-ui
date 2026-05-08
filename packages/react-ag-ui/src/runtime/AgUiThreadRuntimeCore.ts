@@ -258,10 +258,10 @@ export class AgUiThreadRuntimeCore {
       );
     }
     const known = new Set(openIds);
-    const unknown = [...responsesById.keys()].filter((id) => !known.has(id));
-    if (unknown.length > 0) {
+    const unknownIds = [...responsesById.keys()].filter((id) => !known.has(id));
+    if (unknownIds.length > 0) {
       throw new Error(
-        `[agui] submitInterruptResponses: unknown interrupt ids: ${unknown.join(", ")}`,
+        `[agui] submitInterruptResponses: unknown interrupt ids: ${unknownIds.join(", ")}`,
       );
     }
 
@@ -292,7 +292,6 @@ export class AgUiThreadRuntimeCore {
     }
 
     this.clearPendingInterrupts(pending.messageId);
-    this.persistAssistantHistory(pending.messageId);
     await this.startRun(pending.messageId, this.lastRunConfig, { resume });
   }
 
@@ -309,12 +308,20 @@ export class AgUiThreadRuntimeCore {
         return assistant;
       }
       touched = true;
-      const { [AG_UI_METADATA_NAMESPACE]: _drop, ...restCustom } =
-        assistant.metadata.custom;
+      const aguiMeta = assistant.metadata.custom[AG_UI_METADATA_NAMESPACE] as
+        | AgUiCustomMetadata
+        | undefined;
+      const { interrupts: _drop, ...restAgui } = aguiMeta ?? {};
+      const newCustom = { ...assistant.metadata.custom };
+      if (Object.keys(restAgui).length > 0) {
+        newCustom[AG_UI_METADATA_NAMESPACE] = restAgui;
+      } else {
+        delete newCustom[AG_UI_METADATA_NAMESPACE];
+      }
       return {
         ...assistant,
         status: { type: "complete" as const, reason: "unknown" as const },
-        metadata: { ...assistant.metadata, custom: restCustom },
+        metadata: { ...assistant.metadata, custom: newCustom },
       };
     });
     if (touched) this.notifyUpdate();
@@ -468,6 +475,7 @@ export class AgUiThreadRuntimeCore {
     const subscriber = createAgUiSubscriber({
       dispatch,
       runId,
+      logger: this.logger,
       onRunFailed: (error) => {
         this.pendingError = error;
         this.onError?.(error);
@@ -536,6 +544,7 @@ export class AgUiThreadRuntimeCore {
   private installResumeShim(): void {
     const agent = this.agent as any;
     if (agent[symbolResumeShim]) return;
+    agent[symbolResumeShim] = true;
     const onInstance = Object.hasOwn(agent, "prepareRunAgentInput");
     const original = onInstance
       ? agent.prepareRunAgentInput
@@ -551,7 +560,6 @@ export class AgUiThreadRuntimeCore {
       }
       return input;
     };
-    agent[symbolResumeShim] = true;
   }
 
   private setRunning(running: boolean) {

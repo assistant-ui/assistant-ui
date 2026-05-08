@@ -1,6 +1,6 @@
 "use client";
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { parseAgUiEvent } from "../src/runtime/event-parser";
 
 describe("parseAgUiEvent", () => {
@@ -106,5 +106,22 @@ describe("parseAgUiEvent", () => {
       outcome: { type: "interrupt", interrupts: [] },
     });
     expect(event).toEqual({ type: "RUN_FINISHED", runId: "r1" });
+  });
+
+  it("logs a debug entry when interrupt outcome falls back silently", () => {
+    const debug = vi.fn();
+    parseAgUiEvent(
+      {
+        type: "RUN_FINISHED",
+        runId: "r1",
+        outcome: {
+          type: "interrupt",
+          interrupts: [{ id: "" }, { reason: "" }],
+        },
+      },
+      { logger: { debug } as any },
+    );
+    expect(debug).toHaveBeenCalledTimes(1);
+    expect(debug.mock.calls[0][0]).toMatch(/no valid interrupts/);
   });
 });

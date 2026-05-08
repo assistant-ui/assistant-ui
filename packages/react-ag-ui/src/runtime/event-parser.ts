@@ -1,4 +1,9 @@
 import type { AgUiEvent, AgUiInterrupt, AgUiRunFinishedOutcome } from "./types";
+import type { Logger } from "./logger";
+
+export type ParseAgUiEventOptions = {
+  logger?: Logger;
+};
 
 const isString = (value: unknown): value is string => typeof value === "string";
 const isNonEmptyString = (value: unknown): value is string =>
@@ -36,21 +41,37 @@ const parseInterrupt = (raw: unknown): AgUiInterrupt | null => {
 
 const parseRunFinishedOutcome = (
   raw: unknown,
+  logger: Logger | undefined,
 ): AgUiRunFinishedOutcome | undefined => {
   if (!isPlainObject(raw)) return undefined;
   if (raw.type === "success") return { type: "success" };
   if (raw.type === "interrupt") {
-    if (!Array.isArray(raw.interrupts)) return undefined;
+    if (!Array.isArray(raw.interrupts)) {
+      logger?.debug?.(
+        "[agui] RUN_FINISHED interrupt outcome missing interrupts array",
+        raw,
+      );
+      return undefined;
+    }
     const parsed = raw.interrupts
       .map((entry) => parseInterrupt(entry))
       .filter((entry): entry is AgUiInterrupt => entry !== null);
-    if (parsed.length === 0) return undefined;
+    if (parsed.length === 0) {
+      logger?.debug?.(
+        "[agui] RUN_FINISHED interrupt outcome has no valid interrupts",
+        raw.interrupts,
+      );
+      return undefined;
+    }
     return { type: "interrupt", interrupts: parsed };
   }
   return undefined;
 };
 
-export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
+export const parseAgUiEvent = (
+  event: unknown,
+  options?: ParseAgUiEventOptions,
+): AgUiEvent | null => {
   if (!event || typeof event !== "object") return null;
   const payload = event as Record<string, unknown>;
   const typeValue = payload.type;
@@ -69,7 +90,9 @@ export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
       if (!runId) return null;
       return withOptional(
         { type: "RUN_FINISHED" as const, runId },
-        { outcome: parseRunFinishedOutcome(payload.outcome) },
+        {
+          outcome: parseRunFinishedOutcome(payload.outcome, options?.logger),
+        },
       );
     }
     case "RUN_CANCELLED": {
