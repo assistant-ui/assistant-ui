@@ -84,7 +84,7 @@ const renderNode = (
 
   return createElement(
     Resolved,
-    { key: key ?? path, ...(props ?? {}) },
+    { ...(props ?? {}), key: key ?? path },
     ...(renderedChildren ?? []),
   );
 };

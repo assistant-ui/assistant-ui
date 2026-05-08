@@ -58,8 +58,12 @@ export const getMessageContent = (msg: AppendMessage) => {
         throw new Error("Tool call appends are not supported.");
 
       default: {
-        const _exhaustiveCheck: "reasoning" | "source" | "audio" | "data" =
-          type;
+        const _exhaustiveCheck:
+          | "reasoning"
+          | "source"
+          | "audio"
+          | "data"
+          | "generative-ui" = type;
         throw new Error(
           `Unsupported append message part type: ${_exhaustiveCheck}`,
         );
