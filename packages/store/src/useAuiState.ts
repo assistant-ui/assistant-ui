@@ -29,7 +29,9 @@ export const useAuiState = <T>(selector: (state: AssistantState) => T): T => {
   // before unmount runs. Returning the last successful slice keeps React's
   // reconciliation moving so the stale child is unmounted by its parent
   // instead of crashing the tree (matches react-redux's `useSelector`
-  // pattern). The first selector call is never suppressed.
+  // pattern). Only applied to the client snapshot — the zombie scenario is
+  // browser-only, and server snapshots must never mask a real selector
+  // failure on the initial client render.
   const lastSliceRef = useRef<{ value: T } | null>(null);
 
   const slice = useSyncExternalStore(
@@ -44,16 +46,7 @@ export const useAuiState = <T>(selector: (state: AssistantState) => T): T => {
         return lastSliceRef.current.value;
       }
     },
-    () => {
-      try {
-        const value = selector(proxiedState);
-        lastSliceRef.current = { value };
-        return value;
-      } catch (err) {
-        if (lastSliceRef.current === null) throw err;
-        return lastSliceRef.current.value;
-      }
-    },
+    () => selector(proxiedState),
   );
 
   if (slice === proxiedState) {
