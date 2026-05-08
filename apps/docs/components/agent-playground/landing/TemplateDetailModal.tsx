@@ -173,7 +173,7 @@ export function TemplateDetailModal({ template, allTemplates, onClose, onSelect 
 
         {/* Bottom: more templates */}
         {others.length > 0 && (
-          <div ref={scrollRef} className="border-t px-6 py-5 overflow-y-auto">
+          <div ref={scrollRef} className="scrollbar-thin border-t px-6 py-5 overflow-y-auto">
             <h3 className="text-xs font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
               More templates
             </h3>

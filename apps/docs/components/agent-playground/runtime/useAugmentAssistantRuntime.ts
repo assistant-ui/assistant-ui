@@ -496,7 +496,10 @@ export function useAugmentAssistantRuntime(client: AugmentClient = augmentClient
   });
 
   const livePreview = useMemo(() => latestPreviewTargetFromEvents(eventLog), [eventLog]);
-  const hasLivePreview = livePreview?.status === 'ready' || livePreview?.status === 'loading';
+  const hasLivePreview =
+    livePreview?.status === 'ready' ||
+    livePreview?.status === 'loading' ||
+    livePreview?.status === 'failed';
 
   return useMemo(() => ({
     runtime,

@@ -3,6 +3,7 @@
 import { AgentPlaygroundApp } from "@/components/agent-playground/AgentPlaygroundApp";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   CodeIcon,
   XIcon,
@@ -347,42 +348,50 @@ function BuilderPlayground() {
 }
 
 
+function HeaderPortal({ children }: { children: React.ReactNode }) {
+  const [container, setContainer] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const el = document.getElementById("sub-project-header-portal");
+    if (el) setContainer(el);
+  }, []);
+
+  if (!container) return null;
+  return createPortal(children, container);
+}
+
 export default function PlaygroundPage() {
-  const [mode, setMode] = useState<"builder" | "agent">("builder");
+  const [mode, setMode] = useState<"builder" | "agent">("agent");
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background">
-      <div className="flex shrink-0 items-center justify-between border-b bg-background px-3 py-2">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          <Sparkles className="size-4" />
-          <span>Playground</span>
-        </div>
+    <>
+      <HeaderPortal>
         <div className="grid grid-cols-2 rounded-md border bg-muted/40 p-0.5 text-xs">
-          <button
-            type="button"
-            onClick={() => setMode("builder")}
-            className={cn(
-              "rounded px-3 py-1.5 font-medium transition-colors",
-              mode === "builder" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            Builder
-          </button>
           <button
             type="button"
             onClick={() => setMode("agent")}
             className={cn(
-              "rounded px-3 py-1.5 font-medium transition-colors",
+              "rounded px-2.5 py-1 font-medium transition-colors",
               mode === "agent" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
             )}
           >
             Agent
           </button>
+          <button
+            type="button"
+            onClick={() => setMode("builder")}
+            className={cn(
+              "rounded px-2.5 py-1 font-medium transition-colors",
+              mode === "builder" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Builder
+          </button>
         </div>
-      </div>
-      <div className="min-h-0 flex-1 overflow-hidden">
+      </HeaderPortal>
+      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
         {mode === "builder" ? <BuilderPlayground /> : <AgentPlaygroundApp />}
       </div>
-    </div>
+    </>
   );
 }

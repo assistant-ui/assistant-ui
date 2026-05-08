@@ -79,7 +79,7 @@ export function TemplatesModal({ open, onOpenChange, initialCategoryId, onSelect
             </CatChip>
           ))}
         </div>
-        <div className="max-h-[60vh] overflow-y-auto px-6 pb-6">
+        <div className="scrollbar-thin max-h-[60vh] overflow-y-auto px-6 pb-6">
           {isLoading ? (
             <div className="py-10 text-center text-sm text-muted-foreground">
               Loading templates...

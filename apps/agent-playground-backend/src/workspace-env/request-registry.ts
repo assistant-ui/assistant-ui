@@ -7,7 +7,6 @@ import type { HarnessState } from '../schema.js';
 import type { AgentSession } from '../sessions/types.js';
 import { sessionWorkspaceRegistry } from '../workspace-provider.js';
 import {
-  getWorkspaceEnvStatus,
   resolveWorkspaceAppPath,
   updateWorkspaceEnv,
   type WorkspaceEnvExpectedVar,
@@ -119,14 +118,6 @@ export async function skipWorkspaceEnvRequest(
     requestId: input.requestId,
     appPath,
   });
-
-  const notice = [
-    'The user chose to continue without adding workspace environment variables for now.',
-    `App folder: ${appPath}.`,
-    'Proceed with mock or offline flows where possible, or prompt for env again later if full functionality is required.',
-  ].join(' ');
-
-  await notifyAgent(runtime, notice);
 
   return { accepted: true };
 }

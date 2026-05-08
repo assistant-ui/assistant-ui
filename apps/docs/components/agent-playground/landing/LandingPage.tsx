@@ -29,7 +29,7 @@ export function LandingPage({ headline, placeholder, onStartChat, onSelectTempla
   };
 
   return (
-    <main className="flex flex-1 flex-col items-center px-6 pb-24">
+    <main className="scrollbar-thin flex flex-1 flex-col items-center overflow-y-auto px-6 pb-24">
       <div className="w-full max-w-3xl flex flex-col items-center pt-[16vh]">
         <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-center mb-6">
           {resolvedHeadline}

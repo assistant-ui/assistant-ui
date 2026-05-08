@@ -93,7 +93,7 @@ async function withRetry<T>(fn: () => Promise<T>, _label?: string): Promise<T> {
       return await fn();
     } catch (err: any) {
       lastError = err;
-      const msg = err?.message ?? String(err);
+      const msg = err?.message ?? (typeof err === 'string' ? err : JSON.stringify(err));
       const causeMsg = err?.cause?.message ?? '';
       const fullMsg = `${msg} ${causeMsg}`;
       // Only retry on transient network/H2 errors
@@ -148,7 +148,8 @@ async function waitUntilReachable(sb: any, maxWaitMs = 30_000): Promise<void> {
       await new Promise(r => setTimeout(r, 1000));
     }
   }
-  throw new Error(`Sandbox not reachable after ${maxWaitMs}ms: ${lastError}`);
+  const errMsg = lastError instanceof Error ? lastError.message : (typeof lastError === 'string' ? lastError : JSON.stringify(lastError, null, 2).slice(0, 500));
+  throw new Error(`Sandbox not reachable after ${maxWaitMs}ms: ${errMsg}`);
 }
 
 export function resolveSandboxTemplate(

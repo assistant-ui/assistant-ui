@@ -70,7 +70,7 @@ export const Thread: FC<ThreadProps> = ({
     >
       <ThreadPrimitive.Viewport
         turnAnchor="top"
-        className="aui-thread-viewport scrollbar-thin relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4 [scrollbar-gutter:stable]"
+        className="aui-thread-viewport scrollbar-thin relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto scroll-smooth px-4 pt-4"
       >
         {!hideWelcome && (
           <AuiIf condition={(s) => s.thread.isEmpty}>

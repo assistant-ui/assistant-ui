@@ -10,18 +10,21 @@
 // Workspace preview (live dev-server in local or sandbox workspace)
 // ---------------------------------------------------------------------------
 
-export type WorkspacePreviewSource = 'local' | 'sandbox';
-export type WorkspacePreviewStatus = 'ready' | 'loading' | 'failed';
+export type WorkspacePreviewSource = "local" | "sandbox";
+export type WorkspacePreviewStatus = "ready" | "loading" | "failed";
+export type WorkspacePreviewTarget = "app" | "test-server";
 
 export interface ResolveWorkspacePreviewInput {
-  /** Port the dev server is listening on inside the workspace. */
-  port: number;
-  /** Optional host override (default: localhost for local, ignored for sandbox). */
+  /** Semantic preview target. Defaults to the app preview. */
+  target?: WorkspacePreviewTarget;
+  /** Advanced override for the dev server port inside the workspace. */
+  port?: number;
+  /** Advanced host override (default: localhost for local, ignored for sandbox). */
   host?: string;
 }
 
 export interface WorkspacePreviewResult {
-  type: 'workspace_preview';
+  type: "workspace_preview";
   status: WorkspacePreviewStatus;
   source: WorkspacePreviewSource;
   /** Reachable preview URL — present when status is 'ready'. */
@@ -29,7 +32,7 @@ export interface WorkspacePreviewResult {
   port: number;
   host?: string;
   /** Sandbox provider name when source is 'sandbox'. */
-  provider?: 'blaxel';
+  provider?: "blaxel";
   /** Error message when status is 'failed'. */
   error?: string;
 }
@@ -38,10 +41,10 @@ export interface WorkspacePreviewResult {
 // Example preview (immutable hosted preview)
 // ---------------------------------------------------------------------------
 
-export type ExamplePreviewStatus = 'ready' | 'missing';
+export type ExamplePreviewStatus = "ready" | "missing";
 
 export interface ExamplePreviewResult {
-  type: 'show_ui_preview';
+  type: "show_ui_preview";
   recipeId: string;
   status: ExamplePreviewStatus;
   previewUrl?: string;

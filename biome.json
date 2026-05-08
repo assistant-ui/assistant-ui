@@ -204,6 +204,7 @@
       "!**/.tanstack",
       "!**/.output",
       "!**/routeTree.gen.ts",
+      "!**/apps/agent-playground-backend/src/mixer/assets",
       "!**/packages/mcp-app-studio/templates",
       "!**/*.html"
     ]

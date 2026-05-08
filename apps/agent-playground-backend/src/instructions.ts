@@ -6,7 +6,9 @@ export function getDynamicInstructions({
 }: {
   requestContext: { get(key: string): unknown };
 }) {
-  const harnessContext = requestContext.get("harness") as HarnessRequestContext<HarnessState> | undefined;
+  const harnessContext = requestContext.get("harness") as
+    | HarnessRequestContext<HarnessState>
+    | undefined;
   const state = harnessContext?.getState?.() ?? harnessContext?.state;
   const modeId = harnessContext?.modeId ?? "build";
   const date = new Date().toISOString().slice(0, 10);
@@ -23,6 +25,9 @@ export function getDynamicInstructions({
     "- Use request_workspace_env for temporary API keys instead of asking the user to paste secrets into chat.",
     "- Never echo secret values in chat, tool results, logs, or generated files.",
     "- Prefer small, reviewable changes and explain what changed at the end.",
+    "- For runnable app previews, start dev servers on host 0.0.0.0 and port 3000, for example: npm run dev -- --hostname 0.0.0.0 --port 3000.",
+    '- After the dev server is running, call resolve_workspace_preview with no input or {"target":"app"}. Do not pass host, and do not use ports 80, 443, or 8080 for Blaxel sandboxes.',
+    "- If the server starts on port 80 or another unexpected port, stop it and restart on 0.0.0.0:3000 before resolving the preview.",
     "",
     "Modes:",
     `- Current mode: ${modeId}`,

@@ -5,7 +5,6 @@ import { EventLogPanel } from '@/components/agent-playground/debug/EventLogPanel
 import { PlaygroundShell } from '../playground/PlaygroundShell';
 import { TooltipProvider } from '@/components/agent-playground/ui/tooltip';
 import { LandingPage } from '../landing/LandingPage';
-import { LandingHeader } from '../landing/LandingHeader';
 import { TemplatesModal } from '../landing/TemplatesModal';
 import type { Template } from '@/components/agent-playground/lib/templates';
 
@@ -74,16 +73,10 @@ export function AgentShell({ runtimeState }: { runtimeState: ReturnType<typeof u
 
   return (
     <TooltipProvider>
-      <div className="flex h-full bg-background text-foreground">
-        <div className="min-w-0 flex-1 flex flex-col">
+      <div className="flex h-full overflow-hidden bg-background text-foreground">
+        <div className="min-w-0 flex-1 flex flex-col overflow-hidden">
           {viewMode === 'landing' && (
-            <>
-              <LandingHeader
-                debugOpen={debugOpen}
-                onToggleDebug={DEV_DEBUG_PANEL ? () => setDebugOpen((v) => !v) : undefined}
-              />
-              <LandingPage onStartChat={handleStartChat} onSelectTemplate={handleSelectTemplate} />
-            </>
+            <LandingPage onStartChat={handleStartChat} onSelectTemplate={handleSelectTemplate} />
           )}
 
           {(viewMode === 'chat' || viewMode === 'preview') && (

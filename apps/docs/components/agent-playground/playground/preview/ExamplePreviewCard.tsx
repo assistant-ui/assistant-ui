@@ -1,19 +1,31 @@
 import { useState, useRef } from 'react';
-import { Download, ExternalLink, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Download, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/agent-playground/ui/button';
 import { CommandList } from '../primitives/CommandList';
 import type { CodeHandoff, PlaygroundExample, PreviewTarget } from '../types';
+
+type ExportStatus = 'idle' | 'exporting' | 'error';
 
 export function ExamplePreviewCard({
   example,
   preview,
   codeHandoff,
   compact = false,
+  onExportWorkspace,
+  exportStatus = 'idle',
+  exportError = null,
+  exportDisabled = true,
+  exportTitle = '',
 }: {
   example: PlaygroundExample;
   preview: PreviewTarget;
   codeHandoff: CodeHandoff;
   compact?: boolean | undefined;
+  onExportWorkspace?: (() => void | Promise<void>) | undefined;
+  exportStatus?: ExportStatus | undefined;
+  exportError?: string | null | undefined;
+  exportDisabled?: boolean | undefined;
+  exportTitle?: string | undefined;
 }) {
   const [iframeKey, setIframeKey] = useState(0);
   const [iframeBlocked, setIframeBlocked] = useState(false);
@@ -39,7 +51,9 @@ export function ExamplePreviewCard({
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="min-w-0">
           <div className="text-sm font-medium text-foreground">{preview.label}</div>
-          <div className="mt-1 truncate text-xs text-muted-foreground">{preview.url ?? preview.hint}</div>
+          <div className="mt-1 truncate text-xs text-muted-foreground">
+            {preview.url ?? (preview.status === 'failed' ? 'Preview failed' : preview.hint)}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" size="icon-sm" onClick={() => setIframeKey((k) => k + 1)} disabled={!canOpenPreview}>
@@ -73,6 +87,27 @@ export function ExamplePreviewCard({
             <ExternalLink className="size-3.5" />
             Open
           </Button>
+          {onExportWorkspace ? (
+            <span title={exportTitle}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={onExportWorkspace}
+                disabled={exportDisabled}
+                title={exportTitle}
+              >
+                {exportStatus === 'exporting' ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
+                {exportStatus === 'exporting' ? 'Exporting' : 'Export'}
+              </Button>
+            </span>
+          ) : null}
+          {exportError ? (
+            <span className="max-w-[140px] truncate text-xs text-destructive" title={exportError}>
+              {exportError}
+            </span>
+          ) : null}
         </div>
       </div>
       <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg border bg-muted/30 shadow-sm">
@@ -111,14 +146,26 @@ export function ExamplePreviewCard({
             </div>
           </div>
         ) : preview.status === 'failed' ? (
-          <div className="flex h-full w-full items-center justify-center bg-background p-8">
-            <div className="max-w-xl">
-              <div className="mb-2 text-sm font-semibold text-foreground">Preview unavailable</div>
-              <p className="mb-6 text-sm leading-6 text-muted-foreground">
-                {preview.error ?? preview.hint ?? 'The preview could not be opened.'}
-              </p>
-              <CommandList commands={codeHandoff.commands} />
+          <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-background p-8">
+            <AlertTriangle className="size-8 text-destructive/60" />
+            <div className="text-sm font-semibold text-foreground">
+              {preview.source === 'sandbox' ? 'Sandbox preview failed' : 'Preview unavailable'}
             </div>
+            <p className="max-w-md text-center text-sm leading-6 text-muted-foreground">
+              {preview.error ?? preview.hint ?? 'The preview could not be opened.'}
+            </p>
+            {codeHandoff.commands.length > 0 ? (
+              <div className="mt-3 w-full max-w-md">
+                <CommandList commands={codeHandoff.commands} />
+              </div>
+            ) : null}
+          </div>
+        ) : preview.source === 'sandbox' || preview.source === 'local' ? (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-background p-8">
+            <div className="text-sm font-semibold text-foreground">Workspace preview not ready</div>
+            <p className="max-w-md text-center text-sm leading-6 text-muted-foreground">
+              {preview.hint ?? 'The workspace preview is being prepared. It will appear here once the dev server is running.'}
+            </p>
           </div>
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-background p-8">

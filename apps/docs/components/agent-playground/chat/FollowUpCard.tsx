@@ -9,7 +9,7 @@ export function FollowUpCard({
   if (followUps.length === 0) return null;
 
   return (
-    <div className="absolute bottom-full left-0 right-0 z-10 mb-2 max-h-52 space-y-2 overflow-y-auto">
+    <div className="scrollbar-thin absolute bottom-full left-0 right-0 z-10 mb-2 max-h-52 space-y-2 overflow-y-auto">
       {followUps.map((followUp, index) => (
         <div key={followUp.id} className="rounded-lg border border-border bg-background/95 p-3 text-sm shadow-xl backdrop-blur">
           <div className="flex flex-wrap items-start justify-between gap-3">

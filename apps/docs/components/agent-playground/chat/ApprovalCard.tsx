@@ -10,7 +10,7 @@ export function ApprovalCard({
   if (approvals.length === 0) return null;
 
   return (
-    <div className="absolute bottom-full left-0 right-0 z-20 mb-2 max-h-64 space-y-2 overflow-y-auto">
+    <div className="scrollbar-thin absolute bottom-full left-0 right-0 z-20 mb-2 max-h-64 space-y-2 overflow-y-auto">
       {approvals.map((approval, index) => {
         const isActive = index === 0;
         return (
