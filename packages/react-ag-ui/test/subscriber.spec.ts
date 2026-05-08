@@ -100,6 +100,21 @@ describe("createAgUiSubscriber", () => {
     expect(events).toEqual([{ type: "RUN_FINISHED", runId: "run" }]);
   });
 
+  it("ignores onRunFinishedEvent payloads that parse as a different event type", () => {
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => events.push(evt),
+      runId: "run",
+    });
+
+    subscriber.onRunFinishedEvent?.({
+      event: { type: "TEXT_MESSAGE_CHUNK", delta: "hi" },
+    });
+    subscriber.onRunFinalized?.();
+
+    expect(events).toEqual([{ type: "RUN_FINISHED", runId: "run" }]);
+  });
+
   it("dispatches reasoning handlers without duplication", () => {
     const events: AgUiEvent[] = [];
     const subscriber = createAgUiSubscriber({
