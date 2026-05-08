@@ -8,7 +8,9 @@ function HeaderPortal({ children }: { children: React.ReactNode }) {
   const [container, setContainer] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
-    const el = document.getElementById("sub-project-header-portal");
+    const el = document.querySelector<HTMLElement>(
+      "[data-sub-project-header-portal]",
+    );
     if (el) setContainer(el);
   }, []);
 
