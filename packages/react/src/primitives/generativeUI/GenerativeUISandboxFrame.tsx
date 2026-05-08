@@ -21,7 +21,7 @@ type Props = {
   Fallback?: ComponentType<{ component: string; props?: unknown }> | undefined;
 };
 
-const IFRAME_STYLE: React.CSSProperties = {
+const IFRAME_BASE_STYLE: React.CSSProperties = {
   border: "none",
   width: "100%",
   display: "block",
@@ -42,15 +42,17 @@ export const GenerativeUISandboxFrame: FC<Props> = ({
   spec,
   Fallback,
 }) => {
-  const partSpec = useAuiState((s) => {
+  // Selector reads store state only — see note in
+  // `MessagePrimitive.GenerativeUI` for why the prop is combined outside.
+  const storeSpec = useAuiState((s) => {
     const part = s.part as { type?: string; spec?: GenerativeUISpec };
-    if (spec) return spec;
-    if (part?.type === "generative-ui") return part.spec;
-    return undefined;
+    return part?.type === "generative-ui" ? part.spec : undefined;
   });
+  const partSpec = spec ?? storeSpec;
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [mountTarget, setMountTarget] = useState<HTMLElement | null>(null);
+  const [contentHeight, setContentHeight] = useState<number | null>(null);
 
   const handleLoad = () => {
     const iframe = iframeRef.current;
@@ -70,6 +72,18 @@ export const GenerativeUISandboxFrame: FC<Props> = ({
     }
   }, []);
 
+  // Auto-size iframe to its body. Without this the iframe falls back to the
+  // browser default (~150px) and any taller generative UI is silently clipped.
+  useEffect(() => {
+    if (!mountTarget) return;
+    const update = () => setContentHeight(mountTarget.scrollHeight);
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(update);
+    observer.observe(mountTarget);
+    return () => observer.disconnect();
+  }, [mountTarget]);
+
   if (!partSpec) return null;
 
   return (
@@ -81,7 +95,11 @@ export const GenerativeUISandboxFrame: FC<Props> = ({
       // For full origin isolation, use the @assistant-ui/safe-content-frame
       // package's `SafeContentFrame` directly.
       srcDoc='<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0"></body></html>'
-      style={IFRAME_STYLE}
+      style={
+        contentHeight !== null
+          ? { ...IFRAME_BASE_STYLE, height: contentHeight }
+          : IFRAME_BASE_STYLE
+      }
       title="Generative UI sandbox"
       onLoad={handleLoad}
     >
