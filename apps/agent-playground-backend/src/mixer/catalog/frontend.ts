@@ -1,28 +1,28 @@
-import { getRecipe, listRecipes } from './index.js';
-import type { Capability, Recipe } from './types.js';
+import { getRecipe, listRecipes } from "./index.js";
+import type { Capability, Recipe } from "./types.js";
 
 export type FrontendExampleCategory =
-  | 'Chat'
-  | 'Agents'
-  | 'UI Patterns'
-  | 'Integrations'
-  | 'Mobile';
+  | "Chat"
+  | "Agents"
+  | "UI Patterns"
+  | "Integrations"
+  | "Mobile";
 
-export type FrontendExampleComplexity = 'starter' | 'intermediate' | 'advanced';
+export type FrontendExampleComplexity = "starter" | "intermediate" | "advanced";
 
 export interface FrontendExampleSummary {
   id: string;
   label: string;
   teaser: string;
   description: string;
-  kind: 'template' | 'example';
+  kind: "template" | "example";
   tags: string[];
   capabilities: Capability[];
-  preview: Recipe['preview'];
-  tech: Recipe['tech'];
-  verifyProfile: Recipe['verifyProfile'];
+  preview: Recipe["preview"];
+  tech: Recipe["tech"];
+  verifyProfile: Recipe["verifyProfile"];
   sourcePath: string;
-  env: Recipe['env'];
+  env: Recipe["env"];
   ui: {
     category: FrontendExampleCategory;
     complexity: FrontendExampleComplexity;
@@ -31,57 +31,68 @@ export interface FrontendExampleSummary {
 }
 
 export interface FrontendExampleDetail extends FrontendExampleSummary {
-  env: Recipe['env'];
-  agent: Recipe['agent'];
+  env: Recipe["env"];
+  agent: Recipe["agent"];
 }
 
 const FEATURED_IDS = new Set([
-  'next-ai-sdk-v6',
-  'next-artifacts',
-  'next-react-hook-form',
-  'next-langgraph-example',
-  'react-router',
-  'tanstack',
+  "next-ai-sdk-v6",
+  "next-artifacts",
+  "next-react-hook-form",
+  "next-langgraph-example",
+  "react-router",
+  "tanstack",
 ]);
 
 function createTeaser(description: string): string {
-  const firstSentence = description.split('. ')[0]?.trim() ?? description.trim();
+  const firstSentence =
+    description.split(". ")[0]?.trim() ?? description.trim();
   if (firstSentence.length <= 72) return firstSentence;
   return `${firstSentence.slice(0, 69).trimEnd()}...`;
 }
 
 function deriveCategory(recipe: Recipe): FrontendExampleCategory {
-  if (recipe.tags.includes('expo') || recipe.tags.includes('react-native')) return 'Mobile';
-  if (recipe.tech.agentPattern === 'langgraph') return 'Agents';
-  if (['mcp', 'cloud', 'a2a', 'ag-ui', 'google-adk'].includes(recipe.tech.agentPattern)) return 'Integrations';
-  if (recipe.capabilities.includes('form-copilot') || recipe.capabilities.includes('artifact-preview') || recipe.capabilities.includes('external-store')) {
-    return 'UI Patterns';
+  if (recipe.tags.includes("expo") || recipe.tags.includes("react-native"))
+    return "Mobile";
+  if (recipe.tech.agentPattern === "langgraph") return "Agents";
+  if (
+    ["mcp", "cloud", "a2a", "ag-ui", "google-adk"].includes(
+      recipe.tech.agentPattern,
+    )
+  )
+    return "Integrations";
+  if (
+    recipe.capabilities.includes("form-copilot") ||
+    recipe.capabilities.includes("artifact-preview") ||
+    recipe.capabilities.includes("external-store")
+  ) {
+    return "UI Patterns";
   }
-  return 'Chat';
+  return "Chat";
 }
 
 function deriveComplexity(recipe: Recipe): FrontendExampleComplexity {
   if (
-    recipe.tech.agentPattern === 'langgraph' ||
-    recipe.tech.agentPattern === 'google-adk' ||
-    recipe.tech.agentPattern === 'mcp' ||
-    recipe.capabilities.includes('voice-input') ||
-    recipe.capabilities.includes('media-processing') ||
-    recipe.capabilities.includes('agent-protocol')
+    recipe.tech.agentPattern === "langgraph" ||
+    recipe.tech.agentPattern === "google-adk" ||
+    recipe.tech.agentPattern === "mcp" ||
+    recipe.capabilities.includes("voice-input") ||
+    recipe.capabilities.includes("media-processing") ||
+    recipe.capabilities.includes("agent-protocol")
   ) {
-    return 'advanced';
+    return "advanced";
   }
   if (
-    recipe.capabilities.includes('persistent-threads') ||
-    recipe.capabilities.includes('custom-backend') ||
-    recipe.capabilities.includes('form-copilot') ||
-    recipe.capabilities.includes('external-store') ||
-    recipe.capabilities.includes('parent-grouping') ||
-    recipe.capabilities.includes('thread-list')
+    recipe.capabilities.includes("persistent-threads") ||
+    recipe.capabilities.includes("custom-backend") ||
+    recipe.capabilities.includes("form-copilot") ||
+    recipe.capabilities.includes("external-store") ||
+    recipe.capabilities.includes("parent-grouping") ||
+    recipe.capabilities.includes("thread-list")
   ) {
-    return 'intermediate';
+    return "intermediate";
   }
-  return 'starter';
+  return "starter";
 }
 
 function toFrontendExampleSummary(recipe: Recipe): FrontendExampleSummary {
@@ -107,7 +118,7 @@ function toFrontendExampleSummary(recipe: Recipe): FrontendExampleSummary {
 }
 
 export function listFrontendExamples(filter?: {
-  kind?: 'example' | 'template';
+  kind?: "example" | "template";
   tag?: string;
   capability?: string;
 }): FrontendExampleSummary[] {
@@ -116,7 +127,9 @@ export function listFrontendExamples(filter?: {
     tag: filter?.tag,
   });
   const recipes = compactList.map((item) => getRecipe(item.id));
-  const filtered = filter?.kind ? recipes.filter((recipe) => recipe.kind === filter.kind) : recipes;
+  const filtered = filter?.kind
+    ? recipes.filter((recipe) => recipe.kind === filter.kind)
+    : recipes;
   return filtered.map(toFrontendExampleSummary);
 }
 

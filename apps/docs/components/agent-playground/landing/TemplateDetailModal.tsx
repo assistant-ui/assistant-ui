@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { AlertTriangle, Code2, ExternalLink, KeyRound, Loader2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Code2,
+  ExternalLink,
+  KeyRound,
+  Loader2,
+} from "lucide-react";
 import { Dialog, DialogContent } from "@/components/agent-playground/ui/dialog";
 import type { Template } from "@/components/agent-playground/lib/templates";
 import { Thumbnail } from "./Thumbnail";
@@ -11,7 +17,12 @@ type Props = {
   onSelect: (template: Template) => void;
 };
 
-export function TemplateDetailModal({ template, allTemplates, onClose, onSelect }: Props) {
+export function TemplateDetailModal({
+  template,
+  allTemplates,
+  onClose,
+  onSelect,
+}: Props) {
   const [current, setCurrent] = useState<Template | null>(template);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -38,50 +49,59 @@ export function TemplateDetailModal({ template, allTemplates, onClose, onSelect 
       ? "Start building"
       : "Use this example"
     : "Source unavailable";
-  const previewLabel = current.previewStatus === "live"
-    ? "Hosted preview"
-    : current.previewStatus === "stale"
-      ? "Stale preview"
-      : current.screenshotUrl
-        ? "Screenshot only"
-        : "No preview";
+  const previewLabel =
+    current.previewStatus === "live"
+      ? "Hosted preview"
+      : current.previewStatus === "stale"
+        ? "Stale preview"
+        : current.screenshotUrl
+          ? "Screenshot only"
+          : "No preview";
 
   return (
     <Dialog open={!!template} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-6xl w-full p-0 gap-0 overflow-hidden flex flex-col max-h-[92vh]">
+      <DialogContent className="flex max-h-[92vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
         {/* Top: preview + info side by side */}
         <div className="flex flex-col sm:flex-row" style={{ flexShrink: 0 }}>
           {/* Preview — 65% width on desktop, taller */}
-          <div className="sm:w-[65%] relative bg-black overflow-hidden" style={{ minHeight: 460 }}>
+          <div
+            className="relative overflow-hidden bg-black sm:w-[65%]"
+            style={{ minHeight: 460 }}
+          >
             {hasPreview ? (
               <>
                 {!iframeLoaded && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-0">
+                  <div className="absolute inset-0 z-0 flex flex-col items-center justify-center gap-3">
                     <Thumbnail
                       gradient={current.gradient}
                       src={current.screenshotUrl}
-                      className="absolute inset-0 w-full h-full rounded-none"
+                      className="absolute inset-0 h-full w-full rounded-none"
                     />
-                    <div className="relative flex flex-col items-center gap-2 text-white/90 bg-black/40 px-4 py-2 rounded-md backdrop-blur-sm">
+                    <div className="relative flex flex-col items-center gap-2 rounded-md bg-black/40 px-4 py-2 text-white/90 backdrop-blur-sm">
                       <Loader2 className="size-6 animate-spin" />
-                      <span className="text-xs uppercase tracking-wider">Loading preview...</span>
+                      <span className="text-xs uppercase tracking-wider">
+                        Loading preview...
+                      </span>
                     </div>
                   </div>
                 )}
                 <iframe
                   key={current.id}
                   src={current.previewUrl}
-                  className="absolute inset-0 w-full h-full border-0 z-10"
+                  className="absolute inset-0 z-10 h-full w-full border-0"
                   sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                   title={`${current.title} preview`}
                   onLoad={() => setIframeLoaded(true)}
-                  style={{ opacity: iframeLoaded ? 1 : 0, transition: "opacity 200ms" }}
+                  style={{
+                    opacity: iframeLoaded ? 1 : 0,
+                    transition: "opacity 200ms",
+                  }}
                 />
                 <a
                   href={current.previewUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="absolute top-3 right-3 z-20 flex items-center gap-1.5 rounded-md bg-black/60 px-2.5 py-1.5 text-xs text-white/80 hover:text-white backdrop-blur-sm transition-colors"
+                  className="absolute top-3 right-3 z-20 flex items-center gap-1.5 rounded-md bg-black/60 px-2.5 py-1.5 text-white/80 text-xs backdrop-blur-sm transition-colors hover:text-white"
                 >
                   <ExternalLink className="size-3" />
                   Open in new tab
@@ -92,25 +112,27 @@ export function TemplateDetailModal({ template, allTemplates, onClose, onSelect 
                 gradient={current.gradient}
                 src={current.screenshotUrl}
                 label={current.title}
-                className="w-full h-full rounded-none absolute inset-0"
+                className="absolute inset-0 h-full w-full rounded-none"
               />
             )}
           </div>
 
           {/* Info — 35% width */}
-          <div className="sm:w-[35%] flex flex-col justify-between p-7 border-l border-border">
+          <div className="flex flex-col justify-between border-border border-l p-7 sm:w-[35%]">
             <div>
-              <h2 className="text-xl font-semibold leading-snug">{current.title}</h2>
-              <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+              <h2 className="font-semibold text-xl leading-snug">
+                {current.title}
+              </h2>
+              <p className="mt-3 text-muted-foreground text-sm leading-relaxed">
                 {current.description}
               </p>
 
               {current.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-4">
+                <div className="mt-4 flex flex-wrap gap-1.5">
                   {current.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground"
+                      className="rounded-full bg-muted px-2.5 py-0.5 text-muted-foreground text-xs"
                     >
                       {tag}
                     </span>
@@ -120,20 +142,25 @@ export function TemplateDetailModal({ template, allTemplates, onClose, onSelect 
 
               <div className="mt-5 space-y-3 rounded-lg border border-border bg-muted/25 p-3">
                 <div className="flex flex-wrap gap-1.5">
-                  <InfoPill>{current.kind === "template" ? "Editable template" : "Reference example"}</InfoPill>
+                  <InfoPill>
+                    {current.kind === "template"
+                      ? "Editable template"
+                      : "Reference example"}
+                  </InfoPill>
                   <InfoPill>{previewLabel}</InfoPill>
                   <InfoPill>{current.tech.framework}</InfoPill>
                   <InfoPill>{current.verifyProfile} verify</InfoPill>
                 </div>
-                <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                <div className="flex items-start gap-2 text-muted-foreground text-xs">
                   <Code2 className="mt-0.5 size-3.5 shrink-0" />
                   <span>
-                    Runtime: {current.tech.runtime}; pattern: {current.tech.frontendPattern}
+                    Runtime: {current.tech.runtime}; pattern:{" "}
+                    {current.tech.frontendPattern}
                   </span>
                 </div>
                 {requiredEnv.length > 0 ? (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+                    <div className="flex items-center gap-2 font-medium text-foreground text-xs">
                       <KeyRound className="size-3.5" />
                       Required environment
                     </div>
@@ -152,9 +179,12 @@ export function TemplateDetailModal({ template, allTemplates, onClose, onSelect 
                   </div>
                 ) : null}
                 {!current.canStart ? (
-                  <div className="flex items-start gap-2 text-xs text-amber-600 dark:text-amber-400">
+                  <div className="flex items-start gap-2 text-amber-600 text-xs dark:text-amber-400">
                     <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                    <span>This item does not have a scaffold source in the catalog yet.</span>
+                    <span>
+                      This item does not have a scaffold source in the catalog
+                      yet.
+                    </span>
                   </div>
                 ) : null}
               </div>
@@ -164,7 +194,7 @@ export function TemplateDetailModal({ template, allTemplates, onClose, onSelect 
               type="button"
               onClick={() => current.canStart && onSelect(current)}
               disabled={!current.canStart}
-              className="mt-6 w-full rounded-lg bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+              className="mt-6 w-full rounded-lg bg-foreground px-5 py-2.5 font-medium text-background text-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {startLabel}
             </button>
@@ -173,8 +203,11 @@ export function TemplateDetailModal({ template, allTemplates, onClose, onSelect 
 
         {/* Bottom: more templates */}
         {others.length > 0 && (
-          <div ref={scrollRef} className="scrollbar-thin border-t px-6 py-5 overflow-y-auto">
-            <h3 className="text-xs font-semibold mb-3 text-muted-foreground uppercase tracking-wide">
+          <div
+            ref={scrollRef}
+            className="scrollbar-thin overflow-y-auto border-t px-6 py-5"
+          >
+            <h3 className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
               More templates
             </h3>
             <div className="grid grid-cols-4 gap-3">
@@ -185,9 +218,16 @@ export function TemplateDetailModal({ template, allTemplates, onClose, onSelect 
                   onClick={() => handleOther(t)}
                   className="flex flex-col gap-2 rounded-xl border border-border bg-card/40 p-2 text-left transition-colors hover:border-border/80 hover:bg-card/60"
                 >
-                  <Thumbnail gradient={t.gradient} src={t.screenshotUrl} label={t.title} className="aspect-video w-full" />
+                  <Thumbnail
+                    gradient={t.gradient}
+                    src={t.screenshotUrl}
+                    label={t.title}
+                    className="aspect-video w-full"
+                  />
                   <div className="px-1 pb-0.5">
-                    <div className="text-xs font-medium truncate">{t.title}</div>
+                    <div className="truncate font-medium text-xs">
+                      {t.title}
+                    </div>
                   </div>
                 </button>
               ))}
@@ -201,7 +241,7 @@ export function TemplateDetailModal({ template, allTemplates, onClose, onSelect 
 
 function InfoPill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-full bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+    <span className="rounded-full bg-background px-2.5 py-1 font-medium text-[11px] text-muted-foreground">
       {children}
     </span>
   );

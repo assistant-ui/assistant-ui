@@ -12,7 +12,12 @@ type Props = {
   onSelectTemplate: (template: Template) => void;
 };
 
-export function LandingPage({ headline, placeholder, onStartChat, onSelectTemplate }: Props) {
+export function LandingPage({
+  headline,
+  placeholder,
+  onStartChat,
+  onSelectTemplate,
+}: Props) {
   const product = useProduct();
   const [prompt, setPrompt] = useState("");
   const [templatesOpen, setTemplatesOpen] = useState(false);
@@ -30,8 +35,8 @@ export function LandingPage({ headline, placeholder, onStartChat, onSelectTempla
 
   return (
     <main className="scrollbar-thin flex flex-1 flex-col items-center overflow-y-auto px-6 pb-24">
-      <div className="w-full max-w-3xl flex flex-col items-center pt-[16vh]">
-        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-center mb-6">
+      <div className="flex w-full max-w-3xl flex-col items-center pt-[16vh]">
+        <h1 className="mb-6 text-center font-semibold text-3xl tracking-tight sm:text-4xl">
           {resolvedHeadline}
         </h1>
         <PromptInput
@@ -42,7 +47,7 @@ export function LandingPage({ headline, placeholder, onStartChat, onSelectTempla
         />
       </div>
 
-      <div className="w-full max-w-5xl flex flex-col gap-12 mt-16">
+      <div className="mt-16 flex w-full max-w-5xl flex-col gap-12">
         <CategoryGrid
           onBrowseAll={() => setTemplatesOpen(true)}
           onSelectTemplate={handleTemplate}

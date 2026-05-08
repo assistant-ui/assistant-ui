@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { useThreadRuntime } from '@assistant-ui/react';
+import { useEffect, useRef } from "react";
+import { useThreadRuntime } from "@assistant-ui/react";
 
 interface Props {
   initialPrompt: string | null;
@@ -13,12 +13,12 @@ export function InitialMessageSender({ initialPrompt, onSent }: Props) {
 
   useEffect(() => {
     if (!initialPrompt) {
-      console.log('[InitialMessageSender] No initial prompt, skipping');
+      console.log("[InitialMessageSender] No initial prompt, skipping");
       return;
     }
 
     if (sentRef.current === initialPrompt) {
-      console.log('[InitialMessageSender] Already sent this prompt, skipping');
+      console.log("[InitialMessageSender] Already sent this prompt, skipping");
       return;
     }
 
@@ -26,26 +26,36 @@ export function InitialMessageSender({ initialPrompt, onSent }: Props) {
       attemptRef.current += 1;
       const attempt = attemptRef.current;
 
-      console.log(`[InitialMessageSender] Attempt ${attempt} - Sending message:`, initialPrompt.slice(0, 50));
+      console.log(
+        `[InitialMessageSender] Attempt ${attempt} - Sending message:`,
+        initialPrompt.slice(0, 50),
+      );
 
       try {
         threadRuntime.append({
-          role: 'user',
-          content: [{ type: 'text', text: initialPrompt }],
+          role: "user",
+          content: [{ type: "text", text: initialPrompt }],
         });
 
         sentRef.current = initialPrompt;
-        console.log(`[InitialMessageSender] Message sent successfully on attempt ${attempt}`);
+        console.log(
+          `[InitialMessageSender] Message sent successfully on attempt ${attempt}`,
+        );
         onSent?.();
       } catch (error) {
-        console.error(`[InitialMessageSender] Attempt ${attempt} failed:`, error);
+        console.error(
+          `[InitialMessageSender] Attempt ${attempt} failed:`,
+          error,
+        );
 
         if (attempt < 5) {
           const delay = Math.min(500 * attempt, 2000);
           console.log(`[InitialMessageSender] Retrying in ${delay}ms...`);
           setTimeout(attemptSend, delay);
         } else {
-          console.error('[InitialMessageSender] Max retries reached, giving up');
+          console.error(
+            "[InitialMessageSender] Max retries reached, giving up",
+          );
         }
       }
     };
@@ -57,6 +67,7 @@ export function InitialMessageSender({ initialPrompt, onSent }: Props) {
   }, [initialPrompt, threadRuntime, onSent]);
 
   useEffect(() => {
+    void initialPrompt;
     attemptRef.current = 0;
   }, [initialPrompt]);
 

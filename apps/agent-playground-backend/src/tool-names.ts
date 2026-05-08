@@ -6,25 +6,25 @@
  * Adapted from mastracode — stripped LSP and AST tool mappings.
  */
 
-import { WORKSPACE_TOOLS } from '@mastra/core/workspace';
+import { WORKSPACE_TOOLS } from "@mastra/core/workspace";
 
 export const MC_TOOLS = {
   // Filesystem
-  VIEW: 'view',
-  WRITE_FILE: 'write_file',
-  STRING_REPLACE_LSP: 'string_replace_lsp',
-  FIND_FILES: 'find_files',
-  DELETE_FILE: 'delete_file',
-  FILE_STAT: 'file_stat',
-  MKDIR: 'mkdir',
+  VIEW: "view",
+  WRITE_FILE: "write_file",
+  STRING_REPLACE_LSP: "string_replace_lsp",
+  FIND_FILES: "find_files",
+  DELETE_FILE: "delete_file",
+  FILE_STAT: "file_stat",
+  MKDIR: "mkdir",
 
   // Search
-  SEARCH_CONTENT: 'search_content',
+  SEARCH_CONTENT: "search_content",
 
   // Sandbox
-  EXECUTE_COMMAND: 'execute_command',
-  GET_PROCESS_OUTPUT: 'get_process_output',
-  KILL_PROCESS: 'kill_process',
+  EXECUTE_COMMAND: "execute_command",
+  GET_PROCESS_OUTPUT: "get_process_output",
+  KILL_PROCESS: "kill_process",
 } as const;
 
 /**
@@ -42,6 +42,8 @@ export const TOOL_NAME_OVERRIDES = {
   [WORKSPACE_TOOLS.FILESYSTEM.MKDIR]: { name: MC_TOOLS.MKDIR },
   [WORKSPACE_TOOLS.FILESYSTEM.GREP]: { name: MC_TOOLS.SEARCH_CONTENT },
   [WORKSPACE_TOOLS.SANDBOX.EXECUTE_COMMAND]: { name: MC_TOOLS.EXECUTE_COMMAND },
-  [WORKSPACE_TOOLS.SANDBOX.GET_PROCESS_OUTPUT]: { name: MC_TOOLS.GET_PROCESS_OUTPUT },
+  [WORKSPACE_TOOLS.SANDBOX.GET_PROCESS_OUTPUT]: {
+    name: MC_TOOLS.GET_PROCESS_OUTPUT,
+  },
   [WORKSPACE_TOOLS.SANDBOX.KILL_PROCESS]: { name: MC_TOOLS.KILL_PROCESS },
 } as const;

@@ -8,10 +8,16 @@ export async function exportWorkspace(
   options: WorkspaceExportOptions,
 ): Promise<WorkspaceExportResult> {
   if (options.format && options.format !== "tar.gz") {
-    throw new WorkspaceExportError(`Unsupported export format: ${options.format}`, 400);
+    throw new WorkspaceExportError(
+      `Unsupported export format: ${options.format}`,
+      400,
+    );
   }
   if (provisioned.providerKind !== "sandbox") {
-    throw new WorkspaceExportError("Only Blaxel sandbox workspace export is supported.", 400);
+    throw new WorkspaceExportError(
+      "Only Blaxel sandbox workspace export is supported.",
+      400,
+    );
   }
   return exportBlaxelWorkspace(provisioned, options);
 }

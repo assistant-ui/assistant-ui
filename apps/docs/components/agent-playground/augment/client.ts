@@ -1,4 +1,4 @@
-import { AUGMENT_API_BASE_URL } from '@/components/agent-playground/config/env';
+import { AUGMENT_API_BASE_URL } from "@/components/agent-playground/config/env";
 import type {
   AgentSession,
   CommandResult,
@@ -7,7 +7,7 @@ import type {
   SessionCommand,
   SessionStateResponse,
   WorkspaceExportDownload,
-} from './types';
+} from "./types";
 
 export class AugmentApiError extends Error {
   constructor(
@@ -22,19 +22,25 @@ export class AugmentApiError extends Error {
 /** Pulls `error` from augment JSON bodies like `{ accepted: false, error: "..." }`. */
 function augmentErrorDetailFromBody(text: string): string | null {
   const trimmed = text.trim();
-  if (!trimmed.startsWith('{')) return null;
+  if (!trimmed.startsWith("{")) return null;
   try {
     const parsed = JSON.parse(trimmed) as { error?: unknown };
-    if (typeof parsed.error === 'string' && parsed.error.length > 0) return parsed.error;
+    if (typeof parsed.error === "string" && parsed.error.length > 0)
+      return parsed.error;
   } catch {
     return null;
   }
   return null;
 }
 
-function formatFailedRequestMessage(method: string | undefined, path: string, status: number, bodyText: string): string {
+function formatFailedRequestMessage(
+  method: string | undefined,
+  path: string,
+  status: number,
+  bodyText: string,
+): string {
   const detail = augmentErrorDetailFromBody(bodyText);
-  const base = `${method ?? 'GET'} ${path} failed with ${status}`;
+  const base = `${method ?? "GET"} ${path} failed with ${status}`;
   return detail ? `${base}: ${detail}` : base;
 }
 
@@ -42,31 +48,46 @@ export class AugmentClient {
   constructor(private readonly baseUrl = AUGMENT_API_BASE_URL) {}
 
   async createSession(input: CreateSessionInput = {}): Promise<AgentSession> {
-    return this.request<AgentSession>('/sessions', {
-      method: 'POST',
+    return this.request<AgentSession>("/sessions", {
+      method: "POST",
       body: JSON.stringify(input),
     });
   }
 
   async getSessionState(sessionId: string): Promise<SessionStateResponse> {
-    return this.request<SessionStateResponse>(`/sessions/${encodeURIComponent(sessionId)}/state`);
+    return this.request<SessionStateResponse>(
+      `/sessions/${encodeURIComponent(sessionId)}/state`,
+    );
   }
 
-  async sendCommand(sessionId: string, command: SessionCommand): Promise<CommandResult> {
-    return this.request<CommandResult>(`/sessions/${encodeURIComponent(sessionId)}/commands`, {
-      method: 'POST',
-      body: JSON.stringify(command),
-    });
+  async sendCommand(
+    sessionId: string,
+    command: SessionCommand,
+  ): Promise<CommandResult> {
+    return this.request<CommandResult>(
+      `/sessions/${encodeURIComponent(sessionId)}/commands`,
+      {
+        method: "POST",
+        body: JSON.stringify(command),
+      },
+    );
   }
 
-  async listExamples(filter: Partial<{ kind: 'example' | 'template' | undefined; tag: string | undefined; capability: string | undefined; product: string | undefined }> = {}): Promise<FrontendExampleSummary[]> {
+  async listExamples(
+    filter: Partial<{
+      kind: "example" | "template" | undefined;
+      tag: string | undefined;
+      capability: string | undefined;
+      product: string | undefined;
+    }> = {},
+  ): Promise<FrontendExampleSummary[]> {
     const params = new URLSearchParams();
-    if (filter.kind) params.set('kind', filter.kind);
-    if (filter.tag) params.set('tag', filter.tag);
-    if (filter.capability) params.set('capability', filter.capability);
-    if (filter.product) params.set('product', filter.product);
+    if (filter.kind) params.set("kind", filter.kind);
+    if (filter.tag) params.set("tag", filter.tag);
+    if (filter.capability) params.set("capability", filter.capability);
+    if (filter.product) params.set("product", filter.product);
 
-    const query = params.size ? `?${params.toString()}` : '';
+    const query = params.size ? `?${params.toString()}` : "";
     return this.request<FrontendExampleSummary[]>(`/examples${query}`);
   }
 
@@ -82,12 +103,19 @@ export class AugmentClient {
 
     if (!response.ok) {
       const body = await response.text();
-      throw new AugmentApiError(formatFailedRequestMessage('GET', path, response.status, body), response.status, body);
+      throw new AugmentApiError(
+        formatFailedRequestMessage("GET", path, response.status, body),
+        response.status,
+        body,
+      );
     }
 
-    const contentType = response.headers.get('Content-Type') ?? 'application/gzip';
-    const filename = parseContentDispositionFilename(response.headers.get('Content-Disposition'))
-      ?? `workspace-${sessionId.slice(0, 12)}.tar.gz`;
+    const contentType =
+      response.headers.get("Content-Type") ?? "application/gzip";
+    const filename =
+      parseContentDispositionFilename(
+        response.headers.get("Content-Disposition"),
+      ) ?? `workspace-${sessionId.slice(0, 12)}.tar.gz`;
 
     return {
       blob: await response.blob(),
@@ -100,7 +128,7 @@ export class AugmentClient {
     const response = await fetch(`${this.baseUrl}${path}`, {
       ...init,
       headers: {
-        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(init.body ? { "Content-Type": "application/json" } : {}),
         ...init.headers,
       },
     });

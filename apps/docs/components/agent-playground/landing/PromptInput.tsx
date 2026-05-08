@@ -4,12 +4,17 @@ import { Button } from "@/components/agent-playground/ui/button";
 
 type Props = {
   value?: string | undefined;
-  onValueChange?: (v: string) => void | undefined;
-  onSubmit?: (v: string) => void | undefined;
+  onValueChange?: (v: string) => void;
+  onSubmit?: (v: string) => void;
   placeholder?: string | undefined;
 };
 
-export function PromptInput({ value: controlled, onValueChange, onSubmit, placeholder }: Props) {
+export function PromptInput({
+  value: controlled,
+  onValueChange,
+  onSubmit,
+  placeholder,
+}: Props) {
   const [internal, setInternal] = useState("");
   const value = controlled ?? internal;
   const setValue = (v: string) => {
@@ -20,6 +25,7 @@ export function PromptInput({ value: controlled, onValueChange, onSubmit, placeh
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    void value;
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
@@ -33,7 +39,7 @@ export function PromptInput({ value: controlled, onValueChange, onSubmit, placeh
   };
 
   return (
-    <div className="w-full rounded-2xl border border-border bg-card/40 backdrop-blur p-3 focus-within:border-border/80 transition-colors">
+    <div className="w-full rounded-2xl border border-border bg-card/40 p-3 backdrop-blur transition-colors focus-within:border-border/80">
       <textarea
         ref={textareaRef}
         value={value}

@@ -1,15 +1,15 @@
-import { PreviewCanvas } from './preview/PreviewCanvas';
-import type { PlaygroundState } from './types';
+import { PreviewCanvas } from "./preview/PreviewCanvas";
+import type { PlaygroundState } from "./types";
 
-type ExportStatus = 'idle' | 'exporting' | 'error';
+type ExportStatus = "idle" | "exporting" | "error";
 
 export function PlaygroundCanvas({
   playground,
   onExportWorkspace,
-  exportStatus = 'idle',
+  exportStatus = "idle",
   exportError = null,
   exportDisabled = true,
-  exportTitle = '',
+  exportTitle = "",
 }: {
   playground: PlaygroundState;
   onExportWorkspace?: (() => void | Promise<void>) | undefined;
@@ -19,7 +19,10 @@ export function PlaygroundCanvas({
   exportTitle?: string | undefined;
 }) {
   return (
-    <section data-slot="playground-canvas" className="flex h-full min-h-0 flex-col bg-background">
+    <section
+      data-slot="playground-canvas"
+      className="flex h-full min-h-0 flex-col bg-background"
+    >
       <div className="scrollbar-thin min-h-0 flex-1 overflow-auto">
         <PreviewCanvas
           playground={playground}

@@ -16,10 +16,12 @@ cpSync(source, target, {
   recursive: true,
   filter(src) {
     const normalized = src.replaceAll("\\", "/");
-    return !normalized.includes("/node_modules/")
-      && !normalized.includes("/.next/")
-      && !normalized.includes("/dist/")
-      && !normalized.includes("/build/")
-      && !normalized.endsWith(".zip");
+    return (
+      !normalized.includes("/node_modules/") &&
+      !normalized.includes("/.next/") &&
+      !normalized.includes("/dist/") &&
+      !normalized.includes("/build/") &&
+      !normalized.endsWith(".zip")
+    );
   },
 });

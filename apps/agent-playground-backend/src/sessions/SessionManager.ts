@@ -5,8 +5,15 @@ import type { ServerEvent } from "../events/types.js";
 import { createHarness } from "../harness.js";
 import type { HarnessState } from "../schema.js";
 import { sessionWorkspaceRegistry } from "../workspace-provider.js";
-import { registerWorkspaceEnvRuntime, unregisterWorkspaceEnvRuntime } from "../workspace-env/request-registry.js";
-import type { AgentSession, CreateSessionOptions, SessionStateResponse } from "./types.js";
+import {
+  registerWorkspaceEnvRuntime,
+  unregisterWorkspaceEnvRuntime,
+} from "../workspace-env/request-registry.js";
+import type {
+  AgentSession,
+  CreateSessionOptions,
+  SessionStateResponse,
+} from "./types.js";
 
 export interface ManagedSession {
   session: AgentSession;
@@ -58,9 +65,9 @@ export class SessionManager {
     const provisioned = sessionWorkspaceRegistry.get(sessionId);
     if (provisioned?.providerKind === "sandbox") {
       const sandboxId = String(
-        provisioned.sandboxInstance?.id
-          ?? provisioned.sandboxInstance?.name
-          ?? sessionId,
+        provisioned.sandboxInstance?.id ??
+          provisioned.sandboxInstance?.name ??
+          sessionId,
       );
       session.workspace = {
         kind: "sandbox",
@@ -109,8 +116,14 @@ export class SessionManager {
       messages: await managed.harness.listMessages(),
       threads: (await managed.harness.listThreads()).map((thread) => ({
         ...thread,
-        createdAt: thread.createdAt instanceof Date ? thread.createdAt.toISOString() : thread.createdAt,
-        updatedAt: thread.updatedAt instanceof Date ? thread.updatedAt.toISOString() : thread.updatedAt,
+        createdAt:
+          thread.createdAt instanceof Date
+            ? thread.createdAt.toISOString()
+            : thread.createdAt,
+        updatedAt:
+          thread.updatedAt instanceof Date
+            ? thread.updatedAt.toISOString()
+            : thread.updatedAt,
       })),
     };
   }

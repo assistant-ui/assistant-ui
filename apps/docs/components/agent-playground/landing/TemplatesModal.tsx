@@ -20,7 +20,12 @@ type Props = {
   onSelect: (template: Template) => void;
 };
 
-export function TemplatesModal({ open, onOpenChange, initialCategoryId, onSelect }: Props) {
+export function TemplatesModal({
+  open,
+  onOpenChange,
+  initialCategoryId,
+  onSelect,
+}: Props) {
   const { categories, templates, isLoading, error } = useTemplateCatalog();
   const [query, setQuery] = useState("");
   const [activeCat, setActiveCat] = useState<string>("all");
@@ -48,87 +53,103 @@ export function TemplatesModal({ open, onOpenChange, initialCategoryId, onSelect
 
   return (
     <>
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-5xl p-0 gap-0 overflow-hidden">
-        <DialogHeader className="px-6 pt-5 pb-3">
-          <DialogTitle>Templates</DialogTitle>
-        </DialogHeader>
-        <div className="px-6 pb-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              autoFocus
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search templates..."
-              className="pl-9"
-            />
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-5xl">
+          <DialogHeader className="px-6 pt-5 pb-3">
+            <DialogTitle>Templates</DialogTitle>
+          </DialogHeader>
+          <div className="px-6 pb-3">
+            <div className="relative">
+              <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search templates..."
+                className="pl-9"
+              />
+            </div>
           </div>
-        </div>
-        <div className="px-6 pb-3 flex flex-wrap gap-2">
-          <CatChip active={activeCat === "all"} onClick={() => setActiveCat("all")}>
-            All
-          </CatChip>
-          {categories.map((c) => (
+          <div className="flex flex-wrap gap-2 px-6 pb-3">
             <CatChip
-              key={c.id}
-              active={activeCat === c.id}
-              onClick={() => setActiveCat(c.id)}
+              active={activeCat === "all"}
+              onClick={() => setActiveCat("all")}
             >
-              {c.name}
+              All
             </CatChip>
-          ))}
-        </div>
-        <div className="scrollbar-thin max-h-[60vh] overflow-y-auto px-6 pb-6">
-          {isLoading ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              Loading templates...
-            </div>
-          ) : error ? (
-            <div className="mx-auto max-w-md py-10 text-center">
-              <div className="text-sm font-medium text-foreground">Catalog unavailable</div>
-              <div className="mt-2 text-sm text-muted-foreground">{error}</div>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">
-              {query ? `No templates match “${query}”.` : 'No templates available.'}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {filtered.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setDetailTemplate(t)}
-                  className="group flex flex-col gap-2 rounded-xl border border-border bg-card/40 p-2 text-left transition-colors hover:border-border/80 hover:bg-card/60"
-                >
-                  <Thumbnail gradient={t.gradient} src={t.screenshotUrl} label={t.title} className="aspect-video w-full" />
-                  <div className="px-1 pb-1">
-                    <div className="flex items-center gap-2">
-                      <div className="min-w-0 flex-1 truncate text-sm font-medium">{t.title}</div>
+            {categories.map((c) => (
+              <CatChip
+                key={c.id}
+                active={activeCat === c.id}
+                onClick={() => setActiveCat(c.id)}
+              >
+                {c.name}
+              </CatChip>
+            ))}
+          </div>
+          <div className="scrollbar-thin max-h-[60vh] overflow-y-auto px-6 pb-6">
+            {isLoading ? (
+              <div className="py-10 text-center text-muted-foreground text-sm">
+                Loading templates...
+              </div>
+            ) : error ? (
+              <div className="mx-auto max-w-md py-10 text-center">
+                <div className="font-medium text-foreground text-sm">
+                  Catalog unavailable
+                </div>
+                <div className="mt-2 text-muted-foreground text-sm">
+                  {error}
+                </div>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="py-10 text-center text-muted-foreground text-sm">
+                {query
+                  ? `No templates match “${query}”.`
+                  : "No templates available."}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                {filtered.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setDetailTemplate(t)}
+                    className="group flex flex-col gap-2 rounded-xl border border-border bg-card/40 p-2 text-left transition-colors hover:border-border/80 hover:bg-card/60"
+                  >
+                    <Thumbnail
+                      gradient={t.gradient}
+                      src={t.screenshotUrl}
+                      label={t.title}
+                      className="aspect-video w-full"
+                    />
+                    <div className="px-1 pb-1">
+                      <div className="flex items-center gap-2">
+                        <div className="min-w-0 flex-1 truncate font-medium text-sm">
+                          {t.title}
+                        </div>
+                      </div>
+                      <div className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">
+                        {t.description}
+                      </div>
                     </div>
-                    <div className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
-                      {t.description}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
-    <TemplateDetailModal
-      template={detailTemplate}
-      allTemplates={templates}
-      onClose={() => setDetailTemplate(null)}
-      onSelect={(t) => {
-        setDetailTemplate(null);
-        onOpenChange(false);
-        onSelect(t);
-      }}
-    />
+      <TemplateDetailModal
+        template={detailTemplate}
+        allTemplates={templates}
+        onClose={() => setDetailTemplate(null)}
+        onSelect={(t) => {
+          setDetailTemplate(null);
+          onOpenChange(false);
+          onSelect(t);
+        }}
+      />
     </>
   );
 }
@@ -150,7 +171,7 @@ function CatChip({
         "rounded-full border px-3 py-1 text-xs transition-colors",
         active
           ? "border-foreground/40 bg-foreground/10 text-foreground"
-          : "border-border bg-transparent text-muted-foreground hover:text-foreground hover:border-border/80",
+          : "border-border bg-transparent text-muted-foreground hover:border-border/80 hover:text-foreground",
       )}
     >
       {children}

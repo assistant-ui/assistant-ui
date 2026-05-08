@@ -1,6 +1,14 @@
 import type { HarnessRequestContext } from "@mastra/core/harness";
 import type { HarnessState } from "./schema.js";
 
+function sanitizeInstructionValue(value: unknown, fallback: string): string {
+  const raw = typeof value === "string" && value.trim() ? value : fallback;
+  return raw
+    .replace(/[^\x20-\x7E]/g, "")
+    .replace(/\s+/g, " ")
+    .slice(0, 120);
+}
+
 export function getDynamicInstructions({
   requestContext,
 }: {
@@ -10,7 +18,11 @@ export function getDynamicInstructions({
     | HarnessRequestContext<HarnessState>
     | undefined;
   const state = harnessContext?.getState?.() ?? harnessContext?.state;
-  const modeId = harnessContext?.modeId ?? "build";
+  const modeId = sanitizeInstructionValue(harnessContext?.modeId, "build");
+  const modelId = sanitizeInstructionValue(
+    state?.currentModelId ?? process.env.MODEL_ID,
+    "openai/gpt-5.4",
+  );
   const date = new Date().toISOString().slice(0, 10);
 
   return [
@@ -31,7 +43,7 @@ export function getDynamicInstructions({
     "",
     "Modes:",
     `- Current mode: ${modeId}`,
-    `- Current model: ${state?.currentModelId ?? process.env.MODEL_ID ?? "openai/gpt-5.4"}`,
+    `- Current model: ${modelId}`,
     `- Current date: ${date}`,
   ].join("\n");
 }

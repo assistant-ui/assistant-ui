@@ -54,12 +54,17 @@ const ASSISTANT_UI_PRODUCT: ProductConfig = {
 const ProductContext = createContext<ProductConfig | null>(null);
 
 export function ProductProvider({ children }: { children: ReactNode }) {
-  return <ProductContext.Provider value={ASSISTANT_UI_PRODUCT}>{children}</ProductContext.Provider>;
+  return (
+    <ProductContext.Provider value={ASSISTANT_UI_PRODUCT}>
+      {children}
+    </ProductContext.Provider>
+  );
 }
 
 export function useProduct(): ProductConfig {
   const context = useContext(ProductContext);
-  if (!context) throw new Error("useProduct must be used within ProductProvider");
+  if (!context)
+    throw new Error("useProduct must be used within ProductProvider");
   return context;
 }
 

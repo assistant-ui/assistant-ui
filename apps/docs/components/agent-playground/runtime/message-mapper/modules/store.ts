@@ -1,4 +1,4 @@
-import type { AgentSession } from '../../../augment/types';
+import type { AgentSession } from "../../../augment/types";
 import type {
   AssistantThreadListItem,
   AssistantThreadMessageLike,
@@ -6,7 +6,7 @@ import type {
   PendingApproval,
   PendingQuestion,
   PendingWorkspaceEnvRequest,
-} from '../../assistantTypes';
+} from "../../assistantTypes";
 
 export type AugmentAssistantStore = {
   session: AgentSession | null;
@@ -34,18 +34,23 @@ export const initialAugmentAssistantStore: AugmentAssistantStore = {
   lastError: null,
 };
 
-export function createUserMessage(content: string, attachments: unknown[] = []): AssistantThreadMessageLike {
+export function createUserMessage(
+  content: string,
+  attachments: unknown[] = [],
+): AssistantThreadMessageLike {
   return {
     id: crypto.randomUUID(),
-    role: 'user',
+    role: "user",
     createdAt: new Date(),
-    content: content ? [{ type: 'text', text: content }] : [],
+    content: content ? [{ type: "text", text: content }] : [],
     attachments,
   };
 }
 
-export function safeConvertMessage(message: AssistantThreadMessageLike): AssistantThreadMessageLike {
-  if (message.role === 'user' && message.status !== undefined) {
+export function safeConvertMessage(
+  message: AssistantThreadMessageLike,
+): AssistantThreadMessageLike {
+  if (message.role === "user" && message.status !== undefined) {
     const { status: _status, ...rest } = message;
     return rest;
   }

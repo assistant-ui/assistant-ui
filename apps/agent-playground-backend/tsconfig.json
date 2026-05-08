@@ -9,10 +9,6 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "include": [
-    "src/**/*.ts"
-  ],
-  "exclude": [
-    "src/mixer/assets/**"
-  ]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/mixer/assets/**"]
 }

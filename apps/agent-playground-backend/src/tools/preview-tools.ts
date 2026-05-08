@@ -43,7 +43,9 @@ function stringifyErrorObject(value: unknown): string {
     );
   } catch {
     if (value instanceof Error) return value.message || String(value);
-    try { return `${Object.prototype.toString.call(value)}: ${Object.keys(value as object).join(', ')}`; } catch {}
+    try {
+      return `${Object.prototype.toString.call(value)}: ${Object.keys(value as object).join(", ")}`;
+    } catch {}
     return String(value);
   }
 }

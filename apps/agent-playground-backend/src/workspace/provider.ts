@@ -24,9 +24,16 @@ export interface ProvisionOptions {
   cleanupOnDestroy?: boolean;
 }
 
-export async function provisionWorkspace(options: ProvisionOptions): Promise<ProvisionedWorkspace> {
-  if (options.workspaceProvider !== "sandbox" || options.sandboxProvider !== "blaxel") {
-    throw new Error("The public assistant-ui backend supports only Blaxel sandbox workspaces.");
+export async function provisionWorkspace(
+  options: ProvisionOptions,
+): Promise<ProvisionedWorkspace> {
+  if (
+    options.workspaceProvider !== "sandbox" ||
+    options.sandboxProvider !== "blaxel"
+  ) {
+    throw new Error(
+      "The public assistant-ui backend supports only Blaxel sandbox workspaces.",
+    );
   }
 
   const { BlaxelWorkspaceProvider } = await import("./blaxel-provider.js");

@@ -1,16 +1,16 @@
-import path from 'node:path';
-import { parse as parseDotenv } from 'dotenv';
+import path from "node:path";
+import { parse as parseDotenv } from "dotenv";
 import type {
   CommandResult,
   ExecuteCommandOptions,
   ProcessHandle,
   SpawnProcessOptions,
-} from '@mastra/core/workspace';
-import type { ProvisionedWorkspace } from '../workspace-provider.js';
-import { resolveWorkspaceAppPath } from './file-store.js';
+} from "@mastra/core/workspace";
+import type { ProvisionedWorkspace } from "../workspace-provider.js";
+import { resolveWorkspaceAppPath } from "./file-store.js";
 
-const PATCHED = Symbol.for('augment.workspaceEnvInjection.patched');
-const ENV_FILES = ['.env', '.env.local'] as const;
+const PATCHED = Symbol.for("augment.workspaceEnvInjection.patched");
+const ENV_FILES = [".env", ".env.local"] as const;
 
 type PatchableSandbox = {
   executeCommand?: (
@@ -19,22 +19,35 @@ type PatchableSandbox = {
     options?: ExecuteCommandOptions,
   ) => Promise<CommandResult>;
   processes?: {
-    spawn?: (command: string, options?: SpawnProcessOptions) => Promise<ProcessHandle>;
+    spawn?: (
+      command: string,
+      options?: SpawnProcessOptions,
+    ) => Promise<ProcessHandle>;
     get?: (pid: string) => Promise<ProcessHandle | undefined>;
   };
   [PATCHED]?: boolean;
 };
 
 export async function loadWorkspaceEnvForCwd(
-  provisioned: Pick<ProvisionedWorkspace, 'workspace' | 'workspacePath' | 'providerKind'>,
+  provisioned: Pick<
+    ProvisionedWorkspace,
+    "workspace" | "workspacePath" | "providerKind"
+  >,
   cwd?: string,
 ): Promise<Record<string, string>> {
-  if (!provisioned.workspacePath || !provisioned.workspace.filesystem) return {};
+  if (!provisioned.workspacePath || !provisioned.workspace.filesystem)
+    return {};
 
-  const root = normalizePathForRoot(provisioned.workspacePath, provisioned.workspacePath);
+  const root = normalizePathForRoot(
+    provisioned.workspacePath,
+    provisioned.workspacePath,
+  );
   let current: string;
   try {
-    current = resolveWorkspaceAppPath(provisioned, cwd || provisioned.workspacePath);
+    current = resolveWorkspaceAppPath(
+      provisioned,
+      cwd || provisioned.workspacePath,
+    );
   } catch {
     return {};
   }
@@ -44,7 +57,9 @@ export async function loadWorkspaceEnvForCwd(
   return readEnvDirectory(provisioned, envDir);
 }
 
-export function installWorkspaceEnvInjection(provisioned: ProvisionedWorkspace): void {
+export function installWorkspaceEnvInjection(
+  provisioned: ProvisionedWorkspace,
+): void {
   const sandbox = provisioned.workspace.sandbox as PatchableSandbox | undefined;
   if (!sandbox || sandbox[PATCHED]) return;
   sandbox[PATCHED] = true;
@@ -52,7 +67,8 @@ export function installWorkspaceEnvInjection(provisioned: ProvisionedWorkspace):
   if (sandbox.executeCommand) {
     const originalExecute = sandbox.executeCommand.bind(sandbox);
     sandbox.executeCommand = async (command, args, options = {}) => {
-      const { options: nextOptions, redactions } = await optionsWithWorkspaceEnv(provisioned, options);
+      const { options: nextOptions, redactions } =
+        await optionsWithWorkspaceEnv(provisioned, options);
       const result = await originalExecute(command, args, nextOptions);
       return redactCommandResult(result, redactions);
     };
@@ -65,7 +81,8 @@ export function installWorkspaceEnvInjection(provisioned: ProvisionedWorkspace):
     const handles = new Map<string, ProcessHandle>();
 
     processes.spawn = async (command, options = {}) => {
-      const { options: nextOptions, redactions } = await optionsWithWorkspaceEnv(provisioned, options);
+      const { options: nextOptions, redactions } =
+        await optionsWithWorkspaceEnv(provisioned, options);
       const handle = await originalSpawn(command, nextOptions);
       const wrapped = redactProcessHandle(handle, redactions);
       handles.set(wrapped.pid, wrapped);
@@ -83,7 +100,9 @@ export function installWorkspaceEnvInjection(provisioned: ProvisionedWorkspace):
   }
 }
 
-async function optionsWithWorkspaceEnv<TOptions extends ExecuteCommandOptions | SpawnProcessOptions>(
+async function optionsWithWorkspaceEnv<
+  TOptions extends ExecuteCommandOptions | SpawnProcessOptions,
+>(
   provisioned: ProvisionedWorkspace,
   options: TOptions,
 ): Promise<{ options: TOptions; redactions: string[] }> {
@@ -93,19 +112,29 @@ async function optionsWithWorkspaceEnv<TOptions extends ExecuteCommandOptions | 
     ...(options.env ?? {}),
   };
   const redactions = Object.keys(workspaceEnv)
-    .map((key) => String(mergedEnv[key] ?? ''))
+    .map((key) => String(mergedEnv[key] ?? ""))
     .filter((value) => value.length > 0);
   const nextOptions = {
     ...options,
     ...(Object.keys(mergedEnv).length > 0 ? { env: mergedEnv } : {}),
-    ...(options.onStdout ? { onStdout: (data: string) => options.onStdout?.(redactText(data, redactions)) } : {}),
-    ...(options.onStderr ? { onStderr: (data: string) => options.onStderr?.(redactText(data, redactions)) } : {}),
+    ...(options.onStdout
+      ? {
+          onStdout: (data: string) =>
+            options.onStdout?.(redactText(data, redactions)),
+        }
+      : {}),
+    ...(options.onStderr
+      ? {
+          onStderr: (data: string) =>
+            options.onStderr?.(redactText(data, redactions)),
+        }
+      : {}),
   };
   return { options: nextOptions as TOptions, redactions };
 }
 
 async function nearestEnvDirectory(
-  provisioned: Pick<ProvisionedWorkspace, 'workspace'>,
+  provisioned: Pick<ProvisionedWorkspace, "workspace">,
   root: string,
   start: string,
 ): Promise<string> {
@@ -119,10 +148,16 @@ async function nearestEnvDirectory(
   }
 }
 
-async function hasAnyEnvFile(provisioned: Pick<ProvisionedWorkspace, 'workspace'>, dir: string): Promise<boolean> {
+async function hasAnyEnvFile(
+  provisioned: Pick<ProvisionedWorkspace, "workspace">,
+  dir: string,
+): Promise<boolean> {
   for (const envFile of ENV_FILES) {
     try {
-      if (await provisioned.workspace.filesystem?.exists(joinPath(dir, envFile))) return true;
+      if (
+        await provisioned.workspace.filesystem?.exists(joinPath(dir, envFile))
+      )
+        return true;
     } catch {
       // Ignore provider-specific stat/read errors and continue probing.
     }
@@ -131,7 +166,7 @@ async function hasAnyEnvFile(provisioned: Pick<ProvisionedWorkspace, 'workspace'
 }
 
 async function readEnvDirectory(
-  provisioned: Pick<ProvisionedWorkspace, 'workspace'>,
+  provisioned: Pick<ProvisionedWorkspace, "workspace">,
   dir: string,
 ): Promise<Record<string, string>> {
   const filesystem = provisioned.workspace.filesystem;
@@ -140,9 +175,12 @@ async function readEnvDirectory(
   for (const envFile of ENV_FILES) {
     const filePath = joinPath(dir, envFile);
     try {
-      if (!await filesystem.exists(filePath)) continue;
-      const raw = await filesystem.readFile(filePath, { encoding: 'utf8' });
-      Object.assign(env, parseDotenv(Buffer.isBuffer(raw) ? raw : Buffer.from(String(raw))));
+      if (!(await filesystem.exists(filePath))) continue;
+      const raw = await filesystem.readFile(filePath, { encoding: "utf8" });
+      Object.assign(
+        env,
+        parseDotenv(Buffer.isBuffer(raw) ? raw : Buffer.from(String(raw))),
+      );
     } catch {
       // Missing or unreadable env files should not block command execution.
     }
@@ -150,7 +188,10 @@ async function readEnvDirectory(
   return env;
 }
 
-function redactCommandResult(result: CommandResult, redactions: string[]): CommandResult {
+function redactCommandResult(
+  result: CommandResult,
+  redactions: string[],
+): CommandResult {
   return {
     ...result,
     stdout: redactText(result.stdout, redactions),
@@ -158,22 +199,54 @@ function redactCommandResult(result: CommandResult, redactions: string[]): Comma
   };
 }
 
-function redactProcessHandle(handle: ProcessHandle, redactions: string[]): ProcessHandle {
+function redactProcessHandle(
+  handle: ProcessHandle,
+  redactions: string[],
+): ProcessHandle {
   return {
-    get pid() { return handle.pid; },
-    get exitCode() { return handle.exitCode; },
-    get command() { return handle.command; },
-    set command(value: string | undefined) { handle.command = value; },
-    get stdout() { return redactText(handle.stdout, redactions); },
-    get stderr() { return redactText(handle.stderr, redactions); },
-    get reader() { return handle.reader; },
-    get writer() { return handle.writer; },
+    get pid() {
+      return handle.pid;
+    },
+    get exitCode() {
+      return handle.exitCode;
+    },
+    get command() {
+      return handle.command;
+    },
+    set command(value: string | undefined) {
+      handle.command = value;
+    },
+    get stdout() {
+      return redactText(handle.stdout, redactions);
+    },
+    get stderr() {
+      return redactText(handle.stderr, redactions);
+    },
+    get reader() {
+      return handle.reader;
+    },
+    get writer() {
+      return handle.writer;
+    },
     kill: () => handle.kill(),
     sendStdin: (data: string) => handle.sendStdin(data),
-    wait: async (options?: { onStdout?: (data: string) => void; onStderr?: (data: string) => void }) => {
+    wait: async (options?: {
+      onStdout?: (data: string) => void;
+      onStderr?: (data: string) => void;
+    }) => {
       const result = await handle.wait({
-        ...(options?.onStdout ? { onStdout: (data: string) => options.onStdout?.(redactText(data, redactions)) } : {}),
-        ...(options?.onStderr ? { onStderr: (data: string) => options.onStderr?.(redactText(data, redactions)) } : {}),
+        ...(options?.onStdout
+          ? {
+              onStdout: (data: string) =>
+                options.onStdout?.(redactText(data, redactions)),
+            }
+          : {}),
+        ...(options?.onStderr
+          ? {
+              onStderr: (data: string) =>
+                options.onStderr?.(redactText(data, redactions)),
+            }
+          : {}),
       });
       return redactCommandResult(result, redactions);
     },
@@ -184,32 +257,41 @@ function redactText(text: string, redactions: string[]): string {
   let next = text;
   for (const value of redactions) {
     if (value.length < 3) continue;
-    next = next.split(value).join('[REDACTED_ENV_VALUE]');
+    next = next.split(value).join("[REDACTED_ENV_VALUE]");
   }
   return next;
 }
 
 function normalizePathForRoot(input: string, root: string): string {
-  return usesWindowsPaths(root) ? path.win32.resolve(input) : path.posix.resolve(input.replaceAll('\\', '/'));
+  return usesWindowsPaths(root)
+    ? path.win32.resolve(input)
+    : path.posix.resolve(input.replaceAll("\\", "/"));
 }
 
 function dirnameForPath(input: string): string {
-  return usesWindowsPaths(input) ? path.win32.dirname(input) : path.posix.dirname(input);
+  return usesWindowsPaths(input)
+    ? path.win32.dirname(input)
+    : path.posix.dirname(input);
 }
 
 function joinPath(dir: string, filename: string): string {
-  return usesWindowsPaths(dir) ? path.win32.join(dir, filename) : path.posix.join(dir, filename);
+  return usesWindowsPaths(dir)
+    ? path.win32.join(dir, filename)
+    : path.posix.join(dir, filename);
 }
 
 function isInsideOrEqual(candidate: string, root: string): boolean {
   if (usesWindowsPaths(root)) {
     const normalizedCandidate = candidate.toLowerCase();
     const normalizedRoot = root.toLowerCase();
-    return normalizedCandidate === normalizedRoot || normalizedCandidate.startsWith(`${normalizedRoot}\\`);
+    return (
+      normalizedCandidate === normalizedRoot ||
+      normalizedCandidate.startsWith(`${normalizedRoot}\\`)
+    );
   }
   return candidate === root || candidate.startsWith(`${root}/`);
 }
 
 function usesWindowsPaths(input: string): boolean {
-  return /^[A-Za-z]:[\\/]/.test(input) || input.includes('\\');
+  return /^[A-Za-z]:[\\/]/.test(input) || input.includes("\\");
 }

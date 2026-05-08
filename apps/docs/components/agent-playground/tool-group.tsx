@@ -37,7 +37,7 @@ export type ToolGroupRootProps = Omit<
 > &
   VariantProps<typeof toolGroupVariants> & {
     open?: boolean | undefined;
-    onOpenChange?: (open: boolean) => void | undefined;
+    onOpenChange?: (open: boolean) => void;
     /** When true, auto-open while busy and auto-collapse when busy flips false. */
     busy?: boolean | undefined;
   };
@@ -206,12 +206,20 @@ const ToolGroupImpl: FC<
   const busy = useAuiState((s) => {
     const parts = s.message.parts ?? [];
     for (let i = startIndex; i <= endIndex && i < parts.length; i += 1) {
-      const part = parts[i] as { type?: string; status?: { type?: string }; result?: unknown } | undefined;
+      const part = parts[i] as
+        | { type?: string; status?: { type?: string }; result?: unknown }
+        | undefined;
       if (!part) continue;
       if (part.type !== "tool-call") continue;
       const statusType = part.status?.type;
-      if (statusType === "running" || statusType === "requires-action") return true;
-      if (statusType !== "incomplete" && statusType !== "complete" && part.result === undefined) return true;
+      if (statusType === "running" || statusType === "requires-action")
+        return true;
+      if (
+        statusType !== "incomplete" &&
+        statusType !== "complete" &&
+        part.result === undefined
+      )
+        return true;
     }
     if (s.message.status?.type === "running") {
       const lastIndex = parts.length - 1;
@@ -223,8 +231,11 @@ const ToolGroupImpl: FC<
   const active = useAuiState((s) => {
     const parts = s.message.parts ?? [];
     for (let i = startIndex; i <= endIndex && i < parts.length; i += 1) {
-      const part = parts[i] as { type?: string; status?: { type?: string } } | undefined;
-      if (part?.type === "tool-call" && part.status?.type === "running") return true;
+      const part = parts[i] as
+        | { type?: string; status?: { type?: string } }
+        | undefined;
+      if (part?.type === "tool-call" && part.status?.type === "running")
+        return true;
     }
     return false;
   });

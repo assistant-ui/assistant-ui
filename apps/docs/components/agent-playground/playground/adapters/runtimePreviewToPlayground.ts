@@ -1,6 +1,9 @@
-import type { ServerEvent } from '@/components/agent-playground/augment/types';
-import type { AssistantThreadMessageLike, AssistantToolPart } from '@/components/agent-playground/runtime/assistantTypes';
-import type { PreviewTarget } from '../types';
+import type { ServerEvent } from "@/components/agent-playground/augment/types";
+import type {
+  AssistantThreadMessageLike,
+  AssistantToolPart,
+} from "@/components/agent-playground/runtime/assistantTypes";
+import type { PreviewTarget } from "../types";
 
 type ToolPayload = {
   toolName?: string | undefined;
@@ -9,51 +12,58 @@ type ToolPayload = {
 };
 
 type ExamplePreviewResult = {
-  type: 'show_ui_preview';
+  type: "show_ui_preview";
   recipeId: string;
-  status: 'ready' | 'missing';
+  status: "ready" | "missing";
   previewUrl?: string | undefined;
   reason: string;
 };
 
 type WorkspacePreviewResult = {
-  type: 'workspace_preview';
-  status: 'ready' | 'loading' | 'failed';
-  source: 'local' | 'sandbox';
+  type: "workspace_preview";
+  status: "ready" | "loading" | "failed";
+  source: "local" | "sandbox";
   url?: string | undefined;
   port: number;
   host?: string | undefined;
-  provider?: 'blaxel' | undefined;
+  provider?: "blaxel" | undefined;
   error?: string | undefined;
   downloadUrl?: string | undefined;
 };
 
 function asToolPayload(payload: unknown): ToolPayload {
-  if (!payload || typeof payload !== 'object') return {};
+  if (!payload || typeof payload !== "object") return {};
   return payload as ToolPayload;
 }
 
 function isExamplePreviewResult(value: unknown): value is ExamplePreviewResult {
-  if (!value || typeof value !== 'object') return false;
-  const record = value as Record<string, unknown>;
-  return record.type === 'show_ui_preview' && (record.status === 'ready' || record.status === 'missing');
-}
-
-function isWorkspacePreviewResult(value: unknown): value is WorkspacePreviewResult {
-  if (!value || typeof value !== 'object') return false;
+  if (!value || typeof value !== "object") return false;
   const record = value as Record<string, unknown>;
   return (
-    record.type === 'workspace_preview' &&
-    (record.status === 'ready' || record.status === 'loading' || record.status === 'failed') &&
-    (record.source === 'local' || record.source === 'sandbox')
+    record.type === "show_ui_preview" &&
+    (record.status === "ready" || record.status === "missing")
+  );
+}
+
+function isWorkspacePreviewResult(
+  value: unknown,
+): value is WorkspacePreviewResult {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (
+    record.type === "workspace_preview" &&
+    (record.status === "ready" ||
+      record.status === "loading" ||
+      record.status === "failed") &&
+    (record.source === "local" || record.source === "sandbox")
   );
 }
 
 function previewFromExampleResult(result: ExamplePreviewResult): PreviewTarget {
-  if (result.status === 'ready' && result.previewUrl) {
+  if (result.status === "ready" && result.previewUrl) {
     return {
-      status: 'ready',
-      source: 'hosted',
+      status: "ready",
+      source: "hosted",
       label: `${result.recipeId} preview`,
       url: result.previewUrl,
       hint: result.reason,
@@ -61,76 +71,83 @@ function previewFromExampleResult(result: ExamplePreviewResult): PreviewTarget {
   }
 
   return {
-    status: 'empty',
-    source: 'none',
+    status: "empty",
+    source: "none",
     label: `${result.recipeId} preview`,
-    hint: result.reason || 'No hosted preview is currently available.',
+    hint: result.reason || "No hosted preview is currently available.",
   };
 }
 
-function previewFromWorkspaceResult(result: WorkspacePreviewResult): PreviewTarget {
-  if (result.status === 'ready' && result.url) {
+function previewFromWorkspaceResult(
+  result: WorkspacePreviewResult,
+): PreviewTarget {
+  if (result.status === "ready" && result.url) {
     return {
-      status: 'ready',
+      status: "ready",
       source: result.source,
-      label: result.source === 'sandbox' ? 'Sandbox preview' : 'Local preview',
+      label: result.source === "sandbox" ? "Sandbox preview" : "Local preview",
       url: result.url,
-      hint: result.source === 'sandbox' ? 'Live preview from the sandbox workspace.' : 'Live preview from the local workspace.',
+      hint:
+        result.source === "sandbox"
+          ? "Live preview from the sandbox workspace."
+          : "Live preview from the local workspace.",
       downloadUrl: result.downloadUrl,
     };
   }
 
-  if (result.status === 'loading') {
+  if (result.status === "loading") {
     return {
-      status: 'loading',
+      status: "loading",
       source: result.source,
-      label: result.source === 'sandbox' ? 'Sandbox preview' : 'Local preview',
-      hint: 'Resolving the workspace preview URL.',
+      label: result.source === "sandbox" ? "Sandbox preview" : "Local preview",
+      hint: "Resolving the workspace preview URL.",
     };
   }
 
   return {
-    status: 'failed',
+    status: "failed",
     source: result.source,
-    label: result.source === 'sandbox' ? 'Sandbox preview' : 'Local preview',
-    hint: result.error || 'Preview resolution failed.',
-    error: result.error || 'Preview resolution failed.',
+    label: result.source === "sandbox" ? "Sandbox preview" : "Local preview",
+    hint: result.error || "Preview resolution failed.",
+    error: result.error || "Preview resolution failed.",
   };
 }
 
 function loadingPreviewTarget(toolName?: string): PreviewTarget {
-  if (toolName === 'resolve_workspace_preview') {
+  if (toolName === "resolve_workspace_preview") {
     return {
-      status: 'loading',
-      source: 'none',
-      label: 'Preview',
-      hint: 'Preparing the workspace preview.',
+      status: "loading",
+      source: "none",
+      label: "Preview",
+      hint: "Preparing the workspace preview.",
     };
   }
 
   return {
-    status: 'loading',
-    source: 'none',
-    label: 'Preview',
-    hint: 'Loading the hosted example preview.',
+    status: "loading",
+    source: "none",
+    label: "Preview",
+    hint: "Loading the hosted example preview.",
   };
 }
 
 function failedPreviewTarget(toolName?: string): PreviewTarget | null {
-  if (toolName === 'resolve_workspace_preview') {
+  if (toolName === "resolve_workspace_preview") {
     return {
-      status: 'failed',
-      source: 'none',
-      label: 'Preview',
-      hint: 'Preview resolution failed.',
-      error: 'Preview resolution failed.',
+      status: "failed",
+      source: "none",
+      label: "Preview",
+      hint: "Preview resolution failed.",
+      error: "Preview resolution failed.",
     };
   }
 
   return null;
 }
 
-function previewTargetFromToolPayload(payload: ToolPayload): PreviewTarget | null {
+function previewTargetFromToolPayload(
+  payload: ToolPayload,
+): PreviewTarget | null {
   if (payload.isError) return failedPreviewTarget(payload.toolName);
 
   if (isExamplePreviewResult(payload.result)) {
@@ -144,8 +161,15 @@ function previewTargetFromToolPayload(payload: ToolPayload): PreviewTarget | nul
   return null;
 }
 
-function previewTargetFromToolPart(part: AssistantToolPart, current: PreviewTarget | null): PreviewTarget | null {
-  if (part.toolName !== 'show_ui_preview' && part.toolName !== 'resolve_workspace_preview') return null;
+function previewTargetFromToolPart(
+  part: AssistantToolPart,
+  current: PreviewTarget | null,
+): PreviewTarget | null {
+  if (
+    part.toolName !== "show_ui_preview" &&
+    part.toolName !== "resolve_workspace_preview"
+  )
+    return null;
   if (part.result !== undefined || part.isError) {
     return previewTargetFromToolPayload({
       toolName: part.toolName,
@@ -154,29 +178,42 @@ function previewTargetFromToolPart(part: AssistantToolPart, current: PreviewTarg
     });
   }
 
-  if (part.status?.type === 'running') {
-    return current?.status === 'ready' && current.url ? current : loadingPreviewTarget(part.toolName);
+  if (part.status?.type === "running") {
+    return current?.status === "ready" && current.url
+      ? current
+      : loadingPreviewTarget(part.toolName);
   }
 
   return null;
 }
 
-export function previewTargetFromEvent(event: ServerEvent, current: PreviewTarget | null = null): PreviewTarget | null {
+export function previewTargetFromEvent(
+  event: ServerEvent,
+  current: PreviewTarget | null = null,
+): PreviewTarget | null {
   const payload = asToolPayload(event.payload);
 
-  if (event.type === 'tool_start') {
-    if (payload.toolName === 'resolve_workspace_preview' || payload.toolName === 'show_ui_preview') {
-      return current?.status === 'ready' && current.url ? current : loadingPreviewTarget(payload.toolName);
+  if (event.type === "tool_start") {
+    if (
+      payload.toolName === "resolve_workspace_preview" ||
+      payload.toolName === "show_ui_preview"
+    ) {
+      return current?.status === "ready" && current.url
+        ? current
+        : loadingPreviewTarget(payload.toolName);
     }
 
     return null;
   }
 
-  if (event.type !== 'tool_end') return null;
+  if (event.type !== "tool_end") return null;
   return previewTargetFromToolPayload(payload);
 }
 
-export function latestPreviewTargetFromEvents(events: ServerEvent[], initialTarget: PreviewTarget | null = null): PreviewTarget | null {
+export function latestPreviewTargetFromEvents(
+  events: ServerEvent[],
+  initialTarget: PreviewTarget | null = null,
+): PreviewTarget | null {
   let current = initialTarget;
   for (const event of events) {
     const target = previewTargetFromEvent(event, current);
@@ -185,12 +222,14 @@ export function latestPreviewTargetFromEvents(events: ServerEvent[], initialTarg
   return current;
 }
 
-export function latestPreviewTargetFromMessages(messages: AssistantThreadMessageLike[]): PreviewTarget | null {
+export function latestPreviewTargetFromMessages(
+  messages: AssistantThreadMessageLike[],
+): PreviewTarget | null {
   let current: PreviewTarget | null = null;
 
   for (const message of messages) {
     for (const part of message.content) {
-      if (part.type !== 'tool-call') continue;
+      if (part.type !== "tool-call") continue;
       const target = previewTargetFromToolPart(part, current);
       if (target) current = target;
     }

@@ -1,11 +1,11 @@
-import type { ThinkingLevel } from '@/components/agent-playground/augment/commands';
+import type { ThinkingLevel } from "@/components/agent-playground/augment/commands";
 
 const thinkingOptions: Array<{ value: ThinkingLevel; label: string }> = [
-  { value: 'off', label: 'Off' },
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-  { value: 'xhigh', label: 'XHigh' },
+  { value: "off", label: "Off" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "xhigh", label: "XHigh" },
 ];
 
 export function ThinkingSelector({
@@ -15,10 +15,12 @@ export function ThinkingSelector({
   value?: string | undefined;
   onChange: (level: ThinkingLevel) => void;
 }) {
-  const selected = thinkingOptions.some((option) => option.value === value) ? (value as ThinkingLevel) : 'medium';
+  const selected = thinkingOptions.some((option) => option.value === value)
+    ? (value as ThinkingLevel)
+    : "medium";
 
   return (
-    <label className="flex items-center gap-2 rounded-md border bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
+    <label className="flex items-center gap-2 rounded-md border bg-muted/40 px-2 py-1 text-muted-foreground text-xs">
       Thinking
       <select
         value={selected}

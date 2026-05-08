@@ -1,13 +1,15 @@
-import { AssistantRuntimeProvider } from '@assistant-ui/react';
-import type { ReactNode } from 'react';
-import { useAugmentAssistantRuntime } from './useAugmentAssistantRuntime';
-import { ToolUIs } from '@/components/agent-playground/tools/ToolUIs';
-import { ToolActionProvider } from './ToolActionContext';
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import type { ReactNode } from "react";
+import { useAugmentAssistantRuntime } from "./useAugmentAssistantRuntime";
+import { ToolUIs } from "@/components/agent-playground/tools/ToolUIs";
+import { ToolActionProvider } from "./ToolActionContext";
 
 export function AugmentRuntimeProvider({
   children,
 }: {
-  children: (runtimeState: ReturnType<typeof useAugmentAssistantRuntime>) => ReactNode;
+  children: (
+    runtimeState: ReturnType<typeof useAugmentAssistantRuntime>,
+  ) => ReactNode;
 }) {
   const runtimeState = useAugmentAssistantRuntime();
 

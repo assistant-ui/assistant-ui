@@ -1,12 +1,12 @@
-export type SessionStatus = 'idle' | 'running' | 'waiting' | 'failed';
+export type SessionStatus = "idle" | "running" | "waiting" | "failed";
 
 export type WorkspaceRef =
-  | { kind: 'local'; rootPath: string }
-  | { kind: 'sandbox'; sandboxId: string; provider: string };
+  | { kind: "local"; rootPath: string }
+  | { kind: "sandbox"; sandboxId: string; provider: string };
 
-export type WorkspacePolicy = 'auto' | 'none' | 'required';
-export type WorkspaceProviderKind = 'local' | 'sandbox';
-export type SandboxProviderKind = 'blaxel' | 'daytona';
+export type WorkspacePolicy = "auto" | "none" | "required";
+export type WorkspaceProviderKind = "local" | "sandbox";
+export type SandboxProviderKind = "blaxel" | "daytona";
 
 export interface AgentSession {
   id: string;
@@ -43,21 +43,46 @@ export type CreateSessionInput = Partial<{
 }>;
 
 export type SessionCommand =
-  | { type: 'sendMessage'; payload: { content: string; files?: Array<{ data: string; mediaType: string; filename?: string }> } }
-  | { type: 'abort'; payload?: Record<string, never> }
-  | { type: 'switchModel'; payload: { modelId: string; scope?: 'global' | 'thread' } }
-  | { type: 'switchMode'; payload: { modeId: string } }
-  | { type: 'setThinkingLevel'; payload: { level: 'off' | 'low' | 'medium' | 'high' | 'xhigh' } }
-  | { type: 'approveToolCall'; payload: { decision: 'approve' | 'decline' | 'always_allow_category' } }
-  | { type: 'respondToToolSuspension'; payload: { resumeData: unknown } }
-  | { type: 'submitWorkspaceEnv'; payload: SubmitWorkspaceEnvInput }
-  | { type: 'skipWorkspaceEnv'; payload: { requestId: string } }
-  | { type: 'respondToQuestion'; payload: { questionId: string; answer: string } }
-  | { type: 'respondToPlanApproval'; payload: { planId: string; action: 'approved' | 'rejected'; feedback?: string } }
-  | { type: 'createThread'; payload?: Record<string, never> }
-  | { type: 'switchThread'; payload: { threadId: string } }
-  | { type: 'attachWorkspace'; payload: { workspace: WorkspaceRef } }
-  | { type: 'detachWorkspace'; payload?: Record<string, never> };
+  | {
+      type: "sendMessage";
+      payload: {
+        content: string;
+        files?: Array<{ data: string; mediaType: string; filename?: string }>;
+      };
+    }
+  | { type: "abort"; payload?: Record<string, never> }
+  | {
+      type: "switchModel";
+      payload: { modelId: string; scope?: "global" | "thread" };
+    }
+  | { type: "switchMode"; payload: { modeId: string } }
+  | {
+      type: "setThinkingLevel";
+      payload: { level: "off" | "low" | "medium" | "high" | "xhigh" };
+    }
+  | {
+      type: "approveToolCall";
+      payload: { decision: "approve" | "decline" | "always_allow_category" };
+    }
+  | { type: "respondToToolSuspension"; payload: { resumeData: unknown } }
+  | { type: "submitWorkspaceEnv"; payload: SubmitWorkspaceEnvInput }
+  | { type: "skipWorkspaceEnv"; payload: { requestId: string } }
+  | {
+      type: "respondToQuestion";
+      payload: { questionId: string; answer: string };
+    }
+  | {
+      type: "respondToPlanApproval";
+      payload: {
+        planId: string;
+        action: "approved" | "rejected";
+        feedback?: string;
+      };
+    }
+  | { type: "createThread"; payload?: Record<string, never> }
+  | { type: "switchThread"; payload: { threadId: string } }
+  | { type: "attachWorkspace"; payload: { workspace: WorkspaceRef } }
+  | { type: "detachWorkspace"; payload?: Record<string, never> };
 
 export interface CommandResult {
   accepted: boolean;
@@ -70,7 +95,7 @@ export interface WorkspaceExportDownload {
   contentType: string;
 }
 
-export type WorkspaceEnvFile = '.env' | '.env.local';
+export type WorkspaceEnvFile = ".env" | ".env.local";
 
 export interface WorkspaceEnvValueInput {
   name: string;
@@ -101,7 +126,7 @@ export interface WorkspaceEnvStatusVar {
   secret: boolean;
   hasValue: boolean;
   envFile: WorkspaceEnvFile;
-  source: 'recipe' | 'user' | 'env-file';
+  source: "recipe" | "user" | "env-file";
   description?: string | undefined;
 }
 
@@ -148,38 +173,43 @@ export interface SessionStateResponse {
   session: AgentSession;
   displayState?: SessionDisplayState | undefined;
   messages?: unknown[] | undefined;
-  threads?: Array<{ id: string; title?: string; createdAt?: string; updatedAt?: string }>;
+  threads?: Array<{
+    id: string;
+    title?: string;
+    createdAt?: string;
+    updatedAt?: string;
+  }>;
 }
 
 export type FrontendExampleCategory =
-  | 'Chat'
-  | 'Agents'
-  | 'UI Patterns'
-  | 'Integrations'
-  | 'Mobile';
+  | "Chat"
+  | "Agents"
+  | "UI Patterns"
+  | "Integrations"
+  | "Mobile";
 
-export type FrontendExampleComplexity = 'starter' | 'intermediate' | 'advanced';
+export type FrontendExampleComplexity = "starter" | "intermediate" | "advanced";
 
 export type FrontendExampleCapability =
-  | 'basic-chat'
-  | 'artifact-preview'
-  | 'form-copilot'
-  | 'persistent-threads'
-  | 'custom-backend'
-  | 'reasoning-display'
-  | 'mcp-tools'
-  | 'cloud-auth'
-  | 'external-store'
-  | 'parent-grouping'
-  | 'thread-list'
-  | 'voice-input'
-  | 'media-processing'
-  | 'agent-protocol';
+  | "basic-chat"
+  | "artifact-preview"
+  | "form-copilot"
+  | "persistent-threads"
+  | "custom-backend"
+  | "reasoning-display"
+  | "mcp-tools"
+  | "cloud-auth"
+  | "external-store"
+  | "parent-grouping"
+  | "thread-list"
+  | "voice-input"
+  | "media-processing"
+  | "agent-protocol";
 
 export interface FrontendExampleEnvVar {
   name: string;
   required: boolean;
-  scope: 'server' | 'client' | 'runner';
+  scope: "server" | "client" | "runner";
   secret: boolean;
   description: string;
 }
@@ -189,28 +219,36 @@ export interface FrontendExampleSummary {
   label: string;
   teaser: string;
   description: string;
-  kind: 'template' | 'example';
+  kind: "template" | "example";
   tags: string[];
   capabilities: FrontendExampleCapability[];
   preview: {
-    status: 'live' | 'stale' | 'missing';
+    status: "live" | "stale" | "missing";
     url?: string | undefined;
     screenshot?: string | undefined;
     builtFromRef?: string | undefined;
   };
   tech: {
-    framework: 'next' | 'vite' | 'react-router' | 'tanstack' | 'expo';
-    runtime: 'nodejs-api-route' | 'edge-runtime' | 'none';
+    framework: "next" | "vite" | "react-router" | "tanstack" | "expo";
+    runtime: "nodejs-api-route" | "edge-runtime" | "none";
     frontendPattern:
-      | 'useChat'
-      | 'useChatRuntime'
-      | 'useChatRuntime+threads'
-      | 'external-store'
-      | 'cloud-runtime';
-    persistence: 'none' | 'localStorage' | 'server-db' | 'cloud';
-    agentPattern: 'ai-sdk' | 'langgraph' | 'mcp' | 'cloud' | 'a2a' | 'ag-ui' | 'google-adk' | 'custom';
+      | "useChat"
+      | "useChatRuntime"
+      | "useChatRuntime+threads"
+      | "external-store"
+      | "cloud-runtime";
+    persistence: "none" | "localStorage" | "server-db" | "cloud";
+    agentPattern:
+      | "ai-sdk"
+      | "langgraph"
+      | "mcp"
+      | "cloud"
+      | "a2a"
+      | "ag-ui"
+      | "google-adk"
+      | "custom";
   };
-  verifyProfile: 'next' | 'vite' | 'react-router' | 'tanstack' | 'custom';
+  verifyProfile: "next" | "vite" | "react-router" | "tanstack" | "custom";
   sourcePath: string;
   env?: FrontendExampleEnvVar[] | undefined;
   ui: {

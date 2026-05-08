@@ -2,12 +2,12 @@
  * Plan subagent — read-only analysis and planning.
  * Copied from mastracode as-is.
  */
-import type { HarnessSubagent } from '@mastra/core/harness';
-import { MC_TOOLS } from '../tool-names.js';
+import type { HarnessSubagent } from "@mastra/core/harness";
+import { MC_TOOLS } from "../tool-names.js";
 
 export const planSubagent: HarnessSubagent = {
-  id: 'plan',
-  name: 'Plan',
+  id: "plan",
+  name: "Plan",
   description:
     "Read-only analysis and planning. Use for 'create an implementation plan for X', 'analyze the architecture of Y'.",
   instructions: `You are an expert software architect and planner. Your job is to analyze a codebase and produce a detailed implementation plan for a given task.
@@ -38,5 +38,9 @@ Structure your plan as:
 . **Risks**: Potential issues or edge cases (if any)
 
 Be specific about code locations (file paths, function names, line numbers). Keep the plan actionable and under 500 words.`,
-  allowedWorkspaceTools: [MC_TOOLS.VIEW, MC_TOOLS.SEARCH_CONTENT, MC_TOOLS.FIND_FILES],
+  allowedWorkspaceTools: [
+    MC_TOOLS.VIEW,
+    MC_TOOLS.SEARCH_CONTENT,
+    MC_TOOLS.FIND_FILES,
+  ],
 };

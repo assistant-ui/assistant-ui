@@ -6,5 +6,7 @@ const env = readEnv();
 const app = createAgentPlaygroundApp();
 
 app.listen(env.port, () => {
-  console.log(`assistant-ui agent playground backend listening on :${env.port}`);
+  console.log(
+    `assistant-ui agent playground backend listening on :${env.port}`,
+  );
 });

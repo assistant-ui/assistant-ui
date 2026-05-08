@@ -1,4 +1,8 @@
-import type { FrontendExampleCapability, FrontendExampleEnvVar, FrontendExampleSummary } from '@/components/agent-playground/augment/types';
+import type {
+  FrontendExampleCapability,
+  FrontendExampleEnvVar,
+  FrontendExampleSummary,
+} from "@/components/agent-playground/augment/types";
 
 export type Category = {
   id: string;
@@ -6,9 +10,9 @@ export type Category = {
   description: string;
 };
 
-export type TemplatePreviewStatus = FrontendExampleSummary['preview']['status'];
-export type TemplateKind = FrontendExampleSummary['kind'];
-export type TemplateTech = FrontendExampleSummary['tech'];
+export type TemplatePreviewStatus = FrontendExampleSummary["preview"]["status"];
+export type TemplateKind = FrontendExampleSummary["kind"];
+export type TemplateTech = FrontendExampleSummary["tech"];
 
 export type Template = {
   id: string;
@@ -29,7 +33,7 @@ export type Template = {
   docsUrl?: string | undefined;
   featured?: boolean | undefined;
   tech: TemplateTech;
-  verifyProfile: FrontendExampleSummary['verifyProfile'];
+  verifyProfile: FrontendExampleSummary["verifyProfile"];
   env: FrontendExampleEnvVar[];
   hasHostedPreview: boolean;
   hasRequiredEnv: boolean;

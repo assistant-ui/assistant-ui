@@ -16,7 +16,7 @@
  * We verify readiness by retrying a real fs operation until it succeeds.
  */
 
-import type { ProviderStatus } from '@mastra/core/workspace';
+import type { ProviderStatus } from "@mastra/core/workspace";
 import {
   FileNotFoundError,
   MastraFilesystem,
@@ -24,23 +24,35 @@ import {
   ProcessHandle,
   SandboxProcessManager,
   Workspace,
-} from '@mastra/core/workspace';
-import type { FileContent, FileStat, FileEntry, ReadOptions, WriteOptions, ListOptions, RemoveOptions, CopyOptions } from '@mastra/core/workspace';
+} from "@mastra/core/workspace";
+import type {
+  FileContent,
+  FileStat,
+  FileEntry,
+  ReadOptions,
+  WriteOptions,
+  ListOptions,
+  RemoveOptions,
+  CopyOptions,
+} from "@mastra/core/workspace";
 import type {
   CommandResult,
   ExecuteCommandOptions,
   ProcessInfo,
   SpawnProcessOptions,
-} from '@mastra/core/workspace';
-import { TOOL_NAME_OVERRIDES } from '../tool-names.js';
-import { workspaceToolsEnabled } from '../workspace-enabled.js';
-import { sessionWorkspaceRegistry } from '../workspace-provider.js';
-import type { WorkspaceProvider, ProvisionedWorkspace } from '../workspace-provider.js';
+} from "@mastra/core/workspace";
+import { TOOL_NAME_OVERRIDES } from "../tool-names.js";
+import { workspaceToolsEnabled } from "../workspace-enabled.js";
+import { sessionWorkspaceRegistry } from "../workspace-provider.js";
+import type {
+  WorkspaceProvider,
+  ProvisionedWorkspace,
+} from "../workspace-provider.js";
 import {
   LEGACY_SANDBOX_WORKSPACE_ENTRIES,
   resolveSandboxTemplateSpec,
-} from '../sandbox-templates/index.js';
-import { installWorkspaceEnvInjection } from '../workspace-env/runtime-injection.js';
+} from "../sandbox-templates/index.js";
+import { installWorkspaceEnvInjection } from "../workspace-env/runtime-injection.js";
 
 // ---------------------------------------------------------------------------
 // Retry helper — handles H2 session staleness in @blaxel/core
@@ -54,22 +66,25 @@ function shellQuote(value: string): string {
 }
 
 function commandExitCode(result: any, fallback = 0): number {
-  return result?.exitCode ?? result?.exit_code ?? result?.statusCode ?? fallback;
+  return (
+    result?.exitCode ?? result?.exit_code ?? result?.statusCode ?? fallback
+  );
 }
 
 function normalizeProcessLogs(proc: any): { stdout: string; stderr: string } {
   const logs = proc?.logs;
-  if (typeof logs === 'string') return { stdout: logs, stderr: '' };
+  if (typeof logs === "string") return { stdout: logs, stderr: "" };
   return {
-    stdout: String(proc?.stdout ?? logs?.stdout ?? logs?.out ?? ''),
-    stderr: String(proc?.stderr ?? logs?.stderr ?? logs?.err ?? ''),
+    stdout: String(proc?.stdout ?? logs?.stdout ?? logs?.out ?? ""),
+    stderr: String(proc?.stderr ?? logs?.stderr ?? logs?.err ?? ""),
   };
 }
 
 function processIsRunning(proc: any): boolean {
-  const status = String(proc?.status ?? proc?.state ?? '').toLowerCase();
-  if (!status) return proc?.exitCode === undefined && proc?.exit_code === undefined;
-  return ['running', 'starting', 'pending'].includes(status);
+  const status = String(proc?.status ?? proc?.state ?? "").toLowerCase();
+  if (!status)
+    return proc?.exitCode === undefined && proc?.exit_code === undefined;
+  return ["running", "starting", "pending"].includes(status);
 }
 
 function parseWaitPort(command: string): number | undefined {
@@ -93,13 +108,20 @@ async function withRetry<T>(fn: () => Promise<T>, _label?: string): Promise<T> {
       return await fn();
     } catch (err: any) {
       lastError = err;
-      const msg = err?.message ?? (typeof err === 'string' ? err : JSON.stringify(err));
-      const causeMsg = err?.cause?.message ?? '';
+      const msg =
+        err?.message ?? (typeof err === "string" ? err : JSON.stringify(err));
+      const causeMsg = err?.cause?.message ?? "";
       const fullMsg = `${msg} ${causeMsg}`;
       // Only retry on transient network/H2 errors
-      if (fullMsg.includes('fetch failed') || fullMsg.includes('ECONNRESET') || fullMsg.includes('socket hang up')) {
+      if (
+        fullMsg.includes("fetch failed") ||
+        fullMsg.includes("ECONNRESET") ||
+        fullMsg.includes("socket hang up")
+      ) {
         if (attempt < MAX_RETRIES - 1) {
-          await new Promise(r => setTimeout(r, RETRY_DELAY_MS * (attempt + 1)));
+          await new Promise((r) =>
+            setTimeout(r, RETRY_DELAY_MS * (attempt + 1)),
+          );
           continue;
         }
       }
@@ -109,25 +131,40 @@ async function withRetry<T>(fn: () => Promise<T>, _label?: string): Promise<T> {
   throw lastError;
 }
 
-async function writeBufferFile(sb: any, path: string, content: Buffer): Promise<void> {
+async function writeBufferFile(
+  sb: any,
+  path: string,
+  content: Buffer,
+): Promise<void> {
   const tempPath = `/tmp/augment-write-${Date.now()}-${Math.random().toString(36).slice(2)}.b64`;
-  await withRetry(() => sb.fs.write(tempPath, content.toString('base64')), `writeBase64(${path})`);
+  await withRetry(
+    () => sb.fs.write(tempPath, content.toString("base64")),
+    `writeBase64(${path})`,
+  );
   try {
-    const result: any = await withRetry(() => sb.process.exec({
-      command: `base64 -d ${shellQuote(tempPath)} > ${shellQuote(path)}`,
-      waitForCompletion: true,
-      workingDir: '/',
-    }), `decodeBase64(${path})`);
+    const result: any = await withRetry(
+      () =>
+        sb.process.exec({
+          command: `base64 -d ${shellQuote(tempPath)} > ${shellQuote(path)}`,
+          waitForCompletion: true,
+          workingDir: "/",
+        }),
+      `decodeBase64(${path})`,
+    );
     const exitCode = commandExitCode(result);
     if (exitCode !== 0) {
-      throw new Error(`Failed to decode binary content to ${path}: ${result?.stderr ?? result?.stdout ?? ''}`);
+      throw new Error(
+        `Failed to decode binary content to ${path}: ${result?.stderr ?? result?.stdout ?? ""}`,
+      );
     }
   } finally {
-    await sb.process.exec({
-      command: `rm -f ${shellQuote(tempPath)}`,
-      waitForCompletion: true,
-      workingDir: '/',
-    }).catch(() => {});
+    await sb.process
+      .exec({
+        command: `rm -f ${shellQuote(tempPath)}`,
+        waitForCompletion: true,
+        workingDir: "/",
+      })
+      .catch(() => {});
   }
 }
 
@@ -141,14 +178,23 @@ async function waitUntilReachable(sb: any, maxWaitMs = 30_000): Promise<void> {
   while (Date.now() < deadline) {
     try {
       // Use process.exec as the readiness probe — it's more reliable than fs API
-      await sb.process.exec({ command: 'true', waitForCompletion: true, workingDir: '/' });
+      await sb.process.exec({
+        command: "true",
+        waitForCompletion: true,
+        workingDir: "/",
+      });
       return;
     } catch (err) {
       lastError = err;
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 1000));
     }
   }
-  const errMsg = lastError instanceof Error ? lastError.message : (typeof lastError === 'string' ? lastError : JSON.stringify(lastError, null, 2).slice(0, 500));
+  const errMsg =
+    lastError instanceof Error
+      ? lastError.message
+      : typeof lastError === "string"
+        ? lastError
+        : JSON.stringify(lastError, null, 2).slice(0, 500);
   throw new Error(`Sandbox not reachable after ${maxWaitMs}ms: ${errMsg}`);
 }
 
@@ -163,14 +209,18 @@ async function cleanupLegacyWorkspaceEntries(
   workspaceRoot: string,
 ): Promise<void> {
   for (const entry of LEGACY_SANDBOX_WORKSPACE_ENTRIES) {
-    const entryPath = workspaceRoot.endsWith('/')
+    const entryPath = workspaceRoot.endsWith("/")
       ? `${workspaceRoot}${entry}`
       : `${workspaceRoot}/${entry}`;
-    await withRetry(() => sb.process.exec({
-      command: `rm -rf "${entryPath}"`,
-      waitForCompletion: true,
-      workingDir: '/',
-    }), `cleanup(${entryPath})`);
+    await withRetry(
+      () =>
+        sb.process.exec({
+          command: `rm -rf "${entryPath}"`,
+          waitForCompletion: true,
+          workingDir: "/",
+        }),
+      `cleanup(${entryPath})`,
+    );
   }
 }
 
@@ -180,90 +230,118 @@ async function cleanupLegacyWorkspaceEntries(
 
 class BlaxelFilesystem extends MastraFilesystem {
   readonly id: string;
-  readonly name = 'BlaxelFilesystem';
-  readonly provider = 'blaxel';
-  status: ProviderStatus = 'pending';
+  readonly name = "BlaxelFilesystem";
+  readonly provider = "blaxel";
+  status: ProviderStatus = "pending";
 
   constructor(
     private readonly sb: any,
     sessionId: string,
   ) {
-    super({ name: 'BlaxelFilesystem' });
+    super({ name: "BlaxelFilesystem" });
     this.id = `blaxel-fs-${sessionId}`;
   }
 
   async init(): Promise<void> {
     // wait() is a no-op in current @blaxel/core — readiness is verified
     // in provision() via waitUntilReachable() before this is called.
-    this.status = 'ready' as ProviderStatus;
+    this.status = "ready" as ProviderStatus;
   }
 
   async destroy(): Promise<void> {
-    this.status = 'destroyed' as ProviderStatus;
+    this.status = "destroyed" as ProviderStatus;
   }
 
-  async readFile(path: string, _options?: ReadOptions): Promise<string | Buffer> {
+  async readFile(
+    path: string,
+    _options?: ReadOptions,
+  ): Promise<string | Buffer> {
     await this.ensureReady();
     try {
       return await withRetry(() => this.sb.fs.read(path), `readFile(${path})`);
     } catch (err: any) {
       const msg = String(err?.message ?? err);
-      if (msg.includes('no such file') || msg.includes('404')) {
+      if (msg.includes("no such file") || msg.includes("404")) {
         throw new FileNotFoundError(path);
       }
       throw err;
     }
   }
 
-  async writeFile(path: string, content: FileContent, options?: WriteOptions): Promise<void> {
+  async writeFile(
+    path: string,
+    content: FileContent,
+    options?: WriteOptions,
+  ): Promise<void> {
     await this.ensureReady();
     // Match LocalFilesystem behavior: create parent dirs unless recursive === false
     if (options?.recursive !== false) {
-      const dir = path.substring(0, path.lastIndexOf('/'));
+      const dir = path.substring(0, path.lastIndexOf("/"));
       if (dir) {
         // Use process.exec for mkdir — more reliable than fs.mkdir
         // (Blaxel fs API sometimes returns 404 on stat for paths that exist)
-        await this.sb.process.exec({
-          command: `mkdir -p ${shellQuote(dir)}`,
-          waitForCompletion: true,
-          workingDir: '/',
-        }).catch(() => {});
+        await this.sb.process
+          .exec({
+            command: `mkdir -p ${shellQuote(dir)}`,
+            waitForCompletion: true,
+            workingDir: "/",
+          })
+          .catch(() => {});
       }
     }
     if (Buffer.isBuffer(content)) {
       await writeBufferFile(this.sb, path, content);
       return;
     }
-    await withRetry(() => this.sb.fs.write(path, String(content)), `writeFile(${path})`);
+    await withRetry(
+      () => this.sb.fs.write(path, String(content)),
+      `writeFile(${path})`,
+    );
   }
 
   async appendFile(path: string, content: FileContent): Promise<void> {
     await this.ensureReady();
     if (Buffer.isBuffer(content)) {
       const tempPath = `/tmp/augment-append-${Date.now()}-${Math.random().toString(36).slice(2)}.b64`;
-      await withRetry(() => this.sb.fs.write(tempPath, content.toString('base64')), `appendBase64(${path})`);
+      await withRetry(
+        () => this.sb.fs.write(tempPath, content.toString("base64")),
+        `appendBase64(${path})`,
+      );
       try {
-        const result: any = await withRetry(() => this.sb.process.exec({
-          command: `base64 -d ${shellQuote(tempPath)} >> ${shellQuote(path)}`,
-          waitForCompletion: true,
-          workingDir: '/',
-        }), `decodeAppendBase64(${path})`);
+        const result: any = await withRetry(
+          () =>
+            this.sb.process.exec({
+              command: `base64 -d ${shellQuote(tempPath)} >> ${shellQuote(path)}`,
+              waitForCompletion: true,
+              workingDir: "/",
+            }),
+          `decodeAppendBase64(${path})`,
+        );
         const exitCode = commandExitCode(result);
         if (exitCode !== 0) {
-          throw new Error(`Failed to append binary content to ${path}: ${result?.stderr ?? result?.stdout ?? ''}`);
+          throw new Error(
+            `Failed to append binary content to ${path}: ${result?.stderr ?? result?.stdout ?? ""}`,
+          );
         }
       } finally {
-        await this.sb.process.exec({
-          command: `rm -f ${shellQuote(tempPath)}`,
-          waitForCompletion: true,
-          workingDir: '/',
-        }).catch(() => {});
+        await this.sb.process
+          .exec({
+            command: `rm -f ${shellQuote(tempPath)}`,
+            waitForCompletion: true,
+            workingDir: "/",
+          })
+          .catch(() => {});
       }
       return;
     }
-    let existing = '';
-    try { existing = await withRetry(() => this.sb.fs.read(path)); } catch {}
-    await withRetry(() => this.sb.fs.write(path, existing + String(content)), `appendFile(${path})`);
+    let existing = "";
+    try {
+      existing = await withRetry(() => this.sb.fs.read(path));
+    } catch {}
+    await withRetry(
+      () => this.sb.fs.write(path, existing + String(content)),
+      `appendFile(${path})`,
+    );
   }
 
   async deleteFile(path: string, _options?: RemoveOptions): Promise<void> {
@@ -271,93 +349,123 @@ class BlaxelFilesystem extends MastraFilesystem {
     await withRetry(() => this.sb.fs.rm(path, false), `deleteFile(${path})`);
   }
 
-  async copyFile(src: string, dest: string, _options?: CopyOptions): Promise<void> {
+  async copyFile(
+    src: string,
+    dest: string,
+    _options?: CopyOptions,
+  ): Promise<void> {
     await this.ensureReady();
     // Blaxel SDK doesn't have a cp method — use process.exec
-    await withRetry(() => this.sb.process.exec({
-      command: `cp "${src}" "${dest}"`,
-      waitForCompletion: true,
-      workingDir: '/',
-    }), `copyFile(${src}, ${dest})`);
+    await withRetry(
+      () =>
+        this.sb.process.exec({
+          command: `cp "${src}" "${dest}"`,
+          waitForCompletion: true,
+          workingDir: "/",
+        }),
+      `copyFile(${src}, ${dest})`,
+    );
   }
 
-  async moveFile(src: string, dest: string, _options?: CopyOptions): Promise<void> {
+  async moveFile(
+    src: string,
+    dest: string,
+    _options?: CopyOptions,
+  ): Promise<void> {
     await this.ensureReady();
-    await withRetry(() => this.sb.process.exec({
-      command: `mv "${src}" "${dest}"`,
-      waitForCompletion: true,
-      workingDir: '/',
-    }), `moveFile(${src}, ${dest})`);
+    await withRetry(
+      () =>
+        this.sb.process.exec({
+          command: `mv "${src}" "${dest}"`,
+          waitForCompletion: true,
+          workingDir: "/",
+        }),
+      `moveFile(${src}, ${dest})`,
+    );
   }
 
   async mkdir(path: string, _options?: { recursive?: boolean }): Promise<void> {
     await this.ensureReady();
     // Use process.exec — fs.mkdir has stat issues on some paths
-    await withRetry(() => this.sb.process.exec({
-      command: `mkdir -p "${path}"`,
-      waitForCompletion: true,
-      workingDir: '/',
-    }), `mkdir(${path})`);
+    await withRetry(
+      () =>
+        this.sb.process.exec({
+          command: `mkdir -p "${path}"`,
+          waitForCompletion: true,
+          workingDir: "/",
+        }),
+      `mkdir(${path})`,
+    );
   }
 
   async rmdir(path: string, options?: RemoveOptions): Promise<void> {
     await this.ensureReady();
-    const flag = options?.recursive ? '-rf' : '-d';
-    await withRetry(() => this.sb.process.exec({
-      command: `rm ${flag} "${path}"`,
-      waitForCompletion: true,
-      workingDir: '/',
-    }), `rmdir(${path})`);
+    const flag = options?.recursive ? "-rf" : "-d";
+    await withRetry(
+      () =>
+        this.sb.process.exec({
+          command: `rm ${flag} "${path}"`,
+          waitForCompletion: true,
+          workingDir: "/",
+        }),
+      `rmdir(${path})`,
+    );
   }
 
   async readdir(path: string, _options?: ListOptions): Promise<FileEntry[]> {
     await this.ensureReady();
     // Use process.exec for listing — fs.ls returns 404 on some valid paths
-    const result: any = await withRetry(() => this.sb.process.exec({
-      command: `ls -1p "${path}"`,
-      waitForCompletion: true,
-      workingDir: '/',
-    }));
+    const result: any = await withRetry(() =>
+      this.sb.process.exec({
+        command: `ls -1p "${path}"`,
+        waitForCompletion: true,
+        workingDir: "/",
+      }),
+    );
     const entries: FileEntry[] = [];
-    for (const line of (result.stdout ?? '').split('\n').filter(Boolean)) {
-      if (line.endsWith('/')) {
-        entries.push({ name: line.slice(0, -1), type: 'directory' });
+    for (const line of (result.stdout ?? "").split("\n").filter(Boolean)) {
+      if (line.endsWith("/")) {
+        entries.push({ name: line.slice(0, -1), type: "directory" });
       } else {
-        entries.push({ name: line, type: 'file' });
+        entries.push({ name: line, type: "file" });
       }
     }
     return entries;
   }
 
   async exists(path: string): Promise<boolean> {
-    const result: any = await withRetry(() => this.sb.process.exec({
-      command: `test -e "${path}" && echo "yes" || echo "no"`,
-      waitForCompletion: true,
-      workingDir: '/',
-    }));
-    return (result.stdout ?? '').trim() === 'yes';
+    const result: any = await withRetry(() =>
+      this.sb.process.exec({
+        command: `test -e "${path}" && echo "yes" || echo "no"`,
+        waitForCompletion: true,
+        workingDir: "/",
+      }),
+    );
+    return (result.stdout ?? "").trim() === "yes";
   }
 
   async stat(path: string): Promise<FileStat> {
     await this.ensureReady();
     // Use process.exec for stat — fs.ls API has issues with some paths
-    const result: any = await withRetry(() => this.sb.process.exec({
-      command: `stat -c '%n|%F|%s|%Y' "${path}" 2>/dev/null`,
-      waitForCompletion: true,
-      workingDir: '/',
-    }));
-    const stdout = (result.stdout ?? '').trim();
+    const result: any = await withRetry(() =>
+      this.sb.process.exec({
+        command: `stat -c '%n|%F|%s|%Y' "${path}" 2>/dev/null`,
+        waitForCompletion: true,
+        workingDir: "/",
+      }),
+    );
+    const stdout = (result.stdout ?? "").trim();
     if (!stdout || (result.exitCode ?? 0) !== 0) {
       throw new FileNotFoundError(path);
     }
-    const [name, fileType, sizeStr, mtimeStr] = stdout.split('|');
-    const isDir = fileType?.includes('directory') ?? false;
-    const mtime = new Date(parseInt(mtimeStr ?? '0', 10) * 1000);
+    const [name, fileType, sizeStr, mtimeStr] = stdout.split("|");
+    const isDir = fileType?.includes("directory") ?? false;
+    const mtime = new Date(parseInt(mtimeStr ?? "0", 10) * 1000);
     return {
-      name: name?.split('/').pop() ?? '',
+      name: name?.split("/").pop() ?? "",
       path,
-      type: isDir ? 'directory' : 'file',
-      size: parseInt(sizeStr ?? '0', 10),
+      type: isDir ? "directory" : "file",
+      size: parseInt(sizeStr ?? "0", 10),
       createdAt: mtime,
       modifiedAt: mtime,
     };
@@ -384,7 +492,10 @@ class BlaxelProcessHandle extends ProcessHandle {
 
   private async refresh(): Promise<any | undefined> {
     try {
-      const proc = await withRetry(() => this.sb.process.get(this.pid), `process.get(${this.pid})`);
+      const proc = await withRetry(
+        () => this.sb.process.get(this.pid),
+        `process.get(${this.pid})`,
+      );
       const { stdout, stderr } = normalizeProcessLogs(proc);
       if (stdout && stdout.length > this.stdout.length) {
         this.emitStdout(stdout.slice(this.stdout.length));
@@ -404,7 +515,10 @@ class BlaxelProcessHandle extends ProcessHandle {
 
   async kill(): Promise<boolean> {
     try {
-      await withRetry(() => this.sb.process.kill(this.pid), `process.kill(${this.pid})`);
+      await withRetry(
+        () => this.sb.process.kill(this.pid),
+        `process.kill(${this.pid})`,
+      );
       this.exitCode = this.exitCode ?? 137;
       return true;
     } catch {
@@ -413,7 +527,7 @@ class BlaxelProcessHandle extends ProcessHandle {
   }
 
   async sendStdin(_data: string): Promise<void> {
-    throw new Error('Blaxel process stdin is not supported by this provider.');
+    throw new Error("Blaxel process stdin is not supported by this provider.");
   }
 
   async wait(): Promise<CommandResult> {
@@ -438,19 +552,27 @@ class BlaxelProcessManager extends SandboxProcessManager<BlaxelSandbox> {
     super();
   }
 
-  async spawn(command: string, options: SpawnProcessOptions = {}): Promise<ProcessHandle> {
+  async spawn(
+    command: string,
+    options: SpawnProcessOptions = {},
+  ): Promise<ProcessHandle> {
     const name = `augment-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     const port = parseWaitPort(command);
     const execOptions: Record<string, unknown> = {
       name,
       command,
       waitForCompletion: false,
-      workingDir: options.cwd ?? '/workspace',
+      workingDir: options.cwd ?? "/workspace",
       ...(options.env ? { env: options.env as Record<string, string> } : {}),
       ...(port ? { waitForPorts: [port] } : {}),
-      ...(options.timeout ? { timeout: Math.min(options.timeout, 60_000) } : {}),
+      ...(options.timeout
+        ? { timeout: Math.min(options.timeout, 60_000) }
+        : {}),
     };
-    const result: any = await withRetry(() => this.sb.process.exec(execOptions), `spawn(${command})`);
+    const result: any = await withRetry(
+      () => this.sb.process.exec(execOptions),
+      `spawn(${command})`,
+    );
     const handle = new BlaxelProcessHandle(this.sb, name, options);
     const { stdout, stderr } = normalizeProcessLogs(result);
     if (stdout) handle.emitStdout(stdout);
@@ -460,24 +582,28 @@ class BlaxelProcessManager extends SandboxProcessManager<BlaxelSandbox> {
   }
 
   async list(): Promise<ProcessInfo[]> {
-    const processes = await Promise.all([...this._tracked.values()].map(async (handle) => {
-      await this.get(handle.pid);
-      return {
-        pid: handle.pid,
-        command: handle.command,
-        running: handle.exitCode === undefined,
-        ...(handle.exitCode !== undefined ? { exitCode: handle.exitCode } : {}),
-      };
-    }));
+    const processes = await Promise.all(
+      [...this._tracked.values()].map(async (handle) => {
+        await this.get(handle.pid);
+        return {
+          pid: handle.pid,
+          command: handle.command,
+          running: handle.exitCode === undefined,
+          ...(handle.exitCode !== undefined
+            ? { exitCode: handle.exitCode }
+            : {}),
+        };
+      }),
+    );
     return processes.filter((process) => !this._dismissed.has(process.pid));
   }
 }
 
 class BlaxelSandbox extends MastraSandbox {
   readonly id: string;
-  readonly name = 'BlaxelSandbox';
-  readonly provider = 'blaxel';
-  status: ProviderStatus = 'pending';
+  readonly name = "BlaxelSandbox";
+  readonly provider = "blaxel";
+  status: ProviderStatus = "pending";
   declare readonly processes: BlaxelProcessManager;
 
   constructor(
@@ -485,7 +611,7 @@ class BlaxelSandbox extends MastraSandbox {
     sessionId: string,
   ) {
     super({
-      name: 'BlaxelSandbox',
+      name: "BlaxelSandbox",
       processes: new BlaxelProcessManager(sb),
     });
     this.id = `blaxel-sandbox-${sessionId}`;
@@ -493,16 +619,16 @@ class BlaxelSandbox extends MastraSandbox {
 
   async start(): Promise<void> {
     // Readiness verified in provision() via waitUntilReachable()
-    this.status = 'running' as ProviderStatus;
+    this.status = "running" as ProviderStatus;
   }
 
   async stop(): Promise<void> {
-    this.status = 'stopped' as ProviderStatus;
+    this.status = "stopped" as ProviderStatus;
   }
 
   async destroy(): Promise<void> {
     await this.sb.delete();
-    this.status = 'destroyed' as ProviderStatus;
+    this.status = "destroyed" as ProviderStatus;
   }
 
   async executeCommand(
@@ -510,27 +636,37 @@ class BlaxelSandbox extends MastraSandbox {
     args?: string[],
     options?: ExecuteCommandOptions,
   ): Promise<CommandResult> {
-    const fullCmd = args?.length ? `${command} ${args.join(' ')}` : command;
+    const fullCmd = args?.length ? `${command} ${args.join(" ")}` : command;
     const start = Date.now();
     const timeoutSeconds = options?.timeout;
 
     if (timeoutSeconds && timeoutSeconds > 60) {
       const name = `augment-fg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-      await withRetry(() => this.sb.process.exec({
-        name,
-        command: fullCmd,
-        waitForCompletion: false,
-        workingDir: options?.cwd ?? '/workspace',
-        ...(options?.env ? { env: options.env as Record<string, string> } : {}),
-        timeout: timeoutSeconds,
-      }), `execAsync(${command})`);
+      await withRetry(
+        () =>
+          this.sb.process.exec({
+            name,
+            command: fullCmd,
+            waitForCompletion: false,
+            workingDir: options?.cwd ?? "/workspace",
+            ...(options?.env
+              ? { env: options.env as Record<string, string> }
+              : {}),
+            timeout: timeoutSeconds,
+          }),
+        `execAsync(${command})`,
+      );
 
       let result: any;
       try {
-        result = await withRetry(() => this.sb.process.wait(name, {
-          maxWait: timeoutSeconds * 1000,
-          interval: 1000,
-        }), `wait(${command})`);
+        result = await withRetry(
+          () =>
+            this.sb.process.wait(name, {
+              maxWait: timeoutSeconds * 1000,
+              interval: 1000,
+            }),
+          `wait(${command})`,
+        );
       } catch (err) {
         await this.sb.process.kill(name).catch(() => {});
         throw err;
@@ -538,13 +674,20 @@ class BlaxelSandbox extends MastraSandbox {
 
       const logs = normalizeProcessLogs(result);
       if (!logs.stdout) {
-        logs.stdout = await this.sb.process.logs(name, 'stdout').catch(() => '');
+        logs.stdout = await this.sb.process
+          .logs(name, "stdout")
+          .catch(() => "");
       }
       if (!logs.stderr) {
-        logs.stderr = await this.sb.process.logs(name, 'stderr').catch(() => '');
+        logs.stderr = await this.sb.process
+          .logs(name, "stderr")
+          .catch(() => "");
       }
 
-      const exitCode = commandExitCode(result, result?.status === 'completed' ? 0 : 1);
+      const exitCode = commandExitCode(
+        result,
+        result?.status === "completed" ? 0 : 1,
+      );
       return {
         command,
         args,
@@ -556,19 +699,25 @@ class BlaxelSandbox extends MastraSandbox {
       };
     }
 
-    const result: any = await withRetry(() => this.sb.process.exec({
-      command: fullCmd,
-      waitForCompletion: true,
-      workingDir: options?.cwd ?? '/workspace',
-      ...(options?.env ? { env: options.env as Record<string, string> } : {}),
-      ...(timeoutSeconds ? { timeout: Math.min(timeoutSeconds, 60) } : {}),
-    }), `exec(${command})`);
+    const result: any = await withRetry(
+      () =>
+        this.sb.process.exec({
+          command: fullCmd,
+          waitForCompletion: true,
+          workingDir: options?.cwd ?? "/workspace",
+          ...(options?.env
+            ? { env: options.env as Record<string, string> }
+            : {}),
+          ...(timeoutSeconds ? { timeout: Math.min(timeoutSeconds, 60) } : {}),
+        }),
+      `exec(${command})`,
+    );
     return {
       command,
       args,
       exitCode: result.exitCode ?? 0,
-      stdout: result.stdout ?? '',
-      stderr: result.stderr ?? '',
+      stdout: result.stdout ?? "",
+      stderr: result.stderr ?? "",
       success: (result.exitCode ?? 0) === 0,
       executionTimeMs: Date.now() - start,
     };
@@ -585,23 +734,23 @@ export class BlaxelWorkspaceProvider implements WorkspaceProvider {
     cleanupOnDestroy = false,
   }: {
     sessionId: string;
-    mode?: 'empty' | 'direct';
+    mode?: "empty" | "direct";
     cleanupOnDestroy?: boolean;
   }): Promise<ProvisionedWorkspace> {
     let SandboxInstance: any;
     try {
-      const mod = await import('@blaxel/core');
+      const mod = await import("@blaxel/core");
       SandboxInstance = mod.SandboxInstance;
     } catch {
       throw new Error(
-        'BlaxelWorkspaceProvider requires @blaxel/core.\n' +
-          'Run: npm install @blaxel/core\n' +
-          'And set BL_WORKSPACE and BL_API_KEY environment variables.',
+        "BlaxelWorkspaceProvider requires @blaxel/core.\n" +
+          "Run: npm install @blaxel/core\n" +
+          "And set BL_WORKSPACE and BL_API_KEY environment variables.",
       );
     }
 
     const templateSpec = resolveSandboxTemplateSpec();
-    const region = process.env.BL_REGION ?? 'us-pdx-1';
+    const region = process.env.BL_REGION ?? "us-pdx-1";
     const sandboxName = `assistant-ui-workspace-${sessionId}`.slice(0, 40);
 
     const sbInstance = await SandboxInstance.createIfNotExists({
@@ -610,8 +759,8 @@ export class BlaxelWorkspaceProvider implements WorkspaceProvider {
       region,
       memory: 4096,
       ports: [
-        { name: 'next-dev', target: 3000, protocol: 'HTTP' },
-        { name: 'test-preview', target: 4567, protocol: 'HTTP' },
+        { name: "next-dev", target: 3000, protocol: "HTTP" },
+        { name: "test-preview", target: 4567, protocol: "HTTP" },
       ],
     });
 
@@ -620,11 +769,13 @@ export class BlaxelWorkspaceProvider implements WorkspaceProvider {
     await waitUntilReachable(sbInstance, 120_000);
 
     // Ensure the contract workspace root exists (may already exist from template image)
-    await withRetry(() => sbInstance.process.exec({
-      command: `mkdir -p "${templateSpec.workspaceRoot}"`,
-      waitForCompletion: true,
-      workingDir: '/',
-    }));
+    await withRetry(() =>
+      sbInstance.process.exec({
+        command: `mkdir -p "${templateSpec.workspaceRoot}"`,
+        waitForCompletion: true,
+        workingDir: "/",
+      }),
+    );
 
     // The scaffold contract now treats legacy support files as contamination.
     // If older template or harness behavior left them behind, scrub them here.
@@ -644,7 +795,7 @@ export class BlaxelWorkspaceProvider implements WorkspaceProvider {
     const provisioned: ProvisionedWorkspace = {
       workspace,
       workspacePath: templateSpec.workspaceRoot,
-      providerKind: 'sandbox',
+      providerKind: "sandbox",
       sandboxInstance: sbInstance,
       cleanup: cleanupOnDestroy
         ? async () => {

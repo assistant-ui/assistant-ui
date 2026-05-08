@@ -4,7 +4,10 @@ import {
   UserMessageAttachments,
 } from "@/components/agent-playground/attachment";
 import { MarkdownText } from "@/components/agent-playground/markdown-text";
-import { Reasoning, ReasoningGroup } from "@/components/agent-playground/reasoning";
+import {
+  Reasoning,
+  ReasoningGroup,
+} from "@/components/agent-playground/reasoning";
 import { ToolFallback } from "@/components/agent-playground/tool-fallback";
 import { ToolGroup } from "@/components/agent-playground/tool-group";
 import { TooltipIconButton } from "@/components/agent-playground/tooltip-icon-button";
@@ -35,7 +38,12 @@ import {
 } from "lucide-react";
 import type { FC } from "react";
 import type { SubmitWorkspaceEnvInput } from "@/components/agent-playground/augment/types";
-import type { ApprovalDecision, PendingApproval, PendingFollowUp, PendingWorkspaceEnvRequest } from "@/components/agent-playground/runtime/assistantTypes";
+import type {
+  ApprovalDecision,
+  PendingApproval,
+  PendingFollowUp,
+  PendingWorkspaceEnvRequest,
+} from "@/components/agent-playground/runtime/assistantTypes";
 import { ApprovalCard } from "./chat/ApprovalCard";
 import { FollowUpCard } from "./chat/FollowUpCard";
 import { WorkspaceEnvCard } from "./chat/WorkspaceEnvCard";
@@ -45,7 +53,9 @@ export interface ThreadProps {
   followUps: PendingFollowUp[];
   onApprovalDecision: (approvalId: string, decision: ApprovalDecision) => void;
   workspaceEnvRequests: PendingWorkspaceEnvRequest[];
-  onWorkspaceEnvSubmit: (input: SubmitWorkspaceEnvInput) => void | Promise<void>;
+  onWorkspaceEnvSubmit: (
+    input: SubmitWorkspaceEnvInput,
+  ) => void | Promise<void>;
   onWorkspaceEnvContinueWithout: (requestId: string) => void | Promise<void>;
   hideWelcome?: boolean | undefined;
 }
@@ -70,7 +80,7 @@ export const Thread: FC<ThreadProps> = ({
     >
       <ThreadPrimitive.Viewport
         turnAnchor="top"
-        className="aui-thread-viewport scrollbar-thin relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto scroll-smooth px-4 pt-4"
+        className="aui-thread-viewport scrollbar-thin relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden scroll-smooth px-4 pt-4"
       >
         {!hideWelcome && (
           <AuiIf condition={(s) => s.thread.isEmpty}>
@@ -108,7 +118,17 @@ const ThreadMessage: FC = () => {
 
 const ThreadScrollToBottom: FC = () => {
   return (
-    <ThreadPrimitive.ScrollToBottom render={<TooltipIconButton tooltip="Scroll to bottom" variant="outline" className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible dark:border-border dark:bg-background dark:hover:bg-accent" />}><ArrowDownIcon /></ThreadPrimitive.ScrollToBottom>
+    <ThreadPrimitive.ScrollToBottom
+      render={
+        <TooltipIconButton
+          tooltip="Scroll to bottom"
+          variant="outline"
+          className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible dark:border-border dark:bg-background dark:hover:bg-accent"
+        />
+      }
+    >
+      <ArrowDownIcon />
+    </ThreadPrimitive.ScrollToBottom>
   );
 };
 
@@ -143,7 +163,18 @@ const ThreadSuggestions: FC = () => {
 const ThreadSuggestionItem: FC = () => {
   return (
     <div className="aui-thread-welcome-suggestion-display fade-in slide-in-from-bottom-2 @md:nth-[n+3]:block nth-[n+3]:hidden animate-in fill-mode-both duration-200">
-      <SuggestionPrimitive.Trigger send render={<Button variant="ghost" className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-3xl border bg-background px-4 py-3 text-left text-sm transition-colors hover:bg-muted" />}><SuggestionPrimitive.Title className="aui-thread-welcome-suggestion-text-1 font-medium" /><SuggestionPrimitive.Description className="aui-thread-welcome-suggestion-text-2 text-muted-foreground empty:hidden" /></SuggestionPrimitive.Trigger>
+      <SuggestionPrimitive.Trigger
+        send
+        render={
+          <Button
+            variant="ghost"
+            className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-3xl border bg-background px-4 py-3 text-left text-sm transition-colors hover:bg-muted"
+          />
+        }
+      >
+        <SuggestionPrimitive.Title className="aui-thread-welcome-suggestion-text-1 font-medium" />
+        <SuggestionPrimitive.Description className="aui-thread-welcome-suggestion-text-2 text-muted-foreground empty:hidden" />
+      </SuggestionPrimitive.Trigger>
     </div>
   );
 };
@@ -178,10 +209,36 @@ const ComposerAction: FC = () => {
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
       <ComposerAddAttachment />
       <AuiIf condition={(s) => !s.thread.isRunning}>
-        <ComposerPrimitive.Send render={<TooltipIconButton tooltip="Send message" side="bottom" type="button" variant="default" size="icon" className="aui-composer-send size-8 rounded-full" aria-label="Send message" />}><ArrowUpIcon className="aui-composer-send-icon size-4" /></ComposerPrimitive.Send>
+        <ComposerPrimitive.Send
+          render={
+            <TooltipIconButton
+              tooltip="Send message"
+              side="bottom"
+              type="button"
+              variant="default"
+              size="icon"
+              className="aui-composer-send size-8 rounded-full"
+              aria-label="Send message"
+            />
+          }
+        >
+          <ArrowUpIcon className="aui-composer-send-icon size-4" />
+        </ComposerPrimitive.Send>
       </AuiIf>
       <AuiIf condition={(s) => s.thread.isRunning}>
-        <ComposerPrimitive.Cancel render={<Button type="button" variant="default" size="icon" className="aui-composer-cancel size-8 rounded-full" aria-label="Stop generating" />}><SquareIcon className="aui-composer-cancel-icon size-3 fill-current" /></ComposerPrimitive.Cancel>
+        <ComposerPrimitive.Cancel
+          render={
+            <Button
+              type="button"
+              variant="default"
+              size="icon"
+              className="aui-composer-cancel size-8 rounded-full"
+              aria-label="Stop generating"
+            />
+          }
+        >
+          <SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
+        </ComposerPrimitive.Cancel>
       </AuiIf>
     </div>
   );
@@ -199,9 +256,9 @@ const MessageError: FC = () => {
 
 const TypingIndicator: FC = () => (
   <span className="inline-flex items-center gap-1 py-1">
-    <span className="size-1.5 rounded-full bg-foreground/40 animate-bounce [animation-delay:0ms]" />
-    <span className="size-1.5 rounded-full bg-foreground/40 animate-bounce [animation-delay:150ms]" />
-    <span className="size-1.5 rounded-full bg-foreground/40 animate-bounce [animation-delay:300ms]" />
+    <span className="size-1.5 animate-bounce rounded-full bg-foreground/40 [animation-delay:0ms]" />
+    <span className="size-1.5 animate-bounce rounded-full bg-foreground/40 [animation-delay:150ms]" />
+    <span className="size-1.5 animate-bounce rounded-full bg-foreground/40 [animation-delay:300ms]" />
   </span>
 );
 
@@ -242,14 +299,20 @@ const AssistantActionBar: FC = () => {
       autohide="not-last"
       className="aui-assistant-action-bar-root col-start-3 row-start-2 -ml-1 flex gap-1 text-muted-foreground"
     >
-      <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip="Copy" />}><AuiIf condition={(s) => s.message.isCopied}>
-                      <CheckIcon />
-                    </AuiIf><AuiIf condition={(s) => !s.message.isCopied}>
-                      <CopyIcon />
-                    </AuiIf></ActionBarPrimitive.Copy>
+      <ActionBarPrimitive.Copy render={<TooltipIconButton tooltip="Copy" />}>
+        <AuiIf condition={(s) => s.message.isCopied}>
+          <CheckIcon />
+        </AuiIf>
+        <AuiIf condition={(s) => !s.message.isCopied}>
+          <CopyIcon />
+        </AuiIf>
+      </ActionBarPrimitive.Copy>
       <ActionBarMorePrimitive.Root>
         <ActionBarMorePrimitive.Trigger asChild>
-          <TooltipIconButton tooltip="More" className="data-[state=open]:bg-accent">
+          <TooltipIconButton
+            tooltip="More"
+            className="data-[state=open]:bg-accent"
+          >
             <MoreHorizontalIcon />
           </TooltipIconButton>
         </ActionBarMorePrimitive.Trigger>
@@ -258,8 +321,14 @@ const AssistantActionBar: FC = () => {
           align="start"
           className="aui-action-bar-more-content z-50 min-w-32 overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
         >
-          <ActionBarPrimitive.ExportMarkdown render={<ActionBarMorePrimitive.Item className="aui-action-bar-more-item flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground" />}><DownloadIcon className="size-4" />Export as Markdown
-                              </ActionBarPrimitive.ExportMarkdown>
+          <ActionBarPrimitive.ExportMarkdown
+            render={
+              <ActionBarMorePrimitive.Item className="aui-action-bar-more-item flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground" />
+            }
+          >
+            <DownloadIcon className="size-4" />
+            Export as Markdown
+          </ActionBarPrimitive.ExportMarkdown>
         </ActionBarMorePrimitive.Content>
       </ActionBarMorePrimitive.Root>
     </ActionBarPrimitive.Root>
@@ -294,9 +363,14 @@ const EditComposer: FC = () => {
           autoFocus
         />
         <div className="aui-edit-composer-footer mx-3 mb-3 flex items-center gap-2 self-end">
-          <ComposerPrimitive.Cancel render={<Button variant="ghost" size="sm" />}>Cancel
-                              </ComposerPrimitive.Cancel>
-          <ComposerPrimitive.Send render={<Button size="sm" />}>Update</ComposerPrimitive.Send>
+          <ComposerPrimitive.Cancel
+            render={<Button variant="ghost" size="sm" />}
+          >
+            Cancel
+          </ComposerPrimitive.Cancel>
+          <ComposerPrimitive.Send render={<Button size="sm" />}>
+            Update
+          </ComposerPrimitive.Send>
         </div>
       </ComposerPrimitive.Root>
     </MessagePrimitive.Root>
@@ -316,11 +390,17 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
       )}
       {...rest}
     >
-      <BranchPickerPrimitive.Previous render={<TooltipIconButton tooltip="Previous" />}><ChevronLeftIcon /></BranchPickerPrimitive.Previous>
+      <BranchPickerPrimitive.Previous
+        render={<TooltipIconButton tooltip="Previous" />}
+      >
+        <ChevronLeftIcon />
+      </BranchPickerPrimitive.Previous>
       <span className="aui-branch-picker-state font-medium">
         <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
       </span>
-      <BranchPickerPrimitive.Next render={<TooltipIconButton tooltip="Next" />}><ChevronRightIcon /></BranchPickerPrimitive.Next>
+      <BranchPickerPrimitive.Next render={<TooltipIconButton tooltip="Next" />}>
+        <ChevronRightIcon />
+      </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
   );
 };

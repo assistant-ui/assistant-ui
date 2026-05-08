@@ -347,12 +347,13 @@ function BuilderPlayground() {
   );
 }
 
-
 function HeaderPortal({ children }: { children: React.ReactNode }) {
   const [container, setContainer] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
-    const el = document.getElementById("sub-project-header-portal");
+    const el = document.querySelector<HTMLElement>(
+      "[data-sub-project-header-portal]",
+    );
     if (el) setContainer(el);
   }, []);
 
@@ -372,7 +373,9 @@ export default function PlaygroundPage() {
             onClick={() => setMode("agent")}
             className={cn(
               "rounded px-2.5 py-1 font-medium transition-colors",
-              mode === "agent" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+              mode === "agent"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             Agent
@@ -382,7 +385,9 @@ export default function PlaygroundPage() {
             onClick={() => setMode("builder")}
             className={cn(
               "rounded px-2.5 py-1 font-medium transition-colors",
-              mode === "builder" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+              mode === "builder"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             Builder

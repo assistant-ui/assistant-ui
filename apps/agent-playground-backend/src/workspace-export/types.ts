@@ -1,6 +1,6 @@
-import type { Readable } from 'node:stream';
+import type { Readable } from "node:stream";
 
-export type WorkspaceExportFormat = 'tar.gz';
+export type WorkspaceExportFormat = "tar.gz";
 
 export interface WorkspaceExportOptions {
   sessionId: string;
@@ -21,6 +21,6 @@ export class WorkspaceExportError extends Error {
     public readonly statusCode = 500,
   ) {
     super(message);
-    this.name = 'WorkspaceExportError';
+    this.name = "WorkspaceExportError";
   }
 }

@@ -6,9 +6,16 @@ import { MockMemory } from "@mastra/core/memory";
 import { LibSQLStore } from "@mastra/libsql";
 import { getDynamicInstructions } from "./instructions.js";
 import { getDynamicModel, resolveModel } from "./model.js";
-import { createHarnessInitialPermissionRules, getToolCategory } from "./permissions.js";
+import {
+  createHarnessInitialPermissionRules,
+  getToolCategory,
+} from "./permissions.js";
 import { stateSchema, type HarnessState } from "./schema.js";
-import { executeSubagent, exploreSubagent, planSubagent } from "./subagents/index.js";
+import {
+  executeSubagent,
+  exploreSubagent,
+  planSubagent,
+} from "./subagents/index.js";
 import { createDynamicTools } from "./tools.js";
 import { createTracedSubagentTool } from "./tools/traced-subagent.js";
 import { getDynamicWorkspace } from "./workspace.js";
@@ -26,20 +33,24 @@ export interface CreateHarnessOptions {
 
 export async function createHarness(options: CreateHarnessOptions) {
   const cwd = options.cwd ?? process.cwd();
-  const projectName = options.projectName ?? cwd.split(/[\\/]/).pop() ?? "assistant-ui";
+  const projectName =
+    options.projectName ?? cwd.split(/[\\/]/).pop() ?? "assistant-ui";
   const workspacePolicy = options.workspacePolicy ?? "auto";
-  const defaultModelId = options.defaultModelId ?? process.env.MODEL_ID ?? "openai/gpt-5.4";
+  const defaultModelId =
+    options.defaultModelId ?? process.env.MODEL_ID ?? "openai/gpt-5.4";
 
-  const provisioned = workspacePolicy === "required"
-    ? await provisionWorkspace({
-        sessionId: options.sessionId,
-        workspaceProvider: "sandbox",
-        sandboxProvider: "blaxel",
-        cleanupOnDestroy: options.cleanupWorkspaceOnDestroy ?? true,
-      })
-    : undefined;
+  const provisioned =
+    workspacePolicy === "required"
+      ? await provisionWorkspace({
+          sessionId: options.sessionId,
+          workspaceProvider: "sandbox",
+          sandboxProvider: "blaxel",
+          cleanupOnDestroy: options.cleanupWorkspaceOnDestroy ?? true,
+        })
+      : undefined;
 
-  const storageUrl = process.env.AGENT_STORAGE_URL ?? "file:.agent-playground/data.db";
+  const storageUrl =
+    process.env.AGENT_STORAGE_URL ?? "file:.agent-playground/data.db";
   if (storageUrl === "file:.agent-playground/data.db") {
     mkdirSync(".agent-playground", { recursive: true });
   }
@@ -65,7 +76,13 @@ export async function createHarness(options: CreateHarnessOptions) {
   });
 
   const modes: HarnessMode<HarnessState>[] = [
-    { id: "build", name: "Build", default: true, defaultModelId, agent: codeAgent },
+    {
+      id: "build",
+      name: "Build",
+      default: true,
+      defaultModelId,
+      agent: codeAgent,
+    },
     { id: "plan", name: "Plan", defaultModelId, agent: codeAgent },
     { id: "fast", name: "Fast", defaultModelId, agent: codeAgent },
   ];

@@ -8,9 +8,9 @@ import {
   LoaderIcon,
   XCircleIcon,
 } from "lucide-react";
-import {
-  type ToolCallMessagePartStatus,
-  type ToolCallMessagePartComponent,
+import type {
+  ToolCallMessagePartStatus,
+  ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
 import {
   Collapsible,
@@ -27,7 +27,7 @@ export type ToolFallbackRootProps = Omit<
   "open" | "onOpenChange"
 > & {
   open?: boolean | undefined;
-  onOpenChange?: (open: boolean) => void | undefined;
+  onOpenChange?: (open: boolean) => void;
   /** When true, auto-open while busy; auto-collapse when busy flips false. */
   busy?: boolean | undefined;
 };
@@ -279,7 +279,11 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
       onOpenChange={auto.onOpenChange}
       className={cn(isCancelled && "border-muted-foreground/30 bg-muted/30")}
     >
-      <ToolFallbackTrigger toolName={toolName} status={status} open={auto.open} />
+      <ToolFallbackTrigger
+        toolName={toolName}
+        status={status}
+        open={auto.open}
+      />
       <ToolFallbackContent>
         <ToolFallbackError status={status} />
         <ToolFallbackArgs

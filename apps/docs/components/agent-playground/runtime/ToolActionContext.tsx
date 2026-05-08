@@ -1,10 +1,16 @@
-import { createContext, useContext } from 'react';
-import type { ApprovalDecision } from './assistantTypes';
+import { createContext, useContext } from "react";
+import type { ApprovalDecision } from "./assistantTypes";
 
 export type ToolActionContextValue = {
-  approveTool: (approvalId: string, decision: ApprovalDecision) => void | Promise<void>;
+  approveTool: (
+    approvalId: string,
+    decision: ApprovalDecision,
+  ) => void | Promise<void>;
   respondToToolSuspension: (resumeData: unknown) => void | Promise<void>;
-  respondToQuestion: (questionId: string, answer: string) => void | Promise<void>;
+  respondToQuestion: (
+    questionId: string,
+    answer: string,
+  ) => void | Promise<void>;
 };
 
 const noop = async () => {};
@@ -22,7 +28,11 @@ export function ToolActionProvider({
   value: ToolActionContextValue;
   children: React.ReactNode;
 }) {
-  return <ToolActionContext.Provider value={value}>{children}</ToolActionContext.Provider>;
+  return (
+    <ToolActionContext.Provider value={value}>
+      {children}
+    </ToolActionContext.Provider>
+  );
 }
 
 export function useToolActions() {

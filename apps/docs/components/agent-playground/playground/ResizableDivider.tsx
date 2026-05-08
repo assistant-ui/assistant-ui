@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
 interface ResizableDividerProps {
   onResize: (fraction: number) => void;
@@ -24,7 +24,10 @@ export function ResizableDivider({
 
       const rect = container.getBoundingClientRect();
       const x = e.clientX - rect.left;
-      const fraction = Math.max(minFraction, Math.min(maxFraction, x / rect.width));
+      const fraction = Math.max(
+        minFraction,
+        Math.min(maxFraction, x / rect.width),
+      );
       onResize(fraction);
     };
 
@@ -32,19 +35,20 @@ export function ResizableDivider({
       setIsDragging(false);
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [isDragging, onResize, minFraction, maxFraction]);
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: The splitter is currently mouse-driven in this playground UI.
     <div
       ref={dividerRef}
-      className="relative flex w-1 cursor-col-resize bg-border hover:bg-foreground/50 transition-colors"
+      className="relative flex w-1 cursor-col-resize bg-border transition-colors hover:bg-foreground/50"
       onMouseDown={(e) => {
         e.preventDefault();
         setIsDragging(true);
@@ -52,8 +56,10 @@ export function ResizableDivider({
     >
       <div className="absolute inset-0 flex items-center justify-center">
         <div
-          className={`w-1 h-8 rounded-full transition-colors ${
-            isDragging ? 'bg-foreground' : 'bg-muted-foreground/30 hover:bg-foreground/50'
+          className={`h-8 w-1 rounded-full transition-colors ${
+            isDragging
+              ? "bg-foreground"
+              : "bg-muted-foreground/30 hover:bg-foreground/50"
           }`}
         />
       </div>

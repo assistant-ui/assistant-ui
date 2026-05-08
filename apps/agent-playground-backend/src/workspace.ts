@@ -8,11 +8,15 @@ export function getDynamicWorkspace({
 }: {
   requestContext: { get(key: string): unknown };
 }): Workspace | null {
-  const ctx = requestContext?.get?.("harness") as HarnessRequestContext<HarnessState> | undefined;
+  const ctx = requestContext?.get?.("harness") as
+    | HarnessRequestContext<HarnessState>
+    | undefined;
   const state = ctx?.getState?.() ?? ctx?.state;
   if (state?.workspacePolicy === "none") return null;
 
-  const trace = requestContext?.get?.("augmentTrace") as { sessionId?: string } | undefined;
+  const trace = requestContext?.get?.("augmentTrace") as
+    | { sessionId?: string }
+    | undefined;
   const sessionId = trace?.sessionId;
   if (!sessionId) return null;
 

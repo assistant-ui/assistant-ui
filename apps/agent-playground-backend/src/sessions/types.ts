@@ -36,5 +36,10 @@ export interface SessionStateResponse {
     activeTools?: Record<string, unknown>;
   };
   messages: unknown[];
-  threads: Array<{ id: string; title?: string; createdAt?: string; updatedAt?: string }>;
+  threads: Array<{
+    id: string;
+    title?: string;
+    createdAt?: string;
+    updatedAt?: string;
+  }>;
 }

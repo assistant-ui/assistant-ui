@@ -1,7 +1,7 @@
-import type { PlaygroundState } from '../types';
-import { ExamplePreviewCard } from './ExamplePreviewCard';
+import type { PlaygroundState } from "../types";
+import { ExamplePreviewCard } from "./ExamplePreviewCard";
 
-type ExportStatus = 'idle' | 'exporting' | 'error';
+type ExportStatus = "idle" | "exporting" | "error";
 
 export function PreviewCanvas({
   playground,
@@ -20,7 +20,7 @@ export function PreviewCanvas({
 }) {
   if (!playground.selectedExample) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+      <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
         Loading examples…
       </div>
     );

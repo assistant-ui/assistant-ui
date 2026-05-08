@@ -30,11 +30,17 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 async function proxyAgentRequest(request: NextRequest, context: RouteContext) {
   const backendUrl = process.env.AGENT_BACKEND_URL?.replace(/\/$/, "");
   if (!backendUrl) {
-    return NextResponse.json({ error: "AGENT_BACKEND_URL is not configured." }, { status: 500 });
+    return NextResponse.json(
+      { error: "AGENT_BACKEND_URL is not configured." },
+      { status: 500 },
+    );
   }
 
   const { path = [] } = await context.params;
-  const upstream = new URL(`/api/${path.map(encodeURIComponent).join("/")}`, backendUrl);
+  const upstream = new URL(
+    `/api/${path.map(encodeURIComponent).join("/")}`,
+    backendUrl,
+  );
   upstream.search = request.nextUrl.search;
 
   const headers = new Headers(request.headers);
@@ -44,7 +50,10 @@ async function proxyAgentRequest(request: NextRequest, context: RouteContext) {
   const response = await fetch(upstream, {
     method: request.method,
     headers,
-    body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body,
+    body:
+      request.method === "GET" || request.method === "HEAD"
+        ? undefined
+        : request.body,
     // Required when forwarding a streaming request body through fetch.
     duplex: "half",
     cache: "no-store",

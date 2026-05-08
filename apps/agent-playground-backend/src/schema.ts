@@ -6,7 +6,7 @@
  * kept full permission/thinking/task/workspace interfaces.
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 export const stateSchema = z.object({
   // Project info
@@ -17,13 +17,15 @@ export const stateSchema = z.object({
 
   // Current model
   lastCommand: z.string().optional(),
-  currentModelId: z.string().default(''),
+  currentModelId: z.string().default(""),
 
   // Subagent model override (per-thread)
   subagentModelId: z.string().optional(),
 
   // Thinking level for model reasoning effort
-  thinkingLevel: z.enum(['off', 'low', 'medium', 'high', 'xhigh']).default('medium'),
+  thinkingLevel: z
+    .enum(["off", "low", "medium", "high", "xhigh"])
+    .default("medium"),
 
   // YOLO mode — auto-approve all tool calls
   yolo: z.boolean().default(true),
@@ -31,23 +33,25 @@ export const stateSchema = z.object({
   // Permission rules — per-category and per-tool approval policies
   permissionRules: z
     .object({
-      categories: z.record(z.string(), z.enum(['allow', 'ask', 'deny'])).default({}),
-      tools: z.record(z.string(), z.enum(['allow', 'ask', 'deny'])).default({}),
+      categories: z
+        .record(z.string(), z.enum(["allow", "ask", "deny"]))
+        .default({}),
+      tools: z.record(z.string(), z.enum(["allow", "ask", "deny"])).default({}),
     })
     .default({ categories: {}, tools: {} }),
 
   // Workspace provisioning — lazy by default
-  workspacePolicy: z.enum(['auto', 'none', 'required']).default('auto'),
+  workspacePolicy: z.enum(["auto", "none", "required"]).default("auto"),
   workspaceProvisioned: z.boolean().default(false),
 
   // Workspace provider — 'local' (session folder) or 'sandbox' (cloud)
-  workspaceProvider: z.enum(['sandbox']).default('sandbox'),
+  workspaceProvider: z.enum(["sandbox"]).default("sandbox"),
   // Absolute path to the agent's writable workspace folder (set by provider at session start)
   workspacePath: z.string().optional(),
   // How the workspace was provisioned
-  workspaceProvisionMode: z.enum(['empty']).optional(),
+  workspaceProvisionMode: z.enum(["empty"]).optional(),
   // Cloud sandbox provider (only relevant when workspaceProvider === 'sandbox')
-  sandboxProvider: z.enum(['blaxel']).optional(),
+  sandboxProvider: z.enum(["blaxel"]).optional(),
   // Cloud sandbox instance identifier
   sandboxId: z.string().optional(),
 
@@ -56,7 +60,7 @@ export const stateSchema = z.object({
     .array(
       z.object({
         content: z.string(),
-        status: z.enum(['pending', 'in_progress', 'completed']),
+        status: z.enum(["pending", "in_progress", "completed"]),
         activeForm: z.string(),
       }),
     )

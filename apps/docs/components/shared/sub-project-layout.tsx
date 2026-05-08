@@ -127,7 +127,10 @@ export function SubProjectLayout({
           </div>
 
           <div className="flex items-center gap-2">
-            <div id="sub-project-header-portal" className="flex items-center gap-1" />
+            <div
+              data-sub-project-header-portal
+              className="flex items-center gap-1"
+            />
             <a
               href={githubPath}
               target="_blank"

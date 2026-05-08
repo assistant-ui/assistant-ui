@@ -1,5 +1,5 @@
-import { StreamdownTextPrimitive } from '@assistant-ui/react-streamdown';
-import { code } from '@streamdown/code';
+import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown";
+import { code } from "@streamdown/code";
 
 const plugins = { code };
 

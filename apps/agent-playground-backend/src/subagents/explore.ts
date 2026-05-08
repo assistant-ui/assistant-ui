@@ -2,12 +2,12 @@
  * Explore subagent — read-only codebase exploration.
  * Copied from mastracode as-is.
  */
-import type { HarnessSubagent } from '@mastra/core/harness';
-import { MC_TOOLS } from '../tool-names.js';
+import type { HarnessSubagent } from "@mastra/core/harness";
+import { MC_TOOLS } from "../tool-names.js";
 
 export const exploreSubagent: HarnessSubagent = {
-  id: 'explore',
-  name: 'Explore',
+  id: "explore",
+  name: "Explore",
   description:
     "Read-only codebase exploration. Use for questions like 'find all usages of X', 'how does module Y work'.",
   instructions: `You are an expert code explorer. Your job is to investigate a codebase and answer a specific question or gather specific information.
@@ -36,5 +36,9 @@ End with a structured summary:
 . **Details**: Additional context if needed
 
 Keep your summary under 300 words.`,
-  allowedWorkspaceTools: [MC_TOOLS.VIEW, MC_TOOLS.SEARCH_CONTENT, MC_TOOLS.FIND_FILES],
+  allowedWorkspaceTools: [
+    MC_TOOLS.VIEW,
+    MC_TOOLS.SEARCH_CONTENT,
+    MC_TOOLS.FIND_FILES,
+  ],
 };

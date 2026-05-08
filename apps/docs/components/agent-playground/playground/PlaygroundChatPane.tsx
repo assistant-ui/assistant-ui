@@ -1,9 +1,9 @@
-import { ExternalLink } from 'lucide-react';
-import type { useAugmentAssistantRuntime } from '@/components/agent-playground/runtime/useAugmentAssistantRuntime';
-import type { Template } from '@/components/agent-playground/lib/templates';
-import { ErrorMessage } from '../chat/ErrorMessage';
-import { InitialMessageSender } from '../chat/InitialMessageSender';
-import { Thread } from '../thread';
+import { ExternalLink } from "lucide-react";
+import type { useAugmentAssistantRuntime } from "@/components/agent-playground/runtime/useAugmentAssistantRuntime";
+import type { Template } from "@/components/agent-playground/lib/templates";
+import { ErrorMessage } from "../chat/ErrorMessage";
+import { InitialMessageSender } from "../chat/InitialMessageSender";
+import { Thread } from "../thread";
 
 export function PlaygroundChatPane({
   runtimeState,
@@ -17,9 +17,12 @@ export function PlaygroundChatPane({
   const hasMessages = runtimeState.messages.length > 0;
 
   return (
-    <div data-slot="playground-chat-pane" className="flex h-full min-h-0 flex-col bg-background">
+    <div
+      data-slot="playground-chat-pane"
+      className="flex h-full min-h-0 flex-col bg-background"
+    >
       {templateBanner && (
-        <div className="border-b border-border px-4 py-2 text-xs text-muted-foreground flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 border-border border-b px-4 py-2 text-muted-foreground text-xs">
           <span>New chat started from template</span>
           {templateBanner.previewUrl ? (
             <a
@@ -32,7 +35,9 @@ export function PlaygroundChatPane({
               <ExternalLink className="size-3" />
             </a>
           ) : (
-            <span className="font-medium text-foreground">{templateBanner.title}</span>
+            <span className="font-medium text-foreground">
+              {templateBanner.title}
+            </span>
           )}
         </div>
       )}
@@ -47,8 +52,15 @@ export function PlaygroundChatPane({
           onApprovalDecision={runtimeState.approveTool}
           workspaceEnvRequests={runtimeState.pendingWorkspaceEnvRequests}
           onWorkspaceEnvSubmit={runtimeState.submitWorkspaceEnv}
-          onWorkspaceEnvContinueWithout={runtimeState.continueWithoutWorkspaceEnv}
-          hideWelcome={!!initialPrompt || runtimeState.isRunning || hasMessages || !!templateBanner}
+          onWorkspaceEnvContinueWithout={
+            runtimeState.continueWithoutWorkspaceEnv
+          }
+          hideWelcome={
+            !!initialPrompt ||
+            runtimeState.isRunning ||
+            hasMessages ||
+            !!templateBanner
+          }
         />
       </div>
     </div>

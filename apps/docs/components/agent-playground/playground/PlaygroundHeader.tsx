@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { LayoutGrid, Plus } from 'lucide-react';
-import { Button } from '@/components/agent-playground/ui/button';
-import type { PlaygroundHeaderState } from './types';
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { LayoutGrid, Plus } from "lucide-react";
+import { Button } from "@/components/agent-playground/ui/button";
+import type { PlaygroundHeaderState } from "./types";
 
 function HeaderPortal({ children }: { children: React.ReactNode }) {
   const [container, setContainer] = useState<HTMLElement | null>(null);

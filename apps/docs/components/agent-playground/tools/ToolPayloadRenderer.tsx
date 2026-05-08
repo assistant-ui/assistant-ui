@@ -1,15 +1,15 @@
-import { Streamdown } from 'streamdown';
-import { code } from '@streamdown/code';
+import { Streamdown } from "streamdown";
+import { code } from "@streamdown/code";
 
 export type ToolPayloadChannel =
-  | 'args'
-  | 'argsText'
-  | 'result'
-  | 'artifact'
-  | 'subagentText'
-  | 'subagentToolResult';
+  | "args"
+  | "argsText"
+  | "result"
+  | "artifact"
+  | "subagentText"
+  | "subagentToolResult";
 
-export type ToolPayloadRendererKind = 'json' | 'streamdown' | 'text' | 'empty';
+export type ToolPayloadRendererKind = "json" | "streamdown" | "text" | "empty";
 
 export type ToolPayloadRenderContext = {
   toolName: string;
@@ -25,40 +25,46 @@ export function selectToolPayloadRenderer({
   value,
   isError,
 }: ToolPayloadRenderContext): ToolPayloadRendererKind {
-  if (value == null || value === '') return 'empty';
-  if (isError) return 'text';
-  if (typeof value !== 'string') return 'json';
-  if (channel === 'argsText') return looksLikeJson(value) ? 'json' : 'text';
-  if (channel === 'subagentText') return 'streamdown';
-  if (looksLikeShellOutput(value)) return 'text';
-  if (looksLikeJson(value)) return 'json';
-  return 'streamdown';
+  if (value == null || value === "") return "empty";
+  if (isError) return "text";
+  if (typeof value !== "string") return "json";
+  if (channel === "argsText") return looksLikeJson(value) ? "json" : "text";
+  if (channel === "subagentText") return "streamdown";
+  if (looksLikeShellOutput(value)) return "text";
+  if (looksLikeJson(value)) return "json";
+  return "streamdown";
 }
 
 export function ToolPayloadRenderer({
   context,
-  emptyLabel = 'No data',
+  emptyLabel = "No data",
 }: {
   context: ToolPayloadRenderContext;
   emptyLabel?: string | undefined;
 }) {
   const kind = selectToolPayloadRenderer(context);
 
-  if (kind === 'empty') return <div className="text-sm text-muted-foreground">{emptyLabel}</div>;
+  if (kind === "empty")
+    return <div className="text-muted-foreground text-sm">{emptyLabel}</div>;
 
-  if (kind === 'streamdown') {
+  if (kind === "streamdown") {
     return (
-      <div className="text-sm leading-6 text-foreground">
-        <Streamdown plugins={streamdownPlugins}>{String(context.value)}</Streamdown>
+      <div className="text-foreground text-sm leading-6">
+        <Streamdown plugins={streamdownPlugins}>
+          {String(context.value)}
+        </Streamdown>
       </div>
     );
   }
 
-  const text = kind === 'json' ? stringifyJsonLike(context.value) : String(context.value);
-  const tone = context.isError ? 'text-destructive' : 'text-foreground/90';
+  const text =
+    kind === "json" ? stringifyJsonLike(context.value) : String(context.value);
+  const tone = context.isError ? "text-destructive" : "text-foreground/90";
 
   return (
-    <pre className={`scrollbar-thin max-h-72 overflow-auto whitespace-pre-wrap rounded-md bg-muted/40 p-3 text-xs ${tone}`}>
+    <pre
+      className={`scrollbar-thin max-h-72 overflow-auto whitespace-pre-wrap rounded-md bg-muted/40 p-3 text-xs ${tone}`}
+    >
       {text}
     </pre>
   );
@@ -67,7 +73,7 @@ export function ToolPayloadRenderer({
 function looksLikeJson(value: string): boolean {
   const trimmed = value.trim();
   if (!trimmed) return false;
-  if (!['{', '['].includes(trimmed[0]!)) return false;
+  if (!["{", "["].includes(trimmed[0]!)) return false;
   try {
     JSON.parse(trimmed);
     return true;
@@ -77,13 +83,17 @@ function looksLikeJson(value: string): boolean {
 }
 
 function looksLikeShellOutput(value: string): boolean {
-  if (value.includes('\r\n')) return true;
-  if (value.includes('\n') && /(^|\n)(\$|>|PS |error:|npm |pnpm |yarn |[A-Z]:\\)/i.test(value)) return true;
-  return value.length > 500 && value.includes('\n');
+  if (value.includes("\r\n")) return true;
+  if (
+    value.includes("\n") &&
+    /(^|\n)(\$|>|PS |error:|npm |pnpm |yarn |[A-Z]:\\)/i.test(value)
+  )
+    return true;
+  return value.length > 500 && value.includes("\n");
 }
 
 function stringifyJsonLike(value: unknown): string {
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     try {
       return JSON.stringify(JSON.parse(value), null, 2);
     } catch {

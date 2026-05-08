@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { augmentClient } from '@/components/agent-playground/augment/client';
-import { useProduct } from '@/components/agent-playground/contexts/ProductContext';
-import { toPlaygroundExamples } from './adapters/catalogToPlayground';
-import type { PlaygroundExample } from './types';
+import { useEffect, useState } from "react";
+import { augmentClient } from "@/components/agent-playground/augment/client";
+import { useProduct } from "@/components/agent-playground/contexts/ProductContext";
+import { toPlaygroundExamples } from "./adapters/catalogToPlayground";
+import type { PlaygroundExample } from "./types";
 
 export function usePlaygroundCatalog() {
   const product = useProduct();
@@ -14,7 +14,7 @@ export function usePlaygroundCatalog() {
     void augmentClient
       .listExamples({
         ...product.catalog.filter,
-        kind: 'example',
+        kind: "example",
         product: product.id,
       })
       .then((catalog) => {

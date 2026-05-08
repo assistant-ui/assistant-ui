@@ -6,10 +6,10 @@ export function ModeSelector({
   onChange: (modeId: string) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 rounded-md border bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
+    <label className="flex items-center gap-2 rounded-md border bg-muted/40 px-2 py-1 text-muted-foreground text-xs">
       Mode
       <select
-        value={modeId ?? 'build'}
+        value={modeId ?? "build"}
         onChange={(event) => onChange(event.target.value)}
         className="bg-transparent text-foreground outline-none"
       >

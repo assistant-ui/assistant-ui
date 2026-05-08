@@ -21,12 +21,13 @@ export function Thumbnail({ gradient, label, className, src }: Props) {
       )}
     >
       {showImage ? (
+        // biome-ignore lint/performance/noImgElement: Template thumbnails can be generated or remote preview images.
         <img
           src={src}
           alt={label ?? ""}
           loading="lazy"
           onError={() => setImgFailed(true)}
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (
         <>
@@ -34,7 +35,7 @@ export function Thumbnail({ gradient, label, className, src }: Props) {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_90%,rgba(0,0,0,0.25),transparent_60%)]" />
           {label ? (
             <div className="absolute inset-0 flex items-end p-2">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-white/70">
+              <span className="font-medium text-[10px] text-white/70 uppercase tracking-wider">
                 {label}
               </span>
             </div>

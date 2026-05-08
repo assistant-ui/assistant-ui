@@ -1,5 +1,5 @@
-import { cn } from '@/lib/utils';
-import type { ReactNode } from 'react';
+import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 
 export function MetadataBadge({
   children,
@@ -8,5 +8,9 @@ export function MetadataBadge({
   children: ReactNode;
   className?: string | undefined;
 }) {
-  return <span className={cn('rounded border px-1.5 py-0.5 text-[9px]', className)}>{children}</span>;
+  return (
+    <span className={cn("rounded border px-1.5 py-0.5 text-[9px]", className)}>
+      {children}
+    </span>
+  );
 }

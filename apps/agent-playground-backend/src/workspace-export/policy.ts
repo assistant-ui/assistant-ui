@@ -1,50 +1,50 @@
-import path from 'node:path';
+import path from "node:path";
 
 const EXCLUDED_NAMES = new Set([
-  'node_modules',
-  '.next',
-  'dist',
-  'build',
-  'out',
-  '.turbo',
-  '.cache',
-  '.git',
-  '.env',
-  '.env.local',
-  '.codingagent',
-  '.agent',
+  "node_modules",
+  ".next",
+  "dist",
+  "build",
+  "out",
+  ".turbo",
+  ".cache",
+  ".git",
+  ".env",
+  ".env.local",
+  ".codingagent",
+  ".agent",
 ]);
 
 export const DEFAULT_TAR_EXCLUDES = [
-  './node_modules',
-  './.next',
-  './dist',
-  './build',
-  './out',
-  './.turbo',
-  './.cache',
-  './.git',
-  './.env',
-  './.env.local',
-  './.env.*.local',
-  './.codingagent',
-  './.agent',
+  "./node_modules",
+  "./.next",
+  "./dist",
+  "./build",
+  "./out",
+  "./.turbo",
+  "./.cache",
+  "./.git",
+  "./.env",
+  "./.env.local",
+  "./.env.*.local",
+  "./.codingagent",
+  "./.agent",
 ];
 
 export function normalizeArchivePath(inputPath: string): string {
   return inputPath
-    .replaceAll('\\', '/')
-    .replace(/^\/+/, '')
-    .split('/')
-    .filter((part) => part && part !== '.')
-    .join('/');
+    .replaceAll("\\", "/")
+    .replace(/^\/+/, "")
+    .split("/")
+    .filter((part) => part && part !== ".")
+    .join("/");
 }
 
 export function shouldExcludeRelativePath(relativePath: string): boolean {
   const normalized = normalizeArchivePath(relativePath);
   if (!normalized) return false;
 
-  const parts = normalized.split('/');
+  const parts = normalized.split("/");
   for (const part of parts) {
     if (EXCLUDED_NAMES.has(part)) return true;
     if (/^\.env\..+\.local$/.test(part)) return true;
@@ -53,7 +53,10 @@ export function shouldExcludeRelativePath(relativePath: string): boolean {
   return false;
 }
 
-export function toRelativeArchivePath(rootPath: string, fullPath: string): string {
+export function toRelativeArchivePath(
+  rootPath: string,
+  fullPath: string,
+): string {
   return normalizeArchivePath(path.relative(rootPath, fullPath));
 }
 
@@ -62,9 +65,9 @@ export function shellQuote(value: string): string {
 }
 
 export function buildTarExcludeArgs(): string {
-  return DEFAULT_TAR_EXCLUDES
-    .map((pattern) => `--exclude=${shellQuote(pattern)}`)
-    .join(' ');
+  return DEFAULT_TAR_EXCLUDES.map(
+    (pattern) => `--exclude=${shellQuote(pattern)}`,
+  ).join(" ");
 }
 
 export function safeExportFilename(options: {
@@ -72,15 +75,15 @@ export function safeExportFilename(options: {
   sessionId: string;
   extension?: string;
 }): string {
-  const product = (options.productId || 'workspace')
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    || 'workspace';
-  const session = options.sessionId
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, '-')
-    .slice(0, 12)
-    || 'session';
-  return `${product}-workspace-${session}.${options.extension ?? 'tar.gz'}`;
+  const product =
+    (options.productId || "workspace")
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "workspace";
+  const session =
+    options.sessionId
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .slice(0, 12) || "session";
+  return `${product}-workspace-${session}.${options.extension ?? "tar.gz"}`;
 }

@@ -38,7 +38,7 @@ export type ReasoningRootProps = Omit<
 > &
   VariantProps<typeof reasoningVariants> & {
     open?: boolean | undefined;
-    onOpenChange?: (open: boolean) => void | undefined;
+    onOpenChange?: (open: boolean) => void;
     defaultOpen?: boolean | undefined;
   };
 

@@ -4,14 +4,17 @@ import { RequestContext } from "@mastra/core/request-context";
 import type { EventBroker } from "../events/EventBroker.js";
 import type { HarnessState } from "../schema.js";
 import type { AgentSession } from "../sessions/types.js";
-import { skipWorkspaceEnvRequest, submitWorkspaceEnv } from "../workspace-env/request-registry.js";
+import {
+  skipWorkspaceEnvRequest,
+  submitWorkspaceEnv,
+} from "../workspace-env/request-registry.js";
 import type { CommandResult, SessionCommand } from "./types.js";
 
 export async function dispatchCommand(
   harness: Harness<HarnessState>,
   command: SessionCommand,
   session: AgentSession,
-  eventBroker: EventBroker,
+  _eventBroker: EventBroker,
 ): Promise<CommandResult> {
   try {
     switch (command.type) {
@@ -145,6 +148,9 @@ export async function dispatchCommand(
       }
     }
   } catch (error) {
-    return { accepted: false, error: error instanceof Error ? error.message : String(error) };
+    return {
+      accepted: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }

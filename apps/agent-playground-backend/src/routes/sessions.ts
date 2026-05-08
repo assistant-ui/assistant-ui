@@ -11,7 +11,9 @@ export function createSessionRoutes(sessionManager: SessionManager): Router {
       const session = await sessionManager.create(req.body);
       res.status(201).json(session);
     } catch (error) {
-      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+      res.status(500).json({
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 
@@ -40,7 +42,12 @@ export function createSessionRoutes(sessionManager: SessionManager): Router {
       return res.status(400).json({ error: "Missing command type" });
     }
 
-    const result = await dispatchCommand(managed.harness, command, managed.session, managed.eventBroker);
+    const result = await dispatchCommand(
+      managed.harness,
+      command,
+      managed.session,
+      managed.eventBroker,
+    );
     return result.accepted ? res.json(result) : res.status(400).json(result);
   });
 
@@ -58,13 +65,19 @@ export function createSessionRoutes(sessionManager: SessionManager): Router {
     res.write(": connected\n\n");
 
     const lastEventId = req.headers["last-event-id"];
-    const history = managed.eventBroker.getHistory(typeof lastEventId === "string" ? lastEventId : undefined);
+    const history = managed.eventBroker.getHistory(
+      typeof lastEventId === "string" ? lastEventId : undefined,
+    );
     for (const event of history) {
-      res.write(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+      res.write(
+        `id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`,
+      );
     }
 
     const unsubscribe = managed.eventBroker.subscribe((event) => {
-      res.write(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+      res.write(
+        `id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`,
+      );
     });
 
     const heartbeat = setInterval(() => {

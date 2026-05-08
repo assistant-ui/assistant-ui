@@ -1,13 +1,18 @@
 import { Router } from "express";
 import type { SessionManager } from "../sessions/SessionManager.js";
 import { sessionWorkspaceRegistry } from "../workspace-provider.js";
-import { exportWorkspace, WorkspaceExportError } from "../workspace-export/index.js";
+import {
+  exportWorkspace,
+  WorkspaceExportError,
+} from "../workspace-export/index.js";
 
 function sendJsonError(res: any, statusCode: number, message: string): void {
   res.status(statusCode).json({ error: message });
 }
 
-export function createWorkspaceExportRoutes(sessionManager: SessionManager): Router {
+export function createWorkspaceExportRoutes(
+  sessionManager: SessionManager,
+): Router {
   const router = Router();
 
   router.get("/sessions/:id/workspace/export", async (req, res) => {
@@ -16,7 +21,12 @@ export function createWorkspaceExportRoutes(sessionManager: SessionManager): Rou
     if (!session) return sendJsonError(res, 404, "Session not found");
 
     const provisioned = sessionWorkspaceRegistry.get(sessionId);
-    if (!provisioned) return sendJsonError(res, 409, "No workspace is provisioned for this session.");
+    if (!provisioned)
+      return sendJsonError(
+        res,
+        409,
+        "No workspace is provisioned for this session.",
+      );
 
     let cleanupCalled = false;
     const cleanupOnce = async (cleanup?: () => Promise<void>) => {
@@ -33,15 +43,24 @@ export function createWorkspaceExportRoutes(sessionManager: SessionManager): Rou
       });
 
       res.setHeader("Content-Type", result.contentType);
-      res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${result.filename}"`,
+      );
       res.setHeader("Cache-Control", "no-store");
 
       result.stream.on("error", async (error) => {
         await cleanupOnce(result.cleanup);
         if (!res.headersSent) {
-          sendJsonError(res, 500, error instanceof Error ? error.message : String(error));
+          sendJsonError(
+            res,
+            500,
+            error instanceof Error ? error.message : String(error),
+          );
         } else {
-          res.destroy(error instanceof Error ? error : new Error(String(error)));
+          res.destroy(
+            error instanceof Error ? error : new Error(String(error)),
+          );
         }
       });
 
@@ -56,7 +75,11 @@ export function createWorkspaceExportRoutes(sessionManager: SessionManager): Rou
       if (error instanceof WorkspaceExportError) {
         return sendJsonError(res, error.statusCode, error.message);
       }
-      return sendJsonError(res, 500, error instanceof Error ? error.message : String(error));
+      return sendJsonError(
+        res,
+        500,
+        error instanceof Error ? error.message : String(error),
+      );
     }
   });
 

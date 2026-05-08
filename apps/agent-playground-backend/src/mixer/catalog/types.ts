@@ -1,61 +1,59 @@
-export type Framework = 'next' | 'vite' | 'react-router' | 'tanstack' | 'expo';
+export type Framework = "next" | "vite" | "react-router" | "tanstack" | "expo";
 
-export type Runtime =
-  | 'nodejs-api-route'
-  | 'edge-runtime'
-  | 'none';
+export type Runtime = "nodejs-api-route" | "edge-runtime" | "none";
 
 export type FrontendPattern =
-  | 'useChat'
-  | 'useChatRuntime'
-  | 'useChatRuntime+threads'
-  | 'external-store'
-  | 'cloud-runtime';
+  | "useChat"
+  | "useChatRuntime"
+  | "useChatRuntime+threads"
+  | "external-store"
+  | "cloud-runtime";
 
-export type PersistenceModel =
-  | 'none'
-  | 'localStorage'
-  | 'server-db'
-  | 'cloud';
+export type PersistenceModel = "none" | "localStorage" | "server-db" | "cloud";
 
 export type AgentPattern =
-  | 'ai-sdk'
-  | 'langgraph'
-  | 'mcp'
-  | 'cloud'
-  | 'a2a'
-  | 'ag-ui'
-  | 'google-adk'
-  | 'custom';
+  | "ai-sdk"
+  | "langgraph"
+  | "mcp"
+  | "cloud"
+  | "a2a"
+  | "ag-ui"
+  | "google-adk"
+  | "custom";
 
-export type VerifyProfile = 'next' | 'vite' | 'react-router' | 'tanstack' | 'custom';
+export type VerifyProfile =
+  | "next"
+  | "vite"
+  | "react-router"
+  | "tanstack"
+  | "custom";
 
 export type Capability =
-  | 'basic-chat'
-  | 'artifact-preview'
-  | 'form-copilot'
-  | 'persistent-threads'
-  | 'custom-backend'
-  | 'reasoning-display'
-  | 'mcp-tools'
-  | 'cloud-auth'
-  | 'external-store'
-  | 'parent-grouping'
-  | 'thread-list'
-  | 'voice-input'
-  | 'media-processing'
-  | 'agent-protocol';
+  | "basic-chat"
+  | "artifact-preview"
+  | "form-copilot"
+  | "persistent-threads"
+  | "custom-backend"
+  | "reasoning-display"
+  | "mcp-tools"
+  | "cloud-auth"
+  | "external-store"
+  | "parent-grouping"
+  | "thread-list"
+  | "voice-input"
+  | "media-processing"
+  | "agent-protocol";
 
 export interface EnvVar {
   name: string;
   required: boolean;
-  scope: 'server' | 'client' | 'runner';
+  scope: "server" | "client" | "runner";
   secret: boolean;
   description: string;
 }
 
 export interface PreviewMetadata {
-  status: 'live' | 'stale' | 'missing';
+  status: "live" | "stale" | "missing";
   url?: string;
   screenshot?: string;
   builtFromRef?: string;
@@ -88,7 +86,7 @@ export interface Recipe {
   label: string;
   description: string;
   sourcePath: string;
-  kind: 'template' | 'example';
+  kind: "template" | "example";
   tech: RecipeTech;
   tags: string[];
   capabilities: Capability[];
@@ -98,4 +96,7 @@ export interface Recipe {
   verifyProfile: VerifyProfile;
 }
 
-export type RecipeSummary = Pick<Recipe, 'id' | 'label' | 'capabilities' | 'preview'>;
+export type RecipeSummary = Pick<
+  Recipe,
+  "id" | "label" | "capabilities" | "preview"
+>;

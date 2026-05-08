@@ -2,12 +2,12 @@
  * Execute subagent — focused task execution with write capabilities.
  * Copied from mastracode as-is.
  */
-import type { HarnessSubagent } from '@mastra/core/harness';
-import { taskCheckTool, taskWriteTool } from '@mastra/core/harness';
+import type { HarnessSubagent } from "@mastra/core/harness";
+import { taskCheckTool, taskWriteTool } from "@mastra/core/harness";
 
 export const executeSubagent: HarnessSubagent = {
-  id: 'execute',
-  name: 'Execute',
+  id: "execute",
+  name: "Execute",
   description:
     "Task execution with write capabilities. Use for 'implement feature X', 'fix bug Y', 'refactor module Z'.",
   instructions: `You are a focused execution agent. Your job is to complete a specific, well-defined task by making the necessary changes to the codebase.

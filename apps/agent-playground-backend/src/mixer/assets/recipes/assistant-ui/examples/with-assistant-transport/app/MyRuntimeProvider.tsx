@@ -69,6 +69,21 @@ const LangChainMessageConverter = createMessageConverter(
   convertLangChainMessages,
 );
 
+function pendingPartToText(part: unknown): string {
+  if (
+    typeof part === "object" &&
+    part !== null &&
+    "type" in part &&
+    part.type === "text" &&
+    "text" in part &&
+    typeof part.text === "string"
+  ) {
+    return part.text;
+  }
+
+  return JSON.stringify(part) ?? String(part);
+}
+
 const converter = (
   state: State,
   connectionMetadata: AssistantTransportConnectionMetadata,
@@ -79,14 +94,10 @@ const converter = (
         return [
           {
             type: "human" as const,
-            content: [
-              {
-                type: "text" as const,
-                text: c.message.parts
-                  .map((p) => (p.type === "text" ? p.text : ""))
-                  .join("\n"),
-              },
-            ],
+            content: c.message.parts.map((part) => ({
+              type: "text" as const,
+              text: pendingPartToText(part),
+            })),
           },
         ];
       }

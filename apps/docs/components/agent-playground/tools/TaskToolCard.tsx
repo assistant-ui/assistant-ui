@@ -1,14 +1,21 @@
-import { BadgeCheck, CheckCircle2, Circle, CircleDot, ListTodo, Loader2 } from 'lucide-react';
-import type { ToolCallMessagePartProps } from '@assistant-ui/react';
-import { cn } from '@/lib/utils';
-import { getToolVisualStatus, ToolShell } from './ToolShell';
-import { ToolPayloadRenderer } from './ToolPayloadRenderer';
+import {
+  BadgeCheck,
+  CheckCircle2,
+  Circle,
+  CircleDot,
+  ListTodo,
+  Loader2,
+} from "lucide-react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
+import { cn } from "@/lib/utils";
+import { getToolVisualStatus, ToolShell } from "./ToolShell";
+import { ToolPayloadRenderer } from "./ToolPayloadRenderer";
 import {
   taskCheckViewModel,
   taskWriteViewModel,
   type TaskItemViewModel,
   type TaskStatus,
-} from './taskToolViewModel';
+} from "./taskToolViewModel";
 
 type TaskWriteArgs = {
   tasks?: Array<{ content?: string; status?: string; activeForm?: string }>;
@@ -19,7 +26,11 @@ type TaskCheckResult = {
   inProgress?: number | undefined;
   pending?: number | undefined;
   allDone?: boolean | undefined;
-  incomplete?: Array<{ content?: string; status?: string; activeForm?: string }>;
+  incomplete?: Array<{
+    content?: string;
+    status?: string;
+    activeForm?: string;
+  }>;
 };
 
 export function TaskWriteToolView({
@@ -33,13 +44,19 @@ export function TaskWriteToolView({
 
   return (
     <ToolShell
-      title={viewModel.kind === 'tasks' ? `To-dos ${viewModel.total}` : 'To-dos'}
+      title={
+        viewModel.kind === "tasks" ? `To-dos ${viewModel.total}` : "To-dos"
+      }
       icon={<ListTodo className="h-4 w-4" />}
       tone="task"
-      status={getToolVisualStatus(status.type, isError, hasResult || viewModel.kind === 'tasks')}
-      busy={status.type === 'running'}
+      status={getToolVisualStatus(
+        status.type,
+        isError,
+        hasResult || viewModel.kind === "tasks",
+      )}
+      busy={status.type === "running"}
     >
-      {viewModel.kind === 'tasks' ? (
+      {viewModel.kind === "tasks" ? (
         <TaskListCard
           tasks={viewModel.tasks}
           completed={viewModel.completed}
@@ -47,11 +64,25 @@ export function TaskWriteToolView({
           emptyLabel="No todos tracked."
         />
       ) : (
-        <ToolPayloadRenderer context={{ toolName: 'task_write', channel: 'args', value: args, isError }} />
+        <ToolPayloadRenderer
+          context={{
+            toolName: "task_write",
+            channel: "args",
+            value: args,
+            isError,
+          }}
+        />
       )}
       {isError ? (
         <div className="mt-3">
-          <ToolPayloadRenderer context={{ toolName: 'task_write', channel: 'result', value: result, isError }} />
+          <ToolPayloadRenderer
+            context={{
+              toolName: "task_write",
+              channel: "result",
+              value: result,
+              isError,
+            }}
+          />
         </div>
       ) : null}
     </ToolShell>
@@ -72,20 +103,29 @@ export function TaskCheckToolView({
       icon={<BadgeCheck className="h-4 w-4" />}
       tone="task"
       status={getToolVisualStatus(status.type, isError, hasResult)}
-      busy={status.type === 'running'}
+      busy={status.type === "running"}
     >
-      {viewModel.kind === 'check' && !isError ? (
+      {viewModel.kind === "check" && !isError ? (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <div className="flex items-center gap-2 font-medium text-foreground text-sm">
               {viewModel.allDone ? (
                 <CheckCircle2 className="h-4 w-4 text-emerald-400" />
               ) : (
                 <CircleDot className="h-4 w-4 text-amber-300" />
               )}
-              <span>{viewModel.allDone ? 'All tasks complete' : 'Tasks still in progress'}</span>
+              <span>
+                {viewModel.allDone
+                  ? "All tasks complete"
+                  : "Tasks still in progress"}
+              </span>
             </div>
-            <TaskProgressPill completed={viewModel.completed} total={viewModel.completed + viewModel.inProgress + viewModel.pending} />
+            <TaskProgressPill
+              completed={viewModel.completed}
+              total={
+                viewModel.completed + viewModel.inProgress + viewModel.pending
+              }
+            />
           </div>
           {viewModel.incomplete.length > 0 ? (
             <TaskListCard
@@ -98,7 +138,14 @@ export function TaskCheckToolView({
           ) : null}
         </div>
       ) : (
-        <ToolPayloadRenderer context={{ toolName: 'task_check', channel: 'result', value: result, isError }} />
+        <ToolPayloadRenderer
+          context={{
+            toolName: "task_check",
+            channel: "result",
+            value: result,
+            isError,
+          }}
+        />
       )}
     </ToolShell>
   );
@@ -118,7 +165,7 @@ function TaskListCard({
   showProgress?: boolean | undefined;
 }) {
   if (tasks.length === 0) {
-    return <div className="text-sm text-muted-foreground">{emptyLabel}</div>;
+    return <div className="text-muted-foreground text-sm">{emptyLabel}</div>;
   }
 
   return (
@@ -128,7 +175,9 @@ function TaskListCard({
           <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-emerald-400 transition-[width]"
-              style={{ width: `${total > 0 ? Math.round((completed / total) * 100) : 0}%` }}
+              style={{
+                width: `${total > 0 ? Math.round((completed / total) * 100) : 0}%`,
+              }}
             />
           </div>
           <TaskProgressPill completed={completed} total={total} />
@@ -149,11 +198,11 @@ function TaskRow({ task }: { task: TaskItemViewModel }) {
       <TaskStatusIcon status={task.status} />
       <span
         className={cn(
-          'min-w-0 flex-1 break-words leading-5',
-          task.status === 'completed' && 'text-muted-foreground line-through',
-          task.status === 'pending' && 'text-muted-foreground',
-          task.status === 'in_progress' && 'font-medium text-foreground',
-          task.status === 'unknown' && 'text-foreground/80',
+          "min-w-0 flex-1 break-words leading-5",
+          task.status === "completed" && "text-muted-foreground line-through",
+          task.status === "pending" && "text-muted-foreground",
+          task.status === "in_progress" && "font-medium text-foreground",
+          task.status === "unknown" && "text-foreground/80",
         )}
       >
         {task.displayText}
@@ -164,24 +213,39 @@ function TaskRow({ task }: { task: TaskItemViewModel }) {
 }
 
 function TaskStatusIcon({ status }: { status: TaskStatus }) {
-  if (status === 'completed') return <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />;
-  if (status === 'in_progress') return <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-amber-300" />;
-  if (status === 'pending') return <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />;
-  return <CircleDot className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />;
+  if (status === "completed")
+    return (
+      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+    );
+  if (status === "in_progress")
+    return (
+      <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-amber-300" />
+    );
+  if (status === "pending")
+    return <Circle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />;
+  return (
+    <CircleDot className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+  );
 }
 
 function StatusLabel({ status }: { status: TaskStatus }) {
-  const label = status === 'in_progress' ? 'in progress' : status;
+  const label = status === "in_progress" ? "in progress" : status;
   return (
-    <span className="hidden shrink-0 rounded bg-muted/70 px-1.5 py-0.5 text-[11px] leading-4 text-muted-foreground sm:inline">
+    <span className="hidden shrink-0 rounded bg-muted/70 px-1.5 py-0.5 text-[11px] text-muted-foreground leading-4 sm:inline">
       {label}
     </span>
   );
 }
 
-function TaskProgressPill({ completed, total }: { completed: number; total: number }) {
+function TaskProgressPill({
+  completed,
+  total,
+}: {
+  completed: number;
+  total: number;
+}) {
   return (
-    <span className="shrink-0 rounded bg-muted/70 px-2 py-0.5 text-xs text-muted-foreground">
+    <span className="shrink-0 rounded bg-muted/70 px-2 py-0.5 text-muted-foreground text-xs">
       {completed}/{total} done
     </span>
   );

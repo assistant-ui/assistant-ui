@@ -1,11 +1,11 @@
-import { randomBytes, randomUUID } from 'node:crypto';
-import type { Harness } from '@mastra/core/harness';
-import { RequestContext } from '@mastra/core/request-context';
-import type { EventBroker } from '../events/EventBroker.js';
-import type { ServerEvent } from '../events/types.js';
-import type { HarnessState } from '../schema.js';
-import type { AgentSession } from '../sessions/types.js';
-import { sessionWorkspaceRegistry } from '../workspace-provider.js';
+import { randomBytes, randomUUID } from "node:crypto";
+import type { Harness } from "@mastra/core/harness";
+import { RequestContext } from "@mastra/core/request-context";
+import type { EventBroker } from "../events/EventBroker.js";
+import type { ServerEvent } from "../events/types.js";
+import type { HarnessState } from "../schema.js";
+import type { AgentSession } from "../sessions/types.js";
+import { sessionWorkspaceRegistry } from "../workspace-provider.js";
 import {
   resolveWorkspaceAppPath,
   updateWorkspaceEnv,
@@ -13,7 +13,7 @@ import {
   type WorkspaceEnvFile,
   type WorkspaceEnvStatus,
   type WorkspaceEnvValue,
-} from './file-store.js';
+} from "./file-store.js";
 
 export interface WorkspaceEnvRequestItem extends WorkspaceEnvExpectedVar {
   envFile: WorkspaceEnvFile;
@@ -45,7 +45,10 @@ export interface SubmitWorkspaceEnvInput {
 const runtimes = new Map<string, WorkspaceEnvRuntime>();
 const requestsBySession = new Map<string, Map<string, WorkspaceEnvRequest>>();
 
-export function registerWorkspaceEnvRuntime(sessionId: string, runtime: WorkspaceEnvRuntime): void {
+export function registerWorkspaceEnvRuntime(
+  sessionId: string,
+  runtime: WorkspaceEnvRuntime,
+): void {
   runtimes.set(sessionId, runtime);
 }
 
@@ -54,7 +57,9 @@ export function unregisterWorkspaceEnvRuntime(sessionId: string): void {
   requestsBySession.delete(sessionId);
 }
 
-export function getWorkspaceEnvRuntime(sessionId: string): WorkspaceEnvRuntime | null {
+export function getWorkspaceEnvRuntime(
+  sessionId: string,
+): WorkspaceEnvRuntime | null {
   return runtimes.get(sessionId) ?? null;
 }
 
@@ -66,10 +71,15 @@ export function createWorkspaceEnvRequest(options: {
   optional: WorkspaceEnvExpectedVar[];
 }): WorkspaceEnvRequest {
   const runtime = getWorkspaceEnvRuntime(options.sessionId);
-  if (!runtime) throw new Error('Workspace env runtime is not registered for this session.');
+  if (!runtime)
+    throw new Error(
+      "Workspace env runtime is not registered for this session.",
+    );
 
   const required = withDefaultEnvFile(options.required);
-  const optional = withDefaultEnvFile(options.optional.map((item) => ({ ...item, required: false })));
+  const optional = withDefaultEnvFile(
+    options.optional.map((item) => ({ ...item, required: false })),
+  );
   const request: WorkspaceEnvRequest = {
     requestId: randomUUID(),
     sessionId: options.sessionId,
@@ -81,11 +91,13 @@ export function createWorkspaceEnvRequest(options: {
     createdAt: new Date().toISOString(),
   };
 
-  const sessionRequests = requestsBySession.get(options.sessionId) ?? new Map<string, WorkspaceEnvRequest>();
+  const sessionRequests =
+    requestsBySession.get(options.sessionId) ??
+    new Map<string, WorkspaceEnvRequest>();
   sessionRequests.set(request.requestId, request);
   requestsBySession.set(options.sessionId, sessionRequests);
 
-  emitWorkspaceEnvEvent(runtime, 'workspace_env_request_created', {
+  emitWorkspaceEnvEvent(runtime, "workspace_env_request_created", {
     requestId: request.requestId,
     appPath: request.appPath,
     reason: request.reason,
@@ -103,7 +115,10 @@ export async function skipWorkspaceEnvRequest(
   input: { requestId: string },
 ): Promise<{ accepted: true }> {
   const runtime = getWorkspaceEnvRuntime(sessionId);
-  if (!runtime) throw new Error('Workspace env runtime is not registered for this session.');
+  if (!runtime)
+    throw new Error(
+      "Workspace env runtime is not registered for this session.",
+    );
 
   const sessionRequests = requestsBySession.get(sessionId);
   const request = sessionRequests?.get(input.requestId);
@@ -114,7 +129,7 @@ export async function skipWorkspaceEnvRequest(
   sessionRequests?.delete(input.requestId);
   const { appPath } = request;
 
-  emitWorkspaceEnvEvent(runtime, 'workspace_env_skipped', {
+  emitWorkspaceEnvEvent(runtime, "workspace_env_skipped", {
     requestId: input.requestId,
     appPath,
   });
@@ -134,13 +149,22 @@ export async function submitWorkspaceEnv(
   status: WorkspaceEnvStatus;
 }> {
   const runtime = getWorkspaceEnvRuntime(sessionId);
-  if (!runtime) throw new Error('Workspace env runtime is not registered for this session.');
+  if (!runtime)
+    throw new Error(
+      "Workspace env runtime is not registered for this session.",
+    );
 
   const request = requestsBySession.get(sessionId)?.get(input.requestId);
   const provisioned = sessionWorkspaceRegistry.get(sessionId);
-  if (!provisioned) throw new Error('No workspace is provisioned for this session. Call request_workspace first.');
+  if (!provisioned)
+    throw new Error(
+      "No workspace is provisioned for this session. Call request_workspace first.",
+    );
 
-  const appPath = resolveWorkspaceAppPath(provisioned, input.appPath ?? request?.appPath ?? '');
+  const appPath = resolveWorkspaceAppPath(
+    provisioned,
+    input.appPath ?? request?.appPath ?? "",
+  );
   const expected = request?.expected ?? valuesAsExpected(input.values);
   const result = await updateWorkspaceEnv({
     workspace: provisioned.workspace,
@@ -154,7 +178,7 @@ export async function submitWorkspaceEnv(
 
   if (request) requestsBySession.get(sessionId)?.delete(input.requestId);
 
-  emitWorkspaceEnvEvent(runtime, 'workspace_env_updated', {
+  emitWorkspaceEnvEvent(runtime, "workspace_env_updated", {
     requestId: input.requestId,
     appPath,
     keysAdded: result.keysAdded,
@@ -181,8 +205,13 @@ export async function submitWorkspaceEnv(
   };
 }
 
-function withDefaultEnvFile(items: WorkspaceEnvExpectedVar[]): WorkspaceEnvRequestItem[] {
-  return items.map((item) => ({ ...item, envFile: item.envFile ?? '.env.local' }));
+function withDefaultEnvFile(
+  items: WorkspaceEnvExpectedVar[],
+): WorkspaceEnvRequestItem[] {
+  return items.map((item) => ({
+    ...item,
+    envFile: item.envFile ?? ".env.local",
+  }));
 }
 
 function eventItem(item: WorkspaceEnvRequestItem, fallbackRequired: boolean) {
@@ -195,7 +224,9 @@ function eventItem(item: WorkspaceEnvRequestItem, fallbackRequired: boolean) {
   };
 }
 
-function valuesAsExpected(values: WorkspaceEnvValue[]): WorkspaceEnvExpectedVar[] {
+function valuesAsExpected(
+  values: WorkspaceEnvValue[],
+): WorkspaceEnvExpectedVar[] {
   return values.map((value) => ({
     name: value.name,
     required: false,
@@ -205,7 +236,11 @@ function valuesAsExpected(values: WorkspaceEnvValue[]): WorkspaceEnvExpectedVar[
   }));
 }
 
-function emitWorkspaceEnvEvent(runtime: WorkspaceEnvRuntime, type: string, payload: Record<string, unknown>): void {
+function emitWorkspaceEnvEvent(
+  runtime: WorkspaceEnvRuntime,
+  type: string,
+  payload: Record<string, unknown>,
+): void {
   const event: ServerEvent = {
     id: randomUUID(),
     sessionId: runtime.session.id,
@@ -223,41 +258,49 @@ function buildAgentNotice(input: {
   keysUpdated: string[];
   missingRequired: string[];
 }): string {
-  const configured = [...new Set([...input.keysAdded, ...input.keysUpdated])].sort();
-  const configuredText = configured.length ? configured.join(', ') : 'none';
+  const configured = [
+    ...new Set([...input.keysAdded, ...input.keysUpdated]),
+  ].sort();
+  const configuredText = configured.length ? configured.join(", ") : "none";
   const missingText = input.missingRequired.length
-    ? ` Missing required keys still not configured: ${input.missingRequired.join(', ')}.`
-    : '';
+    ? ` Missing required keys still not configured: ${input.missingRequired.join(", ")}.`
+    : "";
   return [
-    'Workspace environment was updated.',
+    "Workspace environment was updated.",
     `App path: ${input.appPath}.`,
     `Configured keys: ${configuredText}.`,
     `${missingText}`,
-    'If a running server or process depends on these values, restart the relevant process before verification.',
-  ].join(' ').replace(/\s+/g, ' ').trim();
+    "If a running server or process depends on these values, restart the relevant process before verification.",
+  ]
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-async function notifyAgent(runtime: WorkspaceEnvRuntime, content: string): Promise<void> {
+async function notifyAgent(
+  runtime: WorkspaceEnvRuntime,
+  content: string,
+): Promise<void> {
   const requestContext = new RequestContext();
-  const traceId = randomBytes(16).toString('hex');
-  requestContext.set('augmentTrace', {
+  const traceId = randomBytes(16).toString("hex");
+  requestContext.set("augmentTrace", {
     traceId,
     sessionId: runtime.session.id,
     threadId: runtime.harness.getCurrentThreadId(),
   });
 
-  if (runtime.session.status === 'running' || runtime.harness.isRunning()) {
-    emitWorkspaceEnvEvent(runtime, 'agent_follow_up_queued', {
+  if (runtime.session.status === "running" || runtime.harness.isRunning()) {
+    emitWorkspaceEnvEvent(runtime, "agent_follow_up_queued", {
       id: traceId,
-      title: 'Workspace env updated',
+      title: "Workspace env updated",
       content,
-      source: 'workspace_env_updated',
+      source: "workspace_env_updated",
     });
     await runtime.harness.followUp({ content, requestContext });
     return;
   }
 
-  runtime.session.status = 'running';
+  runtime.session.status = "running";
   runtime.session.updatedAt = new Date().toISOString();
   runtime.harness
     .sendMessage({
@@ -268,17 +311,17 @@ async function notifyAgent(runtime: WorkspaceEnvRuntime, content: string): Promi
         metadata: {
           sessionId: runtime.session.id,
           threadId: runtime.harness.getCurrentThreadId(),
-          source: 'workspace-env-updated',
+          source: "workspace-env-updated",
         },
-        tags: [`session:${runtime.session.id}`, 'workspace-env-updated'],
+        tags: [`session:${runtime.session.id}`, "workspace-env-updated"],
       },
     })
     .finally(() => {
-      runtime.session.status = 'idle';
+      runtime.session.status = "idle";
       runtime.session.updatedAt = new Date().toISOString();
     })
     .catch(() => {
-      runtime.session.status = 'idle';
+      runtime.session.status = "idle";
       runtime.session.updatedAt = new Date().toISOString();
     });
 }

@@ -20,10 +20,14 @@ export function getReservedWorkspaceEntries(): string[] {
   return [".agent", DEFAULT_AGENT_SUPPORT_DIR];
 }
 
-export function resolveSandboxTemplateSpec(env: NodeJS.ProcessEnv = process.env): SandboxTemplateSpec {
+export function resolveSandboxTemplateSpec(
+  env: NodeJS.ProcessEnv = process.env,
+): SandboxTemplateSpec {
   const image = env.BLAXEL_WORKSPACE_TEMPLATE ?? env.BL_SANDBOX_TEMPLATE;
   if (!image) {
-    throw new Error("No Blaxel sandbox template configured. Set BLAXEL_WORKSPACE_TEMPLATE.");
+    throw new Error(
+      "No Blaxel sandbox template configured. Set BLAXEL_WORKSPACE_TEMPLATE.",
+    );
   }
   return {
     productId: "assistant-ui",

@@ -17,7 +17,9 @@ export function createDynamicTools(
   }: {
     requestContext: { get(key: string): unknown };
   }) {
-    const ctx = requestContext?.get?.("harness") as HarnessRequestContext<HarnessState> | undefined;
+    const ctx = requestContext?.get?.("harness") as
+      | HarnessRequestContext<HarnessState>
+      | undefined;
     const state = ctx?.getState?.();
     const policy = state?.workspacePolicy ?? workspacePolicy;
     const tools: Record<string, any> = {};

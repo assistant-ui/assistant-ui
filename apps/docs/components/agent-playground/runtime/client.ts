@@ -24,13 +24,20 @@ function errorDetailFromBody(text: string): string | null {
   if (!trimmed.startsWith("{")) return null;
   try {
     const parsed = JSON.parse(trimmed) as { error?: unknown };
-    return typeof parsed.error === "string" && parsed.error ? parsed.error : null;
+    return typeof parsed.error === "string" && parsed.error
+      ? parsed.error
+      : null;
   } catch {
     return null;
   }
 }
 
-function formatFailedRequestMessage(method: string | undefined, path: string, status: number, bodyText: string): string {
+function formatFailedRequestMessage(
+  method: string | undefined,
+  path: string,
+  status: number,
+  bodyText: string,
+): string {
   const detail = errorDetailFromBody(bodyText);
   const base = `${method ?? "GET"} ${path} failed with ${status}`;
   return detail ? `${base}: ${detail}` : base;
@@ -47,17 +54,31 @@ export class AgentPlaygroundClient {
   }
 
   async getSessionState(sessionId: string): Promise<SessionStateResponse> {
-    return this.request<SessionStateResponse>(`/sessions/${encodeURIComponent(sessionId)}/state`);
+    return this.request<SessionStateResponse>(
+      `/sessions/${encodeURIComponent(sessionId)}/state`,
+    );
   }
 
-  async sendCommand(sessionId: string, command: SessionCommand): Promise<CommandResult> {
-    return this.request<CommandResult>(`/sessions/${encodeURIComponent(sessionId)}/commands`, {
-      method: "POST",
-      body: JSON.stringify(command),
-    });
+  async sendCommand(
+    sessionId: string,
+    command: SessionCommand,
+  ): Promise<CommandResult> {
+    return this.request<CommandResult>(
+      `/sessions/${encodeURIComponent(sessionId)}/commands`,
+      {
+        method: "POST",
+        body: JSON.stringify(command),
+      },
+    );
   }
 
-  async listExamples(filter: Partial<{ kind: "example" | "template"; tag: string; capability: string }> = {}): Promise<FrontendExampleSummary[]> {
+  async listExamples(
+    filter: Partial<{
+      kind: "example" | "template";
+      tag: string;
+      capability: string;
+    }> = {},
+  ): Promise<FrontendExampleSummary[]> {
     const params = new URLSearchParams();
     if (filter.kind) params.set("kind", filter.kind);
     if (filter.tag) params.set("tag", filter.tag);
@@ -76,18 +97,27 @@ export class AgentPlaygroundClient {
     const response = await fetch(`${this.baseUrl}${requestPath}`);
     if (!response.ok) {
       const body = await response.text();
-      throw new AgentPlaygroundApiError(formatFailedRequestMessage("GET", requestPath, response.status, body), response.status, body);
+      throw new AgentPlaygroundApiError(
+        formatFailedRequestMessage("GET", requestPath, response.status, body),
+        response.status,
+        body,
+      );
     }
 
     return {
       blob: await response.blob(),
-      filename: parseContentDispositionFilename(response.headers.get("Content-Disposition"))
-        ?? `workspace-${sessionId.slice(0, 12)}.tar.gz`,
+      filename:
+        parseContentDispositionFilename(
+          response.headers.get("Content-Disposition"),
+        ) ?? `workspace-${sessionId.slice(0, 12)}.tar.gz`,
       contentType: response.headers.get("Content-Type") ?? "application/gzip",
     };
   }
 
-  private async request<T>(requestPath: string, init: RequestInit = {}): Promise<T> {
+  private async request<T>(
+    requestPath: string,
+    init: RequestInit = {},
+  ): Promise<T> {
     const response = await fetch(`${this.baseUrl}${requestPath}`, {
       ...init,
       headers: {
@@ -99,7 +129,12 @@ export class AgentPlaygroundClient {
     const text = await response.text();
     if (!response.ok) {
       throw new AgentPlaygroundApiError(
-        formatFailedRequestMessage(init.method, requestPath, response.status, text),
+        formatFailedRequestMessage(
+          init.method,
+          requestPath,
+          response.status,
+          text,
+        ),
         response.status,
         text,
       );

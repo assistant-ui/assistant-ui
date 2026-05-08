@@ -1,9 +1,14 @@
-export type PreviewStatus = 'empty' | 'loading' | 'ready' | 'failed';
+export type PreviewStatus = "empty" | "loading" | "ready" | "failed";
 
-export type HandoffStatus = 'unavailable' | 'ready';
+export type HandoffStatus = "unavailable" | "ready";
 
-export type ExampleCategory = 'Chat' | 'Agents' | 'UI Patterns' | 'Integrations' | 'Mobile';
-export type ExampleComplexity = 'starter' | 'intermediate' | 'advanced';
+export type ExampleCategory =
+  | "Chat"
+  | "Agents"
+  | "UI Patterns"
+  | "Integrations"
+  | "Mobile";
+export type ExampleComplexity = "starter" | "intermediate" | "advanced";
 
 export interface PlaygroundExample {
   id: string;
@@ -23,7 +28,7 @@ export interface PlaygroundExample {
 
 export interface PreviewTarget {
   status: PreviewStatus;
-  source: 'local' | 'sandbox' | 'hosted' | 'none';
+  source: "local" | "sandbox" | "hosted" | "none";
   label: string;
   url?: string | undefined;
   hint?: string | undefined;
@@ -45,7 +50,13 @@ export interface PlaygroundHeaderState {
   subtitle: string;
   sessionId: string | null;
   hasWorkspace: boolean;
-  connectionState: 'idle' | 'connecting' | 'open' | 'reconnecting' | 'error' | 'closed';
+  connectionState:
+    | "idle"
+    | "connecting"
+    | "open"
+    | "reconnecting"
+    | "error"
+    | "closed";
   isRunning: boolean;
 }
 

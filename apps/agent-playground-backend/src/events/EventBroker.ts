@@ -14,10 +14,14 @@ export class EventBroker {
   emit(event: ServerEvent): void {
     this.buffer.push(event);
     if (this.buffer.length > this.maxBufferSize) {
-      this.buffer = this.buffer.slice(-this.maxBufferSize);
+      this.buffer.splice(0, this.buffer.length - this.maxBufferSize);
     }
     for (const listener of this.listeners) {
-      listener(event);
+      try {
+        listener(event);
+      } catch (error) {
+        console.error("Event listener failed", error);
+      }
     }
   }
 

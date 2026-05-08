@@ -1,9 +1,19 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
-import { join, dirname, basename } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { getRecipe } from './catalog/index.js';
-import type { Recipe, EnvVar } from './catalog/types.js';
-import { getWorkspaceVersionMap, type UnknownWorkspaceDependencyPolicy } from './version-maps/index.js';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  readdirSync,
+} from "node:fs";
+import { join, dirname, basename } from "node:path";
+import { fileURLToPath } from "node:url";
+import { getRecipe } from "./catalog/index.js";
+import type { Recipe, EnvVar } from "./catalog/types.js";
+import {
+  getWorkspaceVersionMap,
+  type UnknownWorkspaceDependencyPolicy,
+} from "./version-maps/index.js";
 
 export interface ScaffoldOptions {
   recipeId: string;
@@ -27,20 +37,21 @@ export interface ScaffoldResult {
 }
 
 const SKIP_DIRS = new Set([
-  'node_modules',
-  '.next',
-  '.turbo',
-  'dist',
-  'build',
-  '.git',
-  'out',
+  "node_modules",
+  ".next",
+  ".turbo",
+  "dist",
+  "build",
+  ".git",
+  "out",
 ]);
 
 function resolveSourceBase(refOverride?: string): string {
   if (refOverride) return refOverride;
-  if (process.env.ASSISTANT_UI_REFERENCE_PATH) return process.env.ASSISTANT_UI_REFERENCE_PATH;
+  if (process.env.ASSISTANT_UI_REFERENCE_PATH)
+    return process.env.ASSISTANT_UI_REFERENCE_PATH;
   const thisDir = dirname(fileURLToPath(import.meta.url));
-  return join(thisDir, 'assets', 'recipes', 'assistant-ui');
+  return join(thisDir, "assets", "recipes", "assistant-ui");
 }
 
 function copySource(sourceDir: string, outputDir: string): number {
@@ -73,19 +84,19 @@ function countCopyableFiles(sourceDir: string): number {
 }
 
 type DepField =
-  | 'dependencies'
-  | 'devDependencies'
-  | 'peerDependencies'
-  | 'optionalDependencies';
+  | "dependencies"
+  | "devDependencies"
+  | "peerDependencies"
+  | "optionalDependencies";
 const DEP_FIELDS: DepField[] = [
-  'dependencies',
-  'devDependencies',
-  'peerDependencies',
-  'optionalDependencies',
+  "dependencies",
+  "devDependencies",
+  "peerDependencies",
+  "optionalDependencies",
 ];
 
 function isWorkspaceVersion(v: unknown): boolean {
-  return typeof v === 'string' && (v === 'workspace:*' || v === 'workspace:^');
+  return typeof v === "string" && (v === "workspace:*" || v === "workspace:^");
 }
 
 interface RewriteResult {
@@ -101,7 +112,7 @@ function rewritePackageJson(
   write: boolean,
 ): RewriteResult {
   const { versions, removePackages } = getWorkspaceVersionMap();
-  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+  const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
   let rewritten = 0;
   let removed = 0;
   const removedNames: string[] = [];
@@ -128,19 +139,19 @@ function rewritePackageJson(
       }
 
       unknown.push(`${field}.${name}`);
-      if (policy === 'fail') {
+      if (policy === "fail") {
         throw new Error(
           `Unknown workspace:* package "${name}" in ${field}. Add to version-map or REMOVE_PACKAGES.`,
         );
       } else {
-        deps[name] = '*';
+        deps[name] = "*";
         rewritten++;
       }
     }
   }
 
   if (write) {
-    writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
+    writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
   }
 
   return { rewritten, removed, removedNames, unknown };
@@ -151,11 +162,11 @@ function generateEnvExample(
   envVars: EnvVar[],
   write: boolean,
 ): string[] {
-  const envPath = join(outputDir, '.env.example');
-  const existing = existsSync(envPath) ? readFileSync(envPath, 'utf8') : '';
+  const envPath = join(outputDir, ".env.example");
+  const existing = existsSync(envPath) ? readFileSync(envPath, "utf8") : "";
   const written: string[] = [];
 
-  let additions = '';
+  let additions = "";
   for (const v of envVars) {
     if (existing.includes(v.name)) continue;
     const comment = v.required
@@ -167,14 +178,14 @@ function generateEnvExample(
 
   if (write) {
     if (additions) {
-      writeFileSync(envPath, existing.trimEnd() + '\n' + additions, 'utf8');
+      writeFileSync(envPath, `${existing.trimEnd()}\n${additions}`, "utf8");
     } else if (!existsSync(envPath) && envVars.length > 0) {
-      let content = '';
+      let content = "";
       for (const v of envVars) {
-        content += `# ${v.required ? 'Required' : 'Optional'} — ${v.description}\n${v.name}=\n\n`;
+        content += `# ${v.required ? "Required" : "Optional"} — ${v.description}\n${v.name}=\n\n`;
         written.push(v.name);
       }
-      writeFileSync(envPath, content, 'utf8');
+      writeFileSync(envPath, content, "utf8");
     }
   } else {
     for (const v of envVars) {
@@ -187,13 +198,15 @@ function generateEnvExample(
   return written;
 }
 
-export async function scaffold(options: ScaffoldOptions): Promise<ScaffoldResult> {
+export async function scaffold(
+  options: ScaffoldOptions,
+): Promise<ScaffoldResult> {
   const {
     recipeId,
     outputDir,
     refOverride,
     dryRun = false,
-    unknownWorkspaceDependencyPolicy: policy = 'warn',
+    unknownWorkspaceDependencyPolicy: policy = "warn",
   } = options;
 
   const recipe = getRecipe(recipeId);
@@ -204,7 +217,7 @@ export async function scaffold(options: ScaffoldOptions): Promise<ScaffoldResult
     throw new Error(
       `Source directory not found: ${sourceDir}. ` +
         (refOverride || process.env.ASSISTANT_UI_REFERENCE_PATH
-          ? 'Check your --ref path or ASSISTANT_UI_REFERENCE_PATH env var.'
+          ? "Check your --ref path or ASSISTANT_UI_REFERENCE_PATH env var."
           : 'Bundled assets may be missing — run "npm run prebuild" first.'),
     );
   }
@@ -214,17 +227,22 @@ export async function scaffold(options: ScaffoldOptions): Promise<ScaffoldResult
     if (contents.length > 0) {
       throw new Error(
         `Output directory is not empty: ${outputDir}. ` +
-          'Scaffold requires an empty or non-existent output directory.',
+          "Scaffold requires an empty or non-existent output directory.",
       );
     }
   }
 
   if (dryRun) {
     const filesCopied = countCopyableFiles(sourceDir);
-    const pkgPath = join(sourceDir, 'package.json');
+    const pkgPath = join(sourceDir, "package.json");
     const rewriteInfo = existsSync(pkgPath)
       ? rewritePackageJson(pkgPath, policy, false)
-      : { rewritten: 0, removed: 0, removedNames: [] as string[], unknown: [] as string[] };
+      : {
+          rewritten: 0,
+          removed: 0,
+          removedNames: [] as string[],
+          unknown: [] as string[],
+        };
     const envVarsWritten = generateEnvExample(sourceDir, recipe.env, false);
 
     return {
@@ -240,9 +258,9 @@ export async function scaffold(options: ScaffoldOptions): Promise<ScaffoldResult
       ),
       nextSteps: [
         `cd ${outputDir}`,
-        'cp .env.example .env && fill in values',
-        'npm install',
-        'npm run dev',
+        "cp .env.example .env && fill in values",
+        "npm install",
+        "npm run dev",
       ],
       dryRun: true,
     };
@@ -251,7 +269,7 @@ export async function scaffold(options: ScaffoldOptions): Promise<ScaffoldResult
   mkdirSync(outputDir, { recursive: true });
   const filesCopied = copySource(sourceDir, outputDir);
 
-  const pkgPath = join(outputDir, 'package.json');
+  const pkgPath = join(outputDir, "package.json");
   let rewriteInfo: RewriteResult = {
     rewritten: 0,
     removed: 0,
@@ -280,9 +298,9 @@ export async function scaffold(options: ScaffoldOptions): Promise<ScaffoldResult
     warnings,
     nextSteps: [
       `cd ${outputDir}`,
-      'cp .env.example .env && fill in values',
-      'npm install',
-      'npm run dev',
+      "cp .env.example .env && fill in values",
+      "npm install",
+      "npm run dev",
     ],
     dryRun: false,
   };
