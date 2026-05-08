@@ -1,18 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
-import { useChat } from "@ai-sdk/react";
+import { useMemo } from "react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import {
   AssistantChatTransport,
   createResumableSessionStorage,
-  useAISDKRuntime,
+  useChatRuntime,
 } from "@assistant-ui/react-ai-sdk";
 import { Thread } from "@/components/assistant-ui/thread";
 
 const storage = createResumableSessionStorage();
 
-function ChatRuntime() {
+export default function Home() {
   const transport = useMemo(
     () =>
       new AssistantChatTransport({
@@ -25,20 +24,7 @@ function ChatRuntime() {
     [],
   );
 
-  const chat = useChat({ transport });
-  const runtime = useAISDKRuntime(chat);
-
-  const resumedOnceRef = useRef(false);
-  const resumeStream = chat.resumeStream;
-  useEffect(() => {
-    if (resumedOnceRef.current) return;
-    if (!storage.getStreamId()) return;
-    resumedOnceRef.current = true;
-    resumeStream().catch((err: unknown) => {
-      console.warn("[resumable] resume failed; clearing stale id", err);
-      storage.clear();
-    });
-  }, [resumeStream]);
+  const runtime = useChatRuntime({ transport });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -47,8 +33,4 @@ function ChatRuntime() {
       </div>
     </AssistantRuntimeProvider>
   );
-}
-
-export default function Home() {
-  return <ChatRuntime />;
 }

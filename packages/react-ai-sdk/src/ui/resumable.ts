@@ -1,6 +1,6 @@
 "use client";
 
-export const RESUMABLE_STREAM_ID_HEADER = "x-resumable-stream-id";
+export { RESUMABLE_STREAM_ID_HEADER } from "assistant-stream/resumable";
 
 const DEFAULT_STORAGE_KEY = "aui-resumable-stream-id";
 
