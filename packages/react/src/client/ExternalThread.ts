@@ -341,34 +341,35 @@ const ComposerClientResource = resource(
       [queueItems],
     );
 
-    const state = tapMemo(
-      () => ({
+    const state = tapMemo(() => {
+      const isEmpty = !text.trim() && !attachments.length;
+      return {
         text,
         role,
         attachments: attachmentClients.state,
         runConfig,
         isEditing,
         canCancel,
+        canSend: isEditing && !isEmpty,
         attachmentAccept: "*",
-        isEmpty: !text.trim() && !attachments.length,
+        isEmpty,
         type,
         dictation: undefined,
         quote,
         queue: queueItems,
-      }),
-      [
-        text,
-        role,
-        attachmentClients.state,
-        runConfig,
-        isEditing,
-        canCancel,
-        type,
-        attachments.length,
-        quote,
-        queueItems,
-      ],
-    );
+      };
+    }, [
+      text,
+      role,
+      attachmentClients.state,
+      runConfig,
+      isEditing,
+      canCancel,
+      type,
+      attachments.length,
+      quote,
+      queueItems,
+    ]);
 
     return {
       getState: () => state,

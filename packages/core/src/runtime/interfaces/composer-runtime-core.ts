@@ -51,6 +51,7 @@ export type ComposerRuntimeCore = Readonly<{
   isEditing: boolean;
 
   canCancel: boolean;
+  canSend: boolean;
   isEmpty: boolean;
 
   attachments: readonly Attachment[];

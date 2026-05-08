@@ -17,6 +17,10 @@ export class DefaultThreadComposerRuntimeCore
     return this._canCancel;
   }
 
+  public get canSend() {
+    return this.isEditing && !this.isEmpty && !this.runtime.isSendDisabled;
+  }
+
   protected getAttachmentAdapter() {
     return this.runtime.adapters?.attachments;
   }
@@ -40,11 +44,18 @@ export class DefaultThreadComposerRuntimeCore
   }
 
   public connect() {
+    let lastIsSendDisabled = this.runtime.isSendDisabled;
     return this.runtime.subscribe(() => {
+      let changed = false;
       if (this.canCancel !== this.runtime.capabilities.cancel) {
         this._canCancel = this.runtime.capabilities.cancel;
-        this._notifySubscribers();
+        changed = true;
       }
+      if (lastIsSendDisabled !== this.runtime.isSendDisabled) {
+        lastIsSendDisabled = this.runtime.isSendDisabled;
+        changed = true;
+      }
+      if (changed) this._notifySubscribers();
     });
   }
 

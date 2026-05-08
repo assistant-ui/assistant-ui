@@ -6,9 +6,8 @@ export const useComposerSend = () => {
   const aui = useAui();
   const disabled = useAuiState(
     (s) =>
-      (s.thread.isRunning && !s.thread.capabilities.queue) ||
-      !s.composer.isEditing ||
-      s.composer.isEmpty,
+      !s.composer.canSend ||
+      (s.thread.isRunning && !s.thread.capabilities.queue),
   );
 
   const send = useCallback(

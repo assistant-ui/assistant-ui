@@ -158,6 +158,12 @@ export type ThreadRuntimeCore = Readonly<{
 
   capabilities: Readonly<RuntimeCapabilities>;
   isDisabled: boolean;
+  /**
+   * Whether sending from this thread's composer is disabled. Surfaces the
+   * `isSendDisabled` flag from external-store adapters; internal runtimes
+   * default to `false`. Composer state derives `canSend` from this.
+   */
+  isSendDisabled: boolean;
   isLoading: boolean;
   /**
    * Optional explicit thread-level running flag. When provided, takes

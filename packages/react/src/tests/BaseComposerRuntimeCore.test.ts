@@ -35,6 +35,10 @@ class TestComposerCore extends BaseComposerRuntimeCore {
     return false;
   }
 
+  get canSend() {
+    return !this.isEmpty;
+  }
+
   protected handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,

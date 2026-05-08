@@ -75,6 +75,7 @@ export class ExternalStoreThreadRuntimeCore
 
   private _messages!: readonly ThreadMessage[];
   public isDisabled!: boolean;
+  public isSendDisabled!: boolean;
   public get isLoading() {
     return this._store.isLoading ?? false;
   }
@@ -122,6 +123,7 @@ export class ExternalStoreThreadRuntimeCore
 
     const isRunning = store.isRunning ?? false;
     this.isDisabled = store.isDisabled ?? false;
+    this.isSendDisabled = store.isSendDisabled ?? false;
 
     const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
     this._store = store;

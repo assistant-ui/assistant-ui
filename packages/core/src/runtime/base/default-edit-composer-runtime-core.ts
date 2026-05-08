@@ -13,6 +13,10 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     return true;
   }
 
+  public get canSend() {
+    return this.isEditing && !this.isEmpty && !this.runtime.isSendDisabled;
+  }
+
   protected getAttachmentAdapter() {
     return this.runtime.adapters?.attachments;
   }
