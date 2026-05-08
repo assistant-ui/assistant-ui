@@ -1,3 +1,4 @@
+import { DEFAULT_TTL_MS } from "../constants";
 import { ResumableStreamError, validateStreamId } from "../errors";
 import type {
   ResumableStreamAcquireOptions,
@@ -7,7 +8,6 @@ import type {
   ResumableStreamStore,
 } from "../types";
 
-const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_POLL_INTERVAL_MS = 100;
 const DEFAULT_KEY_PREFIX = "aui:resumable";
 
@@ -287,15 +287,18 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
+const SHARED_DECODER = new TextDecoder();
+const SHARED_ENCODER = new TextEncoder();
+
 function readString(
   value: string | Uint8Array | undefined,
 ): string | undefined {
   if (value === undefined) return undefined;
   if (typeof value === "string") return value;
-  return new TextDecoder().decode(value);
+  return SHARED_DECODER.decode(value);
 }
 
 function toBytes(value: string | Uint8Array): Uint8Array {
   if (value instanceof Uint8Array) return value;
-  return new TextEncoder().encode(value);
+  return SHARED_ENCODER.encode(value);
 }

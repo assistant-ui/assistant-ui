@@ -1,11 +1,10 @@
+import { DEFAULT_TTL_MS } from "../constants";
 import { ResumableStreamError, validateStreamId } from "../errors";
 import type {
   ResumableStreamEntry,
   ResumableStreamStatus,
   ResumableStreamStore,
 } from "../types";
-
-const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 
 type FinalizeMarker = { kind: "done" } | { kind: "error"; error: string };
 
