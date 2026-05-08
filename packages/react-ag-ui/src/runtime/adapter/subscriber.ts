@@ -43,14 +43,18 @@ const ensureEvent = (
   logger?: Logger,
 ): AgUiEvent | null => {
   const parseOptions = logger ? { logger } : undefined;
+  let parsed: AgUiEvent | null;
   if (raw && typeof raw === "object") {
     const payload = raw as Record<string, unknown>;
     if (typeof payload.type === "string") {
-      return parseAgUiEvent(payload, parseOptions);
+      parsed = parseAgUiEvent(payload, parseOptions);
+    } else {
+      parsed = parseAgUiEvent({ type, ...payload }, parseOptions);
     }
-    return parseAgUiEvent({ type, ...payload }, parseOptions);
+  } else {
+    parsed = parseAgUiEvent({ type }, parseOptions);
   }
-  return parseAgUiEvent({ type }, parseOptions);
+  return parsed && parsed.type === type ? parsed : null;
 };
 
 type SubscriberOptions = {
@@ -127,7 +131,7 @@ export const createAgUiSubscriber = (
     onRawEvent: ({ event }) => dispatchIfValid(event, "RAW"),
     onRunFinishedEvent: ({ event }) => {
       const parsed = ensureEvent(event, "RUN_FINISHED", logger);
-      if (!parsed || parsed.type !== "RUN_FINISHED") return;
+      if (!parsed) return;
       runFinishedDispatched = true;
       dispatch(parsed);
     },
