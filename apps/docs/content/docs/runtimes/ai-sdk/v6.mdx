@@ -491,6 +491,8 @@ const runtime = useAISDKRuntime(chat);
 
 [`examples/with-ai-sdk-v6`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v6) shows a complete reference implementation.
 
+For responses that should survive a page reload mid-stream, see [Resumable streams](/docs/guides/resumable-streams), which wraps the same v6 byte stream in `assistant-stream/resumable`.
+
 ## Next
 
 <Cards>
@@ -503,5 +505,10 @@ const runtime = useAISDKRuntime(chat);
     title="Threads"
     description="Single-thread, AssistantCloud, custom thread list."
     href="/docs/runtimes/concepts/threads"
+  />
+  <Card
+    title="Resumable streams"
+    description="Survive page reloads and connection drops mid-response."
+    href="/docs/guides/resumable-streams"
   />
 </Cards>

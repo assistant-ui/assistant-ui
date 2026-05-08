@@ -29,6 +29,10 @@
     "voice",
     "speech",
     "---Programmatic---",
-    "context-api"
+    "context-api",
+    "---Resilience---",
+    "resumable-streams",
+    "resumable-stream-stores",
+    "resumable-stream-deployment"
   ]
 }
