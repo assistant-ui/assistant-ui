@@ -18,7 +18,7 @@ export class DefaultThreadComposerRuntimeCore
   }
 
   public get canSend() {
-    return this.isEditing && !this.isEmpty && !this.runtime.isSendDisabled;
+    return !this.isEmpty && !this.runtime.isSendDisabled;
   }
 
   protected getAttachmentAdapter() {

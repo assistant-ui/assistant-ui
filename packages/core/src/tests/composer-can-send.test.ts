@@ -66,8 +66,6 @@ describe("DefaultThreadComposerRuntimeCore.canSend", () => {
   it("notifies subscribers when isSendDisabled flips", () => {
     const stub = makeRuntimeStub();
     const composer = new DefaultThreadComposerRuntimeCore(stub);
-    composer.connect();
-
     composer.setText("hi");
     const onChange = vi.fn();
     composer.subscribe(onChange);

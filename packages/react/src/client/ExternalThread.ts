@@ -427,8 +427,7 @@ const ComposerClientResource = resource(
         setQuote(undefined);
       },
       send: (opts?: ComposerSendOptions) => {
-        const isEmpty = !text.trim() && !attachments.length;
-        if (!isEditing || isEmpty || isSendDisabled) return;
+        if (!state.canSend) return;
 
         const currentQuote = quote;
         const composedMessage: AppendMessage = {
