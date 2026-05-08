@@ -12,9 +12,7 @@ type ViewMode = 'landing' | 'building' | 'chat' | 'preview';
 
 export function AgentShell({ runtimeState }: { runtimeState: ReturnType<typeof useAugmentAssistantRuntime> }) {
   const [debugOpen, setDebugOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>(() =>
-    new URLSearchParams(window.location.search).has('sessionId') ? 'chat' : 'landing'
-  );
+  const [viewMode, setViewMode] = useState<ViewMode>('landing');
   const [initialPrompt, setInitialPrompt] = useState<string | null>(null);
   const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
@@ -38,6 +36,12 @@ export function AgentShell({ runtimeState }: { runtimeState: ReturnType<typeof u
 
   const handleNewChat = useCallback(() => {
     window.location.href = window.location.pathname;
+  }, []);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('sessionId')) {
+      setViewMode('chat');
+    }
   }, []);
 
   // Clear initialPrompt only once the message is confirmed in the store,
