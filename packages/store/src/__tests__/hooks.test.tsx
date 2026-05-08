@@ -92,6 +92,65 @@ describe("store hooks", () => {
     );
   });
 
+  it("useAuiState returns last-good slice when a zombie selector throws after a notify", () => {
+    // Simulates the tapClientLookup out-of-bounds throw that surfaces when a
+    // parent state change has shrunk an indexed list before React has had a
+    // chance to unmount the children subscribed to the old indices.
+    const testClient = createTestAuiClient({ counter: 1 });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <AuiProvider value={testClient.client as never}>{children}</AuiProvider>
+    );
+
+    let shouldThrow = false;
+    const selector = (s: any) => {
+      if (shouldThrow) {
+        throw new Error("tapClientLookup: Index 5 out of bounds (length: 4)");
+      }
+      return s.counter;
+    };
+
+    const { result } = renderHook(() => useAuiState(selector), { wrapper });
+    expect(result.current).toBe(1);
+
+    expect(() => {
+      act(() => {
+        shouldThrow = true;
+        testClient.notify();
+      });
+    }).not.toThrow();
+
+    // Stale slice is preserved until React unmounts the zombie subscriber.
+    expect(result.current).toBe(1);
+
+    // Recovery: once the selector stops throwing, fresh values flow again.
+    act(() => {
+      shouldThrow = false;
+      testClient.state.counter = 7;
+      testClient.notify();
+    });
+    expect(result.current).toBe(7);
+  });
+
+  it("useAuiState propagates selector errors raised on the very first call", () => {
+    // The zombie-child guard only suppresses errors after a value has been
+    // observed at least once. Real bugs surfaced on the initial render still
+    // propagate so they are not silently swallowed.
+    const testClient = createTestAuiClient({ counter: 1 });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <AuiProvider value={testClient.client as never}>{children}</AuiProvider>
+    );
+
+    expect(() => {
+      renderHook(
+        () =>
+          useAuiState(() => {
+            throw new Error("boom");
+          }),
+        { wrapper },
+      );
+    }).toThrow("boom");
+  });
+
   it("useAuiEvent subscribes with normalized selector and invokes latest callback", () => {
     const testClient = createTestAuiClient({ counter: 1 });
     const wrapper = ({ children }: { children: ReactNode }) => (

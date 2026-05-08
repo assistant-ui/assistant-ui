@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useDebugValue } from "react";
+import { useSyncExternalStore, useDebugValue, useRef } from "react";
 import type { AssistantState } from "./types/client";
 import { useAui } from "./useAui";
 import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
@@ -22,10 +22,38 @@ export const useAuiState = <T>(selector: (state: AssistantState) => T): T => {
   const aui = useAui();
   const proxiedState = getProxiedAssistantState(aui);
 
+  // Zombie-child guard: a parent state change (e.g. thread switch, history
+  // reload) can shrink an indexed list before React unmounts the children
+  // that subscribed to its old indices. Their selectors then read through
+  // the proxy into `tapClientLookup.get({ index })` and throw out-of-bounds
+  // before unmount runs. Returning the last successful slice keeps React's
+  // reconciliation moving so the stale child is unmounted by its parent
+  // instead of crashing the tree (matches react-redux's `useSelector`
+  // pattern). The first selector call is never suppressed.
+  const lastSliceRef = useRef<{ value: T } | null>(null);
+
   const slice = useSyncExternalStore(
     aui.subscribe,
-    () => selector(proxiedState),
-    () => selector(proxiedState),
+    () => {
+      try {
+        const value = selector(proxiedState);
+        lastSliceRef.current = { value };
+        return value;
+      } catch (err) {
+        if (lastSliceRef.current === null) throw err;
+        return lastSliceRef.current.value;
+      }
+    },
+    () => {
+      try {
+        const value = selector(proxiedState);
+        lastSliceRef.current = { value };
+        return value;
+      } catch (err) {
+        if (lastSliceRef.current === null) throw err;
+        return lastSliceRef.current.value;
+      }
+    },
   );
 
   if (slice === proxiedState) {
