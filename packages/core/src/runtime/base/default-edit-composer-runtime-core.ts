@@ -14,7 +14,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   }
 
   public get canSend() {
-    return this.isEditing && !this.isEmpty && !this.runtime.isSendDisabled;
+    return this.isEditing && !this.isEmpty;
   }
 
   protected getAttachmentAdapter() {

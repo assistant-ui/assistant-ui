@@ -68,10 +68,11 @@ type ExternalStoreAdapterBase<T> = {
   isDisabled?: boolean | undefined;
   /**
    * Whether sending new messages is currently disabled. When `true`, the
-   * composer's input remains usable but `send()` becomes a no-op and
-   * `composer.canSend` is `false`. Use this to gate sending on external
-   * React state (e.g. while tool config is loading) without disabling the
-   * input itself the way `isDisabled` does.
+   * thread composer's input remains usable but `send()` becomes a no-op
+   * and the thread composer's `canSend` is `false`. Use this to gate
+   * sending on external React state (e.g. while tool config is loading)
+   * without disabling the input itself the way `isDisabled` does. Edit
+   * composers (saving message edits) intentionally ignore this flag.
    */
   isSendDisabled?: boolean | undefined;
   /**

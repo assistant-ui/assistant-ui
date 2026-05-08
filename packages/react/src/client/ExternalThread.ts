@@ -51,6 +51,13 @@ export type ExternalThreadProps = {
   messages: readonly ExternalThreadMessage[];
   isRunning?: boolean;
   /**
+   * Whether sending new messages is currently disabled. When `true`, the
+   * thread composer's input remains usable but `send()` is a no-op and
+   * `composer.canSend` is `false`. Edit composers (saving message edits)
+   * intentionally ignore this flag.
+   */
+  isSendDisabled?: boolean;
+  /**
    * Callback for new messages (non-queue runtimes).
    * @note Unused when `queue` is provided — new messages are routed through `queue.enqueue` instead.
    */
@@ -241,6 +248,7 @@ type ComposerClientResourceProps = {
   type: "thread" | "edit";
   isEditing: boolean;
   canCancel: boolean;
+  isSendDisabled?: boolean;
   onCancel: () => void;
   onBeginEdit?: () => void;
   onSend?: (message: AppendMessage) => void;
@@ -272,6 +280,7 @@ const ComposerClientResource = resource(
     type,
     isEditing,
     canCancel,
+    isSendDisabled = false,
     onCancel,
     onBeginEdit,
     onSend,
@@ -350,7 +359,7 @@ const ComposerClientResource = resource(
         runConfig,
         isEditing,
         canCancel,
-        canSend: isEditing && !isEmpty,
+        canSend: isEditing && !isEmpty && !isSendDisabled,
         attachmentAccept: "*",
         isEmpty,
         type,
@@ -365,6 +374,7 @@ const ComposerClientResource = resource(
       runConfig,
       isEditing,
       canCancel,
+      isSendDisabled,
       type,
       attachments.length,
       quote,
@@ -417,6 +427,9 @@ const ComposerClientResource = resource(
         setQuote(undefined);
       },
       send: (opts?: ComposerSendOptions) => {
+        const isEmpty = !text.trim() && !attachments.length;
+        if (!isEditing || isEmpty || isSendDisabled) return;
+
         const currentQuote = quote;
         const composedMessage: AppendMessage = {
           role,
@@ -459,6 +472,7 @@ export const ExternalThread = resource(
   ({
     messages,
     isRunning = false,
+    isSendDisabled = false,
     onNew,
     onEdit,
     onReload,
@@ -504,6 +518,7 @@ export const ExternalThread = resource(
         type: "thread",
         isEditing: true,
         canCancel: isRunning,
+        isSendDisabled,
         onCancel: handleCancelRun,
         onSend: handleSendNew,
         queue,
