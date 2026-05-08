@@ -68,7 +68,7 @@
     "react-hook-form": "^7.75.0",
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^4.11.0",
-    "react-shiki": "^0.9.3",
+    "react-shiki": "^0.10.0",
     "react-syntax-highlighter": "^16.1.1",
     "recharts": "^3.8.1",
     "remark": "^15.0.1",
