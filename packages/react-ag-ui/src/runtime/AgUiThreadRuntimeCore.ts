@@ -292,7 +292,7 @@ export class AgUiThreadRuntimeCore {
     }
 
     this.clearPendingInterrupts(pending.messageId);
-    await this.startRun(pending.messageId, this.lastRunConfig, { resume });
+    await this.startRun(pending.messageId, this.lastRunConfig, resume);
   }
 
   private clearPendingInterrupts(messageId: string): void {
@@ -426,7 +426,7 @@ export class AgUiThreadRuntimeCore {
   private async startRun(
     parentId: string | null,
     runConfig?: RunConfig,
-    extra?: { resume?: AgUiResumeEntry[] },
+    resume?: AgUiResumeEntry[],
   ): Promise<void> {
     const normalizedRunConfig = runConfig ?? {};
     this.lastRunConfig = normalizedRunConfig;
@@ -439,7 +439,7 @@ export class AgUiThreadRuntimeCore {
       runId,
       normalizedRunConfig,
       historicalMessages,
-      extra?.resume,
+      resume,
     );
     const assistantParentId = parentId ?? this.messages.at(-1)?.id ?? null;
     let assistantMessageId: string | undefined;
