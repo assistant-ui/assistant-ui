@@ -29,7 +29,7 @@ const config: NextConfig = {
   skipTrailingSlashRedirect: true,
   headers: async () => [
     {
-      source: "/(.*)",
+      source: "/:path((?!examples-preview(?:/|$)).*)",
       headers: [
         {
           key: "Content-Security-Policy",
