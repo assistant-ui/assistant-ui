@@ -22,20 +22,15 @@ export type CreateResumableAssistantStreamResponseOptions = {
 export async function createResumableAssistantStreamResponse(
   options: CreateResumableAssistantStreamResponseOptions,
 ): Promise<Response> {
-  const encoderFactory = options.encoder ?? (() => new DataStreamEncoder());
-  const headerEncoder = encoderFactory();
+  const encoder = (options.encoder ?? (() => new DataStreamEncoder()))();
 
   const stream = await options.context.run(options.streamId, () => {
     const aStream = createAssistantStream(options.callback);
-    return aStream.pipeThrough(encoderFactory());
+    return aStream.pipeThrough(encoder);
   });
 
   return new Response(stream, {
-    headers: mergeHeaders(
-      headerEncoder.headers,
-      options.headers,
-      options.streamId,
-    ),
+    headers: mergeHeaders(encoder.headers, options.headers, options.streamId),
   });
 }
 
@@ -56,14 +51,9 @@ export async function createResumeAssistantStreamResponse(
   if (!stream) {
     return options.missingResponse?.() ?? defaultMissingResponse();
   }
-  const encoderFactory = options.encoder ?? (() => new DataStreamEncoder());
-  const headerEncoder = encoderFactory();
+  const encoder = (options.encoder ?? (() => new DataStreamEncoder()))();
   return new Response(stream, {
-    headers: mergeHeaders(
-      headerEncoder.headers,
-      options.headers,
-      options.streamId,
-    ),
+    headers: mergeHeaders(encoder.headers, options.headers, options.streamId),
   });
 }
 

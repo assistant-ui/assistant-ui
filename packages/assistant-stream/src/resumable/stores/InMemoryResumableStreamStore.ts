@@ -1,4 +1,4 @@
-import { validateStreamId } from "../errors";
+import { ResumableStreamError, validateStreamId } from "../errors";
 import type {
   ResumableStreamEntry,
   ResumableStreamStatus,
@@ -113,7 +113,10 @@ export function createInMemoryResumableStreamStore(
     const state = streams.get(streamId);
     if (!state) throw new Error(`Stream not found: ${streamId}`);
     if (state.final) {
-      throw new Error(`Stream already finalized: ${streamId}`);
+      throw new ResumableStreamError(
+        "finalized",
+        `Stream already finalized: ${streamId}`,
+      );
     }
     return state;
   };
