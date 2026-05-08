@@ -47,9 +47,15 @@ export type UseAgUiRuntimeOptions = {
   adapters?: UseAgUiRuntimeAdapters;
 };
 
+export type AgUiInterruptReason =
+  | "tool_call"
+  | "input_required"
+  | "confirmation"
+  | (string & {});
+
 export type AgUiInterrupt = {
   id: string;
-  reason: string;
+  reason: AgUiInterruptReason;
   message?: string;
   toolCallId?: string;
   responseSchema?: Record<string, unknown>;

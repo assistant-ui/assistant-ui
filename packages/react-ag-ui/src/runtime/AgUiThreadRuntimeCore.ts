@@ -151,6 +151,7 @@ export class AgUiThreadRuntimeCore {
 
   async append(message: AppendMessage): Promise<void> {
     const startRun = message.startRun ?? message.role === "user";
+    if (startRun) this.assertNoPendingInterrupts();
     if (message.sourceId) {
       this.messages = this.messages.filter(
         (entry) => entry.id !== message.sourceId,
@@ -175,6 +176,7 @@ export class AgUiThreadRuntimeCore {
     parentId: string | null,
     config: { runConfig?: RunConfig } = {},
   ): Promise<void> {
+    this.assertNoPendingInterrupts();
     this.resetHead(parentId);
     this.notifyUpdate();
     await this.startRun(parentId, config.runConfig);
@@ -186,6 +188,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   async resume(config: ResumeRunConfig): Promise<void> {
+    this.assertNoPendingInterrupts();
     if (config.stream) {
       this.logger.debug?.(
         "[agui] resume stream is not supported, falling back to regular run",
@@ -194,6 +197,13 @@ export class AgUiThreadRuntimeCore {
     await this.startRun(
       config.parentId,
       config.runConfig ?? this.lastRunConfig,
+    );
+  }
+
+  private assertNoPendingInterrupts(): void {
+    if (!this.getPendingInterrupts()) return;
+    throw new Error(
+      "[agui] cannot start a new run while interrupts are pending; resolve them with submitInterruptResponses()",
     );
   }
 

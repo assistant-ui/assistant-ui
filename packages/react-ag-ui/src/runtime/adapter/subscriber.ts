@@ -127,7 +127,7 @@ export const createAgUiSubscriber = (
     onRawEvent: ({ event }) => dispatchIfValid(event, "RAW"),
     onRunFinishedEvent: ({ event }) => {
       const parsed = ensureEvent(event, "RUN_FINISHED", logger);
-      if (!parsed) return;
+      if (!parsed || parsed.type !== "RUN_FINISHED") return;
       runFinishedDispatched = true;
       dispatch(parsed);
     },
