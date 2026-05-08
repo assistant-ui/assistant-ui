@@ -185,21 +185,16 @@ export function useAgUiRuntime(
     [adapterAdapters, core, _version, hasExecutingTools],
   );
 
-  const runtime = useExternalStoreRuntime(store) as AgUiAssistantRuntime;
+  const baseRuntime = useExternalStoreRuntime(store);
 
-  if (!Object.hasOwn(runtime, "unstable_submitInterruptResponses")) {
-    Object.defineProperty(runtime, "unstable_getPendingInterrupts", {
-      configurable: true,
-      enumerable: false,
-      value: () => core.getPendingInterrupts()?.interrupts ?? [],
-    });
-    Object.defineProperty(runtime, "unstable_submitInterruptResponses", {
-      configurable: true,
-      enumerable: false,
-      value: (responses: readonly AgUiResumeEntry[]) =>
-        core.submitInterruptResponses(responses),
-    });
-  }
+  const runtime = useMemo<AgUiAssistantRuntime>(() => {
+    const wrapper = Object.create(baseRuntime) as AgUiAssistantRuntime;
+    wrapper.unstable_getPendingInterrupts = () =>
+      core.getPendingInterrupts()?.interrupts ?? [];
+    wrapper.unstable_submitInterruptResponses = (responses) =>
+      core.submitInterruptResponses(responses);
+    return wrapper;
+  }, [baseRuntime, core]);
 
   useEffect(() => {
     core.attachRuntime(runtime);
