@@ -18,6 +18,11 @@ const cspHeader = `
     upgrade-insecure-requests;
 `;
 
+const previewCspHeader = cspHeader.replace(
+  "frame-ancestors 'none';",
+  "frame-ancestors 'self';",
+);
+
 const config: NextConfig = {
   transpilePackages: ["@assistant-ui/ui", "shiki"],
   serverExternalPackages: ["just-bash"],
@@ -29,6 +34,15 @@ const config: NextConfig = {
         {
           key: "Content-Security-Policy",
           value: cspHeader.replace(/\n/g, ""),
+        },
+      ],
+    },
+    {
+      source: "/examples-preview/:path*",
+      headers: [
+        {
+          key: "Content-Security-Policy",
+          value: previewCspHeader.replace(/\n/g, ""),
         },
       ],
     },
