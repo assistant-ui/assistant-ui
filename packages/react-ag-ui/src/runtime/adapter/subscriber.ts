@@ -131,8 +131,10 @@ export const createAgUiSubscriber = (
     onCustomEvent: ({ event }) => dispatchIfValid(dispatch, event, "CUSTOM"),
     onRawEvent: ({ event }) => dispatchIfValid(dispatch, event, "RAW"),
     onRunFinishedEvent: ({ event }) => {
+      const parsed = ensureEvent(event, "RUN_FINISHED");
+      if (!parsed) return;
       runFinishedDispatched = true;
-      dispatchIfValid(dispatch, event, "RUN_FINISHED");
+      dispatch(parsed);
     },
     onRunFinalized: () => {
       if (runFinishedDispatched) return;

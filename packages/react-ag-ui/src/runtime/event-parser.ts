@@ -38,11 +38,7 @@ const parseRunFinishedOutcome = (
   raw: unknown,
 ): AgUiRunFinishedOutcome | undefined => {
   if (!isPlainObject(raw)) return undefined;
-  if (raw.type === "success") {
-    return raw.result !== undefined
-      ? { type: "success", result: raw.result }
-      : { type: "success" };
-  }
+  if (raw.type === "success") return { type: "success" };
   if (raw.type === "interrupt") {
     if (!Array.isArray(raw.interrupts)) return undefined;
     const parsed = raw.interrupts
@@ -71,13 +67,9 @@ export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
     case "RUN_FINISHED": {
       const runId = getString("runId");
       if (!runId) return null;
-      const outcome = parseRunFinishedOutcome(payload.outcome);
       return withOptional(
         { type: "RUN_FINISHED" as const, runId },
-        {
-          outcome,
-          result: payload.result,
-        },
+        { outcome: parseRunFinishedOutcome(payload.outcome) },
       );
     }
     case "RUN_CANCELLED": {

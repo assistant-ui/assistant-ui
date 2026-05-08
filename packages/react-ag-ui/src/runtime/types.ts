@@ -64,7 +64,7 @@ export type AgUiResumeEntry = {
 };
 
 export type AgUiRunFinishedOutcome =
-  | { type: "success"; result?: unknown }
+  | { type: "success" }
   | { type: "interrupt"; interrupts: AgUiInterrupt[] };
 
 export type AgUiEvent =
@@ -73,7 +73,6 @@ export type AgUiEvent =
       type: "RUN_FINISHED";
       runId: string;
       outcome?: AgUiRunFinishedOutcome;
-      result?: unknown;
     }
   | { type: "RUN_CANCELLED"; runId?: string }
   | { type: "RUN_ERROR"; message?: string; code?: string }

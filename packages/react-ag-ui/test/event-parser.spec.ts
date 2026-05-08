@@ -49,18 +49,16 @@ describe("parseAgUiEvent", () => {
     expect(event).toEqual({ type: "RUN_FINISHED", runId: "r1" });
   });
 
-  it("parses RUN_FINISHED success outcome including result", () => {
+  it("parses RUN_FINISHED success outcome", () => {
     const event = parseAgUiEvent({
       type: "RUN_FINISHED",
       runId: "r1",
       outcome: { type: "success" },
-      result: { ok: true },
     });
     expect(event).toEqual({
       type: "RUN_FINISHED",
       runId: "r1",
       outcome: { type: "success" },
-      result: { ok: true },
     });
   });
 

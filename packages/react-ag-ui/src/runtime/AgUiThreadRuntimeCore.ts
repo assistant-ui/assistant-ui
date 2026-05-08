@@ -78,6 +78,7 @@ export class AgUiThreadRuntimeCore {
     this.onCancel = options.onCancel;
     this.history = options.history;
     this.notifyUpdate = options.notifyUpdate;
+    this.installResumeShim();
   }
 
   updateOptions(options: Omit<CoreOptions, "notifyUpdate">) {
@@ -87,6 +88,7 @@ export class AgUiThreadRuntimeCore {
     this.onError = options.onError;
     this.onCancel = options.onCancel;
     this.history = options.history;
+    this.installResumeShim();
   }
 
   attachRuntime(runtime: AssistantRuntime) {
@@ -199,25 +201,23 @@ export class AgUiThreadRuntimeCore {
     messageId: string;
     interrupts: readonly AgUiInterrupt[];
   } | null {
-    for (let index = this.messages.length - 1; index >= 0; index--) {
-      const message = this.messages[index];
-      if (!message || message.role !== "assistant") continue;
-      const assistant = message as ThreadAssistantMessage;
-      if (
-        assistant.status?.type !== "requires-action" ||
-        assistant.status.reason !== "interrupt"
-      ) {
-        return null;
-      }
-      const stored = (
-        assistant.metadata.custom[AG_UI_METADATA_NAMESPACE] as
-          | AgUiCustomMetadata
-          | undefined
-      )?.interrupts;
-      if (!stored?.length) return null;
-      return { messageId: assistant.id, interrupts: stored };
+    const assistant = this.messages.findLast((m) => m.role === "assistant") as
+      | ThreadAssistantMessage
+      | undefined;
+    if (
+      !assistant ||
+      assistant.status?.type !== "requires-action" ||
+      assistant.status.reason !== "interrupt"
+    ) {
+      return null;
     }
-    return null;
+    const stored = (
+      assistant.metadata.custom[AG_UI_METADATA_NAMESPACE] as
+        | AgUiCustomMetadata
+        | undefined
+    )?.interrupts;
+    if (!stored?.length) return null;
+    return { messageId: assistant.id, interrupts: stored };
   }
 
   async submitInterruptResponses(
@@ -242,6 +242,11 @@ export class AgUiThreadRuntimeCore {
           `[agui] submitInterruptResponses: invalid status "${entry.status}" for interrupt ${entry.interruptId}`,
         );
       }
+      if (responsesById.has(entry.interruptId)) {
+        throw new Error(
+          `[agui] submitInterruptResponses: duplicate response for interrupt ${entry.interruptId}`,
+        );
+      }
       responsesById.set(entry.interruptId, entry);
     }
 
@@ -260,22 +265,31 @@ export class AgUiThreadRuntimeCore {
       );
     }
 
-    const now = new Date();
+    const now = Date.now();
     for (const interrupt of pending.interrupts) {
       if (!interrupt.expiresAt) continue;
-      if (new Date(interrupt.expiresAt) <= now) {
+      const expiry = new Date(interrupt.expiresAt).getTime();
+      if (Number.isNaN(expiry)) {
+        throw new Error(
+          `[agui] submitInterruptResponses: interrupt ${interrupt.id} has malformed expiresAt "${interrupt.expiresAt}"`,
+        );
+      }
+      if (expiry <= now) {
         throw new Error(
           `[agui] submitInterruptResponses: interrupt ${interrupt.id} expired at ${interrupt.expiresAt}`,
         );
       }
     }
 
-    const resume: AgUiResumeEntry[] = openIds.map((id) => {
-      const entry = responsesById.get(id)!;
-      return entry.payload === undefined
-        ? { interruptId: id, status: entry.status }
-        : { interruptId: id, status: entry.status, payload: entry.payload };
-    });
+    const resume: AgUiResumeEntry[] = openIds.map(
+      (id) => responsesById.get(id)!,
+    );
+
+    if (this.isRunningFlag) {
+      throw new Error(
+        "[agui] submitInterruptResponses: a run is already in progress",
+      );
+    }
 
     this.clearPendingInterrupts(pending.messageId);
     this.persistAssistantHistory(pending.messageId);
@@ -471,7 +485,6 @@ export class AgUiThreadRuntimeCore {
       } catch {
         // ignore
       }
-      this.installResumeShim();
       await (this.agent as any).runAgent(input, subscriber, {
         signal: abortSignal,
       });
@@ -599,7 +612,7 @@ export class AgUiThreadRuntimeCore {
     });
     if (touched) {
       this.notifyUpdate();
-      if (this.isTerminalStatus(latestStatus)) {
+      if (this.isPersistableStatus(latestStatus)) {
         this.persistAssistantHistory(messageId);
       }
     }
@@ -702,6 +715,11 @@ export class AgUiThreadRuntimeCore {
     return status?.type === "complete" || status?.type === "incomplete";
   }
 
+  private isPersistableStatus(status?: MessageStatus): boolean {
+    if (this.isTerminalStatus(status)) return true;
+    return status?.type === "requires-action" && status.reason === "interrupt";
+  }
+
   private recordHistoryEntry(parentId: string | null, message: ThreadMessage) {
     this.appendHistoryItem(parentId, message);
   }
@@ -720,7 +738,7 @@ export class AgUiThreadRuntimeCore {
     if (parentId === undefined) return;
     const message = this.messages.find((m) => m.id === messageId);
     if (!message || message.role !== "assistant") return;
-    if (!this.isTerminalStatus(message.status)) return;
+    if (!this.isPersistableStatus(message.status)) return;
     this.assistantHistoryParents.delete(messageId);
     this.appendHistoryItem(parentId, message);
   }

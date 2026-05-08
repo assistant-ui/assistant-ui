@@ -864,6 +864,104 @@ describe("AGUIThreadRuntimeCore", () => {
     ).rejects.toThrow(/expired/);
   });
 
+  it("rejects malformed expiresAt strings", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [
+              { id: "int-1", reason: "tool_call", expiresAt: "not-a-date" },
+            ],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.submitInterruptResponses([
+        { interruptId: "int-1", status: "resolved" },
+      ]),
+    ).rejects.toThrow(/malformed expiresAt/);
+  });
+
+  it("rejects duplicate interruptId in resume responses", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.submitInterruptResponses([
+        { interruptId: "int-1", status: "resolved" },
+        { interruptId: "int-1", status: "cancelled" },
+      ]),
+    ).rejects.toThrow(/duplicate response/);
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists interrupt-state assistant message to history before resolution", async () => {
+    const append = vi.fn(async () => {});
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(null),
+      append,
+    };
+
+    const core = createCore(agent, { history });
+    await core.append(createAppendMessage());
+    // wait a microtask cycle so the in-flight history append resolves
+    await new Promise((r) => setTimeout(r, 0));
+
+    const persistedRoles = append.mock.calls.map(
+      (call: any[]) => call[0].message.role,
+    );
+    expect(persistedRoles).toEqual(["user", "assistant"]);
+    const persistedAssistant = append.mock.calls.find(
+      (call: any[]) => call[0].message.role === "assistant",
+    )?.[0].message;
+    expect(persistedAssistant.status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+    expect(persistedAssistant.metadata.custom.agui.interrupts).toEqual([
+      { id: "int-1", reason: "tool_call" },
+    ]);
+  });
+
   it("syncs runtime state snapshot onto the agent before runAgent", async () => {
     let stateAtRun: unknown;
     const agent = {
