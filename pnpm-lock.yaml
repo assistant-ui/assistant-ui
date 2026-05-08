@@ -333,8 +333,8 @@ importers:
         specifier: ^4.11.0
         version: 4.11.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       react-shiki:
-        specifier: ^0.9.3
-        version: 0.9.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+        specifier: ^0.10.0
+        version: 0.10.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       react-syntax-highlighter:
         specifier: ^16.1.1
         version: 16.1.1(react@19.2.5)
@@ -14841,6 +14841,19 @@ packages:
       react-dom: '>=18'
     peerDependenciesMeta:
       react-dom:
+        optional: true
+
+  react-shiki@0.10.0:
+    resolution: {integrity: sha512-e99c1EcbleMyjY0gjO2/i1V3EBLiagcGf6wwlcnxi8bvU6zQCP1/h39StIOHJ58ngRsy0Vyd0wDGa8FAzy4N7g==}
+    peerDependencies:
+      '@types/react': '>=16.14.0'
+      '@types/react-dom': '>=16.14.0'
+      react: '>=16.14.0'
+      react-dom: '>=16.14.0'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      '@types/react-dom':
         optional: true
 
   react-shiki@0.9.3:
@@ -29369,6 +29382,21 @@ snapshots:
       set-cookie-parser: 2.7.2
     optionalDependencies:
       react-dom: 19.2.5(react@19.2.5)
+
+  react-shiki@0.10.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5):
+    dependencies:
+      clsx: 2.1.1
+      dequal: 2.0.3
+      hast-util-to-jsx-runtime: 2.3.6
+      react: 19.2.5
+      react-dom: 19.2.5(react@19.2.5)
+      shiki: 4.0.2
+      unist-util-visit: 5.1.0
+    optionalDependencies:
+      '@types/react': 19.2.14
+      '@types/react-dom': 19.2.3(@types/react@19.2.14)
+    transitivePeerDependencies:
+      - supports-color
 
   react-shiki@0.9.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5):
     dependencies:

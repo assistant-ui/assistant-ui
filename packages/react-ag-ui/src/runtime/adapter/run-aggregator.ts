@@ -5,8 +5,14 @@ import type {
   ThreadAssistantMessagePart,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
-import type { AgUiEvent } from "../types";
+import type { AgUiEvent, AgUiInterrupt } from "../types";
 import type { Logger } from "../logger";
+
+export const AG_UI_METADATA_NAMESPACE = "agui";
+
+export type AgUiCustomMetadata = {
+  interrupts?: AgUiInterrupt[];
+};
 
 type Emit = (update: ChatModelRunResult) => void;
 
@@ -38,6 +44,7 @@ export class RunAggregator {
   private readonly logger: Logger;
 
   private status: ChatModelRunResult["status"] | undefined;
+  private interrupts: AgUiInterrupt[] | undefined;
   private readonly textParts = new Map<
     string,
     { buffer: string; touched: boolean }
@@ -71,18 +78,28 @@ export class RunAggregator {
         this.hasReasoningPart = false;
         this.textPartCounter = 0;
         this.activeTextMessageId = undefined;
+        this.interrupts = undefined;
         this.status = { type: "running" };
         this.emit();
         break;
       }
       case "RUN_FINISHED": {
+        if (event.outcome?.type === "interrupt") {
+          this.interrupts = event.outcome.interrupts;
+          this.status = { type: "requires-action", reason: "interrupt" };
+          this.emit();
+          break;
+        }
+
+        this.interrupts = undefined;
         const hasUnresolvedToolCalls = Array.from(this.toolCalls.values()).some(
           (tc) => tc.result === undefined,
         );
 
-        this.status = hasUnresolvedToolCalls
-          ? { type: "requires-action", reason: "tool-calls" }
-          : { type: "complete", reason: "unknown" };
+        this.status =
+          event.outcome?.type === "success" || !hasUnresolvedToolCalls
+            ? { type: "complete", reason: "unknown" }
+            : { type: "requires-action", reason: "tool-calls" };
         this.emit();
         break;
       }
@@ -358,6 +375,17 @@ export class RunAggregator {
     const result: ChatModelRunResult = {
       content: snapshot,
       ...(this.status ? { status: this.status } : undefined),
+      ...(this.interrupts
+        ? {
+            metadata: {
+              custom: {
+                [AG_UI_METADATA_NAMESPACE]: {
+                  interrupts: this.interrupts,
+                } satisfies AgUiCustomMetadata,
+              },
+            },
+          }
+        : undefined),
     };
     this.emitUpdate(result);
   }
