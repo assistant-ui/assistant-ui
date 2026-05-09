@@ -1,5 +1,28 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.14
+
+### Patch Changes
+
+- [#3949](https://github.com/assistant-ui/assistant-ui/pull/3949) [`b382de0`](https://github.com/assistant-ui/assistant-ui/commit/b382de018888a154cb45d0a95dbe7ec9adf1a1a7) - fix(cloud-ai-sdk): use ai sdk onFinish event for telemetry status instead of message-shape heuristic ([@okisdev](https://github.com/okisdev))
+
+  `extractRunTelemetry` previously inferred run status by walking message parts and checking for a final text part. when an assistant message ended on an unresolved frontend tool call (e.g. `ask_user_questions`), the model's turn was reported as `status: "incomplete"` with empty `output_text`, and the per-`assistantMessageId` dedupe in `CloudTelemetryReporter` then locked that record so the later resubmission carrying the actual text never overwrote it.
+
+  `CloudChatCore` now forwards the ai sdk `onFinish` event (`finishReason`, `isAbort`, `isDisconnect`, `isError`) into `CloudTelemetryReporter.reportFromMessages`. status is derived from those signals; `length` / `content-filter` map to `incomplete`, `isError` / `finishReason: "error"` map to `error`, `stop` and terminal `tool-calls` map to `completed`. mid-loop checkpoints (`finishReason: "tool-calls"` with `lastAssistantMessageIsCompleteWithToolCalls` returning true) are skipped, so the dedupe slot stays open for the post-resubmit final state.
+
+  `extractRunTelemetry` now uses ai sdk's `isToolUIPart`, `isStaticToolUIPart`, `isReasoningUIPart`, and `getToolName` helpers in place of hand-rolled equivalents, and exposes a `hasReasoning` flag. `reportFromMessages`'s third `event` argument is optional, so existing callers that only pass `(threadId, messages)` keep their previous behavior.
+
+- [#3962](https://github.com/assistant-ui/assistant-ui/pull/3962) [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies []:
+  - assistant-cloud@0.1.27
+
+## 0.1.13
+
+### Patch Changes
+
+- [#3909](https://github.com/assistant-ui/assistant-ui/pull/3909) [`005f83f`](https://github.com/assistant-ui/assistant-ui/commit/005f83f3ebfb94b3a9d7c34bc7d2a71bbaf63a9e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.1.12
 
 ### Patch Changes

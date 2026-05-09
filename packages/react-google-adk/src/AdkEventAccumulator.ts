@@ -80,6 +80,22 @@ const finishReasonToStatus = (
   return { type: "complete", reason: "stop" };
 };
 
+const inlineDataToPart = (
+  mimeType: string,
+  data: string,
+): AdkMessageContentPart =>
+  mimeType.startsWith("image/")
+    ? { type: "image", mimeType, data }
+    : { type: "file", mimeType, data };
+
+const fileDataToPart = (
+  fileUri: string,
+  mimeType: string | undefined,
+): AdkMessageContentPart =>
+  mimeType == null || mimeType.startsWith("image/")
+    ? { type: "image_url", url: fileUri }
+    : { type: "file_url", url: fileUri, mimeType };
+
 // ── Snake_case normalization ──
 
 const normalizeEventPart = (part: AdkEventPart): AdkEventPart => {
@@ -299,16 +315,13 @@ export class AdkEventAccumulator {
         if (part.text != null && !part.thought) {
           humanParts.push({ type: "text", text: part.text });
         } else if (part.inlineData) {
-          humanParts.push({
-            type: "image",
-            mimeType: part.inlineData.mimeType,
-            data: part.inlineData.data,
-          });
+          humanParts.push(
+            inlineDataToPart(part.inlineData.mimeType, part.inlineData.data),
+          );
         } else if (part.fileData) {
-          humanParts.push({
-            type: "image_url",
-            url: part.fileData.fileUri,
-          });
+          humanParts.push(
+            fileDataToPart(part.fileData.fileUri, part.fileData.mimeType),
+          );
         }
       }
       if (humanParts.length > 0) {
@@ -495,24 +508,21 @@ export class AdkEventAccumulator {
       return;
     }
 
-    // Inline data (images etc)
     if (part.inlineData) {
       const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(msg, {
-        type: "image",
-        mimeType: part.inlineData.mimeType,
-        data: part.inlineData.data,
-      });
+      this.appendContent(
+        msg,
+        inlineDataToPart(part.inlineData.mimeType, part.inlineData.data),
+      );
       return;
     }
 
-    // File data (URI reference)
     if (part.fileData) {
       const msg = this.getOrCreateAiMessage(event);
-      this.appendContent(msg, {
-        type: "image_url",
-        url: part.fileData.fileUri,
-      });
+      this.appendContent(
+        msg,
+        fileDataToPart(part.fileData.fileUri, part.fileData.mimeType),
+      );
     }
   }
 

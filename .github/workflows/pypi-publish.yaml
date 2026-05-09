@@ -1,0 +1,309 @@
+name: PyPI Publish
+
+on:
+  repository_dispatch:
+    types: [pypi-publish]
+  workflow_dispatch:
+    inputs:
+      releaseSha:
+        description: "Release commit SHA to publish (defaults to latest default-branch commit)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+  PYTHON_PACKAGE_DIR: python/assistant-stream
+  PYTHON_PACKAGE_NAME: assistant-stream
+
+jobs:
+  approve:
+    name: Resolve release SHA
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: pypi-publish-approval
+      cancel-in-progress: true
+    outputs:
+      release_sha: ${{ steps.release-sha.outputs.value }}
+      default_branch: ${{ steps.release-sha.outputs.default_branch }}
+    steps:
+      - name: Resolve release commit SHA
+        id: release-sha
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const dispatchReleaseShaRaw = context.payload?.client_payload?.releaseSha;
+            const manualReleaseShaRaw = context.payload?.inputs?.releaseSha;
+            const payloadDefaultBranchRaw =
+              context.payload?.repository?.default_branch;
+            const dispatchReleaseSha =
+              typeof dispatchReleaseShaRaw === "string"
+                ? dispatchReleaseShaRaw.trim()
+                : "";
+            const manualReleaseSha =
+              typeof manualReleaseShaRaw === "string"
+                ? manualReleaseShaRaw.trim()
+                : "";
+            const payloadDefaultBranch =
+              typeof payloadDefaultBranchRaw === "string"
+                ? payloadDefaultBranchRaw.trim()
+                : "";
+
+            let releaseSha = dispatchReleaseSha || manualReleaseSha;
+            let defaultBranch = payloadDefaultBranch;
+
+            if (!defaultBranch) {
+              const repoInfo = await github.rest.repos.get(context.repo);
+              defaultBranch = repoInfo.data.default_branch;
+            }
+
+            if (!defaultBranch) {
+              core.setFailed("Unable to determine repository default branch");
+              return;
+            }
+
+            if (!releaseSha) {
+              if (context.eventName === "repository_dispatch") {
+                core.setFailed("repository_dispatch payload is missing releaseSha");
+                return;
+              }
+
+              const ref = await github.rest.git.getRef({
+                ...context.repo,
+                ref: `heads/${defaultBranch}`,
+              });
+
+              releaseSha = ref.data.object.sha;
+              core.info(
+                `No release SHA provided; using ${defaultBranch} HEAD ${releaseSha}`,
+              );
+            }
+
+            if (!/^[0-9a-f]{40}$/i.test(releaseSha)) {
+              core.setFailed(
+                `releaseSha must be a full 40-character commit SHA: ${releaseSha}`,
+              );
+              return;
+            }
+
+            core.setOutput("value", releaseSha);
+            core.setOutput("default_branch", defaultBranch);
+
+  summary:
+    name: Resolve publish target
+    needs: approve
+    runs-on: ubuntu-24.04
+    outputs:
+      should_publish: ${{ steps.target.outputs.shouldPublish }}
+      version: ${{ steps.target.outputs.version }}
+    env:
+      RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
+      DEFAULT_BRANCH: ${{ needs.approve.outputs.default_branch }}
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_SHA }}
+
+      - name: Validate release commit is on default branch
+        run: |
+          if [ -z "$RELEASE_SHA" ]; then
+            echo "Missing releaseSha" >&2
+            exit 1
+          fi
+
+          if [ -z "$DEFAULT_BRANCH" ]; then
+            echo "Missing default branch" >&2
+            exit 1
+          fi
+
+          head_sha=$(git rev-parse HEAD)
+          if [ "$head_sha" != "$RELEASE_SHA" ]; then
+            echo "Checked out commit does not match releaseSha payload" >&2
+            echo "HEAD=$head_sha" >&2
+            echo "releaseSha=$RELEASE_SHA" >&2
+            exit 1
+          fi
+
+          git fetch origin "$DEFAULT_BRANCH"
+          origin_default_sha=$(git rev-parse "origin/$DEFAULT_BRANCH")
+          if ! git merge-base --is-ancestor "$RELEASE_SHA" "origin/$DEFAULT_BRANCH"; then
+            echo "releaseSha is not an ancestor of origin/$DEFAULT_BRANCH; refusing to publish" >&2
+            echo "releaseSha=$RELEASE_SHA" >&2
+            echo "origin/$DEFAULT_BRANCH SHA=$origin_default_sha" >&2
+            exit 1
+          fi
+
+      - name: Resolve target version + PyPI status
+        id: target
+        run: |
+          set -euo pipefail
+
+          version=$(python3 - <<'PY' "$PYTHON_PACKAGE_DIR/pyproject.toml"
+          import sys, tomllib
+          with open(sys.argv[1], "rb") as f:
+              data = tomllib.load(f)
+          v = data.get("project", {}).get("version")
+          if not v:
+              sys.exit("[project].version missing from pyproject.toml")
+          print(v)
+          PY
+          )
+
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Refusing to publish non-stable version: $version" >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          pypi_body=$(mktemp)
+          trap 'rm -f "$pypi_body"' EXIT
+          status=$(curl -s --max-time 30 -o "$pypi_body" -w "%{http_code}" \
+            "https://pypi.org/pypi/$PYTHON_PACKAGE_NAME/json")
+
+          case "$status" in
+            200)
+              latest=$(python3 -c 'import sys, json; print(json.load(sys.stdin).get("info", {}).get("version") or "")' < "$pypi_body")
+              exists=$(python3 -c 'import sys, json; d=json.load(sys.stdin); print("true" if sys.argv[1] in d.get("releases", {}) else "false")' "$version" < "$pypi_body")
+              ;;
+            404)
+              latest=""
+              exists="false"
+              ;;
+            *)
+              echo "Unexpected PyPI status $status for $PYTHON_PACKAGE_NAME" >&2
+              exit 1
+              ;;
+          esac
+
+          if [ -n "$latest" ] && [ "$version" != "$latest" ]; then
+            highest=$(printf '%s\n%s\n' "$latest" "$version" | sort -V | tail -n1)
+            if [ "$highest" != "$version" ]; then
+              echo "Refusing to publish $PYTHON_PACKAGE_NAME@$version: lower than current PyPI latest ($latest)" >&2
+              exit 1
+            fi
+          fi
+
+          if [ "$exists" = "true" ]; then
+            echo "$PYTHON_PACKAGE_NAME@$version already on PyPI; skipping publish."
+            echo "shouldPublish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$PYTHON_PACKAGE_NAME@$version not yet on PyPI; will publish."
+            echo "shouldPublish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Write release summary
+        if: steps.target.outputs.shouldPublish == 'true'
+        run: |
+          {
+            echo "## PyPI Release Summary"
+            echo
+            echo "**Release SHA:** \`${RELEASE_SHA:0:12}\`"
+            echo "**Package:** \`$PYTHON_PACKAGE_NAME\`"
+            echo "**Version:** **${{ steps.target.outputs.version }}**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: No targets
+        if: steps.target.outputs.shouldPublish == 'false'
+        run: echo "$PYTHON_PACKAGE_NAME@${{ steps.target.outputs.version }} is already published; nothing to do."
+
+  publish:
+    name: Publish to PyPI
+    needs:
+      - approve
+      - summary
+    if: needs.summary.outputs.should_publish == 'true'
+    environment: pypi publish
+    runs-on: ubuntu-24.04
+    permissions:
+      # Required to create GitHub releases.
+      contents: write
+      # Required for PyPI trusted publishing (OIDC).
+      id-token: write
+    concurrency:
+      group: pypi-publish-exec
+      cancel-in-progress: false
+    env:
+      RELEASE_SHA: ${{ needs.approve.outputs.release_sha }}
+      VERSION: ${{ needs.summary.outputs.version }}
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 1
+          fetch-tags: true
+          ref: ${{ env.RELEASE_SHA }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          # No cache - hardened against cache poisoning for sensitive publish operations
+          enable-cache: false
+
+      - name: Build sdist + wheel
+        working-directory: ${{ env.PYTHON_PACKAGE_DIR }}
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          uv build
+          ls -la dist
+
+      - name: Verify built version matches target
+        working-directory: ${{ env.PYTHON_PACKAGE_DIR }}
+        run: |
+          set -euo pipefail
+          dist_name="${PYTHON_PACKAGE_NAME//-/_}-${VERSION}"
+          shopt -s nullglob
+          wheels=( "dist/${dist_name}"-*.whl )
+          if [ "${#wheels[@]}" -eq 0 ] || [ ! -f "dist/${dist_name}.tar.gz" ]; then
+            echo "Expected build artifacts for ${dist_name} are missing." >&2
+            ls dist >&2 || true
+            exit 1
+          fi
+
+      # PyPI trusted publishing requires this workflow filename and the
+      # `pypi publish` environment to match the project's trusted-publisher config.
+      - name: Publish to PyPI via OIDC
+        uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # v1.13.0
+        with:
+          packages-dir: ${{ env.PYTHON_PACKAGE_DIR }}/dist
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="pypi/${PYTHON_PACKAGE_NAME}@${VERSION}"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; skipping."
+            exit 0
+          fi
+
+          prev=$(git tag --list "pypi/${PYTHON_PACKAGE_NAME}@*" \
+            | sort -V \
+            | awk -v t="$tag" '$0 != t' \
+            | tail -n1)
+
+          if [ -n "$prev" ]; then
+            gh release create "$tag" \
+              --target "$RELEASE_SHA" \
+              --title "$tag" \
+              --notes-start-tag "$prev" \
+              --generate-notes
+          else
+            gh release create "$tag" \
+              --target "$RELEASE_SHA" \
+              --title "$tag" \
+              --notes "First $PYTHON_PACKAGE_NAME release published via this workflow."
+          fi
+
+      - name: Recovery guidance
+        if: failure()
+        run: |
+          echo "::error::Publish failed for $PYTHON_PACKAGE_NAME@${VERSION} on release SHA ${RELEASE_SHA}."
+          echo "::error::Rerun this workflow run, or workflow_dispatch with releaseSha=${RELEASE_SHA}."

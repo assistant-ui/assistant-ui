@@ -109,6 +109,17 @@ export type AdkMessageContentPart =
   | { type: "reasoning"; text: string }
   | { type: "image"; mimeType: string; data: string }
   | { type: "image_url"; url: string }
+  | {
+      type: "file";
+      mimeType: string;
+      data: string;
+      filename?: string | undefined;
+    }
+  | {
+      type: "file_url";
+      url: string;
+      mimeType?: string | undefined;
+    }
   | { type: "code"; code: string; language: string }
   | { type: "code_result"; output: string; outcome: string }
   | { type: "activity"; message: string };

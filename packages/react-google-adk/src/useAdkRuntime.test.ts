@@ -1,6 +1,22 @@
 import { describe, it, expect } from "vitest";
-import { getPendingCancellations, getPendingToolCalls } from "./useAdkRuntime";
+import {
+  getMessageContent,
+  getPendingCancellations,
+  getPendingToolCalls,
+} from "./useAdkRuntime";
+import type { AppendMessage } from "@assistant-ui/core";
 import type { AdkMessage } from "./types";
+
+const makeAppendMessage = (content: AppendMessage["content"]): AppendMessage =>
+  ({
+    role: "user",
+    content,
+    attachments: [],
+    parentId: null,
+    sourceId: null,
+    runConfig: undefined,
+    metadata: { custom: {} },
+  }) as unknown as AppendMessage;
 
 const aiWithToolCalls = (
   id: string,
@@ -134,5 +150,62 @@ describe("getPendingCancellations", () => {
       tool_call_id: "tc-2",
       name: "regular_tool",
     });
+  });
+});
+
+describe("getMessageContent", () => {
+  it("preserves file part data and mimeType end-to-end", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        { type: "text", text: "see attached" },
+        {
+          type: "file",
+          mimeType: "application/pdf",
+          data: "JVBERi0xLjQK",
+          filename: "report.pdf",
+        },
+      ]),
+    );
+    expect(result).toEqual([
+      { type: "text", text: "see attached" },
+      {
+        type: "file",
+        mimeType: "application/pdf",
+        data: "JVBERi0xLjQK",
+        filename: "report.pdf",
+      },
+    ]);
+  });
+
+  it("keeps file-only content as an array (does not collapse to a text marker)", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "file",
+          mimeType: "image/png",
+          data: "AAAA",
+          filename: "x.png",
+        },
+      ]),
+    );
+    expect(result).toEqual([
+      {
+        type: "file",
+        mimeType: "image/png",
+        data: "AAAA",
+        filename: "x.png",
+      },
+    ]);
+  });
+
+  it("omits filename when not provided", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        { type: "file", mimeType: "application/pdf", data: "AAAA" },
+      ]),
+    );
+    expect(result).toEqual([
+      { type: "file", mimeType: "application/pdf", data: "AAAA" },
+    ]);
   });
 });

@@ -2,9 +2,9 @@
 
 import {
   ExportedMessageRepository,
-  unstable_useRemoteThreadListRuntime,
   useAuiState,
   useExternalStoreRuntime,
+  useRemoteThreadListRuntime,
 } from "@assistant-ui/react";
 import type { AssistantRuntime, ThreadMessage } from "@assistant-ui/react";
 import {
@@ -366,7 +366,7 @@ export const useOpenCodeRuntime = (
     [client],
   );
 
-  return unstable_useRemoteThreadListRuntime({
+  return useRemoteThreadListRuntime({
     allowNesting: true,
     adapter,
     initialThreadId: options.initialSessionId,

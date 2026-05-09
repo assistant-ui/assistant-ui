@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-devtools",
-  "version": "1.0.6",
+  "version": "1.2.0",
   "description": "React development tools for assistant-ui components",
   "keywords": [
     "assistant-ui",
@@ -30,11 +30,11 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.26",
-    "@assistant-ui/tap": "^0.5.9",
+    "@assistant-ui/react": "^0.14.0",
+    "@assistant-ui/tap": "^0.5.11",
     "@types/react": "*",
     "@types/react-dom": "*",
     "react": "^18 || ^19",

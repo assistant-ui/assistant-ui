@@ -75,6 +75,7 @@ export class ExternalStoreThreadRuntimeCore
 
   private _messages!: readonly ThreadMessage[];
   public isDisabled!: boolean;
+  public isSendDisabled!: boolean;
   public get isLoading() {
     return this._store.isLoading ?? false;
   }
@@ -122,6 +123,7 @@ export class ExternalStoreThreadRuntimeCore
 
     const isRunning = store.isRunning ?? false;
     this.isDisabled = store.isDisabled ?? false;
+    this.isSendDisabled = store.isSendDisabled ?? false;
 
     const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
     this._store = store;
@@ -236,9 +238,9 @@ export class ExternalStoreThreadRuntimeCore
 
     if ((oldStore?.isRunning ?? false) !== (store.isRunning ?? false)) {
       if (store.isRunning) {
-        this._notifyEventSubscribers("runStart");
+        this._notifyEventSubscribers("runStart", {});
       } else {
-        this._notifyEventSubscribers("runEnd");
+        this._notifyEventSubscribers("runEnd", {});
       }
     }
 
@@ -314,10 +316,6 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Runtime does not support importing external states.");
 
     this._store.onLoadExternalState(state);
-  }
-
-  public unstable_loadExternalState(state: any): void {
-    this.importExternalState(state);
   }
 
   public cancelRun(): void {

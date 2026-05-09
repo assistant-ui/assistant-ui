@@ -78,14 +78,7 @@ export class ExternalStoreThreadListRuntimeCore
   }
 
   public getItemById(threadId: string) {
-    for (const thread of this.adapter.threads ?? []) {
-      if (thread.id === threadId) return thread as any;
-    }
-    for (const thread of this.adapter.archivedThreads ?? []) {
-      if (thread.id === threadId) return thread as any;
-    }
-    if (threadId === DEFAULT_THREAD_ID) return DEFAULT_THREAD;
-    return undefined;
+    return this._threadData[threadId];
   }
 
   public __internal_setAdapter(
@@ -115,7 +108,8 @@ export class ExternalStoreThreadListRuntimeCore
 
     if (
       previousThreads !== newThreads ||
-      previousArchivedThreads !== newArchivedThreads
+      previousArchivedThreads !== newArchivedThreads ||
+      previousThreadId !== newThreadId
     ) {
       this._threadData = {
         ...DEFAULT_THREAD_DATA,
@@ -157,6 +151,18 @@ export class ExternalStoreThreadListRuntimeCore
     if (initialLoad || previousThreadId !== newThreadId) {
       this._mainThreadId = newThreadId;
       this._mainThread = this.threadFactory();
+    }
+
+    if (!this._threadData[this._mainThreadId]) {
+      this._threadData = {
+        ...this._threadData,
+        [this._mainThreadId]: {
+          id: this._mainThreadId,
+          remoteId: undefined,
+          externalId: undefined,
+          status: "regular",
+        },
+      };
     }
 
     this._notifySubscribers();

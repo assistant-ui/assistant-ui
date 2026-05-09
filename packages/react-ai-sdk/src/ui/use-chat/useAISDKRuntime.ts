@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef } from "react";
 import type { UIMessage, useChat, CreateUIMessage } from "@ai-sdk/react";
-import { isToolUIPart } from "ai";
+import { isToolUIPart, generateId } from "ai";
 import {
   useExternalStoreRuntime,
   useRuntimeAdapters,
@@ -41,6 +41,16 @@ export type CustomToCreateMessageFunction = <
 >(
   message: AppendMessage,
 ) => CreateUIMessage<UI_MESSAGE>;
+
+const toUIMessage = <UI_MESSAGE extends UIMessage>(
+  createMessage: CreateUIMessage<UI_MESSAGE>,
+  fallbackRole: UI_MESSAGE["role"],
+): UI_MESSAGE =>
+  ({
+    ...createMessage,
+    id: createMessage.id ?? generateId(),
+    role: createMessage.role ?? fallbackRole,
+  }) as UI_MESSAGE;
 
 export type AISDKRuntimeAdapter = {
   adapters?:
@@ -240,27 +250,41 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       await toolInvocations.abort();
     },
     onNew: async (message) => {
-      lastRunConfigRef.current = message.runConfig;
-      await completePendingToolCalls();
-
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
+
+      if (!(message.startRun ?? message.role === "user")) {
+        chatHelpers.setMessages((current) => [
+          ...current,
+          toUIMessage<UI_MESSAGE>(createMessage, message.role),
+        ]);
+        return;
+      }
+
+      lastRunConfigRef.current = message.runConfig;
+      await completePendingToolCalls();
       await chatHelpers.sendMessage(createMessage, {
         metadata: message.runConfig,
       });
     },
     onEdit: async (message) => {
-      lastRunConfigRef.current = message.runConfig;
-      const newMessages = sliceMessagesUntil(
-        chatHelpers.messages,
-        message.parentId,
-      );
-      chatHelpers.setMessages(newMessages);
-
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
+
+      if (!(message.startRun ?? message.role === "user")) {
+        chatHelpers.setMessages((current) => [
+          ...sliceMessagesUntil(current, message.parentId),
+          toUIMessage<UI_MESSAGE>(createMessage, message.role),
+        ]);
+        return;
+      }
+
+      lastRunConfigRef.current = message.runConfig;
+      chatHelpers.setMessages((current) =>
+        sliceMessagesUntil(current, message.parentId),
+      );
       await chatHelpers.sendMessage(createMessage, {
         metadata: message.runConfig,
       });

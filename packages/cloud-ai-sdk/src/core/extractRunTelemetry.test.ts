@@ -66,6 +66,7 @@ describe("extractRunTelemetry", () => {
       {
         tool_name: "search",
         tool_call_id: "tc-1",
+        tool_source: "frontend",
         tool_args: '{"query":"test"}',
         tool_result: '{"results":["a","b"]}',
       },
@@ -100,7 +101,7 @@ describe("extractRunTelemetry", () => {
       ]),
     ])!;
     expect(result.toolCalls).toEqual([
-      { tool_name: "noop", tool_call_id: "tc-3" },
+      { tool_name: "noop", tool_call_id: "tc-3", tool_source: "frontend" },
     ]);
   });
 

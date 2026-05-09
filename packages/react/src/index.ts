@@ -125,7 +125,6 @@ export type {
 // --- external-store ---
 export type { ThreadMessageLike } from "@assistant-ui/core";
 export {
-  getExternalStoreMessage,
   getExternalStoreMessages,
   bindExternalStoreMessage,
 } from "@assistant-ui/core";
@@ -151,25 +150,13 @@ export type {
   LocalRuntimeOptionsBase,
 } from "@assistant-ui/core";
 export { useLocalRuntime } from "./legacy-runtime/runtime-cores/local/useLocalRuntime";
-/**
- * @deprecated Use `useLocalRuntime` instead.
- */
-export { useLocalRuntime as useLocalThreadRuntime } from "./legacy-runtime/runtime-cores/local/useLocalRuntime";
 export type { LocalRuntimeOptions } from "./legacy-runtime/runtime-cores/local/LocalRuntimeOptions";
 
 // --- remote-thread-list ---
 export { useRemoteThreadListRuntime } from "./legacy-runtime/runtime-cores/remote-thread-list/useRemoteThreadListRuntime";
-/** @deprecated Use `useRemoteThreadListRuntime` instead. */
-export { useRemoteThreadListRuntime as unstable_useRemoteThreadListRuntime } from "./legacy-runtime/runtime-cores/remote-thread-list/useRemoteThreadListRuntime";
 export { useCloudThreadListAdapter } from "./legacy-runtime/runtime-cores/remote-thread-list/adapter/cloud";
-/** @deprecated Use `useCloudThreadListAdapter` instead. */
-export { useCloudThreadListAdapter as unstable_useCloudThreadListAdapter } from "./legacy-runtime/runtime-cores/remote-thread-list/adapter/cloud";
 export type { RemoteThreadListAdapter } from "@assistant-ui/core";
-/** @deprecated Use `RemoteThreadListAdapter` instead. */
-export type { RemoteThreadListAdapter as unstable_RemoteThreadListAdapter } from "@assistant-ui/core";
 export { InMemoryThreadListAdapter } from "@assistant-ui/core";
-/** @deprecated Use `InMemoryThreadListAdapter` instead. */
-export { InMemoryThreadListAdapter as unstable_InMemoryThreadListAdapter } from "@assistant-ui/core";
 
 // Re-export from @assistant-ui/core (runtime-cores root)
 export type { ExportedMessageRepositoryItem } from "@assistant-ui/core";
@@ -332,6 +319,8 @@ export type {
   ReasoningGroupComponent,
   QuoteMessagePartComponent,
   QuoteMessagePartProps,
+  EnrichedPartState,
+  PartState,
 } from "@assistant-ui/core/react";
 
 // Thread list item types
@@ -389,25 +378,3 @@ export {
 } from "./primitives/composer/trigger";
 
 export type { Assistant } from "./augmentations";
-
-// Backwards compatibility — deprecated exports, to be removed in v0.13
-
-/**
- * @deprecated Use `useAui` instead. This alias will be removed in v0.13.
- */
-export { useAui as useAssistantApi } from "@assistant-ui/store";
-
-/**
- * @deprecated Use `useAuiState` instead. This alias will be removed in v0.13.
- */
-export { useAuiState as useAssistantState } from "@assistant-ui/store";
-
-/**
- * @deprecated Use `useAuiEvent` instead. This alias will be removed in v0.13.
- */
-export { useAuiEvent as useAssistantEvent } from "@assistant-ui/store";
-
-/**
- * @deprecated Use `AuiIf` instead. This alias will be removed in v0.13.
- */
-export { AuiIf as AssistantIf } from "@assistant-ui/store";

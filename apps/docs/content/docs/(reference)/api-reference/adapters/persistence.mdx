@@ -1,0 +1,34 @@
+---
+title: Persistence Adapters
+description: Persist message history and thread lists.
+---
+
+assistant-ui has two persistence layers:
+
+- `ThreadHistoryAdapter` persists messages for a single runtime thread.
+- `RemoteThreadListAdapter` manages a backend-backed list of threads, including creating, loading, archiving, deleting, and title generation.
+
+## Thread History
+
+```tsx
+const runtime = useLocalRuntime(chatModelAdapter, {
+  adapters: {
+    history: myHistoryAdapter,
+  },
+});
+```
+
+Use a history adapter when the app has one active thread or when thread list management lives somewhere else.
+
+## Remote Thread Lists
+
+```tsx
+const runtime = useRemoteThreadListRuntime({
+  adapter: myRemoteThreadListAdapter,
+  runtimeHook: () => useLocalRuntime(chatModelAdapter),
+});
+```
+
+Use a remote thread list adapter when your backend owns conversation metadata and users can switch between many threads.
+
+Assistant Cloud provides managed persistence through `AssistantCloud` and cloud runtime helpers. See [Threads](/docs/runtimes/concepts/threads) for the full threading model.

@@ -32,7 +32,9 @@ export type {
 export type {
   Attachment,
   PendingAttachment,
+  PendingAttachmentStatus,
   CompleteAttachment,
+  CompleteAttachmentStatus,
   AttachmentStatus,
   CreateAttachment,
 } from "./types/attachment";
@@ -143,7 +145,11 @@ export type {
 
 // Runtime Core Interface Types
 export type {
+  AttachmentAddErrorEvent,
+  AttachmentAddErrorReason,
   ComposerRuntimeCore,
+  ComposerRuntimeEventCallback,
+  ComposerRuntimeEventPayload,
   ComposerRuntimeEventType,
   DictationState,
   EditComposerRuntimeCore,
@@ -160,6 +166,8 @@ export type {
   SpeechState,
   VoiceSessionState,
   SubmittedFeedback,
+  ThreadRuntimeEventCallback,
+  ThreadRuntimeEventPayload,
   ThreadRuntimeEventType,
   StartRunConfig,
   ResumeRunConfig,
@@ -191,6 +199,8 @@ export type {
 } from "./runtime/api/thread-list-runtime";
 
 export type {
+  ThreadListItemEventCallback,
+  ThreadListItemEventPayload,
   ThreadListItemEventType,
   ThreadListItemRuntime,
 } from "./runtime/api/thread-list-item-runtime";
@@ -234,7 +244,6 @@ export type { ThreadMessageLike } from "./runtime/utils/thread-message-like";
 
 // External Store Message Utilities
 export {
-  getExternalStoreMessage,
   getExternalStoreMessages,
   bindExternalStoreMessage,
 } from "./runtime/utils/external-store-message";
@@ -261,13 +270,10 @@ export type {
   RemoteThreadInitializeResponse,
   RemoteThreadMetadata,
   RemoteThreadListResponse,
+  RemoteThreadListPageOptions,
 } from "./runtimes/remote-thread-list/types";
 
 export { InMemoryThreadListAdapter } from "./runtimes/remote-thread-list/adapter/in-memory";
 
 // Assistant Transport Utilities
-export {
-  toAISDKTools,
-  getEnabledTools,
-  createRequestHeaders,
-} from "./runtimes/assistant-transport/utils";
+export { createRequestHeaders } from "./runtimes/assistant-transport/utils";

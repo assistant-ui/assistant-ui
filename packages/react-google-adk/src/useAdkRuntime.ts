@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   getExternalStoreMessages,
   type AttachmentAdapter,
+  type DictationAdapter,
   type FeedbackAdapter,
   type SpeechSynthesisAdapter,
   type AppendMessage,
@@ -32,7 +33,8 @@ import { convertAdkMessage } from "./convertAdkMessages";
 import { symbolAdkRuntimeExtras, type AdkRuntimeExtras } from "./hooks";
 import { v4 as uuidv4 } from "uuid";
 
-const getMessageContent = (msg: AppendMessage) => {
+/** @internal — exported for unit tests. */
+export const getMessageContent = (msg: AppendMessage) => {
   const allContent = [
     ...msg.content,
     ...(msg.attachments?.flatMap((a) => a.content) ?? []),
@@ -46,8 +48,10 @@ const getMessageContent = (msg: AppendMessage) => {
         return { type: "image_url" as const, url: part.image };
       case "file":
         return {
-          type: "text" as const,
-          text: `[File: ${part.filename ?? "file"}]`,
+          type: "file" as const,
+          mimeType: part.mimeType,
+          data: part.data,
+          ...(part.filename != null && { filename: part.filename }),
         };
 
       case "tool-call":
@@ -144,6 +148,7 @@ export type UseAdkRuntimeOptions = {
     | {
         attachments?: AttachmentAdapter;
         speech?: SpeechSynthesisAdapter;
+        dictation?: DictationAdapter;
         feedback?: FeedbackAdapter;
       }
     | undefined;
@@ -164,7 +169,7 @@ export type UseAdkRuntimeOptions = {
 
 const useAdkRuntimeImpl = ({
   autoCancelPendingToolCalls,
-  adapters: { attachments, feedback, speech } = {},
+  adapters: { attachments, dictation, feedback, speech } = {},
   unstable_allowCancellation,
   stream,
   load,
@@ -261,7 +266,7 @@ const useAdkRuntimeImpl = ({
   const runtime = useExternalStoreRuntime({
     isRunning: effectiveIsRunning,
     messages: threadMessages,
-    adapters: { attachments, feedback, speech },
+    adapters: { attachments, dictation, feedback, speech },
     extras: {
       [symbolAdkRuntimeExtras]: true,
       agentInfo,

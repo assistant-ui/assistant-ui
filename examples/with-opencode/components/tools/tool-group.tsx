@@ -2,10 +2,16 @@ import { cn } from "@/lib/utils";
 import { useAuiState } from "@assistant-ui/react";
 import { memo, type FC, type PropsWithChildren } from "react";
 
-// ── ToolGroup — lightweight wrapper for spacing ─────────────────────────
+type GroupedPartsGroup = {
+  indices: readonly number[];
+};
+
 export const ToolGroupImpl: FC<
-  PropsWithChildren<{ startIndex: number; endIndex: number }>
-> = ({ children, startIndex, endIndex }) => {
+  PropsWithChildren<{ group: GroupedPartsGroup }>
+> = ({ children, group }) => {
+  const startIndex = group.indices[0]!;
+  const endIndex = group.indices.at(-1)!;
+
   const textBefore = useAuiState((s) => {
     for (let i = startIndex - 1; i >= 0; i--) {
       const type = s.message.parts[i]?.type;

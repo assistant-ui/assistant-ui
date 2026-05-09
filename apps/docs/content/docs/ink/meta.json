@@ -3,6 +3,7 @@
   "description": "Build AI chat UIs for the terminal",
   "icon": "Terminal",
   "root": true,
+  "platforms": ["ink"],
   "pages": [
     "index",
     "migration",

@@ -1,0 +1,48 @@
+---
+title: State Hooks
+description: Read assistant state and call runtime actions.
+---
+
+## useAuiState
+
+`useAuiState` is the primary hook for reactive state. Pass a selector and the component re-renders when the selected value changes.
+
+```tsx
+import { useAuiState } from "@assistant-ui/react";
+
+const messages = useAuiState((s) => s.thread.messages);
+const isRunning = useAuiState((s) => s.thread.isRunning);
+const composerText = useAuiState((s) => s.composer.text);
+```
+
+Selectors are scoped by context. Inside a message primitive, `s.message` refers to that message; inside an attachment primitive, `s.attachment` refers to that attachment.
+
+## useAui
+
+`useAui` returns the runtime action API. Use it for imperative operations such as sending composer text, cancelling a run, switching threads, or submitting feedback.
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+const aui = useAui();
+
+aui.composer().setText("Hello");
+aui.composer().send();
+aui.thread().cancelRun();
+```
+
+Runtime action and state shapes are documented in the [Runtime State](/docs/api-reference/runtimes/assistant-runtime) section.
+
+## useAuiEvent
+
+`useAuiEvent` subscribes to runtime events without using the event as render state.
+
+```tsx
+import { useAuiEvent } from "@assistant-ui/react";
+
+useAuiEvent("thread.runStart", (payload) => {
+  console.log("Run started", payload);
+});
+```
+
+Use `useAuiEvent` for analytics, logging, or side effects that should not cause UI re-renders.

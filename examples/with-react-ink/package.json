@@ -11,7 +11,7 @@
   "dependencies": {
     "@assistant-ui/react-ink": "workspace:*",
     "@assistant-ui/react-ink-markdown": "workspace:*",
-    "ink": "^7.0.1",
+    "ink": "^7.0.2",
     "react": "^19.2.5"
   },
   "devDependencies": {

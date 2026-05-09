@@ -1,8 +1,14 @@
-import { type ComponentType, type FC, type ReactNode, useMemo } from "react";
-import { Box } from "ink";
+import {
+  type ComponentType,
+  type FC,
+  type ReactNode,
+  useCallback,
+  useMemo,
+} from "react";
+import { Box, Static } from "ink";
 import type { ThreadMessage } from "@assistant-ui/core";
-import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
-import { MessageByIndexProvider } from "@assistant-ui/core/react";
+import { useAuiState } from "@assistant-ui/store";
+import { MemoMessage } from "../internal/MemoMessage";
 
 type MessageComponents =
   | {
@@ -26,15 +32,31 @@ type MessageComponents =
       SystemMessage?: ComponentType | undefined;
     };
 
+/**
+ * Live render region keeps the last `windowSize + windowOverscan` messages;
+ * older messages graduate through Ink's `<Static>` into terminal scrollback
+ * and stop repainting. Defaults to no windowing.
+ *
+ * Per-message memoization only engages when the render callback is
+ * referentially stable. The `components` API handles stability internally;
+ * with the children render-fn API, hoist or memoize the function.
+ */
+type WindowingProps = {
+  /** Recent messages kept live. Unset renders all dynamically. Negative clamped to 0. */
+  windowSize?: number | undefined;
+  /** Extra live messages above the window to absorb boundary churn. Defaults to 4. Negative clamped to 0. */
+  windowOverscan?: number | undefined;
+};
+
 export type ThreadMessagesProps =
-  | {
+  | ({
       components: MessageComponents;
       children?: never;
-    }
-  | {
+    } & WindowingProps)
+  | ({
       children: (value: { message: ThreadMessage }) => ReactNode;
       components?: never;
-    };
+    } & WindowingProps);
 
 const DEFAULT_SYSTEM_MESSAGE = () => null;
 
@@ -103,45 +125,114 @@ const ThreadMessageComponent: FC<{ components: MessageComponents }> = ({
 
 const ThreadMessagesInner: FC<{
   children: (value: { message: ThreadMessage }) => ReactNode;
-}> = ({ children }) => {
+  windowSize?: number | undefined;
+  windowOverscan?: number | undefined;
+}> = ({ children, windowSize, windowOverscan = 4 }) => {
   const messagesLength = useAuiState((s) => s.thread.messages.length);
 
-  return useMemo(() => {
+  const tailStart =
+    windowSize !== undefined
+      ? Math.max(
+          0,
+          messagesLength -
+            Math.max(0, windowSize) -
+            Math.max(0, windowOverscan),
+        )
+      : 0;
+
+  const prefixIndices = useMemo(
+    () => Array.from({ length: tailStart }, (_, i) => i),
+    [tailStart],
+  );
+
+  const tail = useMemo(() => {
     if (messagesLength === 0) return null;
-    return Array.from({ length: messagesLength }, (_, index) => (
-      <MessageByIndexProvider key={index} index={index}>
-        <RenderChildrenWithAccessor
-          getItemState={(aui) => aui.thread().message({ index }).getState()}
-        >
-          {(getItem) =>
-            children({
-              get message() {
-                return getItem();
-              },
-            })
-          }
-        </RenderChildrenWithAccessor>
-      </MessageByIndexProvider>
-    ));
-  }, [messagesLength, children]);
+    const items: ReactNode[] = [];
+    for (let index = tailStart; index < messagesLength; index++) {
+      items.push(<MemoMessage key={index} index={index} render={children} />);
+    }
+    return items;
+  }, [messagesLength, tailStart, children]);
+
+  if (tailStart === 0) return tail;
+
+  return (
+    <>
+      <Static items={prefixIndices}>
+        {(index) => <MemoMessage key={index} index={index} render={children} />}
+      </Static>
+      {tail}
+    </>
+  );
 };
 
 export const ThreadMessages: FC<ThreadMessagesProps> = ({
   components,
   children,
+  windowSize,
+  windowOverscan,
 }) => {
+  const Message = components?.Message;
+  const EditComposer = components?.EditComposer;
+  const UserEditComposer = components?.UserEditComposer;
+  const AssistantEditComposer = components?.AssistantEditComposer;
+  const SystemEditComposer = components?.SystemEditComposer;
+  const UserMessage = components?.UserMessage;
+  const AssistantMessage = components?.AssistantMessage;
+  const SystemMessage = components?.SystemMessage;
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `components` excluded so inline literals do not bust the memo; per-field deps cover real changes.
+  const stableComponents = useMemo<MessageComponents | undefined>(() => {
+    if (!components) return undefined;
+    return {
+      Message,
+      EditComposer,
+      UserEditComposer,
+      AssistantEditComposer,
+      SystemEditComposer,
+      UserMessage,
+      AssistantMessage,
+      SystemMessage,
+    } as MessageComponents;
+  }, [
+    Message,
+    EditComposer,
+    UserEditComposer,
+    AssistantEditComposer,
+    SystemEditComposer,
+    UserMessage,
+    AssistantMessage,
+    SystemMessage,
+  ]);
+
+  const renderFromComponents = useCallback(
+    () =>
+      stableComponents ? (
+        <ThreadMessageComponent components={stableComponents} />
+      ) : null,
+    [stableComponents],
+  );
+
   if (components) {
     return (
       <Box flexDirection="column">
-        <ThreadMessagesInner>
-          {() => <ThreadMessageComponent components={components} />}
+        <ThreadMessagesInner
+          windowSize={windowSize}
+          windowOverscan={windowOverscan}
+        >
+          {renderFromComponents}
         </ThreadMessagesInner>
       </Box>
     );
   }
   return (
     <Box flexDirection="column">
-      <ThreadMessagesInner>{children}</ThreadMessagesInner>
+      <ThreadMessagesInner
+        windowSize={windowSize}
+        windowOverscan={windowOverscan}
+      >
+        {children}
+      </ThreadMessagesInner>
     </Box>
   );
 };

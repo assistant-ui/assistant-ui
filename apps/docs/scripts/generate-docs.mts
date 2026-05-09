@@ -1,6 +1,7 @@
 import {
   Project,
   Node,
+  type JSDoc,
   type InterfaceDeclaration,
   type TypeAliasDeclaration,
 } from "ts-morph";
@@ -81,7 +82,10 @@ function getPropertiesFromType(type: any) {
     const propType = prop.getTypeAtLocation(decl).getText();
     const cleanType = cleanTypeText(propType);
     const jsDocs = decl.getJsDocs();
-    const description = jsDocs.map((doc: any) => doc.getComment()).join("\n");
+    const description = jsDocs
+      .map((doc: JSDoc) => getJsDocCommentText(doc))
+      .filter(Boolean)
+      .join("\n");
     const required = !decl.hasQuestionToken();
     const param: any = {
       name: prop.getName(),
@@ -98,6 +102,32 @@ function getPropertiesFromType(type: any) {
 
     return param;
   });
+}
+
+function getJsDocCommentText(doc: JSDoc): string | undefined {
+  const comment = doc.getComment();
+  let text: string | undefined;
+  if (typeof comment === "string") {
+    text = comment;
+  } else if (Array.isArray(comment)) {
+    text = comment.map((part) => part.getText()).join("");
+  }
+  if (!text) return undefined;
+
+  const cleaned = text
+    .replace(/^\/\*\*?/, "")
+    .replace(/\*\/$/, "")
+    .split("\n")
+    .map((line) => line.replace(/^\s*\*\s?/, ""))
+    .join("\n")
+    .replace(
+      /\{@link\s+([^}\s]+)(?:\s+([^}]+))?\}/g,
+      (_, path, label) => (label?.trim() || path) + " ",
+    )
+    .replace(/\s+([.,;:])/g, "$1")
+    .trim();
+
+  return cleaned || undefined;
 }
 
 function cleanTypeText(typeText: string): string {

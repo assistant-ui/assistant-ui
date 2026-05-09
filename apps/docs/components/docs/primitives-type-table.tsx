@@ -108,6 +108,9 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
         typeRaw && (shortType != null || displayType !== typeRaw)
           ? await highlightType(typeRaw)
           : undefined;
+      const highlightedDefault = prop.default
+        ? await highlightType(prop.default)
+        : undefined;
 
       let children:
         | { type?: string | undefined; rows: TypeTableRow[] }[]
@@ -126,7 +129,7 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
         type: highlightedType,
         typeFull: highlightedTypeFull,
         description: descParts.length > 0 ? descParts : undefined,
-        default: prop.default,
+        default: highlightedDefault,
         required: prop.required ?? false,
         deprecated: !!prop.deprecated,
         children,

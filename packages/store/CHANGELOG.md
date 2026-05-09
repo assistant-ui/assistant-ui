@@ -1,5 +1,27 @@
 # @assistant-ui/store
 
+## 0.2.10
+
+### Patch Changes
+
+- [#3962](https://github.com/assistant-ui/assistant-ui/pull/3962) [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#3937](https://github.com/assistant-ui/assistant-ui/pull/3937) [`5fdf17e`](https://github.com/assistant-ui/assistant-ui/commit/5fdf17e019c91b000c6f4cf9e3e56c89d764a435) - fix: `RenderChildrenWithAccessor` no longer misses re-renders when state updates after access ([@Yonom](https://github.com/Yonom))
+
+  The accessor previously reused a single ref as both an "accessed" sentinel and the cached snapshot. A `useSyncExternalStore` post-commit consistency call could repopulate that cache with the current state, causing later real updates (e.g. `message.composer.isEditing` flipping) to be masked. Access is now tracked with a dedicated flag so children that read item state via the render prop re-render correctly when the underlying state changes.
+
+- Updated dependencies [[`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94)]:
+  - @assistant-ui/tap@0.5.11
+
+## 0.2.9
+
+### Patch Changes
+
+- [#3909](https://github.com/assistant-ui/assistant-ui/pull/3909) [`005f83f`](https://github.com/assistant-ui/assistant-ui/commit/005f83f3ebfb94b3a9d7c34bc7d2a71bbaf63a9e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`005f83f`](https://github.com/assistant-ui/assistant-ui/commit/005f83f3ebfb94b3a9d7c34bc7d2a71bbaf63a9e)]:
+  - @assistant-ui/tap@0.5.10
+
 ## 0.2.8
 
 ### Patch Changes

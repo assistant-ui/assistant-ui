@@ -39,9 +39,29 @@ Create a new project in the [assistant-cloud dashboard](https://cloud.assistant-
 
 ### Configure Environment Variables
 
+<PlatformTabs>
+<Tab value="React">
+
 ```bash title=".env.local"
 NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```bash title=".env"
+EXPO_PUBLIC_ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```bash title=".env"
+ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
+```
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 
@@ -49,13 +69,32 @@ NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
 
 ### Install Dependencies
 
+<PlatformTabs>
+<Tab value="React">
+
 <InstallCommand npm={["@assistant-ui/cloud-ai-sdk", "@ai-sdk/react", "ai"]} />
+
+</Tab>
+<Tab value="React Native">
+
+<InstallCommand expo={["@assistant-ui/cloud-ai-sdk", "@ai-sdk/react", "ai", "assistant-cloud"]} />
+
+</Tab>
+<Tab value="React Ink">
+
+<InstallCommand npm={["@assistant-ui/cloud-ai-sdk", "@ai-sdk/react", "ai", "assistant-cloud", "ink", "react"]} />
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 
 <Step>
 
 ### Integrate
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx title="app/page.tsx"
 "use client";
@@ -105,6 +144,131 @@ export default function Chat() {
   );
 }
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```tsx title="app/index.tsx"
+import { useMemo, useState } from "react";
+import { Pressable, Text, TextInput, View } from "react-native";
+import { AssistantCloud } from "assistant-cloud";
+import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";
+
+async function getAssistantToken() {
+  // Return a user token from your auth provider.
+  return "...";
+}
+
+export default function Chat() {
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.EXPO_PUBLIC_ASSISTANT_BASE_URL!,
+        authToken: getAssistantToken,
+      }),
+    [],
+  );
+  const { messages, sendMessage, threads } = useCloudChat({ cloud });
+
+  const [input, setInput] = useState("");
+  const handleSubmit = () => {
+    if (!input.trim()) return;
+    sendMessage({ text: input });
+    setInput("");
+  };
+
+  return (
+    <View>
+      <View>
+        {threads.threads.map((t) => (
+          <Pressable key={t.id} onPress={() => threads.selectThread(t.id)}>
+            <Text>{t.title || "New conversation"}</Text>
+          </Pressable>
+        ))}
+        <Pressable onPress={() => threads.selectThread(null)}>
+          <Text>New chat</Text>
+        </Pressable>
+      </View>
+
+      <View>
+        {messages.map((m) => (
+          <Text key={m.id}>
+            {m.parts.map((p) => p.type === "text" && p.text)}
+          </Text>
+        ))}
+      </View>
+
+      <TextInput value={input} onChangeText={setInput} />
+      <Pressable onPress={handleSubmit}>
+        <Text>Send</Text>
+      </Pressable>
+    </View>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="app.tsx"
+import { useMemo, useState } from "react";
+import { Box, Text, useInput } from "ink";
+import { AssistantCloud } from "assistant-cloud";
+import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";
+
+async function getAssistantToken() {
+  // Return a user token from your auth provider.
+  return "...";
+}
+
+export function Chat() {
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.ASSISTANT_BASE_URL!,
+        authToken: getAssistantToken,
+      }),
+    [],
+  );
+  const { messages, sendMessage, threads } = useCloudChat({ cloud });
+
+  const [input, setInput] = useState("");
+  const handleSubmit = () => {
+    if (!input.trim()) return;
+    sendMessage({ text: input });
+    setInput("");
+  };
+
+  useInput((value, key) => {
+    if (key.return) handleSubmit();
+    else if (key.tab) threads.selectThread(null);
+    else if (key.backspace || key.delete) setInput((text) => text.slice(0, -1));
+    else if (value) setInput((text) => text + value);
+  });
+
+  return (
+    <Box flexDirection="column">
+      <Text bold>Threads</Text>
+      {threads.threads.map((t) => (
+        <Text key={t.id}>{t.title || "New conversation"}</Text>
+      ))}
+      <Text dimColor>Press tab for a new chat.</Text>
+
+      {messages.map((m) => (
+        <Text key={m.id}>
+          {m.parts.map((p) => p.type === "text" && p.text)}
+        </Text>
+      ))}
+
+      <Text>{"> "}{input}</Text>
+      <Text dimColor>Press enter to send.</Text>
+    </Box>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 
@@ -229,7 +393,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-4o-mini"),
+    model: openai("gpt-5.4-mini"),
     messages,
   });
 
@@ -297,7 +461,7 @@ export async function POST(req: Request) {
   const samplingCalls: Record<string, SamplingCallData[]> = {};
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-mini"),
     messages,
     tools: {
       delegate_to_gemini: tool({
@@ -356,7 +520,10 @@ export async function POST(req: Request) {
 
 ## Authentication
 
-The example above uses anonymous mode (browser session-based user ID) via the env var. For production apps with user accounts, pass an explicit cloud instance:
+The React example above uses anonymous mode for quick demos. For production apps with user accounts, pass an explicit cloud instance with a token from your auth provider:
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx
 import { useMemo } from "react";
@@ -376,6 +543,57 @@ function Chat() {
   // ...
 }
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```tsx
+import { useMemo } from "react";
+import { AssistantCloud } from "assistant-cloud";
+import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";
+
+async function getAssistantToken() {
+  // Return a user token from your native auth provider.
+  return "...";
+}
+
+function Chat() {
+  const cloud = useMemo(() => new AssistantCloud({
+    baseUrl: process.env.EXPO_PUBLIC_ASSISTANT_BASE_URL!,
+    authToken: getAssistantToken,
+  }), []);
+
+  const { messages, sendMessage, threads } = useCloudChat({ cloud });
+  // ...
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx
+import { useMemo } from "react";
+import { AssistantCloud } from "assistant-cloud";
+import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";
+
+async function getAssistantToken() {
+  // Return a user token from your CLI auth flow.
+  return "...";
+}
+
+function Chat() {
+  const cloud = useMemo(() => new AssistantCloud({
+    baseUrl: process.env.ASSISTANT_BASE_URL!,
+    authToken: getAssistantToken,
+  }), []);
+
+  const { messages, sendMessage, threads } = useCloudChat({ cloud });
+  // ...
+}
+```
+
+</Tab>
+</PlatformTabs>
 
 See the [Cloud Authorization](/docs/cloud/authorization) guide for other auth providers.
 

@@ -21,7 +21,10 @@ export type EventSubscribable<TEvent extends string> = {
   event: TEvent;
   binding: SubscribableWithState<
     | {
-        unstable_on: (event: TEvent, callback: () => void) => Unsubscribe;
+        unstable_on: (
+          event: TEvent,
+          callback: (payload?: unknown) => void,
+        ) => Unsubscribe;
       }
     | undefined,
     unknown
@@ -87,7 +90,7 @@ export class BaseSubscribable {
 
 // lazy connect/disconnect: only opens upstream subscription while it has subscribers
 export abstract class BaseSubject {
-  private _subscriptions = new Set<() => void>();
+  private _subscriptions = new Set<(payload?: unknown) => void>();
   private _connection: Unsubscribe | undefined;
 
   protected get isConnected() {
@@ -96,8 +99,8 @@ export abstract class BaseSubject {
 
   protected abstract _connect(): Unsubscribe;
 
-  protected notifySubscribers() {
-    for (const callback of this._subscriptions) callback();
+  protected notifySubscribers(payload?: unknown) {
+    for (const callback of this._subscriptions) callback(payload);
   }
 
   private _updateConnection() {
@@ -110,7 +113,7 @@ export abstract class BaseSubject {
     }
   }
 
-  public subscribe(callback: () => void) {
+  public subscribe(callback: (payload?: unknown) => void) {
     this._subscriptions.add(callback);
     this._updateConnection();
 
@@ -270,8 +273,8 @@ export class EventSubscriptionSubject<
   }
 
   protected _connect(): Unsubscribe {
-    const callback = () => {
-      this.notifySubscribers();
+    const callback = (payload?: unknown) => {
+      this.notifySubscribers(payload);
     };
 
     let lastState = this.config.binding.getState();

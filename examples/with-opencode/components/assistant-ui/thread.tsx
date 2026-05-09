@@ -9,7 +9,7 @@ import {
   AskQuestionInline,
   withOpenCodeToolInteractions,
 } from "@/components/tools/opencode-tool-interactions";
-import { ReasoningGroup } from "@/components/tools/reasoning-ghost";
+import { ReasoningGroup as ReasoningGhostGroup } from "@/components/tools/reasoning-ghost";
 import { BashTerminal } from "@/components/tools/tool-ui-bash";
 import { ApplyPatchDiff } from "@/components/tools/tool-ui-apply-patch";
 import {
@@ -22,7 +22,7 @@ import {
   WebSearchInline,
   WriteInline,
 } from "@/components/tools/tool-ui-inline";
-import { ToolGroup } from "@/components/tools/tool-group";
+import { ToolGroup as ToolCallGroup } from "@/components/tools/tool-group";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { OpenCodeDataPart } from "@/components/opencode-data-part";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ import {
   RefreshCwIcon,
   SquareIcon,
 } from "lucide-react";
-import type { FC } from "react";
+import type { ComponentProps, FC } from "react";
 
 const ReadTool = withOpenCodeToolInteractions(ReadInline);
 const EditTool = withOpenCodeToolInteractions(EditInline);
@@ -65,6 +65,44 @@ const WebFetchTool = withOpenCodeToolInteractions(WebFetchInline);
 const ApplyPatchTool = withOpenCodeToolInteractions(ApplyPatchDiff);
 const AskQuestionTool = withOpenCodeToolInteractions(AskQuestionInline);
 const FallbackTool = withOpenCodeToolInteractions(ToolCallFallback);
+
+const renderOpenCodeTool = (
+  part: Extract<
+    Parameters<
+      NonNullable<
+        ComponentProps<typeof MessagePrimitive.GroupedParts>["children"]
+      >
+    >[0]["part"],
+    { type: "tool-call" }
+  >,
+) => {
+  switch (part.toolName) {
+    case "read":
+      return <ReadTool {...part} />;
+    case "edit":
+      return <EditTool {...part} />;
+    case "write":
+      return <WriteTool {...part} />;
+    case "bash":
+      return <BashTool {...part} />;
+    case "grep":
+      return <GrepTool {...part} />;
+    case "glob":
+      return <GlobTool {...part} />;
+    case "webSearch":
+      return <WebSearchTool {...part} />;
+    case "webFetch":
+      return <WebFetchTool {...part} />;
+    case "apply_patch":
+      return <ApplyPatchTool {...part} />;
+    case "ask_question":
+    case "request_user_input":
+    case "requestUserInput":
+      return <AskQuestionTool {...part} />;
+    default:
+      return <FallbackTool {...part} />;
+  }
+};
 
 export const Thread: FC = () => {
   return (
@@ -239,44 +277,40 @@ const AssistantMessage: FC = () => {
       data-role="assistant"
     >
       <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
-        <MessagePrimitive.Parts
-          components={{
-            Text: MarkdownText,
-            Reasoning,
-            ReasoningGroup,
-            tools: {
-              by_name: {
-                read: ReadTool,
-                edit: EditTool,
-                write: WriteTool,
-                bash: BashTool,
-                grep: GrepTool,
-                glob: GlobTool,
-                webSearch: WebSearchTool,
-                webFetch: WebFetchTool,
-                apply_patch: ApplyPatchTool,
-                ask_question: AskQuestionTool,
-                request_user_input: AskQuestionTool,
-                requestUserInput: AskQuestionTool,
-              },
-              Fallback: FallbackTool,
-            },
-            ToolGroup,
-            data: {
-              by_name: {
-                "opencode-step-start": OpenCodeDataPart,
-                "opencode-step-finish": OpenCodeDataPart,
-                "opencode-patch": OpenCodeDataPart,
-                "opencode-snapshot": OpenCodeDataPart,
-                "opencode-retry": OpenCodeDataPart,
-                "opencode-compaction": OpenCodeDataPart,
-                "opencode-agent": OpenCodeDataPart,
-                "opencode-subtask": OpenCodeDataPart,
-              },
-              Fallback: OpenCodeDataPart,
-            },
+        <MessagePrimitive.GroupedParts
+          groupBy={(part) => {
+            if (part.type === "reasoning")
+              return ["group-chainOfThought", "group-reasoning"];
+            if (part.type === "tool-call")
+              return ["group-chainOfThought", "group-tool"];
+            return null;
           }}
-        />
+        >
+          {({ part, children }) => {
+            switch (part.type) {
+              case "group-chainOfThought":
+                return <div data-slot="aui_chain-of-thought">{children}</div>;
+              case "group-reasoning":
+                return (
+                  <ReasoningGhostGroup group={part}>
+                    {children}
+                  </ReasoningGhostGroup>
+                );
+              case "group-tool":
+                return <ToolCallGroup group={part}>{children}</ToolCallGroup>;
+              case "text":
+                return <MarkdownText />;
+              case "reasoning":
+                return <Reasoning {...part} />;
+              case "tool-call":
+                return renderOpenCodeTool(part);
+              case "data":
+                return <OpenCodeDataPart {...part} />;
+              default:
+                return null;
+            }
+          }}
+        </MessagePrimitive.GroupedParts>
         <MessageError />
       </div>
 

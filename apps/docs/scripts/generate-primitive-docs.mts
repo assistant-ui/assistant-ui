@@ -2,6 +2,7 @@ import {
   Project,
   Node,
   SyntaxKind,
+  type JSDoc,
   type SourceFile,
   type ModuleDeclaration,
   type TypeAliasDeclaration,
@@ -243,6 +244,69 @@ function isInheritedProp(prop: TsMorphSymbol): boolean {
   return false;
 }
 
+function getJsDocCommentText(doc: JSDoc): string | undefined {
+  const comment = doc.getComment();
+  let text: string | undefined;
+  if (typeof comment === "string") {
+    text = comment;
+  } else if (Array.isArray(comment)) {
+    text = comment
+      .map((part) => part.getText())
+      .join("")
+      .trim();
+  }
+  if (!text) return undefined;
+
+  const cleaned = text
+    .replace(/^\/\*\*?/, "")
+    .replace(/\*\/$/, "")
+    .split("\n")
+    .map((line) => line.replace(/^\s*\*\s?/, ""))
+    .join("\n")
+    .replace(/\{@link\s+([^}\s]+)(?:\s+([^}]+))?\}/g, "$2$1 ")
+    .replace(/\s+([.,;:])/g, "$1")
+    .trim();
+
+  return cleaned || undefined;
+}
+
+function extractJsDocMeta(decl: Node): {
+  description?: string;
+  default?: string;
+  deprecated?: string;
+} {
+  if (!Node.isPropertySignature(decl) && !Node.isPropertyDeclaration(decl)) {
+    return {};
+  }
+
+  const jsDocs = decl.getJsDocs?.();
+  if (!jsDocs || jsDocs.length === 0) return {};
+
+  const doc = jsDocs[0]!;
+  const meta: {
+    description?: string;
+    default?: string;
+    deprecated?: string;
+  } = {};
+
+  const comment = getJsDocCommentText(doc);
+  if (comment) {
+    meta.description = comment;
+  }
+
+  for (const tag of doc.getTags()) {
+    const tagName = tag.getTagName();
+    if (tagName === "default") {
+      meta.default = tag.getComment()?.toString().trim();
+    }
+    if (tagName === "deprecated") {
+      meta.deprecated = tag.getComment()?.toString().trim() || "true";
+    }
+  }
+
+  return meta;
+}
+
 function extractPropsFromType(
   typeAlias: TypeAliasDeclaration | InterfaceDeclaration,
   sourceFile: SourceFile,
@@ -321,31 +385,7 @@ function extractPropsFromType(
       propType = "unknown";
     }
 
-    // Get JSDoc
-    let description: string | undefined;
-    let defaultValue: string | undefined;
-    let deprecated: string | undefined;
-
-    if (Node.isPropertySignature(decl) || Node.isPropertyDeclaration(decl)) {
-      const jsDocs = (decl as PropertySignature).getJsDocs?.();
-      if (jsDocs && jsDocs.length > 0) {
-        const doc = jsDocs[0]!;
-        const comment = doc.getComment();
-        if (typeof comment === "string") {
-          description = comment.trim();
-        }
-
-        for (const tag of doc.getTags()) {
-          const tagName = tag.getTagName();
-          if (tagName === "default") {
-            defaultValue = tag.getComment()?.toString().trim();
-          }
-          if (tagName === "deprecated") {
-            deprecated = tag.getComment()?.toString().trim() || "true";
-          }
-        }
-      }
-    }
+    const jsDoc = extractJsDocMeta(decl);
 
     // Determine if required
     const isOptional = isRequireAtLeastOne
@@ -362,19 +402,24 @@ function extractPropsFromType(
     if (!isOptional) {
       propDef.required = true;
     }
-    if (description) {
-      propDef.description = description;
+    if (jsDoc.description) {
+      propDef.description = jsDoc.description;
     }
-    if (defaultValue) {
-      propDef.default = defaultValue;
+    if (jsDoc.default) {
+      propDef.default = jsDoc.default;
     }
-    if (deprecated) {
-      propDef.deprecated = deprecated;
+    if (jsDoc.deprecated) {
+      propDef.deprecated = jsDoc.deprecated;
     }
 
     // Handle nested component props
     if (name === "components" && propType.includes("{")) {
       const children = extractComponentsChildren(prop, decl);
+      if (children) {
+        propDef.children = children;
+      }
+    } else if (isObjectPropWithDocumentableProperties(prop, decl)) {
+      const children = extractObjectChildren(prop, decl, propType);
       if (children) {
         propDef.children = children;
       }
@@ -384,6 +429,75 @@ function extractPropsFromType(
   }
 
   return props;
+}
+
+function isObjectPropWithDocumentableProperties(
+  prop: TsMorphSymbol,
+  decl: Node,
+): boolean {
+  if (!Node.isPropertySignature(decl)) return false;
+  const typeNode = decl.getTypeNode();
+  if (!typeNode || !Node.isTypeLiteral(typeNode)) return false;
+
+  const type = prop.getTypeAtLocation(decl);
+  if (type.getCallSignatures().length > 0) return false;
+
+  const properties = type.getProperties();
+  if (properties.length === 0) return false;
+
+  return properties.every((childProp) =>
+    childProp
+      .getDeclarations()
+      .some((childDecl) => Node.isPropertySignature(childDecl)),
+  );
+}
+
+function extractObjectChildren(
+  prop: TsMorphSymbol,
+  decl: Node,
+  typeName: string,
+): Array<{ type?: string; parameters: PropDef[] }> | undefined {
+  const type = prop.getTypeAtLocation(decl);
+  const properties = type.getProperties();
+  if (properties.length === 0) return undefined;
+
+  const childProps: PropDef[] = [];
+  for (const childProp of properties) {
+    const childDecl = childProp.getDeclarations()[0];
+    if (!childDecl) continue;
+    if (isInheritedProp(childProp)) continue;
+
+    const childName = childProp.getName();
+    if (childName.startsWith("__")) continue;
+
+    let childType: string;
+    try {
+      childType = cleanTypeText(
+        childProp.getTypeAtLocation(childDecl).getText(),
+      );
+    } catch {
+      childType = "unknown";
+    }
+
+    const childJsDoc = extractJsDocMeta(childDecl);
+
+    const childDef: PropDef = { name: childName };
+    if (childType) childDef.type = childType;
+    if (childJsDoc.description) childDef.description = childJsDoc.description;
+    if (childJsDoc.default) childDef.default = childJsDoc.default;
+    if (childJsDoc.deprecated) childDef.deprecated = childJsDoc.deprecated;
+    if (
+      Node.isPropertySignature(childDecl) &&
+      !(childDecl as PropertySignature).hasQuestionToken()
+    ) {
+      childDef.required = true;
+    }
+
+    childProps.push(childDef);
+  }
+
+  if (childProps.length === 0) return undefined;
+  return [{ type: typeName, parameters: childProps }];
 }
 
 function extractComponentsChildren(
@@ -413,10 +527,7 @@ function extractComponentsChildren(
     if (Node.isPropertySignature(childDecl)) {
       const jsDocs = (childDecl as PropertySignature).getJsDocs?.();
       if (jsDocs && jsDocs.length > 0) {
-        const comment = jsDocs[0]!.getComment();
-        if (typeof comment === "string") {
-          childDesc = comment.trim();
-        }
+        childDesc = getJsDocCommentText(jsDocs[0]!);
       }
     }
 
@@ -499,10 +610,7 @@ function extractActionButtonProps(
           if (Node.isPropertySignature(decl)) {
             const jsDocs = (decl as PropertySignature).getJsDocs?.();
             if (jsDocs && jsDocs.length > 0) {
-              const comment = jsDocs[0]!.getComment();
-              if (typeof comment === "string") {
-                description = comment.trim();
-              }
+              description = getJsDocCommentText(jsDocs[0]!);
               for (const tag of jsDocs[0]!.getTags()) {
                 if (tag.getTagName() === "default") {
                   defaultValue = tag.getComment()?.toString().trim();

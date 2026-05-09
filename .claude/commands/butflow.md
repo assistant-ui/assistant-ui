@@ -28,6 +28,8 @@ Every unresolved thread must get a reply and a resolve:
 
 Use judgment on bot nits. Common-sense suggestions that just duplicate what a competent agent already knows aren't worth a fix commit — reply-and-resolve those. Scope creep from a long bot-feedback loop is a signal to cut and merge.
 
+**No comments / changeset prose that only exist to acknowledge review feedback.** Test: would you write it if no reviewer had flagged the code? If no, drop it — orphan noise on `main`. Catches subtle "why" comments, not just blatant "addresses review" ones.
+
 ```
 gh api /repos/assistant-ui/assistant-ui/pulls/<n>/comments/<databaseId>/replies -f body='...'
 gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' -f id=<threadId>

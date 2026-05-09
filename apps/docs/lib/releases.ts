@@ -1,11 +1,4 @@
-type GitHubRelease = {
-  draft: boolean;
-  prerelease: boolean;
-  tag_name: string;
-  body: string | null;
-  html_url: string;
-  published_at: string;
-};
+import { getReleases } from "./github";
 
 export type PackageRelease = {
   version: string;
@@ -38,30 +31,8 @@ function toDateKey(isoDate: string): string {
   return isoDate.slice(0, 10);
 }
 
-async function fetchAllReleases(): Promise<GitHubRelease[]> {
-  const results: GitHubRelease[] = [];
-
-  try {
-    for (let page = 1; page <= 3; page++) {
-      const res = await fetch(
-        `https://api.github.com/repos/assistant-ui/assistant-ui/releases?per_page=100&page=${page}`,
-        { next: { revalidate: 600 } },
-      );
-      if (!res.ok) break;
-
-      const batch: GitHubRelease[] = await res.json();
-      if (batch.length === 0) break;
-      results.push(...batch);
-    }
-  } catch {
-    // network error — return whatever we have so far
-  }
-
-  return results;
-}
-
 export async function fetchReleases(): Promise<ReleaseGroup[]> {
-  const raw = await fetchAllReleases();
+  const raw = await getReleases(3);
 
   const entries: PackageRelease[] = raw
     .filter((r) => !r.draft && !r.prerelease)

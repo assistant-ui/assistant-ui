@@ -1,7 +1,8 @@
+import { contentToParts } from "./contentToParts";
 import type {
   AdkEvent,
+  AdkEventPart,
   AdkMessage,
-  AdkMessageContentPart,
   AdkStreamCallback,
 } from "./types";
 
@@ -119,9 +120,9 @@ async function resolveHeaders(
  */
 function messagesToContent(messages: AdkMessage[]): {
   role: string;
-  parts: Array<Record<string, unknown>>;
+  parts: AdkEventPart[];
 } {
-  const parts: Array<Record<string, unknown>> = [];
+  const parts: AdkEventPart[] = [];
 
   for (const msg of messages) {
     if (msg.type === "human") {
@@ -207,34 +208,6 @@ function messagesToProxyBody(
   // Multiple messages (e.g. cancellations + human): send as parts array
   body.parts = messagesToContent(messages).parts;
   return body;
-}
-
-function contentToParts(
-  content: string | AdkMessageContentPart[],
-): Array<Record<string, unknown>> {
-  if (typeof content === "string") return [{ text: content }];
-  return content.map((part) => {
-    switch (part.type) {
-      case "text":
-        return { text: part.text };
-      case "reasoning":
-        return { text: part.text, thought: true };
-      case "image":
-        return { inlineData: { mimeType: part.mimeType, data: part.data } };
-      case "image_url":
-        return { fileData: { fileUri: part.url } };
-      case "code":
-        return {
-          executableCode: { code: part.code, language: part.language },
-        };
-      case "code_result":
-        return {
-          codeExecutionResult: { output: part.output, outcome: part.outcome },
-        };
-      default:
-        return { text: "" };
-    }
-  });
 }
 
 async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {

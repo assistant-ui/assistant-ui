@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/x-buildutils",
   "private": false,
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Internal build utilities for assistant-ui packages",
   "keywords": [
     "build",
@@ -24,7 +24,7 @@
   "sideEffects": false,
   "dependencies": {
     "@tsconfig/strictest": "^2.0.8",
-    "jiti": "^2.6.1",
+    "jiti": "^2.7.0",
     "tinyglobby": "^0.2.16",
     "typescript": "^6.0.3"
   },

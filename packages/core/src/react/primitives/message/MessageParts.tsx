@@ -208,7 +208,7 @@ export namespace MessagePrimitiveParts {
      * @param endIndex - Index of the last tool call in the group
      * @param children - Rendered tool call components to display within the group
      *
-     * @deprecated This feature is still experimental and subject to change.
+     * @deprecated Use `<MessagePrimitive.GroupedParts>` with a custom `groupBy` instead.
      */
     ToolGroup?: ComponentType<
       PropsWithChildren<{ startIndex: number; endIndex: number }>
@@ -220,6 +220,8 @@ export namespace MessagePrimitiveParts {
      * @param startIndex - Index of the first reasoning part in the group
      * @param endIndex - Index of the last reasoning part in the group
      * @param children - Rendered reasoning part components
+     *
+     * @deprecated Use `<MessagePrimitive.GroupedParts>` with a custom `groupBy` instead.
      */
     ReasoningGroup?: ReasoningGroupComponent;
 
@@ -234,6 +236,11 @@ export namespace MessagePrimitiveParts {
    * `ToolGroup` components cannot be used alongside it.
    */
   type ChainOfThoughtComponents = BaseComponents & {
+    /**
+     * @deprecated Use `<MessagePrimitive.GroupedParts>` with a `groupBy`
+     * that returns `["group-thought", ...]` for reasoning and tool-call
+     * parts. See `@assistant-ui/ui` for a worked example.
+     */
     ChainOfThought: ComponentType;
 
     Reasoning?: never;
@@ -442,6 +449,10 @@ const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
   type: "complete",
 });
 
+const RUNNING_STATUS: MessagePartStatus = Object.freeze({
+  type: "running",
+});
+
 const EmptyPartsImpl: FC<MessagePartComponentProps> = ({ components }) => {
   const status = useAuiState(
     (s) => (s.message.status ?? COMPLETE_STATUS) as MessagePartStatus,
@@ -571,6 +582,12 @@ export type { PartState };
  *
  * For tool-call parts, adds `toolUI`, `addResult`, and `resume`.
  * For data parts, adds `dataRendererUI`.
+ *
+ * The render function is also invoked once with a synthetic empty text part
+ * (`{ type: "text", text: "", status: { type: "running" } }`) when the
+ * assistant message has no parts yet but is in the running state, so a
+ * loading indicator can render. Differentiate this from a real empty text
+ * via `part.status?.type === "running" && part.text === ""`.
  */
 export type EnrichedPartState =
   | (Extract<PartState, { type: "tool-call" }> & {
@@ -587,59 +604,94 @@ export type EnrichedPartState =
     })
   | Exclude<PartState, { type: "tool-call" } | { type: "data" }>;
 
+const EMPTY_RUNNING_TEXT_PART: Extract<EnrichedPartState, { type: "text" }> =
+  Object.freeze({
+    type: "text",
+    text: "",
+    status: RUNNING_STATUS,
+  });
+
+/**
+ * @internal
+ * Renders a single part by index, calling `children` with the
+ * {@link EnrichedPartState} (tool/data UI enrichments + addResult/resume
+ * for tool calls). Shared between `<MessagePrimitive.Parts>` and
+ * `<MessagePrimitive.GroupedParts>`. Returns whatever `children`
+ * returns — callers decide how to handle a `null` return.
+ */
+export const MessagePartChildren: FC<{
+  index: number;
+  children: (value: { part: EnrichedPartState }) => ReactNode;
+}> = ({ index, children }) => {
+  const aui = useAui();
+  // Subscribed (not snapshotted like `tools`) so fallbacks registered
+  // after the first render trigger a re-render and `hasUI` re-evaluates.
+  const dataRenderers = useAuiState((s) => s.dataRenderers);
+
+  return (
+    <PartByIndexProvider index={index}>
+      <RenderChildrenWithAccessor
+        getItemState={(aui) => aui.message().part({ index }).getState()}
+      >
+        {(getItem) =>
+          children({
+            get part() {
+              const state = getItem();
+              if (state.type === "tool-call") {
+                const entry = aui.tools().getState().tools[state.toolName];
+                const hasUI = Array.isArray(entry) ? !!entry[0] : !!entry;
+                const partMethods = aui.message().part({ index });
+                return {
+                  ...state,
+                  toolUI: hasUI ? <RegisteredToolUI /> : null,
+                  addResult: partMethods.addToolResult,
+                  resume: partMethods.resumeToolCall,
+                };
+              }
+              if (state.type === "data") {
+                const hasUI =
+                  getDataRenderer(dataRenderers, state.name, undefined) !==
+                  undefined;
+                return {
+                  ...state,
+                  dataRendererUI: hasUI ? <RegisteredDataRendererUI /> : null,
+                };
+              }
+              return state;
+            },
+          })
+        }
+      </RenderChildrenWithAccessor>
+    </PartByIndexProvider>
+  );
+};
+
 const MessagePrimitivePartsInner: FC<{
   children: (value: { part: EnrichedPartState }) => ReactNode;
 }> = ({ children }) => {
-  const aui = useAui();
   const contentLength = useAuiState((s) => s.message.parts.length);
-  // Subscribed (not snapshotted like `tools`) so fallbacks registered after
-  // the first render trigger a re-render and `hasUI` re-evaluates.
-  const dataRenderers = useAuiState((s) => s.dataRenderers);
+  const isRunning = useAuiState(
+    (s) => (s.message.status?.type ?? "complete") === "running",
+  );
+  const isEmptyRunning = contentLength === 0 && isRunning;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: aui accessors are stable refs
-  return useMemo(
-    () =>
-      Array.from({ length: contentLength }, (_, index) => (
-        <PartByIndexProvider key={index} index={index}>
-          <RenderChildrenWithAccessor
-            getItemState={(aui) => aui.message().part({ index }).getState()}
-          >
-            {(getItem) => {
-              const result = children({
-                get part() {
-                  const state = getItem();
-                  if (state.type === "tool-call") {
-                    const entry = aui.tools().getState().tools[state.toolName];
-                    const hasUI = Array.isArray(entry) ? !!entry[0] : !!entry;
-                    const partMethods = aui.message().part({ index });
-                    return {
-                      ...state,
-                      toolUI: hasUI ? <RegisteredToolUI /> : null,
-                      addResult: partMethods.addToolResult,
-                      resume: partMethods.resumeToolCall,
-                    };
-                  }
-                  if (state.type === "data") {
-                    const hasUI =
-                      getDataRenderer(dataRenderers, state.name, undefined) !==
-                      undefined;
-                    return {
-                      ...state,
-                      dataRendererUI: hasUI ? (
-                        <RegisteredDataRendererUI />
-                      ) : null,
-                    };
-                  }
-                  return state;
-                },
-              });
-              if (result !== null) return result;
-              return <DefaultPartFallback />;
-            }}
-          </RenderChildrenWithAccessor>
-        </PartByIndexProvider>
-      )),
-    [contentLength, children, dataRenderers],
+  if (contentLength === 0) {
+    if (!isEmptyRunning) return null;
+    return (
+      <TextMessagePartProvider text="" isRunning>
+        {children({ part: EMPTY_RUNNING_TEXT_PART })}
+      </TextMessagePartProvider>
+    );
+  }
+
+  return (
+    <>
+      {Array.from({ length: contentLength }, (_, index) => (
+        <MessagePartChildren key={index} index={index}>
+          {(value) => children(value) ?? <DefaultPartFallback />}
+        </MessagePartChildren>
+      ))}
+    </>
   );
 };
 

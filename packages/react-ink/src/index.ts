@@ -40,6 +40,7 @@ export type {
   // Attachment types
   Attachment,
   PendingAttachment,
+  CompleteAttachment,
   CreateAttachment,
   AttachmentRuntime,
   // Adapter types
@@ -97,6 +98,11 @@ export {
 
 // Context providers
 export { AssistantRuntimeProvider } from "./context/AssistantContext";
+export {
+  RuntimeAdapterProvider,
+  useRuntimeAdapters,
+  type RuntimeAdapters,
+} from "@assistant-ui/core/react";
 
 // Runtime
 export {

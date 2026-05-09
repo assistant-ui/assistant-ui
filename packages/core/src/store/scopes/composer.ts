@@ -4,6 +4,7 @@ import type { QuoteInfo } from "../../types/quote";
 import type { RunConfig } from "../../types/message";
 import type { ComposerRuntime } from "../../runtime/api/composer-runtime";
 import type {
+  AttachmentAddErrorReason,
   DictationState,
   SendOptions,
 } from "../../runtime/interfaces/composer-runtime-core";
@@ -25,6 +26,15 @@ export type ComposerState = {
   readonly runConfig: RunConfig;
   readonly isEditing: boolean;
   readonly canCancel: boolean;
+  /**
+   * Whether the composer is currently willing to send. `true` when the
+   * composer is in editing mode and has non-empty content; for thread
+   * composers also requires the thread's `isSendDisabled` flag to be unset.
+   * Edit composers (saving message edits) ignore `isSendDisabled` since it
+   * is a thread-scoped gate. Cross-thread gating (running, queue capability)
+   * is layered on top by `useComposerSend`.
+   */
+  readonly canSend: boolean;
   readonly attachmentAccept: string;
   readonly isEmpty: boolean;
   readonly type: "thread" | "edit";
@@ -91,12 +101,22 @@ export type ComposerMeta = {
 };
 
 export type ComposerEvents = {
+  /**
+   * @deprecated State-derivable. Observe composer `text` clearing via
+   * `useAuiState` instead. Kept for backward compatibility.
+   */
   "composer.send": { threadId: string; messageId?: string };
+  /**
+   * @deprecated State-derivable. Observe composer `attachments` via
+   * `useAuiState` instead. Kept for backward compatibility.
+   */
   "composer.attachmentAdd": { threadId: string; messageId?: string };
   "composer.attachmentAddError": {
     threadId: string;
     messageId?: string;
     attachmentId?: string;
+    reason: AttachmentAddErrorReason;
+    message: string;
   };
 };
 

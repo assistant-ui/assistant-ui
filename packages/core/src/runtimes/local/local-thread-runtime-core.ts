@@ -54,6 +54,7 @@ export class LocalThreadRuntimeCore
   private abortController: AbortController | null = null;
 
   public readonly isDisabled = false;
+  public readonly isSendDisabled = false;
 
   private _isLoading = false;
   public get isLoading() {
@@ -226,10 +227,6 @@ export class LocalThreadRuntimeCore
     throw new Error("Runtime does not support importing external states.");
   }
 
-  public unstable_loadExternalState(): void {
-    throw new Error("Runtime does not support importing external states.");
-  }
-
   public async startRun(
     { parentId, runConfig }: StartRunConfig,
     runCallback?: ChatModelAdapter["run"],
@@ -253,7 +250,7 @@ export class LocalThreadRuntimeCore
       createdAt: new Date(),
     };
 
-    this._notifyEventSubscribers("runStart");
+    this._notifyEventSubscribers("runStart", {});
 
     try {
       this._suggestions = [];
@@ -271,7 +268,7 @@ export class LocalThreadRuntimeCore
         runCallback = undefined;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
-      this._notifyEventSubscribers("runEnd");
+      this._notifyEventSubscribers("runEnd", {});
     }
 
     this._suggestionsController = new AbortController();
@@ -405,7 +402,6 @@ export class LocalThreadRuntimeCore
         runConfig: this._lastRunConfig,
         abortSignal,
         context,
-        config: context,
         unstable_assistantMessageId: message.id,
         unstable_threadId: threadId,
         unstable_parentId: parentId,

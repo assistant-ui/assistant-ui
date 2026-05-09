@@ -3,6 +3,8 @@ title: MessagePrimitive
 description: Components for rendering message content, parts, and attachments.
 ---
 
+import { MessagePrimitive as MessagePrimitiveDocs } from "@/generated/primitiveDocs";
+
 A single message in a conversation. Messages may consist of multiple parts.
 
 
@@ -95,13 +97,13 @@ The content of the message. This renders a separate component for each message p
               name: "Reasoning",
               type: "ReasoningMessagePartComponent",
               description:
-                "The component to render for each reasoning message part. Cannot be used alongside ChainOfThought.",
+                "Deprecated components-map renderer for each reasoning message part. Prefer the children render function or MessagePrimitive.GroupedParts.",
             },
             {
               name: "tools",
               type: "object",
               description:
-                "Configuration for tool call rendering. Cannot be used alongside ChainOfThought.",
+                "Deprecated components-map configuration for tool call rendering. Prefer part.toolUI in the children render function or MessagePrimitive.GroupedParts.",
               children: [
                 {
                   parameters: [
@@ -155,7 +157,7 @@ The content of the message. This renders a separate component for each message p
               name: "ToolGroup",
               type: "ComponentType<PropsWithChildren<{ startIndex: number; endIndex: number }>>",
               description:
-                "Deprecated: This feature is still experimental and subject to change. Component for rendering grouped consecutive tool calls. When provided, consecutive tool-call message parts will be automatically grouped and wrapped with this component. Cannot be used alongside ChainOfThought.",
+                "Deprecated legacy wrapper for grouped consecutive tool calls. Prefer MessagePrimitive.GroupedParts with groupBy returning \"group-tool\".",
               children: [
                 {
                   type: "ToolGroupProps",
@@ -187,7 +189,7 @@ The content of the message. This renders a separate component for each message p
               name: "ReasoningGroup",
               type: "ReasoningGroupComponent",
               description:
-                "Component for rendering grouped consecutive reasoning parts. Cannot be used alongside ChainOfThought.",
+                "Deprecated legacy wrapper for grouped consecutive reasoning parts. Prefer MessagePrimitive.GroupedParts with groupBy returning \"group-reasoning\".",
               children: [
                 {
                   type: "ReasoningGroupProps",
@@ -219,7 +221,7 @@ The content of the message. This renders a separate component for each message p
               name: "ChainOfThought",
               type: "ComponentType",
               description:
-                "When set, groups all consecutive reasoning and tool-call parts into a single collapsible component. Mutually exclusive with Reasoning, tools, ToolGroup, and ReasoningGroup.",
+                "Deprecated legacy grouping path. Prefer MessagePrimitive.GroupedParts for grouped reasoning and tool calls.",
             },
             {
               name: "Empty",
@@ -400,9 +402,51 @@ type QuoteInfo = {
 See the [Quoting guide](/docs/guides/quoting) for a complete walkthrough.
 </Callout>
 
+### GroupedParts
+
+Renders adjacent message parts through a hierarchical grouping tree. Use this for grouped Chain of Thought, consecutive tool calls, or any other adjacent grouping where each part stays in chronological order.
+
+```tsx
+<MessagePrimitive.GroupedParts
+  groupBy={(part) => {
+    if (part.type === "reasoning")
+      return ["group-chainOfThought", "group-reasoning"];
+    if (part.type === "tool-call")
+      return ["group-chainOfThought", "group-tool"];
+    return null;
+  }}
+>
+  {({ part, children }) => {
+    switch (part.type) {
+      case "group-chainOfThought":
+        return <div>{children}</div>;
+      case "group-reasoning":
+        return <ReasoningRoot>{children}</ReasoningRoot>;
+      case "group-tool":
+        return <ToolGroupRoot>{children}</ToolGroupRoot>;
+      case "text":
+        return <MarkdownText />;
+      case "reasoning":
+        return <Reasoning {...part} />;
+      case "tool-call":
+        return part.toolUI ?? <ToolFallback {...part} />;
+      case "data":
+        return part.dataRendererUI;
+      default:
+        return null;
+    }
+  }}
+</MessagePrimitive.GroupedParts>
+```
+
+<ParametersTable
+  type="MessagePrimitiveGroupedPartsProps"
+  parameters={MessagePrimitiveDocs.GroupedParts.props}
+/>
+
 ### Unstable_PartsGrouped
 
-Renders the parts of a message grouped by a custom grouping function. Use this component when you need to visually group related message parts together — for example, grouping parts that share a common parent ID, or collecting consecutive tool calls under a single header.
+Renders the parts of a message grouped by a custom grouping function. Use this unstable API only when you need non-adjacent clustering, such as collecting parts that share a common parent ID across different positions. For adjacent grouping, prefer `MessagePrimitive.GroupedParts`.
 
 The `groupingFunction` prop controls how parts are grouped. It receives the full array of message parts and must return an array of group descriptors, each with a `groupKey` (or `undefined` for ungrouped parts) and an array of `indices` into the message parts array. The optional `components.Group` component is then rendered once per group and receives the `groupKey`, `indices`, and the rendered part children.
 

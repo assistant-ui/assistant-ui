@@ -7,7 +7,10 @@ import type { ChatRegistry } from "../chat/ChatRegistry";
 import { MessagePersistence } from "../chat/MessagePersistence";
 import { ThreadSessionManager } from "./ThreadSessionManager";
 import { TitlePolicy } from "./TitlePolicy";
-import { CloudTelemetryReporter } from "./CloudTelemetryReporter";
+import {
+  CloudTelemetryReporter,
+  type TelemetryFinishEvent,
+} from "./CloudTelemetryReporter";
 
 export type CloudChatConfig = Omit<
   UseCloudChatOptions,
@@ -87,6 +90,7 @@ export class CloudChatCore {
   async persistChatMessages(
     chatKey: string,
     registry: ChatRegistry,
+    finishEvent?: TelemetryFinishEvent,
   ): Promise<void> {
     const meta = registry.getMeta(chatKey);
     const threadId = meta?.threadId;
@@ -99,7 +103,7 @@ export class CloudChatCore {
     await this.persist(threadId, messages);
 
     this.telemetryReporter
-      .reportFromMessages(threadId, messages)
+      .reportFromMessages(threadId, messages, finishEvent)
       .catch(() => {});
 
     if (this.titlePolicy.shouldGenerateTitle(threadId, messages)) {
@@ -181,7 +185,7 @@ export class CloudChatCore {
         try {
           this.options.chatConfig.onFinish?.(event);
         } finally {
-          await this.persistChatMessages(chatKey, registry);
+          await this.persistChatMessages(chatKey, registry, event);
         }
       },
       onError: (error) => {

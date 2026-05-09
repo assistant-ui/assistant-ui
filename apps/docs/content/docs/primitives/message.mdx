@@ -1,6 +1,7 @@
 ---
 title: Message
 description: Build custom message rendering with content parts, attachments, and hover state.
+platforms: ["react"]
 ---
 
 import { MessagePrimitiveSample } from "@/components/docs/samples/message-primitive";
@@ -108,7 +109,7 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 ```
 
 <Callout type="info">
-For most new `MessagePrimitive.Parts` code, prefer the `children` render function. Grouped Chain of Thought is the current exception: it plugs into `MessagePrimitive.Parts` via `components.ChainOfThought`.
+For most new code, prefer `MessagePrimitive.Parts` with a `children` render function. When you need adjacent grouping, use `MessagePrimitive.GroupedParts`.
 </Callout>
 
 ### Tool Resolution
@@ -145,7 +146,7 @@ Returning `null` still allows registered tool UIs and data renderer UIs to rende
 
 - `ToolGroup` wraps consecutive tool-call parts
 - `ReasoningGroup` wraps consecutive reasoning parts
-- `components.ChainOfThought` takes over all reasoning and tool-call rendering (mutually exclusive with `ToolGroup`, `ReasoningGroup`, `tools`, and `Reasoning`). Despite the deprecation of `components` in general, this is still the current way to wire grouped Chain of Thought.
+- `components.ChainOfThought` takes over all reasoning and tool-call rendering (mutually exclusive with `ToolGroup`, `ReasoningGroup`, `tools`, and `Reasoning`). This legacy path is deprecated; use `MessagePrimitive.GroupedParts` for grouped Chain of Thought in new code.
 - `data.by_name` and `data.Fallback` let you route custom data part types
 - `Quote` renders quoted message references from metadata
 - `Empty` and `Unstable_Audio` are available for edge and experimental rendering paths
@@ -187,7 +188,7 @@ Returning `null` still allows registered tool UIs and data renderer UIs to rende
 />
 ```
 
-For new code, use the `children` render function instead.
+For new code, use the `children` render function or `GroupedParts` instead.
 
 ### Hover State
 
@@ -246,6 +247,45 @@ Renders each content part with type-based component resolution.
 ```
 
 <PrimitivesTypeTable type="MessagePrimitivePartsProps" parameters={MessagePrimitiveDocs.Parts.props} />
+
+### GroupedParts
+
+Groups adjacent message parts into a nested tree. Use `groupBy` to return group keys for parts that should be grouped, then switch on `part.type` in the render function. Group cases render `children`; leaf cases render their own UI.
+
+```tsx
+<MessagePrimitive.GroupedParts
+  groupBy={(part) => {
+    if (part.type === "reasoning")
+      return ["group-chainOfThought", "group-reasoning"];
+    if (part.type === "tool-call")
+      return ["group-chainOfThought", "group-tool"];
+    return null;
+  }}
+>
+  {({ part, children }) => {
+    switch (part.type) {
+      case "group-chainOfThought":
+        return <div>{children}</div>;
+      case "group-reasoning":
+        return <ReasoningRoot>{children}</ReasoningRoot>;
+      case "group-tool":
+        return <ToolGroupRoot>{children}</ToolGroupRoot>;
+      case "text":
+        return <MarkdownText />;
+      case "reasoning":
+        return <Reasoning {...part} />;
+      case "tool-call":
+        return part.toolUI ?? <ToolFallback {...part} />;
+      case "data":
+        return part.dataRendererUI;
+      default:
+        return null;
+    }
+  }}
+</MessagePrimitive.GroupedParts>
+```
+
+<PrimitivesTypeTable type="MessagePrimitiveGroupedPartsProps" parameters={MessagePrimitiveDocs.GroupedParts.props} />
 
 ### Content
 
@@ -340,7 +380,7 @@ Renders quote metadata when the current message includes a quote. Place it above
 
 ### Unstable_PartsGrouped
 
-Groups consecutive parts by a custom grouping function *(unstable)*.
+Groups parts by a custom grouping function *(unstable; use `GroupedParts` for adjacent grouping)*.
 
 ```tsx
 <MessagePrimitive.Unstable_PartsGrouped
@@ -453,9 +493,32 @@ import { ErrorPrimitive, MessagePrimitive } from "@assistant-ui/react";
 
 `ErrorPrimitive.Root` renders a `<div>` container with `role="alert"` and `ErrorPrimitive.Message` renders a `<span>` that displays the error text. `Root` always renders. Only `Message` conditionally returns `null` when there is no error. Wrap in `<MessagePrimitive.Error>` if you want the entire block to be conditional. See the [ErrorPrimitive API Reference](/docs/api-reference/primitives/error) for full details.
 
+### Render After Stream Completes
+
+To render content only once the assistant message has finished streaming (a follow-up card, a feedback prompt, a generated component that should not flicker through partial states), gate it with [`AuiIf`](/docs/api-reference/primitives/assistant-if) on `s.message.status`:
+
+```tsx
+import { MessagePrimitive, AuiIf } from "@assistant-ui/react";
+
+<MessagePrimitive.Root>
+  <MessagePrimitive.Parts />
+
+  <AuiIf
+    condition={(s) =>
+      s.message.role === "assistant" &&
+      s.message.status?.type === "complete"
+    }
+  >
+    <FollowUpCard />
+  </AuiIf>
+</MessagePrimitive.Root>;
+```
+
+`s.message.status` is a discriminated union of `running | requires-action | complete | incomplete`, defined only on assistant messages. The `role === "assistant"` guard keeps the predicate type-safe. For tool-call-driven generative UI that defers rendering inside the part itself, see [Deferred Rendering](/docs/guides/tool-ui#deferred-rendering) in the Generative UI guide.
+
 ### Legacy and Unstable APIs
 
-- `MessagePrimitive.Unstable_PartsGrouped` and `MessagePrimitive.Unstable_PartsGroupedByParentId` are unstable APIs for custom grouping.
+- `MessagePrimitive.Unstable_PartsGrouped` and `MessagePrimitive.Unstable_PartsGroupedByParentId` are unstable APIs for non-adjacent custom grouping.
 - `Unstable_PartsGroupedByParentId` is deprecated in favor of `Unstable_PartsGrouped`.
 
 ### Role-Based Styling

@@ -1,0 +1,196 @@
+---
+title: Auth.js (next-auth)
+description: Gate the chat route and scope thread persistence to the signed-in user with Auth.js v5.
+---
+
+[Auth.js](https://authjs.dev/) (formerly NextAuth) is the dominant OSS auth library in the Next.js ecosystem. This page covers using it with assistant-ui *without* AssistantCloud: session-cookie auth, server-side `auth()` checks on the API route, and per-user scoping on a custom thread list.
+
+If you use AssistantCloud, see [cloud authorization](/docs/cloud) instead; cloud handles JWT exchange for you.
+
+## How it works
+
+```
+browser  ──►  /api/chat               ──►  auth() returns session
+              /api/threads/*               │
+                                           ▼
+                                  scope queries by session.user.id
+                                           │
+                                           ▼
+                                       database
+```
+
+Three places auth touches the integration:
+
+1. **API routes** (`/api/chat`, `/api/threads/*`) call `auth()` server-side, return 401 if no session, then scope DB queries by `session.user.id`.
+2. **`RemoteThreadListAdapter`** does nothing auth-specific; the cookie travels with the `fetch` calls automatically (same origin).
+3. **Reload-on-auth**: if the session resolves after the initial render, call `aui.threads().reload()` so the list re-fetches with the new identity.
+
+## Setup
+
+This guide assumes you already have Auth.js configured. If not, follow the [Auth.js installation guide](https://authjs.dev/getting-started/installation?framework=Next.js) first; the steps below pick up after `auth.ts` exports `{ handlers, signIn, signOut, auth }`.
+
+<Steps>
+<Step>
+
+### Populate `session.user.id`
+
+By default, Auth.js v5 does **not** include a stable `id` on `session.user`; only `email`, `name`, and `image` are exposed. Without this step, the scoping queries below all run with `userId: undefined` and silently match every row.
+
+Add `jwt` and `session` callbacks to your Auth.js config so the user id flows through. For the JWT session strategy:
+
+```ts title="auth.ts"
+import NextAuth from "next-auth";
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  providers: [/* your providers */],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) token.id = user.id;
+      return token;
+    },
+    async session({ session, token }) {
+      if (token.id) session.user.id = token.id as string;
+      return session;
+    },
+  },
+});
+```
+
+If you use the database session strategy, replace the `jwt`/`session` pair with a single `session` callback that copies from the `user` argument: `session.user.id = user.id`. See [Auth.js: extending the session](https://authjs.dev/guides/extending-the-session) for the full pattern.
+
+</Step>
+<Step>
+
+### Gate the chat route
+
+Add an `auth()` check to the existing AI SDK route. Return 401 before calling the model so unauthenticated traffic doesn't burn provider credits.
+
+```ts title="app/api/chat/route.ts"
+import { auth } from "@/auth";
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages } from "ai";
+import type { UIMessage } from "ai";
+
+export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user) return new Response("Unauthorized", { status: 401 });
+
+  const { messages }: { messages: UIMessage[] } = await req.json();
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages: await convertToModelMessages(messages),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+</Step>
+<Step>
+
+### Scope thread queries by user
+
+If you also use [custom thread persistence](/docs/integrations/persistence/custom-adapter), every thread-list endpoint must filter by `session.user.id`. Without scoping, any signed-in user can list everyone's threads.
+
+```ts title="app/api/threads/route.ts"
+import { auth } from "@/auth";
+import { db } from "@/db";
+import { threads } from "@/db/schema";
+import { eq, desc } from "drizzle-orm";
+
+export async function GET() {
+  const session = await auth();
+  if (!session?.user) return new Response(null, { status: 401 });
+
+  const rows = await db
+    .select()
+    .from(threads)
+    .where(eq(threads.userId, session.user.id))
+    .orderBy(desc(threads.updatedAt));
+
+  return Response.json(rows);
+}
+```
+
+Apply the same pattern to `POST`, `PATCH`, and `DELETE` handlers. Always verify ownership before mutating.
+
+</Step>
+<Step>
+
+### Reload threads after async auth
+
+The first render of `<MyProvider>` may run before `auth()` resolves on the client. The thread list will be empty until the user refreshes. Drop a small effect into the layout to call `aui.threads().reload()` once the session resolves.
+
+`useSession` requires `<SessionProvider>` higher in the tree. Wrap your root layout's client subtree once:
+
+```tsx title="app/providers.tsx"
+"use client";
+
+import { SessionProvider } from "next-auth/react";
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return <SessionProvider>{children}</SessionProvider>;
+}
+```
+
+Then inside the assistant runtime provider, mount a small effect:
+
+```tsx title="app/components/ReloadOnAuth.tsx"
+"use client";
+
+import { useAui } from "@assistant-ui/react";
+import { useSession } from "next-auth/react";
+import { useEffect } from "react";
+
+export function ReloadOnAuth() {
+  const aui = useAui();
+  const { status, data } = useSession();
+  useEffect(() => {
+    if (status === "authenticated") aui.threads().reload();
+  }, [status, data?.user?.id]);
+  return null;
+}
+```
+
+`reload()` discards in-flight responses from superseded calls, so it is safe to invoke on every auth transition.
+
+</Step>
+<Step>
+
+### Run and verify
+
+Sign in. Check:
+
+- `/api/chat` returns `200` with a streaming response when authenticated; `401` when not.
+- `/api/threads` returns only the current user's threads.
+- A second user (incognito tab, different account) sees a different thread list.
+- Signing out and back in does not show the previous user's threads even briefly; if it does, `ReloadOnAuth` isn't mounted or isn't watching the right session field.
+
+</Step>
+</Steps>
+
+## Notes
+
+- **Same-origin cookies.** Browser cookies travel automatically when frontend and API are on the same origin. If you split the API onto a different host, set `credentials: "include"` on every `fetch` and configure CORS on the API.
+- **Edge runtime.** `auth()` runs in Edge contexts only when your DB adapter is edge-compatible. If you use Prisma, Drizzle-over-`pg`, or another non-edge adapter together with Edge route handlers or pre-Next.js 16 middleware, follow Auth.js's [split-config pattern](https://authjs.dev/guides/edge-compatibility): keep a shared `auth.config.ts` without the adapter, instantiate the full `auth.ts` with the adapter elsewhere, and import only the config-instantiated `auth` inside middleware. Next.js 16+ runs `proxy.ts` on Node, so this workaround is generally unnecessary there.
+- **Roles and orgs.** For B2B SaaS where admins see all threads under an org, add `orgId` to the `threads` table, store the user's role in the session via the Auth.js callbacks, and gate `list()` accordingly. The pattern is the same; the `where` clause just gets richer.
+- **OAuth providers.** This page is provider-agnostic. The same `auth()` pattern works whether you wired GitHub, Google, credentials, or a passkey provider in `auth.ts`.
+
+## Related
+
+<Cards>
+  <Card
+    title="Custom thread persistence"
+    description="The persistence story this page assumes; required for per-user threads outside AssistantCloud."
+    href="/docs/integrations/persistence/custom-adapter"
+  />
+  <Card
+    title="AssistantCloud"
+    description="The managed alternative; cloud handles JWT exchange with Clerk, Auth0, Supabase, Firebase."
+    href="/docs/cloud"
+  />
+  <Card
+    title="Threads (concepts)"
+    description="The full RemoteThreadListAdapter contract and reload-on-auth pattern."
+    href="/docs/runtimes/concepts/threads"
+  />
+</Cards>

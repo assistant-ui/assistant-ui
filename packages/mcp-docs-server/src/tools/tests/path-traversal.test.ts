@@ -26,7 +26,7 @@ describe("Path Traversal Security", () => {
 
     it("should handle multiple paths with one malicious", async () => {
       const result = await testContext.callTool("assistantUIDocs", {
-        paths: ["(docs)/index", "../../../../etc/passwd", "(docs)/guides"],
+        paths: ["(docs)/index", "../../../../etc/passwd", "guides"],
       });
 
       expect(result.results).toBeDefined();

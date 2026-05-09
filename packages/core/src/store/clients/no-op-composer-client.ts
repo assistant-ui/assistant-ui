@@ -14,6 +14,7 @@ export const NoOpComposerClient = resource(
         role: "user",
         runConfig: {},
         canCancel: false,
+        canSend: false,
         type: type,
         dictation: undefined,
         quote: undefined,

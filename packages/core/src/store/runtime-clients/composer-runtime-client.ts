@@ -63,19 +63,15 @@ export const ComposerClient = resource(
         unsubscribers.push(unsubscribe);
       }
 
-      // attachmentAddError carries the failed attachment ID
       unsubscribers.push(
-        runtime.unstable_on("attachmentAddError", () => {
-          const errorAttachment = runtime
-            .getState()
-            .attachments.findLast(
-              (a) =>
-                a.status.type === "incomplete" && a.status.reason === "error",
-            );
+        runtime.unstable_on("attachmentAddError", (payload) => {
+          // payload.error omitted: raw Error is not store-serializable; use runtime.unstable_on for it.
           emit("composer.attachmentAddError", {
             threadId: threadIdRef.current,
             ...(messageIdRef && { messageId: messageIdRef.current }),
-            ...(errorAttachment && { attachmentId: errorAttachment.id }),
+            ...(payload.attachmentId && { attachmentId: payload.attachmentId }),
+            reason: payload.reason,
+            message: payload.message,
           });
         }),
       );
@@ -107,6 +103,7 @@ export const ComposerClient = resource(
         runConfig: runtimeState.runConfig,
         isEditing: runtimeState.isEditing,
         canCancel: runtimeState.canCancel,
+        canSend: runtimeState.canSend,
         attachmentAccept: runtimeState.attachmentAccept,
         isEmpty: runtimeState.isEmpty,
         type: runtimeState.type ?? "thread",

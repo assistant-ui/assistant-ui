@@ -68,6 +68,33 @@ This primitive renders a `<div>` element unless `asChild` is set.
         'Controls scroll anchoring behavior for new messages. "bottom" is the classic chat behavior where messages anchor at the bottom. "top" anchors new user messages at the top of the viewport for a focused reading experience.',
     },
     {
+      name: "topAnchorMessageClamp",
+      type: '{ tallerThan?: string; visibleHeight?: string }',
+      default: '{ tallerThan: "10em", visibleHeight: "6em" }',
+      description:
+        'Clamps tall user messages so the assistant response stays in view when turnAnchor is "top". Messages up to `tallerThan` stay fully visible; taller messages show only `visibleHeight` of their bottom edge above the assistant response.',
+      children: [
+        {
+          type: '{ tallerThan?: string; visibleHeight?: string }',
+          parameters: [
+            {
+              name: "tallerThan",
+              type: "string",
+              default: '"10em"',
+              description: "Clamp messages taller than this CSS length.",
+            },
+            {
+              name: "visibleHeight",
+              type: "string",
+              default: '"6em"',
+              description:
+                "Visible portion of a clamped message's bottom edge.",
+            },
+          ],
+        },
+      ],
+    },
+    {
       name: "scrollToBottomOnRunStart",
       type: "boolean",
       default: "true",
@@ -90,9 +117,17 @@ This primitive renders a `<div>` element unless `asChild` is set.
   ]}
 />
 
+<Callout type="info">
+  `ThreadPrimitive.ViewportSlack` has been removed. When `turnAnchor="top"` is
+  set, `MessagePrimitive.Root` handles top-anchor registration automatically. If
+  you previously customized `fillClampThreshold` or `fillClampOffset` on
+  `ViewportSlack` or `MessagePrimitive.Root`, use `topAnchorMessageClamp`
+  instead.
+</Callout>
+
 ### ViewportFooter
 
-A footer container placed inside `ThreadPrimitive.Viewport` that measures its own height (including top margin) and reports it to the viewport context. The viewport uses this measurement in scroll calculations — for example, as the minimum height for `ViewportSlack` — so that the scroll-to-bottom behaviour accounts for any sticky footer overlapping the message list.
+A footer container placed inside `ThreadPrimitive.Viewport` that measures its own height (including top margin) and reports it to the viewport context. The viewport uses this measurement in scroll calculations so the scroll-to-bottom behaviour accounts for any sticky footer overlapping the message list.
 
 Multiple `ViewportFooter` components may be used; their heights are summed.
 

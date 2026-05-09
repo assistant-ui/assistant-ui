@@ -20,7 +20,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     // Use a reasoning model to showcase chain of thought
-    model: openai("o4-mini"),
+    model: openai("gpt-5.4-mini"),
     messages: await convertToModelMessages(messages),
     stopWhen: stepCountIs(10),
     tools: {
@@ -40,7 +40,13 @@ export async function POST(req: Request) {
         },
       }),
     },
+    providerOptions: {
+      openai: {
+        reasoningEffort: "high",
+        reasoningSummary: "auto",
+      },
+    },
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({ sendReasoning: true });
 }

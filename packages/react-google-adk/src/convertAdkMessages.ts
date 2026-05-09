@@ -8,6 +8,7 @@ type ContentPart =
   | { type: "text"; text: string }
   | { type: "reasoning"; text: string }
   | { type: "image"; image: string }
+  | { type: "file"; data: string; mimeType: string; filename?: string }
   | { type: "data"; name: string; data: unknown };
 
 const contentToParts = (content: AdkMessage["content"]): ContentPart[] => {
@@ -28,6 +29,22 @@ const contentToParts = (content: AdkMessage["content"]): ContentPart[] => {
           };
         case "image_url":
           return { type: "image", image: part.url };
+        case "file":
+          return {
+            type: "file",
+            data: part.data,
+            mimeType: part.mimeType,
+            ...(part.filename != null && { filename: part.filename }),
+          };
+        case "file_url":
+          return {
+            type: "data",
+            name: "file_url",
+            data: {
+              url: part.url,
+              ...(part.mimeType != null && { mimeType: part.mimeType }),
+            },
+          };
         case "code":
           return {
             type: "data",

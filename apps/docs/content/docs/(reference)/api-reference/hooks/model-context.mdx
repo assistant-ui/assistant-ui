@@ -1,0 +1,72 @@
+---
+title: Model Context Hooks
+description: Register instructions, tools, tool UIs, and data renderers.
+---
+
+Model context hooks let React components contribute model-facing configuration while they are mounted.
+
+## Instructions
+
+```tsx
+import { useAssistantInstructions } from "@assistant-ui/react";
+
+useAssistantInstructions("Answer with concise examples.");
+```
+
+## Tools
+
+`useAssistantTool` registers a tool definition, optional `execute` function, and optional renderer.
+
+```tsx
+import { useAssistantTool } from "@assistant-ui/react";
+
+useAssistantTool({
+  toolName: "get_weather",
+  description: "Get the current weather for a city",
+  parameters: {
+    type: "object",
+    properties: {
+      city: { type: "string" },
+    },
+    required: ["city"],
+  },
+  execute: async ({ city }) => ({ city, temperature: 72 }),
+  render: ({ args, result }) => (
+    <div>
+      {args.city}: {result?.temperature}F
+    </div>
+  ),
+});
+```
+
+## Tool UI
+
+Use `useAssistantToolUI` when the backend or model already owns the tool definition and the frontend only needs to render calls.
+
+```tsx
+import { useAssistantToolUI } from "@assistant-ui/react";
+
+useAssistantToolUI({
+  toolName: "get_weather",
+  render: ({ args, result, status }) => (
+    <div>{status.type === "running" ? "Loading..." : result?.summary}</div>
+  ),
+});
+```
+
+## Data UI
+
+`useAssistantDataUI` renders named data message parts.
+
+```tsx
+import { useAssistantDataUI } from "@assistant-ui/react";
+
+useAssistantDataUI({
+  name: "weather_card",
+  render: ({ data }) => <WeatherCard data={data} />,
+});
+```
+
+## Declarative Registration
+
+`makeAssistantTool` and `makeAssistantToolUI` create components that register model context when mounted. They are useful when tools should live in JSX alongside the feature that owns them.

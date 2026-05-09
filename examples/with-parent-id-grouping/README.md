@@ -46,7 +46,7 @@ Open [http://localhost:3000](http://localhost:3000) to see the example.
    }
    ```
 
-2. **Grouping Component**: Uses `MessagePrimitive.Unstable_PartsGroupedByParentId` which automatically groups parts by their `parentId`
+2. **Non-adjacent grouping component**: Uses the unstable `MessagePrimitive.Unstable_PartsGroupedByParentId` API to collect parts by `parentId`, even when related parts are not adjacent. For normal adjacent grouping, prefer `MessagePrimitive.GroupedParts`.
 
 3. **Custom Rendering**: The `ParentIdGroup` component provides collapsible sections for each group
 

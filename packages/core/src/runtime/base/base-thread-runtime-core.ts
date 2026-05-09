@@ -21,6 +21,8 @@ import type {
   SpeechState,
   VoiceSessionState,
   RuntimeCapabilities,
+  ThreadRuntimeEventCallback,
+  ThreadRuntimeEventPayload,
   ThreadRuntimeEventType,
   StartRunConfig,
   ResumeRunConfig,
@@ -46,6 +48,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   protected readonly repository = new MessageRepository();
   public abstract get adapters(): BaseThreadAdapters | undefined;
   public abstract get isDisabled(): boolean;
+  public abstract get isSendDisabled(): boolean;
   public abstract get isLoading(): boolean;
   public abstract get suggestions(): readonly ThreadSuggestion[];
   public abstract get extras(): unknown;
@@ -59,7 +62,6 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   public abstract cancelRun(): void;
   public abstract exportExternalState(): any;
   public abstract importExternalState(state: any): void;
-  public abstract unstable_loadExternalState(state: any): void;
 
   protected _voiceMessages: ThreadMessage[] = [];
   protected _voiceGeneration = 0;
@@ -168,11 +170,14 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     for (const callback of this._subscriptions) callback();
   }
 
-  public _notifyEventSubscribers(event: ThreadRuntimeEventType) {
+  public _notifyEventSubscribers<E extends ThreadRuntimeEventType>(
+    event: E,
+    payload: ThreadRuntimeEventPayload[E],
+  ) {
     const subscribers = this._eventSubscribers.get(event);
     if (!subscribers) return;
 
-    for (const callback of subscribers) callback();
+    for (const callback of subscribers) callback(payload);
   }
 
   public subscribe(callback: () => void): Unsubscribe {
@@ -432,7 +437,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   protected ensureInitialized() {
     if (!this._isInitialized) {
       this._isInitialized = true;
-      this._notifyEventSubscribers("initialize");
+      this._notifyEventSubscribers("initialize", {});
     }
   }
 
@@ -453,24 +458,28 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
   private _eventSubscribers = new Map<
     ThreadRuntimeEventType,
-    Set<() => void>
+    Set<(payload?: unknown) => void>
   >();
 
-  public unstable_on(event: ThreadRuntimeEventType, callback: () => void) {
+  public unstable_on<E extends ThreadRuntimeEventType>(
+    event: E,
+    callback: ThreadRuntimeEventCallback<E>,
+  ) {
+    const wrapped = callback as (payload?: unknown) => void;
     if (event === "modelContextUpdate") {
-      return this._contextProvider.subscribe?.(callback) ?? (() => {});
+      // provider.subscribe is `() => void`; pump the typed empty payload to the user callback.
+      return this._contextProvider.subscribe?.(() => wrapped({})) ?? (() => {});
     }
 
-    const subscribers = this._eventSubscribers.get(event);
+    let subscribers = this._eventSubscribers.get(event);
     if (!subscribers) {
-      this._eventSubscribers.set(event, new Set([callback]));
-    } else {
-      subscribers.add(callback);
+      subscribers = new Set();
+      this._eventSubscribers.set(event, subscribers);
     }
+    subscribers.add(wrapped);
 
     return () => {
-      const subscribers = this._eventSubscribers.get(event)!;
-      subscribers.delete(callback);
+      this._eventSubscribers.get(event)?.delete(wrapped);
     };
   }
 }

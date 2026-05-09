@@ -1,5 +1,104 @@
 # @assistant-ui/core
 
+## 0.2.0
+
+### Minor Changes
+
+- [#3970](https://github.com/assistant-ui/assistant-ui/pull/3970) [`040d469`](https://github.com/assistant-ui/assistant-ui/commit/040d469acfcf782de6fc188c646dfd8732d27088) - chore: drop APIs deprecated in v0.11/v0.12 ([@Yonom](https://github.com/Yonom))
+
+  See the [v0.14 migration guide](https://assistant-ui.com/docs/migrations/v0-14) for the full removal list and replacements.
+  - `useAssistantApi` / `useAssistantState` / `useAssistantEvent` / `AssistantIf` removed (use `useAui` / `useAuiState` / `useAuiEvent` / `AuiIf`).
+  - `getExternalStoreMessage` (singular) removed (use `getExternalStoreMessages`).
+  - `MessageState.submittedFeedback` removed (use `message.metadata.submittedFeedback`).
+  - `ThreadRuntime.startRun(parentId)` positional overload removed (pass `{ parentId }`).
+  - `ThreadRuntime.unstable_loadExternalState` removed (use `importExternalState`).
+  - `ThreadRuntime.unstable_resumeRun` removed (use `resumeRun`).
+  - `ThreadRuntime.getModelConfig` removed (use `getModelContext`).
+  - `AssistantRuntime.threadList` / `switchToNewThread` / `switchToThread` / `registerModelConfigProvider` / `reset` removed (use `threads` / `threads.switchToNewThread` / `threads.switchToThread` / `registerModelContextProvider` / `thread.reset`).
+  - `ChatModelRunOptions.config` removed (use `context`).
+  - `useLocalThreadRuntime` alias removed (use `useLocalRuntime`).
+  - `unstable_useRemoteThreadListRuntime` / `unstable_useCloudThreadListAdapter` / `unstable_RemoteThreadListAdapter` / `unstable_InMemoryThreadListAdapter` aliases removed (drop the `unstable_` prefix).
+  - `react-langgraph` `onSwitchToThread` removed (use `load`).
+  - `toAISDKTools` / `getEnabledTools` removed (use `toToolsJSONSchema` from `assistant-stream`).
+
+## 0.1.18
+
+### Patch Changes
+
+- [#3953](https://github.com/assistant-ui/assistant-ui/pull/3953) [`7098bab`](https://github.com/assistant-ui/assistant-ui/commit/7098bab4c67fbd507c3fad746ef130daa01b3fd6) - Add cursor-based pagination to the thread list. `RemoteThreadListAdapter.list()` accepts an optional `{ after }` cursor and may return `nextCursor` on the response. The runtime exposes `loadMore()`, `hasMore`, and `isLoadingMore` through both the legacy `ThreadListRuntime` API and the tap-only `aui.threads()` path; `ThreadListRuntimeCore.loadMore?()`, `hasMore?`, and `isLoadingMore?` are optional, so non-paginating cores (local, external-store, single-thread, in-memory) remain conformant. ([@okisdev](https://github.com/okisdev))
+
+  `@assistant-ui/react` ships a matching `ThreadListPrimitive.LoadMore` button built on `createActionButton`, plus a `useThreadListLoadMore` primitive hook. Consumers wanting an `IntersectionObserver` sentinel can read `s.threads.hasMore` / `isLoadingMore` from `useAuiState` and call `aui.threads().loadMore()` directly.
+
+  In-flight `loadMore()` calls dedup via a single promise. The existing `_loadGeneration` counter drops stale append callbacks when a `reload()` interleaves a `loadMore()`. The loadMore reducer captures the active adapter so a mid-flight adapter swap cannot leak a stale page. Empty-string `nextCursor` is normalised to `undefined`. `reload()` pre-clears the cursor so consumers reading `hasMore` directly during a reload do not observe a stale value.
+
+  Adapter rejections are surfaced via `console.error` in both the initial-load and `loadMore` paths, matching the pattern in `RemoteThreadListHookInstanceManager` and `useToolInvocations`.
+
+- [#3962](https://github.com/assistant-ui/assistant-ui/pull/3962) [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94), [`5fdf17e`](https://github.com/assistant-ui/assistant-ui/commit/5fdf17e019c91b000c6f4cf9e3e56c89d764a435)]:
+  - assistant-stream@0.3.13
+  - @assistant-ui/store@0.2.10
+  - @assistant-ui/tap@0.5.11
+  - assistant-cloud@0.1.27
+
+## 0.1.17
+
+### Patch Changes
+
+- [#3916](https://github.com/assistant-ui/assistant-ui/pull/3916) [`0bbf5dd`](https://github.com/assistant-ui/assistant-ui/commit/0bbf5dd7357c0993958a2e8e55eb60705eca3207) - chore: drop `./*` wildcard export and surface internal attachment status types ([@Yonom](https://github.com/Yonom))
+
+  The `./*` wildcard in `exports` was exposing the entire dist tree as importable subpaths, which inadvertently leaked internal modules (e.g. `@assistant-ui/core/tests/*`, `@assistant-ui/core/types/*`) as public API. Removing it.
+
+  Two attachment status types that were previously only reachable through the wildcard (`PendingAttachmentStatus`, `CompleteAttachmentStatus`) are now re-exported from the package root so that consumers' inferred types remain portable.
+
+- [#3917](https://github.com/assistant-ui/assistant-ui/pull/3917) [`98f165c`](https://github.com/assistant-ui/assistant-ui/commit/98f165ca83c4df9b9133eb4ce4fdf8c7a06886bb) - feat: enrich `composer.attachmentAddError` event with typed payload ([@okisdev](https://github.com/okisdev))
+
+  The event now carries `{ reason, message, attachmentId?, error? }` so subscribers can branch on the failure mode (`no-adapter` / `not-accepted` / `adapter-error`). The bridge no longer relies on a `findLast` heuristic to recover the failed attachment id.
+
+  Several state-derivable events are now annotated `@deprecated` because they duplicate state observation: `composer.send`, `composer.attachmentAdd`, `thread.runStart`, `thread.runEnd`, `thread.initialize`, `threadListItem.switchedTo`, `threadListItem.switchedAway`. They continue to fire for backward compatibility; new code should observe state via `useAuiState` instead.
+
+- [#3914](https://github.com/assistant-ui/assistant-ui/pull/3914) [`62ec5bd`](https://github.com/assistant-ui/assistant-ui/commit/62ec5bd3368fb69ea7bcde275858e0ea8fa1d59b) - fix: add typesVersions to support moduleResolution: node ([@shashank-100](https://github.com/shashank-100))
+
+  Users with `moduleResolution: node` in their tsconfig were seeing `Property 'message' does not exist on type 'AssistantState'` because the `exports` map sub-paths (e.g. `@assistant-ui/core/react`) are ignored by legacy node module resolution. Adding `typesVersions` makes TypeScript resolve sub-path types correctly under all moduleResolution modes.
+
+- [#3853](https://github.com/assistant-ui/assistant-ui/pull/3853) [`6a919c1`](https://github.com/assistant-ui/assistant-ui/commit/6a919c1fa21113080f46dd0e08142c939dad3ea4) - feat: add `<MessagePrimitive.GroupedParts>` for hierarchical adjacent grouping of message parts ([@Yonom](https://github.com/Yonom))
+
+  Introduces a new primitive that coalesces adjacent parts into groups via a user-supplied `groupBy(part) → "group-…" | readonly "group-…"[] | null`. Adjacent parts sharing a key-path prefix coalesce up to that prefix; ungrouped parts render as direct leaves.
+
+  The render function takes `{ part, children }` and dispatches on a single `switch (part.type)`. `"group-…"` cases wrap `children` (the recursively-rendered subtree); real part types (`"text"`, `"tool-call"`, `"reasoning"`, …) render the part directly with the same `EnrichedPartState` enrichments (`toolUI`, `addResult`, `resume`, `dataRendererUI`) that `<MessagePrimitive.Parts>` provides.
+
+  `GroupPart` is intentionally minimal: `{ type, status, indices }`. The render function is invoked once per group node and once per individual leaf part, so users never have to nest a `<MessagePrimitive.Parts>` call.
+
+  The `groupBy` return type is constrained to `` `group-${string}` `` so the unified switch can never collide with a real part type. The component infers a literal `TKey` per call site, so `part.type` narrows to the exact union of group keys plus part types.
+
+  For leaf parts, `children` is a sentinel that throws if rendered — accidental fall-through like `default: return children;` errors loudly instead of silently rendering nothing. Returning `null` from a leaf case is fine.
+
+  Deprecates the legacy `components.ToolGroup`, `components.ReasoningGroup`, and `components.ChainOfThought` props on `<Parts>`, and `<MessagePrimitive.Unstable_PartsGrouped>` for adjacent grouping — all still work for backwards compatibility.
+
+## 0.1.16
+
+### Patch Changes
+
+- [#3895](https://github.com/assistant-ui/assistant-ui/pull/3895) [`549037a`](https://github.com/assistant-ui/assistant-ui/commit/549037ac77aed8736823cfb82baf9645e3364adf) - fix(core): emit attachmentAddError when no adapter is configured or file type is rejected ([@okisdev](https://github.com/okisdev))
+
+- [#3896](https://github.com/assistant-ui/assistant-ui/pull/3896) [`976aec5`](https://github.com/assistant-ui/assistant-ui/commit/976aec566330bee3c607cfb356f3358eefe28ac1) - fix(core): respect `adapter.accept` when adding external `CreateAttachment` ([@okisdev](https://github.com/okisdev))
+
+  `composer.addAttachment` previously bypassed the configured `AttachmentAdapter` for `CreateAttachment` descriptors, including the `adapter.accept` content-type check. It now validates the descriptor's `contentType` (or filename extension) against `adapter.accept` when an adapter is configured, throwing and emitting `composer.attachmentAddError` on mismatch. Without an adapter, external attachments are still added as-is, preserving the existing "no adapter required" guarantee for external sources.
+
+- [#3716](https://github.com/assistant-ui/assistant-ui/pull/3716) [`25b97d5`](https://github.com/assistant-ui/assistant-ui/commit/25b97d5c62fb038471b06eaa784ad4b7e23ef533) - fix(core): show loading state for empty parts children API ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#3891](https://github.com/assistant-ui/assistant-ui/pull/3891) [`2008fc9`](https://github.com/assistant-ui/assistant-ui/commit/2008fc9af3d6fe05604d6b08275c2e9cec099bd9) - fix(core): hoist remote thread runtime binder out of `unstable_Provider` ([@okisdev](https://github.com/okisdev))
+
+  `RemoteThreadListAdapter.unstable_Provider` is now allowed to render any subtree it likes; the runtime binding (composer state, `__internal_setGetInitializePromise`, `runEnd → generateTitle` listener) executes outside it. This fixes `EMPTY_THREAD_ERROR` when the Provider defers `children` (e.g. behind a history-loading state) and avoids the history-switch regression seen when only the binder, but not the init listeners, were hoisted. Adds a dev-mode warning when the Provider does not render `children` within ~100ms.
+
+- [#3889](https://github.com/assistant-ui/assistant-ui/pull/3889) [`88fcd35`](https://github.com/assistant-ui/assistant-ui/commit/88fcd352ecffd12f124abe988cc5499f784f81d6) - feat: add `custom` slot to `RemoteThreadMetadata` and `ThreadListItemState` ([@okisdev](https://github.com/okisdev))
+
+  allows adapter authors to carry arbitrary backend session data through `list()` / `fetch()` and surface it on the thread list item state. matches the existing `custom: Record<string, unknown>` convention used on `ThreadMessage`, `RunConfig`, and `ChatModelRunResult`. consumers can intersect a typed shape at their own boundary, e.g. `RemoteThreadMetadata & { custom: { workspaceId: string } }`.
+
+- Updated dependencies [[`005f83f`](https://github.com/assistant-ui/assistant-ui/commit/005f83f3ebfb94b3a9d7c34bc7d2a71bbaf63a9e)]:
+  - @assistant-ui/store@0.2.9
+  - @assistant-ui/tap@0.5.10
+
 ## 0.1.15
 
 ### Patch Changes

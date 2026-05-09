@@ -60,15 +60,42 @@ export type ThreadViewportState = {
   /** Controls scroll anchoring: "top" anchors user messages at top, "bottom" is classic behavior */
   readonly turnAnchor: "top" | "bottom";
 
+  /** Clamps tall user messages so the assistant response stays in view. */
+  readonly topAnchorMessageClamp: {
+    readonly tallerThan: string;
+    readonly visibleHeight: string;
+  };
+
   /** Raw height values from registered elements */
   readonly height: {
     /** Total viewport height */
     readonly viewport: number;
     /** Total content inset height (footer, anchor message, etc.) */
     readonly inset: number;
-    /** Height of the anchor user message (full height) */
-    readonly userMessage: number;
   };
+
+  /** Current DOM elements used for geometry-based top anchoring */
+  readonly element: {
+    readonly viewport: HTMLElement | null;
+    readonly anchor: HTMLElement | null;
+    readonly target: HTMLElement | null;
+  };
+
+  /** Numeric clamp configuration for the active top-anchor target message */
+  readonly targetConfig: {
+    readonly tallerThan: number;
+    readonly visibleHeight: number;
+  } | null;
+
+  /**
+   * The current top-anchor turn activated in this viewport session.
+   * History-loaded messages do not populate this; it is set when a run creates
+   * a live user/assistant pair and remains after the run completes.
+   */
+  readonly topAnchorTurn: {
+    readonly anchorId: string;
+    readonly targetId: string;
+  } | null;
 
   /** Register a viewport and get a handle to update its height */
   readonly registerViewport: () => SizeHandle;
@@ -76,12 +103,37 @@ export type ThreadViewportState = {
   /** Register a content inset (footer, anchor message, etc.) and get a handle to update its height */
   readonly registerContentInset: () => SizeHandle;
 
-  /** Register the anchor user message height */
-  readonly registerUserMessageHeight: () => SizeHandle;
+  /** Register the scroll viewport element */
+  readonly registerViewportElement: (
+    element: HTMLElement | null,
+  ) => Unsubscribe;
+
+  /** Register the current anchor user message element */
+  readonly registerAnchorElement: (element: HTMLElement | null) => Unsubscribe;
+
+  /**
+   * Register the current top-anchor target (last assistant response) element
+   * along with its numeric clamp configuration. When unregistered, both
+   * `element.target` and `targetConfig` clear together.
+   */
+  readonly registerAnchorTargetElement: (
+    element: HTMLElement | null,
+    config?: { readonly tallerThan: number; readonly visibleHeight: number },
+  ) => Unsubscribe;
+
+  readonly setTopAnchorTurn: (
+    turn: { readonly anchorId: string; readonly targetId: string } | null,
+  ) => void;
 };
 
 export type ThreadViewportStoreOptions = {
   turnAnchor?: "top" | "bottom" | undefined;
+  topAnchorMessageClamp?:
+    | {
+        tallerThan?: string | undefined;
+        visibleHeight?: string | undefined;
+      }
+    | undefined;
 };
 
 export const makeThreadViewportStore = (
@@ -107,14 +159,27 @@ export const makeThreadViewportStore = (
       },
     });
   });
-  const userMessageRegistry = createSizeRegistry((total) => {
+  const registerElementSlot = (
+    key: "viewport" | "anchor",
+    element: HTMLElement | null,
+  ) => {
     store.setState({
-      height: {
-        ...store.getState().height,
-        userMessage: total,
+      element: {
+        ...store.getState().element,
+        [key]: element,
       },
     });
-  });
+
+    return () => {
+      if (store.getState().element[key] !== element) return;
+      store.setState({
+        element: {
+          ...store.getState().element,
+          [key]: null,
+        },
+      });
+    };
+  };
 
   const store = create<ThreadViewportState>(() => ({
     isAtBottom: true,
@@ -131,16 +196,51 @@ export const makeThreadViewportStore = (
     },
 
     turnAnchor: options.turnAnchor ?? "bottom",
+    topAnchorMessageClamp: {
+      tallerThan: options.topAnchorMessageClamp?.tallerThan ?? "10em",
+      visibleHeight: options.topAnchorMessageClamp?.visibleHeight ?? "6em",
+    },
 
     height: {
       viewport: 0,
       inset: 0,
-      userMessage: 0,
     },
+    element: {
+      viewport: null,
+      anchor: null,
+      target: null,
+    },
+    targetConfig: null,
+    topAnchorTurn: null,
 
     registerViewport: viewportRegistry.register,
     registerContentInset: insetRegistry.register,
-    registerUserMessageHeight: userMessageRegistry.register,
+    registerViewportElement: (element) =>
+      registerElementSlot("viewport", element),
+    registerAnchorElement: (element) => registerElementSlot("anchor", element),
+    registerAnchorTargetElement: (element, config) => {
+      store.setState({
+        element: {
+          ...store.getState().element,
+          target: element,
+        },
+        targetConfig: element && config ? config : null,
+      });
+
+      return () => {
+        if (store.getState().element.target !== element) return;
+        store.setState({
+          element: {
+            ...store.getState().element,
+            target: null,
+          },
+          targetConfig: null,
+        });
+      };
+    },
+    setTopAnchorTurn: (topAnchorTurn) => {
+      store.setState({ topAnchorTurn });
+    },
   }));
 
   return store;
