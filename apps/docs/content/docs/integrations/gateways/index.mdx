@@ -1,6 +1,6 @@
 ---
-title: LLM gateways
-description: Route assistant-ui traffic through OpenAI-compatible gateways for cost, fallback, and BYOK.
+title: LLM Gateway Integrations
+description: Route AI chat traffic through OpenAI-compatible LLM gateways (OpenRouter, LiteLLM, Portkey, etc.) for cost, fallback, and BYOK in assistant-ui apps.
 ---
 
 LLM gateways sit between your route handler and the upstream provider. They give you a single endpoint that fronts many providers, plus features like multi-provider fallback, prompt caching, and BYOK (bring-your-own-key) flows. Most are OpenAI API-compatible, so the integration is a `baseURL` swap on `createOpenAI` from `@ai-sdk/openai`.
