@@ -32,10 +32,12 @@ export const metadata = {
     template: "%s — assistant-ui (React Chat UI for AI)",
     default: "assistant-ui — React Chat UI for AI Apps",
   },
-  description: "Open-source React components and runtimes for building AI chat — ChatGPT-style UIs, copilots, and agents in TypeScript with streaming, tools, and persistence.",
+  description:
+    "Open-source React components and runtimes for building AI chat — ChatGPT-style UIs, copilots, and agents in TypeScript with streaming, tools, and persistence.",
   openGraph: {
     title: "assistant-ui",
-    description: "Open-source React components and runtimes for building AI chat — ChatGPT-style UIs, copilots, and agents in TypeScript with streaming, tools, and persistence.",
+    description:
+      "Open-source React components and runtimes for building AI chat — ChatGPT-style UIs, copilots, and agents in TypeScript with streaming, tools, and persistence.",
     siteName: "assistant-ui",
     type: "website",
     images: [
@@ -50,7 +52,8 @@ export const metadata = {
   twitter: {
     card: "summary_large_image",
     title: "assistant-ui",
-    description: "Open-source React components and runtimes for building AI chat — ChatGPT-style UIs, copilots, and agents in TypeScript with streaming, tools, and persistence.",
+    description:
+      "Open-source React components and runtimes for building AI chat — ChatGPT-style UIs, copilots, and agents in TypeScript with streaming, tools, and persistence.",
     images: ["/api/og?variant=home"],
   },
 };
