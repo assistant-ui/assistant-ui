@@ -1,26 +1,8 @@
 /**
- * Long-thread microbenchmark for `@assistant-ui/react-ink`.
+ * Long-thread microbenchmark: streams against a 1000-message thread and
+ * compares legacy, memo, and windowed modes by ms/frame.
  *
- * Renders a 1000-message thread, then drives a simulated 60+ tokens/sec
- * stream against the most recent message. Compares three rendering modes
- * to attribute the per-frame cost to memo vs windowing:
- *
- *   - legacy   : every message inline, no MemoMessage boundary (pre-PR)
- *   - memo     : MemoMessage per index, no windowing
- *   - windowed : MemoMessage + windowSize=50, prefix flushed via <Static>
- *
- * Reports frame count, mean ms/frame, and peak ms/frame for each mode plus
- * percentage deltas. Frame counting reads `ink-testing-library`'s in-memory
- * `stdout.frames` array — every committed Ink flush is one entry.
- *
- * The harness mounts the readonly thread runtime once and drives streaming
- * by calling `core.setMessages(...)` directly. We deliberately bypass
- * `ReadonlyThreadProvider`'s `messages`-prop-driven update path so the
- * provider tree does not re-render on every token; otherwise per-token
- * provider re-render cost dominates and masks the rendering-mode delta.
- *
- * Run:
- *   pnpm --filter @assistant-ui/react-ink exec tsx benchmarks/long-thread.bench.tsx
+ * Run: `pnpm --filter @assistant-ui/react-ink benchmark`
  */
 import { performance } from "node:perf_hooks";
 import type React from "react";
@@ -45,10 +27,6 @@ import { ThreadClient } from "@assistant-ui/core/store/internal";
 import type { ThreadMessage } from "@assistant-ui/core";
 import { ThreadPrimitive } from "../src/index";
 
-/* ------------------------------------------------------------------ */
-/*                       Bench harness (provider)                       */
-/* ------------------------------------------------------------------ */
-
 const READONLY_THREAD_PATH = Object.freeze({
   ref: "readonly-thread",
   threadSelector: { type: "main" as const },
@@ -71,11 +49,9 @@ const READONLY_THREAD_LIST_ITEM_BINDING: ThreadListItemRuntimeBinding =
   });
 
 /**
- * Mirrors `ReadonlyThreadProvider` but exposes the underlying
- * `ReadonlyThreadRuntimeCore` to the test driver via `coreRef`. The provider
- * mounts once with the initial messages and then never re-renders — the
- * driver pushes streaming updates straight into `core.setMessages`, which
- * notifies subscribers exactly the same way the production provider does.
+ * Mounts once and exposes the core via `coreRef` so the driver can push
+ * `setMessages` updates without re-rendering the provider tree, matching
+ * the production update path under streaming load.
  */
 const BenchProvider: React.FC<{
   initialMessages: readonly ThreadMessage[];
@@ -88,7 +64,6 @@ const BenchProvider: React.FC<{
     return c;
   });
 
-  // Stash for the driver. Stable for the lifetime of the harness.
   coreRef.current = core;
 
   const threadRuntime = useMemo(() => {
@@ -116,18 +91,10 @@ const BenchProvider: React.FC<{
   return <AuiProvider value={aui}>{children}</AuiProvider>;
 };
 
-/* ------------------------------------------------------------------ */
-/*                            App under test                           */
-/* ------------------------------------------------------------------ */
-
 /**
- * Each rendered message subscribes to its own first-part text length. Per-
- * token mutations to the streaming message therefore flow through the
- * message-level selector and produce a visibly different render output —
- * exactly the production behavior the perf changes target. Without this,
- * `parts[0]` reference changes but the rendered DOM is identical and Ink
- * skips the commit, so `stdout.frames` doesn't grow and the bench
- * measures nothing.
+ * Subscribes to the streaming message's text length so per-token mutations
+ * actually change the rendered DOM. Without this, Ink skips the commit and
+ * `stdout.frames` stops growing.
  */
 const Message = () => {
   const len = useAuiState((s) => {
@@ -141,11 +108,7 @@ const Message = () => {
   );
 };
 
-/**
- * Pre-PR baseline: render every message inline without the `MemoMessage`
- * boundary. Mirrors `ThreadMessages` before this PR so the perf contribution
- * of the memo change can be isolated from windowing.
- */
+/** Pre-memo baseline: every message rendered inline, no MemoMessage. */
 const LegacyThreadMessages: React.FC = () => {
   const messagesLength = useAuiState((s) => s.thread.messages.length);
   if (messagesLength === 0) return null;
@@ -186,13 +149,9 @@ const App: React.FC<{
   </BenchProvider>
 );
 
-/* ------------------------------------------------------------------ */
-/*                                 Run                                 */
-/* ------------------------------------------------------------------ */
-
 const N_MESSAGES = 1000;
-const N_TOKENS = 300; // ≈5 seconds of streaming at 60 tok/s
-const TOKEN_INTERVAL_MS = 16; // 62.5 tok/s
+const N_TOKENS = 300;
+const TOKEN_INTERVAL_MS = 16;
 const N_TRIALS = 2;
 
 const userMsg = (i: number): ThreadMessage =>
@@ -259,10 +218,8 @@ const run = async (
     .stdout;
   let lastSeen = stdout.frames.length;
 
-  // Distribute elapsed wall time evenly across new frames if multiple flushed
-  // between sample ticks. Keeps `frames` honest and the per-entry delta close
-  // to the true per-frame interval; the burst's actual frame timing is not
-  // observable through `stdout.frames.length` alone.
+  // `stdout.frames.length` exposes flush count but not per-frame timestamps,
+  // so we distribute elapsed wall time evenly across new frames per tick.
   const sample = () => {
     const newFrames = stdout.frames.length - lastSeen;
     if (newFrames <= 0) return;
@@ -273,7 +230,6 @@ const run = async (
     lastSeen = stdout.frames.length;
   };
 
-  // Initial mount frames have settled.
   await new Promise((r) => setTimeout(r, 100));
   sample();
   frameTimes.length = 0;
@@ -282,24 +238,16 @@ const run = async (
   const core = coreRef.current;
   if (!core) throw new Error("BenchProvider did not capture core");
 
-  // Drive streaming via the captured core handle. No React prop changes —
-  // the provider does not re-render. Every update is `core.setMessages(...)
-  // → notifySubscribers`, exactly the production update path under load.
-  //
-  // Each token both (a) mutates the trailing streaming message's text and
-  // (b) appends a new message to the thread. (a) exercises the message-
-  // level subscriber on the streaming entry; (b) makes the parent length
-  // selector tick every token, which is what triggers the per-token parent
-  // re-render that the memo + windowing changes optimize. Without (b), the
-  // parent would only re-render on new turns and the bench would primarily
-  // measure ink-flush cost rather than reconciliation cost.
+  // Mutation exercises the per-message subscriber; the append ticks the
+  // parent length selector, which is what memo+windowing actually targets.
+  // Without the append the bench would measure flush cost, not reconcile.
   let acc = "";
   let cur: ThreadMessage[] = [...initialMessages];
   for (let t = 0; t < N_TOKENS; t++) {
     acc += "x";
     const streamingIdx = cur.length - 1;
     const updatedStreaming = assistantMsg(streamingIdx, acc);
-    const newTail = userMsg(cur.length); // index = previous length
+    const newTail = userMsg(cur.length);
     const next: ThreadMessage[] = [
       ...cur.slice(0, -1),
       updatedStreaming,
@@ -331,7 +279,6 @@ const main = async () => {
     `\n=== long-thread.bench (${N_MESSAGES} messages, ${(N_TOKENS * TOKEN_INTERVAL_MS) / 1000}s @ ${(1000 / TOKEN_INTERVAL_MS).toFixed(0)} tok/s, ${N_TRIALS} trials each) ===\n`,
   );
 
-  // Warm-up.
   console.log("warmup...");
   await run("warmup", "windowed", 50);
 
