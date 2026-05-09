@@ -274,6 +274,7 @@ export type {
   AppendMessage,
   TextMessagePart,
   ReasoningMessagePart,
+  SourceProviderMetadata,
   SourceMessagePart,
   ImageMessagePart,
   FileMessagePart,

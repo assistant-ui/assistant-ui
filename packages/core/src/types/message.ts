@@ -16,6 +16,10 @@ export type ReasoningMessagePart = {
   readonly parentId?: string;
 };
 
+export type SourceProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
+
 export type SourceMessagePart =
   | {
       readonly type: "source";
@@ -23,6 +27,7 @@ export type SourceMessagePart =
       readonly id: string;
       readonly url: string;
       readonly title?: string;
+      readonly providerMetadata?: SourceProviderMetadata;
       readonly parentId?: string;
     }
   | {
@@ -33,6 +38,7 @@ export type SourceMessagePart =
       readonly title: string;
       readonly mediaType: string;
       readonly filename?: string;
+      readonly providerMetadata?: SourceProviderMetadata;
       readonly parentId?: string;
     };
 

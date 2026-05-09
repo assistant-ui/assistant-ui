@@ -1,4 +1,8 @@
-import type { MessageStatus, ThreadMessage } from "../../../types/message";
+import type {
+  MessageStatus,
+  SourceProviderMetadata,
+  ThreadMessage,
+} from "../../../types/message";
 import { fromThreadMessageLike } from "../../../runtime/utils/thread-message-like";
 import type { CloudMessage } from "assistant-cloud";
 import { isJSONValue } from "../../../utils/json/is-json";
@@ -23,6 +27,7 @@ type AuiV0MessagePart =
       readonly id: string;
       readonly url: string;
       readonly title?: string;
+      readonly providerMetadata?: SourceProviderMetadata;
     }
   | {
       readonly type: "source";
@@ -31,6 +36,7 @@ type AuiV0MessagePart =
       readonly title: string;
       readonly mediaType: string;
       readonly filename?: string;
+      readonly providerMetadata?: SourceProviderMetadata;
     }
   | {
       readonly type: "tool-call";
@@ -104,7 +110,10 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
               sourceType: "url",
               id: part.id,
               url: part.url,
-              ...(part.title ? { title: part.title } : undefined),
+              ...(part.title != null ? { title: part.title } : undefined),
+              ...(part.providerMetadata != null
+                ? { providerMetadata: part.providerMetadata }
+                : undefined),
             };
           }
 
@@ -114,7 +123,12 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             id: part.id,
             title: part.title,
             mediaType: part.mediaType,
-            ...(part.filename ? { filename: part.filename } : undefined),
+            ...(part.filename != null
+              ? { filename: part.filename }
+              : undefined),
+            ...(part.providerMetadata != null
+              ? { providerMetadata: part.providerMetadata }
+              : undefined),
           };
 
         case "tool-call": {

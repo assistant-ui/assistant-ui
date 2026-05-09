@@ -9,6 +9,7 @@ import type {
   TextMessagePart,
   DataMessagePart,
   SourceMessagePart,
+  SourceProviderMetadata,
   FileMessagePart,
   ThreadMessageLike,
 } from "@assistant-ui/core";
@@ -198,7 +199,13 @@ function convertParts(
           sourceType: "url",
           id: part.sourceId,
           url: part.url,
-          title: part.title || "",
+          ...(part.title != null ? { title: part.title } : undefined),
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata:
+                  part.providerMetadata as SourceProviderMetadata,
+              }
+            : undefined),
         } satisfies SourceMessagePart;
       }
 
@@ -218,7 +225,13 @@ function convertParts(
           id: part.sourceId,
           title: part.title,
           mediaType: part.mediaType,
-          ...(part.filename ? { filename: part.filename } : undefined),
+          ...(part.filename != null ? { filename: part.filename } : undefined),
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata:
+                  part.providerMetadata as SourceProviderMetadata,
+              }
+            : undefined),
         } satisfies SourceMessagePart;
       }
 

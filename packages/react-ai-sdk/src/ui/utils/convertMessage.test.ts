@@ -49,6 +49,13 @@ describe("AISDKMessageConverter", () => {
             title: "proposal.pdf",
             mediaType: "application/pdf",
             filename: "proposal.pdf",
+            providerMetadata: {
+              openai: {
+                type: "file_citation",
+                fileId: "file_123",
+                index: 0,
+              },
+            },
           },
         ],
       } as any,
@@ -68,7 +75,54 @@ describe("AISDKMessageConverter", () => {
       title: "proposal.pdf",
       mediaType: "application/pdf",
       filename: "proposal.pdf",
+      providerMetadata: {
+        openai: {
+          type: "file_citation",
+          fileId: "file_123",
+          index: 0,
+        },
+      },
     });
+  });
+
+  it("converts source-url parts without synthesizing missing optional fields", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "source-url",
+            sourceId: "url_123",
+            url: "https://example.com/report",
+            providerMetadata: {
+              openai: {
+                type: "url_citation",
+                index: 1,
+              },
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const sourcePart = converted[0]?.content.find(
+      (part): part is any => part.type === "source",
+    );
+
+    expect(sourcePart).toMatchObject({
+      type: "source",
+      sourceType: "url",
+      id: "url_123",
+      url: "https://example.com/report",
+      providerMetadata: {
+        openai: {
+          type: "url_citation",
+          index: 1,
+        },
+      },
+    });
+    expect(sourcePart).not.toHaveProperty("title");
   });
 
   it("converts assistant image file parts into file content", () => {

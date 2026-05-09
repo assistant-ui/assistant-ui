@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { auiV0Encode } from "../legacy-runtime/cloud/auiV0";
+import { auiV0Encode } from "../react/runtimes/cloud/auiV0";
 
 describe("auiV0Encode", () => {
-  it("preserves document source parts in the legacy cloud encoder", () => {
+  it("preserves document source parts in the core cloud encoder", () => {
     const encoded = auiV0Encode({
       id: "m1",
       createdAt: new Date("2026-03-15T00:00:00.000Z"),

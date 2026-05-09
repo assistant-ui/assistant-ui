@@ -4,6 +4,7 @@ export type {
   // Message parts
   TextMessagePart,
   ReasoningMessagePart,
+  SourceProviderMetadata,
   SourceMessagePart,
   ImageMessagePart,
   FileMessagePart,
