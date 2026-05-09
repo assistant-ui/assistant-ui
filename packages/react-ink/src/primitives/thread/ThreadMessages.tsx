@@ -5,7 +5,7 @@ import {
   useCallback,
   useMemo,
 } from "react";
-import { Box } from "ink";
+import { Box, Static } from "ink";
 import type { ThreadMessage } from "@assistant-ui/core";
 import { useAuiState } from "@assistant-ui/store";
 import { MemoMessage } from "../internal/MemoMessage";
@@ -38,21 +38,28 @@ type MessageComponents =
  * Terminals scroll their own backbuffer; rendering messages that have already
  * scrolled past the visible region is wasted work and (during streaming) also
  * wasted store subscriptions. When `windowSize` is set, only the last
- * `windowSize + windowOverscan` messages are mounted. Older messages are
- * unmounted entirely — Ink will continue to display whatever it has already
- * flushed to the terminal scrollback above the live region.
+ * `windowSize + windowOverscan` messages are kept in the live render region.
+ * Messages above the window are emitted exactly once through Ink's `<Static>`
+ * — Ink writes them to stdout, the terminal commits them to scrollback, and
+ * the React subtree is then unmounted. As new messages arrive, older entries
+ * graduate from the live tail into `<Static>` automatically.
+ *
+ * Trade-off: messages that have graduated into `<Static>` are read-only from
+ * the renderer's perspective. Edits to messages outside the window won't
+ * repaint until the user re-opens the thread. This matches terminal
+ * scrollback semantics — scrolled-past output is committed history.
  *
  * Defaults to no windowing for backward compatibility.
  */
 type WindowingProps = {
   /**
-   * Maximum number of recent messages to keep mounted. When unset, all
-   * messages render (legacy behavior).
+   * Maximum number of recent messages to keep in the live render region.
+   * When unset, all messages render dynamically (legacy behavior).
    */
   windowSize?: number | undefined;
   /**
-   * Extra messages above the window kept mounted to avoid remount churn at
-   * the boundary during scroll/append. Defaults to 4.
+   * Extra messages above the window kept in the live region to absorb
+   * remount churn at the boundary during streaming. Defaults to 4.
    */
   windowOverscan?: number | undefined;
 };
@@ -139,20 +146,41 @@ const ThreadMessagesInner: FC<{
 }> = ({ children, windowSize, windowOverscan = 4 }) => {
   const messagesLength = useAuiState((s) => s.thread.messages.length);
 
-  // Compute the [start, end) window. When windowSize is undefined, render all.
-  const start =
+  // [tailStart, messagesLength) is the live region; [0, tailStart) is the
+  // committed prefix rendered through <Static>. With no windowing, tailStart
+  // is 0 — all messages stay live (legacy behavior).
+  const tailStart =
     windowSize !== undefined
       ? Math.max(0, messagesLength - windowSize - windowOverscan)
       : 0;
 
-  return useMemo(() => {
+  // <Static> only renders newly-added items: it reads `items.slice(committed)`
+  // each render and bumps the committed cursor in a layout effect. Identity-
+  // stable indices let the slice short-circuit cleanly when the array grows.
+  const prefixIndices = useMemo(
+    () => Array.from({ length: tailStart }, (_, i) => i),
+    [tailStart],
+  );
+
+  const tail = useMemo(() => {
     if (messagesLength === 0) return null;
     const items: ReactNode[] = [];
-    for (let index = start; index < messagesLength; index++) {
+    for (let index = tailStart; index < messagesLength; index++) {
       items.push(<MemoMessage key={index} index={index} render={children} />);
     }
     return items;
-  }, [messagesLength, start, children]);
+  }, [messagesLength, tailStart, children]);
+
+  if (tailStart === 0) return tail;
+
+  return (
+    <>
+      <Static items={prefixIndices}>
+        {(index) => <MemoMessage key={index} index={index} render={children} />}
+      </Static>
+      {tail}
+    </>
+  );
 };
 
 export const ThreadMessages: FC<ThreadMessagesProps> = ({
@@ -161,12 +189,49 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({
   windowSize,
   windowOverscan,
 }) => {
-  // Stable identity for the components-driven render callback so that
-  // MemoMessage children below can short-circuit on unchanged inputs.
+  // Field-level destructure so inline `components={{ Message: MyMessage }}`
+  // doesn't bust the memo on every parent render. As long as the individual
+  // component refs are stable, `stableComponents` keeps a stable identity
+  // and `MemoMessage` can short-circuit unchanged subtrees.
+  const Message = components?.Message;
+  const EditComposer = components?.EditComposer;
+  const UserEditComposer = components?.UserEditComposer;
+  const AssistantEditComposer = components?.AssistantEditComposer;
+  const SystemEditComposer = components?.SystemEditComposer;
+  const UserMessage = components?.UserMessage;
+  const AssistantMessage = components?.AssistantMessage;
+  const SystemMessage = components?.SystemMessage;
+
+  const stableComponents = useMemo<MessageComponents | undefined>(() => {
+    if (!components) return undefined;
+    return {
+      Message,
+      EditComposer,
+      UserEditComposer,
+      AssistantEditComposer,
+      SystemEditComposer,
+      UserMessage,
+      AssistantMessage,
+      SystemMessage,
+    } as MessageComponents;
+  }, [
+    components,
+    Message,
+    EditComposer,
+    UserEditComposer,
+    AssistantEditComposer,
+    SystemEditComposer,
+    UserMessage,
+    AssistantMessage,
+    SystemMessage,
+  ]);
+
   const renderFromComponents = useCallback(
     () =>
-      components ? <ThreadMessageComponent components={components} /> : null,
-    [components],
+      stableComponents ? (
+        <ThreadMessageComponent components={stableComponents} />
+      ) : null,
+    [stableComponents],
   );
 
   if (components) {
