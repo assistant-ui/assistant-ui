@@ -76,6 +76,9 @@ function generateOverview(sectionDir: string, section: string): void {
   const metaPath = path.join(sectionDir, "meta.json");
   const meta = readJson(metaPath) as SectionMeta;
 
+  if (!meta.title) {
+    throw new Error(`${metaPath} must define title`);
+  }
   if (!meta.description) {
     throw new Error(`${metaPath} must define description`);
   }
@@ -104,9 +107,12 @@ function generateOverview(sectionDir: string, section: string): void {
     });
   });
 
+  const indexTitle = /\bAPI\b|\bReference\b/i.test(meta.title)
+    ? meta.title
+    : `${meta.title} API Reference`;
   const output = [
     "---",
-    "title: Overview",
+    `title: ${indexTitle}`,
     `description: ${meta.description}`,
     "---",
     "",

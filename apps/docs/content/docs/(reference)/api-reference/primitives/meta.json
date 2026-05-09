@@ -1,6 +1,6 @@
 {
   "title": "Primitives",
-  "description": "Generated API reference for assistant-ui React primitive namespaces and parts.",
+  "description": "Generated API reference for assistant-ui's React primitive namespaces — Thread, Composer, Message, BranchPicker, ActionBar, and the parts that compose them.",
   "overview": "Primitives are the composable React components exported from `@assistant-ui/react`. These pages focus on parts, props, rendered elements, and composition behavior.",
   "pages": [
     "index",
