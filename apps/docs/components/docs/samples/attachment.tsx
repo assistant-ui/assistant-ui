@@ -14,9 +14,11 @@ function AttachmentTileStatic({ name, isImage }: AttachmentTileStaticProps) {
 
   return (
     <div className="aui-attachment-root relative">
+      {/* biome-ignore lint/a11y/useSemanticElements: styled div with role */}
       <div
         className="aui-attachment-tile aui-attachment-tile-composer size-14 cursor-pointer overflow-hidden rounded-[14px] border border-foreground/20 bg-muted transition-opacity hover:opacity-75"
         role="button"
+        tabIndex={0}
         aria-label={`${attachmentType} attachment: ${name}`}
       >
         <div className="flex h-full w-full items-center justify-center">
@@ -29,7 +31,7 @@ function AttachmentTileStatic({ name, isImage }: AttachmentTileStaticProps) {
       </div>
       <TooltipIconButton
         tooltip="Remove file"
-        className="aui-attachment-tile-remove absolute top-1.5 right-1.5 size-3.5 rounded-full bg-white text-muted-foreground opacity-100 shadow-sm hover:bg-white! [&_svg]:text-black hover:[&_svg]:text-destructive"
+        className="aui-attachment-tile-remove absolute end-1.5 top-1.5 size-3.5 rounded-full bg-white text-muted-foreground opacity-100 shadow-sm hover:bg-white! [&_svg]:text-black hover:[&_svg]:text-destructive"
         side="top"
       >
         <XIcon className="aui-attachment-remove-icon size-3 dark:stroke-[2.5px]" />

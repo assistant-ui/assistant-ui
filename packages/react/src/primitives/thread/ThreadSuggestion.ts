@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  ActionButtonElement,
-  ActionButtonProps,
+  type ActionButtonElement,
+  type ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
 import { useSuggestionTrigger as useSuggestionTriggerBehavior } from "@assistant-ui/core/react";
@@ -38,9 +38,7 @@ const useThreadSuggestion = ({
   /** @deprecated Use `clearComposer` instead. */
   method?: "replace";
 }) => {
-  // ========== Deprecation Mapping ==========
   const resolvedSend = send ?? autoSend ?? false;
-  // ==========================================
 
   const { disabled, trigger } = useSuggestionTriggerBehavior({
     prompt,

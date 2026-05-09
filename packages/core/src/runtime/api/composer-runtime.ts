@@ -12,9 +12,11 @@ import {
   SKIP_UPDATE,
 } from "../../subscribable/subscribable";
 import type {
-  ComposerRuntimeCore,
+  ComposerRuntimeEventCallback,
   ComposerRuntimeEventType,
   DictationState,
+  EditComposerRuntimeCore,
+  SendOptions,
   ThreadComposerRuntimeCore,
 } from "../interfaces/composer-runtime-core";
 import type {
@@ -39,6 +41,7 @@ export type {
 
 type BaseComposerState = {
   readonly canCancel: boolean;
+  readonly canSend: boolean;
   readonly isEditing: boolean;
   readonly isEmpty: boolean;
 
@@ -68,6 +71,8 @@ export type ThreadComposerState = BaseComposerState & {
 
 export type EditComposerState = BaseComposerState & {
   readonly type: "edit";
+  readonly parentId: string | null;
+  readonly sourceId: string | null;
 };
 
 export type ComposerState = ThreadComposerState | EditComposerState;
@@ -82,6 +87,7 @@ const getThreadComposerState = (
 
     isEditing: runtime?.isEditing ?? false,
     canCancel: runtime?.canCancel ?? false,
+    canSend: runtime?.canSend ?? false,
     isEmpty: runtime?.isEmpty ?? true,
 
     attachments: runtime?.attachments ?? EMPTY_ARRAY,
@@ -97,13 +103,14 @@ const getThreadComposerState = (
 };
 
 const getEditComposerState = (
-  runtime: ComposerRuntimeCore | undefined,
+  runtime: EditComposerRuntimeCore | undefined,
 ): EditComposerState => {
   return Object.freeze({
     type: "edit",
 
     isEditing: runtime?.isEditing ?? false,
     canCancel: runtime?.canCancel ?? false,
+    canSend: runtime?.canSend ?? false,
     isEmpty: runtime?.isEmpty ?? true,
 
     text: runtime?.text ?? "",
@@ -113,6 +120,9 @@ const getEditComposerState = (
     attachmentAccept: runtime?.attachmentAccept ?? "",
     dictation: runtime?.dictation,
     quote: runtime?.quote,
+
+    parentId: runtime?.parentId ?? null,
+    sourceId: runtime?.sourceId ?? null,
 
     value: runtime?.text ?? "",
   });
@@ -130,8 +140,10 @@ export type ComposerRuntime = {
   /**
    * Add an attachment to the composer. Accepts either a standard File object
    * (processed through the AttachmentAdapter) or a CreateAttachment descriptor
-   * for external-source attachments (URLs, API data, CMS references) that
-   * bypasses the adapter entirely.
+   * for external-source attachments (URLs, API data, CMS references). External
+   * descriptors bypass the adapter's `add()` step but still respect
+   * `adapter.accept` when an adapter is configured; without an adapter they
+   * are added as-is.
    * @param fileOrAttachment The file or attachment descriptor to add.
    */
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
@@ -173,8 +185,9 @@ export type ComposerRuntime = {
 
   /**
    * Send a message. This will send whatever text or attachments are in the composer.
+   * @param options Optional send options. Use `{ startRun: true }` to force starting a new run.
    */
-  send(): void;
+  send(options?: SendOptions): void;
 
   /**
    * Cancel the current run. In edit mode, this will exit edit mode.
@@ -213,9 +226,9 @@ export type ComposerRuntime = {
   /**
    * @deprecated This API is still under active development and might change without notice.
    */
-  unstable_on(
-    event: ComposerRuntimeEventType,
-    callback: () => void,
+  unstable_on<E extends ComposerRuntimeEventType>(
+    event: E,
+    callback: ComposerRuntimeEventCallback<E>,
   ): Unsubscribe;
 };
 
@@ -278,10 +291,10 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     return core.clearAttachments();
   }
 
-  public send() {
+  public send(options?: SendOptions) {
     const core = this._core.getState();
     if (!core) throw new Error("Composer is not available");
-    core.send();
+    core.send(options);
   }
 
   public cancel() {
@@ -323,19 +336,19 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     EventSubscriptionSubject<ComposerRuntimeEventType>
   >();
 
-  public unstable_on(
-    event: ComposerRuntimeEventType,
-    callback: () => void,
+  public unstable_on<E extends ComposerRuntimeEventType>(
+    event: E,
+    callback: ComposerRuntimeEventCallback<E>,
   ): Unsubscribe {
     let subject = this._eventSubscriptionSubjects.get(event);
     if (!subject) {
-      subject = new EventSubscriptionSubject({
-        event: event,
+      subject = new EventSubscriptionSubject<ComposerRuntimeEventType>({
+        event,
         binding: this._core,
       });
       this._eventSubscriptionSubjects.set(event, subject);
     }
-    return subject.subscribe(callback);
+    return subject.subscribe(callback as (payload?: unknown) => void);
   }
 
   public abstract getAttachmentByIndex(idx: number): AttachmentRuntime;

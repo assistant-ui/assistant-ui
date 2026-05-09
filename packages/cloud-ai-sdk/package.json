@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/cloud-ai-sdk",
-  "version": "0.1.6",
+  "version": "0.1.14",
   "description": "AI SDK hooks for assistant-cloud persistence",
   "keywords": [
     "assistant",
@@ -15,7 +15,6 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -48,17 +47,17 @@
     }
   },
   "devDependencies": {
-    "@ai-sdk/react": "^3.0.118",
+    "@ai-sdk/react": "^3.0.177",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
-    "@types/node": "^25.5.0",
+    "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
-    "ai": "^6.0.116",
-    "assistant-stream": "^0.3.6",
-    "jsdom": "^28.1.0",
-    "react": "^19.2.4",
-    "vitest": "^4.1.0"
+    "ai": "^6.0.175",
+    "assistant-stream": "^0.3.13",
+    "jsdom": "^29.1.1",
+    "react": "^19.2.5",
+    "vitest": "^4.1.5"
   },
   "publishConfig": {
     "access": "public",

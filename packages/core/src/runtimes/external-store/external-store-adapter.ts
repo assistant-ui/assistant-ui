@@ -5,6 +5,7 @@ import type {
   SpeechSynthesisAdapter,
   DictationAdapter,
 } from "../../adapters/speech";
+import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { FeedbackAdapter } from "../../adapters/feedback";
 import type {
   AddToolResultOptions,
@@ -58,7 +59,30 @@ type ExternalStoreMessageConverterAdapter<T> = {
 };
 
 type ExternalStoreAdapterBase<T> = {
+  /**
+   * Whether the entire thread is disabled. When `true`, the composer's input
+   * is also disabled (the user cannot type, attach files, or submit). For a
+   * narrower gate that keeps the input usable but blocks only sending, use
+   * `isSendDisabled`.
+   */
   isDisabled?: boolean | undefined;
+  /**
+   * Whether sending new messages is currently disabled. When `true`, the
+   * thread composer's input remains usable but `send()` becomes a no-op
+   * and the thread composer's `canSend` is `false`. Use this to gate
+   * sending on external React state (e.g. while tool config is loading)
+   * without disabling the input itself the way `isDisabled` does. Edit
+   * composers (saving message edits) intentionally ignore this flag.
+   */
+  isSendDisabled?: boolean | undefined;
+  /**
+   * Whether the thread is running. When provided, this value flows directly
+   * to `thread.isRunning`, letting the application keep the thread in a
+   * running state even after the last assistant message has completed (for
+   * example while non-message stream chunks like suggestions or metadata
+   * updates are still arriving). When omitted, `thread.isRunning` falls back
+   * to the last-message-status heuristic.
+   */
   isRunning?: boolean | undefined;
   isLoading?: boolean | undefined;
   messages?: readonly T[];
@@ -90,6 +114,7 @@ type ExternalStoreAdapterBase<T> = {
         attachments?: AttachmentAdapter | undefined;
         speech?: SpeechSynthesisAdapter | undefined;
         dictation?: DictationAdapter | undefined;
+        voice?: RealtimeVoiceAdapter | undefined;
         feedback?: FeedbackAdapter | undefined;
         /**
          * @deprecated This API is still under active development and might change without notice.

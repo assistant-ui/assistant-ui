@@ -1,6 +1,7 @@
 ---
 title: Sources
 description: Display URL sources with favicon, title, and external link.
+platforms: ["react"]
 ---
 
 import { SourcesSample } from "@/components/docs/samples/sources";
@@ -29,11 +30,12 @@ import { Sources } from "@/components/assistant-ui/sources";
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="...">
-      <MessagePrimitive.Parts
-        components={{
-          Source: Sources,
+      <MessagePrimitive.Parts>
+        {({ part }) => {
+          if (part.type === "source") return <Sources {...part} />;
+          return null;
         }}
-      />
+      </MessagePrimitive.Parts>
     </MessagePrimitive.Root>
   );
 };

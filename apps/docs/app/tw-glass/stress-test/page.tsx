@@ -48,10 +48,6 @@ export default function GlassStressTestPage() {
   );
 }
 
-// ============================================================================
-// TABLE OF CONTENTS
-// ============================================================================
-
 function TableOfContents() {
   const sections = [
     { id: "mass-grid", label: "Mass Grid" },
@@ -84,10 +80,6 @@ function TableOfContents() {
     </nav>
   );
 }
-
-// ============================================================================
-// SHARED COMPONENTS
-// ============================================================================
 
 function Section({
   id,
@@ -207,10 +199,6 @@ function FpsCounter() {
   );
 }
 
-// ============================================================================
-// MASS GRID SECTION
-// ============================================================================
-
 function MassGridSection() {
   const [count, setCount] = useState(36);
   const cols = Math.ceil(Math.sqrt(count));
@@ -264,10 +252,6 @@ function MassGridSection() {
   );
 }
 
-// ============================================================================
-// ALL VARIANTS SECTION
-// ============================================================================
-
 const STRENGTH_VARIANTS = [
   { label: "strength-5", cls: "glass glass-strength-5" },
   { label: "strength-10", cls: "glass glass-strength-10" },
@@ -315,10 +299,6 @@ function AllVariantsSection() {
     </Section>
   );
 }
-
-// ============================================================================
-// NESTED GLASS SECTION
-// ============================================================================
 
 function NestedGlassSection() {
   const [depth, setDepth] = useState(3);
@@ -377,10 +357,6 @@ function NestLevel({ current, max }: { current: number; max: number }) {
   );
 }
 
-// ============================================================================
-// SCROLL STRESS SECTION
-// ============================================================================
-
 function ScrollStressSection() {
   return (
     <Section
@@ -410,10 +386,6 @@ function ScrollStressSection() {
     </Section>
   );
 }
-
-// ============================================================================
-// RESIZE BEHAVIOR SECTION
-// ============================================================================
 
 function ResizeBehaviorSection() {
   return (
@@ -445,10 +417,6 @@ function ResizeBehaviorSection() {
   );
 }
 
-// ============================================================================
-// BLUR EXTREMES SECTION
-// ============================================================================
-
 const BLUR_VALUES = [0, 2, 6, 12, 20, 40];
 
 function BlurExtremesSection() {
@@ -479,10 +447,6 @@ function BlurExtremesSection() {
   );
 }
 
-// ============================================================================
-// COMPOSABILITY SECTION
-// ============================================================================
-
 function ComposabilitySection() {
   return (
     <Section
@@ -510,10 +474,6 @@ function ComposabilitySection() {
     </Section>
   );
 }
-
-// ============================================================================
-// INTERACTIVE SECTION
-// ============================================================================
 
 const STRENGTH_STEPS = [5, 10, 20, 30, 40, 50];
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { AttachmentRuntime } from "../runtime/AttachmentRuntime";
+import type { AttachmentRuntime } from "../runtime/AttachmentRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 import { useAui, useAuiState } from "@assistant-ui/store";
 

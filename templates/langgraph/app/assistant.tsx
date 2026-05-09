@@ -1,33 +1,43 @@
 "use client";
 
+import { useMemo } from "react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
+import {
+  unstable_createLangGraphStream,
+  useLangGraphRuntime,
+  type LangChainMessage,
+} from "@assistant-ui/react-langgraph";
 
-import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
+import { createClient } from "@/lib/chatApi";
 import { Thread } from "@/components/assistant-ui/thread";
 
+const ASSISTANT_ID = process.env.NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID!;
+
 export function Assistant() {
+  const client = useMemo(() => createClient(), []);
+  const stream = useMemo(
+    () =>
+      unstable_createLangGraphStream({
+        client,
+        assistantId: ASSISTANT_ID,
+      }),
+    [client],
+  );
+
   const runtime = useLangGraphRuntime({
-    stream: async function* (messages, { initialize, command }) {
-      const { externalId } = await initialize();
-      if (!externalId) throw new Error("Thread not found");
-
-      const generator = await sendMessage({
-        threadId: externalId,
-        messages,
-        command,
-      });
-
-      yield* generator;
-    },
+    unstable_allowCancellation: true,
+    stream,
     create: async () => {
-      const { thread_id } = await createThread();
+      const { thread_id } = await client.threads.create();
       return { externalId: thread_id };
     },
     load: async (externalId) => {
-      const state = await getThreadState(externalId);
+      const state = await client.threads.getState<{
+        messages: LangChainMessage[];
+      }>(externalId);
       return {
         messages: state.values.messages,
+        interrupts: state.tasks[0]?.interrupts,
       };
     },
   });

@@ -139,11 +139,7 @@ async function build() {
     sourceMap: true,
     noEmit: false,
     emitDeclarationOnly: false,
-    // Strip aui-source so build uses dist types, not source
-    customConditions:
-      parsedConfig.options.customConditions?.filter(
-        (c) => c !== "aui-source",
-      ) ?? [],
+    customConditions: parsedConfig.options.customConditions ?? [],
   });
 
   // JS: extension rewriting only

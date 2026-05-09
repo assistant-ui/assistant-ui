@@ -45,12 +45,14 @@ const Foo = () => {
         </div>
         <div className="mt-2 flex gap-2">
           <button
+            type="button"
             onClick={handleUpdate}
             className="flex-1 rounded-md bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
           >
             Update
           </button>
           <button
+            type="button"
             onClick={() => aui.foo().remove()}
             className="rounded-md bg-red-600 px-4 py-2 font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
           >
@@ -75,6 +77,7 @@ const AddFooButton = () => {
   const aui = useAui();
   return (
     <button
+      type="button"
       onClick={() => aui.fooList().addFoo()}
       className="rounded-md bg-green-600 px-4 py-2 font-medium text-white transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
     >
@@ -169,7 +172,7 @@ export const ExampleApp = () => {
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <FooList components={{ Foo }} />
+          <FooList>{() => <Foo />}</FooList>
         </div>
         <EventLog />
       </div>

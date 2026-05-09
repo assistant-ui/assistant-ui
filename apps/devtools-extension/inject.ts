@@ -3,7 +3,7 @@
 
 import { ExtensionHost } from "@assistant-ui/react-devtools";
 
-(function () {
+(() => {
   let extensionHost: ExtensionHost | undefined;
 
   // Function to check for assistant-ui and initialize ExtensionHost

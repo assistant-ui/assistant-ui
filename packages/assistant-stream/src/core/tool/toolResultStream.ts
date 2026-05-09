@@ -1,9 +1,9 @@
-import { Tool, ToolCallReader, ToolExecuteFunction } from "./tool-types";
-import { StandardSchemaV1 } from "@standard-schema/spec";
+import type { Tool, ToolCallReader, ToolExecuteFunction } from "./tool-types";
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { ToolResponse } from "./ToolResponse";
 import { ToolExecutionStream } from "./ToolExecutionStream";
-import { AssistantMessage } from "../utils/types";
-import { ReadonlyJSONObject, ReadonlyJSONValue } from "../../utils";
+import type { AssistantMessage } from "../utils/types";
+import type { ReadonlyJSONObject, ReadonlyJSONValue } from "../../utils";
 
 const isStandardSchemaV1 = (
   schema: unknown,
@@ -27,7 +27,7 @@ function getToolResponse(
   human: (toolCallId: string, payload: unknown) => Promise<unknown>,
 ) {
   const tool = tools?.[toolCall.toolName];
-  if (!tool || !tool.execute) return undefined;
+  if (!tool?.execute) return undefined;
 
   const getResult = async (
     toolExecute: ToolExecuteFunction<ReadonlyJSONObject, unknown>,

@@ -1,8 +1,8 @@
 "use client";
 
-import { FC, memo, PropsWithChildren, useEffect } from "react";
-import { AssistantClient, useAui } from "@assistant-ui/store";
-import { AssistantRuntime } from "./runtime/AssistantRuntime";
+import { type FC, memo, type PropsWithChildren, useEffect } from "react";
+import { type AssistantClient, useAui } from "@assistant-ui/store";
+import type { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { AssistantProviderBase } from "@assistant-ui/core/react";
 import { ThreadPrimitiveViewportProvider } from "../context/providers/ThreadViewportProvider";
 import { DevToolsProviderApi } from "../devtools/DevToolsHooks";

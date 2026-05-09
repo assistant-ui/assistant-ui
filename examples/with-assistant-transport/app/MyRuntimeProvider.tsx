@@ -2,16 +2,16 @@
 
 import {
   AssistantRuntimeProvider,
-  AssistantTransportConnectionMetadata,
+  type AssistantTransportConnectionMetadata,
   makeAssistantTool,
   unstable_createMessageConverter as createMessageConverter,
   useAssistantTransportRuntime,
 } from "@assistant-ui/react";
 import {
   convertLangChainMessages,
-  LangChainMessage,
+  type LangChainMessage,
 } from "@assistant-ui/react-langgraph";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { z } from "zod";
 
 // Frontend tool with execute function
@@ -106,8 +106,7 @@ export function MyRuntimeProvider({ children }: MyRuntimeProviderProps) {
     initialState: {
       messages: [],
     },
-    api:
-      process.env["NEXT_PUBLIC_API_URL"] || "http://localhost:8010/assistant",
+    api: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8010/assistant",
     converter,
     headers: async () => ({
       "Test-Header": "test-value",

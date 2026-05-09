@@ -1,4 +1,4 @@
-import { Tool } from "assistant-stream";
+import type { Tool } from "assistant-stream";
 
 // TODO re-add the inferrence of the parameters
 

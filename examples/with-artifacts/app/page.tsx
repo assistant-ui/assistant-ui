@@ -50,7 +50,7 @@ function ArtifactsView() {
       .at(-1);
   });
 
-  const code = lastToolCall?.args["code"] as string | undefined;
+  const code = lastToolCall?.args.code as string | undefined;
   const isComplete = lastToolCall?.result !== undefined;
 
   if (!code) return null;
@@ -60,6 +60,7 @@ function ArtifactsView() {
       <div className="flex h-full w-full flex-col overflow-hidden rounded-lg border">
         <div className="flex border-b">
           <button
+            type="button"
             onClick={() => setTab("source")}
             className={`inline-flex flex-1 items-center justify-center gap-2 px-4 py-2.5 font-medium text-sm transition-colors ${
               tab === "source"
@@ -71,6 +72,7 @@ function ArtifactsView() {
             Source Code
           </button>
           <button
+            type="button"
             onClick={() => isComplete && setTab("preview")}
             disabled={!isComplete}
             className={`inline-flex flex-1 items-center justify-center gap-2 px-4 py-2.5 font-medium text-sm transition-colors ${

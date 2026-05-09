@@ -127,7 +127,7 @@ function ToolFallbackTrigger({
       <span
         data-slot="tool-fallback-trigger-label"
         className={cn(
-          "aui-tool-fallback-trigger-label-wrapper relative inline-block grow text-left leading-none",
+          "aui-tool-fallback-trigger-label-wrapper relative inline-block grow text-start leading-none",
           isCancelled && "text-muted-foreground line-through",
         )}
       >

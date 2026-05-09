@@ -1,4 +1,4 @@
-import { ResourceElement } from "./types";
+import type { ResourceElement } from "./types";
 import {
   createResourceFiber,
   unmountResourceFiber,

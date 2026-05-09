@@ -1,0 +1,141 @@
+---
+title: Gemini Clone
+description: Open-source Gemini clone in React — Material Design surface colors, two-line greeting, suggestion chips, functional Tools and Model dropdowns, and a Mic↔Send transition.
+---
+
+import { Gemini } from "@/components/examples/gemini";
+
+<div className="not-prose h-[600px]">
+  <Gemini />
+</div>
+
+## Overview
+
+The Gemini Clone demonstrates how to customize assistant-ui to match Google Gemini's interface. The empty state shows a two-line greeting, a centered composer, and a row of suggestion chips. The composer has functional Tools and Model dropdowns, and the trailing slot animates between Mic, Send, and Cancel.
+
+## Features
+
+- **Two-line Greeting**: Sparkle icon + "Hi there" + large "Where would you like to start?" headline
+- **Five Suggestion Chips**: Create image, Make music, Help me learn, Write anything, Boost my day
+- **Functional Tools Dropdown**: Deep Research / Create image / Search the web / Help me learn
+- **Functional Model Picker**: Fast / Thinking / Pro with descriptions and "Upgrade to Gemini Advanced"
+- **Animated Send Slot**: Mic when composer is empty, Send circle when typing, Cancel when running (CSS `group-data-[empty]` transitions on `ComposerPrimitive.Root`)
+- **Distinctive User Bubble**: `rounded-3xl rounded-tr` — sharp top-right corner, signature Gemini look
+- **Sparkle Avatar**: Gemini icon on the left of every assistant message
+
+## Quick Start
+
+```bash
+npx assistant-ui add thread
+```
+
+## Code
+
+The empty state and chat state share the same `Composer`. The composer carries `data-empty` and `data-running` attributes that drive the Mic↔Send transition:
+
+```tsx
+import {
+  AuiIf,
+  ThreadPrimitive,
+  ComposerPrimitive,
+  useAuiState,
+} from "@assistant-ui/react";
+
+export const Gemini = () => (
+  <ThreadPrimitive.Root className="bg-[#f8f9fa] dark:bg-[#131314]">
+    <AuiIf condition={(s) => s.thread.isEmpty}>
+      <EmptyState />
+    </AuiIf>
+    <AuiIf condition={(s) => !s.thread.isEmpty}>
+      <ThreadPrimitive.Viewport>
+        <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+      </ThreadPrimitive.Viewport>
+      <Composer />
+    </AuiIf>
+  </ThreadPrimitive.Root>
+);
+
+const Composer = () => {
+  const isEmpty = useAuiState((s) => s.composer.isEmpty);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  return (
+    <ComposerPrimitive.Root
+      className="group/composer rounded-4xl bg-white p-3 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.16)] dark:bg-[#1e1f20]"
+      data-empty={isEmpty}
+      data-running={isRunning}
+    >
+      <ComposerPrimitive.Input placeholder="Ask Gemini" />
+      <div className="flex items-center">
+        <ComposerPrimitive.AddAttachment />
+        <ToolsMenu />
+        <div className="ml-auto flex items-center gap-2">
+          <ModelPicker />
+          <SendOrMic />
+        </div>
+      </div>
+    </ComposerPrimitive.Root>
+  );
+};
+```
+
+### Mic ↔ Send Transition
+
+The composer passes `isEmpty` and `isRunning` as data attributes; the children animate via `group-data-[empty]` selectors:
+
+```tsx
+<div className="relative size-10 rounded-full">
+  {/* Mic: visible when empty + idle */}
+  <button className="group-data-[empty=false]/composer:scale-0 group-data-[running=true]/composer:scale-0">
+    <Mic />
+  </button>
+  {/* Send: visible when typing + idle */}
+  <ComposerPrimitive.Send className="bg-[#d3e3fd] group-data-[empty=true]/composer:scale-0 group-data-[running=true]/composer:scale-0">
+    <SendHorizonal />
+  </ComposerPrimitive.Send>
+  {/* Cancel: visible while running */}
+  <ComposerPrimitive.Cancel className="bg-[#d3e3fd] group-data-[running=false]/composer:scale-0">
+    <Square />
+  </ComposerPrimitive.Cancel>
+</div>
+```
+
+### Functional Dropdowns
+
+```tsx
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/shared/dropdown-menu";
+
+<DropdownMenu>
+  <DropdownMenuTrigger>Tools</DropdownMenuTrigger>
+  <DropdownMenuContent>
+    <DropdownMenuItem icon={<Telescope />}>Deep Research</DropdownMenuItem>
+    <DropdownMenuItem icon={<ImageIcon />}>Create image</DropdownMenuItem>
+    {/* ... */}
+  </DropdownMenuContent>
+</DropdownMenu>
+```
+
+### Color Palette
+
+| Element | Light | Dark |
+|---------|-------|------|
+| Background | `#f8f9fa` | `#131314` |
+| Composer surface | `#ffffff` | `#1e1f20` |
+| Primary text | `#1f1f1f` | `#e3e3e3` |
+| Muted text | `#444746` | `#c4c7c5` |
+| User bubble | `#e9eef6` | `#282a2c` |
+| Send button | `#d3e3fd` (light blue) | `#1f3760` |
+| Suggestion chips | `#ffffff` | `#282a2c` |
+
+### User Message Bubble
+
+The distinctive Gemini user bubble has a sharp corner on one side:
+
+```tsx
+<div className="rounded-3xl rounded-tr bg-[#e9eef6] dark:bg-[#282a2c]">
+  {/* 4px top-right, 24px everywhere else */}
+</div>
+```
+
+## Source
+
+<SourceLink href="https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/gemini.tsx" />

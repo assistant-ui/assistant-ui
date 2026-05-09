@@ -2,6 +2,7 @@
 
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
+import { UserMessageSchema } from "@ag-ui/client";
 import {
   fromAgUiMessages,
   toAgUiMessages,
@@ -278,5 +279,319 @@ describe("adapter conversions", () => {
     // Ensure it's not a Zod instance (no Zod methods)
     expect(tools[0]!.parameters).not.toHaveProperty("parse");
     expect(tools[0]!.parameters).not.toHaveProperty("_def");
+  });
+
+  it("returns plain string content when user message has no attachments", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [{ type: "text", text: "Hello" }],
+      },
+    ] as any);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ role: "user", content: "Hello" });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("converts image attachment with data URL to AG-UI image source", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [{ type: "text", text: "What is this?" }],
+        attachments: [
+          {
+            id: "a-1",
+            type: "image",
+            name: "photo.png",
+            content: [
+              {
+                type: "image",
+                image: "data:image/png;base64,iVBORw0KGgoAAAA=",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "What is this?" },
+        {
+          type: "image",
+          source: {
+            type: "data",
+            value: "iVBORw0KGgoAAAA=",
+            mimeType: "image/png",
+          },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("converts image attachment with http URL to AG-UI image url source", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+        attachments: [
+          {
+            id: "a-1",
+            type: "image",
+            name: "remote.jpg",
+            contentType: "image/jpeg",
+            content: [
+              { type: "image", image: "https://example.com/remote.jpg" },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "hi" },
+        {
+          type: "image",
+          source: {
+            type: "url",
+            value: "https://example.com/remote.jpg",
+            mimeType: "image/jpeg",
+          },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("converts file attachment to AG-UI binary with filename preserved", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [{ type: "text", text: "review this" }],
+        attachments: [
+          {
+            id: "a-1",
+            type: "document",
+            name: "spec.pdf",
+            contentType: "application/pdf",
+            content: [
+              {
+                type: "file",
+                data: "JVBERi0xLjQK",
+                mimeType: "application/pdf",
+                filename: "spec.pdf",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "review this" },
+        {
+          type: "binary",
+          mimeType: "application/pdf",
+          data: "JVBERi0xLjQK",
+          filename: "spec.pdf",
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("handles user message with only attachment and empty text", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [],
+        attachments: [
+          {
+            id: "a-1",
+            type: "image",
+            name: "pic.png",
+            content: [
+              {
+                type: "image",
+                image: "data:image/png;base64,AAAA",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "image",
+          source: {
+            type: "data",
+            value: "AAAA",
+            mimeType: "image/png",
+          },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("preserves string-form content when non-text attachments are present", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: "What is in this image?",
+        attachments: [
+          {
+            id: "a-1",
+            type: "image",
+            name: "photo.png",
+            content: [
+              {
+                type: "image",
+                image: "data:image/png;base64,AAAA",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "What is in this image?" },
+        {
+          type: "image",
+          source: {
+            type: "data",
+            value: "AAAA",
+            mimeType: "image/png",
+          },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("preserves text parts from attachments in the string fallback", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+        attachments: [
+          {
+            id: "a-1",
+            type: "document",
+            name: "notes.txt",
+            content: [
+              {
+                type: "text",
+                text: "<attachment name=notes.txt>extracted content</attachment>",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]!.content).toBe(
+      "hi\n<attachment name=notes.txt>extracted content</attachment>",
+    );
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("parses data URL with charset parameter (e.g. SVG)", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [],
+        attachments: [
+          {
+            id: "a-1",
+            type: "image",
+            name: "icon.svg",
+            content: [
+              {
+                type: "image",
+                image:
+                  "data:image/svg+xml;charset=utf-8;base64,PHN2ZyB4bWxucz0=",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "image",
+          source: {
+            type: "data",
+            value: "PHN2ZyB4bWxucz0=",
+            mimeType: "image/svg+xml",
+          },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("routes http file data to binary.url not binary.data", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [],
+        attachments: [
+          {
+            id: "a-1",
+            type: "file",
+            name: "report.pdf",
+            content: [
+              {
+                type: "file",
+                data: "https://cdn.example.com/report.pdf",
+                mimeType: "application/pdf",
+                filename: "report.pdf",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "binary",
+          mimeType: "application/pdf",
+          url: "https://cdn.example.com/report.pdf",
+          filename: "report.pdf",
+        },
+      ],
+    });
+    expect((result[0] as any).content[0]).not.toHaveProperty("data");
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
   });
 });

@@ -13,15 +13,13 @@ export const RuntimeAdapter = resource((runtime: AssistantRuntime) =>
 );
 
 attachTransformScopes(RuntimeAdapter, (scopes, parent) => {
-  const result = baseRuntimeAdapterTransformScopes(scopes, parent);
+  baseRuntimeAdapterTransformScopes(scopes, parent);
 
-  if (!result.tools && parent.tools.source === null) {
-    result.tools = Tools({});
+  if (!scopes.tools && parent.tools.source === null) {
+    scopes.tools = Tools({});
   }
 
-  if (!result.dataRenderers && parent.dataRenderers.source === null) {
-    result.dataRenderers = DataRenderers();
+  if (!scopes.dataRenderers && parent.dataRenderers.source === null) {
+    scopes.dataRenderers = DataRenderers();
   }
-
-  return result;
 });

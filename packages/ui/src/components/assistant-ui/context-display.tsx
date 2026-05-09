@@ -279,6 +279,7 @@ function RingVisual() {
 
   return (
     <svg
+      aria-hidden="true"
       width={RING_SIZE}
       height={RING_SIZE}
       viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
 
 const getMetadataBase = () => {
-  const appUrl = process.env["NEXT_PUBLIC_APP_URL"];
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
   if (appUrl) {
     return new URL(appUrl);
   }
@@ -29,13 +29,15 @@ export const viewport = {
 export const metadata = {
   metadataBase: getMetadataBase(),
   title: {
-    template: "%s | assistant-ui",
-    default: "assistant-ui",
+    template: "%s — assistant-ui (React Chat UI for AI)",
+    default: "assistant-ui — React Chat UI for AI Apps",
   },
-  description: "The TypeScript/React library for AI Chat",
+  description:
+    "Open-source React components and runtimes for building AI chat — ChatGPT-style UIs, copilots, and agents in TypeScript with streaming, tools, and persistence.",
   openGraph: {
     title: "assistant-ui",
-    description: "The TypeScript/React library for AI Chat",
+    description:
+      "Open-source React components and runtimes for building AI chat — ChatGPT-style UIs, copilots, and agents in TypeScript with streaming, tools, and persistence.",
     siteName: "assistant-ui",
     type: "website",
     images: [
@@ -50,7 +52,8 @@ export const metadata = {
   twitter: {
     card: "summary_large_image",
     title: "assistant-ui",
-    description: "The TypeScript/React library for AI Chat",
+    description:
+      "Open-source React components and runtimes for building AI chat — ChatGPT-style UIs, copilots, and agents in TypeScript with streaming, tools, and persistence.",
     images: ["/api/og?variant=home"],
   },
 };
@@ -69,8 +72,10 @@ export default function Layout({ children }: { children: ReactNode }) {
           data-website-id="6f07c001-46a2-411f-9241-4f7f5afb60ee"
           data-domains="www.assistant-ui.com"
         ></script>
+        {/* biome-ignore lint/correctness/useUniqueElementIds: static page with unique context */}
         <Script
           id="vector-script"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: analytics script injection
           dangerouslySetInnerHTML={{
             __html: `
         !function(e,r){try{if(e.vector)return void console.log("Vector snippet included more than once.");var t={};t.q=t.q||[];for(var o=["load","identify","on"],n=function(e){return function(){var r=Array.prototype.slice.call(arguments);t.q.push([e,r])}},c=0;c<o.length;c++){var a=o[c];t[a]=n(a)}if(e.vector=t,!t.loaded){var i=r.createElement("script");i.type="text/javascript",i.async=!0,i.src="https://cdn.vector.co/pixel.js";var l=r.getElementsByTagName("script")[0];l.parentNode.insertBefore(i,l),t.loaded=!0}}catch(e){console.error("Error loading Vector:",e)}}(window,document);

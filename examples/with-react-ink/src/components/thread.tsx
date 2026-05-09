@@ -61,12 +61,11 @@ export const Thread = () => {
         </Box>
       </ThreadPrimitive.Empty>
 
-      <ThreadPrimitive.Messages
-        components={{
-          UserMessage,
-          AssistantMessage,
-        }}
-      />
+      <ThreadPrimitive.Messages>
+        {({ message }) =>
+          message.role === "user" ? <UserMessage /> : <AssistantMessage />
+        }
+      </ThreadPrimitive.Messages>
 
       <StatusIndicator />
 

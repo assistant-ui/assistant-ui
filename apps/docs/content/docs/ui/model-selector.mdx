@@ -1,6 +1,7 @@
 ---
 title: ModelSelector
 description: Model picker with unified overlay positioning and runtime integration.
+platforms: ["react"]
 ---
 
 import { ModelSelectorSample } from "@/components/docs/samples/model-selector";
@@ -50,7 +51,7 @@ const ComposerAction: FC = () => {
 
 ### Read the model in your API route
 
-The selected model name is sent as `config.modelName` in the request body:
+The selected model's `id` is sent as `config.modelName` in the request body:
 
 ```tsx title="app/api/chat/route.ts" {2,5}
 export async function POST(req: Request) {

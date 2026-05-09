@@ -17,9 +17,7 @@ import {
   transformProject,
 } from "../../src/lib/create-project";
 
-// ---------------------------------------------------------------------------
 // Mock cross-spawn so no real child processes are spawned
-// ---------------------------------------------------------------------------
 vi.mock("cross-spawn", () => ({
   spawn: vi.fn(() => {
     const ee = new EventEmitter();
@@ -54,9 +52,6 @@ const defaultOpts = {
   skipInstall: true,
 } as const;
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 let testDir: string;
 
 beforeEach(() => {
@@ -89,9 +84,6 @@ function readFile(filePath: string) {
   return fs.readFileSync(path.join(testDir, filePath), "utf-8");
 }
 
-// ---------------------------------------------------------------------------
-// resolveLatestReleaseRef
-// ---------------------------------------------------------------------------
 describe("resolveLatestReleaseRef", () => {
   it("returns the tag name from the latest release", async () => {
     vi.stubGlobal(
@@ -113,9 +105,6 @@ describe("resolveLatestReleaseRef", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// downloadProject
-// ---------------------------------------------------------------------------
 describe("downloadProject", () => {
   it("passes ref in giget source when provided", async () => {
     await downloadProject("templates/default", "/tmp/dest", "v1.0.0");
@@ -136,9 +125,6 @@ describe("downloadProject", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// transformProject — hasLocalComponents: true
-// ---------------------------------------------------------------------------
 describe("transformProject — hasLocalComponents: true", () => {
   it("transforms package.json correctly", async () => {
     writeJSON("package.json", {
@@ -169,9 +155,6 @@ describe("transformProject — hasLocalComponents: true", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// transformProject — hasLocalComponents: false
-// ---------------------------------------------------------------------------
 describe("transformProject — hasLocalComponents: false", () => {
   beforeEach(() => {
     writeJSON("package.json", { name: "test", dependencies: {} });
@@ -352,9 +335,6 @@ describe("transformProject — hasLocalComponents: false", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// transformProject — skipInstall vs install
-// ---------------------------------------------------------------------------
 describe("transformProject — install behavior", () => {
   it("spawns the correct package manager install command", async () => {
     writeJSON("package.json", { name: "test", dependencies: {} });
@@ -373,9 +353,6 @@ describe("transformProject — install behavior", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// installShadcnRegistry — warn on non-zero exit
-// ---------------------------------------------------------------------------
 describe("installShadcnRegistry behavior", () => {
   it("resolves with a warning when shadcn exits non-zero", async () => {
     // Override spawn mock to emit non-zero exit

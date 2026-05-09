@@ -39,7 +39,7 @@ html:has(#nd-docs-layout) {
 
 #nd-page {
   padding-inline: 1rem !important;
-  padding-top: 1.5rem !important;
+  padding-top: 1rem !important;
   padding-bottom: 1.5rem !important;
 }
 
@@ -50,14 +50,8 @@ html:has(#nd-docs-layout) {
   }
 }
 
-@media (min-width: 768px) {
-  #nd-page {
-    padding-top: 2.5rem !important;
-  }
-}
-
 #nd-toc > .sticky {
-  top: calc(var(--docs-header-height) + 2rem) !important;
+  top: calc(var(--docs-header-height) + 1rem) !important;
 }
 
 #nd-sidebar {

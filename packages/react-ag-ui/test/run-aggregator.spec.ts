@@ -320,6 +320,85 @@ describe("RunAggregator", () => {
     });
   });
 
+  it("emits requires-action.reason: interrupt with interrupts metadata", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "need approval",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [
+          { id: "int-1", reason: "tool_call", toolCallId: "call-1" },
+        ],
+      },
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(last?.status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+    expect(last?.metadata?.custom).toMatchObject({
+      agui: {
+        interrupts: [
+          { id: "int-1", reason: "tool_call", toolCallId: "call-1" },
+        ],
+      },
+    });
+  });
+
+  it("treats success outcome as complete even with pending tool calls", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "search",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: { type: "success" },
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(last?.status).toMatchObject({
+      type: "complete",
+      reason: "unknown",
+    });
+  });
+
+  it("clears interrupts metadata when a fresh run starts", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [{ id: "int-1", reason: "tool_call" }],
+      },
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r2" } as AgUiEvent);
+    aggregator.handle({
+      type: "RUN_FINISHED",
+      runId: "r2",
+      outcome: { type: "success" },
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(last?.status).toMatchObject({ type: "complete" });
+    expect(last?.metadata).toBeUndefined();
+  });
+
   it("parses tool call results and defaults metadata", () => {
     const aggregator = createAggregator(false);
 

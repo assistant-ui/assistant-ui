@@ -32,6 +32,7 @@ export { AssistantMessageStream } from "./core/accumulators/AssistantMessageStre
 export type {
   AssistantMessage,
   AssistantMessageTiming,
+  DataPart,
 } from "./core/utils/types";
 
 export type { Tool } from "./core/tool/tool-types";
@@ -45,6 +46,7 @@ export {
 } from "./core/tool/toolResultStream";
 export {
   toJSONSchema,
+  toPartialJSONSchema,
   toToolsJSONSchema,
   type ToolJSONSchema,
   type ToToolsJSONSchemaOptions,

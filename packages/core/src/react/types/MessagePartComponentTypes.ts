@@ -12,7 +12,7 @@ import type {
   QuoteInfo,
 } from "../..";
 import type { MessagePartState } from "../..";
-import { ToolResponse } from "assistant-stream";
+import type { ToolResponse } from "assistant-stream";
 
 export type EmptyMessagePartProps = {
   status: MessagePartStatus;

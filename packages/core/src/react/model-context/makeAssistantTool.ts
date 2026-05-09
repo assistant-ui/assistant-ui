@@ -1,4 +1,4 @@
-import { FC } from "react";
+import type { FC } from "react";
 import { type AssistantToolProps, useAssistantTool } from "./useAssistantTool";
 
 export type AssistantTool = FC & {

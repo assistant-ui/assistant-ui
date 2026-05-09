@@ -41,6 +41,14 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
       "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/claude.tsx",
   },
   {
+    title: "Gemini Clone",
+    image: "/screenshot/examples/gemini.png",
+    description: "Customized colors and styles for a Gemini look and feel.",
+    link: "/examples/gemini",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/gemini.tsx",
+  },
+  {
     title: "Grok Clone",
     image: "/screenshot/examples/grok.png",
     description: "Customized colors and styles for a Grok look and feel.",
@@ -97,6 +105,23 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     link: "/examples/expo",
     githubLink:
       "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-expo",
+  },
+  {
+    title: "Generative UI",
+    image: "/screenshot/examples/generative-ui.png",
+    description:
+      "Charts, date pickers, contact forms, and maps rendered as interactive AI tool UIs.",
+    link: "/examples/generative-ui",
+    githubLink:
+      "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-generative-ui",
+  },
+  {
+    title: "Interactables",
+    image: "/screenshot/examples/interactables.png",
+    description:
+      "Task board and sticky notes with AI-driven state updates and localStorage persistence.",
+    link: "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-interactables",
+    external: true,
   },
 ];
 

@@ -1,6 +1,6 @@
 ---
 title: Grok Clone
-description: Customized colors and styles for a Grok look and feel
+description: Open-source Grok clone in React — pill composer with paperclip, animated Mic↔Send, functional model picker dropdown, and message timing tooltip.
 ---
 
 import { Grok } from "@/components/examples/grok";
@@ -11,16 +11,18 @@ import { Grok } from "@/components/examples/grok";
 
 ## Overview
 
-The Grok Clone demonstrates how to customize assistant-ui to match xAI's Grok interface. This example features a clean, minimalist design with smooth animations, inverted color schemes for light/dark modes, and a distinctive welcome screen with the Grok logo.
+The Grok Clone demonstrates how to customize assistant-ui to match xAI's Grok interface. The empty state centers the Grok wordmark above a pill composer with an animated trailing button that swaps between Mic, Send, and Cancel based on composer state. Models are picked from a real dropdown that animates open/collapse along with the composer.
 
 ## Features
 
-- **Minimalist Design**: Clean interface with subtle ring borders
-- **Animated Composer**: Smooth transitions between send, voice, and cancel states
-- **Empty State**: Welcome screen with centered Grok logo
-- **Attachment Thumbnails**: Image preview with hover-to-remove
-- **Inverted Buttons**: Dark button on light mode, light button on dark mode
-- **Model Selector**: Animated expand/collapse on focus
+- **Centered Grok Wordmark**: Empty state shows the SVG wordmark above the composer
+- **Pill Composer**: `rounded-4xl` with thin ring border, paperclip on the leading edge
+- **Functional Model Picker**: Fast / Grok 4.1 / Think dropdown with descriptions, plus "Subscribe to SuperGrok"
+- **Expand/Collapse Model Pill**: When the composer is empty the pill shows the model name; when typing it collapses to just the model icon
+- **Animated Send Slot**: Mic when empty, Send (white-on-dark) when typing, Cancel while running — all via `group-data-[empty]` / `group-data-[running]`
+- **Inverted Primary**: Dark button on light mode, light button on dark mode
+- **Message Timing**: Streaming responses show a hover tooltip with first-token, total time, tokens/sec, chunk count
+- **Hover-only Action Bars**: Edit/Copy on user messages, Reload/Copy/👍/👎 on assistant messages
 
 ## Quick Start
 
@@ -30,7 +32,7 @@ npx assistant-ui add thread
 
 ## Code
 
-The Grok clone uses clean minimalism with smooth animations:
+The composer carries `data-empty` and `data-running` attributes so the trailing button transitions smoothly:
 
 ```tsx
 import {
@@ -40,28 +42,28 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 
-export const Grok = () => {
-  return (
-    <ThreadPrimitive.Root className="flex h-full flex-col bg-[#fdfdfd] px-4 dark:bg-[#141414]">
-      <AuiIf condition={(s) => s.thread.isEmpty}>
-        <div className="flex h-full flex-col items-center justify-center">
-          <GrokLogo className="mb-6 h-10 text-[#0d0d0d] dark:text-white" />
-          <Composer />
-        </div>
-      </AuiIf>
-
-      <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">
-        <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+export const Grok = () => (
+  <ThreadPrimitive.Root className="bg-[#fdfdfd] px-4 dark:bg-[#141414]">
+    <AuiIf condition={(s) => s.thread.isEmpty}>
+      <div className="flex h-full flex-col items-center justify-center">
+        <GrokLogo className="mb-6 h-10 text-[#0d0d0d] dark:text-white" />
+        <Composer />
+      </div>
+    </AuiIf>
+    <AuiIf condition={(s) => !s.thread.isEmpty}>
+      <ThreadPrimitive.Viewport>
+        <ThreadPrimitive.Messages>
+          {() => <ChatMessage />}
+        </ThreadPrimitive.Messages>
       </ThreadPrimitive.Viewport>
       <Composer />
-    </ThreadPrimitive.Root>
-  );
-};
+    </AuiIf>
+  </ThreadPrimitive.Root>
+);
 
 const Composer = () => {
   const isEmpty = useAuiState((s) => s.composer.isEmpty);
   const isRunning = useAuiState((s) => s.thread.isRunning);
-
   return (
     <ComposerPrimitive.Root
       className="group/composer mx-auto mb-3 w-full max-w-3xl"
@@ -69,26 +71,59 @@ const Composer = () => {
       data-running={isRunning}
     >
       <div className="rounded-4xl bg-[#f8f8f8] ring-1 ring-[#e5e5e5] ring-inset dark:bg-[#212121] dark:ring-[#2a2a2a]">
-        <ComposerPrimitive.Input
-          placeholder="What do you want to know?"
-          className="w-full bg-transparent text-[#0d0d0d] outline-none dark:text-white"
-        />
-        {/* Animated button with three states */}
-        <div className="relative h-9 w-9 rounded-full bg-[#0d0d0d] dark:bg-white">
-          <button className="group-data-[empty=false]/composer:scale-0">
-            <Mic /> {/* Voice mode when empty */}
-          </button>
-          <ComposerPrimitive.Send className="group-data-[empty=true]/composer:scale-0">
-            <ArrowUpIcon /> {/* Send when has text */}
-          </ComposerPrimitive.Send>
-          <ComposerPrimitive.Cancel className="group-data-[running=false]/composer:scale-0">
-            <Square /> {/* Stop when running */}
-          </ComposerPrimitive.Cancel>
-        </div>
+        <ComposerPrimitive.AddAttachment><Paperclip /></ComposerPrimitive.AddAttachment>
+        <ComposerPrimitive.Input placeholder="What do you want to know?" />
+        <GrokModelPicker />
+        <SendOrMic />
       </div>
     </ComposerPrimitive.Root>
   );
 };
+```
+
+### Functional Model Picker
+
+```tsx
+const MODELS = [
+  { id: "fast", name: "Fast", description: "Default. Quick responses", Icon: Zap },
+  { id: "grok-4.1", name: "Grok 4.1", description: "Standard reasoning", Icon: Moon },
+  { id: "think", name: "Think", description: "Multi-step reasoning", Icon: Moon },
+];
+
+<DropdownMenu>
+  <DropdownMenuTrigger>
+    <CurrentIcon />
+    {/* Name + chevron collapse to nothing while typing */}
+    <div className="group-data-[empty=false]/composer:max-w-0 group-data-[empty=true]/composer:max-w-32">
+      <span>{current.name}</span>
+      <ChevronDown />
+    </div>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent>
+    {MODELS.map((m) => (
+      <DropdownMenuItem onSelect={() => setModel(m.id)}>
+        {m.id === model ? <Check /> : <m.Icon />}
+        {m.name} — {m.description}
+      </DropdownMenuItem>
+    ))}
+  </DropdownMenuContent>
+</DropdownMenu>
+```
+
+### Animated Send Slot
+
+```tsx
+<div className="relative h-9 w-9 rounded-full bg-[#0d0d0d] dark:bg-white">
+  <button className="group-data-[empty=false]/composer:scale-0">
+    <Mic /> {/* Voice when empty */}
+  </button>
+  <ComposerPrimitive.Send className="group-data-[empty=true]/composer:scale-0">
+    <ArrowUp /> {/* Send when typing */}
+  </ComposerPrimitive.Send>
+  <ComposerPrimitive.Cancel className="group-data-[running=false]/composer:scale-0">
+    <Square /> {/* Stop while running */}
+  </ComposerPrimitive.Cancel>
+</div>
 ```
 
 ### Color Palette
@@ -96,25 +131,23 @@ const Composer = () => {
 | Element | Light | Dark |
 |---------|-------|------|
 | Background | `#fdfdfd` | `#141414` |
-| Input bg | `#f8f8f8` | `#212121` |
-| Text | `#0d0d0d` | `white` |
-| Muted | `#9a9a9a` | `#6b6b6b` |
+| Composer surface | `#f8f8f8` | `#212121` |
 | Ring border | `#e5e5e5` | `#2a2a2a` |
-| Send button | `#0d0d0d` | `white` |
+| Primary text | `#0d0d0d` | `white` |
+| Muted text | `#9a9a9a` | `#6b6b6b` |
+| Send button (inverted) | `#0d0d0d` | `white` |
 
 ### Animation Technique
 
 The composer uses `data-*` attributes for state-based animations:
 
 ```tsx
-// Container passes state as data attributes
 <ComposerPrimitive.Root data-empty={isEmpty} data-running={isRunning}>
-
-// Children animate based on parent's data attributes
-<button className="group-data-[empty=false]/composer:scale-0 group-data-[empty=false]/composer:opacity-0">
+  <button className="group-data-[empty=false]/composer:scale-0 group-data-[empty=false]/composer:opacity-0" />
+</ComposerPrimitive.Root>
 ```
 
-This creates smooth transitions between voice → send → cancel button states.
+This drives the Mic↔Send transition and the model pill expand/collapse on the same gesture.
 
 ## Source
 

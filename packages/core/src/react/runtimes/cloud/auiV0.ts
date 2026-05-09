@@ -1,8 +1,11 @@
 import type { MessageStatus, ThreadMessage } from "../../../types/message";
 import { fromThreadMessageLike } from "../../../runtime/utils/thread-message-like";
-import { CloudMessage } from "assistant-cloud";
+import type { CloudMessage } from "assistant-cloud";
 import { isJSONValue } from "../../../utils/json/is-json";
-import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
+import type {
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "assistant-stream/utils";
 import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/message-repository";
 
 type AuiV0MessagePart =

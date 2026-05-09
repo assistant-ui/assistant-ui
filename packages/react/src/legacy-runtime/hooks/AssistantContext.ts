@@ -1,7 +1,7 @@
 "use client";
 
 import { useAui } from "@assistant-ui/store";
-import { AssistantRuntime } from "../runtime/AssistantRuntime";
+import type { AssistantRuntime } from "../runtime/AssistantRuntime";
 import type { ThreadListRuntime } from "../runtime/ThreadListRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 

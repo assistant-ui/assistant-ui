@@ -1,5 +1,5 @@
 import { type ReactNode, memo } from "react";
-import { type AssistantClient } from "@assistant-ui/store";
+import type { AssistantClient } from "@assistant-ui/store";
 import type { AssistantRuntime } from "../runtime/api/assistant-runtime";
 import { AssistantProviderBase } from "./AssistantProvider";
 

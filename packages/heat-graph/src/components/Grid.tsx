@@ -5,17 +5,16 @@ import {
   type ReactNode,
   forwardRef,
 } from "react";
-import { useHeatGraphContext } from "../context";
-import { type CellCollection, useCells } from "../useCells";
+import { CellContext, useHeatGraphContext } from "../context";
+import type { CellData } from "../types";
 
 export type GridProps = Omit<ComponentPropsWithoutRef<"div">, "children"> & {
-  children: (props: { cells: CellCollection }) => ReactNode;
+  children: (props: { cell: CellData }) => ReactNode;
 };
 
 export const Grid = forwardRef<HTMLDivElement, GridProps>(
   ({ children, style, ...props }, ref) => {
-    const { totalWeeks } = useHeatGraphContext();
-    const cells = useCells();
+    const { totalWeeks, cells } = useHeatGraphContext();
 
     return (
       <div
@@ -28,7 +27,11 @@ export const Grid = forwardRef<HTMLDivElement, GridProps>(
         }}
         {...props}
       >
-        {children({ cells })}
+        {cells.map((cell) => (
+          <CellContext key={`${cell.column}-${cell.row}`} value={cell}>
+            {children({ cell })}
+          </CellContext>
+        ))}
       </div>
     );
   },

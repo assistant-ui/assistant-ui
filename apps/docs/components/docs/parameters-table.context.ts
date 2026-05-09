@@ -109,11 +109,52 @@ export const ThreadViewportState: ParametersTableProps = {
         'Controls scroll anchoring: "top" anchors user messages at top, "bottom" is classic behavior.',
     },
     {
-      name: "height",
-      type: "{ viewport: number; inset: number; userMessage: number }",
+      name: "topAnchorMessageClamp",
+      type: "{ tallerThan: string; visibleHeight: string }",
       required: true,
       description:
-        "Raw height values from registered elements: total viewport height, total content inset height (footer, anchor message, etc.), and height of the anchor user message.",
+        "CSS-length clamp configuration for tall user messages when top anchoring is enabled.",
+      children: [
+        {
+          type: "{ tallerThan: string; visibleHeight: string }",
+          parameters: [
+            {
+              name: "tallerThan",
+              type: "string",
+              required: true,
+              description: "Clamp messages taller than this CSS length.",
+            },
+            {
+              name: "visibleHeight",
+              type: "string",
+              required: true,
+              description:
+                "Visible portion of a clamped message's bottom edge.",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: "height",
+      type: "{ viewport: number; inset: number }",
+      required: true,
+      description:
+        "Raw height values from registered elements: total viewport height and total content inset height.",
+    },
+    {
+      name: "element",
+      type: "{ viewport: HTMLElement | null; anchor: HTMLElement | null; target: HTMLElement | null }",
+      required: true,
+      description:
+        "Current DOM elements used for geometry-based top anchoring.",
+    },
+    {
+      name: "targetConfig",
+      type: "{ tallerThan: number; visibleHeight: number } | null",
+      required: true,
+      description:
+        "Numeric clamp configuration for the active top-anchor target message.",
     },
     {
       name: "registerViewport",
@@ -129,10 +170,23 @@ export const ThreadViewportState: ParametersTableProps = {
         "Register a content inset (footer, anchor message, etc.) and get a handle to update its height.",
     },
     {
-      name: "registerUserMessageHeight",
-      type: "() => SizeHandle",
+      name: "registerViewportElement",
+      type: "(element: HTMLElement | null) => Unsubscribe",
       required: true,
-      description: "Register the anchor user message height.",
+      description: "Register the scroll viewport element.",
+    },
+    {
+      name: "registerAnchorElement",
+      type: "(element: HTMLElement | null) => Unsubscribe",
+      required: true,
+      description: "Register the current anchor user message element.",
+    },
+    {
+      name: "registerAnchorTargetElement",
+      type: "(element: HTMLElement | null, config?: { tallerThan: number; visibleHeight: number }) => Unsubscribe",
+      required: true,
+      description:
+        "Register the current top-anchor target element with its numeric clamp configuration.",
     },
   ],
 };

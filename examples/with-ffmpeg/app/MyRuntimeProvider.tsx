@@ -1,7 +1,7 @@
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { AttachmentAdapter } from "@assistant-ui/react";
+import type { AttachmentAdapter } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { INTERNAL } from "@assistant-ui/react";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";

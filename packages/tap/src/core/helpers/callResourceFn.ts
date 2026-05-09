@@ -1,4 +1,4 @@
-import { Resource } from "../types";
+import type { Resource } from "../types";
 
 /**
  * Renders a resource with the given props.

@@ -86,11 +86,13 @@ export class MCPBridge implements ExtendedBridge {
 
     this.app.ontoolinput = (params) => {
       const args = (params.arguments ?? {}) as Record<string, unknown>;
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       this.toolInputCallbacks.forEach((cb) => cb(args));
     };
 
     this.app.ontoolinputpartial = (params) => {
       const args = (params.arguments ?? {}) as Record<string, unknown>;
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       this.toolInputPartialCallbacks.forEach((cb) => cb(args));
     };
 
@@ -110,20 +112,23 @@ export class MCPBridge implements ExtendedBridge {
       if (params._meta) {
         result._meta = params._meta as Record<string, unknown>;
       }
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       this.toolResultCallbacks.forEach((cb) => cb(result));
     };
 
     this.app.ontoolcancelled = (params) => {
       const reason = (params.reason ?? "") as string;
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       this.toolCancelledCallbacks.forEach((cb) => cb(reason));
     };
 
     this.app.onhostcontextchanged = (params: Record<string, unknown>) => {
       const ctx = this.mapHostContext(params);
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       this.contextCallbacks.forEach((cb) => cb(ctx));
     };
 
-    this.app.onteardown = async () => {
+    this.app.onteardown = async (_params, _extra) => {
       for (const cb of this.teardownCallbacks) {
         await cb();
       }
@@ -308,10 +313,15 @@ export class MCPBridge implements ExtendedBridge {
   }
 
   setListToolsHandler(handler: ListToolsHandler): void {
-    this.app.onlisttools = async (params) => {
+    this.app.onlisttools = async (params, _extra) => {
       const cursor = params?.cursor as string | undefined;
-      const tools = await handler(cursor);
-      return { tools };
+      const toolNames = await handler(cursor);
+      return {
+        tools: toolNames.map((name) => ({
+          name,
+          inputSchema: { type: "object" as const },
+        })),
+      };
     };
   }
 

@@ -4,8 +4,8 @@ import {
   ObjectStreamEncoder,
   ObjectStreamDecoder,
 } from "./ObjectStreamResponse";
-import { ReadonlyJSONValue } from "../../utils";
-import { ObjectStreamChunk } from "./types";
+import type { ReadonlyJSONValue } from "../../utils";
+import type { ObjectStreamChunk } from "./types";
 
 // Helper function to collect all chunks from a stream
 async function collectChunks<T>(stream: ReadableStream<T>): Promise<T[]> {

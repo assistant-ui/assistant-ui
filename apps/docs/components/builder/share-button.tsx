@@ -52,6 +52,7 @@ export function ShareButton({ className }: ShareButtonProps) {
 
   return (
     <button
+      type="button"
       onClick={handleShare}
       className={cn(
         "flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-xs transition-colors",

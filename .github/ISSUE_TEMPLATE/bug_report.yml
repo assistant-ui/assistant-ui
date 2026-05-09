@@ -1,0 +1,108 @@
+name: Bug report
+description: Report an issue to help us improve assistant-ui
+labels: ["bug"]
+
+body:
+  - type: checkboxes
+    attributes:
+      label: Checklist
+      description: Please confirm before submitting.
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: This is a reproducible bug, not a usage question (use [Discord](https://discord.gg/S9dwgCNEFs) for questions)
+          required: true
+
+  - type: textarea
+    attributes:
+      label: Environment info
+      description: Run `npx assistant-ui info` in your project and paste the output here.
+      placeholder: |
+        Environment:
+          OS:               macOS 15.3 (arm64)
+          Node.js:          v22.14.0
+          Package Manager:  pnpm 10.32.1
+          Framework:        Next.js 15.3.1
+
+        Packages:
+          @assistant-ui/react          0.12.15
+          ...
+    validations:
+      required: true
+
+  - type: dropdown
+    attributes:
+      label: Affected area(s)
+      multiple: true
+      options:
+        - Runtime / Core
+        - Thread Management
+        - Streaming (assistant-stream)
+        - Attachments / Files
+        - Cloud (assistant-cloud)
+        - React / UI Components
+        - React Native
+        - Store / Tap
+        - Content Rendering (Markdown, Syntax Highlighting)
+        - Rich Text / Composer (Lexical)
+        - Provider Adapters
+        - Performance
+        - CLI / Scaffolding
+        - DevTools / Observability
+        - Documentation
+        - Unsure
+
+  - type: dropdown
+    attributes:
+      label: Runtime adapter in use
+      description: Which runtime hook are you using?
+      options:
+        - useLocalRuntime
+        - useExternalStoreRuntime
+        - useCloudRuntime
+        - useAISDKRuntime / useChatRuntime
+        - useLangGraphRuntime
+        - useAgUiRuntime
+        - useA2ARuntime
+        - useAdkRuntime (Google ADK)
+        - useDataStreamRuntime
+        - useAssistantTransportRuntime
+        - Other / Custom
+        - Not applicable
+        - Unsure
+
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps or a link to a reproduction repo.
+      placeholder: |
+        1. Set up runtime with `useXxxRuntime(...)`
+        2. Send a message with ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Expected vs actual behavior
+      placeholder: |
+        Expected: ...
+        Actual: ...
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Browser (if applicable)
+      placeholder: "e.g. Chrome 131, Firefox 135, Safari 18"
+
+  - type: textarea
+    attributes:
+      label: Code snippet or error log
+      render: tsx
+      description: Relevant code, stack traces, or console output. Please remove any secrets.
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Screenshots, related issues, or anything else that might help.

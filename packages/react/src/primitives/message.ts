@@ -5,7 +5,9 @@ export { MessagePrimitiveParts as Content } from "./message/MessageParts";
 export { MessagePrimitiveIf as If } from "./message/MessageIf";
 export { MessagePrimitiveAttachments as Attachments } from "./message/MessageAttachments";
 export { MessagePrimitiveAttachmentByIndex as AttachmentByIndex } from "./message/MessageAttachments";
+export { MessagePrimitiveQuote as Quote } from "@assistant-ui/core/react";
 export { MessagePrimitiveError as Error } from "./message/MessageError";
+export { MessagePrimitiveGroupedParts as GroupedParts } from "@assistant-ui/core/react";
 export {
   MessagePrimitiveUnstable_PartsGrouped as Unstable_PartsGrouped,
   MessagePrimitiveUnstable_PartsGroupedByParentId as Unstable_PartsGroupedByParentId,

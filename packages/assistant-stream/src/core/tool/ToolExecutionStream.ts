@@ -1,18 +1,18 @@
 import sjson from "secure-json-parse";
-import { AssistantStreamChunk } from "../AssistantStreamChunk";
+import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import {
-  AssistantMetaStreamChunk,
+  type AssistantMetaStreamChunk,
   AssistantMetaTransformStream,
 } from "../utils/stream/AssistantMetaTransformStream";
 import { PipeableTransformStream } from "../utils/stream/PipeableTransformStream";
-import {
+import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "../../utils/json/json-value";
 import { ToolResponse } from "./ToolResponse";
 import { withPromiseOrValue } from "../utils/withPromiseOrValue";
 import { ToolCallReaderImpl } from "./ToolCallReader";
-import { ToolCallReader } from "./tool-types";
+import type { ToolCallReader } from "./tool-types";
 
 type ToolCallback = (toolCall: {
   toolCallId: string;
@@ -119,9 +119,11 @@ export class ToolExecutionStream extends PipeableTransformStream<
               let isExecuting = false;
               const promise = withPromiseOrValue(
                 () => {
-                  let args;
+                  let args: ReadonlyJSONObject;
                   try {
-                    args = sjson.parse(streamController.argsText);
+                    args = sjson.parse(
+                      streamController.argsText,
+                    ) as ReadonlyJSONObject;
                   } catch (e) {
                     throw new Error(
                       `Function parameter parsing failed. ${JSON.stringify((e as Error).message)}`,

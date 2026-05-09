@@ -1,4 +1,4 @@
-import { Derived, DerivedElement } from "../Derived";
+import { Derived, type DerivedElement } from "../Derived";
 import type {
   AssistantClient,
   ClientElement,
@@ -21,7 +21,7 @@ export type DerivedClients = Partial<
  */
 function splitClients(clients: useAui.Props, baseClient: AssistantClient) {
   // 1. Collect transforms from root elements and run them iteratively
-  let scopes = { ...clients } as Record<
+  const scopes = { ...clients } as Record<
     string,
     ClientElement<ClientNames> | DerivedElement<ClientNames>
   >;
@@ -37,7 +37,7 @@ function splitClients(clients: useAui.Props, baseClient: AssistantClient) {
 
       const transform = getTransformScopes(clientElement.type);
       if (transform) {
-        scopes = transform(scopes, baseClient) as typeof scopes;
+        transform(scopes, baseClient);
         changed = true;
         break; // restart iteration since scopes may have new root elements
       }

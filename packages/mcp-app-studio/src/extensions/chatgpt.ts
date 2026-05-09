@@ -56,7 +56,7 @@ export type ChatGPTExtensions = {
 
 function getChatGPTExtensions(): ChatGPTExtensions | null {
   if (typeof window === "undefined") return null;
-  const openai = (window as unknown as Record<string, unknown>)["openai"];
+  const openai = (window as unknown as Record<string, unknown>).openai;
   if (!openai || typeof openai !== "object") return null;
   return openai as ChatGPTExtensions;
 }

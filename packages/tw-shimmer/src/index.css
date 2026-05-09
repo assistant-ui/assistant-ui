@@ -50,19 +50,9 @@
     -webkit-text-fill-color: transparent;
   }
 
-  &.shimmer-bg {
-    --_speed: var(--shimmer-speed, 1000);
-    --_spread: var(--shimmer-spread, 480px);
-    --_bg: transparent;
-    --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.06));
-  }
-
   @variant dark {
     &:not(.shimmer-bg) {
       --_fg: var(--shimmer-color, oklch(from currentColor max(0.8, calc(l + 0.4)) c h / calc(alpha + 0.4)));
-    }
-    &.shimmer-bg {
-      --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.30));
     }
   }
 
@@ -107,6 +97,17 @@
 
   animation: tw-shimmer 1s linear 0s infinite backwards;
   animation-duration: calc((var(--_duration) + var(--_repeat-delay)) * 1ms); 
+}
+
+@utility shimmer-bg {
+  --_speed: var(--shimmer-speed, 1000);
+  --_spread: var(--shimmer-spread, 480px);
+  --_bg: transparent;
+  --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.06));
+
+  @variant dark {
+    --_fg: var(--shimmer-color, oklch(from currentColor 0 c h / 0.30));
+  }
 }
 
 @utility shimmer-speed-* {

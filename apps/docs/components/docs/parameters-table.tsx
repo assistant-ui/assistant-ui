@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import type { FC, ReactNode } from "react";
+import { StatusBadge } from "./status-badge";
 
 type ParameterDef = {
   name: string;
@@ -8,6 +9,7 @@ type ParameterDef = {
   description: string | ReactNode;
   required?: boolean;
   default?: string;
+  deprecated?: string;
   children?: Array<ParametersTableProps>;
 };
 
@@ -57,10 +59,9 @@ const Parameter: FC<{
         <code className="font-mono font-semibold text-foreground text-sm">
           {parameter.name}
         </code>
-        {parameter.required && (
-          <span className="rounded bg-red-500/10 px-1.5 py-0.5 font-medium text-red-600 text-xs dark:text-red-400">
-            required
-          </span>
+        {parameter.deprecated && <StatusBadge variant="deprecated" />}
+        {parameter.name.startsWith("unstable_") && (
+          <StatusBadge variant="unstable" />
         )}
         {parameter.type && (
           <code className="font-mono text-muted-foreground text-xs">
@@ -80,8 +81,14 @@ const Parameter: FC<{
         {parameter.description}
       </p>
 
-      {parameter.children?.map((child) => (
-        <div key={child.type} className="mt-2">
+      {parameter.deprecated && (
+        <p className="text-amber-600 text-xs dark:text-amber-400">
+          Deprecated: {parameter.deprecated}
+        </p>
+      )}
+
+      {parameter.children?.map((child, i) => (
+        <div key={child.type ?? i} className="mt-2">
           <ParametersBox {...child} isNested />
         </div>
       ))}

@@ -3,12 +3,20 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, LayoutGrid, Menu, Search, X } from "lucide-react";
+import {
+  ArrowUpRight,
+  LayoutGrid,
+  Menu,
+  Search,
+  SparklesIcon,
+  X,
+} from "lucide-react";
 import { useSearchContext } from "fumadocs-ui/contexts/search";
 import { NAV_ITEMS, type NavItem } from "@/lib/constants";
 import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
+import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -18,11 +26,27 @@ interface DocsHeaderProps {
   sectionHref: string;
 }
 
+function AskAIButton() {
+  const { toggle } = useAssistantPanel();
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      aria-label="Ask AI"
+    >
+      <SparklesIcon className="size-3.5" />
+    </button>
+  );
+}
+
 function HeaderSearch() {
   const { setOpenSearch, hotKey } = useSearchContext();
 
   return (
     <button
+      type="button"
       onClick={() => {
         analytics.search.opened("header");
         setOpenSearch(true);
@@ -79,7 +103,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 w-full">
-      <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-16 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl md:h-24 dark:via-50%" />
+      <div className="mask-[linear-gradient(to_bottom,black_75%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b from-background to-transparent backdrop-blur-xl" />
       <div className="relative flex h-12 w-full items-center px-4">
         <div className="flex shrink-0 items-center">
           <Link href="/" className="flex shrink-0 items-center gap-2">
@@ -106,6 +130,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
         {/* Mobile controls */}
         <div className="ml-auto flex items-center gap-1 md:hidden">
           <button
+            type="button"
             onClick={() => {
               analytics.search.opened("header");
               setOpenSearch(true);
@@ -115,8 +140,10 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
           >
             <Search className="size-4" />
           </button>
+          <AskAIButton />
           <ThemeToggle />
           <button
+            type="button"
             onClick={handleNavMenuToggle}
             className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
             aria-label="Site navigation"
@@ -128,6 +155,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
             )}
           </button>
           <button
+            type="button"
             onClick={handleSidebarToggle}
             className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
             aria-label="Toggle sidebar"
@@ -143,6 +171,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
         {/* Condensed nav: md to lg */}
         <div className="ml-auto hidden items-center gap-2 md:flex lg:hidden">
           <button
+            type="button"
             onClick={() => {
               analytics.search.opened("header");
               setOpenSearch(true);
@@ -152,6 +181,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
           >
             <Search className="size-4" />
           </button>
+          <AskAIButton />
           <nav className="flex shrink-0 items-center">
             <NavItems items={condensedItems} />
             {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
@@ -162,6 +192,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
         {/* Full nav: lg+ */}
         <div className="ml-auto hidden items-center gap-2 lg:flex">
           <HeaderSearch />
+          <AskAIButton />
           <nav className="flex shrink-0 items-center">
             <NavItems items={filteredItems} />
           </nav>

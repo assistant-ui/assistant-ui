@@ -34,7 +34,9 @@ Container `Box` for the thread area.
 Renders the message list with automatic runtime integration. Each message is wrapped in a scoped context so that `useAuiState((s) => s.message)` works inside the message component.
 
 ```tsx
-<ThreadPrimitive.Messages components={{ Message: MyMessage }} />
+<ThreadPrimitive.Messages>
+  {() => <MyMessage />}
+</ThreadPrimitive.Messages>
 ```
 
 | Prop | Type | Description |
@@ -117,14 +119,14 @@ Low-level provider that sets up the message context for a specific message by in
 Renders all thread suggestions using a provided component. Each suggestion is wrapped in a `SuggestionByIndexProvider` context.
 
 ```tsx
-<ThreadPrimitive.Suggestions
-  components={{ Suggestion: MySuggestion }}
-/>
+<ThreadPrimitive.Suggestions>
+  {() => <MySuggestion />}
+</ThreadPrimitive.Suggestions>
 ```
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `components` | `{ Suggestion: FC }` | Component used to render each suggestion |
+| `children` | `() => ReactElement` | Render function for each suggestion |
 
 ### SuggestionByIndex
 
@@ -175,11 +177,12 @@ Container `Box` for the composer area.
 
 ### Input
 
-Ink `TextInput` wired to the composer runtime. Value is managed automatically.
+Terminal line editor wired to the composer runtime. Value is managed automatically and supports cursor-aware editing.
 
 ```tsx
 <ComposerPrimitive.Input
   submitOnEnter
+  multiLine
   placeholder="Type a message..."
   autoFocus
 />
@@ -190,6 +193,41 @@ Ink `TextInput` wired to the composer runtime. Value is managed automatically.
 | `submitOnEnter` | `boolean` | Whether Enter sends the message (default: `false`) |
 | `placeholder` | `string` | Placeholder text when empty |
 | `autoFocus` | `boolean` | Auto-focus on mount |
+| `multiLine` | `boolean` | When true, Enter inserts a newline unless `submitOnEnter` is enabled |
+| `onSubmit` | `(text: string) => void` | Overrides the default send behavior and receives the current composer text |
+
+Supported keyboard bindings:
+
+| Key | Action | Context |
+|-----|--------|---------|
+| `Left` / `Right` | Move cursor by one grapheme | Always |
+| `Backspace` / `Delete` | Remove the grapheme before / after the cursor | Always |
+| `Home` / `End` | Jump to buffer or line boundary | Buffer in single-line, line in multi-line |
+| `Up` / `Down` | Move between lines, preserving column when possible | Multi-line only |
+| `Ctrl+A` / `Ctrl+E` | Move to line start / end | Always |
+| `Ctrl+W` | Kill the word before the cursor | Always |
+| `Ctrl+D` | Delete the grapheme after the cursor | Always |
+| `Ctrl+U` / `Ctrl+K` | Kill from cursor to line start / end; in multi-line, `Ctrl+K` at end-of-line joins the next line | Always |
+| `Ctrl+J` | Insert a newline | Multi-line only; swallowed in single-line so it never submits |
+| `Alt+B` / `Alt+F` | Move by word backward / forward | Terminals that emit meta-key sequences |
+| `Alt+D` | Kill the word after the cursor | Terminals that emit meta-key sequences |
+| `Shift+Enter` | Insert a newline | Multi-line submit mode, terminals that distinguish it |
+
+Word boundaries and grapheme stepping use `Intl.Segmenter`, so emoji, accented letters, skin-tone modifiers, ZWJ sequences, and CJK ideographs each move and delete as a single character.
+
+Some bindings depend on terminal capabilities. iTerm2, Windows Terminal, and most Linux terminals emit `Alt`-letter combinations as `Esc`-prefixed sequences that Ink decodes as meta-key input; macOS Terminal.app requires enabling "Use Option as Meta key" in its preferences before `Alt+B` / `Alt+F` / `Alt+D` work as expected. `Shift+Enter` requires a terminal that supports the CSI-u protocol (iTerm2 3.4+, kitty, foot, and similar) — terminals that conflate it with `Enter` will fall back to the `submitOnEnter` behaviour.
+
+Example with custom submit handling:
+
+```tsx
+<ComposerPrimitive.Input
+  multiLine
+  submitOnEnter
+  onSubmit={(text) => {
+    console.log("submit", text);
+  }}
+/>
+```
 
 ### Send
 
@@ -216,11 +254,9 @@ Ink `TextInput` wired to the composer runtime. Value is managed automatically.
 Renders composer attachments using the provided component configuration.
 
 ```tsx
-<ComposerPrimitive.Attachments
-  components={{
-    Attachment: MyAttachment,
-  }}
-/>
+<ComposerPrimitive.Attachments>
+  {() => <MyAttachment />}
+</ComposerPrimitive.Attachments>
 ```
 
 | Prop | Type | Description |
@@ -305,14 +341,13 @@ Container `Box` for a single message.
 Renders message content parts via a `components` prop. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to components provided here. A default `Text` component using Ink's `<Text>` is provided out of the box.
 
 ```tsx
-<MessagePrimitive.Parts
-  components={{
-    Text: ({ text }) => <Text>{text}</Text>,
-    tools: {
-      Fallback: ({ part }) => <Text dimColor>[Tool: {part.toolName}]</Text>,
-    },
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <Text>{part.text}</Text>;
+    if (part.type === "tool-call") return <Text dimColor>[Tool: {part.toolName}]</Text>;
+    return null;
   }}
-/>
+</MessagePrimitive.Parts>
 ```
 
 ### Content (deprecated)
@@ -412,11 +447,9 @@ Conditional rendering based on message properties.
 Renders user message attachments using the provided component configuration.
 
 ```tsx
-<MessagePrimitive.Attachments
-  components={{
-    Attachment: ({ attachment }) => <Text>[{attachment.name}]</Text>,
-  }}
-/>
+<MessagePrimitive.Attachments>
+  {() => <Text>[attachment]</Text>}
+</MessagePrimitive.Attachments>
 ```
 
 | Prop | Type | Description |
@@ -665,11 +698,9 @@ Renders the individual parts of a chain of thought using a provided components m
   <ChainOfThoughtPrimitive.AccordionTrigger>
     <Text dimColor>[Toggle reasoning]</Text>
   </ChainOfThoughtPrimitive.AccordionTrigger>
-  <ChainOfThoughtPrimitive.Parts
-    components={{
-      Text: ({ text }) => <Text dimColor>{text}</Text>,
-    }}
-  />
+  <ChainOfThoughtPrimitive.Parts>
+    {({ part }) => part.type === "text" ? <Text dimColor>{part.text}</Text> : null}
+  </ChainOfThoughtPrimitive.Parts>
 </ChainOfThoughtPrimitive.Root>
 ```
 
@@ -684,13 +715,12 @@ import { ToolCallPrimitive } from "@assistant-ui/react-ink";
 A built-in component for rendering tool calls with expandable/collapsible output. Includes a spinner for running tools, formatted JSON args and result output, and status icons for completed, errored, or interrupted calls.
 
 ```tsx
-<MessagePrimitive.Parts
-  components={{
-    tools: {
-      Fallback: ({ part }) => <ToolCallPrimitive.Fallback part={part} />,
-    },
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "tool-call") return <ToolCallPrimitive.Fallback part={part} />;
+    return null;
   }}
-/>
+</MessagePrimitive.Parts>
 ```
 
 | Prop | Type | Description |
@@ -703,3 +733,144 @@ A built-in component for rendering tool calls with expandable/collapsible output
 | `renderHeader` | `(props: { toolName, status, expanded }) => ReactNode` | Custom header renderer |
 | `renderArgs` | `(props: { args, argsText }) => ReactNode` | Custom args renderer |
 | `renderResult` | `(props: { result, isError }) => ReactNode` | Custom result renderer |
+
+## Diff
+
+```tsx
+import { DiffPrimitive, DiffView } from "@assistant-ui/react-ink";
+```
+
+Components for rendering code diffs in the terminal.
+
+### DiffView
+
+Pre-composed component that combines all diff primitives for easy diff rendering. Accepts either a unified diff patch string or old/new file content for inline comparison.
+
+```tsx
+// From a patch string
+<DiffView
+  patch={unifiedDiffString}
+  showLineNumbers
+  contextLines={3}
+  maxLines={50}
+/>
+
+// From file contents
+<DiffView
+  oldFile={{ content: "old text", name: "file.txt" }}
+  newFile={{ content: "new text", name: "file.txt" }}
+  showLineNumbers
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `patch` | `string` | Unified diff patch string to parse and display |
+| `oldFile` | `{ content: string; name?: string }` | Old file content for inline comparison |
+| `newFile` | `{ content: string; name?: string }` | New file content for inline comparison |
+| `showLineNumbers` | `boolean` | Whether to show line numbers (default: true) |
+| `contextLines` | `number` | Number of context lines to show around changes |
+| `maxLines` | `number` | Maximum number of lines to display |
+
+### Root
+
+Container `Box` that provides diff context to child components. Parses the patch or computes the diff from old/new file content.
+
+```tsx
+<DiffPrimitive.Root
+  patch={patchString}
+  oldFile={{ content: oldContent, name: "file.txt" }}
+  newFile={{ content: newContent, name: "file.txt" }}
+>
+  {children}
+</DiffPrimitive.Root>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `patch` | `string` | Unified diff patch string |
+| `oldFile` | `{ content: string; name?: string }` | Old file for inline diff |
+| `newFile` | `{ content: string; name?: string }` | New file for inline diff |
+
+### Header
+
+Displays file header information including filename(s) and change statistics.
+
+```tsx
+<DiffPrimitive.Header fileIndex={0} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `fileIndex` | `number` | Index of file to display header for (default: 0) |
+
+### Content
+
+Renders the diff content with lines. Supports context folding and line truncation.
+
+```tsx
+<DiffPrimitive.Content
+  fileIndex={0}
+  showLineNumbers
+  contextLines={3}
+  maxLines={100}
+  renderLine={({ line, index }) => <CustomLine line={line} />}
+  renderFold={({ region, index }) => <CustomFold region={region} />}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `fileIndex` | `number` | Index of file to display (default: 0) |
+| `showLineNumbers` | `boolean` | Show line numbers (default: true) |
+| `contextLines` | `number` | Number of context lines around changes |
+| `maxLines` | `number` | Maximum lines to display |
+| `renderLine` | `(props: { line; index }) => ReactNode` | Custom line renderer |
+| `renderFold` | `(props: { region; index }) => ReactNode` | Custom fold region renderer |
+
+### Line
+
+Renders an individual diff line with appropriate coloring and indicators.
+
+```tsx
+<DiffPrimitive.Line
+  line={parsedLine}
+  showLineNumbers
+  lineNumberWidth={4}
+/>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `line` | `ParsedLine` | The parsed line object to render |
+| `showLineNumbers` | `boolean` | Show line numbers (default: true) |
+| `lineNumberWidth` | `number` | Width for line number padding (default: 4) |
+
+### Stats
+
+Displays diff statistics (additions and deletions count).
+
+```tsx
+<DiffPrimitive.Stats fileIndex={0} />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `fileIndex` | `number` | Index of file to display stats for (default: 0) |
+
+### Composing with Primitives
+
+For custom layouts, use the primitives directly:
+
+```tsx
+<DiffPrimitive.Root patch={patchString}>
+  <Box flexDirection="column">
+    <DiffPrimitive.Header />
+    <DiffPrimitive.Stats />
+    <DiffPrimitive.Content
+      showLineNumbers
+      contextLines={2}
+    />
+  </Box>
+</DiffPrimitive.Root>
+```

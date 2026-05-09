@@ -1,16 +1,16 @@
 "use client";
 
 import {
-  ComponentType,
+  type ComponentType,
   createContext,
-  FC,
+  type FC,
   forwardRef,
-  PropsWithChildren,
+  type PropsWithChildren,
   useContext,
   useState,
 } from "react";
-import { ReadonlyStore } from "../../context/ReadonlyStore";
-import { create, UseBoundStore } from "zustand";
+import type { ReadonlyStore } from "../../context/ReadonlyStore";
+import { create, type UseBoundStore } from "zustand";
 import type {
   MessagePartStatus,
   ToolCallMessagePartStatus,

@@ -20,7 +20,7 @@ export function MyRuntimeProvider({
   children,
 }: Readonly<{ children: ReactNode }>) {
   const agentUrl =
-    (process.env["NEXT_PUBLIC_AGUI_AGENT_URL"] as string | undefined) ??
+    (process.env.NEXT_PUBLIC_AGUI_AGENT_URL as string | undefined) ??
     "http://localhost:8000/agent";
 
   // Simple in-memory thread storage

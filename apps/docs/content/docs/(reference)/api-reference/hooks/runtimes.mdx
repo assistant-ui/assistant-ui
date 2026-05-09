@@ -1,0 +1,41 @@
+---
+title: Runtime Hooks
+description: Hooks for creating assistant runtimes.
+---
+
+Runtime hooks create the `AssistantRuntime` passed to `AssistantRuntimeProvider`.
+
+```tsx
+import {
+  AssistantRuntimeProvider,
+  useLocalRuntime,
+} from "@assistant-ui/react";
+
+function App() {
+  const runtime = useLocalRuntime(chatModelAdapter);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Core Runtime Hooks
+
+- [`useLocalRuntime`](/docs/runtimes/custom/local-runtime) creates a runtime from a `ChatModelAdapter`.
+- [`useRemoteThreadListRuntime`](/docs/runtimes/concepts/threads) adds backend-backed thread list management.
+- [`useExternalStoreRuntime`](/docs/runtimes/custom/external-store) adapts an external message store.
+- [`useAssistantTransportRuntime`](/docs/runtimes/custom/assistant-transport) consumes assistant-stream transport events.
+
+## Integration Runtime Hooks
+
+- [`useChatRuntime`](/docs/runtimes/ai-sdk/overview) adapts AI SDK chat helpers.
+- [`useDataStreamRuntime`](/docs/runtimes/custom/data-stream) adapts assistant-stream data streams.
+- [`useLangGraphRuntime`](/docs/runtimes/langgraph/overview) adapts LangGraph.
+- [`useCloudThreadListRuntime`](/docs/cloud) uses Assistant Cloud for thread persistence.
+
+## Runtime Options
+
+Most runtime hooks accept adapters for persistence, attachments, speech, dictation, feedback, and suggestions. See [Adapters](/docs/api-reference/adapters) for the adapter map.

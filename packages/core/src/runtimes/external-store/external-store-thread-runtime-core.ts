@@ -63,8 +63,10 @@ export class ExternalStoreThreadRuntimeCore
     unstable_copy: false,
     speech: false,
     dictation: false,
+    voice: false,
     attachments: false,
     feedback: false,
+    queue: false,
   };
 
   public get capabilities() {
@@ -73,11 +75,16 @@ export class ExternalStoreThreadRuntimeCore
 
   private _messages!: readonly ThreadMessage[];
   public isDisabled!: boolean;
+  public isSendDisabled!: boolean;
   public get isLoading() {
     return this._store.isLoading ?? false;
   }
+  // Unlike `isLoading`: pass `undefined` through to preserve the `getThreadState` fallback.
+  public get isRunning(): boolean | undefined {
+    return this._store.isRunning;
+  }
 
-  public override get messages() {
+  protected override _getBaseMessages(): readonly ThreadMessage[] {
     return this._messages;
   }
 
@@ -116,6 +123,7 @@ export class ExternalStoreThreadRuntimeCore
 
     const isRunning = store.isRunning ?? false;
     this.isDisabled = store.isDisabled ?? false;
+    this.isSendDisabled = store.isSendDisabled ?? false;
 
     const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
     this._store = store;
@@ -136,9 +144,11 @@ export class ExternalStoreThreadRuntimeCore
       cancel: this._store.onCancel !== undefined,
       speech: this._store.adapters?.speech !== undefined,
       dictation: this._store.adapters?.dictation !== undefined,
+      voice: this._store.adapters?.voice !== undefined,
       unstable_copy: this._store.unstable_capabilities?.copy !== false,
       attachments: !!this._store.adapters?.attachments,
       feedback: !!this._store.adapters?.feedback,
+      queue: false,
     };
     if (!shallowEqual(this._capabilities, newCapabilities)) {
       this._capabilities = newCapabilities;
@@ -228,9 +238,9 @@ export class ExternalStoreThreadRuntimeCore
 
     if ((oldStore?.isRunning ?? false) !== (store.isRunning ?? false)) {
       if (store.isRunning) {
-        this._notifyEventSubscribers("runStart");
+        this._notifyEventSubscribers("runStart", {});
       } else {
-        this._notifyEventSubscribers("runEnd");
+        this._notifyEventSubscribers("runEnd", {});
       }
     }
 
@@ -306,10 +316,6 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Runtime does not support importing external states.");
 
     this._store.onLoadExternalState(state);
-  }
-
-  public unstable_loadExternalState(state: any): void {
-    this.importExternalState(state);
   }
 
   public cancelRun(): void {

@@ -1,5 +1,5 @@
 import {
-  SubscribableRuntime,
+  type SubscribableRuntime,
   useRuntimeStateInternal,
 } from "./useRuntimeState";
 
@@ -75,6 +75,7 @@ export function createStateHookForRuntime<TState>(
     if (!store) return null;
 
     // it is ok to call useRuntimeStateInternal conditionally because it will never become null if its available
+    // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
     return useRuntimeStateInternal(store, selector);
   }
 

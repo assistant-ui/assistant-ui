@@ -16,7 +16,10 @@ export function MoreDropdown({ items }: { items: MoreDropdownItem[] }) {
   return (
     <HoverCard openDelay={100} closeDelay={100}>
       <HoverCardTrigger asChild>
-        <button className="flex items-center gap-1 px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground">
+        <button
+          type="button"
+          className="flex items-center gap-1 px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+        >
           More
           <ChevronDown className="size-3" />
         </button>

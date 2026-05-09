@@ -1,0 +1,30 @@
+---
+title: Utility Hooks
+description: Focused helpers for message parts, quotes, timing, and viewport behavior.
+---
+
+Utility hooks expose commonly needed slices of assistant-ui behavior without requiring a full primitive.
+
+## Message Helpers
+
+- `useMessageQuote` reads the quote state for the current message.
+- `useMessageTiming` reads timing metadata for the current message.
+
+## Message Part Helpers
+
+- `useMessagePartText`
+- `useMessagePartReasoning`
+- `useMessagePartSource`
+- `useMessagePartFile`
+- `useMessagePartImage`
+- `useMessagePartData`
+
+These hooks are intended for custom message part renderers. They read the nearest message part context established by `MessagePrimitive.Parts`, `MessagePartPrimitive`, or the lower-level providers.
+
+## Viewport Helpers
+
+- `useThreadViewport` reads and controls the thread viewport.
+- `useThreadViewportAutoScroll` wires auto-scroll behavior for custom viewport compositions.
+- `useScrollLock` helps reasoning and grouped-part UIs preserve scroll behavior while content changes.
+
+For primitive-specific prop APIs, see [Primitives](/docs/api-reference/primitives).

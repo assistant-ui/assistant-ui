@@ -69,6 +69,7 @@ function TOCActions({
       {markdownUrl && (
         <>
           <button
+            type="button"
             onClick={handleCopy}
             disabled={isLoading}
             className={linkClass}
@@ -100,7 +101,7 @@ function TOCActions({
           Edit on GitHub
         </a>
       )}
-      <button onClick={handleAskAIClick} className={linkClass}>
+      <button type="button" onClick={handleAskAIClick} className={linkClass}>
         <SparklesIcon className="size-3" />
         Ask AI
       </button>
@@ -163,6 +164,7 @@ export function TableOfContents({
   if (items.length === 0) return null;
 
   return (
+    // biome-ignore lint/correctness/useUniqueElementIds: framework-specific toc anchor
     <div id="nd-toc" className="w-56 [grid-area:toc] max-xl:hidden">
       <div className="sticky top-14 flex max-h-[calc(100vh-3.5rem)] flex-col pe-4 pb-2">
         <p className="mb-3 shrink-0 text-muted-foreground/70 text-xs">

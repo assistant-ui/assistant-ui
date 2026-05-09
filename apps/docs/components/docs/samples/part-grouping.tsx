@@ -18,6 +18,7 @@ const CollapsibleGroup = ({
   return (
     <div className="my-2 overflow-hidden rounded-lg border">
       <button
+        type="button"
         onClick={() => setIsCollapsed(!isCollapsed)}
         className="flex w-full items-center justify-between p-3 hover:bg-muted/50"
       >

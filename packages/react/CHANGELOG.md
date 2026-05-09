@@ -1,5 +1,342 @@
 # @assistant-ui/react
 
+## 0.14.0
+
+### Minor Changes
+
+- [#3970](https://github.com/assistant-ui/assistant-ui/pull/3970) [`040d469`](https://github.com/assistant-ui/assistant-ui/commit/040d469acfcf782de6fc188c646dfd8732d27088) - chore: drop APIs deprecated in v0.11/v0.12 ([@Yonom](https://github.com/Yonom))
+
+  See the [v0.14 migration guide](https://assistant-ui.com/docs/migrations/v0-14) for the full removal list and replacements.
+  - `useAssistantApi` / `useAssistantState` / `useAssistantEvent` / `AssistantIf` removed (use `useAui` / `useAuiState` / `useAuiEvent` / `AuiIf`).
+  - `getExternalStoreMessage` (singular) removed (use `getExternalStoreMessages`).
+  - `MessageState.submittedFeedback` removed (use `message.metadata.submittedFeedback`).
+  - `ThreadRuntime.startRun(parentId)` positional overload removed (pass `{ parentId }`).
+  - `ThreadRuntime.unstable_loadExternalState` removed (use `importExternalState`).
+  - `ThreadRuntime.unstable_resumeRun` removed (use `resumeRun`).
+  - `ThreadRuntime.getModelConfig` removed (use `getModelContext`).
+  - `AssistantRuntime.threadList` / `switchToNewThread` / `switchToThread` / `registerModelConfigProvider` / `reset` removed (use `threads` / `threads.switchToNewThread` / `threads.switchToThread` / `registerModelContextProvider` / `thread.reset`).
+  - `ChatModelRunOptions.config` removed (use `context`).
+  - `useLocalThreadRuntime` alias removed (use `useLocalRuntime`).
+  - `unstable_useRemoteThreadListRuntime` / `unstable_useCloudThreadListAdapter` / `unstable_RemoteThreadListAdapter` / `unstable_InMemoryThreadListAdapter` aliases removed (drop the `unstable_` prefix).
+  - `react-langgraph` `onSwitchToThread` removed (use `load`).
+  - `toAISDKTools` / `getEnabledTools` removed (use `toToolsJSONSchema` from `assistant-stream`).
+
+### Patch Changes
+
+- Updated dependencies [[`040d469`](https://github.com/assistant-ui/assistant-ui/commit/040d469acfcf782de6fc188c646dfd8732d27088)]:
+  - @assistant-ui/core@0.2.0
+
+## 0.13.0
+
+### Minor Changes
+
+- [#3908](https://github.com/assistant-ui/assistant-ui/pull/3908) [`d864d07`](https://github.com/assistant-ui/assistant-ui/commit/d864d0709d9db5f8e042e62cf1f40669f087ba68) - fix: robust top-turn anchoring with viewport-owned reserve ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+  **Migration:**
+  - Remove `ThreadPrimitive.ViewportSlack` from your tree. It has been removed from the public API because top-anchor target registration is now handled automatically by `MessagePrimitive.Root` when `turnAnchor="top"`.
+  - If you customized `fillClampThreshold` / `fillClampOffset` on `ThreadPrimitive.ViewportSlack` or `MessagePrimitive.Root`, replace them with `topAnchorMessageClamp` on `ThreadPrimitive.Viewport`:
+
+  ```tsx
+  // Before, either:
+  <MessagePrimitive.Root fillClampThreshold="10em" fillClampOffset="6em" />
+
+  // or:
+  <ThreadPrimitive.ViewportSlack fillClampThreshold="10em" fillClampOffset="6em">
+    ...
+  </ThreadPrimitive.ViewportSlack>
+
+  // After
+  <ThreadPrimitive.Viewport
+    turnAnchor="top"
+    topAnchorMessageClamp={{ tallerThan: "10em", visibleHeight: "6em" }}
+  >
+    ...
+  </ThreadPrimitive.Viewport>
+  ```
+
+### Patch Changes
+
+- [#3924](https://github.com/assistant-ui/assistant-ui/pull/3924) [`801b9a6`](https://github.com/assistant-ui/assistant-ui/commit/801b9a68d9c7c70ab15ca53842d0df6adacb7b86) - fix(react): recover ComposerPrimitive.Input from dropped compositionend ([@nitnizzie](https://github.com/nitnizzie))
+
+  reset `compositionRef` when the next change event reports `isComposing: false` so a dropped `compositionend` (chromium dead-key layouts, mid-composition focus loss) can no longer freeze the input. additionally call `setText` during composition so React 19's stricter controlled-input reconciliation does not reset the textarea mid-IME. fixes [#3923](https://github.com/assistant-ui/assistant-ui/issues/3923).
+
+- [#3953](https://github.com/assistant-ui/assistant-ui/pull/3953) [`7098bab`](https://github.com/assistant-ui/assistant-ui/commit/7098bab4c67fbd507c3fad746ef130daa01b3fd6) - Add cursor-based pagination to the thread list. `RemoteThreadListAdapter.list()` accepts an optional `{ after }` cursor and may return `nextCursor` on the response. The runtime exposes `loadMore()`, `hasMore`, and `isLoadingMore` through both the legacy `ThreadListRuntime` API and the tap-only `aui.threads()` path; `ThreadListRuntimeCore.loadMore?()`, `hasMore?`, and `isLoadingMore?` are optional, so non-paginating cores (local, external-store, single-thread, in-memory) remain conformant. ([@okisdev](https://github.com/okisdev))
+
+  `@assistant-ui/react` ships a matching `ThreadListPrimitive.LoadMore` button built on `createActionButton`, plus a `useThreadListLoadMore` primitive hook. Consumers wanting an `IntersectionObserver` sentinel can read `s.threads.hasMore` / `isLoadingMore` from `useAuiState` and call `aui.threads().loadMore()` directly.
+
+  In-flight `loadMore()` calls dedup via a single promise. The existing `_loadGeneration` counter drops stale append callbacks when a `reload()` interleaves a `loadMore()`. The loadMore reducer captures the active adapter so a mid-flight adapter swap cannot leak a stale page. Empty-string `nextCursor` is normalised to `undefined`. `reload()` pre-clears the cursor so consumers reading `hasMore` directly during a reload do not observe a stale value.
+
+  Adapter rejections are surfaced via `console.error` in both the initial-load and `loadMore` paths, matching the pattern in `RemoteThreadListHookInstanceManager` and `useToolInvocations`.
+
+- [#3954](https://github.com/assistant-ui/assistant-ui/pull/3954) [`aa6e071`](https://github.com/assistant-ui/assistant-ui/commit/aa6e071fdd6ea832c5aff3f6cf817b2e3eb6ceb0) - fix: keep active top-anchored messages visible to layout ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+- [#3962](https://github.com/assistant-ui/assistant-ui/pull/3962) [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#3952](https://github.com/assistant-ui/assistant-ui/pull/3952) [`df7eb3e`](https://github.com/assistant-ui/assistant-ui/commit/df7eb3eee6beeac72d3220707cf4660adf932586) - perf: cut per-message overhead in long threads ([@okisdev](https://github.com/okisdev))
+
+  Two `MessagePrimitive.Root` changes remove work that scaled with message count:
+  - Defer the `parseCssLength` call inside the top-anchor target ref to the next animation frame. The synchronous `getComputedStyle` read previously forced a full-tree layout during the bulk-mount of a long thread (a 335 ms forced reflow at 100 messages in our trace). Deferring past first paint lets the browser do the layout naturally.
+  - Split the root into a default and a top-anchor path. Threads using the default `turnAnchor="bottom"` no longer subscribe to the top-anchor `useAuiState` selectors per message.
+
+  The only observable change is that top-anchor target registration is now async by one frame.
+
+  Note: `@assistant-ui/ui` (private, copy-into-project) gains a `content-visibility: auto` default on message wrappers in the same PR. On a cold load with pre-existing history taller than the viewport, the placeholder-based `scrollHeight` can transiently disagree with the at-bottom check until off-screen messages are measured. `useOnResizeContent` resyncs within a frame, and the auto-scroll path uses an explicit "scrolling" flag rather than trusting `isAtBottom` alone, so run-start scrolling is unaffected.
+
+- [#3948](https://github.com/assistant-ui/assistant-ui/pull/3948) [`f4a693e`](https://github.com/assistant-ui/assistant-ui/commit/f4a693ec1898f6ed0b81be47512fe51fd93a2de8) - fix(core): restore adapter context flow through RemoteThreadListAdapter.unstable_Provider ([@okisdev](https://github.com/okisdev))
+
+  PR [#3891](https://github.com/assistant-ui/assistant-ui/issues/3891) hoisted the runtime binder out of `RemoteThreadListAdapter.unstable_Provider` so that user-supplied loading / Suspense wrappers no longer strand the runtime binding. as a side effect, any `RuntimeAdapterProvider` mounted inside `unstable_Provider` (history, attachments — what `useCloudThreadListAdapter` and `LocalStorageThreadListAdapter` both do) ended up below the binder in the render tree. `useRuntimeAdapters()` reads context from above, so the runtime hook saw `null` and `useExternalHistory` early-returned.
+
+  for `useChatRuntime({ cloud })` setups this silently disabled message persistence (`POST /v1/threads/:id/messages`), thread history loading, run telemetry (`POST /v1/runs`), and forced cloud attachments to fall back to `vercelAttachmentAdapter`'s base64 inlining. the same regression hits `useA2ARuntime`, `useAgUiRuntime`, and `useLocalRuntime` whenever they are wrapped by `useRemoteThreadListRuntime` with a similar adapter.
+
+  restore the pre-[#3891](https://github.com/assistant-ui/assistant-ui/issues/3891) layering: the binder once again renders inside `unstable_Provider`, so the runtime hook reads any context the Provider injects. the `ProviderRenderDetector` warning introduced by [#3891](https://github.com/assistant-ui/assistant-ui/issues/3891) is kept and now fires whenever Provider gates `children` behind suspense, loading state, or `useEffect` (the original [#3678](https://github.com/assistant-ui/assistant-ui/issues/3678) case), pointing the user at the synchronous-children rule. no API surface changes; first-party adapters keep working unchanged.
+
+- Updated dependencies [[`7098bab`](https://github.com/assistant-ui/assistant-ui/commit/7098bab4c67fbd507c3fad746ef130daa01b3fd6), [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94), [`5fdf17e`](https://github.com/assistant-ui/assistant-ui/commit/5fdf17e019c91b000c6f4cf9e3e56c89d764a435)]:
+  - @assistant-ui/core@0.1.18
+  - assistant-stream@0.3.13
+  - @assistant-ui/store@0.2.10
+  - @assistant-ui/tap@0.5.11
+
+## 0.12.28
+
+### Patch Changes
+
+- [#3853](https://github.com/assistant-ui/assistant-ui/pull/3853) [`6a919c1`](https://github.com/assistant-ui/assistant-ui/commit/6a919c1fa21113080f46dd0e08142c939dad3ea4) - feat: add `<MessagePrimitive.GroupedParts>` for hierarchical adjacent grouping of message parts ([@Yonom](https://github.com/Yonom))
+
+  Introduces a new primitive that coalesces adjacent parts into groups via a user-supplied `groupBy(part) → "group-…" | readonly "group-…"[] | null`. Adjacent parts sharing a key-path prefix coalesce up to that prefix; ungrouped parts render as direct leaves.
+
+  The render function takes `{ part, children }` and dispatches on a single `switch (part.type)`. `"group-…"` cases wrap `children` (the recursively-rendered subtree); real part types (`"text"`, `"tool-call"`, `"reasoning"`, …) render the part directly with the same `EnrichedPartState` enrichments (`toolUI`, `addResult`, `resume`, `dataRendererUI`) that `<MessagePrimitive.Parts>` provides.
+
+  `GroupPart` is intentionally minimal: `{ type, status, indices }`. The render function is invoked once per group node and once per individual leaf part, so users never have to nest a `<MessagePrimitive.Parts>` call.
+
+  The `groupBy` return type is constrained to `` `group-${string}` `` so the unified switch can never collide with a real part type. The component infers a literal `TKey` per call site, so `part.type` narrows to the exact union of group keys plus part types.
+
+  For leaf parts, `children` is a sentinel that throws if rendered — accidental fall-through like `default: return children;` errors loudly instead of silently rendering nothing. Returning `null` from a leaf case is fine.
+
+  Deprecates the legacy `components.ToolGroup`, `components.ReasoningGroup`, and `components.ChainOfThought` props on `<Parts>`, and `<MessagePrimitive.Unstable_PartsGrouped>` for adjacent grouping — all still work for backwards compatibility.
+
+- Updated dependencies [[`0bbf5dd`](https://github.com/assistant-ui/assistant-ui/commit/0bbf5dd7357c0993958a2e8e55eb60705eca3207), [`98f165c`](https://github.com/assistant-ui/assistant-ui/commit/98f165ca83c4df9b9133eb4ce4fdf8c7a06886bb), [`62ec5bd`](https://github.com/assistant-ui/assistant-ui/commit/62ec5bd3368fb69ea7bcde275858e0ea8fa1d59b), [`6a919c1`](https://github.com/assistant-ui/assistant-ui/commit/6a919c1fa21113080f46dd0e08142c939dad3ea4)]:
+  - @assistant-ui/core@0.1.17
+
+## 0.12.27
+
+### Patch Changes
+
+- [#3909](https://github.com/assistant-ui/assistant-ui/pull/3909) [`005f83f`](https://github.com/assistant-ui/assistant-ui/commit/005f83f3ebfb94b3a9d7c34bc7d2a71bbaf63a9e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`549037a`](https://github.com/assistant-ui/assistant-ui/commit/549037ac77aed8736823cfb82baf9645e3364adf), [`005f83f`](https://github.com/assistant-ui/assistant-ui/commit/005f83f3ebfb94b3a9d7c34bc7d2a71bbaf63a9e), [`976aec5`](https://github.com/assistant-ui/assistant-ui/commit/976aec566330bee3c607cfb356f3358eefe28ac1), [`25b97d5`](https://github.com/assistant-ui/assistant-ui/commit/25b97d5c62fb038471b06eaa784ad4b7e23ef533), [`2008fc9`](https://github.com/assistant-ui/assistant-ui/commit/2008fc9af3d6fe05604d6b08275c2e9cec099bd9), [`88fcd35`](https://github.com/assistant-ui/assistant-ui/commit/88fcd352ecffd12f124abe988cc5499f784f81d6)]:
+  - @assistant-ui/core@0.1.16
+  - @assistant-ui/store@0.2.9
+  - @assistant-ui/tap@0.5.10
+
+## 0.12.26
+
+### Patch Changes
+
+- [#3876](https://github.com/assistant-ui/assistant-ui/pull/3876) [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#3873](https://github.com/assistant-ui/assistant-ui/pull/3873) [`c56f98f`](https://github.com/assistant-ui/assistant-ui/commit/c56f98f5759e710281fc57b343b41af102914f1a) - feat(core): add `reload()` method on `ThreadListRuntime` and `aui.threads()` that re-invokes the remote adapter's `list()` and refreshes the thread list. Use this after asynchronous auth (e.g. OIDC, better-auth) completes to recover from an initial load that ran before the authenticated user was available. A generation counter ensures a mid-flight response from a superseded load cannot overwrite a newer reload's state. ([@okisdev](https://github.com/okisdev))
+
+- [#3829](https://github.com/assistant-ui/assistant-ui/pull/3829) [`9aa5410`](https://github.com/assistant-ui/assistant-ui/commit/9aa54107fc76509830309bb5e2c74984408b97fe) - fix: add render prop support to dropdown menu primitives ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+- [#3583](https://github.com/assistant-ui/assistant-ui/pull/3583) [`a1f84ae`](https://github.com/assistant-ui/assistant-ui/commit/a1f84ae7b7782be19a25369905171de997f327ac) - fix: process dropped attachments in parallel ([@samdickson22](https://github.com/samdickson22))
+
+  Align drag-and-drop attachment handling with paste so multiple files appear together instead of appearing one by one.
+
+- [#3870](https://github.com/assistant-ui/assistant-ui/pull/3870) [`b4fde97`](https://github.com/assistant-ui/assistant-ui/commit/b4fde97355b51ed7a35401eeed0e5f5943a51150) - fix(composer): sync mouse hover with keyboard highlight in `TriggerPopover`. Items and categories now update `highlightedIndex` on mouse move, keeping `data-highlighted`, `aria-selected`, and `aria-activedescendant` consistent with the hovered element. A new `highlightIndex(index)` method is exposed on the popover scope. Closes [#3868](https://github.com/assistant-ui/assistant-ui/issues/3868). ([@okisdev](https://github.com/okisdev))
+
+- [#3831](https://github.com/assistant-ui/assistant-ui/pull/3831) [`d53ff4f`](https://github.com/assistant-ui/assistant-ui/commit/d53ff4f3f8b7d7220c1cb274c4fda335598fb063) - chore: remove decorative separator comments across packages ([@okisdev](https://github.com/okisdev))
+
+- [#3834](https://github.com/assistant-ui/assistant-ui/pull/3834) [`17958c9`](https://github.com/assistant-ui/assistant-ui/commit/17958c9234ccc42394260125df54d897c06a47fd) - refactor: unify mention/slash under behavior sub-primitives; delete Mention/SlashCommand aliases and the `execute` field on `Unstable_TriggerItem`; split TriggerPopoverResource; rename react-lexical `MentionNode`/`MentionPlugin`/`MentionChipProvider`/`mentionChip` prop to `DirectiveNode`/`DirectivePlugin`/`DirectiveChipProvider`/`directiveChip`; fix IME/Unicode/copy-paste/undo bugs. Breaking (`Unstable_` APIs): replace `onSelect={{type:"insertDirective",formatter}}` with `<Unstable_TriggerPopover.Directive formatter={...}>`; replace `onSelect={{type:"action",handler}}` with `<Unstable_TriggerPopover.Action onExecute={...}>`. Rename `unstable_useToolMentionAdapter` → `unstable_useMentionAdapter` with new `items`/`categories`/`includeModelContextTools` options. `unstable_useSlashCommandAdapter` now returns `{ adapter, action }` — `execute` stays in the hook closure instead of on the item. Rename CSS class `aui-mention-chip` → `aui-directive-chip` and attributes `data-mention-*` → `data-directive-*`. ([@okisdev](https://github.com/okisdev))
+
+- [#3827](https://github.com/assistant-ui/assistant-ui/pull/3827) [`477fa8a`](https://github.com/assistant-ui/assistant-ui/commit/477fa8a4c94d8922f5639dac8888fc55926f36cd) - feat: unify mention and slash command primitives under `Unstable_TriggerPopover` ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`c7a274e`](https://github.com/assistant-ui/assistant-ui/commit/c7a274e968f8e081ded4c29cc37986392f04130e), [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6), [`ca8f526`](https://github.com/assistant-ui/assistant-ui/commit/ca8f526944968036d47849a7659353765072a836), [`c56f98f`](https://github.com/assistant-ui/assistant-ui/commit/c56f98f5759e710281fc57b343b41af102914f1a), [`974d15e`](https://github.com/assistant-ui/assistant-ui/commit/974d15e34675cc5a611f0297904f5cb2c1b3da8c), [`4b19d42`](https://github.com/assistant-ui/assistant-ui/commit/4b19d42970cb98cee6ea69e2c26dc22763091568), [`055dda5`](https://github.com/assistant-ui/assistant-ui/commit/055dda54b68031d0c9c760bf89a7c1036dd2174d), [`da0f598`](https://github.com/assistant-ui/assistant-ui/commit/da0f59818085c7b97d157da1260c5e20873c32c1), [`d53ff4f`](https://github.com/assistant-ui/assistant-ui/commit/d53ff4f3f8b7d7220c1cb274c4fda335598fb063), [`20f8404`](https://github.com/assistant-ui/assistant-ui/commit/20f8404b70098e4b7cbc8df5bbb47985ac81b52c), [`17958c9`](https://github.com/assistant-ui/assistant-ui/commit/17958c9234ccc42394260125df54d897c06a47fd)]:
+  - @assistant-ui/core@0.1.15
+  - assistant-stream@0.3.12
+  - assistant-cloud@0.1.27
+  - @assistant-ui/store@0.2.8
+  - @assistant-ui/tap@0.5.9
+
+## 0.12.25
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- Updated dependencies [f20b9ca]
+- Updated dependencies [c988db8]
+  - @assistant-ui/core@0.1.14
+  - assistant-stream@0.3.11
+  - assistant-cloud@0.1.26
+  - @assistant-ui/store@0.2.7
+  - @assistant-ui/tap@0.5.8
+
+## 0.12.24
+
+### Patch Changes
+
+- 42bc640: feat: support edit lineage and startRun in EditComposer send flow
+  - Add `SendOptions` with `startRun` flag to `composer.send()`
+  - Expose `parentId` and `sourceId` on `EditComposerState`
+  - Add `EditComposerRuntimeCore` interface extending `ComposerRuntimeCore`
+  - Bypass text-unchanged guard when `startRun` is explicitly set
+  - `ComposerSendOptions` extends `SendOptions` for consistent layering
+
+- e82726c: fix(react): forward viewport slack props from MessagePrimitive.Root
+- 376bb00: chore: update dependencies
+- 87e7761: feat: generalize mention system into trigger popover architecture with slash command support
+  - Introduce `ComposerInputPlugin` protocol to decouple ComposerInput from mention-specific code
+  - Extract generic `TriggerPopoverResource` from `MentionResource` supporting multiple trigger characters
+  - Add `Unstable_TriggerItem`, `Unstable_TriggerCategory`, `Unstable_TriggerAdapter` generic types
+  - Add `Unstable_SlashCommandAdapter`, `Unstable_SlashCommandItem` types
+  - Add `ComposerPrimitive.Unstable_TriggerPopoverRoot` and related primitives
+  - Add `ComposerPrimitive.Unstable_SlashCommandRoot` and related primitives
+  - Add `unstable_useSlashCommandAdapter` hook for building slash command adapters
+  - Refactor `MentionResource` as thin wrapper around `TriggerPopoverResource`
+  - Alias `Unstable_MentionItem`/`Unstable_MentionAdapter` to generic trigger types
+  - Update `react-lexical` `KeyboardPlugin` to use plugin protocol
+  - All existing `Unstable_Mention*` APIs remain unchanged
+
+- Updated dependencies [42bc640]
+- Updated dependencies [376bb00]
+- Updated dependencies [87e7761]
+  - @assistant-ui/core@0.1.13
+  - assistant-cloud@0.1.25
+  - @assistant-ui/tap@0.5.7
+
+## 0.12.23
+
+### Patch Changes
+
+- a8bf84b: feat(core): expose `getLoadThreadsPromise()` on `ThreadListRuntime` public API
+- bdbd024: fix(core): set EMPTY_THREAD_CORE.isLoading to true to prevent Welcome page flash during thread switch
+- 0958070: feat(core): add `initialThreadId` option to `useRemoteThreadListRuntime`
+- Updated dependencies [de29641]
+- Updated dependencies [a8bf84b]
+- Updated dependencies [5fd5c3d]
+- Updated dependencies [2c5cd97]
+- Updated dependencies [ec50e8a]
+  - @assistant-ui/core@0.1.11
+  - assistant-stream@0.3.10
+
+## 0.12.22
+
+### Patch Changes
+
+- 6554892: feat: add useAssistantContext for dynamic context injection
+
+  Register a callback-based context provider that injects computed text into the system prompt at evaluation time, ensuring the prompt always reflects current application state.
+
+- d726499: fix: unify assistant-transport request body format with AssistantChatTransport
+
+  `callSettings` and `config` are now sent as nested objects in the request body,
+  aligned with the AI SDK transport. The old top-level spread is preserved for
+  backward compatibility but deprecated and will be removed in a future version.
+
+- 876f75d: feat: add interactable state persistence
+
+  Add persistence API to interactables with exportState/importState, debounced setPersistenceAdapter, per-id isPending/error tracking, flush() for immediate sync, and auto-flush on component unregister.
+
+- bdce66f: chore: update dependencies
+- c362685: feat: add RealtimeVoiceAdapter with VoiceOrb UI, mode/volume support, and ElevenLabs/LiveKit examples
+- 4abb898: refactor: align interactables with codebase conventions
+  - Rename `useInteractable` to `useAssistantInteractable` (registration only, returns id)
+  - Add `useInteractableState` hook for reading/writing interactable state
+  - Remove `makeInteractable` and related types
+  - Rename `UseInteractableConfig` to `AssistantInteractableProps`
+  - Extract `buildInteractableModelContext` from `Interactables` resource
+  - Add `with-interactables` example to CLI
+
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- 50b3100: feat: add render prop support to all primitives for shadcn "Base" component library compatibility
+- af70d7f: feat: add useToolArgsStatus hook for per-prop streaming status
+
+  Add a convenience hook that derives per-property streaming completion status from tool call args using structural partial JSON analysis.
+
+- Updated dependencies [dffb6b4]
+- Updated dependencies [6554892]
+- Updated dependencies [9103282]
+- Updated dependencies [876f75d]
+- Updated dependencies [bdce66f]
+- Updated dependencies [4abb898]
+- Updated dependencies [209ae81]
+- Updated dependencies [2dd0c9f]
+- Updated dependencies [af70d7f]
+  - assistant-stream@0.3.9
+  - @assistant-ui/core@0.1.10
+  - assistant-cloud@0.1.24
+  - @assistant-ui/store@0.2.6
+  - @assistant-ui/tap@0.5.6
+
+## 0.12.21
+
+### Patch Changes
+
+- 3227e71: feat: add interactables with partial updates, multi-instance, and selection
+  - `useInteractable(name, config)` hook and `makeInteractable` factory for registering AI-controllable UI
+  - `Interactables()` scope resource with auto-generated update tools and system prompt injection
+  - Partial updates — auto-generated tools use partial schemas so AI only sends changed fields
+  - Multi-instance support — same name with different IDs get separate `update_{name}_{id}` tools
+  - Selection — `setSelected(true)` marks an interactable as focused, surfaced as `(SELECTED)` in system prompt
+
+- 52403c3: chore: update dependencies
+- Updated dependencies [781f28d]
+- Updated dependencies [3227e71]
+- Updated dependencies [3227e71]
+- Updated dependencies [0f55ce8]
+- Updated dependencies [83a15f7]
+- Updated dependencies [52403c3]
+- Updated dependencies [ffa3a0f]
+  - @assistant-ui/core@0.1.9
+  - assistant-stream@0.3.8
+  - assistant-cloud@0.1.23
+  - @assistant-ui/store@0.2.5
+  - @assistant-ui/tap@0.5.5
+
+## 0.12.20
+
+### Patch Changes
+
+- 28a987a: feat: SingleThreadList resource
+  refactor: attachTransformScopes should mutate the scopes instead of cloning it
+- 736344c: chore: update dependencies
+- ff3be2a: Add @-mention system with cursor-aware trigger detection, keyboard navigation, search, and Lexical rich editor support
+- 70b19f3: feat: add queue.clear callback, route thread.append through queue
+  - Add `clear(reason: "edit" | "reload" | "cancel-run")` to `ExternalThreadQueueAdapter`
+  - `thread.append()` now routes through `queue.enqueue` when a queue adapter is present
+  - Cancel, edit, and reload operations call `queue.clear` with the appropriate reason
+
+- 70b19f3: feat: add native queue and steer support
+  - Add `queue` adapter to `ExternalThreadProps` for runtimes that support message queuing
+  - Add `QueueItemPrimitive.Text`, `.Steer`, `.Remove` primitives for rendering queue items
+  - Add `ComposerPrimitive.Queue` for rendering the queue list within the composer
+  - Add `ComposerSendOptions` with `steer` flag to `composer.send()`
+  - Add `capabilities.queue` to `RuntimeCapabilities`
+  - `ComposerPrimitive.Send` stays enabled during runs when queue is supported
+  - Cmd/Ctrl+Shift+Enter hotkey sends with `steer: true` (interrupt current run)
+  - Add `queueItem` scope to `ScopeRegistry`
+  - Add `queue` field to `ComposerState` and `queueItem()` method to `ComposerMethods`
+
+- c71cb58: chore: update dependencies
+- Updated dependencies [1406aed]
+- Updated dependencies [9480f30]
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [ff3be2a]
+- Updated dependencies [70b19f3]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/core@0.1.8
+  - @assistant-ui/store@0.2.4
+  - assistant-stream@0.3.7
+  - @assistant-ui/tap@0.5.4
+
+## 0.12.19
+
+### Patch Changes
+
+- 7ecc497: feat: children API for primitives with part.toolUI, part.dataRendererUI, and MessagePrimitive.Quote
+- Updated dependencies [7ecc497]
+  - @assistant-ui/core@0.1.7
+
 ## 0.12.18
 
 ### Patch Changes

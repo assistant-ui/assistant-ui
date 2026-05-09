@@ -1,0 +1,172 @@
+---
+title: Clerk
+description: Gate the chat route and scope thread persistence to the signed-in user with Clerk.
+---
+
+[Clerk](https://clerk.com/) is a hosted auth platform that integrates with Next.js through `@clerk/nextjs`. This page covers using it with assistant-ui *without* AssistantCloud: middleware-based route gating, server-side `auth()` checks, and per-user scoping on a custom thread list.
+
+If you use AssistantCloud, see [cloud authorization](/docs/cloud/authorization) instead. Cloud handles the Clerk JWT exchange for you and gives you workspace-scoped threads with no DB code.
+
+## How it works
+
+```
+browser  ──►  clerkMiddleware (proxy.ts)  ──►  /api/chat
+                                               /api/threads/*
+                                                   │
+                                                   ▼
+                                          auth() returns { userId }
+                                                   │
+                                                   ▼
+                                       scope queries by userId
+```
+
+Three places Clerk touches the integration:
+
+1. **Middleware** runs before every request and sets up the auth context the rest of the app reads.
+2. **API routes** (`/api/chat`, `/api/threads/*`) call `await auth()` from `@clerk/nextjs/server`, return 401 when `userId` is null, then scope DB queries by that id.
+3. **Reload-on-auth** uses `useUser` from `@clerk/nextjs` so the thread list re-fetches when the user signs in.
+
+Clerk's `auth()` returns `userId` directly, so the route handler can scope queries without any callback configuration.
+
+## Setup
+
+This guide assumes you already have Clerk configured in your Next.js app. If not, follow the [Clerk Next.js quickstart](https://clerk.com/docs/quickstarts/nextjs) first; the steps below pick up after `<ClerkProvider>` wraps your root layout and `clerkMiddleware()` is in place.
+
+<Steps>
+<Step>
+
+### Gate the chat route
+
+Add an `auth()` check to the AI SDK route. Return 401 before calling the model so unauthenticated traffic doesn't burn provider credits.
+
+```ts title="app/api/chat/route.ts"
+import { auth } from "@clerk/nextjs/server";
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages } from "ai";
+import type { UIMessage } from "ai";
+
+export async function POST(req: Request) {
+  const { userId } = await auth();
+  if (!userId) return new Response("Unauthorized", { status: 401 });
+
+  const { messages }: { messages: UIMessage[] } = await req.json();
+  const result = streamText({
+    model: openai("gpt-4o"),
+    messages: await convertToModelMessages(messages),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+</Step>
+<Step>
+
+### Scope thread queries by user
+
+If you also use [custom thread persistence](/docs/integrations/persistence/custom-adapter), every thread-list endpoint must filter by `userId`. Without scoping, any signed-in user can list everyone's threads.
+
+```ts title="app/api/threads/route.ts"
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/db";
+import { threads } from "@/db/schema";
+import { eq, desc } from "drizzle-orm";
+
+export async function GET() {
+  const { userId } = await auth();
+  if (!userId) return new Response(null, { status: 401 });
+
+  const rows = await db
+    .select()
+    .from(threads)
+    .where(eq(threads.userId, userId))
+    .orderBy(desc(threads.updatedAt));
+
+  return Response.json(rows);
+}
+```
+
+For organization-scoped threads (Clerk Orgs), pull `orgId` from `auth()` and add it to the where clause. The combination is a stable workspace key:
+
+```ts
+import { and, eq } from "drizzle-orm";
+
+const { userId, orgId } = await auth();
+if (!userId) return new Response(null, { status: 401 });
+
+const rows = await db
+  .select()
+  .from(threads)
+  .where(
+    orgId
+      ? and(eq(threads.orgId, orgId), eq(threads.userId, userId))
+      : eq(threads.userId, userId),
+  );
+```
+
+</Step>
+<Step>
+
+### Reload threads after async auth
+
+The first render of `<MyProvider>` may run before Clerk resolves the user on the client. Drop a small effect inside `<AssistantRuntimeProvider>` that calls `aui.threads().reload()` once the user is loaded:
+
+```tsx title="app/components/ReloadOnAuth.tsx"
+"use client";
+
+import { useAui } from "@assistant-ui/react";
+import { useUser } from "@clerk/nextjs";
+import { useEffect } from "react";
+
+export function ReloadOnAuth() {
+  const aui = useAui();
+  const { isLoaded, isSignedIn, user } = useUser();
+  useEffect(() => {
+    if (isLoaded && isSignedIn) aui.threads().reload();
+  }, [isLoaded, isSignedIn, user?.id]);
+  return null;
+}
+```
+
+Mount this component anywhere inside your `<AssistantRuntimeProvider>` subtree (typically next to the runtime's provider in `MyProvider`). `reload()` discards in-flight responses from superseded calls, so it is safe to invoke on every auth transition (sign in, sign out, organization switch).
+
+</Step>
+<Step>
+
+### Run and verify
+
+Sign in. Check:
+
+- `/api/chat` returns `200` with a streaming response when authenticated; `401` when not.
+- `/api/threads` returns only the current user's threads.
+- Switching users (incognito tab, different account) shows a different thread list.
+- Switching active organization in Clerk's `<OrganizationSwitcher>` triggers a reload (if you wired `orgId` into the where clause).
+
+</Step>
+</Steps>
+
+## Notes
+
+- **Cookies are automatic.** Clerk's session cookie travels with same-origin fetches; no `credentials: "include"` is needed for browser requests to your own API routes.
+- **Server contexts.** `auth()` from `@clerk/nextjs/server` runs in any Next.js server context: server components, route handlers, and server actions. See Clerk's [`auth()` reference](https://clerk.com/docs/references/nextjs/auth) for the supported surfaces.
+- **Cloud users.** If you use AssistantCloud, prefer the [Clerk JWT template integration](/docs/cloud/authorization) over the pattern on this page. Cloud handles workspace assignment and you don't need to build the thread persistence yourself.
+- **B2B with organizations.** Clerk Orgs map cleanly to multi-tenant chat: scope by `orgId` in addition to `userId`, surface Clerk's `<OrganizationSwitcher>` (from `@clerk/nextjs`), and re-fetch threads on org change.
+
+## Related
+
+<Cards>
+  <Card
+    title="Custom thread persistence"
+    description="The persistence story this page builds on; required for per-user threads outside AssistantCloud."
+    href="/docs/integrations/persistence/custom-adapter"
+  />
+  <Card
+    title="AssistantCloud authorization"
+    description="The cloud-managed alternative: Clerk JWT template plus workspace scoping, no DB code."
+    href="/docs/cloud/authorization"
+  />
+  <Card
+    title="Threads (concepts)"
+    description="The full RemoteThreadListAdapter contract and reload-on-auth pattern."
+    href="/docs/runtimes/concepts/threads"
+  />
+</Cards>

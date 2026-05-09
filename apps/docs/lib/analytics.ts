@@ -33,10 +33,9 @@ const getVercelTrack = () => {
   return vercelTrackPromise;
 };
 
-const trackEvent = (
-  event: string,
-  properties?: Record<string, string | number | boolean>,
-) => {
+export type AnalyticsProperties = Record<string, string | number | boolean>;
+
+const trackEvent = (event: string, properties?: AnalyticsProperties) => {
   if (typeof window === "undefined") return;
 
   // PostHog
@@ -51,13 +50,18 @@ const trackEvent = (
 
 export const analytics = {
   cta: {
-    clicked: (cta: "get_started" | "contact_sales", location: string) =>
-      trackEvent("cta_clicked", { cta, location }),
+    clicked: (
+      cta: "get_started" | "contact_sales" | "why_us",
+      location: string,
+    ) => trackEvent("cta_clicked", { cta, location }),
 
     npmCommandCopied: (
       command = "npx assistant-ui init",
-      properties?: Record<string, string | number | boolean>,
+      properties?: AnalyticsProperties,
     ) => trackEvent("npm_command_copied", { ...properties, command }),
+
+    promptCopied: (properties?: AnalyticsProperties) =>
+      trackEvent("prompt_copied", properties),
   },
 
   outbound: {

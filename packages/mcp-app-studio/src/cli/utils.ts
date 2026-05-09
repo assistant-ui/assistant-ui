@@ -91,15 +91,15 @@ export function updatePackageJson(
   try {
     const content = fs.readFileSync(pkgPath, "utf-8");
     const pkg = JSON.parse(content) as Record<string, unknown>;
-    pkg["name"] = name;
-    pkg["version"] = "0.1.0";
-    pkg["private"] = true;
+    pkg.name = name;
+    pkg.version = "0.1.0";
+    pkg.private = true;
     if (description) {
-      pkg["description"] = description;
+      pkg.description = description;
     }
 
     // Update dependencies to compatible versions
-    const deps = (pkg["dependencies"] as Record<string, string>) ?? {};
+    const deps = (pkg.dependencies as Record<string, string>) ?? {};
     if (opts?.mcpAppStudioVersion && opts.mcpAppStudioVersion !== "0.0.0") {
       deps["mcp-app-studio"] = `^${opts.mcpAppStudioVersion}`;
     }
@@ -108,7 +108,7 @@ export function updatePackageJson(
         deps[dep] = version;
       }
     }
-    pkg["dependencies"] = deps;
+    pkg.dependencies = deps;
     fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
   } catch (error) {
     throw new Error(
@@ -118,7 +118,7 @@ export function updatePackageJson(
 }
 
 export function detectPackageManager(): "npm" | "pnpm" | "yarn" | "bun" {
-  const ua = process.env["npm_config_user_agent"] ?? "";
+  const ua = process.env.npm_config_user_agent ?? "";
   if (ua.includes("pnpm")) return "pnpm";
   if (ua.includes("yarn")) return "yarn";
   if (ua.includes("bun")) return "bun";

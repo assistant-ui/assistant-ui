@@ -1,4 +1,4 @@
-import { type FC, type PropsWithChildren } from "react";
+import type { FC, PropsWithChildren } from "react";
 import { useAui, AuiProvider, Derived } from "@assistant-ui/store";
 
 export const ChainOfThoughtPartByIndexProvider: FC<

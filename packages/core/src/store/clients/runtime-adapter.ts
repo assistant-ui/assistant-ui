@@ -30,38 +30,27 @@ export const RuntimeAdapterResource = resource((runtime: AssistantRuntime) => {
 export const baseRuntimeAdapterTransformScopes = (
   scopes: ScopesConfig,
   parent: AssistantClient,
-): ScopesConfig => {
-  const result = {
-    ...scopes,
-    thread:
-      scopes.thread ??
-      Derived({
-        source: "threads",
-        query: { type: "main" },
-        get: (aui) => aui.threads().thread("main"),
-      }),
-    threadListItem:
-      scopes.threadListItem ??
-      Derived({
-        source: "threads",
-        query: { type: "main" },
-        get: (aui) => aui.threads().item("main"),
-      }),
-    composer:
-      scopes.composer ??
-      Derived({
-        source: "thread",
-        query: {},
-        get: (aui) => aui.threads().thread("main").composer(),
-      }),
-  };
+): void => {
+  scopes.thread ??= Derived({
+    source: "threads",
+    query: { type: "main" },
+    get: (aui) => aui.threads().thread("main"),
+  });
+  scopes.threadListItem ??= Derived({
+    source: "threads",
+    query: { type: "main" },
+    get: (aui) => aui.threads().item("main"),
+  });
+  scopes.composer ??= Derived({
+    source: "thread",
+    query: {},
+    get: (aui) => aui.threads().thread("main").composer(),
+  });
 
-  if (!result.modelContext && parent.modelContext.source === null) {
-    result.modelContext = ModelContext();
+  if (!scopes.modelContext && parent.modelContext.source === null) {
+    scopes.modelContext = ModelContext();
   }
-  if (!result.suggestions && parent.suggestions.source === null) {
-    result.suggestions = Suggestions();
+  if (!scopes.suggestions && parent.suggestions.source === null) {
+    scopes.suggestions = Suggestions();
   }
-
-  return result;
 };

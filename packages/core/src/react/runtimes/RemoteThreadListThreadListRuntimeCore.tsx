@@ -5,24 +5,18 @@ import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-st
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
 import type {
   RemoteThreadData,
-  THREAD_MAPPING_ID,
   RemoteThreadState,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import {
+  classifyThreads,
   createThreadMappingId,
   getThreadData,
+  normalizeCursor,
   updateStatusReducer,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import type { RemoteThreadListOptions } from "../../runtimes/remote-thread-list/types";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
-import {
-  ComponentType,
-  FC,
-  Fragment,
-  PropsWithChildren,
-  useEffect,
-  useId,
-} from "react";
+import { type FC, Fragment, useEffect, useId } from "react";
 import { create } from "zustand";
 import { AssistantMessageStream } from "assistant-stream";
 import type { ModelContextProvider } from "../../model-context/types";
@@ -36,10 +30,14 @@ export class RemoteThreadListThreadListRuntimeCore
   private readonly _hookManager: RemoteThreadListHookInstanceManager;
 
   private _loadThreadsPromise: Promise<void> | undefined;
+  private _loadMorePromise: Promise<void> | undefined;
+  private _loadGeneration = 0;
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>({
-    isLoading: false,
+    isLoading: true,
+    isLoadingMore: false,
+    cursor: undefined,
     newThreadId: undefined,
     threadIds: [],
     archivedThreadIds: [],
@@ -54,6 +52,7 @@ export class RemoteThreadListThreadListRuntimeCore
   public getLoadThreadsPromise() {
     // TODO this needs to be cached in case this promise is loaded during suspense
     if (!this._loadThreadsPromise) {
+      const generation = this._loadGeneration;
       this._loadThreadsPromise = this._state
         .optimisticUpdate({
           execute: () => this._options.adapter.list(),
@@ -63,63 +62,98 @@ export class RemoteThreadListThreadListRuntimeCore
               isLoading: true,
             };
           },
+          // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
           then: (state, l) => {
-            const newThreadIds = [];
-            const newArchivedThreadIds = [];
-            const newThreadIdMap = {} as Record<string, THREAD_MAPPING_ID>;
-            const newThreadData = {} as Record<
-              THREAD_MAPPING_ID,
-              RemoteThreadData
-            >;
-
-            for (const thread of l.threads) {
-              switch (thread.status) {
-                case "regular":
-                  newThreadIds.push(thread.remoteId);
-                  break;
-                case "archived":
-                  newArchivedThreadIds.push(thread.remoteId);
-                  break;
-                default: {
-                  const _exhaustiveCheck: never = thread.status;
-                  throw new Error(`Unsupported state: ${_exhaustiveCheck}`);
-                }
-              }
-
-              const mappingId = createThreadMappingId(thread.remoteId);
-              newThreadIdMap[thread.remoteId] = mappingId;
-              newThreadData[mappingId] = {
-                id: thread.remoteId,
-                remoteId: thread.remoteId,
-                externalId: thread.externalId,
-                status: thread.status,
-                title: thread.title,
-                initializeTask: Promise.resolve({
-                  remoteId: thread.remoteId,
-                  externalId: thread.externalId,
-                }),
-              };
-            }
+            if (generation !== this._loadGeneration) return state;
+            const fresh = classifyThreads(l.threads, {
+              threadIds: [],
+              archivedThreadIds: [],
+              threadIdMap: {},
+              threadData: {},
+            });
 
             return {
               ...state,
-              threadIds: newThreadIds,
-              archivedThreadIds: newArchivedThreadIds,
+              isLoading: false,
+              cursor: normalizeCursor(l.nextCursor),
+              threadIds: fresh.threadIds,
+              archivedThreadIds: fresh.archivedThreadIds,
               threadIdMap: {
                 ...state.threadIdMap,
-                ...newThreadIdMap,
+                ...fresh.threadIdMap,
               },
               threadData: {
                 ...state.threadData,
-                ...newThreadData,
+                ...fresh.threadData,
               },
             };
           },
+        })
+        .catch((error: unknown) => {
+          if (generation !== this._loadGeneration) return;
+          console.error("[assistant-ui] thread list load failed:", error);
+          this._loadThreadsPromise = undefined;
+          this._state.update({
+            ...this._state.baseValue,
+            isLoading: false,
+          });
         })
         .then(() => {});
     }
 
     return this._loadThreadsPromise;
+  }
+
+  public loadMore(): Promise<void> {
+    if (this._loadMorePromise) return this._loadMorePromise;
+
+    const initialState = this._state.value;
+    if (initialState.cursor === undefined || initialState.isLoading) {
+      return Promise.resolve();
+    }
+
+    const generation = this._loadGeneration;
+    const adapter = this._options.adapter;
+    const cursor = initialState.cursor;
+
+    const dedup = this._state
+      .optimisticUpdate({
+        execute: () => adapter.list({ after: cursor }),
+        loading: (state) => ({ ...state, isLoadingMore: true }),
+        // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
+        then: (state, l) => {
+          if (generation !== this._loadGeneration) return state;
+          if (adapter !== this._options.adapter) return state;
+
+          const appended = classifyThreads(l.threads, {
+            threadIds: [...state.threadIds],
+            archivedThreadIds: [...state.archivedThreadIds],
+            threadIdMap: { ...state.threadIdMap },
+            threadData: { ...state.threadData },
+          });
+
+          return {
+            ...state,
+            isLoadingMore: false,
+            cursor: normalizeCursor(l.nextCursor),
+            threadIds: appended.threadIds,
+            archivedThreadIds: appended.archivedThreadIds,
+            threadIdMap: appended.threadIdMap,
+            threadData: appended.threadData,
+          };
+        },
+      })
+      .catch((error: unknown) => {
+        console.error("[assistant-ui] thread list loadMore failed:", error);
+      })
+      .then(() => {
+        if (this._loadMorePromise === dedup) {
+          this._loadMorePromise = undefined;
+        }
+      });
+
+    this._loadMorePromise = dedup;
+    return dedup;
   }
 
   private readonly contextProvider: ModelContextProvider;
@@ -137,35 +171,72 @@ export class RemoteThreadListThreadListRuntimeCore
       this,
     );
     this.useProvider = create(() => ({
-      Provider: (options.adapter.unstable_Provider ??
-        Fragment) as ComponentType<PropsWithChildren>,
+      Provider: options.adapter.unstable_Provider ?? Fragment,
     }));
     this.__internal_setOptions(options);
     this.switchToNewThread();
   }
 
+  private _initialThreadLoaded = false;
   private useProvider;
 
   public __internal_setOptions(options: RemoteThreadListOptions) {
     if (this._options === options) return;
 
+    const adapterChanged =
+      this._options !== undefined && this._options.adapter !== options.adapter;
+
     this._options = options;
 
-    const Provider = (options.adapter.unstable_Provider ??
-      Fragment) as ComponentType<PropsWithChildren>;
+    const Provider = options.adapter.unstable_Provider ?? Fragment;
     if (Provider !== this.useProvider.getState().Provider) {
       this.useProvider.setState({ Provider }, true);
     }
 
     this._hookManager.setRuntimeHook(options.runtimeHook);
+
+    if (adapterChanged) {
+      this._loadGeneration++;
+      this._loadThreadsPromise = undefined;
+      this._loadMorePromise = undefined;
+      this._state.update({
+        ...this._state.baseValue,
+        cursor: undefined,
+      });
+    }
   }
 
   public __internal_load() {
     this.getLoadThreadsPromise(); // begin loading on initial bind
+    const startThreadId =
+      this._options.threadId ?? this._options.initialThreadId;
+    if (!this._initialThreadLoaded && startThreadId) {
+      this._initialThreadLoaded = true;
+      this.switchToThread(startThreadId).catch(() => {});
+    }
+  }
+
+  public reload() {
+    this._loadGeneration++;
+    this._loadThreadsPromise = undefined;
+    this._loadMorePromise = undefined;
+    this._state.update({
+      ...this._state.baseValue,
+      cursor: undefined,
+    });
+    return this.getLoadThreadsPromise();
   }
 
   public get isLoading() {
     return this._state.value.isLoading;
+  }
+
+  public get isLoadingMore() {
+    return this._state.value.isLoadingMore;
+  }
+
+  public get hasMore() {
+    return this._state.value.cursor !== undefined;
   }
 
   public get threadIds() {
@@ -224,6 +295,7 @@ export class RemoteThreadListThreadListRuntimeCore
           externalId: remoteMetadata.externalId,
           status: remoteMetadata.status,
           title: remoteMetadata.title,
+          custom: remoteMetadata.custom,
         } as RemoteThreadData,
       };
 
@@ -232,15 +304,23 @@ export class RemoteThreadListThreadListRuntimeCore
         [remoteMetadata.remoteId]: mappingId,
       };
 
+      // Filter both arrays first so a concurrent `list()` can't leave the id
+      // duplicated or under the wrong status.
+      const threadIdsWithoutRemote = state.threadIds.filter(
+        (id) => id !== remoteMetadata.remoteId,
+      );
+      const archivedThreadIdsWithoutRemote = state.archivedThreadIds.filter(
+        (id) => id !== remoteMetadata.remoteId,
+      );
+
       const newThreadIds =
         remoteMetadata.status === "regular"
-          ? [...state.threadIds, remoteMetadata.remoteId]
-          : state.threadIds;
-
+          ? [...threadIdsWithoutRemote, remoteMetadata.remoteId]
+          : threadIdsWithoutRemote;
       const newArchivedThreadIds =
         remoteMetadata.status === "archived"
-          ? [...state.archivedThreadIds, remoteMetadata.remoteId]
-          : state.archivedThreadIds;
+          ? [...archivedThreadIdsWithoutRemote, remoteMetadata.remoteId]
+          : archivedThreadIdsWithoutRemote;
 
       this._state.update({
         ...state,
@@ -301,6 +381,7 @@ export class RemoteThreadListThreadListRuntimeCore
             remoteId: undefined,
             externalId: undefined,
             title: undefined,
+            custom: undefined,
           } satisfies RemoteThreadData,
         },
       });
@@ -337,6 +418,7 @@ export class RemoteThreadListThreadListRuntimeCore
           },
         };
       },
+      // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
       then: (state, { remoteId, externalId }) => {
         const data = getThreadData(state, threadId);
         if (!data) return state;
@@ -480,6 +562,7 @@ export class RemoteThreadListThreadListRuntimeCore
       throw new Error("Thread is not yet initialized");
 
     await this._ensureThreadIsNotMain(data.id);
+    this._hookManager.stopThreadRuntime(data.id);
 
     return this._state.optimisticUpdate({
       execute: async () => {

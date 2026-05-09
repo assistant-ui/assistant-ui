@@ -20,12 +20,15 @@ export function NavItems({ items }: { items: NavItem[] }) {
     ) : (
       <HoverCard key={item.label} openDelay={100} closeDelay={100}>
         <HoverCardTrigger asChild>
-          <button className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground">
+          <button
+            type="button"
+            className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+          >
             {item.label}
           </button>
         </HoverCardTrigger>
-        <HoverCardContent className="w-56 rounded-xl p-2 shadow-xs">
-          <div className="flex flex-col">
+        <HoverCardContent className="w-[28rem] rounded-xl p-2 shadow-xs">
+          <div className="grid grid-cols-2">
             {item.items.map((link) =>
               link.external ? (
                 <a

@@ -1,23 +1,13 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
-import type { ReactNode } from "react";
 import { createCodeAdapter } from "../adapters/code-adapter";
-import { PreContext } from "../adapters/PreOverride";
+import { PreOverride } from "../adapters/PreOverride";
 
 afterEach(cleanup);
 
-// Wrapper to provide PreContext (simulates being inside a code block)
-function CodeBlockWrapper({ children }: { children: ReactNode }) {
-  return (
-    <PreContext.Provider value={{ className: "language-javascript" }}>
-      {children}
-    </PreContext.Provider>
-  );
-}
-
 describe("createCodeAdapter integration", () => {
   describe("inline code detection", () => {
-    it("renders inline code when not inside PreContext", () => {
+    it("renders inline code when data-block is absent", () => {
       const AdaptedCode = createCodeAdapter({});
       render(<AdaptedCode className="inline">console.log</AdaptedCode>);
 
@@ -37,7 +27,7 @@ describe("createCodeAdapter integration", () => {
   });
 
   describe("code block detection", () => {
-    it("uses SyntaxHighlighter when inside PreContext", () => {
+    it("uses SyntaxHighlighter when data-block is present", () => {
       const MockSyntax = vi.fn(({ code, language }) => (
         <div data-testid="syntax">{`${language}: ${code}`}</div>
       ));
@@ -46,9 +36,9 @@ describe("createCodeAdapter integration", () => {
       });
 
       render(
-        <CodeBlockWrapper>
-          <AdaptedCode className="language-javascript">const x = 1</AdaptedCode>
-        </CodeBlockWrapper>,
+        <AdaptedCode className="language-javascript" data-block="true">
+          const x = 1
+        </AdaptedCode>,
       );
 
       expect(screen.getByTestId("syntax").textContent).toBe(
@@ -74,13 +64,37 @@ describe("createCodeAdapter integration", () => {
       });
 
       render(
-        <CodeBlockWrapper>
-          <AdaptedCode className="language-python">print("hi")</AdaptedCode>
-        </CodeBlockWrapper>,
+        <AdaptedCode className="language-python" data-block="true">
+          print("hi")
+        </AdaptedCode>,
       );
 
       expect(screen.getByTestId("header").textContent).toBe("python");
       expect(screen.getByTestId("syntax").textContent).toBe('print("hi")');
+    });
+
+    it("re-renders when data-block changes from absent to present", () => {
+      const MockSyntax = vi.fn(({ code }) => (
+        <div data-testid="syntax">{code}</div>
+      ));
+      const AdaptedCode = createCodeAdapter({
+        SyntaxHighlighter: MockSyntax,
+      });
+
+      const { rerender } = render(
+        <AdaptedCode className="language-js">const x = 1;</AdaptedCode>,
+      );
+
+      expect(screen.queryByTestId("syntax")).toBeNull();
+
+      rerender(
+        <AdaptedCode className="language-js" data-block="true">
+          const x = 1;
+        </AdaptedCode>,
+      );
+
+      expect(screen.getByTestId("syntax").textContent).toBe("const x = 1;");
+      expect(MockSyntax).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -103,9 +117,9 @@ describe("createCodeAdapter integration", () => {
       const AdaptedCode = createCodeAdapter({ SyntaxHighlighter: MockSyntax });
 
       render(
-        <CodeBlockWrapper>
-          <AdaptedCode className={className}>code</AdaptedCode>
-        </CodeBlockWrapper>,
+        <AdaptedCode className={className} data-block="true">
+          code
+        </AdaptedCode>,
       );
 
       expect(screen.getByTestId("syntax").textContent).toBe(expected);
@@ -123,9 +137,9 @@ describe("createCodeAdapter integration", () => {
       });
 
       render(
-        <PreContext.Provider value={{}}>
-          <AdaptedCode className="language-python">code</AdaptedCode>
-        </PreContext.Provider>,
+        <AdaptedCode className="language-python" data-block="true">
+          code
+        </AdaptedCode>,
       );
 
       expect(screen.getByTestId("python")).toBeDefined();
@@ -142,9 +156,9 @@ describe("createCodeAdapter integration", () => {
       });
 
       render(
-        <PreContext.Provider value={{}}>
-          <AdaptedCode className="language-javascript">code</AdaptedCode>
-        </PreContext.Provider>,
+        <AdaptedCode className="language-javascript" data-block="true">
+          code
+        </AdaptedCode>,
       );
 
       expect(screen.getByTestId("default")).toBeDefined();
@@ -168,9 +182,9 @@ describe("createCodeAdapter integration", () => {
       });
 
       render(
-        <PreContext.Provider value={{}}>
-          <AdaptedCode className="language-mermaid">code</AdaptedCode>
-        </PreContext.Provider>,
+        <AdaptedCode className="language-mermaid" data-block="true">
+          code
+        </AdaptedCode>,
       );
 
       expect(screen.getByTestId("mermaid-header")).toBeDefined();
@@ -187,9 +201,9 @@ describe("createCodeAdapter integration", () => {
       });
 
       render(
-        <CodeBlockWrapper>
-          <AdaptedCode className="language-js">const x = 1;</AdaptedCode>
-        </CodeBlockWrapper>,
+        <AdaptedCode className="language-js" data-block="true">
+          const x = 1;
+        </AdaptedCode>,
       );
 
       expect(screen.getByTestId("syntax").textContent).toBe("const x = 1;");
@@ -203,13 +217,12 @@ describe("createCodeAdapter integration", () => {
         SyntaxHighlighter: MockSyntax,
       });
 
-      // Simulates how streamdown might pass children
       const nestedElement = <span>nested code</span>;
 
       render(
-        <CodeBlockWrapper>
-          <AdaptedCode className="language-js">{nestedElement}</AdaptedCode>
-        </CodeBlockWrapper>,
+        <AdaptedCode className="language-js" data-block="true">
+          {nestedElement}
+        </AdaptedCode>,
       );
 
       expect(MockSyntax).toHaveBeenCalled();
@@ -224,28 +237,68 @@ describe("createCodeAdapter integration", () => {
       });
 
       render(
-        <CodeBlockWrapper>
-          <AdaptedCode className="language-js">{""}</AdaptedCode>
-        </CodeBlockWrapper>,
+        <AdaptedCode className="language-js" data-block="true">
+          {""}
+        </AdaptedCode>,
       );
 
       expect(screen.getByTestId("syntax-empty").textContent).toBe("empty");
     });
   });
 
-  describe("null return for streamdown default", () => {
-    it("returns null when no custom SyntaxHighlighter", () => {
+  describe("fallback when no custom SyntaxHighlighter", () => {
+    it("wraps the fallback <code> in a <pre> to preserve whitespace", () => {
       const AdaptedCode = createCodeAdapter({});
 
       const { container } = render(
-        <CodeBlockWrapper>
-          <AdaptedCode className="language-js">code</AdaptedCode>
-        </CodeBlockWrapper>,
+        <AdaptedCode className="language-js" data-block="true">
+          code
+        </AdaptedCode>,
       );
 
-      // When no SyntaxHighlighter provided for block code, returns null
-      // React renders nothing for null
-      expect(container.querySelector("code")).toBeNull();
+      const codeElement = container.querySelector("pre > code");
+      expect(codeElement).not.toBeNull();
+      expect(codeElement?.className).toBe("language-js");
+      expect(codeElement?.textContent).toBe("code");
+      expect(codeElement?.className).not.toContain(
+        "aui-streamdown-inline-code",
+      );
+    });
+
+    it("renders CodeHeader above the <pre><code> fallback when provided", () => {
+      const MockHeader = vi.fn(({ language }) => (
+        <div data-testid="header">{language}</div>
+      ));
+      const AdaptedCode = createCodeAdapter({ CodeHeader: MockHeader });
+
+      const { container } = render(
+        <AdaptedCode className="language-python" data-block="true">
+          print("hi")
+        </AdaptedCode>,
+      );
+
+      expect(screen.getByTestId("header").textContent).toBe("python");
+      const codeElement = container.querySelector("pre > code");
+      expect(codeElement).not.toBeNull();
+      expect(codeElement?.textContent).toBe('print("hi")');
+    });
+
+    it("renders <pre><code> fallback for unmatched language in componentsByLanguage", () => {
+      const PythonSyntax = vi.fn(() => <div data-testid="python">py</div>);
+      const AdaptedCode = createCodeAdapter({
+        componentsByLanguage: { python: { SyntaxHighlighter: PythonSyntax } },
+      });
+
+      const { container } = render(
+        <AdaptedCode className="language-javascript" data-block="true">
+          const x = 1;
+        </AdaptedCode>,
+      );
+
+      expect(PythonSyntax).not.toHaveBeenCalled();
+      const codeElement = container.querySelector("pre > code");
+      expect(codeElement).not.toBeNull();
+      expect(codeElement?.textContent).toBe("const x = 1;");
     });
   });
 
@@ -265,9 +318,9 @@ describe("createCodeAdapter integration", () => {
       });
 
       render(
-        <CodeBlockWrapper>
-          <AdaptedCode className="language-js">test</AdaptedCode>
-        </CodeBlockWrapper>,
+        <AdaptedCode className="language-js" data-block="true">
+          test
+        </AdaptedCode>,
       );
 
       expect(screen.getByTestId("inner-code")).toBeDefined();
@@ -276,7 +329,6 @@ describe("createCodeAdapter integration", () => {
     it("default Pre strips node prop", () => {
       const MockSyntax = vi.fn(({ components }) => {
         const { Pre } = components;
-        // Pre should render a pre element and strip node
         return (
           <Pre node={undefined} data-testid="pre">
             content
@@ -289,9 +341,9 @@ describe("createCodeAdapter integration", () => {
       });
 
       render(
-        <CodeBlockWrapper>
-          <AdaptedCode className="language-js">test</AdaptedCode>
-        </CodeBlockWrapper>,
+        <AdaptedCode className="language-js" data-block="true">
+          test
+        </AdaptedCode>,
       );
 
       const preElement = screen.getByTestId("pre");
@@ -313,13 +365,45 @@ describe("createCodeAdapter integration", () => {
       });
 
       render(
-        <CodeBlockWrapper>
-          <AdaptedCode className="language-js">test</AdaptedCode>
-        </CodeBlockWrapper>,
+        <AdaptedCode className="language-js" data-block="true">
+          test
+        </AdaptedCode>,
       );
 
       const codeElement = screen.getByTestId("code");
       expect(codeElement.tagName).toBe("CODE");
+    });
+  });
+
+  describe("PreOverride + AdaptedCode end-to-end", () => {
+    it("data-block flows from PreOverride through cloneElement to AdaptedCode", () => {
+      const MockSyntax = vi.fn(({ code, language }) => (
+        <div data-testid="syntax">{`${language}: ${code}`}</div>
+      ));
+      const AdaptedCode = createCodeAdapter({
+        SyntaxHighlighter: MockSyntax,
+      });
+
+      render(
+        <PreOverride>
+          <AdaptedCode className="language-python">print("hello")</AdaptedCode>
+        </PreOverride>,
+      );
+
+      expect(screen.getByTestId("syntax").textContent).toBe(
+        'python: print("hello")',
+      );
+    });
+
+    it("renders inline code when AdaptedCode is outside PreOverride", () => {
+      const AdaptedCode = createCodeAdapter({
+        SyntaxHighlighter: () => <div data-testid="syntax">block</div>,
+      });
+
+      render(<AdaptedCode className="language-js">code</AdaptedCode>);
+
+      const codeElement = screen.getByText("code");
+      expect(codeElement.className).toContain("aui-streamdown-inline-code");
     });
   });
 });

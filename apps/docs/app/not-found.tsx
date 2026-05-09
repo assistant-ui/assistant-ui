@@ -108,6 +108,7 @@ export default function NotFound() {
           <div className="fade-in slide-in-from-bottom-2 flex animate-in flex-col gap-2 fill-mode-both pl-11 duration-500">
             {canGoBack && (
               <button
+                type="button"
                 onClick={() => router.back()}
                 className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/50"
               >

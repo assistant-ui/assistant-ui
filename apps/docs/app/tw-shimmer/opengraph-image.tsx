@@ -20,6 +20,7 @@ export default async function Image() {
 
   return new ImageResponse(
     <OgTemplate subtleBranding>
+      {/* biome-ignore lint/performance/noImgElement: next/image not applicable here */}
       <img
         src={shimmerTextSrc}
         alt="tw-shimmer"

@@ -5,11 +5,7 @@ export { MonthLabels, type MonthLabelsProps } from "./components/MonthLabels";
 export { DayLabels, type DayLabelsProps } from "./components/DayLabels";
 export { Grid, type GridProps } from "./components/Grid";
 export { Cell, type CellProps } from "./components/Cell";
-export {
-  Legend,
-  type LegendProps,
-  type LegendCollection,
-} from "./components/Legend";
+export { Legend, type LegendProps } from "./components/Legend";
 export { LegendLevel, type LegendLevelProps } from "./components/LegendLevel";
 export { Tooltip, type TooltipProps } from "./components/Tooltip";
 

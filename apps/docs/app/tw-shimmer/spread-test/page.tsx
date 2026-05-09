@@ -135,10 +135,6 @@ function TestCard({
   );
 }
 
-// ============================================================================
-// TEXT SHIMMER SECTION
-// ============================================================================
-
 function TextShimmerSection() {
   return (
     <Section
@@ -273,10 +269,6 @@ function TextShimmerSection() {
   );
 }
 
-// ============================================================================
-// BACKGROUND SHIMMER SECTION
-// ============================================================================
-
 function BackgroundShimmerSection() {
   return (
     <Section
@@ -364,10 +356,6 @@ function BackgroundShimmerSection() {
   );
 }
 
-// ============================================================================
-// SHARED CONSTANTS
-// ============================================================================
-
 const SHIMMER_COLORS = [
   {
     name: "Red",
@@ -405,10 +393,6 @@ const SHIMMER_COLORS = [
     textColor: "text-pink-500/50",
   },
 ];
-
-// ============================================================================
-// CONTAINER SIZE SECTION
-// ============================================================================
 
 const CONTAINER_SIZES = [
   { width: 50, label: "50px" },
@@ -491,10 +475,6 @@ function ContainerSizeRow({ width, label }: { width: number; label: string }) {
     </div>
   );
 }
-
-// ============================================================================
-// SKELETON PATTERNS SECTION
-// ============================================================================
 
 function SkeletonPatternsSection() {
   return (
@@ -642,10 +622,6 @@ function SkeletonPatternsSection() {
   );
 }
 
-// ============================================================================
-// ANGLE TEST SECTION
-// ============================================================================
-
 const ANGLES = [0, 15, 30, 45, 60, 75, 90, 105, 120, 135];
 
 function AngleTestSection() {
@@ -743,10 +719,6 @@ function AngleTestSection() {
     </Section>
   );
 }
-
-// ============================================================================
-// COLOR TEST SECTION
-// ============================================================================
 
 function ColorTestSection() {
   return (
@@ -848,10 +820,6 @@ function ColorTestSection() {
   );
 }
 
-// ============================================================================
-// SPEED TEST SECTION
-// ============================================================================
-
 const SPEEDS = [50, 100, 150, 200, 300, 500, 800, 1000, 1500, 2000];
 
 function SpeedTestSection() {
@@ -951,10 +919,6 @@ function SpeedTestSection() {
     </Section>
   );
 }
-
-// ============================================================================
-// SPREAD TEST SECTION
-// ============================================================================
 
 const SPREADS = [20, 40, 60, 80, 100, 150, 200, 300, 400];
 
@@ -1074,10 +1038,6 @@ function SpreadTestSection() {
     </Section>
   );
 }
-
-// ============================================================================
-// NESTED CONTAINERS SECTION
-// ============================================================================
 
 function NestedContainersSection() {
   return (
@@ -1382,10 +1342,6 @@ function NestedContainersSection() {
   );
 }
 
-// ============================================================================
-// EDGE CASES SECTION
-// ============================================================================
-
 function EdgeCasesSection() {
   return (
     <Section
@@ -1500,10 +1456,6 @@ function EdgeCasesSection() {
   );
 }
 
-// ============================================================================
-// INTERACTIVE PLAYGROUND SECTION
-// ============================================================================
-
 function InteractivePlaygroundSection() {
   const [width, setWidth] = useState(400);
   const [speed, setSpeed] = useState<number | null>(null);
@@ -1598,6 +1550,7 @@ function InteractivePlaygroundSection() {
                 className="flex-1"
               />
               <button
+                type="button"
                 onClick={() => setSpeed(speed === null ? 500 : null)}
                 className="rounded bg-muted px-2 py-1 text-xs"
               >
@@ -1629,6 +1582,7 @@ function InteractivePlaygroundSection() {
                 className="flex-1"
               />
               <button
+                type="button"
                 onClick={() => setBgSpread(bgSpread === null ? 100 : null)}
                 className="rounded bg-muted px-2 py-1 text-xs"
               >
@@ -1660,6 +1614,7 @@ function InteractivePlaygroundSection() {
                 className="flex-1"
               />
               <button
+                type="button"
                 onClick={() => setTextSpread(textSpread === null ? 6 : null)}
                 className="rounded bg-muted px-2 py-1 text-xs"
               >

@@ -1,11 +1,11 @@
-import {
-  AssistantRuntimeProvider,
+import type {
+  AssistantRuntimeProvider as AssistantRuntimeProviderComponent,
   MessagePartState,
 } from "@assistant-ui/react";
-import { ComponentPropsWithRef } from "react";
+import type { ComponentPropsWithRef } from "react";
 
 export type AssistantRuntimeProvider = ComponentPropsWithRef<
-  typeof AssistantRuntimeProvider
+  typeof AssistantRuntimeProviderComponent
 >;
 
 export type {

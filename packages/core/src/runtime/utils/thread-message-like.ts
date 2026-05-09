@@ -18,7 +18,10 @@ import type {
 } from "../../types/message";
 import type { CompleteAttachment } from "../../types/attachment";
 import type { MessageTiming, TextMessagePart } from "../../types/message";
-import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
+import type {
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "assistant-stream/utils";
 
 type DataPrefixedPart = {
   readonly type: `data-${string}`;

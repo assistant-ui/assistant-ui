@@ -1,27 +1,39 @@
 import {
-  FC,
+  type FC,
+  type RefObject,
   useCallback,
   useRef,
   useEffect,
+  useLayoutEffect,
   memo,
-  PropsWithChildren,
-  ComponentType,
+  type PropsWithChildren,
+  type ComponentType,
   useMemo,
+  Fragment,
 } from "react";
-import { UseBoundStore, StoreApi, create } from "zustand";
+import { type UseBoundStore, type StoreApi, create } from "zustand";
 import { useAui } from "@assistant-ui/store";
 import { ThreadListItemRuntimeProvider } from "../providers/ThreadListItemRuntimeProvider";
 import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { BaseSubscribable } from "../../subscribable/subscribable";
-import { ThreadRuntimeImpl } from "../../runtime/api/thread-runtime";
+import type { ThreadRuntimeImpl } from "../../runtime/api/thread-runtime";
 import { ThreadListRuntimeImpl } from "../../runtime/api/thread-list-runtime";
 
 type RemoteThreadListHook = () => AssistantRuntime;
 
 type RemoteThreadListHookInstance = {
   runtime?: ThreadRuntimeCore;
+};
+
+const ProviderRenderDetector: FC<{
+  detectorRef: RefObject<boolean>;
+}> = ({ detectorRef }) => {
+  useLayoutEffect(() => {
+    detectorRef.current = true;
+  }, [detectorRef]);
+  return null;
 };
 export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   private useRuntimeHook: UseBoundStore<
@@ -82,9 +94,12 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     }
   }
 
-  private _InnerActiveThreadProvider: FC<{
-    threadId: string;
-  }> = ({ threadId }) => {
+  // Rendered as a child of the user's Provider so the runtime hook can
+  // read context the Provider injects (e.g. RuntimeAdapterProvider).
+  private _RuntimeBinder: FC<PropsWithChildren<{ threadId: string }>> = ({
+    threadId,
+    children,
+  }) => {
     const { useRuntime } = this.useRuntimeHook();
     const runtime = useRuntime();
 
@@ -116,9 +131,8 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
     useEffect(() => {
       const runtimeCore = threadBinding.getState();
-      const setGetInitializePromise = (runtimeCore as Record<string, unknown>)[
-        "__internal_setGetInitializePromise"
-      ];
+      const setGetInitializePromise = (runtimeCore as Record<string, unknown>)
+        .__internal_setGetInitializePromise;
       if (typeof setGetInitializePromise === "function") {
         setGetInitializePromise.call(runtimeCore, () => initPromiseRef.current);
       }
@@ -139,7 +153,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       });
     }, [runtime, aui]);
 
-    return null;
+    return <>{children}</>;
   };
 
   private _OuterActiveThreadProvider: FC<{
@@ -151,10 +165,29 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       [threadId],
     );
 
+    const detectorRef = useRef(false);
+    useEffect(() => {
+      if (process.env.NODE_ENV !== "production" && Provider !== Fragment) {
+        const id = setTimeout(() => {
+          if (!detectorRef.current) {
+            console.warn(
+              "RemoteThreadListAdapter.unstable_Provider did not render its `children` synchronously. " +
+                "Render `children` on first commit; deferring them behind a loading state, Suspense boundary, " +
+                "or `useEffect` gate strands the runtime binder and leaves the thread without context.",
+            );
+          }
+        }, 100);
+        return () => clearTimeout(id);
+      }
+      return undefined;
+    }, [Provider]);
+
     return (
       <ThreadListItemRuntimeProvider runtime={runtime}>
         <Provider>
-          <this._InnerActiveThreadProvider threadId={threadId} />
+          <this._RuntimeBinder threadId={threadId}>
+            <ProviderRenderDetector detectorRef={detectorRef} />
+          </this._RuntimeBinder>
         </Provider>
       </ThreadListItemRuntimeProvider>
     );

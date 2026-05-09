@@ -1,12 +1,12 @@
 "use client";
 
 import { composeEventHandlers } from "@radix-ui/primitive";
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "../../utils/Primitive";
 import {
   type ComponentRef,
   type FormEvent,
   forwardRef,
-  ComponentPropsWithoutRef,
+  type ComponentPropsWithoutRef,
 } from "react";
 import { useComposerSend } from "./ComposerSend";
 

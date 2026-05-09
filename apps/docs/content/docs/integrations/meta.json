@@ -1,0 +1,15 @@
+{
+  "title": "Integrations",
+  "icon": "Plug",
+  "root": true,
+  "pages": [
+    "index",
+    "frameworks",
+    "tools",
+    "gateways",
+    "observability",
+    "auth",
+    "persistence",
+    "attachments"
+  ]
+}

@@ -12,6 +12,7 @@ import {
 } from "@assistant-ui/react";
 import {
   ArrowUpIcon,
+  CheckIcon,
   ChevronDownIcon,
   CopyIcon,
   Cross2Icon,
@@ -25,11 +26,19 @@ import {
   Square,
   ThumbsDown,
   ThumbsUp,
+  Zap,
 } from "lucide-react";
 import { useEffect, useState, type FC } from "react";
 import { useShallow } from "zustand/shallow";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { GrokIcon } from "@/components/icons/grok";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/shared/dropdown-menu";
 
 export const Grok: FC = () => {
   return (
@@ -43,7 +52,9 @@ export const Grok: FC = () => {
 
       <AuiIf condition={(s) => s.thread.isEmpty === false}>
         <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">
-          <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+          <ThreadPrimitive.Messages>
+            {() => <ChatMessage />}
+          </ThreadPrimitive.Messages>
         </ThreadPrimitive.Viewport>
         <Composer />
         <p className="mx-auto w-full max-w-3xl pb-2 text-center text-[#9a9a9a] text-xs">
@@ -67,9 +78,9 @@ const Composer: FC = () => {
       <div className="overflow-hidden rounded-4xl bg-[#f8f8f8] shadow-xs ring-1 ring-[#e5e5e5] ring-inset transition-shadow focus-within:ring-[#d0d0d0] dark:bg-[#212121] dark:ring-[#2a2a2a] dark:focus-within:ring-[#3a3a3a]">
         <AuiIf condition={(s) => s.composer.attachments.length > 0}>
           <div className="flex flex-row flex-wrap gap-2 px-4 pt-3">
-            <ComposerPrimitive.Attachments
-              components={{ Attachment: GrokAttachment }}
-            />
+            <ComposerPrimitive.Attachments>
+              {() => <GrokAttachment />}
+            </ComposerPrimitive.Attachments>
           </div>
         </AuiIf>
 
@@ -84,18 +95,7 @@ const Composer: FC = () => {
             className="my-2 h-6 max-h-100 min-w-0 flex-1 resize-none bg-transparent text-[#0d0d0d] text-base leading-6 outline-none placeholder:text-[#9a9a9a] dark:text-white dark:placeholder:text-[#6b6b6b]"
           />
 
-          <button
-            type="button"
-            className="mb-0.5 flex h-9 shrink-0 items-center gap-2 rounded-full px-2.5 text-[#0d0d0d] hover:bg-[#f0f0f0] dark:text-white dark:hover:bg-[#2a2a2a]"
-          >
-            <Moon width={18} height={18} className="shrink-0" />
-            <div className="flex items-center gap-1 overflow-hidden transition-[max-width,opacity] duration-300 group-data-[empty=false]/composer:max-w-0 group-data-[empty=true]/composer:max-w-24 group-data-[empty=false]/composer:opacity-0 group-data-[empty=true]/composer:opacity-100">
-              <span className="whitespace-nowrap font-semibold text-sm">
-                Grok 4.1
-              </span>
-              <ChevronDownIcon width={16} height={16} className="shrink-0" />
-            </div>
-          </button>
+          <GrokModelPicker />
 
           <div className="relative mb-0.5 h-9 w-9 shrink-0 rounded-full bg-[#0d0d0d] text-white dark:bg-white dark:text-[#0d0d0d]">
             <button
@@ -120,6 +120,70 @@ const Composer: FC = () => {
   );
 };
 
+const GROK_MODELS = [
+  {
+    id: "grok-4.1-fast",
+    name: "Fast",
+    description: "Default. Quick responses",
+    Icon: Zap,
+  },
+  {
+    id: "grok-4.1",
+    name: "Grok 4.1",
+    description: "Standard reasoning",
+    Icon: Moon,
+  },
+  {
+    id: "grok-4.1-think",
+    name: "Think",
+    description: "Multi-step reasoning",
+    Icon: Moon,
+  },
+];
+
+const GrokModelPicker: FC = () => {
+  const [model, setModel] = useState(GROK_MODELS[0]!.id);
+  const current = GROK_MODELS.find((m) => m.id === model) ?? GROK_MODELS[0]!;
+  const CurrentIcon = current.Icon;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="mb-0.5 flex h-9 shrink-0 items-center gap-2 rounded-full px-2.5 text-[#0d0d0d] hover:bg-[#f0f0f0] dark:text-white dark:hover:bg-[#2a2a2a]">
+        <CurrentIcon width={18} height={18} className="shrink-0" />
+        <div className="flex items-center gap-1 overflow-hidden transition-[max-width,opacity] duration-300 group-data-[empty=false]/composer:max-w-0 group-data-[empty=true]/composer:max-w-32 group-data-[empty=false]/composer:opacity-0 group-data-[empty=true]/composer:opacity-100">
+          <span className="whitespace-nowrap font-semibold text-sm">
+            {current.name}
+          </span>
+          <ChevronDownIcon width={16} height={16} className="shrink-0" />
+        </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-60">
+        {GROK_MODELS.map(({ id, name, description, Icon }) => (
+          <DropdownMenuItem
+            key={id}
+            onSelect={() => setModel(id)}
+            className="flex items-start gap-3"
+          >
+            <span className="mt-0.5 flex size-4 items-center justify-center text-[#0d0d0d] dark:text-white">
+              {id === model ? <CheckIcon /> : <Icon width={14} height={14} />}
+            </span>
+            <span className="flex flex-1 flex-col">
+              <span className="text-foreground text-sm">{name}</span>
+              <span className="text-muted-foreground text-xs">
+                {description}
+              </span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="text-muted-foreground text-sm">
+          Subscribe to SuperGrok
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
 const ChatMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="group/message relative mx-auto mb-2 flex w-full max-w-3xl flex-col pb-0.5">
@@ -127,7 +191,12 @@ const ChatMessage: FC = () => {
         <div className="flex flex-col items-end">
           <div className="relative max-w-[90%] rounded-3xl rounded-br-lg border border-[#e5e5e5] bg-[#f0f0f0] px-4 py-3 text-[#0d0d0d] dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-white">
             <div className="prose prose-sm dark:prose-invert wrap-break-word prose-p:my-0">
-              <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+              <MessagePrimitive.Parts>
+                {({ part }) => {
+                  if (part.type === "text") return <MarkdownText />;
+                  return null;
+                }}
+              </MessagePrimitive.Parts>
             </div>
           </div>
           <div className="mt-1 flex h-8 items-center justify-end gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
@@ -147,7 +216,12 @@ const ChatMessage: FC = () => {
         <div className="flex flex-col items-start">
           <div className="w-full max-w-none">
             <div className="prose prose-sm wrap-break-word dark:prose-invert prose-li:my-1 prose-ol:my-1 prose-p:my-2 prose-ul:my-1 text-[#0d0d0d] dark:text-[#e5e5e5]">
-              <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+              <MessagePrimitive.Parts>
+                {({ part }) => {
+                  if (part.type === "text") return <MarkdownText />;
+                  return null;
+                }}
+              </MessagePrimitive.Parts>
             </div>
           </div>
           <div className="mt-1 flex h-8 w-full items-center justify-start gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
@@ -275,6 +349,7 @@ const GrokAttachment: FC = () => {
       <div className="flex h-12 items-center gap-2 overflow-hidden rounded-xl border border-[#e5e5e5] bg-[#f0f0f0] p-0.5 transition-colors hover:border-[#d0d0d0] dark:border-[#2a2a2a] dark:bg-[#252525] dark:hover:border-[#3a3a3a]">
         <AuiIf condition={(s) => s.attachment.type === "image"}>
           {src ? (
+            // biome-ignore lint/performance/noImgElement: example component
             <img
               className="h-full w-12 rounded-[9px] object-cover"
               alt="Attachment"

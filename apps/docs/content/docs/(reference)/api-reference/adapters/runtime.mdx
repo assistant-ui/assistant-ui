@@ -1,0 +1,31 @@
+---
+title: Runtime Adapter Context
+description: Provide runtime adapters through React context.
+---
+
+`RuntimeAdapterProvider` lets framework integrations provide adapters around a runtime hook instead of threading them through every hook call.
+
+```tsx
+import {
+  RuntimeAdapterProvider,
+  useLocalRuntime,
+} from "@assistant-ui/react";
+
+function RuntimeRoot({ children }) {
+  return (
+    <RuntimeAdapterProvider
+      adapters={{
+        history,
+        attachments,
+        feedback,
+      }}
+    >
+      {children}
+    </RuntimeAdapterProvider>
+  );
+}
+```
+
+Runtime hooks merge context adapters with hook-specific options. Hook options are the right place for per-runtime configuration; the provider is useful when an integration or backend wrapper owns the adapter setup.
+
+Use `useRuntimeAdapters` only when building a runtime integration that needs to read the adapter context directly.

@@ -35,10 +35,17 @@ export type {
 export type {
   ComposerState,
   ComposerMethods,
+  ComposerSendOptions,
   ComposerMeta,
   ComposerEvents,
   ComposerClientSchema,
 } from "./scopes/composer";
+export type {
+  QueueItemState,
+  QueueItemMethods,
+  QueueItemMeta,
+  QueueItemClientSchema,
+} from "./scopes/queue-item";
 export type {
   AttachmentState,
   AttachmentMethods,

@@ -1,4 +1,4 @@
-import { ResourceFiber, RenderResult } from "../types";
+import type { ResourceFiber, RenderResult } from "../types";
 
 export function commitAllEffects(renderResult: RenderResult): void {
   const errors: unknown[] = [];

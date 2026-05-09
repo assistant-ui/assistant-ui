@@ -1,4 +1,13 @@
 {
   "title": "API Reference",
-  "pages": ["overview", "context-providers", "primitives", "runtimes", "..."]
+  "pages": [
+    "overview",
+    "primitives",
+    "hooks",
+    "adapters",
+    "runtimes",
+    "context-providers",
+    "integrations",
+    "..."
+  ]
 }

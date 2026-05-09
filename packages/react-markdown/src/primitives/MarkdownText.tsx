@@ -2,18 +2,21 @@
 
 import { INTERNAL, useMessagePartText } from "@assistant-ui/react";
 import {
-  ComponentRef,
-  ElementType,
-  FC,
+  type ComponentRef,
+  type ElementType,
+  type FC,
   forwardRef,
-  ForwardRefExoticComponent,
-  RefAttributes,
+  type ForwardRefExoticComponent,
+  type RefAttributes,
   useMemo,
   type ComponentPropsWithoutRef,
   type ComponentType,
 } from "react";
 import ReactMarkdown, { type Options } from "react-markdown";
-import { SyntaxHighlighterProps, CodeHeaderProps } from "../overrides/types";
+import type {
+  SyntaxHighlighterProps,
+  CodeHeaderProps,
+} from "../overrides/types";
 import { PreOverride } from "../overrides/PreOverride";
 import {
   DefaultPre,
@@ -23,7 +26,7 @@ import {
 } from "../overrides/defaultComponents";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { CodeOverride } from "../overrides/CodeOverride";
-import { Primitive } from "@radix-ui/react-primitive";
+import type { Primitive } from "@radix-ui/react-primitive";
 import classNames from "classnames";
 
 const { useSmooth, useSmoothStatus, withSmoothContextProvider } = INTERNAL;

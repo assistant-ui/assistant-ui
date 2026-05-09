@@ -1,9 +1,19 @@
-import {
+import type {
   LangChainMessage,
   LangChainMessageChunk,
+  LangChainToolCallChunk,
   MessageContentText,
 } from "./types";
 import { parsePartialJsonObject } from "assistant-stream/utils";
+
+const chunkToToolCall = (chunk: LangChainToolCallChunk) => {
+  const partialJson = chunk.args ?? chunk.args_json ?? "";
+  return {
+    ...chunk,
+    partial_json: partialJson,
+    args: parsePartialJsonObject(partialJson) ?? {},
+  };
+};
 
 /**
  * Merges an AIMessageChunk into a previous message. Chunks must have
@@ -19,9 +29,12 @@ export const appendLangChainChunk = (
   }
 
   if (!prev || prev.type !== "ai") {
+    const toolCalls = (curr.tool_call_chunks ?? []).map(chunkToToolCall);
     return {
       ...curr,
       type: curr.type.replace("MessageChunk", "").toLowerCase(),
+      tool_call_chunks: undefined,
+      ...(toolCalls.length > 0 && { tool_calls: toolCalls }),
     } as LangChainMessage;
   }
 
@@ -60,23 +73,24 @@ export const appendLangChainChunk = (
 
   const newToolCalls = [...(prev.tool_calls ?? [])];
   for (const chunk of curr.tool_call_chunks ?? []) {
-    const idx = newToolCalls.findIndex(
-      (tc) => tc.id != null && tc.id === chunk.id,
+    let idx = newToolCalls.findIndex(
+      (tc) => tc.id != null && tc.id !== "" && tc.id === chunk.id,
     );
+    if (idx === -1 && chunk.index != null) {
+      idx = newToolCalls.findIndex(
+        (tc) => tc.index === chunk.index && (!tc.id || !chunk.id),
+      );
+    }
     if (idx === -1) {
-      const partialJson = chunk.args ?? chunk.args_json ?? "";
-      newToolCalls.push({
-        ...chunk,
-        partial_json: partialJson,
-        args: parsePartialJsonObject(partialJson) ?? {},
-      });
+      newToolCalls.push(chunkToToolCall(chunk));
     } else {
       const existing = newToolCalls[idx]!;
       const partialJson =
-        existing.partial_json + (chunk.args ?? chunk.args_json ?? "");
+        (existing.partial_json ?? "") + (chunk.args ?? chunk.args_json ?? "");
       newToolCalls[idx] = {
         ...chunk,
         ...existing,
+        id: existing.id || chunk.id,
         partial_json: partialJson,
         args:
           parsePartialJsonObject(partialJson) ??

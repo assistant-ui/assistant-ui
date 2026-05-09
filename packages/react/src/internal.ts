@@ -33,3 +33,6 @@ export {
   useSmoothStatus,
   withSmoothContextProvider,
 } from "./utils/smooth/SmoothContext";
+
+// ComposerInput plugin registry (used by react-lexical)
+export { useComposerInputPluginRegistryOptional } from "./primitives/composer/ComposerInputPluginContext";

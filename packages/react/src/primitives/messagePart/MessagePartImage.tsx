@@ -1,7 +1,11 @@
 "use client";
 
-import { Primitive } from "@radix-ui/react-primitive";
-import { type ComponentRef, forwardRef, ComponentPropsWithoutRef } from "react";
+import { Primitive } from "../../utils/Primitive";
+import {
+  type ComponentRef,
+  forwardRef,
+  type ComponentPropsWithoutRef,
+} from "react";
 import { useMessagePartImage } from "./useMessagePartImage";
 
 export namespace MessagePartPrimitiveImage {
@@ -33,6 +37,7 @@ export const MessagePartPrimitiveImage = forwardRef<
   MessagePartPrimitiveImage.Props
 >((props, forwardedRef) => {
   const { image } = useMessagePartImage();
+  // biome-ignore lint/performance/noImgElement: next/image not applicable here
   return <Primitive.img src={image} {...props} ref={forwardedRef} />;
 });
 

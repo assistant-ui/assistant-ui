@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ink",
-  "version": "0.0.5",
+  "version": "0.0.15",
   "description": "React Ink (terminal UI) bindings for assistant-ui",
   "keywords": [
     "assistant",
@@ -15,12 +15,10 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./internal": {
-      "aui-source": "./src/internal.ts",
       "types": "./dist/internal.d.ts",
       "default": "./dist/internal.js"
     }
@@ -36,15 +34,18 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "benchmark": "tsx benchmarks/run.ts"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.6",
-    "@assistant-ui/store": "^0.2.3",
-    "@assistant-ui/tap": "^0.5.3",
-    "assistant-stream": "^0.3.6",
+    "@assistant-ui/core": "^0.2.0",
+    "@assistant-ui/store": "^0.2.10",
+    "@assistant-ui/tap": "^0.5.11",
+    "assistant-stream": "^0.3.13",
+    "diff": "^9.0.0",
     "ink-spinner": "^5.0.0",
-    "zustand": "^5.0.11"
+    "parse-diff": "^0.12.0",
+    "zustand": "^5.0.13"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -59,10 +60,11 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.14",
-    "ink": "^6.8.0",
+    "ink": "^7.0.2",
     "ink-testing-library": "^4.0.0",
-    "react": "^19.1.0",
-    "vitest": "^4.1.0"
+    "react": "^19.2.5",
+    "tsx": "^4.21.0",
+    "vitest": "^4.1.5"
   },
   "publishConfig": {
     "access": "public",

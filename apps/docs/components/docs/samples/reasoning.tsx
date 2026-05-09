@@ -10,7 +10,7 @@ import {
   ReasoningTrigger,
   ReasoningContent,
   ReasoningText,
-  reasoningVariants,
+  type reasoningVariants,
 } from "@/components/assistant-ui/reasoning";
 
 function ReasoningDemo({ variant }: VariantProps<typeof reasoningVariants>) {

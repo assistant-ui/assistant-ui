@@ -30,9 +30,7 @@ If you already have an assistant-ui web app, most of your code transfers directl
 
 ### Install the React Ink package
 
-```sh
-npm install @assistant-ui/react-ink ink react
-```
+<InstallCommand npm={["@assistant-ui/react-ink", "ink", "react"]} />
 
   </Step>
   <Step>
@@ -106,7 +104,9 @@ function MyMessage() {
 function ChatScreen() {
   return (
     <ThreadPrimitive.Root>
-      <ThreadPrimitive.Messages components={{ Message: MyMessage }} />
+      <ThreadPrimitive.Messages>
+        {() => <MyMessage />}
+      </ThreadPrimitive.Messages>
       <Box borderStyle="round" borderColor="gray" paddingX={1}>
         <ComposerPrimitive.Input submitOnEnter placeholder="Message..." autoFocus />
       </Box>

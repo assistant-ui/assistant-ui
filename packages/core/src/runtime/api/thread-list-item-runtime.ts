@@ -3,7 +3,26 @@ import type { SubscribableWithState } from "../../subscribable/subscribable";
 import type { ThreadListItemRuntimePath } from "./paths";
 import type { ThreadListRuntimeCoreBinding } from "./thread-list-runtime";
 
-export type ThreadListItemEventType = "switchedTo" | "switchedAway";
+export type ThreadListItemEventPayload = {
+  /**
+   * @deprecated State-derivable. Compare `s.threads.mainThreadId` against the
+   * item's `s.threadListItem.id` via `useAuiState` instead. Kept for backward
+   * compatibility.
+   */
+  switchedTo: Record<string, never>;
+  /**
+   * @deprecated State-derivable. Compare `s.threads.mainThreadId` against the
+   * item's `s.threadListItem.id` via `useAuiState` instead. Kept for backward
+   * compatibility.
+   */
+  switchedAway: Record<string, never>;
+};
+
+export type ThreadListItemEventType = keyof ThreadListItemEventPayload;
+
+export type ThreadListItemEventCallback<E extends ThreadListItemEventType> = (
+  payload: ThreadListItemEventPayload[E],
+) => void;
 
 import type { ThreadListItemState } from "./bindings";
 import type { ThreadListItemStatus } from "../interfaces/thread-list-runtime-core";
@@ -27,9 +46,9 @@ export type ThreadListItemRuntime = {
 
   subscribe(callback: () => void): Unsubscribe;
 
-  unstable_on(
-    event: ThreadListItemEventType,
-    callback: () => void,
+  unstable_on<E extends ThreadListItemEventType>(
+    event: E,
+    callback: ThreadListItemEventCallback<E>,
   ): Unsubscribe;
 
   __internal_getRuntime(): ThreadListItemRuntime;
@@ -112,7 +131,10 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     return this._threadListBinding.generateTitle(state.id);
   }
 
-  public unstable_on(event: ThreadListItemEventType, callback: () => void) {
+  public unstable_on<E extends ThreadListItemEventType>(
+    event: E,
+    callback: ThreadListItemEventCallback<E>,
+  ) {
     let prevIsMain = this._core.getState().isMain;
     let prevThreadId = this._core.getState().id;
     return this.subscribe(() => {
@@ -125,7 +147,7 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
 
       if (event === "switchedTo" && !newIsMain) return;
       if (event === "switchedAway" && newIsMain) return;
-      callback();
+      (callback as (payload?: unknown) => void)({});
     });
   }
 

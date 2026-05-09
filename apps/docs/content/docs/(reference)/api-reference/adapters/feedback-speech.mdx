@@ -1,0 +1,41 @@
+---
+title: Feedback and Speech Adapters
+description: Capture message feedback and connect speech or dictation.
+---
+
+## Feedback
+
+`FeedbackAdapter` receives message feedback submitted through action primitives or runtime actions.
+
+```tsx
+const runtime = useLocalRuntime(chatModelAdapter, {
+  adapters: {
+    feedback: {
+      submit: async ({ message, type }) => {
+        await fetch("/api/feedback", {
+          method: "POST",
+          body: JSON.stringify({ messageId: message.id, type }),
+        });
+      },
+    },
+  },
+});
+```
+
+## Speech
+
+`SpeechSynthesisAdapter` controls text-to-speech playback. `WebSpeechSynthesisAdapter` provides a browser implementation.
+
+```tsx
+import { WebSpeechSynthesisAdapter } from "@assistant-ui/react";
+
+const runtime = useLocalRuntime(chatModelAdapter, {
+  adapters: {
+    speech: new WebSpeechSynthesisAdapter(),
+  },
+});
+```
+
+## Dictation and Suggestions
+
+Runtime adapters can also provide dictation and suggestion behavior. Dictation powers composer voice input; suggestions power prompt suggestions rendered by thread and suggestion primitives.

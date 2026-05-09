@@ -15,6 +15,10 @@ export {
 } from "./model-context/makeAssistantDataUI";
 export { useAssistantInstructions } from "./model-context/useAssistantInstructions";
 export {
+  useAssistantContext,
+  type AssistantContextConfig,
+} from "./model-context/useAssistantContext";
+export {
   useAssistantTool,
   type AssistantToolProps,
 } from "./model-context/useAssistantTool";
@@ -28,10 +32,20 @@ export {
 } from "./model-context/useAssistantDataUI";
 export { useInlineRender } from "./model-context/useInlineRender";
 export type { Toolkit, ToolDefinition } from "./model-context/toolbox";
+export {
+  useAssistantInteractable,
+  type AssistantInteractableProps,
+} from "./model-context/useAssistantInteractable";
+export { useInteractableState } from "./model-context/useInteractableState";
+export {
+  useToolArgsStatus,
+  type ToolArgsStatus,
+} from "./model-context/useToolArgsStatus";
 
 // client
 export { Tools } from "./client/Tools";
 export { DataRenderers } from "./client/DataRenderers";
+export { Interactables } from "./client/Interactables";
 
 // types
 export type {
@@ -68,6 +82,17 @@ export type {
   DataRenderersMethods,
   DataRenderersClientSchema,
 } from "./types/scopes/dataRenderers";
+export type {
+  InteractableStateSchema,
+  InteractablesState,
+  InteractableDefinition,
+  InteractableRegistration,
+  InteractablesMethods,
+  InteractablePersistedState,
+  InteractablePersistenceAdapter,
+  InteractablePersistenceStatus,
+  InteractablesClientSchema,
+} from "./types/scopes/interactables";
 
 // providers
 export {
@@ -85,6 +110,10 @@ export {
   SuggestionByIndexProvider,
   type SuggestionByIndexProviderProps,
 } from "./providers/SuggestionByIndexProvider";
+export {
+  QueueItemByIndexProvider,
+  type QueueItemByIndexProviderProps,
+} from "./providers/QueueItemByIndexProvider";
 export { ReadonlyThreadProvider } from "./providers/ReadonlyThreadProvider";
 
 // RuntimeAdapter
@@ -133,7 +162,11 @@ export {
   MessagePartComponent,
   MessagePrimitivePartByIndex,
   defaultComponents as messagePartsDefaultComponents,
+  type EnrichedPartState,
+  type PartState,
 } from "./primitives/message/MessageParts";
+export { MessagePrimitiveGroupedParts } from "./primitives/message/MessageGroupedParts";
+export { MessagePrimitiveQuote } from "./primitives/message/MessageQuote";
 export {
   MessagePrimitiveAttachments,
   MessagePrimitiveAttachmentByIndex,
@@ -142,6 +175,7 @@ export {
   ComposerPrimitiveAttachments,
   ComposerPrimitiveAttachmentByIndex,
 } from "./primitives/composer/ComposerAttachments";
+export { ComposerPrimitiveQueue } from "./primitives/composer/ComposerQueue";
 export {
   ThreadListPrimitiveItems,
   ThreadListPrimitiveItemByIndex,
@@ -185,6 +219,11 @@ export {
 } from "./primitive-hooks/useActionBarFeedback";
 export { useActionBarSpeak } from "./primitive-hooks/useActionBarSpeak";
 export { useActionBarStopSpeaking } from "./primitive-hooks/useActionBarStopSpeaking";
+export {
+  useVoiceState,
+  useVoiceVolume,
+  useVoiceControls,
+} from "./primitive-hooks/useVoice";
 export { useBranchPickerNext } from "./primitive-hooks/useBranchPickerNext";
 export { useBranchPickerPrevious } from "./primitive-hooks/useBranchPickerPrevious";
 export {
@@ -196,6 +235,7 @@ export { useThreadListItemDelete } from "./primitive-hooks/useThreadListItemDele
 export { useThreadListItemUnarchive } from "./primitive-hooks/useThreadListItemUnarchive";
 export { useThreadListItemTrigger } from "./primitive-hooks/useThreadListItemTrigger";
 export { useThreadListNew } from "./primitive-hooks/useThreadListNew";
+export { useThreadListLoadMore } from "./primitive-hooks/useThreadListLoadMore";
 export { useEditComposerCancel } from "./primitive-hooks/useEditComposerCancel";
 export { useEditComposerSend } from "./primitive-hooks/useEditComposerSend";
 export { useMessageError } from "./primitive-hooks/useMessageError";

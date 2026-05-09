@@ -1,9 +1,10 @@
 ---
-title: Streamdown
-description: Alternative markdown renderer with built-in syntax highlighting, math, and diagram support.
+title: Streamdown Markdown Renderer
+description: Stream markdown into a React chat UI with syntax highlighting, math, and Mermaid diagrams. Powered by Vercel Streamdown, integrated for assistant-ui.
 links:
   - label: Streamdown
     url: https://github.com/vercel/streamdown
+platforms: ["react"]
 ---
 
 import { PackageManagerTabs } from "@/components/docs/fumadocs/install/package-manager-tabs";
@@ -31,7 +32,9 @@ For additional features, install the optional plugins:
 import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown";
 
 // Inside a MessagePrimitive.Parts component
-<MessagePrimitive.Parts components={{ Text: StreamdownText }} />
+<MessagePrimitive.Parts>
+  {({ part }) => part.type === "text" ? <StreamdownText {...part} /> : null}
+</MessagePrimitive.Parts>
 
 // Where StreamdownText is:
 const StreamdownText = () => <StreamdownTextPrimitive />;

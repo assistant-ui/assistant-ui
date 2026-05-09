@@ -49,6 +49,7 @@ export function DiffViewerViewModesSample() {
       <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-4">
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={() => setViewMode("unified")}
             className={cn("rounded-md px-3 py-1.5 text-sm transition-colors", {
               "bg-primary text-primary-foreground": viewMode === "unified",
@@ -58,6 +59,7 @@ export function DiffViewerViewModesSample() {
             Unified
           </button>
           <button
+            type="button"
             onClick={() => setViewMode("split")}
             className={cn("rounded-md px-3 py-1.5 text-sm transition-colors", {
               "bg-primary text-primary-foreground": viewMode === "split",

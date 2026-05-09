@@ -1,11 +1,11 @@
 "use client";
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "../../utils/Primitive";
 import {
   type ComponentRef,
   forwardRef,
-  ComponentPropsWithoutRef,
+  type ComponentPropsWithoutRef,
   useCallback,
 } from "react";
 import { useSizeHandle } from "../../utils/hooks/useSizeHandle";
@@ -20,7 +20,8 @@ export namespace ThreadPrimitiveViewportFooter {
  * A footer container that measures its height for scroll calculations.
  *
  * This component measures its height and provides it to the viewport context
- * for use in scroll calculations (e.g., ViewportSlack min-height).
+ * so the auto-scroll system can account for any sticky footer overlapping the
+ * message list.
  *
  * Multiple ViewportFooter components can be used - their heights are summed.
  *
@@ -30,7 +31,9 @@ export namespace ThreadPrimitiveViewportFooter {
  * @example
  * ```tsx
  * <ThreadPrimitive.Viewport>
- *   <ThreadPrimitive.Messages components={{ ... }} />
+ *   <ThreadPrimitive.Messages>
+ *     {() => <MyMessage />}
+ *   </ThreadPrimitive.Messages>
  *   <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
  *     <Composer />
  *   </ThreadPrimitive.ViewportFooter>

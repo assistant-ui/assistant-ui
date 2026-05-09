@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "keywords": [
+    "assistant-ui",
+    "chat",
+    "ai",
+    "chatbot",
+    "react",
+    "ai-sdk",
+    "shadcn",
+    "thread",
+    "copilot",
+    "assistant"
+  ],
+  "categories": ["frameworks", "ai-ml"],
+  "author": {
+    "name": "Yonom",
+    "github": "Yonom"
+  },
+  "repository": "https://github.com/assistant-ui/assistant-ui",
+  "homepage": "https://www.assistant-ui.com"
+}

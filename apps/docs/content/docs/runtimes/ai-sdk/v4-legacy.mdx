@@ -1,66 +1,51 @@
 ---
-title: AI SDK v4 (Legacy)
-description: Legacy integration for Vercel AI SDK v4 using data stream runtime.
+title: AI SDK v4 (legacy)
+description: Reference for projects still on AI SDK v4. New projects should use v6.
 ---
 
+import { VercelIcon } from "@/components/icons/vercel";
 
-## Overview
-
-If you're using AI SDK v4 (legacy), you can integrate with assistant-ui using the `@assistant-ui/react-data-stream` package and its `useDataStreamRuntime` hook. This provides a compatible runtime that works with AI SDK v4's streaming responses.
-
-<Callout type="warning">
-  AI SDK v4 is now considered legacy. We recommend upgrading to [AI SDK
-  v6](/docs/runtimes/ai-sdk/v6) for improved features and better
-  TypeScript support. This documentation is provided for projects that haven't
-  migrated yet.
+<Callout type="warn">
+AI SDK v4 is a legacy version. New projects should use [AI SDK v6](/docs/runtimes/ai-sdk/v6). v4 integrations use the older `@assistant-ui/react-data-stream` package, not `@assistant-ui/react-ai-sdk`.
 </Callout>
 
-## Getting Started
+## Why legacy
 
+Vercel ships AI SDK majors roughly yearly; v4 is two majors behind v6. The current `@assistant-ui/react-ai-sdk` package targets v6+ exclusively, so v4 users plug into [`@assistant-ui/react-data-stream`](/docs/runtimes/custom/data-stream) instead — the same data stream protocol that v4's `toDataStreamResponse()` emits.
 
-### Option 1: Using @assistant-ui/react-data-stream (Recommended)
+This page is reference for existing v4 projects. Plan to migrate to v6 when feasible.
+
+## Setup
 
 <Steps>
-  <Step>
-  ### Install the required packages
+<Step>
 
-Install `@assistant-ui/react-data-stream` alongside assistant-ui and AI SDK v4:
+### Install
 
 <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-data-stream", "ai@^4"]} />
 
-  </Step>
-  <Step>
+</Step>
+<Step>
 
-### Setup your backend route
+### Backend route
 
-Create an API route that uses AI SDK v4's streaming capabilities:
-
-`@/app/api/chat/route.ts`
-
-```tsx
+```ts title="@/app/api/chat/route.ts"
 import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
-
-  const result = streamText({
-    model: openai("gpt-4"),
-    messages,
-  });
-
+  const result = streamText({ model: openai("gpt-4"), messages });
   return result.toDataStreamResponse();
 }
 ```
 
-  </Step>
-  <Step>
+</Step>
+<Step>
 
-### Use `useDataStreamRuntime` in your component
+### Frontend
 
-`@/app/page.tsx`
-
-```tsx
+```tsx title="@/app/page.tsx"
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
@@ -68,10 +53,7 @@ import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
 import { Thread } from "@/components/assistant-ui/thread";
 
 export default function Home() {
-  const runtime = useDataStreamRuntime({
-    api: "/api/chat",
-  });
-
+  const runtime = useDataStreamRuntime({ api: "/api/chat" });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <div className="h-full">
@@ -82,96 +64,54 @@ export default function Home() {
 }
 ```
 
-  </Step>
+</Step>
 </Steps>
 
-### Option 2: Using @assistant-ui/react-ai-sdk v0.1.10 (Legacy)
+`useDataStreamRuntime` accepts `api`, `initialMessages`, `onFinish`, `onError`, `headers`, `body`, and the standard `LocalRuntimeOptions`. For the full reference, see [Data Stream Protocol](/docs/runtimes/custom/data-stream).
 
-Alternatively, you can use the older version of the AI SDK integration package, though this version is no longer actively maintained:
+## Differences from v6
 
-<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ai-sdk@0.1.10", "ai@^4"]} />
+| Feature | v4 | v6 |
+| --- | --- | --- |
+| `ai` package | `ai@^4` | `ai@^6` |
+| Runtime package | `@assistant-ui/react-data-stream` | `@assistant-ui/react-ai-sdk` |
+| Runtime hook | `useDataStreamRuntime` | `useChatRuntime` |
+| Response | `toDataStreamResponse()` | `toUIMessageStreamResponse()` |
+| Tool schema | `parameters: z.object({...})` | `inputSchema: zodSchema(z.object({...}))` |
+| Message type | (untyped) | `UIMessage` |
 
-<Callout type="warning">
-  Version 0.1.10 of `@assistant-ui/react-ai-sdk` is no longer actively
-  maintained. We recommend using the `@assistant-ui/react-data-stream` approach
-  or upgrading to AI SDK v6 for continued support.
-</Callout>
+## Migration to v6
 
-With this legacy version, you would use the `useVercelUseChatRuntime` hook:
+When you are ready to upgrade:
 
-```tsx
-"use client";
+1. Swap `@assistant-ui/react-data-stream` for `@assistant-ui/react-ai-sdk`.
+2. Update your backend to AI SDK v6's `streamText` (see [v6 docs](/docs/runtimes/ai-sdk/v6)).
+3. Switch the runtime hook from `useDataStreamRuntime` to `useChatRuntime`.
 
-import { useChat } from "ai/react";
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useVercelUseChatRuntime } from "@assistant-ui/react-ai-sdk";
-import { Thread } from "@/components/assistant-ui/thread";
+AI SDK provides codemods at [ai-sdk.dev/docs/migration-guides](https://ai-sdk.dev/docs/migration-guides) that handle the package-side rewrites.
 
-export default function Home() {
-  const chat = useChat({
-    api: "/api/chat",
-  });
-  const runtime = useVercelUseChatRuntime(chat);
+## Alternative: react-ai-sdk@0.1.10
 
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <div className="h-full">
-        <Thread />
-      </div>
-    </AssistantRuntimeProvider>
-  );
-}
-```
+An older release line of `@assistant-ui/react-ai-sdk` (0.1.10) supported AI SDK v4 directly. It is no longer maintained and has no upgrade path; if you are starting a new v4 project, use `@assistant-ui/react-data-stream` instead.
 
-## API Reference
+## Related
 
-### `useDataStreamRuntime`
-
-The `useDataStreamRuntime` hook creates a runtime compatible with assistant-ui from AI SDK v4's streaming responses.
-
-```tsx
-import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
-
-const runtime = useDataStreamRuntime({
-  api: "/api/chat",
-  // Options similar to AI SDK v4's useChat
-  initialMessages: [],
-  onFinish: (message) => {
-    console.log("Message completed:", message);
-  },
-  onError: (error) => {
-    console.error("Chat error:", error);
-  },
-});
-```
-
-#### Options
-
-The `useDataStreamRuntime` hook accepts options similar to AI SDK v4's `useChat` hook:
-
-- **`api`**: The API endpoint for chat requests (required)
-- **`initialMessages`**: Initial messages to populate the chat
-- **`onFinish`**: Callback when a message completes streaming
-- **`onError`**: Callback for handling errors
-- **`headers`**: Additional headers to send with requests
-- **`body`**: Additional body parameters to send with requests
-
-<Callout type="info">
-  The `useDataStreamRuntime` API is designed to be familiar to developers
-  already using AI SDK v4's `useChat` hook, making migration straightforward.
-</Callout>
-
-## Migration to AI SDK v6
-
-When you're ready to upgrade to AI SDK v6:
-
-1. Replace `@assistant-ui/react-data-stream` with `@assistant-ui/react-ai-sdk`
-2. Update your backend to use AI SDK v6's `streamText` API
-3. Switch from `useDataStreamRuntime` to `useChatRuntime`
-4. Take advantage of improved TypeScript support and automatic system/tool forwarding
-
-See our [AI SDK v6 documentation](/docs/runtimes/ai-sdk/v6) for the complete migration guide.
-
-## Example
-
-For a working example with AI SDK v4, you can adapt the patterns from our [AI SDK examples](https://github.com/assistant-ui/assistant-ui/tree/main/examples) using the `@assistant-ui/react-data-stream` package instead of the v6 integration.
+<Cards>
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="AI SDK v6"
+    description="Current integration; what new projects should target."
+    href="/docs/runtimes/ai-sdk/v6"
+  />
+  <Card
+    title="Data Stream Protocol"
+    description="The runtime v4 integrations are built on."
+    href="/docs/runtimes/custom/data-stream"
+  />
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="AI SDK v5 (legacy)"
+    description="The intermediate legacy version."
+    href="/docs/runtimes/ai-sdk/v5-legacy"
+  />
+</Cards>

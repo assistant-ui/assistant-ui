@@ -2,6 +2,12 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "@tsconfig/strictest/tsconfig.json",
   "compilerOptions": {
+    "typeRoots": [
+      "${configDir}/node_modules/@types",
+      "${configDir}/../../node_modules/@types",
+      "${configDir}/node_modules/@assistant-ui/x-buildutils/types"
+    ],
+    "types": ["browser-process"],
     "moduleResolution": "bundler",
     "target": "ESNext",
     "module": "ESNext",
@@ -10,7 +16,6 @@
     "jsx": "react-jsx",
     "lib": ["dom", "dom.iterable", "ES2023"],
     "stripInternal": true,
-    "noPropertyAccessFromIndexSignature": false,
-    "customConditions": ["aui-source"]
+    "noPropertyAccessFromIndexSignature": false
   }
 }

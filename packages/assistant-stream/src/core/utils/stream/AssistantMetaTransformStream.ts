@@ -1,4 +1,7 @@
-import { AssistantStreamChunk, PartInit } from "../../AssistantStreamChunk";
+import type {
+  AssistantStreamChunk,
+  PartInit,
+} from "../../AssistantStreamChunk";
 
 /**
  * For chunk types that are associated with a part,

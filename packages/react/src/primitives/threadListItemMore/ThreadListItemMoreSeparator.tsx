@@ -1,12 +1,14 @@
 "use client";
 
-import { ComponentPropsWithoutRef, ComponentRef, forwardRef } from "react";
-import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
-import { ScopedProps, useDropdownMenuScope } from "./scope";
+import { type ComponentRef, forwardRef } from "react";
+import type { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
+import type { WithRenderPropProps } from "../../utils/Primitive";
+import { DropdownMenuRenderSeparator } from "../dropdownMenuRenderPrimitives";
+import { type ScopedProps, useDropdownMenuScope } from "./scope";
 
 export namespace ThreadListItemMorePrimitiveSeparator {
   export type Element = ComponentRef<typeof DropdownMenuPrimitive.Separator>;
-  export type Props = ComponentPropsWithoutRef<
+  export type Props = WithRenderPropProps<
     typeof DropdownMenuPrimitive.Separator
   >;
 }
@@ -24,7 +26,7 @@ export const ThreadListItemMorePrimitiveSeparator = forwardRef<
   ) => {
     const scope = useDropdownMenuScope(__scopeThreadListItemMore);
 
-    return <DropdownMenuPrimitive.Separator {...scope} {...rest} ref={ref} />;
+    return <DropdownMenuRenderSeparator {...scope} {...rest} ref={ref} />;
   },
 );
 
