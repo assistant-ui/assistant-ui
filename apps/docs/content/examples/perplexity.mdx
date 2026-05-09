@@ -16,11 +16,11 @@ The Perplexity Clone demonstrates how to customize assistant-ui to match Perplex
 ## Features
 
 - **Theme-Aware Styling**: Separate light and dark palettes instead of a single forced theme
-- **Perplexity-Inspired Composer**: Centered card with a dedicated bottom action row
+- **Perplexity-Inspired Composer**: Centered card with a multi-line input and a dedicated bottom action row
 - **Stateful Primary Action**: Dictate when empty, send when typing, cancel while running
+- **Mode + Model Affordances**: Static `Search` pill and `Model` placeholder mirror Perplexity's signature controls
 - **Attachment Chips**: Compact inline previews that sit above the input area
 - **Prompt-First Layout**: Large centered heading with a restrained transcript design
-- **Minimal Controls**: Add-attachment and model affordances keep the bottom row focused
 
 ## Quick Start
 
@@ -61,13 +61,16 @@ export const Thread = () => {
 };
 
 const Composer = () => (
-  <ComposerPrimitive.Root className="rounded-[28px] border border-[#d7d0c5] bg-[#fcfbf8] dark:border-[#4a433b] dark:bg-[#23211f]">
+  <ComposerPrimitive.Root className="rounded-3xl border border-[#d7d0c5] bg-[#fcfbf8] dark:border-[#4a433b] dark:bg-[#23211f]">
     <ComposerPrimitive.Attachments components={{ Attachment: ComposerChip }} />
-    <ComposerPrimitive.Input placeholder="Ask anything..." />
+    <ComposerPrimitive.Input rows={2} placeholder="Ask anything..." />
     <div className="flex items-center justify-between">
-      <ComposerPrimitive.AddAttachment />
+      <div className="flex items-center gap-1.5">
+        <ComposerPrimitive.AddAttachment />
+        <ModePill />
+      </div>
       <div className="flex items-center gap-2">
-        <button type="button">Model</button>
+        <ModelPlaceholder />
         <ComposerPrimitive.Dictate />
         <ComposerPrimitive.Send />
         <ComposerPrimitive.Cancel />
@@ -93,10 +96,11 @@ const ComposerChip = () => <AttachmentPrimitive.Root />;
 
 ### Styling Details
 
-- **Composer Shell**: Rounded card with explicit light and dark border colors
-- **Primary Action Swap**: Dictate, send, and cancel share the same trailing action slot
+- **Composer Shell**: Rounded `rounded-3xl` card with a soft layered shadow and explicit light/dark borders
+- **Multi-line Input**: `rows={2}` and a `min-h-20` keeps the composer tall like Perplexity's hero input
+- **Primary Action Swap**: Dictate, send, and cancel share the same trailing action slot via mutually exclusive `AuiIf` branches
+- **Mode + Model Pills**: Static `Search` pill on the leading edge and a `Model` placeholder on the trailing edge mirror Perplexity's chrome
 - **Attachment Row**: Chips render inline above the input instead of as a detached block
-- **Bottom Row**: Attachment and model controls sit in a minimal trailing action bar
 - **Welcome Layout**: Centered wordmark treatment with the composer as the hero element
 - **Transcript Styling**: Simpler messages to keep the composer as the focal point
 

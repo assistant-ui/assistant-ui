@@ -84,7 +84,7 @@ const EmptyState: FC = () => {
 
 const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
   return (
-    <ComposerPrimitive.Root className="group/composer mx-auto flex w-full max-w-(--thread-max-width) flex-col rounded-[28px] border border-[#d7d0c5] bg-[#fcfbf8] shadow-[0_10px_30px_-18px_rgba(32,24,18,0.28)] transition-colors focus-within:border-[#b8b0a5] dark:border-[#4a433b] dark:bg-[#23211f] dark:shadow-[0_18px_40px_-24px_rgba(0,0,0,0.7)] dark:focus-within:border-[#6a6258]">
+    <ComposerPrimitive.Root className="group/composer mx-auto flex w-full max-w-(--thread-max-width) flex-col rounded-3xl border border-[#d7d0c5] bg-[#fcfbf8] shadow-[0_2px_4px_-2px_rgba(32,24,18,0.06),0_8px_24px_-12px_rgba(32,24,18,0.12)] transition-colors focus-within:border-[#b8b0a5] dark:border-[#4a433b] dark:bg-[#23211f] dark:shadow-[0_2px_8px_-4px_rgba(0,0,0,0.4),0_12px_32px_-16px_rgba(0,0,0,0.5)] dark:focus-within:border-[#6a6258]">
       <AuiIf condition={(s) => s.composer.attachments.length > 0}>
         <div className="flex flex-wrap gap-2 px-4 pt-4">
           <ComposerPrimitive.Attachments>
@@ -94,13 +94,13 @@ const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
       </AuiIf>
 
       <ComposerPrimitive.Input
-        rows={1}
+        rows={2}
         placeholder={placeholder}
-        className="min-h-14 w-full resize-none bg-transparent px-5 pt-4 pb-0 text-[1.05rem] leading-7 outline-none placeholder:text-[#8a8176] dark:placeholder:text-[#918a82]"
+        className="min-h-20 w-full resize-none bg-transparent px-5 pt-4 pb-0 text-[1.05rem] leading-7 outline-none placeholder:text-[#8a8176] dark:placeholder:text-[#918a82]"
       />
 
-      <div className="flex items-center justify-between gap-3 px-4 pt-0.5 pb-3">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="flex items-center justify-between gap-3 px-3 pt-0.5 pb-3">
+        <div className="flex min-w-0 items-center gap-1.5">
           <ComposerPrimitive.AddAttachment asChild>
             <button
               type="button"
@@ -110,12 +110,20 @@ const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
               <Plus className="size-4.5" />
             </button>
           </ComposerPrimitive.AddAttachment>
+          <div
+            aria-hidden="true"
+            className="flex h-8 items-center gap-1.5 rounded-full border border-[#e0d8cb] bg-[#f5f1eb] px-3 text-[#3a342d] text-sm dark:border-[#3a342f] dark:bg-[#2a2724] dark:text-[#e6dfd5]"
+          >
+            <Search className="size-3.5" />
+            <span>Search</span>
+            <ChevronDownIcon className="size-3.5 opacity-70" />
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
           <div
             aria-hidden="true"
-            className="flex h-8 items-center gap-1 rounded-full px-2.5 text-[#746c62] text-sm transition-colors hover:bg-[#f2ede6] hover:text-[#1f1b17] dark:text-[#a19a91] dark:hover:bg-[#2b2825] dark:hover:text-[#f5f2ed]"
+            className="flex h-8 items-center gap-1 rounded-full px-2.5 text-[#746c62] text-sm dark:text-[#a19a91]"
           >
             <span>Model</span>
             <ChevronDownIcon className="size-4 opacity-70" />
@@ -201,7 +209,11 @@ const ChatMessage: FC = () => {
           </div>
 
           <div className="flex items-start gap-2">
-            <ActionBarPrimitive.Root className="mt-1 flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
+            <ActionBarPrimitive.Root
+              hideWhenRunning
+              autohide="not-last"
+              className="mt-1 flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100"
+            >
               <ActionBarPrimitive.Copy className={messageActionClassName}>
                 <CopyIcon className="size-4" />
               </ActionBarPrimitive.Copy>
