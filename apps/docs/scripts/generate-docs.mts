@@ -2047,7 +2047,6 @@ function titleForPage(
   if (primary.length === 1) {
     const name = primary[0]!.name;
     if (name.endsWith("Primitive")) return name;
-    if (name.endsWith("Provider")) return `<${name} />`;
     return name;
   }
   return page
