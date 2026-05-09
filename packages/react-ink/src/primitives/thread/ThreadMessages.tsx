@@ -33,34 +33,18 @@ type MessageComponents =
     };
 
 /**
- * Optional virtualization config.
+ * Live render region keeps the last `windowSize + windowOverscan` messages;
+ * older messages graduate through Ink's `<Static>` into terminal scrollback
+ * and stop repainting. Defaults to no windowing.
  *
- * Terminals scroll their own backbuffer; rendering messages that have already
- * scrolled past the visible region is wasted work and (during streaming) also
- * wasted store subscriptions. When `windowSize` is set, only the last
- * `windowSize + windowOverscan` messages are kept in the live render region.
- * Messages above the window are emitted exactly once through Ink's `<Static>`
- * — Ink writes them to stdout, the terminal commits them to scrollback, and
- * the React subtree is then unmounted. As new messages arrive, older entries
- * graduate from the live tail into `<Static>` automatically.
- *
- * Trade-off: messages that have graduated into `<Static>` are read-only from
- * the renderer's perspective. Edits to messages outside the window won't
- * repaint until the user re-opens the thread. This matches terminal
- * scrollback semantics — scrolled-past output is committed history.
- *
- * Defaults to no windowing for backward compatibility.
+ * Per-message memoization only engages when the render callback is
+ * referentially stable. The `components` API handles stability internally;
+ * with the children render-fn API, hoist or memoize the function.
  */
 type WindowingProps = {
-  /**
-   * Maximum number of recent messages to keep in the live render region.
-   * When unset, all messages render dynamically (legacy behavior).
-   */
+  /** Recent messages kept live. Unset renders all dynamically. Negative clamped to 0. */
   windowSize?: number | undefined;
-  /**
-   * Extra messages above the window kept in the live region to absorb
-   * remount churn at the boundary during streaming. Defaults to 4.
-   */
+  /** Extra live messages above the window to absorb boundary churn. Defaults to 4. Negative clamped to 0. */
   windowOverscan?: number | undefined;
 };
 
@@ -146,17 +130,16 @@ const ThreadMessagesInner: FC<{
 }> = ({ children, windowSize, windowOverscan = 4 }) => {
   const messagesLength = useAuiState((s) => s.thread.messages.length);
 
-  // [tailStart, messagesLength) is the live region; [0, tailStart) is the
-  // committed prefix rendered through <Static>. With no windowing, tailStart
-  // is 0 — all messages stay live (legacy behavior).
   const tailStart =
     windowSize !== undefined
-      ? Math.max(0, messagesLength - windowSize - windowOverscan)
+      ? Math.max(
+          0,
+          messagesLength -
+            Math.max(0, windowSize) -
+            Math.max(0, windowOverscan),
+        )
       : 0;
 
-  // <Static> only renders newly-added items: it reads `items.slice(committed)`
-  // each render and bumps the committed cursor in a layout effect. Identity-
-  // stable indices let the slice short-circuit cleanly when the array grows.
   const prefixIndices = useMemo(
     () => Array.from({ length: tailStart }, (_, i) => i),
     [tailStart],
@@ -189,10 +172,6 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({
   windowSize,
   windowOverscan,
 }) => {
-  // Field-level destructure so inline `components={{ Message: MyMessage }}`
-  // doesn't bust the memo on every parent render. As long as the individual
-  // component refs are stable, `stableComponents` keeps a stable identity
-  // and `MemoMessage` can short-circuit unchanged subtrees.
   const Message = components?.Message;
   const EditComposer = components?.EditComposer;
   const UserEditComposer = components?.UserEditComposer;
@@ -202,6 +181,7 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({
   const AssistantMessage = components?.AssistantMessage;
   const SystemMessage = components?.SystemMessage;
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `components` excluded so inline literals do not bust the memo; per-field deps cover real changes.
   const stableComponents = useMemo<MessageComponents | undefined>(() => {
     if (!components) return undefined;
     return {
@@ -215,7 +195,6 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({
       SystemMessage,
     } as MessageComponents;
   }, [
-    components,
     Message,
     EditComposer,
     UserEditComposer,
