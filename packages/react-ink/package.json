@@ -34,7 +34,8 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "benchmark": "tsx benchmarks/run.ts"
   },
   "dependencies": {
     "@assistant-ui/core": "^0.2.0",
@@ -62,6 +63,7 @@
     "ink": "^7.0.2",
     "ink-testing-library": "^4.0.0",
     "react": "^19.2.5",
+    "tsx": "^4.21.0",
     "vitest": "^4.1.5"
   },
   "publishConfig": {
