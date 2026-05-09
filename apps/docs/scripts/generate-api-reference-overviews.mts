@@ -6,7 +6,7 @@ const API_REFERENCE_DIR = path.resolve(
 );
 
 type SectionMeta = {
-  title?: string;
+  title: string;
   description?: string;
   overview?: string;
   pages?: unknown[];
