@@ -28,10 +28,18 @@ import {
   FileIcon,
   Plus,
   Search,
+  Sparkles,
   Square,
+  Telescope,
 } from "lucide-react";
 import { type FC, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/shared/dropdown-menu";
 
 const composerPrimaryActionClassName =
   "absolute inset-0 flex items-center justify-center rounded-full transition-all duration-200 ease-out";
@@ -73,7 +81,7 @@ const EmptyState: FC = () => {
   return (
     <div className="flex h-full flex-col justify-center px-4">
       <div className="mx-auto w-full max-w-(--thread-max-width)">
-        <p className="mb-8 text-center font-display text-[#25211c] text-[3.1rem] leading-none tracking-[-0.06em] dark:text-[#f5f2ed]">
+        <p className="mb-8 text-center font-display text-5xl text-[#25211c] leading-none tracking-[-0.06em] sm:text-[3.1rem] dark:text-[#f5f2ed]">
           perplexity
         </p>
         <Composer placeholder="Ask anything..." />
@@ -99,7 +107,7 @@ const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
         className="min-h-20 w-full resize-none bg-transparent px-5 pt-4 pb-0 text-[1.05rem] leading-7 outline-none placeholder:text-[#8a8176] dark:placeholder:text-[#918a82]"
       />
 
-      <div className="flex items-center justify-between gap-3 px-3 pt-0.5 pb-3">
+      <div className="flex items-center justify-between gap-2 px-3 pt-0.5 pb-3">
         <div className="flex min-w-0 items-center gap-1.5">
           <ComposerPrimitive.AddAttachment asChild>
             <button
@@ -110,24 +118,11 @@ const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
               <Plus className="size-4.5" />
             </button>
           </ComposerPrimitive.AddAttachment>
-          <div
-            aria-hidden="true"
-            className="flex h-8 items-center gap-1.5 rounded-full border border-[#e0d8cb] bg-[#f5f1eb] px-3 text-[#3a342d] text-sm dark:border-[#3a342f] dark:bg-[#2a2724] dark:text-[#e6dfd5]"
-          >
-            <Search className="size-3.5" />
-            <span>Search</span>
-            <ChevronDownIcon className="size-3.5 opacity-70" />
-          </div>
+          <SearchModePicker />
         </div>
 
-        <div className="flex items-center gap-2">
-          <div
-            aria-hidden="true"
-            className="flex h-8 items-center gap-1 rounded-full px-2.5 text-[#746c62] text-sm dark:text-[#a19a91]"
-          >
-            <span>Model</span>
-            <ChevronDownIcon className="size-4 opacity-70" />
-          </div>
+        <div className="flex items-center gap-1">
+          <ModelPicker />
           <ComposerPrimaryAction />
         </div>
       </div>
@@ -149,7 +144,26 @@ const ComposerPrimaryAction: FC = () => {
         </ComposerPrimitive.Cancel>
       </AuiIf>
 
-      <AuiIf condition={(s) => !s.thread.isRunning && !s.composer.isEmpty}>
+      <AuiIf
+        condition={(s) => !s.thread.isRunning && s.composer.dictation != null}
+      >
+        <ComposerPrimitive.StopDictation
+          className={cn(
+            composerPrimaryActionClassName,
+            composerPrimaryActionColorsClassName,
+          )}
+        >
+          <Square className="size-3.5 animate-pulse fill-current" />
+        </ComposerPrimitive.StopDictation>
+      </AuiIf>
+
+      <AuiIf
+        condition={(s) =>
+          !s.thread.isRunning &&
+          s.composer.dictation == null &&
+          !s.composer.isEmpty
+        }
+      >
         <ComposerPrimitive.Send
           className={cn(
             composerPrimaryActionClassName,
@@ -163,8 +177,8 @@ const ComposerPrimaryAction: FC = () => {
       <AuiIf
         condition={(s) =>
           !s.thread.isRunning &&
-          s.composer.isEmpty &&
-          s.composer.dictation == null
+          s.composer.dictation == null &&
+          s.composer.isEmpty
         }
       >
         <ComposerPrimitive.Dictate
@@ -176,24 +190,105 @@ const ComposerPrimaryAction: FC = () => {
           <AudioLines className="size-5" />
         </ComposerPrimitive.Dictate>
       </AuiIf>
-
-      <AuiIf
-        condition={(s) =>
-          !s.thread.isRunning &&
-          s.composer.isEmpty &&
-          s.composer.dictation != null
-        }
-      >
-        <ComposerPrimitive.StopDictation
-          className={cn(
-            composerPrimaryActionClassName,
-            composerPrimaryActionColorsClassName,
-          )}
-        >
-          <Square className="size-3.5 animate-pulse fill-current" />
-        </ComposerPrimitive.StopDictation>
-      </AuiIf>
     </div>
+  );
+};
+
+const SEARCH_MODES = [
+  {
+    id: "search",
+    name: "Search",
+    description: "Fast answers to everyday questions",
+    Icon: Search,
+  },
+  {
+    id: "research",
+    name: "Research",
+    description: "In-depth reports on complex topics",
+    Icon: Telescope,
+  },
+  {
+    id: "labs",
+    name: "Labs",
+    description: "Apps, slides, and dashboards",
+    Icon: Sparkles,
+  },
+];
+
+const SearchModePicker: FC = () => {
+  const [mode, setMode] = useState(SEARCH_MODES[0]!.id);
+  const current = SEARCH_MODES.find((m) => m.id === mode) ?? SEARCH_MODES[0]!;
+  const CurrentIcon = current.Icon;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex h-8 items-center gap-1.5 rounded-full border border-[#e0d8cb] bg-[#f5f1eb] px-3 text-[#3a342d] text-sm transition-colors hover:bg-[#ede6dd] dark:border-[#3a342f] dark:bg-[#2a2724] dark:text-[#e6dfd5] dark:hover:bg-[#332f2c]">
+        <CurrentIcon className="size-3.5" />
+        <span>{current.name}</span>
+        <ChevronDownIcon className="size-3.5 opacity-70" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-64">
+        {SEARCH_MODES.map(({ id, name, description, Icon }) => (
+          <DropdownMenuItem
+            key={id}
+            onSelect={() => setMode(id)}
+            className="flex items-start gap-3"
+          >
+            <span className="mt-0.5 flex size-4 items-center justify-center text-[#1f1b17] dark:text-[#f5f2ed]">
+              {id === mode ? <CheckIcon /> : <Icon className="size-3.5" />}
+            </span>
+            <span className="flex flex-1 flex-col">
+              <span className="text-foreground text-sm">{name}</span>
+              <span className="text-muted-foreground text-xs">
+                {description}
+              </span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+const PERPLEXITY_MODELS = [
+  { id: "best", name: "Best", description: "Auto-pick the best model" },
+  { id: "sonar", name: "Sonar", description: "Perplexity's fast model" },
+  { id: "claude", name: "Claude 4.5 Sonnet", description: "Anthropic" },
+  { id: "gpt-5", name: "GPT-5", description: "OpenAI" },
+  { id: "gemini", name: "Gemini 3 Pro", description: "Google" },
+];
+
+const ModelPicker: FC = () => {
+  const [model, setModel] = useState(PERPLEXITY_MODELS[0]!.id);
+  const current =
+    PERPLEXITY_MODELS.find((m) => m.id === model) ?? PERPLEXITY_MODELS[0]!;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="hidden h-8 items-center gap-1 rounded-full px-2.5 text-[#746c62] text-sm transition-colors hover:bg-[#f2ede6] hover:text-[#1f1b17] sm:flex dark:text-[#a19a91] dark:hover:bg-[#2b2825] dark:hover:text-[#f5f2ed]">
+        <span>{current.name}</span>
+        <ChevronDownIcon className="size-4 opacity-70" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-60">
+        {PERPLEXITY_MODELS.map((m) => (
+          <DropdownMenuItem
+            key={m.id}
+            onSelect={() => setModel(m.id)}
+            className="flex items-start gap-3"
+          >
+            <span className="mt-0.5 flex size-4 items-center justify-center text-[#1f1b17] dark:text-[#f5f2ed]">
+              {m.id === model ? <CheckIcon /> : null}
+            </span>
+            <span className="flex flex-1 flex-col">
+              <span className="text-foreground text-sm">{m.name}</span>
+              <span className="text-muted-foreground text-xs">
+                {m.description}
+              </span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 
