@@ -224,7 +224,8 @@ const SECTION_META: Record<
   },
   utilities: {
     title: "Utilities",
-    description: "Miscellaneous public utilities exported by @assistant-ui/react.",
+    description:
+      "Miscellaneous public utilities exported by @assistant-ui/react.",
     overview:
       "Utilities are public exports that do not belong to a more specific assistant-ui feature or API shape.",
   },
@@ -311,7 +312,8 @@ const PAGE_META: Partial<
   utilities: {
     miscellaneous: {
       title: "Utilities",
-      description: "Miscellaneous public utilities exported by @assistant-ui/react.",
+      description:
+        "Miscellaneous public utilities exported by @assistant-ui/react.",
     },
   },
   hooks: {
@@ -1506,9 +1508,7 @@ function toolsRule(input: ClassificationInput): Classification | undefined {
   }
 }
 
-function transportRule(
-  input: ClassificationInput,
-): Classification | undefined {
+function transportRule(input: ClassificationInput): Classification | undefined {
   const { name } = input;
   if (
     name.includes("AssistantTransport") ||
@@ -1603,13 +1603,15 @@ function voiceRule(input: ClassificationInput): Classification | undefined {
   }
 }
 
-function kindRule(
-  input: ClassificationInput,
-): Classification | undefined {
+function kindRule(input: ClassificationInput): Classification | undefined {
   const { name, kind, sourcePath } = input;
   let section: ApiSection | undefined;
   let forcedPrimary = false;
-  if (name === "AuiIf" || name === "AssistantIf" || name.endsWith("Primitive")) {
+  if (
+    name === "AuiIf" ||
+    name === "AssistantIf" ||
+    name.endsWith("Primitive")
+  ) {
     section = "primitives";
   } else if (/^(unstable_)?use[A-Z]/.test(name)) {
     section = "hooks";
@@ -2813,7 +2815,10 @@ function writeIntegrationPages(): void {
   const allTypeDocs = new Map<string, TypeDoc>();
 
   for (const integration of INTEGRATION_PACKAGES) {
-    const items = discoverIntegrationExports(integration.entry, integration.slug);
+    const items = discoverIntegrationExports(
+      integration.entry,
+      integration.slug,
+    );
     const typeDocs = collectExportTypeDocs(items);
     const typeDocBindings: TypeDocBindings = new Map(
       [...typeDocs.keys()].map((name) => [

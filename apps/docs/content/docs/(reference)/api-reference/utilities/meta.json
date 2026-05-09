@@ -2,7 +2,5 @@
   "title": "Utilities",
   "description": "Miscellaneous public utilities exported by @assistant-ui/react.",
   "overview": "Utilities are public exports that do not belong to a more specific assistant-ui feature or API shape.",
-  "pages": [
-    "miscellaneous"
-  ]
+  "pages": ["miscellaneous"]
 }
