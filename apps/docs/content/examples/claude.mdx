@@ -1,6 +1,6 @@
 ---
 title: Claude Clone
-description: Open-source Claude clone in React — soft beige theme, conversation styling, streaming and message editing patterns from Claude.ai built with assistant-ui.
+description: Open-source Claude clone in React — warm cream theme, serif typography, hover-only action bars, and a clean minimal-shadow composer styled after claude.ai.
 ---
 
 import { Claude } from "@/components/examples/claude";
@@ -11,16 +11,18 @@ import { Claude } from "@/components/examples/claude";
 
 ## Overview
 
-The Claude Clone demonstrates how to customize assistant-ui to match Anthropic's Claude interface. This example features Claude's distinctive warm color palette, serif typography, and minimalist design philosophy with careful attention to shadows and spacing.
+The Claude Clone demonstrates how to customize assistant-ui to match Anthropic's Claude interface. The design leans on Claude's signature warm cream background, serif typography, and a deliberately minimal chrome — no shadows, no avatars, just a thin border on the composer and bubbles that fade into the page.
 
 ## Features
 
-- **Warm Color Palette**: Beige backgrounds with orange accent (`#ae5630`)
-- **Serif Typography**: Classic `font-serif` for a refined reading experience
-- **Elegant Shadows**: Multi-layered box shadows for depth
-- **Attachment Support**: Image and file upload with thumbnail previews
-- **Feedback Actions**: Thumbs up/down for response quality feedback
-- **Model Selector**: Dropdown to switch between Claude models
+- **Warm Cream Background**: `#F0ECE0` light, `#2b2a27` dark — a warmer Anthropic-style cream
+- **Serif Throughout**: `font-serif` on every surface for the editorial feel
+- **Sparkle Heading**: Centered "How can I help you today?" with the orange `#c96442` Sparkle icon
+- **Borderless Composer**: Just `border-[#E5E0D6]` and no shadow — matches claude.ai's stripped-down look
+- **Functional Model Picker**: Sonnet 4.5 / Opus 4.7 / Haiku 4.5 dropdown with "More options"
+- **Mode Tabs**: Write / Learn / Code / From Drive / From Calendar — `rounded-lg` chips with thin borders
+- **Hover-only Action Bars**: User Edit/Copy and Assistant Copy/👍/👎/Reload only appear on hover
+- **Four-State Primary Action**: Cancel, StopDictation, Send, Dictate (orange `#c96442` accent)
 
 ## Quick Start
 
@@ -30,63 +32,100 @@ npx assistant-ui add thread
 
 ## Code
 
-The Claude clone features warm tones and serif typography:
+The empty state centers the heading + composer + mode tabs together. The chat state uses a sticky composer with a fade-out gradient over the cream background:
 
 ```tsx
 import {
+  AuiIf,
   ThreadPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
-  AttachmentPrimitive,
+  ActionBarPrimitive,
 } from "@assistant-ui/react";
 
-export const Claude = () => {
-  return (
-    <ThreadPrimitive.Root className="flex h-full flex-col bg-[#F5F5F0] p-4 pt-16 font-serif dark:bg-[#2b2a27]">
-      <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll">
+export const Claude = () => (
+  <ThreadPrimitive.Root className="bg-[#F0ECE0] font-serif dark:bg-[#2b2a27]">
+    <AuiIf condition={(s) => s.thread.isEmpty}>
+      <EmptyState />
+    </AuiIf>
+    <AuiIf condition={(s) => !s.thread.isEmpty}>
+      <ThreadPrimitive.Viewport>
         <ThreadPrimitive.Messages>
           {() => <ChatMessage />}
         </ThreadPrimitive.Messages>
+        <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
+          <Composer />
+          <p>Claude can make mistakes. Please double-check responses.</p>
+        </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
+    </AuiIf>
+  </ThreadPrimitive.Root>
+);
 
-      <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl flex-col rounded-2xl bg-white p-0.5 shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.035)] dark:bg-[#1f1e1b]">
-        <ComposerPrimitive.Input
-          placeholder="How can I help you today?"
-          className="w-full resize-none bg-transparent text-[#1a1a18] outline-none dark:text-[#eee]"
-        />
-        <div className="flex items-center gap-2">
-          <ComposerPrimitive.AddAttachment className="rounded-lg border border-[#00000015] hover:bg-[#f5f5f0]">
-            <PlusIcon />
-          </ComposerPrimitive.AddAttachment>
-          <span className="font-serif">Sonnet 4.5</span>
-          <ComposerPrimitive.Send className="rounded-lg bg-[#ae5630] hover:bg-[#c4633a]">
-            <ArrowUpIcon className="text-white" />
-          </ComposerPrimitive.Send>
-        </div>
-      </ComposerPrimitive.Root>
-    </ThreadPrimitive.Root>
-  );
-};
+const EmptyState = () => (
+  <div className="flex grow flex-col items-center justify-center">
+    <h1 className="flex items-center gap-3 font-serif text-3xl">
+      <Sparkle className="fill-[#c96442] text-[#c96442]" />
+      How can I help you today?
+    </h1>
+    <Composer />
+    <ModeTabs />
+  </div>
+);
+
+const Composer = () => (
+  <ComposerPrimitive.Root className="rounded-2xl border border-[#E5E0D6] bg-white px-3.5 pt-3 pb-2.5 dark:border-[#3d3a35] dark:bg-[#1f1e1b]">
+    <ComposerPrimitive.Input rows={1} placeholder="How can I help you today?" />
+    <div className="flex items-center gap-2">
+      <ComposerPrimitive.AddAttachment />
+      <div className="ml-auto flex items-center gap-1">
+        <ModelPicker />
+        <PrimaryAction />
+      </div>
+    </div>
+  </ComposerPrimitive.Root>
+);
+```
+
+### Hover-only Action Bars
+
+Both user and assistant action bars use opacity + group-hover to stay out of the way:
+
+```tsx
+<MessagePrimitive.Root className="group/message">
+  <div className="rounded-2xl bg-[#E5E0D6] px-4 py-2.5">
+    <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
+  </div>
+  <ActionBarPrimitive.Root
+    hideWhenRunning
+    autohide="not-last"
+    className="opacity-0 transition-opacity group-hover/message:opacity-100"
+  >
+    <ActionBarPrimitive.Edit />
+    <ActionBarPrimitive.Copy />
+  </ActionBarPrimitive.Root>
+</MessagePrimitive.Root>
 ```
 
 ### Color Palette
 
 | Element | Light | Dark |
 |---------|-------|------|
-| Background | `#F5F5F0` | `#2b2a27` |
-| Composer | `white` | `#1f1e1b` |
-| Text | `#1a1a18` | `#eee` |
-| Muted | `#6b6a68` | `#9a9893` |
-| Primary (orange) | `#ae5630` | `#ae5630` |
-| User bubble | `#DDD9CE` | `#393937` |
+| Background | `#F0ECE0` | `#2b2a27` |
+| Composer surface | `white` | `#1f1e1b` |
+| Composer border | `#E5E0D6` | `#3d3a35` |
+| User bubble | `#E5E0D6` | `#393937` |
+| Primary text | `#1a1a18` | `#eee` |
+| Muted text | `#5b5950` | `#a3a098` |
+| Primary action (orange) | `#c96442` | `#c96442` |
 
 ### Styling Details
 
-- **Typography**: `font-serif` throughout for Claude's classic feel
-- **Shadows**: Complex multi-layer shadows for realistic depth
-- **Borders**: Subtle `border-[#00000015]` for soft separation
-- **Transitions**: Smooth `duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)]`
-- **Active states**: `active:scale-[0.98]` for tactile button feedback
+- **Typography**: `font-serif` everywhere; assistant message uses `leading-[1.65rem]` for a calm reading rhythm
+- **No Shadows**: Composer relies on `border-[#E5E0D6]` only — claude.ai's signature flat surface
+- **User Bubble**: `rounded-2xl bg-[#E5E0D6] max-w-[80%]` right-aligned
+- **Assistant Message**: full-width plain serif, no bubble, no avatar — text sits on the cream background directly
+- **Mode Tabs**: `rounded-lg border border-[#E5E0D6] bg-transparent` so they blend into the cream
 
 ## Source
 
