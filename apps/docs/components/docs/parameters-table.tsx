@@ -107,12 +107,7 @@ const ParametersBox: FC<
       )}
     >
       {type && !isNested && (
-        <div
-          className={cn(
-            "border-border/60 border-b bg-muted/50 px-4 py-2",
-            isNested && "border-border/40 bg-muted/30",
-          )}
-        >
+        <div className={cn("border-border/60 border-b bg-muted/50 px-4 py-2")}>
           <code className="font-medium font-mono text-muted-foreground text-xs">
             {type}
           </code>

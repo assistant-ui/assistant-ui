@@ -357,8 +357,9 @@ const PAGE_META: Partial<
       description: "Upload and compose file attachment handlers.",
     },
     "feedback-speech": {
-      title: "Feedback and Speech Adapters",
-      description: "Capture message feedback and connect speech or dictation.",
+      title: "Feedback Adapter",
+      description:
+        "Capture message feedback submitted through action primitives.",
     },
     model: {
       title: "Model Adapters",
@@ -1604,7 +1605,7 @@ function voiceRule(input: ClassificationInput): Classification | undefined {
 }
 
 function kindRule(input: ClassificationInput): Classification | undefined {
-  const { name, kind, sourcePath } = input;
+  const { name, sourcePath } = input;
   let section: ApiSection | undefined;
   let forcedPrimary = false;
   if (
@@ -1681,7 +1682,7 @@ function inferKindDocPlacement(
   section: ApiSection,
   sourcePath?: string,
 ): DocPlacement | undefined {
-  const source = sourcePath ?? "";
+  const source = (sourcePath ?? "").replaceAll("\\", "/");
   if (section === "primitives") {
     if (name === "AuiIf") return { page: "assistant-if", role: "primary" };
     if (name === "AssistantIf")
@@ -1756,9 +1757,6 @@ function inferKindDocPlacement(
       name.includes("MessageFormat")
     ) {
       return { page: "persistence", role: "primary" };
-    }
-    if (name.includes("Speech") || name.includes("Dictation")) {
-      return { page: "feedback-speech", role: "primary" };
     }
     if (name.includes("Voice")) return { page: "voice", role: "primary" };
     if (name.includes("Suggestion"))
@@ -1989,6 +1987,9 @@ function discoverIntegrationExports(
       );
     }
   }
+  for (const [name, declarations] of sourceFile.getExportedDeclarations()) {
+    addExport(name, chooseDeclaration(declarations));
+  }
 
   return exports.sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -2031,7 +2032,7 @@ function frontmatter(title: string, description: string): string {
 }
 
 function yamlScalar(value: string): string {
-  return /^[A-Za-z0-9<][A-Za-z0-9 .,/@'()&+<>/-]*$/.test(value)
+  return /^[A-Za-z0-9<][A-Za-z0-9 .,@'()&+<>/-]*$/.test(value)
     ? value
     : JSON.stringify(value);
 }
@@ -2045,9 +2046,7 @@ function titleForPage(
   if (override) return override;
   const primary = exports.filter((item) => item.pageRole === "primary");
   if (primary.length === 1) {
-    const name = primary[0]!.name;
-    if (name.endsWith("Primitive")) return name;
-    return name;
+    return primary[0]!.name;
   }
   return page
     .split("-")
@@ -2076,7 +2075,7 @@ function firstSentence(text: string): string {
 
 function mdxEscape(value: string): string {
   return value
-    .split(/(`+[^`]*`+)/g)
+    .split(/(```[\s\S]*?```|`[^`]*`)/g)
     .map((part) =>
       part.startsWith("`")
         ? part
@@ -2331,7 +2330,10 @@ function exportSortKey(item: ExportInfo): [number, string] {
 
 function sortExportsForPage(items: ExportInfo[]): ExportInfo[] {
   return [...items].sort((a, b) => {
-    if (a.pageRole !== b.pageRole) return a.pageRole === "primary" ? -1 : 1;
+    if (a.pageRole !== b.pageRole) {
+      const roleOrder = { primary: 0, related: 1, "supporting-type": 2 };
+      return roleOrder[a.pageRole] - roleOrder[b.pageRole];
+    }
     const [aGroup, aName] = exportSortKey(a);
     const [bGroup, bName] = exportSortKey(b);
     if (aGroup !== bGroup) return aGroup - bGroup;
@@ -2712,15 +2714,9 @@ function writeGeneratedFile(filePath: string, content: string): boolean {
   return true;
 }
 
-function isGeneratedOrManagedApiPage(filePath: string): boolean {
-  if (!fs.existsSync(filePath)) return false;
-  const source = fs.readFileSync(filePath, "utf8");
-  return source.includes(GENERATED_PAGE_MARKER);
-}
-
 function pruneGeneratedPage(filePath: string): void {
   if (shouldSkipAutoGeneration(filePath)) return;
-  if (isGeneratedOrManagedApiPage(filePath)) {
+  if (isGeneratedFile(filePath)) {
     fs.unlinkSync(filePath);
   }
 }
