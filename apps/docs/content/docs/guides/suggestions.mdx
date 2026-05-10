@@ -180,7 +180,17 @@ const runtime = useExternalStoreRuntime({
 setSuggestions([{ prompt: "Summarize this case" }]);
 ```
 
-The local runtime clears its suggestions when a new run starts. External stores keep whatever state you push, so you control the lifetime.
+### AI SDK runtime
+
+`useChatRuntime` and `useAISDKRuntime` accept the same `suggestions` field and forward it to the underlying external store.
+
+```tsx
+const [suggestions, setSuggestions] = useState<ThreadSuggestion[]>([]);
+
+const runtime = useChatRuntime({ suggestions });
+```
+
+The local runtime clears its suggestions when a new run starts. External store and AI SDK runtimes keep whatever state you push, so you control the lifetime.
 
 ### Rendering runtime suggestions
 
