@@ -8,6 +8,7 @@ import {
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import type { ThreadListItemState } from "../../../store/scopes/thread-list-item";
 import { ThreadListItemByIndexProvider } from "../../providers/ThreadListItemByIndexProvider";
+import { ThreadListItemByIdProvider } from "../../providers/ThreadListItemByIdProvider";
 
 type ThreadListItemsComponentConfig = {
   ThreadListItem: ComponentType;
@@ -64,22 +65,16 @@ const ThreadListPrimitiveItemsInner: FC<{
   archived: boolean;
   children: (value: { threadListItem: ThreadListItemState }) => ReactNode;
 }> = ({ archived, children }) => {
-  const contentLength = useAuiState((s) =>
-    archived ? s.threads.archivedThreadIds.length : s.threads.threadIds.length,
+  const threadIds = useAuiState((s) =>
+    archived ? s.threads.archivedThreadIds : s.threads.threadIds,
   );
 
   return useMemo(
     () =>
-      Array.from({ length: contentLength }, (_, index) => (
-        <ThreadListItemByIndexProvider
-          key={index}
-          index={index}
-          archived={archived}
-        >
+      threadIds.map((id) => (
+        <ThreadListItemByIdProvider key={id} id={id}>
           <RenderChildrenWithAccessor
-            getItemState={(aui) =>
-              aui.threads().item({ index, archived }).getState()
-            }
+            getItemState={(aui) => aui.threads().item({ id }).getState()}
           >
             {(getItem) =>
               children({
@@ -89,9 +84,9 @@ const ThreadListPrimitiveItemsInner: FC<{
               })
             }
           </RenderChildrenWithAccessor>
-        </ThreadListItemByIndexProvider>
+        </ThreadListItemByIdProvider>
       )),
-    [contentLength, archived, children],
+    [threadIds, children],
   );
 };
 
