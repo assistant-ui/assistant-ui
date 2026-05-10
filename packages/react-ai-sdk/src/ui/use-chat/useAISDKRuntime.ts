@@ -68,6 +68,14 @@ export type AISDKRuntimeAdapter = {
    * @default true
    */
   cancelPendingToolCallsOnSend?: boolean | undefined;
+  /**
+   * Called when `runtime.thread.resumeRun(config)` is invoked.
+   *
+   * When omitted, `resumeRun` throws `"Runtime does not support resuming runs."`.
+   * Provide this to bridge resume invocations into a custom replay channel
+   * (for example, an SSE reconnect endpoint keyed by turn id).
+   */
+  onResume?: ExternalStoreAdapter["onResume"];
 };
 
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -76,6 +84,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     adapters,
     toCreateMessage: customToCreateMessage,
     cancelPendingToolCallsOnSend = true,
+    onResume,
   }: AISDKRuntimeAdapter = {},
 ) => {
   const contextAdapters = useRuntimeAdapters();
@@ -319,6 +328,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     onResumeToolCall: (options) =>
       toolInvocations.resume(options.toolCallId, options.payload),
+    ...(onResume && { onResume }),
     adapters: {
       attachments: vercelAttachmentAdapter,
       ...contextAdapters,

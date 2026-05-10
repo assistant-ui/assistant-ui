@@ -266,6 +266,56 @@ describe("useAISDKRuntime", () => {
     );
   });
 
+  it("forwards onResume so runtime.thread.resumeRun is delivered to the adapter", async () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "first" }] },
+    ]);
+    const onResume = vi.fn().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat, { onResume }));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(1);
+    });
+
+    act(() => {
+      result.current.thread.resumeRun({
+        parentId: "u1",
+        runConfig: { custom: { turnId: "t-42" } },
+      });
+    });
+
+    await waitFor(() => {
+      expect(onResume).toHaveBeenCalledTimes(1);
+    });
+
+    expect(onResume).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentId: "u1",
+        sourceId: null,
+        runConfig: { custom: { turnId: "t-42" } },
+      }),
+    );
+  });
+
+  it("rejects when resumeRun is called without an onResume adapter", async () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "first" }] },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(1);
+    });
+
+    await expect(
+      result.current.thread.resumeRun({
+        parentId: "u1",
+      }) as unknown as Promise<void>,
+    ).rejects.toThrow("Runtime does not support resuming runs.");
+  });
+
   it("reload slices history and regenerates with metadata", async () => {
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "first" }] },

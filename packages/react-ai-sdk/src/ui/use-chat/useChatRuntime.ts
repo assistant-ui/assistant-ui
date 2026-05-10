@@ -23,6 +23,7 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
     cloud?: AssistantCloud | undefined;
     adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
     toCreateMessage?: CustomToCreateMessageFunction;
+    onResume?: AISDKRuntimeAdapter["onResume"];
   };
 
 const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -70,6 +71,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     adapters,
     transport: transportOptions,
     toCreateMessage,
+    onResume,
     ...chatOptions
   } = options ?? {};
 
@@ -93,6 +95,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const runtime = useAISDKRuntime(chat, {
     adapters,
     ...(toCreateMessage && { toCreateMessage }),
+    ...(onResume && { onResume }),
   });
 
   if (transport instanceof AssistantChatTransport) {
