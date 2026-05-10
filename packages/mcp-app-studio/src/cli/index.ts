@@ -33,11 +33,11 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const TEMPLATE_REPO =
-  process.env["MCP_APP_STUDIO_TEMPLATE_REPO"] ??
+  process.env.MCP_APP_STUDIO_TEMPLATE_REPO ??
   "assistant-ui/mcp-app-studio-starter";
 const TEMPLATE_REF =
-  process.env["MCP_APP_STUDIO_TEMPLATE_REF"] ??
-  process.env["MCP_APP_STUDIO_TEMPLATE_BRANCH"] ??
+  process.env.MCP_APP_STUDIO_TEMPLATE_REF ??
+  process.env.MCP_APP_STUDIO_TEMPLATE_BRANCH ??
   "main";
 
 const DOCS_URL =
@@ -191,7 +191,7 @@ function updateServerPackageName(
     : projectPackageName;
 
   if (!baseName) return;
-  pkg["name"] = `${baseName}-mcp-server`;
+  pkg.name = `${baseName}-mcp-server`;
   fs.writeFileSync(serverPkgPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf-8");
 }
 
@@ -202,10 +202,10 @@ function ensureServerPostinstall(targetDir: string): void {
 
   const raw = fs.readFileSync(pkgPath, "utf-8");
   const pkg = JSON.parse(raw) as Record<string, unknown>;
-  const scripts = (pkg["scripts"] as Record<string, string>) ?? {};
+  const scripts = (pkg.scripts as Record<string, string>) ?? {};
 
   // If the template already defines a postinstall hook, don't override it.
-  if (scripts["postinstall"]) return;
+  if (scripts.postinstall) return;
 
   const scriptPath = path.join(
     targetDir,
@@ -215,8 +215,7 @@ function ensureServerPostinstall(targetDir: string): void {
   fs.mkdirSync(path.dirname(scriptPath), { recursive: true });
   fs.writeFileSync(
     scriptPath,
-    `/* eslint-disable */\n` +
-      `const { spawnSync } = require("node:child_process");\n` +
+    `const { spawnSync } = require("node:child_process");\n` +
       `const { existsSync } = require("node:fs");\n` +
       `const { join } = require("node:path");\n\n` +
       `const ROOT = process.cwd();\n` +
@@ -234,8 +233,8 @@ function ensureServerPostinstall(targetDir: string): void {
     "utf-8",
   );
 
-  scripts["postinstall"] = "node scripts/mcp-app-studio-postinstall.cjs";
-  pkg["scripts"] = scripts;
+  scripts.postinstall = "node scripts/mcp-app-studio-postinstall.cjs";
+  pkg.scripts = scripts;
   fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf-8");
 }
 

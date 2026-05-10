@@ -4,23 +4,34 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useExternalStoreRuntime,
   useRuntimeAdapters,
-  INTERNAL,
-} from "@assistant-ui/react";
+  useToolInvocations,
+} from "@assistant-ui/core/react";
+import type { ToolExecutionStatus } from "@assistant-ui/core/react";
 import type {
   AssistantRuntime,
   AppendMessage,
   ExternalStoreAdapter,
   ThreadMessage,
-  ToolExecutionStatus,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { makeLogger } from "./runtime/logger";
-import type { UseAgUiRuntimeOptions } from "./runtime/types";
+import type {
+  AgUiInterrupt,
+  AgUiResumeEntry,
+  UseAgUiRuntimeOptions,
+} from "./runtime/types";
 import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
+
+export type AgUiAssistantRuntime = AssistantRuntime & {
+  unstable_getPendingInterrupts: () => readonly AgUiInterrupt[];
+  unstable_submitInterruptResponses: (
+    responses: readonly AgUiResumeEntry[],
+  ) => Promise<void>;
+};
 
 export function useAgUiRuntime(
   options: UseAgUiRuntimeOptions,
-): AssistantRuntime {
+): AgUiAssistantRuntime {
   const logger = useMemo(() => makeLogger(options.logger), [options.logger]);
   const [_version, setVersion] = useState(0);
   const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
@@ -111,7 +122,7 @@ export function useAgUiRuntime(
     [adapters, runtimeAdapters, threadList],
   );
 
-  const toolInvocations = INTERNAL.useToolInvocations({
+  const toolInvocations = useToolInvocations({
     state: {
       messages: core.getMessages(),
       isRunning: core.isRunning() || hasExecutingTools,
@@ -174,7 +185,16 @@ export function useAgUiRuntime(
     [adapterAdapters, core, _version, hasExecutingTools],
   );
 
-  const runtime = useExternalStoreRuntime(store);
+  const baseRuntime = useExternalStoreRuntime(store);
+
+  const runtime = useMemo<AgUiAssistantRuntime>(() => {
+    const wrapper = Object.create(baseRuntime) as AgUiAssistantRuntime;
+    wrapper.unstable_getPendingInterrupts = () =>
+      core.getPendingInterrupts()?.interrupts ?? [];
+    wrapper.unstable_submitInterruptResponses = (responses) =>
+      core.submitInterruptResponses(responses);
+    return wrapper;
+  }, [baseRuntime, core]);
 
   useEffect(() => {
     core.attachRuntime(runtime);

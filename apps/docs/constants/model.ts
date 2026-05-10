@@ -1,59 +1,63 @@
 export const MODELS = [
+  // OpenAI
   {
-    name: "GPT-5 Nano",
-    value: "openai/gpt-5-nano",
+    name: "GPT-5.4 Nano",
+    value: "gpt-5.4-nano",
     icon: "/icons/openai.svg",
     disabled: false,
     contextWindow: 400_000,
   },
   {
-    name: "GPT-OSS 120b",
-    value: "openai/gpt-oss-120b",
+    name: "GPT-5.4 Mini",
+    value: "gpt-5.4-mini",
     icon: "/icons/openai.svg",
     disabled: false,
-    contextWindow: 131_000,
+    contextWindow: 400_000,
   },
+  // Google
   {
-    name: "Gemini 3.0 Flash",
-    value: "google/gemini-3-flash",
+    name: "Gemini 3.1 Flash Lite",
+    value: "google-ai-studio/gemini-3.1-flash-lite-preview",
     icon: "/icons/google.svg",
     disabled: false,
-    contextWindow: 1_000_000,
+    contextWindow: 1_048_576,
   },
+  // xAI
   {
-    name: "Kimi K2.5",
-    value: "moonshotai/kimi-k2.5",
-    icon: "/icons/kimi.svg",
+    name: "Grok 4.1 Fast",
+    value: "grok/grok-4-1-fast",
+    icon: "/icons/xai.svg",
     disabled: false,
-    contextWindow: 256_000,
+    contextWindow: 2_000_000,
   },
   {
-    name: "GLM 5",
-    value: "zai/glm-5",
-    icon: "/icons/zai.svg",
+    name: "Grok 3 Mini",
+    value: "grok/grok-3-mini",
+    icon: "/icons/xai.svg",
     disabled: false,
-    contextWindow: 202_752,
+    contextWindow: 131_072,
   },
+  // Groq
   {
-    name: "Deepseek V3.1",
-    value: "deepseek/deepseek-v3.1",
-    icon: "/icons/deepseek.svg",
+    name: "Llama 4 Scout 17B",
+    value: "groq/meta-llama/llama-4-scout-17b-16e-instruct",
+    icon: "/icons/meta.svg",
     disabled: false,
-    contextWindow: 164_000,
+    contextWindow: 131_072,
   },
   {
-    name: "Claude Sonnet 4.6",
-    value: "anthropic/claude-sonnet-4.6",
-    icon: "/icons/anthropic.svg",
-    disabled: true,
-    contextWindow: 200_000,
+    name: "Qwen3 32B",
+    value: "groq/qwen/qwen3-32b",
+    icon: "/icons/groq.svg",
+    disabled: false,
+    contextWindow: 131_072,
   },
 ] as const;
 
 export type Model = (typeof MODELS)[number];
 export type KnownModelId = Model["value"];
 
-const DEFAULT_MODEL = MODELS[2];
+const DEFAULT_MODEL = MODELS[0];
 export const DEFAULT_MODEL_ID: KnownModelId = DEFAULT_MODEL.value;
 export const DEFAULT_CONTEXT_WINDOW = DEFAULT_MODEL.contextWindow;
 

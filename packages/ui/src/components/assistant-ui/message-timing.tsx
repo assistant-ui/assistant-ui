@@ -32,7 +32,8 @@ const formatTimingMs = (ms: number | undefined): string => {
  * </ActionBarPrimitive.Root>
  * ```
  *
- * @param side - Side of the tooltip relative to the badge trigger. Defaults to `"right"`.
+ * @param side - Side of the tooltip relative to the badge trigger.
+ * @default "right"
  */
 export const MessageTiming: FC<{
   className?: string;

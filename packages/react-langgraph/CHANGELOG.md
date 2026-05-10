@@ -1,5 +1,214 @@
 # @assistant-ui/react-langgraph
 
+## 0.14.0
+
+### Minor Changes
+
+- [#3970](https://github.com/assistant-ui/assistant-ui/pull/3970) [`040d469`](https://github.com/assistant-ui/assistant-ui/commit/040d469acfcf782de6fc188c646dfd8732d27088) - chore: drop APIs deprecated in v0.11/v0.12 ([@Yonom](https://github.com/Yonom))
+
+  See the [v0.14 migration guide](https://assistant-ui.com/docs/migrations/v0-14) for the full removal list and replacements.
+  - `useAssistantApi` / `useAssistantState` / `useAssistantEvent` / `AssistantIf` removed (use `useAui` / `useAuiState` / `useAuiEvent` / `AuiIf`).
+  - `getExternalStoreMessage` (singular) removed (use `getExternalStoreMessages`).
+  - `MessageState.submittedFeedback` removed (use `message.metadata.submittedFeedback`).
+  - `ThreadRuntime.startRun(parentId)` positional overload removed (pass `{ parentId }`).
+  - `ThreadRuntime.unstable_loadExternalState` removed (use `importExternalState`).
+  - `ThreadRuntime.unstable_resumeRun` removed (use `resumeRun`).
+  - `ThreadRuntime.getModelConfig` removed (use `getModelContext`).
+  - `AssistantRuntime.threadList` / `switchToNewThread` / `switchToThread` / `registerModelConfigProvider` / `reset` removed (use `threads` / `threads.switchToNewThread` / `threads.switchToThread` / `registerModelContextProvider` / `thread.reset`).
+  - `ChatModelRunOptions.config` removed (use `context`).
+  - `useLocalThreadRuntime` alias removed (use `useLocalRuntime`).
+  - `unstable_useRemoteThreadListRuntime` / `unstable_useCloudThreadListAdapter` / `unstable_RemoteThreadListAdapter` / `unstable_InMemoryThreadListAdapter` aliases removed (drop the `unstable_` prefix).
+  - `react-langgraph` `onSwitchToThread` removed (use `load`).
+  - `toAISDKTools` / `getEnabledTools` removed (use `toToolsJSONSchema` from `assistant-stream`).
+
+### Patch Changes
+
+- Updated dependencies [[`040d469`](https://github.com/assistant-ui/assistant-ui/commit/040d469acfcf782de6fc188c646dfd8732d27088)]:
+  - @assistant-ui/core@0.2.0
+
+## 0.13.13
+
+### Patch Changes
+
+- [#3962](https://github.com/assistant-ui/assistant-ui/pull/3962) [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`7098bab`](https://github.com/assistant-ui/assistant-ui/commit/7098bab4c67fbd507c3fad746ef130daa01b3fd6), [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94), [`5fdf17e`](https://github.com/assistant-ui/assistant-ui/commit/5fdf17e019c91b000c6f4cf9e3e56c89d764a435)]:
+  - @assistant-ui/core@0.1.18
+  - assistant-stream@0.3.13
+  - @assistant-ui/store@0.2.10
+
+## 0.13.12
+
+### Patch Changes
+
+- [#3909](https://github.com/assistant-ui/assistant-ui/pull/3909) [`005f83f`](https://github.com/assistant-ui/assistant-ui/commit/005f83f3ebfb94b3a9d7c34bc7d2a71bbaf63a9e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`549037a`](https://github.com/assistant-ui/assistant-ui/commit/549037ac77aed8736823cfb82baf9645e3364adf), [`005f83f`](https://github.com/assistant-ui/assistant-ui/commit/005f83f3ebfb94b3a9d7c34bc7d2a71bbaf63a9e), [`976aec5`](https://github.com/assistant-ui/assistant-ui/commit/976aec566330bee3c607cfb356f3358eefe28ac1), [`25b97d5`](https://github.com/assistant-ui/assistant-ui/commit/25b97d5c62fb038471b06eaa784ad4b7e23ef533), [`2008fc9`](https://github.com/assistant-ui/assistant-ui/commit/2008fc9af3d6fe05604d6b08275c2e9cec099bd9), [`88fcd35`](https://github.com/assistant-ui/assistant-ui/commit/88fcd352ecffd12f124abe988cc5499f784f81d6)]:
+  - @assistant-ui/core@0.1.16
+  - @assistant-ui/store@0.2.9
+
+## 0.13.11
+
+### Patch Changes
+
+- [#3572](https://github.com/assistant-ui/assistant-ui/pull/3572) [`0ba98dc`](https://github.com/assistant-ui/assistant-ui/commit/0ba98dc070f913c1492b2cf7bbe4e1bb82fe33c6) - fix: set thread.isLoading during load handler in useLangGraphRuntime ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#3876](https://github.com/assistant-ui/assistant-ui/pull/3876) [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#3796](https://github.com/assistant-ui/assistant-ui/pull/3796) [`ca8f526`](https://github.com/assistant-ui/assistant-ui/commit/ca8f526944968036d47849a7659353765072a836) - feat(react-langgraph): add uiComponents option for static and dynamic data renderers ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+  Add `uiComponents` option to `useLangGraphRuntime` for registering static data renderers by name and a `fallback` renderer for dynamic loading (e.g. LangSmith's `LoadExternalComponent`), directly from the runtime hook.
+
+  Core `DataRenderers` scope also gains a `fallbacks` stack (plus `setFallbackDataUI` method) that the adapter registers into; resolution is `renderers[name][0]` → `fallbacks[0]` → inline `Fallback`.
+
+- [#3861](https://github.com/assistant-ui/assistant-ui/pull/3861) [`9211d3d`](https://github.com/assistant-ui/assistant-ui/commit/9211d3dca917c25cce480fa26248e886bb5e0736) - fix: prevent duplicate "Used tool" cards when LangGraph emits `tool_call_chunks` with an empty `id` followed by a chunk with the real `id` at the same index. `appendLangChainChunk` now also merges by `index` when either side has an empty `id`, and the resulting entry keeps whichever `id` is non-empty. As a defense-in-depth, `convertLangChainMessages` also synthesizes a stable `lc-toolcall-${messageId}-${index}` id when a `tool_call` still arrives at the converter with an empty `id`. ([@okisdev](https://github.com/okisdev))
+
+- [#3836](https://github.com/assistant-ui/assistant-ui/pull/3836) [`00a359d`](https://github.com/assistant-ui/assistant-ui/commit/00a359d6581c2f73708a1b4b2e3fe5f82c02ab55) - fix: tool call status briefly flickers `requires-action` (error icon) before settling on `complete` during LangGraph streaming with subgraphs. The final reconcile now merges the values snapshot with tuple-accumulated state instead of replacing it, so tool results and subgraph-internal messages aren't dropped; metadata survives reconcile; `isRunning` flips to `false` atomically with the final message update (via new `onComplete` callback); and subgraph-level `error` events (pipe-namespaced) no longer mark parent AI messages as incomplete. Pipe-separated subgraph event names (e.g. `messages|tools:call_abc`) are now handled by stripping the namespace before matching. ([@okisdev](https://github.com/okisdev))
+
+- [#3848](https://github.com/assistant-ui/assistant-ui/pull/3848) [`f4762e7`](https://github.com/assistant-ui/assistant-ui/commit/f4762e70f0270f6e6466b1c6fb735e7423c885ab) - feat: add `unstable_createLangGraphStream` helper that builds a `stream` callback for `useLangGraphRuntime` with `config.abortSignal` and `onDisconnect: "cancel"` wired to `client.runs.stream`. ([@okisdev](https://github.com/okisdev))
+
+- [#3842](https://github.com/assistant-ui/assistant-ui/pull/3842) [`3e8a67d`](https://github.com/assistant-ui/assistant-ui/commit/3e8a67dc4632f0e4e2a6e496f16637bfb1a81df9) - feat: add `unstable_threadListAdapter` option to `useLangGraphRuntime` for backing the thread list with a custom `RemoteThreadListAdapter` (e.g. one backed by `client.threads.search()`) without requiring assistant-cloud ([@okisdev](https://github.com/okisdev))
+
+- [#3844](https://github.com/assistant-ui/assistant-ui/pull/3844) [`aa0d509`](https://github.com/assistant-ui/assistant-ui/commit/aa0d50986eaf034789843574f25367a73039b56f) - feat: expose subgraph (namespaced) events to `useLangGraphRuntime` / `useLangGraphMessages` callers. `onMessageChunk` now receives a `namespace` field in `tupleMetadata` for pipe-namespaced `messages|<subgraph>` events, and three new `eventHandlers` are available: `onSubgraphValues(namespace, values)`, `onSubgraphUpdates(namespace, updates)`, and `onSubgraphError(namespace, error)`. Previously `values|<ns>` and `updates|<ns>` events were silently dropped, and `error|<ns>` events could not be attributed to a specific subgraph. Fully additive: top-level `onValues` / `onUpdates` / `onError` behaviour is unchanged (including the existing guarantee that subgraph errors do not mark the parent message as incomplete). ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`c7a274e`](https://github.com/assistant-ui/assistant-ui/commit/c7a274e968f8e081ded4c29cc37986392f04130e), [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6), [`ca8f526`](https://github.com/assistant-ui/assistant-ui/commit/ca8f526944968036d47849a7659353765072a836), [`c56f98f`](https://github.com/assistant-ui/assistant-ui/commit/c56f98f5759e710281fc57b343b41af102914f1a), [`974d15e`](https://github.com/assistant-ui/assistant-ui/commit/974d15e34675cc5a611f0297904f5cb2c1b3da8c), [`4b19d42`](https://github.com/assistant-ui/assistant-ui/commit/4b19d42970cb98cee6ea69e2c26dc22763091568), [`da0f598`](https://github.com/assistant-ui/assistant-ui/commit/da0f59818085c7b97d157da1260c5e20873c32c1), [`d53ff4f`](https://github.com/assistant-ui/assistant-ui/commit/d53ff4f3f8b7d7220c1cb274c4fda335598fb063), [`20f8404`](https://github.com/assistant-ui/assistant-ui/commit/20f8404b70098e4b7cbc8df5bbb47985ac81b52c), [`17958c9`](https://github.com/assistant-ui/assistant-ui/commit/17958c9234ccc42394260125df54d897c06a47fd)]:
+  - @assistant-ui/core@0.1.15
+  - assistant-stream@0.3.12
+  - assistant-cloud@0.1.27
+  - @assistant-ui/store@0.2.8
+
+## 0.13.10
+
+### Patch Changes
+
+- 01d0dbe: feat(react-langgraph): support LangSmith Generative UI `ui_message`
+  - Translate UI messages into `DataMessagePart`s on the associated assistant message, rendered via the existing `makeAssistantDataUI({ name, render })` API
+  - Accumulate UI messages from both `custom` stream events (raw `{type:"ui"}` / `{type:"remove-ui"}`) and the `values.ui` state snapshot
+  - Key UI entries by `ui.id`, shallow-merge props when `metadata.merge === true`, delete on `type:"remove-ui"`
+  - Expose `uiStateKey` config option for graphs that customize the `typedUi` state key
+  - Extend the `load` callback return type with `uiMessages` so persisted UI state can be restored on thread switch
+  - Expose `useLangGraphUIMessages()` for accessing the raw UI message list
+  - Export `UIMessage`, `RemoveUIMessage`, and `UseLangGraphRuntimeOptions` types
+
+  **Behavior change:** `{type:"ui"}` / `{type:"remove-ui"}` payloads received on the `custom` stream channel are now intercepted by the adapter before reaching `eventHandlers.onCustomEvent`. Other custom events still reach the handler unchanged.
+
+- c988db8: chore: update dependencies
+- 8b51ffa: fix(react-langgraph): handle Bedrock tool_call_chunks with null id/name
+- Updated dependencies [f20b9ca]
+- Updated dependencies [c988db8]
+  - @assistant-ui/core@0.1.14
+  - assistant-stream@0.3.11
+  - assistant-cloud@0.1.26
+  - @assistant-ui/store@0.2.7
+
+## 0.13.9
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+- Updated dependencies [42bc640]
+- Updated dependencies [376bb00]
+- Updated dependencies [87e7761]
+  - @assistant-ui/core@0.1.13
+  - assistant-cloud@0.1.25
+
+## 0.13.8
+
+### Patch Changes
+
+- 327e2ce: fix(react-langgraph): inject text part for attachment-only human messages
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [dffb6b4]
+- Updated dependencies [6554892]
+- Updated dependencies [9103282]
+- Updated dependencies [876f75d]
+- Updated dependencies [bdce66f]
+- Updated dependencies [4abb898]
+- Updated dependencies [209ae81]
+- Updated dependencies [2dd0c9f]
+- Updated dependencies [af70d7f]
+  - assistant-stream@0.3.9
+  - @assistant-ui/core@0.1.10
+  - assistant-cloud@0.1.24
+  - @assistant-ui/store@0.2.6
+
+## 0.13.7
+
+### Patch Changes
+
+- 52403c3: chore: update dependencies
+- Updated dependencies [781f28d]
+- Updated dependencies [3227e71]
+- Updated dependencies [3227e71]
+- Updated dependencies [0f55ce8]
+- Updated dependencies [83a15f7]
+- Updated dependencies [52403c3]
+- Updated dependencies [ffa3a0f]
+  - @assistant-ui/core@0.1.9
+  - assistant-stream@0.3.8
+  - assistant-cloud@0.1.23
+  - @assistant-ui/store@0.2.5
+
+## 0.13.6
+
+### Patch Changes
+
+- 736344c: chore: update dependencies
+- c71cb58: chore: update dependencies
+- Updated dependencies [1406aed]
+- Updated dependencies [9480f30]
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [ff3be2a]
+- Updated dependencies [70b19f3]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/core@0.1.8
+  - @assistant-ui/store@0.2.4
+  - assistant-stream@0.3.7
+
+## 0.13.5
+
+### Patch Changes
+
+- e4bc32e: fix(react-langgraph): support messages from non-LLM LangGraph nodes via `updates` and `values` events
+- Updated dependencies [7ecc497]
+  - @assistant-ui/core@0.1.7
+
+## 0.13.4
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- 619d923: Depend on @assistant-ui/core instead of @assistant-ui/react
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [6cc4122]
+- Updated dependencies [642bcda]
+  - @assistant-ui/core@0.1.6
+  - assistant-stream@0.3.6
+  - assistant-cloud@0.1.22
+  - @assistant-ui/store@0.2.3
+
+## 0.13.3
+
+### Patch Changes
+
+- cbdc786: fix(react-langgraph): stabilize tool args serialization to avoid argsText rewrites
+- a845911: chore: update dependencies
+- e9ba6ab: fix(react-langgraph): handle tool_call_chunks with index 0
+- 5232826: fix(react-langgraph): treat stream cancellation `AbortError` as a normal exit condition in `useLangGraphMessages` to avoid unhandled promise rejections when runs are cancelled.
+- 3c58d63: fix(react-langgraph): send file attachments as flat LangGraph file blocks and accept both flat/legacy file formats
+- 1eb059c: fix(react-langgraph): preserve tuple-stream accumulated messages by skipping updates snapshot replacement after tuple message events.
+- Updated dependencies [07dcce0]
+- Updated dependencies [a845911]
+- Updated dependencies [bc40eaf]
+- Updated dependencies [be23d74]
+- Updated dependencies [1eb059c]
+  - @assistant-ui/react@0.12.15
+
 ## 0.13.2
 
 ### Patch Changes

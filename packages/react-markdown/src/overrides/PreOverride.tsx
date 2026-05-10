@@ -2,11 +2,11 @@
 
 import {
   createContext,
-  ComponentPropsWithoutRef,
+  type ComponentPropsWithoutRef,
   useContext,
   memo,
 } from "react";
-import { PreComponent } from "./types";
+import type { PreComponent } from "./types";
 import { memoCompareNodes } from "../memoization";
 
 export const PreContext = createContext<Omit<

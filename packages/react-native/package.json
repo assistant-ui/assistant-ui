@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-native",
-  "version": "0.1.1",
+  "version": "0.1.15",
   "description": "React Native bindings for assistant-ui",
   "keywords": [
     "assistant",
@@ -14,12 +14,10 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./internal": {
-      "aui-source": "./src/internal.ts",
       "types": "./dist/internal.d.ts",
       "default": "./dist/internal.js"
     }
@@ -38,11 +36,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.1",
-    "@assistant-ui/store": "^0.2.1",
-    "@assistant-ui/tap": "^0.5.1",
-    "assistant-stream": "^0.3.4",
-    "zustand": "^5.0.11"
+    "@assistant-ui/core": "^0.2.0",
+    "@assistant-ui/store": "^0.2.10",
+    "@assistant-ui/tap": "^0.5.11",
+    "assistant-stream": "^0.3.13",
+    "zustand": "^5.0.13"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -57,9 +55,9 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.14",
-    "react": "^19.2.4",
-    "react-native": "^0.84.0",
-    "vitest": "^4.0.18"
+    "react": "^19.2.5",
+    "react-native": "^0.85.3",
+    "vitest": "^4.1.5"
   },
   "publishConfig": {
     "access": "public",

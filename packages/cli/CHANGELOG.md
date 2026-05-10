@@ -1,5 +1,109 @@
 # assistant-ui
 
+## 0.0.91
+
+### Patch Changes
+
+- [#3962](https://github.com/assistant-ui/assistant-ui/pull/3962) [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies []:
+  - @assistant-ui/agent-launcher@0.1.4
+
+## 0.0.90
+
+### Patch Changes
+
+- [#3876](https://github.com/assistant-ui/assistant-ui/pull/3876) [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#3831](https://github.com/assistant-ui/assistant-ui/pull/3831) [`d53ff4f`](https://github.com/assistant-ui/assistant-ui/commit/d53ff4f3f8b7d7220c1cb274c4fda335598fb063) - chore: remove decorative separator comments across packages ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies []:
+  - @assistant-ui/agent-launcher@0.1.4
+
+## 0.0.89
+
+### Patch Changes
+
+- 8d334f9: fix(cli): detect package manager from npm_config_user_agent before falling back to detect-package-manager
+- c988db8: chore: update dependencies
+- Updated dependencies [c988db8]
+  - @assistant-ui/agent-launcher@0.1.4
+
+## 0.0.88
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+- Updated dependencies [376bb00]
+  - @assistant-ui/agent-launcher@0.1.3
+
+## 0.0.87
+
+### Patch Changes
+
+- 69eb0c5: chore: add shipables.json for CLI plugin skills
+- 9103282: fix: resolve biome lint warnings (optional chaining, unused suppressions)
+- bdce66f: chore: update dependencies
+- 4abb898: refactor: align interactables with codebase conventions
+  - Rename `useInteractable` to `useAssistantInteractable` (registration only, returns id)
+  - Add `useInteractableState` hook for reading/writing interactable state
+  - Remove `makeInteractable` and related types
+  - Rename `UseInteractableConfig` to `AssistantInteractableProps`
+  - Extract `buildInteractableModelContext` from `Interactables` resource
+  - Add `with-interactables` example to CLI
+
+- Updated dependencies [209ae81]
+  - @assistant-ui/agent-launcher@0.1.2
+
+## 0.0.86
+
+### Patch Changes
+
+- 52403c3: chore: update dependencies
+
+## 0.0.85
+
+### Patch Changes
+
+- 6becd84: feat: add `info` command to print environment and package versions for bug reports
+- c71cb58: chore: update dependencies
+
+## 0.0.84
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- dbb2929: Improve CLI project creation error handling and transform sequencing in
+  `assistant-ui`.
+- Updated dependencies [349f3c7]
+  - @assistant-ui/agent-launcher@0.1.1
+
+## 0.0.83
+
+### Patch Changes
+
+- 6cdc259: feat(cli): add with-expo example to create command
+- 6ef092a: feat(cli): add with-react-ink example to project scaffolding
+- 848b42c: use checked-in bin wrapper to avoid pnpm install warnings in monorepos
+- 1b06c09: fix(cli): detect dev script and env file from scaffolded project
+
+## 0.0.82
+
+### Patch Changes
+
+- 5034b1e: Add `@assistant-ui/agent-launcher` package and `assistant-ui agent` CLI command to launch Claude Code with assistant-ui skills
+- fb84e6c: Unified scaffold pipeline: both templates and examples now download from the monorepo via giget at the latest release tag. Replaced create-next-app with @clack/prompts for interactive project creation. Added grouped project picker showing templates and examples. Added --preset support with short names (e.g. --preset chatgpt). Uses the detected package manager's dlx command instead of npx for faster execution.
+- Updated dependencies [5034b1e]
+  - @assistant-ui/agent-launcher@0.1.0
+
+## 0.0.81
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+- de45e19: fix(create): point the `cloud` template to the valid
+  `assistant-ui-starter-cloud` repository in both CLIs and aligned tests.
+
 ## 0.0.80
 
 ### Patch Changes

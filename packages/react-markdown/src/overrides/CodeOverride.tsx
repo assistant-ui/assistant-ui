@@ -1,12 +1,12 @@
 import {
-  ComponentPropsWithoutRef,
-  ComponentType,
-  FC,
+  type ComponentPropsWithoutRef,
+  type ComponentType,
+  type FC,
   memo,
   useContext,
 } from "react";
 import { PreContext, useIsMarkdownCodeBlock } from "./PreOverride";
-import {
+import type {
   CodeComponent,
   CodeHeaderProps,
   PreComponent,

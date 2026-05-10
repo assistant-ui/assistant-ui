@@ -7,30 +7,8 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { GitHubIcon } from "@/components/icons/github";
 import { Select } from "@/components/assistant-ui/select";
+import { SUB_PROJECTS } from "@/lib/constants";
 import { ThemeToggle } from "./theme-toggle";
-
-const SUB_PROJECTS = [
-  {
-    value: "playground",
-    label: "Playground",
-    textValue: "playground",
-  },
-  {
-    value: "mcp-app-studio",
-    label: "MCP App Studio",
-    textValue: "mcp-app-studio",
-  },
-  {
-    value: "tw-shimmer",
-    label: <span className="shimmer">tw-shimmer</span>,
-    textValue: "tw-shimmer",
-  },
-  {
-    value: "safe-content-frame",
-    label: "Safe Content Frame",
-    textValue: "safe-content-frame",
-  },
-] as const;
 
 interface BreadcrumbItem {
   label: string;
@@ -89,7 +67,7 @@ export function SubProjectLayout({
         className={cn("z-50 w-full shrink-0", !fullHeight && "sticky top-0")}
       >
         {!fullHeight && (
-          <div className="mask-[linear-gradient(to_bottom,black_50%,transparent)] dark:mask-[linear-gradient(to_bottom,black_40%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-16 bg-linear-to-b from-background via-60% via-background/80 to-transparent backdrop-blur-xl md:h-24 dark:via-50%" />
+          <div className="mask-[linear-gradient(to_bottom,black_75%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b from-background to-transparent backdrop-blur-xl" />
         )}
         <div
           className={cn(
@@ -115,11 +93,16 @@ export function SubProjectLayout({
               value={name}
               onValueChange={(value) => router.push(`/${value}`)}
               options={SUB_PROJECTS.toSorted((a, b) =>
-                a.value.toString().localeCompare(b.value.toString()),
+                a.slug.localeCompare(b.slug),
               ).map((p) => ({
-                value: p.value,
-                label: p.label,
-                textValue: p.textValue,
+                value: p.slug,
+                label:
+                  p.slug === "tw-shimmer" ? (
+                    <span className="shimmer">{p.label}</span>
+                  ) : (
+                    p.label
+                  ),
+                textValue: p.slug,
               }))}
             />
             <span className="hidden sm:contents">
@@ -174,9 +157,14 @@ export function SubProjectLayout({
                 assistant-ui
               </Link>
             </p>
-            <p className="text-foreground/30 text-xs">
+            <a
+              href="https://agentbase.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground/30 text-xs transition-colors hover:text-foreground"
+            >
               &copy; {new Date().getFullYear()} AgentbaseAI Inc.
-            </p>
+            </a>
           </div>
         </footer>
       )}

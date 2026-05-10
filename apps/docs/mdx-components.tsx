@@ -12,13 +12,16 @@ import {
   type CodeBlockProps,
   Pre,
 } from "fumadocs-ui/components/codeblock";
-import * as Twoslash from "fumadocs-twoslash/ui";
 import { InstallCommand } from "@/components/docs/fumadocs/install/install-command";
 import { ParametersTable } from "@/components/docs/parameters-table";
+import {
+  PlatformAwareCode,
+  PlatformOnly,
+  PlatformTabs,
+} from "@/components/docs/platform/mdx";
+import { PrimitivesTypeTable } from "@/components/docs/primitives-type-table";
 import { SourceLink } from "@/components/docs/source-link";
 import { Code } from "@radix-ui/themes";
-
-import "@/styles/twoslash.css";
 
 function Kbd({ children, ...props }: ComponentProps<"kbd">) {
   return (
@@ -33,15 +36,17 @@ function Kbd({ children, ...props }: ComponentProps<"kbd">) {
 
 export function getMDXComponents(components: MDXComponents): MDXComponents {
   return {
-    ...defaultComponents,
-    ...Twoslash,
+    ...(defaultComponents as MDXComponents),
     pre: (props: CodeBlockProps) => (
       <CodeBlock {...props}>
-        <Pre className="max-h-87.5">{props.children}</Pre>
+        <Pre className="max-h-87.5">
+          <PlatformAwareCode>{props.children}</PlatformAwareCode>
+        </Pre>
       </CodeBlock>
     ),
     Tabs,
     Tab,
+    PlatformTabs,
     Callout,
     Card,
     Cards,
@@ -51,8 +56,10 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     Accordion,
     Accordions,
     Kbd,
+    PlatformOnly,
     InstallCommand,
     ParametersTable,
+    PrimitivesTypeTable,
     SourceLink,
     Code,
     blockquote: (props) => <Callout>{props.children}</Callout>,

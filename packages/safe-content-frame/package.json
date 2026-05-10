@@ -1,6 +1,6 @@
 {
   "name": "safe-content-frame",
-  "version": "0.0.10",
+  "version": "0.0.18",
   "description": "Secure iframe rendering for untrusted content using SafeContentFrame",
   "keywords": [
     "iframe",
@@ -15,12 +15,10 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./shadow_dom": {
-      "aui-source": "./src/shadow_dom.ts",
       "types": "./dist/shadow_dom.d.ts",
       "default": "./dist/shadow_dom.js"
     }
@@ -40,7 +38,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "vite": "^7.3.1"
+    "vite": "^8.0.10"
   },
   "publishConfig": {
     "access": "public",

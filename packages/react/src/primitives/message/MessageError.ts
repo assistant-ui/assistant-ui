@@ -1,15 +1,11 @@
 "use client";
 
-import { FC, PropsWithChildren } from "react";
-import { useAuiState } from "@assistant-ui/store";
+import type { FC, PropsWithChildren } from "react";
+import { useMessageError } from "@assistant-ui/core/react";
 
 export const MessagePrimitiveError: FC<PropsWithChildren> = ({ children }) => {
-  const hasError = useAuiState(
-    (s) =>
-      s.message.status?.type === "incomplete" &&
-      s.message.status.reason === "error",
-  );
-  return hasError ? children : null;
+  const error = useMessageError();
+  return error !== undefined ? children : null;
 };
 
 MessagePrimitiveError.displayName = "MessagePrimitive.Error";

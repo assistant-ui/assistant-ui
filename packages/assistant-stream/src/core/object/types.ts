@@ -1,4 +1,4 @@
-import { ReadonlyJSONValue } from "../../utils";
+import type { ReadonlyJSONValue } from "../../utils";
 
 export type ObjectStreamOperation =
   | {

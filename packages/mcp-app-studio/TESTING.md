@@ -157,7 +157,7 @@ node /path/to/bin/mcp-app-studio.js my-app
 - [x] Completes without errors (2.4s)
 - [x] `.next/` directory created
 - [x] No TypeScript errors in output
-- [x] No ESLint errors in output
+- [x] No Lint errors in output
 
 **Notes:** 5 routes generated (2 static, 2 dynamic API routes).
 
@@ -218,10 +218,10 @@ node /path/to/bin/mcp-app-studio.js my-app
 
 | Input      | Expected  | Actual    | Status |
 | ---------- | --------- | --------- | ------ |
-| `my app`   | `my-app`  | `my-app`  | ✅     |
-| `MyApp`    | `myapp`   | `myapp`   | ✅     |
-| `.hidden`  | `hidden`  | `hidden`  | ✅     |
-| `_private` | `private` | `private` | ✅     |
+| `my app`   | `my-app`  | `my-app`  | ✅      |
+| `MyApp`    | `myapp`   | `myapp`   | ✅      |
+| `.hidden`  | `hidden`  | `hidden`  | ✅      |
+| `_private` | `private` | `private` | ✅      |
 
 - [x] Each tested input produces expected sanitized name
 
@@ -276,17 +276,17 @@ rm -rf ~/Code/tests/test-scaffold/*
 
 ## Issues Found
 
-| Step | Issue | Severity | Status |
-| ---- | ----- | -------- | ------ |
-| 2.1  | Test plan incorrectly expected `.env.local` to be scaffolded | Low | **FIXED** (docs) |
-| 9.3  | Scaffold with `.` set empty package name | Low | **FIXED** |
-| 3.1  | Server deps not auto-installed (required manual `cd server && npm install`) | High | **FIXED** |
-| 3.2  | `appComponent` import doesn't exist in generated `component-registry.tsx` | Critical | **FIXED** |
-| 3.2  | Peer dependency mismatch between assistant-ui packages | High | **FIXED** |
-| 3.6  | MCP server crashes on `EADDRINUSE` (port 3001) | Medium | **FIXED** (starter repo) |
-| 3.6  | `cd server && npm run inspect` hardcoded port 3001 | Low | **FIXED** (starter repo) |
-| 3.6  | Stopping `npm run dev` left child processes on ports 3002 / 300x | High | **FIXED** (starter repo) |
-| 5.3  | Export manifest missing recommended `description` field | Low | **FIXED** (starter repo) |
+| Step | Issue                                                                       | Severity | Status                   |
+| ---- | --------------------------------------------------------------------------- | -------- | ------------------------ |
+| 2.1  | Test plan incorrectly expected `.env.local` to be scaffolded                | Low      | **FIXED** (docs)         |
+| 9.3  | Scaffold with `.` set empty package name                                    | Low      | **FIXED**                |
+| 3.1  | Server deps not auto-installed (required manual `cd server && npm install`) | High     | **FIXED**                |
+| 3.2  | `appComponent` import doesn't exist in generated `component-registry.tsx`   | Critical | **FIXED**                |
+| 3.2  | Peer dependency mismatch between assistant-ui packages                      | High     | **FIXED**                |
+| 3.6  | MCP server crashes on `EADDRINUSE` (port 3001)                              | Medium   | **FIXED** (starter repo) |
+| 3.6  | `cd server && npm run inspect` hardcoded port 3001                          | Low      | **FIXED** (starter repo) |
+| 3.6  | Stopping `npm run dev` left child processes on ports 3002 / 300x            | High     | **FIXED** (starter repo) |
+| 5.3  | Export manifest missing recommended `description` field                     | Low      | **FIXED** (starter repo) |
 
 ---
 

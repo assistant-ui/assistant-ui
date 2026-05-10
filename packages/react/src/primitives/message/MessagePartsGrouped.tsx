@@ -4,14 +4,12 @@ import {
   type ComponentType,
   type FC,
   memo,
-  PropsWithChildren,
+  type PropsWithChildren,
   useMemo,
 } from "react";
 import { useAuiState, useAui } from "@assistant-ui/store";
-import {
-  PartByIndexProvider,
-  TextMessagePartProvider,
-} from "../../context/providers";
+import { PartByIndexProvider } from "../../context/providers/PartByIndexProvider";
+import { TextMessagePartProvider } from "../../context/providers/TextMessagePartProvider";
 import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 import type {
@@ -26,7 +24,7 @@ import type {
   ToolCallMessagePartProps,
   FileMessagePartComponent,
   ReasoningMessagePartComponent,
-} from "../../types";
+} from "@assistant-ui/core/react";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
 import type { MessagePartStatus } from "@assistant-ui/core";
 
@@ -414,6 +412,12 @@ const EmptyParts = memo(
  * The grouping function receives all message parts and returns an array of groups,
  * where each group has a key and an array of part indices.
  *
+ * @deprecated Prefer `<MessagePrimitive.GroupedParts>` for adjacent
+ * grouping — it dispatches all rendering through one `switch (part.type)`
+ * and supports nested group paths. Keep this primitive only for
+ * non-adjacent clustering (e.g., gathering parts with the same parent-id
+ * across the message).
+ *
  * @example
  * ```tsx
  * // Group by parent ID (default behavior)
@@ -426,27 +430,6 @@ const EmptyParts = memo(
  *       return (
  *         <div className="parent-group border rounded p-4">
  *           <h4>Parent ID: {groupKey}</h4>
- *           {children}
- *         </div>
- *       );
- *     }
- *   }}
- * />
- * ```
- *
- * @example
- * ```tsx
- * // Group by tool name
- * import { groupMessagePartsByToolName } from "@assistant-ui/react";
- *
- * <MessagePrimitive.Unstable_PartsGrouped
- *   groupingFunction={groupMessagePartsByToolName}
- *   components={{
- *     Group: ({ groupKey, indices, children }) => {
- *       if (!groupKey) return <>{children}</>;
- *       return (
- *         <div className="tool-group">
- *           <h4>Tool: {groupKey}</h4>
  *           {children}
  *         </div>
  *       );

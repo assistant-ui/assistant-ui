@@ -2,8 +2,9 @@ import { Command, Option } from "commander";
 import { spawn } from "cross-spawn";
 import fs from "node:fs";
 import path from "node:path";
+import { dlxCommand, resolvePackageManagerName } from "../lib/create-project";
 import { logger } from "../lib/utils/logger";
-import { create } from "./create";
+import { create, resolvePackageManager } from "./create";
 
 const DEFAULT_REGISTRY_URL =
   "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json";
@@ -89,8 +90,8 @@ export const init = new Command()
   )
   .addOption(
     new Option(
-      "-p, --preset <url>",
-      "preset URL from playground (forwarded to 'assistant-ui create')",
+      "-p, --preset <name-or-url>",
+      "preset name or URL (forwarded to 'assistant-ui create')",
     ).hideHelp(),
   )
   .option("--use-npm", "explicitly use npm")
@@ -151,6 +152,15 @@ export const init = new Command()
     }
 
     try {
+      // resolvePackageManagerName calls detect({ cwd: path.dirname(dir) }),
+      // which is designed for `create` where the dir doesn't exist yet.
+      // For init, targetDir IS the project root, so append a dummy segment.
+      const pm = await resolvePackageManagerName(
+        path.join(targetDir, "_"),
+        resolvePackageManager(opts),
+      );
+      const [dlxCmd, dlxArgs] = dlxCommand(pm);
+
       const { initArgs, addArgs } = createExistingProjectInitPlan({
         yes: opts.yes,
         overwrite: opts.overwrite,
@@ -158,9 +168,9 @@ export const init = new Command()
       });
 
       if (initArgs) {
-        await runSpawn("npx", initArgs, targetDir);
+        await runSpawn(dlxCmd, [...dlxArgs, ...initArgs], targetDir);
       }
-      await runSpawn("npx", addArgs, targetDir);
+      await runSpawn(dlxCmd, [...dlxArgs, ...addArgs], targetDir);
 
       logger.break();
       logger.success("Project initialized successfully!");

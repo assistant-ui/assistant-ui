@@ -32,11 +32,16 @@ describe("Concurrent Mode with useResource", () => {
 
       return (
         <>
-          <button data-testid="hello-btn" onClick={() => setMessage("hello")} />
+          <button
+            type="button"
+            data-testid="hello-btn"
+            onClick={() => setMessage("hello")}
+          />
           <div data-testid="message">{message}</div>
           <div data-testid="load">{load ? "true" : "false"}</div>
 
           <button
+            type="button"
             data-testid="suspend-btn"
             onClick={() => {
               startTransition(() => {
@@ -89,11 +94,16 @@ describe("Concurrent Mode with useResource", () => {
 
       return (
         <>
-          <button data-testid="hello-btn" onClick={() => setMessage("hello")} />
+          <button
+            type="button"
+            data-testid="hello-btn"
+            onClick={() => setMessage("hello")}
+          />
           <div data-testid="message">{message}</div>
           <div data-testid="load">{load ? "true" : "false"}</div>
 
           <button
+            type="button"
             data-testid="suspend-btn"
             onClick={() => {
               startTransition(() => {
@@ -151,6 +161,7 @@ describe("Concurrent Mode with useResource", () => {
       return (
         <div>
           <button
+            type="button"
             data-testid="btn"
             onClick={() => {
               shouldSuspend = true;
@@ -199,11 +210,16 @@ describe("Concurrent Mode with useResource", () => {
 
       return (
         <>
-          <button data-testid="hello-btn" onClick={() => setMessage("hello")} />
+          <button
+            type="button"
+            data-testid="hello-btn"
+            onClick={() => setMessage("hello")}
+          />
           <div data-testid="message">{message}</div>
           <div data-testid="load">{load ? "true" : "false"}</div>
 
           <button
+            type="button"
             data-testid="suspend-btn"
             onClick={() => {
               startTransition(() => {

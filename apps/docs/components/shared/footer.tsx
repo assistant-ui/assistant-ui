@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
+import { PRODUCTS } from "@/lib/constants";
 
 type FooterLinkItem = {
   label: string;
@@ -19,15 +20,18 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
       external: true,
     },
     { label: "Playground", href: "/playground" },
-    { label: "Tool UI", href: "https://tool-ui.com/", external: true },
-    { label: "tw-shimmer", href: "/tw-shimmer" },
-    { label: "Safe Content Frame", href: "/safe-content-frame" },
-    { label: "MCP App Studio", href: "/mcp-app-studio" },
+    ...PRODUCTS.map((p) => ({
+      label: p.label,
+      href: p.href,
+      ...(p.external && { external: true }),
+    })),
   ],
   Resources: [
     { label: "Documentation", href: "/docs" },
     { label: "Examples", href: "/examples" },
     { label: "Showcase", href: "/showcase" },
+    { label: "Traction", href: "/traction" },
+    { label: "Packages", href: "/packages" },
     { label: "Blog", href: "/blog" },
   ],
   Company: [
@@ -38,6 +42,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
       external: true,
     },
     { label: "Pricing", href: "/pricing" },
+    { label: "Brand", href: "/brand" },
   ],
   Legal: [
     {
@@ -87,6 +92,7 @@ export function Footer(): React.ReactElement {
           </Link>
 
           <div className="flex gap-3">
+            {/* biome-ignore lint/a11y/useAnchorContent: icon-only link with aria-label */}
             <a
               href="https://x.com/assistantui"
               target="_blank"
@@ -94,7 +100,12 @@ export function Footer(): React.ReactElement {
               className="text-muted-foreground transition-colors hover:text-foreground"
               aria-label="X (Twitter)"
             >
-              <svg className="size-5" viewBox="0 0 24 24" fill="currentColor">
+              <svg
+                aria-hidden="true"
+                className="size-5"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
               </svg>
             </a>
@@ -118,9 +129,14 @@ export function Footer(): React.ReactElement {
             </a>
           </div>
 
-          <p className="mt-auto text-muted-foreground text-sm">
+          <a
+            href="https://agentbase.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-auto text-muted-foreground text-sm transition-colors hover:text-foreground"
+          >
             &copy; {new Date().getFullYear()} AgentbaseAI Inc.
-          </p>
+          </a>
         </div>
       </div>
     </footer>

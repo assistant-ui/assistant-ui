@@ -1,21 +1,21 @@
 ---
 title: "@assistant-ui/react-ai-sdk"
-description: Vercel AI SDK v5 integration with chat runtime hooks and transport utilities.
+description: Vercel AI SDK integration with chat runtime hooks and transport utilities.
 ---
 
 Vercel AI SDK integration for assistant-ui.
 
 
 <Callout type="info">
-  This package provides integration with AI SDK v5. For AI SDK v4, see the [AI
-  SDK v4 (Legacy)](/docs/runtimes/ai-sdk/v4-legacy) documentation.
+  This package provides integration with AI SDK v6. For older versions, see the [AI
+  SDK v5 (Legacy)](/docs/runtimes/ai-sdk/v5-legacy) or [AI SDK v4 (Legacy)](/docs/runtimes/ai-sdk/v4-legacy) documentation.
 </Callout>
 
 ## API Reference
 
 ### `useChatRuntime`
 
-Creates a runtime directly with AI SDK v5's `useChat` hook integration. This is the recommended approach for most use cases.
+Creates a runtime with AI SDK's `useChat` hook integration. This is the recommended approach for most use cases.
 
 ```tsx
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
@@ -57,21 +57,28 @@ const runtime = useChatRuntime({
           type: "UseChatRuntimeOptions",
           parameters: [
             {
-              name: "api",
-              type: "string",
-              description: "The API endpoint URL. Defaults to '/api/chat'.",
-            },
-            {
               name: "transport",
               type: "ChatTransport",
               description:
-                "Custom transport implementation. Defaults to AssistantChatTransport which forwards system messages and tools.",
+                "Custom transport implementation. Defaults to AssistantChatTransport (which sends requests to '/api/chat' and forwards system messages and tools). Use `new AssistantChatTransport({ api: '/custom-endpoint' })` to customize the endpoint.",
             },
             {
               name: "cloud",
               type: "AssistantCloud",
               description:
                 "Optional AssistantCloud instance for chat persistence.",
+            },
+            {
+              name: "adapters",
+              type: "RuntimeAdapters",
+              description:
+                "Optional runtime adapters to extend or override built-in functionality (attachments, speech, dictation, feedback, history).",
+            },
+            {
+              name: "toCreateMessage",
+              type: "(message: AppendMessage) => CreateUIMessage",
+              description:
+                "Optional custom function to convert an AppendMessage into an AI SDK CreateUIMessage before sending.",
             },
             {
               name: "initialMessages",
@@ -134,18 +141,12 @@ const MyRuntimeProvider = ({ children }: { children: React.ReactNode }) => {
     },
     {
       name: "options",
-      type: "AISDKRuntimeOptions",
+      type: "AISDKRuntimeAdapter",
       description: "Optional configuration options.",
       children: [
         {
-          type: "AISDKRuntimeOptions",
+          type: "AISDKRuntimeAdapter",
           parameters: [
-            {
-              name: "cloud",
-              type: "AssistantCloud",
-              description:
-                "Optional AssistantCloud instance for chat persistence.",
-            },
             {
               name: "adapters",
               type: "RuntimeAdapters",
@@ -221,7 +222,7 @@ export async function POST(req: Request) {
   const result = streamText({
     model: openai("gpt-4o"),
     system,
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     tools: {
       // Wrap frontend tools with the helper
       ...frontendTools(tools),

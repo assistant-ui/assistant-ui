@@ -1,5 +1,73 @@
 # @assistant-ui/react-syntax-highlighter
 
+## 0.14.0
+
+### Patch Changes
+
+- Updated dependencies [[`040d469`](https://github.com/assistant-ui/assistant-ui/commit/040d469acfcf782de6fc188c646dfd8732d27088)]:
+  - @assistant-ui/react@0.14.0
+  - @assistant-ui/react-markdown@0.14.0
+
+## 0.13.0
+
+### Patch Changes
+
+- Updated dependencies [[`801b9a6`](https://github.com/assistant-ui/assistant-ui/commit/801b9a68d9c7c70ab15ca53842d0df6adacb7b86), [`7098bab`](https://github.com/assistant-ui/assistant-ui/commit/7098bab4c67fbd507c3fad746ef130daa01b3fd6), [`aa6e071`](https://github.com/assistant-ui/assistant-ui/commit/aa6e071fdd6ea832c5aff3f6cf817b2e3eb6ceb0), [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94), [`df7eb3e`](https://github.com/assistant-ui/assistant-ui/commit/df7eb3eee6beeac72d3220707cf4660adf932586), [`f4a693e`](https://github.com/assistant-ui/assistant-ui/commit/f4a693ec1898f6ed0b81be47512fe51fd93a2de8), [`d864d07`](https://github.com/assistant-ui/assistant-ui/commit/d864d0709d9db5f8e042e62cf1f40669f087ba68)]:
+  - @assistant-ui/react@0.13.0
+  - @assistant-ui/react-markdown@1.0.0
+
+## 0.12.9
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- Updated dependencies [c988db8]
+  - @assistant-ui/react-markdown@0.12.9
+  - @assistant-ui/react@0.12.25
+
+## 0.12.8
+
+### Patch Changes
+
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [6554892]
+- Updated dependencies [d726499]
+- Updated dependencies [876f75d]
+- Updated dependencies [bdce66f]
+- Updated dependencies [c362685]
+- Updated dependencies [4abb898]
+- Updated dependencies [209ae81]
+- Updated dependencies [50b3100]
+- Updated dependencies [af70d7f]
+  - @assistant-ui/react@0.12.22
+  - @assistant-ui/react-markdown@0.12.8
+
+## 0.12.7
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [642bcda]
+  - @assistant-ui/react@0.12.18
+  - @assistant-ui/react-markdown@0.12.6
+
+## 0.12.6
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+- Updated dependencies [07dcce0]
+- Updated dependencies [a845911]
+- Updated dependencies [bc40eaf]
+- Updated dependencies [be23d74]
+- Updated dependencies [1eb059c]
+  - @assistant-ui/react@0.12.15
+  - @assistant-ui/react-markdown@0.12.5
+
 ## 0.12.5
 
 ### Patch Changes

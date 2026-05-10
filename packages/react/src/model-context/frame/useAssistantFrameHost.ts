@@ -1,7 +1,7 @@
 "use client";
 
 import type { Unsubscribe } from "@assistant-ui/core";
-import { useEffect, RefObject } from "react";
+import { useEffect, type RefObject } from "react";
 import { AssistantFrameHost } from "@assistant-ui/core";
 
 type UseAssistantFrameHostOptions = {

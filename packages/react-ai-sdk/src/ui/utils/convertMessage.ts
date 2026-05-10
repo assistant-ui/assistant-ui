@@ -1,14 +1,18 @@
 import { isToolUIPart, getToolName, type UIMessage } from "ai";
 import {
-  unstable_createMessageConverter,
-  type ReasoningMessagePart,
-  type ToolCallMessagePart,
-  type TextMessagePart,
-  type DataMessagePart,
-  type SourceMessagePart,
+  createMessageConverter as unstable_createMessageConverter,
   type useExternalMessageConverter,
-  type ThreadMessageLike,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core/react";
+import type {
+  ReasoningMessagePart,
+  ToolCallMessagePart,
+  TextMessagePart,
+  DataMessagePart,
+  SourceMessagePart,
+  SourceProviderMetadata,
+  FileMessagePart,
+  ThreadMessageLike,
+} from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
@@ -21,8 +25,7 @@ function stripClosingDelimiters(json: string): string {
   return json.replace(/[}\]"]+$/, "");
 }
 
-const hasOwn = (value: object, key: string) =>
-  Object.prototype.hasOwnProperty.call(value, key);
+const hasOwn = (value: object, key: string) => Object.hasOwn(value, key);
 
 const stabilizeToolArgsValue = (
   value: unknown,
@@ -121,7 +124,11 @@ function convertParts(
   }
 
   const converted = message.parts
-    .filter((p) => p.type !== "step-start" && p.type !== "file")
+    .filter(
+      (p) =>
+        p.type !== "step-start" &&
+        (message.role !== "user" || p.type !== "file"),
+    )
     .map((part) => {
       if (part.type === "text") {
         return {
@@ -192,15 +199,40 @@ function convertParts(
           sourceType: "url",
           id: part.sourceId,
           url: part.url,
-          title: part.title || "",
+          ...(part.title != null ? { title: part.title } : undefined),
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata:
+                  part.providerMetadata as SourceProviderMetadata,
+              }
+            : undefined),
         } satisfies SourceMessagePart;
       }
 
+      if (part.type === "file") {
+        return {
+          type: "file",
+          data: part.url,
+          mimeType: part.mediaType,
+          ...(part.filename != null && { filename: part.filename }),
+        } satisfies FileMessagePart;
+      }
+
       if (part.type === "source-document") {
-        console.warn(
-          "Source document parts are not yet supported in conversion",
-        );
-        return null;
+        return {
+          type: "source",
+          sourceType: "document",
+          id: part.sourceId,
+          title: part.title,
+          mediaType: part.mediaType,
+          ...(part.filename != null ? { filename: part.filename } : undefined),
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata:
+                  part.providerMetadata as SourceProviderMetadata,
+              }
+            : undefined),
+        } satisfies SourceMessagePart;
       }
 
       if (part.type.startsWith("data-")) {

@@ -1,8 +1,4 @@
-import type { Unsubscribe } from "../types";
-
-// =============================================================================
-// Speech Synthesis Adapter
-// =============================================================================
+import type { Unsubscribe } from "../types/unsubscribe";
 
 export namespace SpeechSynthesisAdapter {
   export type Status =
@@ -25,10 +21,6 @@ export namespace SpeechSynthesisAdapter {
 export type SpeechSynthesisAdapter = {
   speak: (text: string) => SpeechSynthesisAdapter.Utterance;
 };
-
-// =============================================================================
-// Dictation Adapter
-// =============================================================================
 
 export namespace DictationAdapter {
   export type Status =
@@ -60,10 +52,6 @@ export type DictationAdapter = {
   disableInputDuringDictation?: boolean;
 };
 
-// =============================================================================
-// Web Speech Synthesis Adapter
-// =============================================================================
-
 export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
   speak(text: string): SpeechSynthesisAdapter.Utterance {
     const utterance = new SpeechSynthesisUtterance(text);
@@ -76,6 +64,7 @@ export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
       if (res.status.type === "ended") return;
 
       res.status = { type: "ended", reason, error };
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       subscribers.forEach((handler) => handler());
     };
 
@@ -110,10 +99,6 @@ export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
     return res;
   }
 }
-
-// =============================================================================
-// Web Speech Dictation Adapter
-// =============================================================================
 
 interface SpeechRecognitionResultItem {
   transcript: string;

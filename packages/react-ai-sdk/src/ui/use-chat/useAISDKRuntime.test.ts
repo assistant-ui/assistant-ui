@@ -140,6 +140,88 @@ describe("useAISDKRuntime", () => {
     expect(chat.messages[0].parts[1].state).toBe("output-available");
   });
 
+  it("appends a new user message without sending when startRun is false", async () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "earlier" }] },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(1);
+    });
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hold this" }],
+        startRun: false,
+      });
+    });
+
+    await waitFor(() => {
+      expect(chat.setMessages).toHaveBeenCalled();
+    });
+
+    expect(chat.sendMessage).not.toHaveBeenCalled();
+    expect(chat.messages).toHaveLength(2);
+    expect(chat.messages[1]).toEqual(
+      expect.objectContaining({
+        role: "user",
+        id: expect.any(String),
+        parts: expect.arrayContaining([
+          expect.objectContaining({ type: "text", text: "hold this" }),
+        ]),
+      }),
+    );
+  });
+
+  it("edits without sending when startRun is false", async () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "first" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "first-answer" }],
+      },
+      { id: "u2", role: "user", parts: [{ type: "text", text: "second" }] },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(3);
+    });
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        parentId: "u1",
+        content: [{ type: "text", text: "rewrite, no run" }],
+        startRun: false,
+      });
+    });
+
+    await waitFor(() => {
+      expect(chat.setMessages).toHaveBeenCalled();
+    });
+
+    expect(chat.sendMessage).not.toHaveBeenCalled();
+    expect(chat.messages.map((m: any) => m.id)).toEqual([
+      "u1",
+      "a1",
+      expect.any(String),
+    ]);
+    expect(chat.messages[2]).toEqual(
+      expect.objectContaining({
+        role: "user",
+        parts: expect.arrayContaining([
+          expect.objectContaining({ type: "text", text: "rewrite, no run" }),
+        ]),
+      }),
+    );
+  });
+
   it("edit slices history to parentId and sends the edited message", async () => {
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "first" }] },
@@ -182,6 +264,56 @@ describe("useAISDKRuntime", () => {
       expect.objectContaining({ role: "user" }),
       { metadata: { custom: { temperature: 0.2 } } },
     );
+  });
+
+  it("forwards onResume so runtime.thread.resumeRun is delivered to the adapter", async () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "first" }] },
+    ]);
+    const onResume = vi.fn().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat, { onResume }));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(1);
+    });
+
+    act(() => {
+      result.current.thread.resumeRun({
+        parentId: "u1",
+        runConfig: { custom: { turnId: "t-42" } },
+      });
+    });
+
+    await waitFor(() => {
+      expect(onResume).toHaveBeenCalledTimes(1);
+    });
+
+    expect(onResume).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentId: "u1",
+        sourceId: null,
+        runConfig: { custom: { turnId: "t-42" } },
+      }),
+    );
+  });
+
+  it("rejects when resumeRun is called without an onResume adapter", async () => {
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "first" }] },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(1);
+    });
+
+    await expect(
+      result.current.thread.resumeRun({
+        parentId: "u1",
+      }) as unknown as Promise<void>,
+    ).rejects.toThrow("Runtime does not support resuming runs.");
   });
 
   it("reload slices history and regenerates with metadata", async () => {

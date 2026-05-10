@@ -9,9 +9,10 @@ import type {
   TextMessagePart,
   ToolCallMessagePart,
   Unstable_AudioMessagePart,
+  QuoteInfo,
 } from "../..";
 import type { MessagePartState } from "../..";
-import { ToolResponse } from "assistant-stream";
+import type { ToolResponse } from "assistant-stream";
 
 export type EmptyMessagePartProps = {
   status: MessagePartStatus;
@@ -64,3 +65,6 @@ export type ToolCallMessagePartComponent<
   TArgs = any,
   TResult = any,
 > = ComponentType<ToolCallMessagePartProps<TArgs, TResult>>;
+
+export type QuoteMessagePartProps = QuoteInfo;
+export type QuoteMessagePartComponent = ComponentType<QuoteMessagePartProps>;

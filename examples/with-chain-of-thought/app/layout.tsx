@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Chain of Thought Example",
-  description: "Example using ChainOfThoughtPrimitive with AI SDK",
+  description: "Example using MessagePrimitive.GroupedParts with AI SDK",
 };
 
 export default function RootLayout({

@@ -54,7 +54,7 @@ const components = {
   ),
   ul: ({ className, ...props }: React.HTMLAttributes<HTMLUListElement>) => (
     <ul
-      className={cn("aui-md-ul my-5 ml-6 list-disc [&>li]:mt-2", className)}
+      className={cn("aui-md-ul my-5 ms-6 list-disc [&>li]:mt-2", className)}
       {...props}
     />
   ),
@@ -63,7 +63,7 @@ const components = {
     ...props
   }: React.HTMLAttributes<HTMLQuoteElement>) => (
     <blockquote
-      className={cn("aui-md-blockquote border-l-2 pl-6 italic", className)}
+      className={cn("aui-md-blockquote border-s-2 ps-6 italic", className)}
       {...props}
     />
   ),
@@ -82,7 +82,7 @@ const components = {
   }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
     <th
       className={cn(
-        "aui-md-th bg-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg",
+        "aui-md-th bg-muted px-4 py-2 text-start font-bold first:rounded-ss-lg last:rounded-se-lg",
         className,
       )}
       {...props}
@@ -94,7 +94,7 @@ const components = {
   }: React.TdHTMLAttributes<HTMLTableCellElement>) => (
     <td
       className={cn(
-        "aui-md-td border-b border-l px-4 py-2 text-left last:border-r",
+        "aui-md-td border-s border-b px-4 py-2 text-start last:border-e",
         className,
       )}
       {...props}
@@ -103,7 +103,7 @@ const components = {
   tr: ({ className, ...props }: React.HTMLAttributes<HTMLTableRowElement>) => (
     <tr
       className={cn(
-        "aui-md-tr m-0 border-b p-0 first:border-t [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg",
+        "aui-md-tr m-0 border-b p-0 first:border-t [&:last-child>td:first-child]:rounded-es-lg [&:last-child>td:last-child]:rounded-ee-lg",
         className,
       )}
       {...props}

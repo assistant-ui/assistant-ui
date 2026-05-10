@@ -1,6 +1,15 @@
 "use client";
 
+import type { InputContent } from "@ag-ui/client";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
+
+export type { InputContent };
+
+type AttachmentLike = {
+  name?: string | undefined;
+  contentType?: string | undefined;
+  content?: readonly unknown[] | undefined;
+};
 
 type ThreadMessageLike = {
   id: string;
@@ -9,6 +18,7 @@ type ThreadMessageLike = {
   name?: string;
   toolCallId?: string;
   error?: string;
+  attachments?: readonly AttachmentLike[];
 };
 
 type AgUiToolCall = {
@@ -21,7 +31,7 @@ export type AgUiMessage =
   | {
       id: string;
       role: string;
-      content: string;
+      content: string | InputContent[];
       name?: string;
       toolCalls?: AgUiToolCall[];
     }
@@ -41,6 +51,7 @@ type ToolCallPart = {
   args?: Record<string, unknown>;
   result?: unknown;
   isError?: boolean;
+  unstable_toolMessageId?: string;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -106,9 +117,134 @@ function extractText(content: unknown): string {
     .join("\n");
 }
 
+function parseDataUrl(
+  value: string,
+): { mimeType: string; data: string } | null {
+  const match = value.match(/^data:([^;,]+)(?:;[^;,]+)*;base64,(.+)$/);
+  if (!match) return null;
+  return { mimeType: match[1]!, data: match[2]! };
+}
+
+const httpUrlPattern = /^https?:\/\//i;
+
+function toInputContent(
+  part: unknown,
+  fallbackMimeType: string | undefined,
+): InputContent | null {
+  if (!isObject(part)) return null;
+  const type = getString(part, "type");
+
+  if (type === "text") {
+    const text = getString(part, "text");
+    if (text === undefined) return null;
+    return { type: "text", text };
+  }
+
+  if (type === "image") {
+    const image = getString(part, "image");
+    if (image === undefined) return null;
+    const parsed = parseDataUrl(image);
+    if (parsed) {
+      return {
+        type: "image",
+        source: {
+          type: "data",
+          value: parsed.data,
+          mimeType: parsed.mimeType,
+        },
+      };
+    }
+    return {
+      type: "image",
+      source: {
+        type: "url",
+        value: image,
+        ...(fallbackMimeType !== undefined
+          ? { mimeType: fallbackMimeType }
+          : {}),
+      },
+    };
+  }
+
+  if (type === "file") {
+    const data = getString(part, "data");
+    if (data === undefined) return null;
+    const partMimeType = getString(part, "mimeType");
+    const filename = getString(part, "filename");
+    const mimeType =
+      partMimeType || fallbackMimeType || "application/octet-stream";
+
+    if (httpUrlPattern.test(data)) {
+      return {
+        type: "binary",
+        mimeType,
+        url: data,
+        ...(filename !== undefined ? { filename } : {}),
+      };
+    }
+    const parsed = parseDataUrl(data);
+    return {
+      type: "binary",
+      mimeType: parsed?.mimeType ?? mimeType,
+      data: parsed?.data ?? data,
+      ...(filename !== undefined ? { filename } : {}),
+    };
+  }
+
+  return null;
+}
+
+function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
+  // File parts in message.content are intentionally skipped: the canonical
+  // binary payload for files always flows through message.attachments.
+  const contentParts = Array.isArray(message.content)
+    ? message.content.filter(
+        (part) => !(isObject(part) && part.type === "file"),
+      )
+    : [];
+
+  const attachments = message.attachments ?? [];
+
+  const converted: InputContent[] = [];
+
+  // Promote string-form content to a leading text part so it survives when
+  // non-text attachments are present (fromAgUiMessages emits string content).
+  if (typeof message.content === "string" && message.content.length > 0) {
+    converted.push({ type: "text", text: message.content });
+  }
+
+  for (const part of contentParts) {
+    const input = toInputContent(part, undefined);
+    if (input) converted.push(input);
+  }
+  for (const attachment of attachments) {
+    if (!isObject(attachment)) continue;
+    const attachmentContent = attachment.content;
+    if (!Array.isArray(attachmentContent)) continue;
+    const fallbackMime = getString(attachment, "contentType");
+    for (const part of attachmentContent) {
+      const input = toInputContent(part, fallbackMime);
+      if (input) converted.push(input);
+    }
+  }
+
+  const hasNonText = converted.some((part) => part.type !== "text");
+  if (hasNonText) return converted;
+
+  // All-text path: collapse to plain string. Join text parts collected from
+  // both content and attachments so attachment-sourced text is not dropped.
+  if (converted.length === 0) return extractText(message.content);
+  return converted
+    .filter(
+      (part): part is { type: "text"; text: string } => part.type === "text",
+    )
+    .map((part) => part.text)
+    .join("\n");
+}
+
 function toToolCallPart(value: unknown): ToolCallPart | null {
   if (!isObject(value)) return null;
-  const rawFunction = isObject(value["function"]) ? value["function"] : null;
+  const rawFunction = isObject(value.function) ? value.function : null;
   const toolCallId = getString(value, "toolCallId") ?? getString(value, "id");
   const toolName =
     getString(value, "toolName") ??
@@ -125,8 +261,8 @@ function toToolCallPart(value: unknown): ToolCallPart | null {
   const args =
     isObject(parsedArgs) && !Array.isArray(parsedArgs)
       ? (parsedArgs as Record<string, unknown>)
-      : isObject(value["args"]) && !Array.isArray(value["args"])
-        ? (value["args"] as Record<string, unknown>)
+      : isObject(value.args) && !Array.isArray(value.args)
+        ? (value.args as Record<string, unknown>)
         : undefined;
 
   const part: ToolCallPart = {
@@ -137,9 +273,9 @@ function toToolCallPart(value: unknown): ToolCallPart | null {
     ...(args !== undefined ? { args } : {}),
   };
 
-  if (value["type"] === "tool-call") {
-    const result = value["result"];
-    const isError = value["isError"];
+  if (value.type === "tool-call") {
+    const result = value.result;
+    const isError = value.isError;
     if (result !== undefined) part.result = result;
     if (typeof isError === "boolean") part.isError = isError;
   }
@@ -163,19 +299,19 @@ function extractAssistantToolCalls(
     });
   };
 
-  const content = message["content"];
+  const content = message.content;
   if (Array.isArray(content)) {
     for (const part of content) {
-      if (isObject(part) && part["type"] === "tool-call") {
+      if (isObject(part) && part.type === "tool-call") {
         pushPart(toToolCallPart(part));
       }
     }
   }
 
-  const toolCalls = Array.isArray(message["toolCalls"])
-    ? message["toolCalls"]
-    : Array.isArray(message["tool_calls"])
-      ? message["tool_calls"]
+  const toolCalls = Array.isArray(message.toolCalls)
+    ? message.toolCalls
+    : Array.isArray(message.tool_calls)
+      ? message.tool_calls
       : [];
   for (const call of toolCalls) {
     pushPart(toToolCallPart(call));
@@ -187,7 +323,7 @@ function extractAssistantToolCalls(
 function toAssistantSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): ThreadMessageLike {
-  const text = extractText(rawMessage["content"]);
+  const text = extractText(rawMessage.content);
   const toolCallParts = extractAssistantToolCalls(rawMessage);
   const assistantContent = [
     ...(text.length > 0 ? [{ type: "text" as const, text }] : []),
@@ -210,7 +346,7 @@ function toUserOrSystemSnapshotMessage(
   return {
     id: getString(rawMessage, "id") ?? generateId(),
     role,
-    content: extractText(rawMessage["content"]),
+    content: extractText(rawMessage.content),
     ...(messageName !== undefined ? { name: messageName } : {}),
   };
 }
@@ -227,18 +363,19 @@ export function fromAgUiMessages(
 
     if (role === "tool") {
       const toolCallId = getToolCallId(rawMessage) ?? `tool-${generateId()}`;
+      const toolMessageId = getString(rawMessage, "id");
       const result =
-        rawMessage["result"] !== undefined
-          ? rawMessage["result"]
-          : typeof rawMessage["content"] === "string"
-            ? parseJSONText(rawMessage["content"])
-            : rawMessage["content"];
+        rawMessage.result !== undefined
+          ? rawMessage.result
+          : typeof rawMessage.content === "string"
+            ? parseJSONText(rawMessage.content)
+            : rawMessage.content;
       const isError =
-        typeof rawMessage["error"] === "string" ||
-        rawMessage["isError"] === true ||
-        rawMessage["status"] === "error"
+        typeof rawMessage.error === "string" ||
+        rawMessage.isError === true ||
+        rawMessage.status === "error"
           ? true
-          : rawMessage["isError"] === false
+          : rawMessage.isError === false
             ? false
             : undefined;
 
@@ -262,13 +399,16 @@ export function fromAgUiMessages(
           partIndex--
         ) {
           const part = message.content[partIndex];
-          if (!isObject(part) || part["type"] !== "tool-call") continue;
+          if (!isObject(part) || part.type !== "tool-call") continue;
           if (getString(part, "toolCallId") !== toolCallId) continue;
 
           const updatedPart: ToolCallPart = {
             ...(part as ToolCallPart),
             result,
             ...(isError !== undefined ? { isError } : {}),
+            ...(toolMessageId !== undefined
+              ? { unstable_toolMessageId: toolMessageId }
+              : {}),
           };
           const updatedContent = message.content.map((contentPart, index) =>
             index === partIndex ? updatedPart : contentPart,
@@ -283,7 +423,7 @@ export function fromAgUiMessages(
         continue;
       }
 
-      const id = getString(rawMessage, "id") ?? toolCallId;
+      const id = toolMessageId ?? toolCallId;
       const toolName =
         getString(rawMessage, "name") ??
         getString(rawMessage, "toolName") ??
@@ -300,6 +440,9 @@ export function fromAgUiMessages(
             argsText: "{}",
             result,
             ...(isError !== undefined ? { isError } : {}),
+            ...(toolMessageId !== undefined
+              ? { unstable_toolMessageId: toolMessageId }
+              : {}),
           },
         ],
       });
@@ -357,7 +500,7 @@ function convertAssistantMessage(
         : JSON.stringify(part.result);
 
     const toolMessage: AgUiMessage = {
-      id: `${toolCallId}:tool`,
+      id: part.unstable_toolMessageId ?? `${toolCallId}:tool`,
       role: "tool",
       content: resultContent,
       toolCallId,
@@ -407,7 +550,10 @@ export function toAgUiMessages(
     const genericMessage: AgUiMessage = {
       id: message.id,
       role: message.role,
-      content: extractText(message.content),
+      content:
+        message.role === "user"
+          ? buildUserContent(message)
+          : extractText(message.content),
     };
     if (message.name) {
       genericMessage.name = message.name;

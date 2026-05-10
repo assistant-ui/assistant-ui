@@ -3,286 +3,114 @@ title: Hooks
 description: Reactive hooks for accessing runtime state in React Native.
 ---
 
-All hooks support an optional **selector** function for fine-grained re-renders. Without a selector, the component re-renders on every state change. With a selector, it only re-renders when the selected value changes (shallow equality).
-
-```tsx
-// Re-renders on every thread state change
-const thread = useThread();
-
-// Re-renders only when isRunning changes
-const isRunning = useThread((s) => s.isRunning);
-```
-
 ## State Hooks
 
-### useThread
+### useAuiState
 
-Access thread state.
-
-```tsx
-import { useThread } from "@assistant-ui/react-native";
-
-const messages = useThread((s) => s.messages);
-const isRunning = useThread((s) => s.isRunning);
-```
-
-**ThreadState fields:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `messages` | `ThreadMessage[]` | All messages in the thread |
-| `isRunning` | `boolean` | Whether the model is generating |
-| `isDisabled` | `boolean` | Whether the thread is disabled |
-| `capabilities` | `RuntimeCapabilities` | What actions are supported |
-
-### useComposer
-
-Access composer state.
+The primary hook for accessing reactive state. It accepts a selector function for fine-grained re-renders — the component only re-renders when the selected value changes (shallow equality).
 
 ```tsx
-import { useComposer } from "@assistant-ui/react-native";
+import { useAuiState } from "@assistant-ui/react-native";
 
-const text = useComposer((s) => s.text);
-const isEmpty = useComposer((s) => s.isEmpty);
+// Thread state
+const messages = useAuiState((s) => s.thread.messages);
+const isRunning = useAuiState((s) => s.thread.isRunning);
+const isEmpty = useAuiState((s) => s.thread.isEmpty);
+
+// Composer state
+const text = useAuiState((s) => s.composer.text);
+const composerIsEmpty = useAuiState((s) => s.composer.isEmpty);
+const attachments = useAuiState((s) => s.composer.attachments);
+
+// Message state (inside a message context)
+const role = useAuiState((s) => s.message.role);
+const isLast = useAuiState((s) => s.message.isLast);
+
+// Thread list item state
+const threadId = useAuiState((s) => s.threadListItem.id);
+const title = useAuiState((s) => s.threadListItem.title);
 ```
 
-**ComposerState fields:**
+### useAui
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `text` | `string` | Current input text |
-| `isEmpty` | `boolean` | Whether the input is empty |
-| `attachments` | `Attachment[]` | Current attachments |
-| `canCancel` | `boolean` | Whether a run can be cancelled |
-
-### useMessage
-
-Access the current message state. Must be used inside a `MessageProvider` or a `renderMessage` / `renderItem` callback.
+Access the store methods for imperative actions.
 
 ```tsx
-import { useMessage } from "@assistant-ui/react-native";
+import { useAui } from "@assistant-ui/react-native";
 
-const role = useMessage((s) => s.role);
-const isLast = useMessage((s) => s.isLast);
+const aui = useAui();
+
+// Composer actions
+aui.composer().setText("Hello");
+aui.composer().send();
+
+// Thread actions
+aui.thread().cancelRun();
 ```
 
-**MessageState fields:**
+### useAuiEvent
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `message` | `ThreadMessage` | The message object |
-| `role` | `MessageRole` | `"user"`, `"assistant"`, or `"system"` |
-| `isLast` | `boolean` | Whether this is the last message |
-| `branchNumber` | `number` | Current branch index |
-| `branchCount` | `number` | Total number of branches |
-
-### useContentPart
-
-Access a specific content part by index within a message.
+Subscribe to events without causing re-renders.
 
 ```tsx
-import { useContentPart } from "@assistant-ui/react-native";
+import { useAuiEvent } from "@assistant-ui/react-native";
 
-const part = useContentPart(0); // first content part
+useAuiEvent("thread.runStart", (payload) => {
+  console.log("Run started:", payload);
+});
 ```
-
-### useThreadList
-
-Access the thread list state.
-
-```tsx
-import { useThreadList } from "@assistant-ui/react-native";
-
-const { threadIds, mainThreadId, threadItems } = useThreadList();
-
-// With selector
-const mainThreadId = useThreadList((s) => s.mainThreadId);
-```
-
-**ThreadListState fields:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `threadIds` | `string[]` | All thread IDs |
-| `mainThreadId` | `string` | Currently active thread ID |
-| `threadItems` | `Record<string, ThreadListItemState>` | Thread metadata (title, etc.) |
 
 ## Runtime Hooks
 
-### useAssistantRuntime
-
-Get the `AssistantRuntime` from context. This is the top-level runtime with access to thread management.
-
-```tsx
-import { useAssistantRuntime } from "@assistant-ui/react-native";
-
-const runtime = useAssistantRuntime();
-
-// Switch threads
-runtime.threads.switchToThread(threadId);
-runtime.threads.switchToNewThread();
-
-// Thread management
-runtime.threads.rename(threadId, "New Title");
-runtime.threads.delete(threadId);
-
-// Access the current thread runtime
-runtime.thread; // ThreadRuntime
-```
-
-### useThreadRuntime
-
-Get the `ThreadRuntime` for the current thread.
-
-```tsx
-import { useThreadRuntime } from "@assistant-ui/react-native";
-
-const threadRuntime = useThreadRuntime();
-
-threadRuntime.cancelRun();
-threadRuntime.appendMessage(message);
-```
-
-### useComposerRuntime
-
-Get the `ComposerRuntime` for the current composer.
-
-```tsx
-import { useComposerRuntime } from "@assistant-ui/react-native";
-
-const composerRuntime = useComposerRuntime();
-
-composerRuntime.setText("Hello");
-composerRuntime.send();
-```
-
-### useMessageRuntime
-
-Get the `MessageRuntime` for the current message.
-
-```tsx
-import { useMessageRuntime } from "@assistant-ui/react-native";
-
-const messageRuntime = useMessageRuntime();
-
-messageRuntime.reload();
-messageRuntime.switchToBranch({ position: "next" });
-```
-
 ### useLocalRuntime
 
-Create an `AssistantRuntime` with a `ChatModelAdapter`. Optionally pass `storage` for persistence.
+Create an `AssistantRuntime` with a `ChatModelAdapter`.
 
 ```tsx
 import { useLocalRuntime } from "@assistant-ui/react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const runtime = useLocalRuntime(chatModel, {
-  storage: AsyncStorage,
-  titleGenerator: createSimpleTitleAdapter(),
+  initialMessages: [],
 });
 ```
 
 | Option | Type | Description |
 |--------|------|-------------|
 | `initialMessages` | `ThreadMessageLike[]` | Messages to pre-populate |
-| `storage` | `AsyncStorageLike` | Thread and message persistence |
-| `storagePrefix` | `string` | Key prefix for storage (default `"@assistant-ui:"`) |
-| `titleGenerator` | `TitleGenerationAdapter` | Auto-generate thread titles |
+| `maxSteps` | `number` | Maximum tool call steps per run |
+| `cloud` | `AssistantCloud` | Optional cloud instance for persistence |
+| `adapters` | `object` | Optional adapter overrides (see below) |
+| `unstable_humanToolNames` | `string[]` | Tool names that pause the run for human approval |
 
-## Primitive Hooks
+The `adapters` option accepts the following fields (all optional):
 
-Low-level hooks for building custom components.
+| Adapter | Type | Description |
+|---------|------|-------------|
+| `history` | `ThreadHistoryAdapter` | Load and save thread message history |
+| `attachments` | `AttachmentAdapter` | Handle file and attachment uploads |
+| `speech` | `SpeechSynthesisAdapter` | Text-to-speech playback |
+| `dictation` | `DictationAdapter` | Speech-to-text input |
+| `feedback` | `FeedbackAdapter` | Thumbs up/down feedback |
+| `suggestion` | `SuggestionAdapter` | Prompt suggestions |
 
-### useThreadMessages
+### useRemoteThreadListRuntime
 
-```tsx
-import { useThreadMessages } from "@assistant-ui/react-native";
-
-const messages = useThreadMessages(); // ThreadMessage[]
-```
-
-### useThreadIsRunning
-
-```tsx
-import { useThreadIsRunning } from "@assistant-ui/react-native";
-
-const isRunning = useThreadIsRunning(); // boolean
-```
-
-### useThreadIsEmpty
+Create an `AssistantRuntime` with a persistent thread list backed by a `RemoteThreadListAdapter`. This wraps any runtime hook (such as one calling `useLocalRuntime` or a custom AI SDK hook) and layers thread-list management on top.
 
 ```tsx
-import { useThreadIsEmpty } from "@assistant-ui/react-native";
+import { useRemoteThreadListRuntime } from "@assistant-ui/react-native";
 
-const isEmpty = useThreadIsEmpty(); // boolean
+const runtime = useRemoteThreadListRuntime({
+  runtimeHook: () => useLocalRuntime(chatModel),
+  adapter: myThreadListAdapter,
+});
 ```
 
-### useComposerSend
-
-```tsx
-import { useComposerSend } from "@assistant-ui/react-native";
-
-const { send, canSend } = useComposerSend();
-```
-
-### useComposerCancel
-
-```tsx
-import { useComposerCancel } from "@assistant-ui/react-native";
-
-const { cancel, canCancel } = useComposerCancel();
-```
-
-### useComposerAddAttachment
-
-Add an attachment to the composer. Returns `{ addAttachment }` — call it with a `File` or `CreateAttachment` object. Pair with your own file picker (e.g. `expo-image-picker`).
-
-```tsx
-import { useComposerAddAttachment } from "@assistant-ui/react-native";
-
-const { addAttachment } = useComposerAddAttachment();
-
-// With expo-image-picker
-const pickImage = async () => {
-  const result = await ImagePicker.launchImageLibraryAsync({
-    base64: true,
-    quality: 0.8,
-  });
-  if (result.canceled) return;
-
-  for (const asset of result.assets) {
-    await addAttachment({
-      name: asset.fileName ?? "image.jpg",
-      type: "image",
-      content: [
-        { type: "image", image: `data:image/jpeg;base64,${asset.base64}` },
-      ],
-    });
-  }
-};
-```
-
-<Callout type="info">
-  You must configure an `AttachmentAdapter` (e.g. `SimpleImageAttachmentAdapter`) in your runtime options for attachments to work.
-</Callout>
-
-### useMessageReload
-
-```tsx
-import { useMessageReload } from "@assistant-ui/react-native";
-
-const { reload, canReload } = useMessageReload();
-```
-
-### useMessageBranching
-
-```tsx
-import { useMessageBranching } from "@assistant-ui/react-native";
-
-const { branchNumber, branchCount, goToPrev, goToNext } =
-  useMessageBranching();
-```
+| Option | Type | Description |
+|--------|------|-------------|
+| `runtimeHook` | `() => AssistantRuntime` | Hook that returns a per-thread runtime |
+| `adapter` | `RemoteThreadListAdapter` | Backend adapter for listing/creating/archiving threads |
+| `allowNesting` | `boolean` | When `true`, silently becomes a no-op if already inside another `useRemoteThreadListRuntime` |
 
 ## Model Context Hooks
 
@@ -334,6 +162,23 @@ useAssistantToolUI({
 });
 ```
 
+### useAssistantDataUI
+
+Register a UI renderer for a named data message part.
+
+```tsx
+import { useAssistantDataUI } from "@assistant-ui/react-native";
+
+useAssistantDataUI({
+  name: "weather_card",
+  render: ({ data }) => (
+    <View>
+      <Text>{data.city}: {data.temperature}°F</Text>
+    </View>
+  ),
+});
+```
+
 ### useAssistantInstructions
 
 Register system instructions in the model context.
@@ -342,6 +187,20 @@ Register system instructions in the model context.
 import { useAssistantInstructions } from "@assistant-ui/react-native";
 
 useAssistantInstructions("You are a helpful weather assistant.");
+```
+
+### useInlineRender
+
+Wrap a tool UI component so that inline state updates (from a parent component's render) are reflected without remounting. Use this when the render function closes over props that change over time.
+
+```tsx
+import { useInlineRender } from "@assistant-ui/react-native";
+
+const stableRender = useInlineRender(({ args, result }) => (
+  <Text>{someOuterProp}: {result?.value}</Text>
+));
+
+useAssistantToolUI({ toolName: "my_tool", render: stableRender });
 ```
 
 ### makeAssistantTool
@@ -359,6 +218,129 @@ const WeatherTool = makeAssistantTool({
   render: ({ args, result }) => <Text>{args.city}: {result?.temperature}°F</Text>,
 });
 
-// Mount inside AssistantProvider to register
+// Mount inside AssistantRuntimeProvider to register
 <WeatherTool />
+```
+
+### makeAssistantToolUI
+
+Create a component that registers only a tool UI renderer when mounted.
+
+```tsx
+import { makeAssistantToolUI } from "@assistant-ui/react-native";
+
+const WeatherToolUI = makeAssistantToolUI({
+  toolName: "get_weather",
+  render: ({ args, result }) => <Text>{args.city}: {result?.temperature}°F</Text>,
+});
+
+<WeatherToolUI />
+```
+
+### makeAssistantDataUI
+
+Create a component that registers a data UI renderer when mounted.
+
+```tsx
+import { makeAssistantDataUI } from "@assistant-ui/react-native";
+
+const WeatherCard = makeAssistantDataUI({
+  name: "weather_card",
+  render: ({ data }) => <Text>{data.city}: {data.temperature}°F</Text>,
+});
+
+<WeatherCard />
+```
+
+## Shared Providers
+
+These context providers are re-exported from `@assistant-ui/core/react` and are used internally by the primitives to scope the `aui` store to a particular item (message, part, thread list item, etc.). They are available for advanced custom rendering scenarios.
+
+### MessageByIndexProvider
+
+Scopes the `aui` context to a specific message by its index in the thread.
+
+```tsx
+import { MessageByIndexProvider } from "@assistant-ui/react-native";
+
+<MessageByIndexProvider index={2}>
+  {/* children can read s.message, s.composer */}
+</MessageByIndexProvider>
+```
+
+### PartByIndexProvider
+
+Scopes the `aui` context to a specific message part by its index.
+
+```tsx
+import { PartByIndexProvider } from "@assistant-ui/react-native";
+
+<PartByIndexProvider index={0}>
+  {/* children can read s.part */}
+</PartByIndexProvider>
+```
+
+### TextMessagePartProvider
+
+Provides a synthetic text part context from a plain string. Useful for rendering text outside the normal message-part pipeline.
+
+```tsx
+import { TextMessagePartProvider } from "@assistant-ui/react-native";
+
+<TextMessagePartProvider text="Hello world" isRunning={false}>
+  {/* children can read s.part as a text part */}
+</TextMessagePartProvider>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `text` | `string` | The text content |
+| `isRunning` | `boolean` | Whether the part is still streaming (default `false`) |
+
+### ChainOfThoughtByIndicesProvider
+
+Scopes the `aui` context to a slice of message parts that form a chain-of-thought block.
+
+```tsx
+import { ChainOfThoughtByIndicesProvider } from "@assistant-ui/react-native";
+
+<ChainOfThoughtByIndicesProvider startIndex={1} endIndex={3}>
+  {/* children can read s.chainOfThought */}
+</ChainOfThoughtByIndicesProvider>
+```
+
+### ChainOfThoughtPartByIndexProvider
+
+Scopes the `aui` context to a specific part within a chain-of-thought block.
+
+```tsx
+import { ChainOfThoughtPartByIndexProvider } from "@assistant-ui/react-native";
+
+<ChainOfThoughtPartByIndexProvider index={0}>
+  {/* children can read s.part */}
+</ChainOfThoughtPartByIndexProvider>
+```
+
+### ThreadListItemByIndexProvider
+
+Scopes the `aui` context to a specific thread list item by its index.
+
+```tsx
+import { ThreadListItemByIndexProvider } from "@assistant-ui/react-native";
+
+<ThreadListItemByIndexProvider index={0} archived={false}>
+  {/* children can read s.threadListItem */}
+</ThreadListItemByIndexProvider>
+```
+
+### SuggestionByIndexProvider
+
+Scopes the `aui` context to a specific suggestion by its index.
+
+```tsx
+import { SuggestionByIndexProvider } from "@assistant-ui/react-native";
+
+<SuggestionByIndexProvider index={0}>
+  {/* children can read s.suggestion */}
+</SuggestionByIndexProvider>
 ```

@@ -111,6 +111,13 @@ The condition function receives an `AssistantState` object with the following pr
   <Disclaimer />
 </AuiIf>
 
+// Render content only after the assistant finishes streaming
+<AuiIf condition={(s) =>
+  s.message.role === "assistant" && s.message.status?.type === "complete"
+}>
+  <FollowUpCard />
+</AuiIf>
+
 // Toggle copy icon based on copied state
 <ActionBarPrimitive.Copy>
   <AuiIf condition={(s) => !s.message.isCopied}>

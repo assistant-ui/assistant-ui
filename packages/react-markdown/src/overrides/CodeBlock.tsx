@@ -1,6 +1,6 @@
-import { ComponentType, FC, useMemo } from "react";
+import { type ComponentType, type FC, useMemo } from "react";
 
-import {
+import type {
   CodeComponent,
   CodeHeaderProps,
   PreComponent,

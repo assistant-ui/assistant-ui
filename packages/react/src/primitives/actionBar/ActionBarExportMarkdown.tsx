@@ -1,9 +1,9 @@
 "use client";
 
 import { forwardRef, useCallback } from "react";
-import { ActionButtonProps } from "../../utils/createActionButton";
+import type { ActionButtonProps } from "../../utils/createActionButton";
 import { composeEventHandlers } from "@radix-ui/primitive";
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "../../utils/Primitive";
 import { useAuiState, useAui } from "@assistant-ui/store";
 
 const useActionBarExportMarkdown = ({

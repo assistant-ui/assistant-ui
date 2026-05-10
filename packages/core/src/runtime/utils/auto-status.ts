@@ -1,5 +1,5 @@
-import type { MessageStatus } from "../../types";
-import { ReadonlyJSONValue } from "assistant-stream/utils";
+import type { MessageStatus } from "../../types/message";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 
 const symbolAutoStatus = Symbol("autoStatus");
 

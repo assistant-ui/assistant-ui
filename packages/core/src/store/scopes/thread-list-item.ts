@@ -1,7 +1,5 @@
-import type {
-  ThreadListItemRuntime,
-  ThreadListItemStatus,
-} from "../../runtime";
+import type { ThreadListItemRuntime } from "../../runtime/api/thread-list-item-runtime";
+import type { ThreadListItemStatus } from "../../runtime/interfaces/thread-list-runtime-core";
 
 export type ThreadListItemState = {
   readonly id: string;
@@ -9,6 +7,7 @@ export type ThreadListItemState = {
   readonly externalId: string | undefined;
   readonly title?: string | undefined;
   readonly status: ThreadListItemStatus;
+  readonly custom?: Record<string, unknown> | undefined;
 };
 
 export type ThreadListItemMethods = {
@@ -33,7 +32,17 @@ export type ThreadListItemMeta = {
 };
 
 export type ThreadListItemEvents = {
+  /**
+   * @deprecated State-derivable. Compare `s.threads.mainThreadId` against the
+   * item's `s.threadListItem.id` via `useAuiState` instead. Kept for backward
+   * compatibility.
+   */
   "threadListItem.switchedTo": { threadId: string };
+  /**
+   * @deprecated State-derivable. Compare `s.threads.mainThreadId` against the
+   * item's `s.threadListItem.id` via `useAuiState` instead. Kept for backward
+   * compatibility.
+   */
   "threadListItem.switchedAway": { threadId: string };
 };
 

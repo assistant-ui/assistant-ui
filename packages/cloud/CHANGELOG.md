@@ -1,5 +1,65 @@
 # assistant-cloud
 
+## 0.1.27
+
+### Patch Changes
+
+- [#3876](https://github.com/assistant-ui/assistant-ui/pull/3876) [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6)]:
+  - assistant-stream@0.3.12
+
+## 0.1.26
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- Updated dependencies [c988db8]
+  - assistant-stream@0.3.11
+
+## 0.1.25
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+
+## 0.1.24
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [dffb6b4]
+- Updated dependencies [9103282]
+- Updated dependencies [bdce66f]
+- Updated dependencies [209ae81]
+  - assistant-stream@0.3.9
+
+## 0.1.23
+
+### Patch Changes
+
+- 52403c3: chore: update dependencies
+- Updated dependencies [3227e71]
+- Updated dependencies [52403c3]
+  - assistant-stream@0.3.8
+
+## 0.1.22
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+  - assistant-stream@0.3.6
+
+## 0.1.21
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+
 ## 0.1.20
 
 ### Patch Changes

@@ -4,11 +4,12 @@ import {
   tapClientLookup,
   tapClientResource,
 } from "@assistant-ui/store";
-import { ThreadListRuntime, AssistantRuntime } from "../../runtime";
+import type { ThreadListRuntime } from "../../runtime/api/thread-list-runtime";
+import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { tapSubscribable } from "./tap-subscribable";
 import { ThreadListItemClient } from "./thread-list-item-runtime-client";
 import { ThreadClient } from "./thread-runtime-client";
-import { ThreadsState } from "../scopes";
+import type { ThreadsState } from "../scopes/threads";
 
 const ThreadListItemClientById = resource(
   ({ runtime, id }: { runtime: ThreadListRuntime; id: string }) => {
@@ -52,6 +53,8 @@ export const ThreadListClient = resource(
         mainThreadId: runtimeState.mainThreadId,
         newThreadId: runtimeState.newThreadId ?? null,
         isLoading: runtimeState.isLoading,
+        isLoadingMore: runtimeState.isLoadingMore,
+        hasMore: runtimeState.hasMore,
         threadIds: runtimeState.threadIds,
         archivedThreadIds: runtimeState.archivedThreadIds,
         threadItems: threadItems.state,
@@ -84,6 +87,9 @@ export const ThreadListClient = resource(
       switchToNewThread: async () => {
         await runtime.switchToNewThread();
       },
+      getLoadThreadsPromise: () => runtime.getLoadThreadsPromise(),
+      reload: () => runtime.reload(),
+      loadMore: () => runtime.loadMore(),
       __internal_getAssistantRuntime: () => __internal_assistantRuntime,
     };
   },

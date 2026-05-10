@@ -24,11 +24,16 @@ jobs:
                   node-version: "lts/*"
 
             - name: Install dependencies
-              run: npm install sharp
+              run: |
+                  mkdir -p /tmp/sharp-deps
+                  cd /tmp/sharp-deps
+                  npm init -y > /dev/null
+                  npm install sharp
 
             - name: Generate chart
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  NODE_PATH: /tmp/sharp-deps/node_modules
               run: |
                   node << 'SCRIPT'
                   const sharp = require('sharp');

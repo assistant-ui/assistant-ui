@@ -1,6 +1,7 @@
 ---
 title: Model Context
 description: Configure assistant behavior through system instructions, tools, and context providers.
+platforms: ["react"]
 ---
 
 Model Context is the foundation of intelligence in assistant-ui components. It provides configuration and capabilities to the assistant through a context provider system.
@@ -14,16 +15,24 @@ System instructions define the base behavior and knowledge available to the assi
 ```tsx
 import {
   useAssistantInstructions,
+  useAssistantContext,
   makeAssistantVisible,
 } from "@assistant-ui/react";
 
-// Via useAssistantInstructions
+// Static instructions
 useAssistantInstructions("You are a helpful assistant...");
+
+// Dynamic context — callback is evaluated lazily at send-time
+useAssistantContext({
+  getContext: () => `Current page: ${window.location.href}`,
+});
 
 // Via makeAssistantVisible
 const ReadableComponent = makeAssistantVisible(MyComponent);
 // Automatically provides component HTML as system context
 ```
+
+`useAssistantInstructions` takes a static string that re-registers when changed. `useAssistantContext` takes a callback that is evaluated fresh each time the model context is read, making it ideal for injecting frequently-changing application state without triggering re-registrations.
 
 ### Tools
 
@@ -79,19 +88,19 @@ import { useAui, tool } from "@assistant-ui/react";
 import { useEffect } from "react";
 import { z } from "zod";
 
+// Define tool outside the component (no runtime dependencies)
+const myTool = tool({
+  parameters: z.object({
+    query: z.string(),
+  }),
+  execute: async ({ query }) => {
+    const result = await searchDatabase(query);
+    return { result };
+  },
+});
+
 function MyComponent() {
   const aui = useAui();
-
-  // Define tool using the tool() helper
-  const myTool = tool({
-    parameters: z.object({
-      query: z.string(),
-    }),
-    execute: async ({ query }) => {
-      const result = await searchDatabase(query);
-      return { result };
-    },
-  });
 
   useEffect(() => {
     // Register context provider

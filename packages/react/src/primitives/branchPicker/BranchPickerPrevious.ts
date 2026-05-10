@@ -1,54 +1,16 @@
 "use client";
 
 import {
-  ActionButtonElement,
-  ActionButtonProps,
+  type ActionButtonElement,
+  type ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useCallback } from "react";
-import { useAuiState, useAui } from "@assistant-ui/store";
+import { useBranchPickerPrevious as useBranchPickerPreviousBehavior } from "@assistant-ui/core/react";
 
-/**
- * Hook that provides navigation to the previous branch functionality.
- *
- * This hook returns a callback function that switches to the previous branch
- * in the message branch tree, or null if there is no previous branch available.
- *
- * @returns A previous branch callback function, or null if navigation is disabled
- *
- * @example
- * ```tsx
- * function CustomPreviousButton() {
- *   const previous = useBranchPickerPrevious();
- *
- *   return (
- *     <button onClick={previous} disabled={!previous}>
- *       {previous ? "Previous Branch" : "No Previous Branch"}
- *     </button>
- *   );
- * }
- * ```
- */
 const useBranchPickerPrevious = () => {
-  const aui = useAui();
-  const disabled = useAuiState((s) => {
-    // Disabled if no previous branch
-    if (s.message.branchNumber <= 1) return true;
-
-    // Disabled if running and capability not supported
-    if (s.thread.isRunning && !s.thread.capabilities.switchBranchDuringRun) {
-      return true;
-    }
-
-    return false;
-  });
-
-  const callback = useCallback(() => {
-    aui.message().switchToBranch({ position: "previous" });
-  }, [aui]);
-
+  const { disabled, previous } = useBranchPickerPreviousBehavior();
   if (disabled) return null;
-  return callback;
+  return previous;
 };
 
 export namespace BranchPickerPrimitivePrevious {

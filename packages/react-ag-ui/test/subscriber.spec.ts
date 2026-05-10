@@ -40,4 +40,104 @@ describe("createAgUiSubscriber", () => {
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ type: "RUN_ERROR", message: "boom" });
   });
+
+  it("dispatches RUN_FINISHED with outcome from onRunFinishedEvent", () => {
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => events.push(evt),
+      runId: "run",
+    });
+
+    subscriber.onRunFinishedEvent?.({
+      event: {
+        type: "RUN_FINISHED",
+        runId: "run",
+        outcome: {
+          type: "interrupt",
+          interrupts: [{ id: "int-1", reason: "tool_call" }],
+        },
+      },
+    });
+    // onRunFinalized fires after onRunFinishedEvent in real ag-ui flows;
+    // we should not double-dispatch.
+    subscriber.onRunFinalized?.();
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: "RUN_FINISHED",
+      runId: "run",
+      outcome: {
+        type: "interrupt",
+        interrupts: [{ id: "int-1", reason: "tool_call" }],
+      },
+    });
+  });
+
+  it("falls back to onRunFinalized when no RunFinishedEvent fires", () => {
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => events.push(evt),
+      runId: "run",
+    });
+
+    subscriber.onRunFinalized?.();
+
+    expect(events).toEqual([{ type: "RUN_FINISHED", runId: "run" }]);
+  });
+
+  it("falls back to onRunFinalized when RunFinishedEvent has no runId", () => {
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => events.push(evt),
+      runId: "run",
+    });
+
+    subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED" },
+    });
+    subscriber.onRunFinalized?.();
+
+    expect(events).toEqual([{ type: "RUN_FINISHED", runId: "run" }]);
+  });
+
+  it("ignores onRunFinishedEvent payloads that parse as a different event type", () => {
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => events.push(evt),
+      runId: "run",
+    });
+
+    subscriber.onRunFinishedEvent?.({
+      event: { type: "TEXT_MESSAGE_CHUNK", delta: "hi" },
+    });
+    subscriber.onRunFinalized?.();
+
+    expect(events).toEqual([{ type: "RUN_FINISHED", runId: "run" }]);
+  });
+
+  it("dispatches reasoning handlers without duplication", () => {
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => events.push(evt),
+      runId: "run",
+    });
+
+    subscriber.onReasoningMessageContentEvent?.({
+      event: { messageId: "m1", delta: "think" },
+    });
+    subscriber.onEvent?.({
+      event: {
+        type: "REASONING_MESSAGE_CONTENT",
+        messageId: "m1",
+        delta: "ignored",
+      },
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "m1",
+      delta: "think",
+    });
+  });
 });

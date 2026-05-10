@@ -19,7 +19,10 @@ export type ToToolsJSONSchemaOptions = {
 };
 
 function isStandardSchema(schema: unknown): schema is StandardSchemaV1 & {
-  "~standard": StandardSchemaV1["~standard"] & { toJSONSchema?: () => unknown };
+  "~standard": StandardSchemaV1["~standard"] & {
+    toJSONSchema?: () => unknown;
+    jsonSchema?: { input?: () => unknown; output?: () => unknown };
+  };
 } {
   return (
     typeof schema === "object" &&
@@ -53,9 +56,10 @@ function hasToJSONMethod(schema: unknown): schema is { toJSON: () => unknown } {
  * Converts a schema to JSONSchema7.
  * Supports:
  * - StandardSchemaV1 with ~standard.toJSONSchema (e.g., Zod v4)
- * - Objects with toJSONSchema() method
+ * - StandardSchemaV1 with ~standard.jsonSchema.input() (e.g., Zod v4)
+ * - Objects with toJSONSchema() method (e.g., Zod v4)
  * - Objects with toJSON() method
- * - Plain JSONSchema7 objects
+ * - Plain JSONSchema7 objects (must have a "type" property)
  */
 export function toJSONSchema(
   schema: StandardSchemaV1 | JSONSchema7,
@@ -65,6 +69,16 @@ export function toJSONSchema(
     const toJSONSchemaMethod = schema["~standard"].toJSONSchema;
     if (typeof toJSONSchemaMethod === "function") {
       return toJSONSchemaMethod() as JSONSchema7;
+    }
+
+    // StandardSchemaV1 with ~standard.jsonSchema.input()
+    const jsonSchema = schema["~standard"].jsonSchema;
+    if (
+      typeof jsonSchema === "object" &&
+      jsonSchema !== null &&
+      typeof jsonSchema.input === "function"
+    ) {
+      return jsonSchema.input() as JSONSchema7;
     }
   }
 
@@ -78,8 +92,40 @@ export function toJSONSchema(
     return schema.toJSON() as JSONSchema7;
   }
 
+  // If it's a Standard Schema that we couldn't convert, throw a helpful error
+  if (isStandardSchema(schema)) {
+    throw new Error(
+      "Could not convert schema to JSON Schema. " +
+        "The schema implements Standard Schema but does not support JSON Schema conversion. " +
+        "If you are using Zod, please upgrade to Zod v4 (npm install zod@latest). " +
+        "Alternatively, pass a plain JSON Schema object instead.",
+    );
+  }
+
   // Already a plain JSONSchema7
   return schema as JSONSchema7;
+}
+
+/**
+ * Returns a copy of the JSON Schema with `required` removed recursively,
+ * making every property optional. Array item schemas are left unchanged.
+ */
+export function toPartialJSONSchema(schema: JSONSchema7): JSONSchema7 {
+  const { required: _, ...result } = schema;
+
+  if (result.properties) {
+    result.properties = Object.fromEntries(
+      Object.entries(result.properties).map(([key, prop]) => {
+        if (typeof prop === "object" && prop !== null && !Array.isArray(prop)) {
+          const p = prop as JSONSchema7;
+          return [key, p.properties != null ? toPartialJSONSchema(p) : prop];
+        }
+        return [key, prop];
+      }),
+    );
+  }
+
+  return result;
 }
 
 function defaultToolFilter(_name: string, tool: Tool): boolean {

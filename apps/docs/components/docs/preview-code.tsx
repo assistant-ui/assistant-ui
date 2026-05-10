@@ -24,6 +24,7 @@ function TabButton({ label, value, currentTab, onSelect }: TabButtonProps) {
   const isActive = currentTab === value;
   return (
     <button
+      type="button"
       onClick={() => onSelect(value)}
       className={cn(
         "rounded-md px-2.5 py-1 text-xs transition-colors",
@@ -80,6 +81,7 @@ export function PreviewCodeClient({
       ) : (
         <div className="preview-code-block relative overflow-hidden rounded-xl">
           <button
+            type="button"
             onClick={handleCopy}
             className="absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-50 transition-all hover:bg-background hover:text-foreground hover:opacity-100"
             aria-label={copied ? "Copied" : "Copy code"}

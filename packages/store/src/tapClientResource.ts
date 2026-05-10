@@ -79,7 +79,9 @@ class ClientProxyHandler
   extends BaseProxyHandler
   implements ProxyHandler<object>
 {
-  private boundFns: Map<string | symbol, Function> | undefined;
+  private boundFns:
+    | Map<string | symbol, (...args: never) => unknown>
+    | undefined;
   private cachedReceiver: unknown;
 
   constructor(

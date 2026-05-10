@@ -1,5 +1,5 @@
-import { MessageStatus } from "@assistant-ui/react";
-import { ReadonlyJSONObject } from "assistant-stream/utils";
+import type { MessageStatus } from "@assistant-ui/core";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 export type LangChainToolCallChunk = {
   index: number;
@@ -10,6 +10,7 @@ export type LangChainToolCallChunk = {
 };
 
 export type LangChainToolCall = {
+  index?: number;
   id: string;
   name: string;
   args: ReadonlyJSONObject;
@@ -69,7 +70,7 @@ type CustomEventType = string;
 
 export type EventType = LangGraphKnownEventTypes | CustomEventType;
 
-export type MessageContentFile = {
+export type LegacyMessageContentFile = {
   type: "file";
   file: {
     filename: string;
@@ -77,6 +78,28 @@ export type MessageContentFile = {
     mime_type: string;
   };
 };
+
+export type FlatMessageContentFile = {
+  type: "file";
+  data: string;
+  mime_type: string;
+  source_type?: "base64";
+  metadata?: {
+    filename?: string;
+  };
+};
+
+export type Base64MessageContentFile = {
+  type: "file";
+  base64: string;
+  mime_type: string;
+  filename?: string;
+};
+
+export type MessageContentFile =
+  | LegacyMessageContentFile
+  | FlatMessageContentFile
+  | Base64MessageContentFile;
 
 type UserMessageContentComplex =
   | MessageContentText
@@ -151,17 +174,67 @@ export type LangChainMessageTupleEvent = {
   data: [LangChainMessage | LangChainMessageChunk, LangGraphTupleMetadata];
 };
 
+export type UIMessage<
+  TName extends string = string,
+  TProps extends Record<string, unknown> = Record<string, unknown>,
+> = {
+  type: "ui";
+  id: string;
+  name: TName;
+  props: TProps;
+  metadata?: {
+    merge?: boolean;
+    run_id?: string;
+    name?: string;
+    tags?: string[];
+    message_id?: string;
+    [key: string]: unknown;
+  };
+};
+
+export type RemoveUIMessage = {
+  type: "remove-ui";
+  id: string;
+};
+
 export type OnMessageChunkCallback = (
   chunk: LangChainMessageChunk,
   metadata: LangGraphTupleMetadata,
 ) => void | Promise<void>;
 export type OnValuesEventCallback = (values: unknown) => void | Promise<void>;
 export type OnUpdatesEventCallback = (updates: unknown) => void | Promise<void>;
+/**
+ * Fired when a subgraph (namespaced) `values` event is received. The
+ * `namespace` mirrors the pipe-separated suffix on the event name
+ * (e.g. `values|tools:call_abc` → `"tools:call_abc"`).
+ */
+export type OnSubgraphValuesEventCallback = (
+  namespace: string,
+  values: unknown,
+) => void | Promise<void>;
+/**
+ * Fired when a subgraph (namespaced) `updates` event is received. The
+ * `namespace` mirrors the pipe-separated suffix on the event name
+ * (e.g. `updates|tools:call_abc` → `"tools:call_abc"`).
+ */
+export type OnSubgraphUpdatesEventCallback = (
+  namespace: string,
+  updates: unknown,
+) => void | Promise<void>;
 export type OnMetadataEventCallback = (
   metadata: unknown,
 ) => void | Promise<void>;
 export type OnInfoEventCallback = (info: unknown) => void | Promise<void>;
 export type OnErrorEventCallback = (error: unknown) => void | Promise<void>;
+/**
+ * Fired when a subgraph (namespaced) `error` event is received, in addition
+ * to `onError`. The `namespace` mirrors the pipe-separated suffix on the
+ * event name (e.g. `error|tools:call_abc` → `"tools:call_abc"`).
+ */
+export type OnSubgraphErrorEventCallback = (
+  namespace: string,
+  error: unknown,
+) => void | Promise<void>;
 export type OnCustomEventCallback = (
   type: string,
   data: unknown,

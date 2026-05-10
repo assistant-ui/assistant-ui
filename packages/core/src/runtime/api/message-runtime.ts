@@ -1,39 +1,35 @@
-import {
-  SpeechState,
-  SubmittedFeedback,
-} from "../interfaces/thread-runtime-core";
+import type { SpeechState } from "../interfaces/thread-runtime-core";
 import { symbolInnerMessage } from "../utils/external-store-message";
 import type {
-  MessagePartStatus,
-  RunConfig,
   ToolCallMessagePartStatus,
   ThreadMessage,
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
-  Unsubscribe,
-} from "../../types";
+} from "../../types/message";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { MessagePartStatus, RunConfig } from "../../types/message";
 import { getThreadMessageText } from "../../utils/text";
+import { NestedSubscriptionSubject } from "../../subscribable/subscribable";
 import {
-  NestedSubscriptionSubject,
   SKIP_UPDATE,
   ShallowMemoizeSubject,
-} from "../../subscribable";
+} from "../../subscribable/subscribable";
 import {
-  AttachmentRuntime,
-  AttachmentState,
+  type AttachmentRuntime,
+  type AttachmentState,
   MessageAttachmentRuntimeImpl,
 } from "./attachment-runtime";
 import {
-  EditComposerRuntime,
+  type EditComposerRuntime,
   EditComposerRuntimeImpl,
 } from "./composer-runtime";
 import {
-  MessagePartRuntime,
+  type MessagePartRuntime,
   MessagePartRuntimeImpl,
-  MessagePartState,
+  type MessagePartState,
 } from "./message-part-runtime";
-import { MessageRuntimePath } from "./paths";
-import { ThreadRuntimeCoreBinding } from "./thread-runtime";
+import type { MessageRuntimePath } from "./paths";
+import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
 import type { MessageStateBinding } from "./bindings";
 
 const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
@@ -91,10 +87,6 @@ export type MessageState = ThreadMessage & {
    * @deprecated This API is still under active development and might change without notice.
    */
   readonly speech: SpeechState | undefined;
-  /**
-   * @deprecated Use `message.metadata.submittedFeedback` instead. This will be removed in 0.12.0.
-   */
-  readonly submittedFeedback: SubmittedFeedback | undefined;
 };
 
 export type { MessageStateBinding } from "./bindings";

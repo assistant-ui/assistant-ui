@@ -1,8 +1,17 @@
 ---
 title: makeAssistantTool
 description: Create React components that provide reusable tools to the assistant.
+platforms: ["react"]
 ---
 
+<Callout type="info">
+  For most apps, the [`Tools()` API](/docs/guides/tools) is an easier starting
+  point: tool definitions live in a toolkit object rather than the component
+  tree. `makeAssistantTool` is fully supported and remains a good fit when a
+  tool's availability is tied to a component being mounted, for example a
+  product-specific tool that should only be exposed while that product's UI is
+  on screen (the [intelligent components](/docs/copilots/motivation) pattern).
+</Callout>
 
 `makeAssistantTool` creates a React component that provides a tool to the assistant. This is useful for defining reusable tools that can be composed into your application.
 
@@ -121,7 +130,7 @@ function Form() {
               name: "status",
               type: "ToolCallMessagePartStatus",
               description:
-                'The execution status object with a type property: "running", "complete", "incomplete", or "requires_action"',
+                'The execution status object with a type property: "running", "complete", "incomplete", or "requires-action"',
             },
             {
               name: "addResult",

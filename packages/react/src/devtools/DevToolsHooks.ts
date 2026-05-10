@@ -1,5 +1,5 @@
 import type { Unsubscribe } from "@assistant-ui/core";
-import { AssistantClient } from "@assistant-ui/store";
+import type { AssistantClient } from "@assistant-ui/store";
 
 export interface EventLog {
   time: Date;
@@ -54,6 +54,7 @@ const getHook = (): DevToolsHook => {
   return newHook;
 };
 
+// biome-ignore lint/complexity/noStaticOnlyClass: intentional namespace for DevTools API
 export class DevToolsHooks {
   static subscribe(listener: () => void): Unsubscribe {
     const hook = getHook();
@@ -78,10 +79,12 @@ export class DevToolsHooks {
 
   private static notifyListeners(apiId: number): void {
     const hook = getHook();
+    // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
     hook.listeners.forEach((listener) => listener(apiId));
   }
 }
 
+// biome-ignore lint/complexity/noStaticOnlyClass: intentional namespace for DevTools API
 export class DevToolsProviderApi {
   private static readonly MAX_EVENT_LOGS_PER_API = 200;
 
@@ -142,6 +145,7 @@ export class DevToolsProviderApi {
 
   private static notifyListeners(apiId: number): void {
     const hook = getHook();
+    // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
     hook.listeners.forEach((listener) => listener(apiId));
   }
 }

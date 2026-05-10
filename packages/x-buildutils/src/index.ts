@@ -61,6 +61,44 @@ async function buildValidExportsMap(): Promise<Map<string, Set<string>>> {
   return map;
 }
 
+/**
+ * Restore /// <reference> directives in .d.ts files.
+ *
+ * TypeScript's declaration emitter drops /// <reference path> and
+ * /// <reference types> directives from source files, but they are needed
+ * to keep module-augmentation files in the .d.ts import graph.
+ */
+async function restoreReferenceDirectives(program: ts.Program): Promise<void> {
+  for (const sourceFile of program.getSourceFiles()) {
+    if (sourceFile.isDeclarationFile) continue;
+
+    const pathRefs = sourceFile.referencedFiles;
+    const typeRefs = sourceFile.typeReferenceDirectives;
+    if (pathRefs.length === 0 && typeRefs.length === 0) continue;
+
+    const srcRelative = path.relative(process.cwd(), sourceFile.fileName);
+    if (!srcRelative.startsWith("src/")) continue;
+
+    const dtsPath = srcRelative
+      .replace(/^src\//, "dist/")
+      .replace(/\.tsx?$/, ".d.ts");
+
+    try {
+      const content = await fs.readFile(dtsPath, "utf-8");
+      const directives = [
+        ...pathRefs.map((ref) => {
+          const refPath = ref.fileName.replace(/\.tsx?$/, ".d.ts");
+          return `/// <reference path="${refPath}" />`;
+        }),
+        ...typeRefs.map((ref) => `/// <reference types="${ref.fileName}" />`),
+      ].join("\n");
+      await fs.writeFile(dtsPath, `${directives}\n${content}`);
+    } catch {
+      // .d.ts file may not exist (e.g. test-only source files)
+    }
+  }
+}
+
 async function build() {
   await fs.rm("dist", { recursive: true, force: true });
 
@@ -101,11 +139,7 @@ async function build() {
     sourceMap: true,
     noEmit: false,
     emitDeclarationOnly: false,
-    // Strip aui-source so build uses dist types, not source
-    customConditions:
-      parsedConfig.options.customConditions?.filter(
-        (c) => c !== "aui-source",
-      ) ?? [],
+    customConditions: parsedConfig.options.customConditions ?? [],
   });
 
   // JS: extension rewriting only
@@ -123,6 +157,8 @@ async function build() {
       >,
     ],
   });
+
+  await restoreReferenceDirectives(program);
 
   const diagnostics = ts
     .getPreEmitDiagnostics(program)

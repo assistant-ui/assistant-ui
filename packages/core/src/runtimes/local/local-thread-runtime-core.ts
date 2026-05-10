@@ -16,11 +16,11 @@ import type {
 } from "../../runtime/interfaces/thread-runtime-core";
 import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-core";
 import type {
-  RunConfig,
   AppendMessage,
   ThreadAssistantMessage,
-} from "../../types";
-import type { ModelContextProvider } from "../../model-context";
+} from "../../types/message";
+import type { RunConfig } from "../../types/message";
+import type { ModelContextProvider } from "../../model-context/types";
 
 class AbortError extends Error {
   override name = "AbortError";
@@ -45,13 +45,16 @@ export class LocalThreadRuntimeCore
     unstable_copy: true,
     speech: false,
     dictation: false,
+    voice: false,
     attachments: false,
     feedback: false,
+    queue: false,
   };
 
   private abortController: AbortController | null = null;
 
   public readonly isDisabled = false;
+  public readonly isSendDisabled = false;
 
   private _isLoading = false;
   public get isLoading() {
@@ -114,6 +117,12 @@ export class LocalThreadRuntimeCore
     const canDictate = options.adapters?.dictation !== undefined;
     if (this.capabilities.dictation !== canDictate) {
       this.capabilities.dictation = canDictate;
+      hasUpdates = true;
+    }
+
+    const canVoice = options.adapters?.voice !== undefined;
+    if (this.capabilities.voice !== canVoice) {
+      this.capabilities.voice = canVoice;
       hasUpdates = true;
     }
 
@@ -218,10 +227,6 @@ export class LocalThreadRuntimeCore
     throw new Error("Runtime does not support importing external states.");
   }
 
-  public unstable_loadExternalState(): void {
-    throw new Error("Runtime does not support importing external states.");
-  }
-
   public async startRun(
     { parentId, runConfig }: StartRunConfig,
     runCallback?: ChatModelAdapter["run"],
@@ -245,7 +250,7 @@ export class LocalThreadRuntimeCore
       createdAt: new Date(),
     };
 
-    this._notifyEventSubscribers("runStart");
+    this._notifyEventSubscribers("runStart", {});
 
     try {
       this._suggestions = [];
@@ -263,7 +268,7 @@ export class LocalThreadRuntimeCore
         runCallback = undefined;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
-      this._notifyEventSubscribers("runEnd");
+      this._notifyEventSubscribers("runEnd", {});
     }
 
     this._suggestionsController = new AbortController();
@@ -397,7 +402,6 @@ export class LocalThreadRuntimeCore
         runConfig: this._lastRunConfig,
         abortSignal,
         context,
-        config: context,
         unstable_assistantMessageId: message.id,
         unstable_threadId: threadId,
         unstable_parentId: parentId,

@@ -1,0 +1,103 @@
+---
+title: Guides
+description: Practical recipes for building AI chat features in React with assistant-ui — attachments, branching, multi-agent, voice, slash commands, generative UI, and more.
+platforms: ["react"]
+---
+
+Guides are task-oriented walkthroughs for building specific features on top of assistant-ui. They sit between the [Primitives](/docs/primitives) (low-level building blocks) and [Components](/docs/ui/thread) (pre-styled installs) — pick a guide when you know what you want to build and need the recommended pattern.
+
+## Composer
+
+Extend the message input with file attachments, mentions, slash commands, voice, and quoting.
+
+<Cards>
+  <Card title="Attachments" href="/docs/guides/attachments">
+    Let users attach files, images, and documents to messages. Covers upload adapters, validation, and the typed `attachmentAddError` event.
+  </Card>
+  <Card title="Mentions" href="/docs/guides/mentions">
+    `@`-style triggers that insert directives into the composer. Sync and async search patterns.
+  </Card>
+  <Card title="Slash Commands" href="/docs/guides/slash-commands">
+    `/`-style commands with arguments, async loading, and combining with mentions.
+  </Card>
+  <Card title="Quoting" href="/docs/guides/quoting">
+    Selection toolbar, programmatic `setQuote`, and forwarding quote context to the LLM.
+  </Card>
+  <Card title="Dictation" href="/docs/guides/dictation">
+    Speech-to-text into the composer using `DictationAdapter` and `ComposerPrimitive.Dictate`.
+  </Card>
+</Cards>
+
+## Messages
+
+Customize how messages render, are edited, branched, and suggested.
+
+<Cards>
+  <Card title="Suggestions" href="/docs/guides/suggestions">
+    Welcome-screen prompts, dynamic suggestions, and the `AuiIf` empty-thread pattern.
+  </Card>
+  <Card title="Editing" href="/docs/guides/editing">
+    Edit user messages with `UserEditComposer`, `beginEdit()`, and edit-during-streaming behavior.
+  </Card>
+  <Card title="Branching" href="/docs/guides/branching">
+    Navigate alternative message versions with `BranchPickerPrimitive`, reload, and direct branch-id navigation.
+  </Card>
+  <Card title="Message Timing" href="/docs/guides/message-timing">
+    Display response duration and stream timing with `useMessageTiming` (experimental).
+  </Card>
+</Cards>
+
+## Tools & Generative UI
+
+Connect tools to the LLM and render their outputs as interactive UI.
+
+<Cards>
+  <Card title="Tools" href="/docs/guides/tools">
+    Define tools with the Toolkit API, stream args, handle cancellation, and integrate with AI SDK / LangGraph / LangChain.
+  </Card>
+  <Card title="Tool UI" href="/docs/guides/tool-ui">
+    Render tool calls and `DataMessagePart` into custom components, with fallback handling.
+  </Card>
+  <Card title="Interactables" href="/docs/guides/interactables">
+    Persisted, schema-validated interactive UI driven by AI state.
+  </Card>
+  <Card title="Multi-Agent" href="/docs/guides/multi-agent">
+    Sub-agent message attribution via `ToolCallMessagePart.messages` and LangGraph subgraph events.
+  </Card>
+</Cards>
+
+## Display
+
+Render specialized message content.
+
+<Cards>
+  <Card title="Chain of Thought" href="/docs/guides/chain-of-thought">
+    Display the assistant's reasoning steps in a collapsible accordion.
+  </Card>
+  <Card title="LaTeX" href="/docs/guides/latex">
+    Render math via React Markdown or Streamdown, with streaming-safe escape rules.
+  </Card>
+</Cards>
+
+## Audio
+
+Voice input and output.
+
+<Cards>
+  <Card title="Voice" href="/docs/guides/voice">
+    Realtime bidirectional audio with `RealtimeVoiceAdapter` and `createVoiceSession`.
+  </Card>
+  <Card title="Speech" href="/docs/guides/speech">
+    Text-to-speech for assistant messages via `SpeechSynthesisAdapter`.
+  </Card>
+</Cards>
+
+## Programmatic
+
+Read and drive runtime state from your own code.
+
+<Cards>
+  <Card title="Context API" href="/docs/guides/context-api">
+    Access threads, messages, composer, and tool state via `useAui` and the runtime scope tree.
+  </Card>
+</Cards>

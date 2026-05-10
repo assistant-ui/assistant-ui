@@ -1,4 +1,5 @@
-import type { Attachment, CompleteAttachment, Unsubscribe } from "../../types";
+import type { Attachment, CompleteAttachment } from "../../types/attachment";
+import type { Unsubscribe } from "../../types/unsubscribe";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
 
 import type { ComposerRuntimeCoreBinding } from "./bindings";
@@ -102,10 +103,6 @@ export class EditComposerAttachmentRuntimeImpl extends ComposerAttachmentRuntime
 export class MessageAttachmentRuntimeImpl extends AttachmentRuntimeImpl<"message"> {
   public get source(): "message" {
     return "message";
-  }
-
-  constructor(core: AttachmentSnapshotBinding<"message">) {
-    super(core);
   }
 
   public remove(): never {

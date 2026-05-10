@@ -2,15 +2,19 @@ import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type {
   RuntimeCapabilities,
   SpeechState,
+  VoiceSessionState,
   ThreadSuggestion,
-  ExportedMessageRepository,
-  ThreadMessageLike,
+} from "../../runtime/interfaces/thread-runtime-core";
+import type { ExportedMessageRepository } from "../../runtime/utils/message-repository";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
+import type {
   CreateAppendMessage,
   CreateStartRunConfig,
   CreateResumeRunConfig,
   ThreadRuntime,
-} from "../../runtime";
-import type { ModelContext } from "../../model-context";
+} from "../../runtime/api/thread-runtime";
+import type { ModelContext } from "../../model-context/types";
 import type { MessageMethods, MessageState } from "./message";
 import type { ComposerMethods, ComposerState } from "./composer";
 
@@ -54,6 +58,7 @@ export type ThreadState = {
   readonly extras: unknown;
   /** @deprecated This API is still under active development and might change without notice. */
   readonly speech: SpeechState | undefined;
+  readonly voice: VoiceSessionState | undefined;
   readonly composer: ComposerState;
 };
 
@@ -92,7 +97,7 @@ export type ThreadMethods = {
    * Resume a run with the given configuration.
    * @param config The configuration for resuming the run
    */
-  unstable_resumeRun(config: CreateResumeRunConfig): void;
+  resumeRun(config: CreateResumeRunConfig): void;
   cancelRun(): void;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
@@ -105,14 +110,12 @@ export type ThreadMethods = {
   message(selector: { id: string } | { index: number }): MessageMethods;
   /** @deprecated This API is still under active development and might change without notice. */
   stopSpeaking(): void;
-  /**
-   * Start the voice session for the thread. Establishes any necessary media connections.
-   */
-  startVoice(): Promise<void>;
-  /**
-   * Stop the currently active voice session.
-   */
-  stopVoice(): Promise<void>;
+  connectVoice(): void;
+  disconnectVoice(): void;
+  getVoiceVolume(): number;
+  subscribeVoiceVolume(callback: () => void): Unsubscribe;
+  muteVoice(): void;
+  unmuteVoice(): void;
   __internal_getRuntime?(): ThreadRuntime;
 };
 
@@ -122,9 +125,26 @@ export type ThreadMeta = {
 };
 
 export type ThreadEvents = {
+  /**
+   * @deprecated State-derivable. Observe `isRunning` flipping to `true` via
+   * `useAuiState` instead. Kept for backward compatibility.
+   */
   "thread.runStart": { threadId: string };
+  /**
+   * @deprecated State-derivable. Observe `isRunning` flipping to `false` via
+   * `useAuiState` instead. Kept for backward compatibility.
+   */
   "thread.runEnd": { threadId: string };
+  /**
+   * @deprecated State-derivable. This event fires before the first message is
+   * added; observe `messages` becoming non-empty via `useAuiState` instead of
+   * reading state inside this event handler. Kept for backward compatibility.
+   */
   "thread.initialize": { threadId: string };
+  /**
+   * Truly transient. Model context lives in a provider, not in thread state,
+   * so this event has no state-derivable equivalent.
+   */
   "thread.modelContextUpdate": { threadId: string };
 };
 

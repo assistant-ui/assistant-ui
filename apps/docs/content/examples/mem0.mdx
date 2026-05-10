@@ -1,6 +1,6 @@
 ---
-title: Mem0 - ChatGPT with Memory
-description: A personalized AI chat app powered by Mem0 that remembers your preferences, facts, and memories
+title: Mem0 Memory Chat
+description: AI chat with persistent memory powered by Mem0 — remembers user preferences, facts, and history across sessions. Open-source React example built on assistant-ui.
 ---
 
 
@@ -95,7 +95,7 @@ Use this context to personalize your responses.`;
   // Store new memories after response
   await storeMemory(userId, messages);
 
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 

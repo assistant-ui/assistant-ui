@@ -1,23 +1,37 @@
-import type { Attachment } from "../../../types";
-import { ComponentType, type FC, memo, useMemo } from "react";
-import { useAuiState } from "@assistant-ui/store";
-import { ComposerAttachmentByIndexProvider } from "../../providers";
+import type { Attachment } from "../../../types/attachment";
+import {
+  type ComponentType,
+  type FC,
+  type ReactNode,
+  memo,
+  useMemo,
+} from "react";
+import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { ComposerAttachmentByIndexProvider } from "../../providers/AttachmentByIndexProvider";
+
+type ComposerAttachmentsComponentConfig = {
+  Image?: ComponentType | undefined;
+  Document?: ComponentType | undefined;
+  File?: ComponentType | undefined;
+  Attachment?: ComponentType | undefined;
+};
 
 export namespace ComposerPrimitiveAttachments {
-  export type Props = {
-    components:
-      | {
-          Image?: ComponentType | undefined;
-          Document?: ComponentType | undefined;
-          File?: ComponentType | undefined;
-          Attachment?: ComponentType | undefined;
-        }
-      | undefined;
-  };
+  export type Props =
+    | {
+        /** @deprecated Use the children render function instead. */
+        components: ComposerAttachmentsComponentConfig;
+        children?: never;
+      }
+    | {
+        /** Render function called for each attachment. Receives the attachment. */
+        children: (value: { attachment: Attachment }) => ReactNode;
+        components?: never;
+      };
 }
 
 const getComponent = (
-  components: ComposerPrimitiveAttachments.Props["components"],
+  components: ComposerAttachmentsComponentConfig | undefined,
   attachment: Attachment,
 ) => {
   const type = attachment.type;
@@ -34,7 +48,7 @@ const getComponent = (
 };
 
 const AttachmentComponent: FC<{
-  components: ComposerPrimitiveAttachments.Props["components"];
+  components: ComposerAttachmentsComponentConfig | undefined;
 }> = ({ components }) => {
   const attachment = useAuiState((s) => s.attachment);
   if (!attachment) return null;
@@ -47,7 +61,7 @@ const AttachmentComponent: FC<{
 export namespace ComposerPrimitiveAttachmentByIndex {
   export type Props = {
     index: number;
-    components?: ComposerPrimitiveAttachments.Props["components"];
+    components?: ComposerAttachmentsComponentConfig;
   };
 }
 
@@ -74,22 +88,53 @@ export const ComposerPrimitiveAttachmentByIndex: FC<ComposerPrimitiveAttachmentB
 ComposerPrimitiveAttachmentByIndex.displayName =
   "ComposerPrimitive.AttachmentByIndex";
 
-export const ComposerPrimitiveAttachments: FC<
-  ComposerPrimitiveAttachments.Props
-> = ({ components }) => {
+const ComposerPrimitiveAttachmentsInner: FC<{
+  children: (value: { attachment: Attachment }) => ReactNode;
+}> = ({ children }) => {
   const attachmentsCount = useAuiState((s) => s.composer.attachments.length);
 
-  const attachmentElements = useMemo(() => {
-    return Array.from({ length: attachmentsCount }, (_, index) => (
-      <ComposerPrimitiveAttachmentByIndex
-        key={index}
-        index={index}
-        components={components}
-      />
-    ));
-  }, [attachmentsCount, components]);
+  return useMemo(
+    () =>
+      Array.from({ length: attachmentsCount }, (_, index) => (
+        <ComposerAttachmentByIndexProvider key={index} index={index}>
+          <RenderChildrenWithAccessor
+            getItemState={(aui) =>
+              aui.composer().attachment({ index }).getState()
+            }
+          >
+            {(getItem) =>
+              children({
+                get attachment() {
+                  return getItem();
+                },
+              })
+            }
+          </RenderChildrenWithAccessor>
+        </ComposerAttachmentByIndexProvider>
+      )),
+    [attachmentsCount, children],
+  );
+};
 
-  return attachmentElements;
+export const ComposerPrimitiveAttachments: FC<
+  ComposerPrimitiveAttachments.Props
+> = ({ components, children }) => {
+  if (components) {
+    return (
+      <ComposerPrimitiveAttachmentsInner>
+        {({ attachment }) => {
+          const Component = getComponent(components, attachment);
+          if (!Component) return null;
+          return <Component />;
+        }}
+      </ComposerPrimitiveAttachmentsInner>
+    );
+  }
+  return (
+    <ComposerPrimitiveAttachmentsInner>
+      {children}
+    </ComposerPrimitiveAttachmentsInner>
+  );
 };
 
 ComposerPrimitiveAttachments.displayName = "ComposerPrimitive.Attachments";

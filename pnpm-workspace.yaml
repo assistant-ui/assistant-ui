@@ -2,16 +2,23 @@ packages:
   - packages/*
   - examples/*
   - apps/*
+  - templates/*
 
 ignoredBuiltDependencies:
+  - '@google/genai'
   - '@modelcontextprotocol/ext-apps'
+  - '@mongodb-js/zstd'
+  - node-liblzma
 
 onlyBuiltDependencies:
+  - '@clerk/shared'
   - '@tailwindcss/oxide@4.1.17'
   - core-js
   - esbuild
   - protobufjs
+  - react-grab
   - sharp@0.34.5
+  - sqlite3
   - unrs-resolver@1.11.1
 
 strictDepBuilds: true

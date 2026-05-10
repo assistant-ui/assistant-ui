@@ -1,6 +1,6 @@
 {
   "name": "tw-shimmer",
-  "version": "0.4.7",
+  "version": "0.4.11",
   "description": "Tailwind CSS v4 plugin for shimmer effects",
   "keywords": [
     "tailwindcss",
@@ -16,6 +16,7 @@
   "type": "module",
   "exports": {
     ".": {
+      "style": "./src/index.css",
       "default": "./src/index.css"
     }
   },
@@ -42,5 +43,6 @@
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
-  }
+  },
+  "scripts": {}
 }

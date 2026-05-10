@@ -1,12 +1,7 @@
 {
-  "title": "Reference",
-  "description": "API reference and advanced topics",
+  "title": "API Reference",
   "icon": "FileCode",
   "root": true,
-  "pages": [
-    "...api-reference",
-    "...migrations",
-    "legacy",
-    "react-compatibility"
-  ]
+  "platforms": ["react"],
+  "pages": ["...api-reference", "...migrations", "react-compatibility"]
 }

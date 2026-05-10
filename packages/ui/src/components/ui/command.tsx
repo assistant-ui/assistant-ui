@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import type * as React from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { SearchIcon } from "lucide-react";
 
@@ -163,7 +163,7 @@ function CommandShortcut({
     <span
       data-slot="command-shortcut"
       className={cn(
-        "ml-auto text-muted-foreground text-xs tracking-widest",
+        "ms-auto text-muted-foreground text-xs tracking-widest",
         className,
       )}
       {...props}

@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import debug from "debug";
 import path from "node:path";
-import { TransformOptions } from "./transform-options";
+import type { TransformOptions } from "./transform-options";
 import { fileURLToPath } from "node:url";
 import * as fs from "node:fs";
 import { sync as globSync } from "glob";
@@ -94,8 +94,7 @@ function parseErrors(transform: string, output: string): TransformErrors {
   const errorRegex = /ERR (.+) Transformation error/g;
   const syntaxErrorRegex = /SyntaxError: .+/g;
 
-  let match;
-  while ((match = errorRegex.exec(output)) !== null) {
+  for (const match of output.matchAll(errorRegex)) {
     const filename = match[1]!;
     const syntaxErrorMatch = syntaxErrorRegex.exec(output);
     if (syntaxErrorMatch) {

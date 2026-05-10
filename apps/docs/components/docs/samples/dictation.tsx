@@ -53,13 +53,13 @@ export const Thread: FC = () => {
       <ThreadPrimitive.Viewport className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll px-4">
         <ThreadWelcome />
 
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage,
-            EditComposer,
-            AssistantMessage,
+        <ThreadPrimitive.Messages>
+          {({ message }) => {
+            if (message.composer.isEditing) return <EditComposer />;
+            if (message.role === "user") return <UserMessage />;
+            return <AssistantMessage />;
           }}
-        />
+        </ThreadPrimitive.Messages>
         <div className="aui-thread-viewport-spacer min-h-8 grow" />
         <Composer />
       </ThreadPrimitive.Viewport>
@@ -127,7 +127,7 @@ const ThreadWelcomeSuggestions: FC = () => {
           >
             <Button
               variant="ghost"
-              className="aui-thread-welcome-suggestion h-auto w-full flex-1 @md:flex-col flex-wrap items-start justify-start gap-1 rounded-3xl border px-5 py-4 text-left text-sm dark:hover:bg-accent/60"
+              className="aui-thread-welcome-suggestion h-auto w-full flex-1 @md:flex-col flex-wrap items-start justify-start gap-1 rounded-3xl border px-5 py-4 text-start text-sm dark:hover:bg-accent/60"
               aria-label={suggestedAction.action}
             >
               <span className="aui-thread-welcome-suggestion-text-1 font-medium">
@@ -253,16 +253,18 @@ const AssistantMessage: FC = () => {
       data-role="assistant"
     >
       <div className="aui-assistant-message-content mx-2 break-words text-foreground leading-7">
-        <MessagePrimitive.Parts
-          components={{
-            Text: MarkdownText,
-            tools: { Fallback: ToolFallback },
+        <MessagePrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "text") return <MarkdownText />;
+            if (part.type === "tool-call")
+              return part.toolUI ?? <ToolFallback {...part} />;
+            return null;
           }}
-        />
+        </MessagePrimitive.Parts>
         <MessageError />
       </div>
 
-      <div className="aui-assistant-message-footer mt-2 ml-2 flex min-h-6 items-center">
+      <div className="aui-assistant-message-footer ms-2 mt-2 flex min-h-6 items-center">
         <BranchPicker />
         <AssistantActionBar />
       </div>
@@ -275,7 +277,7 @@ const AssistantActionBar: FC = () => {
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
-      className="aui-assistant-action-bar-root col-start-3 row-start-2 -ml-1 flex gap-1 text-muted-foreground"
+      className="aui-assistant-action-bar-root col-start-3 row-start-2 -ms-1 flex gap-1 text-muted-foreground"
     >
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
@@ -309,12 +311,12 @@ const UserMessage: FC = () => {
           <div className="aui-user-message-content break-words rounded-3xl bg-muted px-5 py-2.5 text-foreground">
             <MessagePrimitive.Parts />
           </div>
-          <div className="aui-user-action-bar-wrapper absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
+          <div className="aui-user-action-bar-wrapper absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-2 rtl:translate-x-full">
             <UserActionBar />
           </div>
         </div>
 
-        <BranchPicker className="aui-user-branch-picker col-span-full col-start-1 row-start-3 -mr-1 justify-end" />
+        <BranchPicker className="aui-user-branch-picker col-span-full col-start-1 row-start-3 -me-1 justify-end" />
       </div>
     </MessagePrimitive.Root>
   );
@@ -339,7 +341,7 @@ const UserActionBar: FC = () => {
 const EditComposer: FC = () => {
   return (
     <div className="aui-edit-composer-wrapper mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-2 first:mt-4">
-      <ComposerPrimitive.Root className="aui-edit-composer-root ml-auto flex w-full max-w-7/8 flex-col rounded-xl bg-muted">
+      <ComposerPrimitive.Root className="aui-edit-composer-root ms-auto flex w-full max-w-7/8 flex-col rounded-xl bg-muted">
         <ComposerPrimitive.Input
           className="aui-edit-composer-input flex min-h-[60px] w-full resize-none bg-transparent p-4 text-foreground outline-none"
           autoFocus
@@ -370,7 +372,7 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
-        "aui-branch-picker-root mr-2 -ml-2 inline-flex items-center text-muted-foreground text-xs",
+        "aui-branch-picker-root -ms-2 me-2 inline-flex items-center text-muted-foreground text-xs",
         className,
       )}
       {...rest}

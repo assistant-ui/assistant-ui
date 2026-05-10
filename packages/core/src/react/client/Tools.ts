@@ -4,10 +4,10 @@ import {
   type ClientOutput,
   attachTransformScopes,
 } from "@assistant-ui/store";
-import { ToolsState } from "../types/scopes";
+import type { ToolsState } from "../types/scopes/tools";
 import type { Tool } from "assistant-stream";
-import { type Toolkit } from "../model-context/toolbox";
-import { ToolCallMessagePartComponent } from "../types";
+import type { Toolkit } from "../model-context/toolbox";
+import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import { ModelContext } from "../../store";
 
 export const Tools = resource(
@@ -78,6 +78,7 @@ export const Tools = resource(
       );
 
       return () => {
+        // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
         unsubscribes.forEach((fn) => fn());
       };
     }, [toolkit, setToolUI, clientRef]);
@@ -89,9 +90,8 @@ export const Tools = resource(
   },
 );
 
-attachTransformScopes(Tools, (scopes, parent) => ({
-  ...scopes,
-  ...(scopes.modelContext || parent.modelContext.source !== null
-    ? {}
-    : { modelContext: ModelContext() }),
-}));
+attachTransformScopes(Tools, (scopes, parent) => {
+  if (!scopes.modelContext && parent.modelContext.source === null) {
+    scopes.modelContext = ModelContext();
+  }
+});

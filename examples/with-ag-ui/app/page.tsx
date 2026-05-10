@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useAssistantRuntime,
   useAssistantTool,
   useAui,
   AuiProvider,
@@ -29,7 +28,7 @@ function BrowserAlertTool() {
       return { status: "shown" };
     },
     render: ({ args, result }) => (
-      <div className="mt-3 w-full max-w-[var(--thread-max-width)] rounded-lg border px-4 py-3 text-sm">
+      <div className="mt-3 w-full max-w-(--thread-max-width) rounded-lg border px-4 py-3 text-sm">
         <p className="font-semibold text-muted-foreground">browser_alert</p>
         <p className="mt-1">
           Requested alert with message:
@@ -50,11 +49,12 @@ function BrowserAlertTool() {
 }
 
 function NewThreadButton() {
-  const runtime = useAssistantRuntime();
+  const aui = useAui();
 
   return (
     <button
-      onClick={() => runtime.switchToNewThread()}
+      type="button"
+      onClick={() => aui.threads().switchToNewThread()}
       className="absolute top-4 right-4 z-10 flex items-center gap-2 rounded-lg border bg-background px-3 py-2 font-medium text-sm shadow-sm transition-colors hover:bg-accent"
     >
       <PlusIcon className="size-4" />

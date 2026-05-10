@@ -1,20 +1,16 @@
-import { ModelContextProvider, ModelContext } from "../types";
-import type { Unsubscribe } from "../../types";
-import { Tool } from "assistant-stream";
-import { z } from "zod";
+import type { ModelContextProvider, ModelContext } from "../types";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import { type Tool, toJSONSchema } from "assistant-stream";
 import {
-  FrameMessage,
+  type FrameMessage,
   FRAME_MESSAGE_CHANNEL,
-  SerializedModelContext,
-  SerializedTool,
+  type SerializedModelContext,
+  type SerializedTool,
 } from "./types";
 
 const serializeTool = (tool: Tool<any, any>): SerializedTool => ({
   ...(tool.description && { description: tool.description }),
-  parameters:
-    tool.parameters instanceof z.ZodType
-      ? ((z as any).toJSONSchema?.(tool.parameters) ?? tool.parameters)
-      : tool.parameters,
+  parameters: tool.parameters ? toJSONSchema(tool.parameters) : undefined,
   ...(tool.disabled !== undefined && { disabled: tool.disabled }),
   ...(tool.type && { type: tool.type }),
 });
@@ -183,6 +179,7 @@ export class AssistantFrameProvider {
       const instance = AssistantFrameProvider._instance;
       window.removeEventListener("message", instance.handleMessage);
 
+      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       instance._providerUnsubscribes.forEach((unsubscribe) => unsubscribe?.());
       instance._providerUnsubscribes.clear();
       instance._providers.clear();

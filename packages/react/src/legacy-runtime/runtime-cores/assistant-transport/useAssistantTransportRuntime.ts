@@ -7,8 +7,8 @@ import {
   asAsyncIterableStream,
 } from "assistant-stream/utils";
 import { useExternalStoreRuntime } from "../external-store/useExternalStoreRuntime";
-import { AssistantRuntime } from "../../runtime/AssistantRuntime";
-import { AddToolResultOptions } from "../core";
+import type { AssistantRuntime } from "../../runtime/AssistantRuntime";
+import type { AddToolResultOptions } from "@assistant-ui/core";
 import { useState, useRef, useMemo } from "react";
 import {
   AssistantMessageAccumulator,
@@ -17,7 +17,7 @@ import {
   unstable_createInitialMessage as createInitialMessage,
   toToolsJSONSchema,
 } from "assistant-stream";
-import {
+import type {
   AssistantTransportOptions,
   AddMessageCommand,
   AddToolResultCommand,
@@ -29,12 +29,15 @@ import {
 import { useCommandQueue } from "./commandQueue";
 import { useRunManager } from "./runManager";
 import { useConvertedState } from "./useConvertedState";
-import { ToolExecutionStatus, useToolInvocations } from "./useToolInvocations";
+import {
+  type ToolExecutionStatus,
+  useToolInvocations,
+} from "./useToolInvocations";
 import { createRequestHeaders } from "@assistant-ui/core";
 import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
 import { InMemoryThreadListAdapter } from "@assistant-ui/core";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import { UserExternalState } from "../../../augmentations";
+import type { UserExternalState } from "../../../augmentations";
 
 const convertAppendMessageToCommand = (
   message: AppendMessage,
@@ -113,16 +116,23 @@ export function useAssistantTransportState<T>(
 const useAssistantTransportThreadRuntime = <T>(
   options: AssistantTransportOptions<T>,
 ): AssistantRuntime => {
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const agentStateRef = useRef(options.initialState);
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [, rerender] = useState(0);
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const resumeFlagRef = useRef(false);
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const parentIdRef = useRef<string | null | undefined>(undefined);
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const commandQueue = useCommandQueue({
     onQueue: () => runManager.schedule(),
   });
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const threadId = useAuiState((s) => s.threadListItem.remoteId);
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runManager = useRunManager({
     onRun: async (signal: AbortSignal) => {
       const isResume = resumeFlagRef.current;
@@ -147,6 +157,10 @@ const useAssistantTransportThreadRuntime = <T>(
         ...(parentIdRef.current !== undefined && {
           parentId: parentIdRef.current,
         }),
+        // nested (new format, aligned with AssistantChatTransport)
+        callSettings: context.callSettings,
+        config: context.config,
+        // @deprecated spread at top level — use nested `callSettings`/`config` instead. Will be removed in a future version.
         ...context.callSettings,
         ...context.config,
         ...(bodyValue ?? {}),
@@ -262,15 +276,18 @@ const useAssistantTransportThreadRuntime = <T>(
   });
 
   // Tool execution status state
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
 
   // Reactive conversion of agent state + connection metadata → UI state
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const pendingCommands = useMemo(
     () => [...commandQueue.state.inTransit, ...commandQueue.state.queued],
     [commandQueue.state],
   );
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const converted = useConvertedState(
     options.converter,
     agentStateRef.current,
@@ -280,6 +297,7 @@ const useAssistantTransportThreadRuntime = <T>(
   );
 
   // Create runtime
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runtime = useExternalStoreRuntime({
     messages: converted.messages,
     state: converted.state,
@@ -336,6 +354,7 @@ const useAssistantTransportThreadRuntime = <T>(
     },
   });
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const toolInvocations = useToolInvocations({
     state: converted,
     getTools: () => runtime.thread.getModelContext().tools,
@@ -354,6 +373,7 @@ export const useAssistantTransportRuntime = <T>(
 ): AssistantRuntime => {
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
+      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       return useAssistantTransportThreadRuntime(options);
     },
     adapter: new InMemoryThreadListAdapter(),

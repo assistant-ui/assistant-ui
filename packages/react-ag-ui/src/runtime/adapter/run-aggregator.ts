@@ -4,9 +4,15 @@ import type {
   ChatModelRunResult,
   ThreadAssistantMessagePart,
   ToolCallMessagePart,
-} from "@assistant-ui/react";
-import type { AgUiEvent } from "../types";
+} from "@assistant-ui/core";
+import type { AgUiEvent, AgUiInterrupt } from "../types";
 import type { Logger } from "../logger";
+
+export const AG_UI_METADATA_NAMESPACE = "agui";
+
+export type AgUiCustomMetadata = {
+  interrupts?: AgUiInterrupt[];
+};
 
 type Emit = (update: ChatModelRunResult) => void;
 
@@ -38,6 +44,7 @@ export class RunAggregator {
   private readonly logger: Logger;
 
   private status: ChatModelRunResult["status"] | undefined;
+  private interrupts: AgUiInterrupt[] | undefined;
   private readonly textParts = new Map<
     string,
     { buffer: string; touched: boolean }
@@ -71,18 +78,28 @@ export class RunAggregator {
         this.hasReasoningPart = false;
         this.textPartCounter = 0;
         this.activeTextMessageId = undefined;
+        this.interrupts = undefined;
         this.status = { type: "running" };
         this.emit();
         break;
       }
       case "RUN_FINISHED": {
+        if (event.outcome?.type === "interrupt") {
+          this.interrupts = event.outcome.interrupts;
+          this.status = { type: "requires-action", reason: "interrupt" };
+          this.emit();
+          break;
+        }
+
+        this.interrupts = undefined;
         const hasUnresolvedToolCalls = Array.from(this.toolCalls.values()).some(
           (tc) => tc.result === undefined,
         );
 
-        this.status = hasUnresolvedToolCalls
-          ? { type: "requires-action", reason: "tool-calls" }
-          : { type: "complete", reason: "unknown" };
+        this.status =
+          event.outcome?.type === "success" || !hasUnresolvedToolCalls
+            ? { type: "complete", reason: "unknown" }
+            : { type: "requires-action", reason: "tool-calls" };
         this.emit();
         break;
       }
@@ -128,27 +145,21 @@ export class RunAggregator {
       }
 
       case "THINKING_START":
-      case "THINKING_TEXT_MESSAGE_START": {
-        if (!this.showThinking) break;
-        this.reasoningActive = true;
-        if (!this.reasoningBuffer) this.reasoningBuffer = "";
-        this.ensureReasoningPart();
-        this.emit();
+      case "THINKING_TEXT_MESSAGE_START":
+      case "REASONING_START":
+      case "REASONING_MESSAGE_START":
+        this.handleReasoningStart();
         break;
-      }
-      case "THINKING_TEXT_MESSAGE_CONTENT": {
-        if (!this.showThinking || !event.delta) break;
-        this.reasoningBuffer += event.delta;
-        this.ensureReasoningPart();
-        this.emit();
+      case "THINKING_TEXT_MESSAGE_CONTENT":
+      case "REASONING_MESSAGE_CONTENT":
+        this.handleReasoningContent(event.delta);
         break;
-      }
       case "THINKING_TEXT_MESSAGE_END":
-      case "THINKING_END": {
-        if (!this.showThinking) break;
-        this.emit();
+      case "THINKING_END":
+      case "REASONING_MESSAGE_END":
+      case "REASONING_END":
+        this.handleReasoningEnd();
         break;
-      }
 
       case "TOOL_CALL_START": {
         this.startToolCall(
@@ -364,8 +375,38 @@ export class RunAggregator {
     const result: ChatModelRunResult = {
       content: snapshot,
       ...(this.status ? { status: this.status } : undefined),
+      ...(this.interrupts
+        ? {
+            metadata: {
+              custom: {
+                [AG_UI_METADATA_NAMESPACE]: {
+                  interrupts: this.interrupts,
+                } satisfies AgUiCustomMetadata,
+              },
+            },
+          }
+        : undefined),
     };
     this.emitUpdate(result);
+  }
+
+  private handleReasoningStart(): void {
+    if (!this.showThinking) return;
+    this.reasoningActive = true;
+    this.ensureReasoningPart();
+    this.emit();
+  }
+
+  private handleReasoningContent(delta: string): void {
+    if (!this.showThinking || !delta) return;
+    this.reasoningBuffer += delta;
+    this.ensureReasoningPart();
+    this.emit();
+  }
+
+  private handleReasoningEnd(): void {
+    if (!this.showThinking) return;
+    this.emit();
   }
 
   private ensureReasoningPart(): void {

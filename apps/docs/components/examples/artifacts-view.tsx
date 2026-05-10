@@ -14,7 +14,7 @@ export const ArtifactsView = () => {
             c.type === "tool-call" && c.toolName === "render_html",
         ),
       )
-      .at(-1)?.args["code"] as string | undefined;
+      .at(-1)?.args.code as string | undefined;
   });
 
   if (!artifact) return null;

@@ -1,5 +1,29 @@
 # tw-shimmer
 
+## 0.4.11
+
+### Patch Changes
+
+- 1083599: fix: add "style" export condition for CSS entries so Tailwind CSS v4 `@import` can resolve packages
+
+## 0.4.10
+
+### Patch Changes
+
+- 094fa56: fix: register shimmer-bg as standalone @utility for Tailwind v4 tooling recognition
+
+## 0.4.9
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+
+## 0.4.8
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+
 ## 0.4.7
 
 ### Patch Changes

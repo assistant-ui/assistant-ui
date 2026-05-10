@@ -1,18 +1,20 @@
 import type {
   FileMessagePart,
   MessageStatus,
-  MessageTiming,
   ReasoningMessagePart,
-  RunConfig,
   SourceMessagePart,
-  TextMessagePart,
   ThreadAssistantMessagePart,
   ThreadMessage,
   ThreadStep,
   ToolCallMessagePart,
-} from "../../types";
-import type { ModelContext } from "../../model-context";
-import { ReadonlyJSONValue } from "assistant-stream/utils";
+} from "../../types/message";
+import type {
+  MessageTiming,
+  RunConfig,
+  TextMessagePart,
+} from "../../types/message";
+import type { ModelContext } from "../../model-context/types";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 
 export type ChatModelRunUpdate = {
   readonly content: readonly ThreadAssistantMessagePart[];
@@ -47,11 +49,6 @@ export type ChatModelRunOptions = {
   readonly runConfig: RunConfig;
   readonly abortSignal: AbortSignal;
   readonly context: ModelContext;
-
-  /**
-   * @deprecated This field was renamed to `context`.
-   */
-  readonly config: ModelContext;
 
   readonly unstable_assistantMessageId?: string | undefined;
   readonly unstable_threadId?: string | undefined;

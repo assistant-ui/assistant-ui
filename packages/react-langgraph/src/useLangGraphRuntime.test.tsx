@@ -1,12 +1,32 @@
 import { describe, it, expect, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import {
+import type {
   AssistantRuntime,
-  AssistantRuntimeProvider,
-} from "@assistant-ui/react";
+  AttachmentAdapter,
+  RemoteThreadListAdapter,
+} from "@assistant-ui/core";
+import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import { useLangGraphRuntime, useLangGraphSend } from "./useLangGraphRuntime";
 import { mockStreamCallbackFactory } from "./testUtils";
-import { ReactNode } from "react";
+import type { LangChainMessage } from "./types";
+import type { LangGraphInterruptState } from "./useLangGraphMessages";
+import type { ReactNode } from "react";
+
+type LoadResult = {
+  messages: LangChainMessage[];
+  interrupts?: LangGraphInterruptState[];
+};
+
+const deferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
 
 const metadataEvent = {
   event: "metadata",
@@ -290,5 +310,275 @@ describe("useLangGraphRuntime", () => {
 
     // Should not throw any errors even when events are processed without handlers
     expect(runtimeResult.current).toBeDefined();
+  });
+
+  it("serializes attachment file content in flat LangGraph format", async () => {
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const attachmentAdapter: AttachmentAdapter = {
+      accept: "application/pdf",
+      add: async ({ file }) => ({
+        id: "pending-file-1",
+        type: "document",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      remove: async () => {},
+      send: async (attachment) => ({
+        ...attachment,
+        status: { type: "complete" },
+        content: [
+          {
+            type: "file",
+            filename: attachment.name,
+            data: "ZmFrZS1wZGY=",
+            mimeType: attachment.contentType ?? "application/pdf",
+          },
+        ],
+      }),
+    };
+
+    const { result: runtimeResult } = renderHook(
+      () =>
+        useLangGraphRuntime({
+          stream: streamMock,
+          adapters: {
+            attachments: attachmentAdapter,
+          },
+        }),
+      {},
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+    await act(async () => {
+      await auiResult.current
+        .composer()
+        .addAttachment(
+          new File(["fake-pdf"], "document.pdf", { type: "application/pdf" }),
+        );
+      await auiResult.current.composer().send();
+    });
+
+    await waitFor(() => {
+      expect(streamMock).toHaveBeenCalledTimes(1);
+    });
+
+    const sentMessages = streamMock.mock.calls[0]?.[0];
+    expect(sentMessages).toMatchObject([
+      {
+        type: "human",
+        content: [
+          { type: "text", text: " " },
+          {
+            type: "file",
+            data: "ZmFrZS1wZGY=",
+            mime_type: "application/pdf",
+            metadata: { filename: "document.pdf" },
+            source_type: "base64",
+          },
+        ],
+      },
+    ]);
+    expect(sentMessages?.[0]?.content?.[1]).not.toHaveProperty("file");
+  });
+
+  it("should use unstable_threadListAdapter in place of the cloud adapter", async () => {
+    const list = vi.fn(async () => ({
+      threads: [
+        {
+          status: "regular" as const,
+          remoteId: "lg-thread-1",
+          externalId: "lg-thread-1",
+          title: "Existing LangGraph thread",
+        },
+      ],
+    }));
+    const adapter: RemoteThreadListAdapter = {
+      list,
+      initialize: vi.fn(async () => ({
+        remoteId: "lg-thread-1",
+        externalId: "lg-thread-1",
+      })),
+      rename: vi.fn(async () => {}),
+      archive: vi.fn(async () => {}),
+      unarchive: vi.fn(async () => {}),
+      delete: vi.fn(async () => {}),
+      generateTitle: vi.fn(async () => new ReadableStream()),
+      fetch: vi.fn(async () => ({
+        status: "regular" as const,
+        remoteId: "lg-thread-1",
+        externalId: "lg-thread-1",
+      })),
+    };
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        unstable_threadListAdapter: adapter,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(list).toHaveBeenCalled();
+    });
+  });
+
+  const makeThreadListAdapter = (): RemoteThreadListAdapter => ({
+    list: vi.fn(async () => ({
+      threads: [
+        {
+          status: "regular" as const,
+          remoteId: "lg-thread-1",
+          externalId: "lg-thread-1",
+          title: "Existing LangGraph thread",
+        },
+      ],
+    })),
+    initialize: vi.fn(async () => ({
+      remoteId: "lg-thread-1",
+      externalId: "lg-thread-1",
+    })),
+    rename: vi.fn(async () => {}),
+    archive: vi.fn(async () => {}),
+    unarchive: vi.fn(async () => {}),
+    delete: vi.fn(async () => {}),
+    generateTitle: vi.fn(async () => new ReadableStream()),
+    fetch: vi.fn(async () => ({
+      status: "regular" as const,
+      remoteId: "lg-thread-1",
+      externalId: "lg-thread-1",
+    })),
+  });
+
+  it("should set thread.isLoading to true while load is pending and false after it resolves", async () => {
+    const pending = deferred<LoadResult>();
+    const load = vi.fn(() => pending.promise);
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: isLoadingResult } = renderHook(
+      () => useAuiState((s) => s.thread.isLoading),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+
+    await waitFor(() =>
+      expect(load).toHaveBeenCalledWith("lg-thread-1", {
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    await waitFor(() => expect(isLoadingResult.current).toBe(true));
+
+    await act(async () => {
+      pending.resolve({ messages: [] });
+    });
+
+    await waitFor(() => expect(isLoadingResult.current).toBe(false));
+  });
+
+  it("should reset thread.isLoading to false and surface the error when load rejects", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => {});
+    const loadError = new Error("failed to load thread");
+    const load = vi.fn(() => Promise.reject<LoadResult>(loadError));
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: isLoadingResult } = renderHook(
+      () => useAuiState((s) => s.thread.isLoading),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+
+    await waitFor(() =>
+      expect(load).toHaveBeenCalledWith("lg-thread-1", {
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    await waitFor(() => expect(isLoadingResult.current).toBe(false));
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "useLangGraphRuntime: load handler rejected",
+      loadError,
+    );
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("should abort the pending load when the runtime unmounts", async () => {
+    const pending = deferred<LoadResult>();
+    const load = vi.fn(() => pending.promise);
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { unmount } = renderHook(
+      () => useAuiState((s) => s.thread.isLoading),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+
+    await waitFor(() =>
+      expect(load).toHaveBeenCalledWith("lg-thread-1", {
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    const signal = load.mock.calls[0]?.[1]?.signal;
+    expect(signal?.aborted).toBe(false);
+
+    unmount();
+
+    expect(signal?.aborted).toBe(true);
   });
 });

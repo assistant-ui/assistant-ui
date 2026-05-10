@@ -34,6 +34,7 @@ export function BuilderCodeOutput({ config }: BuilderCodeOutputProps) {
       <div className="flex shrink-0 items-center justify-between px-3 py-2">
         <span className="font-medium text-sm">thread.tsx</span>
         <button
+          type="button"
           onClick={handleCopy}
           className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:text-foreground"
         >
@@ -234,7 +235,6 @@ function ComposerAction() {
           <TooltipIconButton
             tooltip="Send message"
             side="bottom"
-            type="submit"
             variant="default"
             size="icon"
             className="size-8 rounded-full"

@@ -1,10 +1,10 @@
 import {
-  ComponentRef,
+  type ComponentRef,
   forwardRef,
-  ComponentPropsWithoutRef,
-  MouseEventHandler,
+  type ComponentPropsWithoutRef,
+  type MouseEventHandler,
 } from "react";
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "./Primitive";
 import { composeEventHandlers } from "@radix-ui/primitive";
 
 type ActionButtonCallback<TProps> = (
@@ -41,8 +41,8 @@ export const createActionButton = <TProps,>(
     const callback = useActionButton(forwardedProps as TProps) ?? undefined;
     return (
       <Primitive.button
-        type="button"
         {...primitiveProps}
+        type="button"
         ref={forwardedRef}
         disabled={primitiveProps.disabled || !callback}
         onClick={composeEventHandlers(primitiveProps.onClick, callback)}

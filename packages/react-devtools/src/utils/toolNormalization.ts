@@ -29,20 +29,20 @@ const mapToNormalizedTool = (
 ): NormalizedTool => {
   const tool: NormalizedTool = { name };
 
-  if (typeof raw["type"] === "string") {
-    tool.type = raw["type"] as string;
+  if (typeof raw.type === "string") {
+    tool.type = raw.type as string;
   }
 
-  if (typeof raw["description"] === "string") {
-    tool.description = raw["description"] as string;
+  if (typeof raw.description === "string") {
+    tool.description = raw.description as string;
   }
 
-  if (typeof raw["disabled"] === "boolean") {
-    tool.disabled = raw["disabled"] as boolean;
+  if (typeof raw.disabled === "boolean") {
+    tool.disabled = raw.disabled as boolean;
   }
 
-  if (Object.prototype.hasOwnProperty.call(raw, "parameters")) {
-    tool.parameters = toJsonSchema(raw["parameters"]);
+  if (Object.hasOwn(raw, "parameters")) {
+    tool.parameters = toJsonSchema(raw.parameters);
   }
 
   return tool;
@@ -57,8 +57,8 @@ export const normalizeToolList = (value: unknown): NormalizedTool[] => {
     const tools: NormalizedTool[] = [];
 
     for (const entry of value) {
-      if (!isRecord(entry) || typeof entry["name"] !== "string") continue;
-      tools.push(mapToNormalizedTool(entry["name"] as string, entry));
+      if (!isRecord(entry) || typeof entry.name !== "string") continue;
+      tools.push(mapToNormalizedTool(entry.name as string, entry));
     }
 
     return tools;

@@ -1,4 +1,5 @@
-import { useAuiState } from "@assistant-ui/react";
+/// <reference types="@assistant-ui/core/react" />
+import { useAuiState } from "@assistant-ui/store";
 
 export type ThreadTokenUsage = {
   totalTokens?: number;
@@ -127,9 +128,28 @@ export function getThreadMessageTokenUsage(
   return usageFromSteps(metadata.steps);
 }
 
+export function getLatestThreadTokenUsage(
+  messages: readonly TokenUsageExtractableMessage[] | undefined,
+): ThreadTokenUsage | undefined {
+  return getThreadMessageTokenUsage(findLatestMessageWithUsage(messages));
+}
+
+function findLatestMessageWithUsage(
+  messages: readonly TokenUsageExtractableMessage[] | undefined,
+): TokenUsageExtractableMessage | undefined {
+  if (!messages) return undefined;
+
+  for (let idx = messages.length - 1; idx >= 0; idx -= 1) {
+    const message = messages[idx];
+    if (getThreadMessageTokenUsage(message)) {
+      return message;
+    }
+  }
+
+  return undefined;
+}
+
 export function useThreadTokenUsage(): ThreadTokenUsage | undefined {
-  const lastAssistant = useAuiState((s) =>
-    s.thread.messages.findLast((m) => m.role === "assistant"),
-  );
-  return getThreadMessageTokenUsage(lastAssistant);
+  const msg = useAuiState((s) => findLatestMessageWithUsage(s.thread.messages));
+  return getThreadMessageTokenUsage(msg);
 }

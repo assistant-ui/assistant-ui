@@ -62,7 +62,12 @@ function TimeAxisTicks({
   });
 
   return (
-    <svg width={barWidth} height={28} className="overflow-visible">
+    <svg
+      aria-hidden="true"
+      width={barWidth}
+      height={28}
+      className="overflow-visible"
+    >
       {ticks.map(({ t, x }) => (
         <g key={x}>
           <line
@@ -225,6 +230,8 @@ export function WaterfallTimeline() {
 
         {/* Span rows */}
         <WaterfallLayoutContext.Provider value={layoutValue}>
+          {/* biome-ignore lint/a11y/useKeyWithClickEvents: event delegation on span rows */}
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: event delegation on span rows */}
           <div
             style={{ width: contentWidth }}
             onClick={(e) => {
@@ -235,7 +242,9 @@ export function WaterfallTimeline() {
               }
             }}
           >
-            <SpanPrimitive.Children components={{ Span: WaterfallRow }} />
+            <SpanPrimitive.Children>
+              {() => <WaterfallRow />}
+            </SpanPrimitive.Children>
           </div>
         </WaterfallLayoutContext.Provider>
       </div>

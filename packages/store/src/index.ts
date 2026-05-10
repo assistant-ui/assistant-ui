@@ -2,6 +2,7 @@
 export { useAui } from "./useAui";
 export { useAuiState } from "./useAuiState";
 export { useAuiEvent } from "./useAuiEvent";
+export { RenderChildrenWithAccessor } from "./RenderChildrenWithAccessor";
 
 // components
 export { AuiIf } from "./AuiIf";
@@ -9,7 +10,10 @@ export { AuiProvider } from "./utils/react-assistant-context";
 
 // resources
 export { Derived } from "./Derived";
-export { attachTransformScopes } from "./attachTransformScopes";
+export {
+  attachTransformScopes,
+  forwardTransformScopes,
+} from "./attachTransformScopes";
 export type { ScopesConfig } from "./attachTransformScopes";
 
 // tap hooks

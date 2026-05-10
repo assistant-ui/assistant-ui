@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "../../types";
+import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ThreadRuntimeCore } from "./thread-runtime-core";
 
 export type ThreadListItemStatus = "archived" | "regular" | "new" | "deleted";
@@ -10,12 +10,15 @@ export type ThreadListItemCoreState = {
 
   readonly status: ThreadListItemStatus;
   readonly title?: string | undefined;
+  readonly custom?: Record<string, unknown> | undefined;
 
   readonly runtime?: ThreadRuntimeCore | undefined;
 };
 
 export type ThreadListRuntimeCore = {
   readonly isLoading: boolean;
+  readonly isLoadingMore?: boolean;
+  readonly hasMore?: boolean;
   mainThreadId: string;
   newThreadId: string | undefined;
 
@@ -33,6 +36,8 @@ export type ThreadListRuntimeCore = {
   switchToNewThread(): Promise<void>;
 
   getLoadThreadsPromise(): Promise<void>;
+  reload?(): Promise<void>;
+  loadMore?(): Promise<void>;
 
   detach(threadId: string): Promise<void>;
   rename(threadId: string, newTitle: string): Promise<void>;

@@ -1,5 +1,171 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.23
+
+### Patch Changes
+
+- Updated dependencies [[`040d469`](https://github.com/assistant-ui/assistant-ui/commit/040d469acfcf782de6fc188c646dfd8732d27088)]:
+  - @assistant-ui/core@0.2.0
+
+## 1.3.22
+
+### Patch Changes
+
+- [#3942](https://github.com/assistant-ui/assistant-ui/pull/3942) [`fbd7ce3`](https://github.com/assistant-ui/assistant-ui/commit/fbd7ce38d5a8d3992ad44acf7c6f29e115a43681) - fix: `aui.thread().append({ startRun: false })` no longer triggers a run on AI SDK runtime ([@Yonom](https://github.com/Yonom))
+
+  `useAISDKRuntime`'s `onNew` and `onEdit` always called `chatHelpers.sendMessage`, ignoring `message.startRun`. The hook now appends the message via `chatHelpers.setMessages` (with a generated id when needed) and returns early when `startRun: false`, so the message lands in the chat without kicking off a model call.
+
+- [#3962](https://github.com/assistant-ui/assistant-ui/pull/3962) [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`7098bab`](https://github.com/assistant-ui/assistant-ui/commit/7098bab4c67fbd507c3fad746ef130daa01b3fd6), [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94), [`5fdf17e`](https://github.com/assistant-ui/assistant-ui/commit/5fdf17e019c91b000c6f4cf9e3e56c89d764a435)]:
+  - @assistant-ui/core@0.1.18
+  - @assistant-ui/store@0.2.10
+
+## 1.3.21
+
+### Patch Changes
+
+- [#3909](https://github.com/assistant-ui/assistant-ui/pull/3909) [`005f83f`](https://github.com/assistant-ui/assistant-ui/commit/005f83f3ebfb94b3a9d7c34bc7d2a71bbaf63a9e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`549037a`](https://github.com/assistant-ui/assistant-ui/commit/549037ac77aed8736823cfb82baf9645e3364adf), [`005f83f`](https://github.com/assistant-ui/assistant-ui/commit/005f83f3ebfb94b3a9d7c34bc7d2a71bbaf63a9e), [`976aec5`](https://github.com/assistant-ui/assistant-ui/commit/976aec566330bee3c607cfb356f3358eefe28ac1), [`25b97d5`](https://github.com/assistant-ui/assistant-ui/commit/25b97d5c62fb038471b06eaa784ad4b7e23ef533), [`2008fc9`](https://github.com/assistant-ui/assistant-ui/commit/2008fc9af3d6fe05604d6b08275c2e9cec099bd9), [`88fcd35`](https://github.com/assistant-ui/assistant-ui/commit/88fcd352ecffd12f124abe988cc5499f784f81d6)]:
+  - @assistant-ui/core@0.1.16
+  - @assistant-ui/store@0.2.9
+
+## 1.3.20
+
+### Patch Changes
+
+- [#3876](https://github.com/assistant-ui/assistant-ui/pull/3876) [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#3841](https://github.com/assistant-ui/assistant-ui/pull/3841) [`435cfa0`](https://github.com/assistant-ui/assistant-ui/commit/435cfa0318d10478e56a1d1f82bee7dd4e359364) - fix: request body `id` in `useChatRuntime` is now the real thread id instead of the literal `"DEFAULT_THREAD_ID"`. `AssistantChatTransport` was resolving `remoteId` from the inner `ExternalStoreThreadListRuntimeCore` (which only echoes its default id); it now uses the outer `RemoteThreadListRuntimeCore` that actually calls the adapter. ([@okisdev](https://github.com/okisdev))
+
+- [#3858](https://github.com/assistant-ui/assistant-ui/pull/3858) [`da0f598`](https://github.com/assistant-ui/assistant-ui/commit/da0f59818085c7b97d157da1260c5e20873c32c1) - fix: `useAISDKRuntime` now throws when the supplied `ThreadHistoryAdapter` omits `withFormat`, instead of silently dropping all history load/append/update calls. The optional-call chain `historyAdapter.withFormat?.(…).load()` previously short-circuited to `undefined`. The `withFormat`-wrapped adapter is now memoized, and the persist effect short-circuits when no adapter is supplied (avoiding a redundant thread subscription). `ThreadHistoryAdapter.withFormat` gains a JSDoc note clarifying that it is required on the AI SDK path. ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`c7a274e`](https://github.com/assistant-ui/assistant-ui/commit/c7a274e968f8e081ded4c29cc37986392f04130e), [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6), [`ca8f526`](https://github.com/assistant-ui/assistant-ui/commit/ca8f526944968036d47849a7659353765072a836), [`c56f98f`](https://github.com/assistant-ui/assistant-ui/commit/c56f98f5759e710281fc57b343b41af102914f1a), [`974d15e`](https://github.com/assistant-ui/assistant-ui/commit/974d15e34675cc5a611f0297904f5cb2c1b3da8c), [`4b19d42`](https://github.com/assistant-ui/assistant-ui/commit/4b19d42970cb98cee6ea69e2c26dc22763091568), [`da0f598`](https://github.com/assistant-ui/assistant-ui/commit/da0f59818085c7b97d157da1260c5e20873c32c1), [`d53ff4f`](https://github.com/assistant-ui/assistant-ui/commit/d53ff4f3f8b7d7220c1cb274c4fda335598fb063), [`20f8404`](https://github.com/assistant-ui/assistant-ui/commit/20f8404b70098e4b7cbc8df5bbb47985ac81b52c), [`17958c9`](https://github.com/assistant-ui/assistant-ui/commit/17958c9234ccc42394260125df54d897c06a47fd)]:
+  - @assistant-ui/core@0.1.15
+  - assistant-cloud@0.1.27
+  - @assistant-ui/store@0.2.8
+
+## 1.3.19
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- a5bce86: fix: preserve latest thread token usage during pending turns
+- Updated dependencies [f20b9ca]
+- Updated dependencies [c988db8]
+  - @assistant-ui/core@0.1.14
+  - assistant-cloud@0.1.26
+  - @assistant-ui/store@0.2.7
+
+## 1.3.18
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+- Updated dependencies [42bc640]
+- Updated dependencies [376bb00]
+- Updated dependencies [87e7761]
+  - @assistant-ui/core@0.1.13
+  - assistant-cloud@0.1.25
+
+## 1.3.17
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [6554892]
+- Updated dependencies [9103282]
+- Updated dependencies [876f75d]
+- Updated dependencies [bdce66f]
+- Updated dependencies [4abb898]
+- Updated dependencies [209ae81]
+- Updated dependencies [2dd0c9f]
+- Updated dependencies [af70d7f]
+  - @assistant-ui/core@0.1.10
+  - assistant-cloud@0.1.24
+  - @assistant-ui/store@0.2.6
+
+## 1.3.16
+
+### Patch Changes
+
+- 781f28d: feat: accept all file types and validate against adapter's accept constraint
+- 0924711: fix(react-ai-sdk): convert assistant file parts to FileMessagePart instead of dropping them
+- 52403c3: chore: update dependencies
+- Updated dependencies [781f28d]
+- Updated dependencies [3227e71]
+- Updated dependencies [0f55ce8]
+- Updated dependencies [83a15f7]
+- Updated dependencies [52403c3]
+- Updated dependencies [ffa3a0f]
+  - @assistant-ui/core@0.1.9
+  - assistant-cloud@0.1.23
+  - @assistant-ui/store@0.2.5
+
+## 1.3.15
+
+### Patch Changes
+
+- 01a59da: fix(react-ai-sdk): preserve runConfig.custom metadata after tool call resume in human-in-the-loop tools
+- 736344c: chore: update dependencies
+- c71cb58: chore: update dependencies
+- Updated dependencies [1406aed]
+- Updated dependencies [9480f30]
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [ff3be2a]
+- Updated dependencies [70b19f3]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/core@0.1.8
+  - @assistant-ui/store@0.2.4
+
+## 1.3.14
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+- 642bcda: Add `quote.tsx` registry components and `injectQuoteContext` helper
+- Updated dependencies [1ed9867]
+- Updated dependencies [427ffaa]
+- Updated dependencies [349f3c7]
+- Updated dependencies [02614aa]
+- Updated dependencies [6cc4122]
+- Updated dependencies [642bcda]
+  - @assistant-ui/core@0.1.6
+  - assistant-cloud@0.1.22
+  - @assistant-ui/store@0.2.3
+
+## 1.3.13
+
+### Patch Changes
+
+- 8ed9d6f: Refactor React Native component API: move shared runtime logic (remote thread list, external store, cloud adapters, message converter, tool invocations) into @assistant-ui/core for reuse across React and React Native
+- Updated dependencies [5ae74fe]
+- Updated dependencies [8ed9d6f]
+- Updated dependencies [01bee2b]
+  - @assistant-ui/core@0.1.3
+
+## 1.3.12
+
+### Patch Changes
+
+- 57e26d2: chore: update dependencies
+
+## 1.3.11
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+- Updated dependencies [07dcce0]
+- Updated dependencies [a845911]
+- Updated dependencies [bc40eaf]
+- Updated dependencies [be23d74]
+- Updated dependencies [1eb059c]
+  - @assistant-ui/react@0.12.15
+  - assistant-cloud@0.1.21
+
 ## 1.3.10
 
 ### Patch Changes

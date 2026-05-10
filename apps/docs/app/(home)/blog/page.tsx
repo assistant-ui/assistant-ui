@@ -20,7 +20,7 @@ function formatDate(date: Date): string {
   });
 }
 
-export default function BlogPage(): React.ReactElement {
+export default function BlogIndex(): React.ReactElement {
   const posts = [...(blog.getPages() as BlogPage[])].sort(
     (a, b) => (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0),
   );

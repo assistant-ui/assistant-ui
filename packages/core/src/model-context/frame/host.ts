@@ -1,11 +1,11 @@
-import { ModelContextProvider, ModelContext } from "../types";
-import type { Unsubscribe } from "../../types";
-import { Tool } from "assistant-stream";
+import type { ModelContextProvider, ModelContext } from "../types";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { Tool } from "assistant-stream";
 import {
-  FrameMessage,
+  type FrameMessage,
   FRAME_MESSAGE_CHANNEL,
-  SerializedModelContext,
-  SerializedTool,
+  type SerializedModelContext,
+  type SerializedTool,
 } from "./types";
 
 /**
@@ -175,6 +175,7 @@ export class AssistantFrameHost implements ModelContextProvider {
   }
 
   private notifySubscribers() {
+    // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
     this._subscribers.forEach((callback) => callback());
   }
 

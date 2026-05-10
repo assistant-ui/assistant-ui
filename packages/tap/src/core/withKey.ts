@@ -1,4 +1,4 @@
-import { ResourceElement } from "./types";
+import type { ResourceElement } from "./types";
 
 export function withKey<E extends ResourceElement<any, any>>(
   key: string | number,

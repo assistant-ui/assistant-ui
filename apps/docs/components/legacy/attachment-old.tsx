@@ -1,6 +1,6 @@
 "use client";
 
-import { PropsWithChildren, useEffect, useState, type FC } from "react";
+import { type PropsWithChildren, useEffect, useState, type FC } from "react";
 import { CircleXIcon, FileIcon, PaperclipIcon } from "lucide-react";
 import {
   AttachmentPrimitive,
@@ -67,6 +67,7 @@ const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   return (
+    // biome-ignore lint/performance/noImgElement: example component
     <img
       src={src}
       style={{
@@ -107,11 +108,10 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
 };
 
 const AttachmentThumb: FC = () => {
-  const isImage = useAuiState((s) => s.attachment.type === "image");
   const src = useAttachmentSrc();
   return (
     <Avatar className="flex size-10 items-center justify-center rounded border bg-muted text-sm">
-      <AvatarFallback delayMs={isImage ? 200 : 0}>
+      <AvatarFallback>
         <FileIcon />
       </AvatarFallback>
       <AvatarImage src={src} />
@@ -177,7 +177,9 @@ const AttachmentRemove: FC = () => {
 export const UserMessageAttachments: FC = () => {
   return (
     <div className="col-span-full col-start-1 row-start-1 flex w-full flex-row justify-end gap-3">
-      <MessagePrimitive.Attachments components={{ Attachment: AttachmentUI }} />
+      <MessagePrimitive.Attachments>
+        {() => <AttachmentUI />}
+      </MessagePrimitive.Attachments>
     </div>
   );
 };
@@ -185,9 +187,9 @@ export const UserMessageAttachments: FC = () => {
 export const ComposerAttachments: FC = () => {
   return (
     <div className="flex w-full flex-row gap-3 overflow-x-auto">
-      <ComposerPrimitive.Attachments
-        components={{ Attachment: AttachmentUI }}
-      />
+      <ComposerPrimitive.Attachments>
+        {() => <AttachmentUI />}
+      </ComposerPrimitive.Attachments>
     </div>
   );
 };

@@ -1,30 +1,26 @@
-import { Pressable, View, StyleSheet, useColorScheme } from "react-native";
+import { View, StyleSheet, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  useActionBarCopy,
-  useActionBarReload,
-} from "@assistant-ui/react-native";
+import { ActionBarPrimitive } from "@assistant-ui/react-native";
 
 export function MessageActionBar() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const iconColor = isDark ? "#8e8e93" : "#6e6e73";
 
-  const { copy, isCopied } = useActionBarCopy();
-  const { reload } = useActionBarReload();
-
   return (
     <View style={styles.container}>
-      <Pressable style={styles.button} onPress={copy}>
-        <Ionicons
-          name={isCopied ? "checkmark" : "copy-outline"}
-          size={16}
-          color={isCopied ? "#34c759" : iconColor}
-        />
-      </Pressable>
-      <Pressable style={styles.button} onPress={reload}>
+      <ActionBarPrimitive.Copy style={styles.button}>
+        {({ isCopied }) => (
+          <Ionicons
+            name={isCopied ? "checkmark" : "copy-outline"}
+            size={16}
+            color={isCopied ? "#34c759" : iconColor}
+          />
+        )}
+      </ActionBarPrimitive.Copy>
+      <ActionBarPrimitive.Reload style={styles.button}>
         <Ionicons name="refresh-outline" size={16} color={iconColor} />
-      </Pressable>
+      </ActionBarPrimitive.Reload>
     </View>
   );
 }

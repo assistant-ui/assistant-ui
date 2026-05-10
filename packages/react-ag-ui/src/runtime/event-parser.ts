@@ -1,4 +1,9 @@
-import type { AgUiEvent } from "./types";
+import type { AgUiEvent, AgUiInterrupt, AgUiRunFinishedOutcome } from "./types";
+import type { Logger } from "./logger";
+
+export type ParseAgUiEventOptions = {
+  logger?: Logger;
+};
 
 const isString = (value: unknown): value is string => typeof value === "string";
 const isNonEmptyString = (value: unknown): value is string =>
@@ -16,10 +21,60 @@ const withOptional = <T extends object>(
     : ({ ...base, ...Object.fromEntries(definedEntries) } as T);
 };
 
-export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === "object" && !Array.isArray(value);
+
+const parseInterrupt = (raw: unknown): AgUiInterrupt | null => {
+  if (!isPlainObject(raw)) return null;
+  const id = raw.id;
+  const reason = raw.reason;
+  if (typeof id !== "string" || typeof reason !== "string") return null;
+  const interrupt: AgUiInterrupt = { id, reason };
+  if (typeof raw.message === "string") interrupt.message = raw.message;
+  if (typeof raw.toolCallId === "string") interrupt.toolCallId = raw.toolCallId;
+  if (typeof raw.expiresAt === "string") interrupt.expiresAt = raw.expiresAt;
+  if (isPlainObject(raw.responseSchema))
+    interrupt.responseSchema = raw.responseSchema;
+  if (isPlainObject(raw.metadata)) interrupt.metadata = raw.metadata;
+  return interrupt;
+};
+
+const parseRunFinishedOutcome = (
+  raw: unknown,
+  logger: Logger | undefined,
+): AgUiRunFinishedOutcome | undefined => {
+  if (!isPlainObject(raw)) return undefined;
+  if (raw.type === "success") return { type: "success" };
+  if (raw.type === "interrupt") {
+    if (!Array.isArray(raw.interrupts)) {
+      logger?.debug?.(
+        "[agui] RUN_FINISHED interrupt outcome missing interrupts array",
+        raw,
+      );
+      return undefined;
+    }
+    const parsed = raw.interrupts
+      .map((entry) => parseInterrupt(entry))
+      .filter((entry): entry is AgUiInterrupt => entry !== null);
+    if (parsed.length === 0) {
+      logger?.debug?.(
+        "[agui] RUN_FINISHED interrupt outcome has no valid interrupts",
+        raw.interrupts,
+      );
+      return undefined;
+    }
+    return { type: "interrupt", interrupts: parsed };
+  }
+  return undefined;
+};
+
+export const parseAgUiEvent = (
+  event: unknown,
+  options?: ParseAgUiEventOptions,
+): AgUiEvent | null => {
   if (!event || typeof event !== "object") return null;
   const payload = event as Record<string, unknown>;
-  const typeValue = payload["type"];
+  const typeValue = payload.type;
   if (!isString(typeValue)) return null;
 
   const getString = (key: string) =>
@@ -32,7 +87,13 @@ export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
     }
     case "RUN_FINISHED": {
       const runId = getString("runId");
-      return runId ? { type: "RUN_FINISHED", runId } : null;
+      if (!runId) return null;
+      return withOptional(
+        { type: "RUN_FINISHED" as const, runId },
+        {
+          outcome: parseRunFinishedOutcome(payload.outcome, options?.logger),
+        },
+      );
     }
     case "RUN_CANCELLED": {
       const runId = getString("runId");
@@ -87,6 +148,33 @@ export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
       return { type: "THINKING_TEXT_MESSAGE_END" };
     case "THINKING_END":
       return { type: "THINKING_END" };
+    case "REASONING_START":
+      return withOptional(
+        { type: "REASONING_START" as const },
+        { messageId: getString("messageId") },
+      );
+    case "REASONING_MESSAGE_START":
+      return withOptional(
+        { type: "REASONING_MESSAGE_START" as const },
+        { messageId: getString("messageId") },
+      );
+    case "REASONING_MESSAGE_CONTENT": {
+      const delta = getString("delta") ?? "";
+      return withOptional(
+        { type: "REASONING_MESSAGE_CONTENT" as const, delta },
+        { messageId: getString("messageId") },
+      );
+    }
+    case "REASONING_MESSAGE_END":
+      return withOptional(
+        { type: "REASONING_MESSAGE_END" as const },
+        { messageId: getString("messageId") },
+      );
+    case "REASONING_END":
+      return withOptional(
+        { type: "REASONING_END" as const },
+        { messageId: getString("messageId") },
+      );
     case "TOOL_CALL_START": {
       const toolCallId = getString("toolCallId");
       if (!toolCallId) return null;
@@ -129,43 +217,39 @@ export const parseAgUiEvent = (event: unknown): AgUiEvent | null => {
         },
         {
           messageId: getString("messageId"),
-          role: payload["role"] === "tool" ? "tool" : undefined,
+          role: payload.role === "tool" ? "tool" : undefined,
         },
       );
     }
     case "STATE_SNAPSHOT":
-      return { type: "STATE_SNAPSHOT", snapshot: payload["snapshot"] };
+      return { type: "STATE_SNAPSHOT", snapshot: payload.snapshot };
     case "STATE_DELTA":
       return {
         type: "STATE_DELTA",
-        delta: Array.isArray(payload["delta"])
-          ? (payload["delta"] as any[])
-          : [],
+        delta: Array.isArray(payload.delta) ? (payload.delta as any[]) : [],
       };
     case "MESSAGES_SNAPSHOT":
       return {
         type: "MESSAGES_SNAPSHOT",
-        messages: Array.isArray(payload["messages"])
-          ? (payload["messages"] as any[])
+        messages: Array.isArray(payload.messages)
+          ? (payload.messages as any[])
           : [],
       };
     case "RAW":
       return withOptional(
-        { type: "RAW" as const, event: payload["event"] },
+        { type: "RAW" as const, event: payload.event },
         { source: getString("source") },
       );
     case "CUSTOM": {
       const name = getString("name");
       if (!name) return null;
-      return { type: "CUSTOM", name, value: payload["value"] };
+      return { type: "CUSTOM", name, value: payload.value };
     }
     default:
       return withOptional(
         { type: "RAW" as const, event: payload },
         {
-          source: isString(payload["type"])
-            ? (payload["type"] as string)
-            : undefined,
+          source: isString(payload.type) ? (payload.type as string) : undefined,
         },
       );
   }

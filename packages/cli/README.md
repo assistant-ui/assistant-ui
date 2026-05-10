@@ -20,7 +20,7 @@ Passing `--preset` to `init` also forwards to `create` for compatibility.
 
 Use the `create` command to scaffold a new Next.js project with assistant-ui.
 
-The `create` command uses `create-next-app` with assistant-ui starter templates.
+The `create` command scaffolds a project from assistant-ui starter templates or examples.
 
 ```bash
 npx assistant-ui@latest create my-app
@@ -90,6 +90,47 @@ The `upgrade` command runs codemods to transform your code and prompts to instal
 ```bash
 npx assistant-ui@latest upgrade
 ```
+
+## info
+
+Use the `info` command to print your environment and package versions for bug reports.
+
+```bash
+npx assistant-ui info
+```
+
+This command collects and prints:
+- OS, Node.js version, package manager, and framework
+- All installed `@assistant-ui/*` and `assistant-*` package versions
+- Key ecosystem dependency versions (React, Next.js, AI SDK, etc.)
+- Peer dependency warnings if any mismatches are detected
+
+**Example output:**
+
+```
+Environment:
+  OS:               macOS 15.3 (arm64)
+  Node.js:          v22.14.0
+  Package Manager:  pnpm 10.32.1
+  Framework:        Next.js 15.3.1
+
+Packages:
+  @assistant-ui/react            0.12.15
+  @assistant-ui/react-ai-sdk     1.3.12
+  @assistant-ui/react-markdown   0.3.8
+  assistant-stream                0.2.14
+
+Ecosystem:
+  react      19.1.0
+  react-dom  19.1.0
+  next       15.3.1
+  ai         6.0.120
+```
+
+The output includes a copy-pasteable markdown block that you can paste directly into a bug report.
+
+**Options:**
+- `-c, --cwd <cwd>` - the working directory. defaults to the current directory.
 
 ## Documentation
 

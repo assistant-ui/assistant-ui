@@ -24,6 +24,7 @@ import {
 } from "@/components/assistant-ui/tool-fallback";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // Custom Weather Tool UI
 function WeatherToolUI({
@@ -46,8 +47,8 @@ function WeatherToolUI({
 
   return (
     <div className="flex items-center gap-3 rounded-lg border p-3">
-      <div className={`rounded-full p-2 ${config.bg}`}>
-        <Icon className={`size-5 ${config.color}`} />
+      <div className={cn("rounded-full p-2", config.bg)}>
+        <Icon className={cn("size-5", config.color)} />
       </div>
       <div className="flex-1">
         <div className="flex items-center gap-1 text-muted-foreground text-xs">
@@ -146,12 +147,12 @@ function StreamingWeatherToolUI({
 
   return (
     <div className="flex items-center gap-3 rounded-lg border p-3">
-      <div className={`rounded-full p-2 ${config?.bg ?? "bg-muted"}`}>
+      <div className={cn("rounded-full p-2", config?.bg ?? "bg-muted")}>
         {isLoading ? (
           <div className="size-5 animate-pulse rounded-full bg-muted-foreground/20" />
         ) : (
           <Icon
-            className={`size-5 ${config?.color ?? "text-muted-foreground"}`}
+            className={cn("size-5", config?.color ?? "text-muted-foreground")}
           />
         )}
       </div>

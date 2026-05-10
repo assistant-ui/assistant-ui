@@ -1,21 +1,53 @@
+/// <reference types="@assistant-ui/core/store" />
 import { useState, useCallback, useRef, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
 import {
-  EventType,
-  LangChainMessageTupleEvent,
+  type EventType,
+  type LangChainMessageTupleEvent,
   LangGraphKnownEventTypes,
-  LangGraphTupleMetadata,
-  OnMessageChunkCallback,
-  OnValuesEventCallback,
-  OnUpdatesEventCallback,
-  OnCustomEventCallback,
-  OnErrorEventCallback,
-  OnInfoEventCallback,
-  OnMetadataEventCallback,
+  type LangGraphTupleMetadata,
+  type OnMessageChunkCallback,
+  type OnValuesEventCallback,
+  type OnUpdatesEventCallback,
+  type OnSubgraphUpdatesEventCallback,
+  type OnSubgraphValuesEventCallback,
+  type OnCustomEventCallback,
+  type OnErrorEventCallback,
+  type OnSubgraphErrorEventCallback,
+  type OnInfoEventCallback,
+  type OnMetadataEventCallback,
+  type RemoveUIMessage,
+  type UIMessage,
 } from "./types";
-import { useAui } from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/store";
 import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage";
+
+const DEFAULT_UI_STATE_KEY = "ui";
+
+const parseEventType = (
+  event: string,
+): { type: string; namespace: string | undefined } => {
+  const pipeIndex = event.indexOf("|");
+  if (pipeIndex === -1) return { type: event, namespace: undefined };
+  return {
+    type: event.slice(0, pipeIndex),
+    namespace: event.slice(pipeIndex + 1),
+  };
+};
+
+const isUIUpdate = (
+  value: unknown,
+): value is
+  | UIMessage
+  | RemoveUIMessage
+  | readonly (UIMessage | RemoveUIMessage)[] => {
+  if (Array.isArray(value)) return value.every(isUIUpdate);
+  if (value == null || typeof value !== "object") return false;
+  const v = value as { type?: unknown; id?: unknown };
+  if (typeof v.id !== "string") return false;
+  return v.type === "ui" || v.type === "remove-ui";
+};
 
 export type LangGraphCommand = {
   resume: string;
@@ -52,6 +84,60 @@ export type LangGraphInterruptState = {
   ns?: string[];
 };
 
+const ROLE_TO_TYPE: Record<string, string> = {
+  user: "human",
+  assistant: "ai",
+  system: "system",
+  tool: "tool",
+};
+
+const normalizeMessageType = <TMessage>(message: TMessage): TMessage => {
+  const msg = message as Record<string, unknown>;
+  if (msg.type) return message;
+  const role = msg.role as string | undefined;
+  if (role && role in ROLE_TO_TYPE) {
+    const { role: _, ...rest } = msg;
+    return { ...rest, type: ROLE_TO_TYPE[role] } as TMessage;
+  }
+  return message;
+};
+
+const extractMessagesFromUpdates = <TMessage>(
+  data: Record<string, unknown>,
+): TMessage[] => {
+  // { messages: [...] } shape
+  if (Array.isArray(data.messages)) {
+    return (data.messages as TMessage[]).map(normalizeMessageType);
+  }
+
+  // { nodeName: { messages: [...] } } shape
+  const messages: TMessage[] = [];
+  for (const value of Object.values(data)) {
+    if (value && typeof value === "object" && "messages" in value) {
+      const nodeMessages = (value as Record<string, unknown>).messages;
+      if (Array.isArray(nodeMessages)) {
+        messages.push(
+          ...(nodeMessages as TMessage[]).map(normalizeMessageType),
+        );
+      }
+    }
+  }
+  return messages;
+};
+
+const extractNewMessagesFromValues = <TMessage extends { id?: string }>(
+  valuesMessages: TMessage[],
+  accumulator: LangGraphMessageAccumulator<TMessage>,
+): TMessage[] => {
+  const existing = new Set(
+    accumulator
+      .getMessages()
+      .map((m) => m.id)
+      .filter(Boolean),
+  );
+  return valuesMessages.filter((m) => m.id && !existing.has(m.id));
+};
+
 const DEFAULT_APPEND_MESSAGE = <TMessage>(
   _: TMessage | undefined,
   curr: TMessage,
@@ -61,16 +147,26 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
   stream,
   appendMessage = DEFAULT_APPEND_MESSAGE,
   eventHandlers,
+  uiStateKey = DEFAULT_UI_STATE_KEY,
 }: {
   stream: LangGraphStreamCallback<TMessage>;
   appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
+  /**
+   * State key under which `typedUi` writes UI messages in the graph state.
+   * Must match the `stateKey` option passed to `typedUi(config, { stateKey })`
+   * on the server. Defaults to `"ui"`.
+   */
+  uiStateKey?: string;
   eventHandlers?: {
     onMessageChunk?: OnMessageChunkCallback;
     onValues?: OnValuesEventCallback;
     onUpdates?: OnUpdatesEventCallback;
+    onSubgraphValues?: OnSubgraphValuesEventCallback;
+    onSubgraphUpdates?: OnSubgraphUpdatesEventCallback;
     onMetadata?: OnMetadataEventCallback;
     onInfo?: OnInfoEventCallback;
     onError?: OnErrorEventCallback;
+    onSubgraphError?: OnSubgraphErrorEventCallback;
     onCustomEvent?: OnCustomEventCallback;
   };
 }) => {
@@ -86,6 +182,15 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     _setMessages(msgs);
   }, []);
 
+  const [uiMessages, _setUIMessages] = useState<UIMessage[]>([]);
+  const uiMessagesRef = useRef(uiMessages);
+  uiMessagesRef.current = uiMessages;
+
+  const setUIMessagesImmediate = useCallback((next: UIMessage[]) => {
+    uiMessagesRef.current = next;
+    _setUIMessages(next);
+  }, []);
+
   const [messageMetadata, setMessageMetadata] = useState<
     Map<string, LangGraphTupleMetadata>
   >(new Map());
@@ -95,29 +200,37 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     onMessageChunk,
     onValues,
     onUpdates,
+    onSubgraphValues,
+    onSubgraphUpdates,
     onMetadata,
     onInfo,
     onError,
+    onSubgraphError,
     onCustomEvent,
   } = useMemo(() => eventHandlers ?? {}, [eventHandlers]);
 
   const aui = useAui();
   const sendMessage = useCallback(
-    async (newMessages: TMessage[], config: LangGraphSendMessageConfig) => {
-      // ensure all messages have an ID
-      const newMessagesWithId = newMessages.map((m) =>
-        m.id ? m : { ...m, id: uuidv4() },
-      );
-
-      const accumulator = new LangGraphMessageAccumulator({
-        initialMessages: messagesRef.current,
-        appendMessage,
-      });
-      setMessagesImmediate(accumulator.addMessages(newMessagesWithId));
-
+    async (
+      newMessages: TMessage[],
+      config: LangGraphSendMessageConfig,
+      onComplete?: () => void,
+    ) => {
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
       try {
+        // ensure all messages have an ID
+        const newMessagesWithId = newMessages.map((m) =>
+          m.id ? m : { ...m, id: uuidv4() },
+        );
+
+        const accumulator = new LangGraphMessageAccumulator({
+          initialMessages: messagesRef.current,
+          initialUIMessages: uiMessagesRef.current,
+          appendMessage,
+        });
+        setMessagesImmediate(accumulator.addMessages(newMessagesWithId));
+
         const response = await stream(newMessagesWithId, {
           ...config,
           abortSignal: abortController.signal,
@@ -127,26 +240,62 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
         });
 
         let hasTupleMessageEvents = false;
+        let lastValuesMessages: TMessage[] | null = null;
+        let lastValuesUIMessages: UIMessage[] | null = null;
         for await (const chunk of response) {
-          switch (chunk.event) {
+          const { type: eventType, namespace: eventNamespace } = parseEventType(
+            chunk.event,
+          );
+          switch (eventType) {
             case LangGraphKnownEventTypes.MessagesPartial:
             case LangGraphKnownEventTypes.MessagesComplete:
               setMessagesImmediate(accumulator.addMessages(chunk.data));
               break;
-            case LangGraphKnownEventTypes.Updates:
+            case LangGraphKnownEventTypes.Updates: {
+              if (eventNamespace) {
+                onSubgraphUpdates?.(eventNamespace, chunk.data);
+                break;
+              }
               onUpdates?.(chunk.data);
-              if (
-                Array.isArray(chunk.data.messages) &&
-                !hasTupleMessageEvents
-              ) {
-                setMessagesImmediate(
-                  accumulator.replaceMessages(chunk.data.messages),
-                );
+              const extracted = extractMessagesFromUpdates<TMessage>(
+                chunk.data,
+              );
+              if (extracted.length > 0) {
+                setMessagesImmediate(accumulator.addMessages(extracted));
               }
               setInterrupt(chunk.data.__interrupt__?.[0]);
               break;
+            }
             case LangGraphKnownEventTypes.Values:
+              if (eventNamespace) {
+                onSubgraphValues?.(eventNamespace, chunk.data);
+                break;
+              }
               onValues?.(chunk.data);
+              if (Array.isArray(chunk.data?.messages)) {
+                lastValuesMessages = chunk.data.messages;
+                if (hasTupleMessageEvents) {
+                  const newMessages = extractNewMessagesFromValues(
+                    chunk.data.messages,
+                    accumulator,
+                  );
+                  if (newMessages.length > 0) {
+                    setMessagesImmediate(accumulator.addMessages(newMessages));
+                  }
+                } else {
+                  setMessagesImmediate(
+                    accumulator.replaceMessages(chunk.data.messages),
+                  );
+                }
+              }
+              if (Array.isArray(chunk.data?.[uiStateKey])) {
+                // values is a full state snapshot, replace UI list wholesale
+                const valuesUIMessages = chunk.data[uiStateKey] as UIMessage[];
+                lastValuesUIMessages = valuesUIMessages;
+                setUIMessagesImmediate(
+                  accumulator.replaceUIMessages(valuesUIMessages),
+                );
+              }
               break;
             case LangGraphKnownEventTypes.Messages: {
               hasTupleMessageEvents = true;
@@ -163,19 +312,29 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                 break;
               }
 
+              const tupleMetadataWithNamespace:
+                | LangGraphTupleMetadata
+                | undefined =
+                tupleMetadata || eventNamespace
+                  ? {
+                      ...(tupleMetadata ?? {}),
+                      ...(eventNamespace ? { namespace: eventNamespace } : {}),
+                    }
+                  : undefined;
+
               if (normalizedTupleMessage.kind === "chunk") {
                 onMessageChunk?.(
                   normalizedTupleMessage.message,
-                  tupleMetadata ?? {},
+                  tupleMetadataWithNamespace ?? {},
                 );
               }
 
               const normalizedMessage =
                 normalizedTupleMessage.message as unknown as TMessage;
-              const updatedMessages = tupleMetadata
+              const updatedMessages = tupleMetadataWithNamespace
                 ? accumulator.addMessageWithMetadata(
                     normalizedMessage,
-                    tupleMetadata,
+                    tupleMetadataWithNamespace,
                   )
                 : accumulator.addMessages([normalizedMessage]);
 
@@ -191,29 +350,37 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               break;
             case LangGraphKnownEventTypes.Error: {
               onError?.(chunk.data);
-              // Update the last AI message with error status
-              // Assumes last AI message is the one the error relates to
-              const messages = accumulator.getMessages();
-              const lastAiMessage = messages.findLast(
-                (m): m is TMessage & { type: string; id: string } =>
-                  m != null && "type" in m && m.type === "ai" && m.id != null,
-              );
-              if (lastAiMessage) {
-                const errorMessage = {
-                  ...lastAiMessage,
-                  status: {
-                    type: "incomplete" as const,
-                    reason: "error" as const,
-                    error: chunk.data,
-                  },
-                };
-                setMessagesImmediate(accumulator.addMessages([errorMessage]));
+              // namespaced errors come from subgraphs, which the parent may recover from
+              if (!eventNamespace) {
+                const messages = accumulator.getMessages();
+                const lastAiMessage = messages.findLast(
+                  (m): m is TMessage & { type: string; id: string } =>
+                    m != null && "type" in m && m.type === "ai" && m.id != null,
+                );
+                if (lastAiMessage) {
+                  const errorMessage = {
+                    ...lastAiMessage,
+                    status: {
+                      type: "incomplete" as const,
+                      reason: "error" as const,
+                      error: chunk.data,
+                    },
+                  };
+                  setMessagesImmediate(accumulator.addMessages([errorMessage]));
+                }
+              } else {
+                onSubgraphError?.(eventNamespace, chunk.data);
               }
               break;
             }
-            default:
+            default: {
+              // push_ui_message emits ui/remove-ui events on the "custom" channel
+              if (eventType === "custom" && isUIUpdate(chunk.data)) {
+                setUIMessagesImmediate(accumulator.applyUIUpdate(chunk.data));
+                break;
+              }
               if (onCustomEvent) {
-                onCustomEvent(chunk.event, chunk.data);
+                onCustomEvent(eventType, chunk.data);
               } else {
                 console.warn(
                   "Unhandled event received:",
@@ -222,7 +389,23 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                 );
               }
               break;
+            }
           }
+        }
+
+        // Final reconcile: use the last values snapshot as authoritative state
+        if (lastValuesMessages && !abortController.signal.aborted) {
+          setMessagesImmediate(
+            hasTupleMessageEvents
+              ? accumulator.reconcileMessages(lastValuesMessages)
+              : accumulator.replaceMessages(lastValuesMessages),
+          );
+          setMessageMetadata(new Map(accumulator.getMetadataMap()));
+        }
+        if (lastValuesUIMessages && !abortController.signal.aborted) {
+          setUIMessagesImmediate(
+            accumulator.replaceUIMessages(lastValuesUIMessages),
+          );
         }
       } catch (error) {
         if (
@@ -235,19 +418,25 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = null;
         }
+        onComplete?.();
       }
     },
     [
       aui,
       setMessagesImmediate,
+      setUIMessagesImmediate,
       appendMessage,
       stream,
+      uiStateKey,
       onMessageChunk,
       onValues,
       onUpdates,
+      onSubgraphValues,
+      onSubgraphUpdates,
       onMetadata,
       onInfo,
       onError,
+      onSubgraphError,
       onCustomEvent,
     ],
   );
@@ -262,9 +451,11 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     interrupt,
     messages,
     messageMetadata,
+    uiMessages,
     sendMessage,
     cancel,
     setInterrupt,
     setMessages: setMessagesImmediate,
+    setUIMessages: setUIMessagesImmediate,
   };
 };

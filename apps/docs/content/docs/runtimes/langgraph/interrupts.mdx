@@ -1,0 +1,104 @@
+---
+title: Interrupts and message editing
+description: Interrupt persistence and checkpoint-based message editing.
+---
+
+Both interrupt persistence and message editing rely on LangGraph's server-side checkpoints. Once you have one wired up, the other is mostly free.
+
+## Interrupt persistence
+
+LangGraph supports interrupting the execution flow to request user input or handle specific interactions. These interrupts can be persisted and restored when switching between threads:
+
+1. Make sure your thread state type includes the `interrupts` field.
+2. Return the interrupts from the `load` function along with the messages.
+3. The runtime automatically restores the interrupt state when switching threads.
+
+```ts
+const runtime = useLangGraphRuntime({
+  stream: async (messages, { initialize, ...config }) => {
+    /* ... */
+  },
+  load: async (externalId) => {
+    const state = await getThreadState(externalId);
+    return {
+      messages: state.values.messages,
+      interrupts: state.tasks[0]?.interrupts,
+    };
+  },
+});
+```
+
+This is particularly useful for applications that require user approval flows, multi-step forms, or other interactive elements that span multiple thread switches.
+
+## Message editing and regeneration
+
+LangGraph uses server-side checkpoints for state management. To support message editing (branching) and regeneration, provide a `getCheckpointId` callback that resolves the appropriate checkpoint for server-side forking.
+
+```ts
+const runtime = useLangGraphRuntime({
+  stream: async (messages, { initialize, ...config }) => {
+    const { externalId } = await initialize();
+    if (!externalId) throw new Error("Thread not found");
+    return sendMessage({ threadId: externalId, messages, config });
+  },
+  create: async () => {
+    const { thread_id } = await createThread();
+    return { externalId: thread_id };
+  },
+  load: async (externalId) => {
+    const state = await getThreadState(externalId);
+    return {
+      messages: state.values.messages,
+      interrupts: state.tasks[0]?.interrupts,
+    };
+  },
+  getCheckpointId: async (threadId, parentMessages) => {
+    const client = createClient();
+    const history = await client.threads.getHistory(threadId);
+    for (const state of history) {
+      const stateMessages = state.values.messages;
+      if (!stateMessages || stateMessages.length !== parentMessages.length) {
+        continue;
+      }
+      const hasStableIds =
+        parentMessages.every((m) => typeof m.id === "string") &&
+        stateMessages.every((m) => typeof m.id === "string");
+      if (!hasStableIds) continue;
+
+      const isMatch = parentMessages.every(
+        (m, i) => m.id === stateMessages[i]?.id,
+      );
+      if (isMatch) {
+        return state.checkpoint.checkpoint_id ?? null;
+      }
+    }
+    return null;
+  },
+});
+```
+
+When `getCheckpointId` is provided:
+
+- **Edit buttons** appear on user messages, allowing users to edit and resend from that point.
+- **Regenerate buttons** appear on assistant messages, allowing users to regenerate the response.
+
+The resolved `checkpointId` is passed to your `stream` callback via `config.checkpointId`. Your `sendMessage` helper should map it to the LangGraph SDK's `checkpoint_id` parameter (see [quickstart](/docs/runtimes/langgraph/quickstart) for the helper).
+
+<Callout type="info">
+Without `getCheckpointId`, edit and regenerate buttons will not appear. This is intentional; truncating client-side messages without forking from the correct server-side checkpoint would produce incorrect state.
+</Callout>
+
+## Next
+
+<Cards>
+  <Card
+    title="Threads"
+    description="Basic thread support, AssistantCloud, custom thread list adapter."
+    href="/docs/runtimes/langgraph/threads"
+  />
+  <Card
+    title="Streaming"
+    description="Event handlers, message metadata, generative UI."
+    href="/docs/runtimes/langgraph/streaming"
+  />
+</Cards>

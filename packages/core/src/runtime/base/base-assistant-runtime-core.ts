@@ -1,5 +1,5 @@
-import type { Unsubscribe } from "../../types";
-import type { ModelContextProvider } from "../../model-context";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { ModelContextProvider } from "../../model-context/types";
 import { CompositeContextProvider } from "../../utils/composite-context-provider";
 import type { AssistantRuntimeCore } from "../interfaces/assistant-runtime-core";
 import type { ThreadListRuntimeCore } from "../interfaces/thread-list-runtime-core";

@@ -1,4 +1,4 @@
-import { AssistantCloudAPI } from "./AssistantCloudAPI";
+import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 
 type PdfToImagesRequestBody = {
   file_blob?: string | undefined;

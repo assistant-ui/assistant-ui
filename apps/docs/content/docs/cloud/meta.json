@@ -4,7 +4,7 @@
   "icon": "Cloud",
   "root": true,
   "pages": [
-    "overview",
+    "index",
     "ai-sdk",
     "ai-sdk-assistant-ui",
     "langgraph",

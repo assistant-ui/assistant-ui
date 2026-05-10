@@ -1,4 +1,12 @@
 {
   "title": "LangGraph Cloud",
-  "pages": ["index", "tutorial", "..."]
+  "pages": [
+    "overview",
+    "quickstart",
+    "streaming",
+    "generative-ui",
+    "interrupts",
+    "threads",
+    "tutorial"
+  ]
 }

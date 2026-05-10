@@ -1,0 +1,200 @@
+---
+title: Composer Trigger Popover
+description: Reusable picker UI for @ mentions, / slash commands, and any other character-triggered popover.
+platforms: ["react"]
+---
+
+import { ComposerTriggerPopoverSample } from "@/components/docs/samples/composer-trigger-popover";
+
+<ComposerTriggerPopoverSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `composer-trigger-popover`
+
+<InstallCommand shadcn={["composer-trigger-popover"]} />
+
+This adds `/components/assistant-ui/composer-trigger-popover.tsx` — a generic picker UI (Categories + Items + Back) driven by an adapter and one of two behavior props: `directive` (insert a chip) or `action` (run a callback).
+
+  </Step>
+  <Step>
+
+### Wrap the composer
+
+Place `ComposerPrimitive.Unstable_TriggerPopoverRoot` around your composer. Any number of `ComposerTriggerPopover` declarations can live inside — each with its own trigger character, adapter, and behavior prop.
+
+```tsx title="components/assistant-ui/thread.tsx"
+import { ComposerPrimitive } from "@assistant-ui/react";
+import { ComposerTriggerPopover } from "@/components/assistant-ui/composer-trigger-popover";
+
+const Composer = () => (
+  <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+    <ComposerPrimitive.Root>
+      <ComposerPrimitive.Input placeholder="Type @ to mention, / for commands..." />
+      <ComposerPrimitive.Send />
+
+      {/* triggers declared here */}
+    </ComposerPrimitive.Root>
+  </ComposerPrimitive.Unstable_TriggerPopoverRoot>
+);
+```
+
+  </Step>
+</Steps>
+
+## @ Mention
+
+Pair the popover with `unstable_useMentionAdapter` — the hook returns a spreadable `{ adapter, directive }` bundle so selecting an item writes a `:tool[Label]{name=id}` directive into the composer text.
+
+```tsx
+import { unstable_useMentionAdapter } from "@assistant-ui/react";
+import { WrenchIcon } from "lucide-react";
+
+const mention = unstable_useMentionAdapter();
+
+<ComposerTriggerPopover
+  char="@"
+  {...mention}
+  fallbackIcon={WrenchIcon}
+/>;
+```
+
+Override formatter or add an `onInserted` callback via hook options: `unstable_useMentionAdapter({ formatter, onInserted })`.
+
+`unstable_useMentionAdapter` also accepts `items` (flat custom list), `categories` (multi-category drill-down), and `includeModelContextTools` for fine-grained control. See the [Mentions guide](/docs/guides/mentions#built-in-mention-adapter).
+
+Render selected mentions as chips in user messages with [`DirectiveText`](/docs/ui/directive-text). For inline chips **inside** the composer, use [`LexicalComposerInput`](/docs/guides/mentions#textarea-vs-lexical).
+
+## / Slash Command
+
+Use [`unstable_useSlashCommandAdapter`](/docs/guides/slash-commands) to bundle commands (data + `execute`) into `{ adapter, action }` — then plug both into `ComposerTriggerPopover`. By default a directive chip is left in the composer as an audit trail; pass `removeOnExecute` to strip the `/command` text entirely. `iconMap` maps `metadata.icon` strings on items and categories to Lucide icons.
+
+```tsx
+import {
+  unstable_useSlashCommandAdapter,
+  type Unstable_SlashCommand,
+} from "@assistant-ui/react";
+import { FileTextIcon, GlobeIcon, LanguagesIcon, SlashIcon } from "lucide-react";
+
+const SLASH_COMMANDS: readonly Unstable_SlashCommand[] = [
+  {
+    id: "summarize",
+    description: "Summarize the conversation",
+    icon: "FileText",
+    execute: () => {/* ... */},
+  },
+  {
+    id: "translate",
+    description: "Translate to another language",
+    icon: "Languages",
+    execute: () => {/* ... */},
+  },
+  {
+    id: "search",
+    description: "Search the web",
+    icon: "Globe",
+    execute: () => {/* ... */},
+  },
+];
+
+function SlashComposer() {
+  const slash = unstable_useSlashCommandAdapter({ commands: SLASH_COMMANDS });
+
+  return (
+    <ComposerTriggerPopover
+      char="/"
+      {...slash}
+      iconMap={{
+        FileText: FileTextIcon,
+        Languages: LanguagesIcon,
+        Globe: GlobeIcon,
+      }}
+      fallbackIcon={SlashIcon}
+    />
+  );
+}
+```
+
+## Combining Triggers
+
+Multiple popovers coexist under one `TriggerPopoverRoot`. Each reads state from its own declaration, so `@` and `/` never collide.
+
+```tsx
+const commandHandlers: Record<string, () => void> = {
+  summarize: () => {/* ... */},
+  translate: () => {/* ... */},
+};
+
+<ComposerPrimitive.Unstable_TriggerPopoverRoot>
+  <ComposerPrimitive.Root>
+    <ComposerPrimitive.Input placeholder="Type @ to mention, / for commands..." />
+
+    <ComposerTriggerPopover
+      char="@"
+      adapter={mentionAdapter}
+      directive={{ formatter: unstable_defaultDirectiveFormatter }}
+      fallbackIcon={WrenchIcon}
+    />
+    <ComposerTriggerPopover
+      char="/"
+      adapter={slashAdapter}
+      action={{
+        formatter: unstable_defaultDirectiveFormatter,
+        onExecute: (item) => commandHandlers[item.id]?.(),
+      }}
+      iconMap={slashIcons}
+      fallbackIcon={SlashIcon}
+    />
+  </ComposerPrimitive.Root>
+</ComposerPrimitive.Unstable_TriggerPopoverRoot>
+```
+
+## Keyboard Navigation
+
+| Key | Action |
+| --- | --- |
+| <Kbd>ArrowDown</Kbd> | Highlight next item |
+| <Kbd>ArrowUp</Kbd> | Highlight previous item |
+| <Kbd>Enter</Kbd> | Select highlighted item / drill into category |
+| <Kbd>Escape</Kbd> | Close popover |
+| <Kbd>Backspace</Kbd> | Go back to categories (when query is empty) |
+
+## API Reference
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `char` | `string` | — | Trigger character, e.g. `"@"` or `"/"` (required; unique within the root) |
+| `adapter` | `Unstable_TriggerAdapter` | — | Provides categories, items, and search (required) |
+| `directive` | `{ formatter, onInserted?, chip? }` | — | Enables directive-insert behavior. Mutually exclusive with `action`. |
+| `action` | `{ formatter, onExecute, removeOnExecute?, chip? }` | — | Enables action behavior. Mutually exclusive with `directive`. |
+| `iconMap` | `Record<string, IconComponent>` | — | Maps `item.metadata.icon` / `category.metadata.icon` strings to icons |
+| `fallbackIcon` | `IconComponent` | `SparklesIcon` | Icon used when no `iconMap` entry matches |
+| `backLabel` | `string` | `"Back"` | Back button label |
+| `emptyCategoriesLabel` | `string` | `"No items available"` | Shown when no categories are available |
+| `emptyItemsLabel` | `string` | `"No matching items"` | Shown when no items match |
+
+All other props (`className`, etc.) forward to the underlying popover `div`.
+
+### `directive` object
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `formatter` | `Unstable_DirectiveFormatter` | Serializes the selected item into the directive text written to the composer |
+| `onInserted` | `(item) => void` | Optional callback fired after the directive has been inserted |
+
+### `action` object
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `formatter` | `Unstable_DirectiveFormatter` | Serializes the selected item into the chip left behind (unused when `removeOnExecute`) |
+| `onExecute` | `(item) => void` | Callback fired when an item is selected |
+| `removeOnExecute` | `boolean` | When `true`, strips the trigger text instead of leaving a chip. Default `false`. |
+
+## Related
+
+- [Directive Text](/docs/ui/directive-text) — renderer for mention chips in user messages
+- [Mentions guide](/docs/guides/mentions) — `@`-mention architecture and formatter details
+- [Slash Commands guide](/docs/guides/slash-commands) — `/`-command architecture

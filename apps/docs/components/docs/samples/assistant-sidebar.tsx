@@ -4,7 +4,7 @@ import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
 function MainContent() {
   return (
-    <div className="flex flex-1 items-center justify-center bg-muted/30 p-4 max-md:border-b md:border-r">
+    <div className="flex flex-1 items-center justify-center bg-muted/30 p-4 max-md:border-b md:border-e">
       <div className="text-center text-muted-foreground">
         <p className="font-medium">Your App Content</p>
         <p className="text-sm">Main application area</p>
@@ -21,7 +21,7 @@ function Sidebar() {
           <div className="rounded-lg bg-muted/50 p-3">
             <p className="text-sm">How can I help you today?</p>
           </div>
-          <div className="ml-auto max-w-[80%] rounded-lg bg-primary p-3 text-primary-foreground">
+          <div className="ms-auto max-w-[80%] rounded-lg bg-primary p-3 text-primary-foreground">
             <p className="text-sm">Tell me about this feature</p>
           </div>
           <div className="rounded-lg bg-muted/50 p-3">

@@ -3,6 +3,7 @@
 import {
   AssistantRuntimeProvider,
   type FeedbackAdapter,
+  SimpleImageAttachmentAdapter,
   useAssistantInstructions,
   useAui,
   useAuiEvent,
@@ -170,6 +171,7 @@ export function DocsAssistantRuntimeProvider({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     adapters: {
       feedback: feedbackAdapter,
+      attachments: new SimpleImageAttachmentAdapter(),
     },
   });
 

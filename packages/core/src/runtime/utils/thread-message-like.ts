@@ -1,12 +1,10 @@
 import { parsePartialJsonObject } from "assistant-stream/utils";
 import { generateId } from "../../utils/id";
 import type {
-  MessageTiming,
   ReasoningMessagePart,
   SourceMessagePart,
   ThreadStep,
   MessageStatus,
-  TextMessagePart,
   ImageMessagePart,
   ThreadMessage,
   ThreadAssistantMessagePart,
@@ -14,12 +12,16 @@ import type {
   ThreadUserMessagePart,
   ThreadUserMessage,
   ThreadSystemMessage,
-  CompleteAttachment,
   FileMessagePart,
   DataMessagePart,
   Unstable_AudioMessagePart,
-} from "../../types";
-import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
+} from "../../types/message";
+import type { CompleteAttachment } from "../../types/attachment";
+import type { MessageTiming, TextMessagePart } from "../../types/message";
+import type {
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "assistant-stream/utils";
 
 type DataPrefixedPart = {
   readonly type: `data-${string}`;

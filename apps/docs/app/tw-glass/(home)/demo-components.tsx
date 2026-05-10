@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { unsplash } from "./pattern-picker";
 
 export function DemoArea({
@@ -32,7 +33,7 @@ export function GlassDemo({
   label?: string;
 }) {
   return (
-    <div className={`flex min-h-44 items-center justify-center ${className}`}>
+    <div className={cn("flex min-h-44 items-center justify-center", className)}>
       {label && (
         <code className="flex items-center justify-center font-mono text-primary text-shadow-sm text-xl">
           {label}

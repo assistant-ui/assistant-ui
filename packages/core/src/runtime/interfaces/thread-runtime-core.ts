@@ -1,12 +1,10 @@
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
-import type { ModelContext } from "../../model-context";
-import type {
-  RunConfig,
-  Unsubscribe,
-  AppendMessage,
-  ThreadMessage,
-} from "../../types";
+import type { ModelContext } from "../../model-context/types";
+import type { Unsubscribe } from "../../types/unsubscribe";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type { RunConfig } from "../../types/message";
 import type { SpeechSynthesisAdapter } from "../../adapters/speech";
+import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type {
   ChatModelRunOptions,
   ChatModelRunResult,
@@ -14,7 +12,7 @@ import type {
 import type { ExportedMessageRepository } from "../utils/message-repository";
 import type { ThreadMessageLike } from "../utils/thread-message-like";
 import type {
-  ComposerRuntimeCore,
+  EditComposerRuntimeCore,
   ThreadComposerRuntimeCore,
 } from "./composer-runtime-core";
 
@@ -27,8 +25,10 @@ export type RuntimeCapabilities = {
   readonly unstable_copy: boolean;
   readonly speech: boolean;
   readonly dictation: boolean;
+  readonly voice: boolean;
   readonly attachments: boolean;
   readonly feedback: boolean;
+  readonly queue: boolean;
 };
 
 export type AddToolResultOptions = {
@@ -59,15 +59,51 @@ export type SpeechState = {
   readonly status: SpeechSynthesisAdapter.Status;
 };
 
+export type VoiceSessionState = {
+  readonly status: RealtimeVoiceAdapter.Status;
+  readonly isMuted: boolean;
+  readonly mode: RealtimeVoiceAdapter.Mode;
+};
+
 export type SubmittedFeedback = {
   readonly type: "negative" | "positive";
 };
 
-export type ThreadRuntimeEventType =
-  | "runStart"
-  | "runEnd"
-  | "initialize"
-  | "modelContextUpdate";
+export type ThreadRuntimeEventPayload = {
+  /**
+   * @deprecated State-derivable. Observe `state.isRunning` flipping to `true`
+   * via `subscribe` + `getState` instead. Note: this event fires at the
+   * transition point and may run before the next subscriber notification.
+   * Kept for backward compatibility.
+   */
+  runStart: Record<string, never>;
+  /**
+   * @deprecated State-derivable. Observe `state.isRunning` flipping to `false`
+   * via `subscribe` + `getState` instead. Note: this event fires at the
+   * transition point and may run before the next subscriber notification.
+   * Kept for backward compatibility.
+   */
+  runEnd: Record<string, never>;
+  /**
+   * @deprecated State-derivable. This event fires at the initialization
+   * transition immediately BEFORE the first message is added, so reading state
+   * inside the handler still sees an empty thread; observe `state.messages`
+   * becoming non-empty via a regular `subscribe` callback instead. Kept for
+   * backward compatibility.
+   */
+  initialize: Record<string, never>;
+  /**
+   * Truly transient. The model context lives in a provider, not in thread
+   * state, so this event has no state-derivable equivalent.
+   */
+  modelContextUpdate: Record<string, never>;
+};
+
+export type ThreadRuntimeEventType = keyof ThreadRuntimeEventPayload;
+
+export type ThreadRuntimeEventCallback<E extends ThreadRuntimeEventType> = (
+  payload: ThreadRuntimeEventPayload[E],
+) => void;
 
 export type StartRunConfig = {
   parentId: string | null;
@@ -104,19 +140,38 @@ export type ThreadRuntimeCore = Readonly<{
   speak: (messageId: string) => void;
   stopSpeaking: () => void;
 
+  connectVoice: () => void;
+  disconnectVoice: () => void;
+  muteVoice: () => void;
+  unmuteVoice: () => void;
+
   submitFeedback: (feedback: SubmitFeedbackOptions) => void;
 
   getModelContext: () => ModelContext;
 
   composer: ThreadComposerRuntimeCore;
-  getEditComposer: (messageId: string) => ComposerRuntimeCore | undefined;
+  getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
   beginEdit: (messageId: string) => void;
 
   speech: SpeechState | undefined;
+  voice: VoiceSessionState | undefined;
 
   capabilities: Readonly<RuntimeCapabilities>;
   isDisabled: boolean;
+  /**
+   * Whether sending from this thread's composer is disabled. Surfaces the
+   * `isSendDisabled` flag from external-store adapters; internal runtimes
+   * default to `false`. Composer state derives `canSend` from this.
+   */
+  isSendDisabled: boolean;
   isLoading: boolean;
+  /**
+   * Optional explicit thread-level running flag. When provided, takes
+   * precedence over the last-message-status heuristic. When omitted, falls
+   * back to the legacy behavior. External-store runtimes surface this via
+   * `ExternalStoreAdapter.isRunning`.
+   */
+  isRunning?: boolean | undefined;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
   suggestions: readonly ThreadSuggestion[];
@@ -124,6 +179,9 @@ export type ThreadRuntimeCore = Readonly<{
   extras: unknown;
 
   subscribe: (callback: () => void) => Unsubscribe;
+
+  getVoiceVolume: () => number;
+  subscribeVoiceVolume: (callback: () => void) => Unsubscribe;
 
   import(repository: ExportedMessageRepository): void;
   export(): ExportedMessageRepository;
@@ -133,10 +191,13 @@ export type ThreadRuntimeCore = Readonly<{
 
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
 
-  unstable_on(event: ThreadRuntimeEventType, callback: () => void): Unsubscribe;
-
   /**
-   * @deprecated Use importExternalState instead. This method will be removed in 0.12.0.
+   * @deprecated This API is still under active development and might change without notice.
+   * For state-derivable transitions, prefer `subscribe` + `getState`. This channel is the
+   * escape hatch for transient occurrences not represented in state.
    */
-  unstable_loadExternalState: (state: any) => void;
+  unstable_on<E extends ThreadRuntimeEventType>(
+    event: E,
+    callback: ThreadRuntimeEventCallback<E>,
+  ): Unsubscribe;
 }>;

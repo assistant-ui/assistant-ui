@@ -136,6 +136,7 @@ export function MyRuntimeProvider({ children }) {
   const cloud = useMemo(
     () => new AssistantCloud({
       baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL,
+      anonymous: true,
     }),
     []
   );
@@ -198,16 +199,20 @@ type NewLangGraphRuntimeOptions = {
   cloud?: AssistantCloud;
   stream: (
     messages: Message[],
-    context: {
+    config: {
+      abortSignal: AbortSignal;
       initialize: () => Promise<{
         remoteId: string;
         externalId: string | undefined;
-      }>
+      }>;
+      command?: { resume: string };
+      runConfig?: unknown;
+      checkpointId?: string;
     }
   ) => AsyncGenerator;
   create?: () => Promise<{ externalId: string }>;
-  load?: (externalId: string) => Promise<ThreadState>;
-  delete?: (externalId: string) => Promise<void>;
+  load?: (threadId: string) => Promise<ThreadState>;
+  delete?: (threadId: string) => Promise<void>;
 };
 ```
 

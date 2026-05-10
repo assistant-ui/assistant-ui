@@ -17,7 +17,7 @@ import price from "./images/acme-price.png";
   className="mx-auto rounded-lg border shadow"
 />
 
-For reference, this the corresponding code in the backend:
+For reference, this is the corresponding code in the backend:
 
 https://github.com/assistant-ui/assistant-ui-stockbroker/blob/main/backend/src/tools.ts#L193C1-L216C3
 
@@ -98,10 +98,8 @@ import { PriceSnapshotTool } from "@/components/tools/price-snapshot/PriceSnapsh
 export default function Home() {
   return (
     <div className="flex h-full flex-col">
-      <Thread
-        ...
-        tools={[PriceSnapshotTool]}
-      />
+      <PriceSnapshotTool />
+      <Thread />
     </div>
   );
 }
@@ -321,17 +319,15 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
 
 ### Bind fallback UI
 
-```tsx title="@/app/page.tsx" {1,8}
-import { ToolFallback } from "@/components/tools/ToolFallback";
-
+```tsx title="@/app/page.tsx"
 export default function Home() {
   return (
     <div className="flex h-full flex-col">
-      <Thread
-        ...
-        assistantMessage={{ components: { Text: MarkdownText, ToolFallback } }}
-      />
+      <PriceSnapshotTool />
+      <Thread />
     </div>
   );
 }
 ```
+
+The `Thread` component from `@assistant-ui/ui` already includes a built-in `ToolFallback` and `MarkdownText`, so no additional configuration is needed.

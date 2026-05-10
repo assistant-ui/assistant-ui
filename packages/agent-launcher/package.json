@@ -1,0 +1,53 @@
+{
+  "name": "@assistant-ui/agent-launcher",
+  "version": "0.1.4",
+  "description": "Launch Claude Code with bundled plugins and skills",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "agent",
+    "launcher",
+    "assistant-ui"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build"
+  },
+  "dependencies": {
+    "cross-spawn": "^7.0.6"
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/cross-spawn": "^6.0.6",
+    "@types/node": "^25.6.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/agent-launcher"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}

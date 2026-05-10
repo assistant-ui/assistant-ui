@@ -6,6 +6,7 @@ import {
   transformerMetaHighlight,
   transformerMetaWordHighlight,
 } from "@shikijs/transformers";
+import { cn } from "@/lib/utils";
 
 const HIGHLIGHT_STYLES = `
   .highlighted {
@@ -112,7 +113,7 @@ export function Box({
   className?: string;
 }) {
   return (
-    <div className={`overflow-clip rounded-xl border ${className ?? ""}`}>
+    <div className={cn("overflow-clip rounded-xl border", className)}>
       {children}
     </div>
   );

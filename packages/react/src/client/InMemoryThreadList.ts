@@ -12,6 +12,8 @@ import type { ResourceElement } from "@assistant-ui/tap";
 import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
 
+const RESOLVED_PROMISE = Promise.resolve();
+
 export type InMemoryThreadListProps = {
   thread: (threadId: string) => ResourceElement<ClientOutput<"thread">>;
   onSwitchToThread?: (threadId: string) => void;
@@ -140,6 +142,8 @@ export const InMemoryThreadList = resource(
         mainThreadId,
         newThreadId: null,
         isLoading: false,
+        isLoadingMore: false,
+        hasMore: false,
         threadIds: regularThreads.map((t) => t.id),
         archivedThreadIds: archivedThreads.map((t) => t.id),
         threadItems: threadListItems.state,
@@ -151,6 +155,9 @@ export const InMemoryThreadList = resource(
       getState: () => state,
       switchToThread: handleSwitchToThread,
       switchToNewThread: handleSwitchToNewThread,
+      getLoadThreadsPromise: () => RESOLVED_PROMISE,
+      reload: () => RESOLVED_PROMISE,
+      loadMore: () => RESOLVED_PROMISE,
       item: (selector) => {
         if (selector === "main") {
           const index = threads.findIndex((t) => t.id === mainThreadId);
@@ -168,43 +175,32 @@ export const InMemoryThreadList = resource(
 );
 
 attachTransformScopes(InMemoryThreadList, (scopes, parent) => {
-  const result = {
-    ...scopes,
-    thread:
-      scopes.thread ??
-      Derived({
-        source: "threads",
-        query: { type: "main" },
-        get: (aui) => aui.threads().thread("main"),
-      }),
-    threadListItem:
-      scopes.threadListItem ??
-      Derived({
-        source: "threads",
-        query: { type: "main" },
-        get: (aui) => aui.threads().item("main"),
-      }),
-    composer:
-      scopes.composer ??
-      Derived({
-        source: "thread",
-        query: {},
-        get: (aui) => aui.threads().thread("main").composer(),
-      }),
-  };
+  scopes.thread ??= Derived({
+    source: "threads",
+    query: { type: "main" },
+    get: (aui) => aui.threads().thread("main"),
+  });
+  scopes.threadListItem ??= Derived({
+    source: "threads",
+    query: { type: "main" },
+    get: (aui) => aui.threads().item("main"),
+  });
+  scopes.composer ??= Derived({
+    source: "thread",
+    query: {},
+    get: (aui) => aui.threads().thread("main").composer(),
+  });
 
-  if (!result.modelContext && parent.modelContext.source === null) {
-    result.modelContext = ModelContext();
+  if (!scopes.modelContext && parent.modelContext.source === null) {
+    scopes.modelContext = ModelContext();
   }
-  if (!result.tools && parent.tools.source === null) {
-    result.tools = Tools({});
+  if (!scopes.tools && parent.tools.source === null) {
+    scopes.tools = Tools({});
   }
-  if (!result.dataRenderers && parent.dataRenderers.source === null) {
-    result.dataRenderers = DataRenderers();
+  if (!scopes.dataRenderers && parent.dataRenderers.source === null) {
+    scopes.dataRenderers = DataRenderers();
   }
-  if (!result.suggestions && parent.suggestions.source === null) {
-    result.suggestions = Suggestions();
+  if (!scopes.suggestions && parent.suggestions.source === null) {
+    scopes.suggestions = Suggestions();
   }
-
-  return result;
 });

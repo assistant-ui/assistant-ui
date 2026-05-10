@@ -44,6 +44,7 @@ const subscribeModelStore = (listener: ModelStoreListener) => {
 const setSharedDocsModelName = (modelName: KnownModelId) => {
   if (sharedDocsModelName === modelName) return;
   sharedDocsModelName = modelName;
+  // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
   modelStoreListeners.forEach((listener) => listener());
 };
 
@@ -127,7 +128,7 @@ export function AssistantComposer({
   return (
     <ComposerPrimitive.Root
       onSubmit={handleSubmit}
-      className={cn("py-2", className)}
+      className={cn("pb-0.5", className)}
     >
       <div className="rounded-xl border border-border bg-background focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/20">
         <ComposerPrimitive.Input asChild>
@@ -157,7 +158,7 @@ export function AssistantComposerAction(): ReactNode {
     <>
       <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send asChild>
-          <Button type="submit" size="icon" className="size-7 rounded-lg">
+          <Button size="icon" className="size-7 rounded-lg">
             <ArrowUpIcon className="size-4" />
           </Button>
         </ComposerPrimitive.Send>

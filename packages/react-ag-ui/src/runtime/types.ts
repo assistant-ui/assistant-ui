@@ -5,7 +5,7 @@ import type {
   SpeechSynthesisAdapter,
   ThreadHistoryAdapter,
   ThreadMessage,
-} from "@assistant-ui/react";
+} from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
@@ -47,9 +47,39 @@ export type UseAgUiRuntimeOptions = {
   adapters?: UseAgUiRuntimeAdapters;
 };
 
+export type AgUiInterruptReason =
+  | "tool_call"
+  | "input_required"
+  | "confirmation"
+  | (string & {});
+
+export type AgUiInterrupt = {
+  id: string;
+  reason: AgUiInterruptReason;
+  message?: string;
+  toolCallId?: string;
+  responseSchema?: Record<string, unknown>;
+  expiresAt?: string;
+  metadata?: Record<string, unknown>;
+};
+
+export type AgUiResumeEntry = {
+  interruptId: string;
+  status: "resolved" | "cancelled";
+  payload?: unknown;
+};
+
+export type AgUiRunFinishedOutcome =
+  | { type: "success" }
+  | { type: "interrupt"; interrupts: AgUiInterrupt[] };
+
 export type AgUiEvent =
   | { type: "RUN_STARTED"; runId: string }
-  | { type: "RUN_FINISHED"; runId: string }
+  | {
+      type: "RUN_FINISHED";
+      runId: string;
+      outcome?: AgUiRunFinishedOutcome;
+    }
   | { type: "RUN_CANCELLED"; runId?: string }
   | { type: "RUN_ERROR"; message?: string; code?: string }
   | { type: "TEXT_MESSAGE_START"; messageId?: string }
@@ -61,6 +91,11 @@ export type AgUiEvent =
   | { type: "THINKING_TEXT_MESSAGE_CONTENT"; delta: string }
   | { type: "THINKING_TEXT_MESSAGE_END" }
   | { type: "THINKING_END" }
+  | { type: "REASONING_START"; messageId?: string }
+  | { type: "REASONING_MESSAGE_START"; messageId?: string }
+  | { type: "REASONING_MESSAGE_CONTENT"; messageId?: string; delta: string }
+  | { type: "REASONING_MESSAGE_END"; messageId?: string }
+  | { type: "REASONING_END"; messageId?: string }
   | {
       type: "TOOL_CALL_START";
       toolCallId: string;

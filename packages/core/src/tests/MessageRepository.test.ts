@@ -3,7 +3,8 @@ import {
   MessageRepository,
   ExportedMessageRepository,
 } from "../runtime/utils/message-repository";
-import type { ThreadMessage, TextMessagePart } from "../types";
+import type { ThreadMessage } from "../types/message";
+import type { TextMessagePart } from "../types/message";
 import type { ThreadMessageLike } from "../runtime/utils/thread-message-like";
 
 // Mock generateId and generateOptimisticId to make tests deterministic
@@ -453,6 +454,147 @@ describe("MessageRepository", () => {
     it("should handle empty message arrays", () => {
       const result = ExportedMessageRepository.fromArray([]);
       expect(result.messages).toHaveLength(0);
+    });
+  });
+
+  describe("ExportedMessageRepository.fromBranchableArray", () => {
+    it("should create a branching tree structure", () => {
+      const items = [
+        {
+          message: {
+            id: "user-1",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "Hello" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            id: "assistant-1",
+            role: "assistant" as const,
+            content: [{ type: "text" as const, text: "Hi there" }],
+          },
+          parentId: "user-1",
+        },
+        {
+          message: {
+            id: "assistant-2",
+            role: "assistant" as const,
+            content: [{ type: "text" as const, text: "Hey!" }],
+          },
+          parentId: "user-1",
+        },
+      ];
+
+      const result = ExportedMessageRepository.fromBranchableArray(items);
+
+      expect(result.messages).toHaveLength(3);
+      expect(result.messages[0]!.parentId).toBeNull();
+      expect(result.messages[0]!.message.id).toBe("user-1");
+      expect(result.messages[1]!.parentId).toBe("user-1");
+      expect(result.messages[1]!.message.id).toBe("assistant-1");
+      expect(result.messages[2]!.parentId).toBe("user-1");
+      expect(result.messages[2]!.message.id).toBe("assistant-2");
+    });
+
+    it("should support headId option", () => {
+      const items = [
+        {
+          message: {
+            id: "msg-1",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "Hello" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            id: "msg-2a",
+            role: "assistant" as const,
+            content: [{ type: "text" as const, text: "Branch A" }],
+          },
+          parentId: "msg-1",
+        },
+        {
+          message: {
+            id: "msg-2b",
+            role: "assistant" as const,
+            content: [{ type: "text" as const, text: "Branch B" }],
+          },
+          parentId: "msg-1",
+        },
+      ];
+
+      const result = ExportedMessageRepository.fromBranchableArray(items, {
+        headId: "msg-2b",
+      });
+
+      expect(result.headId).toBe("msg-2b");
+    });
+
+    it("should throw if a message has no id", () => {
+      const items = [
+        {
+          message: {
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "Hello" }],
+          },
+          parentId: null,
+        },
+      ];
+
+      expect(() =>
+        ExportedMessageRepository.fromBranchableArray(items),
+      ).toThrow(/Each message must have an 'id' field set/);
+    });
+
+    it("should handle empty arrays", () => {
+      const result = ExportedMessageRepository.fromBranchableArray([]);
+      expect(result.messages).toHaveLength(0);
+    });
+
+    it("should work with MessageRepository.import for branch switching", () => {
+      const items = [
+        {
+          message: {
+            id: "user-1",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "Hello" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            id: "assistant-a",
+            role: "assistant" as const,
+            content: [{ type: "text" as const, text: "Response A" }],
+          },
+          parentId: "user-1",
+        },
+        {
+          message: {
+            id: "assistant-b",
+            role: "assistant" as const,
+            content: [{ type: "text" as const, text: "Response B" }],
+          },
+          parentId: "user-1",
+        },
+      ];
+
+      const repo = ExportedMessageRepository.fromBranchableArray(items, {
+        headId: "assistant-a",
+      });
+
+      repository.import(repo);
+
+      // Should show branch A
+      let messages = repository.getMessages();
+      expect(messages.map((m) => m.id)).toEqual(["user-1", "assistant-a"]);
+
+      // Switch to branch B
+      repository.switchToBranch("assistant-b");
+      messages = repository.getMessages();
+      expect(messages.map((m) => m.id)).toEqual(["user-1", "assistant-b"]);
     });
   });
 

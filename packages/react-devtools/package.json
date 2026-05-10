@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-devtools",
-  "version": "1.0.1",
+  "version": "1.2.0",
   "description": "React development tools for assistant-ui components",
   "keywords": [
     "assistant-ui",
@@ -14,7 +14,6 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -31,11 +30,11 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.14",
-    "@assistant-ui/tap": "^0.5.1",
+    "@assistant-ui/react": "^0.14.0",
+    "@assistant-ui/tap": "^0.5.11",
     "@types/react": "*",
     "@types/react-dom": "*",
     "react": "^18 || ^19",
@@ -53,11 +52,11 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^25.3.0",
+    "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
   },
   "publishConfig": {
     "access": "public",

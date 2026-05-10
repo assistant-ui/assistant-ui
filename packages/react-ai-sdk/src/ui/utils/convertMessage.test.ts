@@ -37,6 +37,154 @@ describe("AISDKMessageConverter", () => {
     expect(converted[0]?.attachments?.[1]?.type).toBe("file");
   });
 
+  it("converts source-document parts into document sources", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "source-document",
+            sourceId: "doc_123",
+            title: "proposal.pdf",
+            mediaType: "application/pdf",
+            filename: "proposal.pdf",
+            providerMetadata: {
+              openai: {
+                type: "file_citation",
+                fileId: "file_123",
+                index: 0,
+              },
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    expect(converted).toHaveLength(1);
+    expect(converted[0]?.role).toBe("assistant");
+
+    const sourcePart = converted[0]?.content.find(
+      (part): part is any => part.type === "source",
+    );
+
+    expect(sourcePart).toMatchObject({
+      type: "source",
+      sourceType: "document",
+      id: "doc_123",
+      title: "proposal.pdf",
+      mediaType: "application/pdf",
+      filename: "proposal.pdf",
+      providerMetadata: {
+        openai: {
+          type: "file_citation",
+          fileId: "file_123",
+          index: 0,
+        },
+      },
+    });
+  });
+
+  it("converts source-url parts without synthesizing missing optional fields", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "source-url",
+            sourceId: "url_123",
+            url: "https://example.com/report",
+            providerMetadata: {
+              openai: {
+                type: "url_citation",
+                index: 1,
+              },
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const sourcePart = converted[0]?.content.find(
+      (part): part is any => part.type === "source",
+    );
+
+    expect(sourcePart).toMatchObject({
+      type: "source",
+      sourceType: "url",
+      id: "url_123",
+      url: "https://example.com/report",
+      providerMetadata: {
+        openai: {
+          type: "url_citation",
+          index: 1,
+        },
+      },
+    });
+    expect(sourcePart).not.toHaveProperty("title");
+  });
+
+  it("converts assistant image file parts into file content", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "text", text: "Here is the image" },
+          {
+            type: "file",
+            mediaType: "image/png",
+            url: "https://cdn/generated.png",
+            filename: "generated.png",
+          },
+        ],
+      } as any,
+    ]);
+
+    expect(converted).toHaveLength(1);
+    expect(converted[0]?.role).toBe("assistant");
+    expect(converted[0]?.content).toHaveLength(2);
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "text",
+      text: "Here is the image",
+    });
+    expect(converted[0]?.content[1]).toMatchObject({
+      type: "file",
+      data: "https://cdn/generated.png",
+      mimeType: "image/png",
+      filename: "generated.png",
+    });
+  });
+
+  it("converts assistant non-image file parts into file content", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "text", text: "Here is the PDF" },
+          {
+            type: "file",
+            mediaType: "application/pdf",
+            url: "data:application/pdf;base64,abc123",
+            filename: "report.pdf",
+          },
+        ],
+      } as any,
+    ]);
+
+    expect(converted).toHaveLength(1);
+    expect(converted[0]?.role).toBe("assistant");
+    expect(converted[0]?.content).toHaveLength(2);
+    expect(converted[0]?.content[1]).toMatchObject({
+      type: "file",
+      data: "data:application/pdf;base64,abc123",
+      mimeType: "application/pdf",
+      filename: "report.pdf",
+    });
+  });
+
   it("deduplicates tool calls by toolCallId and maps interrupt states", () => {
     const converted = AISDKMessageConverter.toThreadMessages(
       [
@@ -193,5 +341,58 @@ describe("AISDKMessageConverter", () => {
     expect(finalToolCall?.argsText).toBe(
       '{"type":"high_stock_model","limit":5,"filters":{"region":"us","sector":"tech"}}',
     );
+  });
+
+  it("merges duplicate toolCallId across assistant snapshots", () => {
+    const metadata = {
+      toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
+    };
+
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-stocks",
+              toolCallId: "tc-order-1",
+              state: "input-streaming",
+              input: {
+                type: "high_stock_model",
+                limit: 5,
+              },
+            },
+          ],
+        } as any,
+        {
+          id: "a2",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-stocks",
+              toolCallId: "tc-order-1",
+              state: "input-available",
+              input: {
+                limit: 5,
+                type: "high_stock_model",
+              },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const toolCalls = converted[0]?.content.filter(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(toolCalls).toHaveLength(1);
+    expect(toolCalls?.[0]?.toolCallId).toBe("tc-order-1");
+    expect(JSON.parse(toolCalls?.[0]?.argsText ?? "{}")).toEqual({
+      type: "high_stock_model",
+      limit: 5,
+    });
   });
 });

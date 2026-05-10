@@ -2,15 +2,16 @@
 
 import "./foo-scope";
 
-import React from "react";
+import { type ReactNode, useMemo } from "react";
 import { resource, tapMemo, tapState } from "@assistant-ui/tap";
 import {
   useAui,
+  useAuiState,
   AuiProvider,
   tapClientList,
   Derived,
-  useAuiState,
   tapAssistantEmit,
+  RenderChildrenWithAccessor,
   type ClientOutput,
 } from "@assistant-ui/store";
 
@@ -76,17 +77,17 @@ export const FooListResource = resource(
   },
 );
 
-export const FooProvider = ({
+const FooProvider = ({
   index,
   children,
 }: {
   index: number;
-  children: React.ReactNode;
+  children: ReactNode;
 }) => {
   const aui = useAui({
     foo: Derived({
       source: "fooList",
-      query: { index: index },
+      query: { index },
       get: (aui) => aui.fooList().foo({ index }),
     }),
   });
@@ -95,19 +96,29 @@ export const FooProvider = ({
 };
 
 export const FooList = ({
-  components,
+  children,
 }: {
-  components: { Foo: React.ComponentType };
+  children: (item: { foo: FooData }) => ReactNode;
 }) => {
-  const fooListState = useAuiState((s) => s.fooList.foos.length);
+  const length = useAuiState((s) => s.fooList.foos.length);
 
-  return (
-    <>
-      {Array.from({ length: fooListState }, (_, index) => (
+  return useMemo(
+    () =>
+      Array.from({ length }, (_, index) => (
         <FooProvider key={index} index={index}>
-          <components.Foo />
+          <RenderChildrenWithAccessor
+            getItemState={(aui) => aui.fooList().foo({ index }).getState()}
+          >
+            {(getItem) =>
+              children({
+                get foo() {
+                  return getItem();
+                },
+              })
+            }
+          </RenderChildrenWithAccessor>
         </FooProvider>
-      ))}
-    </>
+      )),
+    [length, children],
   );
 };

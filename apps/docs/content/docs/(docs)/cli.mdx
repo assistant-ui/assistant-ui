@@ -1,6 +1,7 @@
 ---
 title: CLI
 description: Scaffold projects, add components, and manage updates from the command line.
+platforms: ["react"]
 ---
 
 Use the `assistant-ui` CLI to quickly set up new projects and add components to existing ones.
@@ -45,7 +46,7 @@ Use the `create` command to scaffold a new Next.js project with assistant-ui pre
 npx assistant-ui@latest create [project-directory]
 ```
 
-This command uses `create-next-app` with assistant-ui starter templates.
+This command scaffolds a project from assistant-ui starter templates or examples.
 
 **Available Templates**
 
@@ -68,8 +69,9 @@ Use `--example` to create a project from one of the monorepo examples with full 
 | `with-artifacts` | HTML artifact rendering with live preview | `npx assistant-ui create my-app -e with-artifacts` |
 | `with-langgraph` | LangGraph agent with custom tools | `npx assistant-ui create my-app -e with-langgraph` |
 | `with-cloud` | Assistant Cloud persistence | `npx assistant-ui create my-app -e with-cloud` |
-| `with-ag-ui` | AG-UI protocol integration | `npx assistant-ui create my-app -e with-ag-ui` |
+| `with-ag-ui` | [AG-UI protocol](/docs/runtimes/ag-ui) integration | `npx assistant-ui create my-app -e with-ag-ui` |
 | `with-assistant-transport` | Custom backend via Assistant Transport | `npx assistant-ui create my-app -e with-assistant-transport` |
+| `with-resumable-stream` | Resumable LLM stream that survives reload mid-response | `npx assistant-ui create my-app -e with-resumable-stream` |
 | `with-chain-of-thought` | Chain-of-thought with JS execution | `npx assistant-ui create my-app -e with-chain-of-thought` |
 | `with-external-store` | External message store | `npx assistant-ui create my-app -e with-external-store` |
 | `with-custom-thread-list` | Custom thread list UI | `npx assistant-ui create my-app -e with-custom-thread-list` |
@@ -77,6 +79,8 @@ Use `--example` to create a project from one of the monorepo examples with full 
 | `with-ffmpeg` | FFmpeg video processing tool | `npx assistant-ui create my-app -e with-ffmpeg` |
 | `with-elevenlabs-scribe` | ElevenLabs voice transcription | `npx assistant-ui create my-app -e with-elevenlabs-scribe` |
 | `with-parent-id-grouping` | Message part grouping | `npx assistant-ui create my-app -e with-parent-id-grouping` |
+| `with-expo` | Expo / React Native | `npx assistant-ui create my-app -e with-expo` |
+| `with-react-ink` | Terminal UI chat | `npx assistant-ui create my-app -e with-react-ink` |
 | `with-react-router` | React Router v7 integration | `npx assistant-ui create my-app -e with-react-router` |
 | `with-tanstack` | TanStack Start integration | `npx assistant-ui create my-app -e with-tanstack` |
 
@@ -113,14 +117,17 @@ Arguments:
   project-directory         name of the project directory
 
 Options:
-  -t, --template <template>  template to use (default, minimal, cloud, cloud-clerk, langgraph, mcp)
-  -e, --example <example>    create from an example (e.g., with-langgraph)
-  --use-npm                  explicitly use npm
-  --use-pnpm                 explicitly use pnpm
-  --use-yarn                 explicitly use yarn
-  --use-bun                  explicitly use bun
-  --skip-install             skip installing packages
-  -h, --help                 display help for command
+  -t, --template <template>      template to use (default, minimal, cloud, cloud-clerk, langgraph, mcp)
+  -e, --example <example>        create from an example (e.g., with-langgraph)
+  -p, --preset <name-or-url>     preset name or URL (e.g., chatgpt)
+  --native                       create an Expo / React Native project
+  --ink                          create a React Ink terminal project
+  --use-npm                      explicitly use npm
+  --use-pnpm                     explicitly use pnpm
+  --use-yarn                     explicitly use yarn
+  --use-bun                      explicitly use bun
+  --skip-install                 skip installing packages
+  -h, --help                     display help for command
 ```
 
 ## add
@@ -335,6 +342,56 @@ Options:
   -h, --help        display help for command
 ```
 
+## info
+
+Use the `info` command to print your environment and package versions for bug reports.
+
+```bash
+npx assistant-ui@latest info
+```
+
+This command collects and prints:
+- OS, Node.js version, package manager, and framework
+- All installed `@assistant-ui/*` and `assistant-*` package versions
+- Key ecosystem dependency versions (React, Next.js, AI SDK, etc.)
+- Peer dependency warnings if any mismatches are detected
+
+**Example output:**
+
+```
+Environment:
+  OS:               macOS 15.3 (arm64)
+  Node.js:          v22.14.0
+  Package Manager:  pnpm 10.32.1
+  Framework:        Next.js 15.3.1
+
+Packages:
+  @assistant-ui/react            0.12.15
+  @assistant-ui/react-ai-sdk     1.3.12
+  @assistant-ui/react-markdown   0.3.8
+  assistant-stream                0.2.14
+
+Ecosystem:
+  react      19.1.0
+  react-dom  19.1.0
+  next       15.3.1
+  ai         6.0.120
+```
+
+The output includes a copy-pasteable markdown block that you can paste directly into a [bug report](https://github.com/assistant-ui/assistant-ui/issues/new?template=bug_report.yml).
+
+**Options**
+
+```bash
+Usage: assistant-ui info [options]
+
+Print environment and package information for bug reports.
+
+Options:
+  -c, --cwd <cwd>  the working directory. defaults to the current directory.
+  -h, --help       display help for command
+```
+
 ## Common Workflows
 
 ### Starting a new project
@@ -420,6 +477,16 @@ sudo npx assistant-ui@latest init
 ```
 
 Or fix npm permissions: https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally
+
+### Diagnosing issues
+
+When filing a bug report, run `npx assistant-ui info` to collect environment details:
+
+```bash
+npx assistant-ui info
+```
+
+Paste the output into the "Environment info" field of the [bug report template](https://github.com/assistant-ui/assistant-ui/issues/new?template=bug_report.yml).
 
 ### Conflicting dependencies
 

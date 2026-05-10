@@ -1,8 +1,13 @@
 "use client";
 
 import { SignupForm } from "@/components/SignupForm";
-import { AssistantSidebar } from "@/components/assistant-ui/assistant-sidebar";
+import { Thread } from "@/components/assistant-ui/thread";
 import { Form } from "@/components/ui/form";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { useAssistantForm } from "@assistant-ui/react-hook-form";
 import {
   useAssistantInstructions,
@@ -10,7 +15,6 @@ import {
   AuiProvider,
   Suggestions,
 } from "@assistant-ui/react";
-import Link from "next/link";
 
 const SetFormFieldTool = () => {
   return (
@@ -27,6 +31,8 @@ const SubmitFormTool = () => {
     </p>
   );
 };
+
+const panelStyle = { overflow: "hidden" } as const;
 
 export default function Home() {
   useAssistantInstructions("Help users sign up for Simon's hackathon.");
@@ -69,34 +75,33 @@ export default function Home() {
 
   return (
     <AuiProvider value={aui}>
-      <AssistantSidebar>
-        <div className="h-full overflow-y-scroll">
-          <main className="container py-8">
-            <h1 className="mb-2 font-semibold text-2xl">
-              Simon&apos;s Hackathon
-            </h1>
-            <p>
-              I&apos;m hosting a Hackathon on AI UX. Be the first to get an
-              invite!
-            </p>
+      <ResizablePanelGroup orientation="horizontal">
+        <ResizablePanel defaultSize={60} minSize={40} style={panelStyle}>
+          <div className="h-full overflow-y-auto bg-muted/30">
+            <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
+              <header className="mb-8 space-y-2">
+                <p className="font-medium text-muted-foreground text-sm uppercase tracking-wide">
+                  Simon&apos;s Hackathon
+                </p>
+                <h1 className="font-semibold text-3xl tracking-tight">
+                  Apply to join
+                </h1>
+                <p className="text-muted-foreground">
+                  A weekend hackathon on AI UX. Be the first to get an invite.
+                </p>
+              </header>
 
-            <div className="my-4 font-bold">
-              Built with{" "}
-              <Link
-                href="https://github.com/assistant-ui/assistant-ui"
-                className="text-blue-600 underline"
-              >
-                assistant-ui
-              </Link>
-              .
-            </div>
-
-            <Form {...form}>
-              <SignupForm />
-            </Form>
-          </main>
-        </div>
-      </AssistantSidebar>
+              <Form {...form}>
+                <SignupForm />
+              </Form>
+            </main>
+          </div>
+        </ResizablePanel>
+        <ResizableHandle />
+        <ResizablePanel defaultSize={40} minSize={30} style={panelStyle}>
+          <Thread />
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </AuiProvider>
   );
 }

@@ -111,6 +111,7 @@ describe("React Strict Mode - Rerender Sources", () => {
 
         return (
           <button
+            type="button"
             onClick={() => {
               events.push("click");
               setCount(count + 1);
@@ -149,6 +150,7 @@ describe("React Strict Mode - Rerender Sources", () => {
 
         return (
           <button
+            type="button"
             onClick={() => {
               events.push("click");
               setCount((c) => c + 1);
@@ -284,6 +286,7 @@ describe("React Strict Mode - Rerender Sources", () => {
 
         return (
           <button
+            type="button"
             onClick={() => {
               events.push("click");
               setCount1(1);
@@ -442,7 +445,11 @@ describe("React Strict Mode - Rerender Sources", () => {
           };
         }, [count]);
 
-        return <button onClick={() => setCount((c) => c + 1)}>Click</button>;
+        return (
+          <button type="button" onClick={() => setCount((c) => c + 1)}>
+            Click
+          </button>
+        );
       }
 
       const { getByRole } = render(

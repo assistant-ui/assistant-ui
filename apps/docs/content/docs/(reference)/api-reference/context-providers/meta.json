@@ -1,0 +1,6 @@
+{
+  "title": "Context Providers",
+  "description": "Reference for assistant-ui React context providers — runtime, message-part, thread, and assistant scope APIs for building custom chat components.",
+  "overview": "Context providers establish the scopes that primitives and hooks read from. Most apps only use `AssistantRuntimeProvider` directly; lower-level providers are for custom renderers and advanced composition.",
+  "pages": ["index", "assistant-runtime-provider", "text-message-part-provider"]
+}

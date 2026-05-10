@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { useState, useEffect, type ReactNode } from "react";
 
 const PHOTO_ID = "photo-1531366936337-7c912a4589a7";
@@ -42,10 +43,6 @@ export default function GlassTextStressTestPage() {
   );
 }
 
-// ============================================================================
-// TABLE OF CONTENTS
-// ============================================================================
-
 function TableOfContents() {
   const sections = [
     { id: "mass-grid", label: "Mass Grid" },
@@ -78,10 +75,6 @@ function TableOfContents() {
     </nav>
   );
 }
-
-// ============================================================================
-// SHARED COMPONENTS
-// ============================================================================
 
 function Section({
   id,
@@ -136,7 +129,10 @@ function DemoArea({
 }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-lg bg-muted p-6 ${className}`}
+      className={cn(
+        "relative overflow-hidden rounded-lg bg-muted p-6",
+        className,
+      )}
     >
       {children}
     </div>
@@ -154,7 +150,7 @@ function GlassText({
 }) {
   return (
     <span
-      className={`glass-text ${className}`}
+      className={cn("glass-text", className)}
       style={{
         backgroundImage: BG_IMAGE,
         backgroundAttachment: "fixed",
@@ -197,22 +193,16 @@ function FpsCounter() {
   return (
     <div className="inline-flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1 font-mono text-sm">
       <span
-        className={`size-2 rounded-full ${
-          fps >= 55
-            ? "bg-green-500"
-            : fps >= 30
-              ? "bg-yellow-500"
-              : "bg-red-500"
-        }`}
+        className={cn("size-2 rounded-full", {
+          "bg-green-500": fps >= 55,
+          "bg-yellow-500": fps >= 30,
+          "bg-red-500": fps < 30,
+        })}
       />
       {fps} FPS
     </div>
   );
 }
-
-// ============================================================================
-// MASS GRID SECTION
-// ============================================================================
 
 function MassGridSection() {
   const [count, setCount] = useState(24);
@@ -266,10 +256,6 @@ function MassGridSection() {
   );
 }
 
-// ============================================================================
-// FONT SIZE SECTION
-// ============================================================================
-
 const FONT_SIZES = [
   { label: "text-sm", cls: "text-sm" },
   { label: "text-base", cls: "text-base" },
@@ -299,7 +285,9 @@ function FontSizeSection() {
                   {label}
                 </code>
                 <div>
-                  <GlassText className={`font-bold ${cls}`}>tw-glass</GlassText>
+                  <GlassText className={cn("font-bold", cls)}>
+                    tw-glass
+                  </GlassText>
                 </div>
               </div>
             ))}
@@ -309,10 +297,6 @@ function FontSizeSection() {
     </Section>
   );
 }
-
-// ============================================================================
-// FONT WEIGHT SECTION
-// ============================================================================
 
 const FONT_WEIGHTS = [
   { label: "font-thin", cls: "font-thin" },
@@ -343,7 +327,7 @@ function FontWeightSection() {
                 <code className="w-32 shrink-0 rounded bg-foreground/10 px-1.5 py-0.5 text-right font-mono text-[10px] text-muted-foreground">
                   {label}
                 </code>
-                <GlassText className={`text-5xl ${cls}`}>tw-glass</GlassText>
+                <GlassText className={cn("text-5xl", cls)}>tw-glass</GlassText>
               </div>
             ))}
           </div>
@@ -352,10 +336,6 @@ function FontWeightSection() {
     </Section>
   );
 }
-
-// ============================================================================
-// BACKGROUND VARIANTS SECTION
-// ============================================================================
 
 const BG_VARIANTS: {
   label: string;
@@ -432,10 +412,6 @@ function BackgroundVariantsSection() {
   );
 }
 
-// ============================================================================
-// LONG COPY SECTION
-// ============================================================================
-
 const LOREM =
   "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. How vexingly quick daft zebras jump. Sphinx of black quartz, judge my vow.";
 
@@ -491,10 +467,6 @@ function LongCopySection() {
   );
 }
 
-// ============================================================================
-// NESTED CONTAINERS SECTION
-// ============================================================================
-
 function NestedContainersSection() {
   return (
     <Section
@@ -540,10 +512,6 @@ function NestedContainersSection() {
   );
 }
 
-// ============================================================================
-// SCROLL STRESS SECTION
-// ============================================================================
-
 function ScrollStressSection() {
   return (
     <Section
@@ -573,10 +541,6 @@ function ScrollStressSection() {
     </Section>
   );
 }
-
-// ============================================================================
-// INTERACTIVE SECTION
-// ============================================================================
 
 const PHOTO_OPTIONS = [
   { label: "Aurora", id: "photo-1531366936337-7c912a4589a7" },
@@ -666,11 +630,14 @@ function InteractiveSection() {
                   key={p.label}
                   type="button"
                   onClick={() => setPhotoIdx(i)}
-                  className={`cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors ${
-                    photoIdx === i
-                      ? "bg-foreground text-background"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  }`}
+                  className={cn(
+                    "cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors",
+                    {
+                      "bg-foreground text-background": photoIdx === i,
+                      "bg-muted text-muted-foreground hover:bg-muted/80":
+                        photoIdx !== i,
+                    },
+                  )}
                 >
                   {p.label}
                 </button>

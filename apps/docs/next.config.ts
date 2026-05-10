@@ -1,12 +1,12 @@
 import { createMDX } from "fumadocs-mdx/next";
-import { NextConfig } from "next";
+import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
 
 const cspHeader = `
     default-src 'self';
     connect-src *;
-    frame-src *;
+    frame-src * blob:;
     script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline';
     img-src * blob: data:;
@@ -19,8 +19,8 @@ const cspHeader = `
 `;
 
 const config: NextConfig = {
-  transpilePackages: ["@assistant-ui/*", "shiki"],
-  serverExternalPackages: ["twoslash"],
+  transpilePackages: ["@assistant-ui/ui", "shiki"],
+  serverExternalPackages: ["just-bash"],
   skipTrailingSlashRedirect: true,
   headers: async () => [
     {
@@ -56,6 +56,10 @@ const config: NextConfig = {
       {
         source: "/docs/:path*.mdx",
         destination: "/llms.mdx/:path*",
+      },
+      {
+        source: "/blog/:path.md",
+        destination: "/blog/llms.md/:path",
       },
       {
         source: "/ph/static/:path*",

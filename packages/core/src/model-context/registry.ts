@@ -1,13 +1,13 @@
-import { Tool } from "assistant-stream";
+import type { Tool } from "assistant-stream";
 import {
-  ModelContext,
-  ModelContextProvider,
+  type ModelContext,
+  type ModelContextProvider,
   mergeModelContexts,
-  AssistantToolProps,
-  AssistantInstructionsConfig,
+  type AssistantToolProps,
+  type AssistantInstructionsConfig,
 } from "./types";
-import type { Unsubscribe } from "../types";
-import {
+import type { Unsubscribe } from "../types/unsubscribe";
+import type {
   ModelContextRegistryToolHandle,
   ModelContextRegistryInstructionHandle,
   ModelContextRegistryProviderHandle,

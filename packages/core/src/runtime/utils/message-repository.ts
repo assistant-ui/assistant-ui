@@ -1,4 +1,5 @@
-import type { RunConfig, ThreadMessage } from "../../types";
+import type { ThreadMessage } from "../../types/message";
+import type { RunConfig } from "../../types/message";
 import { generateId, generateOptimisticId } from "../../utils/id";
 import type { ThreadMessageLike } from "./thread-message-like";
 import { getAutoStatus } from "./auto-status";
@@ -36,6 +37,32 @@ export const ExportedMessageRepository = {
         parentId: idx > 0 ? conv[idx - 1]!.id : null,
         message: m,
       })),
+    };
+  },
+
+  fromBranchableArray: (
+    items: readonly {
+      message: ThreadMessageLike;
+      parentId: string | null;
+    }[],
+    options?: { headId?: string | null },
+  ): ExportedMessageRepository => {
+    const fallbackStatus = getAutoStatus(false, false, false, false, undefined);
+    return {
+      ...(options?.headId !== undefined
+        ? { headId: options.headId }
+        : undefined),
+      messages: items.map(({ message, parentId }) => {
+        if (!message.id) {
+          throw new Error(
+            "ExportedMessageRepository.fromBranchableArray: Each message must have an 'id' field set.",
+          );
+        }
+        return {
+          parentId,
+          message: fromThreadMessageLike(message, message.id, fallbackStatus),
+        };
+      }),
     };
   },
 };

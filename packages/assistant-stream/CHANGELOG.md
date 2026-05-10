@@ -1,5 +1,70 @@
 # assistant-stream
 
+## 0.3.13
+
+### Patch Changes
+
+- [#3962](https://github.com/assistant-ui/assistant-ui/pull/3962) [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.3.12
+
+### Patch Changes
+
+- [#3876](https://github.com/assistant-ui/assistant-ui/pull/3876) [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.3.11
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+
+## 0.3.10
+
+### Patch Changes
+
+- 2c5cd97: fix(assistant-stream): handle CRLF line endings in LineDecoderStream
+
+## 0.3.9
+
+### Patch Changes
+
+- dffb6b4: feat: add data part type to streaming pipeline
+
+  Add DataPart as a new streamable content part type, enabling AI to send structured named data that renders via makeAssistantDataUI. Includes appendData() controller method and DataStream serialization support.
+
+- 9103282: fix: resolve biome lint warnings (optional chaining, unused suppressions)
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+
+## 0.3.8
+
+### Patch Changes
+
+- 3227e71: feat: add `toPartialJSONSchema` utility for making JSON Schema properties optional
+- 52403c3: chore: update dependencies
+
+## 0.3.7
+
+### Patch Changes
+
+- 736344c: chore: update dependencies
+
+## 0.3.6
+
+### Patch Changes
+
+- 427ffaa: refactor: drop all barrel files
+- 349f3c7: chore: update deps
+- 02614aa: feat: add multi-agent support
+  - `ReadonlyThreadProvider` and `MessagePartPrimitive.Messages` for rendering sub-agent messages
+  - `assistant-stream`: add `messages` field to `tool-result` chunks, `ToolResponseLike`, and `ToolCallPart` types, enabling sub-agent messages to flow through the streaming protocol
+
+## 0.3.5
+
+### Patch Changes
+
+- 2828b67: fix(assistant-stream): throw a clear error when a Standard Schema (e.g. Zod v3) cannot be converted to JSON Schema, instead of silently passing through invalid data. Also add support for `~standard.jsonSchema.input()` conversion path.
+
 ## 0.3.4
 
 ### Patch Changes

@@ -1,5 +1,71 @@
 # @assistant-ui/tap
 
+## 0.5.11
+
+### Patch Changes
+
+- [#3962](https://github.com/assistant-ui/assistant-ui/pull/3962) [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.5.10
+
+### Patch Changes
+
+- [#3909](https://github.com/assistant-ui/assistant-ui/pull/3909) [`005f83f`](https://github.com/assistant-ui/assistant-ui/commit/005f83f3ebfb94b3a9d7c34bc7d2a71bbaf63a9e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.5.9
+
+### Patch Changes
+
+- [#3876](https://github.com/assistant-ui/assistant-ui/pull/3876) [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#3832](https://github.com/assistant-ui/assistant-ui/pull/3832) [`055dda5`](https://github.com/assistant-ui/assistant-ui/commit/055dda54b68031d0c9c760bf89a7c1036dd2174d) - fix: tapEffectEvent returned a frozen callback in production, breaking consumers that stored the reference externally (e.g. trigger popover plugin registry). Both dev and prod now use the same wrapper that reads the latest callback from the ref at call time — matching the documented "stable reference that always calls the most recent version" contract. ([@okisdev](https://github.com/okisdev))
+
+- [#3831](https://github.com/assistant-ui/assistant-ui/pull/3831) [`d53ff4f`](https://github.com/assistant-ui/assistant-ui/commit/d53ff4f3f8b7d7220c1cb274c4fda335598fb063) - chore: remove decorative separator comments across packages ([@okisdev](https://github.com/okisdev))
+
+## 0.5.8
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+
+## 0.5.7
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+
+## 0.5.6
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+
+## 0.5.5
+
+### Patch Changes
+
+- 52403c3: chore: update dependencies
+
+## 0.5.4
+
+### Patch Changes
+
+- 736344c: chore: update dependencies
+- c71cb58: chore: update dependencies
+
+## 0.5.3
+
+### Patch Changes
+
+- 349f3c7: chore: update deps
+
+## 0.5.2
+
+### Patch Changes
+
+- a845911: chore: update dependencies
+
 ## 0.5.1
 
 ### Patch Changes

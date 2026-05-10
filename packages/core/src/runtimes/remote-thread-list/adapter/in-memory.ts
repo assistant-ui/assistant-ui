@@ -1,5 +1,5 @@
-import { AssistantStream, AssistantStreamChunk } from "assistant-stream";
-import {
+import type { AssistantStream, AssistantStreamChunk } from "assistant-stream";
+import type {
   RemoteThreadInitializeResponse,
   RemoteThreadListAdapter,
   RemoteThreadListResponse,

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useState } from "react";
+import { type FormEvent, useCallback, useState } from "react";
 
 interface ApplyFormProps {
   roleTitle: string;
