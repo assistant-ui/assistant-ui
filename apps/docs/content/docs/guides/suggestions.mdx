@@ -136,9 +136,83 @@ Suggestions dismiss automatically once the user sends a message because `thread.
 
 The primitives available for rendering suggestions are `ThreadPrimitive.Suggestions`, `ThreadPrimitive.SuggestionByIndex`, `SuggestionPrimitive.Title`, `SuggestionPrimitive.Description`, and `SuggestionPrimitive.Trigger`. `ThreadPrimitive.SuggestionByIndex` is useful when you need layout control over a specific suggestion slot rather than iterating all of them. For the full prop reference and usage patterns, see the [Suggestion primitive docs](/docs/primitives/suggestion).
 
-## Dynamic Suggestions
+## Runtime driven suggestions
 
-You can dynamically change suggestions based on your application state:
+The static `Suggestions(...)` API covers welcome screens. For follow up prompts that depend on the conversation, a tool result, or your backend, push suggestions through the runtime itself. They land on `thread.suggestions` rather than the static `suggestions` scope, so they render through a different component.
+
+### Local runtime: `SuggestionAdapter`
+
+Pass a `suggestion` adapter to `useLocalRuntime`. Its `generate` function runs after every assistant turn and may return a promise or an async generator for streaming updates.
+
+```tsx
+import { useLocalRuntime, type SuggestionAdapter } from "@assistant-ui/react";
+
+const suggestionAdapter: SuggestionAdapter = {
+  async generate({ messages }) {
+    const response = await fetch("/api/follow-ups", {
+      method: "POST",
+      body: JSON.stringify({ messages }),
+    });
+    const data: { prompt: string }[] = await response.json();
+    return data;
+  },
+};
+
+const runtime = useLocalRuntime(myChatModel, {
+  adapters: { suggestion: suggestionAdapter },
+});
+```
+
+### External store runtime
+
+`useExternalStoreRuntime` exposes a `suggestions` field, so you can drive follow ups straight from your application state.
+
+```tsx
+const [suggestions, setSuggestions] = useState<ThreadSuggestion[]>([]);
+
+const runtime = useExternalStoreRuntime({
+  messages,
+  onNew,
+  suggestions,
+});
+
+// Push a follow up after a tool result, a stream chunk, or any app event.
+setSuggestions([{ prompt: "Summarize this case" }]);
+```
+
+The local runtime clears its suggestions when a new run starts. External stores keep whatever state you push, so you control the lifetime.
+
+### Rendering runtime suggestions
+
+Static suggestions go through `ThreadPrimitive.Suggestions`; runtime suggestions go through `thread.suggestions`. The shadcn registry ships `ThreadFollowupSuggestions` for the common single line pill layout. For a custom layout, read the array yourself:
+
+```tsx
+import { useAuiState, ThreadPrimitive, AuiIf } from "@assistant-ui/react";
+
+function FollowUps() {
+  const suggestions = useAuiState((s) => s.thread.suggestions);
+  return (
+    <AuiIf condition={(s) => !s.thread.isEmpty && !s.thread.isRunning}>
+      <div className="flex gap-2">
+        {suggestions.map((s, i) => (
+          <ThreadPrimitive.Suggestion
+            key={i}
+            prompt={s.prompt}
+            method="replace"
+            autoSend
+          >
+            {s.prompt}
+          </ThreadPrimitive.Suggestion>
+        ))}
+      </div>
+    </AuiIf>
+  );
+}
+```
+
+## Reacting to application state
+
+You can dynamically change the static suggestion list based on your application state:
 
 ```tsx
 import { useMemo } from "react";

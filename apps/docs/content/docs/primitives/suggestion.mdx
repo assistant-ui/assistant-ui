@@ -128,6 +128,15 @@ When `send={false}`, the `clearComposer` prop controls whether the suggestion re
 - **`clearComposer={true}`** (default): replaces the current composer text
 - **`clearComposer={false}`**: appends the suggestion to the existing text
 
+### Static configuration vs. runtime suggestions
+
+There are two separate data flows for suggestions:
+
+- **Static configuration** flows through the `suggestions` scope. Pass an array to `Suggestions(...)` in your runtime provider; render it with `ThreadPrimitive.Suggestions`. Best for welcome screen prompts.
+- **Runtime / dynamic suggestions** flow through `thread.suggestions`. Populate it via `SuggestionAdapter` (local runtime) or the `suggestions` field on `useExternalStoreRuntime`; render it with the shadcn `ThreadFollowupSuggestions` component or your own component reading `useAuiState((s) => s.thread.suggestions)`. Best for follow up prompts after a turn.
+
+See [Suggested Prompts](/docs/guides/suggestions) for end to end examples.
+
 ### ThreadPrimitive.Suggestion (Legacy)
 
 `ThreadPrimitive.Suggestion` is a self-contained button that takes a `prompt` prop directly. The newer pattern (`ThreadPrimitive.Suggestions` + `SuggestionPrimitive` parts) is preferred for structured suggestions with title and description:
