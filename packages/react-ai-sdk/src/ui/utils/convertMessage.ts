@@ -190,6 +190,13 @@ function convertParts(
           argsText = stripClosingDelimiters(argsText);
         } else {
           metadata.toolArgsKeyOrderCache?.delete(argsKeyOrderCacheKey);
+          if (
+            part.state === "output-available" ||
+            part.state === "output-error" ||
+            part.state === "output-denied"
+          ) {
+            metadata.toolLastInputCache?.delete(argsKeyOrderCacheKey);
+          }
         }
 
         const toolStatus = metadata.toolStatuses?.[toolCallId];

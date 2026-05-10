@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { AISDKMessageConverter } from "./convertMessage";
 
 describe("AISDKMessageConverter", () => {
@@ -399,7 +400,7 @@ describe("AISDKMessageConverter", () => {
   it("preserves last good input when AI SDK briefly emits null input", () => {
     const metadata = {
       toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
-      toolLastInputCache: new Map<string, any>(),
+      toolLastInputCache: new Map<string, ReadonlyJSONObject>(),
     };
 
     const convertWithInput = (input: unknown) =>
@@ -442,7 +443,7 @@ describe("AISDKMessageConverter", () => {
   it("preserves last good input across terminal state transitions", () => {
     const metadata = {
       toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
-      toolLastInputCache: new Map<string, any>(),
+      toolLastInputCache: new Map<string, ReadonlyJSONObject>(),
     };
 
     AISDKMessageConverter.toThreadMessages(
