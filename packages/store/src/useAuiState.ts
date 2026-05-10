@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useDebugValue } from "react";
+import { useSyncExternalStore, useDebugValue, useRef } from "react";
 import type { AssistantState } from "./types/client";
 import { useAui } from "./useAui";
 import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
@@ -21,12 +21,20 @@ import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
 export const useAuiState = <T>(selector: (state: AssistantState) => T): T => {
   const aui = useAui();
   const proxiedState = getProxiedAssistantState(aui);
+  const lastSnapshot = useRef<{ value: T } | undefined>(undefined);
 
-  const slice = useSyncExternalStore(
-    aui.subscribe,
-    () => selector(proxiedState),
-    () => selector(proxiedState),
-  );
+  const getSnapshot = () => {
+    try {
+      const value = selector(proxiedState);
+      lastSnapshot.current = { value };
+      return value;
+    } catch (e) {
+      if (lastSnapshot.current !== undefined) return lastSnapshot.current.value;
+      throw e;
+    }
+  };
+
+  const slice = useSyncExternalStore(aui.subscribe, getSnapshot, getSnapshot);
 
   if (slice === proxiedState) {
     throw new Error(
