@@ -19,6 +19,7 @@ type MessageMetadata = ThreadMessageLike["metadata"];
 export type AISDKMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
+    toolLastInputCache?: Map<string, ReadonlyJSONObject>;
   };
 
 function stripClosingDelimiters(json: string): string {
@@ -148,8 +149,19 @@ function convertParts(
         const toolName = getToolName(part);
         const toolCallId = part.toolCallId;
         const argsKeyOrderCacheKey = `${message.id}:${toolCallId}`;
-        const args: ReadonlyJSONObject =
-          (part.input as ReadonlyJSONObject) || {};
+
+        const rawInput = part.input as ReadonlyJSONObject | null | undefined;
+        let args: ReadonlyJSONObject;
+        if (
+          rawInput != null &&
+          typeof rawInput === "object" &&
+          !Array.isArray(rawInput)
+        ) {
+          args = rawInput;
+          metadata.toolLastInputCache?.set(argsKeyOrderCacheKey, args);
+        } else {
+          args = metadata.toolLastInputCache?.get(argsKeyOrderCacheKey) ?? {};
+        }
 
         let result: unknown;
         let isError = false;

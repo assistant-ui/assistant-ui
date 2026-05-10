@@ -22,6 +22,7 @@ import type {
   RunConfig,
 } from "@assistant-ui/core";
 import { getExternalStoreMessages } from "@assistant-ui/core";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
@@ -103,6 +104,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
+  const toolLastInputCacheRef = useRef<Map<string, ReadonlyJSONObject>>(
+    new Map(),
+  );
   const lastRunConfigRef = useRef<RunConfig | undefined>(undefined);
 
   const hasExecutingTools = Object.values(toolStatuses).some(
@@ -123,6 +127,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolStatuses,
         messageTiming,
         toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
+        toolLastInputCache: toolLastInputCacheRef.current,
         ...(chatHelpers.error && { error: chatHelpers.error.message }),
       }),
       [toolStatuses, messageTiming, chatHelpers.error],

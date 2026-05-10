@@ -395,4 +395,99 @@ describe("AISDKMessageConverter", () => {
       limit: 5,
     });
   });
+
+  it("preserves last good input when AI SDK briefly emits null input", () => {
+    const metadata = {
+      toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
+      toolLastInputCache: new Map<string, any>(),
+    };
+
+    const convertWithInput = (input: unknown) =>
+      AISDKMessageConverter.toThreadMessages(
+        [
+          {
+            id: "a1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-weather",
+                toolCallId: "tc-1",
+                state: "input-streaming",
+                input,
+              },
+            ],
+          } as any,
+        ],
+        false,
+        metadata,
+      )[0]?.content.find((part): part is any => part.type === "tool-call");
+
+    const first = convertWithInput({ city: "NYC" });
+    expect(first?.argsText).toBe('{"city":"NYC');
+    expect(first?.args).toEqual({ city: "NYC" });
+
+    const dropped = convertWithInput(null);
+    expect(dropped?.argsText).toBe('{"city":"NYC');
+    expect(dropped?.args).toEqual({ city: "NYC" });
+
+    const undef = convertWithInput(undefined);
+    expect(undef?.argsText).toBe('{"city":"NYC');
+    expect(undef?.args).toEqual({ city: "NYC" });
+
+    const grown = convertWithInput({ city: "NYC", units: "F" });
+    expect(grown?.argsText).toBe('{"city":"NYC","units":"F');
+    expect(grown?.args).toEqual({ city: "NYC", units: "F" });
+  });
+
+  it("preserves last good input across terminal state transitions", () => {
+    const metadata = {
+      toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
+      toolLastInputCache: new Map<string, any>(),
+    };
+
+    AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-weather",
+              toolCallId: "tc-1",
+              state: "input-available",
+              input: { city: "NYC" },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const terminal = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-weather",
+              toolCallId: "tc-1",
+              state: "output-available",
+              input: null,
+              output: { temp: 70 },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const call = terminal[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.args).toEqual({ city: "NYC" });
+    expect(call?.result).toEqual({ temp: 70 });
+  });
 });
