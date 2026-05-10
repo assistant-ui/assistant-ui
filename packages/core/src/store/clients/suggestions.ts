@@ -1,12 +1,29 @@
-import { resource, tapState, withKey } from "@assistant-ui/tap";
+import {
+  resource,
+  tapCallback,
+  tapMemo,
+  tapState,
+  withKey,
+} from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import { tapClientLookup } from "@assistant-ui/store";
-import type { SuggestionsState } from "../scopes/suggestions";
+import type {
+  Suggestion,
+  SuggestionConfig,
+  SuggestionsState,
+} from "../scopes/suggestions";
 import type { SuggestionState } from "../scopes/suggestion";
 
-export type SuggestionConfig =
-  | string
-  | { title: string; label: string; prompt: string };
+export type { SuggestionConfig } from "../scopes/suggestions";
+
+const normalize = (s: SuggestionConfig): Suggestion => {
+  if (typeof s === "string") {
+    return { title: s, label: "", prompt: s };
+  }
+  return s;
+};
+
+type RuntimeEntry = { id: number; suggestion: Suggestion };
 
 const SuggestionClient = resource(
   (state: SuggestionState): ClientOutput<"suggestion"> => {
@@ -18,26 +35,64 @@ const SuggestionClient = resource(
 
 const SuggestionsResource = resource(
   (suggestions?: SuggestionConfig[]): ClientOutput<"suggestions"> => {
-    const [state] = tapState<SuggestionsState>(() => {
-      const normalizedSuggestions = (suggestions ?? []).map((s) => {
-        if (typeof s === "string") {
-          return {
-            title: s,
-            label: "",
-            prompt: s,
-          };
-        }
-        return {
-          title: s.title,
-          label: s.label,
-          prompt: s.prompt,
-        };
-      });
+    const nextRuntimeId = tapMemo(() => {
+      let counter = 0;
+      return () => ++counter;
+    }, []);
 
-      return {
-        suggestions: normalizedSuggestions,
-      };
-    });
+    const configSuggestions = tapMemo(
+      () => (suggestions ?? []).map(normalize),
+      [suggestions],
+    );
+
+    const [runtimeEntries, setRuntimeEntries] = tapState<RuntimeEntry[]>(
+      () => [],
+    );
+
+    const mergedSuggestions = tapMemo(() => {
+      if (runtimeEntries.length === 0) return configSuggestions;
+      return [...configSuggestions, ...runtimeEntries.map((e) => e.suggestion)];
+    }, [configSuggestions, runtimeEntries]);
+
+    const state = tapMemo<SuggestionsState>(
+      () => ({ suggestions: mergedSuggestions }),
+      [mergedSuggestions],
+    );
+
+    const add = tapCallback(
+      (suggestion: SuggestionConfig) => {
+        const entry: RuntimeEntry = {
+          id: nextRuntimeId(),
+          suggestion: normalize(suggestion),
+        };
+        setRuntimeEntries((prev) => [...prev, entry]);
+        return () => {
+          setRuntimeEntries((prev) =>
+            prev.some((e) => e.id === entry.id)
+              ? prev.filter((e) => e.id !== entry.id)
+              : prev,
+          );
+        };
+      },
+      [nextRuntimeId],
+    );
+
+    const set = tapCallback(
+      (next: SuggestionConfig[]) => {
+        setRuntimeEntries((prev) => {
+          if (prev.length === 0 && next.length === 0) return prev;
+          return next.map((s) => ({
+            id: nextRuntimeId(),
+            suggestion: normalize(s),
+          }));
+        });
+      },
+      [nextRuntimeId],
+    );
+
+    const clear = tapCallback(() => {
+      setRuntimeEntries((prev) => (prev.length === 0 ? prev : []));
+    }, []);
 
     const suggestionClients = tapClientLookup(
       () =>
@@ -52,6 +107,9 @@ const SuggestionsResource = resource(
       suggestion: ({ index }: { index: number }) => {
         return suggestionClients.get({ index });
       },
+      add,
+      set,
+      clear,
     };
   },
 );

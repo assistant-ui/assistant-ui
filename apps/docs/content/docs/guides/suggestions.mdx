@@ -175,6 +175,52 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
+### Imperative API
+
+When suggestions need to come from places outside your runtime provider — for example, a tool result that wants to register a follow-up prompt — use the imperative methods on `aui.suggestions()`:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+function MyToolResult() {
+  const aui = useAui();
+
+  return (
+    <button
+      onClick={() => {
+        aui.suggestions().add({
+          title: "Summarize this case",
+          label: "Short summary",
+          prompt: "Create a short case summary",
+        });
+      }}
+    >
+      Suggest a follow-up
+    </button>
+  );
+}
+```
+
+`add(suggestion)` returns an `Unsubscribe` you can call to remove that specific entry. `set(suggestions)` replaces the runtime slice wholesale, and `clear()` empties it. Declaratively-configured suggestions (`Suggestions([...])`) and imperatively-added ones live in separate slices and are concatenated at read time, so the imperative methods never affect what you passed to `Suggestions()`.
+
+For component-scoped registration with automatic cleanup on unmount, use the `useAssistantSuggestion` hook:
+
+```tsx
+import { useAssistantSuggestion } from "@assistant-ui/react";
+
+function FollowUpSuggestion() {
+  useAssistantSuggestion({
+    title: "Summarize this case",
+    label: "Short summary",
+    prompt: "Create a short case summary",
+  });
+
+  return null;
+}
+```
+
+The hook depends on the suggestion's primitive fields (`title`, `label`, `prompt`), so passing an inline object literal does not cause repeated re-registration.
+
 ## Best Practices
 
 1. **Keep suggestions concise**: Use clear, actionable prompts that users can understand at a glance

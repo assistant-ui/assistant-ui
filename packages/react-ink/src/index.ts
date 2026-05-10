@@ -148,6 +148,8 @@ export {
   type AssistantDataUI,
   useAssistantTool,
   type AssistantToolProps,
+  useAssistantSuggestion,
+  type AssistantSuggestionProps,
   useAssistantToolUI,
   type AssistantToolUIProps,
   useAssistantDataUI,

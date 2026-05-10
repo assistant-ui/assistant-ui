@@ -23,6 +23,10 @@ export {
   type AssistantToolProps,
 } from "./model-context/useAssistantTool";
 export {
+  useAssistantSuggestion,
+  type AssistantSuggestionProps,
+} from "./model-context/useAssistantSuggestion";
+export {
   useAssistantToolUI,
   type AssistantToolUIProps,
 } from "./model-context/useAssistantToolUI";
