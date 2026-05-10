@@ -14,6 +14,7 @@ import type {
   ThreadHistoryAdapter,
   AssistantRuntime,
   ThreadMessage,
+  ThreadSuggestion,
   MessageFormatAdapter,
   MessageFormatItem,
   MessageFormatRepository,
@@ -76,6 +77,13 @@ export type AISDKRuntimeAdapter = {
    * (for example, an SSE reconnect endpoint keyed by turn id).
    */
   onResume?: ExternalStoreAdapter["onResume"];
+  /**
+   * Follow up suggestions to surface on the thread. Use this to drive
+   * dynamic suggestions from application state, tool results, or backend
+   * responses; flows into `thread.suggestions` and is rendered by
+   * components that read it (such as the shadcn `ThreadFollowupSuggestions`).
+   */
+  suggestions?: readonly ThreadSuggestion[] | undefined;
 };
 
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -85,6 +93,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     toCreateMessage: customToCreateMessage,
     cancelPendingToolCallsOnSend = true,
     onResume,
+    suggestions,
   }: AISDKRuntimeAdapter = {},
 ) => {
   const contextAdapters = useRuntimeAdapters();
@@ -329,6 +338,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     onResumeToolCall: (options) =>
       toolInvocations.resume(options.toolCallId, options.payload),
     ...(onResume && { onResume }),
+    ...(suggestions && { suggestions }),
     adapters: {
       attachments: vercelAttachmentAdapter,
       ...contextAdapters,
