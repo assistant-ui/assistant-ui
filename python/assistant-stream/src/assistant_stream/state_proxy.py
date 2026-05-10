@@ -29,10 +29,7 @@ class StateProxy:
         self._path = path or []
 
     def __getitem__(self, key: Union[str, int]) -> Union["StateProxy", Any]:
-        """Access nested values with dict-style syntax.
-
-        Primitives (including strings) are returned directly for compatibility.
-        """
+        """Access nested values with dict-style syntax. Returns primitives directly."""
         current_value = self._manager.get_value_at_path(self._path)
 
         # Handle list indexing
@@ -102,9 +99,8 @@ class StateProxy:
 
         target_path = self._path + [str_key]
 
-        # Heuristic: encode any string extension as append-text.
-        # Require a non-empty current value so that the first write to a
-        # field initialized to "" emits a "set" rather than "append-text".
+        # Encode string extensions as append-text. Skip empty current values:
+        # any.startswith("") matches all strings and would convert first writes too.
         try:
             current_target_value = self._manager.get_value_at_path(target_path)
             if (
@@ -125,15 +121,10 @@ class StateProxy:
         )
 
     def __iadd__(self, other: Any) -> "StateProxy":
-        """Support += for strings and lists at the current proxy level.
+        """Support += on list-valued proxies.
 
-        Note: This is only invoked when += is used directly on a StateProxy
-        (e.g. state["messages"] += "Hello"). For nested string access like
-        state["a"]["b"]["text"] += "chunk", __getitem__ returns a raw str,
-        so Python performs normal str concatenation and then calls __setitem__,
-        which detects the extension via a startswith heuristic. If the nested
-        value starts as "", that first write emits "set"; later extensions emit
-        "append-text".
+        String += on a leaf goes through __setitem__ instead, since
+        __getitem__ returns the raw str rather than a proxy.
         """
         current_value = self._manager.get_value_at_path(self._path)
 

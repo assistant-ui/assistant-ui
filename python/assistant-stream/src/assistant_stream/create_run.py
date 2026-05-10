@@ -152,18 +152,12 @@ class RunController:
         You can set the root state directly by assigning to this property.
 
         Example:
-            controller.state = {
-                "user": {"name": "John"},
-                "summary": "Hello",
-                "messages": [{"text": "Hi"}],
-            }  # Sets the entire state
-            controller.state["user"]["name"] = "Bob"  # Sets the value at path ["user", "name"]
-            name = controller.state["user"]["name"]  # Gets the value at path ["user", "name"]
-            controller.state["summary"] += " world"  # Appends text at path ["summary"]
-            prev = controller.state["messages"][0]["text"]
-            controller.state["messages"][0]["text"] = prev + " chunk"  # Extending a non-empty string emits append-text
+            controller.state = {"user": {"name": "John"}, "messages": [{"text": "Hi"}]}
+            controller.state["user"]["name"] = "Bob"
+            name = controller.state["user"]["name"]
+            controller.state["messages"][0]["text"] += " chunk"  # emits append-text once non-empty
 
-            # For explicit control, append_state_text() is also available:
+            # Explicit equivalent:
             controller.append_state_text(["messages", 0, "text"], " chunk")
         """
         return self._state_manager.state
