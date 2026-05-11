@@ -1,7 +1,7 @@
 import { jsonSchema, type ToolSet } from "ai";
 import type { JSONSchema7 } from "json-schema";
 import type { ToolModelContentPart } from "assistant-stream";
-import { isModelContentEnvelope } from "./modelContentEnvelope";
+import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
 
 const toAISDKContent = (parts: readonly ToolModelContentPart[]) => ({
   type: "content" as const,
@@ -26,8 +26,9 @@ const toAISDKContent = (parts: readonly ToolModelContentPart[]) => ({
 });
 
 const defaultToModelOutput = ({ output }: { output: unknown }) => {
-  if (isModelContentEnvelope(output)) {
-    return toAISDKContent(output.__aui_modelContent);
+  const { modelContent } = unwrapModelContentEnvelope(output);
+  if (modelContent !== undefined) {
+    return toAISDKContent(modelContent);
   }
   return typeof output === "string"
     ? { type: "text" as const, value: output }
@@ -41,7 +42,7 @@ export const frontendTools = (
     Object.entries(tools).map(([name, t]) => [
       name,
       {
-        ...(t.description ? { description: t.description } : undefined),
+        ...(t.description !== undefined && { description: t.description }),
         inputSchema: jsonSchema(t.parameters),
         toModelOutput: defaultToModelOutput,
       },

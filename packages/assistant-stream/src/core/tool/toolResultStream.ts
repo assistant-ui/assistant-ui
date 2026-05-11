@@ -98,7 +98,13 @@ function getToolResponse(
           input: toolCall.args,
           output: response.result,
         });
-        return new ToolResponse({ ...response, modelContent });
+        return new ToolResponse({
+          result: response.result,
+          artifact: response.artifact,
+          isError: response.isError,
+          messages: response.messages,
+          modelContent,
+        });
       }
       return response;
     })();

@@ -104,9 +104,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                   result: chunk.result,
                   artifact: chunk.artifact,
                   isError: chunk.isError,
-                  ...(chunk.modelContent !== undefined
-                    ? { modelContent: chunk.modelContent }
-                    : {}),
+                  modelContent: chunk.modelContent,
                 }),
               );
               break;
@@ -159,9 +157,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                     artifact: c.artifact,
                     result: c.result,
                     isError: c.isError,
-                    ...(c.modelContent !== undefined
-                      ? { modelContent: c.modelContent }
-                      : {}),
+                    modelContent: c.modelContent,
                   });
                   streamController.setResponse(result);
                   controller.enqueue({

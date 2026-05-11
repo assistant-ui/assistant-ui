@@ -150,7 +150,7 @@ export function useToolInvocations({
           }),
           ...(toModelOutput !== undefined && {
             toModelOutput: (
-              ...[options]: Parameters<NonNullable<typeof toModelOutput>>
+              options: Parameters<NonNullable<typeof toModelOutput>>[0],
             ) =>
               toModelOutput({
                 ...options,

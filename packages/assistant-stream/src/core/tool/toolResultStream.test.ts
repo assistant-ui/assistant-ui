@@ -407,14 +407,17 @@ describe("unstable_runPendingTools", () => {
           mediaType: "application/pdf",
           base64: "JVBERi0xLjQK",
         }),
-        toModelOutput: ({ output }) => [
-          { type: "text", text: "PDF contents:" },
-          {
-            type: "file",
-            data: (output as { base64: string }).base64,
-            mediaType: (output as { mediaType: string }).mediaType,
-          },
-        ],
+        toModelOutput: ({ output }) => {
+          const o = output as { base64: string; mediaType: string };
+          return [
+            { type: "text", text: "PDF contents:" },
+            {
+              type: "file",
+              data: o.base64,
+              mediaType: o.mediaType,
+            },
+          ];
+        },
       };
 
       const message: AssistantMessage = {
