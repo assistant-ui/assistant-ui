@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { unstable_runPendingTools } from "./toolResultStream";
+import { ToolResponse } from "./ToolResponse";
 import type { AssistantMessage, ToolCallPart } from "../utils/types";
 import type { Tool } from "./tool-types";
 
@@ -456,6 +457,57 @@ describe("unstable_runPendingTools", () => {
             mediaType: "application/pdf",
           },
         ],
+      });
+    });
+
+    it("does not call toModelOutput when the ToolResponse already carries modelContent", async () => {
+      let called = false;
+      const tool: Tool = {
+        parameters: { type: "object", properties: {} },
+        execute: async () =>
+          new ToolResponse({
+            result: { ok: true },
+            modelContent: [{ type: "text", text: "preset" }],
+          }),
+        toModelOutput: () => {
+          called = true;
+          return [{ type: "text", text: "should not run" }];
+        },
+      };
+
+      const message: AssistantMessage = {
+        role: "assistant",
+        status: { type: "requires-action", reason: "tool-calls" },
+        parts: [
+          {
+            type: "tool-call",
+            toolCallId: "tc-1",
+            toolName: "preset",
+            args: {},
+          } as ToolCallPart,
+        ],
+        content: [],
+        metadata: {
+          unstable_state: {},
+          unstable_data: [],
+          unstable_annotations: [],
+          steps: [],
+          custom: {},
+        },
+      };
+
+      const updated = await unstable_runPendingTools(
+        message,
+        { preset: tool },
+        new AbortController().signal,
+        async () => {},
+      );
+
+      expect(called).toBe(false);
+      expect(updated.parts[0]).toMatchObject({
+        type: "tool-call",
+        state: "result",
+        modelContent: [{ type: "text", text: "preset" }],
       });
     });
 

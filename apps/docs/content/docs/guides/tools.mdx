@@ -125,6 +125,7 @@ By default, the value returned from `execute` is sent to the model as a single J
 
 ```tsx
 import { tool } from "@assistant-ui/react";
+import { convertUint8ArrayToBase64 } from "@ai-sdk/provider-utils";
 import { z } from "zod";
 
 const readPdfTool = tool({
@@ -133,7 +134,7 @@ const readPdfTool = tool({
   execute: async ({ url }) => {
     const res = await fetch(url);
     const buf = new Uint8Array(await res.arrayBuffer());
-    const base64 = btoa(String.fromCharCode(...buf));
+    const base64 = convertUint8ArrayToBase64(buf);
     return { mediaType: "application/pdf", base64, byteLength: buf.byteLength };
   },
   toModelOutput: ({ output }) => [

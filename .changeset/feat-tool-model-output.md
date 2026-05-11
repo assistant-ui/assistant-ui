@@ -2,6 +2,9 @@
 "assistant-stream": patch
 "@assistant-ui/core": patch
 "@assistant-ui/react-ai-sdk": patch
+"@assistant-ui/react": patch
+"@assistant-ui/react-native": patch
+"@assistant-ui/react-ink": patch
 ---
 
 feat: support multi-modal tool results via `toModelOutput`

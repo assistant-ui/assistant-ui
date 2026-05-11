@@ -49,10 +49,46 @@ describe("frontendTools", () => {
       value: [
         { type: "text", text: "PDF contents:" },
         {
-          type: "file",
+          type: "file-data",
           mediaType: "application/pdf",
-          data: { type: "data", data: "JVBERi0xLjQK" },
+          data: "JVBERi0xLjQK",
           filename: "doc.pdf",
+        },
+      ],
+    });
+  });
+
+  it("emits image-data for image media types", async () => {
+    const tools = frontendTools({
+      screenshot: {
+        parameters: { type: "object" },
+      },
+    });
+
+    const envelope = wrapModelContentEnvelope(
+      { mediaType: "image/png", base64: "iVBORw0KGgo=" },
+      [
+        {
+          type: "file",
+          data: "iVBORw0KGgo=",
+          mediaType: "image/png",
+        },
+      ],
+    );
+
+    const output = await tools.screenshot!.toModelOutput!({
+      toolCallId: "tc-1",
+      input: {},
+      output: envelope,
+    });
+
+    expect(output).toEqual({
+      type: "content",
+      value: [
+        {
+          type: "image-data",
+          data: "iVBORw0KGgo=",
+          mediaType: "image/png",
         },
       ],
     });

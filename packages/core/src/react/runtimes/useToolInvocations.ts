@@ -126,6 +126,7 @@ export function useToolInvocations({
       Object.entries(tools).map(([name, tool]) => {
         const execute = tool.execute;
         const streamCall = tool.streamCall;
+        const toModelOutput = tool.toModelOutput;
 
         const wrappedTool = {
           ...tool,
@@ -145,6 +146,15 @@ export function useToolInvocations({
               streamCall(reader, {
                 ...context,
                 toolCallId: getLogicalToolCallId(context.toolCallId),
+              }),
+          }),
+          ...(toModelOutput !== undefined && {
+            toModelOutput: (
+              ...[options]: Parameters<NonNullable<typeof toModelOutput>>
+            ) =>
+              toModelOutput({
+                ...options,
+                toolCallId: getLogicalToolCallId(options.toolCallId),
               }),
           }),
         } as Tool;
@@ -251,8 +261,10 @@ export function useToolInvocations({
                 toolName: chunk.meta.toolName,
                 result: chunk.result,
                 isError: chunk.isError,
-                ...(chunk.artifact && { artifact: chunk.artifact }),
-                ...(chunk.modelContent && {
+                ...(chunk.artifact !== undefined && {
+                  artifact: chunk.artifact,
+                }),
+                ...(chunk.modelContent !== undefined && {
                   modelContent: chunk.modelContent,
                 }),
               });

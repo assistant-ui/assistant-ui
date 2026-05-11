@@ -169,7 +169,7 @@ type HumanTool<
   parameters: StandardSchemaV1<TArgs> | JSONSchema7;
   disabled?: boolean;
   execute?: undefined;
-  toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
+  toModelOutput?: undefined;
   experimental_onSchemaValidationError?: undefined;
 };
 

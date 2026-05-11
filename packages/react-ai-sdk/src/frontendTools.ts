@@ -1,63 +1,49 @@
-import { jsonSchema } from "ai";
+import { jsonSchema, type ToolSet } from "ai";
 import type { JSONSchema7 } from "json-schema";
 import type { ToolModelContentPart } from "assistant-stream";
 import { isModelContentEnvelope } from "./modelContentEnvelope";
 
-type FrontendToolResultOutput =
-  | { type: "text"; value: string }
-  | { type: "json"; value: unknown }
-  | {
-      type: "content";
-      value: Array<
-        | { type: "text"; text: string }
-        | {
-            type: "file";
-            mediaType: string;
-            data: { type: "data"; data: string };
-            filename?: string;
-          }
-      >;
-    };
-
-const toAISDKContent = (
-  parts: readonly ToolModelContentPart[],
-): FrontendToolResultOutput => ({
-  type: "content",
-  value: parts.map((part) =>
-    part.type === "text"
-      ? { type: "text", text: part.text }
-      : {
-          type: "file",
+const toAISDKContent = (parts: readonly ToolModelContentPart[]) => ({
+  type: "content" as const,
+  value: parts.map((part) => {
+    if (part.type === "text") {
+      return { type: "text" as const, text: part.text };
+    }
+    const isImage = part.mediaType.startsWith("image/");
+    return isImage
+      ? {
+          type: "image-data" as const,
+          data: part.data,
           mediaType: part.mediaType,
-          data: { type: "data", data: part.data },
-          ...(part.filename && { filename: part.filename }),
-        },
-  ),
+        }
+      : {
+          type: "file-data" as const,
+          data: part.data,
+          mediaType: part.mediaType,
+          ...(part.filename !== undefined && { filename: part.filename }),
+        };
+  }),
 });
 
-const defaultToModelOutput = ({
-  output,
-}: {
-  output: unknown;
-}): FrontendToolResultOutput => {
+const defaultToModelOutput = ({ output }: { output: unknown }) => {
   if (isModelContentEnvelope(output)) {
     return toAISDKContent(output.__aui_modelContent);
   }
   return typeof output === "string"
-    ? { type: "text", value: output }
-    : { type: "json", value: output ?? null };
+    ? { type: "text" as const, value: output }
+    : { type: "json" as const, value: (output ?? null) as never };
 };
 
 export const frontendTools = (
   tools: Record<string, { description?: string; parameters: JSONSchema7 }>,
-) =>
+): ToolSet =>
   Object.fromEntries(
-    Object.entries(tools).map(([name, tool]) => [
+    Object.entries(tools).map(([name, t]) => [
       name,
       {
-        ...(tool.description ? { description: tool.description } : undefined),
-        inputSchema: jsonSchema(tool.parameters),
+        ...(t.description ? { description: t.description } : undefined),
+        inputSchema: jsonSchema(t.parameters),
         toModelOutput: defaultToModelOutput,
       },
     ]),
-  );
+  ) as ToolSet;

@@ -98,17 +98,7 @@ function getToolResponse(
           input: toolCall.args,
           output: response.result,
         });
-        return new ToolResponse({
-          result: response.result,
-          isError: response.isError,
-          ...(response.artifact !== undefined
-            ? { artifact: response.artifact }
-            : {}),
-          ...(response.messages !== undefined
-            ? { messages: response.messages }
-            : {}),
-          modelContent,
-        });
+        return new ToolResponse({ ...response, modelContent });
       }
       return response;
     })();

@@ -31,8 +31,8 @@ export function unwrapModelContentEnvelope(output: unknown): {
 } {
   if (isModelContentEnvelope(output)) {
     return {
-      result: (output as ModelContentEnvelope).value,
-      modelContent: (output as ModelContentEnvelope)[ENVELOPE_KEY],
+      result: output.value,
+      modelContent: output[ENVELOPE_KEY],
     };
   }
   return { result: output };
