@@ -17,7 +17,7 @@ npm install @assistant-ui/react-native
 
 ```tsx
 import {
-  AssistantProvider,
+  AssistantRuntimeProvider,
   useLocalRuntime,
   type ChatModelAdapter,
 } from "@assistant-ui/react-native";
@@ -31,9 +31,9 @@ const adapter: ChatModelAdapter = {
 export function App() {
   const runtime = useLocalRuntime(adapter);
   return (
-    <AssistantProvider runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime}>
       {/* Thread, Composer, Message primitives */}
-    </AssistantProvider>
+    </AssistantRuntimeProvider>
   );
 }
 ```

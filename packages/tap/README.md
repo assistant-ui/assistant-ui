@@ -48,7 +48,7 @@ In React, use the `useResource` hook from the `/react` sub-path:
 ```tsx
 import { useResource } from "@assistant-ui/tap/react";
 
-function Counter() {
+function CounterButton() {
   const { count, increment } = useResource(Counter({ incrementBy: 1 }));
   return <button onClick={increment}>{count}</button>;
 }

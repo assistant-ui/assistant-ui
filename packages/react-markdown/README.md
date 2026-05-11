@@ -13,7 +13,7 @@
 ## Installation
 
 ```bash
-npm install @assistant-ui/react @assistant-ui/react-markdown react-markdown
+npm install @assistant-ui/react @assistant-ui/react-markdown react-markdown remark-gfm
 ```
 
 ## Usage

@@ -31,10 +31,10 @@ npx assistant-ui@latest create   # new project
 npx assistant-ui@latest init     # add to existing project
 ```
 
-Or install the package directly:
+Or install the packages directly:
 
 ```bash
-npm install @assistant-ui/react
+npm install @assistant-ui/react @assistant-ui/react-ai-sdk
 ```
 
 ## Usage

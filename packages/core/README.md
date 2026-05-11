@@ -29,8 +29,8 @@ import { z } from "zod";
 
 const registry = new ModelContextRegistry();
 
-registry.registerTool({
-  name: "getWeather",
+registry.addTool({
+  toolName: "getWeather",
   ...tool({
     parameters: z.object({ city: z.string() }),
     execute: async ({ city }) => fetchWeather(city),

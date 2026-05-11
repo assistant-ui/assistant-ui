@@ -13,14 +13,16 @@ npm install @assistant-ui/react @assistant-ui/react-ag-ui @ag-ui/client
 ```tsx
 "use client";
 
+import { useMemo } from "react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { HttpAgent } from "@ag-ui/client";
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 
 export function Provider({ children }: { children: React.ReactNode }) {
-  const agent = new HttpAgent({
-    url: process.env.NEXT_PUBLIC_AGUI_AGENT_URL!,
-  });
+  const agent = useMemo(
+    () => new HttpAgent({ url: process.env.NEXT_PUBLIC_AGUI_AGENT_URL! }),
+    [],
+  );
   const runtime = useAgUiRuntime({ agent });
 
   return (
