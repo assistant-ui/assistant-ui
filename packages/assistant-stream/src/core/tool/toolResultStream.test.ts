@@ -397,4 +397,114 @@ describe("unstable_runPendingTools", () => {
       });
     });
   });
+
+  describe("toModelOutput", () => {
+    it("attaches modelContent from toModelOutput onto the resolved tool-call part", async () => {
+      const tool: Tool = {
+        parameters: { type: "object", properties: {} },
+        execute: async () => ({
+          mediaType: "application/pdf",
+          base64: "JVBERi0xLjQK",
+        }),
+        toModelOutput: ({ output }) => [
+          { type: "text", text: "PDF contents:" },
+          {
+            type: "file",
+            data: (output as { base64: string }).base64,
+            mediaType: (output as { mediaType: string }).mediaType,
+          },
+        ],
+      };
+
+      const message: AssistantMessage = {
+        role: "assistant",
+        status: { type: "requires-action", reason: "tool-calls" },
+        parts: [
+          {
+            type: "tool-call",
+            toolCallId: "tc-1",
+            toolName: "readPdf",
+            args: {},
+          } as ToolCallPart,
+        ],
+        content: [],
+        metadata: {
+          unstable_state: {},
+          unstable_data: [],
+          unstable_annotations: [],
+          steps: [],
+          custom: {},
+        },
+      };
+
+      const updated = await unstable_runPendingTools(
+        message,
+        { readPdf: tool },
+        new AbortController().signal,
+        async () => {},
+      );
+
+      expect(updated.parts[0]).toMatchObject({
+        type: "tool-call",
+        state: "result",
+        result: { mediaType: "application/pdf", base64: "JVBERi0xLjQK" },
+        modelContent: [
+          { type: "text", text: "PDF contents:" },
+          {
+            type: "file",
+            data: "JVBERi0xLjQK",
+            mediaType: "application/pdf",
+          },
+        ],
+      });
+    });
+
+    it("does not call toModelOutput when the tool errors", async () => {
+      let called = false;
+      const tool: Tool = {
+        parameters: { type: "object", properties: {} },
+        execute: async () => {
+          throw new Error("boom");
+        },
+        toModelOutput: () => {
+          called = true;
+          return [{ type: "text", text: "should not run" }];
+        },
+      };
+
+      const message: AssistantMessage = {
+        role: "assistant",
+        status: { type: "requires-action", reason: "tool-calls" },
+        parts: [
+          {
+            type: "tool-call",
+            toolCallId: "tc-1",
+            toolName: "broken",
+            args: {},
+          } as ToolCallPart,
+        ],
+        content: [],
+        metadata: {
+          unstable_state: {},
+          unstable_data: [],
+          unstable_annotations: [],
+          steps: [],
+          custom: {},
+        },
+      };
+
+      try {
+        await unstable_runPendingTools(
+          message,
+          { broken: tool },
+          new AbortController().signal,
+          async () => {},
+        );
+      } catch {
+        // execute throws; toModelOutput must not have been consulted
+      }
+
+      expect(called).toBe(false);
+    });
+  });
 });

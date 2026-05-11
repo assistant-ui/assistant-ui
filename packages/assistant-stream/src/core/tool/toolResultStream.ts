@@ -87,7 +87,30 @@ function getToolResponse(
         abortSignal,
         human: (payload: unknown) => human(toolCall.toolCallId, payload),
       })) as unknown as ReadonlyJSONValue;
-      return ToolResponse.toResponse(result);
+      const response = ToolResponse.toResponse(result);
+      if (
+        tool.toModelOutput &&
+        !response.isError &&
+        response.modelContent === undefined
+      ) {
+        const modelContent = await tool.toModelOutput({
+          toolCallId: toolCall.toolCallId,
+          input: toolCall.args,
+          output: response.result,
+        });
+        return new ToolResponse({
+          result: response.result,
+          isError: response.isError,
+          ...(response.artifact !== undefined
+            ? { artifact: response.artifact }
+            : {}),
+          ...(response.messages !== undefined
+            ? { messages: response.messages }
+            : {}),
+          modelContent,
+        });
+      }
+      return response;
     })();
 
     return Promise.race([executePromise, abortPromise]);
@@ -168,6 +191,9 @@ export async function unstable_runPendingTools(
           state: "result" as const,
           ...(toolResponse.artifact !== undefined
             ? { artifact: toolResponse.artifact }
+            : {}),
+          ...(toolResponse.modelContent !== undefined
+            ? { modelContent: toolResponse.modelContent }
             : {}),
           result: toolResponse.result as ReadonlyJSONValue,
           isError: toolResponse.isError,

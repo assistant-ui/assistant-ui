@@ -1,5 +1,6 @@
 import type { ReadonlyJSONValue } from "../utils/json/json-value";
 import type { ObjectStreamOperation } from "./object/types";
+import type { ToolModelContentPart } from "./tool/tool-types";
 
 export type PartInit =
   | {
@@ -96,6 +97,7 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
       readonly artifact?: ReadonlyJSONValue;
       readonly result: ReadonlyJSONValue;
       readonly isError: boolean;
+      readonly modelContent?: readonly ToolModelContentPart[];
       readonly messages?: ReadonlyJSONValue;
     }
   | {
