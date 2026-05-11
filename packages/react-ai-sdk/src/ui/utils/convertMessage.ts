@@ -14,6 +14,7 @@ import type {
   ThreadMessageLike,
 } from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import { unwrapModelContentEnvelope } from "../../modelContentEnvelope";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
 export type AISDKMessageConverterMetadata =
@@ -164,10 +165,13 @@ function convertParts(
         }
 
         let result: unknown;
+        let modelContent: ToolCallMessagePart["modelContent"];
         let isError = false;
 
         if (part.state === "output-available") {
-          result = part.output;
+          const unwrapped = unwrapModelContentEnvelope(part.output);
+          result = unwrapped.result;
+          modelContent = unwrapped.modelContent;
         } else if (part.state === "output-error") {
           isError = true;
           result = { error: part.errorText };
@@ -208,6 +212,7 @@ function convertParts(
           args,
           result,
           isError,
+          ...(modelContent !== undefined && { modelContent }),
           ...getToolInterrupt(part, toolStatus),
         } satisfies ToolCallMessagePart;
       }

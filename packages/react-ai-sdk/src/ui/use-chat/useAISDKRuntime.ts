@@ -28,6 +28,7 @@ import { toCreateMessage } from "../utils/toCreateMessage";
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../getVercelAIMessages";
 import { AISDKMessageConverter } from "../utils/convertMessage";
+import { wrapModelContentEnvelope } from "../../modelContentEnvelope";
 import {
   type AISDKStorageFormat,
   aiSDKV6FormatAdapter,
@@ -148,10 +149,13 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     getTools: () => runtimeRef.current.thread.getModelContext().tools,
     onResult: (command) => {
       if (command.type === "add-tool-result") {
+        const output = command.modelContent
+          ? wrapModelContentEnvelope(command.result, command.modelContent)
+          : command.result;
         chatHelpers.addToolResult({
           tool: command.toolName,
           toolCallId: command.toolCallId,
-          output: command.result,
+          output,
           options: { metadata: lastRunConfigRef.current },
         });
       }

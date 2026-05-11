@@ -491,4 +491,72 @@ describe("AISDKMessageConverter", () => {
     expect(call?.args).toEqual({ city: "NYC" });
     expect(call?.result).toEqual({ temp: 70 });
   });
+
+  it("unwraps the modelContent envelope produced by frontend tool execution", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-readPdf",
+            toolCallId: "tc-pdf",
+            state: "output-available",
+            input: {},
+            output: {
+              __aui_modelContent: [
+                { type: "text", text: "PDF contents:" },
+                {
+                  type: "file",
+                  data: "JVBERi0xLjQK",
+                  mediaType: "application/pdf",
+                },
+              ],
+              value: { mediaType: "application/pdf", base64: "JVBERi0xLjQK" },
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.result).toEqual({
+      mediaType: "application/pdf",
+      base64: "JVBERi0xLjQK",
+    });
+    expect(call?.modelContent).toEqual([
+      { type: "text", text: "PDF contents:" },
+      {
+        type: "file",
+        data: "JVBERi0xLjQK",
+        mediaType: "application/pdf",
+      },
+    ]);
+  });
+
+  it("leaves a plain output untouched when no envelope is present", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { city: "NYC" },
+            output: { temp: 72 },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.result).toEqual({ temp: 72 });
+    expect(call?.modelContent).toBeUndefined();
+  });
 });
