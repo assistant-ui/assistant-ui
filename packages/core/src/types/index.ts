@@ -9,6 +9,7 @@ export type {
   DataMessagePart,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
+  ToolModelContentPart,
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   // Message status

@@ -281,6 +281,7 @@ export type {
   DataMessagePart,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
+  ToolModelContentPart,
   MessageStatus,
   MessagePartStatus,
   ToolCallMessagePartStatus,

@@ -7,6 +7,7 @@ import {
   ToolResponse,
   unstable_toolResultStream,
   type Tool,
+  type ToolModelContentPart,
 } from "assistant-stream";
 import {
   AssistantMetaTransformStream,
@@ -28,6 +29,7 @@ export type AddToolResultCommand = {
   readonly result: ReadonlyJSONValue;
   readonly isError: boolean;
   readonly artifact?: ReadonlyJSONValue;
+  readonly modelContent?: readonly ToolModelContentPart[];
 };
 
 const isArgsTextComplete = (argsText: string) => {
@@ -250,6 +252,9 @@ export function useToolInvocations({
                 result: chunk.result,
                 isError: chunk.isError,
                 ...(chunk.artifact && { artifact: chunk.artifact }),
+                ...(chunk.modelContent && {
+                  modelContent: chunk.modelContent,
+                }),
               });
             }
           },
@@ -533,6 +538,9 @@ export function useToolInvocations({
                     result: content.result as ReadonlyJSONValue,
                     artifact: content.artifact as ReadonlyJSONValue | undefined,
                     isError: content.isError,
+                    ...(content.modelContent !== undefined
+                      ? { modelContent: content.modelContent }
+                      : {}),
                   }),
                 );
                 lastState.controller.close();

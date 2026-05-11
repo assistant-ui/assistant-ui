@@ -2,7 +2,10 @@ import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "assistant-stream/utils";
+import type { ToolModelContentPart } from "assistant-stream";
 import type { CompleteAttachment } from "./attachment";
+
+export type { ToolModelContentPart };
 
 export type TextMessagePart = {
   readonly type: "text";
@@ -82,6 +85,7 @@ export type ToolCallMessagePart<
   readonly isError?: boolean | undefined;
   readonly argsText: string;
   readonly artifact?: unknown;
+  readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   readonly interrupt?: { type: "human"; payload: unknown };
   readonly parentId?: string;
   readonly messages?: readonly ThreadMessage[];
