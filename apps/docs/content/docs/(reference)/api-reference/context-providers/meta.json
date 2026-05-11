@@ -1,6 +1,10 @@
 {
   "title": "Context Providers",
-  "description": "Reference for assistant-ui React context providers that establish runtime, thread, message, and scoped rendering contexts.",
+  "description": "API reference for assistant-ui React context providers that establish runtime, thread, message, attachment, and scoped rendering contexts.",
   "overview": "Context providers establish the scopes that primitives and hooks read from. Most apps use `AssistantRuntimeProvider` directly; lower-level providers are for custom renderers and advanced composition.",
-  "pages": ["assistant-runtime-provider", "scoped-providers"]
+  "pages": [
+    "index",
+    "assistant-runtime-provider",
+    "scoped-providers"
+  ]
 }

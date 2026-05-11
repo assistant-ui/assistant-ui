@@ -113,6 +113,12 @@ type TypeDoc = {
 
 type PageSummary = { slug: string; title: string; description: string };
 type TypeDocBindings = Map<string, string>;
+type SectionMeta = {
+  title: string;
+  description: string;
+  overview: string;
+  manualOverview: string;
+};
 
 type AuthoredSlot = {
   kind: "api-manual" | "api-example";
@@ -141,93 +147,114 @@ const PRIMARY_FEATURE_TYPES = new Set([
   "ExternalThreadProps",
 ]);
 
-const SECTION_META: Record<
-  ApiSection,
-  { title: string; description: string; overview: string }
-> = {
+const SECTION_META: Record<ApiSection, SectionMeta> = {
   tools: {
     title: "Tools",
     description:
-      "APIs for defining tools, registering tool UIs, rendering tool calls, and composing toolkits.",
+      "API reference for assistant-ui React tools, including tool definitions, toolkits, tool UI renderers, data part renderers, and status helpers.",
     overview:
       "Tool APIs define the callable capabilities an assistant can use and the React UI used to render tool calls and results.",
+    manualOverview:
+      "Use these APIs when your assistant needs to call application code, render a custom tool result, or expose tool state inside a React UI. This section covers the contracts that connect model-facing tool definitions to user-facing assistant-ui components.",
   },
   "model-context": {
     title: "Model Context",
     description:
-      "APIs for providing model instructions, context, and model context registries.",
+      "API reference for assistant-ui model context, including instructions, contextual state, provider registries, and model-facing renderers.",
     overview:
       "Model context APIs let apps contribute instructions, contextual text, and provider state to the assistant runtime.",
+    manualOverview:
+      "Model context is the layer that tells the assistant what the surrounding app knows. Use it to contribute instructions, register contextual providers, and keep model-facing state close to the React components that own it.",
   },
   transport: {
     title: "Transport",
     description:
-      "Assistant transport, frame, and protocol APIs for cross-boundary communication.",
+      "API reference for assistant-ui transport APIs, including assistant transport commands, frame messages, and cross-boundary runtime protocols.",
     overview:
       "Transport APIs describe the message protocol and frame bridge used to connect assistant-ui to external execution contexts.",
+    manualOverview:
+      "Transport APIs are for runtimes that cross a network, worker, iframe, or other execution boundary. They document the command and frame contracts that keep assistant-ui state synchronized with an external process.",
   },
   "external-store": {
     title: "External Store",
     description:
-      "External store runtime and message conversion helpers for custom state ownership.",
+      "API reference for assistant-ui external store runtimes, message conversion helpers, and adapters for apps that own chat state.",
     overview:
       "External store APIs connect assistant-ui to applications that own their message and thread state outside the built-in runtimes.",
+    manualOverview:
+      "External store APIs are for applications that already have their own message, thread, or persistence model. They let assistant-ui render and control that state without forcing the app to adopt the built-in runtime storage shape.",
   },
   voice: {
     title: "Voice",
     description:
-      "Voice session, speech, and dictation APIs for realtime assistant experiences.",
+      "API reference for assistant-ui voice APIs, including realtime voice sessions, speech synthesis, dictation, and voice runtime adapters.",
     overview:
       "Voice APIs connect realtime voice sessions, speech synthesis, and dictation controls to assistant-ui.",
+    manualOverview:
+      "Voice APIs cover the state and adapters needed for spoken assistant experiences. Use this section when connecting realtime voice sessions, speech synthesis controls, or dictation input to an assistant-ui runtime.",
   },
   primitives: {
     title: "Primitives",
     description:
-      "Reference for assistant-ui React primitive namespaces, including Thread, Composer, Message, BranchPicker, ActionBar, and their composable parts.",
+      "API reference for assistant-ui React primitives, including Thread, Composer, Message, BranchPicker, ActionBar, and composable UI parts.",
     overview:
       "Primitives are the composable React components exported from `@assistant-ui/react`. These pages are generated from the public React barrel and the primitive prop metadata.",
+    manualOverview:
+      "Primitives are the low-level React components behind assistant-ui interfaces. They provide accessible behavior, state wiring, and composition points while leaving layout and styling under your control.",
   },
   hooks: {
     title: "Hooks",
     description:
-      "Reference for assistant-ui React hooks, including reactive state, runtime creation, model context, and utilities for building AI chat components.",
+      "API reference for assistant-ui React hooks, including state selectors, runtime creation, primitive hooks, model context, and chat UI utilities.",
     overview:
       "Hooks are the programmatic layer of `@assistant-ui/react`: reading state, creating runtimes, registering tools, wiring model context, and building custom assistant behavior.",
+    manualOverview:
+      "Hooks are the escape hatch and integration layer for React applications. Use them to read assistant state, call runtime actions, create runtimes, register model context, and connect custom components to assistant-ui behavior.",
   },
   adapters: {
     title: "Adapters",
     description:
-      "Reference for assistant-ui adapter interfaces and helpers for chat models, persistence, attachments, speech, feedback, suggestions, and runtime composition.",
+      "API reference for assistant-ui adapters for chat models, persistence, attachments, speech, feedback, suggestions, and runtime composition.",
     overview:
       "Adapters let you replace runtime behavior without replacing the UI. They are usually passed through runtime options or provided by integration packages.",
+    manualOverview:
+      "Adapters define the boundaries between assistant-ui and the systems around it. Use them when you need custom model execution, attachment handling, persistence, feedback collection, speech, dictation, or prompt suggestions.",
   },
   runtimes: {
-    title: "Runtimes",
+    title: "Runtime State",
     description:
-      "Reference for runtime actions and state used by useAui and useAuiState, including typed contracts for controlling assistant-ui in React.",
+      "API reference for assistant-ui runtime state and actions used by useAui and useAuiState to control threads, messages, composers, and attachments.",
     overview:
       "Runtime pages document the objects and state exposed through assistant-ui runtimes. Use this section when controlling assistant-ui programmatically or inspecting exact state shapes.",
+    manualOverview:
+      "Runtime state is the typed control surface behind assistant-ui. These pages document the actions and state objects available through `useAui`, `useAuiState`, and scoped runtimes.",
   },
   "context-providers": {
     title: "Context Providers",
     description:
-      "Reference for assistant-ui React context providers that establish runtime, thread, message, and scoped rendering contexts.",
+      "API reference for assistant-ui React context providers that establish runtime, thread, message, attachment, and scoped rendering contexts.",
     overview:
       "Context providers establish the scopes that primitives and hooks read from. Most apps use `AssistantRuntimeProvider` directly; lower-level providers are for custom renderers and advanced composition.",
+    manualOverview:
+      "Context providers define where assistant-ui primitives and hooks read their state. Most apps only need `AssistantRuntimeProvider`, while scoped providers support custom renderers, isolated message parts, and advanced composition.",
   },
   integrations: {
     title: "Integrations",
     description:
-      "Package-level API reference for assistant-ui React integrations, including React AI SDK and Assistant Cloud AI SDK helpers.",
+      "Package-level API reference for assistant-ui React integrations, including Vercel AI SDK runtime hooks and Assistant Cloud AI SDK helpers.",
     overview:
       "Integration packages adapt assistant-ui to framework libraries and adjacent React ecosystems. Use these pages when you need package-specific hook names, options, and helper exports.",
+    manualOverview:
+      "Integration packages connect assistant-ui to adjacent React and AI SDK ecosystems. Use this section when you need the exact hooks, options, and helper exports for a package such as `@assistant-ui/react-ai-sdk` or `@assistant-ui/cloud-ai-sdk`.",
   },
   utilities: {
     title: "Utilities",
     description:
-      "Miscellaneous public utilities exported by @assistant-ui/react.",
+      "API reference for miscellaneous assistant-ui React utilities that support custom rendering, composition, and advanced chat UI behavior.",
     overview:
       "Utilities are public exports that do not belong to a more specific assistant-ui feature or API shape.",
+    manualOverview:
+      "Utilities collect small public exports that are useful when building custom assistant-ui components but do not belong to a larger feature area. Start here when you recognize an export name but not its surrounding API family.",
   },
 };
 
@@ -242,13 +269,14 @@ const INTEGRATION_PACKAGES = [
     packageName: "@assistant-ui/react-ai-sdk",
     entry: path.join(REPO_ROOT, "packages/react-ai-sdk/src/index.ts"),
     description:
-      "Vercel AI SDK integration with chat runtime hooks and transport utilities.",
+      "API reference for @assistant-ui/react-ai-sdk, including Vercel AI SDK runtime hooks, chat transports, and message conversion utilities.",
   },
   {
     slug: "cloud-ai-sdk",
     packageName: "@assistant-ui/cloud-ai-sdk",
     entry: path.join(REPO_ROOT, "packages/cloud-ai-sdk/src/index.ts"),
-    description: "AI SDK hooks for assistant-cloud persistence.",
+    description:
+      "API reference for @assistant-ui/cloud-ai-sdk hooks that connect Assistant Cloud threads and persistence to AI SDK chat applications.",
   },
 ] as const;
 
@@ -258,62 +286,73 @@ const PAGE_META: Partial<
   tools: {
     definition: {
       title: "Tool Definitions",
-      description: "Define assistant tools and compose toolkits.",
+      description:
+        "Define assistant tools, compose toolkits, and expose callable app capabilities to assistant-ui runtimes.",
     },
     rendering: {
       title: "Tool Rendering",
-      description: "Register React renderers for tool calls and data parts.",
+      description:
+        "Register React renderers for assistant-ui tool calls, tool results, and model data parts.",
     },
     status: {
       title: "Tool Status",
-      description: "Read tool argument and execution status from tool UIs.",
+      description:
+        "Read tool arguments, execution status, and result state inside assistant-ui tool UI components.",
     },
   },
   "model-context": {
     context: {
       title: "Model Context",
-      description: "Provide model instructions and contextual state.",
+      description:
+        "Provide model instructions, contextual state, and inline renderers to assistant-ui runtimes.",
     },
     registry: {
       title: "Model Context Registry",
-      description: "Register and manage model context providers.",
+      description:
+        "Register and manage assistant-ui model context providers that contribute instructions and app state.",
     },
   },
   transport: {
     "assistant-transport": {
       title: "Assistant Transport",
-      description: "Command and protocol types for assistant transport.",
+      description:
+        "Command, protocol, and transport types for connecting assistant-ui runtimes across execution boundaries.",
     },
     frame: {
       title: "Assistant Frame",
-      description: "Frame bridge APIs and message protocol types.",
+      description:
+        "Frame bridge APIs and serialized message types for embedding assistant-ui runtimes in external contexts.",
     },
   },
   "external-store": {
     runtime: {
       title: "External Store Runtime",
-      description: "External store runtime components, options, and adapters.",
+      description:
+        "Runtime components, options, and adapters for using assistant-ui with externally owned chat state.",
     },
     "message-conversion": {
       title: "Message Conversion",
-      description: "Convert and bind external message formats.",
+      description:
+        "Convert external message formats into assistant-ui message and thread state contracts.",
     },
   },
   voice: {
     session: {
       title: "Voice Sessions",
-      description: "Create and control realtime voice sessions.",
+      description:
+        "Create and control realtime assistant-ui voice sessions, state, controls, and helpers.",
     },
     "speech-dictation": {
       title: "Speech and Dictation",
-      description: "Connect speech synthesis and dictation adapters.",
+      description:
+        "Connect speech synthesis and dictation adapters to assistant-ui voice and composer workflows.",
     },
   },
   utilities: {
     miscellaneous: {
       title: "Utilities",
       description:
-        "Miscellaneous public utilities exported by @assistant-ui/react.",
+        "Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.",
     },
   },
   hooks: {
@@ -325,26 +364,27 @@ const PAGE_META: Partial<
     "composer-triggers": {
       title: "Composer Trigger Hooks",
       description:
-        "Unstable hooks for mention, slash command, and trigger popover behavior.",
+        "Unstable assistant-ui hooks for mention menus, slash commands, and custom composer trigger popovers.",
     },
     "model-context": {
       title: "Model Context Hooks",
       description:
-        "Hooks for registering tools, data renderers, instructions, and model context.",
+        "React hooks for registering assistant-ui tools, data renderers, instructions, and model context providers.",
     },
     primitives: {
       title: "Primitive Hooks",
       description:
-        "Hooks for primitive-scoped state, actions, viewport, timing, and message parts.",
+        "Hooks for assistant-ui primitive state, scoped runtime actions, viewport behavior, timing, and message parts.",
     },
     runtimes: {
       title: "Runtime Hooks",
-      description: "Hooks for creating assistant runtimes.",
+      description:
+        "Hooks for creating assistant-ui runtimes for local, remote, cloud, and AI SDK chat experiences.",
     },
     state: {
       title: "State Hooks",
       description:
-        "Hooks for reading assistant state and calling runtime actions.",
+        "Hooks for reading assistant-ui state and calling runtime actions with useAui and useAuiState.",
     },
     voice: {
       title: "Voice Hooks",
@@ -354,67 +394,188 @@ const PAGE_META: Partial<
   adapters: {
     attachments: {
       title: "Attachment Adapters",
-      description: "Upload and compose file attachment handlers.",
+      description:
+        "Adapters for uploading files, handling attachments, and composing attachment support in assistant-ui.",
     },
     "feedback-speech": {
       title: "Feedback Adapter",
       description:
-        "Capture message feedback submitted through action primitives.",
+        "Adapters for collecting assistant message feedback and connecting speech synthesis behavior.",
     },
     model: {
       title: "Model Adapters",
       description:
-        "Adapter interfaces for connecting chat models to assistant-ui runtimes.",
+        "Adapter interfaces for connecting chat models, streaming responses, and model execution to assistant-ui runtimes.",
     },
     persistence: {
       title: "Persistence Adapters",
-      description: "Persist message history and thread lists.",
+      description:
+        "Adapters for persisting assistant-ui message history, remote thread lists, and chat session state.",
     },
     runtime: {
       title: "Runtime Adapter Context",
-      description: "Provide runtime adapters through React context.",
+      description:
+        "Provide assistant-ui runtime adapters through React context for model, attachment, speech, and feedback behavior.",
     },
     suggestions: {
       title: "Suggestion Adapters",
-      description: "Provide prompt suggestions to assistant-ui runtimes.",
+      description:
+        "Adapters for providing prompt suggestions and starter messages to assistant-ui runtimes.",
     },
     voice: {
       title: "Voice Adapters",
       description: "Connect realtime voice sessions to assistant-ui runtimes.",
     },
   },
+  "context-providers": {
+    "assistant-runtime-provider": {
+      title: "AssistantRuntimeProvider",
+      description:
+        "Root React provider that connects an assistant-ui runtime to primitives, hooks, threads, and composer state.",
+    },
+    "scoped-providers": {
+      title: "Scoped Providers",
+      description:
+        "Lower-level assistant-ui providers for custom renderers, scoped message parts, attachments, and advanced composition.",
+    },
+  },
+  primitives: {
+    "action-bar": {
+      title: "ActionBarPrimitive",
+      description:
+        "Composable message action controls for copy, edit, reload, speech, and feedback in assistant-ui chat interfaces.",
+    },
+    "action-bar-more": {
+      title: "ActionBarMorePrimitive",
+      description:
+        "Overflow menu primitives for grouping secondary assistant message actions in a custom React UI.",
+    },
+    "assistant-if": {
+      title: "AuiIf",
+      description:
+        "Conditional rendering primitive for showing React UI from assistant-ui thread, message, composer, and runtime state.",
+    },
+    "assistant-modal": {
+      title: "AssistantModalPrimitive",
+      description:
+        "Floating assistant modal primitives for building support chat, copilot, and embedded assistant experiences.",
+    },
+    attachment: {
+      title: "AttachmentPrimitive",
+      description:
+        "Primitives for rendering assistant-ui file attachments, thumbnails, names, and remove controls.",
+    },
+    "branch-picker": {
+      title: "BranchPickerPrimitive",
+      description:
+        "Primitives for navigating alternative assistant message branches and regenerated responses.",
+    },
+    "chain-of-thought": {
+      title: "ChainOfThoughtPrimitive",
+      description:
+        "Primitives for rendering assistant reasoning, steps, and chain-of-thought style disclosure UI.",
+    },
+    composer: {
+      title: "ComposerPrimitive",
+      description:
+        "Composable input primitives for assistant-ui prompts, send controls, cancellation, attachments, and composer state.",
+    },
+    error: {
+      title: "ErrorPrimitive",
+      description:
+        "Primitives for rendering assistant-ui runtime and message errors inside custom chat components.",
+    },
+    message: {
+      title: "MessagePrimitive",
+      description:
+        "Primitives for rendering assistant and user messages, message parts, attachments, actions, and edit composers.",
+    },
+    "message-part": {
+      title: "MessagePartPrimitive",
+      description:
+        "Primitives for rendering text, tool calls, data parts, reasoning, and other assistant-ui message content.",
+    },
+    "queue-item": {
+      title: "QueueItemPrimitive",
+      description:
+        "Primitives for rendering queued assistant-ui thread operations and pending runtime work.",
+    },
+    "selection-toolbar": {
+      title: "SelectionToolbarPrimitive",
+      description:
+        "Selection toolbar primitives for quote, copy, and contextual actions on selected chat text.",
+    },
+    suggestion: {
+      title: "SuggestionPrimitive",
+      description:
+        "Primitives for rendering prompt suggestions and starter actions in assistant-ui thread and composer flows.",
+    },
+    thread: {
+      title: "ThreadPrimitive",
+      description:
+        "Primitives for rendering assistant-ui chat threads, message lists, scroll behavior, suggestions, and composers.",
+    },
+    "thread-list": {
+      title: "ThreadListPrimitive",
+      description:
+        "Primitives for rendering thread lists, new thread actions, and custom assistant conversation navigation.",
+    },
+    "thread-list-item": {
+      title: "ThreadListItemPrimitive",
+      description:
+        "Primitives for rendering selectable assistant-ui thread rows with title, archive, unarchive, and delete actions.",
+    },
+    "thread-list-item-more": {
+      title: "ThreadListItemMorePrimitive",
+      description:
+        "Overflow menu primitives for secondary thread list item actions in custom assistant-ui sidebars.",
+    },
+  },
   runtimes: {
     "assistant-runtime": {
       title: "AssistantRuntime",
-      description: "Top-level runtime actions and state for assistant-ui.",
+      description:
+        "Top-level assistant-ui runtime actions and state for tools, threads, composers, messages, and assistant behavior.",
     },
     "attachment-runtime": {
       title: "AttachmentRuntime",
-      description: "Runtime actions and state for attachments.",
+      description:
+        "Runtime state and actions for assistant-ui attachments in message and composer contexts.",
     },
     "composer-runtime": {
       title: "ComposerRuntime",
-      description: "Runtime actions and state for composer input.",
+      description:
+        "Runtime state and actions for controlling assistant-ui composer input, attachments, and send behavior.",
     },
     "message-part-runtime": {
       title: "MessagePartRuntime",
-      description: "Runtime actions and state for message parts.",
+      description:
+        "Runtime state and actions for assistant-ui message parts, including text, tool, and data content.",
     },
     "message-runtime": {
       title: "MessageRuntime",
-      description: "Runtime actions and state for messages.",
+      description:
+        "Runtime state and actions for assistant-ui messages, including edit, reload, copy, feedback, and speech actions.",
+    },
+    "queue-state": {
+      title: "QueueItemState",
+      description:
+        "State shape for queued assistant-ui thread operations and pending runtime work.",
     },
     "thread-list-item-runtime": {
       title: "ThreadListItemRuntime",
-      description: "Runtime actions and state for thread list items.",
+      description:
+        "Runtime state and actions for assistant-ui thread list items, including archive, delete, and selection behavior.",
     },
     "thread-list-runtime": {
       title: "ThreadListRuntime",
-      description: "Runtime actions and state for thread lists.",
+      description:
+        "Runtime state and actions for assistant-ui thread lists, remote threads, and thread creation.",
     },
     "thread-runtime": {
       title: "ThreadRuntime",
-      description: "Runtime actions and state for threads.",
+      description:
+        "Runtime state and actions for assistant-ui threads, messages, suggestions, composers, and model context.",
     },
   },
 };
@@ -2418,7 +2579,7 @@ function generatePrimitivePage(
     : undefined;
   return generateApiPage({
     title: item.name,
-    description: descriptionForPage(item.page, [item]),
+    description: descriptionForPage(item.page, [item], item.section),
     imports: generatedImportsForPage([item], typeDocNames),
     guideLine,
     slots,
@@ -2639,6 +2800,41 @@ function generateCompositionPage(): string {
   ].join("\n");
 }
 
+function generateSectionOverviewPage(
+  section: ApiSection,
+  pages: PageSummary[],
+  slots: PageSlots,
+): string {
+  const meta = SECTION_META[section];
+  const manualOverview =
+    slots.manual ??
+    [
+      mdxCommentMarker("api-manual", "start"),
+      meta.manualOverview,
+      mdxCommentMarker("api-manual", "end"),
+    ].join("\n");
+  const cards = pages.flatMap((page) => [
+    `  <Card title={${JSON.stringify(page.title)}} href={${JSON.stringify(`/docs/api-reference/${section}/${page.slug}`)}}>`,
+    `    {${JSON.stringify(page.description)}}`,
+    "  </Card>",
+  ]);
+
+  return [
+    frontmatter(`${meta.title} API Reference`, meta.description),
+    GENERATED_PAGE_MARKER,
+    "{/* The page list is generated from exported APIs; edit only the manual prose slot. */}",
+    "",
+    manualOverview,
+    "",
+    "## Pages",
+    "",
+    "<Cards>",
+    ...cards,
+    "</Cards>",
+    "",
+  ].join("\n");
+}
+
 function groupedBySectionAndPage(
   exports: ExportInfo[],
 ): Map<ApiSection, Map<string, ExportInfo[]>> {
@@ -2671,7 +2867,7 @@ function writeSectionIndex(section: ApiSection, pages: PageSummary[]): void {
         title: meta.title,
         description: meta.description,
         overview: meta.overview,
-        pages: pages.map((page) => page.slug),
+        pages: ["index", ...pages.map((page) => page.slug)],
       },
       null,
       2,
@@ -2795,10 +2991,20 @@ function writeApiReferencePages(
       });
     }
 
+    const indexPath = path.join(sectionDir, "index.mdx");
+    const indexSlots = readPageSlots(section, "index", []);
+    const indexBody = generateSectionOverviewPage(
+      section,
+      pageSummaries,
+      indexSlots,
+    );
+    assertPreservedSlots(indexPath, indexSlots, indexBody);
+    writeGeneratedFile(indexPath, indexBody);
+
     writeSectionIndex(section, pageSummaries);
     pruneStaleGeneratedPages(
       sectionDir,
-      new Set(pageSummaries.map((page) => page.slug)),
+      new Set(["index", ...pageSummaries.map((page) => page.slug)]),
     );
   }
 }
@@ -2856,10 +3062,21 @@ function writeIntegrationPages(): void {
       description: integration.description,
     })),
   );
+  const indexPath = path.join(sectionDir, "index.mdx");
+  const pageSummaries = INTEGRATION_PACKAGES.map((integration) => ({
+    slug: integration.slug,
+    title: integration.packageName,
+    description: integration.description,
+  }));
+  const indexSlots = readPageSlots(section, "index", []);
+  const indexBody = generateSectionOverviewPage(section, pageSummaries, indexSlots);
+  assertPreservedSlots(indexPath, indexSlots, indexBody);
+  writeGeneratedFile(indexPath, indexBody);
+
   writeTypeDocsFile(INTEGRATION_TYPE_DOCS_OUTPUT, allTypeDocs, (name) => name);
   pruneStaleGeneratedPages(
     sectionDir,
-    new Set(INTEGRATION_PACKAGES.map((integration) => integration.slug)),
+    new Set(["index", ...INTEGRATION_PACKAGES.map((integration) => integration.slug)]),
   );
 }
 
