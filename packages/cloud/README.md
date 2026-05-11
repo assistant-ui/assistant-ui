@@ -9,7 +9,7 @@ Server- and client-side SDK for [Assistant Cloud](https://cloud.assistant-ui.com
 ## Installation
 
 ```bash
-npm install assistant-cloud
+npm install @assistant-ui/react @assistant-ui/react-ai-sdk assistant-cloud
 ```
 
 ## Usage

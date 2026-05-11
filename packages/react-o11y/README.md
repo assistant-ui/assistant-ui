@@ -25,12 +25,12 @@ export function Waterfall() {
   const aui = useAui({ span: SpanResource({ spans }) });
   return (
     <AuiProvider value={aui}>
-      <Timeline />
+      {/* compose SpanPrimitive.* components here — see examples/waterfall for a full layout */}
     </AuiProvider>
   );
 }
 ```
 
-Compose `SpanPrimitive.*` components inside `<Timeline>` to render rows, indentation, names, status, and the collapse toggle.
+`SpanPrimitive.*` components rendered inside `<AuiProvider>` cover rows, indentation, names, status, and the collapse toggle.
 
 See [`examples/waterfall`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/waterfall) for a complete waterfall implementation.
