@@ -157,6 +157,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                     artifact: c.artifact,
                     result: c.result,
                     isError: c.isError,
+                    messages: c.messages,
                     modelContent: c.modelContent,
                   });
                   streamController.setResponse(result);

@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { unstable_runPendingTools } from "./toolResultStream";
+import {
+  toolResultStream as unstable_toolResultStream,
+  unstable_runPendingTools,
+} from "./toolResultStream";
 import { ToolResponse } from "./ToolResponse";
+import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import type { AssistantMessage, ToolCallPart } from "../utils/types";
 import type { Tool } from "./tool-types";
 
@@ -564,6 +568,80 @@ describe("unstable_runPendingTools", () => {
         expect.any(Error),
       );
       warn.mockRestore();
+    });
+
+    it("forwards modelContent through the streaming path (toolResultStream + ToolExecutionStream)", async () => {
+      const tool: Tool = {
+        parameters: { type: "object", properties: {} },
+        execute: async () => ({
+          mediaType: "application/pdf",
+          base64: "JVBERi0xLjQK",
+        }),
+        toModelOutput: ({ output }) => {
+          const o = output as { mediaType: string; base64: string };
+          return [
+            { type: "text", text: "PDF contents:" },
+            { type: "file", data: o.base64, mediaType: o.mediaType },
+          ];
+        },
+      };
+
+      const inputChunks: AssistantStreamChunk[] = [
+        {
+          type: "part-start",
+          path: [],
+          part: {
+            type: "tool-call",
+            toolCallId: "tc-stream-1",
+            toolName: "readPdf",
+          },
+        },
+        { type: "text-delta", path: [0], textDelta: "{}" },
+        { type: "tool-call-args-text-finish", path: [0] },
+        { type: "part-finish", path: [0] },
+      ];
+
+      const inputStream = new ReadableStream<AssistantStreamChunk>({
+        start(controller) {
+          for (const chunk of inputChunks) controller.enqueue(chunk);
+          controller.close();
+        },
+      });
+
+      const outputChunks: AssistantStreamChunk[] = [];
+      await inputStream
+        .pipeThrough(
+          unstable_toolResultStream(
+            { readPdf: tool },
+            new AbortController().signal,
+            async () => {},
+          ),
+        )
+        .pipeTo(
+          new WritableStream<AssistantStreamChunk>({
+            write(chunk) {
+              outputChunks.push(chunk);
+            },
+          }),
+        );
+
+      const resultChunk = outputChunks.find((c) => c.type === "result") as
+        | (AssistantStreamChunk & { type: "result" })
+        | undefined;
+      expect(resultChunk).toBeDefined();
+      expect(resultChunk?.result).toEqual({
+        mediaType: "application/pdf",
+        base64: "JVBERi0xLjQK",
+      });
+      expect(resultChunk?.isError).toBe(false);
+      expect(resultChunk?.modelContent).toEqual([
+        { type: "text", text: "PDF contents:" },
+        {
+          type: "file",
+          data: "JVBERi0xLjQK",
+          mediaType: "application/pdf",
+        },
+      ]);
     });
 
     it("does not call toModelOutput when the tool errors", async () => {

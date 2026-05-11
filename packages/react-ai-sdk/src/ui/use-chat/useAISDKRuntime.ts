@@ -149,9 +149,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     getTools: () => runtimeRef.current.thread.getModelContext().tools,
     onResult: (command) => {
       if (command.type === "add-tool-result") {
-        const output = command.modelContent
-          ? wrapModelContentEnvelope(command.result, command.modelContent)
-          : command.result;
+        const output =
+          command.modelContent !== undefined
+            ? wrapModelContentEnvelope(command.result, command.modelContent)
+            : command.result;
         chatHelpers.addToolResult({
           tool: command.toolName,
           toolCallId: command.toolCallId,

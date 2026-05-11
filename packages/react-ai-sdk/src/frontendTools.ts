@@ -32,7 +32,7 @@ const defaultToModelOutput = ({ output }: { output: unknown }) => {
   }
   return typeof output === "string"
     ? { type: "text" as const, value: output }
-    : { type: "json" as const, value: (output ?? null) as never };
+    : { type: "json" as const, value: (output ?? null) as any };
 };
 
 export const frontendTools = (
