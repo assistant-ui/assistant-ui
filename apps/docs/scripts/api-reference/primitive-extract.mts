@@ -11,6 +11,7 @@ import * as path from "node:path";
 import { REACT_INDEX, REACT_PKG, REPO_ROOT } from "./paths.mts";
 import {
   getProject,
+  getJsDocCommentText,
   jsDocTag,
   processComponentDeclaration,
   processTypeOrInterface,
@@ -125,7 +126,7 @@ function extractElementType(ns: ModuleDeclaration): string | undefined {
   return undefined;
 }
 
-function getComponentJsDoc(
+function getPrimitiveComponentMeta(
   sourceFile: SourceFile,
   localName: string,
 ): { description?: string; deprecated?: string } {
@@ -136,25 +137,7 @@ function getComponentJsDoc(
     const jsDocs = statement.getJsDocs();
     if (jsDocs.length === 0) continue;
     const doc = jsDocs[0]!;
-    // Component-level descriptions follow legacy primitive-docs convention:
-    // first paragraph only, joined with spaces. (JSDoc on individual props
-    // still uses the full `getJsDocCommentText` formatter.)
-    const comment = doc.getComment();
-    let description: string | undefined;
-    if (typeof comment === "string") {
-      const lines = comment.split("\n");
-      const descLines: string[] = [];
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith("@")) break;
-        if (trimmed) {
-          descLines.push(trimmed);
-        } else if (descLines.length > 0) {
-          break;
-        }
-      }
-      description = descLines.join(" ") || undefined;
-    }
+    const description = getJsDocCommentText(doc);
     const deprecated = jsDocTag(doc, "deprecated");
     return { description, deprecated };
   }
@@ -324,7 +307,10 @@ function extractPrimitivePart(
   const ns = findNamespace(sourceFile, localName);
   const propsAlias = ns?.getTypeAliases().find((t) => t.getName() === "Props");
   const element = ns ? extractElementType(ns) : undefined;
-  const { description, deprecated } = getComponentJsDoc(sourceFile, localName);
+  const { description, deprecated } = getPrimitiveComponentMeta(
+    sourceFile,
+    localName,
+  );
 
   let props: PropModel[] | undefined;
   let isActionButton = false;

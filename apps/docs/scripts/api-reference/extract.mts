@@ -195,7 +195,7 @@ function classMemberPrefix(node: TsNode): string {
 
 // ── JSDoc layer (single source of truth) ───────────────────────────────────
 
-function getJsDocCommentText(doc: JSDoc): string | undefined {
+export function getJsDocCommentText(doc: JSDoc): string | undefined {
   const comment = doc.getComment();
   let text: string | undefined;
   if (typeof comment === "string") {
