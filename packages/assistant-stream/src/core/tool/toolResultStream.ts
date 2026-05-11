@@ -93,18 +93,25 @@ function getToolResponse(
         !response.isError &&
         response.modelContent === undefined
       ) {
-        const modelContent = await tool.toModelOutput({
-          toolCallId: toolCall.toolCallId,
-          input: toolCall.args,
-          output: response.result,
-        });
-        return new ToolResponse({
-          result: response.result,
-          artifact: response.artifact,
-          isError: response.isError,
-          messages: response.messages,
-          modelContent,
-        });
+        try {
+          const modelContent = await tool.toModelOutput({
+            toolCallId: toolCall.toolCallId,
+            input: toolCall.args,
+            output: response.result,
+          });
+          return new ToolResponse({
+            result: response.result,
+            artifact: response.artifact,
+            isError: response.isError,
+            messages: response.messages,
+            modelContent,
+          });
+        } catch (e) {
+          console.warn(
+            `[assistant-stream] tool "${toolCall.toolName}" toModelOutput threw; falling back to default projection.`,
+            e,
+          );
+        }
       }
       return response;
     })();

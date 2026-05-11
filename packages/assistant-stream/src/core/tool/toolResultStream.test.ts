@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { unstable_runPendingTools } from "./toolResultStream";
 import { ToolResponse } from "./ToolResponse";
 import type { AssistantMessage, ToolCallPart } from "../utils/types";
@@ -512,6 +512,58 @@ describe("unstable_runPendingTools", () => {
         state: "result",
         modelContent: [{ type: "text", text: "preset" }],
       });
+    });
+
+    it("falls back to the successful execute result when toModelOutput itself throws", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const tool: Tool = {
+        parameters: { type: "object", properties: {} },
+        execute: async () => ({ ok: true }),
+        toModelOutput: () => {
+          throw new Error("projection failed");
+        },
+      };
+
+      const message: AssistantMessage = {
+        role: "assistant",
+        status: { type: "requires-action", reason: "tool-calls" },
+        parts: [
+          {
+            type: "tool-call",
+            toolCallId: "tc-1",
+            toolName: "flaky",
+            args: {},
+          } as ToolCallPart,
+        ],
+        content: [],
+        metadata: {
+          unstable_state: {},
+          unstable_data: [],
+          unstable_annotations: [],
+          steps: [],
+          custom: {},
+        },
+      };
+
+      const updated = await unstable_runPendingTools(
+        message,
+        { flaky: tool },
+        new AbortController().signal,
+        async () => {},
+      );
+
+      expect(updated.parts[0]).toMatchObject({
+        type: "tool-call",
+        state: "result",
+        result: { ok: true },
+        isError: false,
+      });
+      expect(updated.parts[0]).not.toHaveProperty("modelContent");
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(`tool "flaky" toModelOutput threw`),
+        expect.any(Error),
+      );
+      warn.mockRestore();
     });
 
     it("does not call toModelOutput when the tool errors", async () => {
