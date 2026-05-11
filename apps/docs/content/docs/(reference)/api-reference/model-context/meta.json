@@ -1,7 +1,6 @@
 {
   "title": "Model Context",
-  "description": "API reference for assistant-ui model context, including instructions, contextual state, provider registries, and model-facing renderers.",
-  "overview": "Model context APIs let apps contribute instructions, contextual text, and provider state to the assistant runtime.",
+  "description": "Model instructions, contextual state, provider registries, and renderers for giving assistant-ui runtimes app-aware context.",
   "pages": [
     "index",
     "context",

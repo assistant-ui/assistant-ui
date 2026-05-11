@@ -1,6 +1,6 @@
 ---
 title: Primitives API Reference
-description: API reference for assistant-ui React primitives, including Thread, Composer, Message, BranchPicker, ActionBar, and composable UI parts.
+description: "Composable React primitives for assistant-ui chat UIs: Thread, Composer, Message, BranchPicker, ActionBar, and the parts that build threads, message lists, attachments, and editing flows."
 ---
 
 {/* AUTO-GENERATED PAGE by scripts/generate-docs.mts */}
@@ -26,48 +26,45 @@ Primitives are the low-level React components behind assistant-ui interfaces. Th
     {"Floating assistant modal primitives for building support chat, copilot, and embedded assistant experiences."}
   </Card>
   <Card title={"AttachmentPrimitive"} href={"/docs/api-reference/primitives/attachment"}>
-    {"Primitives for rendering assistant-ui file attachments, thumbnails, names, and remove controls."}
+    {"Attachment primitives for rendering file previews, names, thumbnails, and remove controls in assistant-ui messages and composers."}
   </Card>
   <Card title={"BranchPickerPrimitive"} href={"/docs/api-reference/primitives/branch-picker"}>
-    {"Primitives for navigating alternative assistant message branches and regenerated responses."}
+    {"Branch picker primitives for navigating regenerated assistant responses and alternate message paths inside a chat thread."}
   </Card>
   <Card title={"ChainOfThoughtPrimitive"} href={"/docs/api-reference/primitives/chain-of-thought"}>
-    {"Primitives for rendering assistant reasoning, steps, and chain-of-thought style disclosure UI."}
+    {"Chain of thought primitives for rendering assistant reasoning, step lists, and collapsible disclosure UI in message content."}
   </Card>
   <Card title={"ComposerPrimitive"} href={"/docs/api-reference/primitives/composer"}>
     {"Composable input primitives for assistant-ui prompts, send controls, cancellation, attachments, and composer state."}
   </Card>
   <Card title={"ErrorPrimitive"} href={"/docs/api-reference/primitives/error"}>
-    {"Primitives for rendering assistant-ui runtime and message errors inside custom chat components."}
+    {"Error primitives for rendering assistant-ui runtime, thread, and message failures inside custom chat interfaces."}
   </Card>
   <Card title={"MessagePrimitive"} href={"/docs/api-reference/primitives/message"}>
-    {"Primitives for rendering assistant and user messages, message parts, attachments, actions, and edit composers."}
+    {"Message primitives for rendering assistant and user turns, message parts, attachments, actions, editing, and branch controls."}
   </Card>
   <Card title={"MessagePartPrimitive"} href={"/docs/api-reference/primitives/message-part"}>
-    {"Primitives for rendering text, tool calls, data parts, reasoning, and other assistant-ui message content."}
+    {"Message part primitives for rendering text, tool calls, data parts, reasoning, source content, and custom assistant output."}
   </Card>
   <Card title={"QueueItemPrimitive"} href={"/docs/api-reference/primitives/queue-item"}>
-    {"Primitives for rendering queued assistant-ui thread operations and pending runtime work."}
+    {"Queue item primitives for rendering pending assistant-ui thread operations, optimistic work, and runtime queue state."}
   </Card>
   <Card title={"SelectionToolbarPrimitive"} href={"/docs/api-reference/primitives/selection-toolbar"}>
     {"Selection toolbar primitives for quote, copy, and contextual actions on selected chat text."}
   </Card>
   <Card title={"SuggestionPrimitive"} href={"/docs/api-reference/primitives/suggestion"}>
-    {"Primitives for rendering prompt suggestions and starter actions in assistant-ui thread and composer flows."}
+    {"Suggestion primitives for rendering starter prompts, follow-up actions, and composer suggestions in assistant-ui threads."}
   </Card>
   <Card title={"ThreadPrimitive"} href={"/docs/api-reference/primitives/thread"}>
-    {"Primitives for rendering assistant-ui chat threads, message lists, scroll behavior, suggestions, and composers."}
+    {"Thread primitives for rendering chat transcripts, message lists, viewport state, suggestions, and composers in assistant-ui."}
   </Card>
   <Card title={"ThreadListPrimitive"} href={"/docs/api-reference/primitives/thread-list"}>
-    {"Primitives for rendering thread lists, new thread actions, and custom assistant conversation navigation."}
+    {"Thread list primitives for rendering conversation navigation, new thread actions, and custom assistant sidebars."}
   </Card>
   <Card title={"ThreadListItemPrimitive"} href={"/docs/api-reference/primitives/thread-list-item"}>
-    {"Primitives for rendering selectable assistant-ui thread rows with title, archive, unarchive, and delete actions."}
+    {"Thread list item primitives for rendering selectable conversation rows with titles, archive controls, delete actions, and menus."}
   </Card>
   <Card title={"ThreadListItemMorePrimitive"} href={"/docs/api-reference/primitives/thread-list-item-more"}>
     {"Overflow menu primitives for secondary thread list item actions in custom assistant-ui sidebars."}
-  </Card>
-  <Card title={"Composition"} href={"/docs/api-reference/primitives/composition"}>
-    {"How to compose primitives with custom components using asChild."}
   </Card>
 </Cards>

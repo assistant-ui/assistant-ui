@@ -1,6 +1,6 @@
 ---
 title: Runtime State API Reference
-description: API reference for assistant-ui runtime state and actions used by useAui and useAuiState to control threads, messages, composers, and attachments.
+description: Runtime state and actions exposed through useAui and useAuiState, covering AssistantRuntime, ThreadRuntime, ThreadListRuntime, ComposerRuntime, MessageRuntime, and attachment APIs for controlling assistant-ui chat.
 ---
 
 {/* AUTO-GENERATED PAGE by scripts/generate-docs.mts */}
@@ -17,27 +17,27 @@ Runtime state is the typed control surface behind assistant-ui. These pages docu
     {"Top-level assistant-ui runtime actions and state for tools, threads, composers, messages, and assistant behavior."}
   </Card>
   <Card title={"AttachmentRuntime"} href={"/docs/api-reference/runtimes/attachment-runtime"}>
-    {"Runtime state and actions for assistant-ui attachments in message and composer contexts."}
+    {"AttachmentRuntime state and actions for reading attachment data and controlling files inside assistant-ui messages and composers."}
   </Card>
   <Card title={"ComposerRuntime"} href={"/docs/api-reference/runtimes/composer-runtime"}>
-    {"Runtime state and actions for controlling assistant-ui composer input, attachments, and send behavior."}
+    {"ComposerRuntime state and actions for controlling assistant-ui composer text, attachments, submission, cancellation, and pending input."}
   </Card>
   <Card title={"MessagePartRuntime"} href={"/docs/api-reference/runtimes/message-part-runtime"}>
-    {"Runtime state and actions for assistant-ui message parts, including text, tool, and data content."}
+    {"MessagePartRuntime state and helpers for inspecting assistant-ui text, tool calls, data parts, reasoning, and custom message content."}
   </Card>
   <Card title={"MessageRuntime"} href={"/docs/api-reference/runtimes/message-runtime"}>
-    {"Runtime state and actions for assistant-ui messages, including edit, reload, copy, feedback, and speech actions."}
+    {"MessageRuntime state and actions for editing, reloading, copying, rating, speaking, and branching assistant-ui messages."}
   </Card>
   <Card title={"QueueItemState"} href={"/docs/api-reference/runtimes/queue-state"}>
     {"State shape for queued assistant-ui thread operations and pending runtime work."}
   </Card>
   <Card title={"ThreadListItemRuntime"} href={"/docs/api-reference/runtimes/thread-list-item-runtime"}>
-    {"Runtime state and actions for assistant-ui thread list items, including archive, delete, and selection behavior."}
+    {"ThreadListItemRuntime state and actions for selecting, archiving, unarchiving, deleting, and renaming assistant-ui conversations."}
   </Card>
   <Card title={"ThreadListRuntime"} href={"/docs/api-reference/runtimes/thread-list-runtime"}>
-    {"Runtime state and actions for assistant-ui thread lists, remote threads, and thread creation."}
+    {"ThreadListRuntime state and actions for managing remote assistant-ui conversations, active thread selection, and new thread creation."}
   </Card>
   <Card title={"ThreadRuntime"} href={"/docs/api-reference/runtimes/thread-runtime"}>
-    {"Runtime state and actions for assistant-ui threads, messages, suggestions, composers, and model context."}
+    {"ThreadRuntime state and actions for controlling assistant-ui messages, composers, suggestions, model context, and the full thread lifecycle."}
   </Card>
 </Cards>

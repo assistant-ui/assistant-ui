@@ -1,6 +1,6 @@
 ---
 title: Adapters API Reference
-description: API reference for assistant-ui adapters for chat models, persistence, attachments, speech, feedback, suggestions, and runtime composition.
+description: Adapter interfaces for connecting chat models, persistence, file attachments, feedback, suggestions, and speech to assistant-ui React runtimes.
 ---
 
 {/* AUTO-GENERATED PAGE by scripts/generate-docs.mts */}
@@ -14,21 +14,21 @@ Adapters define the boundaries between assistant-ui and the systems around it. U
 
 <Cards>
   <Card title={"Attachment Adapters"} href={"/docs/api-reference/adapters/attachments"}>
-    {"Adapters for uploading files, handling attachments, and composing attachment support in assistant-ui."}
+    {"Attachment adapters for uploading files, handling lifecycle events, and bringing app-owned content into assistant-ui composers and messages."}
   </Card>
   <Card title={"Feedback Adapter"} href={"/docs/api-reference/adapters/feedback-speech"}>
-    {"Adapters for collecting assistant message feedback and connecting speech synthesis behavior."}
+    {"Feedback collection and speech synthesis adapters for assistant-ui messages, ratings, spoken output, and playback controls."}
   </Card>
   <Card title={"Model Adapters"} href={"/docs/api-reference/adapters/model"}>
     {"Adapter interfaces for connecting chat models, streaming responses, and model execution to assistant-ui runtimes."}
   </Card>
   <Card title={"Persistence Adapters"} href={"/docs/api-reference/adapters/persistence"}>
-    {"Adapters for persisting assistant-ui message history, remote thread lists, and chat session state."}
+    {"Persistence adapters for saving assistant-ui message history, remote thread lists, and long-running chat sessions across browser reloads."}
   </Card>
   <Card title={"Runtime Adapter Context"} href={"/docs/api-reference/adapters/runtime"}>
     {"Provide assistant-ui runtime adapters through React context for model, attachment, speech, and feedback behavior."}
   </Card>
   <Card title={"Suggestion Adapters"} href={"/docs/api-reference/adapters/suggestions"}>
-    {"Adapters for providing prompt suggestions and starter messages to assistant-ui runtimes."}
+    {"Suggestion adapters for providing starter prompts, contextual actions, and guided composer options to assistant-ui runtimes."}
   </Card>
 </Cards>

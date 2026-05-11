@@ -1,7 +1,6 @@
 {
   "title": "Utilities",
-  "description": "API reference for miscellaneous assistant-ui React utilities that support custom rendering, composition, and advanced chat UI behavior.",
-  "overview": "Utilities are public exports that do not belong to a more specific assistant-ui feature or API shape.",
+  "description": "Utility exports for custom rendering, composition, and advanced assistant-ui behavior that does not fit a larger API family.",
   "pages": [
     "index",
     "miscellaneous"

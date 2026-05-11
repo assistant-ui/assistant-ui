@@ -1,7 +1,6 @@
 {
   "title": "Voice",
-  "description": "API reference for assistant-ui voice APIs, including realtime voice sessions, speech synthesis, dictation, and voice runtime adapters.",
-  "overview": "Voice APIs connect realtime voice sessions, speech synthesis, and dictation controls to assistant-ui.",
+  "description": "Realtime voice, speech synthesis, and dictation contracts for wiring spoken assistant flows into React chat UIs.",
   "pages": [
     "index",
     "session",

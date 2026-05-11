@@ -1,7 +1,6 @@
 {
   "title": "External Store",
-  "description": "API reference for assistant-ui external store runtimes, message conversion helpers, and adapters for apps that own chat state.",
-  "overview": "External store APIs connect assistant-ui to applications that own their message and thread state outside the built-in runtimes.",
+  "description": "External store runtime, message conversion helpers, and adapters for assistant-ui React apps that own their chat state outside the runtime.",
   "pages": [
     "index",
     "message-conversion",

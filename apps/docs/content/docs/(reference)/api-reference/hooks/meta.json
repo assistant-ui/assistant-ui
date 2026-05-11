@@ -1,7 +1,6 @@
 {
   "title": "Hooks",
-  "description": "API reference for assistant-ui React hooks, including state selectors, runtime creation, primitive hooks, model context, and chat UI utilities.",
-  "overview": "Hooks are the programmatic layer of `@assistant-ui/react`: reading state, creating runtimes, registering tools, wiring model context, and building custom assistant behavior.",
+  "description": "React hooks for assistant-ui: useAui, useAuiState, runtime creation, model context registration, and helpers for building custom AI chat behavior.",
   "pages": [
     "index",
     "composer-triggers",

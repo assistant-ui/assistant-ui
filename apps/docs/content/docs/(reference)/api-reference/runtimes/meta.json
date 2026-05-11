@@ -1,7 +1,6 @@
 {
-  "title": "Runtime State",
-  "description": "API reference for assistant-ui runtime state and actions used by useAui and useAuiState to control threads, messages, composers, and attachments.",
-  "overview": "Runtime pages document the objects and state exposed through assistant-ui runtimes. Use this section when controlling assistant-ui programmatically or inspecting exact state shapes.",
+  "title": "Runtimes",
+  "description": "Runtime state and actions exposed through useAui and useAuiState, covering AssistantRuntime, ThreadRuntime, ThreadListRuntime, ComposerRuntime, MessageRuntime, and attachment APIs for controlling assistant-ui chat.",
   "pages": [
     "index",
     "assistant-runtime",
