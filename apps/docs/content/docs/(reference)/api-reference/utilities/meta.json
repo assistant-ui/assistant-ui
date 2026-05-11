@@ -1,8 +1,5 @@
 {
   "title": "Utilities",
   "description": "Utility exports for custom rendering, composition, and advanced assistant-ui behavior that does not fit a larger API family.",
-  "pages": [
-    "index",
-    "miscellaneous"
-  ]
+  "pages": ["index", "miscellaneous"]
 }
