@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/react",
   "version": "0.14.0",
-  "description": "TypeScript/React library for AI Chat",
+  "description": "Open-source TypeScript/React library for building production-grade AI chat experiences",
   "keywords": [
     "radix-ui",
     "nextjs",
