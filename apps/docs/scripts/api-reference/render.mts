@@ -235,8 +235,13 @@ function readAuthoredPageParts(
   items: ExportInfo[],
 ): AuthoredPageParts | undefined {
   const filePath = apiReferencePagePath(section, slug);
-  if (!fs.existsSync(filePath)) return undefined;
-  const source = fs.readFileSync(filePath, "utf8");
+  let source: string;
+  try {
+    source = fs.readFileSync(filePath, "utf8");
+  } catch (error) {
+    if ((error as { code?: string }).code === "ENOENT") return undefined;
+    throw error;
+  }
   assertPairedMdxMarkers(filePath, source);
   const fm = readFrontmatter(filePath, source);
   const manual = extractManualSlot(source);
@@ -618,11 +623,6 @@ function groupedBySectionAndPage(
     const items = section.get(item.page) ?? [];
     items.push(item);
     section.set(item.page, items);
-  }
-  for (const pages of result.values()) {
-    for (const [page, items] of pages) {
-      pages.set(page, sortExportsForPage(items));
-    }
   }
   return result;
 }

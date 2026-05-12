@@ -39,6 +39,8 @@ export type PrimitivePartModel = {
 };
 
 const primitiveSourceFiles = new Map<string, SourceFile>();
+const primitiveParts = new Map<string, string[]>();
+let primitiveBarrelExports: Map<string, string> | undefined;
 
 export function primitivePartTypeDocName(
   primitiveName: string,
@@ -77,8 +79,13 @@ export function primitiveModuleSourceFile(
 }
 
 export function readPrimitiveParts(primitiveName: string): string[] {
+  const cached = primitiveParts.get(primitiveName);
+  if (cached) return cached;
   const sourceFile = primitiveModuleSourceFile(primitiveName);
-  if (!sourceFile) return [];
+  if (!sourceFile) {
+    primitiveParts.set(primitiveName, []);
+    return [];
+  }
   const isPrimitivePart = (name: string) =>
     (/^[A-Z]/.test(name) || /^Unstable_[A-Z]/.test(name)) &&
     !name.includes("Primitive");
@@ -90,15 +97,20 @@ export function readPrimitiveParts(primitiveName: string): string[] {
       }),
     )
     .filter(isPrimitivePart);
+  const orderedPartNames = new Set(orderedParts);
   const fallbackParts = [...sourceFile.getExportedDeclarations().keys()]
     .filter(isPrimitivePart)
-    .filter((name) => !orderedParts.includes(name))
+    .filter((name) => !orderedPartNames.has(name))
     .sort((a, b) => a.localeCompare(b));
-  return [...new Set([...orderedParts, ...fallbackParts])].sort((a, b) => {
-    if (a === "Root") return -1;
-    if (b === "Root") return 1;
-    return 0;
-  });
+  const parts = [...new Set([...orderedParts, ...fallbackParts])].sort(
+    (a, b) => {
+      if (a === "Root") return -1;
+      if (b === "Root") return 1;
+      return 0;
+    },
+  );
+  primitiveParts.set(primitiveName, parts);
+  return parts;
 }
 
 function findNamespace(
@@ -221,6 +233,7 @@ function extractPropsFromComponentDeclaration(
 }
 
 function discoverPrimitiveBarrelExports(): Map<string, string> {
+  if (primitiveBarrelExports) return primitiveBarrelExports;
   const project = getProject();
   const result = new Map<string, string>();
   const indexFile =
@@ -235,6 +248,7 @@ function discoverPrimitiveBarrelExports(): Map<string, string> {
       result.set(name, moduleSpec);
     }
   }
+  primitiveBarrelExports = result;
   return result;
 }
 

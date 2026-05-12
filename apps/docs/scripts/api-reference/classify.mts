@@ -156,6 +156,8 @@ function transportRule(input: ClassificationInput): Classification | undefined {
     name.startsWith("Serialized") ||
     name === "FRAME_MESSAGE_CHANNEL"
   ) {
+    // Transport frame/protocol helpers intentionally render as primary entries:
+    // the page split already groups them, and demoting them hides important protocol docs.
     return classification(
       "transport",
       name.includes("Frame") ||
