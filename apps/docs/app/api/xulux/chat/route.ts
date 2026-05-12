@@ -7,7 +7,7 @@ import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateDocChatInput } from "@/lib/validate-input";
 import { source, examples as examplesSource } from "@/lib/source";
-import { getModel } from "@/lib/ai/provider";
+import { getModel, openai } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { createBashTool } from "bash-tool";
 import { prismAISDK } from "@aui-x/prism";
@@ -59,6 +59,50 @@ function loadSourceSnapshot(): Record<string, string> {
 }
 
 const SOURCE_SNAPSHOT = loadSourceSnapshot();
+
+type XuluxReasoningEffort =
+  | "none"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh";
+
+type XuluxRequestConfig = {
+  modelName?: unknown;
+  reasoningEffort?: unknown;
+};
+
+function isReasoningEffort(value: unknown): value is XuluxReasoningEffort {
+  return (
+    value === "none" ||
+    value === "minimal" ||
+    value === "low" ||
+    value === "medium" ||
+    value === "high" ||
+    value === "xhigh"
+  );
+}
+
+function resolveXuluxModel(config: XuluxRequestConfig | undefined) {
+  const modelName =
+    typeof config?.modelName === "string" ? config.modelName.trim() : "";
+  const reasoningEffort = isReasoningEffort(config?.reasoningEffort)
+    ? config.reasoningEffort
+    : undefined;
+
+  if (modelName === "gpt-5.4" && reasoningEffort) {
+    return {
+      model: openai.responses("gpt-5.4"),
+      providerOptions: { openai: { reasoningEffort } },
+    };
+  }
+
+  return {
+    model: getModel(modelName || "gpt-5.4-mini"),
+    providerOptions: undefined,
+  };
+}
 
 function normalizeSegment(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-");
@@ -127,6 +171,16 @@ const PRUNE_OPTIONS = {
   emptyMessages: "remove",
 } as const;
 
+type SelectedTemplateRequestContext = {
+  id?: unknown;
+  title?: unknown;
+  description?: unknown;
+  kind?: unknown;
+  prompt?: unknown;
+  sourcePath?: unknown;
+  docsUrl?: unknown;
+};
+
 async function prepareMessages(messages: readonly UIMessage[]) {
   const modelMessages = await convertToModelMessages(
     injectQuoteContext([...messages]),
@@ -182,6 +236,43 @@ function createRepoTools() {
       },
     }),
   };
+}
+
+function formatSelectedTemplateContext(
+  selectedTemplate: SelectedTemplateRequestContext | null | undefined,
+): string | null {
+  if (!selectedTemplate || typeof selectedTemplate !== "object") return null;
+  const id =
+    typeof selectedTemplate.id === "string" ? selectedTemplate.id : null;
+  const title =
+    typeof selectedTemplate.title === "string" ? selectedTemplate.title : null;
+  if (!id || !title) return null;
+
+  const lines = [
+    "<selected_template_context>",
+    `The user selected this ${selectedTemplate.kind === "example" ? "example" : "template"} before sending their message.`,
+    `id: ${id}`,
+    `title: ${title}`,
+  ];
+
+  if (typeof selectedTemplate.description === "string") {
+    lines.push(`description: ${selectedTemplate.description}`);
+  }
+  if (typeof selectedTemplate.prompt === "string") {
+    lines.push(`catalog_prompt: ${selectedTemplate.prompt}`);
+  }
+  if (typeof selectedTemplate.sourcePath === "string") {
+    lines.push(`sourcePath: ${selectedTemplate.sourcePath}`);
+  }
+  if (typeof selectedTemplate.docsUrl === "string") {
+    lines.push(`docsUrl: ${selectedTemplate.docsUrl}`);
+  }
+
+  lines.push(
+    "Use this as hidden context for the user's next build request. Do not mention this tag unless it is directly useful.",
+    "</selected_template_context>",
+  );
+  return lines.join("\n");
 }
 
 const SYSTEM_PROMPT = `You are a coding assistant that helps users build starter MVP projects with assistant-ui.
@@ -301,7 +392,16 @@ export async function POST(req: Request): Promise<Response> {
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = await req.json();
-    const { messages, tools, system: pageContext, config, sessionId } = body;
+    const {
+      messages,
+      tools,
+      system: pageContext,
+      config,
+      sessionId,
+      selectedTemplate,
+    } = body;
+    const selectedTemplateContext =
+      formatSelectedTemplateContext(selectedTemplate);
 
     let sandboxExec: SandboxExec | null = null;
 
@@ -312,7 +412,8 @@ export async function POST(req: Request): Promise<Response> {
 
     const evalRunId = req.headers.get("x-agent-eval-run-id");
     const localTraceUrl = req.headers.get("x-agent-eval-trace-url");
-    const baseModel = getModel(config?.modelName);
+    const modelConfig = resolveXuluxModel(config);
+    const baseModel = modelConfig.model;
     const distinctId = getDistinctId(req);
     const prismTracer = createPrismTracer({ evalRunId, localTraceUrl });
 
@@ -359,7 +460,12 @@ export async function POST(req: Request): Promise<Response> {
 
     const result = streamText({
       model: prism?.model ?? posthogModel,
-      system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),
+      ...(modelConfig.providerOptions
+        ? { providerOptions: modelConfig.providerOptions }
+        : undefined),
+      system: [SYSTEM_PROMPT, selectedTemplateContext, pageContext]
+        .filter(Boolean)
+        .join("\n\n"),
       messages: prunedMessages,
       maxOutputTokens: 8192,
       stopWhen: stepCountIs(25),

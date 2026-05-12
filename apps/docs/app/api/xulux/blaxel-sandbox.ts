@@ -12,7 +12,47 @@
  *   BL_REGION=<region>                 (defaults to us-pdx-1)
  */
 
+import { createReadStream } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 const MAX_RETRIES = 3;
+
+const DEFAULT_TAR_EXCLUDES = [
+  "./node_modules",
+  "./.next",
+  "./dist",
+  "./build",
+  "./out",
+  "./.turbo",
+  "./.cache",
+  "./.git",
+  "./.env",
+  "./.env.local",
+  "./.env.*.local",
+  "./.codingagent",
+  "./.agent",
+];
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function buildTarExcludeArgs(): string {
+  return DEFAULT_TAR_EXCLUDES.map(
+    (pattern) => `--exclude=${shellQuote(pattern)}`,
+  ).join(" ");
+}
+
+function safeExportFilename(sessionId: string): string {
+  const session =
+    sessionId
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .slice(0, 12) || "session";
+  return `xulux-workspace-${session}.tar.gz`;
+}
 
 function toSandboxName(sessionId: string): string {
   const safe = sessionId
@@ -82,6 +122,13 @@ export type ProvisionedSandbox = {
   previewUrl: string;
 };
 
+export type WorkspaceArchive = {
+  filename: string;
+  contentType: string;
+  stream: ReturnType<typeof createReadStream>;
+  cleanup: () => Promise<void>;
+};
+
 export async function provisionSandbox(
   sessionId: string,
 ): Promise<ProvisionedSandbox> {
@@ -143,4 +190,69 @@ export async function fetchPreviewUrl(sessionId: string): Promise<string> {
     spec: { port: 3000, public: true },
   });
   return preview.spec?.url as string;
+}
+
+export async function exportWorkspaceArchive(
+  sessionId: string,
+): Promise<WorkspaceArchive> {
+  const { SandboxInstance } = await import("@blaxel/core");
+  const sb = await SandboxInstance.get(toSandboxName(sessionId));
+  if (!sb?.process?.exec || !sb?.fs?.download) {
+    throw new Error("Sandbox export APIs are not available.");
+  }
+
+  const tempDir = await mkdtemp(join(tmpdir(), "xulux-export-"));
+  const filename = safeExportFilename(sessionId);
+  const localArchivePath = join(tempDir, filename);
+  const remoteArchivePath = `/tmp/xulux-export-${sessionId.replace(
+    /[^a-zA-Z0-9._-]/g,
+    "-",
+  )}-${Date.now()}.tar.gz`;
+  const excludeArgs = buildTarExcludeArgs();
+  const command = [
+    "set -eu",
+    'gitignore_args=""',
+    'if [ -f ".gitignore" ]; then gitignore_args="--exclude-from=.gitignore"; fi',
+    `tar ${excludeArgs} $gitignore_args -czf ${shellQuote(remoteArchivePath)} -C /workspace .`,
+  ].join("\n");
+
+  const cleanup = async () => {
+    await sb.process
+      .exec({
+        command: `rm -f ${shellQuote(remoteArchivePath)}`,
+        waitForCompletion: true,
+        workingDir: "/",
+      })
+      .catch(() => {});
+    await rm(tempDir, { recursive: true, force: true });
+  };
+
+  try {
+    const result: any = await withRetry(() =>
+      sb.process.exec({
+        command,
+        waitForCompletion: true,
+        workingDir: "/workspace",
+        timeout: 60_000,
+      }),
+    );
+    const exitCode = result?.exitCode ?? result?.exit_code ?? 0;
+    if (exitCode !== 0) {
+      throw new Error(
+        `Failed to create workspace archive: ${result?.stderr ?? result?.stdout ?? `exit ${exitCode}`}`,
+      );
+    }
+
+    await withRetry(() => sb.fs.download(remoteArchivePath, localArchivePath));
+
+    return {
+      filename,
+      contentType: "application/gzip",
+      stream: createReadStream(localArchivePath),
+      cleanup,
+    };
+  } catch (error) {
+    await cleanup().catch(() => {});
+    throw error;
+  }
 }
