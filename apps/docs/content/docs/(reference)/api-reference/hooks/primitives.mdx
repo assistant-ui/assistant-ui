@@ -63,7 +63,7 @@ const useMessagePartReasoning: () => ReasoningMessagePart & { readonly status: M
 ### useMessagePartSource
 
 ```ts
-const useMessagePartSource: () => SourceMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; };
+const useMessagePartSource: () => ({ readonly type: "source"; readonly sourceType: "url"; readonly id: string; readonly url: string; readonly title?: string; readonly providerMetadata?: SourceProviderMetadata; readonly parentId?: string; } & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; }) | ({ readonly type: "source"; readonly sourceType: "document"; readonly id: string; readonly url?: undefined; readonly title: string; readonly mediaType: string; readonly filename?: string; readonly providerMetadata?: SourceProviderMetadata; readonly parentId?: string; } & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; });
 ```
 
 ### useMessagePartText
