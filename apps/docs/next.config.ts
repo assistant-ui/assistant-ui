@@ -8,9 +8,9 @@ const cspHeader = `
     connect-src *;
     frame-src * blob:;
     script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""};
-    style-src 'self' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src * blob: data:;
-    font-src 'self';
+    font-src 'self' https://fonts.gstatic.com data:;
     object-src 'none';
     base-uri 'self';
     form-action 'self';

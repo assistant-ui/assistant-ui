@@ -4,6 +4,13 @@ import { useCallback, useState } from "react";
 import { Download, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+function toAbsoluteUrl(url: string | null): string | null {
+  if (!url) return null;
+  if (/^https?:\/\//.test(url)) return url;
+  if (typeof window === "undefined") return url;
+  return new URL(url, window.location.origin).toString();
+}
+
 function filenameFromDisposition(header: string | null): string | null {
   if (!header) return null;
   const match = /filename="?([^";]+)"?/i.exec(header);
@@ -28,6 +35,7 @@ export function XuluxCanvas({
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const canDownload = source === "refresh" && status === "ready";
+  const resolvedPreviewUrl = toAbsoluteUrl(previewUrl);
 
   const handleDownload = useCallback(async () => {
     setIsDownloading(true);
@@ -69,7 +77,7 @@ export function XuluxCanvas({
 
   return (
     <div className="relative h-full overflow-hidden bg-muted/20">
-      {previewUrl && (
+      {resolvedPreviewUrl && (
         <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-md border bg-background/90 p-1 shadow-sm backdrop-blur">
           <Button
             type="button"
@@ -78,7 +86,7 @@ export function XuluxCanvas({
             className="size-7"
             asChild
           >
-            <a href={previewUrl} target="_blank" rel="noreferrer">
+            <a href={resolvedPreviewUrl} target="_blank" rel="noreferrer">
               <ExternalLink className="size-3.5" />
               <span className="sr-only">Open preview</span>
             </a>
@@ -109,10 +117,10 @@ export function XuluxCanvas({
         </div>
       )}
 
-      {previewUrl ? (
+      {resolvedPreviewUrl ? (
         <iframe
           title={title ?? "Xulux preview"}
-          src={previewUrl}
+          src={resolvedPreviewUrl}
           className="h-full w-full border-0 bg-white"
         />
       ) : (
