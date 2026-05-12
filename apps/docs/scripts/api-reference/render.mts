@@ -326,7 +326,12 @@ function exportSection(
   const heading = "#".repeat(headingLevel);
   const lines = [`${heading} ${item.name}`, ""];
   if (item.deprecated) {
-    lines.push(`Deprecated: ${mdxEscape(item.deprecated)}`, "");
+    lines.push(
+      `<Callout type="warn">`,
+      `<strong>Deprecated.</strong> ${mdxEscape(item.deprecated)}`,
+      `</Callout>`,
+      "",
+    );
   }
   if (item.jsDoc) {
     lines.push(mdxEscape(item.jsDoc), "");

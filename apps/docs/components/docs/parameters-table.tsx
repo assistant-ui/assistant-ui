@@ -37,6 +37,54 @@ const COMMON_PARAMS: Record<string, ParameterDef> = {
   },
 };
 
+const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+
+function renderLinkLabel(label: string): ReactNode {
+  if (label.startsWith("`") && label.endsWith("`")) {
+    return <code>{label.slice(1, -1)}</code>;
+  }
+  return label;
+}
+
+function renderDescription(description: string | ReactNode): ReactNode {
+  if (typeof description !== "string") return description;
+
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  for (const match of description.matchAll(MARKDOWN_LINK_REGEX)) {
+    const [fullMatch, label, href] = match;
+    const index = match.index ?? 0;
+    if (index > lastIndex) {
+      parts.push(description.slice(lastIndex, index));
+    }
+
+    const className =
+      "font-medium text-foreground underline underline-offset-2";
+    const children = renderLinkLabel(label ?? "");
+    const linkHref = href ?? "";
+    parts.push(
+      linkHref.startsWith("/") ? (
+        <Link
+          key={`${linkHref}-${index}`}
+          className={className}
+          href={linkHref}
+        >
+          {children}
+        </Link>
+      ) : (
+        <a key={`${linkHref}-${index}`} className={className} href={linkHref}>
+          {children}
+        </a>
+      ),
+    );
+    lastIndex = index + fullMatch.length;
+  }
+
+  if (lastIndex === 0) return description;
+  if (lastIndex < description.length) parts.push(description.slice(lastIndex));
+  return parts;
+}
+
 const Parameter: FC<{
   parameter: ParameterDef;
   isNested?: boolean | undefined;
@@ -86,7 +134,7 @@ const Parameter: FC<{
       </dt>
       <dd className="pt-2">
         <p className="whitespace-pre-line text-muted-foreground text-sm leading-relaxed">
-          {parameter.description}
+          {renderDescription(parameter.description)}
         </p>
 
         {parameter.deprecated && (

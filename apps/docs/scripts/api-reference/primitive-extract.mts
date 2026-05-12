@@ -137,8 +137,8 @@ function getPrimitiveComponentMeta(
     const jsDocs = statement.getJsDocs();
     if (jsDocs.length === 0) continue;
     const doc = jsDocs[0]!;
-    const description = getJsDocCommentText(doc);
-    const deprecated = jsDocTag(doc, "deprecated");
+    const description = getJsDocCommentText(doc, `${localName} primitive`);
+    const deprecated = jsDocTag(doc, "deprecated", `${localName} primitive`);
     return { description, deprecated };
   }
   return {};

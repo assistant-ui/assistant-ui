@@ -197,18 +197,91 @@ function classMemberPrefix(node: TsNode): string {
 
 // ── JSDoc layer (single source of truth) ───────────────────────────────────
 
-export function getJsDocCommentText(doc: JSDoc): string | undefined {
+let jsDocLinkResolver: ((target: string) => string | undefined) | undefined;
+const warnedUnresolvedJsDocLinks = new Set<string>();
+
+export function setJsDocLinkResolver(
+  resolver: ((target: string) => string | undefined) | undefined,
+): void {
+  jsDocLinkResolver = resolver;
+}
+
+function isExternalLinkTarget(target: string): boolean {
+  return /^(https?:|mailto:)/.test(target);
+}
+
+function parseJsDocLinkContent(content: string): {
+  target: string;
+  label: string;
+} {
+  const trimmed = content.trim();
+  const pipeIndex = trimmed.indexOf("|");
+  if (pipeIndex !== -1) {
+    const target = trimmed.slice(0, pipeIndex).trim();
+    const label = trimmed.slice(pipeIndex + 1).trim();
+    return { target, label: label || target };
+  }
+
+  const match = trimmed.match(/^(\S+)(?:\s+([\s\S]+))?$/);
+  const target = match?.[1]?.trim() ?? trimmed;
+  const label = match?.[2]?.trim() || target;
+  return { target, label };
+}
+
+function warnUnresolvedJsDocLink(target: string, source: string): void {
+  const key = `${source}:${target}`;
+  if (warnedUnresolvedJsDocLinks.has(key)) return;
+  warnedUnresolvedJsDocLinks.add(key);
+  console.warn(`Warning: unresolved JSDoc link "${target}" in ${source}`);
+}
+
+function renderJsDocLinkTag(content: string, source: string): string {
+  const { target, label } = parseJsDocLinkContent(content);
+  const href = isExternalLinkTarget(target)
+    ? target
+    : jsDocLinkResolver?.(target);
+  if (!href && !isExternalLinkTarget(target)) {
+    warnUnresolvedJsDocLink(target, source);
+  }
+  if (!href) return label;
+  const labelText = label.replaceAll("[", "\\[").replaceAll("]", "\\]");
+  return `[${labelText}](${href.replaceAll(")", "%29")})`;
+}
+
+function renderJsDocLinks(text: string, source: string): string {
+  return text.replace(/\{@link\s+([^}]+)\}/g, (_, content: string) =>
+    renderJsDocLinkTag(content, source),
+  );
+}
+
+function jsDocSourceLabel(node: TsNode | undefined): string {
+  if (!node) return "unknown source";
+  const filePath = path.relative(REPO_ROOT, node.getSourceFile().getFilePath());
+  let name: string | undefined;
+  if (
+    Node.isClassDeclaration(node) ||
+    Node.isFunctionDeclaration(node) ||
+    Node.isInterfaceDeclaration(node) ||
+    Node.isMethodDeclaration(node) ||
+    Node.isParameterDeclaration(node) ||
+    Node.isPropertyDeclaration(node) ||
+    Node.isPropertySignature(node) ||
+    Node.isTypeAliasDeclaration(node) ||
+    Node.isVariableDeclaration(node)
+  ) {
+    name = node.getName();
+  }
+  return name ? `${name} (${filePath})` : filePath;
+}
+
+export function getJsDocCommentText(
+  doc: JSDoc,
+  source = "unknown source",
+): string | undefined {
   const text = doc.getCommentText();
   if (!text) return undefined;
 
-  const cleaned = text
-    // {@link Target Label} → "Label", {@link Target} → "Target".
-    // (The previous primitive-docs implementation produced "$2$1 ", which
-    // duplicated the link target after the label; this is the corrected form.)
-    .replace(
-      /\{@link\s+([^}\s]+)(?:\s+([^}]+))?\}/g,
-      (_, link, label) => label?.trim() || link,
-    )
+  const cleaned = renderJsDocLinks(text, source)
     .replace(/\s+([.,;:])/g, "$1")
     .trim();
 
@@ -218,13 +291,20 @@ export function getJsDocCommentText(doc: JSDoc): string | undefined {
 export function jsDocTag(
   doc: JSDoc | undefined,
   name: string,
+  source = "unknown source",
 ): string | undefined {
-  return doc
-    ?.getTags()
-    .find((tag) => tag.getTagName() === name)
-    ?.getComment()
-    ?.toString()
+  const tag = doc?.getTags().find((tag) => tag.getTagName() === name);
+  const comment = tag?.getCommentText?.() ?? tag?.getComment();
+  const text = Array.isArray(comment)
+    ? comment.map((part) => part.getText()).join("")
+    : comment?.toString();
+  const cleaned = text
+    ?.replace(/\n\s*\*\s?/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
+  const tagText =
+    name === "deprecated" ? cleaned?.split(/\n\s*\n/)[0] : cleaned;
+  return tagText ? renderJsDocLinks(tagText, `${source} @${name}`) : undefined;
 }
 
 function getJsDocs(node: TsNode | undefined): JSDoc[] {
@@ -250,8 +330,8 @@ export function extractJsDoc(node: TsNode | undefined): {
 } {
   const doc = getJsDocs(node)[0];
   return {
-    jsDoc: doc ? getJsDocCommentText(doc) : undefined,
-    deprecated: jsDocTag(doc, "deprecated"),
+    jsDoc: doc ? getJsDocCommentText(doc, jsDocSourceLabel(node)) : undefined,
+    deprecated: jsDocTag(doc, "deprecated", jsDocSourceLabel(node)),
   };
 }
 
@@ -270,9 +350,9 @@ function propertyJsDocMeta(node: TsNode | undefined): {
   const doc = node.getJsDocs()[0];
   if (!doc) return {};
   return {
-    description: getJsDocCommentText(doc),
-    default: jsDocTag(doc, "default"),
-    deprecated: jsDocTag(doc, "deprecated"),
+    description: getJsDocCommentText(doc, jsDocSourceLabel(node)),
+    default: jsDocTag(doc, "default", jsDocSourceLabel(node)),
+    deprecated: jsDocTag(doc, "deprecated", jsDocSourceLabel(node)),
   };
 }
 
