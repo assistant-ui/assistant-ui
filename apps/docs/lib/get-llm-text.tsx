@@ -69,6 +69,39 @@ function isEmptyNode(node: ReactNode): boolean {
   );
 }
 
+function getStaticEntries(props: Record<string, unknown>) {
+  return Object.entries(props).filter(
+    ([key, value]) =>
+      !OMITTED_STATIC_PROP_NAMES.has(key) &&
+      !key.startsWith("on") &&
+      value != null &&
+      typeof value !== "boolean" &&
+      typeof value !== "function",
+  );
+}
+
+async function renderDescriptionList(
+  entries: Array<[string, unknown]>,
+): Promise<ReactNode> {
+  const renderedEntries = (
+    await Promise.all(
+      entries.map(async ([key, value]) => {
+        const rendered = await renderStaticValue(value);
+        if (isEmptyNode(rendered)) return null;
+
+        return (
+          <Fragment key={key}>
+            <dt>{key}</dt>
+            <dd>{rendered}</dd>
+          </Fragment>
+        );
+      }),
+    )
+  ).filter((entry): entry is ReactElement => entry != null);
+
+  return renderedEntries.length > 0 ? <dl>{renderedEntries}</dl> : null;
+}
+
 async function renderStaticValue(value: unknown): Promise<ReactNode> {
   if (value == null || typeof value === "boolean") return null;
 
@@ -86,9 +119,12 @@ async function renderStaticValue(value: unknown): Promise<ReactNode> {
 
   if (Array.isArray(value)) {
     const items = await Promise.all(value.map(renderStaticValue));
+    const visibleItems = items.filter((item) => !isEmptyNode(item));
+    if (visibleItems.length === 0) return null;
+
     return (
       <ul>
-        {items.map((item, index) => (
+        {visibleItems.map((item, index) => (
           <li key={index}>{item}</li>
         ))}
       </ul>
@@ -96,28 +132,13 @@ async function renderStaticValue(value: unknown): Promise<ReactNode> {
   }
 
   if (typeof value === "object") {
-    const entries = Object.entries(value).filter(
-      ([, entryValue]) =>
-        entryValue != null &&
-        typeof entryValue !== "boolean" &&
-        typeof entryValue !== "function",
-    );
-
-    if (entries.length === 0) return null;
-
-    return (
-      <dl>
-        {
-          await Promise.all(
-            entries.map(async ([key, entryValue]) => (
-              <Fragment key={key}>
-                <dt>{key}</dt>
-                <dd>{await renderStaticValue(entryValue)}</dd>
-              </Fragment>
-            )),
-          )
-        }
-      </dl>
+    return renderDescriptionList(
+      Object.entries(value).filter(
+        ([, entryValue]) =>
+          entryValue != null &&
+          typeof entryValue !== "boolean" &&
+          typeof entryValue !== "function",
+      ),
     );
   }
 
@@ -128,45 +149,19 @@ async function renderClientFallback(
   props: Record<string, unknown>,
   children: ReactNode,
 ): Promise<ReactNode> {
-  if (!isEmptyNode(children)) {
-    return <>{children}</>;
+  const data = await renderDescriptionList(getStaticEntries(props));
+
+  if (!isEmptyNode(children) && !isEmptyNode(data)) {
+    return (
+      <section>
+        {data}
+        {children}
+      </section>
+    );
   }
 
-  const dataEntries = Object.entries(props).filter(
-    ([key, value]) =>
-      !OMITTED_STATIC_PROP_NAMES.has(key) &&
-      !key.startsWith("on") &&
-      value != null &&
-      typeof value !== "boolean" &&
-      typeof value !== "function",
-  );
-
-  const data = await Promise.all(
-    dataEntries.map(async ([key, value]) => {
-      const rendered = await renderStaticValue(value);
-      if (isEmptyNode(rendered)) return null;
-
-      return (
-        <Fragment key={key}>
-          <dt>{key}</dt>
-          <dd>{rendered}</dd>
-        </Fragment>
-      );
-    }),
-  );
-
-  const visibleData = data.filter(Boolean);
-
-  if (visibleData.length === 0) {
-    return <>{children}</>;
-  }
-
-  return (
-    <div>
-      {children}
-      <dl>{visibleData}</dl>
-    </div>
-  );
+  if (!isEmptyNode(children)) return <>{children}</>;
+  return data;
 }
 
 async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
@@ -190,27 +185,38 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
 
   const element = node as ReactElement<Record<string, unknown>>;
   const { children, ...props } = element.props;
-  const resolvedChildren = await resolveStaticReactNode(children as ReactNode);
 
   if (element.type === Fragment) {
+    const resolvedChildren = await resolveStaticReactNode(
+      children as ReactNode,
+    );
     return <>{resolvedChildren}</>;
   }
 
   if (typeof element.type === "string") {
+    const resolvedChildren = await resolveStaticReactNode(
+      children as ReactNode,
+    );
     return cloneElement(element, props, resolvedChildren);
   }
 
   if (typeof element.type === "function") {
     try {
       const Component = element.type as StaticFunctionComponent;
-      const rendered = Component({ ...props, children: resolvedChildren });
+      const rendered = Component({ ...props, children: children as ReactNode });
       return resolveStaticReactNode(await rendered);
     } catch (error) {
+      const resolvedChildren = await resolveStaticReactNode(
+        children as ReactNode,
+      );
+      const fallback = await renderClientFallback(props, resolvedChildren);
+      if (!isEmptyNode(fallback)) return fallback;
       if (!isClientComponentRenderError(error)) throw error;
-      return renderClientFallback(props, resolvedChildren);
+      return fallback;
     }
   }
 
+  const resolvedChildren = await resolveStaticReactNode(children as ReactNode);
   return renderClientFallback(props, resolvedChildren);
 }
 
@@ -221,14 +227,11 @@ export async function getLLMText(page: InferPageType<typeof source>) {
   // TODO: Platform-scoped MDX currently renders with the server default
   // platform ("react"). If llms output should include React Native or Ink
   // variants, render once per platform or provide an explicit platform scope.
-  const { renderToReadableStream } = await import("react-dom/server");
+  const { renderToStaticMarkup } = await import("react-dom/server");
   const staticBody = await resolveStaticReactNode(
     <Body components={components} />,
   );
-  const stream = await renderToReadableStream(staticBody);
-  await stream.allReady;
-
-  const html = await new Response(stream).text();
+  const html = renderToStaticMarkup(staticBody);
   const markdown = String(await processor.process(html)).trim();
 
   return `# ${page.data.title}
