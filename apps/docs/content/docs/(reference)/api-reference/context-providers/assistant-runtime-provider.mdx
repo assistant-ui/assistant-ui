@@ -41,7 +41,16 @@ const MyApp = () => {
 
 ### AuiProvider
 
-Provider component for AssistantClient
+Supplies an `AssistantClient` to the React tree.
+
+Place near the root of any subtree that uses [useAui](/docs/api-reference/hooks/state#useaui) or the
+primitives built on it. Components rendered outside an `AuiProvider`
+receive a default client whose scope accessors throw on use, so
+missing-provider mistakes surface at the point of use.
+
+When mounting a runtime built with one of the runtime hooks, use
+[AssistantRuntimeProvider](/docs/api-reference/context-providers/assistant-runtime-provider#assistantruntimeprovider) — it installs an `AuiProvider`
+internally — rather than wiring `AuiProvider` yourself.
 
 <ParametersTable {...AuiProvider} />
 {/* api-reference:end */}

@@ -38,7 +38,9 @@ const unstable_createMessageConverter: <T extends object>(callback: useExternalM
 
 ### bindExternalStoreMessage
 
-Deprecated: This API is experimental and may change without notice.
+<Callout type="warn">
+<strong>Deprecated.</strong> This API is experimental and may change without notice.
+</Callout>
 
 Attach the original external store message(s) to a ThreadMessage or message part.
 This is a no-op if the target already has a bound message.

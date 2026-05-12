@@ -38,40 +38,6 @@ const useMessageAttachment: { (): { id: string; type: "image" | "document" | "fi
 
 <ParametersTable {...useMessageAttachmentRuntime} />
 
-### useMessagePartData
-
-<ParametersTable {...useMessagePartData} />
-
-### useMessagePartFile
-
-```ts
-const useMessagePartFile: () => FileMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; };
-```
-
-### useMessagePartImage
-
-```ts
-const useMessagePartImage: () => ImageMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; };
-```
-
-### useMessagePartReasoning
-
-```ts
-const useMessagePartReasoning: () => ReasoningMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; };
-```
-
-### useMessagePartSource
-
-```ts
-const useMessagePartSource: () => ({ readonly type: "source"; readonly sourceType: "url"; readonly id: string; readonly url: string; readonly title?: string; readonly providerMetadata?: SourceProviderMetadata; readonly parentId?: string; } & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; }) | ({ readonly type: "source"; readonly sourceType: "document"; readonly id: string; readonly url?: undefined; readonly title: string; readonly mediaType: string; readonly filename?: string; readonly providerMetadata?: SourceProviderMetadata; readonly parentId?: string; } & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; });
-```
-
-### useMessagePartText
-
-```ts
-const useMessagePartText: () => (TextMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; }) | (ReasoningMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; });
-```
-
 ### useMessageQuote
 
 Hook that returns the quote info for the current message, if any.
@@ -146,7 +112,9 @@ const useThreadViewportStore: { (): ReadonlyStore<ThreadViewportState>; (options
 
 ### useAssistantRuntime
 
-Deprecated: Use `useAui()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAui](/docs/api-reference/hooks/state#useaui) instead. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 Hook to access the AssistantRuntime from the current context.
 
@@ -157,7 +125,9 @@ including thread management, tool registration, and configuration.
 
 ### useAttachment
 
-Deprecated: Use `useAuiState((s) => s.attachment)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.attachment)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 ```ts
 const useAttachment: { (): AttachmentState & { source: "message" | "thread-composer" | "edit-composer"; }; <TSelected>(selector: (state: AttachmentState & { source: "message" | "thread-composer" | "edit-composer"; }) => TSelected): TSelected; <TSelected>(selector: ((state: AttachmentState & { source: "message" | "thread-composer" | "edit-composer"; }) => TSelected) | undefined): (AttachmentState & { source: "message" | "thread-composer" | "edit-composer"; }) | TSelected; (options: { optional?: false | undefined; }): AttachmentState & { source: "message" | "thread-composer" | "edit-composer"; }; (options: { optional?: boolean | undefined; }): (AttachmentState & { source: "message" | "thread-composer" | "edit-composer"; }) | null; <TSelected>(options: { optional?: false | undefined; selector: (state: AttachmentState & { source: "message" | "thread-composer" | "edit-composer"; }) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: AttachmentState & { source: "message" | "thread-composer" | "edit-composer"; }) => TSelected) | undefined; }): (AttachmentState & { source: "message" | "thread-composer" | "edit-composer"; }) | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: AttachmentState & { source: "message" | "thread-composer" | "edit-composer"; }) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: AttachmentState & { source: "message" | "thread-composer" | "edit-composer"; }) => TSelected) | undefined; }): (AttachmentState & { source: "message" | "thread-composer" | "edit-composer"; }) | TSelected | null; };
@@ -165,13 +135,17 @@ const useAttachment: { (): AttachmentState & { source: "message" | "thread-compo
 
 ### useAttachmentRuntime
 
-Deprecated: Use `useAui()` with `aui.attachment()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAui](/docs/api-reference/hooks/state#useaui) with `aui.attachment()` instead. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 <ParametersTable {...useAttachmentRuntime} />
 
 ### useComposer
 
-Deprecated: Use `useAuiState((s) => s.composer)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.composer)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 Hook to access the current composer state.
 
@@ -184,7 +158,9 @@ const useComposer: { (): ComposerState; <TSelected>(selector: (state: ComposerSt
 
 ### useComposerRuntime
 
-Deprecated: Use `useAui()` with `aui.composer()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAui](/docs/api-reference/hooks/state#useaui) with `aui.composer()` instead. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 Hook to access the ComposerRuntime from the current context.
 
@@ -197,7 +173,9 @@ the thread's main composer depending on the context.
 
 ### useEditComposer
 
-Deprecated: Use `useAuiState((s) => s.message.composer)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.message.composer)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 ```ts
 const useEditComposer: { (): EditComposerState; <TSelected>(selector: (state: EditComposerState) => TSelected): TSelected; <TSelected>(selector: ((state: EditComposerState) => TSelected) | undefined): EditComposerState | TSelected; (options: { optional?: false | undefined; }): EditComposerState; (options: { optional?: boolean | undefined; }): EditComposerState | null; <TSelected>(options: { optional?: false | undefined; selector: (state: EditComposerState) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: EditComposerState) => TSelected) | undefined; }): EditComposerState | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: EditComposerState) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: EditComposerState) => TSelected) | undefined; }): EditComposerState | TSelected | null; };
@@ -205,7 +183,9 @@ const useEditComposer: { (): EditComposerState; <TSelected>(selector: (state: Ed
 
 ### useMessage
 
-Deprecated: Use `useAuiState((s) => s.message)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.message)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 Hook to access the current message state.
 
@@ -218,21 +198,85 @@ const useMessage: { (): MessageState; <TSelected>(selector: (state: MessageState
 
 ### useMessagePart
 
-Deprecated: Use `useAuiState((s) => s.part)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.part)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 ```ts
 const useMessagePart: { (): MessagePartState; <TSelected>(selector: (state: MessagePartState) => TSelected): TSelected; <TSelected>(selector: ((state: MessagePartState) => TSelected) | undefined): MessagePartState | TSelected; (options: { optional?: false | undefined; }): MessagePartState; (options: { optional?: boolean | undefined; }): MessagePartState | null; <TSelected>(options: { optional?: false | undefined; selector: (state: MessagePartState) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: MessagePartState) => TSelected) | undefined; }): MessagePartState | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: MessagePartState) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: MessagePartState) => TSelected) | undefined; }): MessagePartState | TSelected | null; };
 ```
 
+### useMessagePartData
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.part)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
+
+<ParametersTable {...useMessagePartData} />
+
+### useMessagePartFile
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.part)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
+
+```ts
+const useMessagePartFile: () => FileMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; };
+```
+
+### useMessagePartImage
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.part)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
+
+```ts
+const useMessagePartImage: () => ImageMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; };
+```
+
+### useMessagePartReasoning
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.part)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
+
+```ts
+const useMessagePartReasoning: () => ReasoningMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; };
+```
+
 ### useMessagePartRuntime
 
-Deprecated: Use `useAui()` with `aui.part()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAui](/docs/api-reference/hooks/state#useaui) with `aui.part()` instead. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 <ParametersTable {...useMessagePartRuntime} />
 
+### useMessagePartSource
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.part)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
+
+```ts
+const useMessagePartSource: () => ({ readonly type: "source"; readonly sourceType: "url"; readonly id: string; readonly url: string; readonly title?: string; readonly providerMetadata?: SourceProviderMetadata; readonly parentId?: string; } & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; }) | ({ readonly type: "source"; readonly sourceType: "document"; readonly id: string; readonly url?: undefined; readonly title: string; readonly mediaType: string; readonly filename?: string; readonly providerMetadata?: SourceProviderMetadata; readonly parentId?: string; } & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; });
+```
+
+### useMessagePartText
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.part)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
+
+```ts
+const useMessagePartText: () => (TextMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; }) | (ReasoningMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; });
+```
+
 ### useMessageRuntime
 
-Deprecated: Use `useAui()` with `aui.message()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAui](/docs/api-reference/hooks/state#useaui) with `aui.message()` instead. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 Hook to access the MessageRuntime from the current context.
 
@@ -243,7 +287,9 @@ including message content, status, editing capabilities, and branching.
 
 ### useThread
 
-Deprecated: Use `useAuiState((s) => s.thread)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.thread)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 Hook to access the current thread state.
 
@@ -256,7 +302,9 @@ const useThread: { (): ThreadState; <TSelected>(selector: (state: ThreadState) =
 
 ### useThreadComposer
 
-Deprecated: Use `useAuiState((s) => s.thread.composer)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.thread.composer)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 ```ts
 const useThreadComposer: { (): ThreadComposerState; <TSelected>(selector: (state: ThreadComposerState) => TSelected): TSelected; <TSelected>(selector: ((state: ThreadComposerState) => TSelected) | undefined): ThreadComposerState | TSelected; (options: { optional?: false | undefined; }): ThreadComposerState; (options: { optional?: boolean | undefined; }): ThreadComposerState | null; <TSelected>(options: { optional?: false | undefined; selector: (state: ThreadComposerState) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: ThreadComposerState) => TSelected) | undefined; }): ThreadComposerState | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: ThreadComposerState) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: ThreadComposerState) => TSelected) | undefined; }): ThreadComposerState | TSelected | null; };
@@ -264,7 +312,9 @@ const useThreadComposer: { (): ThreadComposerState; <TSelected>(selector: (state
 
 ### useThreadList
 
-Deprecated: Use `useAuiState((s) => s.threads)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.threads)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 ```ts
 const useThreadList: { (): ThreadListState; <TSelected>(selector: (state: ThreadListState) => TSelected): TSelected; <TSelected>(selector: ((state: ThreadListState) => TSelected) | undefined): ThreadListState | TSelected; (options: { optional?: false | undefined; }): ThreadListState; (options: { optional?: boolean | undefined; }): ThreadListState | null; <TSelected>(options: { optional?: false | undefined; selector: (state: ThreadListState) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: ThreadListState) => TSelected) | undefined; }): ThreadListState | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: ThreadListState) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: ThreadListState) => TSelected) | undefined; }): ThreadListState | TSelected | null; };
@@ -272,7 +322,9 @@ const useThreadList: { (): ThreadListState; <TSelected>(selector: (state: Thread
 
 ### useThreadListItem
 
-Deprecated: Use `useAuiState((s) => s.threadListItem)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.threadListItem)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 ```ts
 const useThreadListItem: { (): ThreadListItemState; <TSelected>(selector: (state: ThreadListItemState) => TSelected): TSelected; <TSelected>(selector: ((state: ThreadListItemState) => TSelected) | undefined): ThreadListItemState | TSelected; (options: { optional?: false | undefined; }): ThreadListItemState; (options: { optional?: boolean | undefined; }): ThreadListItemState | null; <TSelected>(options: { optional?: false | undefined; selector: (state: ThreadListItemState) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: ThreadListItemState) => TSelected) | undefined; }): ThreadListItemState | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: ThreadListItemState) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: ThreadListItemState) => TSelected) | undefined; }): ThreadListItemState | TSelected | null; };
@@ -280,13 +332,17 @@ const useThreadListItem: { (): ThreadListItemState; <TSelected>(selector: (state
 
 ### useThreadListItemRuntime
 
-Deprecated: Use `useAui()` with `aui.threadListItem()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAui](/docs/api-reference/hooks/state#useaui) with `aui.threadListItem()` instead. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 <ParametersTable {...useThreadListItemRuntime} />
 
 ### useThreadRuntime
 
-Deprecated: Use `useAui()` with `aui.thread()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAui](/docs/api-reference/hooks/state#useaui) with `aui.thread()` instead. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 Hook to access the ThreadRuntime from the current context.
 

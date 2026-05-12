@@ -44,7 +44,9 @@ const ModelContextClient: () => ResourceElement<ClientOutput<"modelContext">, un
 
 ### useThreadModelContext
 
-Deprecated: Use `useAuiState((s) => s.thread.modelContext)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.thread.modelContext)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+</Callout>
 
 <ParametersTable {...useThreadModelContext} />
 {/* api-reference:end */}

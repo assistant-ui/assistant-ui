@@ -16,6 +16,17 @@ import { useAuiEvent, useAuiState } from "@/generated/typeDocs";
 
 ### useAui
 
+Returns the current `AssistantClient` from context.
+
+Read the client supplied by the nearest [AuiProvider](/docs/api-reference/context-providers/assistant-runtime-provider#auiprovider) or
+[AssistantRuntimeProvider](/docs/api-reference/context-providers/assistant-runtime-provider#assistantruntimeprovider), then access a scope on it —
+`aui.thread()`, `aui.composer()`, `aui.message()`, and so on. Pair
+with [useAuiState](/docs/api-reference/hooks/state#useauistate) to read reactive state and [useAuiEvent](/docs/api-reference/hooks/state#useauievent)
+to subscribe to events.
+
+Rendered outside a provider, the returned client's scope accessors
+throw a descriptive error the first time they are read.
+
 {/* api-example:useAui:start */}
 ```tsx
 import { useAui } from "@assistant-ui/react";
@@ -34,6 +45,13 @@ function useAui(): AssistantClient;
 
 ### useAuiEvent
 
+Subscribes to an assistant event for the lifetime of the component.
+
+The subscription is established on mount and re-established whenever the
+scope or event name changes. The `callback` is wrapped in an effect-event
+shim, so the latest closure is invoked on each emission — you do not
+need to memoize it.
+
 {/* api-example:useAuiEvent:start */}
 ```tsx
 import { useAuiEvent } from "@assistant-ui/react";
@@ -48,7 +66,14 @@ useAuiEvent("thread.runStart", (payload) => {
 
 ### useAuiState
 
-Hook to access a slice of the assistant state with automatic subscription
+Subscribes to a slice of [AssistantState](/docs/api-reference/primitives/assistant-if#assistantstate) and re-renders the
+component whenever that slice changes.
+
+The `selector` is called on every store update; its return value is
+compared by `Object.is`, and the component re-renders only when the
+selected slice changes. Returning the entire state object is not
+supported and throws at runtime — select a specific field instead, or
+compose multiple `useAuiState` calls.
 
 {/* api-example:useAuiState:start */}
 ```tsx
