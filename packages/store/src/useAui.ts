@@ -359,7 +359,49 @@ export namespace useAui {
   };
 }
 
+/**
+ * Returns the current `AssistantClient` from context.
+ *
+ * Read the client supplied by the nearest {@link AuiProvider} or
+ * {@link AssistantRuntimeProvider}, then access a scope on it —
+ * `aui.thread()`, `aui.composer()`, `aui.message()`, and so on. Pair
+ * with {@link useAuiState} to read reactive state and {@link useAuiEvent}
+ * to subscribe to events.
+ *
+ * Rendered outside a provider, the returned client's scope accessors
+ * throw a descriptive error the first time they are read.
+ *
+ * @example
+ * ```tsx
+ * const aui = useAui();
+ *
+ * const onSend = () => aui.composer().send();
+ * const onCancel = () => aui.thread().cancelRun();
+ * ```
+ *
+ * @example
+ * ```tsx
+ * // Combine with useAuiState to drive disabled state.
+ * const aui = useAui();
+ * const isRunning = useAuiState((s) => s.thread.isRunning);
+ *
+ * return (
+ *   <button disabled={isRunning} onClick={() => aui.composer().send()}>
+ *     Send
+ *   </button>
+ * );
+ * ```
+ */
 export function useAui(): AssistantClient;
+/**
+ * Extends the parent `AssistantClient` with additional scopes.
+ *
+ * Advanced overload used when building primitives or providers — for
+ * example, when a custom provider needs to register a `message`, `part`,
+ * or other scope onto the client visible to its descendants. Application
+ * code rarely reaches for this; use {@link useAui} with no arguments to
+ * read the existing client.
+ */
 export function useAui(clients: useAui.Props): AssistantClient;
 export function useAui(
   clients: useAui.Props,

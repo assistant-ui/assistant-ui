@@ -85,12 +85,23 @@ export const useAssistantContextValue = (): AssistantClient => {
 };
 
 /**
- * Provider component for AssistantClient
+ * Supplies an `AssistantClient` to the React tree.
+ *
+ * Place near the root of any subtree that uses {@link useAui} or the
+ * primitives built on it. Components rendered outside an `AuiProvider`
+ * receive a default client whose scope accessors throw on use, so
+ * missing-provider mistakes surface at the point of use.
+ *
+ * When mounting a runtime built with one of the runtime hooks, use
+ * {@link AssistantRuntimeProvider} — it installs an `AuiProvider`
+ * internally — rather than wiring `AuiProvider` yourself.
  *
  * @example
- * ```typescript
- * <AuiProvider value={aui}>
- *   <YourApp />
+ * ```tsx
+ * const client = createAssistantClient({ ... });
+ *
+ * <AuiProvider value={client}>
+ *   <App />
  * </AuiProvider>
  * ```
  */
@@ -98,7 +109,9 @@ export const AuiProvider = ({
   value,
   children,
 }: {
+  /** Assistant client to expose to descendants. */
   value: AssistantClient;
+  /** Subtree that may read from the client. */
   children: React.ReactNode;
 }): React.ReactElement => {
   return (

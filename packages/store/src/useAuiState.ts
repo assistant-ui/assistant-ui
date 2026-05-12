@@ -4,18 +4,32 @@ import { useAui } from "./useAui";
 import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
 
 /**
- * Hook to access a slice of the assistant state with automatic subscription
+ * Subscribes to a slice of {@link AssistantState} and re-renders the
+ * component whenever that slice changes.
  *
- * @param selector - Function to select a slice of the state
- * @returns The selected state slice
+ * The `selector` is called on every store update; its return value is
+ * compared by `Object.is`, and the component re-renders only when the
+ * selected slice changes. Returning the entire state object is not
+ * supported and throws at runtime — select a specific field instead, or
+ * compose multiple `useAuiState` calls.
+ *
+ * @param selector - Pure function that derives a value from the current
+ *   assistant state. Should be cheap and referentially stable for equal
+ *   inputs (plain field reads, primitives, or memoized values).
+ * @returns The currently selected slice.
  *
  * @example
- * ```typescript
- * const aui = useAui({
- *   foo: RootScope({ ... }),
- * });
+ * ```tsx
+ * // Disable a button while a run is in flight.
+ * const isRunning = useAuiState((s) => s.thread.isRunning);
+ * ```
  *
- * const bar = useAuiState((s) => s.foo.bar);
+ * @example
+ * ```tsx
+ * // Prefer multiple selectors over an inline object literal, which would
+ * // create a new reference on every render.
+ * const text = useAuiState((s) => s.composer.text);
+ * const canSend = useAuiState((s) => s.composer.canSend);
  * ```
  */
 export const useAuiState = <T>(selector: (state: AssistantState) => T): T => {
