@@ -29,6 +29,9 @@ const CATEGORIES: XuluxTemplateCategory[] = [
   },
 ];
 
+// Fumadocs owns the example page content. This file only adds curated UI metadata
+// that the docs source does not currently expose, such as category, preview type,
+// and template-friendly tech labels.
 const PREVIEW_COMPONENT_SLUGS = new Set([
   "ai-sdk",
   "artifacts",
@@ -196,7 +199,7 @@ export function getXuluxExamplesCatalog(): XuluxTemplateCatalog {
       gradient: GRADIENTS[index % GRADIENTS.length]!,
       kind: "example",
       previewStatus: hasComponentPreview ? "live" : "stale",
-      previewUrl: `/playground/xulux-preview/${slug}`,
+      previewUrl: `/xulux-preview/${slug}`,
       screenshotUrl: item.image,
       sourcePath: sourcePathFromGithubLink(item.githubLink),
       docsUrl: page.url,

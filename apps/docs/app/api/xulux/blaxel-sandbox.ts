@@ -155,8 +155,7 @@ export async function provisionSandbox(
     SandboxInstance = mod.SandboxInstance;
   } catch {
     throw new Error(
-      "Missing @blaxel/core — run: pnpm add @blaxel/core\n" +
-        "Set BL_WORKSPACE and BL_API_KEY in your .env file.",
+      "Missing @blaxel/core dependency. Set BL_WORKSPACE and BL_API_KEY in your .env file.",
     );
   }
 

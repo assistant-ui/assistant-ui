@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV === "development";
 
+// The playground AI Builder renders same-origin preview routes inside an iframe.
+// Keep frame ancestors self-only so external sites still cannot embed docs pages.
 const cspHeader = `
     default-src 'self';
     connect-src *;

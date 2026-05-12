@@ -11,6 +11,8 @@ import { XuluxLandingPage } from "../landing/XuluxLandingPage";
 import { TemplatesModal } from "../landing/TemplatesModal";
 import { XuluxHeaderActions } from "./XuluxHeaderActions";
 
+const ASSISTANT_UI_REPO_URL = "https://github.com/assistant-ui/assistant-ui";
+
 type XuluxViewMode = "landing" | "chat" | "preview";
 type CanvasState = {
   status: "empty" | "loading" | "ready" | "error";
@@ -126,6 +128,11 @@ export function XuluxShell({
                 previewUrl={canvas.url}
                 source={canvas.source}
                 error={canvas.error}
+                sourceUrl={
+                  canvas.source === "template" && selectedTemplate
+                    ? getTemplateSourceUrl(selectedTemplate)
+                    : undefined
+                }
                 {...(selectedTemplate?.title
                   ? { title: selectedTemplate.title }
                   : {})}
@@ -156,4 +163,10 @@ function toSelectedTemplateContext(
     ...(template.sourcePath ? { sourcePath: template.sourcePath } : {}),
     ...(template.docsUrl ? { docsUrl: template.docsUrl } : {}),
   };
+}
+
+function getTemplateSourceUrl(template: XuluxTemplate): string | undefined {
+  if (!template.sourcePath) return template.docsUrl;
+  if (/^https?:\/\//i.test(template.sourcePath)) return template.sourcePath;
+  return `${ASSISTANT_UI_REPO_URL}/tree/main/${template.sourcePath}`;
 }

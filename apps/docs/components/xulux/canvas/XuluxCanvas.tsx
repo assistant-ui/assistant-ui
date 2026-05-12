@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { Download, ExternalLink, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Download, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { GitHubIcon } from "@/components/icons/github";
 
 function toAbsoluteUrl(url: string | null): string | null {
   if (!url) return null;
@@ -23,6 +24,7 @@ export function XuluxCanvas({
   previewUrl,
   source,
   error,
+  sourceUrl,
   title,
 }: {
   sessionId: string;
@@ -30,12 +32,30 @@ export function XuluxCanvas({
   previewUrl: string | null;
   source: "template" | "refresh" | null;
   error: string | null;
+  sourceUrl?: string;
   title?: string;
 }) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [iframeVersion, setIframeVersion] = useState(0);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const canDownload = source === "refresh" && status === "ready";
+  const canOpenSource =
+    source === "template" && status === "ready" && sourceUrl;
   const resolvedPreviewUrl = toAbsoluteUrl(previewUrl);
+  const canRefresh = !!resolvedPreviewUrl && status === "ready";
+  const iframeKey = resolvedPreviewUrl
+    ? `${resolvedPreviewUrl}-${iframeVersion}`
+    : "empty";
+
+  useEffect(() => {
+    setIsPreviewLoading(!!resolvedPreviewUrl);
+  }, [resolvedPreviewUrl]);
+
+  const handleRefreshPreview = useCallback(() => {
+    setIsPreviewLoading(true);
+    setIframeVersion((value) => value + 1);
+  }, []);
 
   const handleDownload = useCallback(async () => {
     setIsDownloading(true);
@@ -91,6 +111,23 @@ export function XuluxCanvas({
               <span className="sr-only">Open preview</span>
             </a>
           </Button>
+          {canRefresh && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              disabled={isPreviewLoading}
+              onClick={handleRefreshPreview}
+            >
+              <RefreshCw
+                className={
+                  isPreviewLoading ? "size-3.5 animate-spin" : "size-3.5"
+                }
+              />
+              <span className="sr-only">Refresh preview</span>
+            </Button>
+          )}
           {canDownload && (
             <Button
               type="button"
@@ -108,6 +145,20 @@ export function XuluxCanvas({
               <span className="hidden sm:inline">Download</span>
             </Button>
           )}
+          {canOpenSource && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1.5 px-2.5 text-xs"
+              asChild
+            >
+              <a href={sourceUrl} target="_blank" rel="noreferrer">
+                <GitHubIcon className="size-3.5" />
+                <span className="hidden sm:inline">Source</span>
+              </a>
+            </Button>
+          )}
         </div>
       )}
 
@@ -118,11 +169,23 @@ export function XuluxCanvas({
       )}
 
       {resolvedPreviewUrl ? (
-        <iframe
-          title={title ?? "Xulux preview"}
-          src={resolvedPreviewUrl}
-          className="h-full w-full border-0 bg-white"
-        />
+        <>
+          {isPreviewLoading && (
+            <div className="absolute inset-0 z-5 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+              <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-muted-foreground text-sm shadow-sm">
+                <Loader2 className="size-4 animate-spin" />
+                <span>Loading preview...</span>
+              </div>
+            </div>
+          )}
+          <iframe
+            key={iframeKey}
+            title={title ?? "Xulux preview"}
+            src={resolvedPreviewUrl}
+            onLoad={() => setIsPreviewLoading(false)}
+            className="h-full w-full border-0 bg-white"
+          />
+        </>
       ) : (
         <div className="flex h-full items-center justify-center p-6 text-center">
           <div className="max-w-md">

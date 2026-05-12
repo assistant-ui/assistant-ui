@@ -39,6 +39,7 @@ import {
 import Image from "next/image";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { MarkdownText } from "@/components/docs/assistant/markdown";
+import { XuluxPoweredBy } from "../XuluxPoweredBy";
 
 const XULUX_CONTEXT_WINDOW = 400_000;
 const XULUX_DEFAULT_MODEL_ID = "gpt-5.4-mini";
@@ -299,7 +300,7 @@ function XuluxFooter({ onNewThread }: { onNewThread: () => void }): ReactNode {
   );
 
   return (
-    <div className="flex items-center justify-between px-3 py-1.5">
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-1.5">
       <button
         type="button"
         onClick={() => {
@@ -320,10 +321,14 @@ function XuluxFooter({ onNewThread }: { onNewThread: () => void }): ReactNode {
         <span>New thread</span>
       </button>
 
-      <ContextDisplay.Bar
-        modelContextWindow={XULUX_CONTEXT_WINDOW}
-        usage={lastUsage}
-      />
+      <XuluxPoweredBy className="min-w-0 truncate px-1" />
+
+      <div className="flex justify-end">
+        <ContextDisplay.Bar
+          modelContextWindow={XULUX_CONTEXT_WINDOW}
+          usage={lastUsage}
+        />
+      </div>
     </div>
   );
 }

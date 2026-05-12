@@ -75,6 +75,8 @@ htmlcov/
 
 # Claude
 **/.claude/scheduled_tasks.lock
+apps/docs/app/api/xulux/README.md
+apps/docs/app/api/xulux/CLAUDE.md
 
 # GitHub Spec Kit - https://github.com/github/spec-kit
 .specify/

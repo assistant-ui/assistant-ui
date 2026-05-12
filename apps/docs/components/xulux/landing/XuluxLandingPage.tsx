@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { XuluxTemplate } from "../templates/types";
+import { XuluxPoweredBy } from "../XuluxPoweredBy";
 import { CategoryGrid } from "./CategoryGrid";
 import { PromptInput } from "./PromptInput";
 import { TemplatesModal } from "./TemplatesModal";
@@ -15,7 +16,7 @@ type Props = {
 
 export function XuluxLandingPage({
   headline = "What do you want to build?",
-  placeholder = "Describe the app, workflow, or assistant UI you want Xulux to create...",
+  placeholder = "Describe what you want to build with assistant-ui...",
   onStartChat,
   onSelectTemplate,
 }: Props) {
@@ -46,6 +47,7 @@ export function XuluxLandingPage({
           onBrowseAll={() => setTemplatesOpen(true)}
           onSelectTemplate={handleTemplate}
         />
+        <XuluxPoweredBy className="-mt-6 pb-4" />
       </div>
 
       <TemplatesModal
