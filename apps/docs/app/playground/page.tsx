@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 import {
   CodeIcon,
   XIcon,
@@ -35,6 +42,7 @@ import {
   usePlaygroundState,
   type ViewportPreset,
 } from "@/lib/playground-url-state";
+import { XuluxApp } from "@/components/xulux/XuluxApp";
 
 const VIEWPORT_PRESETS = {
   desktop: { width: "100%" as const, label: "Desktop", icon: Monitor },
@@ -42,7 +50,7 @@ const VIEWPORT_PRESETS = {
   mobile: { width: 375, label: "Mobile", icon: Smartphone },
 } as const;
 
-export default function PlaygroundPage() {
+function BuilderPlayground() {
   const {
     config,
     showCode,
@@ -341,5 +349,59 @@ export default function PlaygroundPage() {
         )}
       </div>
     </PlaygroundChatProvider>
+  );
+}
+
+function HeaderPortal({ children }: { children: ReactNode }) {
+  const [container, setContainer] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setContainer(
+      document.querySelector<HTMLElement>("[data-sub-project-header-portal]"),
+    );
+  }, []);
+
+  if (!container) return null;
+  return createPortal(children, container);
+}
+
+export default function PlaygroundPage() {
+  const [mode, setMode] = useState<"agent" | "builder">("agent");
+
+  return (
+    <>
+      <HeaderPortal>
+        <div className="grid grid-cols-2 rounded-md border bg-muted/40 p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => setMode("agent")}
+            className={cn(
+              "rounded px-2.5 py-1 font-medium transition-colors",
+              mode === "agent"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            AI Builder
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("builder")}
+            className={cn(
+              "rounded px-2.5 py-1 font-medium transition-colors",
+              mode === "builder"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            UI Builder
+          </button>
+        </div>
+      </HeaderPortal>
+
+      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+        {mode === "agent" ? <XuluxApp /> : <BuilderPlayground />}
+      </div>
+    </>
   );
 }

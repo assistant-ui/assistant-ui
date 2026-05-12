@@ -153,59 +153,27 @@ function formatDuration(ms: number): string {
 function ToolCall({
   toolName,
   args,
-  result,
   status,
 }: ToolCallMessagePartProps): ReactNode {
   const isRunning = status?.type === "running";
   const { icon, label, detail } = getToolDisplay(toolName, args, isRunning);
   const duration = useToolDuration(isRunning);
-  const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="my-1.5 rounded-lg border border-border/60 bg-muted/30 text-xs">
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className={cn(
-          "flex w-full items-center gap-2 px-2.5 py-1.5 text-muted-foreground",
-          isRunning && "animate-pulse",
-        )}
-      >
-        <ToolStatusIcon status={status} FallbackIcon={icon} />
-        <span className="flex-1 truncate text-left">
-          {label} {detail}
+    <div
+      className={cn(
+        "my-1.5 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5 text-muted-foreground text-xs",
+        isRunning && "animate-pulse",
+      )}
+    >
+      <ToolStatusIcon status={status} FallbackIcon={icon} />
+      <span className="flex-1 truncate">
+        {label} {detail}
+      </span>
+      {duration !== null && (
+        <span className="text-muted-foreground/60">
+          {formatDuration(duration)}
         </span>
-        {duration !== null && (
-          <span className="text-muted-foreground/60">
-            {formatDuration(duration)}
-          </span>
-        )}
-        <span className="text-muted-foreground/40">{expanded ? "▲" : "▼"}</span>
-      </button>
-
-      {expanded && (
-        <div className="space-y-2 border-border/60 border-t px-2.5 py-2">
-          <div>
-            <p className="mb-1 font-medium text-[10px] text-muted-foreground/60 uppercase tracking-wide">
-              Input
-            </p>
-            <pre className="overflow-x-auto whitespace-pre-wrap break-all text-muted-foreground">
-              {JSON.stringify(args, null, 2)}
-            </pre>
-          </div>
-          {result !== undefined && (
-            <div>
-              <p className="mb-1 font-medium text-[10px] text-muted-foreground/60 uppercase tracking-wide">
-                Output
-              </p>
-              <pre className="overflow-x-auto whitespace-pre-wrap break-all text-muted-foreground">
-                {typeof result === "string"
-                  ? result
-                  : JSON.stringify(result, null, 2)}
-              </pre>
-            </div>
-          )}
-        </div>
       )}
     </div>
   );
