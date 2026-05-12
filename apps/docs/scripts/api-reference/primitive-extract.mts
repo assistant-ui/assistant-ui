@@ -291,10 +291,19 @@ function discoverSubComponents(primitiveModulePath: string): SubComponent[] {
 }
 
 function localNameFor(declaration: ExportedDeclarations): string | undefined {
-  return (
-    declaration.getSymbol()?.getName() ??
-    ("getName" in declaration ? (declaration as any).getName?.() : undefined)
-  );
+  const symbolName = declaration.getSymbol()?.getName();
+  if (symbolName) return symbolName;
+  if (
+    Node.isVariableDeclaration(declaration) ||
+    Node.isFunctionDeclaration(declaration) ||
+    Node.isClassDeclaration(declaration) ||
+    Node.isInterfaceDeclaration(declaration) ||
+    Node.isTypeAliasDeclaration(declaration) ||
+    Node.isModuleDeclaration(declaration)
+  ) {
+    return declaration.getName();
+  }
+  return undefined;
 }
 
 function extractPrimitivePart(

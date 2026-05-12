@@ -641,6 +641,34 @@ function writeSectionIndex(
   );
 }
 
+function writeSectionOverviewIndex(
+  section: ApiSection,
+  sectionDir: string,
+  pageSummaries: PageSummary[],
+  fallbackTitle: string,
+): void {
+  const indexPath = path.join(sectionDir, "index.mdx");
+  const indexAuthored = readAuthoredPageParts(section, "index", []);
+  const indexSlots = indexAuthored?.slots ?? emptyPageSlots();
+  const indexTitle = authoredTitleOrSeed(
+    indexPath,
+    indexAuthored?.frontmatter,
+    fallbackTitle,
+  );
+  const indexDescription = authoredDescription(indexAuthored?.frontmatter);
+  const indexBody = generateSectionOverviewPage(
+    section,
+    pageSummaries,
+    indexSlots,
+    indexTitle,
+    indexDescription,
+  );
+  assertPreservedSlots(indexPath, indexSlots, indexBody);
+  fs.writeFileSync(indexPath, indexBody);
+  validatePageDescription(indexPath, indexAuthored?.frontmatter, []);
+  writeSectionIndex(section, pageSummaries, indexDescription);
+}
+
 function writeApiReferenceRoot(): void {
   fs.mkdirSync(API_REFERENCE_DIR, { recursive: true });
   fs.writeFileSync(
@@ -702,8 +730,13 @@ function validatePageDescription(
 }
 
 function pruneGeneratedPage(filePath: string): void {
-  if (!fs.existsSync(filePath)) return;
-  const source = fs.readFileSync(filePath, "utf8");
+  let source: string;
+  try {
+    source = fs.readFileSync(filePath, "utf8");
+  } catch (error) {
+    if ((error as { code?: string }).code === "ENOENT") return;
+    throw error;
+  }
   if (source.includes(SKIP_AUTO_GENERATION_MARKER)) return;
   if (source.includes(GENERATED_PAGE_MARKER)) fs.unlinkSync(filePath);
 }
@@ -764,14 +797,8 @@ export function writeApiReferencePages(
         continue;
       }
 
-      const imports = generatedImportsForPage(items, typeDocNames);
       const slots = authored?.slots ?? emptyPageSlots();
       const isSinglePrimitive = section === "primitives" && items.length === 1;
-      const reference =
-        isSinglePrimitive && items[0]
-          ? generatePrimitiveReferenceRegion(items[0], typeDocNames, slots)
-          : generateReferenceRegion(items, typeDocNames, slots);
-
       const body =
         isSinglePrimitive && items[0]
           ? generatePrimitivePage(
@@ -781,34 +808,25 @@ export function writeApiReferencePages(
               title,
               description,
             )
-          : generateApiPage({ title, description, imports, slots, reference });
+          : generateApiPage({
+              title,
+              description,
+              imports: generatedImportsForPage(items, typeDocNames),
+              slots,
+              reference: generateReferenceRegion(items, typeDocNames, slots),
+            });
 
       assertPreservedSlots(filePath, slots, body);
       fs.writeFileSync(filePath, body);
       validatePageDescription(filePath, authored?.frontmatter, items);
     }
 
-    const indexPath = path.join(sectionDir, "index.mdx");
-    const indexAuthored = readAuthoredPageParts(section, "index", []);
-    const indexSlots = indexAuthored?.slots ?? emptyPageSlots();
-    const indexTitle = authoredTitleOrSeed(
-      indexPath,
-      indexAuthored?.frontmatter,
+    writeSectionOverviewIndex(
+      section,
+      sectionDir,
+      pageSummaries,
       `${sectionTitle(section)} API Reference`,
     );
-    const indexDescription = authoredDescription(indexAuthored?.frontmatter);
-    const indexBody = generateSectionOverviewPage(
-      section,
-      pageSummaries,
-      indexSlots,
-      indexTitle,
-      indexDescription,
-    );
-    assertPreservedSlots(indexPath, indexSlots, indexBody);
-    fs.writeFileSync(indexPath, indexBody);
-    validatePageDescription(indexPath, indexAuthored?.frontmatter, []);
-
-    writeSectionIndex(section, pageSummaries, indexDescription);
     pruneStaleGeneratedPages(
       sectionDir,
       new Set(["index", ...pageSummaries.map((page) => page.slug)]),
@@ -872,26 +890,12 @@ function writeIntegrationPages(
     validatePageDescription(filePath, authored?.frontmatter, items);
   }
 
-  const indexPath = path.join(sectionDir, "index.mdx");
-  const indexAuthored = readAuthoredPageParts(section, "index", []);
-  const indexSlots = indexAuthored?.slots ?? emptyPageSlots();
-  const indexTitle = authoredTitleOrSeed(
-    indexPath,
-    indexAuthored?.frontmatter,
+  writeSectionOverviewIndex(
+    section,
+    sectionDir,
+    pageSummaries,
     "Integrations API Reference",
   );
-  const indexDescription = authoredDescription(indexAuthored?.frontmatter);
-  const indexBody = generateSectionOverviewPage(
-    section,
-    pageSummaries,
-    indexSlots,
-    indexTitle,
-    indexDescription,
-  );
-  assertPreservedSlots(indexPath, indexSlots, indexBody);
-  fs.writeFileSync(indexPath, indexBody);
-  validatePageDescription(indexPath, indexAuthored?.frontmatter, []);
-  writeSectionIndex(section, pageSummaries, indexDescription);
 
   pruneStaleGeneratedPages(
     sectionDir,
