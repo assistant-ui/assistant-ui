@@ -156,27 +156,55 @@ function relativeToRepo(filePath: string | undefined): string | undefined {
   return path.relative(REPO_ROOT, filePath);
 }
 
-export function discoverExports(): ExportInfo[] {
+type DiscoveredExportInput = {
+  name: string;
+  resolved: TsNode | undefined;
+  deprecated?: string;
+};
+
+type ExportBuilder = (input: DiscoveredExportInput) => ExportInfo | undefined;
+
+function collectExports(
+  entryPath: string,
+  buildExport: ExportBuilder,
+): ExportInfo[] {
   const project = getProject();
   const sourceFile =
-    project.getSourceFile(REACT_INDEX) ??
-    project.addSourceFileAtPath(REACT_INDEX);
+    project.getSourceFile(entryPath) ?? project.addSourceFileAtPath(entryPath);
   const seen = new Set<string>();
   const exports: ExportInfo[] = [];
 
-  const addExport = (
-    name: string,
-    resolved: TsNode | undefined,
-    deprecated?: string,
-  ) => {
-    if (seen.has(name) || IGNORED_EXPORTS.has(name)) return;
+  const addExport = (input: DiscoveredExportInput) => {
+    if (seen.has(input.name) || IGNORED_EXPORTS.has(input.name)) return;
+    const info = buildExport(input);
+    if (!info) return;
+    seen.add(input.name);
+    exports.push(info);
+  };
+
+  for (const decl of sourceFile.getExportDeclarations()) {
+    for (const entry of getExportEntries(decl)) {
+      addExport({
+        name: entry.name,
+        resolved: resolveDeclaration(entry),
+        deprecated: exportEntryDeprecated(entry),
+      });
+    }
+  }
+  for (const [name, declarations] of sourceFile.getExportedDeclarations()) {
+    addExport({ name, resolved: chooseDeclaration(declarations) });
+  }
+  return exports.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function discoverExports(): ExportInfo[] {
+  return collectExports(REACT_INDEX, ({ name, resolved, deprecated }) => {
     const sourcePath = relativeToRepo(resolved?.getSourceFile().getFilePath());
     const docs = extractJsDoc(resolved);
     const kind = classifyKind(resolved, name);
     const placement = classifyExport({ name, kind, sourcePath });
     const signature = extractSignature(resolved, name);
-    seen.add(name);
-    exports.push({
+    return {
       name,
       section: placement.section,
       kind,
@@ -189,47 +217,21 @@ export function discoverExports(): ExportInfo[] {
       classificationRule: placement.rule,
       classificationConfidence: placement.confidence,
       classificationReason: placement.reason,
-    });
-  };
-
-  for (const decl of sourceFile.getExportDeclarations()) {
-    for (const entry of getExportEntries(decl)) {
-      addExport(
-        entry.name,
-        resolveDeclaration(entry),
-        exportEntryDeprecated(entry),
-      );
-    }
-  }
-  for (const [name, declarations] of sourceFile.getExportedDeclarations()) {
-    addExport(name, chooseDeclaration(declarations));
-  }
-  return exports.sort((a, b) => a.name.localeCompare(b.name));
+    };
+  });
 }
 
 export function discoverIntegrationExports(
   entryPath: string,
   page: string,
 ): ExportInfo[] {
-  const project = getProject();
-  const sourceFile =
-    project.getSourceFile(entryPath) ?? project.addSourceFileAtPath(entryPath);
-  const seen = new Set<string>();
-  const exports: ExportInfo[] = [];
-
-  const addExport = (
-    name: string,
-    resolved: TsNode | undefined,
-    deprecated?: string,
-  ) => {
-    if (seen.has(name) || IGNORED_EXPORTS.has(name)) return;
+  return collectExports(entryPath, ({ name, resolved, deprecated }) => {
     const sourcePath = relativeToRepo(resolved?.getSourceFile().getFilePath());
-    const docs = extractJsDoc(resolved);
     const kind = classifyKind(resolved, name);
-    if (kind === "interface" || kind === "type") return;
+    if (kind === "interface" || kind === "type") return undefined;
+    const docs = extractJsDoc(resolved);
     const signature = extractSignature(resolved, name);
-    seen.add(name);
-    exports.push({
+    return {
       name,
       section: "integrations",
       kind,
@@ -242,20 +244,6 @@ export function discoverIntegrationExports(
       classificationRule: "integration:package",
       classificationConfidence: "strong",
       classificationReason: "package-level integration export",
-    });
-  };
-
-  for (const decl of sourceFile.getExportDeclarations()) {
-    for (const entry of getExportEntries(decl)) {
-      addExport(
-        entry.name,
-        resolveDeclaration(entry),
-        exportEntryDeprecated(entry),
-      );
-    }
-  }
-  for (const [name, declarations] of sourceFile.getExportedDeclarations()) {
-    addExport(name, chooseDeclaration(declarations));
-  }
-  return exports.sort((a, b) => a.name.localeCompare(b.name));
+    };
+  });
 }

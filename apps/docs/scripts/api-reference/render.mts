@@ -221,70 +221,6 @@ function readFrontmatter(
   return fm;
 }
 
-function firstCodeFence(source: string): string | undefined {
-  return source.match(/```[\s\S]*?```/)?.[0];
-}
-
-function headingBlock(source: string, heading: string): string | undefined {
-  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = source.match(
-    new RegExp(
-      `^#{2,4}\\s+${escaped}\\s*$([\\s\\S]*?)(?=^#{2,4}\\s+|\\{\\/\\* api-reference:start \\*\\/|$(?![\\s\\S]))`,
-      "m",
-    ),
-  );
-  return match?.[1]?.trim();
-}
-
-function mergeLegacyExamples(
-  section: ApiSection,
-  slug: string,
-  source: string,
-  examples: Map<string, string>,
-): Map<string, string> {
-  const addCodeFence = (name: string, block: string | undefined) => {
-    if (examples.has(name)) return;
-    const code = block ? firstCodeFence(block) : undefined;
-    if (code) examples.set(name, exampleSlot(name, code));
-  };
-  if (section === "hooks" && slug === "state") {
-    addCodeFence("useAuiState", headingBlock(source, "useAuiState"));
-    addCodeFence("useAui", headingBlock(source, "useAui"));
-    addCodeFence("useAuiEvent", headingBlock(source, "useAuiEvent"));
-  }
-  if (section === "adapters" && slug === "persistence") {
-    addCodeFence(
-      "ThreadHistoryAdapter",
-      headingBlock(source, "Thread History"),
-    );
-    addCodeFence(
-      "RemoteThreadListAdapter",
-      headingBlock(source, "Remote Thread Lists"),
-    );
-  }
-  if (section === "runtimes" && slug === "thread-runtime") {
-    addCodeFence(
-      "ThreadRuntime",
-      headingBlock(source, "`useAui` (Thread Actions)"),
-    );
-    addCodeFence(
-      "ThreadState",
-      headingBlock(source, "`useAuiState` (Thread State)"),
-    );
-    addCodeFence(
-      "ThreadViewportState",
-      headingBlock(source, "`useThreadViewport`"),
-    );
-  }
-  if (
-    section === "context-providers" &&
-    slug === "assistant-runtime-provider"
-  ) {
-    addCodeFence("AssistantRuntimeProvider", source);
-  }
-  return examples;
-}
-
 function emptyPageSlots(): PageSlots {
   return {
     namedManual: new Map(),
@@ -306,12 +242,7 @@ function readAuthoredPageParts(
   const manual = extractManualSlot(source);
   const namedManual = extractNamedManualSlots(source);
   const explicitExamples = extractExampleSlots(source);
-  const examples = mergeLegacyExamples(
-    section,
-    slug,
-    source,
-    new Map(explicitExamples),
-  );
+  const examples = new Map(explicitExamples);
   const itemNames = new Set(
     items.flatMap((item) => [
       item.name,

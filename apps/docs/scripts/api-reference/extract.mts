@@ -6,6 +6,7 @@ import {
   type JSDoc,
   type JSDocableNode,
   type Node as TsNode,
+  type SourceFile,
   type Symbol as TsMorphSymbol,
   type Type,
   type TypeAliasDeclaration,
@@ -201,11 +202,6 @@ export function getJsDocCommentText(doc: JSDoc): string | undefined {
   if (!text) return undefined;
 
   const cleaned = text
-    .replace(/^\/\*\*?/, "")
-    .replace(/\*\/$/, "")
-    .split("\n")
-    .map((line) => line.replace(/^\s*\*\s?/, ""))
-    .join("\n")
     // {@link Target Label} → "Label", {@link Target} → "Target".
     // (The previous primitive-docs implementation produced "$2$1 ", which
     // duplicated the link target after the label; this is the corrected form.)
@@ -395,6 +391,40 @@ function namespaceSupportingTypes(node: TsNode, name: string): string[] {
     });
 }
 
+const localTypeDeclarationsCache = new Map<string, Map<string, TsNode[]>>();
+
+function getLocalTypeDeclarations(
+  sourceFile: SourceFile,
+): Map<string, TsNode[]> {
+  const filePath = sourceFile.getFilePath();
+  const cached = localTypeDeclarationsCache.get(filePath);
+  if (cached) return cached;
+
+  const declarationsByName = new Map<string, TsNode[]>();
+  const addDeclarations = (name: string, declarations: TsNode[]) => {
+    declarationsByName.set(name, [
+      ...(declarationsByName.get(name) ?? []),
+      ...declarations,
+    ]);
+  };
+
+  for (const [name, declarations] of sourceFile.getExportedDeclarations()) {
+    addDeclarations(name, declarations);
+  }
+  for (const importDecl of sourceFile.getImportDeclarations()) {
+    for (const namedImport of importDecl.getNamedImports()) {
+      const symbol = namedImport.getNameNode().getSymbol();
+      addDeclarations(
+        namedImport.getName(),
+        symbol?.getAliasedSymbol()?.getDeclarations() ?? [],
+      );
+    }
+  }
+
+  localTypeDeclarationsCache.set(filePath, declarationsByName);
+  return declarationsByName;
+}
+
 function referencedLocalTypes(node: TsNode, typeText: string): string[] {
   const referencedNames = [
     ...new Set(
@@ -402,19 +432,9 @@ function referencedLocalTypes(node: TsNode, typeText: string): string[] {
     ),
   ];
   if (referencedNames.length === 0) return [];
+  const declarationsByName = getLocalTypeDeclarations(node.getSourceFile());
   return referencedNames.flatMap((name) =>
-    [
-      ...(node.getSourceFile().getExportedDeclarations().get(name) ?? []),
-      ...node
-        .getSourceFile()
-        .getImportDeclarations()
-        .flatMap((importDecl) => importDecl.getNamedImports())
-        .filter((namedImport) => namedImport.getName() === name)
-        .flatMap((namedImport) => {
-          const symbol = namedImport.getNameNode().getSymbol();
-          return symbol?.getAliasedSymbol()?.getDeclarations() ?? [];
-        }),
-    ]
+    (declarationsByName.get(name) ?? [])
       .map(resolveAliasedDeclaration)
       .map(localTypeSignature)
       .filter((line): line is string => Boolean(line)),
