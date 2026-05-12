@@ -1,6 +1,11 @@
 "use client";
 
-import { generateId, fromThreadMessageLike } from "@assistant-ui/core/internal";
+import {
+  generateId,
+  generateOptimisticId,
+  isOptimisticId,
+  fromThreadMessageLike,
+} from "@assistant-ui/core/internal";
 import type {
   AddToolResultOptions,
   AppendMessage,
@@ -464,7 +469,18 @@ export class AgUiThreadRuntimeCore {
     const aggregator = new RunAggregator({
       showThinking: this.showThinking,
       logger: this.logger,
-      emit: (update) => this.updateAssistantMessage(ensureAssistant(), update),
+      emit: (update) => {
+        const resolved = this.updateAssistantMessage(ensureAssistant(), update);
+        if (resolved !== assistantMessageId) {
+          assistantMessageId = resolved;
+        }
+      },
+      onServerMessageId: (serverId) => {
+        const placeholder = ensureAssistant();
+        if (placeholder === serverId) return;
+        this.reassignAssistantId(placeholder, serverId);
+        assistantMessageId = serverId;
+      },
     });
     const dispatch = (event: AgUiEvent) => this.handleEvent(aggregator, event);
 
@@ -585,7 +601,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   private insertAssistantPlaceholder(): string {
-    const id = generateId();
+    const id = generateOptimisticId();
     const assistant: ThreadAssistantMessage = {
       id,
       role: "assistant",
@@ -605,10 +621,41 @@ export class AgUiThreadRuntimeCore {
     return id;
   }
 
+  private reassignAssistantId(oldId: string, newId: string): void {
+    if (oldId === newId) return;
+
+    const collidesWithExisting = this.messages.some(
+      (m) => m.id === newId && m.id !== oldId,
+    );
+
+    if (collidesWithExisting) {
+      this.messages = this.messages.filter((m) => m.id !== oldId);
+    } else {
+      this.messages = this.messages.map((m) =>
+        m.id === oldId ? { ...m, id: newId } : m,
+      );
+    }
+
+    const pendingParent = this.assistantHistoryParents.get(oldId);
+    if (pendingParent !== undefined) {
+      this.assistantHistoryParents.delete(oldId);
+      if (!this.assistantHistoryParents.has(newId)) {
+        this.assistantHistoryParents.set(newId, pendingParent);
+      }
+    }
+
+    if (this.recordedHistoryIds.has(oldId)) {
+      this.recordedHistoryIds.delete(oldId);
+      this.recordedHistoryIds.add(newId);
+    }
+
+    this.notifyUpdate();
+  }
+
   private updateAssistantMessage(
     messageId: string,
     update: ChatModelRunResult,
-  ) {
+  ): string {
     let touched = false;
     let latestStatus: MessageStatus | undefined;
     this.messages = this.messages.map((message) => {
@@ -628,12 +675,20 @@ export class AgUiThreadRuntimeCore {
         metadata,
       };
     });
-    if (touched) {
+    if (!touched) return messageId;
+
+    let resolvedMessageId = messageId;
+    if (this.isPersistableStatus(latestStatus) && isOptimisticId(messageId)) {
+      const stableId = generateId();
+      this.reassignAssistantId(messageId, stableId);
+      resolvedMessageId = stableId;
+    } else {
       this.notifyUpdate();
-      if (this.isPersistableStatus(latestStatus)) {
-        this.persistAssistantHistory(messageId);
-      }
     }
+    if (this.isPersistableStatus(latestStatus)) {
+      this.persistAssistantHistory(resolvedMessageId);
+    }
+    return resolvedMessageId;
   }
 
   private mergeAssistantMetadata(
