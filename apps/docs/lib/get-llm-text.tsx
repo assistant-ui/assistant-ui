@@ -1,4 +1,5 @@
 import {
+  Children,
   Fragment,
   cloneElement,
   isValidElement,
@@ -34,6 +35,15 @@ const OMITTED_STATIC_PROP_NAMES = new Set([
   "key",
   "tabIndex",
   "data-line-numbers",
+  "src",
+  "sizes",
+  "width",
+  "height",
+  "blurWidth",
+  "blurHeight",
+  "codeblock",
+  "loading",
+  "priority",
 ]);
 
 type StaticFunctionComponent = (
@@ -118,6 +128,10 @@ async function renderClientFallback(
   props: Record<string, unknown>,
   children: ReactNode,
 ): Promise<ReactNode> {
+  if (!isEmptyNode(children)) {
+    return <>{children}</>;
+  }
+
   const dataEntries = Object.entries(props).filter(
     ([key, value]) =>
       !OMITTED_STATIC_PROP_NAMES.has(key) &&
@@ -167,7 +181,7 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
   }
 
   if (Array.isArray(node)) {
-    return Promise.all(node.map(resolveStaticReactNode));
+    return Promise.all(Children.toArray(node).map(resolveStaticReactNode));
   }
 
   if (!isValidElement(node)) {
