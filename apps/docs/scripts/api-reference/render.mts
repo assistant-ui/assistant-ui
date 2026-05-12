@@ -47,6 +47,7 @@ type AuthoredFrontmatter = {
 type AuthoredPageParts = {
   frontmatter: AuthoredFrontmatter;
   slots: PageSlots;
+  skipAutoGeneration: boolean;
 };
 
 type PageSummary = { slug: string; title: string; description: string };
@@ -337,6 +338,7 @@ function readAuthoredPageParts(
   return {
     frontmatter: fm,
     slots: { manual, namedManual, examples, explicit },
+    skipAutoGeneration: source.includes(SKIP_AUTO_GENERATION_MARKER),
   };
 }
 
@@ -723,13 +725,6 @@ function writeApiReferenceRoot(): void {
   );
 }
 
-function shouldSkipAutoGeneration(filePath: string): boolean {
-  return (
-    fs.existsSync(filePath) &&
-    fs.readFileSync(filePath, "utf8").includes(SKIP_AUTO_GENERATION_MARKER)
-  );
-}
-
 function authoredTitleOrSeed(
   filePath: string,
   fm: AuthoredFrontmatter | undefined,
@@ -831,7 +826,7 @@ export function writeApiReferencePages(
       const description = authoredDescription(authored?.frontmatter);
       pageSummaries.push({ slug, title, description });
 
-      if (shouldSkipAutoGeneration(filePath)) {
+      if (authored?.skipAutoGeneration) {
         console.log(
           `Skipping auto-generation for API page: ${path.relative(REPO_ROOT, filePath)}`,
         );
@@ -908,6 +903,8 @@ function writeIntegrationPages(
     INTEGRATION_PACKAGES.map((p) => [p.slug, p]),
   );
 
+  const pageSummaries: PageSummary[] = [];
+
   for (const {
     slug,
     items,
@@ -925,6 +922,7 @@ function writeIntegrationPages(
       integration.packageName,
     );
     const description = authoredDescription(authored?.frontmatter);
+    pageSummaries.push({ slug: integration.slug, title, description });
     const reference = generateReferenceRegion(
       items,
       typeDocNames,
@@ -944,17 +942,6 @@ function writeIntegrationPages(
   }
 
   const indexPath = path.join(sectionDir, "index.mdx");
-  const pageSummaries = INTEGRATION_PACKAGES.map((integration) => {
-    const filePath = path.join(sectionDir, `${integration.slug}.mdx`);
-    const fm = fs.existsSync(filePath)
-      ? readFrontmatter(filePath, fs.readFileSync(filePath, "utf8"))
-      : {};
-    return {
-      slug: integration.slug,
-      title: fm.title ?? integration.packageName,
-      description: fm.description ?? "",
-    };
-  });
   const indexAuthored = readAuthoredPageParts(section, "index", []);
   const indexSlots = indexAuthored?.slots ?? emptyPageSlots();
   const indexTitle = authoredTitleOrSeed(

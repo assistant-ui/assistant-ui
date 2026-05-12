@@ -425,6 +425,7 @@ export function inferKindDocPlacement(
     }
     if (name.includes("Assistant"))
       return { page: "assistant-runtime", role: "primary" };
+    // Order matters: ThreadListItem includes ThreadList, and ThreadList includes Thread.
     if (name.includes("ThreadListItem")) {
       return { page: "thread-list-item-runtime", role: "primary" };
     }
@@ -435,6 +436,7 @@ export function inferKindDocPlacement(
       return { page: "thread-runtime", role: "primary" };
     if (name.includes("Composer"))
       return { page: "composer-runtime", role: "primary" };
+    // Order matters: MessagePart includes Message.
     if (name.includes("MessagePart")) {
       return { page: "message-part-runtime", role: "primary" };
     }
