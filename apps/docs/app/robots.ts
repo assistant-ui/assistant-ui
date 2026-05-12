@@ -5,15 +5,8 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: "*",
-      allow: "/",
-      disallow: [
-        "/api/",
-        "/playground/init/",
-        "/tw-glass/stress-test/",
-        "/tw-glass/stress-test-text/",
-        "/tw-glass/tuner/",
-        "/tw-shimmer/spread-test/",
-      ],
+      allow: ["/", "/api/og"],
+      disallow: ["/api/", "/playground/init/"],
     },
     sitemap: `${BASE_URL}/sitemap.xml`,
   };
