@@ -1248,4 +1248,100 @@ describe("AGUIThreadRuntimeCore", () => {
     ) as any;
     expect(toolPart.result).toEqual({ ok: true });
   });
+
+  it("stabilizes the assistant id before addToolResult forwards to history", async () => {
+    const append = vi.fn(async () => {});
+    const history: ThreadHistoryAdapter = {
+      load: async () => null,
+      append,
+    } as unknown as ThreadHistoryAdapter;
+
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "tc-leaky",
+            toolCallName: "lookup",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "tc-leaky" },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent, { history });
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .findLast((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(assistant.id.startsWith("__optimistic__")).toBe(false);
+
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "tc-leaky",
+      toolName: "lookup",
+      result: { ok: true },
+      isError: false,
+    });
+
+    const assistantAppendCall = append.mock.calls.find(
+      ([entry]: [{ message: ThreadMessage }]) =>
+        entry.message.role === "assistant",
+    );
+    expect(assistantAppendCall).toBeDefined();
+    expect(
+      assistantAppendCall![0].message.id.startsWith("__optimistic__"),
+    ).toBe(false);
+  });
+
+  it("drops the optimistic placeholder when the server id collides with an existing message", async () => {
+    const serverId = "srv-collision";
+    const existingMessage: ThreadAssistantMessage = {
+      id: serverId,
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "complete", reason: "unknown" },
+      content: [{ type: "text", text: "from history" }],
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: serverId },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: serverId,
+            delta: "streaming",
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    core.applyExternalMessages([existingMessage as ThreadMessage]);
+    await core.append(createAppendMessage());
+
+    const collidedMessages = core
+      .getMessages()
+      .filter((m) => m.id === serverId);
+    expect(collidedMessages).toHaveLength(1);
+    const optimisticLingerers = core
+      .getMessages()
+      .filter((m) => m.id.startsWith("__optimistic__"));
+    expect(optimisticLingerers).toHaveLength(0);
+  });
 });

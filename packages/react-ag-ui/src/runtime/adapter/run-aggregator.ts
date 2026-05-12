@@ -398,7 +398,7 @@ export class RunAggregator {
         ...(entry.toolMessageId
           ? { unstable_toolMessageId: entry.toolMessageId }
           : {}),
-      } as ToolCallMessagePart;
+      } as ToolCallMessagePart & { unstable_toolMessageId?: string };
       snapshot.push(toolPart);
     }
 

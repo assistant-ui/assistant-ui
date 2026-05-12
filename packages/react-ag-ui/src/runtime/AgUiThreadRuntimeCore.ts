@@ -624,11 +624,13 @@ export class AgUiThreadRuntimeCore {
   private reassignAssistantId(oldId: string, newId: string): void {
     if (oldId === newId) return;
 
-    const collidesWithExisting = this.messages.some(
-      (m) => m.id === newId && m.id !== oldId,
-    );
+    const collidesWithExisting = this.messages.some((m) => m.id === newId);
 
     if (collidesWithExisting) {
+      this.logger.debug?.(
+        "[agui] reassignAssistantId: server id already present in messages, dropping placeholder",
+        { oldId, newId },
+      );
       this.messages = this.messages.filter((m) => m.id !== oldId);
     } else {
       this.messages = this.messages.map((m) =>
@@ -678,7 +680,9 @@ export class AgUiThreadRuntimeCore {
     if (!touched) return messageId;
 
     let resolvedMessageId = messageId;
-    if (this.isPersistableStatus(latestStatus) && isOptimisticId(messageId)) {
+    const isSettled =
+      latestStatus !== undefined && latestStatus.type !== "running";
+    if (isSettled && isOptimisticId(messageId)) {
       const stableId = generateId();
       this.reassignAssistantId(messageId, stableId);
       resolvedMessageId = stableId;
