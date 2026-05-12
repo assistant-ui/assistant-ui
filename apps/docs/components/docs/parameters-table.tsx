@@ -49,50 +49,56 @@ const Parameter: FC<{
   const isOptional = !parameter.required && !parameter.default;
 
   return (
-    <div
+    <tr
       className={cn(
-        "group flex flex-col gap-2 border-border/50 border-b px-4 py-3 last:border-b-0",
+        "group block border-border/50 border-b px-4 py-3 last:border-b-0",
         isNested && "bg-muted/30",
       )}
     >
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <code className="font-mono font-semibold text-foreground text-sm">
-          {parameter.name}
-        </code>
-        {parameter.deprecated && <StatusBadge variant="deprecated" />}
-        {parameter.name.startsWith("unstable_") && (
-          <StatusBadge variant="unstable" />
-        )}
-        {parameter.type && (
-          <code className="font-mono text-muted-foreground text-xs">
-            {isOptional && "?"}
-            {": "}
-            {parameter.type}
+      <th
+        scope="row"
+        className="block p-0 text-left align-baseline font-normal"
+      >
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <code className="font-mono font-semibold text-foreground text-sm">
+            {parameter.name}
           </code>
-        )}
-        {parameter.default && (
-          <span className="font-mono text-muted-foreground text-xs">
-            = {parameter.default}
-          </span>
-        )}
-      </div>
-
-      <p className="whitespace-pre-line text-muted-foreground text-sm leading-relaxed">
-        {parameter.description}
-      </p>
-
-      {parameter.deprecated && (
-        <p className="text-amber-600 text-xs dark:text-amber-400">
-          Deprecated: {parameter.deprecated}
-        </p>
-      )}
-
-      {parameter.children?.map((child, i) => (
-        <div key={child.type ?? i} className="mt-2">
-          <ParametersBox {...child} isNested />
+          {parameter.deprecated && <StatusBadge variant="deprecated" />}
+          {parameter.name.startsWith("unstable_") && (
+            <StatusBadge variant="unstable" />
+          )}
+          {parameter.type && (
+            <code className="font-mono text-muted-foreground text-xs">
+              {isOptional && "?"}
+              {": "}
+              {parameter.type}
+            </code>
+          )}
+          {parameter.default && (
+            <span className="font-mono text-muted-foreground text-xs">
+              = {parameter.default}
+            </span>
+          )}
         </div>
-      ))}
-    </div>
+      </th>
+      <td className="block p-0 pt-2 align-baseline">
+        <p className="whitespace-pre-line text-muted-foreground text-sm leading-relaxed">
+          {parameter.description}
+        </p>
+
+        {parameter.deprecated && (
+          <p className="mt-2 text-amber-600 text-xs dark:text-amber-400">
+            Deprecated: {parameter.deprecated}
+          </p>
+        )}
+
+        {parameter.children?.map((child, i) => (
+          <div key={child.type ?? i} className="mt-3">
+            <ParametersBox {...child} isNested />
+          </div>
+        ))}
+      </td>
+    </tr>
   );
 };
 
@@ -106,22 +112,30 @@ const ParametersBox: FC<
         isNested && "border-border/40",
       )}
     >
-      {type && !isNested && (
-        <div className="border-border/60 border-b bg-muted/50 px-4 py-2">
-          <code className="font-medium font-mono text-muted-foreground text-xs">
-            {type}
-          </code>
-        </div>
-      )}
-      <div>
-        {parameters.map((parameter) => (
-          <Parameter
-            key={parameter.name}
-            parameter={parameter}
-            isNested={isNested}
-          />
-        ))}
-      </div>
+      <table className="block w-full text-left">
+        {type && !isNested && (
+          <caption className="block border-border/60 border-b bg-muted/50 px-4 py-2 text-left">
+            <code className="font-medium font-mono text-muted-foreground text-xs">
+              {type}
+            </code>
+          </caption>
+        )}
+        <thead className="sr-only">
+          <tr>
+            <th scope="col">Parameter</th>
+            <th scope="col">Description</th>
+          </tr>
+        </thead>
+        <tbody className="block">
+          {parameters.map((parameter) => (
+            <Parameter
+              key={parameter.name}
+              parameter={parameter}
+              isNested={isNested}
+            />
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
