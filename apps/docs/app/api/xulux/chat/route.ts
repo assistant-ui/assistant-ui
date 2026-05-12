@@ -310,9 +310,11 @@ export async function POST(req: Request): Promise<Response> {
     const inputError = validateDocChatInput(prunedMessages);
     if (inputError) return inputError;
 
+    const evalRunId = req.headers.get("x-agent-eval-run-id");
+    const localTraceUrl = req.headers.get("x-agent-eval-trace-url");
     const baseModel = getModel(config?.modelName);
     const distinctId = getDistinctId(req);
-    const prismTracer = createPrismTracer();
+    const prismTracer = createPrismTracer({ evalRunId, localTraceUrl });
 
     const posthogModel = posthogServer
       ? withTracing(baseModel, posthogServer, {
@@ -329,6 +331,11 @@ export async function POST(req: Request): Promise<Response> {
       ? prismAISDK(prismTracer, posthogModel, {
           name: "xulux_chat",
           endUserId: distinctId,
+          metadata: {
+            evalRunId,
+            sessionId,
+            source: "xulux_chat",
+          },
         })
       : null;
 
