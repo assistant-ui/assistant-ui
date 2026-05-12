@@ -115,7 +115,7 @@ export function XuluxShell({
                 : "flex flex-1 flex-col"
             }
           >
-            <XuluxThread />
+            <XuluxThread onNewThread={handleNewChat} />
           </section>
 
           {viewMode === "preview" && (

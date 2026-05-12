@@ -27,6 +27,7 @@ export function XuluxCanvas({
 }) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const canDownload = source === "refresh" && status === "ready";
 
   const handleDownload = useCallback(async () => {
     setIsDownloading(true);
@@ -67,78 +68,68 @@ export function XuluxCanvas({
   }, [sessionId]);
 
   return (
-    <div className="flex h-full flex-col bg-background">
-      <div className="flex h-10 items-center justify-between gap-3 border-b px-3">
-        <div className="min-w-0">
-          <p className="truncate font-medium text-sm">{title ?? "Preview"}</p>
-          {source === "template" && (
-            <p className="truncate text-[11px] text-muted-foreground">
-              Hosted example preview
-            </p>
-          )}
-        </div>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {previewUrl && (
+    <div className="relative h-full overflow-hidden bg-muted/20">
+      {previewUrl && (
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-md border bg-background/90 p-1 shadow-sm backdrop-blur">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            asChild
+          >
+            <a href={previewUrl} target="_blank" rel="noreferrer">
+              <ExternalLink className="size-3.5" />
+              <span className="sr-only">Open preview</span>
+            </a>
+          </Button>
+          {canDownload && (
             <Button
               type="button"
               variant="ghost"
-              size="icon"
-              className="size-7"
-              asChild
+              size="sm"
+              className="h-7 gap-1.5 px-2.5 text-xs"
+              disabled={isDownloading}
+              onClick={handleDownload}
             >
-              <a href={previewUrl} target="_blank" rel="noreferrer">
-                <ExternalLink className="size-3.5" />
-                <span className="sr-only">Open preview</span>
-              </a>
+              {isDownloading ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Download className="size-3.5" />
+              )}
+              <span className="hidden sm:inline">Download</span>
             </Button>
           )}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-7 gap-1.5 px-2.5 text-xs"
-            disabled={isDownloading}
-            onClick={handleDownload}
-          >
-            {isDownloading ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Download className="size-3.5" />
-            )}
-            <span className="hidden sm:inline">Download</span>
-          </Button>
         </div>
-      </div>
+      )}
 
       {downloadError && (
-        <div className="border-b bg-destructive/10 px-3 py-2 text-destructive text-xs">
+        <div className="absolute top-14 right-3 left-3 z-10 rounded-md border border-destructive/30 bg-background px-3 py-2 text-destructive text-xs shadow-sm">
           {downloadError}
         </div>
       )}
 
-      <div className="min-h-0 flex-1">
-        {previewUrl ? (
-          <iframe
-            title="Xulux preview"
-            src={previewUrl}
-            className="h-full w-full bg-white"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center p-6 text-center">
-            <div className="max-w-md">
-              <p className="font-medium text-sm">
-                {status === "error"
-                  ? "Preview unavailable"
-                  : "Waiting for preview"}
-              </p>
-              <p className="mt-2 text-muted-foreground text-sm">
-                {error ??
-                  "The preview will appear after the agent finishes preparing the app."}
-              </p>
-            </div>
+      {previewUrl ? (
+        <iframe
+          title={title ?? "Xulux preview"}
+          src={previewUrl}
+          className="h-full w-full border-0 bg-white"
+        />
+      ) : (
+        <div className="flex h-full items-center justify-center p-6 text-center">
+          <div className="max-w-md">
+            <p className="font-medium text-sm">
+              {status === "error"
+                ? "Preview unavailable"
+                : "Waiting for preview"}
+            </p>
+            <p className="mt-2 text-muted-foreground text-sm">
+              {error ??
+                "The preview will appear after the agent finishes preparing the app."}
+            </p>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

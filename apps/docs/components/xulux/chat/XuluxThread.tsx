@@ -96,7 +96,11 @@ function PendingMessageHandler() {
   return null;
 }
 
-export function XuluxThread(): ReactNode {
+export function XuluxThread({
+  onNewThread,
+}: {
+  onNewThread: () => void;
+}): ReactNode {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col bg-background">
       <PendingMessageHandler />
@@ -120,7 +124,7 @@ export function XuluxThread(): ReactNode {
           <XuluxComposer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
-      <XuluxFooter />
+      <XuluxFooter onNewThread={onNewThread} />
     </ThreadPrimitive.Root>
   );
 }
@@ -281,7 +285,7 @@ function XuluxComposerAction(): ReactNode {
   );
 }
 
-function XuluxFooter(): ReactNode {
+function XuluxFooter({ onNewThread }: { onNewThread: () => void }): ReactNode {
   const aui = useAui();
   const threadId = useAuiState((s) => s.threadListItem.id);
   const messages = useAuiState((s) => s.thread.messages);
@@ -308,7 +312,7 @@ function XuluxFooter(): ReactNode {
             ...(pathname ? { pathname } : {}),
             ...(modelName ? { model_name: modelName } : {}),
           });
-          aui.threads().switchToNewThread();
+          onNewThread();
         }}
         className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
       >
