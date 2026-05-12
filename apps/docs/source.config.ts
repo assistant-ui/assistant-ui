@@ -72,6 +72,9 @@ export const examples = defineCollections({
   type: "doc",
   dir: "content/examples",
   schema: frontmatterSchema,
+  postprocess: {
+    includeProcessedMarkdown: true,
+  },
 });
 
 export const blog = defineCollections({
