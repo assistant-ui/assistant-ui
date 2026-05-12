@@ -26,7 +26,7 @@ export async function GET(
   const text = `# ${page.data.title}
 URL: ${page.url}
 ${page.data.description ? `\n${page.data.description}\n` : ""}
-  ${processed.value}`;
+${processed.value}`;
 
   return new NextResponse(text, {
     headers: {
