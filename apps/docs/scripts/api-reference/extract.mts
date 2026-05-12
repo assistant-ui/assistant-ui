@@ -4,6 +4,7 @@ import {
   Scope,
   type InterfaceDeclaration,
   type JSDoc,
+  type JSDocableNode,
   type Node as TsNode,
   type Symbol as TsMorphSymbol,
   type Type,
@@ -196,13 +197,7 @@ function classMemberPrefix(node: TsNode): string {
 // ── JSDoc layer (single source of truth) ───────────────────────────────────
 
 export function getJsDocCommentText(doc: JSDoc): string | undefined {
-  const comment = doc.getComment();
-  let text: string | undefined;
-  if (typeof comment === "string") {
-    text = comment;
-  } else if (Array.isArray(comment)) {
-    text = comment.map((part) => part.getText()).join("");
-  }
+  const text = doc.getCommentText();
   if (!text) return undefined;
 
   const cleaned = text
@@ -264,13 +259,19 @@ export function extractJsDoc(node: TsNode | undefined): {
   };
 }
 
+function hasJsDocs(node: TsNode): node is TsNode & JSDocableNode {
+  return (
+    typeof (node as TsNode & Partial<JSDocableNode>).getJsDocs === "function"
+  );
+}
+
 function propertyJsDocMeta(node: TsNode | undefined): {
   description?: string;
   default?: string;
   deprecated?: string;
 } {
-  if (!node || !("getJsDocs" in node)) return {};
-  const doc = (node as any).getJsDocs?.()[0];
+  if (!node || !hasJsDocs(node)) return {};
+  const doc = node.getJsDocs()[0];
   if (!doc) return {};
   return {
     description: getJsDocCommentText(doc),

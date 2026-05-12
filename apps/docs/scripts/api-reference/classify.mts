@@ -384,7 +384,7 @@ export function inferKindDocPlacement(
       return { page: "model", role: "primary" };
     }
     if (name === "FeedbackAdapter") {
-      return { page: "feedback-speech", role: "primary" };
+      return { page: "feedback", role: "primary" };
     }
     if (name.includes("Attachment"))
       return { page: "attachments", role: "primary" };

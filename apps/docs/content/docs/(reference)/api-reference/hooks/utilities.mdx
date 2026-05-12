@@ -155,16 +155,16 @@ React hook that manages the lifecycle of an AssistantFrameHost and its binding t
 
 Usage example:
 ```typescript
-function MyComponent() \{
-  const iframeRef = useRef&lt;HTMLIFrameElement&gt;(null);
+function MyComponent() {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  useAssistantFrameHost(\{
+  useAssistantFrameHost({
     iframeRef,
     targetOrigin: "https://trusted-domain.com", // optional
-  \});
+  });
 
-  return &lt;iframe ref=\{iframeRef\} src="..." /&gt;;
-\}
+  return <iframe ref={iframeRef} src="..." />;
+}
 ```
 
 ```tsx

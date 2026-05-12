@@ -660,8 +660,7 @@ function generateSectionOverviewPage(
     GENERATED_PAGE_MARKER,
     "{/* The page list is generated from exported APIs; edit only the manual prose slot. */}",
     "",
-    slots.manual,
-    "",
+    ...(slots.manual ? [slots.manual, ""] : []),
     "## Pages",
     "",
     "<Cards>",
@@ -690,17 +689,17 @@ function groupedBySectionAndPage(
   return result;
 }
 
-function writeSectionIndex(section: ApiSection, pages: PageSummary[]): void {
-  const indexPath = path.join(API_REFERENCE_DIR, section, "index.mdx");
-  const fm = fs.existsSync(indexPath)
-    ? readFrontmatter(indexPath, fs.readFileSync(indexPath, "utf8"))
-    : {};
+function writeSectionIndex(
+  section: ApiSection,
+  pages: PageSummary[],
+  description: string,
+): void {
   fs.writeFileSync(
     path.join(API_REFERENCE_DIR, section, "meta.json"),
     `${JSON.stringify(
       {
         title: sectionTitle(section),
-        description: fm.description ?? "",
+        description,
         pages: ["index", ...pages.map((page) => page.slug)],
       },
       null,
@@ -716,18 +715,11 @@ function writeApiReferenceRoot(): void {
     `${JSON.stringify(
       {
         title: "API Reference",
-        pages: ["overview", ...SECTION_ORDER.map((section) => section)],
+        pages: ["overview", ...SECTION_ORDER],
       },
       null,
       2,
     )}\n`,
-  );
-}
-
-function isGeneratedFile(filePath: string): boolean {
-  return (
-    fs.existsSync(filePath) &&
-    fs.readFileSync(filePath, "utf8").includes(GENERATED_PAGE_MARKER)
   );
 }
 
@@ -784,8 +776,10 @@ function validatePageDescription(
 }
 
 function pruneGeneratedPage(filePath: string): void {
-  if (shouldSkipAutoGeneration(filePath)) return;
-  if (isGeneratedFile(filePath)) fs.unlinkSync(filePath);
+  if (!fs.existsSync(filePath)) return;
+  const source = fs.readFileSync(filePath, "utf8");
+  if (source.includes(SKIP_AUTO_GENERATION_MARKER)) return;
+  if (source.includes(GENERATED_PAGE_MARKER)) fs.unlinkSync(filePath);
 }
 
 function pruneStaleGeneratedPages(
@@ -888,7 +882,7 @@ export function writeApiReferencePages(
     fs.writeFileSync(indexPath, indexBody);
     validatePageDescription(indexPath, indexAuthored?.frontmatter, []);
 
-    writeSectionIndex(section, pageSummaries);
+    writeSectionIndex(section, pageSummaries, indexDescription);
     pruneStaleGeneratedPages(
       sectionDir,
       new Set(["index", ...pageSummaries.map((page) => page.slug)]),
@@ -963,21 +957,23 @@ function writeIntegrationPages(
   });
   const indexAuthored = readAuthoredPageParts(section, "index", []);
   const indexSlots = indexAuthored?.slots ?? emptyPageSlots();
+  const indexTitle = authoredTitleOrSeed(
+    indexPath,
+    indexAuthored?.frontmatter,
+    "Integrations API Reference",
+  );
+  const indexDescription = authoredDescription(indexAuthored?.frontmatter);
   const indexBody = generateSectionOverviewPage(
     section,
     pageSummaries,
     indexSlots,
-    authoredTitleOrSeed(
-      indexPath,
-      indexAuthored?.frontmatter,
-      "Integrations API Reference",
-    ),
-    authoredDescription(indexAuthored?.frontmatter),
+    indexTitle,
+    indexDescription,
   );
   assertPreservedSlots(indexPath, indexSlots, indexBody);
   fs.writeFileSync(indexPath, indexBody);
   validatePageDescription(indexPath, indexAuthored?.frontmatter, []);
-  writeSectionIndex(section, pageSummaries);
+  writeSectionIndex(section, pageSummaries, indexDescription);
 
   pruneStaleGeneratedPages(
     sectionDir,

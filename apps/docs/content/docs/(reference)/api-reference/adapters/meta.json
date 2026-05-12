@@ -1,10 +1,10 @@
 {
   "title": "Adapters",
-  "description": "Adapter interfaces for connecting chat models, persistence, file attachments, feedback, suggestions, and speech to assistant-ui React runtimes.",
+  "description": "Adapter interfaces for connecting chat models, persistence, file attachments, feedback, and suggestions to assistant-ui React runtimes.",
   "pages": [
     "index",
     "attachments",
-    "feedback-speech",
+    "feedback",
     "model",
     "persistence",
     "runtime",
