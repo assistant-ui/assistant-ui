@@ -42,8 +42,15 @@ function loadSourceSnapshot(): Record<string, string> {
   }
 }
 
-const SOURCE_SNAPSHOT = loadSourceSnapshot();
 const DOCS_PATH_ERROR = "Only local docs paths are supported";
+let sourceSnapshot: Record<string, string> | null = null;
+
+function getSourceSnapshot() {
+  if (!sourceSnapshot || Object.keys(sourceSnapshot).length === 0) {
+    sourceSnapshot = loadSourceSnapshot();
+  }
+  return sourceSnapshot;
+}
 
 function normalizeSegment(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-");
@@ -110,7 +117,7 @@ function createRepoTools() {
   const getBashToolkit = () => {
     if (!bashToolkitPromise) {
       bashToolkitPromise = createBashTool({
-        files: SOURCE_SNAPSHOT,
+        files: getSourceSnapshot(),
         destination: "/repo",
         maxFiles: 5000,
         maxOutputLength: 15000,
@@ -254,10 +261,22 @@ export function createXuluxChatTools({
         }),
       ),
       execute: async ({ path }) => {
-        if (path === "examples" || path?.startsWith("examples/")) {
+        let normalizedPath: string | undefined;
+        try {
+          normalizedPath = path ? normalizeDocPath(path, routeUrl) : undefined;
+        } catch (error) {
+          return {
+            error: error instanceof Error ? error.message : "Invalid docs path",
+          };
+        }
+
+        if (
+          normalizedPath === "examples" ||
+          normalizedPath?.startsWith("examples/")
+        ) {
           const tree = examplesSource.pageTree;
-          if (path === "examples") return flatNodes(tree.children);
-          const sub = path.slice("examples/".length);
+          if (normalizedPath === "examples") return flatNodes(tree.children);
+          const sub = normalizedPath.slice("examples/".length);
           const folder = findFolderByPath(tree, sub);
           if (!folder) return { error: "Path not found" };
           return flatNodes(folder.children);
@@ -265,7 +284,7 @@ export function createXuluxChatTools({
 
         const pageTree = source.pageTree;
 
-        if (!path) {
+        if (!normalizedPath) {
           return [
             ...pageTree.children
               .filter((node): node is PageTree.Folder => node.type === "folder")
@@ -278,7 +297,7 @@ export function createXuluxChatTools({
           ];
         }
 
-        const targetFolder = findFolderByPath(pageTree, path);
+        const targetFolder = findFolderByPath(pageTree, normalizedPath);
         if (!targetFolder) return { error: "Path not found" };
         return flatNodes(targetFolder.children);
       },

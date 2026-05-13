@@ -78,6 +78,10 @@ export function XuluxShell({
     setViewMode("landing");
     onResetSession();
   }, [onResetSession]);
+  const sourceUrl =
+    canvas.source === "template" && selectedTemplate
+      ? getTemplateSourceUrl(selectedTemplate)
+      : undefined;
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
@@ -128,11 +132,7 @@ export function XuluxShell({
                 previewUrl={canvas.url}
                 source={canvas.source}
                 error={canvas.error}
-                sourceUrl={
-                  canvas.source === "template" && selectedTemplate
-                    ? getTemplateSourceUrl(selectedTemplate)
-                    : undefined
-                }
+                {...(sourceUrl ? { sourceUrl } : {})}
                 {...(selectedTemplate?.title
                   ? { title: selectedTemplate.title }
                   : {})}

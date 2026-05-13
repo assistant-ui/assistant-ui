@@ -13,9 +13,10 @@ function getLocalTraceUrl(value?: string | null) {
 
   try {
     const url = new URL(value);
+    const hostname = url.hostname.replace(/^\[|\]$/g, "");
     if (
       url.protocol === "http:" &&
-      ["127.0.0.1", "localhost", "::1"].includes(url.hostname)
+      ["127.0.0.1", "localhost", "::1"].includes(hostname)
     ) {
       return value;
     }
@@ -46,7 +47,10 @@ async function postLocalTraceEvents(
 export function createPrismTracer(
   options: PrismTracerOptions = {},
 ): AuixPrism | null {
-  const localTraceUrl = getLocalTraceUrl(options.localTraceUrl);
+  const localTraceUrl =
+    process.env.XULUX_EVAL_MODE === "1"
+      ? getLocalTraceUrl(options.localTraceUrl)
+      : null;
   if (!apiKey && !localTraceUrl) return null;
 
   return new AuixPrism({

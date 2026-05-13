@@ -8,24 +8,45 @@ import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 import { ContextDisplay } from "@assistant-ui/ui/components/assistant-ui/context-display";
 import { useSharedDocsModelSelection } from "./composer";
-import { DEFAULT_MODEL_ID, getContextWindow } from "@/constants/model";
+import { getContextWindow } from "@/constants/model";
 
-export function AssistantFooter({
-  onNewThread,
-  contextWindow: contextWindowProp,
-  centerContent,
-}: {
+type AssistantFooterProps = {
   onNewThread?: () => void;
   contextWindow?: number;
   centerContent?: ReactNode;
-} = {}): ReactNode {
+};
+
+export function AssistantFooter(props: AssistantFooterProps = {}): ReactNode {
+  if (props.contextWindow !== undefined) {
+    return (
+      <AssistantFooterContent {...props} contextWindow={props.contextWindow} />
+    );
+  }
+
+  return <DefaultAssistantFooter {...props} />;
+}
+
+function DefaultAssistantFooter(props: AssistantFooterProps): ReactNode {
+  const { modelValue } = useSharedDocsModelSelection();
+  return (
+    <AssistantFooterContent
+      {...props}
+      contextWindow={getContextWindow(modelValue)}
+    />
+  );
+}
+
+function AssistantFooterContent({
+  onNewThread,
+  contextWindow,
+  centerContent,
+}: AssistantFooterProps & { contextWindow: number }): ReactNode {
   const aui = useAui();
   const threadId = useAuiState((s) => s.threadListItem.id);
   const messages = useAuiState((s) => s.thread.messages);
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
   const lastUsage = useThreadTokenUsage();
-  const contextWindow = contextWindowProp ?? getContextWindow(DEFAULT_MODEL_ID);
   const contextTokens = lastUsage?.totalTokens ?? 0;
   const usagePercent = Math.min((contextTokens / contextWindow) * 100, 100);
 
@@ -66,16 +87,13 @@ export function AssistantFooter({
           <div className="min-w-0 px-1">{centerContent}</div>
           <div className="flex justify-end">
             <AssistantContextBar
-              contextWindow={contextWindowProp}
+              contextWindow={contextWindow}
               usage={lastUsage}
             />
           </div>
         </>
       ) : (
-        <AssistantContextBar
-          contextWindow={contextWindowProp}
-          usage={lastUsage}
-        />
+        <AssistantContextBar contextWindow={contextWindow} usage={lastUsage} />
       )}
     </div>
   );
@@ -85,29 +103,10 @@ function AssistantContextBar({
   contextWindow,
   usage,
 }: {
-  contextWindow?: number;
+  contextWindow: number;
   usage: ReturnType<typeof useThreadTokenUsage>;
 }): ReactNode {
-  if (contextWindow) {
-    return (
-      <ContextDisplay.Bar modelContextWindow={contextWindow} usage={usage} />
-    );
-  }
-
-  return <DefaultDocsContextBar usage={usage} />;
-}
-
-function DefaultDocsContextBar({
-  usage,
-}: {
-  usage: ReturnType<typeof useThreadTokenUsage>;
-}): ReactNode {
-  const { modelValue } = useSharedDocsModelSelection();
-
   return (
-    <ContextDisplay.Bar
-      modelContextWindow={getContextWindow(modelValue)}
-      usage={usage}
-    />
+    <ContextDisplay.Bar modelContextWindow={contextWindow} usage={usage} />
   );
 }

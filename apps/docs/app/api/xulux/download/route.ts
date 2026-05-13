@@ -1,12 +1,22 @@
 import { Readable } from "node:stream";
 import { NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { exportWorkspaceArchive } from "../blaxel-sandbox";
 
 export const maxDuration = 120;
 
 export async function POST(request: Request) {
   let cleanup: (() => Promise<void>) | undefined;
+  const runCleanup = () => {
+    const current = cleanup;
+    cleanup = undefined;
+    return current?.().catch(() => {});
+  };
+
   try {
+    const rateLimitResponse = await checkRateLimit(request);
+    if (rateLimitResponse) return rateLimitResponse;
+
     const body = (await request.json().catch(() => null)) as {
       sessionId?: unknown;
     } | null;
@@ -22,12 +32,10 @@ export async function POST(request: Request) {
     cleanup = archive.cleanup;
     const stream = Readable.toWeb(archive.stream) as ReadableStream;
     archive.stream.on("close", () => {
-      void cleanup?.();
-      cleanup = undefined;
+      void runCleanup();
     });
     archive.stream.on("error", () => {
-      void cleanup?.();
-      cleanup = undefined;
+      void runCleanup();
     });
 
     return new Response(stream, {
@@ -38,9 +46,10 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    await cleanup?.().catch(() => {});
+    console.error("Failed to download Xulux workspace archive", error);
+    await runCleanup();
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : String(error) },
+      { error: "Failed to download workspace." },
       { status: 500 },
     );
   }

@@ -40,6 +40,8 @@ const DEFAULT_TAR_EXCLUDES = [
   "*/.env",
   ".env.local",
   "*/.env.local",
+  ".env.*",
+  "*/.env.*",
   ".env.*.local",
   "*/.env.*.local",
   ".codingagent",
