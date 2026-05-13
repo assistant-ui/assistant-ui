@@ -382,7 +382,11 @@ export {
 export type { Assistant } from "./augmentations";
 
 // --- mcp-apps ---
-export { McpAppRenderer, McpAppsRemoteHost } from "./mcp-apps";
+export {
+  McpAppRenderer,
+  McpAppsRemoteHost,
+  getMcpAppFromToolPart,
+} from "./mcp-apps";
 export type {
   McpAppRendererOptions,
   McpAppMetadata,
