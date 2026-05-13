@@ -382,42 +382,5 @@ export {
 export type { Assistant } from "./augmentations";
 
 // --- mcp-apps ---
-export {
-  MCP_APP_MIME_TYPE,
-  MCP_APP_PROTOCOL_VERSION,
-  getMCPAppFromToolPart,
-  isMCPAppPart,
-  createMCPAppBridge,
-  MCPAppFrame,
-  MCPAppRenderer,
-  MCPAppProvider,
-  useMCPAppContext,
-  MCPAppToolUI,
-  makeMCPAppToolUI,
-  MCPAppToolRegistrar,
-} from "./mcp-apps";
-export type {
-  MCPAppMetadata,
-  ToolCallMessagePartMCPMetadata,
-  MCPAppResource,
-  MCPAppResourceCSP,
-  MCPAppResourceMeta,
-  MCPAppDisplayMode,
-  MCPAppHostContext,
-  MCPAppHostInfo,
-  MCPAppToolCallParams,
-  MCPAppBridgeHandlers,
-  MCPAppSandboxConfig,
-  MCPAppFrameProps,
-  MCPAppRendererProps,
-  MCPAppJsonRpcRequest,
-  MCPAppJsonRpcNotification,
-  MCPAppJsonRpcResponse,
-  MCPAppJsonRpcError,
-  MCPAppJsonRpcMessage,
-  CreateMCPAppBridgeOptions,
-  MCPAppBridge,
-  MCPAppBridgeFrame,
-  MCPAppContextValue,
-  MCPAppProviderProps,
-} from "./mcp-apps";
+export { MCPAppRenderer } from "./mcp-apps";
+export type { MCPAppRendererOptions } from "./mcp-apps";

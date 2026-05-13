@@ -4,15 +4,15 @@ description: Render MCP App UI resources inline in chat. Native renderer for the
 platforms: ["react"]
 ---
 
-[MCP Apps](https://apps.extensions.modelcontextprotocol.io/) lets a Model Context Protocol server ship a UI resource alongside a tool — a self-contained HTML widget that the chat host renders inline when the tool is called. assistant-ui ships a native renderer for this: a default tool UI that auto-detects MCP App metadata on a tool call, mounts the widget in a sandboxed iframe via [`SafeContentFrame`](/safe-content-frame), and runs a JSON-RPC postMessage bridge so the widget can call tools, send messages, request a display mode, and read host context.
+[MCP Apps](https://apps.extensions.modelcontextprotocol.io/) lets a Model Context Protocol server ship a UI resource alongside a tool — a self-contained HTML widget that the chat host renders inline when the tool is called. assistant-ui ships a native renderer that mounts the widget in a sandboxed iframe via [`SafeContentFrame`](/safe-content-frame) and runs a JSON-RPC postMessage bridge so the widget can call tools, send messages, request a display mode, and read host context.
 
 ## Overview
 
-When an MCP server attaches a `_meta.ui.resourceUri` (the [`text/html;profile=mcp-app`](https://apps.extensions.modelcontextprotocol.io/api/index.html) MIME) to a tool, AI SDK forwards that metadata through to the message stream. assistant-ui's renderer picks it up off the `mcp` field on `ToolCallMessagePart`, fetches the resource via your provided `loadResource` callback, and mounts it.
+When an MCP server attaches a `_meta.ui.resourceUri` (the [`text/html;profile=mcp-app`](https://apps.extensions.modelcontextprotocol.io/api/index.html) MIME) to a tool, AI SDK forwards that metadata through the message stream. assistant-ui's renderer picks it up off the `mcp` field on `ToolCallMessagePart`, fetches the resource via your `loadResource` callback, and mounts it.
 
-The renderer only acts on URIs that start with `ui://` (per the MCP Apps spec). A tool whose `resourceUri` uses any other scheme is treated as a non-MCP-Apps tool and rendered with your normal tool UI.
+The renderer only acts on URIs that start with `ui://` (per the MCP Apps spec). Tools whose `resourceUri` uses any other scheme are treated as non-MCP-Apps tools and fall through to your regular tool UI.
 
-The widget then communicates back through a JSON-RPC bridge:
+The widget communicates back through a JSON-RPC bridge:
 
 - **widget → host requests**: `ui/initialize`, `tools/call`, `resources/read`, `resources/list`, `openLink`, `sendMessage`, `requestDisplayMode`, `updateModelContext`
 - **host → widget notifications**: tool input streaming, tool result, host context changes
@@ -22,114 +22,59 @@ Capability presence is determined at mount time by which handlers you provide. U
 
 ## Quick start
 
-### 1. Configure the provider
-
-Wrap your thread (or the entire app) with `MCPAppProvider`. The provider supplies the resource loader, the bridge handlers, and host context.
-
-Keep `loadResource` and `handlers` at module scope so their references stay stable across renders — otherwise each parent re-render produces a fresh context value and `MCPAppRenderer` will cancel the in-flight load and refetch.
+Compose `MCPAppRenderer({...})` into your `Tools` resource. The renderer automatically takes over for any tool call whose part carries `mcp.app` metadata; tools without that metadata use your regular tool UI registration.
 
 ```tsx
-import {
-  MCPAppProvider,
-  type MCPAppBridgeHandlers,
-  type MCPAppMetadata,
-  type MCPAppResource,
-} from "@assistant-ui/react";
+import { useAui } from "@assistant-ui/react";
+import { Tools, MCPAppRenderer, type MCPAppRendererOptions } from "@assistant-ui/react";
 import { experimental_createMCPClient } from "ai";
 
 const mcpClient = await experimental_createMCPClient({
   transport: { type: "sse", url: "https://my-mcp-server.example/sse" },
 });
 
-async function loadResource(app: MCPAppMetadata): Promise<MCPAppResource> {
-  const { contents } = await mcpClient.readResource({ uri: app.resourceUri });
-  const c = contents.find((x) => x.uri === app.resourceUri);
-  return {
-    uri: app.resourceUri,
-    mimeType: "text/html;profile=mcp-app",
-    html: c?.text ?? "",
-  };
-}
-
-const handlers: MCPAppBridgeHandlers = {
-  callTool: ({ name, arguments: args }) =>
-    mcpClient.callTool({ name, arguments: args }),
-  sendMessage: (_params) => {
-    /* push into composer / start a new turn */
+const mcpAppOptions: MCPAppRendererOptions = {
+  loadResource: async (app) => {
+    const { contents } = await mcpClient.readResource({ uri: app.resourceUri });
+    const c = contents.find((x) => x.uri === app.resourceUri);
+    return {
+      uri: app.resourceUri,
+      mimeType: "text/html;profile=mcp-app",
+      html: c?.text ?? "",
+    };
   },
-  openLink: ({ url }) => {
-    window.open(url, "_blank", "noopener,noreferrer");
+  handlers: {
+    callTool: ({ name, arguments: args }) =>
+      mcpClient.callTool({ name, arguments: args }),
+    sendMessage: () => {
+      /* push into composer / start a new turn */
+    },
+    openLink: ({ url }) => {
+      window.open(url, "_blank", "noopener,noreferrer");
+    },
   },
+  hostInfo: { name: "my-app", version: "1.0.0" },
+  hostContext: { theme: "light" },
 };
 
-export function Providers({ children }: { children: React.ReactNode }) {
-  return (
-    <MCPAppProvider
-      loadResource={loadResource}
-      handlers={handlers}
-      hostInfo={{ name: "my-app", version: "1.0.0" }}
-      hostContext={{ theme: "light" }}
-    >
-      {children}
-    </MCPAppProvider>
-  );
+function MyAssistant() {
+  useAui({
+    tools: Tools({
+      toolkit: myToolkit,
+      mcpApp: MCPAppRenderer(mcpAppOptions),
+    }),
+  });
+  // ...
 }
 ```
 
-### 2. Register the tool UI
-
-For tools you already know about, register `MCPAppToolUI` like any other tool UI:
-
-```tsx
-import { makeMCPAppToolUI } from "@assistant-ui/react";
-
-const SearchAppUI = makeMCPAppToolUI("search");
-
-function Thread() {
-  return (
-    <>
-      <SearchAppUI />
-      {/* …rest of the thread */}
-    </>
-  );
-}
-```
-
-For a dynamic list of MCP tool names (typical when servers advertise their tool list at runtime), use `MCPAppToolRegistrar`:
-
-```tsx
-import { MCPAppToolRegistrar } from "@assistant-ui/react";
-
-function ConnectedMCPApps({ toolNames }: { toolNames: string[] }) {
-  return <MCPAppToolRegistrar toolNames={toolNames} />;
-}
-```
-
-You can also drop `MCPAppToolUI` directly into a custom `ToolFallback` to keep your existing fallback for non-MCP tools:
-
-```tsx
-import { MCPAppToolUI, getMCPAppFromToolPart } from "@assistant-ui/react";
-
-const MyToolFallback: ToolCallMessagePartComponent = (props) => {
-  if (getMCPAppFromToolPart(props)) return <MCPAppToolUI {...props} />;
-  return <DefaultToolFallback {...props} />;
-};
-```
+That's it. Once `mcpApp` is wired into `Tools`, any tool-call part that carries `mcp.app` metadata renders the MCP App widget automatically. Per-name `setToolUI` registrations always win over the MCP fallback — you can still customize specific tools.
 
 ## AI SDK integration
 
-`@assistant-ui/react-ai-sdk` forwards `callProviderMetadata.mcp.app` from AI SDK tool UI parts into `ToolCallMessagePart.mcp.app`. With AI SDK 5.x and an MCP-Apps-capable MCP server, no extra wiring is required on the part shape:
+`@assistant-ui/react-ai-sdk` forwards `callProviderMetadata.mcp.app` from AI SDK tool UI parts into `ToolCallMessagePart.mcp.app`. With AI SDK 5.x and an MCP-Apps-capable MCP server, no extra wiring is required on the part shape.
 
-```ts
-import { experimental_createMCPClient } from "ai";
-
-const client = await experimental_createMCPClient({
-  transport: { type: "sse", url: "..." },
-  // capabilities go here once your MCP SDK version exposes them
-});
-```
-
-Use `splitMCPAppTools()` (from `@ai-sdk/mcp`) on the server route to keep app-only tools out of the model's view:
+On the server route, use `splitMCPAppTools()` (from `@ai-sdk/mcp`) to keep app-only tools out of the model's view:
 
 ```ts
 import { splitMCPAppTools } from "@ai-sdk/mcp";
@@ -140,7 +85,7 @@ const { modelVisible } = splitMCPAppTools(tools);
 const result = streamText({
   model: openai("gpt-4o"),
   tools: modelVisible.tools,
-  // …
+  // ...
 });
 ```
 
@@ -173,47 +118,26 @@ When a handler isn't provided, the bridge returns JSON-RPC `-32601` (method not 
 
 `notifications/initialized`, `notifications/size_changed`, `notifications/log`, `notifications/error`, `notifications/request_teardown` — wire them via `handlers.onInitialized`, `onSizeChange`, `onLog`, `onError`, `onRequestTeardown` respectively.
 
+If the widget never sends `notifications/initialized` (broken or non-spec-compliant), the host flushes its queued notifications after a 5-second safety timeout so the iframe doesn't appear hung.
+
 ## Sandboxing
 
-The iframe is built with [`SafeContentFrame`](/safe-content-frame), which serves each widget from a content-hashed cross-origin so the host page is not reachable by `same-origin` references. Default sandbox flags are `allow-same-origin allow-scripts`. Tune via `sandbox` on the provider:
+The iframe is built with [`SafeContentFrame`](/safe-content-frame), which serves each widget from a content-hashed cross-origin so the host page is not reachable by `same-origin` references. Default sandbox flags are `allow-same-origin allow-scripts`. Tune via the `sandbox` field on `MCPAppRendererOptions`:
 
 ```tsx
-<MCPAppProvider
-  sandbox={{
+MCPAppRenderer({
+  // ...
+  sandbox: {
     sandbox: ["allow-forms", "allow-popups"],
     enableBrowserCaching: true,
     className: "my-mcp-app",
-  }}
-  // …
-/>
-```
-
-## Lower-level APIs
-
-When you need more control than `MCPAppToolUI` gives:
-
-- **`MCPAppRenderer`** — takes a `ToolCallMessagePartProps` plus an explicit `loadResource` / `resource`, handlers, and host context. Returns the rendered frame or your `fallback`.
-- **`MCPAppFrame`** — given a pre-loaded `MCPAppResource`, mounts the iframe + bridge directly. No metadata detection, no resource loading.
-- **`createMCPAppBridge`** — standalone bridge factory. Useful for rendering MCP App widgets outside the chat thread (e.g. previewing a widget from a settings page).
-
-```tsx
-import { createMCPAppBridge } from "@assistant-ui/react";
-
-const bridge = createMCPAppBridge({
-  frame: renderedFrame, // from SafeContentFrame.renderHtml(...)
-  handlers: { callTool: async ({ name, arguments: a }) => ({ ok: true }) },
-  hostInfo: { name: "preview", version: "0.0.0" },
+  },
 });
-
-bridge.notifyToolInput({ query: "hello" });
-// later
-bridge.notifyToolResult({ items: [] });
-// when done
-bridge.dispose();
 ```
 
 ## Security notes
 
 - Widgets run cross-origin in a sandboxed iframe. The bridge filters incoming messages by both source window and origin.
 - `openLink` rejects non-`http(s)` URLs at the bridge layer, but your `openLink` handler should still treat the URL as untrusted (e.g. always use `noopener,noreferrer`).
-- The renderer caches the most recent MCP app metadata across part-state transitions, so the iframe doesn't remount when streaming input arrives. Handlers passed via `MCPAppProvider` are routed through a live ref — inline callbacks work, but capability *presence* is determined at mount time. Add a handler later and the widget won't see the capability until the resource URI changes (which forces a remount).
+- Keep `loadResource` and `handlers` stable across renders. Pass them as module-scope constants or `useCallback`-stabilized references; an unstable identity will tear down and refetch the widget on every parent re-render.
+- Handlers passed via the renderer are routed through a live ref — inline callbacks work, but capability *presence* is determined at mount time. Add a handler later and the widget won't see the capability until the resource URI changes (which forces a remount).

@@ -1,4 +1,11 @@
-import { resource, tapState, tapEffect, tapCallback } from "@assistant-ui/tap";
+import {
+  resource,
+  tapState,
+  tapEffect,
+  tapCallback,
+  tapResources,
+  type ResourceElement,
+} from "@assistant-ui/tap";
 import {
   tapAssistantClientRef,
   type ClientOutput,
@@ -10,11 +17,32 @@ import type { Toolkit } from "../model-context/toolbox";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import { ModelContext } from "../../store";
 
+export type MCPAppResourceOutput = {
+  readonly render: ToolCallMessagePartComponent;
+};
+
 export const Tools = resource(
-  ({ toolkit }: { toolkit?: Toolkit }): ClientOutput<"tools"> => {
+  ({
+    toolkit,
+    mcpApp,
+  }: {
+    toolkit?: Toolkit;
+    mcpApp?: ResourceElement<MCPAppResourceOutput> | undefined;
+  }): ClientOutput<"tools"> => {
+    const mcpAppOutputs = tapResources(
+      () => (mcpApp ? [mcpApp] : []),
+      [mcpApp],
+    );
+    const mcpAppOutput = mcpAppOutputs[0];
+
     const [state, setState] = tapState<ToolsState>(() => ({
       tools: {},
+      ...(mcpAppOutput && { mcpApp: mcpAppOutput }),
     }));
+
+    tapEffect(() => {
+      setState((prev) => ({ ...prev, mcpApp: mcpAppOutput }));
+    }, [mcpAppOutput]);
 
     const clientRef = tapAssistantClientRef();
 

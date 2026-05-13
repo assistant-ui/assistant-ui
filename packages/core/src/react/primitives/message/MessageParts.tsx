@@ -521,8 +521,10 @@ const RegisteredToolUI: FC = () => {
   const Render = useAuiState((s) => {
     if (s.part.type !== "tool-call") return null;
     const entry = s.tools.tools[s.part.toolName];
-    if (Array.isArray(entry)) return entry[0] ?? null;
-    return entry ?? null;
+    const named = Array.isArray(entry) ? (entry[0] ?? null) : (entry ?? null);
+    if (named) return named;
+    if (s.part.mcp?.app && s.tools.mcpApp) return s.tools.mcpApp.render;
+    return null;
   });
 
   if (!Render || part.type !== "tool-call") return null;
@@ -638,8 +640,12 @@ export const MessagePartChildren: FC<{
             get part() {
               const state = getItem();
               if (state.type === "tool-call") {
-                const entry = aui.tools().getState().tools[state.toolName];
-                const hasUI = Array.isArray(entry) ? !!entry[0] : !!entry;
+                const toolsState = aui.tools().getState();
+                const entry = toolsState.tools[state.toolName];
+                const namedUI = Array.isArray(entry) ? !!entry[0] : !!entry;
+                const hasMcpAppFallback =
+                  !namedUI && !!state.mcp?.app && !!toolsState.mcpApp;
+                const hasUI = namedUI || hasMcpAppFallback;
                 const partMethods = aui.message().part({ index });
                 return {
                   ...state,

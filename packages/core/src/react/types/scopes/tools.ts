@@ -3,6 +3,11 @@ import type { Unsubscribe } from "../../..";
 
 export type ToolsState = {
   tools: Record<string, ToolCallMessagePartComponent[]>;
+  mcpApp?:
+    | {
+        readonly render: ToolCallMessagePartComponent;
+      }
+    | undefined;
 };
 
 export type ToolsMethods = {
