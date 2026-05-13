@@ -66,8 +66,7 @@ function buildLiveHandlers(
       if (!fn) {
         throw new Error("requestDisplayMode handler is no longer available");
       }
-      const r = await fn(p);
-      return r ?? { mode: p.mode };
+      return fn(p);
     };
   }
   out.onSizeChange = (p) => live()?.onSizeChange?.(p);

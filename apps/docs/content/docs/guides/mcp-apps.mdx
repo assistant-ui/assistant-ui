@@ -24,39 +24,47 @@ Capability presence is determined at mount time by which handlers you provide. U
 
 Wrap your thread (or the entire app) with `MCPAppProvider`. The provider supplies the resource loader, the bridge handlers, and host context.
 
+Keep `loadResource` and `handlers` at module scope so their references stay stable across renders — otherwise each parent re-render produces a fresh context value and `MCPAppRenderer` will cancel the in-flight load and refetch.
+
 ```tsx
-import { MCPAppProvider } from "@assistant-ui/react";
+import {
+  MCPAppProvider,
+  type MCPAppBridgeHandlers,
+  type MCPAppMetadata,
+  type MCPAppResource,
+} from "@assistant-ui/react";
 import { experimental_createMCPClient } from "ai";
 
 const mcpClient = await experimental_createMCPClient({
   transport: { type: "sse", url: "https://my-mcp-server.example/sse" },
 });
 
+async function loadResource(app: MCPAppMetadata): Promise<MCPAppResource> {
+  const { contents } = await mcpClient.readResource({ uri: app.resourceUri });
+  const c = contents.find((x) => x.uri === app.resourceUri);
+  return {
+    uri: app.resourceUri,
+    mimeType: "text/html;profile=mcp-app",
+    html: c?.text ?? "",
+  };
+}
+
+const handlers: MCPAppBridgeHandlers = {
+  callTool: ({ name, arguments: args }) =>
+    mcpClient.callTool({ name, arguments: args }),
+  sendMessage: (_params) => {
+    /* push into composer / start a new turn */
+  },
+  openLink: ({ url }) => {
+    window.open(url, "_blank", "noopener,noreferrer");
+  },
+};
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <MCPAppProvider
-      loadResource={async (app) => {
-        const { contents } = await mcpClient.readResource({
-          uri: app.resourceUri,
-        });
-        const c = contents.find((x) => x.uri === app.resourceUri);
-        return {
-          uri: app.resourceUri,
-          mimeType: "text/html;profile=mcp-app",
-          html: c?.text ?? "",
-        };
-      }}
-      handlers={{
-        callTool: async ({ name, arguments: args }) => {
-          return await mcpClient.callTool({ name, arguments: args });
-        },
-        sendMessage: ({ message }) => {
-          /* push into composer / start a new turn */
-        },
-        openLink: ({ url }) => {
-          window.open(url, "_blank", "noopener,noreferrer");
-        },
-      }}
+      loadResource={loadResource}
+      handlers={handlers}
       hostInfo={{ name: "my-app", version: "1.0.0" }}
       hostContext={{ theme: "light" }}
     >
