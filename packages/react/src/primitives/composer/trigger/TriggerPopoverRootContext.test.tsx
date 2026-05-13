@@ -7,12 +7,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   ComposerPrimitiveTriggerPopoverRoot,
   type TriggerPopoverActiveAria,
-  type TriggerPopoverRootContextValue,
   useTriggerPopoverActiveAriaOptional,
-  useTriggerPopoverRootContext,
+  useTriggerPopoverAriaPublish,
 } from "./TriggerPopoverRootContext";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+type PublishHandle = ReturnType<typeof useTriggerPopoverAriaPublish>;
 
 describe("TriggerPopoverRootContext active ARIA", () => {
   let container: HTMLDivElement;
@@ -32,11 +33,11 @@ describe("TriggerPopoverRootContext active ARIA", () => {
   });
 
   const renderWithRoot = async () => {
-    const ctxRef = { current: null as TriggerPopoverRootContextValue | null };
+    const publishRef = { current: null as PublishHandle | null };
     const ariaRef = { current: null as TriggerPopoverActiveAria | null };
 
     const Probe: FC = () => {
-      ctxRef.current = useTriggerPopoverRootContext();
+      publishRef.current = useTriggerPopoverAriaPublish();
       ariaRef.current = useTriggerPopoverActiveAriaOptional();
       return null;
     };
@@ -50,7 +51,7 @@ describe("TriggerPopoverRootContext active ARIA", () => {
     });
 
     return {
-      ctx: () => ctxRef.current as TriggerPopoverRootContextValue,
+      publish: () => publishRef.current as PublishHandle,
       aria: () => ariaRef.current,
     };
   };
@@ -61,10 +62,10 @@ describe("TriggerPopoverRootContext active ARIA", () => {
   });
 
   it("publishes a descriptor and surfaces it via the hook", async () => {
-    const { ctx, aria } = await renderWithRoot();
+    const { publish, aria } = await renderWithRoot();
 
     await act(async () => {
-      ctx().setActiveAria("@", {
+      publish().setActiveAria("@", {
         popoverId: "popover-mention",
         highlightedItemId: "popover-mention-option-a",
       });
@@ -77,10 +78,10 @@ describe("TriggerPopoverRootContext active ARIA", () => {
   });
 
   it("clears the descriptor when the owning char releases it", async () => {
-    const { ctx, aria } = await renderWithRoot();
+    const { publish, aria } = await renderWithRoot();
 
     await act(async () => {
-      ctx().setActiveAria("@", {
+      publish().setActiveAria("@", {
         popoverId: "popover-mention",
         highlightedItemId: undefined,
       });
@@ -88,23 +89,23 @@ describe("TriggerPopoverRootContext active ARIA", () => {
     expect(aria()).not.toBeNull();
 
     await act(async () => {
-      ctx().setActiveAria("@", null);
+      publish().setActiveAria("@", null);
     });
     expect(aria()).toBeNull();
   });
 
   it("ignores a clear call from a non-owning char", async () => {
-    const { ctx, aria } = await renderWithRoot();
+    const { publish, aria } = await renderWithRoot();
 
     await act(async () => {
-      ctx().setActiveAria("@", {
+      publish().setActiveAria("@", {
         popoverId: "popover-mention",
         highlightedItemId: undefined,
       });
     });
 
     await act(async () => {
-      ctx().setActiveAria("/", null);
+      publish().setActiveAria("/", null);
     });
 
     expect(aria()).toEqual({
@@ -114,16 +115,16 @@ describe("TriggerPopoverRootContext active ARIA", () => {
   });
 
   it("replaces the descriptor when a different char takes over", async () => {
-    const { ctx, aria } = await renderWithRoot();
+    const { publish, aria } = await renderWithRoot();
 
     await act(async () => {
-      ctx().setActiveAria("@", {
+      publish().setActiveAria("@", {
         popoverId: "popover-mention",
         highlightedItemId: "popover-mention-option-a",
       });
     });
     await act(async () => {
-      ctx().setActiveAria("/", {
+      publish().setActiveAria("/", {
         popoverId: "popover-slash",
         highlightedItemId: "popover-slash-option-x",
       });

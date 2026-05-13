@@ -23,7 +23,10 @@ import {
   type TriggerPopoverResourceOutput,
 } from "./TriggerPopoverResource";
 import type { TriggerBehavior } from "./triggerSelectionResource";
-import { useTriggerPopoverRootContext } from "./TriggerPopoverRootContext";
+import {
+  useTriggerPopoverAriaPublish,
+  useTriggerPopoverRootContext,
+} from "./TriggerPopoverRootContext";
 
 const TriggerPopoverScopeContext =
   createContext<TriggerPopoverResourceOutput | null>(null);
@@ -179,19 +182,22 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
 
     const open = behavior !== null && resource.open;
 
+    const aria = useTriggerPopoverAriaPublish();
+
     useEffect(() => {
-      if (!open) {
-        root.setActiveAria(char, null);
-        return undefined;
-      }
-      root.setActiveAria(char, {
+      if (!open) return undefined;
+      return () => {
+        aria.setActiveAria(char, null);
+      };
+    }, [aria, char, open]);
+
+    useEffect(() => {
+      if (!open) return;
+      aria.setActiveAria(char, {
         popoverId,
         highlightedItemId: resource.highlightedItemId,
       });
-      return () => {
-        root.setActiveAria(char, null);
-      };
-    }, [root, char, popoverId, open, resource.highlightedItemId]);
+    }, [aria, char, popoverId, open, resource.highlightedItemId]);
 
     return (
       <TriggerBehaviorRegistrationContext.Provider value={registration}>
