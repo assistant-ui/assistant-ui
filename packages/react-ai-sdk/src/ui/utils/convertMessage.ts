@@ -37,14 +37,32 @@ function extractMcpAppMetadata(
   cache: Map<string, McpAppMetadata> | undefined,
 ): McpAppMetadata | undefined {
   if (!part || typeof part !== "object") return undefined;
+  let a: Record<string, unknown> | undefined;
   const meta = (part as { callProviderMetadata?: unknown })
     .callProviderMetadata;
-  if (!meta || typeof meta !== "object") return undefined;
-  const mcp = (meta as { mcp?: unknown }).mcp;
-  if (!mcp || typeof mcp !== "object") return undefined;
-  const app = (mcp as { app?: unknown }).app;
-  if (!app || typeof app !== "object") return undefined;
-  const a = app as Record<string, unknown>;
+  const mcp =
+    meta && typeof meta === "object"
+      ? (meta as { mcp?: unknown }).mcp
+      : undefined;
+  const app =
+    mcp && typeof mcp === "object" ? (mcp as { app?: unknown }).app : undefined;
+  if (app && typeof app === "object") {
+    a = app as Record<string, unknown>;
+  } else {
+    // MCP-UI tools (e.g. xmcp) surface the UI pointer as
+    // result._meta["ui/resourceUri"] rather than in callProviderMetadata.
+    const output = (part as { output?: unknown }).output;
+    const outMeta =
+      output && typeof output === "object"
+        ? (output as { _meta?: unknown })._meta
+        : undefined;
+    const uiResourceUri =
+      outMeta && typeof outMeta === "object"
+        ? (outMeta as Record<string, unknown>)["ui/resourceUri"]
+        : undefined;
+    if (typeof uiResourceUri !== "string") return undefined;
+    a = { resourceUri: uiResourceUri };
+  }
   if (typeof a["resourceUri"] !== "string") return undefined;
   if (!isMcpAppUri(a["resourceUri"])) return undefined;
   const cached = cache?.get(a["resourceUri"]);
