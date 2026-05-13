@@ -245,6 +245,116 @@ describe("createMcpAppBridge", () => {
     bridge.dispose();
   });
 
+  it("routes resources/read and resources/list to handlers", async () => {
+    const { frame, captured } = makeFrame();
+    const readResource = vi.fn().mockResolvedValue({ contents: [] });
+    const listResources = vi.fn().mockResolvedValue({ resources: [] });
+    const bridge = createMcpAppBridge({
+      frame,
+      handlers: { readResource, listResources },
+    });
+
+    dispatch(frame, {
+      jsonrpc: "2.0",
+      id: 20,
+      method: "resources/read",
+      params: { uri: "ui://app/x" },
+    });
+    dispatch(frame, {
+      jsonrpc: "2.0",
+      id: 21,
+      method: "resources/list",
+    });
+    await flush();
+
+    expect(readResource).toHaveBeenCalledWith({ uri: "ui://app/x" });
+    expect(listResources).toHaveBeenCalled();
+    expect(captured.map((c) => (c as McpAppJsonRpcResponse).id)).toEqual([
+      20, 21,
+    ]);
+  });
+
+  it("returns -32601 for resources/read and resources/list when no handler", async () => {
+    const { frame, captured } = makeFrame();
+    const bridge = createMcpAppBridge({ frame });
+
+    dispatch(frame, {
+      jsonrpc: "2.0",
+      id: 22,
+      method: "resources/read",
+      params: { uri: "ui://x" },
+    });
+    dispatch(frame, { jsonrpc: "2.0", id: 23, method: "resources/list" });
+    await flush();
+
+    expect((captured[0] as McpAppJsonRpcResponse).error?.code).toBe(-32601);
+    expect((captured[1] as McpAppJsonRpcResponse).error?.code).toBe(-32601);
+    bridge.dispose();
+  });
+
+  it("routes sendMessage and updateModelContext to handlers", async () => {
+    const { frame, captured } = makeFrame();
+    const sendMessage = vi.fn().mockResolvedValue({ ok: true });
+    const updateModelContext = vi.fn().mockResolvedValue({ ok: true });
+    const bridge = createMcpAppBridge({
+      frame,
+      handlers: { sendMessage, updateModelContext },
+    });
+
+    dispatch(frame, {
+      jsonrpc: "2.0",
+      id: 30,
+      method: "sendMessage",
+      params: { text: "hi" },
+    });
+    dispatch(frame, {
+      jsonrpc: "2.0",
+      id: 31,
+      method: "updateModelContext",
+      params: { foo: "bar" },
+    });
+    await flush();
+
+    expect(sendMessage).toHaveBeenCalledWith({ text: "hi" });
+    expect(updateModelContext).toHaveBeenCalledWith({ foo: "bar" });
+    expect(captured.map((c) => (c as McpAppJsonRpcResponse).id)).toEqual([
+      30, 31,
+    ]);
+    bridge.dispose();
+  });
+
+  it("invokes onLog / onError / onRequestTeardown for notifications", () => {
+    const { frame } = makeFrame();
+    const onLog = vi.fn();
+    const onError = vi.fn();
+    const onRequestTeardown = vi.fn();
+    const bridge = createMcpAppBridge({
+      frame,
+      handlers: { onLog, onError, onRequestTeardown },
+    });
+
+    dispatch(frame, {
+      jsonrpc: "2.0",
+      method: "notifications/log",
+      params: { level: "info", message: "hello" },
+    });
+    dispatch(frame, {
+      jsonrpc: "2.0",
+      method: "notifications/error",
+      params: { message: "kaboom" },
+    });
+    dispatch(frame, {
+      jsonrpc: "2.0",
+      method: "notifications/request_teardown",
+      params: { reason: "done" },
+    });
+
+    expect(onLog).toHaveBeenCalledWith({ level: "info", message: "hello" });
+    expect(onError).toHaveBeenCalled();
+    expect(onRequestTeardown).toHaveBeenCalledWith({ reason: "done" });
+    bridge.dispose();
+  });
+
   it("ignores messages from wrong origin or wrong source", async () => {
     const { frame, captured } = makeFrame();
     const callTool = vi.fn();

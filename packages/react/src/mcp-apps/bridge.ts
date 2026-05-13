@@ -57,13 +57,13 @@ function isJsonRpcMessage(value: unknown): value is McpAppJsonRpcMessage {
 }
 
 function isRequest(msg: McpAppJsonRpcMessage): msg is McpAppJsonRpcRequest {
-  return "id" in msg && "method" in msg;
+  return "id" in msg;
 }
 
 function isNotification(
   msg: McpAppJsonRpcMessage,
 ): msg is McpAppJsonRpcNotification {
-  return !("id" in msg) && "method" in msg;
+  return !("id" in msg);
 }
 
 export function createMcpAppBridge(
