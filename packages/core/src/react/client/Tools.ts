@@ -38,7 +38,6 @@ export const Tools = resource(
 
     const [state, setState] = tapState<ToolsState>(() => ({
       tools: {},
-      ...(mcpAppOutput && { mcpApp: mcpAppOutput }),
     }));
 
     tapEffect(() => {

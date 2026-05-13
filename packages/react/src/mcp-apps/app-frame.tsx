@@ -160,8 +160,8 @@ export function MCPAppFrame({
         }
         frame = rendered;
         const current = liveRef.current;
-        const wrappedHandlers = buildLiveHandlers(current.handlers, liveRef);
-        const userOnInitialized = wrappedHandlers.onInitialized;
+        const liveHandlers = buildLiveHandlers(current.handlers, liveRef);
+        const liveOnInitialized = liveHandlers.onInitialized;
         const flushPending = () => {
           if (widgetReadyRef.current) return;
           widgetReadyRef.current = true;
@@ -183,13 +183,16 @@ export function MCPAppFrame({
             pendingHostContextRef.current = undefined;
           }
         };
-        wrappedHandlers.onInitialized = () => {
-          if (initTimeoutId !== null) {
-            clearTimeout(initTimeoutId);
-            initTimeoutId = null;
-          }
-          flushPending();
-          userOnInitialized?.();
+        const wrappedHandlers: MCPAppBridgeHandlers = {
+          ...liveHandlers,
+          onInitialized: () => {
+            if (initTimeoutId !== null) {
+              clearTimeout(initTimeoutId);
+              initTimeoutId = null;
+            }
+            flushPending();
+            liveOnInitialized?.();
+          },
         };
         // Safety net: if the widget never sends notifications/initialized
         // (broken or non-spec-compliant), flush the queue anyway so the host
