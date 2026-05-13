@@ -4,6 +4,7 @@ import {
   tapEffect,
   tapCallback,
   tapResources,
+  withKey,
   type ResourceElement,
 } from "@assistant-ui/tap";
 import {
@@ -30,7 +31,7 @@ export const Tools = resource(
     mcpApp?: ResourceElement<MCPAppResourceOutput> | undefined;
   }): ClientOutput<"tools"> => {
     const mcpAppOutputs = tapResources(
-      () => (mcpApp ? [mcpApp] : []),
+      () => (mcpApp ? [withKey("mcpApp", mcpApp)] : []),
       [mcpApp],
     );
     const mcpAppOutput = mcpAppOutputs[0];

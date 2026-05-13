@@ -17,14 +17,13 @@ import type { SandboxOption } from "safe-content-frame";
 import { MCPAppFrame } from "./app-frame";
 import type {
   MCPAppBridgeHandlers,
+  MCPAppDisplayMode,
   MCPAppHostContext,
   MCPAppHostInfo,
   MCPAppResource,
   MCPAppSandboxConfig,
 } from "./types";
 import { getMCPAppFromToolPart } from "./utils";
-
-type DisplayMode = "inline" | "fullscreen" | "pip";
 
 export type MCPAppRendererOptions = {
   /** Fetch the HTML + meta for a `ui://` resource the server attached to a tool. */
@@ -50,8 +49,8 @@ export type MCPAppRendererOptions = {
     updateModelContext?: (params: unknown) => Promise<unknown> | unknown;
     /** Widget called `requestDisplayMode`. Bridge validates the mode before this fires. */
     requestDisplayMode?: (params: {
-      mode: DisplayMode;
-    }) => Promise<{ mode: DisplayMode }> | { mode: DisplayMode };
+      mode: MCPAppDisplayMode;
+    }) => Promise<{ mode: MCPAppDisplayMode }> | { mode: MCPAppDisplayMode };
     /** Widget posted `notifications/size_changed`. */
     onSizeChange?: (params: { width?: number; height?: number }) => void;
     /** Widget posted `notifications/initialized`. */
@@ -82,8 +81,8 @@ export type MCPAppRendererOptions = {
   /** Delivered to the widget on initialize and pushed via `notifications/host_context/changed` on change. */
   hostContext?: {
     theme?: "light" | "dark";
-    displayMode?: DisplayMode;
-    availableDisplayModes?: DisplayMode[];
+    displayMode?: MCPAppDisplayMode;
+    availableDisplayModes?: MCPAppDisplayMode[];
     [key: string]: unknown;
   };
   /** Rendered when no MCP app is on the part, or while load is in flight / failed (unless overridden). */
