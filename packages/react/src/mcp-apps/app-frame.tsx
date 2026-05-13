@@ -213,8 +213,8 @@ export function MCPAppFrame({
           pendingInputRef.current = current.input;
         if (current.output !== undefined)
           pendingOutputRef.current = current.output;
-        if (current.hostContext)
-          pendingHostContextRef.current = current.hostContext;
+        // hostContext is delivered inside the ui/initialize response; subsequent
+        // changes flow through useBridgeNotify's pending path.
       })
       .catch((err) => {
         liveRef.current.handlers?.onError?.(
