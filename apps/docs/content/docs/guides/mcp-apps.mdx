@@ -10,6 +10,8 @@ platforms: ["react"]
 
 When an MCP server attaches a `_meta.ui.resourceUri` (the [`text/html;profile=mcp-app`](https://apps.extensions.modelcontextprotocol.io/api/index.html) MIME) to a tool, AI SDK forwards that metadata through to the message stream. assistant-ui's renderer picks it up off the `mcp` field on `ToolCallMessagePart`, fetches the resource via your provided `loadResource` callback, and mounts it.
 
+The renderer only acts on URIs that start with `ui://` (per the MCP Apps spec). A tool whose `resourceUri` uses any other scheme is treated as a non-MCP-Apps tool and rendered with your normal tool UI.
+
 The widget then communicates back through a JSON-RPC bridge:
 
 - **widget → host requests**: `ui/initialize`, `tools/call`, `resources/read`, `resources/list`, `openLink`, `sendMessage`, `requestDisplayMode`, `updateModelContext`
