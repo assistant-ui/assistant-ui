@@ -11,6 +11,30 @@ import type {
 
 const DEFAULT_PRODUCT = "assistant-ui-mcp-app";
 
+type MutRef<T> = { current: T };
+
+function useBridgeNotify(
+  value: unknown,
+  bridgeRef: MutRef<MCPAppBridge | null>,
+  widgetReadyRef: MutRef<boolean>,
+  pendingRef: MutRef<unknown>,
+  lastSentRef: MutRef<unknown>,
+  notify: (bridge: MCPAppBridge, v: unknown) => void,
+) {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refs and notify are stable; we re-run only when value changes.
+  useEffect(() => {
+    if (!bridgeRef.current) return;
+    if (value === undefined) return;
+    if (lastSentRef.current === value) return;
+    if (!widgetReadyRef.current) {
+      pendingRef.current = value;
+      return;
+    }
+    notify(bridgeRef.current, value);
+    lastSentRef.current = value;
+  }, [value]);
+}
+
 type LiveSnapshot = {
   html: string;
   sandbox: MCPAppFrameProps["sandbox"];

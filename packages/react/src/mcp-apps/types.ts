@@ -50,7 +50,7 @@ export type MCPAppToolCallParams = {
 };
 
 export type MCPAppBridgeHandlers = {
-  allowedTools?: string[];
+  allowedTools?: readonly string[];
   callTool?: (params: MCPAppToolCallParams) => Promise<unknown> | unknown;
   readResource?: (params: { uri: string }) => Promise<unknown> | unknown;
   listResources?: (params?: unknown) => Promise<unknown> | unknown;

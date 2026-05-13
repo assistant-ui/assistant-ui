@@ -154,6 +154,27 @@ describe("createMCPAppBridge", () => {
     bridge.dispose();
   });
 
+  it("rejects requestDisplayMode with unknown mode via -32602", async () => {
+    const { frame, captured } = makeFrame();
+    const requestDisplayMode = vi.fn();
+    const bridge = createMCPAppBridge({
+      frame,
+      handlers: { requestDisplayMode },
+    });
+
+    dispatch(frame, {
+      jsonrpc: "2.0",
+      id: 13,
+      method: "requestDisplayMode",
+      params: { mode: "sidebar" },
+    });
+    await flush();
+
+    expect(requestDisplayMode).not.toHaveBeenCalled();
+    expect((captured[0] as MCPAppJsonRpcResponse).error?.code).toBe(-32602);
+    bridge.dispose();
+  });
+
   it("rejects openLink for non-http(s) schemes via -32602", async () => {
     const { frame, captured } = makeFrame();
     const openLink = vi.fn();
