@@ -101,6 +101,12 @@ export namespace ComposerPrimitiveInput {
  * keyboard shortcuts, file paste support, and intelligent focus management.
  * It integrates with the composer context to manage message state and submission.
  *
+ * When rendered inside `Unstable_TriggerPopoverRoot` and a popover is open, the
+ * underlying `<textarea>` automatically receives `aria-controls`,
+ * `aria-expanded`, `aria-haspopup`, and `aria-activedescendant` for the
+ * combobox relationship. These computed attributes override user-provided
+ * values for those four ARIA props while the popover is open.
+ *
  * @example
  * ```tsx
  * // Ctrl/Cmd+Enter to submit (plain Enter inserts newline)
