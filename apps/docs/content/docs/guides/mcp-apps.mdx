@@ -38,11 +38,6 @@ function MyAssistant() {
       toolkit: myToolkit,
       mcpApp: McpAppRenderer({
         host: { url: "/api/mcp-apps" },
-        handlers: {
-          openLink: ({ url }) => {
-            window.open(url, "_blank", "noopener,noreferrer");
-          },
-        },
         hostInfo: { name: "my-app", version: "1.0.0" },
         hostContext: { theme: "light" },
       }),
@@ -52,7 +47,7 @@ function MyAssistant() {
 }
 ```
 
-`callTool`, `readResource`, `listResources`, and the resource fetch are auto-wired to `host.url`. `handlers` is reserved for capabilities that must run in the browser (`openLink`, `sendMessage`, `requestDisplayMode`, lifecycle events).
+`callTool`, `readResource`, `listResources`, and the resource fetch are auto-wired to `host.url`. `openLink` defaults to `window.open(url, "_blank", "noopener,noreferrer")`. `sendMessage` defaults to appending a user message to the current thread (accepts `string`, `{ prompt }`, `{ text }`, or `{ message }`). Override or extend via `handlers` for `requestDisplayMode`, `updateModelContext`, or lifecycle events.
 
 ### Route handler
 

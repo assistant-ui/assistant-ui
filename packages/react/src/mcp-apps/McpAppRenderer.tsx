@@ -6,6 +6,7 @@ import type {
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
 } from "@assistant-ui/core/react";
+import { useAui } from "@assistant-ui/store";
 import { resource, tapConst, tapRef } from "@assistant-ui/tap";
 import { McpAppFrame } from "./app-frame";
 import type {
@@ -91,11 +92,28 @@ async function postToHost(
   return res.json();
 }
 
-function bridgeHandlersFromHost(
+const defaultOpenLink = ({ url }: { url: string }) => {
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+
+function extractSendMessageText(params: unknown): string | undefined {
+  if (typeof params === "string") return params;
+  if (!params || typeof params !== "object") return undefined;
+  const obj = params as Record<string, unknown>;
+  if (typeof obj["prompt"] === "string") return obj["prompt"];
+  if (typeof obj["text"] === "string") return obj["text"];
+  if (typeof obj["message"] === "string") return obj["message"];
+  return undefined;
+}
+
+function buildBridgeHandlers(
   host: McpAppHostConfig,
   client: McpAppRendererOptions["handlers"] | undefined,
+  defaults: { sendMessage: NonNullable<McpAppBridgeHandlers["sendMessage"]> },
 ): McpAppBridgeHandlers {
   return {
+    openLink: defaultOpenLink,
+    sendMessage: defaults.sendMessage,
     ...client,
     callTool: (params) => postToHost(host, "tools/call", params),
     readResource: (params) => postToHost(host, "resources/read", params),
@@ -111,6 +129,7 @@ function InlineRenderer({
   optionsRef: { readonly current: McpAppRendererOptions };
 }) {
   const opts = optionsRef.current;
+  const aui = useAui();
   const app = getMcpAppFromToolPart(part);
   const cachedAppRef = useRef<McpAppMetadata | undefined>(undefined);
   if (app != null && cachedAppRef.current?.resourceUri !== app.resourceUri) {
@@ -151,8 +170,16 @@ function InlineRenderer({
   }, [resourceUri]);
 
   const bridgeHandlers = useMemo(
-    () => bridgeHandlersFromHost(opts.host, opts.handlers),
-    [opts.host, opts.handlers],
+    () =>
+      buildBridgeHandlers(opts.host, opts.handlers, {
+        sendMessage: (params) => {
+          const text = extractSendMessageText(params);
+          if (!text) return null;
+          aui.thread().append({ content: [{ type: "text", text }] });
+          return { ok: true };
+        },
+      }),
+    [opts.host, opts.handlers, aui],
   );
 
   const loadedResourceForApp =
