@@ -188,7 +188,6 @@ export function McpAppFrame({
             pendingHostContextRef.current = undefined;
           }
         };
-        const liveOnSizeChange = liveHandlers.onSizeChange;
         const wrappedHandlers: McpAppBridgeHandlers = {
           ...liveHandlers,
           onInitialized: () => {
@@ -200,10 +199,14 @@ export function McpAppFrame({
             liveOnInitialized?.();
           },
           onSizeChange: (p) => {
-            if (typeof p.height === "number") {
+            if (
+              typeof p.height === "number" &&
+              Number.isFinite(p.height) &&
+              p.height > 0
+            ) {
               setContentHeight(p.height);
             }
-            liveOnSizeChange?.(p);
+            liveHandlers.onSizeChange?.(p);
           },
         };
         // Safety net: if the widget never sends notifications/initialized
