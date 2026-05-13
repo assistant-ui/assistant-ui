@@ -4,6 +4,7 @@ export {
 } from "./types";
 export type {
   MCPAppMetadata,
+  ToolCallMessagePartMCPMetadata,
   MCPAppResource,
   MCPAppResourceCSP,
   MCPAppResourceMeta,

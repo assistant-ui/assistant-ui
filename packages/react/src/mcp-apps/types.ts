@@ -1,9 +1,12 @@
 import type { CSSProperties, ReactNode } from "react";
-import type { MCPAppMetadata } from "@assistant-ui/core";
+import type {
+  MCPAppMetadata,
+  ToolCallMessagePartMCPMetadata,
+} from "@assistant-ui/core";
 import type { SandboxOption } from "safe-content-frame";
 import type { ToolCallMessagePartProps } from "@assistant-ui/core/react";
 
-export type { MCPAppMetadata };
+export type { MCPAppMetadata, ToolCallMessagePartMCPMetadata };
 
 export const MCP_APP_MIME_TYPE = "text/html;profile=mcp-app" as const;
 

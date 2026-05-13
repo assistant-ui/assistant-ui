@@ -14,7 +14,7 @@ type LoadedResourceState = {
 
 function getInput(part: MCPAppRendererProps["part"]): unknown {
   if (
-    part.status?.type === "running" &&
+    part.status.type === "running" &&
     (part.argsText === "" || part.argsText === "{}")
   ) {
     return undefined;

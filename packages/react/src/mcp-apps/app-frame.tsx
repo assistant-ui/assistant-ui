@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { type MutableRefObject, useEffect, useRef } from "react";
 import { type RenderedFrame, SafeContentFrame } from "safe-content-frame";
 import { type MCPAppBridge, createMCPAppBridge } from "./bridge";
 import type {
@@ -12,14 +12,12 @@ import type {
 const DEFAULT_PRODUCT = "assistant-ui-mcp-app";
 const INIT_TIMEOUT_MS = 5000;
 
-type MutRef<T> = { current: T };
-
 function useBridgeNotify(
   value: unknown,
-  bridgeRef: MutRef<MCPAppBridge | null>,
-  widgetReadyRef: MutRef<boolean>,
-  pendingRef: MutRef<unknown>,
-  lastSentRef: MutRef<unknown>,
+  bridgeRef: MutableRefObject<MCPAppBridge | null>,
+  widgetReadyRef: MutableRefObject<boolean>,
+  pendingRef: MutableRefObject<unknown>,
+  lastSentRef: MutableRefObject<unknown>,
   notify: (bridge: MCPAppBridge, v: unknown) => void,
 ) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: refs and notify are stable; we re-run only when value changes.

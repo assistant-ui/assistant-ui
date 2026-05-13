@@ -398,6 +398,7 @@ export {
 } from "./mcp-apps";
 export type {
   MCPAppMetadata,
+  ToolCallMessagePartMCPMetadata,
   MCPAppResource,
   MCPAppResourceCSP,
   MCPAppResourceMeta,
