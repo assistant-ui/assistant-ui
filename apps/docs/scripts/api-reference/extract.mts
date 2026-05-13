@@ -360,10 +360,11 @@ function propertyJsDocMeta(node: TsNode | undefined): {
   if (!node || !hasJsDocs(node)) return {};
   const doc = node.getJsDocs()[0];
   if (!doc) return {};
+  const source = jsDocSourceLabel(node);
   return {
-    description: getJsDocCommentText(doc, jsDocSourceLabel(node)),
-    default: jsDocTag(doc, "default", jsDocSourceLabel(node)),
-    deprecated: jsDocTag(doc, "deprecated", jsDocSourceLabel(node)),
+    description: getJsDocCommentText(doc, source),
+    default: jsDocTag(doc, "default", source),
+    deprecated: jsDocTag(doc, "deprecated", source),
   };
 }
 

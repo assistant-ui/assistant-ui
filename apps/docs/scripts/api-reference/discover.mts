@@ -269,17 +269,18 @@ function getReactApiLinkItems(): ApiReferenceLinkItem[] {
   return reactApiLinkItems;
 }
 
-function buildReactExportInfo({
-  name,
-  resolved,
-  deprecated,
-  sourcePath,
-  kind,
-  placement,
-}: ClassifiedExportInput): ExportInfo {
-  const docs = extractJsDoc(resolved, {
-    linkResolver: createApiReferenceLinkResolver(getReactApiLinkItems()),
-  });
+function buildReactExportInfo(
+  {
+    name,
+    resolved,
+    deprecated,
+    sourcePath,
+    kind,
+    placement,
+  }: ClassifiedExportInput,
+  linkResolver: (target: string) => string | undefined,
+): ExportInfo {
+  const docs = extractJsDoc(resolved, { linkResolver });
   const signature = extractSignature(resolved, name);
   return {
     name,
@@ -299,7 +300,8 @@ function buildReactExportInfo({
 
 export function discoverExports(): ExportInfo[] {
   const inputs = getReactApiInputs();
-  return inputs.map(buildReactExportInfo);
+  const linkResolver = createApiReferenceLinkResolver(getReactApiLinkItems());
+  return inputs.map((input) => buildReactExportInfo(input, linkResolver));
 }
 
 export function discoverIntegrationExports(
