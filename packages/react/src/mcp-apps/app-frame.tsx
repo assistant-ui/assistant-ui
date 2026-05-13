@@ -1,6 +1,6 @@
 "use client";
 
-import { type MutableRefObject, useEffect, useRef } from "react";
+import { type MutableRefObject, useEffect, useRef, useState } from "react";
 import { type RenderedFrame, SafeContentFrame } from "safe-content-frame";
 import { type McpAppBridge, createMcpAppBridge } from "./bridge";
 import type {
@@ -11,6 +11,7 @@ import type {
 
 const DEFAULT_PRODUCT = "assistant-ui-mcp-app";
 const INIT_TIMEOUT_MS = 5000;
+const DEFAULT_MAX_HEIGHT = 800;
 
 function useBridgeNotify<T>(
   value: T | undefined,
@@ -97,8 +98,12 @@ export function McpAppFrame({
   handlers,
   hostInfo,
   hostContext,
+  maxHeight = DEFAULT_MAX_HEIGHT,
 }: McpAppFrameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState<number | undefined>(
+    undefined,
+  );
   const bridgeRef = useRef<McpAppBridge | null>(null);
   const lastSentInputRef = useRef<unknown>(undefined);
   const lastSentOutputRef = useRef<unknown>(undefined);
@@ -183,6 +188,7 @@ export function McpAppFrame({
             pendingHostContextRef.current = undefined;
           }
         };
+        const liveOnSizeChange = liveHandlers.onSizeChange;
         const wrappedHandlers: McpAppBridgeHandlers = {
           ...liveHandlers,
           onInitialized: () => {
@@ -192,6 +198,12 @@ export function McpAppFrame({
             }
             flushPending();
             liveOnInitialized?.();
+          },
+          onSizeChange: (p) => {
+            if (typeof p.height === "number") {
+              setContentHeight(p.height);
+            }
+            liveOnSizeChange?.(p);
           },
         };
         // Safety net: if the widget never sends notifications/initialized
@@ -238,6 +250,7 @@ export function McpAppFrame({
       pendingInputRef.current = undefined;
       pendingOutputRef.current = undefined;
       pendingHostContextRef.current = undefined;
+      setContentHeight(undefined);
     };
   }, [resourceUri]);
 
@@ -266,11 +279,18 @@ export function McpAppFrame({
     (b, v) => b.notifyHostContextChanged(v),
   );
 
+  const resolvedHeight =
+    contentHeight != null ? Math.min(contentHeight, maxHeight) : undefined;
+  const mergedStyle =
+    resolvedHeight != null
+      ? { ...sandbox?.style, height: resolvedHeight }
+      : sandbox?.style;
+
   return (
     <div
       ref={containerRef}
       className={sandbox?.className}
-      style={sandbox?.style}
+      style={mergedStyle}
       data-mcp-app-resource={app.resourceUri}
       data-mcp-app-prefers-border={
         resource.meta?.prefersBorder ? "" : undefined

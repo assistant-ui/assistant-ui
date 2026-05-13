@@ -41,6 +41,11 @@ export type McpAppRendererOptions = {
   host: ResourceElement<McpAppsHost>;
   /** Sandbox + container styling. Passes through to SafeContentFrame. */
   sandbox?: McpAppSandboxConfig;
+  /**
+   * Upper bound (in pixels) applied to the widget-driven auto-resize height.
+   * Defaults to 800.
+   */
+  maxHeight?: number;
   /** Identifies the host to the widget in the `ui/initialize` response. */
   hostInfo?: McpAppHostInfo;
   /** Delivered to the widget on initialize and pushed via `notifications/host_context/changed` on change. */
@@ -182,6 +187,7 @@ function InlineRenderer({
       handlers={bridgeHandlers}
       hostInfo={opts.hostInfo}
       hostContext={opts.hostContext}
+      maxHeight={opts.maxHeight}
     />
   );
 }

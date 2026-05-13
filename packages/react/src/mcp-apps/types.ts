@@ -117,6 +117,11 @@ export type McpAppFrameProps = {
   handlers?: McpAppBridgeHandlers | undefined;
   hostInfo?: McpAppHostInfo | undefined;
   hostContext?: McpAppHostContext | undefined;
+  /**
+   * Upper bound (in pixels) for the auto-resize height driven by the widget's
+   * `notifications/size_changed`. Defaults to 800.
+   */
+  maxHeight?: number | undefined;
 };
 
 export type McpAppJsonRpcRequest = {
