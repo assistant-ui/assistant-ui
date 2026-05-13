@@ -42,7 +42,9 @@ export const Tools = resource(
     }));
 
     tapEffect(() => {
-      setState((prev) => ({ ...prev, mcpApp: mcpAppOutput }));
+      setState((prev) =>
+        prev.mcpApp === mcpAppOutput ? prev : { ...prev, mcpApp: mcpAppOutput },
+      );
     }, [mcpAppOutput]);
 
     const clientRef = tapAssistantClientRef();

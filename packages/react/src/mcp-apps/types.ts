@@ -1,10 +1,9 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import type {
   MCPAppMetadata,
   ToolCallMessagePartMCPMetadata,
 } from "@assistant-ui/core";
 import type { SandboxOption } from "safe-content-frame";
-import type { ToolCallMessagePartProps } from "@assistant-ui/core/react";
 
 export type { MCPAppMetadata, ToolCallMessagePartMCPMetadata };
 
@@ -90,22 +89,6 @@ export type MCPAppFrameProps = {
   handlers?: MCPAppBridgeHandlers | undefined;
   hostInfo?: MCPAppHostInfo | undefined;
   hostContext?: MCPAppHostContext | undefined;
-};
-
-export type MCPAppRendererProps = {
-  part: ToolCallMessagePartProps;
-  sandbox?: MCPAppSandboxConfig | undefined;
-  resource?: MCPAppResource | undefined;
-  loadResource?: ((app: MCPAppMetadata) => Promise<MCPAppResource>) | undefined;
-  handlers?: MCPAppBridgeHandlers | undefined;
-  hostInfo?: MCPAppHostInfo | undefined;
-  hostContext?: MCPAppHostContext | undefined;
-  /** Rendered when no MCP app is on the part, or while `loadResource` is in flight / failed (unless `loadingFallback` / `errorFallback` override). */
-  fallback?: ReactNode | undefined;
-  /** Rendered while `loadResource` is in flight. Defaults to `fallback`. */
-  loadingFallback?: ReactNode | undefined;
-  /** Rendered when `loadResource` rejects. Receives the error so callers can show a message. Defaults to `fallback`. */
-  errorFallback?: ReactNode | ((error: Error) => ReactNode) | undefined;
 };
 
 export type MCPAppJsonRpcRequest = {

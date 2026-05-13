@@ -511,6 +511,9 @@ const QuoteRendererImpl: FC<{ Quote: QuoteMessagePartComponent }> = ({
 
 const QuoteRenderer = memo(QuoteRendererImpl);
 
+const isMCPAppUri = (uri: string | undefined): boolean =>
+  !!uri?.startsWith("ui://");
+
 /**
  * Stable propless component that renders the registered tool UI for the
  * current part context. Reads tool registry and part state from context.
@@ -523,7 +526,7 @@ const RegisteredToolUI: FC = () => {
     const entry = s.tools.tools[s.part.toolName];
     const named = Array.isArray(entry) ? (entry[0] ?? null) : (entry ?? null);
     if (named) return named;
-    if (s.part.mcp?.app?.resourceUri?.startsWith("ui://") && s.tools.mcpApp) {
+    if (isMCPAppUri(s.part.mcp?.app?.resourceUri) && s.tools.mcpApp) {
       return s.tools.mcpApp.render;
     }
     return null;
@@ -647,7 +650,7 @@ export const MessagePartChildren: FC<{
                 const namedUI = Array.isArray(entry) ? !!entry[0] : !!entry;
                 const hasMcpAppFallback =
                   !namedUI &&
-                  !!state.mcp?.app?.resourceUri?.startsWith("ui://") &&
+                  isMCPAppUri(state.mcp?.app?.resourceUri) &&
                   !!toolsState.mcpApp;
                 const hasUI = namedUI || hasMcpAppFallback;
                 const partMethods = aui.message().part({ index });
