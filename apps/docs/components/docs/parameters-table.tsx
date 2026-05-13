@@ -3,6 +3,9 @@ import Link from "next/link";
 import type { FC, ReactNode } from "react";
 import { StatusBadge } from "./status-badge";
 
+const DESCRIPTION_LINK_CLASSNAME =
+  "font-medium text-foreground underline underline-offset-2";
+
 type ParameterDef = {
   name: string;
   type?: string;
@@ -26,7 +29,7 @@ const COMMON_PARAMS: Record<string, ParameterDef> = {
         <br />
         Read the{" "}
         <Link
-          className="font-medium text-foreground underline underline-offset-2"
+          className={DESCRIPTION_LINK_CLASSNAME}
           href="/docs/api-reference/primitives/composition"
         >
           Composition
@@ -58,21 +61,23 @@ function renderDescription(description: string | ReactNode): ReactNode {
       parts.push(description.slice(lastIndex, index));
     }
 
-    const className =
-      "font-medium text-foreground underline underline-offset-2";
     const children = renderLinkLabel(label ?? "");
     const linkHref = href ?? "";
     parts.push(
       linkHref.startsWith("/") ? (
         <Link
           key={`${linkHref}-${index}`}
-          className={className}
+          className={DESCRIPTION_LINK_CLASSNAME}
           href={linkHref}
         >
           {children}
         </Link>
       ) : (
-        <a key={`${linkHref}-${index}`} className={className} href={linkHref}>
+        <a
+          key={`${linkHref}-${index}`}
+          className={DESCRIPTION_LINK_CLASSNAME}
+          href={linkHref}
+        >
           {children}
         </a>
       ),

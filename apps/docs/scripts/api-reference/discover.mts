@@ -163,6 +163,14 @@ type DiscoveredExportInput = {
   deprecated?: string;
 };
 
+type ClassifiedExportInput = DiscoveredExportInput & {
+  sourcePath?: string;
+  kind: ExportKind;
+  placement: ReturnType<typeof classifyExport>;
+};
+
+type ApiReferenceLinkItem = Pick<ExportInfo, "name" | "section" | "page">;
+
 function collectExportInputs(entryPath: string): DiscoveredExportInput[] {
   const project = getProject();
   const sourceFile =
@@ -207,9 +215,7 @@ function cleanLinkTarget(target: string): string {
   return target.trim().replace(/^`|`$/g, "").replace(/\(\)$/, "");
 }
 
-function createApiReferenceLinkResolver(
-  items: Pick<ExportInfo, "name" | "section" | "page">[],
-) {
+function createApiReferenceLinkResolver(items: ApiReferenceLinkItem[]) {
   const itemByName = new Map(items.map((item) => [item.name, item]));
   return (target: string): string | undefined => {
     const item = itemByName.get(cleanLinkTarget(target));
@@ -217,33 +223,47 @@ function createApiReferenceLinkResolver(
   };
 }
 
-function reactLinkItems(inputs: DiscoveredExportInput[]) {
+function classifyExportInputs(
+  inputs: DiscoveredExportInput[],
+): ClassifiedExportInput[] {
+  return inputs.map((input) => {
+    const sourcePath = relativeToRepo(
+      input.resolved?.getSourceFile().getFilePath(),
+    );
+    const kind = classifyKind(input.resolved, input.name);
+    const placement = classifyExport({ name: input.name, kind, sourcePath });
+    return { ...input, sourcePath, kind, placement };
+  });
+}
+
+function linkItemsFor(inputs: ClassifiedExportInput[]): ApiReferenceLinkItem[] {
   return inputs
-    .map(({ name, resolved }) => {
-      const sourcePath = relativeToRepo(
-        resolved?.getSourceFile().getFilePath(),
-      );
-      const kind = classifyKind(resolved, name);
-      const placement = classifyExport({ name, kind, sourcePath });
-      return {
-        name,
-        section: placement.section,
-        page: placement.page,
-        pageRole: placement.role,
-      };
-    })
-    .filter((item) => item.pageRole !== "supporting-type");
+    .filter((item) => item.placement.role !== "supporting-type")
+    .map((item) => ({
+      name: item.name,
+      section: item.placement.section,
+      page: item.placement.page,
+    }));
+}
+
+let reactApiLinkItems: ApiReferenceLinkItem[] | undefined;
+
+function getReactApiLinkItems(): ApiReferenceLinkItem[] {
+  reactApiLinkItems ??= linkItemsFor(
+    classifyExportInputs(collectExportInputs(REACT_INDEX)),
+  );
+  return reactApiLinkItems;
 }
 
 function buildReactExportInfo({
   name,
   resolved,
   deprecated,
-}: DiscoveredExportInput): ExportInfo {
-  const sourcePath = relativeToRepo(resolved?.getSourceFile().getFilePath());
+  sourcePath,
+  kind,
+  placement,
+}: ClassifiedExportInput): ExportInfo {
   const docs = extractJsDoc(resolved);
-  const kind = classifyKind(resolved, name);
-  const placement = classifyExport({ name, kind, sourcePath });
   const signature = extractSignature(resolved, name);
   return {
     name,
@@ -262,8 +282,9 @@ function buildReactExportInfo({
 }
 
 export function discoverExports(): ExportInfo[] {
-  const inputs = collectExportInputs(REACT_INDEX);
-  setJsDocLinkResolver(createApiReferenceLinkResolver(reactLinkItems(inputs)));
+  const inputs = classifyExportInputs(collectExportInputs(REACT_INDEX));
+  reactApiLinkItems = linkItemsFor(inputs);
+  setJsDocLinkResolver(createApiReferenceLinkResolver(reactApiLinkItems));
   return inputs.map(buildReactExportInfo);
 }
 
@@ -271,14 +292,18 @@ export function discoverIntegrationExports(
   entryPath: string,
   page: string,
 ): ExportInfo[] {
-  const inputs = collectExportInputs(entryPath).filter(({ name, resolved }) => {
-    const kind = classifyKind(resolved, name);
-    return kind !== "interface" && kind !== "type";
-  });
+  const inputs = classifyExportInputs(collectExportInputs(entryPath)).filter(
+    ({ kind }) => kind !== "interface" && kind !== "type",
+  );
 
-  return inputs.map(({ name, resolved, deprecated }) => {
-    const sourcePath = relativeToRepo(resolved?.getSourceFile().getFilePath());
-    const kind = classifyKind(resolved, name);
+  setJsDocLinkResolver(
+    createApiReferenceLinkResolver([
+      ...getReactApiLinkItems(),
+      ...linkItemsFor(inputs),
+    ]),
+  );
+
+  return inputs.map(({ name, resolved, deprecated, sourcePath, kind }) => {
     const docs = extractJsDoc(resolved);
     const signature = extractSignature(resolved, name);
     return {

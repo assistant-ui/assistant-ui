@@ -237,10 +237,9 @@ function warnUnresolvedJsDocLink(target: string, source: string): void {
 
 function renderJsDocLinkTag(content: string, source: string): string {
   const { target, label } = parseJsDocLinkContent(content);
-  const href = isExternalLinkTarget(target)
-    ? target
-    : jsDocLinkResolver?.(target);
-  if (!href && !isExternalLinkTarget(target)) {
+  const isExternal = isExternalLinkTarget(target);
+  const href = isExternal ? target : jsDocLinkResolver?.(target);
+  if (!href && !isExternal) {
     warnUnresolvedJsDocLink(target, source);
   }
   if (!href) return label;

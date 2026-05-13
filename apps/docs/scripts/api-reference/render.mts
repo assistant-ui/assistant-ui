@@ -624,6 +624,11 @@ function groupedBySectionAndPage(
     items.push(item);
     section.set(item.page, items);
   }
+  for (const pages of result.values()) {
+    for (const [page, items] of pages) {
+      pages.set(page, sortExportsForPage(items));
+    }
+  }
   return result;
 }
 
