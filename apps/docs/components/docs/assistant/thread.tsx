@@ -6,7 +6,7 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
-import { useEffect, useRef } from "react";
+import { type ComponentType, type ReactNode, useEffect, useRef } from "react";
 import { AssistantMessage, UserMessage } from "./messages";
 import { AssistantComposer } from "./composer";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
@@ -50,30 +50,43 @@ function PendingMessageHandler() {
   return null;
 }
 
-export function AssistantThread(): React.ReactNode {
+type AssistantThreadProps = {
+  welcome?: ReactNode;
+  composer?: ReactNode;
+  footer?: ReactNode;
+  UserMessageComponent?: ComponentType;
+  AssistantMessageComponent?: ComponentType;
+};
+
+export function AssistantThread({
+  welcome = <AssistantWelcome />,
+  composer = <AssistantComposer />,
+  footer = <AssistantFooter />,
+  UserMessageComponent = UserMessage,
+  AssistantMessageComponent = AssistantMessage,
+}: AssistantThreadProps = {}): ReactNode {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col bg-background">
       <PendingMessageHandler />
       <ThreadPrimitive.Viewport className="scrollbar-none flex flex-1 flex-col overflow-y-auto px-3 pt-3">
-        <AuiIf condition={(s) => s.thread.isEmpty}>
-          <AssistantWelcome />
-        </AuiIf>
+        <AuiIf condition={(s) => s.thread.isEmpty}>{welcome}</AuiIf>
 
         <div className="px-1.5" data-slot="thread-messages">
           <ThreadPrimitive.Messages>
             {({ message }) => {
-              if (message.role === "user") return <UserMessage />;
-              if (message.role === "assistant") return <AssistantMessage />;
+              if (message.role === "user") return <UserMessageComponent />;
+              if (message.role === "assistant")
+                return <AssistantMessageComponent />;
               return null;
             }}
           </ThreadPrimitive.Messages>
         </div>
 
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto flex flex-col overflow-visible rounded-t-xl bg-background">
-          <AssistantComposer />
+          {composer}
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
-      <AssistantFooter />
+      {footer}
     </ThreadPrimitive.Root>
   );
 }

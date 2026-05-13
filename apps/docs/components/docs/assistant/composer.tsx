@@ -118,12 +118,15 @@ export function useSharedDocsModelSelection(): {
 export function AssistantComposer({
   onSubmit: onSubmitProp,
   className,
+  placeholder = "Ask a question...",
+  modelSelector,
 }: {
   onSubmit?: () => void;
   className?: string;
+  placeholder?: string;
+  modelSelector?: ReactNode;
 } = {}): ReactNode {
   const handleSubmit = useComposerSubmitHandler(onSubmitProp);
-  const { modelValue, onModelChange } = useSharedDocsModelSelection();
 
   return (
     <ComposerPrimitive.Root
@@ -133,23 +136,31 @@ export function AssistantComposer({
       <div className="rounded-xl border border-border bg-background focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/20">
         <ComposerPrimitive.Input asChild>
           <textarea
-            placeholder="Ask a question..."
+            placeholder={placeholder}
             className="field-sizing-content max-h-32 w-full resize-none bg-transparent px-3 pt-2.5 pb-2 text-sm leading-5 placeholder:text-muted-foreground focus:outline-none"
             rows={1}
           />
         </ComposerPrimitive.Input>
         <div className="flex items-center justify-between px-1.5 pb-1.5">
-          <ModelSelector
-            models={models}
-            value={modelValue}
-            onValueChange={onModelChange}
-            variant="ghost"
-            size="sm"
-          />
+          {modelSelector ?? <DefaultDocsModelSelector />}
           <AssistantComposerAction />
         </div>
       </div>
     </ComposerPrimitive.Root>
+  );
+}
+
+function DefaultDocsModelSelector(): ReactNode {
+  const { modelValue, onModelChange } = useSharedDocsModelSelection();
+
+  return (
+    <ModelSelector
+      models={models}
+      value={modelValue}
+      onValueChange={onModelChange}
+      variant="ghost"
+      size="sm"
+    />
   );
 }
 
