@@ -272,6 +272,7 @@ describe("createMcpAppBridge", () => {
     expect(captured.map((c) => (c as McpAppJsonRpcResponse).id)).toEqual([
       20, 21,
     ]);
+    bridge.dispose();
   });
 
   it("returns -32601 for resources/read and resources/list when no handler", async () => {
