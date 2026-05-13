@@ -5,7 +5,6 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import rehypeParse from "rehype-parse";
 import rehypeRemark from "rehype-remark";
 import remarkGfm from "remark-gfm";
@@ -52,15 +51,36 @@ type StaticFunctionComponent = (
   props: Record<string, unknown>,
 ) => ReactNode | Promise<ReactNode>;
 
-function isClientComponentRenderError(error: unknown): boolean {
+// Marker that React/Next.js stamp onto `"use client"` module exports. Part of
+// the cross-bundler RSC contract, so stable across upgrades.
+const REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
+
+function isClientReference(type: unknown): boolean {
+  return (
+    (typeof type === "object" || typeof type === "function") &&
+    type !== null &&
+    (type as { $$typeof?: symbol }).$$typeof === REACT_CLIENT_REFERENCE
+  );
+}
+
+// Safety net for server components that throw because of transitive
+// client-only API use. Stack frames are more durable than error messages.
+function looksLikeStaticRenderFailure(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
 
-  return (
-    (error.message.includes("from the server") &&
-      error.message.includes("on the client")) ||
-    error.message.includes("Invalid hook call") ||
-    error.message.includes("Cannot read properties of null (reading 'use")
-  );
+  const stack = error.stack ?? "";
+  if (
+    stack.includes("/react-dom/") ||
+    stack.includes("/react-server-dom") ||
+    stack.includes("/react/cjs/react.") ||
+    stack.includes("react-dom.") ||
+    stack.includes("react.development") ||
+    stack.includes("react.production")
+  ) {
+    return true;
+  }
+
+  return /invalid hook call|client reference|use client/i.test(error.message);
 }
 
 function isEmptyNode(node: ReactNode): boolean {
@@ -69,6 +89,14 @@ function isEmptyNode(node: ReactNode): boolean {
     typeof node === "boolean" ||
     (Array.isArray(node) && node.every(isEmptyNode))
   );
+}
+
+function withStableArrayKeys(nodes: ReactNode[]): ReactNode[] {
+  return nodes.map((node, index) => {
+    if (Array.isArray(node)) return withStableArrayKeys(node);
+    if (!isValidElement(node) || node.key != null) return node;
+    return cloneElement(node, { key: index });
+  });
 }
 
 function getStaticEntries(props: Record<string, unknown>) {
@@ -178,7 +206,9 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
   }
 
   if (Array.isArray(node)) {
-    return Promise.all(node.map(resolveStaticReactNode));
+    return withStableArrayKeys(
+      await Promise.all(node.map(resolveStaticReactNode)),
+    );
   }
 
   if (!isValidElement(node)) {
@@ -202,6 +232,13 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
     return cloneElement(element, props, resolvedChildren);
   }
 
+  if (isClientReference(element.type)) {
+    const resolvedChildren = await resolveStaticReactNode(
+      children as ReactNode,
+    );
+    return renderClientFallback(props, resolvedChildren);
+  }
+
   if (typeof element.type === "function") {
     try {
       const Component = element.type as StaticFunctionComponent;
@@ -213,7 +250,18 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
       );
       const fallback = await renderClientFallback(props, resolvedChildren);
       if (!isEmptyNode(fallback)) return fallback;
-      if (!isClientComponentRenderError(error)) throw error;
+
+      if (!looksLikeStaticRenderFailure(error)) {
+        if (process.env.NODE_ENV !== "production") {
+          // Tripwire for unrecognized React error shapes; update the
+          // heuristic when this fires.
+          console.warn(
+            "[get-llm-text] unexpected static render failure, rethrowing",
+            error,
+          );
+        }
+        throw error;
+      }
       return fallback;
     }
   }
@@ -231,6 +279,7 @@ export async function getLLMText(page: InferPageType<typeof source>) {
   const staticBody = await resolveStaticReactNode(
     <Body components={MDX_COMPONENTS} />,
   );
+  const { renderToStaticMarkup } = await import("react-dom/server");
   const html = renderToStaticMarkup(staticBody);
   const markdown = String(await processor.process(html)).trim();
 
