@@ -345,9 +345,9 @@ export function createMCPAppBridge(
         }
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      handlers.onError?.(err instanceof Error ? err : new Error(message));
-      errorResponse(req.id, JSONRPC_ERROR.internalError, message);
+      const error = err instanceof Error ? err : new Error(String(err));
+      handlers.onError?.(error);
+      errorResponse(req.id, JSONRPC_ERROR.internalError, error.message);
     }
   };
 

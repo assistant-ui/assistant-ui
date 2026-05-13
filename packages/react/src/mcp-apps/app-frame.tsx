@@ -10,6 +10,7 @@ import type {
 } from "./types";
 
 const DEFAULT_PRODUCT = "assistant-ui-mcp-app";
+const INIT_TIMEOUT_MS = 5000;
 
 type MutRef<T> = { current: T };
 
@@ -134,6 +135,7 @@ export function MCPAppFrame({
     if (!container) return;
 
     let cancelled = false;
+    let initTimeoutId: ReturnType<typeof setTimeout> | null = null;
     const live = liveRef.current;
     const sb = live.sandbox;
 
@@ -162,30 +164,44 @@ export function MCPAppFrame({
         const current = liveRef.current;
         const wrappedHandlers = buildLiveHandlers(current.handlers, liveRef);
         const userOnInitialized = wrappedHandlers.onInitialized;
-        wrappedHandlers.onInitialized = () => {
+        const flushPending = () => {
+          if (widgetReadyRef.current) return;
           widgetReadyRef.current = true;
           const b = bridgeRef.current;
-          if (b) {
-            if (pendingInputRef.current !== undefined) {
-              b.notifyToolInput(pendingInputRef.current);
-              lastSentInputRef.current = pendingInputRef.current;
-              pendingInputRef.current = undefined;
-            }
-            if (pendingOutputRef.current !== undefined) {
-              b.notifyToolResult(pendingOutputRef.current);
-              lastSentOutputRef.current = pendingOutputRef.current;
-              pendingOutputRef.current = undefined;
-            }
-            if (pendingHostContextRef.current !== undefined) {
-              b.notifyHostContextChanged(
-                pendingHostContextRef.current as MCPAppHostContext,
-              );
-              lastSentHostContextRef.current = pendingHostContextRef.current;
-              pendingHostContextRef.current = undefined;
-            }
+          if (!b) return;
+          if (pendingInputRef.current !== undefined) {
+            b.notifyToolInput(pendingInputRef.current);
+            lastSentInputRef.current = pendingInputRef.current;
+            pendingInputRef.current = undefined;
           }
+          if (pendingOutputRef.current !== undefined) {
+            b.notifyToolResult(pendingOutputRef.current);
+            lastSentOutputRef.current = pendingOutputRef.current;
+            pendingOutputRef.current = undefined;
+          }
+          if (pendingHostContextRef.current !== undefined) {
+            b.notifyHostContextChanged(
+              pendingHostContextRef.current as MCPAppHostContext,
+            );
+            lastSentHostContextRef.current = pendingHostContextRef.current;
+            pendingHostContextRef.current = undefined;
+          }
+        };
+        wrappedHandlers.onInitialized = () => {
+          if (initTimeoutId !== null) {
+            clearTimeout(initTimeoutId);
+            initTimeoutId = null;
+          }
+          flushPending();
           userOnInitialized?.();
         };
+        // Safety net: if the widget never sends notifications/initialized
+        // (broken or non-spec-compliant), flush the queue anyway so the host
+        // doesn't appear hung.
+        initTimeoutId = setTimeout(() => {
+          initTimeoutId = null;
+          flushPending();
+        }, INIT_TIMEOUT_MS);
         bridgeRef.current = createMCPAppBridge({
           frame: rendered,
           handlers: wrappedHandlers,
@@ -208,6 +224,10 @@ export function MCPAppFrame({
 
     return () => {
       cancelled = true;
+      if (initTimeoutId !== null) {
+        clearTimeout(initTimeoutId);
+        initTimeoutId = null;
+      }
       bridgeRef.current?.dispose();
       bridgeRef.current = null;
       frameRef.current?.dispose();
