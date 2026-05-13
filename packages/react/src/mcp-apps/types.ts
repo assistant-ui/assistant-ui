@@ -129,10 +129,12 @@ export type MCPAppJsonRpcResponse =
       jsonrpc: "2.0";
       id: string | number;
       result: unknown;
+      error?: never;
     }
   | {
       jsonrpc: "2.0";
       id: string | number;
+      result?: never;
       error: MCPAppJsonRpcError;
     };
 
