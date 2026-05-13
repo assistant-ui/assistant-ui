@@ -214,5 +214,4 @@ bridge.dispose();
 
 - Widgets run cross-origin in a sandboxed iframe. The bridge filters incoming messages by both source window and origin.
 - `openLink` rejects non-`http(s)` URLs at the bridge layer, but your `openLink` handler should still treat the URL as untrusted (e.g. always use `noopener,noreferrer`).
-- The default `localStorage` storage in `react-mcp` (if you also use it) keeps OAuth tokens in plain text. Use a custom storage adapter for production.
 - The renderer caches the most recent MCP app metadata across part-state transitions, so the iframe doesn't remount when streaming input arrives. Handlers passed via `MCPAppProvider` are routed through a live ref — inline callbacks work, but capability *presence* is determined at mount time. Add a handler later and the widget won't see the capability until the resource URI changes (which forces a remount).

@@ -60,15 +60,11 @@ function buildLiveHandlers(
       "updateModelContext",
       "updateModelContext",
     );
-  if (has("requestDisplayMode")) {
-    out.requestDisplayMode = async (p) => {
-      const fn = live()?.requestDisplayMode;
-      if (!fn) {
-        throw new Error("requestDisplayMode handler is no longer available");
-      }
-      return fn(p);
-    };
-  }
+  if (has("requestDisplayMode"))
+    out.requestDisplayMode = liveCall(
+      "requestDisplayMode",
+      "requestDisplayMode",
+    );
   out.onSizeChange = (p) => live()?.onSizeChange?.(p);
   out.onInitialized = () => live()?.onInitialized?.();
   out.onRequestTeardown = (p) => live()?.onRequestTeardown?.(p);
