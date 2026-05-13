@@ -79,6 +79,11 @@ export type McpAppMetadata = {
   readonly visibility?: readonly ("model" | "app")[];
 };
 
+export const MCP_APP_URI_SCHEME = "ui://";
+
+export const isMcpAppUri = (uri: string | undefined): boolean =>
+  !!uri?.startsWith(MCP_APP_URI_SCHEME);
+
 export type ToolCallMessagePartMcpMetadata = {
   readonly app?: McpAppMetadata;
 };

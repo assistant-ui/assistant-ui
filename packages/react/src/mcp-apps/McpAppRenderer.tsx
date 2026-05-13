@@ -104,7 +104,7 @@ function InlineRenderer({
     loadedResource?.resourceUri === appForRender?.resourceUri
       ? loadedResource
       : undefined;
-  const resource = loadedResourceForApp?.resource;
+  const appResource = loadedResourceForApp?.resource;
   const error = loadedResourceForApp?.error;
 
   const fallback = opts.fallback ?? null;
@@ -117,14 +117,14 @@ function InlineRenderer({
     if (typeof errorFallback === "function") return <>{errorFallback(error)}</>;
     return <>{errorFallback}</>;
   }
-  if (resource == null) {
+  if (appResource == null) {
     return <>{opts.loadingFallback ?? fallback}</>;
   }
 
   return (
     <McpAppFrame
       app={appForRender}
-      resource={resource}
+      resource={appResource}
       input={getInput(part)}
       output={part.result}
       sandbox={opts.sandbox}

@@ -33,6 +33,8 @@ export type {
   AppendMessage,
 } from "./types/message";
 
+export { MCP_APP_URI_SCHEME, isMcpAppUri } from "./types/message";
+
 export type {
   Attachment,
   PendingAttachment,

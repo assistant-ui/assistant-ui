@@ -1,4 +1,8 @@
-import type { ToolCallMessagePart, McpAppMetadata } from "@assistant-ui/core";
+import {
+  isMcpAppUri,
+  type McpAppMetadata,
+  type ToolCallMessagePart,
+} from "@assistant-ui/core";
 
 type ToolPartLike = Pick<ToolCallMessagePart, "mcp">;
 
@@ -7,6 +11,6 @@ export function getMcpAppFromToolPart(
 ): McpAppMetadata | undefined {
   const app = part.mcp?.app;
   if (!app || typeof app.resourceUri !== "string") return undefined;
-  if (!app.resourceUri.startsWith("ui://")) return undefined;
+  if (!isMcpAppUri(app.resourceUri)) return undefined;
   return app;
 }

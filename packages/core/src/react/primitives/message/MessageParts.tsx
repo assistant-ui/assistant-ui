@@ -31,7 +31,7 @@ import type {
   ReasoningGroupComponent,
   QuoteMessagePartComponent,
 } from "../../types/MessagePartComponentTypes";
-import type { MessagePartStatus } from "../../../types/message";
+import { isMcpAppUri, type MessagePartStatus } from "../../../types/message";
 import type { DataRenderersState } from "../../types/scopes/dataRenderers";
 import { useShallow } from "zustand/shallow";
 
@@ -510,9 +510,6 @@ const QuoteRendererImpl: FC<{ Quote: QuoteMessagePartComponent }> = ({
 };
 
 const QuoteRenderer = memo(QuoteRendererImpl);
-
-const isMcpAppUri = (uri: string | undefined): boolean =>
-  !!uri?.startsWith("ui://");
 
 /**
  * Stable propless component that renders the registered tool UI for the

@@ -3,16 +3,17 @@ import {
   createMessageConverter as unstable_createMessageConverter,
   type useExternalMessageConverter,
 } from "@assistant-ui/core/react";
-import type {
-  ReasoningMessagePart,
-  ToolCallMessagePart,
-  TextMessagePart,
-  DataMessagePart,
-  SourceMessagePart,
-  SourceProviderMetadata,
-  FileMessagePart,
-  ThreadMessageLike,
-  McpAppMetadata,
+import {
+  isMcpAppUri,
+  type ReasoningMessagePart,
+  type ToolCallMessagePart,
+  type TextMessagePart,
+  type DataMessagePart,
+  type SourceMessagePart,
+  type SourceProviderMetadata,
+  type FileMessagePart,
+  type ThreadMessageLike,
+  type McpAppMetadata,
 } from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { unwrapModelContentEnvelope } from "../../modelContentEnvelope";
@@ -43,7 +44,7 @@ function extractMcpAppMetadata(
   if (!app || typeof app !== "object") return undefined;
   const a = app as Record<string, unknown>;
   if (typeof a["resourceUri"] !== "string") return undefined;
-  if (!a["resourceUri"].startsWith("ui://")) return undefined;
+  if (!isMcpAppUri(a["resourceUri"])) return undefined;
   const cached = cache?.get(a["resourceUri"]);
   if (cached) return cached;
   const out: { -readonly [K in keyof McpAppMetadata]: McpAppMetadata[K] } = {

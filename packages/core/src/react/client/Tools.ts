@@ -12,15 +12,13 @@ import {
   type ClientOutput,
   attachTransformScopes,
 } from "@assistant-ui/store";
-import type { ToolsState } from "../types/scopes/tools";
+import type { McpAppResourceOutput, ToolsState } from "../types/scopes/tools";
 import type { Tool } from "assistant-stream";
 import type { Toolkit } from "../model-context/toolbox";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import { ModelContext } from "../../store";
 
-export type McpAppResourceOutput = {
-  readonly render: ToolCallMessagePartComponent;
-};
+export type { McpAppResourceOutput };
 
 export const Tools = resource(
   ({
