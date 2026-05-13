@@ -23,6 +23,7 @@ import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useAuiState, useAui } from "@assistant-ui/store";
 import { flushResourcesSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
+import { useTriggerPopoverActiveAriaOptional } from "./trigger/TriggerPopoverRootContext";
 
 export namespace ComposerPrimitiveInput {
   export type Element = HTMLTextAreaElement;
@@ -142,6 +143,7 @@ export const ComposerPrimitiveInput = forwardRef<
   ) => {
     const aui = useAui();
     const pluginRegistry = useComposerInputPluginRegistryOptional();
+    const activeAria = useTriggerPopoverActiveAriaOptional();
 
     const effectiveSubmitMode =
       submitMode ?? (submitOnEnter === false ? "none" : "enter");
@@ -287,10 +289,20 @@ export const ComposerPrimitiveInput = forwardRef<
       return aui.on("threadListItem.switchedTo", focus);
     }, [unstable_focusOnThreadSwitched, focus, aui]);
 
+    const ariaComboboxProps = activeAria
+      ? {
+          "aria-controls": activeAria.popoverId,
+          "aria-expanded": true as const,
+          "aria-haspopup": "listbox" as const,
+          "aria-activedescendant": activeAria.highlightedItemId,
+        }
+      : {};
+
     const inputProps = {
       name: "input" as const,
       value,
       ...rest,
+      ...ariaComboboxProps,
       ref: ref as React.ForwardedRef<HTMLTextAreaElement>,
       disabled: isDisabled,
       onChange: composeEventHandlers(

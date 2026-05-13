@@ -179,6 +179,20 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
 
     const open = behavior !== null && resource.open;
 
+    useEffect(() => {
+      if (!open) {
+        root.setActiveAria(char, null);
+        return undefined;
+      }
+      root.setActiveAria(char, {
+        popoverId,
+        highlightedItemId: resource.highlightedItemId,
+      });
+      return () => {
+        root.setActiveAria(char, null);
+      };
+    }, [root, char, popoverId, open, resource.highlightedItemId]);
+
     return (
       <TriggerBehaviorRegistrationContext.Provider value={registration}>
         <TriggerPopoverScopeContext.Provider value={resource}>

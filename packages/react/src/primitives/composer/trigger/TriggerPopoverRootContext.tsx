@@ -29,12 +29,31 @@ export type TriggerPopoverLifecycleListener = {
   removed(char: string): void;
 };
 
+/**
+ * ARIA descriptor of the popover that is currently open. Consumed by the
+ * focused element (typically the composer textarea) so it can advertise the
+ * combobox relationship per the WAI-ARIA editable combobox pattern.
+ */
+export type TriggerPopoverActiveAria = {
+  popoverId: string;
+  highlightedItemId: string | undefined;
+};
+
 export type TriggerPopoverRootContextValue = {
   register(trigger: RegisteredTrigger): () => void;
   getTriggers(): ReadonlyMap<string, RegisteredTrigger>;
   subscribe(listener: () => void): () => void;
   /** Subscribe to per-trigger add/remove events. */
   subscribeLifecycle(listener: TriggerPopoverLifecycleListener): () => void;
+  /** ARIA descriptor of the open popover, or null if none is open. */
+  getActiveAria(): TriggerPopoverActiveAria | null;
+  /** Subscribe to changes in the active ARIA descriptor. */
+  subscribeAria(listener: () => void): () => void;
+  /**
+   * Internal: TriggerPopover children publish their open / highlight state
+   * here. Pass `null` to clear when the popover closes.
+   */
+  setActiveAria(char: string, aria: TriggerPopoverActiveAria | null): void;
 };
 
 const TriggerPopoverRootContext =
@@ -74,6 +93,23 @@ export const useTriggerPopoverTriggersOptional = () => {
     ctx ? ctx.getTriggers : getEmptyTriggers,
   );
 };
+
+const getNullAria = () => null;
+
+/**
+ * Returns the ARIA descriptor of the currently open trigger popover, or
+ * `null` if none is open or the consumer is rendered outside a
+ * `TriggerPopoverRoot`.
+ */
+export const useTriggerPopoverActiveAriaOptional =
+  (): TriggerPopoverActiveAria | null => {
+    const ctx = useTriggerPopoverRootContextOptional();
+    return useSyncExternalStore(
+      ctx ? ctx.subscribeAria : noopSubscribe,
+      ctx ? ctx.getActiveAria : getNullAria,
+      ctx ? ctx.getActiveAria : getNullAria,
+    );
+  };
 
 export namespace ComposerPrimitiveTriggerPopoverRoot {
   export type Props = {
@@ -156,9 +192,73 @@ const TriggerPopoverRootInner: FC<
     };
   }, []);
 
+  const activeAriaRef = useRef<TriggerPopoverActiveAria | null>(null);
+  const activeAriaCharRef = useRef<string | null>(null);
+  const ariaListenersRef = useRef<Set<() => void>>(new Set());
+
+  const notifyAria = useCallback(() => {
+    for (const listener of ariaListenersRef.current) listener();
+  }, []);
+
+  const setActiveAria = useCallback<
+    TriggerPopoverRootContextValue["setActiveAria"]
+  >(
+    (char, aria) => {
+      if (aria === null) {
+        if (activeAriaCharRef.current !== char) return;
+        activeAriaRef.current = null;
+        activeAriaCharRef.current = null;
+        notifyAria();
+        return;
+      }
+      const prev = activeAriaRef.current;
+      if (
+        activeAriaCharRef.current === char &&
+        prev !== null &&
+        prev.popoverId === aria.popoverId &&
+        prev.highlightedItemId === aria.highlightedItemId
+      ) {
+        return;
+      }
+      activeAriaRef.current = aria;
+      activeAriaCharRef.current = char;
+      notifyAria();
+    },
+    [notifyAria],
+  );
+
+  const getActiveAria = useCallback<
+    TriggerPopoverRootContextValue["getActiveAria"]
+  >(() => activeAriaRef.current, []);
+
+  const subscribeAria = useCallback<
+    TriggerPopoverRootContextValue["subscribeAria"]
+  >((listener) => {
+    ariaListenersRef.current.add(listener);
+    return () => {
+      ariaListenersRef.current.delete(listener);
+    };
+  }, []);
+
   const value = useMemo<TriggerPopoverRootContextValue>(
-    () => ({ register, getTriggers, subscribe, subscribeLifecycle }),
-    [register, getTriggers, subscribe, subscribeLifecycle],
+    () => ({
+      register,
+      getTriggers,
+      subscribe,
+      subscribeLifecycle,
+      getActiveAria,
+      subscribeAria,
+      setActiveAria,
+    }),
+    [
+      register,
+      getTriggers,
+      subscribe,
+      subscribeLifecycle,
+      getActiveAria,
+      subscribeAria,
+      setActiveAria,
+    ],
   );
 
   return (
