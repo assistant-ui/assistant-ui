@@ -1,11 +1,11 @@
 import {
-  Children,
   Fragment,
   cloneElement,
   isValidElement,
   type ReactElement,
   type ReactNode,
 } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import rehypeParse from "rehype-parse";
 import rehypeRemark from "rehype-remark";
 import remarkGfm from "remark-gfm";
@@ -24,6 +24,8 @@ const processor = unified()
     fences: true,
     rule: "-",
   });
+
+const MDX_COMPONENTS = getMDXComponents({});
 
 const OMITTED_STATIC_PROP_NAMES = new Set([
   "children",
@@ -176,7 +178,7 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
   }
 
   if (Array.isArray(node)) {
-    return Promise.all(Children.toArray(node).map(resolveStaticReactNode));
+    return Promise.all(node.map(resolveStaticReactNode));
   }
 
   if (!isValidElement(node)) {
@@ -222,14 +224,12 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
 
 export async function getLLMText(page: InferPageType<typeof source>) {
   const Body = page.data.body;
-  const components = getMDXComponents({});
 
   // TODO: Platform-scoped MDX currently renders with the server default
   // platform ("react"). If llms output should include React Native or Ink
   // variants, render once per platform or provide an explicit platform scope.
-  const { renderToStaticMarkup } = await import("react-dom/server");
   const staticBody = await resolveStaticReactNode(
-    <Body components={components} />,
+    <Body components={MDX_COMPONENTS} />,
   );
   const html = renderToStaticMarkup(staticBody);
   const markdown = String(await processor.process(html)).trim();
