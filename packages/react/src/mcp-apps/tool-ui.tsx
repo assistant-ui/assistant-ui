@@ -21,6 +21,9 @@ export const MCPAppToolUI: ToolCallMessagePartComponent = (part) => {
       handlers={ctx.handlers}
       hostInfo={ctx.hostInfo}
       hostContext={ctx.hostContext}
+      fallback={ctx.fallback}
+      loadingFallback={ctx.loadingFallback}
+      errorFallback={ctx.errorFallback}
     />
   );
 };

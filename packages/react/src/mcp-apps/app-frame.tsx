@@ -30,20 +30,43 @@ function buildLiveHandlers(
     initial?.[key] !== undefined;
   const out: MCPAppBridgeHandlers = {};
   if (has("allowedTools")) {
-    const allowed = live()?.allowedTools;
-    if (allowed !== undefined) out.allowedTools = allowed;
+    Object.defineProperty(out, "allowedTools", {
+      get: () => live()?.allowedTools,
+      enumerable: true,
+      configurable: true,
+    });
   }
-  if (has("callTool")) out.callTool = (p) => live()?.callTool?.(p);
-  if (has("readResource")) out.readResource = (p) => live()?.readResource?.(p);
+  const liveCall = <K extends keyof MCPAppBridgeHandlers>(
+    key: K,
+    label: string,
+  ) =>
+    ((p: unknown) => {
+      const fn = live()?.[key] as ((p: unknown) => unknown) | undefined;
+      if (!fn) {
+        throw new Error(`${label} handler is no longer available`);
+      }
+      return fn(p);
+    }) as never;
+  if (has("callTool")) out.callTool = liveCall("callTool", "tools/call");
+  if (has("readResource"))
+    out.readResource = liveCall("readResource", "resources/read");
   if (has("listResources"))
-    out.listResources = (p) => live()?.listResources?.(p);
-  if (has("openLink")) out.openLink = (p) => live()?.openLink?.(p);
-  if (has("sendMessage")) out.sendMessage = (p) => live()?.sendMessage?.(p);
+    out.listResources = liveCall("listResources", "resources/list");
+  if (has("openLink")) out.openLink = liveCall("openLink", "openLink");
+  if (has("sendMessage"))
+    out.sendMessage = liveCall("sendMessage", "sendMessage");
   if (has("updateModelContext"))
-    out.updateModelContext = (p) => live()?.updateModelContext?.(p);
+    out.updateModelContext = liveCall(
+      "updateModelContext",
+      "updateModelContext",
+    );
   if (has("requestDisplayMode")) {
     out.requestDisplayMode = async (p) => {
-      const r = await live()?.requestDisplayMode?.(p);
+      const fn = live()?.requestDisplayMode;
+      if (!fn) {
+        throw new Error("requestDisplayMode handler is no longer available");
+      }
+      const r = await fn(p);
       return r ?? { mode: p.mode };
     };
   }

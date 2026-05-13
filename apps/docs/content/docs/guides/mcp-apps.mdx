@@ -124,7 +124,7 @@ Use `splitMCPAppTools()` (from `@ai-sdk/mcp`) on the server route to keep app-on
 ```ts
 import { splitMCPAppTools } from "@ai-sdk/mcp";
 
-const tools = await mcpClient.listTools();
+const tools = await client.listTools();
 const { modelVisible } = splitMCPAppTools(tools);
 
 const result = streamText({

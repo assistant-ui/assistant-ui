@@ -32,6 +32,8 @@ export function MCPAppRenderer({
   hostInfo,
   hostContext,
   fallback = null,
+  loadingFallback,
+  errorFallback,
 }: MCPAppRendererProps) {
   const app = getMCPAppFromToolPart(part);
   const [cachedApp, setCachedApp] = useState<MCPAppMetadata>();
@@ -89,8 +91,16 @@ export function MCPAppRenderer({
   const resource = resourceProp ?? loadedResourceForApp?.resource;
   const error = resourceProp == null ? loadedResourceForApp?.error : undefined;
 
-  if (appForRender == null || error != null || resource == null) {
+  if (appForRender == null) {
     return <>{fallback}</>;
+  }
+  if (error != null) {
+    if (errorFallback === undefined) return <>{fallback}</>;
+    if (typeof errorFallback === "function") return <>{errorFallback(error)}</>;
+    return <>{errorFallback}</>;
+  }
+  if (resource == null) {
+    return <>{loadingFallback ?? fallback}</>;
   }
 
   return (

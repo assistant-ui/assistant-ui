@@ -16,6 +16,9 @@ export type MCPAppContextValue = {
   handlers?: MCPAppBridgeHandlers | undefined;
   hostInfo?: MCPAppHostInfo | undefined;
   hostContext?: MCPAppHostContext | undefined;
+  fallback?: ReactNode | undefined;
+  loadingFallback?: ReactNode | undefined;
+  errorFallback?: ReactNode | ((error: Error) => ReactNode) | undefined;
 };
 
 const MCPAppContext = createContext<MCPAppContextValue | null>(null);
@@ -31,10 +34,31 @@ export function MCPAppProvider({
   handlers,
   hostInfo,
   hostContext,
+  fallback,
+  loadingFallback,
+  errorFallback,
 }: MCPAppProviderProps) {
   const value = useMemo<MCPAppContextValue>(
-    () => ({ loadResource, sandbox, handlers, hostInfo, hostContext }),
-    [loadResource, sandbox, handlers, hostInfo, hostContext],
+    () => ({
+      loadResource,
+      sandbox,
+      handlers,
+      hostInfo,
+      hostContext,
+      fallback,
+      loadingFallback,
+      errorFallback,
+    }),
+    [
+      loadResource,
+      sandbox,
+      handlers,
+      hostInfo,
+      hostContext,
+      fallback,
+      loadingFallback,
+      errorFallback,
+    ],
   );
   return (
     <MCPAppContext.Provider value={value}>{children}</MCPAppContext.Provider>
