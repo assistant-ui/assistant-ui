@@ -12,13 +12,13 @@ import type {
 const DEFAULT_PRODUCT = "assistant-ui-mcp-app";
 const INIT_TIMEOUT_MS = 5000;
 
-function useBridgeNotify(
-  value: unknown,
+function useBridgeNotify<T>(
+  value: T | undefined,
   bridgeRef: MutableRefObject<MCPAppBridge | null>,
   widgetReadyRef: MutableRefObject<boolean>,
-  pendingRef: MutableRefObject<unknown>,
-  lastSentRef: MutableRefObject<unknown>,
-  notify: (bridge: MCPAppBridge, v: unknown) => void,
+  pendingRef: MutableRefObject<T | undefined>,
+  lastSentRef: MutableRefObject<T | undefined>,
+  notify: (bridge: MCPAppBridge, v: T) => void,
 ) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: refs and notify are stable; we re-run only when value changes.
   useEffect(() => {
@@ -105,14 +105,18 @@ export function MCPAppFrame({
   const frameRef = useRef<RenderedFrame | null>(null);
   const lastSentInputRef = useRef<unknown>(undefined);
   const lastSentOutputRef = useRef<unknown>(undefined);
-  const lastSentHostContextRef = useRef<unknown>(undefined);
+  const lastSentHostContextRef = useRef<MCPAppHostContext | undefined>(
+    undefined,
+  );
   // Per MCP Apps spec, the host should defer notifications until the widget
   // signals readiness via `notifications/initialized`. Until then, we record
   // pending values and flush them on init.
   const widgetReadyRef = useRef(false);
   const pendingInputRef = useRef<unknown>(undefined);
   const pendingOutputRef = useRef<unknown>(undefined);
-  const pendingHostContextRef = useRef<unknown>(undefined);
+  const pendingHostContextRef = useRef<MCPAppHostContext | undefined>(
+    undefined,
+  );
 
   const liveRef = useRef<LiveSnapshot>(null!);
   liveRef.current = {
@@ -178,9 +182,7 @@ export function MCPAppFrame({
             pendingOutputRef.current = undefined;
           }
           if (pendingHostContextRef.current !== undefined) {
-            b.notifyHostContextChanged(
-              pendingHostContextRef.current as MCPAppHostContext,
-            );
+            b.notifyHostContextChanged(pendingHostContextRef.current);
             lastSentHostContextRef.current = pendingHostContextRef.current;
             pendingHostContextRef.current = undefined;
           }
@@ -262,7 +264,7 @@ export function MCPAppFrame({
     widgetReadyRef,
     pendingHostContextRef,
     lastSentHostContextRef,
-    (b, v) => b.notifyHostContextChanged(v as MCPAppHostContext),
+    (b, v) => b.notifyHostContextChanged(v),
   );
 
   return (

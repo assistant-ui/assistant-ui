@@ -22,13 +22,17 @@ export type AISDKMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
     toolLastInputCache?: Map<string, ReadonlyJSONObject>;
+    mcpAppMetadataCache?: Map<string, MCPAppMetadata>;
   };
 
 function stripClosingDelimiters(json: string): string {
   return json.replace(/[}\]"]+$/, "");
 }
 
-function extractMCPAppMetadata(part: unknown): MCPAppMetadata | undefined {
+function extractMCPAppMetadata(
+  part: unknown,
+  cache: Map<string, MCPAppMetadata> | undefined,
+): MCPAppMetadata | undefined {
   if (!part || typeof part !== "object") return undefined;
   const meta = (part as { callProviderMetadata?: unknown })
     .callProviderMetadata;
@@ -39,6 +43,8 @@ function extractMCPAppMetadata(part: unknown): MCPAppMetadata | undefined {
   if (!app || typeof app !== "object") return undefined;
   const a = app as Record<string, unknown>;
   if (typeof a["resourceUri"] !== "string") return undefined;
+  const cached = cache?.get(a["resourceUri"]);
+  if (cached) return cached;
   const out: { -readonly [K in keyof MCPAppMetadata]: MCPAppMetadata[K] } = {
     resourceUri: a["resourceUri"],
   };
@@ -48,6 +54,7 @@ function extractMCPAppMetadata(part: unknown): MCPAppMetadata | undefined {
       (v): v is "model" | "app" => v === "model" || v === "app",
     );
   }
+  cache?.set(a["resourceUri"], out);
   return out;
 }
 
@@ -228,7 +235,10 @@ function convertParts(
         }
 
         const toolStatus = metadata.toolStatuses?.[toolCallId];
-        const mcpApp = extractMCPAppMetadata(part);
+        const mcpApp = extractMCPAppMetadata(
+          part,
+          metadata.mcpAppMetadataCache,
+        );
         return {
           type: "tool-call",
           toolName,
