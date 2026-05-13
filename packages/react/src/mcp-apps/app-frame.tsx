@@ -136,24 +136,45 @@ export function MCPAppFrame({
         }
         frameRef.current = rendered;
         const current = liveRef.current;
+        const wrappedHandlers = buildLiveHandlers(current.handlers, liveRef);
+        const userOnInitialized = wrappedHandlers.onInitialized;
+        wrappedHandlers.onInitialized = () => {
+          widgetReadyRef.current = true;
+          const b = bridgeRef.current;
+          if (b) {
+            if (pendingInputRef.current !== undefined) {
+              b.notifyToolInput(pendingInputRef.current);
+              lastSentInputRef.current = pendingInputRef.current;
+              pendingInputRef.current = undefined;
+            }
+            if (pendingOutputRef.current !== undefined) {
+              b.notifyToolResult(pendingOutputRef.current);
+              lastSentOutputRef.current = pendingOutputRef.current;
+              pendingOutputRef.current = undefined;
+            }
+            if (pendingHostContextRef.current !== undefined) {
+              b.notifyHostContextChanged(
+                pendingHostContextRef.current as MCPAppHostContext,
+              );
+              lastSentHostContextRef.current = pendingHostContextRef.current;
+              pendingHostContextRef.current = undefined;
+            }
+          }
+          userOnInitialized?.();
+        };
         bridgeRef.current = createMCPAppBridge({
           frame: rendered,
-          handlers: buildLiveHandlers(current.handlers, liveRef),
+          handlers: wrappedHandlers,
           hostInfo: current.hostInfo,
           hostContext: current.hostContext,
         });
 
-        if (current.input !== undefined) {
-          bridgeRef.current.notifyToolInput(current.input);
-          lastSentInputRef.current = current.input;
-        }
-        if (current.output !== undefined) {
-          bridgeRef.current.notifyToolResult(current.output);
-          lastSentOutputRef.current = current.output;
-        }
-        if (current.hostContext) {
-          lastSentHostContextRef.current = current.hostContext;
-        }
+        if (current.input !== undefined)
+          pendingInputRef.current = current.input;
+        if (current.output !== undefined)
+          pendingOutputRef.current = current.output;
+        if (current.hostContext)
+          pendingHostContextRef.current = current.hostContext;
       })
       .catch((err) => {
         liveRef.current.handlers?.onError?.(
@@ -170,6 +191,10 @@ export function MCPAppFrame({
       lastSentInputRef.current = undefined;
       lastSentOutputRef.current = undefined;
       lastSentHostContextRef.current = undefined;
+      widgetReadyRef.current = false;
+      pendingInputRef.current = undefined;
+      pendingOutputRef.current = undefined;
+      pendingHostContextRef.current = undefined;
     };
   }, [resourceUri]);
 
@@ -177,6 +202,10 @@ export function MCPAppFrame({
     if (!bridgeRef.current) return;
     if (input === undefined) return;
     if (lastSentInputRef.current === input) return;
+    if (!widgetReadyRef.current) {
+      pendingInputRef.current = input;
+      return;
+    }
     bridgeRef.current.notifyToolInput(input);
     lastSentInputRef.current = input;
   }, [input]);
@@ -185,6 +214,10 @@ export function MCPAppFrame({
     if (!bridgeRef.current) return;
     if (output === undefined) return;
     if (lastSentOutputRef.current === output) return;
+    if (!widgetReadyRef.current) {
+      pendingOutputRef.current = output;
+      return;
+    }
     bridgeRef.current.notifyToolResult(output);
     lastSentOutputRef.current = output;
   }, [output]);
@@ -193,6 +226,10 @@ export function MCPAppFrame({
     if (!bridgeRef.current) return;
     if (!hostContext) return;
     if (lastSentHostContextRef.current === hostContext) return;
+    if (!widgetReadyRef.current) {
+      pendingHostContextRef.current = hostContext;
+      return;
+    }
     bridgeRef.current.notifyHostContextChanged(hostContext);
     lastSentHostContextRef.current = hostContext;
   }, [hostContext]);
