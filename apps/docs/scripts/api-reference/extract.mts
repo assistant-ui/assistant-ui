@@ -293,10 +293,7 @@ export function jsDocTag(
   source = "unknown source",
 ): string | undefined {
   const tag = doc?.getTags().find((tag) => tag.getTagName() === name);
-  const comment = tag?.getCommentText?.() ?? tag?.getComment();
-  const text = Array.isArray(comment)
-    ? comment.map((part) => part.getText()).join("")
-    : comment?.toString();
+  const text = tag?.getCommentText();
   const cleaned = text
     ?.replace(/\n\s*\*\s?/g, "\n")
     .replace(/\n{3,}/g, "\n\n")

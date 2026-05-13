@@ -171,6 +171,13 @@ type ClassifiedExportInput = DiscoveredExportInput & {
 
 type ApiReferenceLinkItem = Pick<ExportInfo, "name" | "section" | "page">;
 
+const MANUAL_API_REFERENCE_LINKS = new Map([
+  [
+    "AssistantState",
+    "/docs/api-reference/primitives/assistant-if#assistantstate",
+  ],
+]);
+
 function collectExportInputs(entryPath: string): DiscoveredExportInput[] {
   const project = getProject();
   const sourceFile =
@@ -218,7 +225,11 @@ function cleanLinkTarget(target: string): string {
 function createApiReferenceLinkResolver(items: ApiReferenceLinkItem[]) {
   const itemByName = new Map(items.map((item) => [item.name, item]));
   return (target: string): string | undefined => {
-    const item = itemByName.get(cleanLinkTarget(target));
+    const name = cleanLinkTarget(target);
+    const manualHref = MANUAL_API_REFERENCE_LINKS.get(name);
+    if (manualHref) return manualHref;
+
+    const item = itemByName.get(name);
     return item ? apiReferenceHref(item) : undefined;
   };
 }
@@ -246,13 +257,11 @@ function linkItemsFor(inputs: ClassifiedExportInput[]): ApiReferenceLinkItem[] {
     }));
 }
 
-let reactApiLinkItems: ApiReferenceLinkItem[] | undefined;
+let reactApiInputs: ClassifiedExportInput[] | undefined;
 
-function getReactApiLinkItems(): ApiReferenceLinkItem[] {
-  reactApiLinkItems ??= linkItemsFor(
-    classifyExportInputs(collectExportInputs(REACT_INDEX)),
-  );
-  return reactApiLinkItems;
+function getReactApiInputs(): ClassifiedExportInput[] {
+  reactApiInputs ??= classifyExportInputs(collectExportInputs(REACT_INDEX));
+  return reactApiInputs;
 }
 
 function buildReactExportInfo({
@@ -282,9 +291,8 @@ function buildReactExportInfo({
 }
 
 export function discoverExports(): ExportInfo[] {
-  const inputs = classifyExportInputs(collectExportInputs(REACT_INDEX));
-  reactApiLinkItems = linkItemsFor(inputs);
-  setJsDocLinkResolver(createApiReferenceLinkResolver(reactApiLinkItems));
+  const inputs = getReactApiInputs();
+  setJsDocLinkResolver(createApiReferenceLinkResolver(linkItemsFor(inputs)));
   return inputs.map(buildReactExportInfo);
 }
 
@@ -298,7 +306,7 @@ export function discoverIntegrationExports(
 
   setJsDocLinkResolver(
     createApiReferenceLinkResolver([
-      ...getReactApiLinkItems(),
+      ...linkItemsFor(getReactApiInputs()),
       ...linkItemsFor(inputs),
     ]),
   );
