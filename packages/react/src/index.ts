@@ -382,19 +382,19 @@ export {
 export type { Assistant } from "./augmentations";
 
 // --- mcp-apps ---
-export { McpAppRenderer } from "./mcp-apps";
+export { McpAppRenderer, McpAppsRemoteHost } from "./mcp-apps";
 export type {
   McpAppRendererOptions,
   McpAppMetadata,
   McpAppResource,
   McpAppResourceMeta,
   McpAppResourceCSP,
-  McpAppBridgeHandlers,
   McpAppSandboxConfig,
   McpAppHostInfo,
   McpAppHostContext,
   McpAppDisplayMode,
-  McpAppHostConfig,
+  McpAppsHost,
+  McpAppsRemoteHostOptions,
   McpAppToolCallParams,
   ToolCallMessagePartMcpMetadata,
 } from "./mcp-apps";

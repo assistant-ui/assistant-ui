@@ -29,15 +29,19 @@ The renderer talks to a backend route you expose — the MCP client lives server
 Compose `McpAppRenderer({...})` into your `Tools` resource. Provide `host.url` pointing at your route. Any tool-call part carrying `mcp.app` metadata renders the MCP App widget automatically.
 
 ```tsx
-import { useAui } from "@assistant-ui/react";
-import { Tools, McpAppRenderer } from "@assistant-ui/react";
+import {
+  useAui,
+  Tools,
+  McpAppRenderer,
+  McpAppsRemoteHost,
+} from "@assistant-ui/react";
 
 function MyAssistant() {
   useAui({
     tools: Tools({
       toolkit: myToolkit,
       mcpApp: McpAppRenderer({
-        host: { url: "/api/mcp-apps" },
+        host: McpAppsRemoteHost({ url: "/api/mcp-apps" }),
         hostInfo: { name: "my-app", version: "1.0.0" },
         hostContext: { theme: "light" },
       }),
@@ -47,7 +51,9 @@ function MyAssistant() {
 }
 ```
 
-`callTool`, `readResource`, `listResources`, and the resource fetch are auto-wired to `host.url`. `openLink` defaults to `window.open(url, "_blank", "noopener,noreferrer")`. `sendMessage` defaults to appending a user message to the current thread (accepts `string`, `{ prompt }`, `{ text }`, or `{ message }`). Override or extend via `handlers` for `requestDisplayMode`, `updateModelContext`, or lifecycle events.
+`McpAppsRemoteHost` is the default host strategy — it POSTs `{ method, params }` to your route. A different strategy (e.g. a client-side MCP client) can be plugged in by writing a custom resource that returns the same `McpAppsHost` shape (`{ loadResource, callTool, readResource, listResources }`).
+
+`openLink` is auto-wired to `window.open(url, "_blank", "noopener,noreferrer")`. `sendMessage` is auto-wired to append a user message to the current thread (accepts `string`, `{ prompt }`, `{ text }`, or `{ message }`).
 
 ### Route handler
 

@@ -1,15 +1,16 @@
 export { McpAppRenderer, type McpAppRendererOptions } from "./McpAppRenderer";
+export { McpAppsRemoteHost } from "./McpAppsRemoteHost";
 export type {
   McpAppMetadata,
   McpAppResource,
   McpAppResourceMeta,
   McpAppResourceCSP,
-  McpAppBridgeHandlers,
   McpAppSandboxConfig,
   McpAppHostInfo,
   McpAppHostContext,
   McpAppDisplayMode,
-  McpAppHostConfig,
+  McpAppsHost,
+  McpAppsRemoteHostOptions,
   McpAppToolCallParams,
   ToolCallMessagePartMcpMetadata,
 } from "./types";

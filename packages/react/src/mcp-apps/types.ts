@@ -47,18 +47,26 @@ export type McpAppHostInfo = {
 };
 
 /**
- * Configures a backend route that mediates MCP operations.
- *
- * The renderer POSTs `{ method, params }` to `url`. The route handler
- * dispatches by method name and returns the result as JSON.
- *
- * Method contract:
+ * What `McpAppRenderer` needs from its host — the data-plane operations
+ * the widget can request. Provided by a host resource like
+ * `McpAppsRemoteHost`.
+ */
+export type McpAppsHost = {
+  loadResource: (params: { uri: string }) => Promise<McpAppResource>;
+  callTool: (params: McpAppToolCallParams) => Promise<unknown>;
+  readResource: (params: { uri: string }) => Promise<unknown>;
+  listResources: (params?: unknown) => Promise<unknown>;
+};
+
+/**
+ * Options for `McpAppsRemoteHost`. The host POSTs `{ method, params }` to
+ * `url` and expects JSON responses. Method names sent:
  * - `mcp-apps/read-resource` (`{ uri }`) → `McpAppResource`
  * - `tools/call` (`{ name, arguments? }`) → tool result
  * - `resources/read` (`{ uri }`) → resource read result
  * - `resources/list` (`params?`) → list result
  */
-export type McpAppHostConfig = {
+export type McpAppsRemoteHostOptions = {
   url: string;
   fetch?: typeof fetch;
   headers?:

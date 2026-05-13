@@ -7,36 +7,31 @@ import type {
   ToolCallMessagePartProps,
 } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
-import { resource, tapConst, tapRef } from "@assistant-ui/tap";
+import {
+  resource,
+  tapConst,
+  tapRef,
+  tapResource,
+  type ResourceElement,
+} from "@assistant-ui/tap";
 import { McpAppFrame } from "./app-frame";
 import type {
   McpAppBridgeHandlers,
-  McpAppHostConfig,
   McpAppHostContext,
   McpAppHostInfo,
   McpAppResource,
   McpAppSandboxConfig,
+  McpAppsHost,
 } from "./types";
 import { getMcpAppFromToolPart } from "./utils";
 
 export type McpAppRendererOptions = {
   /**
-   * Backend route that mediates MCP operations. The renderer auto-implements
-   * `loadResource` and the data-side handlers (`callTool`, `readResource`,
-   * `listResources`) by POSTing `{ method, params }` to `host.url`. See
-   * {@link McpAppHostConfig} for the method contract.
+   * Provides the data-plane operations the widget can request
+   * (`loadResource`, `callTool`, `readResource`, `listResources`). Use
+   * `McpAppsRemoteHost({ url })` for the default HTTP-route convention.
    */
-  host: McpAppHostConfig;
-  /**
-   * Client-side bridge handlers — for capabilities that must run in the
-   * browser (DOM access, composer wiring, lifecycle events). Optional.
-   * Data handlers (`callTool` / `readResource` / `listResources`) are
-   * sourced from `host` and should not be set here.
-   */
-  handlers?: Omit<
-    McpAppBridgeHandlers,
-    "callTool" | "readResource" | "listResources"
-  >;
+  host: ResourceElement<McpAppsHost>;
   /** Sandbox + container styling. Passes through to SafeContentFrame. */
   sandbox?: McpAppSandboxConfig;
   /** Identifies the host to the widget in the `ui/initialize` response. */
@@ -71,27 +66,6 @@ function getInput(part: {
   return part.args;
 }
 
-async function postToHost(
-  host: McpAppHostConfig,
-  method: string,
-  params: unknown,
-): Promise<unknown> {
-  const doFetch = host.fetch ?? fetch;
-  const extraHeaders =
-    typeof host.headers === "function"
-      ? await host.headers()
-      : (host.headers ?? {});
-  const res = await doFetch(host.url, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...extraHeaders },
-    body: JSON.stringify({ method, params }),
-  });
-  if (!res.ok) {
-    throw new Error(`MCP App host request failed: ${res.status}`);
-  }
-  return res.json();
-}
-
 const defaultOpenLink = ({ url }: { url: string }) => {
   window.open(url, "_blank", "noopener,noreferrer");
 };
@@ -106,26 +80,17 @@ function extractSendMessageText(params: unknown): string | undefined {
   return undefined;
 }
 
-function buildBridgeHandlers(
-  host: McpAppHostConfig,
-  client: McpAppRendererOptions["handlers"] | undefined,
-  defaults: { sendMessage: NonNullable<McpAppBridgeHandlers["sendMessage"]> },
-): McpAppBridgeHandlers {
-  return {
-    openLink: defaultOpenLink,
-    sendMessage: defaults.sendMessage,
-    ...client,
-    callTool: (params) => postToHost(host, "tools/call", params),
-    readResource: (params) => postToHost(host, "resources/read", params),
-    listResources: (params) => postToHost(host, "resources/list", params),
-  };
-}
+type InternalsRef = {
+  current: { host: McpAppsHost };
+};
 
 function InlineRenderer({
   part,
+  internalsRef,
   optionsRef,
 }: {
   part: ToolCallMessagePartProps;
+  internalsRef: InternalsRef;
   optionsRef: { readonly current: McpAppRendererOptions };
 }) {
   const opts = optionsRef.current;
@@ -143,17 +108,14 @@ function InlineRenderer({
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-fetches only when URI changes; mcp.app object identity is unstable across renders
   useEffect(() => {
     if (appForRender == null || resourceUri == null) return;
-    const host = optionsRef.current.host;
     let cancelled = false;
     const targetUri = resourceUri;
 
-    postToHost(host, "mcp-apps/read-resource", { uri: targetUri })
+    internalsRef.current.host
+      .loadResource({ uri: targetUri })
       .then((res) => {
         if (!cancelled)
-          setLoadedResource({
-            resourceUri: targetUri,
-            resource: res as McpAppResource,
-          });
+          setLoadedResource({ resourceUri: targetUri, resource: res });
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -169,17 +131,21 @@ function InlineRenderer({
     };
   }, [resourceUri]);
 
-  const bridgeHandlers = useMemo(
-    () =>
-      buildBridgeHandlers(opts.host, opts.handlers, {
-        sendMessage: (params) => {
-          const text = extractSendMessageText(params);
-          if (!text) return null;
-          aui.thread().append({ content: [{ type: "text", text }] });
-          return { ok: true };
-        },
-      }),
-    [opts.host, opts.handlers, aui],
+  const bridgeHandlers = useMemo<McpAppBridgeHandlers>(
+    () => ({
+      openLink: defaultOpenLink,
+      sendMessage: (params) => {
+        const text = extractSendMessageText(params);
+        if (!text) return null;
+        aui.thread().append({ content: [{ type: "text", text }] });
+        return { ok: true };
+      },
+      callTool: (params) => internalsRef.current.host.callTool(params),
+      readResource: (params) => internalsRef.current.host.readResource(params),
+      listResources: (params) =>
+        internalsRef.current.host.listResources(params),
+    }),
+    [aui, internalsRef],
   );
 
   const loadedResourceForApp =
@@ -221,12 +187,21 @@ export const McpAppRenderer = resource(
   (
     options: McpAppRendererOptions,
   ): { readonly render: ToolCallMessagePartComponent } => {
+    const host = tapResource(options.host);
+
     const optionsRef = tapRef<McpAppRendererOptions>(options);
     optionsRef.current = options;
 
+    const internalsRef = tapRef<{ host: McpAppsHost }>({ host });
+    internalsRef.current = { host };
+
     const render = tapConst((): ToolCallMessagePartComponent => {
       const Render: ToolCallMessagePartComponent = (props) => (
-        <InlineRenderer part={props} optionsRef={optionsRef} />
+        <InlineRenderer
+          part={props}
+          internalsRef={internalsRef}
+          optionsRef={optionsRef}
+        />
       );
       Render.displayName = "McpAppRenderer";
       return Render;
