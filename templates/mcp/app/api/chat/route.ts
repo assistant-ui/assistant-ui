@@ -7,18 +7,13 @@ import {
   convertToModelMessages,
   type UIMessage,
 } from "ai";
-import { getMcpClient } from "../mcp-client";
+import { getMcpTools } from "../mcp-client";
 
 export const maxDuration = 30;
 
-let cachedMCPTools: ToolSet | null = null;
-
 async function getMCPTools(): Promise<ToolSet> {
-  if (cachedMCPTools) return cachedMCPTools;
   try {
-    const client = await getMcpClient();
-    cachedMCPTools = await client.tools();
-    return cachedMCPTools;
+    return await getMcpTools();
   } catch (e) {
     console.warn("Failed to connect to MCP server:", e);
     return {};

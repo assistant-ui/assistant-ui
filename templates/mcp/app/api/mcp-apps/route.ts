@@ -1,4 +1,4 @@
-import { getMcpClient } from "../mcp-client";
+import { getMcpClient, getMcpTools } from "../mcp-client";
 
 export const maxDuration = 30;
 
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
         if (typeof params.name !== "string") {
           return Response.json({ error: "Missing tool name" }, { status: 400 });
         }
-        const tools = await client.tools();
+        const tools = await getMcpTools();
         const tool = tools[params.name];
         if (!tool?.execute) {
           return Response.json(
