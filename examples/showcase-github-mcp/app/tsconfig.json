@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noEmit": true,
+    "incremental": true,
+    "module": "esnext",
+    "esModuleInterop": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"],
+      "@assistant-ui/react": ["../../../packages/react/src"],
+      "@assistant-ui/react/*": ["../../../packages/react/src/*"],
+      "@assistant-ui/react-mcp": ["../../../packages/react-mcp/src"],
+      "@assistant-ui/react-mcp/*": ["../../../packages/react-mcp/src/*"],
+      "@assistant-ui/react-ai-sdk": ["../../../packages/react-ai-sdk/src"],
+      "@assistant-ui/store": ["../../../packages/store/src"],
+      "@assistant-ui/store/*": ["../../../packages/store/src/*"],
+      "@assistant-ui/tap": ["../../../packages/tap/src"],
+      "@assistant-ui/tap/*": ["../../../packages/tap/src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}
