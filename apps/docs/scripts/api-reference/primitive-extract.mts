@@ -15,6 +15,7 @@ import {
   jsDocTag,
   processComponentDeclaration,
   processTypeOrInterface,
+  type JsDocRenderOptions,
   type PropModel,
 } from "./extract.mts";
 
@@ -141,6 +142,7 @@ function extractElementType(ns: ModuleDeclaration): string | undefined {
 function getPrimitiveComponentMeta(
   sourceFile: SourceFile,
   localName: string,
+  options?: JsDocRenderOptions,
 ): { description?: string; deprecated?: string } {
   for (const varDecl of sourceFile.getVariableDeclarations()) {
     if (varDecl.getName() !== localName) continue;
@@ -149,8 +151,17 @@ function getPrimitiveComponentMeta(
     const jsDocs = statement.getJsDocs();
     if (jsDocs.length === 0) continue;
     const doc = jsDocs[0]!;
-    const description = getJsDocCommentText(doc, `${localName} primitive`);
-    const deprecated = jsDocTag(doc, "deprecated", `${localName} primitive`);
+    const description = getJsDocCommentText(
+      doc,
+      `${localName} primitive`,
+      options,
+    );
+    const deprecated = jsDocTag(
+      doc,
+      "deprecated",
+      `${localName} primitive`,
+      options,
+    );
     return { description, deprecated };
   }
   return {};
@@ -206,6 +217,7 @@ function extractPropsFromComponentDeclaration(
   sourceFile: SourceFile,
   localName: string,
   ownerTypeName: string,
+  options?: JsDocRenderOptions,
 ): PropModel[] | undefined {
   const propsTypeNames = new Set<string>();
   const variableDecl = sourceFile
@@ -225,9 +237,11 @@ function extractPropsFromComponentDeclaration(
   }
   for (const propsTypeName of propsTypeNames) {
     const typeAlias = sourceFile.getTypeAlias(propsTypeName);
-    if (typeAlias) return processTypeOrInterface(typeAlias, ownerTypeName);
+    if (typeAlias) {
+      return processTypeOrInterface(typeAlias, ownerTypeName, options);
+    }
     const iface = sourceFile.getInterface(propsTypeName);
-    if (iface) return processTypeOrInterface(iface, ownerTypeName);
+    if (iface) return processTypeOrInterface(iface, ownerTypeName, options);
   }
   return undefined;
 }
@@ -323,6 +337,7 @@ function localNameFor(declaration: ExportedDeclarations): string | undefined {
 function extractPrimitivePart(
   primitiveName: string,
   sub: SubComponent,
+  options?: JsDocRenderOptions,
 ): PrimitivePartModel | undefined {
   const sourceFile = sub.declaration.getSourceFile();
   const localName = localNameFor(sub.declaration);
@@ -333,6 +348,7 @@ function extractPrimitivePart(
   const { description, deprecated } = getPrimitiveComponentMeta(
     sourceFile,
     localName,
+    options,
   );
 
   let props: PropModel[] | undefined;
@@ -354,7 +370,7 @@ function extractPrimitivePart(
     // (asChild, render, … tagged inheritedFrom: "radix") and the hook-specific
     // params (tagged inheritedFrom: undefined). Each projection then filters
     // according to its policy.
-    props = processTypeOrInterface(propsAlias, propsTypeName) ?? [];
+    props = processTypeOrInterface(propsAlias, propsTypeName, options) ?? [];
     // RequireAtLeastOne: every prop is technically optional individually,
     // but at least one must be supplied. Surface this by marking all props
     // optional in the model so projections render them consistently.
@@ -366,6 +382,7 @@ function extractPrimitivePart(
       sourceFile,
       localName,
       propsTypeName,
+      options,
     );
     // Fallback: when neither a Props alias nor a *Props type by name is
     // available (e.g. wrappers built with `Object.assign(Base, ...)` lose
@@ -373,7 +390,11 @@ function extractPrimitivePart(
     // parameter directly. Mirrors legacy api-surface's `primitivePartTypeDoc`
     // behaviour so e.g. `Unstable_TriggerPopover` still gets typed props.
     if (!props) {
-      props = processComponentDeclaration(sub.declaration, propsTypeName);
+      props = processComponentDeclaration(
+        sub.declaration,
+        propsTypeName,
+        options,
+      );
     }
     // Detect asChild from the resolved component props (no namespace alias
     // available, so check the projected props instead).
@@ -409,13 +430,17 @@ const _partsCache = new Map<string, PrimitivePartModel[]>();
 
 export function extractPrimitivePartsFor(
   primitiveName: string,
+  options?: JsDocRenderOptions,
 ): PrimitivePartModel[] {
-  const cached = _partsCache.get(primitiveName);
+  const cacheKey = options?.linkResolver
+    ? `${primitiveName}:links`
+    : primitiveName;
+  const cached = _partsCache.get(cacheKey);
   if (cached) return cached;
   const primitives = discoverPrimitiveBarrelExports();
   const moduleSpec = primitives.get(primitiveName);
   if (!moduleSpec) {
-    _partsCache.set(primitiveName, []);
+    _partsCache.set(cacheKey, []);
     return [];
   }
   const primitiveModulePath = path.join(
@@ -430,7 +455,7 @@ export function extractPrimitivePartsFor(
   // gets a typeDocs entry per exported name (matching legacy api-surface).
   for (const sub of subs) {
     try {
-      const part = extractPrimitivePart(primitiveName, sub);
+      const part = extractPrimitivePart(primitiveName, sub, options);
       if (part) result.push(part);
     } catch (e) {
       console.warn(
@@ -439,7 +464,7 @@ export function extractPrimitivePartsFor(
       );
     }
   }
-  _partsCache.set(primitiveName, result);
+  _partsCache.set(cacheKey, result);
   return result;
 }
 

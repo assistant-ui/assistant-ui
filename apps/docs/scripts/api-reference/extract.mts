@@ -201,7 +201,7 @@ const warnedUnresolvedJsDocLinks = new Set<string>();
 
 type JsDocLinkResolver = (target: string) => string | undefined;
 
-type JsDocRenderOptions = {
+export type JsDocRenderOptions = {
   linkResolver?: JsDocLinkResolver;
 };
 
