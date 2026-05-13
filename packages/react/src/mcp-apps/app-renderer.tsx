@@ -13,10 +13,13 @@ type LoadedResourceState = {
 };
 
 function getInput(part: MCPAppRendererProps["part"]): unknown {
-  return part.status?.type === "running" &&
-    Object.keys(part.args ?? {}).length === 0
-    ? undefined
-    : part.args;
+  if (
+    part.status?.type === "running" &&
+    (part.argsText === "" || part.argsText === "{}")
+  ) {
+    return undefined;
+  }
+  return part.args;
 }
 
 function getOutput(part: MCPAppRendererProps["part"]): unknown {
