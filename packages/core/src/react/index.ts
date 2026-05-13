@@ -43,7 +43,7 @@ export {
 } from "./model-context/useToolArgsStatus";
 
 // client
-export { Tools, type MCPAppResourceOutput } from "./client/Tools";
+export { Tools, type McpAppResourceOutput } from "./client/Tools";
 export { DataRenderers } from "./client/DataRenderers";
 export { Interactables } from "./client/Interactables";
 

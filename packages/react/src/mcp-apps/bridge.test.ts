@@ -1,20 +1,20 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { createMCPAppBridge, type MCPAppBridgeFrame } from "./bridge";
+import { createMcpAppBridge, type McpAppBridgeFrame } from "./bridge";
 import type {
-  MCPAppJsonRpcMessage,
-  MCPAppJsonRpcRequest,
-  MCPAppJsonRpcResponse,
+  McpAppJsonRpcMessage,
+  McpAppJsonRpcRequest,
+  McpAppJsonRpcResponse,
 } from "./types";
 import { MCP_APP_PROTOCOL_VERSION } from "./types";
 
-type Captured = MCPAppJsonRpcMessage;
+type Captured = McpAppJsonRpcMessage;
 
 function makeFrame() {
   const captured: Captured[] = [];
   const iframe = document.createElement("iframe");
   document.body.appendChild(iframe);
-  const frame: MCPAppBridgeFrame = {
+  const frame: McpAppBridgeFrame = {
     iframe,
     origin: "https://app.example",
     sendMessage: (data) => {
@@ -24,7 +24,7 @@ function makeFrame() {
   return { frame, captured };
 }
 
-function dispatch(frame: MCPAppBridgeFrame, message: MCPAppJsonRpcMessage) {
+function dispatch(frame: McpAppBridgeFrame, message: McpAppJsonRpcMessage) {
   const event = new MessageEvent("message", {
     data: message,
     origin: frame.origin,
@@ -37,10 +37,10 @@ async function flush() {
   await new Promise((r) => setTimeout(r, 0));
 }
 
-describe("createMCPAppBridge", () => {
+describe("createMcpAppBridge", () => {
   it("responds to ui/initialize with host info, version, and capabilities", async () => {
     const { frame, captured } = makeFrame();
-    const bridge = createMCPAppBridge({
+    const bridge = createMcpAppBridge({
       frame,
       hostInfo: { name: "test-host", version: "9.9.9" },
       hostContext: { theme: "dark" },
@@ -50,7 +50,7 @@ describe("createMCPAppBridge", () => {
       },
     });
 
-    const req: MCPAppJsonRpcRequest = {
+    const req: McpAppJsonRpcRequest = {
       jsonrpc: "2.0",
       id: 1,
       method: "ui/initialize",
@@ -59,7 +59,7 @@ describe("createMCPAppBridge", () => {
     await flush();
 
     expect(captured).toHaveLength(1);
-    const res = captured[0] as MCPAppJsonRpcResponse;
+    const res = captured[0] as McpAppJsonRpcResponse;
     expect(res.id).toBe(1);
     const result = res.result as Record<string, any>;
     expect(result["protocolVersion"]).toBe(MCP_APP_PROTOCOL_VERSION);
@@ -75,7 +75,7 @@ describe("createMCPAppBridge", () => {
   it("routes tools/call to handler", async () => {
     const { frame, captured } = makeFrame();
     const callTool = vi.fn().mockResolvedValue({ ok: true });
-    const bridge = createMCPAppBridge({ frame, handlers: { callTool } });
+    const bridge = createMcpAppBridge({ frame, handlers: { callTool } });
 
     dispatch(frame, {
       jsonrpc: "2.0",
@@ -100,7 +100,7 @@ describe("createMCPAppBridge", () => {
   it("rejects tools/call for disallowed tool with -32602", async () => {
     const { frame, captured } = makeFrame();
     const callTool = vi.fn();
-    const bridge = createMCPAppBridge({
+    const bridge = createMcpAppBridge({
       frame,
       handlers: { callTool, allowedTools: ["search"] },
     });
@@ -114,14 +114,14 @@ describe("createMCPAppBridge", () => {
     await flush();
 
     expect(callTool).not.toHaveBeenCalled();
-    const res = captured[0] as MCPAppJsonRpcResponse;
+    const res = captured[0] as McpAppJsonRpcResponse;
     expect(res.error?.code).toBe(-32602);
     bridge.dispose();
   });
 
   it("returns -32601 when no callTool handler", async () => {
     const { frame, captured } = makeFrame();
-    const bridge = createMCPAppBridge({ frame });
+    const bridge = createMcpAppBridge({ frame });
 
     dispatch(frame, {
       jsonrpc: "2.0",
@@ -131,7 +131,7 @@ describe("createMCPAppBridge", () => {
     });
     await flush();
 
-    const res = captured[0] as MCPAppJsonRpcResponse;
+    const res = captured[0] as McpAppJsonRpcResponse;
     expect(res.error?.code).toBe(-32601);
     bridge.dispose();
   });
@@ -139,7 +139,7 @@ describe("createMCPAppBridge", () => {
   it("rejects tools/call with non-object arguments via -32602", async () => {
     const { frame, captured } = makeFrame();
     const callTool = vi.fn();
-    const bridge = createMCPAppBridge({ frame, handlers: { callTool } });
+    const bridge = createMcpAppBridge({ frame, handlers: { callTool } });
 
     dispatch(frame, {
       jsonrpc: "2.0",
@@ -150,14 +150,14 @@ describe("createMCPAppBridge", () => {
     await flush();
 
     expect(callTool).not.toHaveBeenCalled();
-    expect((captured[0] as MCPAppJsonRpcResponse).error?.code).toBe(-32602);
+    expect((captured[0] as McpAppJsonRpcResponse).error?.code).toBe(-32602);
     bridge.dispose();
   });
 
   it("rejects requestDisplayMode with unknown mode via -32602", async () => {
     const { frame, captured } = makeFrame();
     const requestDisplayMode = vi.fn();
-    const bridge = createMCPAppBridge({
+    const bridge = createMcpAppBridge({
       frame,
       handlers: { requestDisplayMode },
     });
@@ -171,14 +171,14 @@ describe("createMCPAppBridge", () => {
     await flush();
 
     expect(requestDisplayMode).not.toHaveBeenCalled();
-    expect((captured[0] as MCPAppJsonRpcResponse).error?.code).toBe(-32602);
+    expect((captured[0] as McpAppJsonRpcResponse).error?.code).toBe(-32602);
     bridge.dispose();
   });
 
   it("rejects openLink for non-http(s) schemes via -32602", async () => {
     const { frame, captured } = makeFrame();
     const openLink = vi.fn();
-    const bridge = createMCPAppBridge({ frame, handlers: { openLink } });
+    const bridge = createMcpAppBridge({ frame, handlers: { openLink } });
 
     dispatch(frame, {
       jsonrpc: "2.0",
@@ -189,7 +189,7 @@ describe("createMCPAppBridge", () => {
     await flush();
 
     expect(openLink).not.toHaveBeenCalled();
-    expect((captured[0] as MCPAppJsonRpcResponse).error?.code).toBe(-32602);
+    expect((captured[0] as McpAppJsonRpcResponse).error?.code).toBe(-32602);
     bridge.dispose();
   });
 
@@ -197,7 +197,7 @@ describe("createMCPAppBridge", () => {
     const { frame } = makeFrame();
     const onSizeChange = vi.fn();
     const onInitialized = vi.fn();
-    const bridge = createMCPAppBridge({
+    const bridge = createMcpAppBridge({
       frame,
       handlers: { onSizeChange, onInitialized },
     });
@@ -219,7 +219,7 @@ describe("createMCPAppBridge", () => {
 
   it("notifyToolInput / notifyToolResult / notifyHostContextChanged post correct notifications", () => {
     const { frame, captured } = makeFrame();
-    const bridge = createMCPAppBridge({ frame });
+    const bridge = createMcpAppBridge({ frame });
 
     bridge.notifyToolInput({ a: 1 });
     bridge.notifyToolResult({ ok: 1 });
@@ -248,9 +248,9 @@ describe("createMCPAppBridge", () => {
   it("ignores messages from wrong origin or wrong source", async () => {
     const { frame, captured } = makeFrame();
     const callTool = vi.fn();
-    const bridge = createMCPAppBridge({ frame, handlers: { callTool } });
+    const bridge = createMcpAppBridge({ frame, handlers: { callTool } });
 
-    const msg: MCPAppJsonRpcMessage = {
+    const msg: McpAppJsonRpcMessage = {
       jsonrpc: "2.0",
       id: 1,
       method: "tools/call",

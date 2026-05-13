@@ -1,13 +1,13 @@
-export { MCPAppRenderer, type MCPAppRendererOptions } from "./MCPAppRenderer";
+export { McpAppRenderer, type McpAppRendererOptions } from "./McpAppRenderer";
 export type {
-  MCPAppMetadata,
-  MCPAppResource,
-  MCPAppResourceMeta,
-  MCPAppResourceCSP,
-  MCPAppBridgeHandlers,
-  MCPAppSandboxConfig,
-  MCPAppHostInfo,
-  MCPAppHostContext,
-  MCPAppDisplayMode,
-  ToolCallMessagePartMCPMetadata,
+  McpAppMetadata,
+  McpAppResource,
+  McpAppResourceMeta,
+  McpAppResourceCSP,
+  McpAppBridgeHandlers,
+  McpAppSandboxConfig,
+  McpAppHostInfo,
+  McpAppHostContext,
+  McpAppDisplayMode,
+  ToolCallMessagePartMcpMetadata,
 } from "./types";

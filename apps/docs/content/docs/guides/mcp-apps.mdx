@@ -22,18 +22,18 @@ Capability presence is determined at mount time by which handlers you provide. U
 
 ## Quick start
 
-Compose `MCPAppRenderer({...})` into your `Tools` resource. The renderer automatically takes over for any tool call whose part carries `mcp.app` metadata; tools without that metadata use your regular tool UI registration.
+Compose `McpAppRenderer({...})` into your `Tools` resource. The renderer automatically takes over for any tool call whose part carries `mcp.app` metadata; tools without that metadata use your regular tool UI registration.
 
 ```tsx
 import { useAui } from "@assistant-ui/react";
-import { Tools, MCPAppRenderer, type MCPAppRendererOptions } from "@assistant-ui/react";
+import { Tools, McpAppRenderer, type McpAppRendererOptions } from "@assistant-ui/react";
 import { experimental_createMCPClient } from "ai";
 
 const mcpClient = await experimental_createMCPClient({
   transport: { type: "sse", url: "https://my-mcp-server.example/sse" },
 });
 
-const mcpAppOptions: MCPAppRendererOptions = {
+const mcpAppOptions: McpAppRendererOptions = {
   loadResource: async (app) => {
     const { contents } = await mcpClient.readResource({ uri: app.resourceUri });
     const c = contents.find((x) => x.uri === app.resourceUri);
@@ -61,7 +61,7 @@ function MyAssistant() {
   useAui({
     tools: Tools({
       toolkit: myToolkit,
-      mcpApp: MCPAppRenderer(mcpAppOptions),
+      mcpApp: McpAppRenderer(mcpAppOptions),
     }),
   });
   // ...
@@ -74,13 +74,13 @@ That's it. Once `mcpApp` is wired into `Tools`, any tool-call part that carries 
 
 `@assistant-ui/react-ai-sdk` forwards `callProviderMetadata.mcp.app` from AI SDK tool UI parts into `ToolCallMessagePart.mcp.app`. With AI SDK 5.x and an MCP-Apps-capable MCP server, no extra wiring is required on the part shape.
 
-On the server route, use `splitMCPAppTools()` (from `@ai-sdk/mcp`) to keep app-only tools out of the model's view:
+On the server route, use `splitMcpAppTools()` (from `@ai-sdk/mcp`) to keep app-only tools out of the model's view:
 
 ```ts
-import { splitMCPAppTools } from "@ai-sdk/mcp";
+import { splitMcpAppTools } from "@ai-sdk/mcp";
 
 const tools = await client.listTools();
-const { modelVisible } = splitMCPAppTools(tools);
+const { modelVisible } = splitMcpAppTools(tools);
 
 const result = streamText({
   model: openai("gpt-4o"),
@@ -122,10 +122,10 @@ If the widget never sends `notifications/initialized` (broken or non-spec-compli
 
 ## Sandboxing
 
-The iframe is built with [`SafeContentFrame`](/safe-content-frame), which serves each widget from a content-hashed cross-origin so the host page is not reachable by `same-origin` references. Default sandbox flags are `allow-same-origin allow-scripts`. Tune via the `sandbox` field on `MCPAppRendererOptions`:
+The iframe is built with [`SafeContentFrame`](/safe-content-frame), which serves each widget from a content-hashed cross-origin so the host page is not reachable by `same-origin` references. Default sandbox flags are `allow-same-origin allow-scripts`. Tune via the `sandbox` field on `McpAppRendererOptions`:
 
 ```tsx
-MCPAppRenderer({
+McpAppRenderer({
   // ...
   sandbox: {
     sandbox: ["allow-forms", "allow-popups"],

@@ -1,33 +1,33 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import type { MCPAppMetadata } from "@assistant-ui/core";
+import type { McpAppMetadata } from "@assistant-ui/core";
 import type {
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
 } from "@assistant-ui/core/react";
 import { resource, tapConst, tapRef } from "@assistant-ui/tap";
-import { MCPAppFrame } from "./app-frame";
+import { McpAppFrame } from "./app-frame";
 import type {
-  MCPAppBridgeHandlers,
-  MCPAppHostContext,
-  MCPAppHostInfo,
-  MCPAppResource,
-  MCPAppSandboxConfig,
+  McpAppBridgeHandlers,
+  McpAppHostContext,
+  McpAppHostInfo,
+  McpAppResource,
+  McpAppSandboxConfig,
 } from "./types";
-import { getMCPAppFromToolPart } from "./utils";
+import { getMcpAppFromToolPart } from "./utils";
 
-export type MCPAppRendererOptions = {
+export type McpAppRendererOptions = {
   /** Fetch the HTML + meta for a `ui://` resource the server attached to a tool. */
-  loadResource: (app: MCPAppMetadata) => Promise<MCPAppResource>;
+  loadResource: (app: McpAppMetadata) => Promise<McpAppResource>;
   /** Bridge handlers — the widget calls these via JSON-RPC. All are optional. */
-  handlers?: MCPAppBridgeHandlers;
+  handlers?: McpAppBridgeHandlers;
   /** Sandbox + container styling. Passes through to SafeContentFrame. */
-  sandbox?: MCPAppSandboxConfig;
+  sandbox?: McpAppSandboxConfig;
   /** Identifies the host to the widget in the `ui/initialize` response. */
-  hostInfo?: MCPAppHostInfo;
+  hostInfo?: McpAppHostInfo;
   /** Delivered to the widget on initialize and pushed via `notifications/host_context/changed` on change. */
-  hostContext?: MCPAppHostContext;
+  hostContext?: McpAppHostContext;
   /** Rendered when no MCP app is on the part, or while load is in flight / failed (unless overridden). */
   fallback?: ReactNode;
   /** Rendered while `loadResource` is in flight. Defaults to `fallback`. */
@@ -38,7 +38,7 @@ export type MCPAppRendererOptions = {
 
 type LoadedResourceState = {
   resourceUri: string;
-  resource?: MCPAppResource;
+  resource?: McpAppResource;
   error?: Error;
 };
 
@@ -61,11 +61,11 @@ function InlineRenderer({
   optionsRef,
 }: {
   part: ToolCallMessagePartProps;
-  optionsRef: { readonly current: MCPAppRendererOptions };
+  optionsRef: { readonly current: McpAppRendererOptions };
 }) {
   const opts = optionsRef.current;
-  const app = getMCPAppFromToolPart(part);
-  const cachedAppRef = useRef<MCPAppMetadata | undefined>(undefined);
+  const app = getMcpAppFromToolPart(part);
+  const cachedAppRef = useRef<McpAppMetadata | undefined>(undefined);
   if (app != null && cachedAppRef.current?.resourceUri !== app.resourceUri) {
     cachedAppRef.current = app;
   }
@@ -122,7 +122,7 @@ function InlineRenderer({
   }
 
   return (
-    <MCPAppFrame
+    <McpAppFrame
       app={appForRender}
       resource={resource}
       input={getInput(part)}
@@ -135,18 +135,18 @@ function InlineRenderer({
   );
 }
 
-export const MCPAppRenderer = resource(
+export const McpAppRenderer = resource(
   (
-    options: MCPAppRendererOptions,
+    options: McpAppRendererOptions,
   ): { readonly render: ToolCallMessagePartComponent } => {
-    const optionsRef = tapRef<MCPAppRendererOptions>(options);
+    const optionsRef = tapRef<McpAppRendererOptions>(options);
     optionsRef.current = options;
 
     const render = tapConst((): ToolCallMessagePartComponent => {
       const Render: ToolCallMessagePartComponent = (props) => (
         <InlineRenderer part={props} optionsRef={optionsRef} />
       );
-      Render.displayName = "MCPAppRenderer";
+      Render.displayName = "McpAppRenderer";
       return Render;
     }, []);
 

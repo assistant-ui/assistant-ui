@@ -1,43 +1,43 @@
 import type { RenderedFrame } from "safe-content-frame";
 import {
   MCP_APP_PROTOCOL_VERSION,
-  type MCPAppBridgeHandlers,
-  type MCPAppDisplayMode,
-  type MCPAppHostContext,
-  type MCPAppHostInfo,
-  type MCPAppJsonRpcMessage,
-  type MCPAppJsonRpcNotification,
-  type MCPAppJsonRpcRequest,
-  type MCPAppJsonRpcResponse,
+  type McpAppBridgeHandlers,
+  type McpAppDisplayMode,
+  type McpAppHostContext,
+  type McpAppHostInfo,
+  type McpAppJsonRpcMessage,
+  type McpAppJsonRpcNotification,
+  type McpAppJsonRpcRequest,
+  type McpAppJsonRpcResponse,
 } from "./types";
 
 const VALID_DISPLAY_MODES = [
   "inline",
   "fullscreen",
   "pip",
-] as const satisfies readonly MCPAppDisplayMode[];
+] as const satisfies readonly McpAppDisplayMode[];
 
-export type MCPAppBridgeFrame = Pick<
+export type McpAppBridgeFrame = Pick<
   RenderedFrame,
   "iframe" | "origin" | "sendMessage"
 >;
 
-export type CreateMCPAppBridgeOptions = {
-  frame: MCPAppBridgeFrame;
-  handlers?: MCPAppBridgeHandlers | undefined;
-  hostInfo?: MCPAppHostInfo | undefined;
-  hostContext?: MCPAppHostContext | undefined;
+export type CreateMcpAppBridgeOptions = {
+  frame: McpAppBridgeFrame;
+  handlers?: McpAppBridgeHandlers | undefined;
+  hostInfo?: McpAppHostInfo | undefined;
+  hostContext?: McpAppHostContext | undefined;
   targetWindow?: Window | undefined;
 };
 
-export type MCPAppBridge = {
+export type McpAppBridge = {
   dispose: () => void;
   notifyToolInput: (input: unknown) => void;
   notifyToolResult: (result: unknown) => void;
-  notifyHostContextChanged: (hostContext: MCPAppHostContext) => void;
+  notifyHostContextChanged: (hostContext: McpAppHostContext) => void;
 };
 
-const DEFAULT_HOST_INFO: MCPAppHostInfo = {
+const DEFAULT_HOST_INFO: McpAppHostInfo = {
   name: "assistant-ui",
   version: "0.1",
 };
@@ -50,25 +50,25 @@ const JSONRPC_ERROR = {
   internalError: -32603,
 } as const;
 
-function isJsonRpcMessage(value: unknown): value is MCPAppJsonRpcMessage {
+function isJsonRpcMessage(value: unknown): value is McpAppJsonRpcMessage {
   if (!value || typeof value !== "object") return false;
   const v = value as Record<string, unknown>;
   return v.jsonrpc === "2.0" && typeof v.method === "string";
 }
 
-function isRequest(msg: MCPAppJsonRpcMessage): msg is MCPAppJsonRpcRequest {
+function isRequest(msg: McpAppJsonRpcMessage): msg is McpAppJsonRpcRequest {
   return "id" in msg && "method" in msg;
 }
 
 function isNotification(
-  msg: MCPAppJsonRpcMessage,
-): msg is MCPAppJsonRpcNotification {
+  msg: McpAppJsonRpcMessage,
+): msg is McpAppJsonRpcNotification {
   return !("id" in msg) && "method" in msg;
 }
 
-export function createMCPAppBridge(
-  opts: CreateMCPAppBridgeOptions,
-): MCPAppBridge {
+export function createMcpAppBridge(
+  opts: CreateMcpAppBridgeOptions,
+): McpAppBridge {
   const {
     frame,
     handlers = {},
@@ -78,20 +78,20 @@ export function createMCPAppBridge(
   } = opts;
 
   if (!targetWindow) {
-    throw new Error("createMCPAppBridge requires a window context");
+    throw new Error("createMcpAppBridge requires a window context");
   }
 
-  const post = (msg: MCPAppJsonRpcMessage) => {
+  const post = (msg: McpAppJsonRpcMessage) => {
     frame.sendMessage(msg);
   };
 
   const respond = (
-    id: MCPAppJsonRpcRequest["id"],
+    id: McpAppJsonRpcRequest["id"],
     payload:
       | { result: unknown }
       | { error: { code: number; message: string; data?: unknown } },
   ) => {
-    const res: MCPAppJsonRpcResponse = {
+    const res: McpAppJsonRpcResponse = {
       jsonrpc: "2.0",
       id,
       ...payload,
@@ -100,7 +100,7 @@ export function createMCPAppBridge(
   };
 
   const errorResponse = (
-    id: MCPAppJsonRpcRequest["id"],
+    id: McpAppJsonRpcRequest["id"],
     code: number,
     message: string,
     data?: unknown,
@@ -114,7 +114,7 @@ export function createMCPAppBridge(
     });
   };
 
-  const handleRequest = async (req: MCPAppJsonRpcRequest) => {
+  const handleRequest = async (req: McpAppJsonRpcRequest) => {
     try {
       const params = req.params;
 
@@ -323,7 +323,7 @@ export function createMCPAppBridge(
           const modeParams = (params ?? {}) as { mode?: unknown };
           if (
             typeof modeParams.mode !== "string" ||
-            !VALID_DISPLAY_MODES.includes(modeParams.mode as MCPAppDisplayMode)
+            !VALID_DISPLAY_MODES.includes(modeParams.mode as McpAppDisplayMode)
           ) {
             errorResponse(
               req.id,
@@ -334,7 +334,7 @@ export function createMCPAppBridge(
           }
           respond(req.id, {
             result: await handlers.requestDisplayMode({
-              mode: modeParams.mode as MCPAppDisplayMode,
+              mode: modeParams.mode as McpAppDisplayMode,
             }),
           });
           return;
@@ -355,7 +355,7 @@ export function createMCPAppBridge(
     }
   };
 
-  const handleNotification = (note: MCPAppJsonRpcNotification) => {
+  const handleNotification = (note: McpAppJsonRpcNotification) => {
     switch (note.method) {
       case "notifications/initialized": {
         handlers.onInitialized?.();
@@ -424,7 +424,7 @@ export function createMCPAppBridge(
         params: { result },
       });
     },
-    notifyHostContextChanged: (ctx: MCPAppHostContext) => {
+    notifyHostContextChanged: (ctx: McpAppHostContext) => {
       post({
         jsonrpc: "2.0",
         method: "notifications/host_context/changed",

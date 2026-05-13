@@ -12,7 +12,7 @@ import type {
   SourceProviderMetadata,
   FileMessagePart,
   ThreadMessageLike,
-  MCPAppMetadata,
+  McpAppMetadata,
 } from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { unwrapModelContentEnvelope } from "../../modelContentEnvelope";
@@ -22,17 +22,17 @@ export type AISDKMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
     toolLastInputCache?: Map<string, ReadonlyJSONObject>;
-    mcpAppMetadataCache?: Map<string, MCPAppMetadata>;
+    mcpAppMetadataCache?: Map<string, McpAppMetadata>;
   };
 
 function stripClosingDelimiters(json: string): string {
   return json.replace(/[}\]"]+$/, "");
 }
 
-function extractMCPAppMetadata(
+function extractMcpAppMetadata(
   part: unknown,
-  cache: Map<string, MCPAppMetadata> | undefined,
-): MCPAppMetadata | undefined {
+  cache: Map<string, McpAppMetadata> | undefined,
+): McpAppMetadata | undefined {
   if (!part || typeof part !== "object") return undefined;
   const meta = (part as { callProviderMetadata?: unknown })
     .callProviderMetadata;
@@ -46,7 +46,7 @@ function extractMCPAppMetadata(
   if (!a["resourceUri"].startsWith("ui://")) return undefined;
   const cached = cache?.get(a["resourceUri"]);
   if (cached) return cached;
-  const out: { -readonly [K in keyof MCPAppMetadata]: MCPAppMetadata[K] } = {
+  const out: { -readonly [K in keyof McpAppMetadata]: McpAppMetadata[K] } = {
     resourceUri: a["resourceUri"],
   };
   if (typeof a["mimeType"] === "string") out.mimeType = a["mimeType"];
@@ -236,7 +236,7 @@ function convertParts(
         }
 
         const toolStatus = metadata.toolStatuses?.[toolCallId];
-        const mcpApp = extractMCPAppMetadata(
+        const mcpApp = extractMcpAppMetadata(
           part,
           metadata.mcpAppMetadataCache,
         );

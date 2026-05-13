@@ -4,4 +4,4 @@
 "@assistant-ui/react-ai-sdk": patch
 ---
 
-feat: add native MCP Apps renderer — `MCPAppRenderer`, `MCPAppFrame`, `MCPAppToolUI`, and an `MCPAppProvider` for rendering MCP UI resources inline in chat, with a JSON-RPC postMessage bridge over `SafeContentFrame`. Adds an `mcp` field to `ToolCallMessagePart` and forwards `callProviderMetadata.mcp.app` through the AI SDK message converter.
+feat: add native MCP Apps renderer — `McpAppRenderer` composes into `Tools` to render MCP UI resources inline in chat over a JSON-RPC postMessage bridge on `SafeContentFrame`. Adds an `mcp` field to `ToolCallMessagePart` and forwards `callProviderMetadata.mcp.app` through the AI SDK message converter.

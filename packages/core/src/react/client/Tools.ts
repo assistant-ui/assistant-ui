@@ -18,7 +18,7 @@ import type { Toolkit } from "../model-context/toolbox";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import { ModelContext } from "../../store";
 
-export type MCPAppResourceOutput = {
+export type McpAppResourceOutput = {
   readonly render: ToolCallMessagePartComponent;
 };
 
@@ -28,7 +28,7 @@ export const Tools = resource(
     mcpApp,
   }: {
     toolkit?: Toolkit;
-    mcpApp?: ResourceElement<MCPAppResourceOutput> | undefined;
+    mcpApp?: ResourceElement<McpAppResourceOutput> | undefined;
   }): ClientOutput<"tools"> => {
     const mcpAppOutputs = tapResources(
       () => (mcpApp ? [withKey("mcpApp", mcpApp)] : []),

@@ -1,67 +1,67 @@
 import type { CSSProperties } from "react";
 import type {
-  MCPAppMetadata,
-  ToolCallMessagePartMCPMetadata,
+  McpAppMetadata,
+  ToolCallMessagePartMcpMetadata,
 } from "@assistant-ui/core";
 import type { SandboxOption } from "safe-content-frame";
 
-export type { MCPAppMetadata, ToolCallMessagePartMCPMetadata };
+export type { McpAppMetadata, ToolCallMessagePartMcpMetadata };
 
 export const MCP_APP_MIME_TYPE = "text/html;profile=mcp-app" as const;
 
 export const MCP_APP_PROTOCOL_VERSION = "0.1" as const;
 
-export type MCPAppResourceCSP = {
+export type McpAppResourceCSP = {
   connectDomains?: string[];
   resourceDomains?: string[];
   frameDomains?: string[];
   [k: string]: unknown;
 };
 
-export type MCPAppResourceMeta = {
+export type McpAppResourceMeta = {
   prefersBorder?: boolean;
-  csp?: MCPAppResourceCSP;
+  csp?: McpAppResourceCSP;
   permissions?: Record<string, unknown>;
   [k: string]: unknown;
 };
 
-export type MCPAppResource = {
+export type McpAppResource = {
   uri: string;
   mimeType: typeof MCP_APP_MIME_TYPE;
   html: string;
-  meta?: MCPAppResourceMeta;
+  meta?: McpAppResourceMeta;
 };
 
-export type MCPAppDisplayMode = "inline" | "fullscreen" | "pip";
+export type McpAppDisplayMode = "inline" | "fullscreen" | "pip";
 
-export type MCPAppHostContext = {
+export type McpAppHostContext = {
   theme?: "light" | "dark";
-  displayMode?: MCPAppDisplayMode;
-  availableDisplayModes?: MCPAppDisplayMode[];
+  displayMode?: McpAppDisplayMode;
+  availableDisplayModes?: McpAppDisplayMode[];
   [k: string]: unknown;
 };
 
-export type MCPAppHostInfo = {
+export type McpAppHostInfo = {
   name: string;
   version: string;
 };
 
-export type MCPAppToolCallParams = {
+export type McpAppToolCallParams = {
   name: string;
   arguments?: Record<string, unknown>;
 };
 
-export type MCPAppBridgeHandlers = {
+export type McpAppBridgeHandlers = {
   allowedTools?: readonly string[];
-  callTool?: (params: MCPAppToolCallParams) => Promise<unknown> | unknown;
+  callTool?: (params: McpAppToolCallParams) => Promise<unknown> | unknown;
   readResource?: (params: { uri: string }) => Promise<unknown> | unknown;
   listResources?: (params?: unknown) => Promise<unknown> | unknown;
   openLink?: (params: { url: string }) => Promise<unknown> | unknown;
   sendMessage?: (params: unknown) => Promise<unknown> | unknown;
   updateModelContext?: (params: unknown) => Promise<unknown> | unknown;
   requestDisplayMode?: (params: {
-    mode: MCPAppDisplayMode;
-  }) => Promise<{ mode: MCPAppDisplayMode }> | { mode: MCPAppDisplayMode };
+    mode: McpAppDisplayMode;
+  }) => Promise<{ mode: McpAppDisplayMode }> | { mode: McpAppDisplayMode };
   onSizeChange?: (params: { width?: number; height?: number }) => void;
   onInitialized?: () => void;
   onRequestTeardown?: (params: unknown) => void;
@@ -69,7 +69,7 @@ export type MCPAppBridgeHandlers = {
   onError?: (error: Error) => void;
 };
 
-export type MCPAppSandboxConfig = {
+export type McpAppSandboxConfig = {
   sandbox?: SandboxOption[];
   useShadowDom?: boolean;
   enableBrowserCaching?: boolean;
@@ -80,37 +80,37 @@ export type MCPAppSandboxConfig = {
   unsafeDocumentWrite?: boolean;
 };
 
-export type MCPAppFrameProps = {
-  app: MCPAppMetadata;
-  resource: MCPAppResource;
+export type McpAppFrameProps = {
+  app: McpAppMetadata;
+  resource: McpAppResource;
   input?: unknown;
   output?: unknown;
-  sandbox?: MCPAppSandboxConfig | undefined;
-  handlers?: MCPAppBridgeHandlers | undefined;
-  hostInfo?: MCPAppHostInfo | undefined;
-  hostContext?: MCPAppHostContext | undefined;
+  sandbox?: McpAppSandboxConfig | undefined;
+  handlers?: McpAppBridgeHandlers | undefined;
+  hostInfo?: McpAppHostInfo | undefined;
+  hostContext?: McpAppHostContext | undefined;
 };
 
-export type MCPAppJsonRpcRequest = {
+export type McpAppJsonRpcRequest = {
   jsonrpc: "2.0";
   id: string | number;
   method: string;
   params?: unknown;
 };
 
-export type MCPAppJsonRpcNotification = {
+export type McpAppJsonRpcNotification = {
   jsonrpc: "2.0";
   method: string;
   params?: unknown;
 };
 
-export type MCPAppJsonRpcError = {
+export type McpAppJsonRpcError = {
   code: number;
   message: string;
   data?: unknown;
 };
 
-export type MCPAppJsonRpcResponse =
+export type McpAppJsonRpcResponse =
   | {
       jsonrpc: "2.0";
       id: string | number;
@@ -121,10 +121,10 @@ export type MCPAppJsonRpcResponse =
       jsonrpc: "2.0";
       id: string | number;
       result?: never;
-      error: MCPAppJsonRpcError;
+      error: McpAppJsonRpcError;
     };
 
-export type MCPAppJsonRpcMessage =
-  | MCPAppJsonRpcRequest
-  | MCPAppJsonRpcNotification
-  | MCPAppJsonRpcResponse;
+export type McpAppJsonRpcMessage =
+  | McpAppJsonRpcRequest
+  | McpAppJsonRpcNotification
+  | McpAppJsonRpcResponse;

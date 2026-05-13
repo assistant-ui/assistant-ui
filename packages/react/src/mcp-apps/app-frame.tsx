@@ -2,11 +2,11 @@
 
 import { type MutableRefObject, useEffect, useRef } from "react";
 import { type RenderedFrame, SafeContentFrame } from "safe-content-frame";
-import { type MCPAppBridge, createMCPAppBridge } from "./bridge";
+import { type McpAppBridge, createMcpAppBridge } from "./bridge";
 import type {
-  MCPAppBridgeHandlers,
-  MCPAppFrameProps,
-  MCPAppHostContext,
+  McpAppBridgeHandlers,
+  McpAppFrameProps,
+  McpAppHostContext,
 } from "./types";
 
 const DEFAULT_PRODUCT = "assistant-ui-mcp-app";
@@ -14,11 +14,11 @@ const INIT_TIMEOUT_MS = 5000;
 
 function useBridgeNotify<T>(
   value: T | undefined,
-  bridgeRef: MutableRefObject<MCPAppBridge | null>,
+  bridgeRef: MutableRefObject<McpAppBridge | null>,
   widgetReadyRef: MutableRefObject<boolean>,
   pendingRef: MutableRefObject<T | undefined>,
   lastSentRef: MutableRefObject<T | undefined>,
-  notify: (bridge: MCPAppBridge, v: T) => void,
+  notify: (bridge: McpAppBridge, v: T) => void,
 ) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: refs and notify are stable; we re-run only when value changes.
   useEffect(() => {
@@ -35,9 +35,9 @@ function useBridgeNotify<T>(
 }
 
 type LiveSnapshot = {
-  handlers: MCPAppBridgeHandlers | undefined;
-  hostInfo: MCPAppFrameProps["hostInfo"];
-  hostContext: MCPAppFrameProps["hostContext"];
+  handlers: McpAppBridgeHandlers | undefined;
+  hostInfo: McpAppFrameProps["hostInfo"];
+  hostContext: McpAppFrameProps["hostContext"];
   input: unknown;
   output: unknown;
 };
@@ -47,13 +47,13 @@ type LiveSnapshot = {
 // Capability presence is snapshot at mount: a handler added later requires a
 // remount (keyed on resource URI) to expose the capability to the widget.
 function buildLiveHandlers(
-  initial: MCPAppBridgeHandlers | undefined,
+  initial: McpAppBridgeHandlers | undefined,
   liveRef: { readonly current: LiveSnapshot },
-): MCPAppBridgeHandlers {
+): McpAppBridgeHandlers {
   const live = () => liveRef.current.handlers;
-  const has = <K extends keyof MCPAppBridgeHandlers>(key: K) =>
+  const has = <K extends keyof McpAppBridgeHandlers>(key: K) =>
     initial?.[key] !== undefined;
-  const out: MCPAppBridgeHandlers = {};
+  const out: McpAppBridgeHandlers = {};
   if (has("allowedTools")) {
     Object.defineProperty(out, "allowedTools", {
       get: () => live()?.allowedTools,
@@ -61,16 +61,16 @@ function buildLiveHandlers(
       configurable: true,
     });
   }
-  const liveCall = <K extends keyof MCPAppBridgeHandlers>(
+  const liveCall = <K extends keyof McpAppBridgeHandlers>(
     key: K,
-  ): NonNullable<MCPAppBridgeHandlers[K]> =>
+  ): NonNullable<McpAppBridgeHandlers[K]> =>
     ((p: unknown) => {
       const fn = live()?.[key] as ((p: unknown) => unknown) | undefined;
       if (!fn) {
         throw new Error(`${key} handler is no longer available`);
       }
       return fn(p);
-    }) as NonNullable<MCPAppBridgeHandlers[K]>;
+    }) as NonNullable<McpAppBridgeHandlers[K]>;
   if (has("callTool")) out.callTool = liveCall("callTool");
   if (has("readResource")) out.readResource = liveCall("readResource");
   if (has("listResources")) out.listResources = liveCall("listResources");
@@ -88,7 +88,7 @@ function buildLiveHandlers(
   return out;
 }
 
-export function MCPAppFrame({
+export function McpAppFrame({
   app,
   resource,
   input,
@@ -97,12 +97,12 @@ export function MCPAppFrame({
   handlers,
   hostInfo,
   hostContext,
-}: MCPAppFrameProps) {
+}: McpAppFrameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const bridgeRef = useRef<MCPAppBridge | null>(null);
+  const bridgeRef = useRef<McpAppBridge | null>(null);
   const lastSentInputRef = useRef<unknown>(undefined);
   const lastSentOutputRef = useRef<unknown>(undefined);
-  const lastSentHostContextRef = useRef<MCPAppHostContext | undefined>(
+  const lastSentHostContextRef = useRef<McpAppHostContext | undefined>(
     undefined,
   );
   // Per MCP Apps spec, the host should defer notifications until the widget
@@ -111,7 +111,7 @@ export function MCPAppFrame({
   const widgetReadyRef = useRef(false);
   const pendingInputRef = useRef<unknown>(undefined);
   const pendingOutputRef = useRef<unknown>(undefined);
-  const pendingHostContextRef = useRef<MCPAppHostContext | undefined>(
+  const pendingHostContextRef = useRef<McpAppHostContext | undefined>(
     undefined,
   );
 
@@ -183,7 +183,7 @@ export function MCPAppFrame({
             pendingHostContextRef.current = undefined;
           }
         };
-        const wrappedHandlers: MCPAppBridgeHandlers = {
+        const wrappedHandlers: McpAppBridgeHandlers = {
           ...liveHandlers,
           onInitialized: () => {
             if (initTimeoutId !== null) {
@@ -201,7 +201,7 @@ export function MCPAppFrame({
           initTimeoutId = null;
           flushPending();
         }, INIT_TIMEOUT_MS);
-        bridgeRef.current = createMCPAppBridge({
+        bridgeRef.current = createMcpAppBridge({
           frame: rendered,
           handlers: wrappedHandlers,
           hostInfo: current.hostInfo,
