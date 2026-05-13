@@ -46,6 +46,26 @@ export type McpAppHostInfo = {
   version: string;
 };
 
+/**
+ * Configures a backend route that mediates MCP operations.
+ *
+ * The renderer POSTs `{ method, params }` to `url`. The route handler
+ * dispatches by method name and returns the result as JSON.
+ *
+ * Method contract:
+ * - `mcp-apps/read-resource` (`{ uri }`) → `McpAppResource`
+ * - `tools/call` (`{ name, arguments? }`) → tool result
+ * - `resources/read` (`{ uri }`) → resource read result
+ * - `resources/list` (`params?`) → list result
+ */
+export type McpAppHostConfig = {
+  url: string;
+  fetch?: typeof fetch;
+  headers?:
+    | Record<string, string>
+    | (() => Record<string, string> | Promise<Record<string, string>>);
+};
+
 export type McpAppToolCallParams = {
   name: string;
   arguments?: Record<string, unknown>;

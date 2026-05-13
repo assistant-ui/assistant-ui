@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { McpAppMetadata } from "@assistant-ui/core";
 import type {
   ToolCallMessagePartComponent,
@@ -10,6 +10,7 @@ import { resource, tapConst, tapRef } from "@assistant-ui/tap";
 import { McpAppFrame } from "./app-frame";
 import type {
   McpAppBridgeHandlers,
+  McpAppHostConfig,
   McpAppHostContext,
   McpAppHostInfo,
   McpAppResource,
@@ -18,10 +19,23 @@ import type {
 import { getMcpAppFromToolPart } from "./utils";
 
 export type McpAppRendererOptions = {
-  /** Fetch the HTML + meta for a `ui://` resource the server attached to a tool. */
-  loadResource: (app: McpAppMetadata) => Promise<McpAppResource>;
-  /** Bridge handlers — the widget calls these via JSON-RPC. All are optional. */
-  handlers?: McpAppBridgeHandlers;
+  /**
+   * Backend route that mediates MCP operations. The renderer auto-implements
+   * `loadResource` and the data-side handlers (`callTool`, `readResource`,
+   * `listResources`) by POSTing `{ method, params }` to `host.url`. See
+   * {@link McpAppHostConfig} for the method contract.
+   */
+  host: McpAppHostConfig;
+  /**
+   * Client-side bridge handlers — for capabilities that must run in the
+   * browser (DOM access, composer wiring, lifecycle events). Optional.
+   * Data handlers (`callTool` / `readResource` / `listResources`) are
+   * sourced from `host` and should not be set here.
+   */
+  handlers?: Omit<
+    McpAppBridgeHandlers,
+    "callTool" | "readResource" | "listResources"
+  >;
   /** Sandbox + container styling. Passes through to SafeContentFrame. */
   sandbox?: McpAppSandboxConfig;
   /** Identifies the host to the widget in the `ui/initialize` response. */
@@ -30,9 +44,9 @@ export type McpAppRendererOptions = {
   hostContext?: McpAppHostContext;
   /** Rendered when no MCP app is on the part, or while load is in flight / failed (unless overridden). */
   fallback?: ReactNode;
-  /** Rendered while `loadResource` is in flight. Defaults to `fallback`. */
+  /** Rendered while the resource is loading. Defaults to `fallback`. */
   loadingFallback?: ReactNode;
-  /** Rendered when `loadResource` rejects. Receives the error. Defaults to `fallback`. */
+  /** Rendered when the resource load rejects. Defaults to `fallback`. */
   errorFallback?: ReactNode | ((error: Error) => ReactNode);
 };
 
@@ -56,6 +70,39 @@ function getInput(part: {
   return part.args;
 }
 
+async function postToHost(
+  host: McpAppHostConfig,
+  method: string,
+  params: unknown,
+): Promise<unknown> {
+  const doFetch = host.fetch ?? fetch;
+  const extraHeaders =
+    typeof host.headers === "function"
+      ? await host.headers()
+      : (host.headers ?? {});
+  const res = await doFetch(host.url, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...extraHeaders },
+    body: JSON.stringify({ method, params }),
+  });
+  if (!res.ok) {
+    throw new Error(`MCP App host request failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+function bridgeHandlersFromHost(
+  host: McpAppHostConfig,
+  client: McpAppRendererOptions["handlers"] | undefined,
+): McpAppBridgeHandlers {
+  return {
+    ...client,
+    callTool: (params) => postToHost(host, "tools/call", params),
+    readResource: (params) => postToHost(host, "resources/read", params),
+    listResources: (params) => postToHost(host, "resources/list", params),
+  };
+}
+
 function InlineRenderer({
   part,
   optionsRef,
@@ -77,14 +124,17 @@ function InlineRenderer({
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-fetches only when URI changes; mcp.app object identity is unstable across renders
   useEffect(() => {
     if (appForRender == null || resourceUri == null) return;
-    const loadResource = optionsRef.current.loadResource;
+    const host = optionsRef.current.host;
     let cancelled = false;
     const targetUri = resourceUri;
 
-    loadResource(appForRender)
+    postToHost(host, "mcp-apps/read-resource", { uri: targetUri })
       .then((res) => {
         if (!cancelled)
-          setLoadedResource({ resourceUri: targetUri, resource: res });
+          setLoadedResource({
+            resourceUri: targetUri,
+            resource: res as McpAppResource,
+          });
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -99,6 +149,11 @@ function InlineRenderer({
       cancelled = true;
     };
   }, [resourceUri]);
+
+  const bridgeHandlers = useMemo(
+    () => bridgeHandlersFromHost(opts.host, opts.handlers),
+    [opts.host, opts.handlers],
+  );
 
   const loadedResourceForApp =
     loadedResource?.resourceUri === appForRender?.resourceUri
@@ -128,7 +183,7 @@ function InlineRenderer({
       input={getInput(part)}
       output={part.result}
       sandbox={opts.sandbox}
-      handlers={opts.handlers}
+      handlers={bridgeHandlers}
       hostInfo={opts.hostInfo}
       hostContext={opts.hostContext}
     />

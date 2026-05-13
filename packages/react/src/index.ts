@@ -394,6 +394,7 @@ export type {
   McpAppHostInfo,
   McpAppHostContext,
   McpAppDisplayMode,
+  McpAppHostConfig,
   McpAppToolCallParams,
   ToolCallMessagePartMcpMetadata,
 } from "./mcp-apps";
