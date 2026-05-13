@@ -1,0 +1,35 @@
+{
+  "name": "with-mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n server,app -c blue,magenta \"pnpm dev:server\" \"pnpm dev:app\"",
+    "dev:server": "tsx watch server/server.ts",
+    "dev:app": "next dev app --port 3010",
+    "build": "next build app",
+    "start:server": "tsx server/server.ts"
+  },
+  "dependencies": {
+    "@assistant-ui/react-mcp": "workspace:*",
+    "@assistant-ui/store": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "next": "^16.2.4",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "concurrently": "^9.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^6.0.3"
+  }
+}
