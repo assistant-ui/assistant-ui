@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type ReactNode,
+} from "react";
 import type { McpAppMetadata } from "@assistant-ui/core";
 import type {
   ToolCallMessagePartComponent,
@@ -80,18 +87,14 @@ function extractSendMessageText(params: unknown): string | undefined {
   return undefined;
 }
 
-type InternalsRef = {
-  current: { host: McpAppsHost };
-};
-
 function InlineRenderer({
   part,
   internalsRef,
   optionsRef,
 }: {
   part: ToolCallMessagePartProps;
-  internalsRef: InternalsRef;
-  optionsRef: { readonly current: McpAppRendererOptions };
+  internalsRef: MutableRefObject<{ host: McpAppsHost }>;
+  optionsRef: MutableRefObject<McpAppRendererOptions>;
 }) {
   const opts = optionsRef.current;
   const aui = useAui();
@@ -136,7 +139,7 @@ function InlineRenderer({
       openLink: defaultOpenLink,
       sendMessage: (params) => {
         const text = extractSendMessageText(params);
-        if (!text) return null;
+        if (!text) return { ok: false, reason: "unrecognised params shape" };
         aui.thread().append({ content: [{ type: "text", text }] });
         return { ok: true };
       },

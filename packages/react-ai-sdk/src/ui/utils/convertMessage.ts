@@ -48,7 +48,11 @@ function extractMcpAppMetadata(
   if (typeof a["resourceUri"] !== "string") return undefined;
   if (!isMcpAppUri(a["resourceUri"])) return undefined;
   const cached = cache?.get(a["resourceUri"]);
-  if (cached) return cached;
+  if (cached) {
+    cache!.delete(a["resourceUri"]);
+    cache!.set(a["resourceUri"], cached);
+    return cached;
+  }
   const out: { -readonly [K in keyof McpAppMetadata]: McpAppMetadata[K] } = {
     resourceUri: a["resourceUri"],
   };

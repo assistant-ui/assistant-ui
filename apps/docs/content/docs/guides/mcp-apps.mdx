@@ -93,7 +93,7 @@ export async function POST(req: Request) {
       }
       return Response.json(
         await tool.execute(params.arguments ?? {}, {
-          toolCallId: `mcp-apps-bridge-${Date.now()}`,
+          toolCallId: `mcp-apps-bridge-${crypto.randomUUID()}`,
           messages: [],
         }),
       );

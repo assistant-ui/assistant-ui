@@ -54,7 +54,7 @@ export async function POST(req: Request) {
         const result = await tool.execute(
           (params.arguments ?? {}) as Record<string, unknown>,
           {
-            toolCallId: `mcp-apps-bridge-${Date.now()}`,
+            toolCallId: `mcp-apps-bridge-${crypto.randomUUID()}`,
             messages: [],
           },
         );
