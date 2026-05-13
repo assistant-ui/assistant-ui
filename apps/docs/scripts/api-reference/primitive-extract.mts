@@ -103,9 +103,11 @@ export function readPrimitiveParts(primitiveName: string): string[] {
     .filter((name) => !orderedPartNames.has(name))
     .sort((a, b) => a.localeCompare(b));
   const parts = [
-    ...orderedParts.filter((part) => part === "Root"),
-    ...orderedParts.filter((part) => part !== "Root"),
-    ...fallbackParts,
+    ...new Set([
+      ...orderedParts.filter((part) => part === "Root"),
+      ...orderedParts.filter((part) => part !== "Root"),
+      ...fallbackParts,
+    ]),
   ];
   primitiveParts.set(primitiveName, parts);
   return parts;

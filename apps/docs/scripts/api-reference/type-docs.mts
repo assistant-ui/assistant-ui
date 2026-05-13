@@ -203,6 +203,9 @@ export function buildTypeDocs(exports: ExportInfo[]): {
       if (!fs.existsSync(filePath)) continue;
       for (const [name, supportingShape] of extractSupportingTypeShapes(
         filePath,
+        item.jsDocLinkResolver
+          ? { linkResolver: item.jsDocLinkResolver }
+          : undefined,
       )) {
         if (typeDocs.has(name)) continue;
         const supportingTd = shapeToTypeDoc(supportingShape);

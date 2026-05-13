@@ -50,6 +50,7 @@ export type ExportInfo = {
   classificationRule: string;
   classificationConfidence: "strong" | "medium" | "fallback";
   classificationReason: string;
+  jsDocLinkResolver?: (target: string) => string | undefined;
 };
 
 export const SECTION_ORDER = [
@@ -269,7 +270,7 @@ function getReactApiLinkItems(): ApiReferenceLinkItem[] {
   return reactApiLinkItems;
 }
 
-function buildReactExportInfo(
+function buildExportInfo(
   {
     name,
     resolved,
@@ -279,29 +280,42 @@ function buildReactExportInfo(
     placement,
   }: ClassifiedExportInput,
   linkResolver: (target: string) => string | undefined,
+  overrides: Partial<
+    Pick<
+      ExportInfo,
+      | "section"
+      | "page"
+      | "pageRole"
+      | "classificationRule"
+      | "classificationConfidence"
+      | "classificationReason"
+    >
+  > = {},
 ): ExportInfo {
   const docs = extractJsDoc(resolved, { linkResolver });
   const signature = extractSignature(resolved, name);
   return {
     name,
-    section: placement.section,
+    section: overrides.section ?? placement.section,
     kind,
-    page: placement.page,
-    pageRole: placement.role,
+    page: overrides.page ?? placement.page,
+    pageRole: overrides.pageRole ?? placement.role,
     sourcePath,
     jsDoc: docs.jsDoc,
     deprecated: deprecated ?? docs.deprecated,
     signature,
-    classificationRule: placement.rule,
-    classificationConfidence: placement.confidence,
-    classificationReason: placement.reason,
+    classificationRule: overrides.classificationRule ?? placement.rule,
+    classificationConfidence:
+      overrides.classificationConfidence ?? placement.confidence,
+    classificationReason: overrides.classificationReason ?? placement.reason,
+    jsDocLinkResolver: linkResolver,
   };
 }
 
 export function discoverExports(): ExportInfo[] {
   const inputs = getReactApiInputs();
   const linkResolver = createApiReferenceLinkResolver(getReactApiLinkItems());
-  return inputs.map((input) => buildReactExportInfo(input, linkResolver));
+  return inputs.map((input) => buildExportInfo(input, linkResolver));
 }
 
 export function discoverIntegrationExports(
@@ -316,22 +330,14 @@ export function discoverIntegrationExports(
     ...linkItemsFor(inputs),
   ]);
 
-  return inputs.map(({ name, resolved, deprecated, sourcePath, kind }) => {
-    const docs = extractJsDoc(resolved, { linkResolver });
-    const signature = extractSignature(resolved, name);
-    return {
-      name,
+  return inputs.map((input) =>
+    buildExportInfo(input, linkResolver, {
       section: "integrations",
-      kind,
       page,
       pageRole: "primary",
-      sourcePath,
-      jsDoc: docs.jsDoc,
-      deprecated: deprecated ?? docs.deprecated,
-      signature,
       classificationRule: "integration:package",
       classificationConfidence: "strong",
       classificationReason: "package-level integration export",
-    };
-  });
+    }),
+  );
 }
