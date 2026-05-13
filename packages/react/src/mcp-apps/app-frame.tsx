@@ -3,9 +3,57 @@
 import { useEffect, useRef } from "react";
 import { type RenderedFrame, SafeContentFrame } from "safe-content-frame";
 import { type MCPAppBridge, createMCPAppBridge } from "./bridge";
-import type { MCPAppFrameProps } from "./types";
+import type { MCPAppBridgeHandlers, MCPAppFrameProps } from "./types";
 
 const DEFAULT_PRODUCT = "assistant-ui-mcp-app";
+
+type LiveSnapshot = {
+  html: string;
+  sandbox: MCPAppFrameProps["sandbox"];
+  handlers: MCPAppBridgeHandlers | undefined;
+  hostInfo: MCPAppFrameProps["hostInfo"];
+  hostContext: MCPAppFrameProps["hostContext"];
+  input: unknown;
+  output: unknown;
+};
+
+// Proxy each per-call handler through liveRef so the bridge always dispatches
+// to the latest handler reference (e.g. inline callbacks closing over state).
+// Capability presence is snapshot at mount: a handler added later requires a
+// remount (keyed on resource URI) to expose the capability to the widget.
+function buildLiveHandlers(
+  initial: MCPAppBridgeHandlers | undefined,
+  liveRef: { readonly current: LiveSnapshot },
+): MCPAppBridgeHandlers {
+  const live = () => liveRef.current.handlers;
+  const has = <K extends keyof MCPAppBridgeHandlers>(key: K) =>
+    initial?.[key] !== undefined;
+  const out: MCPAppBridgeHandlers = {};
+  if (has("allowedTools")) {
+    const allowed = live()?.allowedTools;
+    if (allowed !== undefined) out.allowedTools = allowed;
+  }
+  if (has("callTool")) out.callTool = (p) => live()?.callTool?.(p);
+  if (has("readResource")) out.readResource = (p) => live()?.readResource?.(p);
+  if (has("listResources"))
+    out.listResources = (p) => live()?.listResources?.(p);
+  if (has("openLink")) out.openLink = (p) => live()?.openLink?.(p);
+  if (has("sendMessage")) out.sendMessage = (p) => live()?.sendMessage?.(p);
+  if (has("updateModelContext"))
+    out.updateModelContext = (p) => live()?.updateModelContext?.(p);
+  if (has("requestDisplayMode")) {
+    out.requestDisplayMode = async (p) => {
+      const r = await live()?.requestDisplayMode?.(p);
+      return r ?? { mode: p.mode };
+    };
+  }
+  out.onSizeChange = (p) => live()?.onSizeChange?.(p);
+  out.onInitialized = () => live()?.onInitialized?.();
+  out.onRequestTeardown = (p) => live()?.onRequestTeardown?.(p);
+  out.onLog = (p) => live()?.onLog?.(p);
+  out.onError = (e) => live()?.onError?.(e);
+  return out;
+}
 
 export function MCPAppFrame({
   app,
@@ -79,7 +127,7 @@ export function MCPAppFrame({
         const current = liveRef.current;
         bridgeRef.current = createMCPAppBridge({
           frame: rendered,
-          handlers: current.handlers,
+          handlers: buildLiveHandlers(current.handlers, liveRef),
           hostInfo: current.hostInfo,
           hostContext: current.hostContext,
         });

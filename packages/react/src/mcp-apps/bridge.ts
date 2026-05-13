@@ -168,12 +168,22 @@ export function createMCPAppBridge(
             );
             return;
           }
-          const callArgs =
-            callParams.arguments &&
-            typeof callParams.arguments === "object" &&
-            !Array.isArray(callParams.arguments)
-              ? (callParams.arguments as Record<string, unknown>)
-              : undefined;
+          let callArgs: Record<string, unknown> | undefined;
+          if (callParams.arguments !== undefined) {
+            if (
+              callParams.arguments === null ||
+              typeof callParams.arguments !== "object" ||
+              Array.isArray(callParams.arguments)
+            ) {
+              errorResponse(
+                req.id,
+                JSONRPC_ERROR.invalidParams,
+                "tools/call 'arguments' must be an object",
+              );
+              return;
+            }
+            callArgs = callParams.arguments as Record<string, unknown>;
+          }
           const result = await handlers.callTool({
             name: callParams.name,
             ...(callArgs !== undefined ? { arguments: callArgs } : {}),
@@ -234,6 +244,25 @@ export function createMCPAppBridge(
               req.id,
               JSONRPC_ERROR.invalidParams,
               "openLink requires a string 'url'",
+            );
+            return;
+          }
+          let linkProtocol: string;
+          try {
+            linkProtocol = new URL(linkParams.url).protocol;
+          } catch {
+            errorResponse(
+              req.id,
+              JSONRPC_ERROR.invalidParams,
+              "openLink requires a valid URL",
+            );
+            return;
+          }
+          if (linkProtocol !== "https:" && linkProtocol !== "http:") {
+            errorResponse(
+              req.id,
+              JSONRPC_ERROR.invalidParams,
+              "openLink only accepts http(s) URLs",
             );
             return;
           }

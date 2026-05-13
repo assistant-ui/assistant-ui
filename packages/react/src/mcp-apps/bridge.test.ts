@@ -136,6 +136,42 @@ describe("createMCPAppBridge", () => {
     bridge.dispose();
   });
 
+  it("rejects tools/call with non-object arguments via -32602", async () => {
+    const { frame, captured } = makeFrame();
+    const callTool = vi.fn();
+    const bridge = createMCPAppBridge({ frame, handlers: { callTool } });
+
+    dispatch(frame, {
+      jsonrpc: "2.0",
+      id: 11,
+      method: "tools/call",
+      params: { name: "x", arguments: "not-an-object" },
+    });
+    await flush();
+
+    expect(callTool).not.toHaveBeenCalled();
+    expect((captured[0] as MCPAppJsonRpcResponse).error?.code).toBe(-32602);
+    bridge.dispose();
+  });
+
+  it("rejects openLink for non-http(s) schemes via -32602", async () => {
+    const { frame, captured } = makeFrame();
+    const openLink = vi.fn();
+    const bridge = createMCPAppBridge({ frame, handlers: { openLink } });
+
+    dispatch(frame, {
+      jsonrpc: "2.0",
+      id: 12,
+      method: "openLink",
+      params: { url: "javascript:alert(1)" },
+    });
+    await flush();
+
+    expect(openLink).not.toHaveBeenCalled();
+    expect((captured[0] as MCPAppJsonRpcResponse).error?.code).toBe(-32602);
+    bridge.dispose();
+  });
+
   it("invokes onSizeChange / onInitialized for notifications", () => {
     const { frame } = makeFrame();
     const onSizeChange = vi.fn();
