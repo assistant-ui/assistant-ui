@@ -37,7 +37,6 @@ function extractMcpAppMetadata(
   cache: Map<string, McpAppMetadata> | undefined,
 ): McpAppMetadata | undefined {
   if (!part || typeof part !== "object") return undefined;
-  let a: Record<string, unknown> | undefined;
   const meta = (part as { callProviderMetadata?: unknown })
     .callProviderMetadata;
   const mcp =
@@ -46,6 +45,7 @@ function extractMcpAppMetadata(
       : undefined;
   const app =
     mcp && typeof mcp === "object" ? (mcp as { app?: unknown }).app : undefined;
+  let a: Record<string, unknown>;
   if (app && typeof app === "object") {
     a = app as Record<string, unknown>;
   } else {
