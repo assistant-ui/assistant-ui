@@ -383,5 +383,17 @@ export type { Assistant } from "./augmentations";
 
 // --- mcp-apps ---
 export { MCPAppRenderer } from "./mcp-apps";
-export type { MCPAppRendererOptions } from "./mcp-apps";
+export type {
+  MCPAppRendererOptions,
+  MCPAppMetadata,
+  MCPAppResource,
+  MCPAppResourceMeta,
+  MCPAppResourceCSP,
+  MCPAppBridgeHandlers,
+  MCPAppSandboxConfig,
+  MCPAppHostInfo,
+  MCPAppHostContext,
+  MCPAppDisplayMode,
+  ToolCallMessagePartMCPMetadata,
+} from "./mcp-apps";
 export type { MCPAppResourceOutput } from "@assistant-ui/core/react";

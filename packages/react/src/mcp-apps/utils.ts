@@ -10,7 +10,3 @@ export function getMCPAppFromToolPart(
   if (!app.resourceUri.startsWith("ui://")) return undefined;
   return app;
 }
-
-export function isMCPAppPart(part: ToolPartLike): boolean {
-  return getMCPAppFromToolPart(part) !== undefined;
-}

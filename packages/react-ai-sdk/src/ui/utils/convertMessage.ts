@@ -43,6 +43,7 @@ function extractMCPAppMetadata(
   if (!app || typeof app !== "object") return undefined;
   const a = app as Record<string, unknown>;
   if (typeof a["resourceUri"] !== "string") return undefined;
+  if (!a["resourceUri"].startsWith("ui://")) return undefined;
   const cached = cache?.get(a["resourceUri"]);
   if (cached) return cached;
   const out: { -readonly [K in keyof MCPAppMetadata]: MCPAppMetadata[K] } = {
