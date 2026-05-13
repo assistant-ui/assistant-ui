@@ -49,7 +49,7 @@
     "@opencode-ai/sdk": "^1.14.39"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.14.1",
+    "@assistant-ui/react": "^0.14.2",
     "@types/react": "*",
     "react": "^18 || ^19"
   },

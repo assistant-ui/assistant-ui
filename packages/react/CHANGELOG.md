@@ -1,5 +1,26 @@
 # @assistant-ui/react
 
+## 0.14.2
+
+### Patch Changes
+
+- [#4024](https://github.com/assistant-ui/assistant-ui/pull/4024) [`19d4d94`](https://github.com/assistant-ui/assistant-ui/commit/19d4d9412234628ae850b4b04da594201022a398) - feat: add native MCP Apps renderer — `McpAppRenderer` composes into `Tools` to render MCP UI resources inline in chat over a JSON-RPC postMessage bridge on `SafeContentFrame`. Adds an `mcp` field to `ToolCallMessagePart` and forwards `callProviderMetadata.mcp.app` through the AI SDK message converter. ([@Yonom](https://github.com/Yonom))
+
+- [#4022](https://github.com/assistant-ui/assistant-ui/pull/4022) [`4c3eaa1`](https://github.com/assistant-ui/assistant-ui/commit/4c3eaa1d5df8224916a392883ef18c89a84320c1) - fix(composer): apply WAI-ARIA combobox attributes to the textarea while a trigger popover is open ([@okisdev](https://github.com/okisdev))
+
+  `Unstable_TriggerPopover` rendered the listbox half of the WAI-ARIA editable combobox pattern, but the focused element (the textarea) lacked the corresponding combobox attributes. screen readers had no way to announce that an autocomplete was open or which item was highlighted.
+
+  `ComposerPrimitive.Input` now reads the active popover descriptor from `TriggerPopoverRoot` and applies `aria-controls`, `aria-expanded`, `aria-haspopup="listbox"`, and `aria-activedescendant` to the textarea while a popover is open. attributes are removed when the popover closes. consumers using `ComposerPrimitive.Input` outside a `TriggerPopoverRoot` are unaffected.
+
+- [#4020](https://github.com/assistant-ui/assistant-ui/pull/4020) [`03694bd`](https://github.com/assistant-ui/assistant-ui/commit/03694bd397a86c34b3a91dc8acf2c677eb44e295) - fix(composer): select highlighted item on Tab in trigger popover ([@serhiizghama](https://github.com/serhiizghama))
+
+  `ComposerPrimitive.Unstable_TriggerPopover` only accepted the highlighted entry on Enter. Tab fell through to the underlying textarea, moving focus out of the composer or inserting a tab character. This diverged from the autocomplete convention used in CLIs, IDEs, command palettes, GitHub, Slack, Discord, and Notion, where Tab accepts the highlighted suggestion.
+
+  Tab now mirrors Enter and selects the highlighted item or category. Shift+Tab still passes through so native focus traversal keeps working.
+
+- Updated dependencies [[`19d4d94`](https://github.com/assistant-ui/assistant-ui/commit/19d4d9412234628ae850b4b04da594201022a398)]:
+  - @assistant-ui/core@0.2.2
+
 ## 0.14.1
 
 ### Patch Changes
