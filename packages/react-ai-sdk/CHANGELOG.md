@@ -1,5 +1,11 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.26
+
+### Patch Changes
+
+- [#4030](https://github.com/assistant-ui/assistant-ui/pull/4030) [`798a5ce`](https://github.com/assistant-ui/assistant-ui/commit/798a5ceec9dc6ea4688a66d42b6293a50ef5295a) - fix(react-ai-sdk): resolve MCP app metadata from tool output `_meta["ui/resourceUri"]` as a fallback when it isn't present in `callProviderMetadata.mcp.app`. MCP-UI tools (e.g. xmcp) surface the UI pointer in the call result, so the renderer previously never picked it up. ([@Yonom](https://github.com/Yonom))
+
 ## 1.3.25
 
 ### Patch Changes

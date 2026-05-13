@@ -1,5 +1,11 @@
 # @assistant-ui/react
 
+## 0.14.3
+
+### Patch Changes
+
+- [#4031](https://github.com/assistant-ui/assistant-ui/pull/4031) [`30f0357`](https://github.com/assistant-ui/assistant-ui/commit/30f035761bfb76fcb6c4c9e2db8fa6cc76036681) - feat(react): clamp MCP app auto-resize height to a configurable max (default 800px) ([@Yonom](https://github.com/Yonom))
+
 ## 0.14.2
 
 ### Patch Changes

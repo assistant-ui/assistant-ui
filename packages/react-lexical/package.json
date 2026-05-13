@@ -39,7 +39,7 @@
     "lexical": "^0.44.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.14.2",
+    "@assistant-ui/react": "^0.14.3",
     "@assistant-ui/core": "^0.2.2",
     "@assistant-ui/store": "*",
     "@types/react": "*",
