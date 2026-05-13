@@ -73,6 +73,16 @@ export type DataMessagePart<T = any> = {
   readonly data: T;
 };
 
+export type MCPAppMetadata = {
+  readonly resourceUri: string;
+  readonly mimeType?: string;
+  readonly visibility?: readonly ("model" | "app")[];
+};
+
+export type ToolCallMessagePartMCPMetadata = {
+  readonly app?: MCPAppMetadata;
+};
+
 export type ToolCallMessagePart<
   TArgs = ReadonlyJSONObject,
   TResult = unknown,
@@ -85,6 +95,7 @@ export type ToolCallMessagePart<
   readonly isError?: boolean | undefined;
   readonly argsText: string;
   readonly artifact?: unknown;
+  readonly mcp?: ToolCallMessagePartMCPMetadata;
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   readonly interrupt?: { type: "human"; payload: unknown };
   readonly parentId?: string;

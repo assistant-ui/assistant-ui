@@ -380,3 +380,42 @@ export {
 } from "./primitives/composer/trigger";
 
 export type { Assistant } from "./augmentations";
+
+// --- mcp-apps ---
+export {
+  MCP_APP_MIME_TYPE,
+  MCP_APP_PROTOCOL_VERSION,
+  getMCPAppFromToolPart,
+  isMCPAppPart,
+  createMCPAppBridge,
+  MCPAppFrame,
+  MCPAppRenderer,
+  MCPAppProvider,
+  useMCPAppContext,
+  MCPAppToolUI,
+  makeMCPAppToolUI,
+  MCPAppToolRegistrar,
+} from "./mcp-apps";
+export type {
+  MCPAppMetadata,
+  MCPAppResource,
+  MCPAppResourceCSP,
+  MCPAppResourceMeta,
+  MCPAppDisplayMode,
+  MCPAppHostContext,
+  MCPAppHostInfo,
+  MCPAppToolCallParams,
+  MCPAppBridgeHandlers,
+  MCPAppSandboxConfig,
+  MCPAppFrameProps,
+  MCPAppRendererProps,
+  MCPAppJsonRpcRequest,
+  MCPAppJsonRpcNotification,
+  MCPAppJsonRpcResponse,
+  MCPAppJsonRpcMessage,
+  CreateMCPAppBridgeOptions,
+  MCPAppBridge,
+  MCPAppBridgeFrame,
+  MCPAppContextValue,
+  MCPAppProviderProps,
+} from "./mcp-apps";

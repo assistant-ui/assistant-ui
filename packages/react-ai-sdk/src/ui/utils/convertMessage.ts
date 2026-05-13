@@ -12,6 +12,7 @@ import type {
   SourceProviderMetadata,
   FileMessagePart,
   ThreadMessageLike,
+  MCPAppMetadata,
 } from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { unwrapModelContentEnvelope } from "../../modelContentEnvelope";
@@ -25,6 +26,29 @@ export type AISDKMessageConverterMetadata =
 
 function stripClosingDelimiters(json: string): string {
   return json.replace(/[}\]"]+$/, "");
+}
+
+function extractMCPAppMetadata(part: unknown): MCPAppMetadata | undefined {
+  if (!part || typeof part !== "object") return undefined;
+  const meta = (part as { callProviderMetadata?: unknown })
+    .callProviderMetadata;
+  if (!meta || typeof meta !== "object") return undefined;
+  const mcp = (meta as { mcp?: unknown }).mcp;
+  if (!mcp || typeof mcp !== "object") return undefined;
+  const app = (mcp as { app?: unknown }).app;
+  if (!app || typeof app !== "object") return undefined;
+  const a = app as Record<string, unknown>;
+  if (typeof a["resourceUri"] !== "string") return undefined;
+  const out: { -readonly [K in keyof MCPAppMetadata]: MCPAppMetadata[K] } = {
+    resourceUri: a["resourceUri"],
+  };
+  if (typeof a["mimeType"] === "string") out.mimeType = a["mimeType"];
+  if (Array.isArray(a["visibility"])) {
+    out.visibility = a["visibility"].filter(
+      (v): v is "model" | "app" => v === "model" || v === "app",
+    );
+  }
+  return out;
 }
 
 const hasOwn = (value: object, key: string) => Object.hasOwn(value, key);
@@ -204,6 +228,7 @@ function convertParts(
         }
 
         const toolStatus = metadata.toolStatuses?.[toolCallId];
+        const mcpApp = extractMCPAppMetadata(part);
         return {
           type: "tool-call",
           toolName,
@@ -213,6 +238,7 @@ function convertParts(
           result,
           isError,
           ...(modelContent !== undefined && { modelContent }),
+          ...(mcpApp && { mcp: { app: mcpApp } }),
           ...getToolInterrupt(part, toolStatus),
         } satisfies ToolCallMessagePart;
       }

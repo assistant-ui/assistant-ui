@@ -69,6 +69,7 @@
     "nanoid": "^5.1.11",
     "radix-ui": "^1.4.3",
     "react-textarea-autosize": "^8.5.9",
+    "safe-content-frame": "^0.0.18",
     "zod": "^4.4.3",
     "zustand": "^5.0.13"
   },

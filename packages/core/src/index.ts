@@ -11,6 +11,8 @@ export type {
   DataMessagePart,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
+  ToolCallMessagePartMCPMetadata,
+  MCPAppMetadata,
   ToolModelContentPart,
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
