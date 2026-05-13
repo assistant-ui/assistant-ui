@@ -12,7 +12,6 @@ import {
   extractJsDoc,
   extractSignature,
   getProject,
-  setJsDocLinkResolver,
 } from "./extract.mts";
 
 export type ApiSection =
@@ -258,10 +257,16 @@ function linkItemsFor(inputs: ClassifiedExportInput[]): ApiReferenceLinkItem[] {
 }
 
 let reactApiInputs: ClassifiedExportInput[] | undefined;
+let reactApiLinkItems: ApiReferenceLinkItem[] | undefined;
 
 function getReactApiInputs(): ClassifiedExportInput[] {
   reactApiInputs ??= classifyExportInputs(collectExportInputs(REACT_INDEX));
   return reactApiInputs;
+}
+
+function getReactApiLinkItems(): ApiReferenceLinkItem[] {
+  reactApiLinkItems ??= linkItemsFor(getReactApiInputs());
+  return reactApiLinkItems;
 }
 
 function buildReactExportInfo({
@@ -272,7 +277,9 @@ function buildReactExportInfo({
   kind,
   placement,
 }: ClassifiedExportInput): ExportInfo {
-  const docs = extractJsDoc(resolved);
+  const docs = extractJsDoc(resolved, {
+    linkResolver: createApiReferenceLinkResolver(getReactApiLinkItems()),
+  });
   const signature = extractSignature(resolved, name);
   return {
     name,
@@ -292,7 +299,6 @@ function buildReactExportInfo({
 
 export function discoverExports(): ExportInfo[] {
   const inputs = getReactApiInputs();
-  setJsDocLinkResolver(createApiReferenceLinkResolver(linkItemsFor(inputs)));
   return inputs.map(buildReactExportInfo);
 }
 
@@ -303,16 +309,13 @@ export function discoverIntegrationExports(
   const inputs = classifyExportInputs(collectExportInputs(entryPath)).filter(
     ({ kind }) => kind !== "interface" && kind !== "type",
   );
-
-  setJsDocLinkResolver(
-    createApiReferenceLinkResolver([
-      ...linkItemsFor(getReactApiInputs()),
-      ...linkItemsFor(inputs),
-    ]),
-  );
+  const linkResolver = createApiReferenceLinkResolver([
+    ...getReactApiLinkItems(),
+    ...linkItemsFor(inputs),
+  ]);
 
   return inputs.map(({ name, resolved, deprecated, sourcePath, kind }) => {
-    const docs = extractJsDoc(resolved);
+    const docs = extractJsDoc(resolved, { linkResolver });
     const signature = extractSignature(resolved, name);
     return {
       name,

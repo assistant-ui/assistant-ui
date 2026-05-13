@@ -55,14 +55,15 @@ function renderDescription(description: string | ReactNode): ReactNode {
   const parts: ReactNode[] = [];
   let lastIndex = 0;
   for (const match of description.matchAll(MARKDOWN_LINK_REGEX)) {
-    const [fullMatch, label, href] = match;
+    const fullMatch = match[0]!;
+    const label = match[1]!;
+    const linkHref = match[2]!;
     const index = match.index ?? 0;
     if (index > lastIndex) {
       parts.push(description.slice(lastIndex, index));
     }
 
-    const children = renderLinkLabel(label ?? "");
-    const linkHref = href ?? "";
+    const children = renderLinkLabel(label);
     parts.push(
       linkHref.startsWith("/") ? (
         <Link

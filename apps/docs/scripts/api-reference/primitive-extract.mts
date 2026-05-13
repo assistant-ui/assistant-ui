@@ -102,11 +102,11 @@ export function readPrimitiveParts(primitiveName: string): string[] {
     .filter(isPrimitivePart)
     .filter((name) => !orderedPartNames.has(name))
     .sort((a, b) => a.localeCompare(b));
-  const parts = [...orderedParts, ...fallbackParts].sort((a, b) => {
-    if (a === "Root") return -1;
-    if (b === "Root") return 1;
-    return 0;
-  });
+  const parts = [
+    ...orderedParts.filter((part) => part === "Root"),
+    ...orderedParts.filter((part) => part !== "Root"),
+    ...fallbackParts,
+  ];
   primitiveParts.set(primitiveName, parts);
   return parts;
 }

@@ -197,14 +197,13 @@ function classMemberPrefix(node: TsNode): string {
 
 // ── JSDoc layer (single source of truth) ───────────────────────────────────
 
-let jsDocLinkResolver: ((target: string) => string | undefined) | undefined;
 const warnedUnresolvedJsDocLinks = new Set<string>();
 
-export function setJsDocLinkResolver(
-  resolver: ((target: string) => string | undefined) | undefined,
-): void {
-  jsDocLinkResolver = resolver;
-}
+type JsDocLinkResolver = (target: string) => string | undefined;
+
+type JsDocRenderOptions = {
+  linkResolver?: JsDocLinkResolver;
+};
 
 function isExternalLinkTarget(target: string): boolean {
   return /^(https?:|mailto:)/.test(target);
@@ -235,21 +234,29 @@ function warnUnresolvedJsDocLink(target: string, source: string): void {
   console.warn(`Warning: unresolved JSDoc link "${target}" in ${source}`);
 }
 
-function renderJsDocLinkTag(content: string, source: string): string {
+function renderJsDocLinkTag(
+  content: string,
+  source: string,
+  { linkResolver }: JsDocRenderOptions = {},
+): string {
   const { target, label } = parseJsDocLinkContent(content);
   const isExternal = isExternalLinkTarget(target);
-  const href = isExternal ? target : jsDocLinkResolver?.(target);
-  if (!href && !isExternal) {
-    warnUnresolvedJsDocLink(target, source);
+  const href = isExternal ? target : linkResolver?.(target);
+  if (!href) {
+    if (!isExternal) warnUnresolvedJsDocLink(target, source);
+    return label;
   }
-  if (!href) return label;
   const labelText = label.replaceAll("[", "\\[").replaceAll("]", "\\]");
   return `[${labelText}](${href.replaceAll(")", "%29")})`;
 }
 
-function renderJsDocLinks(text: string, source: string): string {
+function renderJsDocLinks(
+  text: string,
+  source: string,
+  options?: JsDocRenderOptions,
+): string {
   return text.replace(/\{@link\s+([^}]+)\}/g, (_, content: string) =>
-    renderJsDocLinkTag(content, source),
+    renderJsDocLinkTag(content, source, options),
   );
 }
 
@@ -276,11 +283,12 @@ function jsDocSourceLabel(node: TsNode | undefined): string {
 export function getJsDocCommentText(
   doc: JSDoc,
   source = "unknown source",
+  options?: JsDocRenderOptions,
 ): string | undefined {
   const text = doc.getCommentText();
   if (!text) return undefined;
 
-  const cleaned = renderJsDocLinks(text, source)
+  const cleaned = renderJsDocLinks(text, source, options)
     .replace(/\s+([.,;:])/g, "$1")
     .trim();
 
@@ -291,6 +299,7 @@ export function jsDocTag(
   doc: JSDoc | undefined,
   name: string,
   source = "unknown source",
+  options?: JsDocRenderOptions,
 ): string | undefined {
   const tag = doc?.getTags().find((tag) => tag.getTagName() === name);
   const text = tag?.getCommentText();
@@ -300,7 +309,9 @@ export function jsDocTag(
     .trim();
   const tagText =
     name === "deprecated" ? cleaned?.split(/\n\s*\n/)[0] : cleaned;
-  return tagText ? renderJsDocLinks(tagText, `${source} @${name}`) : undefined;
+  return tagText
+    ? renderJsDocLinks(tagText, `${source} @${name}`, options)
+    : undefined;
 }
 
 function getJsDocs(node: TsNode | undefined): JSDoc[] {
@@ -320,14 +331,18 @@ function getJsDocs(node: TsNode | undefined): JSDoc[] {
   return [];
 }
 
-export function extractJsDoc(node: TsNode | undefined): {
+export function extractJsDoc(
+  node: TsNode | undefined,
+  options?: JsDocRenderOptions,
+): {
   jsDoc?: string;
   deprecated?: string;
 } {
   const doc = getJsDocs(node)[0];
+  const source = jsDocSourceLabel(node);
   return {
-    jsDoc: doc ? getJsDocCommentText(doc, jsDocSourceLabel(node)) : undefined,
-    deprecated: jsDocTag(doc, "deprecated", jsDocSourceLabel(node)),
+    jsDoc: doc ? getJsDocCommentText(doc, source, options) : undefined,
+    deprecated: jsDocTag(doc, "deprecated", source, options),
   };
 }
 
