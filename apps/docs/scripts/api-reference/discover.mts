@@ -12,6 +12,7 @@ import {
   extractJsDoc,
   extractSignature,
   getProject,
+  renderJsDocLinks,
 } from "./extract.mts";
 
 export type ApiSection =
@@ -294,6 +295,11 @@ function buildExportInfo(
 ): ExportInfo {
   const docs = extractJsDoc(resolved, { linkResolver });
   const signature = extractSignature(resolved, name);
+  const resolvedDeprecated = deprecated
+    ? renderJsDocLinks(deprecated, `${name} export @deprecated`, {
+        linkResolver,
+      })
+    : docs.deprecated;
   return {
     name,
     section: overrides.section ?? placement.section,
@@ -302,7 +308,7 @@ function buildExportInfo(
     pageRole: overrides.pageRole ?? placement.role,
     sourcePath,
     jsDoc: docs.jsDoc,
-    deprecated: deprecated ?? docs.deprecated,
+    deprecated: resolvedDeprecated,
     signature,
     classificationRule: overrides.classificationRule ?? placement.rule,
     classificationConfidence:

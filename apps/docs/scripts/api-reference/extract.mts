@@ -250,7 +250,7 @@ function renderJsDocLinkTag(
   return `[${labelText}](${href.replaceAll(")", "%29")})`;
 }
 
-function renderJsDocLinks(
+export function renderJsDocLinks(
   text: string,
   source: string,
   options?: JsDocRenderOptions,
@@ -258,6 +258,29 @@ function renderJsDocLinks(
   return text.replace(/\{@link\s+([^}]+)\}/g, (_, content: string) =>
     renderJsDocLinkTag(content, source, options),
   );
+}
+
+function cleanJsDocTagText(text: string | undefined): string | undefined {
+  return text
+    ?.replace(/\n\s*\*\s?/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function deprecatedTagParts(doc: JSDoc | undefined): {
+  deprecated?: string;
+  trailingDescription?: string;
+} {
+  const tag = doc?.getTags().find((tag) => tag.getTagName() === "deprecated");
+  const cleaned = cleanJsDocTagText(tag?.getCommentText());
+  if (!cleaned) return {};
+
+  const [deprecated, ...rest] = cleaned.split(/\n\s*\n/);
+  const trailingDescription = rest.join("\n\n").trim();
+  return {
+    deprecated: deprecated?.trim() || undefined,
+    trailingDescription: trailingDescription || undefined,
+  };
 }
 
 function jsDocSourceLabel(node: TsNode | undefined): string {
@@ -285,7 +308,8 @@ export function getJsDocCommentText(
   source = "unknown source",
   options?: JsDocRenderOptions,
 ): string | undefined {
-  const text = doc.getCommentText();
+  const text =
+    doc.getCommentText() ?? deprecatedTagParts(doc).trailingDescription;
   if (!text) return undefined;
 
   const cleaned = renderJsDocLinks(text, source, options)
@@ -302,13 +326,10 @@ export function jsDocTag(
   options?: JsDocRenderOptions,
 ): string | undefined {
   const tag = doc?.getTags().find((tag) => tag.getTagName() === name);
-  const text = tag?.getCommentText();
-  const cleaned = text
-    ?.replace(/\n\s*\*\s?/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
   const tagText =
-    name === "deprecated" ? cleaned?.split(/\n\s*\n/)[0] : cleaned;
+    name === "deprecated"
+      ? deprecatedTagParts(doc).deprecated
+      : cleanJsDocTagText(tag?.getCommentText());
   return tagText
     ? renderJsDocLinks(tagText, `${source} @${name}`, options)
     : undefined;
