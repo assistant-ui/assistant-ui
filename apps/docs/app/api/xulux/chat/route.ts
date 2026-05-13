@@ -59,7 +59,7 @@ function resolveXuluxModel(config: XuluxRequestConfig | undefined) {
   };
 }
 
-export const maxDuration = 300;
+export const maxDuration = 800;
 
 const PRUNE_OPTIONS = {
   toolCalls: "before-last-2-messages",
