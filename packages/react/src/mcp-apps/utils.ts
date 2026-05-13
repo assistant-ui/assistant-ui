@@ -10,7 +10,7 @@ export function getMcpAppFromToolPart(
   part: ToolPartLike,
 ): McpAppMetadata | undefined {
   const app = part.mcp?.app;
-  if (!app || typeof app.resourceUri !== "string") return undefined;
+  if (!app) return undefined;
   if (!isMcpAppUri(app.resourceUri)) return undefined;
   return app;
 }

@@ -3,6 +3,7 @@ import {
   tapState,
   tapEffect,
   tapCallback,
+  tapMemo,
   tapResources,
   withKey,
   type ResourceElement,
@@ -34,41 +35,36 @@ export const Tools = resource(
     );
     const mcpAppOutput = mcpAppOutputs[0];
 
-    const [state, setState] = tapState<ToolsState>(() => ({
+    const [toolsState, setToolsState] = tapState<{
+      tools: ToolsState["tools"];
+    }>(() => ({
       tools: {},
     }));
 
-    tapEffect(() => {
-      setState((prev) =>
-        prev.mcpApp === mcpAppOutput ? prev : { ...prev, mcpApp: mcpAppOutput },
-      );
-    }, [mcpAppOutput]);
+    const state = tapMemo(
+      (): ToolsState => ({ tools: toolsState.tools, mcpApp: mcpAppOutput }),
+      [toolsState, mcpAppOutput],
+    );
 
     const clientRef = tapAssistantClientRef();
 
     const setToolUI = tapCallback(
       (toolName: string, render: ToolCallMessagePartComponent) => {
-        setState((prev) => {
-          return {
-            ...prev,
-            tools: {
-              ...prev.tools,
-              [toolName]: [...(prev.tools[toolName] ?? []), render],
-            },
-          };
-        });
+        setToolsState((prev) => ({
+          tools: {
+            ...prev.tools,
+            [toolName]: [...(prev.tools[toolName] ?? []), render],
+          },
+        }));
 
         return () => {
-          setState((prev) => {
-            return {
-              ...prev,
-              tools: {
-                ...prev.tools,
-                [toolName]:
-                  prev.tools[toolName]?.filter((r) => r !== render) ?? [],
-              },
-            };
-          });
+          setToolsState((prev) => ({
+            tools: {
+              ...prev.tools,
+              [toolName]:
+                prev.tools[toolName]?.filter((r) => r !== render) ?? [],
+            },
+          }));
         };
       },
       [],

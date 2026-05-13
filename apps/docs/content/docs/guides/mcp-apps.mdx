@@ -29,13 +29,18 @@ import { useAui } from "@assistant-ui/react";
 import { Tools, McpAppRenderer, type McpAppRendererOptions } from "@assistant-ui/react";
 import { experimental_createMCPClient } from "ai";
 
-const mcpClient = await experimental_createMCPClient({
-  transport: { type: "sse", url: "https://my-mcp-server.example/sse" },
-});
+let mcpClientPromise: ReturnType<typeof experimental_createMCPClient> | undefined;
+const getMcpClient = () => {
+  mcpClientPromise ??= experimental_createMCPClient({
+    transport: { type: "sse", url: "https://my-mcp-server.example/sse" },
+  });
+  return mcpClientPromise;
+};
 
 const mcpAppOptions: McpAppRendererOptions = {
   loadResource: async (app) => {
-    const { contents } = await mcpClient.readResource({ uri: app.resourceUri });
+    const client = await getMcpClient();
+    const { contents } = await client.readResource({ uri: app.resourceUri });
     const c = contents.find((x) => x.uri === app.resourceUri);
     return {
       uri: app.resourceUri,
@@ -44,8 +49,10 @@ const mcpAppOptions: McpAppRendererOptions = {
     };
   },
   handlers: {
-    callTool: ({ name, arguments: args }) =>
-      mcpClient.callTool({ name, arguments: args }),
+    callTool: async ({ name, arguments: args }) => {
+      const client = await getMcpClient();
+      return client.callTool({ name, arguments: args });
+    },
     sendMessage: () => {
       /* push into composer / start a new turn */
     },
