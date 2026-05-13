@@ -85,10 +85,19 @@ export async function POST(req: Request) {
         html: c?.text ?? "",
       });
     }
-    case "tools/call":
+    case "tools/call": {
+      const tools = await client.tools();
+      const tool = tools[params.name];
+      if (!tool?.execute) {
+        return Response.json({ error: "Tool not callable" }, { status: 400 });
+      }
       return Response.json(
-        await client.callTool({ name: params.name, arguments: params.arguments }),
+        await tool.execute(params.arguments ?? {}, {
+          toolCallId: `mcp-apps-bridge-${Date.now()}`,
+          messages: [],
+        }),
       );
+    }
     case "resources/read":
       return Response.json(await client.readResource({ uri: params.uri }));
     case "resources/list":

@@ -43,18 +43,22 @@ export async function POST(req: Request) {
         if (typeof params.name !== "string") {
           return Response.json({ error: "Missing tool name" }, { status: 400 });
         }
-        const lowLevel = client as unknown as {
-          callTool: (args: {
-            name: string;
-            args: Record<string, unknown>;
-          }) => Promise<unknown>;
-        };
-        return Response.json(
-          await lowLevel.callTool({
-            name: params.name,
-            args: (params.arguments ?? {}) as Record<string, unknown>,
-          }),
+        const tools = await client.tools();
+        const tool = tools[params.name];
+        if (!tool?.execute) {
+          return Response.json(
+            { error: `Tool '${params.name}' is not callable` },
+            { status: 400 },
+          );
+        }
+        const result = await tool.execute(
+          (params.arguments ?? {}) as Record<string, unknown>,
+          {
+            toolCallId: `mcp-apps-bridge-${Date.now()}`,
+            messages: [],
+          },
         );
+        return Response.json(result);
       }
       case "resources/read": {
         if (typeof params.uri !== "string") {
