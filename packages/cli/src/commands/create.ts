@@ -68,7 +68,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
   {
     name: "mcp",
     label: "MCP",
-    description: "MCP starter template",
+    description: "MCP tools + MCP Apps renderer starter",
     category: "template",
     path: "templates/mcp",
     hasLocalComponents: true,

@@ -7,29 +7,20 @@ import {
   convertToModelMessages,
   type UIMessage,
 } from "ai";
-import { experimental_createMCPClient as createMCPClient } from "@ai-sdk/mcp";
+import { getMcpClient } from "../mcp-client";
 
 export const maxDuration = 30;
 
-let mcpClient: Awaited<ReturnType<typeof createMCPClient>> | null = null;
 let cachedMCPTools: ToolSet | null = null;
 
 async function getMCPTools(): Promise<ToolSet> {
   if (cachedMCPTools) return cachedMCPTools;
-
   try {
-    mcpClient = await createMCPClient({
-      // TODO adjust this to point to your MCP server URL
-      transport: {
-        type: "http",
-        url: "http://localhost:8000/mcp",
-      },
-    });
-    cachedMCPTools = await mcpClient.tools();
+    const client = await getMcpClient();
+    cachedMCPTools = await client.tools();
     return cachedMCPTools;
   } catch (e) {
     console.warn("Failed to connect to MCP server:", e);
-    mcpClient = null;
     return {};
   }
 }
