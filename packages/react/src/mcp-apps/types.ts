@@ -118,12 +118,23 @@ export type MCPAppJsonRpcNotification = {
   params?: unknown;
 };
 
-export type MCPAppJsonRpcResponse = {
-  jsonrpc: "2.0";
-  id: string | number;
-  result?: unknown;
-  error?: { code: number; message: string; data?: unknown };
+export type MCPAppJsonRpcError = {
+  code: number;
+  message: string;
+  data?: unknown;
 };
+
+export type MCPAppJsonRpcResponse =
+  | {
+      jsonrpc: "2.0";
+      id: string | number;
+      result: unknown;
+    }
+  | {
+      jsonrpc: "2.0";
+      id: string | number;
+      error: MCPAppJsonRpcError;
+    };
 
 export type MCPAppJsonRpcMessage =
   | MCPAppJsonRpcRequest

@@ -3,7 +3,11 @@
 import { useEffect, useRef } from "react";
 import { type RenderedFrame, SafeContentFrame } from "safe-content-frame";
 import { type MCPAppBridge, createMCPAppBridge } from "./bridge";
-import type { MCPAppBridgeHandlers, MCPAppFrameProps } from "./types";
+import type {
+  MCPAppBridgeHandlers,
+  MCPAppFrameProps,
+  MCPAppHostContext,
+} from "./types";
 
 const DEFAULT_PRODUCT = "assistant-ui-mcp-app";
 
@@ -38,33 +42,23 @@ function buildLiveHandlers(
   }
   const liveCall = <K extends keyof MCPAppBridgeHandlers>(
     key: K,
-    label: string,
   ): NonNullable<MCPAppBridgeHandlers[K]> =>
     ((p: unknown) => {
       const fn = live()?.[key] as ((p: unknown) => unknown) | undefined;
       if (!fn) {
-        throw new Error(`${label} handler is no longer available`);
+        throw new Error(`${key} handler is no longer available`);
       }
       return fn(p);
     }) as NonNullable<MCPAppBridgeHandlers[K]>;
-  if (has("callTool")) out.callTool = liveCall("callTool", "tools/call");
-  if (has("readResource"))
-    out.readResource = liveCall("readResource", "resources/read");
-  if (has("listResources"))
-    out.listResources = liveCall("listResources", "resources/list");
-  if (has("openLink")) out.openLink = liveCall("openLink", "openLink");
-  if (has("sendMessage"))
-    out.sendMessage = liveCall("sendMessage", "sendMessage");
+  if (has("callTool")) out.callTool = liveCall("callTool");
+  if (has("readResource")) out.readResource = liveCall("readResource");
+  if (has("listResources")) out.listResources = liveCall("listResources");
+  if (has("openLink")) out.openLink = liveCall("openLink");
+  if (has("sendMessage")) out.sendMessage = liveCall("sendMessage");
   if (has("updateModelContext"))
-    out.updateModelContext = liveCall(
-      "updateModelContext",
-      "updateModelContext",
-    );
+    out.updateModelContext = liveCall("updateModelContext");
   if (has("requestDisplayMode"))
-    out.requestDisplayMode = liveCall(
-      "requestDisplayMode",
-      "requestDisplayMode",
-    );
+    out.requestDisplayMode = liveCall("requestDisplayMode");
   out.onSizeChange = (p) => live()?.onSizeChange?.(p);
   out.onInitialized = () => live()?.onInitialized?.();
   out.onRequestTeardown = (p) => live()?.onRequestTeardown?.(p);
@@ -89,6 +83,13 @@ export function MCPAppFrame({
   const lastSentInputRef = useRef<unknown>(undefined);
   const lastSentOutputRef = useRef<unknown>(undefined);
   const lastSentHostContextRef = useRef<unknown>(undefined);
+  // Per MCP Apps spec, the host should defer notifications until the widget
+  // signals readiness via `notifications/initialized`. Until then, we record
+  // pending values and flush them on init.
+  const widgetReadyRef = useRef(false);
+  const pendingInputRef = useRef<unknown>(undefined);
+  const pendingOutputRef = useRef<unknown>(undefined);
+  const pendingHostContextRef = useRef<unknown>(undefined);
 
   const liveRef = useRef<LiveSnapshot>(null!);
   liveRef.current = {
