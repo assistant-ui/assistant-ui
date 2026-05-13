@@ -22,10 +22,6 @@ function getInput(part: MCPAppRendererProps["part"]): unknown {
   return part.args;
 }
 
-function getOutput(part: MCPAppRendererProps["part"]): unknown {
-  return part.result;
-}
-
 export function MCPAppRenderer({
   part,
   sandbox,
@@ -105,7 +101,7 @@ export function MCPAppRenderer({
       app={appForRender}
       resource={resource}
       input={getInput(part)}
-      output={getOutput(part)}
+      output={part.result}
       sandbox={sandbox}
       handlers={handlers}
       hostInfo={hostInfo}

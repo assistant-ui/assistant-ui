@@ -412,6 +412,7 @@ export type {
   MCPAppJsonRpcRequest,
   MCPAppJsonRpcNotification,
   MCPAppJsonRpcResponse,
+  MCPAppJsonRpcError,
   MCPAppJsonRpcMessage,
   CreateMCPAppBridgeOptions,
   MCPAppBridge,

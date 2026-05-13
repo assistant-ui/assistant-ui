@@ -18,6 +18,7 @@ export type {
   MCPAppJsonRpcRequest,
   MCPAppJsonRpcNotification,
   MCPAppJsonRpcResponse,
+  MCPAppJsonRpcError,
   MCPAppJsonRpcMessage,
 } from "./types";
 
