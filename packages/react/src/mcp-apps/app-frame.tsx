@@ -222,41 +222,30 @@ export function MCPAppFrame({
     };
   }, [resourceUri]);
 
-  useEffect(() => {
-    if (!bridgeRef.current) return;
-    if (input === undefined) return;
-    if (lastSentInputRef.current === input) return;
-    if (!widgetReadyRef.current) {
-      pendingInputRef.current = input;
-      return;
-    }
-    bridgeRef.current.notifyToolInput(input);
-    lastSentInputRef.current = input;
-  }, [input]);
-
-  useEffect(() => {
-    if (!bridgeRef.current) return;
-    if (output === undefined) return;
-    if (lastSentOutputRef.current === output) return;
-    if (!widgetReadyRef.current) {
-      pendingOutputRef.current = output;
-      return;
-    }
-    bridgeRef.current.notifyToolResult(output);
-    lastSentOutputRef.current = output;
-  }, [output]);
-
-  useEffect(() => {
-    if (!bridgeRef.current) return;
-    if (!hostContext) return;
-    if (lastSentHostContextRef.current === hostContext) return;
-    if (!widgetReadyRef.current) {
-      pendingHostContextRef.current = hostContext;
-      return;
-    }
-    bridgeRef.current.notifyHostContextChanged(hostContext);
-    lastSentHostContextRef.current = hostContext;
-  }, [hostContext]);
+  useBridgeNotify(
+    input,
+    bridgeRef,
+    widgetReadyRef,
+    pendingInputRef,
+    lastSentInputRef,
+    (b, v) => b.notifyToolInput(v),
+  );
+  useBridgeNotify(
+    output,
+    bridgeRef,
+    widgetReadyRef,
+    pendingOutputRef,
+    lastSentOutputRef,
+    (b, v) => b.notifyToolResult(v),
+  );
+  useBridgeNotify(
+    hostContext,
+    bridgeRef,
+    widgetReadyRef,
+    pendingHostContextRef,
+    lastSentHostContextRef,
+    (b, v) => b.notifyHostContextChanged(v as MCPAppHostContext),
+  );
 
   return (
     <div
