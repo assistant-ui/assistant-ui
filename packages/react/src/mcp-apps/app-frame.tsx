@@ -35,8 +35,6 @@ function useBridgeNotify<T>(
 }
 
 type LiveSnapshot = {
-  html: string;
-  sandbox: MCPAppFrameProps["sandbox"];
   handlers: MCPAppBridgeHandlers | undefined;
   hostInfo: MCPAppFrameProps["hostInfo"];
   hostContext: MCPAppFrameProps["hostContext"];
@@ -102,7 +100,6 @@ export function MCPAppFrame({
 }: MCPAppFrameProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bridgeRef = useRef<MCPAppBridge | null>(null);
-  const frameRef = useRef<RenderedFrame | null>(null);
   const lastSentInputRef = useRef<unknown>(undefined);
   const lastSentOutputRef = useRef<unknown>(undefined);
   const lastSentHostContextRef = useRef<MCPAppHostContext | undefined>(
@@ -120,8 +117,6 @@ export function MCPAppFrame({
 
   const liveRef = useRef<LiveSnapshot>(null!);
   liveRef.current = {
-    html: resource.html,
-    sandbox,
     handlers,
     hostInfo,
     hostContext,
@@ -138,8 +133,9 @@ export function MCPAppFrame({
 
     let cancelled = false;
     let initTimeoutId: ReturnType<typeof setTimeout> | null = null;
-    const live = liveRef.current;
-    const sb = live.sandbox;
+    let frame: RenderedFrame | null = null;
+    const sb = sandbox;
+    const html = resource.html;
 
     const scf = new SafeContentFrame(sb?.product ?? DEFAULT_PRODUCT, {
       ...(sb?.sandbox !== undefined && { sandbox: sb.sandbox }),
@@ -156,13 +152,13 @@ export function MCPAppFrame({
         : undefined;
 
     scf
-      .renderHtml(live.html, container, renderOpts)
+      .renderHtml(html, container, renderOpts)
       .then((rendered) => {
         if (cancelled) {
           rendered.dispose();
           return;
         }
-        frameRef.current = rendered;
+        frame = rendered;
         const current = liveRef.current;
         const wrappedHandlers = buildLiveHandlers(current.handlers, liveRef);
         const userOnInitialized = wrappedHandlers.onInitialized;
@@ -230,8 +226,8 @@ export function MCPAppFrame({
       }
       bridgeRef.current?.dispose();
       bridgeRef.current = null;
-      frameRef.current?.dispose();
-      frameRef.current = null;
+      frame?.dispose();
+      frame = null;
       lastSentInputRef.current = undefined;
       lastSentOutputRef.current = undefined;
       lastSentHostContextRef.current = undefined;

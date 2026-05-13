@@ -232,7 +232,9 @@ export function createMCPAppBridge(
             );
             return;
           }
-          respond(req.id, { result: await handlers.listResources(params) });
+          respond(req.id, {
+            result: (await handlers.listResources(params)) ?? null,
+          });
           return;
         }
 
@@ -288,7 +290,9 @@ export function createMCPAppBridge(
             );
             return;
           }
-          respond(req.id, { result: await handlers.sendMessage(params) });
+          respond(req.id, {
+            result: (await handlers.sendMessage(params)) ?? null,
+          });
           return;
         }
 
@@ -302,7 +306,7 @@ export function createMCPAppBridge(
             return;
           }
           respond(req.id, {
-            result: await handlers.updateModelContext(params),
+            result: (await handlers.updateModelContext(params)) ?? null,
           });
           return;
         }
