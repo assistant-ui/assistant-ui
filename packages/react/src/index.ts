@@ -394,6 +394,7 @@ export type {
   McpAppHostInfo,
   McpAppHostContext,
   McpAppDisplayMode,
+  McpAppToolCallParams,
   ToolCallMessagePartMcpMetadata,
 } from "./mcp-apps";
 export type { McpAppResourceOutput } from "@assistant-ui/core/react";

@@ -9,5 +9,6 @@ export type {
   McpAppHostInfo,
   McpAppHostContext,
   McpAppDisplayMode,
+  McpAppToolCallParams,
   ToolCallMessagePartMcpMetadata,
 } from "./types";

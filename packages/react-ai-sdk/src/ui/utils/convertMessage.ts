@@ -30,6 +30,8 @@ function stripClosingDelimiters(json: string): string {
   return json.replace(/[}\]"]+$/, "");
 }
 
+const MCP_APP_METADATA_CACHE_MAX = 100;
+
 function extractMcpAppMetadata(
   part: unknown,
   cache: Map<string, McpAppMetadata> | undefined,
@@ -56,7 +58,13 @@ function extractMcpAppMetadata(
       (v): v is "model" | "app" => v === "model" || v === "app",
     );
   }
-  cache?.set(a["resourceUri"], out);
+  if (cache) {
+    if (cache.size >= MCP_APP_METADATA_CACHE_MAX) {
+      const oldest = cache.keys().next().value;
+      if (oldest !== undefined) cache.delete(oldest);
+    }
+    cache.set(a["resourceUri"], out);
+  }
   return out;
 }
 
