@@ -71,6 +71,8 @@ export type MCPServerMethods = {
   disconnect: () => Promise<void>;
   remove: () => Promise<void>;
   callTool: (name: string, args: unknown) => Promise<unknown>;
+  /** Read a resource by URI. Returns the raw MCP `ReadResourceResult`. */
+  readResource: (uri: string) => Promise<unknown>;
   /** OAuth only: pass full callback URL (e.g. window.location.href) */
   completeAuth: (callbackUrl: string) => Promise<void>;
 };

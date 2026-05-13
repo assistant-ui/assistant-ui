@@ -245,6 +245,13 @@ export const MCPServerResource = resource(
           arguments: args as Record<string, unknown> | undefined,
         });
       },
+      readResource: async (uri) => {
+        const client = clientRef.current;
+        if (!client) {
+          throw new Error(`MCP server "${props.id}" is not connected`);
+        }
+        return await client.readResource({ uri });
+      },
       completeAuth: doCompleteAuth,
     };
   },
