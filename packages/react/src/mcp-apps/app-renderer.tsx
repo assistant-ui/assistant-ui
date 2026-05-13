@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MCPAppMetadata } from "@assistant-ui/core";
 import { MCPAppFrame } from "./app-frame";
 import type { MCPAppRendererProps, MCPAppResource } from "./types";
@@ -39,19 +39,13 @@ export function MCPAppRenderer({
   errorFallback,
 }: MCPAppRendererProps) {
   const app = getMCPAppFromToolPart(part);
-  const [cachedApp, setCachedApp] = useState<MCPAppMetadata>();
+  const cachedAppRef = useRef<MCPAppMetadata | undefined>(undefined);
+  if (app != null && cachedAppRef.current?.resourceUri !== app.resourceUri) {
+    cachedAppRef.current = app;
+  }
+  const appForRender = app ?? cachedAppRef.current;
+
   const [loadedResource, setLoadedResource] = useState<LoadedResourceState>();
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: cache key is resourceUri; functional update reads latest app
-  useEffect(() => {
-    if (app != null) {
-      setCachedApp((previous) =>
-        previous?.resourceUri === app.resourceUri ? previous : app,
-      );
-    }
-  }, [app?.resourceUri]);
-
-  const appForRender = app ?? cachedApp;
 
   const resourceUri = appForRender?.resourceUri;
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-fetches only when URI changes; mcp.app object identity is unstable across renders

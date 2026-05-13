@@ -39,14 +39,14 @@ function buildLiveHandlers(
   const liveCall = <K extends keyof MCPAppBridgeHandlers>(
     key: K,
     label: string,
-  ) =>
+  ): NonNullable<MCPAppBridgeHandlers[K]> =>
     ((p: unknown) => {
       const fn = live()?.[key] as ((p: unknown) => unknown) | undefined;
       if (!fn) {
         throw new Error(`${label} handler is no longer available`);
       }
       return fn(p);
-    }) as never;
+    }) as NonNullable<MCPAppBridgeHandlers[K]>;
   if (has("callTool")) out.callTool = liveCall("callTool", "tools/call");
   if (has("readResource"))
     out.readResource = liveCall("readResource", "resources/read");
@@ -90,15 +90,7 @@ export function MCPAppFrame({
   const lastSentOutputRef = useRef<unknown>(undefined);
   const lastSentHostContextRef = useRef<unknown>(undefined);
 
-  const liveRef = useRef({
-    html: resource.html,
-    sandbox,
-    handlers,
-    hostInfo,
-    hostContext,
-    input,
-    output,
-  });
+  const liveRef = useRef<LiveSnapshot>(null!);
   liveRef.current = {
     html: resource.html,
     sandbox,

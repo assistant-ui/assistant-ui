@@ -2,6 +2,7 @@ import type { RenderedFrame } from "safe-content-frame";
 import {
   MCP_APP_PROTOCOL_VERSION,
   type MCPAppBridgeHandlers,
+  type MCPAppDisplayMode,
   type MCPAppHostContext,
   type MCPAppHostInfo,
   type MCPAppJsonRpcMessage,
@@ -9,6 +10,12 @@ import {
   type MCPAppJsonRpcRequest,
   type MCPAppJsonRpcResponse,
 } from "./types";
+
+const VALID_DISPLAY_MODES = [
+  "inline",
+  "fullscreen",
+  "pip",
+] as const satisfies readonly MCPAppDisplayMode[];
 
 export type MCPAppBridgeFrame = Pick<
   RenderedFrame,
@@ -311,9 +318,8 @@ export function createMCPAppBridge(
           }
           const modeParams = (params ?? {}) as { mode?: unknown };
           if (
-            modeParams.mode !== "inline" &&
-            modeParams.mode !== "fullscreen" &&
-            modeParams.mode !== "pip"
+            typeof modeParams.mode !== "string" ||
+            !VALID_DISPLAY_MODES.includes(modeParams.mode as MCPAppDisplayMode)
           ) {
             errorResponse(
               req.id,
@@ -324,7 +330,7 @@ export function createMCPAppBridge(
           }
           respond(req.id, {
             result: await handlers.requestDisplayMode({
-              mode: modeParams.mode,
+              mode: modeParams.mode as MCPAppDisplayMode,
             }),
           });
           return;
