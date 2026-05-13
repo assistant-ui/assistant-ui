@@ -33,6 +33,7 @@ import type {
 } from "../../types/MessagePartComponentTypes";
 import { isMcpAppUri, type MessagePartStatus } from "../../../types/message";
 import type { DataRenderersState } from "../../types/scopes/dataRenderers";
+import type { ToolsState } from "../../types/scopes/tools";
 import { useShallow } from "zustand/shallow";
 
 type MessagePartRange =
@@ -511,6 +512,19 @@ const QuoteRendererImpl: FC<{ Quote: QuoteMessagePartComponent }> = ({
 
 const QuoteRenderer = memo(QuoteRendererImpl);
 
+function resolveToolRender(
+  toolsState: ToolsState,
+  part: Extract<PartState, { type: "tool-call" }>,
+): ToolCallMessagePartComponent | null {
+  const entry = toolsState.tools[part.toolName];
+  const named = Array.isArray(entry) ? (entry[0] ?? null) : (entry ?? null);
+  if (named) return named;
+  if (isMcpAppUri(part.mcp?.app?.resourceUri) && toolsState.mcpApp) {
+    return toolsState.mcpApp.render;
+  }
+  return null;
+}
+
 /**
  * Stable propless component that renders the registered tool UI for the
  * current part context. Reads tool registry and part state from context.
@@ -518,16 +532,9 @@ const QuoteRenderer = memo(QuoteRendererImpl);
 const RegisteredToolUI: FC = () => {
   const aui = useAui();
   const part = useAuiState((s) => s.part);
-  const Render = useAuiState((s) => {
-    if (s.part.type !== "tool-call") return null;
-    const entry = s.tools.tools[s.part.toolName];
-    const named = Array.isArray(entry) ? (entry[0] ?? null) : (entry ?? null);
-    if (named) return named;
-    if (isMcpAppUri(s.part.mcp?.app?.resourceUri) && s.tools.mcpApp) {
-      return s.tools.mcpApp.render;
-    }
-    return null;
-  });
+  const Render = useAuiState((s) =>
+    s.part.type === "tool-call" ? resolveToolRender(s.tools, s.part) : null,
+  );
 
   if (!Render || part.type !== "tool-call") return null;
 
@@ -643,13 +650,7 @@ export const MessagePartChildren: FC<{
               const state = getItem();
               if (state.type === "tool-call") {
                 const toolsState = aui.tools().getState();
-                const entry = toolsState.tools[state.toolName];
-                const namedUI = Array.isArray(entry) ? !!entry[0] : !!entry;
-                const hasMcpAppFallback =
-                  !namedUI &&
-                  isMcpAppUri(state.mcp?.app?.resourceUri) &&
-                  !!toolsState.mcpApp;
-                const hasUI = namedUI || hasMcpAppFallback;
+                const hasUI = resolveToolRender(toolsState, state) !== null;
                 const partMethods = aui.message().part({ index });
                 return {
                   ...state,
