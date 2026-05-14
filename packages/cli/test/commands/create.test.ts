@@ -4,6 +4,7 @@ import {
   resolveCreateProjectDirectory,
   resolvePresetUrl,
   resolveProject,
+  resolveScaffoldSelector,
   PROJECT_METADATA,
 } from "../../src/commands/create";
 
@@ -111,6 +112,63 @@ describe("resolveProject", () => {
       isCancel,
     });
     expect(result).toBeNull();
+  });
+});
+
+describe("resolveScaffoldSelector", () => {
+  it("maps --native to the Expo example", () => {
+    expect(resolveScaffoldSelector({ native: true })).toEqual({
+      example: "with-expo",
+    });
+  });
+
+  it("maps --ink to the React Ink example", () => {
+    expect(resolveScaffoldSelector({ ink: true })).toEqual({
+      example: "with-react-ink",
+    });
+  });
+
+  it("rejects --native with --ink", () => {
+    expect(() =>
+      resolveScaffoldSelector({ native: true, ink: true }),
+    ).toThrow(
+      "Only one scaffold selector can be provided (--native, --ink). Choose one of: --template <name>, --example <name>, --preset <name-or-url>, --native, or --ink.",
+    );
+  });
+
+  it("rejects --native with --example", () => {
+    expect(() =>
+      resolveScaffoldSelector({ native: true, example: "with-tanstack" }),
+    ).toThrow(
+      "Only one scaffold selector can be provided (--example, --native). Choose one of: --template <name>, --example <name>, --preset <name-or-url>, --native, or --ink.",
+    );
+  });
+
+  it("rejects --ink with --template", () => {
+    expect(() =>
+      resolveScaffoldSelector({ ink: true, template: "default" }),
+    ).toThrow(
+      "Only one scaffold selector can be provided (--template, --ink). Choose one of: --template <name>, --example <name>, --preset <name-or-url>, --native, or --ink.",
+    );
+  });
+
+  it("rejects --preset with --template", () => {
+    expect(() =>
+      resolveScaffoldSelector({ preset: "chatgpt", template: "minimal" }),
+    ).toThrow(
+      "Only one scaffold selector can be provided (--template, --preset). Choose one of: --template <name>, --example <name>, --preset <name-or-url>, --native, or --ink.",
+    );
+  });
+
+  it("rejects --preset with --example", () => {
+    expect(() =>
+      resolveScaffoldSelector({
+        preset: "chatgpt",
+        example: "with-ai-sdk-v6",
+      }),
+    ).toThrow(
+      "Only one scaffold selector can be provided (--example, --preset). Choose one of: --template <name>, --example <name>, --preset <name-or-url>, --native, or --ink.",
+    );
   });
 });
 

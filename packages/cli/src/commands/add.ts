@@ -1,9 +1,47 @@
 import { Command } from "commander";
 import { spawn } from "cross-spawn";
+import path from "node:path";
 import { logger } from "../lib/utils/logger";
 import { hasConfig } from "../lib/utils/config";
+import {
+  dlxCommand,
+  resolvePackageManagerName,
+  type PackageManagerName,
+} from "../lib/create-project";
+import { resolvePackageManager } from "./create";
 
 const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
+
+export interface AddComponentsPlan {
+  command: string;
+  args: string[];
+}
+
+export function createAddComponentsPlan(params: {
+  components: string[];
+  packageManager: PackageManagerName;
+  yes?: boolean;
+  overwrite?: boolean;
+  cwd?: string;
+  path?: string;
+}): AddComponentsPlan {
+  const componentsToAdd = params.components.map((c) => {
+    if (!/^[a-zA-Z0-9-/]+$/.test(c)) {
+      throw new Error(`Invalid component name: ${c}`);
+    }
+    return `${REGISTRY_BASE_URL}/${encodeURIComponent(c)}.json`;
+  });
+
+  const [command, dlxArgs] = dlxCommand(params.packageManager);
+  const args = [...dlxArgs, "shadcn@latest", "add", ...componentsToAdd];
+
+  if (params.yes) args.push("--yes");
+  if (params.overwrite) args.push("--overwrite");
+  if (params.cwd) args.push("--cwd", params.cwd);
+  if (params.path) args.push("--path", params.path);
+
+  return { command, args };
+}
 
 export const add = new Command()
   .name("add")
@@ -17,7 +55,11 @@ export const add = new Command()
     process.cwd(),
   )
   .option("-p, --path <path>", "the path to add the component to.")
-  .action((components: string[], opts) => {
+  .option("--use-npm", "explicitly use npm")
+  .option("--use-pnpm", "explicitly use pnpm")
+  .option("--use-yarn", "explicitly use yarn")
+  .option("--use-bun", "explicitly use bun")
+  .action(async (components: string[], opts) => {
     // Check if project is initialized
     if (!hasConfig(opts.cwd)) {
       logger.warn(
@@ -26,25 +68,23 @@ export const add = new Command()
       logger.break();
     }
 
-    const componentsToAdd = components.map((c) => {
-      if (!/^[a-zA-Z0-9-/]+$/.test(c)) {
-        throw new Error(`Invalid component name: ${c}`);
-      }
-      return `${REGISTRY_BASE_URL}/${encodeURIComponent(c)}.json`;
-    });
-
     logger.step(`Adding ${components.length} component(s)...`);
 
-    const args = [`shadcn@latest`, "add", ...componentsToAdd];
+    const packageManager = await resolvePackageManagerName(
+      path.join(opts.cwd, "_"),
+      resolvePackageManager(opts),
+    );
+    const { command, args } = createAddComponentsPlan({
+      components,
+      packageManager,
+      yes: opts.yes,
+      overwrite: opts.overwrite,
+      cwd: opts.cwd,
+      path: opts.path,
+    });
 
-    if (opts.yes) args.push("--yes");
-    if (opts.overwrite) args.push("--overwrite");
-    if (opts.cwd) args.push("--cwd", opts.cwd);
-    if (opts.path) args.push("--path", opts.path);
-
-    const child = spawn("npx", args, {
+    const child = spawn(command, args, {
       stdio: "inherit",
-      shell: true,
     });
 
     child.on("error", (error) => {

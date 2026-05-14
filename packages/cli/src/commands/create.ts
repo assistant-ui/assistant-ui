@@ -407,6 +407,39 @@ export function resolvePresetUrl(preset: string): string {
   return `${PLAYGROUND_PRESET_BASE_URL}?preset=${encodeURIComponent(preset)}`;
 }
 
+export interface ScaffoldSelectorOptions {
+  template?: string;
+  example?: string;
+  preset?: string;
+  native?: boolean;
+  ink?: boolean;
+}
+
+const scaffoldSelectorHelp =
+  "Choose one of: --template <name>, --example <name>, --preset <name-or-url>, --native, or --ink.";
+
+export function resolveScaffoldSelector(
+  opts: ScaffoldSelectorOptions,
+): Pick<ScaffoldSelectorOptions, "template" | "example"> {
+  const selectors = [
+    opts.template ? "--template" : undefined,
+    opts.example ? "--example" : undefined,
+    opts.preset ? "--preset" : undefined,
+    opts.native ? "--native" : undefined,
+    opts.ink ? "--ink" : undefined,
+  ].filter(Boolean);
+
+  if (selectors.length > 1) {
+    throw new Error(
+      `Only one scaffold selector can be provided (${selectors.join(", ")}). ${scaffoldSelectorHelp}`,
+    );
+  }
+
+  if (opts.native) return { example: "with-expo" };
+  if (opts.ink) return { example: "with-react-ink" };
+  return { template: opts.template, example: opts.example };
+}
+
 export const create = new Command()
   .name("create")
   .description("create a new project")
@@ -432,21 +465,12 @@ export const create = new Command()
   .option("--ink", "create a React Ink terminal project")
   .option("--skip-install", "skip installing packages")
   .action(async (projectDirectory, opts) => {
-    if (opts.native) {
-      opts.example = "with-expo";
-    }
-
-    if (opts.ink) {
-      opts.example = "with-react-ink";
-    }
-
-    if (opts.example && opts.preset) {
-      logger.error("Cannot use --preset with --example.");
-      process.exit(1);
-    }
-
-    if (opts.template && opts.example) {
-      logger.error("Cannot use both --template and --example.");
+    let scaffoldSelector: Pick<ScaffoldSelectorOptions, "template" | "example">;
+    try {
+      scaffoldSelector = resolveScaffoldSelector(opts);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(message);
       process.exit(1);
     }
 
@@ -511,8 +535,8 @@ export const create = new Command()
 
     // 2. Resolve scaffold target
     const project = await resolveProject({
-      template: opts.template,
-      example: opts.example,
+      template: scaffoldSelector.template,
+      example: scaffoldSelector.example,
     });
     if (!project) {
       p.cancel("Project creation cancelled.");
