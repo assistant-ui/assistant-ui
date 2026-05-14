@@ -32,6 +32,7 @@ type LangChainRuntimeExtras = {
     options?: Record<string, unknown>,
   ) => Promise<void>;
   values: Record<string, unknown>;
+  messagesKey: string;
 };
 
 const asLangChainRuntimeExtras = (extras: unknown): LangChainRuntimeExtras => {
@@ -199,8 +200,15 @@ const useStreamThreadRuntime = (
       interrupts: stream.interrupts,
       submit: stream.submit,
       values: stream.values,
+      messagesKey,
     }),
-    [stream.interrupt, stream.interrupts, stream.submit, stream.values],
+    [
+      stream.interrupt,
+      stream.interrupts,
+      stream.submit,
+      stream.values,
+      messagesKey,
+    ],
   );
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
@@ -313,6 +321,32 @@ export const useLangChainSubmit = () => {
     const { submit } = asLangChainRuntimeExtras(extras);
     return submit(values, options);
   };
+};
+
+/**
+ * Submit a list of LangChain-shaped messages on the current thread.
+ * Parity helper for migrating from `useLangGraphSend`. Routes to
+ * `useStream().submit({ [messagesKey]: messages }, options)`.
+ */
+export const useLangChainSend = () => {
+  const aui = useAui();
+  return (messages: readonly unknown[], options?: Record<string, unknown>) => {
+    const extras = aui.thread().getState().extras;
+    const { submit, messagesKey } = asLangChainRuntimeExtras(extras);
+    return submit({ [messagesKey]: messages }, options);
+  };
+};
+
+/**
+ * Submit a `useStream` command (e.g. interrupt resume). Parity helper
+ * for migrating from `useLangGraphSendCommand`. Note that v1's command
+ * shape (`{ resume?, goto?, update? }`) differs from the legacy
+ * `{ resume: string }` form — to carry a payload, use the input or
+ * `stream.respond` instead.
+ */
+export const useLangChainSendCommand = () => {
+  const submit = useLangChainSubmit();
+  return (command: Record<string, unknown>) => submit(null, { command });
 };
 
 /**
