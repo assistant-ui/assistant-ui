@@ -69,6 +69,27 @@ describe("AssistantCloudAPI", () => {
     expect(url.toString()).toBe("https://custom.example.com/v1/threads");
   });
 
+  it("strips a trailing slash from a custom baseUrl", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers(),
+      json: vi.fn().mockResolvedValue({}),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://custom.example.com/",
+      apiKey: "test-key",
+      userId: "u-1",
+      workspaceId: "w-1",
+    });
+
+    await api.makeRawRequest("/threads");
+
+    const [url] = fetchMock.mock.calls[0]!;
+    expect(url.toString()).toBe("https://custom.example.com/v1/threads");
+  });
+
   it("rejects before fetch when auth token callback returns null", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
