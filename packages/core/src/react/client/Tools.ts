@@ -21,12 +21,22 @@ import { ModelContext } from "../../store";
 
 export type { McpAppResourceOutput };
 
+/**
+ * Registers tools with model context and installs tool-call renderers.
+ *
+ * Mount this resource near an assistant subtree when you want to expose a
+ * group of tools declaratively. Tool definitions are registered with model
+ * context, while each tool renderer is registered with the tools scope for
+ * message rendering.
+ */
 export const Tools = resource(
   ({
     toolkit,
     mcpApp,
   }: {
+    /** Tools to expose to the model and optional renderers to install. */
     toolkit?: Toolkit;
+    /** Optional MCP app resource whose tools should be merged into context. */
     mcpApp?: ResourceElement<McpAppResourceOutput> | undefined;
   }): ClientOutput<"tools"> => {
     const mcpAppOutputs = tapResources(

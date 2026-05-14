@@ -57,10 +57,19 @@ export type ToolCallMessagePartProps<
   TResult = unknown,
 > = MessagePartState &
   ToolCallMessagePart<TArgs, TResult> & {
+    /**
+     * Adds a result for this tool-call message part and resumes the run when
+     * the tool is waiting for UI input.
+     */
     addResult: (result: TResult | ToolResponse<TResult>) => void;
+    /**
+     * Supplies the payload requested by a human tool interrupt and resumes the
+     * current tool-call message part.
+     */
     resume: (payload: unknown) => void;
   };
 
+/** Component used to render a tool-call message part. */
 export type ToolCallMessagePartComponent<
   TArgs = any,
   TResult = any,

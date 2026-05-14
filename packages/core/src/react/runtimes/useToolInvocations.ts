@@ -70,8 +70,16 @@ type UseToolInvocationsParams = {
 };
 
 export type ToolExecutionStatus =
-  | { type: "executing" }
-  | { type: "interrupt"; payload: { type: "human"; payload: unknown } };
+  | {
+      /** The tool's execute function is currently running. */
+      type: "executing";
+    }
+  | {
+      /** The tool is waiting for a human input payload before continuing. */
+      type: "interrupt";
+      /** Human input request emitted by the tool execution context. */
+      payload: { type: "human"; payload: unknown };
+    };
 
 type ToolState = {
   argsText: string;

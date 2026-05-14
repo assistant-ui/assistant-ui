@@ -6,19 +6,35 @@ import type { ToolResponse } from "./ToolResponse";
 
 export type ToolModelContentPart =
   | {
+      /** A text content part returned to the model after a tool call. */
       readonly type: "text";
+      /** Text that should be included in the model-visible tool result. */
       readonly text: string;
     }
   | {
+      /** A file content part returned to the model after a tool call. */
       readonly type: "file";
+      /** File payload encoded as a string. */
       readonly data: string;
+      /** MIME type for the file payload. */
       readonly mediaType: string;
+      /** Optional display filename for the file payload. */
       readonly filename?: string;
     };
 
+/**
+ * Converts a tool's runtime result into content that is sent back to the
+ * model.
+ *
+ * Return this when the value shown in the UI or stored as the tool result
+ * should differ from the model-visible response.
+ */
 export type ToolModelOutputFunction<TArgs, TResult> = (options: {
+  /** Stable identifier for the tool call being converted. */
   toolCallId: string;
+  /** Arguments supplied by the model for this tool call. */
   input: TArgs;
+  /** Value returned by the tool's {@link ToolExecuteFunction}. */
   output: TResult;
 }) =>
   | readonly ToolModelContentPart[]
@@ -90,7 +106,8 @@ export interface ToolCallReader<
   response: ToolCallResponseReader<TResult>;
 
   /**
-   * @deprecated Deprecated. Use `response.get().result` instead.
+   * @deprecated Deprecated. Use {@link ToolCallReader.response} and read
+   * `response.get().result` instead.
    */
   result: {
     get: () => Promise<TResult>;
@@ -98,11 +115,20 @@ export interface ToolCallReader<
 }
 
 export type ToolExecutionContext = {
+  /** Stable identifier for the tool call being executed. */
   toolCallId: string;
+  /** Signal that is aborted when the current run is cancelled. */
   abortSignal: AbortSignal;
+  /**
+   * Requests human input for a {@link Tool} with `type: "human"` and resolves
+   * with the payload supplied by the UI.
+   */
   human: (payload: unknown) => Promise<unknown>;
 };
 
+/**
+ * Function called when assistant-ui executes a frontend tool.
+ */
 export type ToolExecuteFunction<TArgs, TResult> = (
   args: TArgs,
   context: ToolExecutionContext,
@@ -135,13 +161,20 @@ type BackendTool<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
 > = ToolBase<TArgs, TResult> & {
+  /** Tool that is executed by the backend rather than in the browser. */
   type: "backend";
 
+  /** Backend tools are described by the backend model/tool registry. */
   description?: undefined;
+  /** Backend tools receive their parameter schema from the backend. */
   parameters?: undefined;
+  /** Backend tools cannot be disabled from the frontend tool definition. */
   disabled?: undefined;
+  /** Backend tools are not executed by the frontend runtime. */
   execute?: undefined;
+  /** Backend tools do not convert frontend results to model output. */
   toModelOutput?: undefined;
+  /** Backend tools do not run frontend schema validation. */
   experimental_onSchemaValidationError?: undefined;
 };
 
@@ -149,13 +182,20 @@ type FrontendTool<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
 > = ToolBase<TArgs, TResult> & {
+  /** Tool that is executed in the frontend runtime. */
   type: "frontend";
 
+  /** Natural-language description shown to the model when selecting tools. */
   description?: string | undefined;
+  /** Schema for the arguments the model must provide when calling the tool. */
   parameters: StandardSchemaV1<TArgs> | JSONSchema7;
+  /** Prevents the tool from being exposed to the model while true. */
   disabled?: boolean;
+  /** Executes the tool after the model provides valid arguments. */
   execute: ToolExecuteFunction<TArgs, TResult>;
+  /** Converts the execution result into model-visible output. */
   toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
+  /** Handles invalid tool arguments when schema validation fails. */
   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
 };
 
@@ -163,16 +203,30 @@ type HumanTool<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
 > = ToolBase<TArgs, TResult> & {
+  /** Tool that pauses the run until a user or UI supplies a result. */
   type: "human";
 
+  /** Natural-language description shown to the model when selecting tools. */
   description?: string | undefined;
+  /** Schema for the arguments the model must provide when requesting input. */
   parameters: StandardSchemaV1<TArgs> | JSONSchema7;
+  /** Prevents the tool from being exposed to the model while true. */
   disabled?: boolean;
+  /** Human tools are resolved by UI/human input, not direct execution. */
   execute?: undefined;
+  /** Human tool results are sent back as supplied by the UI. */
   toModelOutput?: undefined;
+  /** Human tools do not run frontend schema validation callbacks. */
   experimental_onSchemaValidationError?: undefined;
 };
 
+/**
+ * Definition for a tool that can be exposed to the assistant model.
+ *
+ * Use `type: "frontend"` for tools executed in the browser, `type: "backend"`
+ * for tools handled by your server, and `type: "human"` for flows that pause
+ * until the UI supplies a result.
+ */
 export type Tool<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
@@ -183,7 +237,7 @@ export type Tool<
   | ToolWithoutType<TArgs, TResult>;
 
 /**
- * @deprecated Use `Tool` with an explicit `type` field instead.
+ * @deprecated Use {@link Tool} with an explicit `type` field instead.
  */
 export type ToolWithoutType<
   TArgs extends Record<string, unknown> = Record<string, unknown>,

@@ -92,18 +92,31 @@ export type ToolCallMessagePart<
   TArgs = ReadonlyJSONObject,
   TResult = unknown,
 > = {
+  /** Identifies this part as a tool call. */
   readonly type: "tool-call";
+  /** Stable identifier for this invocation of the tool. */
   readonly toolCallId: string;
+  /** Name of the tool requested by the model. */
   readonly toolName: string;
+  /** Parsed arguments supplied by the model. */
   readonly args: TArgs;
+  /** Result returned by the tool, if it has completed. */
   readonly result?: TResult | undefined;
+  /** Whether the result represents a tool execution error. */
   readonly isError?: boolean | undefined;
+  /** Raw argument text streamed by the model. */
   readonly argsText: string;
+  /** UI-only artifact associated with the tool result. */
   readonly artifact?: unknown;
+  /** MCP app metadata associated with this tool call, when present. */
   readonly mcp?: ToolCallMessagePartMcpMetadata;
+  /** Content returned to the model for this tool result. */
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
+  /** Human-input request that must be resolved before the run can continue. */
   readonly interrupt?: { type: "human"; payload: unknown };
+  /** Parent message-part ID when this part belongs to a nested structure. */
   readonly parentId?: string;
+  /** Messages associated with this tool call, when provided by the runtime. */
   readonly messages?: readonly ThreadMessage[];
 };
 
@@ -143,7 +156,9 @@ export type MessagePartStatus =
 
 export type ToolCallMessagePartStatus =
   | {
+      /** The tool call is waiting for UI or human input before continuing. */
       readonly type: "requires-action";
+      /** Reason the tool call requires action. */
       readonly reason: "interrupt";
     }
   | MessagePartStatus;
