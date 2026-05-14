@@ -120,7 +120,7 @@ const useStreamThreadRuntime = ({
   const stream = useStream({
     ...streamOptions,
     threadId: externalId,
-  });
+  } as UseStreamOptions);
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [toolStatuses, setToolStatuses] = useState<
