@@ -27,7 +27,7 @@ export function XuluxApp() {
 
   return (
     <XuluxRuntimeProvider
-      key={`${sessionId}:${selectedTemplateContext?.id ?? ""}`}
+      key={sessionId}
       sessionId={sessionId}
       selectedTemplateContext={selectedTemplateContext}
     >

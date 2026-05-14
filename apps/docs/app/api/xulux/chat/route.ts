@@ -246,13 +246,29 @@ export async function POST(req: Request): Promise<Response> {
       sessionId,
       selectedTemplate,
     } = body;
-    const selectedTemplateContext =
-      formatSelectedTemplateContext(selectedTemplate);
 
     const prunedMessages = await prepareMessages(messages);
 
     const inputError = validateDocChatInput(prunedMessages);
     if (inputError) return inputError;
+
+    const isFirstUserTurn =
+      prunedMessages.filter((m) => m.role === "user").length === 1 &&
+      !prunedMessages.some((m) => m.role === "assistant");
+    if (isFirstUserTurn) {
+      const templateContext = formatSelectedTemplateContext(selectedTemplate);
+      const firstUser = prunedMessages.find((m) => m.role === "user");
+      if (templateContext && firstUser) {
+        if (typeof firstUser.content === "string") {
+          firstUser.content = `${firstUser.content}\n\n${templateContext}`;
+        } else if (Array.isArray(firstUser.content)) {
+          firstUser.content = [
+            ...firstUser.content,
+            { type: "text", text: templateContext },
+          ];
+        }
+      }
+    }
 
     const evalRunId = req.headers.get("x-agent-eval-run-id");
     const localTraceUrl = req.headers.get("x-agent-eval-trace-url");
@@ -289,9 +305,7 @@ export async function POST(req: Request): Promise<Response> {
       ...(modelConfig.providerOptions
         ? { providerOptions: modelConfig.providerOptions }
         : undefined),
-      system: [SYSTEM_PROMPT, selectedTemplateContext, pageContext]
-        .filter(Boolean)
-        .join("\n\n"),
+      system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),
       messages: prunedMessages,
       maxOutputTokens: 8192,
       stopWhen: stepCountIs(25),
