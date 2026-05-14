@@ -103,7 +103,7 @@ export async function POST(req: Request) {
     { traceName: "chat-completion", userId, sessionId },
     async () =>
       streamText({
-        model: openai("gpt-4o"),
+        model: openai("gpt-5.4-nano"),
         messages: await convertToModelMessages(messages),
         experimental_telemetry: { isEnabled: true },
       }),

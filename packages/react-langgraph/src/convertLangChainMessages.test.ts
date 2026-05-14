@@ -41,13 +41,15 @@ describe("convertLangChainMessages metadata", () => {
       id: "ai-1",
       content: "Hi there!",
       additional_kwargs: {
-        metadata: { model: "gpt-4", speaker_name: "Assistant" },
+        metadata: { model: "gpt-5.4-nano", speaker_name: "Assistant" },
       },
     });
 
     expect(result).toMatchObject({
       role: "assistant",
-      metadata: { custom: { model: "gpt-4", speaker_name: "Assistant" } },
+      metadata: {
+        custom: { model: "gpt-5.4-nano", speaker_name: "Assistant" },
+      },
     });
   });
 

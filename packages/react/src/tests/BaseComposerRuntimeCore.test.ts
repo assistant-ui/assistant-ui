@@ -114,7 +114,7 @@ describe("BaseComposerRuntimeCore", () => {
   });
 
   it("sets and gets runConfig", () => {
-    const config = { custom: { model: "gpt-4" } };
+    const config = { custom: { model: "gpt-5.4-nano" } };
     composer.setRunConfig(config);
     expect(composer.runConfig).toBe(config);
   });

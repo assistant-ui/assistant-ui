@@ -147,7 +147,7 @@ describe("unstable_createLangGraphStream", () => {
       client,
       assistantId: "graph-1",
     });
-    const runConfig = { configurable: { model_name: "gpt-4" } };
+    const runConfig = { configurable: { model_name: "gpt-5.4-nano" } };
 
     await callback([humanMessage], {
       abortSignal: new AbortController().signal,

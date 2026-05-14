@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   const mcpTools = await getMCPTools();
 
   const result = streamText({
-    model: openai.responses("gpt-5-nano"),
+    model: openai.responses("gpt-5.4-nano"),
     messages: await convertToModelMessages(messages),
     system,
     tools: {
