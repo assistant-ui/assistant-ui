@@ -43,7 +43,9 @@ cd my-agent
 
 Add the Cloudflare Agents packages and the AI SDK:
 
-<InstallCommand npm={["agents@latest", "@cloudflare/ai-chat@latest", "ai@latest", "@ai-sdk/openai@latest"]} />
+<InstallCommand npm={["agents@0.12.4", "@cloudflare/ai-chat@0.7.0", "ai@latest", "@ai-sdk/openai@latest"]} />
+
+The two Cloudflare packages above are pinned to exact versions because `agents` and `@cloudflare/ai-chat` are pre-1.0 and ship breaking changes between minor releases. See [version stability](#version-stability) below before bumping them.
 
 </Step>
 
@@ -64,14 +66,14 @@ export class Chat extends AIChatAgent<Env> {
   async onChatMessage(onFinish: Parameters<typeof streamText>[0]["onFinish"]) {
     return streamText({
       model: openai("gpt-4o-mini"),
-      messages: convertToModelMessages(this.messages),
+      messages: await convertToModelMessages(this.messages),
       onFinish,
     });
   }
 }
 ```
 
-`this.messages` is the persisted history for this Durable Object instance. Each unique agent `name` you connect with from the client (step 6) gets its own instance and its own message log.
+`this.messages` is the persisted history for this Durable Object instance. Each unique agent `name` you connect with from the client (step 7) gets its own instance and its own message log.
 
 </Step>
 
@@ -85,19 +87,30 @@ import { Chat } from "./chat";
 
 export { Chat };
 
+const cors = (request: Request) => ({
+  "Access-Control-Allow-Origin": request.headers.get("Origin") ?? "*",
+  "Access-Control-Allow-Headers": "Content-Type, Upgrade",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+});
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    return (
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: cors(request) });
+    }
+    const upstream =
       (await routeAgentRequest(request, env)) ??
-      new Response("Not found", { status: 404 })
-    );
+      new Response("Not found", { status: 404 });
+    const res = new Response(upstream.body, upstream);
+    for (const [k, v] of Object.entries(cors(request))) res.headers.set(k, v);
+    return res;
   },
 } satisfies ExportedHandler<Env>;
 ```
 
-`routeAgentRequest` handles WebSocket upgrades, agent lookup by URL path, and the `/get-messages` HTTP endpoint that the frontend uses for history rehydration.
+`routeAgentRequest` handles WebSocket upgrades, agent lookup by URL path, and the `/get-messages` HTTP endpoint that the frontend uses for history rehydration. The `cors` helper reflects the request origin so the frontend can talk to the Worker across ports during local development. WebSocket upgrades bypass CORS in the browser, but the `/get-messages` HTTP fetch and any custom routes need these headers. For production, replace the wildcard fallback with an explicit allowlist.
 
-Wire the Durable Object binding and CORS in `wrangler.jsonc`:
+Wire the Durable Object binding in `wrangler.jsonc`:
 
 ```jsonc title="wrangler.jsonc"
 {
@@ -122,9 +135,20 @@ The binding `name` and `class_name` must match the exported class. `new_sqlite_c
 
 ### Run the Worker locally
 
+Local `wrangler dev` reads environment variables from a `.dev.vars` file in the project root (not from the remote secret store):
+
+```sh title=".dev.vars"
+OPENAI_API_KEY=sk-...
+```
+
 ```sh
-wrangler secret put OPENAI_API_KEY    # paste your key when prompted
 wrangler dev
+```
+
+For production, upload the same key as a deployed Worker secret before `wrangler deploy`:
+
+```sh
+wrangler secret put OPENAI_API_KEY
 ```
 
 The Worker boots on `http://localhost:8787`. Leave it running.
@@ -155,7 +179,7 @@ This creates a default chat page and a local API route at `app/api/chat/route.ts
 
 In the frontend project:
 
-<InstallCommand npm={["agents@latest", "@cloudflare/ai-chat@latest"]} />
+<InstallCommand npm={["agents@0.12.4", "@cloudflare/ai-chat@0.7.0"]} />
 
 </Step>
 
@@ -207,7 +231,7 @@ NEXT_PUBLIC_AGENT_HOST=http://localhost:8787
 
 ### Type compatibility with `useChat`
 
-`useAgentChat`'s return type is `Omit<ReturnType<typeof useChat>, "addToolOutput"> & { ... }`. The `addToolOutput` option shape differs slightly between the two: `useChat` accepts `{ state, tool, toolCallId, ... }`; `useAgentChat` accepts `{ state, toolCallId, toolName?, ... }`. At runtime the call paths converge through `useAISDKRuntime` without issue. If the TypeScript compiler flags the call, narrow with `chat satisfies Parameters<typeof useAISDKRuntime>[0]` or cast at the call site.
+`useAgentChat`'s return type is `Omit<ReturnType<typeof useChat>, "addToolOutput"> & { ... }`. The `addToolOutput` option shape differs slightly between the two: `useChat` accepts `{ state, tool, toolCallId, ... }`; `useAgentChat` accepts `{ state, toolCallId, toolName?, ... }`. At runtime the call paths converge through `useAISDKRuntime` without issue. If the TypeScript compiler flags the call, cast at the call site: `useAISDKRuntime(chat as Parameters<typeof useAISDKRuntime>[0])`, or `chat as unknown as Parameters<typeof useAISDKRuntime>[0]` if TypeScript still refuses the direct cast. (`satisfies` does not help here; it validates assignability without changing the inferred type, so it surfaces the same error.)
 
 ### Cloudflare-specific extras
 
@@ -222,6 +246,14 @@ Destructure these alongside `chat` and pass them into your UI directly; they don
 ### `setMessages` round-trips through the Durable Object
 
 `useAgentChat` overrides `setMessages` to broadcast the new list over the WebSocket so the Durable Object's SQLite history stays in sync. This means assistant-ui's `onImport`, `onEdit`, `onReload`, and pending-tool cancellation paths all persist server-side automatically. The tradeoff is one extra WebSocket round-trip per mutation, which can race if the connection is lagging; assume eventual consistency, not transactional.
+
+### Authenticate the Worker before going to production
+
+`routeAgentRequest` accepts any client that knows the agent class and `name`. If you derive `name` from a user ID (as recommended for per-user history), any client that knows or guesses another user's ID can connect to that Durable Object and read its full message log. Before deploying:
+
+- Gate the fetch handler with a header or cookie check (e.g. a JWT issued by your auth backend), and only call `routeAgentRequest` after the request is authenticated.
+- Pass the same credential from the frontend via `useAgent`'s `headers` or `query` options so the WebSocket upgrade carries it.
+- Tighten the CORS `Access-Control-Allow-Origin` to an explicit allowlist; the wildcard in the example above is for local development only.
 
 ### Version stability
 
