@@ -122,6 +122,22 @@ Displays the favicon for the given URL. Falls back to the domain initial inside 
 | `faviconUrl` | `(domain: string) => string` | DuckDuckGo's `ip3` endpoint | Override the favicon source — useful in environments where the default service is unreachable |
 | `className` | `string` | — | Additional CSS classes applied to the `<img>` or fallback `<span>` |
 
+#### Customizing the favicon provider
+
+The default `<Sources>` component renders `<SourceIcon>` without forwarding `faviconUrl`, so the prop only applies when you compose `Sources.Icon` directly:
+
+```tsx
+<Sources.Root href={url}>
+  <Sources.Icon
+    url={url}
+    faviconUrl={(domain) => `https://my-favicon-proxy.example.com/${domain}.ico`}
+  />
+  <Sources.Title>{title}</Sources.Title>
+</Sources.Root>
+```
+
+To change the default for every source in your app, edit the `defaultFaviconUrl` constant at the top of your copied `sources.tsx` — that is the single source of truth used by `<Sources>`.
+
 ### `SourceTitle`
 
 Truncated title text rendered as a `<span>`.
