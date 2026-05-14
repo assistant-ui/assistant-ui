@@ -119,6 +119,7 @@ Displays the favicon for the given URL. Falls back to the domain initial inside 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `url` | `string` | — | URL used to derive the favicon and fallback initial |
+| `faviconUrl` | `(domain: string) => string` | DuckDuckGo's `ip3` endpoint | Override the favicon source — useful in environments where the default service is unreachable |
 | `className` | `string` | — | Additional CSS classes applied to the `<img>` or fallback `<span>` |
 
 ### `SourceTitle`
