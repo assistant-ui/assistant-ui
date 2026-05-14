@@ -28,12 +28,8 @@ function SourceIcon({
 }) {
   const domain = extractDomain(url);
   const src = faviconUrl(domain);
-  const [prevSrc, setPrevSrc] = useState(src);
-  const [hasError, setHasError] = useState(false);
-  if (prevSrc !== src) {
-    setPrevSrc(src);
-    setHasError(false);
-  }
+  const [errorSrc, setErrorSrc] = useState<string | undefined>(undefined);
+  const hasError = errorSrc === src;
 
   if (hasError) {
     return (
@@ -56,7 +52,7 @@ function SourceIcon({
       src={src}
       alt=""
       className={cn("size-3 shrink-0 rounded-sm", className)}
-      onError={() => setHasError(true)}
+      onError={() => setErrorSrc(src)}
       {...(props as ComponentProps<"img">)}
     />
   );
