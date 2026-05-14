@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-hook-form",
-  "version": "0.12.6",
+  "version": "0.12.14",
   "description": "React Hook Form integration for assistant-ui",
   "keywords": [
     "react-hook-form",
@@ -16,7 +16,6 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
@@ -33,9 +32,9 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.6",
-    "@assistant-ui/store": "^0.2.3",
-    "zod": "^4.3.6"
+    "@assistant-ui/core": "^0.2.0",
+    "@assistant-ui/store": "^0.2.10",
+    "zod": "^4.4.3"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -50,8 +49,8 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.14",
-    "react": "^19.2.4",
-    "react-hook-form": "^7.71.2"
+    "react": "^19.2.5",
+    "react-hook-form": "^7.75.0"
   },
   "publishConfig": {
     "access": "public",

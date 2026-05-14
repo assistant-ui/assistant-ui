@@ -1,9 +1,9 @@
 "use client";
 
 import { forwardRef } from "react";
-import { ActionButtonProps } from "../../utils/createActionButton";
+import type { ActionButtonProps } from "../../utils/createActionButton";
 import { composeEventHandlers } from "@radix-ui/primitive";
-import { Primitive } from "@radix-ui/react-primitive";
+import { Primitive } from "../../utils/Primitive";
 import { useAuiState } from "@assistant-ui/store";
 import { useActionBarFeedbackNegative as useActionBarFeedbackNegativeBehavior } from "@assistant-ui/core/react";
 

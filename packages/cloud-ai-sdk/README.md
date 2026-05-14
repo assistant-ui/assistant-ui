@@ -1,42 +1,35 @@
-# @assistant-ui/cloud-ai-sdk
+# `@assistant-ui/cloud-ai-sdk`
 
-Standalone AI SDK hooks for `assistant-cloud` persistence. No runtime surface — just hooks.
+Standalone [Vercel AI SDK](https://sdk.vercel.ai) hooks backed by [Assistant Cloud](https://cloud.assistant-ui.com) persistence. Use this when you want managed thread history, auto-titling, and thread CRUD for an AI SDK chat app without pulling in `@assistant-ui/react`.
 
-## What this package provides
+If you are already using `@assistant-ui/react`, install `@assistant-ui/react-ai-sdk` and pass an `AssistantCloud` instance instead.
 
-- **`useCloudChat`** — Chat + thread persistence with optional auto-title generation.
-- **`useThreads`** — Thread CRUD, selection, and title generation.
+## Installation
 
-## Internal Architecture
+```bash
+npm install @assistant-ui/cloud-ai-sdk assistant-cloud ai @ai-sdk/react
+```
 
-`useCloudChat` is organized around three layers:
+## Usage
 
-1. **`useChatRegistry`**
-   Tracks active `Chat` instances by thread/session and reuses them across switches.
+```tsx
+"use client";
 
-2. **`useCloudChatCore`** — React lifecycle wrapper that creates, syncs, and manages the `CloudChatCore` instance.
+import { useCloudChat } from "@assistant-ui/cloud-ai-sdk";
 
-3. **Thread loading** (`useThreadMessageLoader` helper in `useCloudChat`)
-   Loads thread history when a thread is selected; delegates to `CloudChatCore.loadThreadMessages`.
+export function Chat() {
+  const { messages, sendMessage, threadId } = useCloudChat();
+  return (
+    <div>
+      {messages.map((m) => (
+        <div key={m.id}>{m.content}</div>
+      ))}
+      <button onClick={() => sendMessage({ text: "Hello" })}>Send</button>
+    </div>
+  );
+}
+```
 
-Supporting internals:
+Set `NEXT_PUBLIC_ASSISTANT_BASE_URL` for zero-config, or pass an explicit `cloud` instance: `useCloudChat({ cloud })`. Pair with `useThreads` for thread CRUD and selection.
 
-- **`CloudChatCore`** — Orchestrates persistence (`MessagePersistence`), thread creation (`ThreadSessionManager`), and title generation (`TitlePolicy`).
-- **`MessagePersistence`** — Encodes/decodes `UIMessage` to cloud format.
-- **`ThreadSessionManager`** — Deduplicates concurrent thread creation.
-- **`TitlePolicy`** — One-time auto-title generation for new threads.
-
-## Package boundary
-
-This package is standalone. It depends on:
-
-- `assistant-cloud` — Persistence and auth API client.
-- `@ai-sdk/react` / `ai` — Peer dependencies for Chat and transport types.
-
-It does **not** depend on `@assistant-ui/react` or `@assistant-ui/react-ai-sdk`.
-
-## Configuration
-
-- **Zero-config:** Set `NEXT_PUBLIC_ASSISTANT_BASE_URL`.
-- **Explicit cloud:** `useCloudChat({ cloud })`.
-- **External thread store:** `useCloudChat({ threads })` with a `useThreads` result.
+Full reference at [assistant-ui.com/docs/cloud/ai-sdk](https://www.assistant-ui.com/docs/cloud/ai-sdk).

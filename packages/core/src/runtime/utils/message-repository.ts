@@ -39,6 +39,32 @@ export const ExportedMessageRepository = {
       })),
     };
   },
+
+  fromBranchableArray: (
+    items: readonly {
+      message: ThreadMessageLike;
+      parentId: string | null;
+    }[],
+    options?: { headId?: string | null },
+  ): ExportedMessageRepository => {
+    const fallbackStatus = getAutoStatus(false, false, false, false, undefined);
+    return {
+      ...(options?.headId !== undefined
+        ? { headId: options.headId }
+        : undefined),
+      messages: items.map(({ message, parentId }) => {
+        if (!message.id) {
+          throw new Error(
+            "ExportedMessageRepository.fromBranchableArray: Each message must have an 'id' field set.",
+          );
+        }
+        return {
+          parentId,
+          message: fromThreadMessageLike(message, message.id, fallbackStatus),
+        };
+      }),
+    };
+  },
 };
 
 type RepositoryParent = {

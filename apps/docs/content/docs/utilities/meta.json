@@ -2,5 +2,5 @@
   "title": "Utilities",
   "icon": "Wrench",
   "root": true,
-  "pages": ["heat-graph", "tw-shimmer"]
+  "pages": ["heat-graph", "tw-shimmer", "react-o11y"]
 }

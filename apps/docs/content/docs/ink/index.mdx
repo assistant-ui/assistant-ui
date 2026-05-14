@@ -1,6 +1,6 @@
 ---
-title: Getting Started
-description: Build AI chat interfaces for the terminal with @assistant-ui/react-ink.
+title: Terminal AI Chat with Ink
+description: Build AI chat interfaces for the terminal in TypeScript with @assistant-ui/react-ink — streaming, tool calls, and keyboard navigation in CLI apps.
 ---
 
 ## Quick Start
@@ -47,9 +47,7 @@ If you prefer to add assistant-ui to an existing Node.js project, follow these s
 
 ### Install dependencies
 
-```sh
-npm install @assistant-ui/react-ink @assistant-ui/react-ink-markdown ink react
-```
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/react-ink-markdown", "ink", "react"]} />
 
   </Step>
   <Step>
@@ -179,7 +177,9 @@ export const Thread = () => {
         </Box>
       </ThreadPrimitive.Empty>
 
-      <ThreadPrimitive.Messages components={{ Message }} />
+      <ThreadPrimitive.Messages>
+        {() => <Message />}
+      </ThreadPrimitive.Messages>
 
       <StatusIndicator />
 

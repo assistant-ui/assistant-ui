@@ -1,4 +1,4 @@
-import { ExtractResourceReturnType, ResourceElement } from "../core/types";
+import type { ExtractResourceReturnType, ResourceElement } from "../core/types";
 import { tapEffect } from "./tap-effect";
 import {
   createResourceFiber,

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import {
+import type {
   AssistantTransportCommand,
   CommandQueueState,
   QueuedCommand,

@@ -1,15 +1,17 @@
-import { type FC, memo } from "react";
+import { type FC, type ReactNode, memo } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import type { ThreadMessage } from "../../../types/message";
 import { ReadonlyThreadProvider } from "../../providers/ReadonlyThreadProvider";
 import {
-  ThreadPrimitiveMessages,
+  type ThreadPrimitiveMessages,
   ThreadPrimitiveMessagesImpl,
 } from "../thread/ThreadMessages";
 
 export namespace PartPrimitiveMessages {
   export type Props = {
-    components: ThreadPrimitiveMessages.Props["components"];
+    components?: ThreadPrimitiveMessages.Props["components"];
+    /** Render function called for each message. Receives the message. */
+    children?: (value: { message: ThreadMessage }) => ReactNode;
   };
 }
 
@@ -35,26 +37,35 @@ const usePartMessages = (): readonly ThreadMessage[] | undefined => {
  * const SubAgentToolUI = makeAssistantToolUI({
  *   toolName: "invoke_sub_agent",
  *   render: () => (
- *     <PartPrimitive.Messages
- *       components={{
- *         UserMessage: MyUserMessage,
- *         AssistantMessage: MyAssistantMessage,
+ *     <PartPrimitive.Messages>
+ *       {({ message }) => {
+ *         if (message.role === "user") return <MyUserMessage />;
+ *         return <MyAssistantMessage />;
  *       }}
- *     />
+ *     </PartPrimitive.Messages>
  *   ),
  * });
  * ```
  */
 export const PartPrimitiveMessagesImpl: FC<PartPrimitiveMessages.Props> = ({
   components,
+  children,
 }) => {
   const messages = usePartMessages();
 
   if (!messages?.length) return null;
 
+  if (children) {
+    return (
+      <ReadonlyThreadProvider messages={messages}>
+        <ThreadPrimitiveMessagesImpl>{children}</ThreadPrimitiveMessagesImpl>
+      </ReadonlyThreadProvider>
+    );
+  }
+
   return (
     <ReadonlyThreadProvider messages={messages}>
-      <ThreadPrimitiveMessagesImpl components={components} />
+      <ThreadPrimitiveMessagesImpl components={components!} />
     </ReadonlyThreadProvider>
   );
 };

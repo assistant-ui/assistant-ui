@@ -99,29 +99,6 @@ export const Component: React.FC<ComponentProps> = ({
   </div>
 );
 
-interface RuntimeHooksProps {
-  hooks: { name: string; docsLink: string }[];
-}
-
-export const RuntimeHooks: React.FC<RuntimeHooksProps> = ({ hooks }) => (
-  <div className="mt-8 mb-6">
-    <ul className="list-inside list-disc space-y-3">
-      {hooks.map((hook, index) => (
-        <li key={index} className="text-base">
-          <a
-            href={hook.docsLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:underline"
-          >
-            {hook.name}
-          </a>
-        </li>
-      ))}
-    </ul>
-  </div>
-);
-
 interface ContextLevelProps {
   color: string;
   children: React.ReactNode;

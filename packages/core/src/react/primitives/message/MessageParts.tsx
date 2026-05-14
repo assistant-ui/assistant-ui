@@ -1,11 +1,17 @@
 import {
   type ComponentType,
   type FC,
+  type ReactNode,
   memo,
-  PropsWithChildren,
+  type PropsWithChildren,
   useMemo,
 } from "react";
-import { useAuiState, useAui } from "@assistant-ui/store";
+import {
+  RenderChildrenWithAccessor,
+  useAuiState,
+  useAui,
+} from "@assistant-ui/store";
+import type { PartState } from "../../../store/scopes/part";
 import { PartByIndexProvider } from "../../providers/PartByIndexProvider";
 import { TextMessagePartProvider } from "../../providers/TextMessagePartProvider";
 import { ChainOfThoughtByIndicesProvider } from "../../providers/ChainOfThoughtByIndicesProvider";
@@ -25,7 +31,9 @@ import type {
   ReasoningGroupComponent,
   QuoteMessagePartComponent,
 } from "../../types/MessagePartComponentTypes";
-import type { MessagePartStatus } from "../../../types/message";
+import { isMcpAppUri, type MessagePartStatus } from "../../../types/message";
+import type { DataRenderersState } from "../../types/scopes/dataRenderers";
+import type { ToolsState } from "../../types/scopes/tools";
 import { useShallow } from "zustand/shallow";
 
 type MessagePartRange =
@@ -201,7 +209,7 @@ export namespace MessagePrimitiveParts {
      * @param endIndex - Index of the last tool call in the group
      * @param children - Rendered tool call components to display within the group
      *
-     * @deprecated This feature is still experimental and subject to change.
+     * @deprecated Use `<MessagePrimitive.GroupedParts>` with a custom `groupBy` instead.
      */
     ToolGroup?: ComponentType<
       PropsWithChildren<{ startIndex: number; endIndex: number }>
@@ -213,6 +221,8 @@ export namespace MessagePrimitiveParts {
      * @param startIndex - Index of the first reasoning part in the group
      * @param endIndex - Index of the last reasoning part in the group
      * @param children - Rendered reasoning part components
+     *
+     * @deprecated Use `<MessagePrimitive.GroupedParts>` with a custom `groupBy` instead.
      */
     ReasoningGroup?: ReasoningGroupComponent;
 
@@ -227,6 +237,11 @@ export namespace MessagePrimitiveParts {
    * `ToolGroup` components cannot be used alongside it.
    */
   type ChainOfThoughtComponents = BaseComponents & {
+    /**
+     * @deprecated Use `<MessagePrimitive.GroupedParts>` with a `groupBy`
+     * that returns `["group-thought", ...]` for reasoning and tool-call
+     * parts. See `@assistant-ui/ui` for a worked example.
+     */
     ChainOfThought: ComponentType;
 
     Reasoning?: never;
@@ -235,24 +250,32 @@ export namespace MessagePrimitiveParts {
     ReasoningGroup?: never;
   };
 
-  export type Props = {
-    /**
-     * Component configuration for rendering different types of message content.
-     *
-     * Use either `Reasoning`/`tools`/`ToolGroup`/`ReasoningGroup` for standard rendering,
-     * or `ChainOfThought` to group all reasoning and tool-call parts into a single
-     * collapsible component. These two modes are mutually exclusive.
-     */
-    components?: StandardComponents | ChainOfThoughtComponents | undefined;
-    /**
-     * When enabled, shows the Empty component if the last part in the message
-     * is anything other than Text or Reasoning.
-     *
-     * @experimental This API is experimental and may change in future versions.
-     * @default true
-     */
-    unstable_showEmptyOnNonTextEnd?: boolean | undefined;
-  };
+  export type Props =
+    | {
+        /**
+         * Component configuration for rendering different types of message content.
+         *
+         * Use either `Reasoning`/`tools`/`ToolGroup`/`ReasoningGroup` for standard rendering,
+         * or `ChainOfThought` to group all reasoning and tool-call parts into a single
+         * collapsible component. These two modes are mutually exclusive.
+         */
+        components?: StandardComponents | ChainOfThoughtComponents | undefined;
+        /**
+         * When enabled, shows the Empty component if the last part in the message
+         * is anything other than Text or Reasoning.
+         *
+         * @experimental This API is experimental and may change in future versions.
+         * @default true
+         */
+        unstable_showEmptyOnNonTextEnd?: boolean | undefined;
+        children?: never;
+      }
+    | {
+        /** Render function called for each part. Receives the enriched part state. */
+        children: (value: { part: EnrichedPartState }) => ReactNode;
+        components?: never;
+        unstable_showEmptyOnNonTextEnd?: never;
+      };
 }
 
 const ToolUIDisplay = ({
@@ -270,17 +293,25 @@ const ToolUIDisplay = ({
   return <Render {...props} />;
 };
 
+const getDataRenderer = (
+  dataRenderers: DataRenderersState,
+  name: string,
+  inlineFallback: DataMessagePartComponent | undefined,
+): DataMessagePartComponent | undefined => {
+  const named = dataRenderers.renderers[name]?.[0];
+  if (named) return named;
+  return dataRenderers.fallbacks[0] ?? inlineFallback;
+};
+
 const DataUIDisplay = ({
   Fallback,
   ...props
 }: {
   Fallback: DataMessagePartComponent | undefined;
 } & DataMessagePartProps) => {
-  const Render = useAuiState((s) => {
-    const Render = s.dataRenderers.renderers[props.name] ?? Fallback;
-    if (Array.isArray(Render)) return Render[0] ?? Fallback;
-    return Render;
-  });
+  const Render = useAuiState((s) =>
+    getDataRenderer(s.dataRenderers, props.name, Fallback),
+  );
   if (!Render) return null;
   return <Render {...props} />;
 };
@@ -419,12 +450,18 @@ const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
   type: "complete",
 });
 
+const RUNNING_STATUS: MessagePartStatus = Object.freeze({
+  type: "running",
+});
+
 const EmptyPartsImpl: FC<MessagePartComponentProps> = ({ components }) => {
   const status = useAuiState(
     (s) => (s.message.status ?? COMPLETE_STATUS) as MessagePartStatus,
   );
 
   if (components?.Empty) return <components.Empty status={status} />;
+
+  if (status.type !== "running") return null;
 
   return (
     <EmptyPartFallback
@@ -475,6 +512,200 @@ const QuoteRendererImpl: FC<{ Quote: QuoteMessagePartComponent }> = ({
 
 const QuoteRenderer = memo(QuoteRendererImpl);
 
+function resolveToolRender(
+  toolsState: ToolsState,
+  part: Extract<PartState, { type: "tool-call" }>,
+): ToolCallMessagePartComponent | null {
+  const entry = toolsState.tools[part.toolName];
+  const named = Array.isArray(entry) ? (entry[0] ?? null) : (entry ?? null);
+  if (named) return named;
+  if (isMcpAppUri(part.mcp?.app?.resourceUri) && toolsState.mcpApp) {
+    return toolsState.mcpApp.render;
+  }
+  return null;
+}
+
+/**
+ * Stable propless component that renders the registered tool UI for the
+ * current part context. Reads tool registry and part state from context.
+ */
+const RegisteredToolUI: FC = () => {
+  const aui = useAui();
+  const part = useAuiState((s) => s.part);
+  const Render = useAuiState((s) =>
+    s.part.type === "tool-call" ? resolveToolRender(s.tools, s.part) : null,
+  );
+
+  if (!Render || part.type !== "tool-call") return null;
+
+  return (
+    <Render
+      {...part}
+      addResult={aui.part().addToolResult}
+      resume={aui.part().resumeToolCall}
+    />
+  );
+};
+
+/**
+ * Stable propless component that renders the registered data renderer UI
+ * for the current part context.
+ */
+const RegisteredDataRendererUI: FC = () => {
+  const part = useAuiState((s) => s.part);
+  const Render = useAuiState((s) =>
+    s.part.type === "data"
+      ? (getDataRenderer(s.dataRenderers, s.part.name, undefined) ?? null)
+      : null,
+  );
+
+  if (!Render || part.type !== "data") return null;
+
+  return <Render {...(part as DataMessagePartProps)} />;
+};
+
+/**
+ * Fallback component rendered when the children render function returns null.
+ * Renders registered tool/data UIs via context.
+ * For all other part types, renders nothing.
+ *
+ * This allows users to write:
+ *   {({ part }) => {
+ *     if (part.type === "text") return <MyText />;
+ *     return null; // tool UIs and data UIs still render via registry
+ *   }}
+ *
+ * To explicitly render nothing (suppressing registered UIs), return <></>.
+ */
+const DefaultPartFallback: FC = () => {
+  const partType = useAuiState((s) => s.part.type);
+
+  if (partType === "tool-call") return <RegisteredToolUI />;
+  if (partType === "data") return <RegisteredDataRendererUI />;
+
+  return null;
+};
+
+export type { PartState };
+
+/**
+ * Enriched part state passed to children render functions.
+ *
+ * For tool-call parts, adds `toolUI`, `addResult`, and `resume`.
+ * For data parts, adds `dataRendererUI`.
+ *
+ * The render function is also invoked once with a synthetic empty text part
+ * (`{ type: "text", text: "", status: { type: "running" } }`) when the
+ * assistant message has no parts yet but is in the running state, so a
+ * loading indicator can render. Differentiate this from a real empty text
+ * via `part.status?.type === "running" && part.text === ""`.
+ */
+export type EnrichedPartState =
+  | (Extract<PartState, { type: "tool-call" }> & {
+      /** The registered tool UI element, or null if none registered. */
+      readonly toolUI: ReactNode;
+      /** Add a tool result to this tool call. */
+      addResult: ToolCallMessagePartProps["addResult"];
+      /** Resume a tool call waiting for human input. */
+      resume: ToolCallMessagePartProps["resume"];
+    })
+  | (Extract<PartState, { type: "data" }> & {
+      /** The registered data renderer UI element, or null if none registered. */
+      readonly dataRendererUI: ReactNode;
+    })
+  | Exclude<PartState, { type: "tool-call" } | { type: "data" }>;
+
+const EMPTY_RUNNING_TEXT_PART: Extract<EnrichedPartState, { type: "text" }> =
+  Object.freeze({
+    type: "text",
+    text: "",
+    status: RUNNING_STATUS,
+  });
+
+/**
+ * @internal
+ * Renders a single part by index, calling `children` with the
+ * {@link EnrichedPartState} (tool/data UI enrichments + addResult/resume
+ * for tool calls). Shared between `<MessagePrimitive.Parts>` and
+ * `<MessagePrimitive.GroupedParts>`. Returns whatever `children`
+ * returns — callers decide how to handle a `null` return.
+ */
+export const MessagePartChildren: FC<{
+  index: number;
+  children: (value: { part: EnrichedPartState }) => ReactNode;
+}> = ({ index, children }) => {
+  const aui = useAui();
+  // Subscribed (not snapshotted like `tools`) so fallbacks registered
+  // after the first render trigger a re-render and `hasUI` re-evaluates.
+  const dataRenderers = useAuiState((s) => s.dataRenderers);
+
+  return (
+    <PartByIndexProvider index={index}>
+      <RenderChildrenWithAccessor
+        getItemState={(aui) => aui.message().part({ index }).getState()}
+      >
+        {(getItem) =>
+          children({
+            get part() {
+              const state = getItem();
+              if (state.type === "tool-call") {
+                const toolsState = aui.tools().getState();
+                const hasUI = resolveToolRender(toolsState, state) !== null;
+                const partMethods = aui.message().part({ index });
+                return {
+                  ...state,
+                  toolUI: hasUI ? <RegisteredToolUI /> : null,
+                  addResult: partMethods.addToolResult,
+                  resume: partMethods.resumeToolCall,
+                };
+              }
+              if (state.type === "data") {
+                const hasUI =
+                  getDataRenderer(dataRenderers, state.name, undefined) !==
+                  undefined;
+                return {
+                  ...state,
+                  dataRendererUI: hasUI ? <RegisteredDataRendererUI /> : null,
+                };
+              }
+              return state;
+            },
+          })
+        }
+      </RenderChildrenWithAccessor>
+    </PartByIndexProvider>
+  );
+};
+
+const MessagePrimitivePartsInner: FC<{
+  children: (value: { part: EnrichedPartState }) => ReactNode;
+}> = ({ children }) => {
+  const contentLength = useAuiState((s) => s.message.parts.length);
+  const isRunning = useAuiState(
+    (s) => (s.message.status?.type ?? "complete") === "running",
+  );
+  const isEmptyRunning = contentLength === 0 && isRunning;
+
+  if (contentLength === 0) {
+    if (!isEmptyRunning) return null;
+    return (
+      <TextMessagePartProvider text="" isRunning>
+        {children({ part: EMPTY_RUNNING_TEXT_PART })}
+      </TextMessagePartProvider>
+    );
+  }
+
+  return (
+    <>
+      {Array.from({ length: contentLength }, (_, index) => (
+        <MessagePartChildren key={index} index={index}>
+          {(value) => children(value) ?? <DefaultPartFallback />}
+        </MessagePartChildren>
+      ))}
+    </>
+  );
+};
+
 /**
  * Renders the parts of a message with support for multiple content types.
  *
@@ -484,7 +715,25 @@ const QuoteRenderer = memo(QuoteRendererImpl);
 export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
   components,
   unstable_showEmptyOnNonTextEnd = true,
+  children,
 }) => {
+  if (children) {
+    return <MessagePrimitivePartsInner>{children}</MessagePrimitivePartsInner>;
+  }
+  return (
+    <MessagePrimitivePartsCompat
+      components={components}
+      unstable_showEmptyOnNonTextEnd={unstable_showEmptyOnNonTextEnd}
+    />
+  );
+};
+
+MessagePrimitiveParts.displayName = "MessagePrimitive.Parts";
+
+const MessagePrimitivePartsCompat: FC<{
+  components: MessagePrimitiveParts.Props["components"];
+  unstable_showEmptyOnNonTextEnd: boolean;
+}> = ({ components, unstable_showEmptyOnNonTextEnd }) => {
   const contentLength = useAuiState((s) => s.message.parts.length);
   const useChainOfThought = !!components?.ChainOfThought;
   const messageRanges = useMessagePartsGroups(useChainOfThought);
@@ -573,5 +822,3 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = ({
     </>
   );
 };
-
-MessagePrimitiveParts.displayName = "MessagePrimitive.Parts";

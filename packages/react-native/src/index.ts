@@ -17,6 +17,7 @@ export type {
   ReasoningMessagePart,
   SourceMessagePart,
   ToolCallMessagePart,
+  ToolModelContentPart,
   ImageMessagePart,
   FileMessagePart,
   DataMessagePart,
@@ -40,12 +41,16 @@ export type {
   // Attachment types
   Attachment,
   PendingAttachment,
+  CompleteAttachment,
   CreateAttachment,
   AttachmentRuntime,
   // Adapter types
   AttachmentAdapter,
   ThreadHistoryAdapter,
   FeedbackAdapter,
+  RealtimeVoiceAdapter,
+  VoiceSessionControls,
+  VoiceSessionHelpers,
   SuggestionAdapter,
   // Other
   Unsubscribe,
@@ -57,6 +62,7 @@ export type {
   RemoteThreadListOptions,
 } from "@assistant-ui/core";
 export { InMemoryThreadListAdapter } from "@assistant-ui/core";
+export { createVoiceSession } from "@assistant-ui/core";
 
 // Attachment adapter implementations
 export {
@@ -93,6 +99,11 @@ export {
 
 // Context providers and hooks
 export { AssistantRuntimeProvider } from "./context/AssistantContext";
+export {
+  RuntimeAdapterProvider,
+  useRuntimeAdapters,
+  type RuntimeAdapters,
+} from "@assistant-ui/core/react";
 
 // Runtime
 export {
@@ -140,11 +151,19 @@ export {
   useAssistantDataUI,
   type AssistantDataUIProps,
   useAssistantInstructions,
+  useAssistantContext,
+  type AssistantContextConfig,
   useInlineRender,
   type Toolkit,
   type ToolDefinition,
   Tools,
   DataRenderers,
+  Interactables,
+  useAssistantInteractable,
+  type AssistantInteractableProps,
+  useInteractableState,
+  useToolArgsStatus,
+  type ToolArgsStatus,
 } from "@assistant-ui/core/react";
 
 export type {
@@ -155,6 +174,9 @@ export type {
 } from "@assistant-ui/core";
 
 export { mergeModelContexts } from "@assistant-ui/core";
+
+export type { ExportedMessageRepositoryItem } from "@assistant-ui/core";
+export { ExportedMessageRepository } from "@assistant-ui/core";
 
 export type { Tool } from "assistant-stream";
 
@@ -195,4 +217,10 @@ export type {
   DataMessagePartProps,
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
+} from "@assistant-ui/core/react";
+
+export {
+  useVoiceState,
+  useVoiceVolume,
+  useVoiceControls,
 } from "@assistant-ui/core/react";

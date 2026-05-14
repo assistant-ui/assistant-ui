@@ -3,6 +3,7 @@
 import { analytics } from "@/lib/analytics";
 import { StarPill } from "@/components/home/star-pill";
 import { CopyCommandButton } from "@/components/home/copy-command-button";
+import { CopyPromptButton } from "@/components/home/copy-prompt-button";
 import { LaunchWeekBanner } from "@/components/home/launch-week-banner";
 import Image from "next/image";
 import Link from "next/link";
@@ -22,7 +23,10 @@ export function Hero() {
           </p>
         </div>
 
-        <CopyCommandButton />
+        <div className="flex flex-wrap items-center gap-2">
+          <CopyCommandButton />
+          <CopyPromptButton analyticsContext={{ section: "hero" }} />
+        </div>
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-[13px] text-muted-foreground">
           <Link
@@ -31,6 +35,14 @@ export function Hero() {
             className="shimmer font-medium text-foreground/60 hover:text-foreground"
           >
             Get Started →
+          </Link>
+          <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
+          <Link
+            href="/traction"
+            onClick={() => analytics.cta.clicked("why_us", "hero")}
+            className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+          >
+            Why us?
           </Link>
           <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
           <Link

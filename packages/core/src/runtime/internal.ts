@@ -1,7 +1,4 @@
-// =============================================================================
-// Internal API — implementation details used by framework bindings
-// Not part of the public API surface.
-// =============================================================================
+// Internal API — implementation details used by framework bindings, not part of the public API surface.
 
 // Binding Types
 export type {

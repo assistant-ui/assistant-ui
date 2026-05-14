@@ -2,8 +2,6 @@ import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import type * as PageTree from "fumadocs-core/page-tree";
 import type { ReactNode } from "react";
 import { sharedDocsOptions } from "@/lib/layout.shared";
-import { SidebarTabs } from "@/components/docs/layout/sidebar-tabs";
-import { getSidebarTabs } from "@/components/docs/layout/sidebar-tabs.server";
 import { DocsHeader } from "@/components/docs/layout/docs-header";
 import {
   DocsSidebarProvider,
@@ -18,6 +16,7 @@ import {
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { DocsAssistantRuntimeProvider } from "@/contexts/AssistantRuntimeProvider";
 import { CurrentPageProvider } from "@/components/docs/contexts/current-page";
+import { PlatformProvider } from "@/components/docs/platform/context";
 import { FloatingComposer } from "@/components/docs/assistant/floating-composer";
 
 type DocsRootLayoutProps = {
@@ -33,35 +32,28 @@ export function DocsRootLayout({
   sectionHref,
   children,
 }: DocsRootLayoutProps) {
-  const tabs = getSidebarTabs(tree);
-
   return (
     <CurrentPageProvider>
       <AssistantPanelProvider>
         <DocsRuntimeProvider>
-          <DocsSidebarProvider>
-            <DocsHeader section={section} sectionHref={sectionHref} />
-            <DocsContent>
-              <DocsLayout
-                {...sharedDocsOptions}
-                tree={tree}
-                nav={{ enabled: false }}
-                sidebar={{
-                  ...sharedDocsOptions.sidebar,
-                  tabs: false,
-                  banner: <SidebarTabs tabs={tabs} />,
-                }}
-              >
-                {children}
-              </DocsLayout>
-            </DocsContent>
-            <DocsSidebar>
-              <SidebarContent
-                tree={tree}
-                banner={<SidebarTabs tabs={tabs} />}
-              />
-            </DocsSidebar>
-          </DocsSidebarProvider>
+          <PlatformProvider>
+            <DocsSidebarProvider>
+              <DocsHeader section={section} sectionHref={sectionHref} />
+              <DocsContent>
+                <DocsLayout
+                  {...sharedDocsOptions}
+                  tree={tree}
+                  nav={{ enabled: false }}
+                  sidebar={{ enabled: false }}
+                >
+                  {children}
+                </DocsLayout>
+              </DocsContent>
+              <DocsSidebar>
+                <SidebarContent tree={tree} />
+              </DocsSidebar>
+            </DocsSidebarProvider>
+          </PlatformProvider>
         </DocsRuntimeProvider>
         <DocsAssistantRuntimeProvider>
           <DocsAssistantPanel />

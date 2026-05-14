@@ -1,28 +1,36 @@
 "use client";
 
 import type {
+  DataMessagePart,
   ThreadAssistantMessage,
   ThreadUserMessage,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
-import { useExternalMessageConverter } from "@assistant-ui/core/react";
-import {
+import type { useExternalMessageConverter } from "@assistant-ui/core/react";
+import type {
   LangChainMessage,
   LangChainToolCall,
   LangChainToolCallChunk,
+  UIMessage,
 } from "./types";
 import {
   parsePartialJsonObject,
-  ReadonlyJSONObject,
+  type ReadonlyJSONObject,
 } from "assistant-stream/utils";
 
 type LangGraphMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
+    uiMessagesByParent?: Map<string, UIMessage[]>;
   };
 
-const hasOwn = (value: object, key: string) =>
-  Object.prototype.hasOwnProperty.call(value, key);
+const uiMessageToDataPart = (ui: UIMessage): DataMessagePart => ({
+  type: "data",
+  name: ui.name,
+  data: ui.props,
+});
+
+const hasOwn = (value: object, key: string) => Object.hasOwn(value, key);
 
 const stabilizeToolArgsValue = (
   value: unknown,
@@ -100,13 +108,15 @@ const resolveToolCallArgs = ({
   matchingToolCallChunk,
   messageId,
   toolArgsKeyOrderCache,
+  toolCallId,
 }: {
   chunk: LangChainToolCall;
   matchingToolCallChunk: LangChainToolCallChunk | undefined;
   messageId: string | undefined;
   toolArgsKeyOrderCache: Map<string, Map<string, string[]>> | undefined;
+  toolCallId: string;
 }): Pick<ToolCallMessagePart, "args" | "argsText"> => {
-  const cacheKey = getToolArgsCacheKey(messageId, "tool", chunk.id);
+  const cacheKey = getToolArgsCacheKey(messageId, "tool", toolCallId);
   const providedArgsText =
     chunk.partial_json ??
     matchingToolCallChunk?.args ??
@@ -141,7 +151,7 @@ const warnedMessagePartTypes = new Set<string>();
 const warnForUnknownMessagePartType = (type: string) => {
   if (
     typeof process === "undefined" ||
-    process?.env?.["NODE_ENV"] !== "development"
+    process?.env?.NODE_ENV !== "development"
   )
     return;
   if (warnedMessagePartTypes.has(type)) return;
@@ -153,7 +163,7 @@ const warnedFilePartShapes = new Set<string>();
 const warnForUnsupportedFilePartShape = (part: FileContentPart) => {
   if (
     typeof process === "undefined" ||
-    process?.env?.["NODE_ENV"] !== "development"
+    process?.env?.NODE_ENV !== "development"
   )
     return;
   const shape = Object.keys(part).sort().join(",");
@@ -247,7 +257,7 @@ const contentToParts = (
           case "input_json_delta":
             return null;
 
-          case "computer_call":
+          case "computer_call": {
             const args = part.action as ReadonlyJSONObject;
             return {
               type: "tool-call",
@@ -260,11 +270,13 @@ const contentToParts = (
                 args,
               ),
             };
+          }
 
-          default:
+          default: {
             const _exhaustiveCheck: never = type;
             warnForUnknownMessagePartType(_exhaustiveCheck);
             return null;
+          }
 
           // const _exhaustiveCheck: never = type;
           // throw new Error(`Unknown message part type: ${_exhaustiveCheck}`);
@@ -292,22 +304,27 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         content: contentToParts(message.content, metadata, message.id),
         metadata: { custom: getCustomMetadata(message.additional_kwargs) },
       };
-    case "ai":
+    case "ai": {
       const toolCallParts =
-        message.tool_calls?.map((chunk): ToolCallMessagePart => {
-          const matchingToolCallChunk = message.tool_call_chunks?.find(
-            (c) => c.id === chunk.id,
+        message.tool_calls?.map((chunk, idx): ToolCallMessagePart => {
+          const fallbackIndex = chunk.index ?? idx;
+          const toolCallId = chunk.id
+            ? chunk.id
+            : `lc-toolcall-${message.id ?? "unknown"}-${fallbackIndex}`;
+          const matchingToolCallChunk = message.tool_call_chunks?.find((c) =>
+            chunk.id ? c.id === chunk.id : c.index === fallbackIndex,
           );
           const { args, argsText } = resolveToolCallArgs({
             chunk,
             matchingToolCallChunk,
             messageId: message.id,
             toolArgsKeyOrderCache: metadata.toolArgsKeyOrderCache,
+            toolCallId,
           });
 
           return {
             type: "tool-call",
-            toolCallId: chunk.id,
+            toolCallId,
             toolName: chunk.name,
             args,
             argsText,
@@ -325,16 +342,25 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         ...(message.additional_kwargs?.tool_outputs ?? []),
       ].filter((c) => c !== undefined);
 
+      const uiDataParts: readonly DataMessagePart[] =
+        (message.id
+          ? metadata.uiMessagesByParent
+              ?.get(message.id)
+              ?.map(uiMessageToDataPart)
+          : undefined) ?? [];
+
       return {
         role: "assistant",
         id: message.id,
         content: [
           ...contentToParts(allContent, metadata, message.id),
           ...toolCallParts,
+          ...uiDataParts,
         ],
         metadata: { custom: getCustomMetadata(message.additional_kwargs) },
         ...(message.status && { status: message.status }),
       };
+    }
     case "tool":
       return {
         role: "tool",

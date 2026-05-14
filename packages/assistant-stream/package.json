@@ -1,6 +1,6 @@
 {
   "name": "assistant-stream",
-  "version": "0.3.6",
+  "version": "0.3.14",
   "description": "Streaming utilities for AI assistants",
   "keywords": [
     "ai",
@@ -16,14 +16,24 @@
   "type": "module",
   "exports": {
     ".": {
-      "aui-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./utils": {
-      "aui-source": "./src/utils.ts",
       "types": "./dist/utils.d.ts",
       "default": "./dist/utils.js"
+    },
+    "./resumable": {
+      "types": "./dist/resumable/index.d.ts",
+      "default": "./dist/resumable/index.js"
+    },
+    "./resumable/redis": {
+      "types": "./dist/resumable/stores/redis.d.ts",
+      "default": "./dist/resumable/stores/redis.js"
+    },
+    "./resumable/ioredis": {
+      "types": "./dist/resumable/stores/ioredis.d.ts",
+      "default": "./dist/resumable/stores/ioredis.js"
     }
   },
   "main": "./dist/index.js",
@@ -42,13 +52,27 @@
   },
   "dependencies": {
     "@standard-schema/spec": "^1.1.0",
-    "nanoid": "^5.1.6",
+    "nanoid": "^5.1.11",
     "secure-json-parse": "^4.1.0"
+  },
+  "peerDependencies": {
+    "ioredis": "^5.10.1",
+    "redis": "^5.12.1"
+  },
+  "peerDependenciesMeta": {
+    "ioredis": {
+      "optional": true
+    },
+    "redis": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "vitest": "^4.1.0"
+    "ioredis": "^5.10.1",
+    "redis": "^5.12.1",
+    "vitest": "^4.1.5"
   },
   "publishConfig": {
     "access": "public",

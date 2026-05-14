@@ -1,7 +1,8 @@
-import {
+import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "../../utils/json/json-value";
+import type { ToolModelContentPart } from "../tool/tool-types";
 
 type TextStatus =
   | {
@@ -61,6 +62,7 @@ type ToolCallPartBase = {
   args: ReadonlyJSONObject;
   artifact?: ReadonlyJSONValue;
   result?: ReadonlyJSONValue;
+  modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
   parentId?: string;
 };
@@ -68,12 +70,14 @@ type ToolCallPartBase = {
 type ToolCallPartWithoutResult = ToolCallPartBase & {
   state: "partial-call" | "call";
   result?: undefined;
+  modelContent?: undefined;
 };
 
 type ToolCallPartWithResult = ToolCallPartBase & {
   state: "result";
   result: ReadonlyJSONValue;
   artifact?: ReadonlyJSONValue;
+  modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
 };
 
@@ -92,6 +96,14 @@ export type FilePart = {
   type: "file";
   data: string;
   mimeType: string;
+  parentId?: string;
+};
+
+export type DataPart = {
+  type: "data";
+  name: string;
+  data: ReadonlyJSONValue;
+  parentId?: string;
 };
 
 export type AssistantMessagePart =
@@ -99,7 +111,8 @@ export type AssistantMessagePart =
   | ReasoningPart
   | ToolCallPart
   | SourcePart
-  | FilePart;
+  | FilePart
+  | DataPart;
 
 type AssistantMessageStepUsage = {
   inputTokens: number;

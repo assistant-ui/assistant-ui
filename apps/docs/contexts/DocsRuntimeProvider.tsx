@@ -5,6 +5,7 @@ import {
   AssistantRuntimeProvider,
   WebSpeechSynthesisAdapter,
   WebSpeechDictationAdapter,
+  CloudFileAttachmentAdapter,
   AssistantCloud,
   useAui,
   Tools,
@@ -31,7 +32,7 @@ export function DocsRuntimeProvider({
   const assistantCloud = useMemo(
     () =>
       new AssistantCloud({
-        baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
+        baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
         anonymous: true,
       }),
     [],
@@ -43,8 +44,9 @@ export function DocsRuntimeProvider({
       speech: new WebSpeechSynthesisAdapter(),
       dictation: new WebSpeechDictationAdapter(),
       feedback: feedbackAdapter,
+      attachments: new CloudFileAttachmentAdapter(assistantCloud),
     }),
-    [],
+    [assistantCloud],
   );
 
   const runtime = useChatRuntime({

@@ -46,6 +46,7 @@ const createTestAuiClient = (initialState: Record<string, unknown>) => {
   return {
     client,
     state,
+    // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
     notify: () => listeners.forEach((listener) => listener()),
     emitEvent: (event: string, payload: unknown) => {
       for (const entry of eventEntries) {

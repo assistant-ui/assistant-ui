@@ -11,13 +11,13 @@
   "dependencies": {
     "@assistant-ui/react-ink": "workspace:*",
     "@assistant-ui/react-ink-markdown": "workspace:*",
-    "ink": "^6.8.0",
-    "react": "^19.1.0"
+    "ink": "^7.0.2",
+    "react": "^19.2.5"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
-    "esbuild": "^0.27.4",
+    "esbuild": "^0.28.0",
     "tsx": "^4.21.0",
-    "typescript": "~5.9.3"
+    "typescript": "^6.0.3"
   }
 }

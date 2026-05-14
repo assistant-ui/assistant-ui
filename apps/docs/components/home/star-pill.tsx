@@ -10,9 +10,9 @@ export function StarPill() {
   const [stars, setStars] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch("https://api.github.com/repos/assistant-ui/assistant-ui")
+    fetch("/api/github/repo")
       .then((res) => res.json())
-      .then((data) => setStars(data.stargazers_count))
+      .then((data) => setStars(data.stars))
       .catch(console.error);
   }, []);
 

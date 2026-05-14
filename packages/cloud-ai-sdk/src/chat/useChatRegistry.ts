@@ -48,10 +48,12 @@ export function useChatRegistry({
   }
   prevThreadId.current = threadId;
 
+  if (!threadId && !freshSessionKey.current) {
+    freshSessionKey.current = createSessionId();
+  }
   const activeChatKey = threadId
     ? (registry.getChatKeyForThread(threadId) ?? threadId)
-    : (freshSessionKey.current ??
-      (freshSessionKey.current = createSessionId()));
+    : freshSessionKey.current!;
 
   const activeChat = registry.getOrCreate(activeChatKey, threadId);
 

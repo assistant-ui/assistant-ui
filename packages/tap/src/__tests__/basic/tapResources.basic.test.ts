@@ -10,11 +10,6 @@ import {
   createCounterResource,
 } from "../test-utils";
 
-// ============================================================================
-// Test Resources
-// ============================================================================
-
-// Simple counter that just returns the value
 const SimpleCounter = resource(createCounterResource());
 
 // Stateful counter that tracks its own count
@@ -46,10 +41,6 @@ const TrackingCounter = resource((props: { value: number; id: string }) => {
     instance: instances.get(props.id),
   };
 });
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 describe("tapResources - Basic Functionality", () => {
   afterEach(() => {

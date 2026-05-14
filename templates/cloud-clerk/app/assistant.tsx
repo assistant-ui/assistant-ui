@@ -32,7 +32,7 @@ export const Assistant = () => {
   const cloud = useMemo(
     () =>
       new AssistantCloud({
-        baseUrl: process.env["NEXT_PUBLIC_ASSISTANT_BASE_URL"]!,
+        baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
         authToken: async () => {
           const token = await getToken({ template: "assistant-ui" });
 

@@ -1,0 +1,67 @@
+---
+title: Stability
+description: What unstable_ means, when APIs become stable, and how to track changes.
+---
+
+assistant-ui ships some APIs with an `unstable_` prefix. This is a deliberate signal, not a bug.
+
+## What `unstable_` means
+
+An `unstable_` prefix tells you that the API is exposed publicly so you can build against it, but the surface (signature, naming, semantics, return shape) may change in any release including patch releases.
+
+If you depend on an unstable API:
+
+- **Pin your dependency range** so an automatic minor or patch update cannot rewrite the contract under you.
+- **Isolate the call site** behind a small wrapper in your code so you can adapt to upstream changes in one place.
+- **Expect renames or removals** when the API stabilizes; the prefix gets dropped on the stable form.
+
+## Why we ship them
+
+Three reasons something stays `unstable_`:
+
+1. **The design is still in flux** and we want feedback on the current shape before committing.
+2. **The API depends on internals** we are still rearranging, so the surface tracks that motion.
+3. **The use case is real today** but stable-api expectations (semver discipline, comprehensive coverage, docs) have not been met yet.
+
+## Currently unstable APIs
+
+A non-exhaustive list of `unstable_` exports surfaced in the runtime docs.
+
+| API | Package | Notes |
+| --- | --- | --- |
+| `unstable_createMessageConverter` | `@assistant-ui/react` | Message-format converter used by AssistantTransport and DataStream. |
+| `unstable_humanToolNames` | `@assistant-ui/react` | Tool names that pause for human approval. Only available on LocalRuntime; not supported in DataStream. |
+| `unstable_threadListAdapter` | `@assistant-ui/react-langgraph` | LangGraph thread-list adapter slot on `useLangGraphRuntime`. |
+| `unstable_createLangGraphStream` | `@assistant-ui/react-langgraph` | End-to-end cancellation primitive. |
+| `unstable_Provider` | Various adapters | Thread-scoped provider on `RemoteThreadListAdapter`. Must render children synchronously. |
+| `unstable_capabilities` | `ExternalStoreRuntime` | Toggle copy and other thread capabilities. |
+| `unstable_state`, `unstable_annotations`, `unstable_data` | Message metadata | Runtime-internal fields exposed for advanced use cases. |
+| `unstable_assistantMessageId`, `unstable_threadId`, `unstable_parentId`, `unstable_getMessage` | `ChatModelRunOptions` | Identifiers and accessors passed to your `ChatModelAdapter.run`. |
+
+Framework adapters list their own unstable surface in the corresponding adapter pages.
+
+## When something stabilizes
+
+Stabilization usually drops the prefix. If `unstable_foo` becomes stable, the new export is `foo`, the old name is kept as a deprecated alias for at least one minor cycle, and the changelog calls out the change.
+
+Watch the [release notes](https://github.com/assistant-ui/assistant-ui/releases) and the [migration guides](/docs/migrations) for transitions.
+
+## Related
+
+<Cards>
+  <Card
+    title="Architecture"
+    description="The three-layer runtime model."
+    href="/docs/runtimes/concepts/architecture"
+  />
+  <Card
+    title="Adapters"
+    description="The shared adapter contracts."
+    href="/docs/runtimes/concepts/adapters"
+  />
+  <Card
+    title="Threads"
+    description="Multi-thread support patterns."
+    href="/docs/runtimes/concepts/threads"
+  />
+</Cards>

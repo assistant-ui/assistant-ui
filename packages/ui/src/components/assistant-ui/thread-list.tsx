@@ -22,7 +22,9 @@ export const ThreadList: FC = () => {
         <ThreadListSkeleton />
       </AuiIf>
       <AuiIf condition={(s) => !s.threads.isLoading}>
-        <ThreadListPrimitive.Items components={{ ThreadListItem }} />
+        <ThreadListPrimitive.Items>
+          {() => <ThreadListItem />}
+        </ThreadListPrimitive.Items>
       </AuiIf>
     </ThreadListPrimitive.Root>
   );
@@ -79,7 +81,7 @@ const ThreadListItemMore: FC = () => {
         <Button
           variant="ghost"
           size="icon"
-          className="aui-thread-list-item-more mr-2 size-7 p-0 opacity-0 transition-opacity group-hover:opacity-100 data-[state=open]:bg-accent data-[state=open]:opacity-100 group-data-active:opacity-100"
+          className="aui-thread-list-item-more me-2 size-7 p-0 opacity-0 transition-opacity group-hover:opacity-100 data-[state=open]:bg-accent data-[state=open]:opacity-100 group-data-active:opacity-100"
         >
           <MoreHorizontalIcon className="size-4" />
           <span className="sr-only">More options</span>

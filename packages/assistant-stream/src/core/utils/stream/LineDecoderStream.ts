@@ -9,7 +9,9 @@ export class LineDecoderStream extends TransformStream<string, string> {
 
         // Process all complete lines
         for (let i = 0; i < lines.length - 1; i++) {
-          controller.enqueue(lines[i]);
+          // Strip trailing \r to handle \r\n (CRLF) line endings per the SSE spec.
+          const line = lines[i]!;
+          controller.enqueue(line.endsWith("\r") ? line.slice(0, -1) : line);
         }
 
         // Keep the last incomplete line in the buffer

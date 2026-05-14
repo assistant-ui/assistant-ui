@@ -361,6 +361,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
 
                         return (
                           <button
+                            type="button"
                             key={item.id}
                             data-index={currentIndex}
                             onClick={() => handleSelect(item.url)}

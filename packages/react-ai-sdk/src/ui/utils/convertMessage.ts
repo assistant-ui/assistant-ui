@@ -3,28 +3,94 @@ import {
   createMessageConverter as unstable_createMessageConverter,
   type useExternalMessageConverter,
 } from "@assistant-ui/core/react";
-import type {
-  ReasoningMessagePart,
-  ToolCallMessagePart,
-  TextMessagePart,
-  DataMessagePart,
-  SourceMessagePart,
-  ThreadMessageLike,
+import {
+  isMcpAppUri,
+  type ReasoningMessagePart,
+  type ToolCallMessagePart,
+  type TextMessagePart,
+  type DataMessagePart,
+  type SourceMessagePart,
+  type SourceProviderMetadata,
+  type FileMessagePart,
+  type ThreadMessageLike,
+  type McpAppMetadata,
 } from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
+import { unwrapModelContentEnvelope } from "../../modelContentEnvelope";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
 export type AISDKMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
+    toolLastInputCache?: Map<string, ReadonlyJSONObject>;
+    mcpAppMetadataCache?: Map<string, McpAppMetadata>;
   };
 
 function stripClosingDelimiters(json: string): string {
   return json.replace(/[}\]"]+$/, "");
 }
 
-const hasOwn = (value: object, key: string) =>
-  Object.prototype.hasOwnProperty.call(value, key);
+const MCP_APP_METADATA_CACHE_MAX = 100;
+
+function extractMcpAppMetadata(
+  part: unknown,
+  cache: Map<string, McpAppMetadata> | undefined,
+): McpAppMetadata | undefined {
+  if (!part || typeof part !== "object") return undefined;
+  const meta = (part as { callProviderMetadata?: unknown })
+    .callProviderMetadata;
+  const mcp =
+    meta && typeof meta === "object"
+      ? (meta as { mcp?: unknown }).mcp
+      : undefined;
+  const app =
+    mcp && typeof mcp === "object" ? (mcp as { app?: unknown }).app : undefined;
+  let a: Record<string, unknown>;
+  if (app && typeof app === "object") {
+    a = app as Record<string, unknown>;
+  } else {
+    // MCP-UI tools (e.g. xmcp) surface the UI pointer as
+    // result._meta["ui/resourceUri"] rather than in callProviderMetadata.
+    const output = (part as { output?: unknown }).output;
+    const outMeta =
+      output && typeof output === "object"
+        ? (output as { _meta?: unknown })._meta
+        : undefined;
+    const uiResourceUri =
+      outMeta && typeof outMeta === "object"
+        ? (outMeta as Record<string, unknown>)["ui/resourceUri"]
+        : undefined;
+    if (typeof uiResourceUri !== "string") return undefined;
+    a = { resourceUri: uiResourceUri };
+  }
+  if (typeof a["resourceUri"] !== "string") return undefined;
+  if (!isMcpAppUri(a["resourceUri"])) return undefined;
+  const cached = cache?.get(a["resourceUri"]);
+  if (cached) {
+    cache!.delete(a["resourceUri"]);
+    cache!.set(a["resourceUri"], cached);
+    return cached;
+  }
+  const out: { -readonly [K in keyof McpAppMetadata]: McpAppMetadata[K] } = {
+    resourceUri: a["resourceUri"],
+  };
+  if (typeof a["mimeType"] === "string") out.mimeType = a["mimeType"];
+  if (Array.isArray(a["visibility"])) {
+    out.visibility = a["visibility"].filter(
+      (v): v is "model" | "app" => v === "model" || v === "app",
+    );
+  }
+  if (cache) {
+    if (cache.size >= MCP_APP_METADATA_CACHE_MAX) {
+      const oldest = cache.keys().next().value;
+      if (oldest !== undefined) cache.delete(oldest);
+    }
+    cache.set(a["resourceUri"], out);
+  }
+  return out;
+}
+
+const hasOwn = (value: object, key: string) => Object.hasOwn(value, key);
 
 const stabilizeToolArgsValue = (
   value: unknown,
@@ -123,7 +189,11 @@ function convertParts(
   }
 
   const converted = message.parts
-    .filter((p) => p.type !== "step-start" && p.type !== "file")
+    .filter(
+      (p) =>
+        p.type !== "step-start" &&
+        (message.role !== "user" || p.type !== "file"),
+    )
     .map((part) => {
       if (part.type === "text") {
         return {
@@ -143,14 +213,28 @@ function convertParts(
         const toolName = getToolName(part);
         const toolCallId = part.toolCallId;
         const argsKeyOrderCacheKey = `${message.id}:${toolCallId}`;
-        const args: ReadonlyJSONObject =
-          (part.input as ReadonlyJSONObject) || {};
+
+        const rawInput = part.input as ReadonlyJSONObject | null | undefined;
+        let args: ReadonlyJSONObject;
+        if (
+          rawInput != null &&
+          typeof rawInput === "object" &&
+          !Array.isArray(rawInput)
+        ) {
+          args = rawInput;
+          metadata.toolLastInputCache?.set(argsKeyOrderCacheKey, args);
+        } else {
+          args = metadata.toolLastInputCache?.get(argsKeyOrderCacheKey) ?? {};
+        }
 
         let result: unknown;
+        let modelContent: ToolCallMessagePart["modelContent"];
         let isError = false;
 
         if (part.state === "output-available") {
-          result = part.output;
+          const unwrapped = unwrapModelContentEnvelope(part.output);
+          result = unwrapped.result;
+          modelContent = unwrapped.modelContent;
         } else if (part.state === "output-error") {
           isError = true;
           result = { error: part.errorText };
@@ -173,9 +257,20 @@ function convertParts(
           argsText = stripClosingDelimiters(argsText);
         } else {
           metadata.toolArgsKeyOrderCache?.delete(argsKeyOrderCacheKey);
+          if (
+            part.state === "output-available" ||
+            part.state === "output-error" ||
+            part.state === "output-denied"
+          ) {
+            metadata.toolLastInputCache?.delete(argsKeyOrderCacheKey);
+          }
         }
 
         const toolStatus = metadata.toolStatuses?.[toolCallId];
+        const mcpApp = extractMcpAppMetadata(
+          part,
+          metadata.mcpAppMetadataCache,
+        );
         return {
           type: "tool-call",
           toolName,
@@ -184,6 +279,8 @@ function convertParts(
           args,
           result,
           isError,
+          ...(modelContent !== undefined && { modelContent }),
+          ...(mcpApp && { mcp: { app: mcpApp } }),
           ...getToolInterrupt(part, toolStatus),
         } satisfies ToolCallMessagePart;
       }
@@ -194,15 +291,40 @@ function convertParts(
           sourceType: "url",
           id: part.sourceId,
           url: part.url,
-          title: part.title || "",
+          ...(part.title != null ? { title: part.title } : undefined),
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata:
+                  part.providerMetadata as SourceProviderMetadata,
+              }
+            : undefined),
         } satisfies SourceMessagePart;
       }
 
+      if (part.type === "file") {
+        return {
+          type: "file",
+          data: part.url,
+          mimeType: part.mediaType,
+          ...(part.filename != null && { filename: part.filename }),
+        } satisfies FileMessagePart;
+      }
+
       if (part.type === "source-document") {
-        console.warn(
-          "Source document parts are not yet supported in conversion",
-        );
-        return null;
+        return {
+          type: "source",
+          sourceType: "document",
+          id: part.sourceId,
+          title: part.title,
+          mediaType: part.mediaType,
+          ...(part.filename != null ? { filename: part.filename } : undefined),
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata:
+                  part.providerMetadata as SourceProviderMetadata,
+              }
+            : undefined),
+        } satisfies SourceMessagePart;
       }
 
       if (part.type.startsWith("data-")) {

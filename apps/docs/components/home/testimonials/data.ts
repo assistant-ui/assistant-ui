@@ -14,7 +14,7 @@ import profileNeon from "./profiles/neon_400x400.jpg";
 import profileVoltagent from "./profiles/voltagent_400x400.jpg";
 import profileYagudaev from "./profiles/yagudaev_400x400.jpg";
 import profileYC from "./profiles/ycombinator_400x400.png";
-import { StaticImageData } from "next/image";
+import type { StaticImageData } from "next/image";
 
 export type Testimonial = {
   platform: "X";

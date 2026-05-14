@@ -74,7 +74,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   );
 
   switch (message.type) {
-    case "FROM_PAGE":
+    case "FROM_PAGE": {
       // Forward message from page to devtools panel
       const devtoolsConnection = devtoolsConnections.get(tabId);
       if (devtoolsConnection) {
@@ -88,6 +88,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       sendResponse({ success: true });
       break;
+    }
 
     default:
       console.debug(

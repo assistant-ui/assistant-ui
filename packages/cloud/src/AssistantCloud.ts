@@ -1,7 +1,7 @@
 import {
   AssistantCloudAPI,
-  AssistantCloudConfig,
-  AssistantCloudTelemetryConfig,
+  type AssistantCloudConfig,
+  type AssistantCloudTelemetryConfig,
 } from "./AssistantCloudAPI";
 import { AssistantCloudAuthTokens } from "./AssistantCloudAuthTokens";
 import { AssistantCloudRuns } from "./AssistantCloudRuns";

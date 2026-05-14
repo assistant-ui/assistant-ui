@@ -39,7 +39,7 @@ export function QuoteComposerSample() {
       </div>
 
       {/* Footnote linking to component page */}
-      <p className="absolute right-4 bottom-2.5 text-[11px] text-muted-foreground/60">
+      <p className="absolute end-4 bottom-2.5 text-[11px] text-muted-foreground/60">
         Built-in{" "}
         <a
           href="/docs/ui/quote"

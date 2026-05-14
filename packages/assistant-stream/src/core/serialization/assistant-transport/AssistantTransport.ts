@@ -1,7 +1,7 @@
-import { AssistantStreamChunk } from "../../AssistantStreamChunk";
+import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { PipeableTransformStream } from "../../utils/stream/PipeableTransformStream";
 import { LineDecoderStream } from "../../utils/stream/LineDecoderStream";
-import { AssistantStreamEncoder } from "../../AssistantStream";
+import type { AssistantStreamEncoder } from "../../AssistantStream";
 
 /**
  * AssistantTransportEncoder encodes AssistantStreamChunks into SSE format

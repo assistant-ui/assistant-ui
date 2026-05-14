@@ -1,17 +1,19 @@
 // @assistant-ui/core - Framework-agnostic core runtime (public API)
 
-// === types ===
-
 export type {
   // Message parts
   TextMessagePart,
   ReasoningMessagePart,
+  SourceProviderMetadata,
   SourceMessagePart,
   ImageMessagePart,
   FileMessagePart,
   DataMessagePart,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
+  ToolCallMessagePartMcpMetadata,
+  McpAppMetadata,
+  ToolModelContentPart,
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   // Message status
@@ -31,10 +33,14 @@ export type {
   AppendMessage,
 } from "./types/message";
 
+export { MCP_APP_URI_SCHEME, isMcpAppUri } from "./types/message";
+
 export type {
   Attachment,
   PendingAttachment,
+  PendingAttachmentStatus,
   CompleteAttachment,
+  CompleteAttachmentStatus,
   AttachmentStatus,
   CreateAttachment,
 } from "./types/attachment";
@@ -43,7 +49,17 @@ export type { Unsubscribe } from "./types/unsubscribe";
 
 export type { QuoteInfo } from "./types/quote";
 
-// === model-context ===
+export type {
+  Unstable_DirectiveSegment,
+  Unstable_DirectiveFormatter,
+} from "./types/directive";
+
+export type {
+  Unstable_TriggerItem,
+  Unstable_TriggerCategory,
+} from "./types/trigger";
+
+export type { Unstable_TriggerAdapter } from "./adapters/trigger";
 
 export type {
   // Language model settings
@@ -55,6 +71,7 @@ export type {
   // Tool & instruction config
   AssistantToolProps,
   AssistantInstructionsConfig,
+  AssistantContextConfig,
 } from "./model-context/types";
 export { mergeModelContexts } from "./model-context/types";
 
@@ -77,8 +94,6 @@ export type {
 } from "./model-context/frame/types";
 export { FRAME_MESSAGE_CHANNEL } from "./model-context/frame/types";
 
-// === adapters ===
-
 // Attachment adapters
 export type { AttachmentAdapter } from "./adapters/attachment";
 export {
@@ -97,11 +112,22 @@ export {
   WebSpeechDictationAdapter,
 } from "./adapters/speech";
 
+// Voice adapter
+export type { RealtimeVoiceAdapter } from "./adapters/voice";
+export { createVoiceSession } from "./adapters/voice";
+export type {
+  VoiceSessionControls,
+  VoiceSessionHelpers,
+} from "./adapters/voice";
+
 // Feedback adapter
 export type { FeedbackAdapter } from "./adapters/feedback";
 
 // Suggestion adapter
 export type { SuggestionAdapter } from "./adapters/suggestion";
+
+// Directive formatter
+export { unstable_defaultDirectiveFormatter } from "./adapters/directive-formatter";
 
 // Thread history adapters
 export type {
@@ -112,8 +138,6 @@ export type {
   MessageFormatRepository,
   MessageStorageEntry,
 } from "./adapters/thread-history";
-
-// === runtime ===
 
 // Path Types
 export type {
@@ -127,9 +151,15 @@ export type {
 
 // Runtime Core Interface Types
 export type {
+  AttachmentAddErrorEvent,
+  AttachmentAddErrorReason,
   ComposerRuntimeCore,
+  ComposerRuntimeEventCallback,
+  ComposerRuntimeEventPayload,
   ComposerRuntimeEventType,
   DictationState,
+  EditComposerRuntimeCore,
+  SendOptions,
   ThreadComposerRuntimeCore,
 } from "./runtime/interfaces/composer-runtime-core";
 
@@ -140,7 +170,10 @@ export type {
   SubmitFeedbackOptions,
   ThreadSuggestion,
   SpeechState,
+  VoiceSessionState,
   SubmittedFeedback,
+  ThreadRuntimeEventCallback,
+  ThreadRuntimeEventPayload,
   ThreadRuntimeEventType,
   StartRunConfig,
   ResumeRunConfig,
@@ -172,6 +205,8 @@ export type {
 } from "./runtime/api/thread-list-runtime";
 
 export type {
+  ThreadListItemEventCallback,
+  ThreadListItemEventPayload,
   ThreadListItemEventType,
   ThreadListItemRuntime,
 } from "./runtime/api/thread-list-item-runtime";
@@ -215,7 +250,6 @@ export type { ThreadMessageLike } from "./runtime/utils/thread-message-like";
 
 // External Store Message Utilities
 export {
-  getExternalStoreMessage,
   getExternalStoreMessages,
   bindExternalStoreMessage,
 } from "./runtime/utils/external-store-message";
@@ -223,8 +257,6 @@ export {
 // ExportedMessageRepository
 export type { ExportedMessageRepositoryItem } from "./runtime/utils/message-repository";
 export { ExportedMessageRepository } from "./runtime/utils/message-repository";
-
-// === runtimes ===
 
 // Local Runtime Options
 export type { LocalRuntimeOptionsBase } from "./runtimes/local/local-runtime-options";
@@ -244,13 +276,10 @@ export type {
   RemoteThreadInitializeResponse,
   RemoteThreadMetadata,
   RemoteThreadListResponse,
+  RemoteThreadListPageOptions,
 } from "./runtimes/remote-thread-list/types";
 
 export { InMemoryThreadListAdapter } from "./runtimes/remote-thread-list/adapter/in-memory";
 
 // Assistant Transport Utilities
-export {
-  toAISDKTools,
-  getEnabledTools,
-  createRequestHeaders,
-} from "./runtimes/assistant-transport/utils";
+export { createRequestHeaders } from "./runtimes/assistant-transport/utils";

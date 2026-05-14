@@ -138,11 +138,11 @@ async function patchPreviewPackageJson(): Promise<void> {
 
   const raw = await fs.readFile(pkgPath, "utf-8");
   const pkg = JSON.parse(raw) as Record<string, unknown>;
-  const deps = (pkg["dependencies"] as Record<string, string>) ?? {};
+  const deps = (pkg.dependencies as Record<string, string>) ?? {};
 
   // Point the preview app at the local package under development.
   deps["mcp-app-studio"] = "file:..";
-  pkg["dependencies"] = deps;
+  pkg.dependencies = deps;
 
   await fs.writeFile(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf-8");
 }

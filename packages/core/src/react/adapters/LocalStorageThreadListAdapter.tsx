@@ -1,5 +1,5 @@
 import { type AssistantStream, createAssistantStream } from "assistant-stream";
-import { FC, PropsWithChildren, useMemo } from "react";
+import { type FC, type PropsWithChildren, useMemo } from "react";
 import { useAui } from "@assistant-ui/store";
 import type {
   RemoteThreadInitializeResponse,
@@ -28,6 +28,8 @@ type LocalStorageAdapterOptions = {
   titleGenerator?: TitleGenerationAdapter | undefined;
 };
 
+// `RemoteThreadMetadata.custom` is intentionally not persisted; consumers that
+// need it across reloads should fork this adapter or use a remote backend.
 type StoredThreadMetadata = {
   remoteId: string;
   externalId?: string;

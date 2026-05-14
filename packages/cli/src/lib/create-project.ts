@@ -89,11 +89,23 @@ export async function downloadProject(
   }
 }
 
+function detectFromUserAgent(): PackageManagerName | undefined {
+  const ua = process.env.npm_config_user_agent;
+  if (!ua) return undefined;
+  if (ua.startsWith("bun/")) return "bun";
+  if (ua.startsWith("pnpm/")) return "pnpm";
+  if (ua.startsWith("yarn/")) return "yarn";
+  if (ua.startsWith("npm/")) return "npm";
+  return undefined;
+}
+
 export async function resolvePackageManagerName(
   projectDir: string,
   packageManager?: PackageManagerName,
 ): Promise<PackageManagerName> {
   if (packageManager) return packageManager;
+  const fromAgent = detectFromUserAgent();
+  if (fromAgent) return fromAgent;
   try {
     return await detect({ cwd: path.dirname(projectDir) });
   } catch {
@@ -290,13 +302,12 @@ async function scanRequiredComponents(
 
       const assistantUIRegex =
         /from\s+["']@\/components\/assistant-ui\/([^"']+)["']/g;
-      let match;
-      while ((match = assistantUIRegex.exec(content)) !== null) {
+      for (const match of content.matchAll(assistantUIRegex)) {
         assistantUIComponents.add(match[1]!);
       }
 
       const uiRegex = /from\s+["']@\/components\/ui\/([^"']+)["']/g;
-      while ((match = uiRegex.exec(content)) !== null) {
+      for (const match of content.matchAll(uiRegex)) {
         shadcnUIComponents.add(match[1]!);
       }
     } catch {

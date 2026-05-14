@@ -7,6 +7,7 @@ export type ThreadListItemState = {
   readonly externalId: string | undefined;
   readonly title?: string | undefined;
   readonly status: ThreadListItemStatus;
+  readonly custom?: Record<string, unknown> | undefined;
 };
 
 export type ThreadListItemMethods = {
@@ -31,7 +32,17 @@ export type ThreadListItemMeta = {
 };
 
 export type ThreadListItemEvents = {
+  /**
+   * @deprecated State-derivable. Compare `s.threads.mainThreadId` against the
+   * item's `s.threadListItem.id` via `useAuiState` instead. Kept for backward
+   * compatibility.
+   */
   "threadListItem.switchedTo": { threadId: string };
+  /**
+   * @deprecated State-derivable. Compare `s.threads.mainThreadId` against the
+   * item's `s.threadListItem.id` via `useAuiState` instead. Kept for backward
+   * compatibility.
+   */
   "threadListItem.switchedAway": { threadId: string };
 };
 

@@ -21,7 +21,7 @@ export function AssistantModalSample() {
 export function AssistantModal({ container }: { container?: HTMLElement }) {
   return (
     <AssistantModalPrimitive.Root defaultOpen>
-      <AssistantModalPrimitive.Anchor className="absolute right-4 bottom-4 size-11">
+      <AssistantModalPrimitive.Anchor className="absolute end-4 bottom-4 size-11">
         <AssistantModalPrimitive.Trigger asChild>
           <AssistantModalButton />
         </AssistantModalPrimitive.Trigger>

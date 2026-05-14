@@ -1,6 +1,6 @@
 "use client";
 
-import { MessagePartRuntime } from "../runtime/MessagePartRuntime";
+import type { MessagePartRuntime } from "../runtime/MessagePartRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 import { useAui, useAuiState } from "@assistant-ui/store";
 

@@ -10,8 +10,8 @@ import { useAui } from "@assistant-ui/store";
 import { useEffect } from "react";
 import {
   type FieldValues,
-  Path,
-  PathValue,
+  type Path,
+  type PathValue,
   type UseFormProps,
   type UseFormReturn,
   useForm,

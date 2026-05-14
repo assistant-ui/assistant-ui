@@ -1,8 +1,8 @@
 import { useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
-import {
+import type {
   ResourceFiberRoot,
-  type ExtractResourceReturnType,
-  type ResourceElement,
+  ExtractResourceReturnType,
+  ResourceElement,
 } from "../core/types";
 import {
   createResourceFiber,
@@ -20,8 +20,10 @@ import {
 const useDevStrictMode = () => {
   if (!isDevelopment) return null;
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const count = useRef(0);
   const isFirstRender = count.current === 0;
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   useState(() => count.current++);
   if (count.current !== 2) return null;
   return isFirstRender ? ("child" as const) : ("root" as const);

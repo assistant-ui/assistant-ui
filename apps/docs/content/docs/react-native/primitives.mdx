@@ -34,21 +34,20 @@ Container `View` for the thread area.
 `FlatList`-based message list with automatic runtime integration. Each message is wrapped in a scoped context so that `useAuiState((s) => s.message)` works inside the rendered component.
 
 ```tsx
-<ThreadPrimitive.Messages
-  components={{ Message: MyMessage }}
-/>
+<ThreadPrimitive.Messages>
+  {() => <MyMessage />}
+</ThreadPrimitive.Messages>
 ```
 
-You can also provide role-specific components and edit composers:
+You can also provide role-specific components:
 
 ```tsx
-<ThreadPrimitive.Messages
-  components={{
-    UserMessage: MyUserMessage,
-    AssistantMessage: MyAssistantMessage,
-    EditComposer: MyEditComposer,
+<ThreadPrimitive.Messages>
+  {({ message }) => {
+    if (message.role === "user") return <MyUserMessage />;
+    return <MyAssistantMessage />;
   }}
-/>
+</ThreadPrimitive.Messages>
 ```
 
 | Prop | Type | Description |
@@ -126,9 +125,9 @@ Conditional rendering based on thread state. Deprecated in favor of `AuiIf`.
 Renders all suggestions using the provided component configuration. This component is shared from `@assistant-ui/core/react`.
 
 ```tsx
-<ThreadPrimitive.Suggestions
-  components={{ Suggestion: MySuggestion }}
-/>
+<ThreadPrimitive.Suggestions>
+  {() => <MySuggestion />}
+</ThreadPrimitive.Suggestions>
 ```
 
 | Prop | Type | Description |
@@ -229,13 +228,13 @@ Container `View` for the composer area.
 Renders composer attachments using the provided component configuration.
 
 ```tsx
-<ComposerPrimitive.Attachments
-  components={{
-    Image: MyImageAttachment,
-    Document: MyDocumentAttachment,
-    Attachment: MyFallbackAttachment, // fallback for all types
+<ComposerPrimitive.Attachments>
+  {({ attachment }) => {
+    if (attachment.type === "image") return <MyImageAttachment />;
+    if (attachment.type === "document") return <MyDocumentAttachment />;
+    return <MyFallbackAttachment />;
   }}
-/>
+</ComposerPrimitive.Attachments>
 ```
 
 | Prop | Type | Description |
@@ -368,15 +367,14 @@ Renders message content parts using render-prop functions instead of the compone
 Renders message content parts via a `components` prop. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to components provided here. A default `Text` component using React Native's `<Text>` is provided out of the box.
 
 ```tsx
-<MessagePrimitive.Parts
-  components={{
-    Text: ({ text }) => <Text>{text}</Text>,
-    Image: ({ image }) => <Image source={{ uri: image }} />,
-    tools: {
-      Fallback: MyToolCallComponent,
-    },
+<MessagePrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "text") return <Text>{part.text}</Text>;
+    if (part.type === "image") return <Image source={{ uri: part.image }} />;
+    if (part.type === "tool-call") return <MyToolCallComponent {...part} />;
+    return null;
   }}
-/>
+</MessagePrimitive.Parts>
 ```
 
 | Prop | Type | Description |
@@ -437,12 +435,12 @@ Use `AuiIf` for conditional rendering based on message properties:
 Renders user message attachments using the provided component configuration.
 
 ```tsx
-<MessagePrimitive.Attachments
-  components={{
-    Image: MyImageAttachment,
-    Attachment: MyFallbackAttachment,
+<MessagePrimitive.Attachments>
+  {({ attachment }) => {
+    if (attachment.type === "image") return <MyImageAttachment />;
+    return <MyFallbackAttachment />;
   }}
-/>
+</MessagePrimitive.Attachments>
 ```
 
 | Prop | Type | Description |
@@ -774,10 +772,11 @@ Container `View` for chain of thought content.
 Renders the parts within a chain of thought. Shared from `@assistant-ui/core/react`.
 
 ```tsx
-<ChainOfThoughtPrimitive.Parts
-  components={{
-    Reasoning: ({ text }) => <Text>{text}</Text>,
-    tools: { Fallback: MyToolComponent },
+<ChainOfThoughtPrimitive.Parts>
+  {({ part }) => {
+    if (part.type === "reasoning") return <Text>{part.text}</Text>;
+    if (part.type === "tool-call") return <MyToolComponent {...part} />;
+    return null;
   }}
-/>
+</ChainOfThoughtPrimitive.Parts>
 ```

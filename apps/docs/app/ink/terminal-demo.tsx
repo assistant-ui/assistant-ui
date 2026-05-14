@@ -76,8 +76,7 @@ function mdLineToSpans(raw: string): Line {
 
   // Inline formatting: bold, italic, code
   const inlineRe = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|([^*`]+))/g;
-  let match;
-  while ((match = inlineRe.exec(rest)) !== null) {
+  for (const match of rest.matchAll(inlineRe)) {
     if (match[2]) {
       // bold
       spans.push({ text: match[2], bold: true });

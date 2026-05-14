@@ -142,7 +142,7 @@ const defaultComponents = memoizeMarkdownComponents({
   blockquote: ({ className, ...props }) => (
     <blockquote
       className={cn(
-        "aui-md-blockquote my-2.5 border-muted-foreground/30 border-l-2 pl-3 text-muted-foreground italic",
+        "aui-md-blockquote my-2.5 border-muted-foreground/30 border-s-2 ps-3 text-muted-foreground italic",
         className,
       )}
       {...props}
@@ -151,7 +151,7 @@ const defaultComponents = memoizeMarkdownComponents({
   ul: ({ className, ...props }) => (
     <ul
       className={cn(
-        "aui-md-ul my-2 ml-4 list-disc marker:text-muted-foreground [&>li]:mt-1",
+        "aui-md-ul my-2 ms-4 list-disc marker:text-muted-foreground [&>li]:mt-1",
         className,
       )}
       {...props}
@@ -160,7 +160,7 @@ const defaultComponents = memoizeMarkdownComponents({
   ol: ({ className, ...props }) => (
     <ol
       className={cn(
-        "aui-md-ol my-2 ml-4 list-decimal marker:text-muted-foreground [&>li]:mt-1",
+        "aui-md-ol my-2 ms-4 list-decimal marker:text-muted-foreground [&>li]:mt-1",
         className,
       )}
       {...props}
@@ -184,7 +184,7 @@ const defaultComponents = memoizeMarkdownComponents({
   th: ({ className, ...props }) => (
     <th
       className={cn(
-        "aui-md-th bg-muted px-2 py-1 text-left font-medium first:rounded-tl-lg last:rounded-tr-lg [[align=center]]:text-center [[align=right]]:text-right",
+        "aui-md-th bg-muted px-2 py-1 text-start font-medium first:rounded-ss-lg last:rounded-se-lg [[align=center]]:text-center [[align=right]]:text-right",
         className,
       )}
       {...props}
@@ -193,7 +193,7 @@ const defaultComponents = memoizeMarkdownComponents({
   td: ({ className, ...props }) => (
     <td
       className={cn(
-        "aui-md-td border-muted-foreground/20 border-b border-l px-2 py-1 text-left last:border-r [[align=center]]:text-center [[align=right]]:text-right",
+        "aui-md-td border-muted-foreground/20 border-s border-b px-2 py-1 text-start last:border-e [[align=center]]:text-center [[align=right]]:text-right",
         className,
       )}
       {...props}
@@ -202,7 +202,7 @@ const defaultComponents = memoizeMarkdownComponents({
   tr: ({ className, ...props }) => (
     <tr
       className={cn(
-        "aui-md-tr m-0 border-b p-0 first:border-t [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg",
+        "aui-md-tr m-0 border-b p-0 first:border-t [&:last-child>td:first-child]:rounded-es-lg [&:last-child>td:last-child]:rounded-ee-lg",
         className,
       )}
       {...props}

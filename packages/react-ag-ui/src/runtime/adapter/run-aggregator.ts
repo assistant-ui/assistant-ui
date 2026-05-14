@@ -5,8 +5,14 @@ import type {
   ThreadAssistantMessagePart,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
-import type { AgUiEvent } from "../types";
+import type { AgUiEvent, AgUiInterrupt } from "../types";
 import type { Logger } from "../logger";
+
+export const AG_UI_METADATA_NAMESPACE = "agui";
+
+export type AgUiCustomMetadata = {
+  interrupts?: AgUiInterrupt[];
+};
 
 type Emit = (update: ChatModelRunResult) => void;
 
@@ -18,12 +24,14 @@ type ToolCallState = {
   result: unknown;
   isError: boolean | undefined;
   parentMessageId?: string;
+  toolMessageId?: string;
 };
 
 export type RunAggregatorOptions = {
   showThinking: boolean;
   logger: Logger;
   emit: Emit;
+  onServerMessageId?: (messageId: string) => void;
 };
 
 /**
@@ -36,8 +44,10 @@ export class RunAggregator {
   private readonly emitUpdate: Emit;
   private readonly showThinking: boolean;
   private readonly logger: Logger;
+  private readonly onServerMessageId: ((messageId: string) => void) | undefined;
 
   private status: ChatModelRunResult["status"] | undefined;
+  private interrupts: AgUiInterrupt[] | undefined;
   private readonly textParts = new Map<
     string,
     { buffer: string; touched: boolean }
@@ -53,11 +63,13 @@ export class RunAggregator {
   )[] = [];
   private hasReasoningPart = false;
   private textPartCounter = 0;
+  private serverMessageIdReported = false;
 
   constructor(options: RunAggregatorOptions) {
     this.emitUpdate = options.emit;
     this.showThinking = options.showThinking;
     this.logger = options.logger;
+    this.onServerMessageId = options.onServerMessageId;
   }
 
   handle(event: AgUiEvent): void {
@@ -71,18 +83,29 @@ export class RunAggregator {
         this.hasReasoningPart = false;
         this.textPartCounter = 0;
         this.activeTextMessageId = undefined;
+        this.interrupts = undefined;
+        this.serverMessageIdReported = false;
         this.status = { type: "running" };
         this.emit();
         break;
       }
       case "RUN_FINISHED": {
+        if (event.outcome?.type === "interrupt") {
+          this.interrupts = event.outcome.interrupts;
+          this.status = { type: "requires-action", reason: "interrupt" };
+          this.emit();
+          break;
+        }
+
+        this.interrupts = undefined;
         const hasUnresolvedToolCalls = Array.from(this.toolCalls.values()).some(
           (tc) => tc.result === undefined,
         );
 
-        this.status = hasUnresolvedToolCalls
-          ? { type: "requires-action", reason: "tool-calls" }
-          : { type: "complete", reason: "unknown" };
+        this.status =
+          event.outcome?.type === "success" || !hasUnresolvedToolCalls
+            ? { type: "complete", reason: "unknown" }
+            : { type: "requires-action", reason: "tool-calls" };
         this.emit();
         break;
       }
@@ -102,6 +125,7 @@ export class RunAggregator {
       }
 
       case "TEXT_MESSAGE_START": {
+        this.reportServerMessageId(event.messageId);
         const id = this.startTextMessage(event.messageId);
         if (id) {
           this.markTextPartTouched(id);
@@ -111,15 +135,16 @@ export class RunAggregator {
       }
       case "TEXT_MESSAGE_CONTENT":
       case "TEXT_MESSAGE_CHUNK": {
+        const incomingId = "messageId" in event ? event.messageId : undefined;
+        this.reportServerMessageId(incomingId);
         if (!event.delta) break;
-        const id = this.resolveTextMessageId(
-          "messageId" in event ? event.messageId : undefined,
-        );
+        const id = this.resolveTextMessageId(incomingId);
         this.appendText(id, event.delta);
         this.emit();
         break;
       }
       case "TEXT_MESSAGE_END": {
+        this.reportServerMessageId(event.messageId);
         if (event.messageId && this.activeTextMessageId === event.messageId) {
           this.activeTextMessageId = undefined;
         }
@@ -145,6 +170,7 @@ export class RunAggregator {
         break;
 
       case "TOOL_CALL_START": {
+        this.reportServerMessageId(event.parentMessageId);
         this.startToolCall(
           event.toolCallId,
           event.toolCallName,
@@ -155,6 +181,9 @@ export class RunAggregator {
       }
       case "TOOL_CALL_ARGS":
       case "TOOL_CALL_CHUNK": {
+        if (event.type === "TOOL_CALL_CHUNK") {
+          this.reportServerMessageId(event.parentMessageId);
+        }
         if (!event.delta) break;
         this.appendToolArgs(event.toolCallId, event.delta);
         this.emit();
@@ -169,6 +198,7 @@ export class RunAggregator {
           event.toolCallId,
           event.content ?? "",
           event.role === "tool" ? false : undefined,
+          event.messageId,
         );
         this.emit();
         break;
@@ -178,6 +208,12 @@ export class RunAggregator {
         this.logger.debug?.("[agui] aggregator ignored event", event);
       }
     }
+  }
+
+  private reportServerMessageId(messageId: string | undefined): void {
+    if (this.serverMessageIdReported || !messageId) return;
+    this.serverMessageIdReported = true;
+    this.onServerMessageId?.(messageId);
   }
 
   private clearTextParts(): void {
@@ -281,7 +317,12 @@ export class RunAggregator {
     }
   }
 
-  private finishToolCall(id: string, content: string, isError?: boolean) {
+  private finishToolCall(
+    id: string,
+    content: string,
+    isError?: boolean,
+    toolMessageId?: string,
+  ) {
     if (!id) return;
     let entry = this.toolCalls.get(id);
     if (!entry) {
@@ -304,6 +345,9 @@ export class RunAggregator {
     }
     entry.result = this.tryParseJSON(content);
     entry.isError = isError;
+    if (toolMessageId) {
+      entry.toolMessageId = toolMessageId;
+    }
   }
 
   private tryParseJSON(value: string): unknown {
@@ -351,13 +395,27 @@ export class RunAggregator {
         ...(entry.result !== undefined ? { result: entry.result } : {}),
         ...(entry.isError !== undefined ? { isError: entry.isError } : {}),
         ...(entry.parentMessageId ? { parentId: entry.parentMessageId } : {}),
-      } as ToolCallMessagePart;
+        ...(entry.toolMessageId
+          ? { unstable_toolMessageId: entry.toolMessageId }
+          : {}),
+      } as ToolCallMessagePart & { unstable_toolMessageId?: string };
       snapshot.push(toolPart);
     }
 
     const result: ChatModelRunResult = {
       content: snapshot,
       ...(this.status ? { status: this.status } : undefined),
+      ...(this.interrupts
+        ? {
+            metadata: {
+              custom: {
+                [AG_UI_METADATA_NAMESPACE]: {
+                  interrupts: this.interrupts,
+                } satisfies AgUiCustomMetadata,
+              },
+            },
+          }
+        : undefined),
     };
     this.emitUpdate(result);
   }

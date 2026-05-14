@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or help
+    url: https://discord.gg/S9dwgCNEFs
+    about: Ask questions and get help from the community on Discord.
+  - name: Documentation
+    url: https://www.assistant-ui.com/docs
+    about: Check the docs — your question might already be answered.

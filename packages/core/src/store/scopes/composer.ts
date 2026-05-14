@@ -3,8 +3,21 @@ import type { MessageRole } from "../../types/message";
 import type { QuoteInfo } from "../../types/quote";
 import type { RunConfig } from "../../types/message";
 import type { ComposerRuntime } from "../../runtime/api/composer-runtime";
-import type { DictationState } from "../../runtime/interfaces/composer-runtime-core";
+import type {
+  AttachmentAddErrorReason,
+  DictationState,
+  SendOptions,
+} from "../../runtime/interfaces/composer-runtime-core";
 import type { AttachmentMethods } from "./attachment";
+import type { QueueItemState, QueueItemMethods } from "./queue-item";
+
+export type ComposerSendOptions = SendOptions & {
+  /**
+   * Whether to steer (interrupt the current run and process this message immediately).
+   * When false (default), the message is queued and processed in order.
+   */
+  steer?: boolean;
+};
 
 export type ComposerState = {
   readonly text: string;
@@ -13,6 +26,15 @@ export type ComposerState = {
   readonly runConfig: RunConfig;
   readonly isEditing: boolean;
   readonly canCancel: boolean;
+  /**
+   * Whether the composer is currently willing to send. `true` when the
+   * composer is in editing mode and has non-empty content; for thread
+   * composers also requires the thread's `isSendDisabled` flag to be unset.
+   * Edit composers (saving message edits) ignore `isSendDisabled` since it
+   * is a thread-scoped gate. Cross-thread gating (running, queue capability)
+   * is layered on top by `useComposerSend`.
+   */
+  readonly canSend: boolean;
   readonly attachmentAccept: string;
   readonly isEmpty: boolean;
   readonly type: "thread" | "edit";
@@ -28,6 +50,12 @@ export type ComposerState = {
    * Undefined when no quote is set.
    */
   readonly quote: QuoteInfo | undefined;
+
+  /**
+   * The queue of messages waiting to be processed.
+   * Empty when no messages are queued.
+   */
+  readonly queue: readonly QueueItemState[];
 };
 
 export type ComposerMethods = {
@@ -39,7 +67,7 @@ export type ComposerMethods = {
   clearAttachments(): Promise<void>;
   attachment(selector: { index: number } | { id: string }): AttachmentMethods;
   reset(): Promise<void>;
-  send(): void;
+  send(opts?: ComposerSendOptions): void;
   cancel(): void;
   beginEdit(): void;
 
@@ -59,6 +87,11 @@ export type ComposerMethods = {
    */
   setQuote(quote: QuoteInfo | undefined): void;
 
+  /**
+   * Access a queue item by index.
+   */
+  queueItem(selector: { index: number }): QueueItemMethods;
+
   __internal_getRuntime?(): ComposerRuntime;
 };
 
@@ -68,8 +101,23 @@ export type ComposerMeta = {
 };
 
 export type ComposerEvents = {
+  /**
+   * @deprecated State-derivable. Observe composer `text` clearing via
+   * `useAuiState` instead. Kept for backward compatibility.
+   */
   "composer.send": { threadId: string; messageId?: string };
+  /**
+   * @deprecated State-derivable. Observe composer `attachments` via
+   * `useAuiState` instead. Kept for backward compatibility.
+   */
   "composer.attachmentAdd": { threadId: string; messageId?: string };
+  "composer.attachmentAddError": {
+    threadId: string;
+    messageId?: string;
+    attachmentId?: string;
+    reason: AttachmentAddErrorReason;
+    message: string;
+  };
 };
 
 export type ComposerClientSchema = {

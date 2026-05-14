@@ -1,35 +1,21 @@
 import { openai } from "@ai-sdk/openai";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import {
-  JSONSchema7,
-  ToolSet,
+  type JSONSchema7,
+  type ToolSet,
   streamText,
   convertToModelMessages,
   type UIMessage,
 } from "ai";
-import { experimental_createMCPClient as createMCPClient } from "@ai-sdk/mcp";
+import { getMcpTools } from "../mcp-client";
 
 export const maxDuration = 30;
 
-let mcpClient: Awaited<ReturnType<typeof createMCPClient>> | null = null;
-let cachedMCPTools: ToolSet | null = null;
-
 async function getMCPTools(): Promise<ToolSet> {
-  if (cachedMCPTools) return cachedMCPTools;
-
   try {
-    mcpClient = await createMCPClient({
-      // TODO adjust this to point to your MCP server URL
-      transport: {
-        type: "http",
-        url: "http://localhost:8000/mcp",
-      },
-    });
-    cachedMCPTools = await mcpClient.tools();
-    return cachedMCPTools;
+    return await getMcpTools();
   } catch (e) {
     console.warn("Failed to connect to MCP server:", e);
-    mcpClient = null;
     return {};
   }
 }

@@ -1,5 +1,5 @@
-import { AssistantStream } from "../AssistantStream";
-import { AssistantMessage } from "../utils/types";
+import type { AssistantStream } from "../AssistantStream";
+import type { AssistantMessage } from "../utils/types";
 import { AssistantMessageAccumulator } from "./assistant-message-accumulator";
 
 export class AssistantMessageStream {

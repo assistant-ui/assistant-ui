@@ -1,4 +1,10 @@
 {
   "title": "Custom Backend",
-  "pages": ["local", "custom-thread-list", "external-store"]
+  "pages": [
+    "overview",
+    "local-runtime",
+    "external-store",
+    "data-stream",
+    "assistant-transport"
+  ]
 }

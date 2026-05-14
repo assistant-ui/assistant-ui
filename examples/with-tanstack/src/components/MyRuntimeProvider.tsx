@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from "react";
 import {
   useExternalStoreRuntime,
-  ThreadMessageLike,
-  AppendMessage,
+  type ThreadMessageLike,
+  type AppendMessage,
   AssistantRuntimeProvider,
 } from "@assistant-ui/react";
 import { chatStream } from "@/server/chat";

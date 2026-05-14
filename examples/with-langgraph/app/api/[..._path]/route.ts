@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 function getCorsHeaders() {
   return {
@@ -22,7 +22,7 @@ async function handleRequest(req: NextRequest, method: string) {
     const options: RequestInit = {
       method,
       headers: {
-        "x-api-key": process.env["LANGCHAIN_API_KEY"] || "",
+        "x-api-key": process.env.LANGCHAIN_API_KEY || "",
       },
     };
 
@@ -31,7 +31,7 @@ async function handleRequest(req: NextRequest, method: string) {
     }
 
     const res = await fetch(
-      `${process.env["LANGGRAPH_API_URL"]}/${path}${queryString}`,
+      `${process.env.LANGGRAPH_API_URL}/${path}${queryString}`,
       options,
     );
 

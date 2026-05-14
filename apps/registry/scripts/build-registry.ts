@@ -1,7 +1,7 @@
 import { promises as fs, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { registry } from "../src/registry";
-import { RegistryItem } from "@/src/schema";
+import type { RegistryItem } from "@/src/schema";
 
 const REGISTRY_PATH = path.join(process.cwd(), "dist");
 const REGISTRY_INDEX_PATH = path.join(REGISTRY_PATH, "registry.json");

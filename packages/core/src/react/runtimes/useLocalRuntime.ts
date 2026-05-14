@@ -22,6 +22,7 @@ const useLocalThreadRuntime = (
   chatModel: ChatModelAdapter,
   { initialMessages, ...options }: LocalRuntimeOptions,
 ): AssistantRuntime => {
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const { modelContext, ...threadListAdapters } = useRuntimeAdapters() ?? {};
   const opt = {
     ...options,
@@ -32,33 +33,41 @@ const useLocalThreadRuntime = (
     },
   };
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const threadIdRef = useRef<string | undefined>(undefined);
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   threadIdRef.current = useAuiState((s) => s.threadListItem.remoteId);
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   useEffect(() => {
     runtime.threads
       .getMainThreadRuntimeCore()
       .__internal_setGetThreadId(() => threadIdRef.current);
   }, [runtime]);
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   useEffect(() => {
     return () => {
       runtime.threads.getMainThreadRuntimeCore().detach();
     };
   }, [runtime]);
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   useEffect(() => {
     runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
     runtime.threads.getMainThreadRuntimeCore().__internal_load();
   });
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   useEffect(() => {
     if (!modelContext) return undefined;
     return runtime.registerModelContextProvider(modelContext);
   }, [modelContext, runtime]);
 
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
 };
 
@@ -93,6 +102,7 @@ export const useLocalRuntime = (
   const cloudAdapter = useCloudThreadListAdapter({ cloud });
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
+      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       return useLocalThreadRuntime(chatModel, options);
     },
     adapter: cloudAdapter,

@@ -1,8 +1,28 @@
 import type { JSONSchema7 } from "json-schema";
-import { DeepPartial, TypeAtPath, TypePath } from "./type-path-utils";
-import { AsyncIterableStream } from "../../utils";
+import type { DeepPartial, TypeAtPath, TypePath } from "./type-path-utils";
+import type { AsyncIterableStream } from "../../utils";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import { ToolResponse } from "./ToolResponse";
+import type { ToolResponse } from "./ToolResponse";
+
+export type ToolModelContentPart =
+  | {
+      readonly type: "text";
+      readonly text: string;
+    }
+  | {
+      readonly type: "file";
+      readonly data: string;
+      readonly mediaType: string;
+      readonly filename?: string;
+    };
+
+export type ToolModelOutputFunction<TArgs, TResult> = (options: {
+  toolCallId: string;
+  input: TArgs;
+  output: TResult;
+}) =>
+  | readonly ToolModelContentPart[]
+  | Promise<readonly ToolModelContentPart[]>;
 
 /**
  * Interface for reading tool call arguments from a stream, which are
@@ -121,6 +141,7 @@ type BackendTool<
   parameters?: undefined;
   disabled?: undefined;
   execute?: undefined;
+  toModelOutput?: undefined;
   experimental_onSchemaValidationError?: undefined;
 };
 
@@ -134,6 +155,7 @@ type FrontendTool<
   parameters: StandardSchemaV1<TArgs> | JSONSchema7;
   disabled?: boolean;
   execute: ToolExecuteFunction<TArgs, TResult>;
+  toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
 };
 
@@ -147,6 +169,7 @@ type HumanTool<
   parameters: StandardSchemaV1<TArgs> | JSONSchema7;
   disabled?: boolean;
   execute?: undefined;
+  toModelOutput?: undefined;
   experimental_onSchemaValidationError?: undefined;
 };
 

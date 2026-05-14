@@ -104,6 +104,7 @@ describe("tapEffect - Basic Functionality", () => {
       ];
 
       const testFiber = createTestResource(() => {
+        // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
         effects.forEach((fn) => tapEffect(fn));
         return null;
       });

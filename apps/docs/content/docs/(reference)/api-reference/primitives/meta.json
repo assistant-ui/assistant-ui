@@ -1,23 +1,25 @@
 {
-  "title": "Radix UI Primitives",
+  "title": "Primitives",
+  "description": "Composable React primitives for assistant-ui chat UIs: Thread, Composer, Message, BranchPicker, ActionBar, and the parts that build threads, message lists, attachments, and editing flows.",
   "pages": [
+    "index",
     "action-bar",
     "action-bar-more",
     "assistant-if",
     "assistant-modal",
     "attachment",
     "branch-picker",
+    "chain-of-thought",
     "composer",
     "error",
     "message",
     "message-part",
+    "queue-item",
     "selection-toolbar",
     "suggestion",
     "thread",
     "thread-list",
     "thread-list-item",
-    "thread-list-item-more",
-    "...",
-    "composition"
+    "thread-list-item-more"
   ]
 }

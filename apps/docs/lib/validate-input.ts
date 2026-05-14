@@ -14,14 +14,14 @@ interface InputLimits {
 
 const GENERAL_CHAT_LIMITS: InputLimits = {
   maxMessages: 20,
-  maxTotalChars: 24_000, // ~6k tokens
-  maxSingleMessageChars: 4_000,
+  maxTotalChars: 96_000, // ~24k tokens
+  maxSingleMessageChars: 12_000, // ~3k tokens
 };
 
 const DOC_CHAT_LIMITS: InputLimits = {
   maxMessages: 0, // no message count limit; pruneMessages handles windowing
-  maxTotalChars: 120_000, // ~30k tokens — allows longer threads before pruning
-  maxSingleMessageChars: 8_000,
+  maxTotalChars: 480_000, // ~120k tokens
+  maxSingleMessageChars: 24_000, // ~6k tokens
 };
 
 function measureMessageChars(messages: unknown[]): {

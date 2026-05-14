@@ -1,6 +1,4 @@
 const GREEN = "#10b981";
-const GRAY_BG = "rgba(44, 44, 46, 0.9)";
-const BORDER = "#3a3a3c";
 const CODE_BG = "rgba(0,0,0,0.4)";
 
 function TerminalMockup() {

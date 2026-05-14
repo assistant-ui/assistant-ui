@@ -1,0 +1,312 @@
+---
+title: Suggested Prompts
+description: Display suggested starter prompts in your AI chat to onboard users faster. Configurable suggestion components for React, built into assistant-ui.
+platforms: ["react"]
+---
+
+Suggestions are pre-defined prompts that help users discover what your assistant can do. They appear in the welcome screen and provide a quick way to start conversations.
+
+## Overview
+
+The Suggestions API allows you to configure a list of suggested prompts that are displayed when the thread is empty. Users can click on a suggestion to either populate the composer or immediately send the message.
+
+## Quick Start
+
+Configure suggestions using the `Suggestions()` API in your runtime provider:
+
+```tsx
+import { useAui, Tools, Suggestions } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+
+  const aui = useAui({
+    tools: Tools({ toolkit: myToolkit }),
+    suggestions: Suggestions([
+      "What can you help me with?",
+      "Tell me a joke",
+      "Explain quantum computing",
+    ]),
+  });
+
+  return (
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Suggestion Format
+
+Suggestions can be provided as either strings or objects with title, label, and prompt:
+
+### Simple Strings
+
+```tsx
+const aui = useAui({
+  suggestions: Suggestions([
+    "What's the weather today?",
+    "Help me write an email",
+    "Explain React hooks",
+  ]),
+});
+```
+
+### Objects with Title and Description
+
+For more detailed suggestions with separate display text and prompts:
+
+```tsx
+const aui = useAui({
+  suggestions: Suggestions([
+    {
+      title: "Weather",
+      label: "in San Francisco",
+      prompt: "What's the weather in San Francisco?",
+    },
+    {
+      title: "React Hooks",
+      label: "useState and useEffect",
+      prompt: "Explain React hooks like useState and useEffect",
+    },
+    {
+      title: "Travel Tips",
+      label: "for Tokyo",
+      prompt: "Give me travel tips for visiting Tokyo",
+    },
+  ]),
+});
+```
+
+## Displaying Suggestions
+
+The default Thread component from the shadcn registry already includes suggestion rendering. The suggestions are displayed in the welcome screen when the thread is empty.
+
+### Customizing Suggestion Display
+
+If you want to customize how suggestions are displayed, you can modify your Thread component. The idiomatic pattern is to wrap the suggestions in `AuiIf` so they only appear when the thread is empty:
+
+```tsx
+import {
+  ThreadPrimitive,
+  SuggestionPrimitive,
+  AuiIf,
+} from "@assistant-ui/react";
+
+const ThreadWelcome = () => {
+  return (
+    <AuiIf condition={(s) => s.thread.isEmpty}>
+      <div className="flex flex-col items-center justify-center">
+        <h1>Welcome!</h1>
+        <p>How can I help you today?</p>
+
+        <div className="grid grid-cols-2 gap-2">
+          <ThreadPrimitive.Suggestions>
+            {() => <SuggestionItem />}
+          </ThreadPrimitive.Suggestions>
+        </div>
+      </div>
+    </AuiIf>
+  );
+};
+
+const SuggestionItem = () => {
+  return (
+    <SuggestionPrimitive.Trigger send asChild>
+      <button className="rounded-lg border p-3 hover:bg-muted">
+        <div className="font-medium">
+          <SuggestionPrimitive.Title />
+        </div>
+        <div className="text-muted-foreground text-sm">
+          <SuggestionPrimitive.Description />
+        </div>
+      </button>
+    </SuggestionPrimitive.Trigger>
+  );
+};
+```
+
+### Dismissal
+
+Suggestions dismiss automatically once the user sends a message because `thread.isEmpty` becomes false. No extra state management is needed. If you want to dismiss suggestions without sending (for example, after a user clicks away), manage a local boolean and combine it with the `AuiIf` condition or a plain conditional render.
+
+## Suggestion Primitives
+
+The primitives available for rendering suggestions are `ThreadPrimitive.Suggestions`, `ThreadPrimitive.SuggestionByIndex`, `SuggestionPrimitive.Title`, `SuggestionPrimitive.Description`, and `SuggestionPrimitive.Trigger`. `ThreadPrimitive.SuggestionByIndex` is useful when you need layout control over a specific suggestion slot rather than iterating all of them. For the full prop reference and usage patterns, see the [Suggestion primitive docs](/docs/primitives/suggestion).
+
+## Runtime driven suggestions
+
+The static `Suggestions(...)` API covers welcome screens. For follow up prompts that depend on the conversation, a tool result, or your backend, push suggestions through the runtime itself. They land on `thread.suggestions` rather than the static `suggestions` scope, so they render through a different component.
+
+### Local runtime: `SuggestionAdapter`
+
+Pass a `suggestion` adapter to `useLocalRuntime`. Its `generate` function runs after every assistant turn and may return a promise or an async generator for streaming updates.
+
+```tsx
+import { useLocalRuntime, type SuggestionAdapter } from "@assistant-ui/react";
+
+const suggestionAdapter: SuggestionAdapter = {
+  async generate({ messages }) {
+    const response = await fetch("/api/follow-ups", {
+      method: "POST",
+      body: JSON.stringify({ messages }),
+    });
+    const data: { prompt: string }[] = await response.json();
+    return data;
+  },
+};
+
+const runtime = useLocalRuntime(myChatModel, {
+  adapters: { suggestion: suggestionAdapter },
+});
+```
+
+### External store runtime
+
+`useExternalStoreRuntime` exposes a `suggestions` field, so you can drive follow ups straight from your application state.
+
+```tsx
+const [suggestions, setSuggestions] = useState<ThreadSuggestion[]>([]);
+
+const runtime = useExternalStoreRuntime({
+  messages,
+  onNew,
+  suggestions,
+});
+
+// Push a follow up after a tool result, a stream chunk, or any app event.
+setSuggestions([{ prompt: "Summarize this case" }]);
+```
+
+### AI SDK runtime
+
+`useChatRuntime` and `useAISDKRuntime` accept the same `suggestions` field and forward it to the underlying external store.
+
+```tsx
+const [suggestions, setSuggestions] = useState<ThreadSuggestion[]>([]);
+
+const runtime = useChatRuntime({ suggestions });
+```
+
+The local runtime clears its suggestions when a new run starts. External store and AI SDK runtimes keep whatever state you push, so you control the lifetime.
+
+### Rendering runtime suggestions
+
+Static suggestions go through `ThreadPrimitive.Suggestions`; runtime suggestions go through `thread.suggestions`. The shadcn registry ships `ThreadFollowupSuggestions` for the common single line pill layout. For a custom layout, read the array yourself:
+
+```tsx
+import { useAuiState, ThreadPrimitive, AuiIf } from "@assistant-ui/react";
+
+function FollowUps() {
+  const suggestions = useAuiState((s) => s.thread.suggestions);
+  return (
+    <AuiIf condition={(s) => !s.thread.isEmpty && !s.thread.isRunning}>
+      <div className="flex gap-2">
+        {suggestions.map((s, i) => (
+          <ThreadPrimitive.Suggestion
+            key={i}
+            prompt={s.prompt}
+            method="replace"
+            autoSend
+          >
+            {s.prompt}
+          </ThreadPrimitive.Suggestion>
+        ))}
+      </div>
+    </AuiIf>
+  );
+}
+```
+
+## Reacting to application state
+
+You can dynamically change the static suggestion list based on your application state:
+
+```tsx
+import { useMemo } from "react";
+
+function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const user = useUser(); // Your user hook
+
+  const suggestions = useMemo(() => {
+    if (user.isPremium) {
+      return [
+        "Analyze my business data",
+        "Generate a detailed report",
+        "Create a custom workflow",
+      ];
+    }
+    return [
+      "What can you do?",
+      "Tell me a joke",
+      "Help me get started",
+    ];
+  }, [user.isPremium]);
+
+  const aui = useAui({
+    tools: Tools({ toolkit: myToolkit }),
+    suggestions: Suggestions(suggestions),
+  });
+
+  return (
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Best Practices
+
+1. **Keep suggestions concise**: Use clear, actionable prompts that users can understand at a glance
+2. **Show capabilities**: Use suggestions to highlight your assistant's key features
+3. **Provide variety**: Offer suggestions across different use cases
+4. **Use the object format for complex suggestions**: When you need separate title/description, use the object format
+5. **Limit the number**: 3-6 suggestions work best to avoid overwhelming users
+6. **Make them actionable**: Each suggestion should lead to a meaningful interaction
+
+## Switching from `ThreadPrimitive.Suggestion`
+
+If your codebase uses the inline `ThreadPrimitive.Suggestion` component (which renders one suggestion at a time with hardcoded `prompt` / `send` props), you can move to the runtime-driven `Suggestions()` API for centralized configuration. The inline component is still supported, but the runtime-driven approach scales better when suggestions need to update dynamically.
+
+### Inline form
+
+```tsx
+<ThreadPrimitive.Suggestion
+  prompt="What's the weather?"
+  send
+/>
+```
+
+### Runtime-driven form
+
+1. Configure suggestions in your runtime provider:
+
+```tsx
+const aui = useAui({
+  suggestions: Suggestions(["What's the weather?"]),
+});
+```
+
+2. Display suggestions using the primitives:
+
+```tsx
+<ThreadPrimitive.Suggestions>
+  {() => <SuggestionItem />}
+</ThreadPrimitive.Suggestions>
+```
+
+The new API provides:
+- **Centralized configuration**: Define suggestions once in your runtime provider
+- **Better separation of concerns**: Configuration separate from presentation
+- **Type safety**: Full TypeScript support
+- **Consistency**: Follows the same pattern as the Tools API
+
+## Related
+
+- [Thread Component](/docs/ui/thread) - Main chat interface
+- [Tools Guide](/docs/guides/tools) - Configure assistant actions
+- [Context API](/docs/guides/context-api) - Access assistant state

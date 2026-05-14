@@ -7,6 +7,7 @@ import {
   ToolResponse,
   unstable_toolResultStream,
   type Tool,
+  type ToolModelContentPart,
 } from "assistant-stream";
 import {
   AssistantMetaTransformStream,
@@ -28,6 +29,7 @@ export type AddToolResultCommand = {
   readonly result: ReadonlyJSONValue;
   readonly isError: boolean;
   readonly artifact?: ReadonlyJSONValue;
+  readonly modelContent?: readonly ToolModelContentPart[];
 };
 
 const isArgsTextComplete = (argsText: string) => {
@@ -124,6 +126,7 @@ export function useToolInvocations({
       Object.entries(tools).map(([name, tool]) => {
         const execute = tool.execute;
         const streamCall = tool.streamCall;
+        const toModelOutput = tool.toModelOutput;
 
         const wrappedTool = {
           ...tool,
@@ -143,6 +146,15 @@ export function useToolInvocations({
               streamCall(reader, {
                 ...context,
                 toolCallId: getLogicalToolCallId(context.toolCallId),
+              }),
+          }),
+          ...(toModelOutput !== undefined && {
+            toModelOutput: (
+              options: Parameters<NonNullable<typeof toModelOutput>>[0],
+            ) =>
+              toModelOutput({
+                ...options,
+                toolCallId: getLogicalToolCallId(options.toolCallId),
               }),
           }),
         } as Tool;
@@ -197,6 +209,7 @@ export function useToolInvocations({
             if (wasStarted) {
               executingCountRef.current--;
               if (executingCountRef.current === 0) {
+                // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
                 settledResolversRef.current.forEach((resolve) => resolve());
                 settledResolversRef.current = [];
               }
@@ -215,6 +228,7 @@ export function useToolInvocations({
           });
           // Resolve any waiting abort promises when all tools have settled
           if (executingCountRef.current === 0) {
+            // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
             settledResolversRef.current.forEach((resolve) => resolve());
             settledResolversRef.current = [];
           }
@@ -247,7 +261,12 @@ export function useToolInvocations({
                 toolName: chunk.meta.toolName,
                 result: chunk.result,
                 isError: chunk.isError,
-                ...(chunk.artifact && { artifact: chunk.artifact }),
+                ...(chunk.artifact !== undefined && {
+                  artifact: chunk.artifact,
+                }),
+                ...(chunk.modelContent !== undefined && {
+                  modelContent: chunk.modelContent,
+                }),
               });
             }
           },
@@ -360,6 +379,13 @@ export function useToolInvocations({
               }
               let lastState = lastToolStates.current[content.toolCallId];
               if (!lastState) {
+                if (content.result !== undefined) {
+                  if (content.messages) {
+                    processMessages(content.messages);
+                  }
+                  return;
+                }
+
                 toolCallIdAliasesRef.current.set(
                   content.toolCallId,
                   content.toolCallId,
@@ -524,6 +550,9 @@ export function useToolInvocations({
                     result: content.result as ReadonlyJSONValue,
                     artifact: content.artifact as ReadonlyJSONValue | undefined,
                     isError: content.isError,
+                    ...(content.modelContent !== undefined
+                      ? { modelContent: content.modelContent }
+                      : {}),
                   }),
                 );
                 lastState.controller.close();
@@ -567,6 +596,8 @@ export function useToolInvocations({
   return {
     reset: () => {
       isInitialState.current = true;
+      ignoredToolIds.current.clear();
+      lastToolStates.current = {};
       void abort().finally(() => {
         startedExecutionToolCallIdsRef.current.clear();
         toolCallIdAliasesRef.current.clear();

@@ -106,6 +106,28 @@ export function toJSONSchema(
   return schema as JSONSchema7;
 }
 
+/**
+ * Returns a copy of the JSON Schema with `required` removed recursively,
+ * making every property optional. Array item schemas are left unchanged.
+ */
+export function toPartialJSONSchema(schema: JSONSchema7): JSONSchema7 {
+  const { required: _, ...result } = schema;
+
+  if (result.properties) {
+    result.properties = Object.fromEntries(
+      Object.entries(result.properties).map(([key, prop]) => {
+        if (typeof prop === "object" && prop !== null && !Array.isArray(prop)) {
+          const p = prop as JSONSchema7;
+          return [key, p.properties != null ? toPartialJSONSchema(p) : prop];
+        }
+        return [key, prop];
+      }),
+    );
+  }
+
+  return result;
+}
+
 function defaultToolFilter(_name: string, tool: Tool): boolean {
   return !tool.disabled && tool.type !== "backend";
 }

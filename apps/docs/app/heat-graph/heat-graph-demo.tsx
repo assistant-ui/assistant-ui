@@ -5,10 +5,6 @@ import * as HeatGraph from "heat-graph";
 import { SyntaxHighlighter } from "@/components/assistant-ui/shiki-highlighter";
 import { cn } from "@/lib/utils";
 
-// ---------------------------------------------------------------------------
-// Data generators
-// ---------------------------------------------------------------------------
-
 function seededRandom(seed: number) {
   let s = seed;
   return () => {
@@ -158,10 +154,6 @@ const generateMood = (): HeatGraph.DataPoint[] => {
   return data;
 };
 
-// ---------------------------------------------------------------------------
-// Theme definitions
-// ---------------------------------------------------------------------------
-
 type ThemeName =
   | "Contributions"
   | "Steps Walked"
@@ -221,10 +213,6 @@ const SWATCH_STYLES: Record<
   ],
 };
 
-// ---------------------------------------------------------------------------
-// Color interpolation for steps
-// ---------------------------------------------------------------------------
-
 const STEPS_GRADIENT = [
   [15, 23, 42], // 0: near-invisible
   [25, 45, 100], // low: hint of blue
@@ -252,10 +240,6 @@ function stepsColor(count: number): string {
   return `rgb(${r},${g},${bl})`;
 }
 
-// ---------------------------------------------------------------------------
-// Mood labels & shapes
-// ---------------------------------------------------------------------------
-
 const MOOD_LABELS = ["", "Bad", "Neutral", "Great"];
 
 // Per-mood shapes: down triangle (bad), hexagon (neutral), up triangle (great)
@@ -268,20 +252,12 @@ const MOOD_SHAPES: Record<number, React.CSSProperties> = {
   3: { clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)" }, // up triangle
 };
 
-// ---------------------------------------------------------------------------
-// Shared helpers
-// ---------------------------------------------------------------------------
-
 const formatDate = (date: Date) =>
   date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
-
-// ---------------------------------------------------------------------------
-// GraphShell — shared layout for all themes
-// ---------------------------------------------------------------------------
 
 type CellInfo = {
   date: Date;
@@ -334,56 +310,47 @@ function GraphShell({
         colorScale={colorScale}
         className="flex flex-col"
       >
-        <HeatGraph.MonthLabels>
-          {({ labels, totalWeeks }) => (
-            <div
-              className="relative"
-              style={{ height: 13, marginLeft: 31, marginBottom: 8 }}
-            >
-              {labels.map((label) => (
-                <span
-                  key={`${label.month}-${label.column}`}
-                  className={cn(
-                    "absolute text-[12px] leading-[13px]",
-                    labelClassName,
-                  )}
-                  style={{ left: `${(label.column / totalWeeks) * 100}%` }}
-                >
-                  {HeatGraph.MONTH_SHORT[label.month]}
-                </span>
-              ))}
-            </div>
-          )}
-        </HeatGraph.MonthLabels>
+        <div
+          className="relative"
+          style={{ height: 13, marginLeft: 31, marginBottom: 8 }}
+        >
+          <HeatGraph.MonthLabels>
+            {({ label, totalWeeks }) => (
+              <span
+                className={cn(
+                  "absolute text-[12px] leading-[13px]",
+                  labelClassName,
+                )}
+                style={{ left: `${(label.column / totalWeeks) * 100}%` }}
+              >
+                {HeatGraph.MONTH_SHORT[label.month]}
+              </span>
+            )}
+          </HeatGraph.MonthLabels>
+        </div>
 
         <div className="flex" style={{ gap: 3 }}>
-          <HeatGraph.DayLabels>
-            {({ labels }) => (
-              <div
-                className="flex shrink-0 flex-col"
-                style={{ width: 28, gap: 3 }}
-              >
-                {labels.map((label) => (
-                  <span
-                    key={label.row}
-                    className={cn(
-                      "relative text-[12px] leading-[10px]",
-                      labelClassName,
-                    )}
-                    style={{ height: 10 }}
-                  >
-                    {label.row % 2 === 1 ? (
-                      <span className="absolute" style={{ bottom: -3 }}>
-                        {dayLabelFull
-                          ? HeatGraph.DAY_SHORT[label.dayOfWeek]
-                          : HeatGraph.DAY_SHORT[label.dayOfWeek]?.charAt(0)}
-                      </span>
-                    ) : null}
-                  </span>
-                ))}
-              </div>
-            )}
-          </HeatGraph.DayLabels>
+          <div className="flex shrink-0 flex-col" style={{ width: 28, gap: 3 }}>
+            <HeatGraph.DayLabels>
+              {({ label }) => (
+                <span
+                  className={cn(
+                    "relative text-[12px] leading-[10px]",
+                    labelClassName,
+                  )}
+                  style={{ height: 10 }}
+                >
+                  {label.row % 2 === 1 ? (
+                    <span className="absolute" style={{ bottom: -3 }}>
+                      {dayLabelFull
+                        ? HeatGraph.DAY_SHORT[label.dayOfWeek]
+                        : HeatGraph.DAY_SHORT[label.dayOfWeek]?.charAt(0)}
+                    </span>
+                  ) : null}
+                </span>
+              )}
+            </HeatGraph.DayLabels>
+          </div>
 
           <HeatGraph.Grid
             style={{
@@ -391,19 +358,14 @@ function GraphShell({
               gridTemplateRows: "repeat(7, 10px)",
             }}
           >
-            {({ cells }) =>
-              cells.map((cell) => (
-                <HeatGraph.Cell
-                  key={`${cell.column}-${cell.row}`}
-                  className={cn("size-[10px]", cellClassName)}
-                  style={
-                    typeof cellStyle === "function"
-                      ? cellStyle(cell)
-                      : cellStyle
-                  }
-                />
-              ))
-            }
+            {({ cell }) => (
+              <HeatGraph.Cell
+                className={cn("size-[10px]", cellClassName)}
+                style={
+                  typeof cellStyle === "function" ? cellStyle(cell) : cellStyle
+                }
+              />
+            )}
           </HeatGraph.Grid>
         </div>
 
@@ -424,10 +386,6 @@ function GraphShell({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Per-theme graph components
-// ---------------------------------------------------------------------------
-
 function ContributionsGraph({ data }: { data: HeatGraph.DataPoint[] }) {
   return (
     <GraphShell
@@ -439,24 +397,21 @@ function ContributionsGraph({ data }: { data: HeatGraph.DataPoint[] }) {
       dayLabelFull
       cellClassName="rounded-[2px]"
       legend={
-        <HeatGraph.Legend>
-          {({ items }) => (
-            <div
-              className="flex items-center text-[#8b949e] text-[12px]"
-              style={{ gap: 4 }}
-            >
-              <span style={{ marginRight: 2 }}>Less</span>
-              {items.map((item) => (
-                <HeatGraph.LegendLevel
-                  key={item.level}
-                  style={{ width: 10, height: 10 }}
-                  className="rounded-[2px]"
-                />
-              ))}
-              <span style={{ marginLeft: 2 }}>More</span>
-            </div>
-          )}
-        </HeatGraph.Legend>
+        <div
+          className="flex items-center text-[#8b949e] text-[12px]"
+          style={{ gap: 4 }}
+        >
+          <span style={{ marginRight: 2 }}>Less</span>
+          <HeatGraph.Legend>
+            {() => (
+              <HeatGraph.LegendLevel
+                style={{ width: 10, height: 10 }}
+                className="rounded-[2px]"
+              />
+            )}
+          </HeatGraph.Legend>
+          <span style={{ marginLeft: 2 }}>More</span>
+        </div>
       }
       tooltipClassName="bg-[#1b1f23] text-[#e6edf3] ring-[#30363d]"
       tooltipContent={(cell) => (
@@ -605,22 +560,13 @@ function MoodGraph({ data }: { data: HeatGraph.DataPoint[] }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Code snippets
-// ---------------------------------------------------------------------------
-
 const CODE_CONTRIBUTIONS = `const COLORS = ["#161b22", "#0e4429", "#006d32", "#26a641", "#39d353"];
 
 <HeatGraph.Root data={data} weekStart="sunday" colorScale={COLORS}>
   <HeatGraph.Grid className="gap-[3px]">
-    {({ cells }) =>
-      cells.map((cell) => (
-        <HeatGraph.Cell
-          key={\`\${cell.column}-\${cell.row}\`}
-          className="aspect-square rounded-[2px]"
-        />
-      ))
-    }
+    {() => (
+      <HeatGraph.Cell className="aspect-square rounded-[2px]" />
+    )}
   </HeatGraph.Grid>
 </HeatGraph.Root>`;
 
@@ -628,14 +574,9 @@ const CODE_STEPS = `const COLORS = ["#e0e7ff", "#c6d7f9", "#8fb0f3", "#5888e8", 
 
 <HeatGraph.Root data={data} weekStart="monday" colorScale={COLORS}>
   <HeatGraph.Grid className="gap-[4px]">
-    {({ cells }) =>
-      cells.map((cell) => (
-        <HeatGraph.Cell
-          key={\`\${cell.column}-\${cell.row}\`}
-          className="aspect-square rounded-full"
-        />
-      ))
-    }
+    {() => (
+      <HeatGraph.Cell className="aspect-square rounded-full" />
+    )}
   </HeatGraph.Grid>
 </HeatGraph.Root>`;
 
@@ -647,14 +588,9 @@ const CODE_GYM = `const COLORS = ["#292017", "#f59e0b"];
   colorScale={COLORS}
 >
   <HeatGraph.Grid className="gap-[3px]">
-    {({ cells }) =>
-      cells.map((cell) => (
-        <HeatGraph.Cell
-          key={\`\${cell.column}-\${cell.row}\`}
-          className="aspect-square rotate-45 scale-[0.72]"
-        />
-      ))
-    }
+    {() => (
+      <HeatGraph.Cell className="aspect-square rotate-45 scale-[0.72]" />
+    )}
   </HeatGraph.Grid>
 </HeatGraph.Root>`;
 
@@ -667,14 +603,9 @@ const CODE_MOOD = `const COLORS = ["#121212", "#b91c1c", "#1e1e1e", "#16a34a"];
   colorScale={COLORS}
 >
   <HeatGraph.Grid className="gap-[3px]">
-    {({ cells }) =>
-      cells.map((cell) => (
-        <HeatGraph.Cell
-          key={\`\${cell.column}-\${cell.row}\`}
-          className="aspect-square rounded-[2px]"
-        />
-      ))
-    }
+    {() => (
+      <HeatGraph.Cell className="aspect-square rounded-[2px]" />
+    )}
   </HeatGraph.Grid>
 </HeatGraph.Root>`;
 
@@ -684,10 +615,6 @@ const CODE_SNIPPETS: Record<ThemeName, string> = {
   "Gym Tracker": CODE_GYM,
   "Mood Tracker": CODE_MOOD,
 };
-
-// ---------------------------------------------------------------------------
-// Main demo
-// ---------------------------------------------------------------------------
 
 export function HeatGraphDemo() {
   const contributions = useMemo(() => generateContributions(), []);

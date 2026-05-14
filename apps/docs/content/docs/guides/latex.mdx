@@ -1,0 +1,152 @@
+---
+title: LaTeX in Chat Messages
+description: Render LaTeX math expressions in AI chat messages with KaTeX — drop-in equation support for React chat UIs built on assistant-ui.
+platforms: ["react"]
+---
+
+import { PackageManagerTabs } from "@/components/docs/fumadocs/install/package-manager-tabs";
+
+Render LaTeX mathematical expressions in chat messages using KaTeX.
+
+<Callout type="warn">LaTeX rendering is not enabled by default.</Callout>
+
+<Tabs items={["react-markdown", "Streamdown"]}>
+  <Tab value="react-markdown">
+
+<Steps>
+  <Step>
+
+### Install dependencies
+
+<PackageManagerTabs packages={["katex", "rehype-katex", "remark-math"]} />
+
+  </Step>
+  <Step>
+
+### Add KaTeX CSS to your layout
+
+```tsx title="/app/layout.tsx"
+import "katex/dist/katex.min.css"; // [!code ++]
+```
+
+  </Step>
+  <Step>
+
+### Update `markdown-text.tsx`
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
+import remarkMath from "remark-math";     // [!code ++]
+import rehypeKatex from "rehype-katex";   // [!code ++]
+
+const MarkdownTextImpl = () => {
+  return (
+    <MarkdownTextPrimitive
+      remarkPlugins={[remarkGfm, remarkMath]} // add remarkMath // [!code ++]
+      rehypePlugins={[rehypeKatex]}           // add rehypeKatex // [!code ++]
+      className="aui-md"
+      components={defaultComponents}
+    />
+  );
+};
+
+export const MarkdownText = memo(MarkdownTextImpl);
+```
+
+  </Step>
+</Steps>
+
+  </Tab>
+  <Tab value="Streamdown">
+
+<Callout type="info">
+  Using [Streamdown](/docs/ui/streamdown) as your renderer? Math support is a first-party plugin — no remark or rehype packages needed.
+</Callout>
+
+<Steps>
+  <Step>
+
+### Install dependencies
+
+<PackageManagerTabs packages={["@streamdown/math", "katex"]} />
+
+  </Step>
+  <Step>
+
+### Add KaTeX CSS to your layout
+
+```tsx title="/app/layout.tsx"
+import "katex/dist/katex.min.css"; // [!code ++]
+```
+
+  </Step>
+  <Step>
+
+### Pass the `math` plugin to `StreamdownTextPrimitive`
+
+```tsx title="/components/assistant-ui/streamdown-text.tsx"
+import { math } from "@streamdown/math"; // [!code ++]
+import "katex/dist/katex.min.css";       // [!code ++]
+
+<StreamdownTextPrimitive plugins={{ math }} /> // [!code ++]
+```
+
+  </Step>
+</Steps>
+
+  </Tab>
+</Tabs>
+
+## Supported Formats
+
+By default, remark-math (react-markdown path) supports:
+- `$...$` for inline math
+- `$$...$$` for display math
+- Fenced code blocks with the `math` language identifier
+
+## Supporting Alternative LaTeX Delimiters
+
+Many language models generate LaTeX using different delimiter formats:
+- `\(...\)` for inline math
+- `\[...\]` for display math
+- Custom formats like `[/math]...[/math]`
+
+You can use the `preprocess` prop on `MarkdownTextPrimitive` to normalize these formats before parsing:
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
+
+const MarkdownTextImpl = () => {
+  return (
+    <MarkdownTextPrimitive
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeKatex]}
+      preprocess={normalizeCustomMathTags} // [!code ++]
+      className="aui-md"
+      components={defaultComponents}
+    />
+  );
+};
+
+// Your LaTeX preprocessing function
+function normalizeCustomMathTags(input: string): string {
+  return (
+    input
+      // Convert [/math]...[/math] to $$...$$
+      .replace(/\[\/math\]([\s\S]*?)\[\/math\]/g, (_, content) => `$$${content.trim()}$$`)
+
+      // Convert [/inline]...[/inline] to $...$
+      .replace(/\[\/inline\]([\s\S]*?)\[\/inline\]/g, (_, content) => `$${content.trim()}$`)
+
+      // Convert \( ... \) to $...$ (inline math) - handles both single and double backslashes
+      .replace(/\\{1,2}\(([\s\S]*?)\\{1,2}\)/g, (_, content) => `$${content.trim()}$`)
+
+      // Convert \[ ... \] to $$...$$ (block math) - handles both single and double backslashes
+      .replace(/\\{1,2}\[([\s\S]*?)\\{1,2}\]/g, (_, content) => `$$${content.trim()}$$`)
+  );
+}
+```
+
+<Callout type="tip">
+Inside `MarkdownTextPrimitive`, the streamed text first passes through `preprocess` (delimiter normalization) and then through `useSmooth` (character-by-character accumulation), and only then reaches the markdown parser. Both run before remark-math sees the text, so delimiter replacement and the streaming smoothing are streaming-safe — partially-received delimiters are accumulated in the smoothing buffer rather than parsed mid-fragment.
+</Callout>

@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageRuntime } from "../runtime/MessageRuntime";
+import type { MessageRuntime } from "../runtime/MessageRuntime";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 import type { EditComposerRuntime } from "@assistant-ui/core";

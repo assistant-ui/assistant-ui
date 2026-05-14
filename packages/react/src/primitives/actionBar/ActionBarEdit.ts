@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  ActionButtonElement,
-  ActionButtonProps,
+  type ActionButtonElement,
+  type ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
 import { useActionBarEdit as useActionBarEditBehavior } from "@assistant-ui/core/react";

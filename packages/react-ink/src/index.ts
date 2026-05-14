@@ -17,6 +17,7 @@ export type {
   ReasoningMessagePart,
   SourceMessagePart,
   ToolCallMessagePart,
+  ToolModelContentPart,
   ImageMessagePart,
   FileMessagePart,
   DataMessagePart,
@@ -40,12 +41,16 @@ export type {
   // Attachment types
   Attachment,
   PendingAttachment,
+  CompleteAttachment,
   CreateAttachment,
   AttachmentRuntime,
   // Adapter types
   AttachmentAdapter,
   ThreadHistoryAdapter,
   FeedbackAdapter,
+  RealtimeVoiceAdapter,
+  VoiceSessionControls,
+  VoiceSessionHelpers,
   SuggestionAdapter,
   // Other
   Unsubscribe,
@@ -57,6 +62,7 @@ export type {
   RemoteThreadListOptions,
 } from "@assistant-ui/core";
 export { InMemoryThreadListAdapter } from "@assistant-ui/core";
+export { createVoiceSession } from "@assistant-ui/core";
 
 // Attachment adapter implementations
 export {
@@ -93,6 +99,11 @@ export {
 
 // Context providers
 export { AssistantRuntimeProvider } from "./context/AssistantContext";
+export {
+  RuntimeAdapterProvider,
+  useRuntimeAdapters,
+  type RuntimeAdapters,
+} from "@assistant-ui/core/react";
 
 // Runtime
 export {
@@ -114,6 +125,8 @@ export * as ChainOfThoughtPrimitive from "./primitives/chainOfThought";
 export * as SuggestionPrimitive from "./primitives/suggestion";
 export * as ToolCallPrimitive from "./primitives/toolCall";
 export * as ErrorPrimitive from "./primitives/error";
+export * as DiffPrimitive from "./primitives/diff";
+export { DiffView, type DiffViewProps } from "./primitives/diff/DiffView";
 
 // Re-export shared providers from core/react
 export {
@@ -141,11 +154,19 @@ export {
   useAssistantDataUI,
   type AssistantDataUIProps,
   useAssistantInstructions,
+  useAssistantContext,
+  type AssistantContextConfig,
   useInlineRender,
   type Toolkit,
   type ToolDefinition,
   Tools,
   DataRenderers,
+  Interactables,
+  useAssistantInteractable,
+  type AssistantInteractableProps,
+  useInteractableState,
+  useToolArgsStatus,
+  type ToolArgsStatus,
 } from "@assistant-ui/core/react";
 export type {
   ModelContext,
@@ -190,4 +211,10 @@ export type {
   DataMessagePartProps,
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
+} from "@assistant-ui/core/react";
+
+export {
+  useVoiceState,
+  useVoiceVolume,
+  useVoiceControls,
 } from "@assistant-ui/core/react";

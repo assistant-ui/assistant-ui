@@ -1,0 +1,12 @@
+{
+  "title": "Hooks",
+  "description": "React hooks for assistant-ui: useAui, useAuiState, runtime creation, model context registration, and helpers for building custom AI chat behavior.",
+  "pages": [
+    "index",
+    "composer-triggers",
+    "model-context",
+    "primitives",
+    "runtimes",
+    "state"
+  ]
+}

@@ -7,10 +7,6 @@ import type {
   ExportedMessageRepositoryItem,
 } from "../runtime/utils/message-repository";
 
-// =============================================================================
-// Message Format Adapter
-// =============================================================================
-
 export interface MessageStorageEntry<TPayload> {
   id: string;
   parent_id: string | null;
@@ -40,10 +36,6 @@ export interface MessageFormatAdapter<
   getId(message: TMessage): string;
 }
 
-// =============================================================================
-// Thread History Adapter
-// =============================================================================
-
 export type GenericThreadHistoryAdapter<TMessage> = {
   load(): Promise<MessageFormatRepository<TMessage>>;
   append(item: MessageFormatItem<TMessage>): Promise<void>;
@@ -66,6 +58,7 @@ export type ThreadHistoryAdapter = {
     options: ChatModelRunOptions,
   ): AsyncGenerator<ChatModelRunResult, void, unknown>;
   append(item: ExportedMessageRepositoryItem): Promise<void>;
+  /** Required when used with `useAISDKRuntime` / `useChatRuntime`. */
   withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
   ): GenericThreadHistoryAdapter<TMessage>;

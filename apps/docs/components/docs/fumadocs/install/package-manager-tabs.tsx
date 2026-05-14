@@ -40,13 +40,31 @@ function getShadcnCommand(pm: PackageManager, urls: string[]): string {
   }
 }
 
+function getExpoInstallCommand(pm: PackageManager, packages: string[]): string {
+  const pkgList = packages.join(" ");
+  switch (pm) {
+    case "npm":
+      return `npx expo install ${pkgList}`;
+    case "yarn":
+      return `npx expo install --yarn ${pkgList}`;
+    case "pnpm":
+      return `npx expo install --pnpm ${pkgList}`;
+    case "bun":
+      return `npx expo install --bun ${pkgList}`;
+    case "xpm":
+      return `xpx expo install ${pkgList}`;
+  }
+}
+
 function CommandTabs({
   getCommand,
+  packageManagers = PACKAGE_MANAGERS,
 }: {
   getCommand: (pm: PackageManager) => string;
+  packageManagers?: readonly PackageManager[];
 }) {
-  const [pm, setPm] = useState<PackageManager>("npm");
-  const activeIndex = PACKAGE_MANAGERS.indexOf(pm);
+  const [pm, setPm] = useState<PackageManager>(packageManagers[0] ?? "npm");
+  const activeIndex = packageManagers.indexOf(pm);
 
   const {
     containerRef,
@@ -83,7 +101,7 @@ function CommandTabs({
           />
         )}
 
-        {PACKAGE_MANAGERS.map((manager, index) => (
+        {packageManagers.map((manager, index) => (
           <button
             key={manager}
             ref={(el) => {
@@ -122,6 +140,16 @@ export function PackageManagerTabs({
   packages: string[];
 }): React.ReactElement {
   return <CommandTabs getCommand={(pm) => getInstallCommand(pm, packages)} />;
+}
+
+export function ExpoInstallTabs({
+  packages,
+}: {
+  packages: string[];
+}): React.ReactElement {
+  return (
+    <CommandTabs getCommand={(pm) => getExpoInstallCommand(pm, packages)} />
+  );
 }
 
 export function ShadcnInstallTabs({

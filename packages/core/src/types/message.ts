@@ -2,11 +2,10 @@ import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "assistant-stream/utils";
+import type { ToolModelContentPart } from "assistant-stream";
 import type { CompleteAttachment } from "./attachment";
 
-// =============================================================================
-// Message Parts
-// =============================================================================
+export type { ToolModelContentPart };
 
 export type TextMessagePart = {
   readonly type: "text";
@@ -20,14 +19,31 @@ export type ReasoningMessagePart = {
   readonly parentId?: string;
 };
 
-export type SourceMessagePart = {
-  readonly type: "source";
-  readonly sourceType: "url";
-  readonly id: string;
-  readonly url: string;
-  readonly title?: string;
-  readonly parentId?: string;
+export type SourceProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
 };
+
+export type SourceMessagePart =
+  | {
+      readonly type: "source";
+      readonly sourceType: "url";
+      readonly id: string;
+      readonly url: string;
+      readonly title?: string;
+      readonly providerMetadata?: SourceProviderMetadata;
+      readonly parentId?: string;
+    }
+  | {
+      readonly type: "source";
+      readonly sourceType: "document";
+      readonly id: string;
+      readonly url?: undefined;
+      readonly title: string;
+      readonly mediaType: string;
+      readonly filename?: string;
+      readonly providerMetadata?: SourceProviderMetadata;
+      readonly parentId?: string;
+    };
 
 export type ImageMessagePart = {
   readonly type: "image";
@@ -40,6 +56,7 @@ export type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly parentId?: string;
 };
 
 export type Unstable_AudioMessagePart = {
@@ -56,6 +73,21 @@ export type DataMessagePart<T = any> = {
   readonly data: T;
 };
 
+export type McpAppMetadata = {
+  readonly resourceUri: string;
+  readonly mimeType?: string;
+  readonly visibility?: readonly ("model" | "app")[];
+};
+
+export const MCP_APP_URI_SCHEME = "ui://";
+
+export const isMcpAppUri = (uri: string | undefined): boolean =>
+  !!uri?.startsWith(MCP_APP_URI_SCHEME);
+
+export type ToolCallMessagePartMcpMetadata = {
+  readonly app?: McpAppMetadata;
+};
+
 export type ToolCallMessagePart<
   TArgs = ReadonlyJSONObject,
   TResult = unknown,
@@ -68,6 +100,8 @@ export type ToolCallMessagePart<
   readonly isError?: boolean | undefined;
   readonly argsText: string;
   readonly artifact?: unknown;
+  readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   readonly interrupt?: { type: "human"; payload: unknown };
   readonly parentId?: string;
   readonly messages?: readonly ThreadMessage[];
@@ -88,10 +122,6 @@ export type ThreadAssistantMessagePart =
   | FileMessagePart
   | ImageMessagePart
   | DataMessagePart;
-
-// =============================================================================
-// Message Status
-// =============================================================================
 
 export type MessagePartStatus =
   | {
@@ -141,10 +171,6 @@ export type MessageStatus =
         | "error";
       readonly error?: ReadonlyJSONValue;
     };
-
-// =============================================================================
-// Thread Messages
-// =============================================================================
 
 export type MessageTiming = {
   readonly streamStartTime: number;

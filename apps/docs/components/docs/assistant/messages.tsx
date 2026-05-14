@@ -3,6 +3,7 @@
 import { AssistantActionBar } from "./assistant-action-bar";
 import { MarkdownText } from "./markdown";
 import {
+  AuiIf,
   ErrorPrimitive,
   MessagePrimitive,
   type ToolCallMessagePartProps,
@@ -10,19 +11,21 @@ import {
 import {
   BookOpenIcon,
   CheckIcon,
+  FileCodeIcon,
   FileTextIcon,
   FolderTreeIcon,
   LoaderIcon,
   type LucideIcon,
+  TerminalIcon,
 } from "lucide-react";
 import { type ReactNode, useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";
+import { Reasoning } from "@/components/assistant-ui/reasoning";
 
 export function UserMessage(): ReactNode {
   return (
     <MessagePrimitive.Root className="flex justify-end py-2" data-role="user">
-      <div className="max-w-[85%] rounded-2xl bg-muted px-3 py-2 text-sm">
+      <div className="max-w-[85%] rounded-2xl bg-muted px-3 py-2 text-sm empty:hidden">
         <MessagePrimitive.Parts />
       </div>
     </MessagePrimitive.Root>
@@ -33,32 +36,29 @@ export function AssistantMessage(): ReactNode {
   return (
     <MessagePrimitive.Root className="py-2" data-role="assistant">
       <div className="text-sm">
-        <MessagePrimitive.Parts
-          components={{
-            Empty: Thinking,
-            Text: MarkdownText,
-            Reasoning,
-            ReasoningGroup,
-            tools: {
-              Fallback: ToolCall,
-            },
+        <MessagePrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "text") return <MarkdownText />;
+            if (part.type === "reasoning") return <Reasoning {...part} />;
+            if (part.type === "tool-call") return <ToolCall {...part} />;
+            return null;
           }}
-        />
+        </MessagePrimitive.Parts>
+
+        <AuiIf
+          condition={(s) =>
+            s.thread.isRunning && s.message.content.length === 0
+          }
+        >
+          <div className="flex items-center gap-2 py-1 text-muted-foreground">
+            <LoaderIcon className="size-3 animate-spin" />
+            <span className="text-sm">Thinking...</span>
+          </div>
+        </AuiIf>
         <MessageError />
       </div>
       <AssistantActionBar />
     </MessagePrimitive.Root>
-  );
-}
-
-function Thinking({ status }: { status: { type: string } }): ReactNode {
-  if (status.type !== "running") return null;
-
-  return (
-    <div className="flex items-center gap-2 py-1 text-muted-foreground">
-      <LoaderIcon className="size-3 animate-spin" />
-      <span className="text-sm">Thinking...</span>
-    </div>
   );
 }
 
@@ -83,6 +83,25 @@ function getToolDisplay(
         icon: FileTextIcon,
         label: isRunning ? "Reading" : "Read",
         detail: `/docs/${normalizedSlug}`,
+      };
+    }
+    case "bash": {
+      const command = (args as { command?: string })?.command ?? "";
+      const preview =
+        command.length > 60 ? `${command.slice(0, 57)}...` : command;
+      return {
+        icon: TerminalIcon,
+        label: isRunning ? "Running" : "Ran",
+        detail: preview,
+      };
+    }
+    case "readFile": {
+      const filePath = (args as { path?: string })?.path ?? "";
+      const shortPath = filePath.split("/").slice(-2).join("/");
+      return {
+        icon: FileCodeIcon,
+        label: isRunning ? "Reading" : "Read",
+        detail: shortPath,
       };
     }
     default:

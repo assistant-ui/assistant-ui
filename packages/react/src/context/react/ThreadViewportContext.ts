@@ -1,11 +1,11 @@
 "use client";
 
 import { createContext } from "react";
-import { ReadonlyStore } from "../ReadonlyStore";
-import { UseBoundStore } from "zustand";
+import type { ReadonlyStore } from "../ReadonlyStore";
+import type { UseBoundStore } from "zustand";
 import { createContextHook } from "./utils/createContextHook";
 import { createContextStoreHook } from "./utils/createContextStoreHook";
-import { ThreadViewportState } from "../stores/ThreadViewport";
+import type { ThreadViewportState } from "../stores/ThreadViewport";
 
 export type ThreadViewportContextValue = {
   useThreadViewport: UseBoundStore<ReadonlyStore<ThreadViewportState>>;

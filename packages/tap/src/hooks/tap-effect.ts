@@ -1,4 +1,4 @@
-import { Cell } from "../core/types";
+import type { Cell } from "../core/types";
 import { depsShallowEqual } from "./utils/depsShallowEqual";
 import { tapHook, registerRenderMountTask } from "./utils/tapHook";
 
@@ -10,7 +10,7 @@ const newEffect = (): Cell & { type: "effect" } => ({
 
 export namespace tapEffect {
   export type Destructor = () => void;
-  export type EffectCallback = () => void | Destructor;
+  export type EffectCallback = () => Destructor | undefined;
 }
 
 export function tapEffect(effect: tapEffect.EffectCallback): void;

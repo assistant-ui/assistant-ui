@@ -32,9 +32,14 @@ export { AssistantMessageStream } from "./core/accumulators/AssistantMessageStre
 export type {
   AssistantMessage,
   AssistantMessageTiming,
+  DataPart,
 } from "./core/utils/types";
 
-export type { Tool } from "./core/tool/tool-types";
+export type {
+  Tool,
+  ToolModelContentPart,
+  ToolModelOutputFunction,
+} from "./core/tool/tool-types";
 export { ToolResponse, type ToolResponseLike } from "./core/tool/ToolResponse";
 export { ToolExecutionStream } from "./core/tool/ToolExecutionStream";
 export type { ToolCallReader } from "./core/tool/tool-types";
@@ -45,6 +50,7 @@ export {
 } from "./core/tool/toolResultStream";
 export {
   toJSONSchema,
+  toPartialJSONSchema,
   toToolsJSONSchema,
   type ToolJSONSchema,
   type ToToolsJSONSchemaOptions,

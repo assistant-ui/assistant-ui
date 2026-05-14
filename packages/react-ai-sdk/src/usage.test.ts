@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getThreadMessageTokenUsage } from "./usage";
+import { getLatestThreadTokenUsage, getThreadMessageTokenUsage } from "./usage";
 
 function msg(metadata: unknown): { role: "assistant"; metadata: unknown } {
   return {
@@ -133,5 +133,33 @@ describe("getThreadMessageTokenUsage", () => {
       inputTokens: 3,
     });
     expect(usage).not.toHaveProperty("totalTokens");
+  });
+});
+
+describe("getLatestThreadTokenUsage", () => {
+  it("falls back to the latest assistant message with usage", () => {
+    const usage = getLatestThreadTokenUsage([
+      { role: "assistant", metadata: { usage: { totalTokens: 100 } } },
+      { role: "user", metadata: {} },
+      { role: "assistant", metadata: {} },
+    ]);
+
+    expect(usage).toEqual({ totalTokens: 100 });
+  });
+
+  it("prefers the newest assistant message when it has usage", () => {
+    const usage = getLatestThreadTokenUsage([
+      { role: "assistant", metadata: { usage: { totalTokens: 100 } } },
+      {
+        role: "assistant",
+        metadata: { usage: { inputTokens: 40, outputTokens: 2 } },
+      },
+    ]);
+
+    expect(usage).toEqual({
+      totalTokens: 42,
+      inputTokens: 40,
+      outputTokens: 2,
+    });
   });
 });

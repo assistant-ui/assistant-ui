@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 export const runtime = "edge";
 
@@ -24,8 +24,9 @@ async function handleRequest(req: NextRequest, method: string) {
     const options: RequestInit = {
       method,
       headers: {
-        "x-api-key": process.env["LANGCHAIN_API_KEY"] || "",
+        "x-api-key": process.env.LANGCHAIN_API_KEY || "",
       },
+      signal: req.signal,
     };
 
     if (["POST", "PUT", "PATCH"].includes(method)) {
@@ -33,7 +34,7 @@ async function handleRequest(req: NextRequest, method: string) {
     }
 
     const res = await fetch(
-      `${process.env["LANGGRAPH_API_URL"]}/${path}${queryString}`,
+      `${process.env.LANGGRAPH_API_URL}/${path}${queryString}`,
       options,
     );
 

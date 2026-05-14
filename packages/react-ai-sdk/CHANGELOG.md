@@ -1,5 +1,196 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.26
+
+### Patch Changes
+
+- [#4030](https://github.com/assistant-ui/assistant-ui/pull/4030) [`798a5ce`](https://github.com/assistant-ui/assistant-ui/commit/798a5ceec9dc6ea4688a66d42b6293a50ef5295a) - fix(react-ai-sdk): resolve MCP app metadata from tool output `_meta["ui/resourceUri"]` as a fallback when it isn't present in `callProviderMetadata.mcp.app`. MCP-UI tools (e.g. xmcp) surface the UI pointer in the call result, so the renderer previously never picked it up. ([@Yonom](https://github.com/Yonom))
+
+## 1.3.25
+
+### Patch Changes
+
+- [#4024](https://github.com/assistant-ui/assistant-ui/pull/4024) [`19d4d94`](https://github.com/assistant-ui/assistant-ui/commit/19d4d9412234628ae850b4b04da594201022a398) - feat: add native MCP Apps renderer — `McpAppRenderer` composes into `Tools` to render MCP UI resources inline in chat over a JSON-RPC postMessage bridge on `SafeContentFrame`. Adds an `mcp` field to `ToolCallMessagePart` and forwards `callProviderMetadata.mcp.app` through the AI SDK message converter. ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`19d4d94`](https://github.com/assistant-ui/assistant-ui/commit/19d4d9412234628ae850b4b04da594201022a398)]:
+  - @assistant-ui/core@0.2.2
+
+## 1.3.24
+
+### Patch Changes
+
+- [#4003](https://github.com/assistant-ui/assistant-ui/pull/4003) [`717bed2`](https://github.com/assistant-ui/assistant-ui/commit/717bed2810b0841cac43bc998ba8aef69f5c4979) - feat: expose `suggestions` on `useAISDKRuntime` and `useChatRuntime` ([@okisdev](https://github.com/okisdev))
+
+  both hooks now accept an optional `suggestions: readonly ThreadSuggestion[]` option that is forwarded to the underlying `useExternalStoreRuntime`. this lets AI SDK callers drive follow up suggestions from application state, tool results, or backend responses without dropping down to the raw external store runtime.
+
+- [#4001](https://github.com/assistant-ui/assistant-ui/pull/4001) [`283c250`](https://github.com/assistant-ui/assistant-ui/commit/283c250d2aba5633022b59634dbd18a870b28fe0) - feat(react-ai-sdk): expose `onResume` on `useAISDKRuntime` and `useChatRuntime` ([@okisdev](https://github.com/okisdev))
+
+  `AISDKRuntimeAdapter` and `UseChatRuntimeOptions` now accept `onResume`, which is forwarded to the underlying `useExternalStoreRuntime` adapter. `runtime.thread.resumeRun(config)` previously threw `"Runtime does not support resuming runs."` because the inner adapter literal omitted the field; consumers had to monkey-patch `runtime.thread.__internal_threadBinding.getState().resumeRun` to bridge their own replay channels (e.g. SSE reconnect endpoints keyed by turn id). This is a thin pass-through; the existing transport-level resume on `AssistantChatTransport` (auto-fired by `useChatRuntime` on mount) is unchanged and complementary.
+
+- [#3979](https://github.com/assistant-ui/assistant-ui/pull/3979) [`9ecda1d`](https://github.com/assistant-ui/assistant-ui/commit/9ecda1dfdd96f2c638e7b51cc951319ccacd06c9) - feat(react-ai-sdk): native resumable stream client integration ([@okisdev](https://github.com/okisdev))
+
+  `AssistantChatTransport` accepts a `resumable: { storage, resumeApi, isFinishEvent? }` option that captures the stream id from the response header, watches the SSE body for the AI SDK `finish` marker so the stored id is cleared on natural completion (cancellation leaves it intact for the next mount), and redirects `chat.resumeStream()` reconnects to `resumeApi`. `createResumableSessionStorage` is the default `sessionStorage`-backed `ResumableClientStorage`. `useChatRuntime` auto-fires `chat.resumeStream()` once on mount when storage already has an id, so adopters drop the manual `useEffect`.
+
+- [#4008](https://github.com/assistant-ui/assistant-ui/pull/4008) [`fa4510a`](https://github.com/assistant-ui/assistant-ui/commit/fa4510a3f3a23e0458ce8f3a397c352e3b0cde07) - feat: support multi-modal tool results via `toModelOutput` ([@okisdev](https://github.com/okisdev))
+
+  frontend tools can now project their execution output into multi-modal model content (text + image / pdf / arbitrary file parts), aligning with the AI SDK v6 `toModelOutput` callback. previously, tool results were always serialized as a single JSON value, so a "read pdf" style tool had no way to send the PDF back to a multi-modal model.
+  - `assistant-stream` exports a new `ToolModelContentPart` type (`{ type: "text", text } | { type: "file", data, mediaType, filename? }`) and a `ToolModelOutputFunction<TArgs, TResult>` callback type. `Tool.toModelOutput` is wired through `unstable_runPendingTools` and `ToolExecutionStream`, attaching the resulting `modelContent` to the `tool-call` part on the assistant message.
+  - `@assistant-ui/core` re-exports `ToolModelContentPart` and adds an optional `modelContent?: readonly ToolModelContentPart[]` field on `ToolCallMessagePart`. existing tools and renderers are unchanged.
+  - `@assistant-ui/react-ai-sdk`'s `frontendTools(...)` helper now also registers a `toModelOutput` on each forwarded tool. it transparently unwraps an envelope that `useAISDKRuntime` writes when a frontend-executed tool produced `modelContent`, turning it into AI SDK's `{ type: "content", value: [...] }` output. plain (non-envelope) outputs fall back to the existing `{ type: "text" | "json", value }` shape, so behavior for tools without `toModelOutput` is unchanged.
+
+  route handlers that adopt `toModelOutput` also need to pass `tools` to `convertToModelMessages` (this is the [AI SDK's documented pattern](https://ai-sdk.dev/docs/reference/ai-sdk-ui/convert-to-model-messages#multi-modal-tool-responses)):
+
+  ```ts
+  const aiSDKTools = { ...frontendTools(tools ?? {}) };
+  streamText({
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
+  });
+  ```
+
+  templates and existing examples are unchanged. they keep the simpler `convertToModelMessages(messages)` form because none of the tools they ship with use `toModelOutput`. the new tools guide page documents how to opt in.
+
+  **reserved key.** when a frontend tool defines `toModelOutput`, its result is persisted in the AI SDK chat as `{ __aui_modelContent: ToolModelContentPart[], value: <your result> }`. tools must not return objects whose top-level key is literally `__aui_modelContent`, or `convertMessage` will misread the result. the prefix is namespaced for this reason.
+
+  **read/write compatibility for persisted threads.** the envelope is recognized by `@assistant-ui/react-ai-sdk` from this version onward. if you persist UI messages and read them from multiple environments, upgrade every reader before any writer starts producing `toModelOutput`; otherwise older readers will treat the envelope object as the `result` and break the affected tool `render` functions.
+
+- [#4004](https://github.com/assistant-ui/assistant-ui/pull/4004) [`d3cf8cd`](https://github.com/assistant-ui/assistant-ui/commit/d3cf8cda6246a09cc4284dc2a333094faef120f6) - fix(react-ai-sdk): preserve tool args when AI SDK briefly emits null input ([@okisdev](https://github.com/okisdev))
+
+  the AI SDK occasionally emits snapshots of an in-flight tool call where
+  `input` is null/undefined, which previously collapsed `argsText` to `"{}"`
+  mid-stream and tripped the runtime's append-only invariant (warning + tool
+  args stream restart, losing accumulated state). `convertMessage` now caches
+  the last good input per `(message.id, toolCallId)` via a new
+  `toolLastInputCache` on `AISDKMessageConverterMetadata` and falls back to it
+  when a later snapshot drops `input`.
+
+- [#3634](https://github.com/assistant-ui/assistant-ui/pull/3634) [`9c3d24d`](https://github.com/assistant-ui/assistant-ui/commit/9c3d24d8a358bcf5f683f85473b82524ea018930) - Support AI SDK `source-document` parts by preserving them as assistant-ui ([@sicko7947](https://github.com/sicko7947))
+  document source message parts across conversion and cloud serialization,
+  including the legacy React cloud encoder.
+- Updated dependencies [[`35d0146`](https://github.com/assistant-ui/assistant-ui/commit/35d014628a69b0003799666895c2552b46ac7198), [`fa4510a`](https://github.com/assistant-ui/assistant-ui/commit/fa4510a3f3a23e0458ce8f3a397c352e3b0cde07), [`c9dd16c`](https://github.com/assistant-ui/assistant-ui/commit/c9dd16c4b1edc52f6a2529a9a07ebb7964aee9a1), [`dea8bc7`](https://github.com/assistant-ui/assistant-ui/commit/dea8bc7e122ad6ff53e48e6b0ffc6fcc2abaadd3), [`9c3d24d`](https://github.com/assistant-ui/assistant-ui/commit/9c3d24d8a358bcf5f683f85473b82524ea018930)]:
+  - @assistant-ui/core@0.2.1
+
+## 1.3.23
+
+### Patch Changes
+
+- Updated dependencies [[`040d469`](https://github.com/assistant-ui/assistant-ui/commit/040d469acfcf782de6fc188c646dfd8732d27088)]:
+  - @assistant-ui/core@0.2.0
+
+## 1.3.22
+
+### Patch Changes
+
+- [#3942](https://github.com/assistant-ui/assistant-ui/pull/3942) [`fbd7ce3`](https://github.com/assistant-ui/assistant-ui/commit/fbd7ce38d5a8d3992ad44acf7c6f29e115a43681) - fix: `aui.thread().append({ startRun: false })` no longer triggers a run on AI SDK runtime ([@Yonom](https://github.com/Yonom))
+
+  `useAISDKRuntime`'s `onNew` and `onEdit` always called `chatHelpers.sendMessage`, ignoring `message.startRun`. The hook now appends the message via `chatHelpers.setMessages` (with a generated id when needed) and returns early when `startRun: false`, so the message lands in the chat without kicking off a model call.
+
+- [#3962](https://github.com/assistant-ui/assistant-ui/pull/3962) [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`7098bab`](https://github.com/assistant-ui/assistant-ui/commit/7098bab4c67fbd507c3fad746ef130daa01b3fd6), [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94), [`5fdf17e`](https://github.com/assistant-ui/assistant-ui/commit/5fdf17e019c91b000c6f4cf9e3e56c89d764a435)]:
+  - @assistant-ui/core@0.1.18
+  - @assistant-ui/store@0.2.10
+
+## 1.3.21
+
+### Patch Changes
+
+- [#3909](https://github.com/assistant-ui/assistant-ui/pull/3909) [`005f83f`](https://github.com/assistant-ui/assistant-ui/commit/005f83f3ebfb94b3a9d7c34bc7d2a71bbaf63a9e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`549037a`](https://github.com/assistant-ui/assistant-ui/commit/549037ac77aed8736823cfb82baf9645e3364adf), [`005f83f`](https://github.com/assistant-ui/assistant-ui/commit/005f83f3ebfb94b3a9d7c34bc7d2a71bbaf63a9e), [`976aec5`](https://github.com/assistant-ui/assistant-ui/commit/976aec566330bee3c607cfb356f3358eefe28ac1), [`25b97d5`](https://github.com/assistant-ui/assistant-ui/commit/25b97d5c62fb038471b06eaa784ad4b7e23ef533), [`2008fc9`](https://github.com/assistant-ui/assistant-ui/commit/2008fc9af3d6fe05604d6b08275c2e9cec099bd9), [`88fcd35`](https://github.com/assistant-ui/assistant-ui/commit/88fcd352ecffd12f124abe988cc5499f784f81d6)]:
+  - @assistant-ui/core@0.1.16
+  - @assistant-ui/store@0.2.9
+
+## 1.3.20
+
+### Patch Changes
+
+- [#3876](https://github.com/assistant-ui/assistant-ui/pull/3876) [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#3841](https://github.com/assistant-ui/assistant-ui/pull/3841) [`435cfa0`](https://github.com/assistant-ui/assistant-ui/commit/435cfa0318d10478e56a1d1f82bee7dd4e359364) - fix: request body `id` in `useChatRuntime` is now the real thread id instead of the literal `"DEFAULT_THREAD_ID"`. `AssistantChatTransport` was resolving `remoteId` from the inner `ExternalStoreThreadListRuntimeCore` (which only echoes its default id); it now uses the outer `RemoteThreadListRuntimeCore` that actually calls the adapter. ([@okisdev](https://github.com/okisdev))
+
+- [#3858](https://github.com/assistant-ui/assistant-ui/pull/3858) [`da0f598`](https://github.com/assistant-ui/assistant-ui/commit/da0f59818085c7b97d157da1260c5e20873c32c1) - fix: `useAISDKRuntime` now throws when the supplied `ThreadHistoryAdapter` omits `withFormat`, instead of silently dropping all history load/append/update calls. The optional-call chain `historyAdapter.withFormat?.(…).load()` previously short-circuited to `undefined`. The `withFormat`-wrapped adapter is now memoized, and the persist effect short-circuits when no adapter is supplied (avoiding a redundant thread subscription). `ThreadHistoryAdapter.withFormat` gains a JSDoc note clarifying that it is required on the AI SDK path. ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`c7a274e`](https://github.com/assistant-ui/assistant-ui/commit/c7a274e968f8e081ded4c29cc37986392f04130e), [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6), [`ca8f526`](https://github.com/assistant-ui/assistant-ui/commit/ca8f526944968036d47849a7659353765072a836), [`c56f98f`](https://github.com/assistant-ui/assistant-ui/commit/c56f98f5759e710281fc57b343b41af102914f1a), [`974d15e`](https://github.com/assistant-ui/assistant-ui/commit/974d15e34675cc5a611f0297904f5cb2c1b3da8c), [`4b19d42`](https://github.com/assistant-ui/assistant-ui/commit/4b19d42970cb98cee6ea69e2c26dc22763091568), [`da0f598`](https://github.com/assistant-ui/assistant-ui/commit/da0f59818085c7b97d157da1260c5e20873c32c1), [`d53ff4f`](https://github.com/assistant-ui/assistant-ui/commit/d53ff4f3f8b7d7220c1cb274c4fda335598fb063), [`20f8404`](https://github.com/assistant-ui/assistant-ui/commit/20f8404b70098e4b7cbc8df5bbb47985ac81b52c), [`17958c9`](https://github.com/assistant-ui/assistant-ui/commit/17958c9234ccc42394260125df54d897c06a47fd)]:
+  - @assistant-ui/core@0.1.15
+  - assistant-cloud@0.1.27
+  - @assistant-ui/store@0.2.8
+
+## 1.3.19
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- a5bce86: fix: preserve latest thread token usage during pending turns
+- Updated dependencies [f20b9ca]
+- Updated dependencies [c988db8]
+  - @assistant-ui/core@0.1.14
+  - assistant-cloud@0.1.26
+  - @assistant-ui/store@0.2.7
+
+## 1.3.18
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+- Updated dependencies [42bc640]
+- Updated dependencies [376bb00]
+- Updated dependencies [87e7761]
+  - @assistant-ui/core@0.1.13
+  - assistant-cloud@0.1.25
+
+## 1.3.17
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [6554892]
+- Updated dependencies [9103282]
+- Updated dependencies [876f75d]
+- Updated dependencies [bdce66f]
+- Updated dependencies [4abb898]
+- Updated dependencies [209ae81]
+- Updated dependencies [2dd0c9f]
+- Updated dependencies [af70d7f]
+  - @assistant-ui/core@0.1.10
+  - assistant-cloud@0.1.24
+  - @assistant-ui/store@0.2.6
+
+## 1.3.16
+
+### Patch Changes
+
+- 781f28d: feat: accept all file types and validate against adapter's accept constraint
+- 0924711: fix(react-ai-sdk): convert assistant file parts to FileMessagePart instead of dropping them
+- 52403c3: chore: update dependencies
+- Updated dependencies [781f28d]
+- Updated dependencies [3227e71]
+- Updated dependencies [0f55ce8]
+- Updated dependencies [83a15f7]
+- Updated dependencies [52403c3]
+- Updated dependencies [ffa3a0f]
+  - @assistant-ui/core@0.1.9
+  - assistant-cloud@0.1.23
+  - @assistant-ui/store@0.2.5
+
+## 1.3.15
+
+### Patch Changes
+
+- 01a59da: fix(react-ai-sdk): preserve runConfig.custom metadata after tool call resume in human-in-the-loop tools
+- 736344c: chore: update dependencies
+- c71cb58: chore: update dependencies
+- Updated dependencies [1406aed]
+- Updated dependencies [9480f30]
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [ff3be2a]
+- Updated dependencies [70b19f3]
+- Updated dependencies [c71cb58]
+  - @assistant-ui/core@0.1.8
+  - @assistant-ui/store@0.2.4
+
 ## 1.3.14
 
 ### Patch Changes

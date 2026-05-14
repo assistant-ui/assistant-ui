@@ -16,9 +16,6 @@ export {
   type AssistantEventCallback,
 } from "@assistant-ui/store";
 
-// ============================================================================
-// legacy-runtime/runtime
-// ============================================================================
 // Re-export public runtime types from @assistant-ui/core
 export type {
   AssistantRuntime,
@@ -45,15 +42,8 @@ export type {
   ThreadListItemState,
 } from "@assistant-ui/core";
 
-// ============================================================================
-// legacy-runtime/cloud
-// ============================================================================
 export { useCloudThreadListRuntime } from "./legacy-runtime/cloud/useCloudThreadListRuntime";
 export { AssistantCloud } from "assistant-cloud";
-
-// ============================================================================
-// legacy-runtime/runtime-cores
-// ============================================================================
 
 // --- adapters/attachment ---
 export type { AttachmentAdapter } from "@assistant-ui/core";
@@ -63,6 +53,20 @@ export {
   CompositeAttachmentAdapter,
 } from "@assistant-ui/core";
 export { CloudFileAttachmentAdapter } from "./legacy-runtime/runtime-cores/adapters/attachment/CloudFileAttachmentAdapter";
+
+// --- adapters/voice ---
+export type { RealtimeVoiceAdapter } from "@assistant-ui/core";
+export { createVoiceSession } from "@assistant-ui/core";
+export type {
+  VoiceSessionControls,
+  VoiceSessionHelpers,
+  VoiceSessionState,
+} from "@assistant-ui/core";
+export {
+  useVoiceState,
+  useVoiceVolume,
+  useVoiceControls,
+} from "@assistant-ui/core/react";
 
 // --- adapters/feedback ---
 export type { FeedbackAdapter } from "@assistant-ui/core";
@@ -121,7 +125,6 @@ export type {
 // --- external-store ---
 export type { ThreadMessageLike } from "@assistant-ui/core";
 export {
-  getExternalStoreMessage,
   getExternalStoreMessages,
   bindExternalStoreMessage,
 } from "@assistant-ui/core";
@@ -147,38 +150,20 @@ export type {
   LocalRuntimeOptionsBase,
 } from "@assistant-ui/core";
 export { useLocalRuntime } from "./legacy-runtime/runtime-cores/local/useLocalRuntime";
-/**
- * @deprecated Use `useLocalRuntime` instead.
- */
-export { useLocalRuntime as useLocalThreadRuntime } from "./legacy-runtime/runtime-cores/local/useLocalRuntime";
 export type { LocalRuntimeOptions } from "./legacy-runtime/runtime-cores/local/LocalRuntimeOptions";
 
 // --- remote-thread-list ---
 export { useRemoteThreadListRuntime } from "./legacy-runtime/runtime-cores/remote-thread-list/useRemoteThreadListRuntime";
-/** @deprecated Use `useRemoteThreadListRuntime` instead. */
-export { useRemoteThreadListRuntime as unstable_useRemoteThreadListRuntime } from "./legacy-runtime/runtime-cores/remote-thread-list/useRemoteThreadListRuntime";
 export { useCloudThreadListAdapter } from "./legacy-runtime/runtime-cores/remote-thread-list/adapter/cloud";
-/** @deprecated Use `useCloudThreadListAdapter` instead. */
-export { useCloudThreadListAdapter as unstable_useCloudThreadListAdapter } from "./legacy-runtime/runtime-cores/remote-thread-list/adapter/cloud";
 export type { RemoteThreadListAdapter } from "@assistant-ui/core";
-/** @deprecated Use `RemoteThreadListAdapter` instead. */
-export type { RemoteThreadListAdapter as unstable_RemoteThreadListAdapter } from "@assistant-ui/core";
 export { InMemoryThreadListAdapter } from "@assistant-ui/core";
-/** @deprecated Use `InMemoryThreadListAdapter` instead. */
-export { InMemoryThreadListAdapter as unstable_InMemoryThreadListAdapter } from "@assistant-ui/core";
 
 // Re-export from @assistant-ui/core (runtime-cores root)
 export type { ExportedMessageRepositoryItem } from "@assistant-ui/core";
 export { ExportedMessageRepository } from "@assistant-ui/core";
 
-// ============================================================================
-// context
-// ============================================================================
 export * from "./context";
 
-// ============================================================================
-// model-context
-// ============================================================================
 // Re-export shared from core/react
 export {
   makeAssistantTool,
@@ -194,14 +179,21 @@ export {
   useAssistantDataUI,
   type AssistantDataUIProps,
   useAssistantInstructions,
+  useAssistantContext,
+  type AssistantContextConfig,
   useInlineRender,
   type Toolkit,
   type ToolDefinition,
   Tools,
   DataRenderers,
+  Interactables,
+  useAssistantInteractable,
+  type AssistantInteractableProps,
+  useInteractableState,
+  useToolArgsStatus,
+  type ToolArgsStatus,
 } from "@assistant-ui/core/react";
 
-// Core pass-through (unchanged)
 export type {
   ModelContext,
   ModelContextProvider,
@@ -216,8 +208,12 @@ export type { Tool } from "assistant-stream";
 export { tool } from "@assistant-ui/core";
 
 export { Suggestions, type SuggestionConfig } from "@assistant-ui/core/store";
+export type {
+  QueueItemState,
+  QueueItemMethods,
+} from "@assistant-ui/core/store";
+export type { ComposerSendOptions } from "@assistant-ui/core/store";
 
-// React-only (stays)
 export { makeAssistantVisible } from "./model-context/makeAssistantVisible";
 
 // --- model-context/registry ---
@@ -240,9 +236,6 @@ export type {
 export { FRAME_MESSAGE_CHANNEL } from "@assistant-ui/core";
 export { useAssistantFrameHost } from "./model-context/frame/useAssistantFrameHost";
 
-// ============================================================================
-// primitives
-// ============================================================================
 export * as ActionBarPrimitive from "./primitives/actionBar";
 export * as ActionBarMorePrimitive from "./primitives/actionBarMore";
 export * as AssistantModalPrimitive from "./primitives/assistantModal";
@@ -250,6 +243,7 @@ export * as AttachmentPrimitive from "./primitives/attachment";
 export * as BranchPickerPrimitive from "./primitives/branchPicker";
 export * as ChainOfThoughtPrimitive from "./primitives/chainOfThought";
 export * as ComposerPrimitive from "./primitives/composer";
+export * as QueueItemPrimitive from "./primitives/queueItem";
 export * as MessagePartPrimitive from "./primitives/messagePart";
 export * as ErrorPrimitive from "./primitives/error";
 export * as MessagePrimitive from "./primitives/message";
@@ -271,9 +265,6 @@ export { useScrollLock } from "./primitives/reasoning/useScrollLock";
 export { useMessageQuote } from "./hooks/useMessageQuote";
 export { useMessageTiming } from "./hooks/useMessageTiming";
 
-// ============================================================================
-// types
-// ============================================================================
 // Re-export core types from @assistant-ui/core
 export type {
   Attachment,
@@ -283,12 +274,14 @@ export type {
   AppendMessage,
   TextMessagePart,
   ReasoningMessagePart,
+  SourceProviderMetadata,
   SourceMessagePart,
   ImageMessagePart,
   FileMessagePart,
   DataMessagePart,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
+  ToolModelContentPart,
   MessageStatus,
   MessagePartStatus,
   ToolCallMessagePartStatus,
@@ -328,60 +321,85 @@ export type {
   ReasoningGroupComponent,
   QuoteMessagePartComponent,
   QuoteMessagePartProps,
+  EnrichedPartState,
+  PartState,
 } from "@assistant-ui/core/react";
 
 // Thread list item types
 export type { ThreadListItemStatus } from "@assistant-ui/core";
 
-// ============================================================================
-// devtools
-// ============================================================================
 export { DevToolsHooks, DevToolsProviderApi } from "./devtools/DevToolsHooks";
 
-// ============================================================================
-// client
-// ============================================================================
-// Note: Tools, DataRenderers, Suggestions, SuggestionConfig already exported above from model-context
 export { ModelContext as ModelContextClient } from "@assistant-ui/core/store";
 export { ChainOfThoughtClient } from "@assistant-ui/core/store";
 export {
   ExternalThread,
   type ExternalThreadProps,
   type ExternalThreadMessage,
+  type ExternalThreadQueueAdapter,
 } from "./client/ExternalThread";
 export {
   InMemoryThreadList,
   type InMemoryThreadListProps,
 } from "./client/InMemoryThreadList";
+export { SingleThreadList } from "./client/SingleThreadList";
 
-// ============================================================================
-// internal & augmentations
-// ============================================================================
 export * as INTERNAL from "./internal";
+
+// Unstable - mention adapter helper (tools + custom items + categories)
+export {
+  unstable_useMentionAdapter,
+  type Unstable_IconComponent,
+  type Unstable_Mention,
+  type Unstable_MentionCategory,
+  type Unstable_MentionDirective,
+  type Unstable_ModelContextToolsOptions,
+  type Unstable_UseMentionAdapterOptions,
+} from "./unstable/useMentionAdapter";
+
+// Unstable - slash command adapter helper
+export {
+  unstable_useSlashCommandAdapter,
+  type Unstable_SlashCommand,
+  type Unstable_SlashCommandAction,
+  type Unstable_UseSlashCommandAdapterOptions,
+} from "./unstable/useSlashCommandAdapter";
+
 export type { ToolExecutionStatus } from "./internal";
+
+// Unstable - trigger popover (unified root for @ mentions, / slash commands, etc.)
+export {
+  useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext,
+  useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional,
+  useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext,
+  useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional,
+  useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers,
+  useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional,
+  type RegisteredTrigger as Unstable_RegisteredTrigger,
+  type TriggerBehavior as Unstable_TriggerBehavior,
+} from "./primitives/composer/trigger";
 
 export type { Assistant } from "./augmentations";
 
-// ============================================================================
-// Backwards compatibility - deprecated exports
-// ============================================================================
-
-/**
- * @deprecated Use `useAui` instead. This alias will be removed in v0.13.
- */
-export { useAui as useAssistantApi } from "@assistant-ui/store";
-
-/**
- * @deprecated Use `useAuiState` instead. This alias will be removed in v0.13.
- */
-export { useAuiState as useAssistantState } from "@assistant-ui/store";
-
-/**
- * @deprecated Use `useAuiEvent` instead. This alias will be removed in v0.13.
- */
-export { useAuiEvent as useAssistantEvent } from "@assistant-ui/store";
-
-/**
- * @deprecated Use `AuiIf` instead. This alias will be removed in v0.13.
- */
-export { AuiIf as AssistantIf } from "@assistant-ui/store";
+// --- mcp-apps ---
+export {
+  McpAppRenderer,
+  McpAppsRemoteHost,
+  getMcpAppFromToolPart,
+} from "./mcp-apps";
+export type {
+  McpAppRendererOptions,
+  McpAppMetadata,
+  McpAppResource,
+  McpAppResourceMeta,
+  McpAppResourceCSP,
+  McpAppSandboxConfig,
+  McpAppHostInfo,
+  McpAppHostContext,
+  McpAppDisplayMode,
+  McpAppsHost,
+  McpAppsRemoteHostOptions,
+  McpAppToolCallParams,
+  ToolCallMessagePartMcpMetadata,
+} from "./mcp-apps";
+export type { McpAppResourceOutput } from "@assistant-ui/core/react";

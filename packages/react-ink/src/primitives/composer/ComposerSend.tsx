@@ -15,7 +15,7 @@ export const ComposerSend = ({
 
   return (
     <Pressable
-      onPress={send}
+      onPress={() => send()}
       disabled={disabled ?? hookDisabled}
       {...pressableProps}
     >

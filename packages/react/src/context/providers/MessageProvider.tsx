@@ -1,6 +1,6 @@
 "use client";
 
-import { type FC, type PropsWithChildren } from "react";
+import type { FC, PropsWithChildren } from "react";
 import { useAui, AuiProvider } from "@assistant-ui/store";
 import {
   type ThreadMessageClientProps,

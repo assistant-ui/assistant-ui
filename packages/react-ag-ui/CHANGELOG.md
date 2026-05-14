@@ -1,5 +1,128 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.30
+
+### Patch Changes
+
+- [#3974](https://github.com/assistant-ui/assistant-ui/pull/3974) [`1959f3a`](https://github.com/assistant-ui/assistant-ui/commit/1959f3ad9ac5da430e1882439cc64f0853a39d6a) - feat(react-ag-ui): surface AG-UI interrupt-aware run lifecycle ([@okisdev](https://github.com/okisdev))
+
+  `event-parser` reads the optional `outcome` on `RUN_FINISHED` and forwards both `success` and `interrupt` variants; the subscriber subscribes to `onRunFinishedEvent` (with `onRunFinalized` as a fallback for older servers). `RunAggregator` maps `outcome.type === "interrupt"` to `requires-action` with `reason: "interrupt"` and writes the interrupts to `metadata.custom.agui.interrupts`. `useAgUiRuntime` returns an `AgUiAssistantRuntime` augmented with `unstable_getPendingInterrupts` and `unstable_submitInterruptResponses`; the latter validates coverage and expiry on the client, then issues a fresh run with `RunAgentInput.resume` populated. the runtime state snapshot is also synced onto the agent before each run so `state` actually reaches the protocol layer.
+
+- [#3977](https://github.com/assistant-ui/assistant-ui/pull/3977) [`876abd1`](https://github.com/assistant-ui/assistant-ui/commit/876abd124854b864ef0ba4ea6b9e67a82bc743c0) - feat(react-ag-ui): tighten interrupt lifecycle ([@okisdev](https://github.com/okisdev))
+
+  `append`, `reload`, and `resume` now refuse to start a new run while interrupts are still pending on the thread; the call throws with a message pointing at `submitInterruptResponses` instead of letting the request hit the wire and rely on the agent to reject it (AG-UI interrupts spec rule 4).
+
+  `AgUiInterrupt.reason` is typed as `AgUiInterruptReason` (`"tool_call" | "input_required" | "confirmation" | (string & {})`), so the spec values autocomplete while string extension stays open.
+
+  `onRunFinishedEvent` now ignores payloads that parse as a different event type, so a misrouted callback can no longer suppress the `onRunFinalized` fallback.
+
+- [#4017](https://github.com/assistant-ui/assistant-ui/pull/4017) [`1802e08`](https://github.com/assistant-ui/assistant-ui/commit/1802e08fe86567125d8ef013d7bc9a5c10e0b022) - fix(react-ag-ui): adopt `TEXT_MESSAGE_START.messageId` as the assistant `ThreadMessage.id` ([@okisdev](https://github.com/okisdev))
+
+  `AgUiThreadRuntimeCore` now inserts the assistant placeholder under an optimistic id (`generateOptimisticId`), then atomically reassigns the message id to the server-supplied `messageId` the first time `RunAggregator` observes one (on `TEXT_MESSAGE_START`, `TEXT_MESSAGE_CONTENT`, `TEXT_MESSAGE_END`, or `TOOL_CALL_START.parentMessageId`). `assistantHistoryParents` and `recordedHistoryIds` migrate with the id, so `persistAssistantHistory`, `addToolResult`, and downstream lookups keep working and resolve to the canonical AG-UI id. This brings the streaming path in line with `MESSAGES_SNAPSHOT` imports, which were already keyed on the server id.
+
+  `TOOL_CALL_RESULT.messageId` is now surfaced as `unstable_toolMessageId` on the tool-call part, so tool messages round-trip back to AG-UI with their original id instead of a synthetic `${toolCallId}:tool` value.
+
+- Updated dependencies [[`9ecda1d`](https://github.com/assistant-ui/assistant-ui/commit/9ecda1dfdd96f2c638e7b51cc951319ccacd06c9), [`35d0146`](https://github.com/assistant-ui/assistant-ui/commit/35d014628a69b0003799666895c2552b46ac7198), [`fa4510a`](https://github.com/assistant-ui/assistant-ui/commit/fa4510a3f3a23e0458ce8f3a397c352e3b0cde07), [`c9dd16c`](https://github.com/assistant-ui/assistant-ui/commit/c9dd16c4b1edc52f6a2529a9a07ebb7964aee9a1), [`dea8bc7`](https://github.com/assistant-ui/assistant-ui/commit/dea8bc7e122ad6ff53e48e6b0ffc6fcc2abaadd3), [`9c3d24d`](https://github.com/assistant-ui/assistant-ui/commit/9c3d24d8a358bcf5f683f85473b82524ea018930)]:
+  - assistant-stream@0.3.14
+  - @assistant-ui/core@0.2.1
+
+## 0.0.29
+
+### Patch Changes
+
+- Updated dependencies [[`040d469`](https://github.com/assistant-ui/assistant-ui/commit/040d469acfcf782de6fc188c646dfd8732d27088)]:
+  - @assistant-ui/core@0.2.0
+
+## 0.0.28
+
+### Patch Changes
+
+- [#3962](https://github.com/assistant-ui/assistant-ui/pull/3962) [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`7098bab`](https://github.com/assistant-ui/assistant-ui/commit/7098bab4c67fbd507c3fad746ef130daa01b3fd6), [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94)]:
+  - @assistant-ui/core@0.1.18
+  - assistant-stream@0.3.13
+
+## 0.0.27
+
+### Patch Changes
+
+- [#3876](https://github.com/assistant-ui/assistant-ui/pull/3876) [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`c7a274e`](https://github.com/assistant-ui/assistant-ui/commit/c7a274e968f8e081ded4c29cc37986392f04130e), [`ce865bc`](https://github.com/assistant-ui/assistant-ui/commit/ce865bc46af996d53f89e18068139d4d38546ca6), [`ca8f526`](https://github.com/assistant-ui/assistant-ui/commit/ca8f526944968036d47849a7659353765072a836), [`c56f98f`](https://github.com/assistant-ui/assistant-ui/commit/c56f98f5759e710281fc57b343b41af102914f1a), [`974d15e`](https://github.com/assistant-ui/assistant-ui/commit/974d15e34675cc5a611f0297904f5cb2c1b3da8c), [`4b19d42`](https://github.com/assistant-ui/assistant-ui/commit/4b19d42970cb98cee6ea69e2c26dc22763091568), [`da0f598`](https://github.com/assistant-ui/assistant-ui/commit/da0f59818085c7b97d157da1260c5e20873c32c1), [`d53ff4f`](https://github.com/assistant-ui/assistant-ui/commit/d53ff4f3f8b7d7220c1cb274c4fda335598fb063), [`20f8404`](https://github.com/assistant-ui/assistant-ui/commit/20f8404b70098e4b7cbc8df5bbb47985ac81b52c), [`17958c9`](https://github.com/assistant-ui/assistant-ui/commit/17958c9234ccc42394260125df54d897c06a47fd)]:
+  - @assistant-ui/core@0.1.15
+  - assistant-stream@0.3.12
+
+## 0.0.26
+
+### Patch Changes
+
+- 43fb4f7: fix(react-ag-ui): preserve user message attachments when converting to AG-UI format
+  - `toAgUiMessages()` previously called `extractText()` for user messages, silently dropping image and file attachments
+  - User messages with attachments now emit AG-UI `InputContent[]`: images map to the `image` variant with a `data` or `url` source, files map to the `binary` variant preserving `filename`
+  - Falls back to plain string `content` when no binary parts are present, preserving backward compatibility
+
+- c988db8: chore: update dependencies
+- Updated dependencies [f20b9ca]
+- Updated dependencies [c988db8]
+  - @assistant-ui/core@0.1.14
+  - assistant-stream@0.3.11
+
+## 0.0.25
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+- Updated dependencies [42bc640]
+- Updated dependencies [87e7761]
+  - @assistant-ui/core@0.1.13
+
+## 0.0.24
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [dffb6b4]
+- Updated dependencies [6554892]
+- Updated dependencies [9103282]
+- Updated dependencies [876f75d]
+- Updated dependencies [bdce66f]
+- Updated dependencies [4abb898]
+- Updated dependencies [209ae81]
+- Updated dependencies [af70d7f]
+  - assistant-stream@0.3.9
+  - @assistant-ui/core@0.1.10
+
+## 0.0.23
+
+### Patch Changes
+
+- 52403c3: chore: update dependencies
+- Updated dependencies [781f28d]
+- Updated dependencies [3227e71]
+- Updated dependencies [3227e71]
+- Updated dependencies [0f55ce8]
+- Updated dependencies [83a15f7]
+- Updated dependencies [52403c3]
+- Updated dependencies [ffa3a0f]
+  - @assistant-ui/core@0.1.9
+  - assistant-stream@0.3.8
+
+## 0.0.22
+
+### Patch Changes
+
+- 736344c: chore: update dependencies
+- Updated dependencies [1406aed]
+- Updated dependencies [9480f30]
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [ff3be2a]
+- Updated dependencies [70b19f3]
+  - @assistant-ui/core@0.1.8
+  - assistant-stream@0.3.7
+
 ## 0.0.21
 
 ### Patch Changes

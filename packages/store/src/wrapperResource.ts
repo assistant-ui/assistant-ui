@@ -1,6 +1,6 @@
 import {
   type ResourceElement,
-  Resource,
+  type Resource,
   resource,
   withKey,
 } from "@assistant-ui/tap";

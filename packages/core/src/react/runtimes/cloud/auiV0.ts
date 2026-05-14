@@ -1,8 +1,15 @@
-import type { MessageStatus, ThreadMessage } from "../../../types/message";
+import type {
+  MessageStatus,
+  SourceProviderMetadata,
+  ThreadMessage,
+} from "../../../types/message";
 import { fromThreadMessageLike } from "../../../runtime/utils/thread-message-like";
-import { CloudMessage } from "assistant-cloud";
+import type { CloudMessage } from "assistant-cloud";
 import { isJSONValue } from "../../../utils/json/is-json";
-import { ReadonlyJSONObject, ReadonlyJSONValue } from "assistant-stream/utils";
+import type {
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "assistant-stream/utils";
 import type { ExportedMessageRepositoryItem } from "../../../runtime/utils/message-repository";
 
 type AuiV0MessagePart =
@@ -20,6 +27,16 @@ type AuiV0MessagePart =
       readonly id: string;
       readonly url: string;
       readonly title?: string;
+      readonly providerMetadata?: SourceProviderMetadata;
+    }
+  | {
+      readonly type: "source";
+      readonly sourceType: "document";
+      readonly id: string;
+      readonly title: string;
+      readonly mediaType: string;
+      readonly filename?: string;
+      readonly providerMetadata?: SourceProviderMetadata;
     }
   | {
       readonly type: "tool-call";
@@ -87,12 +104,31 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           return { type: "reasoning", text: part.text };
 
         case "source":
+          if (part.sourceType === "url") {
+            return {
+              type: "source",
+              sourceType: "url",
+              id: part.id,
+              url: part.url,
+              ...(part.title != null ? { title: part.title } : undefined),
+              ...(part.providerMetadata != null
+                ? { providerMetadata: part.providerMetadata }
+                : undefined),
+            };
+          }
+
           return {
             type: "source",
-            sourceType: part.sourceType,
+            sourceType: "document",
             id: part.id,
-            url: part.url,
-            ...(part.title ? { title: part.title } : undefined),
+            title: part.title,
+            mediaType: part.mediaType,
+            ...(part.filename != null
+              ? { filename: part.filename }
+              : undefined),
+            ...(part.providerMetadata != null
+              ? { providerMetadata: part.providerMetadata }
+              : undefined),
           };
 
         case "tool-call": {

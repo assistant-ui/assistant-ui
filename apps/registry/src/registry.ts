@@ -1,4 +1,4 @@
-import { RegistryItem } from "./schema";
+import type { RegistryItem } from "./schema";
 
 export const registry: RegistryItem[] = [
   {
@@ -69,8 +69,26 @@ export const registry: RegistryItem[] = [
       "button",
       "https://r.assistant-ui.com/attachment.json",
       "https://r.assistant-ui.com/markdown-text.json",
+      "https://r.assistant-ui.com/reasoning.json",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
       "https://r.assistant-ui.com/tool-fallback.json",
+      "https://r.assistant-ui.com/tool-group.json",
+    ],
+  },
+  {
+    name: "voice",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/voice.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/voice.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+    registryDependencies: [
+      "button",
+      "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
   },
   {
@@ -355,6 +373,11 @@ export const registry: RegistryItem[] = [
         sourcePath:
           "../../packages/ui/src/components/assistant-ui/threadlist-sidebar.tsx",
       },
+      {
+        type: "registry:component",
+        path: "components/icons/github.tsx",
+        sourcePath: "../../packages/ui/src/components/icons/github.tsx",
+      },
     ],
     dependencies: ["lucide-react"],
     registryDependencies: [
@@ -454,6 +477,19 @@ export const registry: RegistryItem[] = [
     registryDependencies: [],
   },
   {
+    name: "direction",
+    type: "registry:ui",
+    files: [
+      {
+        type: "registry:ui",
+        path: "components/ui/direction.tsx",
+        sourcePath: "../../packages/ui/src/components/ui/direction.tsx",
+      },
+    ],
+    dependencies: ["radix-ui"],
+    registryDependencies: [],
+  },
+  {
     name: "badge",
     type: "registry:component",
     files: [
@@ -506,5 +542,33 @@ export const registry: RegistryItem[] = [
     ],
     dependencies: ["heat-graph"],
     registryDependencies: [],
+  },
+  {
+    name: "composer-trigger-popover",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/composer-trigger-popover.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/composer-trigger-popover.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+    registryDependencies: [],
+  },
+  {
+    name: "directive-text",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/directive-text.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/directive-text.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "@assistant-ui/core", "lucide-react"],
+    registryDependencies: ["https://r.assistant-ui.com/badge.json"],
   },
 ];

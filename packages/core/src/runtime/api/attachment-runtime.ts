@@ -105,10 +105,6 @@ export class MessageAttachmentRuntimeImpl extends AttachmentRuntimeImpl<"message
     return "message";
   }
 
-  constructor(core: AttachmentSnapshotBinding<"message">) {
-    super(core);
-  }
-
   public remove(): never {
     throw new Error("Message attachments cannot be removed");
   }

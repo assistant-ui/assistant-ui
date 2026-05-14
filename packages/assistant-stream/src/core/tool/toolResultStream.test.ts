@@ -1,7 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { unstable_runPendingTools } from "./toolResultStream";
-import { AssistantMessage, ToolCallPart } from "../utils/types";
-import { Tool } from "./tool-types";
+import { describe, expect, it, vi } from "vitest";
+import {
+  toolResultStream as unstable_toolResultStream,
+  unstable_runPendingTools,
+} from "./toolResultStream";
+import { ToolResponse } from "./ToolResponse";
+import type { AssistantStreamChunk } from "../AssistantStreamChunk";
+import type { AssistantMessage, ToolCallPart } from "../utils/types";
+import type { Tool } from "./tool-types";
 
 const createDelayedTool = (delay: number, result?: string): Tool => ({
   parameters: { type: "object", properties: {} },
@@ -395,6 +400,359 @@ describe("unstable_runPendingTools", () => {
         result: "fast",
         isError: false,
       });
+    });
+  });
+
+  describe("toModelOutput", () => {
+    it("attaches modelContent from toModelOutput onto the resolved tool-call part", async () => {
+      const tool: Tool = {
+        parameters: { type: "object", properties: {} },
+        execute: async () => ({
+          mediaType: "application/pdf",
+          base64: "JVBERi0xLjQK",
+        }),
+        toModelOutput: ({ output }) => {
+          const o = output as { base64: string; mediaType: string };
+          return [
+            { type: "text", text: "PDF contents:" },
+            {
+              type: "file",
+              data: o.base64,
+              mediaType: o.mediaType,
+            },
+          ];
+        },
+      };
+
+      const message: AssistantMessage = {
+        role: "assistant",
+        status: { type: "requires-action", reason: "tool-calls" },
+        parts: [
+          {
+            type: "tool-call",
+            toolCallId: "tc-1",
+            toolName: "readPdf",
+            args: {},
+          } as ToolCallPart,
+        ],
+        content: [],
+        metadata: {
+          unstable_state: {},
+          unstable_data: [],
+          unstable_annotations: [],
+          steps: [],
+          custom: {},
+        },
+      };
+
+      const updated = await unstable_runPendingTools(
+        message,
+        { readPdf: tool },
+        new AbortController().signal,
+        async () => {},
+      );
+
+      expect(updated.parts[0]).toMatchObject({
+        type: "tool-call",
+        state: "result",
+        result: { mediaType: "application/pdf", base64: "JVBERi0xLjQK" },
+        modelContent: [
+          { type: "text", text: "PDF contents:" },
+          {
+            type: "file",
+            data: "JVBERi0xLjQK",
+            mediaType: "application/pdf",
+          },
+        ],
+      });
+    });
+
+    it("does not call toModelOutput when the ToolResponse already carries modelContent", async () => {
+      let called = false;
+      const tool: Tool = {
+        parameters: { type: "object", properties: {} },
+        execute: async () =>
+          new ToolResponse({
+            result: { ok: true },
+            modelContent: [{ type: "text", text: "preset" }],
+          }),
+        toModelOutput: () => {
+          called = true;
+          return [{ type: "text", text: "should not run" }];
+        },
+      };
+
+      const message: AssistantMessage = {
+        role: "assistant",
+        status: { type: "requires-action", reason: "tool-calls" },
+        parts: [
+          {
+            type: "tool-call",
+            toolCallId: "tc-1",
+            toolName: "preset",
+            args: {},
+          } as ToolCallPart,
+        ],
+        content: [],
+        metadata: {
+          unstable_state: {},
+          unstable_data: [],
+          unstable_annotations: [],
+          steps: [],
+          custom: {},
+        },
+      };
+
+      const updated = await unstable_runPendingTools(
+        message,
+        { preset: tool },
+        new AbortController().signal,
+        async () => {},
+      );
+
+      expect(called).toBe(false);
+      expect(updated.parts[0]).toMatchObject({
+        type: "tool-call",
+        state: "result",
+        modelContent: [{ type: "text", text: "preset" }],
+      });
+    });
+
+    it("falls back to the successful execute result when toModelOutput itself throws", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const tool: Tool = {
+        parameters: { type: "object", properties: {} },
+        execute: async () => ({ ok: true }),
+        toModelOutput: () => {
+          throw new Error("projection failed");
+        },
+      };
+
+      const message: AssistantMessage = {
+        role: "assistant",
+        status: { type: "requires-action", reason: "tool-calls" },
+        parts: [
+          {
+            type: "tool-call",
+            toolCallId: "tc-1",
+            toolName: "flaky",
+            args: {},
+          } as ToolCallPart,
+        ],
+        content: [],
+        metadata: {
+          unstable_state: {},
+          unstable_data: [],
+          unstable_annotations: [],
+          steps: [],
+          custom: {},
+        },
+      };
+
+      const updated = await unstable_runPendingTools(
+        message,
+        { flaky: tool },
+        new AbortController().signal,
+        async () => {},
+      );
+
+      expect(updated.parts[0]).toMatchObject({
+        type: "tool-call",
+        state: "result",
+        result: { ok: true },
+        isError: false,
+      });
+      expect(updated.parts[0]).not.toHaveProperty("modelContent");
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(`tool "flaky" toModelOutput threw`),
+        expect.any(Error),
+      );
+      warn.mockRestore();
+    });
+
+    it("forwards modelContent through the streaming path (toolResultStream + ToolExecutionStream)", async () => {
+      const tool: Tool = {
+        parameters: { type: "object", properties: {} },
+        execute: async () => ({
+          mediaType: "application/pdf",
+          base64: "JVBERi0xLjQK",
+        }),
+        toModelOutput: ({ output }) => {
+          const o = output as { mediaType: string; base64: string };
+          return [
+            { type: "text", text: "PDF contents:" },
+            { type: "file", data: o.base64, mediaType: o.mediaType },
+          ];
+        },
+      };
+
+      const inputChunks: AssistantStreamChunk[] = [
+        {
+          type: "part-start",
+          path: [],
+          part: {
+            type: "tool-call",
+            toolCallId: "tc-stream-1",
+            toolName: "readPdf",
+          },
+        },
+        { type: "text-delta", path: [0], textDelta: "{}" },
+        { type: "tool-call-args-text-finish", path: [0] },
+        { type: "part-finish", path: [0] },
+      ];
+
+      const inputStream = new ReadableStream<AssistantStreamChunk>({
+        start(controller) {
+          for (const chunk of inputChunks) controller.enqueue(chunk);
+          controller.close();
+        },
+      });
+
+      const outputChunks: AssistantStreamChunk[] = [];
+      await inputStream
+        .pipeThrough(
+          unstable_toolResultStream(
+            { readPdf: tool },
+            new AbortController().signal,
+            async () => {},
+          ),
+        )
+        .pipeTo(
+          new WritableStream<AssistantStreamChunk>({
+            write(chunk) {
+              outputChunks.push(chunk);
+            },
+          }),
+        );
+
+      const resultChunk = outputChunks.find((c) => c.type === "result") as
+        | (AssistantStreamChunk & { type: "result" })
+        | undefined;
+      expect(resultChunk).toBeDefined();
+      expect(resultChunk?.result).toEqual({
+        mediaType: "application/pdf",
+        base64: "JVBERi0xLjQK",
+      });
+      expect(resultChunk?.isError).toBe(false);
+      expect(resultChunk?.modelContent).toEqual([
+        { type: "text", text: "PDF contents:" },
+        {
+          type: "file",
+          data: "JVBERi0xLjQK",
+          mediaType: "application/pdf",
+        },
+      ]);
+    });
+
+    it("falls back to the plain result when toModelOutput throws in the streaming path", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const tool: Tool = {
+        parameters: { type: "object", properties: {} },
+        execute: async () => ({ ok: true }),
+        toModelOutput: () => {
+          throw new Error("projection failed");
+        },
+      };
+
+      const inputChunks: AssistantStreamChunk[] = [
+        {
+          type: "part-start",
+          path: [],
+          part: {
+            type: "tool-call",
+            toolCallId: "tc-stream-err",
+            toolName: "flaky",
+          },
+        },
+        { type: "text-delta", path: [0], textDelta: "{}" },
+        { type: "tool-call-args-text-finish", path: [0] },
+        { type: "part-finish", path: [0] },
+      ];
+
+      const inputStream = new ReadableStream<AssistantStreamChunk>({
+        start(controller) {
+          for (const chunk of inputChunks) controller.enqueue(chunk);
+          controller.close();
+        },
+      });
+
+      const outputChunks: AssistantStreamChunk[] = [];
+      await inputStream
+        .pipeThrough(
+          unstable_toolResultStream(
+            { flaky: tool },
+            new AbortController().signal,
+            async () => {},
+          ),
+        )
+        .pipeTo(
+          new WritableStream<AssistantStreamChunk>({
+            write(chunk) {
+              outputChunks.push(chunk);
+            },
+          }),
+        );
+
+      const resultChunk = outputChunks.find((c) => c.type === "result") as
+        | (AssistantStreamChunk & { type: "result" })
+        | undefined;
+      expect(resultChunk).toBeDefined();
+      expect(resultChunk?.result).toEqual({ ok: true });
+      expect(resultChunk?.isError).toBe(false);
+      expect(resultChunk?.modelContent).toBeUndefined();
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(`tool "flaky" toModelOutput threw`),
+        expect.any(Error),
+      );
+      warn.mockRestore();
+    });
+
+    it("does not call toModelOutput when the tool errors", async () => {
+      let called = false;
+      const tool: Tool = {
+        parameters: { type: "object", properties: {} },
+        execute: async () => {
+          throw new Error("boom");
+        },
+        toModelOutput: () => {
+          called = true;
+          return [{ type: "text", text: "should not run" }];
+        },
+      };
+
+      const message: AssistantMessage = {
+        role: "assistant",
+        status: { type: "requires-action", reason: "tool-calls" },
+        parts: [
+          {
+            type: "tool-call",
+            toolCallId: "tc-1",
+            toolName: "broken",
+            args: {},
+          } as ToolCallPart,
+        ],
+        content: [],
+        metadata: {
+          unstable_state: {},
+          unstable_data: [],
+          unstable_annotations: [],
+          steps: [],
+          custom: {},
+        },
+      };
+
+      try {
+        await unstable_runPendingTools(
+          message,
+          { broken: tool },
+          new AbortController().signal,
+          async () => {},
+        );
+      } catch {
+        // execute throws; toModelOutput must not have been consulted
+      }
+
+      expect(called).toBe(false);
     });
   });
 });

@@ -1,9 +1,9 @@
-import { Tool, ToolCallReader, ToolExecuteFunction } from "./tool-types";
-import { StandardSchemaV1 } from "@standard-schema/spec";
+import type { Tool, ToolCallReader, ToolExecuteFunction } from "./tool-types";
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { ToolResponse } from "./ToolResponse";
 import { ToolExecutionStream } from "./ToolExecutionStream";
-import { AssistantMessage } from "../utils/types";
-import { ReadonlyJSONObject, ReadonlyJSONValue } from "../../utils";
+import type { AssistantMessage } from "../utils/types";
+import type { ReadonlyJSONObject, ReadonlyJSONValue } from "../../utils";
 
 const isStandardSchemaV1 = (
   schema: unknown,
@@ -27,7 +27,7 @@ function getToolResponse(
   human: (toolCallId: string, payload: unknown) => Promise<unknown>,
 ) {
   const tool = tools?.[toolCall.toolName];
-  if (!tool || !tool.execute) return undefined;
+  if (!tool?.execute) return undefined;
 
   const getResult = async (
     toolExecute: ToolExecuteFunction<ReadonlyJSONObject, unknown>,
@@ -87,7 +87,33 @@ function getToolResponse(
         abortSignal,
         human: (payload: unknown) => human(toolCall.toolCallId, payload),
       })) as unknown as ReadonlyJSONValue;
-      return ToolResponse.toResponse(result);
+      const response = ToolResponse.toResponse(result);
+      if (
+        tool.toModelOutput &&
+        !response.isError &&
+        response.modelContent === undefined
+      ) {
+        try {
+          const modelContent = await tool.toModelOutput({
+            toolCallId: toolCall.toolCallId,
+            input: toolCall.args,
+            output: response.result,
+          });
+          return new ToolResponse({
+            result: response.result,
+            artifact: response.artifact,
+            isError: response.isError,
+            messages: response.messages,
+            modelContent,
+          });
+        } catch (e) {
+          console.warn(
+            `[assistant-stream] tool "${toolCall.toolName}" toModelOutput threw; falling back to default projection.`,
+            e,
+          );
+        }
+      }
+      return response;
     })();
 
     return Promise.race([executePromise, abortPromise]);
@@ -168,6 +194,9 @@ export async function unstable_runPendingTools(
           state: "result" as const,
           ...(toolResponse.artifact !== undefined
             ? { artifact: toolResponse.artifact }
+            : {}),
+          ...(toolResponse.modelContent !== undefined
+            ? { modelContent: toolResponse.modelContent }
             : {}),
           result: toolResponse.result as ReadonlyJSONValue,
           isError: toolResponse.isError,

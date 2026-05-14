@@ -22,13 +22,13 @@ export async function generateThreadTitle(
   const aiSdkMessages = messages.filter(
     (msg) =>
       msg.format === MESSAGE_FORMAT ||
-      (msg.content && Array.isArray(msg.content["parts"])),
+      (msg.content && Array.isArray(msg.content.parts)),
   );
   if (aiSdkMessages.length === 0) return null;
 
   const convertedMessages = aiSdkMessages
     .map((msg) => {
-      const parts = msg.content["parts"] as
+      const parts = msg.content.parts as
         | Array<{ type: string; text?: string }>
         | undefined;
       if (!parts) return null;
@@ -37,7 +37,7 @@ export async function generateThreadTitle(
         .map((part) => ({ type: "text" as const, text: part.text! }));
       if (textParts.length === 0) return null;
       return {
-        role: msg.content["role"] as string,
+        role: msg.content.role as string,
         content: textParts,
       };
     })

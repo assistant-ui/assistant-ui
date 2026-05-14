@@ -1,7 +1,8 @@
 // DevTools Panel UI
 // Displays the iframe and manages communication between the iframe and the page
 
-import React, { useEffect, useRef } from "react";
+import type React from "react";
+import { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import { DEFAULT_FRAME_URL } from "@assistant-ui/react-devtools";
 

@@ -3,15 +3,15 @@ import {
   parsePartialJsonObject,
   getPartialJsonObjectFieldState,
 } from "../../utils/json/parse-partial-json-object";
-import {
+import type {
   ToolCallArgsReader,
   ToolCallReader,
   ToolCallResponseReader,
 } from "./tool-types";
-import { DeepPartial, TypeAtPath, TypePath } from "./type-path-utils";
-import { ToolResponse } from "./ToolResponse";
+import type { DeepPartial, TypeAtPath, TypePath } from "./type-path-utils";
+import type { ToolResponse } from "./ToolResponse";
 import { asAsyncIterableStream } from "../../utils/AsyncIterableStream";
-import {
+import type {
   AsyncIterableStream,
   ReadonlyJSONObject,
   ReadonlyJSONValue,

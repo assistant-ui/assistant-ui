@@ -8,6 +8,7 @@ export function SidebarSearch() {
 
   return (
     <button
+      type="button"
       data-sidebar-control
       onClick={() => setOpenSearch(true)}
       className="flex h-9 w-full items-center gap-2 rounded-lg bg-muted px-3 text-muted-foreground text-sm transition-colors hover:bg-accent hover:text-foreground"

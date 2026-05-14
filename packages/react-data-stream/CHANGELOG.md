@@ -1,5 +1,76 @@
 # @assistant-ui/react-data-stream
 
+## 0.12.13
+
+### Patch Changes
+
+- Updated dependencies [[`040d469`](https://github.com/assistant-ui/assistant-ui/commit/040d469acfcf782de6fc188c646dfd8732d27088)]:
+  - @assistant-ui/core@0.2.0
+
+## 0.12.12
+
+### Patch Changes
+
+- [#3962](https://github.com/assistant-ui/assistant-ui/pull/3962) [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`7098bab`](https://github.com/assistant-ui/assistant-ui/commit/7098bab4c67fbd507c3fad746ef130daa01b3fd6), [`b090acb`](https://github.com/assistant-ui/assistant-ui/commit/b090acb98f6bf3579aab4efedddaff83a0b54c94)]:
+  - @assistant-ui/core@0.1.18
+  - assistant-stream@0.3.13
+
+## 0.12.11
+
+### Patch Changes
+
+- c988db8: chore: update dependencies
+- Updated dependencies [f20b9ca]
+- Updated dependencies [c988db8]
+  - @assistant-ui/core@0.1.14
+  - assistant-stream@0.3.11
+  - assistant-cloud@0.1.26
+
+## 0.12.10
+
+### Patch Changes
+
+- 376bb00: chore: update dependencies
+- Updated dependencies [42bc640]
+- Updated dependencies [376bb00]
+- Updated dependencies [87e7761]
+  - @assistant-ui/core@0.1.13
+  - assistant-cloud@0.1.25
+
+## 0.12.9
+
+### Patch Changes
+
+- bdce66f: chore: update dependencies
+- 209ae81: chore: remove aui-source export condition from package.json exports
+- Updated dependencies [dffb6b4]
+- Updated dependencies [6554892]
+- Updated dependencies [9103282]
+- Updated dependencies [876f75d]
+- Updated dependencies [bdce66f]
+- Updated dependencies [4abb898]
+- Updated dependencies [209ae81]
+- Updated dependencies [af70d7f]
+  - assistant-stream@0.3.9
+  - @assistant-ui/core@0.1.10
+  - assistant-cloud@0.1.24
+
+## 0.12.8
+
+### Patch Changes
+
+- 736344c: chore: update dependencies
+- Updated dependencies [1406aed]
+- Updated dependencies [9480f30]
+- Updated dependencies [28a987a]
+- Updated dependencies [736344c]
+- Updated dependencies [ff3be2a]
+- Updated dependencies [70b19f3]
+  - @assistant-ui/core@0.1.8
+  - assistant-stream@0.3.7
+
 ## 0.12.7
 
 ### Patch Changes
