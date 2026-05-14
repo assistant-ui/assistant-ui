@@ -10,16 +10,8 @@ const INITIAL_STATE: ModelContextState = {
   toolNames: EMPTY_TOOL_NAMES,
 };
 
-const toolNamesEqual = (
-  a: readonly string[],
-  b: readonly string[],
-): boolean => {
-  if (a === b) return true;
-  if (a.length !== b.length) return false;
-  const seen = new Set(a);
-  for (const name of b) if (!seen.has(name)) return false;
-  return true;
-};
+const toolNamesEqual = (a: readonly string[], b: readonly string[]): boolean =>
+  a === b || (a.length === b.length && a.every((v, i) => v === b[i]));
 
 const deriveState = (
   composite: CompositeContextProvider,
