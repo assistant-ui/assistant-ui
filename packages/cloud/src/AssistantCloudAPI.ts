@@ -68,7 +68,7 @@ export class AssistantCloudAPI {
 
   constructor(config: AssistantCloudConfig) {
     if ("authToken" in config) {
-      this._baseUrl = config.baseUrl;
+      this._baseUrl = config.baseUrl.replace(/\/$/, "");
       this._auth = new AssistantCloudJWTAuthStrategy(config.authToken);
     } else if ("apiKey" in config) {
       this._baseUrl = (
@@ -80,8 +80,8 @@ export class AssistantCloudAPI {
         config.workspaceId,
       );
     } else if ("anonymous" in config) {
-      this._baseUrl = config.baseUrl;
-      this._auth = new AssistantCloudAnonymousAuthStrategy(config.baseUrl);
+      this._baseUrl = config.baseUrl.replace(/\/$/, "");
+      this._auth = new AssistantCloudAnonymousAuthStrategy(this._baseUrl);
     } else {
       throw new Error(
         "Invalid configuration: Must provide authToken, apiKey, or anonymous configuration",
