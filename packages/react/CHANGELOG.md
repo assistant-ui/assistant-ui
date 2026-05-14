@@ -1,5 +1,20 @@
 # @assistant-ui/react
 
+## 0.14.5
+
+### Patch Changes
+
+- Accept the MCP-UI `2026-01-26` method names in the MCP App bridge (e.g. `ui/notifications/size-changed`, `ui/request-display-mode`, `ui/open-link`, `ui/message`). Widgets built with the current xmcp host-bridge emit these names; previously the host silently ignored them, leaving features like auto-resize broken (iframe never received a height change from `onSizeChange`).
+
+## 0.14.4
+
+### Patch Changes
+
+- [#4033](https://github.com/assistant-ui/assistant-ui/pull/4033) [`552ffb0`](https://github.com/assistant-ui/assistant-ui/commit/552ffb0ed145f2e2a57db910b99dac5d5b834626) - feat(react): export `getMcpAppFromToolPart` so hosts can detect MCP-app tool parts ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies []:
+  - safe-content-frame@0.0.19
+
 ## 0.14.3
 
 ### Patch Changes

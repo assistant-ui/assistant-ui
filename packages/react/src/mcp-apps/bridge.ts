@@ -42,6 +42,22 @@ const DEFAULT_HOST_INFO: McpAppHostInfo = {
   version: "0.1",
 };
 
+// Accept both the legacy method names and the MCP-UI 2026-01-26 names that
+// `ui/*` capable widgets (e.g. xmcp's host-bridge) emit. Normalize on input
+// so downstream switch statements only need to know the legacy names.
+const METHOD_ALIASES: Record<string, string> = {
+  "ui/notifications/initialized": "notifications/initialized",
+  "ui/notifications/size-changed": "notifications/size_changed",
+  "ui/request-display-mode": "requestDisplayMode",
+  "ui/open-link": "openLink",
+  "ui/update-model-context": "updateModelContext",
+  "ui/message": "sendMessage",
+  "notifications/message": "notifications/log",
+};
+
+const normalizeMethod = (method: string): string =>
+  METHOD_ALIASES[method] ?? method;
+
 const JSONRPC_ERROR = {
   parseError: -32700,
   invalidRequest: -32600,
@@ -118,7 +134,7 @@ export function createMcpAppBridge(
     try {
       const params = req.params;
 
-      switch (req.method) {
+      switch (normalizeMethod(req.method)) {
         case "ui/initialize": {
           respond(req.id, {
             result: {
@@ -356,7 +372,7 @@ export function createMcpAppBridge(
   };
 
   const handleNotification = (note: McpAppJsonRpcNotification) => {
-    switch (note.method) {
+    switch (normalizeMethod(note.method)) {
       case "notifications/initialized": {
         handlers.onInitialized?.();
         return;

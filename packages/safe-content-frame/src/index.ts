@@ -156,7 +156,10 @@ export class SafeContentFrame {
         else if (e.data?.type === "error") reject(new Error(e.data.message));
       };
 
+      let loadHandled = false;
       iframe.onload = () => {
+        if (loadHandled) return;
+        loadHandled = true;
         iframe.contentWindow?.postMessage(
           {
             body: content.buffer.slice(
