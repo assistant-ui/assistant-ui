@@ -1,0 +1,245 @@
+---
+title: Cloudflare Agents Integration
+description: Wire Cloudflare's stateful agent framework into a React chat UI with assistant-ui via the standard AI SDK runtime. WebSocket transport, server-side persistence, tool calling, all preserved.
+---
+
+import { Cloud } from "lucide-react";
+import { VercelIcon } from "@/components/icons/vercel";
+
+[Cloudflare Agents](https://developers.cloudflare.com/agents/) is Cloudflare's framework for stateful AI agents that run on Durable Objects at the edge. Each agent owns its own SQLite-backed message history, exposes a WebSocket channel for low-latency streaming, and can call tools (server-side or client-side).
+
+<Callout type="info">
+This is an integration guide, not a runtime adapter. assistant-ui does not ship a `@assistant-ui/react-cloudflare-agents` package. `@cloudflare/ai-chat`'s `useAgentChat` returns a structural extension of the AI SDK's `useChat`, so the existing [AI SDK runtime](/docs/runtimes/ai-sdk/v6) consumes it directly.
+</Callout>
+
+## Architecture
+
+Cloudflare Agents handles the server half: a Durable Object subclasses `AIChatAgent` from `@cloudflare/ai-chat`, owns the message history, and streams responses back over a WebSocket. `@cloudflare/ai-chat/react`'s `useAgentChat` hook wraps that WebSocket and exposes the same `messages`, `sendMessage`, `regenerate`, `status`, `stop`, `setMessages`, `addToolOutput` surface that the AI SDK's `useChat` does, plus a few Cloudflare-specific extras (`clearHistory`, `isServerStreaming`, `isToolContinuation`).
+
+assistant-ui handles the client half. `useAISDKRuntime` from [`@assistant-ui/react-ai-sdk`](/docs/runtimes/ai-sdk/v6) reads exactly those AI SDK methods off whatever you pass in, so feeding it `useAgentChat`'s return value yields a fully-featured runtime: streaming, tool calling, edit, reload, history import and export, attachments, suggestions.
+
+Shared adapters (attachments, speech, feedback, history) work the same way as described in [adapters](/docs/runtimes/concepts/adapters). Multi-thread support uses [AssistantCloud](/docs/cloud) or a [custom thread list](/docs/runtimes/concepts/threads).
+
+## Requirements
+
+- A Cloudflare account with Workers enabled and `wrangler` installed.
+- A frontend project (Next.js or any other AI-SDK-compatible React app).
+- Model API keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.) configured as Worker secrets.
+
+## Setup
+
+The setup has two halves. Steps 1 to 4 happen in the **Worker** project (Cloudflare side); steps 5 to 7 happen in a **separate assistant-ui frontend**. You'll have two dev processes running by the end: `wrangler dev` for the Worker, and your frontend's dev server.
+
+<Steps>
+
+<Step>
+
+### Scaffold the Worker project
+
+```sh
+npm create cloudflare@latest my-agent -- --type=hello-world --ts
+cd my-agent
+```
+
+Add the Cloudflare Agents packages and the AI SDK:
+
+<InstallCommand npm={["agents@latest", "@cloudflare/ai-chat@latest", "ai@latest", "@ai-sdk/openai@latest"]} />
+
+</Step>
+
+<Step>
+
+### Define the agent
+
+`AIChatAgent` already implements message persistence, streaming protocol, and WebSocket plumbing. Override `onChatMessage` to plug in your model and tools.
+
+```ts title="src/chat.ts"
+import { AIChatAgent } from "@cloudflare/ai-chat";
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages } from "ai";
+
+type Env = { OPENAI_API_KEY: string };
+
+export class Chat extends AIChatAgent<Env> {
+  async onChatMessage(onFinish: Parameters<typeof streamText>[0]["onFinish"]) {
+    return streamText({
+      model: openai("gpt-4o-mini"),
+      messages: convertToModelMessages(this.messages),
+      onFinish,
+    });
+  }
+}
+```
+
+`this.messages` is the persisted history for this Durable Object instance. Each unique agent `name` you connect with from the client (step 6) gets its own instance and its own message log.
+
+</Step>
+
+<Step>
+
+### Register the Durable Object and route requests
+
+```ts title="src/index.ts"
+import { routeAgentRequest } from "agents";
+import { Chat } from "./chat";
+
+export { Chat };
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    return (
+      (await routeAgentRequest(request, env)) ??
+      new Response("Not found", { status: 404 })
+    );
+  },
+} satisfies ExportedHandler<Env>;
+```
+
+`routeAgentRequest` handles WebSocket upgrades, agent lookup by URL path, and the `/get-messages` HTTP endpoint that the frontend uses for history rehydration.
+
+Wire the Durable Object binding and CORS in `wrangler.jsonc`:
+
+```jsonc title="wrangler.jsonc"
+{
+  "name": "my-agent",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [{ "name": "Chat", "class_name": "Chat" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Chat"] }
+  ]
+}
+```
+
+The binding `name` and `class_name` must match the exported class. `new_sqlite_classes` is required so the Durable Object can use SQLite for message storage.
+
+</Step>
+
+<Step>
+
+### Run the Worker locally
+
+```sh
+wrangler secret put OPENAI_API_KEY    # paste your key when prompted
+wrangler dev
+```
+
+The Worker boots on `http://localhost:8787`. Leave it running.
+
+</Step>
+
+<Step>
+
+### Initialize the assistant-ui frontend
+
+In a different directory:
+
+```sh title="New project"
+npx assistant-ui@latest create
+```
+
+```sh title="Existing project"
+npx assistant-ui@latest init
+```
+
+This creates a default chat page and a local API route at `app/api/chat/route.ts`. You won't use the local route, since the agent runs on the Worker; delete it once the next step is wired.
+
+</Step>
+
+<Step>
+
+### Install the Cloudflare client packages
+
+In the frontend project:
+
+<InstallCommand npm={["agents@latest", "@cloudflare/ai-chat@latest"]} />
+
+</Step>
+
+<Step>
+
+### Wire the runtime
+
+```tsx title="app/assistant.tsx"
+"use client";
+
+import { useAgent } from "agents/react";
+import { useAgentChat } from "@cloudflare/ai-chat/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
+import { Thread } from "@/components/assistant-ui/thread";
+
+export const Assistant = () => {
+  const agent = useAgent({
+    agent: "Chat",
+    name: "default",
+    host: process.env.NEXT_PUBLIC_AGENT_HOST!,
+  });
+  const chat = useAgentChat({ agent });
+  const runtime = useAISDKRuntime(chat);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+};
+```
+
+Set the Worker URL in your frontend environment:
+
+```sh title=".env.local"
+NEXT_PUBLIC_AGENT_HOST=http://localhost:8787
+```
+
+`NEXT_PUBLIC_*` exposes the value to the browser. In production, point this at your deployed Worker (e.g. `https://my-agent.example.workers.dev`).
+
+`name: "default"` is the Durable Object instance key. Pass a per-user value (a user ID, session ID, or chat ID) to give each user their own persisted history. Switching `name` from the client opens a new WebSocket connection to a different Durable Object instance.
+
+</Step>
+
+</Steps>
+
+## Notes
+
+### Type compatibility with `useChat`
+
+`useAgentChat`'s return type is `Omit<ReturnType<typeof useChat>, "addToolOutput"> & { ... }`. The `addToolOutput` option shape differs slightly between the two: `useChat` accepts `{ state, tool, toolCallId, ... }`; `useAgentChat` accepts `{ state, toolCallId, toolName?, ... }`. At runtime the call paths converge through `useAISDKRuntime` without issue. If the TypeScript compiler flags the call, narrow with `chat satisfies Parameters<typeof useAISDKRuntime>[0]` or cast at the call site.
+
+### Cloudflare-specific extras
+
+`useAgentChat` exposes three values that `useChat` does not:
+
+- `clearHistory()` sends a `cf_agent_chat_clear` frame and wipes the Durable Object's SQLite store. Bind it to a "Clear chat" button if you need server-side history reset; `setMessages([])` alone only clears the client view.
+- `isServerStreaming` is `true` while the server is pushing tokens, independent of client-initiated request state. Use it for a universal streaming indicator.
+- `isToolContinuation` distinguishes "server auto-continuing after a tool result" from "user just sent a new message". Useful for typing-indicator gating.
+
+Destructure these alongside `chat` and pass them into your UI directly; they don't need to flow through the runtime.
+
+### `setMessages` round-trips through the Durable Object
+
+`useAgentChat` overrides `setMessages` to broadcast the new list over the WebSocket so the Durable Object's SQLite history stays in sync. This means assistant-ui's `onImport`, `onEdit`, `onReload`, and pending-tool cancellation paths all persist server-side automatically. The tradeoff is one extra WebSocket round-trip per mutation, which can race if the connection is lagging; assume eventual consistency, not transactional.
+
+### Version stability
+
+`agents` and `@cloudflare/ai-chat` are pre-1.0 and ship breaking changes between minor versions. Pin both to exact versions in `package.json` and read the Cloudflare changelog before bumping. The `useAgentChat` return shape has been additive since 0.3.0, so the integration above should keep working across patch releases.
+
+## Related
+
+<Cards>
+  <Card
+    icon={<Cloud width={20} height={20} />}
+    title="Cloudflare Agents docs"
+    description="Cloudflare's official guide: Durable Object lifecycle, WebSocket protocol, tool patterns, multi-agent routing."
+    href="https://developers.cloudflare.com/agents/"
+  />
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="AI SDK runtime"
+    description="The runtime that handles the client side of this integration."
+    href="/docs/runtimes/ai-sdk/v6"
+  />
+</Cards>

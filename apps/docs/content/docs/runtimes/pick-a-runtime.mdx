@@ -10,7 +10,7 @@ import { LangGraphIcon } from "@/components/icons/langgraph";
 import { MastraIcon } from "@/components/icons/mastra";
 import { OpenCodeIcon } from "@/components/icons/opencode";
 import { VercelIcon } from "@/components/icons/vercel";
-import { Network } from "lucide-react";
+import { Cloud, Network } from "lucide-react";
 
 A runtime is the connection between assistant-ui's UI primitives and your AI backend. This page helps you pick one. Two lenses, pick whichever maps to what you already know.
 
@@ -76,6 +76,12 @@ assistant-ui ships React adapter packages for these. Pick the matching card and 
 For frameworks without a dedicated adapter, these wiring guides route through one of the adapters above.
 
   <Cards>
+    <Card
+      icon={<Cloud width={20} height={20} />}
+      title="Cloudflare Agents"
+      description="Stateful agents on Durable Objects with WebSocket streaming. Wired through the Vercel AI SDK runtime."
+      href="/docs/integrations/frameworks/cloudflare-agents/overview"
+    />
     <Card
       icon={<MastraIcon width={20} height={20} />}
       title="Mastra"
