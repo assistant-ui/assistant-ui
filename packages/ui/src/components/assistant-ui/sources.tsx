@@ -14,11 +14,6 @@ const extractDomain = (url: string): string => {
   }
 };
 
-const getDomainInitial = (url: string): string => {
-  const domain = extractDomain(url);
-  return domain.charAt(0).toUpperCase() || "?";
-};
-
 const defaultFaviconUrl = (domain: string) =>
   `https://icons.duckduckgo.com/ip3/${domain}.ico`;
 
@@ -31,8 +26,14 @@ function SourceIcon({
   url: string;
   faviconUrl?: (domain: string) => string;
 }) {
-  const [hasError, setHasError] = useState(false);
   const domain = extractDomain(url);
+  const src = faviconUrl(domain);
+  const [prevSrc, setPrevSrc] = useState(src);
+  const [hasError, setHasError] = useState(false);
+  if (prevSrc !== src) {
+    setPrevSrc(src);
+    setHasError(false);
+  }
 
   if (hasError) {
     return (
@@ -44,7 +45,7 @@ function SourceIcon({
         )}
         {...props}
       >
-        {getDomainInitial(url)}
+        {domain.charAt(0).toUpperCase() || "?"}
       </span>
     );
   }
@@ -52,7 +53,7 @@ function SourceIcon({
   return (
     <img
       data-slot="source-icon"
-      src={faviconUrl(domain)}
+      src={src}
       alt=""
       className={cn("size-3 shrink-0 rounded-sm", className)}
       onError={() => setHasError(true)}
