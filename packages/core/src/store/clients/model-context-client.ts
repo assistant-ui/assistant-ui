@@ -5,14 +5,19 @@ import type { ModelContextState } from "../scopes/model-context";
 
 const EMPTY_TOOL_NAMES: readonly string[] = [];
 
+const INITIAL_STATE: ModelContextState = {
+  modelName: undefined,
+  toolNames: EMPTY_TOOL_NAMES,
+};
+
 const toolNamesEqual = (
   a: readonly string[],
   b: readonly string[],
 ): boolean => {
+  if (a === b) return true;
   if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
-  }
+  const seen = new Set(a);
+  for (const name of b) if (!seen.has(name)) return false;
   return true;
 };
 
@@ -22,10 +27,8 @@ const deriveState = (
 ): ModelContextState => {
   const ctx = composite.getModelContext();
   const modelName = ctx.config?.modelName;
-  const toolKeys = ctx.tools
-    ? (Object.keys(ctx.tools) as readonly string[])
-    : undefined;
-  const toolNames = toolKeys?.length ? toolKeys : EMPTY_TOOL_NAMES;
+  const keys = ctx.tools ? Object.keys(ctx.tools) : EMPTY_TOOL_NAMES;
+  const toolNames = keys.length ? keys : EMPTY_TOOL_NAMES;
 
   if (modelName === prev.modelName && toolNamesEqual(toolNames, prev.toolNames))
     return prev;
@@ -35,12 +38,12 @@ const deriveState = (
 
 export const ModelContext = resource((): ClientOutput<"modelContext"> => {
   const composite = tapMemo(() => new CompositeContextProvider(), []);
-  const [state, setState] = tapState<ModelContextState>(() => ({
-    modelName: undefined,
-    toolNames: EMPTY_TOOL_NAMES,
-  }));
+  const [state, setState] = tapState<ModelContextState>(() =>
+    deriveState(composite, INITIAL_STATE),
+  );
 
   tapEffect(() => {
+    setState((prev) => deriveState(composite, prev));
     return composite.subscribe(() => {
       setState((prev) => deriveState(composite, prev));
     });
