@@ -5,6 +5,7 @@ import type {
   AppendMessage,
   AttachmentAdapter,
   FeedbackAdapter,
+  RemoteThreadListAdapter,
   SpeechSynthesisAdapter,
 } from "@assistant-ui/core";
 import {
@@ -18,7 +19,7 @@ import {
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
 import { useStream, type UseStreamOptions } from "@langchain/react";
-import type { LangChainBaseMessage } from "./types";
+import type { LangChainBaseMessage, LangChainToolCall } from "./types";
 import { convertLangChainBaseMessage } from "./convertMessages";
 
 const symbolLangChainRuntimeExtras = Symbol("langchain-runtime-extras");
@@ -56,6 +57,45 @@ type LangChainRuntimeExtraOptions = {
         feedback?: FeedbackAdapter | undefined;
       }
     | undefined;
+  /**
+   * When the user sends a new message while previous tool calls are
+   * still pending, automatically submit `tool` messages that cancel
+   * them so the agent's tool-call accounting stays consistent.
+   * Defaults to `true`.
+   */
+  autoCancelPendingToolCalls?: boolean | undefined;
+  /**
+   * Enables the Cancel button in the composer and routes its click to
+   * `useStream().stop()`. Off by default.
+   */
+  unstable_allowCancellation?: boolean | undefined;
+  /**
+   * Custom `RemoteThreadListAdapter`. When provided, replaces the
+   * cloud-backed thread list adapter.
+   */
+  unstable_threadListAdapter?: RemoteThreadListAdapter | undefined;
+  /** Custom thread-creation hook, forwarded to the cloud adapter. */
+  create?: (() => Promise<{ externalId: string | undefined }>) | undefined;
+  /** Custom thread-deletion hook, forwarded to the cloud adapter. */
+  delete?: ((threadId: string) => Promise<void>) | undefined;
+};
+
+const getPendingToolCalls = (
+  messages: readonly LangChainBaseMessage[],
+): LangChainToolCall[] => {
+  const pending = new Map<string, LangChainToolCall>();
+  for (const m of messages) {
+    const type =
+      typeof m._getType === "function"
+        ? m._getType()
+        : (m as unknown as { type: string }).type;
+    if (type === "ai") {
+      for (const tc of m.tool_calls ?? []) pending.set(tc.id, tc);
+    } else if (type === "tool" && m.tool_call_id) {
+      pending.delete(m.tool_call_id);
+    }
+  }
+  return [...pending.values()];
 };
 
 // Distribute the intersection through the union arms of `UseStreamOptions`
@@ -120,9 +160,13 @@ type DistributiveOmit<T, K extends keyof any> = T extends unknown
   : never;
 
 const useStreamThreadRuntime = (
-  options: DistributiveOmit<UseStreamRuntimeOptions, "cloud">,
+  options: DistributiveOmit<
+    UseStreamRuntimeOptions,
+    "cloud" | "unstable_threadListAdapter" | "create" | "delete"
+  >,
 ) => {
-  const { adapters } = options;
+  const { adapters, autoCancelPendingToolCalls, unstable_allowCancellation } =
+    options;
   const messagesKey = options.messagesKey ?? "messages";
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
@@ -220,8 +264,20 @@ const useStreamThreadRuntime = (
     onNew: async (msg) => {
       await toolInvocations.abort();
       const content = getMessageContent(msg);
+      const cancellations =
+        autoCancelPendingToolCalls !== false
+          ? getPendingToolCalls(
+              streamRef.current.messages as readonly LangChainBaseMessage[],
+            ).map((t) => ({
+              type: "tool" as const,
+              name: t.name,
+              tool_call_id: t.id,
+              content: JSON.stringify({ cancelled: true }),
+              status: "error" as const,
+            }))
+          : [];
       await stream.submit({
-        [messagesKey]: [{ type: "human", content }],
+        [messagesKey]: [...cancellations, { type: "human", content }],
       });
     },
     onAddToolResult: async ({
@@ -244,10 +300,12 @@ const useStreamThreadRuntime = (
         ],
       });
     },
-    onCancel: async () => {
-      await stream.stop();
-      await toolInvocations.abort();
-    },
+    onCancel: unstable_allowCancellation
+      ? async () => {
+          await stream.stop();
+          await toolInvocations.abort();
+        }
+      : undefined,
   });
 
   return runtime;
@@ -277,20 +335,31 @@ const useStreamThreadRuntime = (
  * }
  * ```
  */
-export const useStreamRuntime = ({
-  cloud,
-  ...options
-}: UseStreamRuntimeOptions) => {
+export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
+  const {
+    cloud,
+    unstable_threadListAdapter,
+    create,
+    delete: deleteFn,
+    ...options
+  } = rawOptions;
+
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
-  const cloudAdapter = useCloudThreadListAdapter({ cloud });
+  const cloudAdapter = useCloudThreadListAdapter({
+    cloud,
+    ...(create && { create }),
+    ...(deleteFn && { delete: deleteFn }),
+  });
+  const adapter = unstable_threadListAdapter ?? cloudAdapter;
+
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       return useStreamThreadRuntime(optionsRef.current);
     },
-    adapter: cloudAdapter,
+    adapter,
     allowNesting: true,
   });
 };
