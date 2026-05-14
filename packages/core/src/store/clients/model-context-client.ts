@@ -42,6 +42,8 @@ export const ModelContext = resource((): ClientOutput<"modelContext"> => {
   }, [composite]);
 
   return {
+    // Reads live from composite so a synchronous register() is observable
+    // before the subscribe callback's setState microtask flushes.
     getState: () => deriveState(composite, state),
     getModelContext: () => composite.getModelContext(),
     subscribe: (callback) => composite.subscribe(callback),
