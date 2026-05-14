@@ -75,11 +75,7 @@ describe("createAddComponentsPlan", () => {
       }),
     ).toEqual({
       command: "bunx",
-      args: [
-        "shadcn@latest",
-        "add",
-        "https://r.assistant-ui.com/thread.json",
-      ],
+      args: ["shadcn@latest", "add", "https://r.assistant-ui.com/thread.json"],
     });
   });
 

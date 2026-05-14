@@ -129,9 +129,7 @@ describe("resolveScaffoldSelector", () => {
   });
 
   it("rejects --native with --ink", () => {
-    expect(() =>
-      resolveScaffoldSelector({ native: true, ink: true }),
-    ).toThrow(
+    expect(() => resolveScaffoldSelector({ native: true, ink: true })).toThrow(
       "Only one scaffold selector can be provided (--native, --ink). Choose one of: --template <name>, --example <name>, --preset <name-or-url>, --native, or --ink.",
     );
   });
