@@ -16,15 +16,26 @@ import { useAssistantDataUI, useAssistantToolUI } from "@/generated/typeDocs";
 
 ### DataRenderers
 
+Registers renderers for `data` message parts.
+
+Data renderers are looked up by the part's `name` field. Use this resource
+directly for a renderer scope, or prefer [useAssistantDataUI](/docs/api-reference/tools/rendering#useassistantdataui) /
+[makeAssistantDataUI](/docs/api-reference/tools/rendering#makeassistantdataui) when registering from React components.
+
 ```ts
 const DataRenderers: () => ResourceElement<ClientOutput<"dataRenderers">, undefined>;
 ```
 
 ### makeAssistantDataUI
 
+Creates a React component that registers a named data-part renderer when
+rendered.
+
 ```ts
 type AssistantDataUIProps = {
+  /** Data part name this renderer handles. */
   name: string;
+  /** Component rendered for matching data message parts. */
   render: DataMessagePartComponent<T>;
 };
 
@@ -33,9 +44,16 @@ const makeAssistantDataUI: <T = any>(dataUI: AssistantDataUIProps<T>) => Assista
 
 ### makeAssistantToolUI
 
+Creates a React component that registers a tool-call renderer when rendered.
+
+Use this to package reusable display components for tools whose definitions
+are registered elsewhere.
+
 ```ts
 type AssistantToolUIProps = {
+  /** Name of the tool whose calls should use this renderer. */
   toolName: string;
+  /** Component rendered for matching tool-call message parts. */
   render: ToolCallMessagePartComponent<TArgs, TResult>;
 };
 
@@ -44,9 +62,18 @@ const makeAssistantToolUI: <TArgs, TResult>(tool: AssistantToolUIProps<TArgs, TR
 
 ### useAssistantDataUI
 
+Registers a renderer for named `data` message parts while the component is
+mounted.
+
 <ParametersTable {...useAssistantDataUI} />
 
 ### useAssistantToolUI
+
+Registers a tool-call renderer while the component is mounted.
+
+This only affects rendering. Pair it with [useAssistantTool](/docs/api-reference/tools/definition#useassistanttool),
+[Tools](/docs/api-reference/tools/definition#tools), or a backend tool registry to expose the actual tool
+definition to the model.
 
 <ParametersTable {...useAssistantToolUI} />
 {/* api-reference:end */}

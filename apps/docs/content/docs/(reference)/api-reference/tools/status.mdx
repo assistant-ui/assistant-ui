@@ -16,6 +16,12 @@ description: Read tool arguments, execution status, and result state inside assi
 
 ### useToolArgsStatus
 
+Reads whether each argument field for the current tool-call message part is
+still streaming or complete.
+
+Use inside a tool-call renderer to avoid showing incomplete argument values
+as final.
+
 ```ts
 const useToolArgsStatus: <TArgs extends Record<string, unknown> = Record<string, unknown>>() => ToolArgsStatus<TArgs>;
 ```
