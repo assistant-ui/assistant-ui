@@ -18,7 +18,7 @@ Cloudflare Agents handles the server half: a Durable Object subclasses `AIChatAg
 
 assistant-ui handles the client half. `useAISDKRuntime` from [`@assistant-ui/react-ai-sdk`](/docs/runtimes/ai-sdk/v6) reads exactly those AI SDK methods off whatever you pass in, so feeding it `useAgentChat`'s return value yields a fully-featured runtime: streaming, tool calling, edit, reload, history import and export, attachments, suggestions.
 
-Shared adapters (attachments, speech, feedback, history) work the same way as described in [adapters](/docs/runtimes/concepts/adapters). Multi-thread support uses [AssistantCloud](/docs/cloud) or a [custom thread list](/docs/runtimes/concepts/threads).
+Shared adapters (attachments, speech, feedback, history) work the same way as described in [adapters](/docs/runtimes/concepts/adapters). Multi-thread support needs a [custom thread list](/docs/runtimes/concepts/threads) wired around `useAISDKRuntime`; [AssistantCloud](/docs/cloud) integrates via `useChatRuntime` (which constructs its own `useChat` internally) and is not compatible with the `useAgentChat` wiring shown here.
 
 ## Requirements
 
@@ -60,7 +60,10 @@ import { AIChatAgent } from "@cloudflare/ai-chat";
 import { openai } from "@ai-sdk/openai";
 import { streamText, convertToModelMessages } from "ai";
 
-type Env = { OPENAI_API_KEY: string };
+export type Env = {
+  OPENAI_API_KEY: string;
+  Chat: DurableObjectNamespace<Chat>;
+};
 
 export class Chat extends AIChatAgent<Env> {
   async onChatMessage(onFinish: Parameters<typeof streamText>[0]["onFinish"]) {
@@ -73,6 +76,8 @@ export class Chat extends AIChatAgent<Env> {
 }
 ```
 
+`Env` is exported alongside `Chat` so the Worker entry point can reuse the same type. The `Chat: DurableObjectNamespace<Chat>` field mirrors the binding declared in `wrangler.jsonc` (next step) and is what `routeAgentRequest` looks up to resolve the agent. `DurableObjectNamespace` is a global from `@cloudflare/workers-types`, which the `npm create cloudflare` scaffold sets up by default.
+
 `this.messages` is the persisted history for this Durable Object instance. Each unique agent `name` you connect with from the client (step 7) gets its own instance and its own message log.
 
 </Step>
@@ -83,7 +88,7 @@ export class Chat extends AIChatAgent<Env> {
 
 ```ts title="src/index.ts"
 import { routeAgentRequest } from "agents";
-import { Chat } from "./chat";
+import { Chat, type Env } from "./chat";
 
 export { Chat };
 
@@ -231,7 +236,7 @@ NEXT_PUBLIC_AGENT_HOST=http://localhost:8787
 
 ### Type compatibility with `useChat`
 
-`useAgentChat`'s return type is `Omit<ReturnType<typeof useChat>, "addToolOutput"> & { ... }`. The `addToolOutput` option shape differs slightly between the two: `useChat` accepts `{ state, tool, toolCallId, ... }`; `useAgentChat` accepts `{ state, toolCallId, toolName?, ... }`. At runtime the call paths converge through `useAISDKRuntime` without issue. If the TypeScript compiler flags the call, cast at the call site: `useAISDKRuntime(chat as Parameters<typeof useAISDKRuntime>[0])`, or `chat as unknown as Parameters<typeof useAISDKRuntime>[0]` if TypeScript still refuses the direct cast. (`satisfies` does not help here; it validates assignability without changing the inferred type, so it surfaces the same error.)
+`useAgentChat`'s return type is `Omit<ReturnType<typeof useChat>, "addToolOutput"> & { ... }`. The `addToolOutput` option shape differs slightly between the two: `useChat` accepts `{ state, tool, toolCallId, ... }`; `useAgentChat` accepts `{ state, toolCallId, toolName?, ... }`. At runtime the call paths converge through `useAISDKRuntime` without issue (verified against `@cloudflare/ai-chat@0.7.0`). If the TypeScript compiler flags the call, cast at the call site: `useAISDKRuntime(chat as Parameters<typeof useAISDKRuntime>[0])`, or `chat as unknown as Parameters<typeof useAISDKRuntime>[0]` if TypeScript still refuses the direct cast. (`satisfies` does not help here; it validates assignability without changing the inferred type, so it surfaces the same error.)
 
 ### Cloudflare-specific extras
 
