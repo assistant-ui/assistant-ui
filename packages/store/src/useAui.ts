@@ -366,10 +366,11 @@ export namespace useAui {
  * {@link AssistantRuntimeProvider}, then access a scope on it —
  * `aui.thread()`, `aui.composer()`, `aui.message()`, and so on. Pair
  * with {@link useAuiState} to read reactive state and {@link useAuiEvent}
- * to subscribe to events.
+ * to subscribe to events. The returned client also exposes lower-level
+ * methods such as `aui.on(...)` and `aui.subscribe(...)`.
  *
  * Rendered outside a provider, the returned client's scope accessors
- * throw a descriptive error the first time they are read.
+ * throw a descriptive error whenever they are called.
  *
  * @example
  * ```tsx
@@ -377,6 +378,17 @@ export namespace useAui {
  *
  * const onSend = () => aui.composer().send();
  * const onCancel = () => aui.thread().cancelRun();
+ * ```
+ *
+ * @example
+ * ```tsx
+ * const aui = useAui();
+ *
+ * useEffect(() => {
+ *   return aui.on("thread.modelContextUpdate", () => {
+ *     refreshModelContext();
+ *   });
+ * }, [aui]);
  * ```
  *
  * @example
@@ -396,13 +408,36 @@ export function useAui(): AssistantClient;
 /**
  * Extends the parent `AssistantClient` with additional scopes.
  *
- * Advanced overload used when building primitives or providers — for
- * example, when a custom provider needs to register a `message`, `part`,
- * or other scope onto the client visible to its descendants. Application
- * code rarely reaches for this; use {@link useAui} with no arguments to
- * read the existing client.
+ * Highly experimental advanced overload used when building primitives or
+ * providers — for example, when a custom provider needs to register a
+ * `message`, `part`, or other scope onto the client visible to its
+ * descendants. This API may change in a minor release. Application code
+ * rarely reaches for this; use {@link useAui} with no arguments to read
+ * the existing client.
+ *
+ * @example
+ * ```tsx
+ * const aui = useAui({
+ *   message: Derived({
+ *     source: "thread",
+ *     query: { index: 0 },
+ *     get: (aui) => aui.thread().message({ index: 0 }),
+ *   }),
+ * });
+ *
+ * const role = useAuiState((s) => s.message.role);
+ * ```
+ *
+ * @deprecated This API is highly experimental and may be changed in a
+ * minor release.
  */
 export function useAui(clients: useAui.Props): AssistantClient;
+/**
+ * Extends an explicit parent `AssistantClient` with additional scopes.
+ *
+ * @deprecated This API is highly experimental and may be changed in a
+ * minor release.
+ */
 export function useAui(
   clients: useAui.Props,
   config: { parent: null | AssistantClient },

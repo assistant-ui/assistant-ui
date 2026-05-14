@@ -98,11 +98,11 @@ export const useAssistantContextValue = (): AssistantClient => {
  *
  * @example
  * ```tsx
- * const client = createAssistantClient({ ... });
+ * function ScopedAssistant({ children, scopes }) {
+ *   const aui = useAui(scopes);
  *
- * <AuiProvider value={client}>
- *   <App />
- * </AuiProvider>
+ *   return <AuiProvider value={aui}>{children}</AuiProvider>;
+ * }
  * ```
  */
 export const AuiProvider = ({

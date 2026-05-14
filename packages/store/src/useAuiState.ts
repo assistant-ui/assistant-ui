@@ -11,7 +11,10 @@ import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
  * compared by `Object.is`, and the component re-renders only when the
  * selected slice changes. Returning the entire state object is not
  * supported and throws at runtime — select a specific field instead, or
- * compose multiple `useAuiState` calls.
+ * compose multiple `useAuiState` calls. Returning a new object or array
+ * literal, including spreading `s.thread` into a new object, causes a
+ * re-render on every store update; either select primitives or return a
+ * memoized reference.
  *
  * @param selector - Pure function that derives a value from the current
  *   assistant state. Should be cheap and referentially stable for equal

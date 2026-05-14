@@ -16,17 +16,20 @@ import { normalizeEventSelector } from "./types/events";
  * shim, so the latest closure is invoked on each emission — you do not
  * need to memoize it.
  *
- * @param selector - Either a dotted event name like `"thread.runStart"`
- *   or an object `{ scope, event }`. Use `scope: "*"` to listen across
- *   every instance of a scope rather than only the one in context.
+ * @param selector - Either a dotted event name like
+ *   `"thread.modelContextUpdate"` or an object `{ scope, event }`. Use
+ *   `scope: "*"` to subscribe at the root client and receive emissions
+ *   from any descendant scope, regardless of which one is in React
+ *   context.
  * @param callback - Invoked with the event payload. The most recent
- *   reference is always called.
+ *   reference is always called. Return values are ignored, async callbacks
+ *   are not awaited, and the callback cannot be called during render.
  *
  * @example
  * ```tsx
- * // Scroll the viewport when the active thread starts a run.
- * useAuiEvent("thread.runStart", () => {
- *   scrollToBottom();
+ * // React to transient model-context changes.
+ * useAuiEvent("thread.modelContextUpdate", ({ threadId }) => {
+ *   analytics.track("model_context_update", { threadId });
  * });
  * ```
  *
@@ -40,9 +43,9 @@ import { normalizeEventSelector } from "./types/events";
  *
  * @example
  * ```tsx
- * // Listen globally across every thread, not just the one in scope.
- * useAuiEvent({ scope: "*", event: "thread.runEnd" }, (payload) => {
- *   analytics.track("run_end", payload);
+ * // Listen from the root client rather than the current React context.
+ * useAuiEvent({ scope: "*", event: "thread.modelContextUpdate" }, (payload) => {
+ *   analytics.track("model_context_update", payload);
  * });
  * ```
  */

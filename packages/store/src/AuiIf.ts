@@ -9,7 +9,7 @@ export namespace AuiIf {
   export type Props = PropsWithChildren<{
     /**
      * Selector that decides whether to render `children`. Children render
-     * when this returns truthy and unmount when it becomes falsy.
+     * when this returns `true` and unmount when it returns `false`.
      */
     condition: AuiIf.Condition;
   }>;
@@ -25,8 +25,9 @@ export namespace AuiIf {
  * Conditionally renders children based on a slice of assistant state.
  *
  * A thin wrapper around {@link useAuiState} that renders its children
- * when `condition` returns truthy and unmounts them when it returns
- * falsy. Keeps render logic declarative without mounting unused subtrees.
+ * when `condition` returns `true` and unmounts them when it returns
+ * `false`. Keeps render logic declarative without mounting unused
+ * subtrees.
  *
  * @example
  * ```tsx

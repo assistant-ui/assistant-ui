@@ -209,7 +209,9 @@ const useMessagePart: { (): MessagePartState; <TSelected>(selector: (state: Mess
 ### useMessagePartData
 
 <Callout type="warn">
-<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.part)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate) to select and narrow `s.part`.
+Return `null` for optional rendering, or throw inside the selector to
+preserve the old hook's strict behavior.
 </Callout>
 
 <ParametersTable {...useMessagePartData} />
@@ -217,7 +219,9 @@ const useMessagePart: { (): MessagePartState; <TSelected>(selector: (state: Mess
 ### useMessagePartFile
 
 <Callout type="warn">
-<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.part)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate) to select and narrow `s.part`.
+Return `null` for optional rendering, or throw inside the selector to
+preserve the old hook's strict behavior.
 </Callout>
 
 ```ts
@@ -227,7 +231,9 @@ const useMessagePartFile: () => FileMessagePart & { readonly status: MessagePart
 ### useMessagePartImage
 
 <Callout type="warn">
-<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.part)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate) to select and narrow `s.part`.
+Return `null` for optional rendering, or throw inside the selector to
+preserve the old hook's strict behavior.
 </Callout>
 
 ```ts
@@ -237,7 +243,9 @@ const useMessagePartImage: () => ImageMessagePart & { readonly status: MessagePa
 ### useMessagePartReasoning
 
 <Callout type="warn">
-<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.part)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate) to select and narrow `s.part`.
+Return `null` for optional rendering, or throw inside the selector to
+preserve the old hook's strict behavior.
 </Callout>
 
 ```ts
@@ -255,7 +263,9 @@ const useMessagePartReasoning: () => ReasoningMessagePart & { readonly status: M
 ### useMessagePartSource
 
 <Callout type="warn">
-<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.part)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate) to select and narrow `s.part`.
+Return `null` for optional rendering, or throw inside the selector to
+preserve the old hook's strict behavior.
 </Callout>
 
 ```ts
@@ -265,7 +275,9 @@ const useMessagePartSource: () => ({ readonly type: "source"; readonly sourceTyp
 ### useMessagePartText
 
 <Callout type="warn">
-<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate): `useAuiState((s) => s.part)`. See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+<strong>Deprecated.</strong> Use [useAuiState](/docs/api-reference/hooks/state#useauistate) to select and narrow `s.part`.
+Return `null` for optional rendering, or throw inside the selector to
+preserve the old hook's strict behavior.
 </Callout>
 
 ```ts

@@ -22,10 +22,11 @@ Read the client supplied by the nearest [AuiProvider](/docs/api-reference/contex
 [AssistantRuntimeProvider](/docs/api-reference/context-providers/assistant-runtime-provider#assistantruntimeprovider), then access a scope on it —
 `aui.thread()`, `aui.composer()`, `aui.message()`, and so on. Pair
 with [useAuiState](/docs/api-reference/hooks/state#useauistate) to read reactive state and [useAuiEvent](/docs/api-reference/hooks/state#useauievent)
-to subscribe to events.
+to subscribe to events. The returned client also exposes lower-level
+methods such as `aui.on(...)` and `aui.subscribe(...)`.
 
 Rendered outside a provider, the returned client's scope accessors
-throw a descriptive error the first time they are read.
+throw a descriptive error whenever they are called.
 
 {/* api-example:useAui:start */}
 ```tsx
@@ -56,8 +57,8 @@ need to memoize it.
 ```tsx
 import { useAuiEvent } from "@assistant-ui/react";
 
-useAuiEvent("thread.runStart", (payload) => {
-  console.log("Run started", payload);
+useAuiEvent("thread.modelContextUpdate", ({ threadId }) => {
+  console.log("Model context updated", threadId);
 });
 ```
 {/* api-example:useAuiEvent:end */}
@@ -73,7 +74,10 @@ The `selector` is called on every store update; its return value is
 compared by `Object.is`, and the component re-renders only when the
 selected slice changes. Returning the entire state object is not
 supported and throws at runtime — select a specific field instead, or
-compose multiple `useAuiState` calls.
+compose multiple `useAuiState` calls. Returning a new object or array
+literal, including spreading `s.thread` into a new object, causes a
+re-render on every store update; either select primitives or return a
+memoized reference.
 
 {/* api-example:useAuiState:start */}
 ```tsx
