@@ -54,10 +54,7 @@ describe("ModelContext", () => {
         .register(provider({ tools: { foo: stubTool(), bar: stubTool() } }));
       await tick();
 
-      expect([...sub.getValue().getState().toolNames].sort()).toEqual([
-        "bar",
-        "foo",
-      ]);
+      expect(sub.getValue().getState().toolNames).toEqual(["bar", "foo"]);
     } finally {
       unmount();
     }
@@ -93,6 +90,17 @@ describe("ModelContext", () => {
       await tick();
       expect(sub.getValue().getState().modelName).toBeUndefined();
       expect(sub.getValue().getState().toolNames).toEqual([]);
+    } finally {
+      unmount();
+    }
+  });
+
+  it("reflects modelName synchronously after register without awaiting", () => {
+    const { sub, unmount } = render();
+    try {
+      sub.getValue().register(provider({ config: { modelName: "gpt-4" } }));
+
+      expect(sub.getValue().getState().modelName).toBe("gpt-4");
     } finally {
       unmount();
     }

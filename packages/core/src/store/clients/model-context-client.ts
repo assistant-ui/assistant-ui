@@ -27,7 +27,7 @@ const deriveState = (
 ): ModelContextState => {
   const ctx = composite.getModelContext();
   const modelName = ctx.config?.modelName;
-  const keys = ctx.tools ? Object.keys(ctx.tools) : EMPTY_TOOL_NAMES;
+  const keys = ctx.tools ? Object.keys(ctx.tools).sort() : EMPTY_TOOL_NAMES;
   const toolNames = keys.length ? keys : EMPTY_TOOL_NAMES;
 
   if (modelName === prev.modelName && toolNamesEqual(toolNames, prev.toolNames))
@@ -50,7 +50,7 @@ export const ModelContext = resource((): ClientOutput<"modelContext"> => {
   }, [composite]);
 
   return {
-    getState: () => state,
+    getState: () => deriveState(composite, state),
     getModelContext: () => composite.getModelContext(),
     subscribe: (callback) => composite.subscribe(callback),
     register: (provider) => composite.registerModelContextProvider(provider),
