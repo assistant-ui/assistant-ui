@@ -69,6 +69,12 @@ type UseToolInvocationsParams = {
   ) => void;
 };
 
+/**
+ * Streaming execution state for a frontend tool.
+ *
+ * Custom runtime integrations use this to mirror in-flight tool calls while
+ * `useToolInvocations` executes tools in the browser.
+ */
 export type ToolExecutionStatus =
   | {
       /** The tool's execute function is currently running. */

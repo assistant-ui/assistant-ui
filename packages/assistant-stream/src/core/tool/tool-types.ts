@@ -14,7 +14,10 @@ export type ToolModelContentPart =
   | {
       /** A file content part returned to the model after a tool call. */
       readonly type: "file";
-      /** File payload encoded as a string. */
+      /**
+       * File payload encoded as a provider-compatible string, commonly base64
+       * for binary data.
+       */
       readonly data: string;
       /** MIME type for the file payload. */
       readonly mediaType: string;
@@ -27,7 +30,25 @@ export type ToolModelContentPart =
  * model.
  *
  * Return this when the value shown in the UI or stored as the tool result
- * should differ from the model-visible response.
+ * should differ from the model-visible response. When omitted, the successful
+ * tool result is sent back to the model as-is. If a tool returns a
+ * `ToolResponse` with `modelContent`, that explicit content is used instead
+ * of calling this function.
+ *
+ * @example
+ * ```ts
+ * const toModelOutput: ToolModelOutputFunction<
+ *   { documentId: string },
+ *   { summary: string; pdfBase64: string }
+ * > = ({ output }) => [
+ *   { type: "text", text: output.summary },
+ *   {
+ *     type: "file",
+ *     data: output.pdfBase64,
+ *     mediaType: "application/pdf",
+ *   },
+ * ];
+ * ```
  */
 export type ToolModelOutputFunction<TArgs, TResult> = (options: {
   /** Stable identifier for the tool call being converted. */
@@ -120,8 +141,8 @@ export type ToolExecutionContext = {
   /** Signal that is aborted when the current run is cancelled. */
   abortSignal: AbortSignal;
   /**
-   * Requests human input for a {@link Tool} with `type: "human"` and resolves
-   * with the payload supplied by the UI.
+   * From inside a frontend tool's execute function, request human input from
+   * the UI. Resolves with the payload the UI supplies.
    */
   human: (payload: unknown) => Promise<unknown>;
 };
@@ -168,7 +189,7 @@ type BackendTool<
   description?: undefined;
   /** Backend tools receive their parameter schema from the backend. */
   parameters?: undefined;
-  /** Backend tools cannot be disabled from the frontend tool definition. */
+  /** Backend tools are disabled or filtered by the backend tool registry. */
   disabled?: undefined;
   /** Backend tools are not executed by the frontend runtime. */
   execute?: undefined;
@@ -226,6 +247,40 @@ type HumanTool<
  * Use `type: "frontend"` for tools executed in the browser, `type: "backend"`
  * for tools handled by your server, and `type: "human"` for flows that pause
  * until the UI supplies a result.
+ *
+ * @example
+ * ```ts
+ * const frontendTool: Tool<{ city: string }, string> = {
+ *   type: "frontend",
+ *   description: "Get the weather for a city.",
+ *   parameters: {
+ *     type: "object",
+ *     properties: { city: { type: "string" } },
+ *     required: ["city"],
+ *   },
+ *   execute: async ({ city }) => `Sunny in ${city}`,
+ * };
+ * ```
+ *
+ * @example
+ * ```ts
+ * const backendTool: Tool = {
+ *   type: "backend",
+ * };
+ * ```
+ *
+ * @example
+ * ```ts
+ * const humanTool: Tool<{ question: string }, string> = {
+ *   type: "human",
+ *   description: "Ask the user a follow-up question.",
+ *   parameters: {
+ *     type: "object",
+ *     properties: { question: { type: "string" } },
+ *     required: ["question"],
+ *   },
+ * };
+ * ```
  */
 export type Tool<
   TArgs extends Record<string, unknown> = Record<string, unknown>,

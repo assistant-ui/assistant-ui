@@ -25,6 +25,23 @@ export type ToolArgsStatus<
  *
  * Use inside a tool-call renderer to avoid showing incomplete argument values
  * as final.
+ *
+ * @throws If called outside a tool-call message part.
+ *
+ * @example
+ * ```tsx
+ * function WeatherToolUI({
+ *   args,
+ * }: ToolCallMessagePartProps<{ city: string }>) {
+ *   const { propStatus } = useToolArgsStatus<{ city: string }>();
+ *
+ *   return (
+ *     <span>
+ *       {propStatus.city === "streaming" ? "Reading city..." : args.city}
+ *     </span>
+ *   );
+ * }
+ * ```
  */
 export const useToolArgsStatus = <
   TArgs extends Record<string, unknown> = Record<string, unknown>,

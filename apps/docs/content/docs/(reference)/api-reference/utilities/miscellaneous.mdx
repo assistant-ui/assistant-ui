@@ -32,6 +32,12 @@ import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, ExportedMessageRep
 
 ### getMcpAppFromToolPart
 
+Returns MCP app metadata for a tool-call part that points at a `ui://`
+resource.
+
+Returns `undefined` when the part has no MCP app metadata or the metadata
+does not reference an assistant-ui MCP app resource.
+
 <ParametersTable {...getMcpAppFromToolPart} />
 
 ### InMemoryThreadList
@@ -52,9 +58,22 @@ const makeAssistantVisible: <T extends ComponentType<any>>(Component: T, config?
 
 ### McpAppRenderer
 
+Creates a tool-call renderer for MCP Apps embedded in assistant messages.
+
+Compose this into the `Tools` resource through its `mcpApp` option. When a
+tool-call part carries `mcp.app` metadata for a `ui://` resource, the
+renderer loads that resource from the configured host and displays it in a
+sandboxed frame.
+
 <ParametersTable {...McpAppRenderer} />
 
 ### McpAppsRemoteHost
+
+Creates the default HTTP host for MCP App widgets.
+
+The host POSTs widget requests to the configured route as `{ method,
+params }`, using the method names expected by the assistant-ui MCP Apps
+guide.
 
 <ParametersTable {...McpAppsRemoteHost} />
 

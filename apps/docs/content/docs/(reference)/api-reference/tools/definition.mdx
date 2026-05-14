@@ -35,9 +35,10 @@ const makeAssistantTool: <TArgs extends Record<string, unknown>, TResult>(tool: 
 Defines a model tool with its argument schema, execution behavior, and
 optional model-output conversion.
 
-This helper preserves the inferred argument and result types from the tool
-object, making it convenient to export reusable tool definitions for a
-[Toolkit](/docs/api-reference/tools/definition#toolkit), [Tools](/docs/api-reference/tools/definition#tools), or [useAssistantTool](/docs/api-reference/tools/definition#useassistanttool).
+This helper keeps reusable tool definitions type-checked and convenient to
+export for a [Toolkit](/docs/api-reference/tools/definition#toolkit), [Tools](/docs/api-reference/tools/definition#tools), or [useAssistantTool](/docs/api-reference/tools/definition#useassistanttool).
+Inference from parameter schemas is currently limited, so provide generic
+arguments when you need precise args or result types.
 
 <ParametersTable {...tool} />
 
@@ -45,9 +46,10 @@ object, making it convenient to export reusable tool definitions for a
 
 Tool definition accepted by the React tool registry.
 
-Extends the core tool contract with an optional render component. Frontend
-and human tools require a renderer so users can inspect the call and provide
-results when needed; backend tools may omit one.
+Extends the core tool contract with a render component. Human tools rely on
+the renderer to collect input from the user. Frontend tools execute in the
+browser and require a UI surface for their progress and result. Backend
+tools execute server-side and may omit a renderer.
 
 <ParametersTable {...ToolDefinition} />
 
@@ -80,6 +82,9 @@ mounted.
 If `render` is provided, it is also installed as the renderer for matching
 tool-call message parts. The registration is removed automatically when the
 component unmounts or the tool definition changes.
+
+Pass a referentially stable tool object, such as one declared at module
+scope or memoized with `useMemo`, to avoid re-registering on every render.
 
 <ParametersTable {...useAssistantTool} />
 {/* api-reference:end */}

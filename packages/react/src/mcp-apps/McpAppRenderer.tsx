@@ -192,6 +192,14 @@ function InlineRenderer({
   );
 }
 
+/**
+ * Creates a tool-call renderer for MCP Apps embedded in assistant messages.
+ *
+ * Compose this into the `Tools` resource through its `mcpApp` option. When a
+ * tool-call part carries `mcp.app` metadata for a `ui://` resource, the
+ * renderer loads that resource from the configured host and displays it in a
+ * sandboxed frame.
+ */
 export const McpAppRenderer = resource(
   (
     options: McpAppRendererOptions,

@@ -26,6 +26,13 @@ async function postToHost(
   return res.json();
 }
 
+/**
+ * Creates the default HTTP host for MCP App widgets.
+ *
+ * The host POSTs widget requests to the configured route as `{ method,
+ * params }`, using the method names expected by the assistant-ui MCP Apps
+ * guide.
+ */
 export const McpAppsRemoteHost = resource(
   (options: McpAppsRemoteHostOptions): McpAppsHost => {
     const optionsRef = tapRef(options);

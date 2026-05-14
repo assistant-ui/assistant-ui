@@ -20,9 +20,10 @@ type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
 /**
  * Tool definition accepted by the React tool registry.
  *
- * Extends the core tool contract with an optional render component. Frontend
- * and human tools require a renderer so users can inspect the call and provide
- * results when needed; backend tools may omit one.
+ * Extends the core tool contract with a render component. Human tools rely on
+ * the renderer to collect input from the user. Frontend tools execute in the
+ * browser and require a UI surface for their progress and result. Backend
+ * tools execute server-side and may omit a renderer.
  */
 export type ToolDefinition<
   TArgs extends Record<string, unknown>,
@@ -33,6 +34,19 @@ export type ToolDefinition<
  * Named collection of tools exposed to the assistant model.
  *
  * Keys are the tool names the model receives and uses in tool calls.
+ *
+ * @example
+ * ```tsx
+ * const toolkit = {
+ *   get_weather: {
+ *     type: "frontend",
+ *     description: "Get the weather for a city.",
+ *     parameters: weatherSchema,
+ *     execute: async ({ city }: { city: string }) => fetchWeather(city),
+ *     render: WeatherToolUI,
+ *   },
+ * } satisfies Toolkit;
+ * ```
  */
 export type Toolkit = Record<string, ToolDefinition<any, any>>;
 

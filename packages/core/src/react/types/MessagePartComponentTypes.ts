@@ -58,13 +58,15 @@ export type ToolCallMessagePartProps<
 > = MessagePartState &
   ToolCallMessagePart<TArgs, TResult> & {
     /**
-     * Adds a result for this tool-call message part and resumes the run when
-     * the tool is waiting for UI input.
+     * Sets the result for this tool-call message part.
+     *
+     * Use when the renderer, rather than a tool `execute` function, is the
+     * source of the result.
      */
     addResult: (result: TResult | ToolResponse<TResult>) => void;
     /**
-     * Supplies the payload requested by a human tool interrupt and resumes the
-     * current tool-call message part.
+     * Supplies the payload requested by `context.human(...)` and resumes the
+     * paused frontend tool execution.
      */
     resume: (payload: unknown) => void;
   };

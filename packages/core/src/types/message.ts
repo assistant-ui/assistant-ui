@@ -98,13 +98,17 @@ export type ToolCallMessagePart<
   readonly toolCallId: string;
   /** Name of the tool requested by the model. */
   readonly toolName: string;
-  /** Parsed arguments supplied by the model. */
+  /**
+   * Arguments supplied by the model. During streaming this is a partial parse:
+   * fields may be missing or incomplete. From a tool-call renderer, use
+   * `useToolArgsStatus` to detect which fields are still arriving.
+   */
   readonly args: TArgs;
   /** Result returned by the tool, if it has completed. */
   readonly result?: TResult | undefined;
   /** Whether the result represents a tool execution error. */
   readonly isError?: boolean | undefined;
-  /** Raw argument text streamed by the model. */
+  /** Raw JSON argument text streamed by the model. */
   readonly argsText: string;
   /** UI-only artifact associated with the tool result. */
   readonly artifact?: unknown;
@@ -116,7 +120,10 @@ export type ToolCallMessagePart<
   readonly interrupt?: { type: "human"; payload: unknown };
   /** Parent message-part ID when this part belongs to a nested structure. */
   readonly parentId?: string;
-  /** Messages associated with this tool call, when provided by the runtime. */
+  /**
+   * Nested thread messages produced by this tool call, for example a sub-agent
+   * conversation.
+   */
   readonly messages?: readonly ThreadMessage[];
 };
 
