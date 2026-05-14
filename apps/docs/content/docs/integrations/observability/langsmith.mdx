@@ -3,7 +3,9 @@ title: LangSmith
 description: Trace AI SDK calls into LangSmith with the wrapAISDK helper.
 ---
 
-import { LangChainIcon } from "@/components/icons/langchain";
+import { LangfuseIcon } from "@/components/icons/langfuse";
+import { LangGraphIcon } from "@/components/icons/langgraph";
+import { VercelIcon } from "@/components/icons/vercel";
 
 [LangSmith](https://www.langchain.com/langsmith) is LangChain's observability and eval platform. If you are already in the LangChain or LangGraph ecosystem, LangSmith is the natural pairing: traces, datasets, prompt versioning, and LLM-as-judge evals share state with the rest of the LangChain stack.
 
@@ -128,17 +130,19 @@ Send a message. The trace should appear in your LangSmith project within seconds
 
 <Cards>
   <Card
-    icon={<LangChainIcon width={20} height={20} className="text-[#7FC8FF]" />}
+    icon={<LangGraphIcon width={20} height={20} className="text-[#1C3C3C] dark:text-[#5b9595]" />}
     title="LangGraph runtime"
     description="If your backend is LangGraph, tracing flows through LangGraph Cloud automatically."
     href="/docs/runtimes/langgraph"
   />
   <Card
+    icon={<LangfuseIcon width={20} height={20} />}
     title="Langfuse"
     description="OpenTelemetry-based alternative; OSS and self-hostable."
     href="/docs/integrations/observability/langfuse"
   />
   <Card
+    icon={<VercelIcon width={20} height={20} />}
     title="AI SDK runtime"
     description="The runtime that ferries traces from the route to the chat UI."
     href="/docs/runtimes/ai-sdk/v6"

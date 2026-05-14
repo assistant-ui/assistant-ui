@@ -3,6 +3,9 @@ title: LLM Gateway Integrations
 description: Route AI chat traffic through OpenAI-compatible LLM gateways (OpenRouter, LiteLLM, Portkey, etc.) for cost, fallback, and BYOK in assistant-ui apps.
 ---
 
+import { HeliconeIcon } from "@/components/icons/helicone";
+import { VercelIcon } from "@/components/icons/vercel";
+
 LLM gateways sit between your route handler and the upstream provider. They give you a single endpoint that fronts many providers, plus features like multi-provider fallback, prompt caching, and BYOK (bring-your-own-key) flows. Most are OpenAI API-compatible, so the integration is a `baseURL` swap on `createOpenAI` from `@ai-sdk/openai`.
 
 For pure observability (proxy that logs every call) see [Helicone](/docs/integrations/observability/helicone). The gateways here overlap in spirit but are positioned around routing rather than logging.
@@ -145,11 +148,13 @@ When to pick: self-host requirement, BYOK metering for end-users, or unified bil
 
 <Cards>
   <Card
+    icon={<HeliconeIcon width={20} height={20} />}
     title="Helicone"
     description="The observability-first proxy. Same shape, different goal."
     href="/docs/integrations/observability/helicone"
   />
   <Card
+    icon={<VercelIcon width={20} height={20} />}
     title="AI SDK runtime"
     description="The runtime that ferries gateway responses to the chat UI."
     href="/docs/runtimes/ai-sdk/v6"

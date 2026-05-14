@@ -3,7 +3,7 @@ title: Cloudflare Agents Integration
 description: Wire Cloudflare's stateful agent framework into a React chat UI with assistant-ui via the standard AI SDK runtime. WebSocket transport, server-side persistence, tool calling, all preserved.
 ---
 
-import { Cloud } from "lucide-react";
+import { CloudflareIcon } from "@/components/icons/cloudflare";
 import { VercelIcon } from "@/components/icons/vercel";
 
 [Cloudflare Agents](https://developers.cloudflare.com/agents/) is Cloudflare's framework for stateful AI agents that run on Durable Objects at the edge. Each agent owns its own SQLite-backed message history, exposes a WebSocket channel for low-latency streaming, and can call tools (server-side or client-side).
@@ -268,7 +268,7 @@ Destructure these alongside `chat` and pass them into your UI directly; they don
 
 <Cards>
   <Card
-    icon={<Cloud width={20} height={20} />}
+    icon={<CloudflareIcon width={20} height={20} />}
     title="Cloudflare Agents docs"
     description="Cloudflare's official guide: Durable Object lifecycle, WebSocket protocol, tool patterns, multi-agent routing."
     href="https://developers.cloudflare.com/agents/"
