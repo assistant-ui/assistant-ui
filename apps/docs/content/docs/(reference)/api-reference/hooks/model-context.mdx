@@ -19,7 +19,7 @@ import { useAssistantInteractable, useInteractableState } from "@/generated/type
 Registers an interactable with the AI assistant.
 
 This hook handles registration only. To read and write the interactable's
-state, use useInteractableState with the returned id.
+state, use [useInteractableState](/docs/api-reference/hooks/model-context#useinteractablestate) with the returned id.
 
 <ParametersTable {...useAssistantInteractable} />
 
@@ -27,7 +27,7 @@ state, use useInteractableState with the returned id.
 
 Reads and writes the state of a registered interactable.
 
-Pair with useAssistantInteractable which handles registration.
+Pair with [useAssistantInteractable](/docs/api-reference/hooks/model-context#useassistantinteractable) which handles registration.
 
 <ParametersTable {...useInteractableState} />
 {/* api-reference:end */}
