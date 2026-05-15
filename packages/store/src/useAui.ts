@@ -367,7 +367,8 @@ export namespace useAui {
  * `aui.thread()`, `aui.composer()`, `aui.message()`, and so on. Pair
  * with {@link useAuiState} to read reactive state and {@link useAuiEvent}
  * to subscribe to events. The returned client also exposes lower-level
- * methods such as `aui.on(...)` and `aui.subscribe(...)`.
+ * methods such as `aui.on(...)` and `aui.subscribe(...)`; prefer
+ * `useAuiEvent` for React event subscriptions.
  *
  * Rendered outside a provider, the returned client's scope accessors
  * throw a descriptive error whenever they are called.
@@ -378,15 +379,6 @@ export namespace useAui {
  *
  * const onSend = () => aui.composer().send();
  * const onCancel = () => aui.thread().cancelRun();
- * ```
- *
- * @example
- * ```tsx
- * // For event subscriptions, prefer useAuiEvent over aui.on() + useEffect.
- * // Use aui directly for imperative actions:
- * const aui = useAui();
- *
- * const handleCancel = () => aui.thread().cancelRun();
  * ```
  *
  * @example

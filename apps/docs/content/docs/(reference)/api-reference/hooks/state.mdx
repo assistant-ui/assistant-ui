@@ -23,7 +23,8 @@ Read the client supplied by the nearest [AuiProvider](/docs/api-reference/contex
 `aui.thread()`, `aui.composer()`, `aui.message()`, and so on. Pair
 with [useAuiState](/docs/api-reference/hooks/state#useauistate) to read reactive state and [useAuiEvent](/docs/api-reference/hooks/state#useauievent)
 to subscribe to events. The returned client also exposes lower-level
-methods such as `aui.on(...)` and `aui.subscribe(...)`.
+methods such as `aui.on(...)` and `aui.subscribe(...)`; prefer
+`useAuiEvent` for React event subscriptions.
 
 Rendered outside a provider, the returned client's scope accessors
 throw a descriptive error whenever they are called.
