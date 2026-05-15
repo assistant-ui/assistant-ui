@@ -17,6 +17,8 @@ export type ThreadListItemCoreState = {
 
 export type ThreadListRuntimeCore = {
   readonly isLoading: boolean;
+  readonly isLoadingMore?: boolean;
+  readonly hasMore?: boolean;
   mainThreadId: string;
   newThreadId: string | undefined;
 
@@ -35,6 +37,7 @@ export type ThreadListRuntimeCore = {
 
   getLoadThreadsPromise(): Promise<void>;
   reload?(): Promise<void>;
+  loadMore?(): Promise<void>;
 
   detach(threadId: string): Promise<void>;
   rename(threadId: string, newTitle: string): Promise<void>;

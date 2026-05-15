@@ -142,6 +142,8 @@ export const InMemoryThreadList = resource(
         mainThreadId,
         newThreadId: null,
         isLoading: false,
+        isLoadingMore: false,
+        hasMore: false,
         threadIds: regularThreads.map((t) => t.id),
         archivedThreadIds: archivedThreads.map((t) => t.id),
         threadItems: threadListItems.state,
@@ -155,6 +157,7 @@ export const InMemoryThreadList = resource(
       switchToNewThread: handleSwitchToNewThread,
       getLoadThreadsPromise: () => RESOLVED_PROMISE,
       reload: () => RESOLVED_PROMISE,
+      loadMore: () => RESOLVED_PROMISE,
       item: (selector) => {
         if (selector === "main") {
           const index = threads.findIndex((t) => t.id === mainThreadId);

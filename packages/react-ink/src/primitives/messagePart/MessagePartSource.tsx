@@ -16,11 +16,12 @@ const formatSource = ({
   url,
 }: {
   title?: string | undefined;
-  url: string;
+  url?: string | undefined;
 }) => {
   if (title && url) return `[source: ${title} ${url}]`;
   if (title) return `[source: ${title}]`;
-  return `[source: ${url}]`;
+  if (url) return `[source: ${url}]`;
+  return "[source]";
 };
 
 export const MessagePartPrimitiveSource = (

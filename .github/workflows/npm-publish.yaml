@@ -686,6 +686,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Verify npm trusted publishing
+        # Temporarily disabled: npm appears to reject the subsequent CLI OIDC
+        # exchange after this pre-flight call within the same job, causing
+        # "OIDC publish authorize: Invalid token" on every package.
+        if: false
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
           TARGETS_JSON: ${{ needs.summary.outputs.targets_json }}

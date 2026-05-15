@@ -10,24 +10,66 @@ Current-version integration. Requires `ai@^6` and `@ai-sdk/react@^3`. For older 
 <Steps>
 <Step>
 
-### Create a Next.js project
+### Create a project
+
+<PlatformTabs>
+<Tab value="React">
 
 ```sh
 npx create-next-app@latest my-app
 cd my-app
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```sh
+npx create-expo-app@latest my-app
+cd my-app
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```sh
+mkdir my-app
+cd my-app
+npm init -y
+```
+
+</Tab>
+</PlatformTabs>
+
 </Step>
 <Step>
 
 ### Install dependencies
 
+<PlatformTabs>
+<Tab value="React">
+
 <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ai-sdk", "ai@^6", "@ai-sdk/react@^3", "@ai-sdk/openai", "zod"]} />
+
+</Tab>
+<Tab value="React Native">
+
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-ai-sdk", "ai@^6", "@ai-sdk/react@^3", "@ai-sdk/openai", "zod"]} />
+
+</Tab>
+<Tab value="React Ink">
+
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/react-ai-sdk", "ai@^6", "@ai-sdk/react@^3", "@ai-sdk/openai", "zod", "ink", "react"]} />
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 <Step>
 
 ### Set up the backend route
+
+For React Native and Ink, host this route in a separate backend project and
+point the client runtime at its absolute URL.
 
 ```ts title="@/app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
@@ -46,7 +88,7 @@ export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-mini"),
     messages: await convertToModelMessages(messages), // async in v6
     tools: {
       get_current_weather: tool({
@@ -68,6 +110,9 @@ export async function POST(req: Request) {
 
 ### Set up the frontend
 
+<PlatformTabs>
+<Tab value="React">
+
 ```tsx title="@/app/page.tsx"
 "use client";
 
@@ -87,12 +132,89 @@ export default function Home() {
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx title="app/index.tsx"
+import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
+import {
+  AssistantChatTransport,
+  useChatRuntime,
+} from "@assistant-ui/react-ai-sdk";
+import { View } from "react-native";
+import { Thread } from "@/components/assistant-ui/thread";
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+
+export default function Home() {
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({
+      api: `${API_URL}/api/chat`,
+    }),
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <View style={{ flex: 1 }}>
+        <Thread />
+      </View>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="app.tsx"
+import { AssistantRuntimeProvider } from "@assistant-ui/react-ink";
+import {
+  AssistantChatTransport,
+  useChatRuntime,
+} from "@assistant-ui/react-ai-sdk";
+import { Box } from "ink";
+import { Thread } from "./components/thread.js";
+
+export function App() {
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({
+      api: "http://localhost:3000/api/chat",
+    }),
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Box flexDirection="column">
+        <Thread />
+      </Box>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 </Step>
 <Step>
 
 ### Set up UI components
 
+<PlatformTabs>
+<Tab value="React">
+
 Follow the [UI Components guide](/docs/ui/thread) to wire up the Thread, composer, and supporting primitives.
+
+</Tab>
+<Tab value="React Native">
+
+Follow the [React Native setup](/docs/react-native) to add a native Thread, composer, and supporting primitives.
+
+</Tab>
+<Tab value="React Ink">
+
+Follow the [Ink setup](/docs/ink) to add a terminal Thread, composer, and supporting primitives.
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 </Steps>
@@ -119,7 +241,7 @@ export async function POST(req: Request) {
   } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-mini"),
     system,
     messages: await convertToModelMessages(messages),
     tools: {
@@ -150,7 +272,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-mini"),
     messages: await convertToModelMessages(messages),
     tools: {
       /* ... */
@@ -179,7 +301,7 @@ import { openai } from "@ai-sdk/openai";
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-mini"),
     messages: await convertToModelMessages(injectQuoteContext(messages)),
   });
   return result.toUIMessageStreamResponse();
@@ -369,6 +491,8 @@ const runtime = useAISDKRuntime(chat);
 
 [`examples/with-ai-sdk-v6`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v6) shows a complete reference implementation.
 
+For responses that should survive a page reload mid-stream, see [Resumable streams](/docs/guides/resumable-streams), which wraps the same v6 byte stream in `assistant-stream/resumable`.
+
 ## Next
 
 <Cards>
@@ -381,5 +505,10 @@ const runtime = useAISDKRuntime(chat);
     title="Threads"
     description="Single-thread, AssistantCloud, custom thread list."
     href="/docs/runtimes/concepts/threads"
+  />
+  <Card
+    title="Resumable streams"
+    description="Survive page reloads and connection drops mid-response."
+    href="/docs/guides/resumable-streams"
   />
 </Cards>

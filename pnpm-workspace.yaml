@@ -5,6 +5,7 @@ packages:
   - templates/*
 
 ignoredBuiltDependencies:
+  - '@google/genai'
   - '@modelcontextprotocol/ext-apps'
   - '@mongodb-js/zstd'
   - node-liblzma
@@ -23,3 +24,16 @@ onlyBuiltDependencies:
 strictDepBuilds: true
 
 verifyDepsBeforeRun: install
+
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - '@assistant-ui/*'
+  - assistant-cloud
+  - assistant-stream
+  - assistant-ui
+  - create-assistant-ui
+  - heat-graph
+  - mcp-app-studio
+  - safe-content-frame
+  - tw-glass
+  - tw-shimmer

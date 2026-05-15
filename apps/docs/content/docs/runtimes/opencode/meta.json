@@ -1,4 +1,5 @@
 {
   "title": "OpenCode",
+  "platforms": ["react"],
   "pages": ["overview", "quickstart", "hooks"]
 }

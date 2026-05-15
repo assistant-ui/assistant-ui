@@ -87,7 +87,33 @@ function getToolResponse(
         abortSignal,
         human: (payload: unknown) => human(toolCall.toolCallId, payload),
       })) as unknown as ReadonlyJSONValue;
-      return ToolResponse.toResponse(result);
+      const response = ToolResponse.toResponse(result);
+      if (
+        tool.toModelOutput &&
+        !response.isError &&
+        response.modelContent === undefined
+      ) {
+        try {
+          const modelContent = await tool.toModelOutput({
+            toolCallId: toolCall.toolCallId,
+            input: toolCall.args,
+            output: response.result,
+          });
+          return new ToolResponse({
+            result: response.result,
+            artifact: response.artifact,
+            isError: response.isError,
+            messages: response.messages,
+            modelContent,
+          });
+        } catch (e) {
+          console.warn(
+            `[assistant-stream] tool "${toolCall.toolName}" toModelOutput threw; falling back to default projection.`,
+            e,
+          );
+        }
+      }
+      return response;
     })();
 
     return Promise.race([executePromise, abortPromise]);
@@ -169,6 +195,9 @@ export async function unstable_runPendingTools(
           ...(toolResponse.artifact !== undefined
             ? { artifact: toolResponse.artifact }
             : {}),
+          ...(toolResponse.modelContent !== undefined
+            ? { modelContent: toolResponse.modelContent }
+            : {}),
           result: toolResponse.result as ReadonlyJSONValue,
           isError: toolResponse.isError,
         };
@@ -185,10 +214,25 @@ export async function unstable_runPendingTools(
 }
 
 export type ToolResultStreamOptions = {
+  /** Called immediately before a frontend tool's `execute` function runs. */
   onExecutionStart?: (toolCallId: string, toolName: string) => void;
+  /** Called after frontend tool execution finishes or fails. */
   onExecutionEnd?: (toolCallId: string, toolName: string) => void;
 };
 
+/**
+ * Transform stream that executes frontend tools and appends tool results.
+ *
+ * The transform watches streamed tool-call arguments, runs the matching
+ * frontend tool once its arguments are complete, and emits a result chunk for
+ * the tool call. Backend and human tools pass through according to their tool
+ * definition.
+ *
+ * @param tools Tool registry or function returning the current registry.
+ * @param abortSignal Signal, or signal getter, used for the current run.
+ * @param human Callback used to resolve human-tool requests from UI input.
+ * @param options Optional execution lifecycle callbacks.
+ */
 export function toolResultStream(
   tools:
     | Record<string, Tool>

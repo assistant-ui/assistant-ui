@@ -66,6 +66,15 @@ vi.mock("./ComposerInputPluginContext", () => ({
   useComposerInputPluginRegistryOptional: () => pluginRegistry,
 }));
 
+let activeAria: {
+  popoverId: string;
+  highlightedItemId: string | undefined;
+} | null = null;
+
+vi.mock("./trigger/TriggerPopoverRootContext", () => ({
+  useTriggerPopoverActiveAriaOptional: () => activeAria,
+}));
+
 vi.mock("@radix-ui/react-use-escape-keydown", () => ({
   useEscapeKeydown: () => {},
 }));
@@ -121,6 +130,7 @@ describe("ComposerPrimitiveInput", () => {
     threadState.isRunning = false;
     threadState.capabilities = { queue: false, attachments: false };
     pluginRegistry = null;
+    activeAria = null;
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -228,5 +238,43 @@ describe("ComposerPrimitiveInput", () => {
       fireCompositionEnd(textarea, "가");
     });
     expect(setText).not.toHaveBeenCalled();
+  });
+
+  it("does not apply ARIA combobox attributes when no trigger popover is open", async () => {
+    activeAria = null;
+    const textarea = await mount();
+
+    expect(textarea.getAttribute("aria-controls")).toBeNull();
+    expect(textarea.getAttribute("aria-expanded")).toBeNull();
+    expect(textarea.getAttribute("aria-haspopup")).toBeNull();
+    expect(textarea.getAttribute("aria-activedescendant")).toBeNull();
+  });
+
+  it("applies ARIA combobox attributes when a trigger popover is open", async () => {
+    activeAria = {
+      popoverId: "popover-1",
+      highlightedItemId: "popover-1-option-foo",
+    };
+    const textarea = await mount();
+
+    expect(textarea.getAttribute("aria-controls")).toBe("popover-1");
+    expect(textarea.getAttribute("aria-expanded")).toBe("true");
+    expect(textarea.getAttribute("aria-haspopup")).toBe("listbox");
+    expect(textarea.getAttribute("aria-activedescendant")).toBe(
+      "popover-1-option-foo",
+    );
+  });
+
+  it("omits aria-activedescendant when no item is highlighted", async () => {
+    activeAria = {
+      popoverId: "popover-1",
+      highlightedItemId: undefined,
+    };
+    const textarea = await mount();
+
+    expect(textarea.getAttribute("aria-controls")).toBe("popover-1");
+    expect(textarea.getAttribute("aria-expanded")).toBe("true");
+    expect(textarea.getAttribute("aria-haspopup")).toBe("listbox");
+    expect(textarea.getAttribute("aria-activedescendant")).toBeNull();
   });
 });

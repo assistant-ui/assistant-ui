@@ -17,6 +17,7 @@ export type {
   ReasoningMessagePart,
   SourceMessagePart,
   ToolCallMessagePart,
+  ToolModelContentPart,
   ImageMessagePart,
   FileMessagePart,
   DataMessagePart,
@@ -40,6 +41,7 @@ export type {
   // Attachment types
   Attachment,
   PendingAttachment,
+  CompleteAttachment,
   CreateAttachment,
   AttachmentRuntime,
   // Adapter types
@@ -97,6 +99,11 @@ export {
 
 // Context providers and hooks
 export { AssistantRuntimeProvider } from "./context/AssistantContext";
+export {
+  RuntimeAdapterProvider,
+  useRuntimeAdapters,
+  type RuntimeAdapters,
+} from "@assistant-ui/core/react";
 
 // Runtime
 export {

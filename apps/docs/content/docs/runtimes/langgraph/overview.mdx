@@ -1,6 +1,6 @@
 ---
-title: Overview
-description: Connect to LangGraph Cloud for agent workflows with streaming.
+title: LangGraph UI Runtime
+description: Build a chat UI for LangGraph agents in React with assistant-ui — streaming, subgraph events, UI messages, interrupts, and end-to-end cancellation supported.
 ---
 
 `@assistant-ui/react-langgraph` integrates with [`@langchain/langgraph-sdk`](https://docs.langchain.com/oss/javascript/langgraph-sdk) directly, exposing the full LangGraph Cloud feature set in assistant-ui: streaming, subgraph events, UI messages, message metadata, interrupts, and end-to-end cancellation.
@@ -35,7 +35,23 @@ Shared adapters (attachments, speech, feedback, history) work the same way descr
 
 ## Install
 
+<PlatformTabs>
+<Tab value="React">
+
 <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-langgraph", "@langchain/langgraph-sdk"]} />
+
+</Tab>
+<Tab value="React Native">
+
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-langgraph", "@langchain/langgraph-sdk"]} />
+
+</Tab>
+<Tab value="React Ink">
+
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/react-langgraph", "@langchain/langgraph-sdk", "ink", "react"]} />
+
+</Tab>
+</PlatformTabs>
 
 ## Next
 

@@ -18,10 +18,15 @@ export type RemoteThreadMetadata = {
 
 export type RemoteThreadListResponse = {
   threads: RemoteThreadMetadata[];
+  nextCursor?: string | undefined;
+};
+
+export type RemoteThreadListPageOptions = {
+  after?: string | undefined;
 };
 
 export type RemoteThreadListAdapter = {
-  list(): Promise<RemoteThreadListResponse>;
+  list(params?: RemoteThreadListPageOptions): Promise<RemoteThreadListResponse>;
 
   rename(remoteId: string, newTitle: string): Promise<void>;
   archive(remoteId: string): Promise<void>;

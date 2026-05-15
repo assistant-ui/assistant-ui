@@ -9,7 +9,8 @@ import {
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { createAssistantStream } from "assistant-stream";
 
-// In-memory storage for threads (simulating a database)
+const PAGE_SIZE = 10;
+
 const threadsStore = new Map<
   string,
   {
@@ -17,16 +18,33 @@ const threadsStore = new Map<
     status: "regular" | "archived";
     title?: string;
   }
->();
+>(
+  Array.from({ length: 25 }, (_, i) => {
+    const id = `seed-${String(i).padStart(2, "0")}`;
+    return [
+      id,
+      {
+        remoteId: id,
+        status: "regular" as const,
+        title: `Seeded thread ${i + 1}`,
+      },
+    ] as const;
+  }),
+);
 
 const threadListAdapter: RemoteThreadListAdapter = {
-  async list() {
+  async list({ after }: { after?: string } = {}) {
+    const all = Array.from(threadsStore.values());
+    const start = after ? Number(after) : 0;
+    const page = all.slice(start, start + PAGE_SIZE);
+    const nextStart = start + page.length;
     return {
-      threads: Array.from(threadsStore.values()).map((thread) => ({
+      threads: page.map((thread) => ({
         remoteId: thread.remoteId,
         status: thread.status,
         title: thread.title,
       })),
+      nextCursor: nextStart < all.length ? String(nextStart) : undefined,
     };
   },
 

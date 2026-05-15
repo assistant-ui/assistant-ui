@@ -219,6 +219,44 @@ Renders a single thread at a specific index.
 
 <PrimitivesTypeTable type="ThreadListPrimitiveItemByIndexProps" parameters={ThreadListPrimitiveDocs.ItemByIndex.props} />
 
+#### LoadMore
+
+Button that appends the next page of threads. Renders a `<button>` element unless `asChild` is set, and is automatically disabled when the runtime is loading or when the adapter's last `list()` did not return a `nextCursor`. See [Threads concepts](/docs/runtimes/concepts/threads#paginating-the-thread-list) for the adapter contract.
+
+```tsx
+<ThreadListPrimitive.LoadMore className="rounded-lg border px-3 py-2 text-sm">
+  Load more
+</ThreadListPrimitive.LoadMore>
+```
+
+For scroll-driven loading, wrap `aui.threads().loadMore()` in your own `IntersectionObserver` at the application layer; assistant-ui ships the explicit button to keep the primitive surface predictable.
+
+```tsx
+import { useAui, useAuiState } from "@assistant-ui/react";
+import { useEffect, useRef } from "react";
+
+function LoadMoreSentinel() {
+  const aui = useAui();
+  const disabled = useAuiState(
+    (s) =>
+      !s.threads.hasMore || s.threads.isLoading || s.threads.isLoadingMore,
+  );
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || disabled) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) aui.threads().loadMore();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [aui, disabled]);
+
+  return disabled ? null : <div ref={ref} className="h-9" />;
+}
+```
+
 ### ThreadListItemPrimitive
 
 #### Root

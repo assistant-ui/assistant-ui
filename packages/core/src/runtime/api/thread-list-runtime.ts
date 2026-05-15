@@ -28,6 +28,8 @@ export type ThreadListState = {
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
   readonly isLoading: boolean;
+  readonly isLoadingMore: boolean;
+  readonly hasMore: boolean;
   readonly threadItems: Readonly<
     Record<string, Omit<ThreadListItemState, "isMain" | "threadId">>
   >;
@@ -51,6 +53,7 @@ export type ThreadListRuntime = {
 
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  loadMore(): Promise<void>;
 };
 
 const getThreadListState = (
@@ -62,6 +65,8 @@ const getThreadListState = (
     threadIds: threadList.threadIds,
     archivedThreadIds: threadList.archivedThreadIds,
     isLoading: threadList.isLoading,
+    isLoadingMore: threadList.isLoadingMore ?? false,
+    hasMore: threadList.hasMore ?? false,
     threadItems: threadList.threadItems,
   };
 };
@@ -138,6 +143,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     this.switchToNewThread = this.switchToNewThread.bind(this);
     this.getLoadThreadsPromise = this.getLoadThreadsPromise.bind(this);
     this.reload = this.reload.bind(this);
+    this.loadMore = this.loadMore.bind(this);
     this.getState = this.getState.bind(this);
     this.subscribe = this.subscribe.bind(this);
     this.getById = this.getById.bind(this);
@@ -160,6 +166,10 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
 
   public reload(): Promise<void> {
     return this._core.reload?.() ?? RESOLVED_PROMISE;
+  }
+
+  public loadMore(): Promise<void> {
+    return this._core.loadMore?.() ?? RESOLVED_PROMISE;
   }
 
   public getState(): ThreadListState {

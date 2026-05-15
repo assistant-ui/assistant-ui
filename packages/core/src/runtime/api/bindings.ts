@@ -5,10 +5,7 @@ import type {
   EditComposerRuntimeCore,
   ThreadComposerRuntimeCore,
 } from "../interfaces/composer-runtime-core";
-import type {
-  SpeechState,
-  SubmittedFeedback,
-} from "../interfaces/thread-runtime-core";
+import type { SpeechState } from "../interfaces/thread-runtime-core";
 import type { ComposerRuntimePath, MessageRuntimePath } from "./paths";
 
 export type ComposerRuntimeCoreBinding = SubscribableWithState<
@@ -34,8 +31,6 @@ export type MessageStateBinding = SubscribableWithState<
     readonly branchNumber: number;
     readonly branchCount: number;
     readonly speech: SpeechState | undefined;
-    /** @deprecated Use `message.metadata.submittedFeedback` instead. This will be removed in 0.12.0. */
-    readonly submittedFeedback: SubmittedFeedback | undefined;
   },
   MessageRuntimePath
 >;

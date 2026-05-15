@@ -1,7 +1,10 @@
 ---
-title: LLM gateways
-description: Route assistant-ui traffic through OpenAI-compatible gateways for cost, fallback, and BYOK.
+title: LLM Gateway Integrations
+description: Route AI chat traffic through OpenAI-compatible LLM gateways (OpenRouter, LiteLLM, Portkey, etc.) for cost, fallback, and BYOK in assistant-ui apps.
 ---
+
+import { HeliconeIcon } from "@/components/icons/helicone";
+import { VercelIcon } from "@/components/icons/vercel";
 
 LLM gateways sit between your route handler and the upstream provider. They give you a single endpoint that fronts many providers, plus features like multi-provider fallback, prompt caching, and BYOK (bring-your-own-key) flows. Most are OpenAI API-compatible, so the integration is a `baseURL` swap on `createOpenAI` from `@ai-sdk/openai`.
 
@@ -45,7 +48,7 @@ The rest of this page is what to put in `baseURL`, `headers`, and `model(...)` f
 
 ## OpenRouter
 
-[OpenRouter](https://openrouter.ai/) aggregates 100+ models behind one OpenAI-compatible endpoint. The model ID is `provider/model` (e.g., `anthropic/claude-sonnet-4`, `openai/gpt-4o`, `meta-llama/llama-3.3-70b-instruct`).
+[OpenRouter](https://openrouter.ai/) aggregates 100+ models behind one OpenAI-compatible endpoint. The model ID is `provider/model` (e.g., `anthropic/claude-sonnet-4.6`, `openai/gpt-5.4-mini`, `meta-llama/llama-3.3-70b-instruct`).
 
 ```sh title=".env.local"
 OPENROUTER_API_KEY=sk-or-...
@@ -69,7 +72,7 @@ const openrouter = createOpenAI({
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
   const result = streamText({
-    model: openrouter("anthropic/claude-sonnet-4"),
+    model: openrouter("anthropic/claude-sonnet-4.6"),
     messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
@@ -126,7 +129,7 @@ const litellm = createOpenAI({
 });
 
 const result = streamText({
-  model: litellm("gpt-4o"),
+  model: litellm("gpt-5.4-mini"),
   messages: await convertToModelMessages(messages),
 });
 ```
@@ -137,7 +140,7 @@ When to pick: self-host requirement, BYOK metering for end-users, or unified bil
 
 ## Notes
 
-- **Server-side only.** A gateway key is a write capability against your billing account. Never set it in browser code; the route handler is the right boundary.
+- **Server-side only.** A gateway key is a write capability against your billing account. Never set it in client code; the route handler is the right boundary.
 - **Streaming, tools, attachments.** All three gateways are transparent to the AI SDK; everything that works against OpenAI directly works through them.
 - **Combining with observability.** A gateway and an observability tool are not mutually exclusive. Helicone in front of OpenRouter is a common stack: OpenRouter does the routing, Helicone logs the calls.
 
@@ -145,11 +148,13 @@ When to pick: self-host requirement, BYOK metering for end-users, or unified bil
 
 <Cards>
   <Card
+    icon={<HeliconeIcon width={20} height={20} />}
     title="Helicone"
     description="The observability-first proxy. Same shape, different goal."
     href="/docs/integrations/observability/helicone"
   />
   <Card
+    icon={<VercelIcon width={20} height={20} />}
     title="AI SDK runtime"
     description="The runtime that ferries gateway responses to the chat UI."
     href="/docs/runtimes/ai-sdk/v6"

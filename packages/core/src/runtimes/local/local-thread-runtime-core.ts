@@ -54,6 +54,7 @@ export class LocalThreadRuntimeCore
   private abortController: AbortController | null = null;
 
   public readonly isDisabled = false;
+  public readonly isSendDisabled = false;
 
   private _isLoading = false;
   public get isLoading() {
@@ -223,10 +224,6 @@ export class LocalThreadRuntimeCore
   }
 
   public importExternalState(): void {
-    throw new Error("Runtime does not support importing external states.");
-  }
-
-  public unstable_loadExternalState(): void {
     throw new Error("Runtime does not support importing external states.");
   }
 
@@ -405,7 +402,6 @@ export class LocalThreadRuntimeCore
         runConfig: this._lastRunConfig,
         abortSignal,
         context,
-        config: context,
         unstable_assistantMessageId: message.id,
         unstable_threadId: threadId,
         unstable_parentId: parentId,

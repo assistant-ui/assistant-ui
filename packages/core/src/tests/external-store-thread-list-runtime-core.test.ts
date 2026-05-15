@@ -146,6 +146,33 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     core.__internal_setAdapter(makeAdapter({ threadId: "thread-beta" }));
     expect(callback).toHaveBeenCalled();
   });
+
+  it("synthesizes mainThreadId entry after a switch to a threadId not in the threads list (regression: #3971)", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha" }),
+      makeFactory(),
+    );
+    core.__internal_setAdapter(makeAdapter({ threadId: "thread-beta" }));
+    const item = core.getItemById("thread-beta");
+    expect(item).toBeDefined();
+    expect(item?.id).toBe("thread-beta");
+  });
+
+  it("does not retain stale synthesized entries across mainThreadId switches (regression: #3971)", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha" }),
+      makeFactory(),
+    );
+    core.__internal_setAdapter(makeAdapter({ threadId: "thread-beta" }));
+    core.__internal_setAdapter(makeAdapter({ threadId: "thread-gamma" }));
+    expect(core.getItemById("thread-alpha")).toBeUndefined();
+    expect(core.getItemById("thread-beta")).toBeUndefined();
+    expect(core.getItemById("thread-gamma")).toBeDefined();
+    expect(Object.keys(core.threadItems).sort()).toEqual([
+      "DEFAULT_THREAD_ID",
+      "thread-gamma",
+    ]);
+  });
 });
 
 describe("ExternalStoreThreadListRuntimeCore - isMain via ThreadListRuntimeImpl", () => {
@@ -186,6 +213,13 @@ describe("ExternalStoreThreadListRuntimeCore - isMain via ThreadListRuntimeImpl"
     const state = impl.getState();
     expect(state.mainThreadId).toBe("thread-alpha");
     expect(state.threadIds).toEqual(["thread-alpha", "thread-beta"]);
+  });
+
+  it("does not throw when adapter.threadId has no matching threads entry (regression: #3971)", () => {
+    const impl = buildImpl({ threadId: "thread-alpha" });
+    expect(impl.mainItem.getState().id).toBe("thread-alpha");
+    expect(impl.mainItem.getState().isMain).toBe(true);
+    expect(impl.mainItem.getState().status).toBe("regular");
   });
 });
 

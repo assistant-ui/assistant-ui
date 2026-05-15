@@ -12,7 +12,6 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
-import { Avatar } from "radix-ui";
 import {
   ArrowUpIcon,
   CheckIcon,
@@ -27,68 +26,198 @@ import {
 import { useEffect, useState, type FC } from "react";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { useShallow } from "zustand/shallow";
-import { PlusIcon } from "lucide-react";
+import {
+  AudioLines,
+  Globe,
+  ImageIcon,
+  Lightbulb,
+  Mic,
+  MoreHorizontal,
+  PlusIcon,
+  Share,
+  SlidersHorizontal,
+  Sparkles,
+  Telescope,
+  ThumbsDown,
+  ThumbsUp,
+  Volume2,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/shared/dropdown-menu";
 
 export const ChatGPT: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-background px-4 text-foreground dark:bg-[#212121] dark:text-foreground">
-      <ThreadPrimitive.Viewport className="flex grow flex-col gap-8 overflow-y-scroll pt-16">
-        <AuiIf condition={(s) => s.thread.isEmpty}>
-          <div className="flex grow flex-col items-center justify-center">
-            <Avatar.Root className="flex h-12 w-12 items-center justify-center rounded-3xl border shadow dark:border-white/15">
-              <Avatar.AvatarFallback>C</Avatar.AvatarFallback>
-            </Avatar.Root>
-            <p className="mt-4 text-xl dark:text-white">
-              How can I help you today?
+    <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-white px-4 text-[#0d0d0d] dark:bg-[#212121] dark:text-[#ececec]">
+      <AuiIf condition={(s) => s.thread.isEmpty}>
+        <EmptyState />
+      </AuiIf>
+
+      <AuiIf condition={(s) => !s.thread.isEmpty}>
+        <ThreadPrimitive.Viewport className="flex grow flex-col gap-8 overflow-y-scroll pt-16">
+          <ThreadPrimitive.Messages>
+            {({ message }) => {
+              if (message.composer.isEditing) return <EditComposer />;
+              if (message.role === "user") return <UserMessage />;
+              return <AssistantMessage />;
+            }}
+          </ThreadPrimitive.Messages>
+
+          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-3xl flex-col gap-2 overflow-visible rounded-t-3xl bg-white pb-2 dark:bg-[#212121]">
+            <ThreadScrollToBottom />
+            <Composer placeholder="Ask anything" />
+            <p className="text-center text-[#5d5d5d] text-xs dark:text-[#a8a8a8]">
+              ChatGPT can make mistakes. Check important info.
             </p>
-          </div>
-        </AuiIf>
-
-        <ThreadPrimitive.Messages>
-          {({ message }) => {
-            if (message.composer.isEditing) return <EditComposer />;
-            if (message.role === "user") return <UserMessage />;
-            return <AssistantMessage />;
-          }}
-        </ThreadPrimitive.Messages>
-
-        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-3xl flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-2 dark:bg-[#212121]">
-          <ThreadScrollToBottom />
-          <ComposerPrimitive.Root className="w-full rounded-3xl border pl-2 dark:border-none dark:bg-white/5">
-            <AuiIf condition={(s) => s.composer.attachments.length > 0}>
-              <div className="flex flex-row flex-wrap gap-2 px-1 py-3">
-                <ComposerPrimitive.Attachments
-                  components={{ Attachment: ChatGPTAttachmentUI }}
-                />
-              </div>
-            </AuiIf>
-            <div className="flex items-center justify-center">
-              <ComposerPrimitive.AddAttachment className="flex size-8 items-center justify-center overflow-hidden rounded-full hover:bg-foreground/5 dark:hover:bg-foreground/15">
-                <PlusIcon size={18} />
-              </ComposerPrimitive.AddAttachment>
-              <ComposerPrimitive.Input
-                placeholder="Ask anything"
-                className="h-12 max-h-40 grow resize-none bg-transparent p-3.5 text-foreground text-sm outline-none placeholder:text-muted-foreground dark:text-white dark:placeholder:text-white/50"
-              />
-              <AuiIf condition={(s) => !s.thread.isRunning}>
-                <ComposerPrimitive.Send className="m-2 flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition-opacity disabled:opacity-10 dark:bg-white dark:text-black">
-                  <ArrowUpIcon className="size-5 dark:[&_path]:stroke-1 dark:[&_path]:stroke-black" />
-                </ComposerPrimitive.Send>
-              </AuiIf>
-              <AuiIf condition={(s) => s.thread.isRunning}>
-                <ComposerPrimitive.Cancel className="m-2 flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground dark:bg-white">
-                  <div className="size-2.5 bg-background dark:bg-black" />
-                </ComposerPrimitive.Cancel>
-              </AuiIf>
-            </div>
-          </ComposerPrimitive.Root>
-
-          <p className="text-center text-muted-foreground text-xs dark:text-[#cdcdcd]">
-            ChatGPT can make mistakes. Check important info.
-          </p>
-        </ThreadPrimitive.ViewportFooter>
-      </ThreadPrimitive.Viewport>
+          </ThreadPrimitive.ViewportFooter>
+        </ThreadPrimitive.Viewport>
+      </AuiIf>
     </ThreadPrimitive.Root>
+  );
+};
+
+const EmptyState: FC = () => {
+  return (
+    <div className="flex grow flex-col items-center justify-center px-4">
+      <div className="mx-auto flex w-full max-w-3xl flex-col items-stretch gap-6">
+        <h1 className="text-center font-medium text-2xl text-[#0d0d0d] sm:text-3xl dark:text-[#ececec]">
+          Where should we begin?
+        </h1>
+        <Composer placeholder="Ask anything" />
+      </div>
+    </div>
+  );
+};
+
+const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
+  return (
+    <ComposerPrimitive.Root className="group/composer flex w-full flex-col rounded-[28px] border border-[#e5e5e5] bg-white px-2 py-2 shadow-[0_2px_6px_-2px_rgba(0,0,0,0.05)] focus-within:border-[#d0d0d0] dark:border-transparent dark:bg-[#303030] dark:shadow-none dark:focus-within:border-transparent">
+      <AuiIf condition={(s) => s.composer.attachments.length > 0}>
+        <div className="flex flex-row flex-wrap gap-2 px-1 pt-1 pb-2">
+          <ComposerPrimitive.Attachments
+            components={{ Attachment: ChatGPTAttachmentUI }}
+          />
+        </div>
+      </AuiIf>
+
+      <ComposerPrimitive.Input
+        placeholder={placeholder}
+        rows={1}
+        className="min-h-9 w-full resize-none bg-transparent px-3 pt-2 text-[#0d0d0d] text-base outline-none placeholder:text-[#8e8e8e] dark:text-[#ececec] dark:placeholder:text-[#8e8e8e]"
+      />
+
+      <div className="flex items-center justify-between gap-2 px-1 pt-1">
+        <div className="flex items-center gap-1">
+          <ComposerPrimitive.AddAttachment asChild>
+            <button
+              type="button"
+              className="flex size-9 items-center justify-center rounded-full text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:text-[#cdcdcd] dark:hover:bg-white/10 dark:hover:text-white"
+              aria-label="Add attachment"
+            >
+              <PlusIcon size={18} />
+            </button>
+          </ComposerPrimitive.AddAttachment>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <ChatGPTToolsMenu />
+          <ComposerPrimaryAction />
+        </div>
+      </div>
+    </ComposerPrimitive.Root>
+  );
+};
+
+const CHATGPT_TOOLS = [
+  { id: "search", label: "Search the web", Icon: Globe },
+  { id: "image", label: "Create an image", Icon: ImageIcon },
+  { id: "research", label: "Run deep research", Icon: Telescope },
+  { id: "think", label: "Think longer", Icon: Lightbulb },
+  { id: "study", label: "Study and learn", Icon: Sparkles },
+];
+
+const ChatGPTToolsMenu: FC = () => {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="hidden h-9 items-center gap-1.5 rounded-full px-3 text-[#5d5d5d] text-sm transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] sm:flex dark:text-[#cdcdcd] dark:hover:bg-white/10 dark:hover:text-white">
+        <SlidersHorizontal className="size-4" />
+        <span>Tools</span>
+        <ChevronDownIcon className="size-3.5 opacity-70" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-56">
+        {CHATGPT_TOOLS.map(({ id, label, Icon }) => (
+          <DropdownMenuItem
+            key={id}
+            icon={<Icon className="size-4" />}
+            className="text-foreground text-sm"
+          >
+            {label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+const ComposerPrimaryAction: FC = () => {
+  return (
+    <div className="flex items-center gap-1">
+      <AuiIf condition={(s) => s.thread.isRunning}>
+        <ComposerPrimitive.Cancel className="flex size-9 items-center justify-center rounded-full bg-[#0d0d0d] text-white dark:bg-white dark:text-black">
+          <div className="size-2.5 rounded-[2px] bg-current" />
+        </ComposerPrimitive.Cancel>
+      </AuiIf>
+
+      <AuiIf
+        condition={(s) => !s.thread.isRunning && s.composer.dictation != null}
+      >
+        <ComposerPrimitive.StopDictation
+          className="flex size-9 items-center justify-center rounded-full bg-[#ff5d1f] text-white"
+          aria-label="Stop dictation"
+        >
+          <div className="size-2.5 animate-pulse rounded-[2px] bg-current" />
+        </ComposerPrimitive.StopDictation>
+      </AuiIf>
+
+      <AuiIf
+        condition={(s) =>
+          !s.thread.isRunning &&
+          s.composer.dictation == null &&
+          !s.composer.isEmpty
+        }
+      >
+        <ComposerPrimitive.Send className="flex size-9 items-center justify-center rounded-full bg-[#0d0d0d] text-white transition-opacity disabled:opacity-30 dark:bg-white dark:text-black">
+          <ArrowUpIcon className="size-5" />
+        </ComposerPrimitive.Send>
+      </AuiIf>
+
+      <AuiIf
+        condition={(s) =>
+          !s.thread.isRunning &&
+          s.composer.dictation == null &&
+          s.composer.isEmpty
+        }
+      >
+        <ComposerPrimitive.Dictate
+          className="flex size-9 items-center justify-center rounded-full text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:text-[#cdcdcd] dark:hover:bg-white/10 dark:hover:text-white"
+          aria-label="Dictate"
+        >
+          <Mic className="size-4" />
+        </ComposerPrimitive.Dictate>
+
+        <button
+          type="button"
+          aria-hidden="true"
+          tabIndex={-1}
+          className="flex size-9 items-center justify-center rounded-full bg-[#ff5d1f] text-white"
+        >
+          <AudioLines className="size-4" />
+        </button>
+      </AuiIf>
+    </div>
   );
 };
 
@@ -155,46 +284,53 @@ const EditComposer: FC = () => {
   );
 };
 
+const assistantActionClassName =
+  "flex size-8 items-center justify-center rounded-md text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] dark:text-[#afafaf] dark:hover:bg-white/10 dark:hover:text-white";
+
 const AssistantMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="relative mx-auto flex w-full max-w-3xl gap-3">
-      <Avatar.Root className="flex size-8 shrink-0 items-center justify-center rounded-3xl border shadow dark:border-white/15">
-        <Avatar.AvatarFallback className="text-foreground text-xs dark:text-white">
-          C
-        </Avatar.AvatarFallback>
-      </Avatar.Root>
+    <MessagePrimitive.Root className="relative mx-auto flex w-full max-w-3xl flex-col">
+      <div className="text-[#0d0d0d] dark:text-[#ececec]">
+        <MessagePrimitive.Parts />
+      </div>
 
-      <div className="pt-1">
-        <div className="text-foreground dark:text-[#eee]">
-          <MessagePrimitive.Parts />
-        </div>
-
-        <div className="flex pt-2">
-          <BranchPicker />
-
-          <ActionBarPrimitive.Root
-            hideWhenRunning
-            autohide="not-last"
-            autohideFloat="single-branch"
-            className="flex items-center gap-1 rounded-lg data-floating:absolute data-floating:border-2 data-floating:p-1"
+      <div className="-ml-2 flex items-center pt-1">
+        <ActionBarPrimitive.Root
+          hideWhenRunning
+          className="flex items-center gap-0.5"
+        >
+          <ActionBarPrimitive.Copy className={assistantActionClassName}>
+            <AuiIf condition={(s) => s.message.isCopied}>
+              <CheckIcon />
+            </AuiIf>
+            <AuiIf condition={(s) => !s.message.isCopied}>
+              <CopyIcon />
+            </AuiIf>
+          </ActionBarPrimitive.Copy>
+          <ActionBarPrimitive.FeedbackPositive
+            className={assistantActionClassName}
           >
-            <ActionBarPrimitive.Reload asChild>
-              <TooltipIconButton tooltip="Reload" className="text-[#b4b4b4]">
-                <ReloadIcon />
-              </TooltipIconButton>
-            </ActionBarPrimitive.Reload>
-            <ActionBarPrimitive.Copy asChild>
-              <TooltipIconButton tooltip="Copy" className="text-[#b4b4b4]">
-                <AuiIf condition={(s) => s.message.isCopied}>
-                  <CheckIcon />
-                </AuiIf>
-                <AuiIf condition={(s) => !s.message.isCopied}>
-                  <CopyIcon />
-                </AuiIf>
-              </TooltipIconButton>
-            </ActionBarPrimitive.Copy>
-          </ActionBarPrimitive.Root>
-        </div>
+            <ThumbsUp className="size-4" />
+          </ActionBarPrimitive.FeedbackPositive>
+          <ActionBarPrimitive.FeedbackNegative
+            className={assistantActionClassName}
+          >
+            <ThumbsDown className="size-4" />
+          </ActionBarPrimitive.FeedbackNegative>
+          <ActionBarPrimitive.Speak className={assistantActionClassName}>
+            <Volume2 className="size-4" />
+          </ActionBarPrimitive.Speak>
+          <button type="button" className={assistantActionClassName}>
+            <Share className="size-4" />
+          </button>
+          <ActionBarPrimitive.Reload className={assistantActionClassName}>
+            <ReloadIcon />
+          </ActionBarPrimitive.Reload>
+          <button type="button" className={assistantActionClassName}>
+            <MoreHorizontal className="size-4" />
+          </button>
+        </ActionBarPrimitive.Root>
+        <BranchPicker className="ml-1" />
       </div>
     </MessagePrimitive.Root>
   );

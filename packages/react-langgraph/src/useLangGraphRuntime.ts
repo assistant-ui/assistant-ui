@@ -206,14 +206,6 @@ export type UseLangGraphRuntimeOptions = {
     threadId: string,
     parentMessages: LangChainMessage[],
   ) => Promise<string | null>;
-  /**
-   * @deprecated This method has been renamed to `load`. Use `load` instead.
-   */
-  onSwitchToThread?: (threadId: string) => Promise<{
-    messages: LangChainMessage[];
-    interrupts?: LangGraphInterruptState[];
-    uiMessages?: UIMessage[];
-  }>;
   load?: (
     threadId: string,
     config?: { signal: AbortSignal },
@@ -345,8 +337,7 @@ const useLangGraphRuntimeImpl = ({
   adapters: { attachments, feedback, speech } = {},
   unstable_allowCancellation,
   stream,
-  onSwitchToThread: _onSwitchToThread,
-  load = _onSwitchToThread,
+  load,
   getCheckpointId,
   eventHandlers,
   uiStateKey,

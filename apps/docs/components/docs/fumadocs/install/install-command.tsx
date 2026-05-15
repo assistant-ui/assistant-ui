@@ -6,6 +6,7 @@ import {
 } from "@/components/docs/fumadocs/install/component-source";
 import { SetupInstructions } from "@/components/docs/fumadocs/install/setup-instructions";
 import {
+  ExpoInstallTabs,
   PackageManagerTabs,
   ShadcnInstallTabs,
 } from "@/components/docs/fumadocs/install/package-manager-tabs";
@@ -20,6 +21,10 @@ type InstallCommandProps =
   | {
       /** NPM packages to install */
       npm: string[];
+    }
+  | {
+      /** Expo packages to install with `expo install` */
+      expo: string[];
     };
 
 function FileGroup({ title, group }: { title: string; group: ResolvedGroup }) {
@@ -45,6 +50,10 @@ function FileGroup({ title, group }: { title: string; group: ResolvedGroup }) {
 export async function InstallCommand(props: InstallCommandProps) {
   if ("npm" in props) {
     return <PackageManagerTabs packages={props.npm} />;
+  }
+
+  if ("expo" in props) {
+    return <ExpoInstallTabs packages={props.expo} />;
   }
 
   const components = props.shadcn;

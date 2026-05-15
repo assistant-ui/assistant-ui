@@ -9,108 +9,33 @@ import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useDocsSidebar } from "@/components/docs/contexts/sidebar";
 import {
-  isVisibleForPlatform,
+  isPlatform,
   usePlatform,
   type Platform,
-} from "@/components/docs/contexts/platform";
+} from "@/components/docs/platform/context";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import { analytics } from "@/lib/analytics";
+import { PlatformSwitcher } from "@/components/docs/platform/switcher";
+import {
+  buildPlatformSections,
+  findPathToNode,
+  isNodeVisible,
+  nodePlatforms,
+} from "@/components/docs/platform/tree";
 
-/**
- * Top-level docs folder names (from each folder's meta.json `title`) that this
- * sidebar treats specially. Kept here as named constants so the platform
- * filter / merge isn't silently broken if a meta title is renamed.
- */
-const INJECT_TARGET_FOLDER = "Docs";
-const PLATFORM_INJECTED_FOLDER: Record<Platform, string | null> = {
-  react: null,
-  rn: "React Native",
-  ink: "React Ink",
-};
-const PLATFORM_FOLDER_NAMES = new Set(
-  Object.values(PLATFORM_INJECTED_FOLDER).filter(
-    (v): v is string => v !== null,
-  ),
-);
-
-/** Read the optional `platforms` field from a page tree node. */
-function nodePlatforms(node: PageTree.Node): readonly string[] | undefined {
-  return (node as unknown as { platforms?: readonly string[] }).platforms;
-}
-
-function isNodeVisible(node: PageTree.Node, platform: Platform): boolean {
-  return isVisibleForPlatform(nodePlatforms(node), platform);
-}
-
-/**
- * True when this node would render at least one page or folder under the
- * given platform — i.e., the section / folder is not empty after filtering.
- */
-function hasVisibleContent(node: PageTree.Node, platform: Platform): boolean {
-  if (!isNodeVisible(node, platform)) return false;
-  if (node.type === "page") return true;
-  if (node.type === "separator") return false;
-  if (node.index && isNodeVisible(node.index, platform)) return true;
-  return node.children.some((c) => hasVisibleContent(c, platform));
-}
-
-/**
- * Drop separators that have no visible content between them and the next
- * separator (or end of list). Pages / folders that are themselves invisible
- * are preserved here — SectionItem handles per-node visibility — but we use
- * isNodeVisible/hasVisibleContent to decide whether the *segment* under each
- * separator has anything worth rendering.
- */
-function pruneEmptySeparators(
-  items: readonly PageTree.Node[],
-  platform: Platform,
-): PageTree.Node[] {
-  const result: PageTree.Node[] = [];
-  items.forEach((item, i) => {
-    if (item.type !== "separator") {
-      result.push(item);
-      return;
-    }
-    let hasVisible = false;
-    for (const next of items.slice(i + 1)) {
-      if (next.type === "separator") break;
-      if (hasVisibleContent(next, platform)) {
-        hasVisible = true;
-        break;
-      }
-    }
-    if (hasVisible) result.push(item);
-  });
-  return result;
-}
-
-interface SidebarContentProps {
-  tree?: PageTree.Root;
-}
-
-function containsPath(node: PageTree.Node, pathname: string): boolean {
-  if (node.type === "page") return pathname === node.url;
-  if (node.type === "separator") return false;
-  if (node.index && pathname === node.index.url) return true;
-  return node.children.some((child) => containsPath(child, pathname));
-}
-
-/**
- * Renders one item below the section level: a leaf page, a sub-folder, or a
- * separator (rendered as an inline subheader, not a collapsible).
- */
 function SectionItem({
   item,
   onNavigate,
+  platform,
   depth = 0,
 }: {
   item: PageTree.Node;
   onNavigate: () => void;
+  platform: Platform;
   depth?: number;
 }) {
   const pathname = usePathname();
-  const { platform } = usePlatform();
 
   if (!isNodeVisible(item, platform)) return null;
 
@@ -124,7 +49,7 @@ function SectionItem({
 
   if (item.type === "folder") {
     const isActive = item.index && pathname === item.index.url;
-    const containsActive = containsPath(item, pathname);
+    const containsActive = findPathToNode(item, pathname) !== null;
     const hasChildren = item.children.length > 0;
 
     return (
@@ -164,6 +89,7 @@ function SectionItem({
                 key={child.$id}
                 item={child}
                 onNavigate={onNavigate}
+                platform={platform}
                 depth={depth + 1}
               />
             ))}
@@ -173,7 +99,6 @@ function SectionItem({
     );
   }
 
-  // page
   const isActive = pathname === item.url;
   return (
     <Link
@@ -196,20 +121,18 @@ function SectionItem({
   );
 }
 
-/**
- * One top-level chevron section (e.g. "Docs", "Primitives", "Components").
- * Click the header to expand/collapse. Active section auto-expands.
- */
 function SidebarSection({
   folder,
   isOpen,
   onToggle,
   onNavigate,
+  platform,
 }: {
   folder: PageTree.Folder;
   isOpen: boolean;
   onToggle: () => void;
   onNavigate: () => void;
+  platform: Platform;
 }) {
   const pathname = usePathname();
   const isActive = folder.index && pathname === folder.index.url;
@@ -253,6 +176,7 @@ function SidebarSection({
                   key={child.$id}
                   item={child}
                   onNavigate={onNavigate}
+                  platform={platform}
                 />
               ))}
             </div>
@@ -263,98 +187,70 @@ function SidebarSection({
   );
 }
 
-export function SidebarContent({ tree }: SidebarContentProps) {
+export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
   const { setOpen: setSidebarOpen } = useDocsSidebar();
   const pathname = usePathname();
   const { platform, setPlatform } = usePlatform();
   const navRef = useRef<HTMLElement>(null);
 
-  // Read latest platform via ref so the auto-switch effect below depends only
-  // on pathname — without this, the effect re-fires whenever the user clicks
-  // the platform switcher, immediately reverting their selection on
-  // platform-specific pages (e.g. /docs/react-native/...).
   const platformRef = useRef(platform);
   platformRef.current = platform;
 
-  // If the user lands on a page (e.g. from a search result) whose containing
-  // section is hidden under the current platform, switch to a platform that
-  // makes it visible. Sections with no `platforms` field are universal and
-  // never trigger this. Only fires on pathname change, not platform change.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the only intended trigger
+  const allFolders = useMemo(
+    () =>
+      (tree?.children ?? []).filter(
+        (n): n is PageTree.Folder => n.type === "folder",
+      ),
+    [tree],
+  );
+
+  const sections = useMemo(
+    () => buildPlatformSections(allFolders, platform),
+    [allFolders, platform],
+  );
+
+  const activePath = useMemo(() => {
+    for (const folder of allFolders) {
+      const path = findPathToNode(folder, pathname);
+      if (path) return path;
+    }
+    return null;
+  }, [allFolders, pathname]);
+
+  const activeNodePlatforms = useMemo(() => {
+    if (!activePath) return undefined;
+
+    for (let i = activePath.length - 1; i >= 0; i--) {
+      const platforms = nodePlatforms(activePath[i]!);
+      if (platforms !== undefined && platforms.length > 0) return platforms;
+    }
+
+    return undefined;
+  }, [activePath]);
+
   useEffect(() => {
-    const allFolders = (tree?.children ?? []).filter(
-      (n): n is PageTree.Folder => n.type === "folder",
-    );
-    const active = allFolders.find((s) => containsPath(s, pathname));
-    const platforms = active ? nodePlatforms(active) : undefined;
-    if (!platforms || platforms.length === 0) return;
-    if (platforms.includes(platformRef.current)) return;
-    setPlatform(platforms[0] as Platform);
-  }, [pathname]);
+    if (!activeNodePlatforms || activeNodePlatforms.length === 0) return;
+    if (activeNodePlatforms.includes(platformRef.current)) return;
 
-  // Top-level folders become the chevron sections. The standalone
-  // platform-specific top-levels ("React Native", "React Ink") never render
-  // as their own sections; instead, when their platform is active, their
-  // children are merged into the main "Docs" section so the sidebar
-  // structure stays unified across platforms. Per-page `platforms` filtering
-  // is handled by SectionItem.
-  const sections = useMemo<PageTree.Folder[]>(() => {
-    if (!tree?.children) return [];
-    const allFolders = tree.children.filter(
-      (n): n is PageTree.Folder => n.type === "folder",
-    );
-
-    const injectName = PLATFORM_INJECTED_FOLDER[platform];
-    const injectFolder = injectName
-      ? allFolders.find((f) => f.name === injectName)
-      : undefined;
-
-    return allFolders
-      .filter(
-        (f) =>
-          !PLATFORM_FOLDER_NAMES.has(String(f.name)) &&
-          isNodeVisible(f, platform),
-      )
-      .map((f) => {
-        if (!injectFolder || f.name !== INJECT_TARGET_FOLDER) return f;
-        const separator: PageTree.Separator = {
-          type: "separator",
-          name: injectFolder.name,
-          $id: `platform-injected-${injectFolder.$id ?? "sep"}`,
-        };
-        return {
-          ...f,
-          children: [...f.children, separator, ...injectFolder.children],
-        };
-      })
-      .map((f) => ({
-        ...f,
-        children: pruneEmptySeparators(f.children, platform),
-      }))
-      .filter((f) => hasVisibleContent(f, platform));
-  }, [tree, platform]);
+    const next = activeNodePlatforms.find(isPlatform);
+    if (next) setPlatform(next);
+  }, [activeNodePlatforms, setPlatform]);
 
   const activeSectionId = useMemo(() => {
-    const match = sections.find((s) => containsPath(s, pathname));
+    const activeIds = new Set(activePath?.map((node) => node.$id));
+    const match = sections.find((section) => activeIds.has(section.$id));
     return match?.$id ?? sections[0]?.$id ?? null;
-  }, [sections, pathname]);
+  }, [sections, activePath]);
 
   const [openSectionId, setOpenSectionId] = useState<string | null>(
     activeSectionId,
   );
 
-  // When the route changes, ensure the section containing the active page is
-  // open — even if the user previously collapsed it manually. Depending on
-  // pathname (not just activeSectionId) re-fires the effect on every route
-  // change, including intra-section nav where activeSectionId is unchanged.
   // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the change trigger
   useEffect(() => {
     if (activeSectionId) setOpenSectionId(activeSectionId);
   }, [activeSectionId, pathname]);
 
-  // After expand animation, scroll the active link into view if off-screen.
-  // Skip when the active link's section is collapsed — the link is hidden
-  // inside an overflow-hidden region, scrolling to it would be incorrect.
   // biome-ignore lint/correctness/useExhaustiveDependencies: deps are change triggers
   useEffect(() => {
     if (openSectionId !== activeSectionId) return;
@@ -380,6 +276,7 @@ export function SidebarContent({ tree }: SidebarContentProps) {
         ref={navRef}
         className="sidebar-tree-content flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pt-4 pb-4"
       >
+        <PlatformSwitcher tree={tree} />
         {sections.map((section) => (
           <SidebarSection
             key={section.$id}
@@ -392,6 +289,7 @@ export function SidebarContent({ tree }: SidebarContentProps) {
               setOpenSectionId(willOpen ? id : null);
             }}
             onNavigate={onNavigate}
+            platform={platform}
           />
         ))}
       </nav>

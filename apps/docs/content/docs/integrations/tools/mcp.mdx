@@ -8,9 +8,9 @@ description: Connect MCP servers as a tool catalog in your assistant-ui app.
 ## How it works
 
 ```
-browser  ──►  /api/chat  ──►  MCP client  ──►  MCP server (HTTP, SSE, stdio)
-                              │
-                              └─ tools()  ──►  passed to streamText({ tools })
+client  ──►  /api/chat  ──►  MCP client  ──►  MCP server (HTTP, SSE, stdio)
+                            │
+                            └─ tools()  ──►  passed to streamText({ tools })
 ```
 
 The MCP client lives on the server inside your AI SDK route handler. It connects to one or more MCP servers, calls `tools()` to get a tool map, and hands that map to `streamText`. assistant-ui's existing tool-call UI (`ToolFallback`, `makeAssistantToolUI`) renders the results.
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
   const tools = await mcpClient.tools();
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-mini"),
     messages: await convertToModelMessages(messages),
     tools,
     onFinish: async () => {
@@ -143,6 +143,9 @@ If two servers expose tools with the same name, the later spread wins. Rename or
 
 Tool calls flow through the existing assistant-ui tool-call rendering. With no setup, the bundled `<ToolFallback>` component renders the call name, arguments, and result. To customize the appearance for a specific tool, use `makeAssistantToolUI`:
 
+<PlatformTabs>
+<Tab value="React">
+
 ```tsx title="app/components/GitHubIssueToolUI.tsx"
 "use client";
 
@@ -166,6 +169,65 @@ export const GitHubIssueToolUI = makeAssistantToolUI<Args, Result>({
 });
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx title="components/GitHubIssueToolUI.tsx"
+import { makeAssistantToolUI } from "@assistant-ui/react-native";
+import { Linking, Pressable, Text, View } from "react-native";
+
+type Args = { repo: string; number: number };
+type Result = { title: string; state: string; url: string };
+
+export const GitHubIssueToolUI = makeAssistantToolUI<Args, Result>({
+  toolName: "github_get_issue",
+  render: ({ args, result }) => (
+    <View style={{ borderWidth: 1, borderRadius: 6, padding: 12 }}>
+      <Text style={{ fontFamily: "Menlo", fontSize: 13 }}>
+        {args.repo}#{args.number}
+      </Text>
+      {result && (
+        <Pressable onPress={() => Linking.openURL(result.url)}>
+          <Text style={{ textDecorationLine: "underline" }}>
+            {result.title} ({result.state})
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  ),
+});
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="components/GitHubIssueToolUI.tsx"
+import { makeAssistantToolUI } from "@assistant-ui/react-ink";
+import { Box, Text } from "ink";
+
+type Args = { repo: string; number: number };
+type Result = { title: string; state: string; url: string };
+
+export const GitHubIssueToolUI = makeAssistantToolUI<Args, Result>({
+  toolName: "github_get_issue",
+  render: ({ args, result }) => (
+    <Box borderStyle="round" paddingX={1} flexDirection="column">
+      <Text>
+        {args.repo}#{args.number}
+      </Text>
+      {result && (
+        <Text>
+          {result.title} ({result.state}) — {result.url}
+        </Text>
+      )}
+    </Box>
+  ),
+});
+```
+
+</Tab>
+</PlatformTabs>
+
 Mount it once anywhere inside `<AssistantRuntimeProvider>`. The `toolName` must match the name your MCP server publishes.
 
 </Step>
@@ -184,7 +246,7 @@ Start the app and trigger a tool call (e.g., ask the assistant to do something t
 
 ## Notes
 
-- **Server-side only.** The MCP client uses Node APIs (sockets, optionally child processes). Never instantiate it in browser code.
+- **Server-side only.** The MCP client uses Node APIs (sockets, optionally child processes). Never instantiate it in client code.
 - **Per-request lifecycle.** A fresh client per request keeps connection state simple. For high-throughput servers, pool clients yourself with care: the AI SDK's `tools()` call assumes the connection is alive when `streamText` runs.
 - **Sampling.** If your MCP server uses `sampling/createMessage` (lets the server ask the LLM mid-call), assistant-cloud users can instrument it via [`instrumentMcpSampling`](/docs/cloud) for observability. This is independent of the wiring above.
 - **Transport choice.** HTTP for any networked server. SSE only if the server doesn't speak HTTP. stdio is for local development against an MCP server in your monorepo.

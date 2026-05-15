@@ -1,6 +1,6 @@
 ---
-title: Getting Started
-description: Build AI chat interfaces for iOS and Android with @assistant-ui/react-native.
+title: React Native AI Chat
+description: Build AI chat for iOS and Android with @assistant-ui/react-native — streaming, tools, attachments, and platform-native components from the same primitives as the web SDK.
 ---
 
 ## Quick Start
@@ -49,9 +49,7 @@ If you prefer to add assistant-ui to an existing Expo project, follow these step
 
 ### Install dependencies
 
-```sh
-npx expo install @assistant-ui/react-native @assistant-ui/react-ai-sdk
-```
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-ai-sdk"]} />
 
   </Step>
   <Step>
@@ -71,7 +69,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
-    model: openai("gpt-4o-mini"),
+    model: openai("gpt-5.4-nano"),
     messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
@@ -87,7 +85,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
-    model: anthropic("claude-sonnet-4-20250514"),
+    model: anthropic("claude-sonnet-4-6"),
     messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();

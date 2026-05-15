@@ -1,7 +1,6 @@
 ---
 title: AI SDK + assistant-ui
 description: Integrate cloud persistence using assistant-ui runtime and pre-built components.
-platforms: ["react"]
 ---
 
 
@@ -56,6 +55,9 @@ Create a new project in the [assistant-cloud dashboard](https://cloud.assistant-
 
 Add the following environment variables to your project:
 
+<PlatformTabs>
+<Tab value="React">
+
 ```bash title=".env.local"
 # Frontend API URL from your cloud project settings
 NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
@@ -63,6 +65,31 @@ NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
 # API key for server-side operations
 ASSISTANT_API_KEY=your-api-key-here
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```bash title=".env"
+# Client API URL from your cloud project settings
+EXPO_PUBLIC_ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
+
+# API key for server-side operations; do not ship this in your app bundle
+ASSISTANT_API_KEY=your-api-key-here
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```bash title=".env"
+# Client API URL from your cloud project settings
+ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
+
+# API key for server-side operations; do not ship this in your CLI bundle
+ASSISTANT_API_KEY=your-api-key-here
+```
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 
@@ -72,7 +99,23 @@ ASSISTANT_API_KEY=your-api-key-here
 
 Install the required packages:
 
+<PlatformTabs>
+<Tab value="React">
+
 <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ai-sdk"]} />
+
+</Tab>
+<Tab value="React Native">
+
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-ai-sdk", "assistant-cloud"]} />
+
+</Tab>
+<Tab value="React Ink">
+
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/react-ai-sdk", "assistant-cloud", "ink", "react"]} />
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 
@@ -81,6 +124,9 @@ Install the required packages:
 ### Set Up the Cloud Runtime
 
 Create a client-side AssistantCloud instance and integrate it with your AI SDK runtime:
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx title="app/chat/page.tsx"
 "use client";
@@ -115,6 +161,133 @@ export default function ChatPage() {
   );
 }
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```tsx title="app/chat.tsx"
+import { useMemo } from "react";
+import { Text, View } from "react-native";
+import {
+  AssistantRuntimeProvider,
+  ThreadListItemPrimitive,
+  ThreadListPrimitive,
+} from "@assistant-ui/react-native";
+import { AssistantCloud } from "assistant-cloud";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { Thread } from "@/components/assistant-ui/thread";
+
+async function getAssistantToken() {
+  // Return a user token from your auth provider.
+  return "...";
+}
+
+function ThreadList() {
+  return (
+    <ThreadListPrimitive.Root>
+      <ThreadListPrimitive.New>
+        <Text>New chat</Text>
+      </ThreadListPrimitive.New>
+      <ThreadListPrimitive.Items
+        renderItem={({ threadId }) => (
+          <ThreadListItemPrimitive.Root key={threadId}>
+            <ThreadListItemPrimitive.Trigger>
+              <ThreadListItemPrimitive.Title fallback="New conversation" />
+            </ThreadListItemPrimitive.Trigger>
+          </ThreadListItemPrimitive.Root>
+        )}
+      />
+    </ThreadListPrimitive.Root>
+  );
+}
+
+export default function ChatScreen() {
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.EXPO_PUBLIC_ASSISTANT_BASE_URL!,
+        authToken: getAssistantToken,
+      }),
+    [],
+  );
+
+  const runtime = useChatRuntime({ cloud });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <View style={{ flex: 1 }}>
+        <ThreadList />
+        <Thread />
+      </View>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="chat.tsx"
+import { useMemo } from "react";
+import { Box, Text } from "ink";
+import {
+  AssistantRuntimeProvider,
+  ThreadListItemPrimitive,
+  ThreadListPrimitive,
+} from "@assistant-ui/react-ink";
+import { AssistantCloud } from "assistant-cloud";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { Thread } from "./components/thread.js";
+
+async function getAssistantToken() {
+  // Return a user token from your auth provider.
+  return "...";
+}
+
+function ThreadList() {
+  return (
+    <ThreadListPrimitive.Root>
+      <ThreadListPrimitive.New>
+        <Text color="green">[New chat]</Text>
+      </ThreadListPrimitive.New>
+      <ThreadListPrimitive.Items
+        renderItem={({ threadId }) => (
+          <ThreadListItemPrimitive.Root key={threadId}>
+            <ThreadListItemPrimitive.Trigger>
+              <ThreadListItemPrimitive.Title fallback="New conversation" />
+            </ThreadListItemPrimitive.Trigger>
+          </ThreadListItemPrimitive.Root>
+        )}
+      />
+    </ThreadListPrimitive.Root>
+  );
+}
+
+export function Chat() {
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.ASSISTANT_BASE_URL!,
+        authToken: getAssistantToken,
+      }),
+    [],
+  );
+
+  const runtime = useChatRuntime({ cloud });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Box flexDirection="column">
+        <ThreadList />
+        <Thread />
+      </Box>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 
@@ -214,7 +387,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-4o-mini"),
+    model: openai("gpt-5.4-mini"),
     messages,
   });
 
@@ -265,7 +438,10 @@ See the [AI SDK Telemetry guide](/docs/cloud/ai-sdk#sub-agent-model-tracking) fo
 
 ## Authentication
 
-The example above uses anonymous mode (browser session-based user ID) via the env var. For production apps with user accounts, pass an explicit cloud instance:
+The React example above uses anonymous mode for quick demos. For production apps with user accounts, pass an explicit cloud instance with a token from your auth provider:
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx
 import { useMemo } from "react";
@@ -285,6 +461,57 @@ function Chat() {
   // ...
 }
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```tsx
+import { useMemo } from "react";
+import { AssistantCloud } from "assistant-cloud";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+async function getAssistantToken() {
+  // Return a user token from your native auth provider.
+  return "...";
+}
+
+function Chat() {
+  const cloud = useMemo(() => new AssistantCloud({
+    baseUrl: process.env.EXPO_PUBLIC_ASSISTANT_BASE_URL!,
+    authToken: getAssistantToken,
+  }), []);
+
+  const runtime = useChatRuntime({ cloud });
+  // ...
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx
+import { useMemo } from "react";
+import { AssistantCloud } from "assistant-cloud";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+async function getAssistantToken() {
+  // Return a user token from your CLI auth flow.
+  return "...";
+}
+
+function Chat() {
+  const cloud = useMemo(() => new AssistantCloud({
+    baseUrl: process.env.ASSISTANT_BASE_URL!,
+    authToken: getAssistantToken,
+  }), []);
+
+  const runtime = useChatRuntime({ cloud });
+  // ...
+}
+```
+
+</Tab>
+</PlatformTabs>
 
 See the [Cloud Authorization](/docs/cloud/authorization) guide for other auth providers.
 

@@ -9,6 +9,8 @@ export type ThreadsState = {
   readonly mainThreadId: string;
   readonly newThreadId: string | null;
   readonly isLoading: boolean;
+  readonly isLoadingMore: boolean;
+  readonly hasMore: boolean;
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
   readonly threadItems: readonly ThreadListItemState[];
@@ -28,6 +30,7 @@ export type ThreadsMethods = {
   thread(selector: "main"): ThreadMethods;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  loadMore(): Promise<void>;
   __internal_getAssistantRuntime?(): AssistantRuntime;
 };
 

@@ -57,10 +57,21 @@ export type ToolCallMessagePartProps<
   TResult = unknown,
 > = MessagePartState &
   ToolCallMessagePart<TArgs, TResult> & {
+    /**
+     * Sets the result for this tool-call message part.
+     *
+     * Use when the renderer, rather than a tool `execute` function, is the
+     * source of the result.
+     */
     addResult: (result: TResult | ToolResponse<TResult>) => void;
+    /**
+     * Supplies the payload requested by `context.human(...)` and resumes the
+     * paused frontend tool execution.
+     */
     resume: (payload: unknown) => void;
   };
 
+/** Component used to render a tool-call message part. */
 export type ToolCallMessagePartComponent<
   TArgs = any,
   TResult = any,

@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     : {};
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-nano"),
     messages: await convertToModelMessages(messages),
     stopWhen: stepCountIs(10),
     ...(system ? { system } : {}),

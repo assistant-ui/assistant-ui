@@ -3,14 +3,15 @@ title: Picking a runtime
 description: Decision guide for choosing the right runtime, by framework or by feature.
 ---
 
+import { A2AIcon } from "@/components/icons/a2a";
+import { AdkIcon } from "@/components/icons/adk";
 import { AguiIcon } from "@/components/icons/agui";
-import { GeminiIcon } from "@/components/icons/gemini";
+import { CloudflareIcon } from "@/components/icons/cloudflare";
 import { LangChainIcon } from "@/components/icons/langchain";
 import { LangGraphIcon } from "@/components/icons/langgraph";
 import { MastraIcon } from "@/components/icons/mastra";
 import { OpenCodeIcon } from "@/components/icons/opencode";
 import { VercelIcon } from "@/components/icons/vercel";
-import { Network } from "lucide-react";
 
 A runtime is the connection between assistant-ui's UI primitives and your AI backend. This page helps you pick one. Two lenses, pick whichever maps to what you already know.
 
@@ -42,13 +43,13 @@ assistant-ui ships React adapter packages for these. Pick the matching card and 
     href="/docs/runtimes/langchain"
   />
   <Card
-    icon={<GeminiIcon width={20} height={20} />}
+    icon={<AdkIcon width={20} height={20} />}
     title="Google ADK"
     description="ADK JS or Python agents. Tool confirmations, auth flows, multi-agent, code execution."
     href="/docs/runtimes/google-adk"
   />
   <Card
-    icon={<Network width={20} height={20} />}
+    icon={<A2AIcon width={20} height={20} />}
     title="A2A Protocol"
     description="Any A2A v1.0-compliant agent server. Streaming task state, artifacts, multi-tenancy."
     href="/docs/runtimes/a2a"
@@ -59,26 +60,38 @@ assistant-ui ships React adapter packages for these. Pick the matching card and 
     description="AG-UI agents (CopilotKit, custom servers). Streaming text, thinking, tool calls, state snapshots."
     href="/docs/runtimes/ag-ui"
   />
-  <Card
-    icon={<OpenCodeIcon width={20} height={20} />}
-    title="OpenCode"
-    description="OpenCode coding-agent server. Permission flows, questions, fork / revert. Experimental."
-    href="/docs/runtimes/opencode"
-  />
+  <PlatformOnly platforms={["react"]}>
+    <Card
+      icon={<OpenCodeIcon width={20} height={20} />}
+      title="OpenCode"
+      description="OpenCode coding-agent server. Permission flows, questions, fork / revert. Experimental."
+      href="/docs/runtimes/opencode"
+    />
+  </PlatformOnly>
 </Cards>
+
+<PlatformOnly platforms={["react"]}>
 
 ### Integration guides
 
 For frameworks without a dedicated adapter, these wiring guides route through one of the adapters above.
 
-<Cards>
-  <Card
-    icon={<MastraIcon width={20} height={20} />}
-    title="Mastra"
-    description="TypeScript agent framework. Wired through the Vercel AI SDK runtime."
-    href="/docs/integrations/frameworks/mastra/overview"
-  />
-</Cards>
+  <Cards>
+    <Card
+      icon={<CloudflareIcon width={20} height={20} />}
+      title="Cloudflare Agents"
+      description="Stateful agents on Durable Objects with WebSocket streaming. Wired through the Vercel AI SDK runtime."
+      href="/docs/integrations/frameworks/cloudflare-agents/overview"
+    />
+    <Card
+      icon={<MastraIcon width={20} height={20} />}
+      title="Mastra"
+      description="TypeScript agent framework. Wired through the Vercel AI SDK runtime."
+      href="/docs/integrations/frameworks/mastra/overview"
+    />
+  </Cards>
+
+</PlatformOnly>
 
 ## Lens 2: by needs
 

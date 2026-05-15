@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Sequence, Union
 
 from assistant_stream.assistant_stream_chunk import (
     ObjectStreamOperation,
@@ -53,6 +53,23 @@ class StateManager:
         if not self._update_scheduled:
             self._update_scheduled = True
             self._loop.call_soon_threadsafe(self._flush_updates)
+
+    def append_text(self, path: Sequence[Union[str, int]], value: str) -> None:
+        """Append text at a path using an explicit append-text delta operation."""
+        if not isinstance(value, str):
+            raise TypeError(
+                f"Can only append str (not '{type(value).__name__}') as text delta"
+            )
+
+        self.add_operations(
+            [
+                {
+                    "type": "append-text",
+                    "path": [str(segment) for segment in path],
+                    "value": value,
+                }
+            ]
+        )
 
     def _flush_updates(self) -> None:
         """Send pending operations as a batch."""

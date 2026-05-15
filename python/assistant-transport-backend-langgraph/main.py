@@ -108,7 +108,7 @@ async def subagent_node(state: SubagentState) -> Dict[str, Any]:
 
     # Initialize a simpler LLM for the subagent
     llm = ChatOpenAI(
-        model="gpt-4o-mini",
+        model="gpt-5.4-nano",
         temperature=0.7,
         streaming=True
     )
@@ -152,7 +152,7 @@ async def agent_node(state: GraphState) -> Dict[str, Any]:
 
     # Initialize the LLM with tool binding
     llm = ChatOpenAI(
-        model="gpt-4o-mini",
+        model="gpt-5.4-nano",
         temperature=0.7,
         streaming=True,
     )

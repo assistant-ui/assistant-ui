@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useId,
@@ -35,6 +36,16 @@ export interface TabsProps extends React.ComponentProps<"div"> {
    * Additional label in tabs list
    */
   label?: ReactNode;
+
+  /**
+   * Controlled escaped value of the active tab. Pair with `onValueChange`.
+   */
+  value?: string;
+
+  /**
+   * Called with the escaped value when the active tab changes (controlled mode).
+   */
+  onValueChange?: (value: string) => void;
 }
 
 const TabsContext = createContext<{
@@ -50,7 +61,7 @@ function useTabContext() {
   return ctx;
 }
 
-function escapeValue(v: string): string {
+export function escapeValue(v: string): string {
   return v.toLowerCase().replace(/\s/g, "-");
 }
 
@@ -60,12 +71,25 @@ export function Tabs({
   label,
   defaultIndex = 0,
   groupId,
+  value: controlledValue,
+  onValueChange,
   children,
   ...props
 }: TabsProps): React.ReactElement {
   const defaultItem = items?.[defaultIndex];
   const defaultValue = defaultItem ? escapeValue(defaultItem) : undefined;
-  const [value, setValue] = useState(defaultValue);
+  const [internalValue, setInternalValue] = useState(defaultValue);
+  const value = controlledValue ?? internalValue;
+  const setValue = useCallback(
+    (v: string | undefined) => {
+      if (onValueChange) {
+        if (v !== undefined) onValueChange(v);
+      } else {
+        setInternalValue(v);
+      }
+    },
+    [onValueChange],
+  );
   const collection = useMemo<CollectionKey[]>(() => [], []);
 
   const activeIndex = items
@@ -144,7 +168,7 @@ export function Tabs({
       <TabsContext.Provider
         value={useMemo(
           () => ({ items, collection, value, setValue }),
-          [items, collection, value],
+          [items, collection, value, setValue],
         )}
       >
         {children}
@@ -185,6 +209,7 @@ export function Tab({
       hidden={!isActive}
       className={cn(
         "prose-no-margin mt-4 min-w-0 text-sm",
+        "[&_a]:font-medium [&_a]:text-fd-primary [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:text-fd-primary/80",
         "data-[state=inactive]:hidden",
         className,
       )}

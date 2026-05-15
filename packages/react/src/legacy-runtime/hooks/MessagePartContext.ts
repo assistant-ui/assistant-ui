@@ -5,7 +5,7 @@ import { createStateHookForRuntime } from "../../context/react/utils/createState
 import { useAui, useAuiState } from "@assistant-ui/store";
 
 /**
- * @deprecated Use `useAui()` with `aui.part()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use {@link useAui} with `aui.part()` instead. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export function useMessagePartRuntime(options?: {
   optional?: false | undefined;
@@ -27,6 +27,6 @@ export function useMessagePartRuntime(options?: {
 }
 
 /**
- * @deprecated Use `useAuiState((s) => s.part)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use {@link useAuiState}: `useAuiState((s) => s.part)`. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export const useMessagePart = createStateHookForRuntime(useMessagePartRuntime);

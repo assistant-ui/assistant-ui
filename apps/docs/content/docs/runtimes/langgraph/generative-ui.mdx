@@ -74,6 +74,9 @@ Passing `message` (Python) or `{ message }` (TypeScript) is what links the UI co
 
 ## Register a renderer on the client
 
+<PlatformTabs>
+<Tab value="React">
+
 ```tsx title="@/components/ChartUI.tsx"
 import { makeAssistantDataUI } from "@assistant-ui/react";
 
@@ -93,7 +96,59 @@ export const ChartUI = makeAssistantDataUI<ChartProps>({
 });
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx title="components/ChartUI.tsx"
+import { makeAssistantDataUI } from "@assistant-ui/react-native";
+import { Text, View } from "react-native";
+
+type ChartProps = {
+  series: number[];
+  title: string;
+};
+
+export const ChartUI = makeAssistantDataUI<ChartProps>({
+  name: "chart",
+  render: ({ data }) => (
+    <View>
+      <Text>{data.title}</Text>
+      <Chart series={data.series} />
+    </View>
+  ),
+});
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="components/chart-ui.tsx"
+import { makeAssistantDataUI } from "@assistant-ui/react-ink";
+import { Box, Text } from "ink";
+
+type ChartProps = {
+  series: number[];
+  title: string;
+};
+
+export const ChartUI = makeAssistantDataUI<ChartProps>({
+  name: "chart",
+  render: ({ data }) => (
+    <Box flexDirection="column">
+      <Text bold>{data.title}</Text>
+      <Chart series={data.series} />
+    </Box>
+  ),
+});
+```
+
+</Tab>
+</PlatformTabs>
+
 Mount the component once somewhere inside the `AssistantRuntimeProvider` tree. It renders nothing itself; it only registers the renderer:
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx title="@/components/MyAssistant.tsx"
 <AssistantRuntimeProvider runtime={runtime}>
@@ -101,6 +156,39 @@ Mount the component once somewhere inside the `AssistantRuntimeProvider` tree. I
   <Thread />
 </AssistantRuntimeProvider>
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```tsx title="components/MyAssistant.tsx"
+import { View } from "react-native";
+import { Thread } from "@/components/assistant-ui/thread";
+
+<AssistantRuntimeProvider runtime={runtime}>
+  <ChartUI />
+  <View style={{ flex: 1 }}>
+    <Thread />
+  </View>
+</AssistantRuntimeProvider>;
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="components/my-assistant.tsx"
+import { Box } from "ink";
+import { Thread } from "./thread.js";
+
+<AssistantRuntimeProvider runtime={runtime}>
+  <ChartUI />
+  <Box flexDirection="column">
+    <Thread />
+  </Box>
+</AssistantRuntimeProvider>;
+```
+
+</Tab>
+</PlatformTabs>
 
 When a matching UI message arrives, the adapter appends a `{ type: "data", name: "chart", data: { series, title } }` part to the parent assistant message and the registered component renders inline.
 

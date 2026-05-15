@@ -526,6 +526,46 @@ Use `onSubmit` on `Root` to intercept submission:
 </ComposerPrimitive.Root>
 ```
 
+### Gate Sending on External State
+
+Sometimes you want users to type while sending is temporarily blocked, for example while tool configuration, auth, or the first model context is still loading. Disabling the entire thread via `isDisabled` works but also disables the text input, which feels broken.
+
+Use `isSendDisabled` on the runtime adapter to keep the input usable while blocking send:
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  isSendDisabled: !toolsLoaded,
+  onNew,
+  messages,
+  // ...
+});
+```
+
+When `isSendDisabled` is `true`:
+
+- `composer.canSend` becomes `false`
+- `<ComposerPrimitive.Send>` is disabled
+- Enter and the `Cmd/Ctrl+Shift+Enter` steer hotkey become no-ops
+- `aui.composer().send()` short-circuits at the runtime, so direct calls cannot escape the gate
+
+Read the same flag from React with `<AuiIf>` to render hints alongside the input:
+
+```tsx
+<ComposerPrimitive.Root>
+  <ComposerPrimitive.Input placeholder="Ask anything..." />
+  <AuiIf condition={(s) => !s.composer.canSend}>
+    <p className="text-sm text-muted-foreground">Loading tools, hang on...</p>
+  </AuiIf>
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+`canSend` reflects the composer's own willingness to send (editing mode, non-empty content, `isSendDisabled` not set). Cross-thread gating like an in-flight run without queue support is layered on top by `<ComposerPrimitive.Send>` automatically.
+
+`isSendDisabled` only gates the thread composer. Saving an in-progress message edit is unaffected, since it is a per-message action rather than a new send.
+
+For the difference between `isDisabled` and `isSendDisabled`, see the [external store adapter reference](/docs/runtimes/custom/external-store).
+
 ### Ctrl+Enter to Submit
 
 ```tsx

@@ -8,14 +8,6 @@ type WithInnerMessages<T> = {
   [symbolInnerMessages]?: T[];
 };
 
-/**
- * @deprecated Use `getExternalStoreMessages` (plural) instead. This function will be removed in 0.12.0.
- */
-export const getExternalStoreMessage = <T>(input: ThreadMessage) => {
-  const withInnerMessages = input as WithInnerMessages<T>;
-  return withInnerMessages[symbolInnerMessage];
-};
-
 const EMPTY_ARRAY: never[] = [];
 
 /**

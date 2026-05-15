@@ -46,7 +46,7 @@ const asLangChainRuntimeExtras = (extras: unknown): LangChainRuntimeExtras => {
   return extras as LangChainRuntimeExtras;
 };
 
-export type UseStreamRuntimeOptions = UseStreamOptions & {
+type LangChainRuntimeExtraOptions = {
   cloud?: AssistantCloud | undefined;
   adapters?:
     | {
@@ -55,9 +55,17 @@ export type UseStreamRuntimeOptions = UseStreamOptions & {
         feedback?: FeedbackAdapter | undefined;
       }
     | undefined;
-  /** The key in the LangGraph state that contains messages. Defaults to "messages". */
-  messagesKey?: string | undefined;
 };
+
+// Distribute the intersection through the union arms of `UseStreamOptions`
+// (`AgentServerOptions | CustomAdapterOptions`). Writing `UseStreamOptions & X`
+// directly collapses arm tracking, so `Omit<…, "cloud">` and the like would
+// produce a flattened structural type that no longer matches either arm.
+export type UseStreamRuntimeOptions = UseStreamOptions extends infer O
+  ? O extends UseStreamOptions
+    ? O & LangChainRuntimeExtraOptions
+    : never
+  : never;
 
 const getMessageContent = (msg: AppendMessage) => {
   const allContent = [
@@ -106,21 +114,27 @@ const getMessageContent = (msg: AppendMessage) => {
   return content;
 };
 
-const useStreamThreadRuntime = ({
-  adapters,
-  messagesKey = "messages",
-  ...streamOptions
-}: Omit<UseStreamRuntimeOptions, "cloud">) => {
+type DistributiveOmit<T, K extends keyof any> = T extends unknown
+  ? Omit<T, K>
+  : never;
+
+const useStreamThreadRuntime = (
+  options: DistributiveOmit<UseStreamRuntimeOptions, "cloud">,
+) => {
+  const { adapters } = options;
+  const messagesKey = options.messagesKey ?? "messages";
+
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const externalId = useAuiState((s) => s.threadListItem.externalId) as
     | string
     | null;
+  // Mutate in place rather than `{ ...options, threadId }`: spreading
+  // `UseStreamOptions` (a discriminated union on `transport`) into an object
+  // literal merges both arms' transport types, breaking arm assignment.
+  options.threadId = externalId;
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const stream = useStream({
-    ...streamOptions,
-    threadId: externalId,
-  });
+  const stream = useStream(options);
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [toolStatuses, setToolStatuses] = useState<

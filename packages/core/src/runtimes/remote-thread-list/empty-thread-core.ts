@@ -83,10 +83,6 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     throw EMPTY_THREAD_ERROR;
   },
 
-  unstable_loadExternalState() {
-    throw EMPTY_THREAD_ERROR;
-  },
-
   composer: {
     attachments: [],
     attachmentAccept: "*",
@@ -102,6 +98,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     isEditing: true,
 
     canCancel: false,
+    canSend: false,
     isEmpty: true,
 
     text: "",
@@ -190,6 +187,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
   },
 
   isDisabled: false,
+  isSendDisabled: false,
   isLoading: true,
 
   messages: [],
