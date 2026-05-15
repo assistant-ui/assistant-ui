@@ -234,4 +234,15 @@ describe("AttachmentPrimitive.Status", () => {
     const { lastFrame } = render(<AttachmentStatus showComplete />);
     expect(lastFrame()).toContain("+");
   });
+
+  it("accepts a caller-supplied color without crashing", () => {
+    setAttachmentState({
+      id: "a1",
+      type: "file",
+      name: "broken.bin",
+      status: { type: "incomplete", reason: "error" },
+    });
+    const { lastFrame } = render(<AttachmentStatus color="blue" />);
+    expect(lastFrame()).toContain("error");
+  });
 });

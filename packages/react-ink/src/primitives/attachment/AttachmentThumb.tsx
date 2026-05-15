@@ -12,7 +12,7 @@ export const AttachmentThumb: FC<AttachmentThumbProps> = (props) => {
       return `.${name.slice(dot + 1)}`;
     }
     const type = s.attachment.type;
-    if (type && type !== "file") return type;
+    if (type !== "file") return type;
     return "file";
   });
   return <Text {...props}>{label}</Text>;
