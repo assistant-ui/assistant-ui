@@ -1,6 +1,5 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { spawn } from "cross-spawn";
 import fs from "node:fs";
 import path from "node:path";
 import * as p from "@clack/prompts";
@@ -13,6 +12,7 @@ import {
   resolvePackageManagerForCwd,
   transformProject,
 } from "../lib/create-project";
+import { runSpawn, SpawnExitError } from "../lib/run-spawn";
 
 export interface ProjectMetadata {
   name: string;
@@ -342,37 +342,6 @@ export async function resolveProject(params: {
   return meta;
 }
 
-class SpawnExitError extends Error {
-  code: number;
-
-  constructor(code: number) {
-    super(`Process exited with code ${code}`);
-    this.code = code;
-  }
-}
-
-async function runSpawn(
-  command: string,
-  args: string[],
-  cwd?: string,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      stdio: "inherit",
-      cwd,
-    });
-
-    child.on("error", (error) => reject(error));
-    child.on("close", (code) => {
-      if (code !== 0) {
-        reject(new SpawnExitError(code || 1));
-      } else {
-        resolve();
-      }
-    });
-  });
-}
-
 export function resolveCreateProjectDirectory(params: {
   projectDirectory?: string;
   stdinIsTTY?: boolean;
@@ -420,7 +389,7 @@ export function resolveScaffoldSelector(
     opts.example !== undefined ? "--example" : undefined,
     opts.native ? "--native" : undefined,
     opts.ink ? "--ink" : undefined,
-  ].filter(Boolean);
+  ].filter((selector): selector is string => selector !== undefined);
 
   if (selectors.length > 1) {
     throw new Error(

@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import { spawn } from "cross-spawn";
 import { logger } from "../lib/utils/logger";
 import { hasConfig } from "../lib/utils/config";
 import {
@@ -8,6 +7,7 @@ import {
   resolvePackageManagerForCwd,
   type PackageManagerName,
 } from "../lib/create-project";
+import { runSpawn, SpawnExitError } from "../lib/run-spawn";
 
 const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
 
@@ -84,21 +84,17 @@ export const add = new Command()
       path: opts.path,
     });
 
-    const child = spawn(command, args, {
-      stdio: "inherit",
-    });
-
-    child.on("error", (error) => {
-      logger.error(`Failed to add components: ${error.message}`);
-      process.exit(1);
-    });
-
-    child.on("close", (code) => {
-      if (code !== 0) {
-        logger.error(`Process exited with code ${code}`);
-        process.exit(code || 1);
-      } else {
-        logger.success("Components added successfully!");
+    try {
+      await runSpawn(command, args);
+    } catch (error) {
+      if (error instanceof SpawnExitError) {
+        logger.error(`Process exited with code ${error.code}`);
+        process.exit(error.code);
       }
-    });
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Failed to add components: ${message}`);
+      process.exit(1);
+    }
+
+    logger.success("Components added successfully!");
   });

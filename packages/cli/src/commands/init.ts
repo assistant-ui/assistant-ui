@@ -1,5 +1,4 @@
 import { Command, Option } from "commander";
-import { spawn } from "cross-spawn";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -7,20 +6,12 @@ import {
   resolvePackageManager,
   resolvePackageManagerForCwd,
 } from "../lib/create-project";
+import { runSpawn, SpawnExitError } from "../lib/run-spawn";
 import { logger } from "../lib/utils/logger";
 import { create } from "./create";
 
 const DEFAULT_REGISTRY_URL =
   "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json";
-
-class SpawnExitError extends Error {
-  code: number;
-
-  constructor(code: number) {
-    super(`Process exited with code ${code}`);
-    this.code = code;
-  }
-}
 
 interface ExistingProjectInitPlan {
   initArgs: string[] | null;
@@ -54,31 +45,6 @@ export function isNonInteractiveShell(
   stdinIsTTY = process.stdin.isTTY,
 ): boolean {
   return !stdinIsTTY;
-}
-
-async function runSpawn(
-  command: string,
-  args: string[],
-  cwd: string,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      stdio: "inherit",
-      cwd,
-    });
-
-    child.on("error", (error) => {
-      reject(error);
-    });
-
-    child.on("close", (code) => {
-      if (code !== 0) {
-        reject(new SpawnExitError(code || 1));
-      } else {
-        resolve();
-      }
-    });
-  });
 }
 
 export const init = new Command()
