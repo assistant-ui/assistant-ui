@@ -10,7 +10,7 @@
     "esModuleInterop": true,
     "declaration": true,
     "noEmit": true,
-    "baseUrl": ".",
+    "allowArbitraryExtensions": true,
     "paths": {
       "@assistant-ui/ui/*": ["./src/*"],
       "@/*": ["./src/*"]

@@ -3757,6 +3757,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@assistant-ui/core':
+        specifier: workspace:*
+        version: link:../core
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../react
@@ -3793,6 +3796,9 @@ importers:
       embla-carousel-react:
         specifier: ^8.6.0
         version: 8.6.0(react@19.2.5)
+      heat-graph:
+        specifier: workspace:*
+        version: link:../heat-graph
       input-otp:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5)

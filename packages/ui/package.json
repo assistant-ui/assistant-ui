@@ -10,10 +10,12 @@
     "./lib/*": "./src/lib/*"
   },
   "dependencies": {
+    "@assistant-ui/core": "workspace:*",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/react-syntax-highlighter": "workspace:*",
+    "heat-graph": "workspace:*",
     "@base-ui/react": "^1.4.1",
     "@hookform/resolvers": "^5.2.2",
     "class-variance-authority": "^0.7.1",
