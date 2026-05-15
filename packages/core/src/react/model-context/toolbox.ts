@@ -1,21 +1,13 @@
 import type { Tool } from "assistant-stream";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 
-type RequiredToolRenderConfig<TArgs, TResult> = {
-  /** Component used to render calls to this tool in assistant messages. */
-  render: ToolCallMessagePartComponent<TArgs, TResult>;
-};
-
-type OptionalToolRenderConfig<TArgs, TResult> = {
-  /** Optional component used to render calls to this tool in assistant messages. */
-  render?: ToolCallMessagePartComponent<TArgs, TResult> | undefined;
-};
-
 type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
   type: "frontend" | "human";
 }
-  ? T & RequiredToolRenderConfig<TArgs, TResult>
-  : T & OptionalToolRenderConfig<TArgs, TResult>;
+  ? T & { render: ToolCallMessagePartComponent<TArgs, TResult> }
+  : T & {
+      render?: ToolCallMessagePartComponent<TArgs, TResult> | undefined;
+    };
 
 /**
  * Tool definition accepted by the React tool registry.
@@ -23,7 +15,8 @@ type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
  * Extends the core tool contract with a render component. Human tools rely on
  * the renderer to collect input from the user. Frontend tools execute in the
  * browser and require a UI surface for their progress and result. Backend
- * tools execute server-side and may omit a renderer.
+ * tools execute server-side and may omit a renderer. The `render` component is
+ * required for frontend and human tools and optional for backend tools.
  */
 export type ToolDefinition<
   TArgs extends Record<string, unknown>,

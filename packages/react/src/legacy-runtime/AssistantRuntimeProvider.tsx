@@ -19,8 +19,9 @@ export namespace AssistantRuntimeProvider {
     /**
      * Optional parent `AssistantClient` whose scopes are inherited by the
      * client created for this runtime. Use this when nesting an
-     * `AssistantRuntimeProvider` inside another assistant context.
-     * @defaultValue null
+     * `AssistantRuntimeProvider` inside another assistant context. Omit this
+     * prop when there is no parent client.
+     * @defaultValue undefined
      */
     aui?: AssistantClient;
   }>;

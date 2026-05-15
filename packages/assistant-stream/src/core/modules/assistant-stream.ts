@@ -271,6 +271,15 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 }
 
+/**
+ * Creates an {@link AssistantStream} and writes to it with an
+ * {@link AssistantStreamController}.
+ *
+ * The callback may write synchronously or asynchronously. If it throws, an
+ * `error` chunk is emitted before the error is rethrown; when the callback
+ * settles, the stream is closed automatically unless the controller was
+ * already closed.
+ */
 export function createAssistantStream(
   callback: (controller: AssistantStreamController) => PromiseLike<void> | void,
 ): AssistantStream {
@@ -299,6 +308,13 @@ export function createAssistantStream(
   return controller.__internal_getReadable();
 }
 
+/**
+ * Creates an {@link AssistantStream} together with the controller used to
+ * write into it.
+ *
+ * Use this when the stream needs to be returned before all writers are known.
+ * Closing the returned controller finishes the paired stream.
+ */
 export function createAssistantStreamController() {
   const { resolve, promise } = promiseWithResolvers<void>();
   let controller!: AssistantStreamController;
@@ -314,6 +330,13 @@ export function createAssistantStreamController() {
   return [stream, controller] as const;
 }
 
+/**
+ * Creates a `Response` whose body is an encoded {@link AssistantStream}.
+ *
+ * This is the HTTP-route convenience form of {@link createAssistantStream}; it
+ * uses {@link DataStreamEncoder} so the response can be consumed by matching
+ * assistant-ui data stream decoders.
+ */
 export function createAssistantStreamResponse(
   callback: (controller: AssistantStreamController) => PromiseLike<void> | void,
 ) {

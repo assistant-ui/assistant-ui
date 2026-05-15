@@ -382,13 +382,11 @@ export namespace useAui {
  *
  * @example
  * ```tsx
+ * // For event subscriptions, prefer useAuiEvent over aui.on() + useEffect.
+ * // Use aui directly for imperative actions:
  * const aui = useAui();
  *
- * useEffect(() => {
- *   return aui.on("thread.modelContextUpdate", () => {
- *     refreshModelContext();
- *   });
- * }, [aui]);
+ * const handleCancel = () => aui.thread().cancelRun();
  * ```
  *
  * @example

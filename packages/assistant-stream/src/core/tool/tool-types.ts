@@ -127,7 +127,7 @@ export interface ToolCallReader<
   response: ToolCallResponseReader<TResult>;
 
   /**
-   * @deprecated Deprecated. Use {@link ToolCallReader.response} and read
+   * @deprecated Use {@link ToolCallReader.response} and read
    * `response.get().result` instead.
    */
   result: {
@@ -185,17 +185,11 @@ type BackendTool<
   /** Tool that is executed by the backend rather than in the browser. */
   type: "backend";
 
-  /** Backend tools are described by the backend model/tool registry. */
   description?: undefined;
-  /** Backend tools receive their parameter schema from the backend. */
   parameters?: undefined;
-  /** Backend tools are disabled or filtered by the backend tool registry. */
   disabled?: undefined;
-  /** Backend tools are not executed by the frontend runtime. */
   execute?: undefined;
-  /** Backend tools do not convert frontend results to model output. */
   toModelOutput?: undefined;
-  /** Backend tools do not run frontend schema validation. */
   experimental_onSchemaValidationError?: undefined;
 };
 
@@ -233,11 +227,8 @@ type HumanTool<
   parameters: StandardSchemaV1<TArgs> | JSONSchema7;
   /** Prevents the tool from being exposed to the model while true. */
   disabled?: boolean;
-  /** Human tools are resolved by UI/human input, not direct execution. */
   execute?: undefined;
-  /** Human tool results are sent back as supplied by the UI. */
   toModelOutput?: undefined;
-  /** Human tools do not run frontend schema validation callbacks. */
   experimental_onSchemaValidationError?: undefined;
 };
 
