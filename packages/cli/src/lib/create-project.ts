@@ -27,6 +27,19 @@ export interface TransformOptions {
   packageManager: PackageManagerName;
 }
 
+export function resolvePackageManager(opts: {
+  useNpm?: boolean;
+  usePnpm?: boolean;
+  useYarn?: boolean;
+  useBun?: boolean;
+}): PackageManagerName | undefined {
+  if (opts.useNpm) return "npm";
+  if (opts.usePnpm) return "pnpm";
+  if (opts.useYarn) return "yarn";
+  if (opts.useBun) return "bun";
+  return undefined;
+}
+
 export async function resolveLatestReleaseRef(): Promise<string | undefined> {
   try {
     const res = await fetch(
@@ -99,15 +112,15 @@ function detectFromUserAgent(): PackageManagerName | undefined {
   return undefined;
 }
 
-export async function resolvePackageManagerName(
-  projectDir: string,
+export async function resolvePackageManagerForCwd(
+  cwd: string,
   packageManager?: PackageManagerName,
 ): Promise<PackageManagerName> {
   if (packageManager) return packageManager;
   const fromAgent = detectFromUserAgent();
   if (fromAgent) return fromAgent;
   try {
-    return await detect({ cwd: path.dirname(projectDir) });
+    return await detect({ cwd });
   } catch {
     return "npm";
   }

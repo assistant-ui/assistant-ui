@@ -1,14 +1,13 @@
 import { Command } from "commander";
 import { spawn } from "cross-spawn";
-import path from "node:path";
 import { logger } from "../lib/utils/logger";
 import { hasConfig } from "../lib/utils/config";
 import {
   dlxCommand,
-  resolvePackageManagerName,
+  resolvePackageManager,
+  resolvePackageManagerForCwd,
   type PackageManagerName,
 } from "../lib/create-project";
-import { resolvePackageManager } from "./create";
 
 const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
 
@@ -70,8 +69,8 @@ export const add = new Command()
 
     logger.step(`Adding ${components.length} component(s)...`);
 
-    const packageManager = await resolvePackageManagerName(
-      path.join(opts.cwd, "_"),
+    const packageManager = await resolvePackageManagerForCwd(
+      opts.cwd,
       resolvePackageManager(opts),
     );
     const { command, args } = createAddComponentsPlan({

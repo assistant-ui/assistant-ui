@@ -2,9 +2,13 @@ import { Command, Option } from "commander";
 import { spawn } from "cross-spawn";
 import fs from "node:fs";
 import path from "node:path";
-import { dlxCommand, resolvePackageManagerName } from "../lib/create-project";
+import {
+  dlxCommand,
+  resolvePackageManager,
+  resolvePackageManagerForCwd,
+} from "../lib/create-project";
 import { logger } from "../lib/utils/logger";
-import { create, resolvePackageManager } from "./create";
+import { create } from "./create";
 
 const DEFAULT_REGISTRY_URL =
   "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json";
@@ -152,11 +156,8 @@ export const init = new Command()
     }
 
     try {
-      // resolvePackageManagerName calls detect({ cwd: path.dirname(dir) }),
-      // which is designed for `create` where the dir doesn't exist yet.
-      // For init, targetDir IS the project root, so append a dummy segment.
-      const pm = await resolvePackageManagerName(
-        path.join(targetDir, "_"),
+      const pm = await resolvePackageManagerForCwd(
+        targetDir,
         resolvePackageManager(opts),
       );
       const [dlxCmd, dlxArgs] = dlxCommand(pm);

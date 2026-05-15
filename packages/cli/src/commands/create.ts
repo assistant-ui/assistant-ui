@@ -9,9 +9,9 @@ import {
   dlxCommand,
   downloadProject,
   resolveLatestReleaseRef,
-  resolvePackageManagerName,
+  resolvePackageManager,
+  resolvePackageManagerForCwd,
   transformProject,
-  type PackageManagerName,
 } from "../lib/create-project";
 
 export interface ProjectMetadata {
@@ -384,19 +384,6 @@ export function resolveCreateProjectDirectory(params: {
   return undefined;
 }
 
-export function resolvePackageManager(opts: {
-  useNpm?: boolean;
-  usePnpm?: boolean;
-  useYarn?: boolean;
-  useBun?: boolean;
-}): PackageManagerName | undefined {
-  if (opts.useNpm) return "npm";
-  if (opts.usePnpm) return "pnpm";
-  if (opts.useYarn) return "yarn";
-  if (opts.useBun) return "bun";
-  return undefined;
-}
-
 const PLAYGROUND_PRESET_BASE_URL =
   "https://www.assistant-ui.com/playground/init";
 
@@ -415,12 +402,17 @@ export interface ScaffoldSelectorOptions {
   ink?: boolean;
 }
 
+export type ResolvedScaffoldSelector = Pick<
+  ScaffoldSelectorOptions,
+  "template" | "example" | "preset"
+>;
+
 const scaffoldSelectorHelp =
   "Choose one of: --template <name>, --example <name>, --preset <name-or-url>, --native, or --ink.";
 
 export function resolveScaffoldSelector(
   opts: ScaffoldSelectorOptions,
-): Pick<ScaffoldSelectorOptions, "template" | "example"> {
+): ResolvedScaffoldSelector {
   const selectors = [
     opts.template ? "--template" : undefined,
     opts.example ? "--example" : undefined,
@@ -437,7 +429,11 @@ export function resolveScaffoldSelector(
 
   if (opts.native) return { example: "with-expo" };
   if (opts.ink) return { example: "with-react-ink" };
-  return { template: opts.template, example: opts.example };
+  return {
+    ...(opts.template !== undefined && { template: opts.template }),
+    ...(opts.example !== undefined && { example: opts.example }),
+    ...(opts.preset !== undefined && { preset: opts.preset }),
+  };
 }
 
 export const create = new Command()
@@ -465,7 +461,7 @@ export const create = new Command()
   .option("--ink", "create a React Ink terminal project")
   .option("--skip-install", "skip installing packages")
   .action(async (projectDirectory, opts) => {
-    let scaffoldSelector: Pick<ScaffoldSelectorOptions, "template" | "example">;
+    let scaffoldSelector: ResolvedScaffoldSelector;
     try {
       scaffoldSelector = resolveScaffoldSelector(opts);
     } catch (error) {
@@ -534,10 +530,7 @@ export const create = new Command()
     }
 
     // 2. Resolve scaffold target
-    const project = await resolveProject({
-      template: scaffoldSelector.template,
-      example: scaffoldSelector.example,
-    });
+    const project = await resolveProject(scaffoldSelector);
     if (!project) {
       p.cancel("Project creation cancelled.");
       process.exit(0);
@@ -546,8 +539,8 @@ export const create = new Command()
     logger.info(`Creating project from ${project.category}: ${project.label}`);
     logger.break();
 
-    const pm = await resolvePackageManagerName(
-      absoluteProjectDir,
+    const pm = await resolvePackageManagerForCwd(
+      path.dirname(absoluteProjectDir),
       resolvePackageManager(opts),
     );
 
@@ -595,8 +588,8 @@ export const create = new Command()
       }
 
       // 6. Apply preset if provided
-      if (opts.preset) {
-        const presetUrl = resolvePresetUrl(opts.preset);
+      if (scaffoldSelector.preset) {
+        const presetUrl = resolvePresetUrl(scaffoldSelector.preset);
         logger.info("Applying preset configuration...");
         logger.break();
         const [dlxCmd, dlxArgs] = dlxCommand(pm);
