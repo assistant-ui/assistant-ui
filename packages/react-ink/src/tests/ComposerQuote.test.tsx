@@ -111,6 +111,16 @@ describe("ComposerPrimitive.QuoteText", () => {
     expect(lastFrame()?.trim() ?? "").toBe("");
   });
 
+  it("renders children override when quote text is an empty string", () => {
+    mockUseAuiState.mockImplementation((selector: (s: unknown) => unknown) =>
+      selector(stateWithQuote("")),
+    );
+    const { lastFrame } = render(
+      <ComposerQuoteText>override</ComposerQuoteText>,
+    );
+    expect(lastFrame()).toContain("override");
+  });
+
   it("forwards Ink Text props", () => {
     mockUseAuiState.mockImplementation((selector: (s: unknown) => unknown) =>
       selector(stateWithQuote("colored")),

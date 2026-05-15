@@ -11,6 +11,6 @@ export const ComposerQuoteText = ({
   ...textProps
 }: ComposerQuoteTextProps) => {
   const text = useAuiState((s) => s.composer.quote?.text);
-  if (!text) return null;
+  if (text === undefined) return null;
   return <Text {...textProps}>{children ?? text}</Text>;
 };
