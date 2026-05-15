@@ -214,10 +214,25 @@ export async function unstable_runPendingTools(
 }
 
 export type ToolResultStreamOptions = {
+  /** Called immediately before a frontend tool's `execute` function runs. */
   onExecutionStart?: (toolCallId: string, toolName: string) => void;
+  /** Called after frontend tool execution finishes or fails. */
   onExecutionEnd?: (toolCallId: string, toolName: string) => void;
 };
 
+/**
+ * Transform stream that executes frontend tools and appends tool results.
+ *
+ * The transform watches streamed tool-call arguments, runs the matching
+ * frontend tool once its arguments are complete, and emits a result chunk for
+ * the tool call. Backend and human tools pass through according to their tool
+ * definition.
+ *
+ * @param tools Tool registry or function returning the current registry.
+ * @param abortSignal Signal, or signal getter, used for the current run.
+ * @param human Callback used to resolve human-tool requests from UI input.
+ * @param options Optional execution lifecycle callbacks.
+ */
 export function toolResultStream(
   tools:
     | Record<string, Tool>

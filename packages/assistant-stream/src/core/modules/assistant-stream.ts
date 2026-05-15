@@ -29,18 +29,63 @@ type ToolCallPartInit = {
   response?: ToolResponseLike<ReadonlyJSONValue>;
 };
 
+/**
+ * Imperative writer for constructing an {@link AssistantStream}.
+ *
+ * The controller handles part boundaries for common streaming operations. Use
+ * `appendText` and `appendReasoning` for simple token streams, or open explicit
+ * parts with `addTextPart` and `addToolCallPart` when you need direct control.
+ */
 export type AssistantStreamController = {
+  /** Appends text to the current text part, opening one if needed. */
   appendText(textDelta: string): void;
+  /** Appends reasoning text to the current reasoning part, opening one if needed. */
   appendReasoning(reasoningDelta: string): void;
+  /** Appends a source citation part to the stream. */
   appendSource(options: SourcePart): void;
+  /** Appends a file part to the stream. */
   appendFile(options: FilePart): void;
+  /** Appends a named data part to the stream. */
   appendData(options: DataPart): void;
+  /**
+   * Opens a text part and returns its writer.
+   *
+   * Close the returned controller when the text part is complete. Opening a new
+   * part through this controller closes any implicit text or reasoning append
+   * part first.
+   */
   addTextPart(): TextStreamController;
+  /**
+   * Opens a tool-call part by tool name and returns its writer.
+   *
+   * A tool call id is generated automatically. Use the object overload when the
+   * caller already has an id, initial args, args text, or response.
+   */
   addToolCallPart(options: string): ToolCallStreamController;
+  /**
+   * Opens a tool-call part and returns its writer.
+   *
+   * Use this overload to provide a stable `toolCallId`, initial arguments,
+   * streamed argument text, or an immediate {@link ToolResponseLike}.
+   */
   addToolCallPart(options: ToolCallPartInit): ToolCallStreamController;
+  /** Enqueues a raw protocol chunk. Prefer higher-level helpers when possible. */
   enqueue(chunk: AssistantStreamChunk): void;
+  /**
+   * Merges another assistant stream into this stream.
+   *
+   * Paths from the merged stream are remapped so its parts appear at the next
+   * available position in this controller's output.
+   */
   merge(stream: AssistantStream): void;
+  /** Closes any active part and finishes the stream. */
   close(): void;
+  /**
+   * Returns a controller that writes child parts with `parentId` attached.
+   *
+   * Use this for nested or related parts that should be associated with an
+   * existing message or part in downstream renderers.
+   */
   withParentId(parentId: string): AssistantStreamController;
 };
 
