@@ -42,21 +42,16 @@ const EMPTY_SEGMENT_MAP = new Map<ParsedLine, StyledDiffSegment[]>();
 const isDevNull = (n: string | undefined) => !n || n === "/dev/null";
 
 const buildSegmentMap = (lines: ParsedLine[]) => {
-  const pairMap = buildLinePairMap(lines);
   const segmentMap = new Map<ParsedLine, StyledDiffSegment[]>();
 
-  for (const [line, pairInfo] of pairMap) {
-    if (pairInfo.role !== "del") {
-      continue;
-    }
-
+  for (const [del, add] of buildLinePairMap(lines)) {
     const { delSegments, addSegments } = buildIntraLineSegments(
-      line.content,
-      pairInfo.counterpart.content,
+      del.content,
+      add.content,
     );
 
-    segmentMap.set(line, delSegments);
-    segmentMap.set(pairInfo.counterpart, addSegments);
+    segmentMap.set(del, delSegments);
+    segmentMap.set(add, addSegments);
   }
 
   return segmentMap;

@@ -1,20 +1,13 @@
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "ink-testing-library";
-import {
-  parsePatch,
-  computeDiff,
-  foldContext,
-} from "../primitives/diff/diff-utils";
-import { DiffContent } from "../primitives/diff/DiffContent";
-import { DiffHeader } from "../primitives/diff/DiffHeader";
-import {
-  buildIntraLineSegments,
-  buildLinePairMap,
-} from "../primitives/diff/intra-line-utils";
-import { DiffRoot } from "../primitives/diff/DiffRoot";
-import { DiffView } from "../primitives/diff/DiffView";
-import type { ParsedLine } from "../primitives/diff/types";
+import { parsePatch, computeDiff, foldContext } from "./diff-utils";
+import { DiffContent } from "./DiffContent";
+import { DiffHeader } from "./DiffHeader";
+import { buildIntraLineSegments, buildLinePairMap } from "./intra-line-utils";
+import { DiffRoot } from "./DiffRoot";
+import { DiffView } from "./DiffView";
+import type { ParsedLine } from "./types";
 
 const renderFrame = async (node: ReactElement) => {
   const instance = render(node);
@@ -68,14 +61,8 @@ describe("buildLinePairMap", () => {
 
     const pairMap = buildLinePairMap([del, add]);
 
-    expect(pairMap.get(del)).toEqual({
-      role: "del",
-      counterpart: add,
-    });
-    expect(pairMap.get(add)).toEqual({
-      role: "add",
-      counterpart: del,
-    });
+    expect(pairMap.size).toBe(1);
+    expect(pairMap.get(del)).toBe(add);
   });
 
   it("pairs equal-length adjacent delete and add runs in order", () => {
@@ -86,10 +73,8 @@ describe("buildLinePairMap", () => {
 
     const pairMap = buildLinePairMap([del1, del2, add1, add2]);
 
-    expect(pairMap.get(del1)?.counterpart).toBe(add1);
-    expect(pairMap.get(del2)?.counterpart).toBe(add2);
-    expect(pairMap.get(add1)?.counterpart).toBe(del1);
-    expect(pairMap.get(add2)?.counterpart).toBe(del2);
+    expect(pairMap.get(del1)).toBe(add1);
+    expect(pairMap.get(del2)).toBe(add2);
   });
 
   it("pairs equal-length block rewrites of length three", () => {
@@ -102,9 +87,9 @@ describe("buildLinePairMap", () => {
 
     const pairMap = buildLinePairMap([del1, del2, del3, add1, add2, add3]);
 
-    expect(pairMap.get(del1)?.counterpart).toBe(add1);
-    expect(pairMap.get(del2)?.counterpart).toBe(add2);
-    expect(pairMap.get(del3)?.counterpart).toBe(add3);
+    expect(pairMap.get(del1)).toBe(add1);
+    expect(pairMap.get(del2)).toBe(add2);
+    expect(pairMap.get(del3)).toBe(add3);
   });
 
   it("does not pair unequal-length adjacent runs", () => {
@@ -116,7 +101,7 @@ describe("buildLinePairMap", () => {
       makeAddLine("new 3", 3),
     ]);
 
-    expect(pairMap).toHaveLength(0);
+    expect(pairMap.size).toBe(0);
   });
 
   it("does not pair non-adjacent delete and add lines", () => {
@@ -126,7 +111,7 @@ describe("buildLinePairMap", () => {
 
     const pairMap = buildLinePairMap([del, normal, add]);
 
-    expect(pairMap).toHaveLength(0);
+    expect(pairMap.size).toBe(0);
   });
 
   it("does not pair an unpaired add line", () => {
@@ -135,7 +120,7 @@ describe("buildLinePairMap", () => {
       makeAddLine("new value", 2),
     ]);
 
-    expect(pairMap).toHaveLength(0);
+    expect(pairMap.size).toBe(0);
   });
 
   it("does not pair across file boundaries when called per file", () => {
@@ -145,8 +130,8 @@ describe("buildLinePairMap", () => {
     ]);
     const secondFile = buildLinePairMap([makeAddLine("new value", 1)]);
 
-    expect(firstFile).toHaveLength(0);
-    expect(secondFile).toHaveLength(0);
+    expect(firstFile.size).toBe(0);
+    expect(secondFile.size).toBe(0);
   });
 });
 

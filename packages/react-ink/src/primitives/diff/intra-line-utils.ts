@@ -6,16 +6,6 @@ export type StyledDiffSegment = {
   changed: boolean;
 };
 
-export type PairInfo = {
-  role: "del" | "add";
-  counterpart: ParsedLine;
-};
-
-type LinePair = {
-  del: ParsedLine;
-  add: ParsedLine;
-};
-
 const getRunEnd = (
   lines: ParsedLine[],
   startIndex: number,
@@ -28,31 +18,21 @@ const getRunEnd = (
   return index;
 };
 
-const pushPair = (pairMap: Map<ParsedLine, PairInfo>, pair: LinePair) => {
-  pairMap.set(pair.del, { role: "del", counterpart: pair.add });
-  pairMap.set(pair.add, { role: "add", counterpart: pair.del });
-};
-
 export const buildLinePairMap = (lines: ParsedLine[]) => {
-  const pairMap = new Map<ParsedLine, PairInfo>();
+  const pairMap = new Map<ParsedLine, ParsedLine>();
 
   for (let index = 0; index < lines.length; index++) {
-    const line = lines[index];
-    if (line?.type !== "del") {
+    if (lines[index]?.type !== "del") {
       continue;
     }
 
     const delRunEnd = getRunEnd(lines, index, "del");
     const addRunEnd = getRunEnd(lines, delRunEnd, "add");
-    const delRunLength = delRunEnd - index;
-    const addRunLength = addRunEnd - delRunEnd;
+    const runLength = delRunEnd - index;
 
-    if (addRunLength > 0 && delRunLength === addRunLength) {
-      for (let offset = 0; offset < delRunLength; offset++) {
-        pushPair(pairMap, {
-          del: lines[index + offset]!,
-          add: lines[delRunEnd + offset]!,
-        });
+    if (runLength > 0 && runLength === addRunEnd - delRunEnd) {
+      for (let offset = 0; offset < runLength; offset++) {
+        pairMap.set(lines[index + offset]!, lines[delRunEnd + offset]!);
       }
       index = addRunEnd - 1;
       continue;
