@@ -276,7 +276,7 @@ export async function resolveProject(params: {
     isCancel = p.isCancel,
   } = params;
 
-  if (template) {
+  if (template !== undefined) {
     const meta = PROJECT_METADATA.find(
       (m) => m.name === template && m.category === "template",
     );
@@ -288,7 +288,7 @@ export async function resolveProject(params: {
     return meta;
   }
 
-  if (example) {
+  if (example !== undefined) {
     const meta = PROJECT_METADATA.find(
       (m) => m.name === example && m.category === "example",
     );
@@ -402,21 +402,22 @@ export interface ScaffoldSelectorOptions {
   ink?: boolean;
 }
 
-export type ResolvedScaffoldSelector = Pick<
-  ScaffoldSelectorOptions,
-  "template" | "example" | "preset"
->;
+export interface ResolvedScaffoldSelector {
+  template?: string;
+  example?: string;
+  preset?: string;
+}
 
 const scaffoldSelectorHelp =
-  "Choose one of: --template <name>, --example <name>, --preset <name-or-url>, --native, or --ink.";
+  "Choose one scaffold selector: --template <name>, --example <name>, --native, or --ink. --preset <name-or-url> can be used with --template or by itself.";
 
 export function resolveScaffoldSelector(
   opts: ScaffoldSelectorOptions,
 ): ResolvedScaffoldSelector {
+  const hasPreset = opts.preset !== undefined;
   const selectors = [
-    opts.template ? "--template" : undefined,
-    opts.example ? "--example" : undefined,
-    opts.preset ? "--preset" : undefined,
+    opts.template !== undefined ? "--template" : undefined,
+    opts.example !== undefined ? "--example" : undefined,
     opts.native ? "--native" : undefined,
     opts.ink ? "--ink" : undefined,
   ].filter(Boolean);
@@ -427,12 +428,23 @@ export function resolveScaffoldSelector(
     );
   }
 
+  if (hasPreset && (opts.example !== undefined || opts.native || opts.ink)) {
+    throw new Error(
+      `Cannot use --preset with ${selectors[0]}. ${scaffoldSelectorHelp}`,
+    );
+  }
+
   if (opts.native) return { example: "with-expo" };
   if (opts.ink) return { example: "with-react-ink" };
+
+  if (opts.preset !== undefined && opts.template === undefined) {
+    return { template: "default", preset: opts.preset };
+  }
+
   return {
     ...(opts.template !== undefined && { template: opts.template }),
     ...(opts.example !== undefined && { example: opts.example }),
-    ...(opts.preset !== undefined && { preset: opts.preset }),
+    ...(hasPreset && { preset: opts.preset }),
   };
 }
 

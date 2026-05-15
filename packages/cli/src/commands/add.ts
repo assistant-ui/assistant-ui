@@ -34,6 +34,8 @@ export function createAddComponentsPlan(params: {
   const [command, dlxArgs] = dlxCommand(params.packageManager);
   const args = [...dlxArgs, "shadcn@latest", "add", ...componentsToAdd];
 
+  // For npm, dlxArgs may already include `--yes` for npx auto-install.
+  // This flag is for shadcn's own confirmation prompt.
   if (params.yes) args.push("--yes");
   if (params.overwrite) args.push("--overwrite");
   if (params.cwd) args.push("--cwd", params.cwd);
