@@ -1,10 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { downloadTemplate } from "giget";
-import { spawn } from "cross-spawn";
 import { sync as globSync } from "glob";
 import { detect } from "detect-package-manager";
 import { logger } from "./utils/logger";
+import { runSpawn, SpawnExitError } from "./run-spawn";
 
 export type PackageManagerName = "npm" | "pnpm" | "yarn" | "bun";
 
@@ -344,25 +344,15 @@ async function installDependencies(
   pm: PackageManagerName,
 ): Promise<void> {
   const args = pm === "yarn" ? [] : ["install"];
-
-  return new Promise((resolve, reject) => {
-    const child = spawn(pm, args, {
-      cwd: projectDir,
-      stdio: "inherit",
-    });
-
-    child.on("error", (error) => {
-      reject(new Error(`Failed to install dependencies: ${error.message}`));
-    });
-
-    child.on("close", (code) => {
-      if (code !== 0) {
-        reject(new Error(`${pm} install exited with code ${code}`));
-      } else {
-        resolve();
-      }
-    });
-  });
+  try {
+    await runSpawn(pm, args, projectDir);
+  } catch (error) {
+    if (error instanceof SpawnExitError) {
+      throw new Error(`${pm} install exited with code ${error.code}`);
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to install dependencies: ${message}`);
+  }
 }
 
 async function installShadcnRegistry(
@@ -372,27 +362,19 @@ async function installShadcnRegistry(
   pm: PackageManagerName,
 ): Promise<void> {
   const [cmd, dlxArgs] = dlxCommand(pm);
-  return new Promise((resolve, reject) => {
-    const child = spawn(
-      cmd,
-      [...dlxArgs, "shadcn@latest", "add", ...components, "--yes"],
-      {
-        cwd: projectDir,
-        stdio: "inherit",
-      },
-    );
+  const addArgs = [...dlxArgs, "shadcn@latest", "add", ...components, "--yes"];
 
-    child.on("error", (error) => {
-      reject(new Error(`Failed to install ${label}: ${error.message}`));
-    });
+  try {
+    await runSpawn(cmd, addArgs, projectDir);
+  } catch (error) {
+    if (error instanceof SpawnExitError) {
+      logger.warn(
+        `shadcn exited with code ${error.code}. Run the following to retry:\n  ${cmd} ${addArgs.slice(0, -1).join(" ")}`,
+      );
+      return;
+    }
 
-    child.on("close", (code) => {
-      if (code !== 0) {
-        logger.warn(
-          `shadcn exited with code ${code}. Run the following to retry:\n  ${cmd} ${[...dlxArgs, "shadcn@latest", "add", ...components].join(" ")}`,
-        );
-      }
-      resolve();
-    });
-  });
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to install ${label}: ${message}`);
+  }
 }

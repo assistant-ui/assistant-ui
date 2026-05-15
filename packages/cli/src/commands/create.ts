@@ -380,10 +380,18 @@ export interface ResolvedScaffoldSelector {
 const scaffoldSelectorHelp =
   "Choose one scaffold selector: --template <name>, --example <name>, --native, or --ink. --preset <name-or-url> can be used with --template or by itself.";
 
+function getPresetConflict(opts: ScaffoldSelectorOptions): string | undefined {
+  if (opts.example !== undefined) return "--example";
+  if (opts.native) return "--native";
+  if (opts.ink) return "--ink";
+  return undefined;
+}
+
 export function resolveScaffoldSelector(
   opts: ScaffoldSelectorOptions,
 ): ResolvedScaffoldSelector {
   const hasPreset = opts.preset !== undefined;
+  const presetConflict = getPresetConflict(opts);
   const selectors = [
     opts.template !== undefined ? "--template" : undefined,
     opts.example !== undefined ? "--example" : undefined,
@@ -397,9 +405,9 @@ export function resolveScaffoldSelector(
     );
   }
 
-  if (hasPreset && (opts.example !== undefined || opts.native || opts.ink)) {
+  if (hasPreset && presetConflict) {
     throw new Error(
-      `Cannot use --preset with ${selectors[0]}. ${scaffoldSelectorHelp}`,
+      `Cannot use --preset with ${presetConflict}. ${scaffoldSelectorHelp}`,
     );
   }
 

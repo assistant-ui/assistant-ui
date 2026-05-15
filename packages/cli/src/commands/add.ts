@@ -85,7 +85,7 @@ export const add = new Command()
     });
 
     try {
-      await runSpawn(command, args);
+      await runSpawn(command, args, opts.cwd);
     } catch (error) {
       if (error instanceof SpawnExitError) {
         logger.error(`Process exited with code ${error.code}`);
