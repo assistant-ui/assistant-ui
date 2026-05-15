@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import { Text } from "ink";
-import { useMessagePartSource } from "@assistant-ui/core/react";
+import { useAuiState } from "@assistant-ui/store";
 
 export type MessagePartPrimitiveSourceProps = Omit<
   ComponentProps<typeof Text>,
@@ -27,8 +27,14 @@ const formatSource = ({
 export const MessagePartPrimitiveSource = (
   props: MessagePartPrimitiveSource.Props,
 ) => {
-  const source = useMessagePartSource();
-  return <Text {...props}>{formatSource(source)}</Text>;
+  const label = useAuiState((s) => {
+    if (s.part.type !== "source")
+      throw new Error(
+        "MessagePartPrimitive.Source can only be used inside source message parts.",
+      );
+    return formatSource(s.part);
+  });
+  return <Text {...props}>{label}</Text>;
 };
 
 MessagePartPrimitiveSource.displayName = "MessagePartPrimitive.Source";

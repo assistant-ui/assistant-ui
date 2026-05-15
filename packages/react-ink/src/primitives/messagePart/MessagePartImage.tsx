@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import { Text } from "ink";
-import { useMessagePartImage } from "@assistant-ui/core/react";
+import { useAuiState } from "@assistant-ui/store";
 
 export type MessagePartPrimitiveImageProps = Omit<
   ComponentProps<typeof Text>,
@@ -14,7 +14,13 @@ export namespace MessagePartPrimitiveImage {
 export const MessagePartPrimitiveImage = (
   props: MessagePartPrimitiveImage.Props,
 ) => {
-  const { filename } = useMessagePartImage();
+  const filename = useAuiState((s) => {
+    if (s.part.type !== "image")
+      throw new Error(
+        "MessagePartPrimitive.Image can only be used inside image message parts.",
+      );
+    return s.part.filename;
+  });
   return (
     <Text {...props}>{filename ? `[image: ${filename}]` : "[image]"}</Text>
   );

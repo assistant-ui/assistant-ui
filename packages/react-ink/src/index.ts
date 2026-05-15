@@ -211,10 +211,4 @@ export {
   useVoiceState,
   useVoiceVolume,
   useVoiceControls,
-  useMessagePartText,
-  useMessagePartReasoning,
-  useMessagePartSource,
-  useMessagePartFile,
-  useMessagePartImage,
-  useMessagePartData,
 } from "@assistant-ui/core/react";

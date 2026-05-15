@@ -40,14 +40,3 @@ export const mockPart = (useAuiStateMock: Mock, part: unknown) => {
 export const resetPartContext = () => {
   partContext.index = null;
 };
-
-export const PartByIndexProviderMock = ({
-  index,
-  children,
-}: {
-  index: number;
-  children: ReactElement;
-}) => {
-  partContext.index = index;
-  return children;
-};

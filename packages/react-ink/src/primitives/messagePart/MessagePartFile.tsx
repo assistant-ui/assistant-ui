@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import { Text } from "ink";
-import { useMessagePartFile } from "@assistant-ui/core/react";
+import { useAuiState } from "@assistant-ui/store";
 
 export type MessagePartPrimitiveFileProps = Omit<
   ComponentProps<typeof Text>,
@@ -14,10 +14,14 @@ export namespace MessagePartPrimitiveFile {
 export const MessagePartPrimitiveFile = (
   props: MessagePartPrimitiveFile.Props,
 ) => {
-  const { filename, mimeType } = useMessagePartFile();
-  const label = filename
-    ? `[file: ${filename} ${mimeType}]`
-    : `[file: ${mimeType}]`;
+  const label = useAuiState((s) => {
+    if (s.part.type !== "file")
+      throw new Error(
+        "MessagePartPrimitive.File can only be used inside file message parts.",
+      );
+    const { filename, mimeType } = s.part;
+    return filename ? `[file: ${filename} ${mimeType}]` : `[file: ${mimeType}]`;
+  });
   return <Text {...props}>{label}</Text>;
 };
 

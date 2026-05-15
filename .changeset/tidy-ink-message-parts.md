@@ -1,10 +1,8 @@
 ---
-"@assistant-ui/core": patch
-"@assistant-ui/react": patch
 "@assistant-ui/react-ink": patch
 ---
 
-feat(react-ink): add `MessagePartPrimitive` namespace with terminal-safe defaults for image, file, source, reasoning, and data parts. Move DOM-agnostic `useMessagePart*` hooks into `@assistant-ui/core/react`; `@assistant-ui/react` re-exports them so existing imports keep working.
+feat(react-ink): add `MessagePartPrimitive` namespace with terminal-safe defaults for image, file, source, reasoning, and data parts.
 
 Behavior changes in `react-ink`:
 - `MessagePrimitive.Content` (deprecated) now renders the new terminal-safe defaults for image/file/source/reasoning/data parts when no `render*` prop is provided; previously these parts were silently dropped. Pass `render*={() => null}` to restore the prior behavior.

@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import { Text } from "ink";
-import { useMessagePartReasoning } from "@assistant-ui/core/react";
+import { useAuiState } from "@assistant-ui/store";
 
 export type MessagePartPrimitiveReasoningProps = Omit<
   ComponentProps<typeof Text>,
@@ -14,7 +14,13 @@ export namespace MessagePartPrimitiveReasoning {
 export const MessagePartPrimitiveReasoning = (
   props: MessagePartPrimitiveReasoning.Props,
 ) => {
-  const { text } = useMessagePartReasoning();
+  const text = useAuiState((s) => {
+    if (s.part.type !== "reasoning")
+      throw new Error(
+        "MessagePartPrimitive.Reasoning can only be used inside reasoning message parts.",
+      );
+    return s.part.text;
+  });
   return <Text {...props}>{text}</Text>;
 };
 
