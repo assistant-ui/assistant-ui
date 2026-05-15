@@ -170,4 +170,22 @@ describe("ComposerPrimitive.Queue", () => {
       });
     }
   });
+
+  it("does not call children when the queue is empty", () => {
+    mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
+      selector({
+        composer: { queue: { length: 0 } },
+        queueItem: { prompt: "" },
+      } as never),
+    );
+    const renderItem = vi.fn(() => (
+      <Box>
+        <Text>item</Text>
+      </Box>
+    ));
+
+    render(<ComposerQueue>{renderItem}</ComposerQueue>);
+
+    expect(renderItem).not.toHaveBeenCalled();
+  });
 });
