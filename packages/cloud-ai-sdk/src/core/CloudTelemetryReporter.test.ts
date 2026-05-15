@@ -72,7 +72,7 @@ describe("CloudTelemetryReporter", () => {
 
     await reporter.reportFromMessages("thread-1", [
       assistantMsg("m-1", "hello", {
-        modelId: "gpt-4o",
+        modelId: "gpt-5.4-nano",
         usage: {
           promptTokens: 100,
           completionTokens: 50,
@@ -86,7 +86,7 @@ describe("CloudTelemetryReporter", () => {
     expect(reportMock).toHaveBeenCalledWith({
       thread_id: "thread-1",
       status: "completed",
-      model_id: "gpt-4o",
+      model_id: "gpt-5.4-nano",
       input_tokens: 100,
       output_tokens: 50,
       reasoning_tokens: 20,

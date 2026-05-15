@@ -24,6 +24,7 @@ export type AssistantCloudConfig = (
       authToken: () => Promise<string | null>;
     }
   | {
+      baseUrl?: string;
       apiKey: string;
       userId: string;
       workspaceId: string;
@@ -70,7 +71,9 @@ export class AssistantCloudAPI {
       this._baseUrl = config.baseUrl;
       this._auth = new AssistantCloudJWTAuthStrategy(config.authToken);
     } else if ("apiKey" in config) {
-      this._baseUrl = "https://backend.assistant-api.com";
+      this._baseUrl = (
+        config.baseUrl ?? "https://backend.assistant-api.com"
+      ).replace(/\/$/, "");
       this._auth = new AssistantCloudAPIKeyAuthStrategy(
         config.apiKey,
         config.userId,

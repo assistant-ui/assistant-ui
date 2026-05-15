@@ -17,5 +17,9 @@ export function GET() {
     });
   }
 
-  return NextResponse.json(results);
+  return NextResponse.json(results, {
+    headers: {
+      "X-Robots-Tag": "noindex, follow",
+    },
+  });
 }

@@ -4,12 +4,16 @@ export type {
   // Message parts
   TextMessagePart,
   ReasoningMessagePart,
+  SourceProviderMetadata,
   SourceMessagePart,
   ImageMessagePart,
   FileMessagePart,
   DataMessagePart,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
+  ToolCallMessagePartMcpMetadata,
+  McpAppMetadata,
+  ToolModelContentPart,
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   // Message status
@@ -28,6 +32,8 @@ export type {
   RunConfig,
   AppendMessage,
 } from "./types/message";
+
+export { MCP_APP_URI_SCHEME, isMcpAppUri } from "./types/message";
 
 export type {
   Attachment,

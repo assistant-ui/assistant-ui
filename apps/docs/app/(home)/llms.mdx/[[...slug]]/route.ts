@@ -13,7 +13,12 @@ export async function GET(
   const page = source.getPage(slug);
   if (!page) notFound();
 
-  return new NextResponse(await getLLMText(page));
+  return new NextResponse(await getLLMText(page), {
+    headers: {
+      "Content-Type": "text/markdown; charset=utf-8",
+      "X-Robots-Tag": "noindex, follow",
+    },
+  });
 }
 
 export function generateStaticParams() {

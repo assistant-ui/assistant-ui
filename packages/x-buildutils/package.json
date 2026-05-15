@@ -16,7 +16,8 @@
     "bin",
     "src",
     "ts",
-    "types"
+    "types",
+    "README.md"
   ],
   "bin": {
     "aui-build": "./bin/aui-build.js"

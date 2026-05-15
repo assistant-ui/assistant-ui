@@ -103,6 +103,7 @@ export const ComposerClient = resource(
         runConfig: runtimeState.runConfig,
         isEditing: runtimeState.isEditing,
         canCancel: runtimeState.canCancel,
+        canSend: runtimeState.canSend,
         attachmentAccept: runtimeState.attachmentAccept,
         isEmpty: runtimeState.isEmpty,
         type: runtimeState.type ?? "thread",

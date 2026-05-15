@@ -216,6 +216,9 @@ const handleResult = (
         ...(chunk.artifact !== undefined ? { artifact: chunk.artifact } : {}),
         result: chunk.result,
         isError: chunk.isError ?? false,
+        ...(chunk.modelContent !== undefined
+          ? { modelContent: chunk.modelContent }
+          : {}),
         ...(chunk.messages !== undefined ? { messages: chunk.messages } : {}),
         status: { type: "complete", reason: "stop" },
       };

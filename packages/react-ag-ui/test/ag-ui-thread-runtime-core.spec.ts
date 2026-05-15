@@ -1080,4 +1080,268 @@ describe("AGUIThreadRuntimeCore", () => {
 
     expect(stateAtRun).toEqual({ initial: false, snapshot: 42 });
   });
+
+  it("adopts TEXT_MESSAGE_START.messageId as the ThreadAssistantMessage.id", async () => {
+    const serverId = "11111111-1111-1111-1111-111111111111";
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageStartEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_START",
+            messageId: serverId,
+            role: "assistant",
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: serverId,
+            delta: "Hello",
+          },
+        });
+        subscriber.onTextMessageEndEvent?.({
+          event: { type: "TEXT_MESSAGE_END", messageId: serverId },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.role).toBe("assistant");
+    expect(assistant.id).toBe(serverId);
+    expect(assistant.content[0]).toMatchObject({ type: "text", text: "Hello" });
+  });
+
+  it("persists assistant history under the server id, not the placeholder", async () => {
+    const serverId = "srv-msg-42";
+    const append = vi.fn(async () => {});
+    const history: ThreadHistoryAdapter = {
+      load: async () => null,
+      append,
+    } as unknown as ThreadHistoryAdapter;
+
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: serverId },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: serverId,
+            delta: "hi",
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent, { history });
+    await core.append(createAppendMessage());
+
+    const assistantAppendCall = append.mock.calls.find(
+      ([entry]: [{ message: ThreadMessage }]) =>
+        entry.message.role === "assistant",
+    );
+    expect(assistantAppendCall).toBeDefined();
+    expect(assistantAppendCall![0].message.id).toBe(serverId);
+  });
+
+  it("stabilizes the assistant id before history.append fires", async () => {
+    const append = vi.fn(async () => {});
+    const history: ThreadHistoryAdapter = {
+      load: async () => null,
+      append,
+    } as unknown as ThreadHistoryAdapter;
+
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "ok" },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent, { history });
+    await core.append(createAppendMessage());
+
+    const assistantAppendCall = append.mock.calls.find(
+      ([entry]: [{ message: ThreadMessage }]) =>
+        entry.message.role === "assistant",
+    );
+    expect(assistantAppendCall).toBeDefined();
+    expect(
+      assistantAppendCall![0].message.id.startsWith("__optimistic__"),
+    ).toBe(false);
+  });
+
+  it("stabilizes the assistant id at terminal state when no server messageId is provided", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "ok" },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.id.startsWith("__optimistic__")).toBe(false);
+    expect(assistant.id.length).toBeGreaterThan(0);
+    expect(assistant.status).toMatchObject({ type: "complete" });
+  });
+
+  it("routes addToolResult through the server id after id reassignment", async () => {
+    const serverId = "srv-with-tools";
+    let resumeCalls = 0;
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        resumeCalls += 1;
+        if (resumeCalls === 1) {
+          subscriber.onTextMessageStartEvent?.({
+            event: { type: "TEXT_MESSAGE_START", messageId: serverId },
+          });
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "tc-9",
+              toolCallName: "lookup",
+              parentMessageId: serverId,
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "tc-9" },
+          });
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistantBeforeResult = core
+      .getMessages()
+      .find((m) => m.id === serverId) as ThreadAssistantMessage | undefined;
+    expect(assistantBeforeResult?.id).toBe(serverId);
+
+    core.addToolResult({
+      messageId: serverId,
+      toolCallId: "tc-9",
+      toolName: "lookup",
+      result: { ok: true },
+      isError: false,
+    });
+
+    const updatedAssistant = core
+      .getMessages()
+      .find((m) => m.id === serverId) as ThreadAssistantMessage;
+    const toolPart = updatedAssistant.content.find(
+      (part) => part.type === "tool-call",
+    ) as any;
+    expect(toolPart.result).toEqual({ ok: true });
+  });
+
+  it("stabilizes the assistant id before addToolResult forwards to history", async () => {
+    const append = vi.fn(async () => {});
+    const history: ThreadHistoryAdapter = {
+      load: async () => null,
+      append,
+    } as unknown as ThreadHistoryAdapter;
+
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "tc-leaky",
+            toolCallName: "lookup",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "tc-leaky" },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent, { history });
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .findLast((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(assistant.id.startsWith("__optimistic__")).toBe(false);
+
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "tc-leaky",
+      toolName: "lookup",
+      result: { ok: true },
+      isError: false,
+    });
+
+    const assistantAppendCall = append.mock.calls.find(
+      ([entry]: [{ message: ThreadMessage }]) =>
+        entry.message.role === "assistant",
+    );
+    expect(assistantAppendCall).toBeDefined();
+    expect(
+      assistantAppendCall![0].message.id.startsWith("__optimistic__"),
+    ).toBe(false);
+  });
+
+  it("drops the optimistic placeholder when the server id collides with an existing message", async () => {
+    const serverId = "srv-collision";
+    const existingMessage: ThreadAssistantMessage = {
+      id: serverId,
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "complete", reason: "unknown" },
+      content: [{ type: "text", text: "from history" }],
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: serverId },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: serverId,
+            delta: "streaming",
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    core.applyExternalMessages([existingMessage as ThreadMessage]);
+    await core.append(createAppendMessage());
+
+    const collidedMessages = core
+      .getMessages()
+      .filter((m) => m.id === serverId);
+    expect(collidedMessages).toHaveLength(1);
+    const optimisticLingerers = core
+      .getMessages()
+      .filter((m) => m.id.startsWith("__optimistic__"));
+    expect(optimisticLingerers).toHaveLength(0);
+  });
 });

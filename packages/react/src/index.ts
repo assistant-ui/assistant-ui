@@ -274,12 +274,14 @@ export type {
   AppendMessage,
   TextMessagePart,
   ReasoningMessagePart,
+  SourceProviderMetadata,
   SourceMessagePart,
   ImageMessagePart,
   FileMessagePart,
   DataMessagePart,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
+  ToolModelContentPart,
   MessageStatus,
   MessagePartStatus,
   ToolCallMessagePartStatus,
@@ -378,3 +380,26 @@ export {
 } from "./primitives/composer/trigger";
 
 export type { Assistant } from "./augmentations";
+
+// --- mcp-apps ---
+export {
+  McpAppRenderer,
+  McpAppsRemoteHost,
+  getMcpAppFromToolPart,
+} from "./mcp-apps";
+export type {
+  McpAppRendererOptions,
+  McpAppMetadata,
+  McpAppResource,
+  McpAppResourceMeta,
+  McpAppResourceCSP,
+  McpAppSandboxConfig,
+  McpAppHostInfo,
+  McpAppHostContext,
+  McpAppDisplayMode,
+  McpAppsHost,
+  McpAppsRemoteHostOptions,
+  McpAppToolCallParams,
+  ToolCallMessagePartMcpMetadata,
+} from "./mcp-apps";
+export type { McpAppResourceOutput } from "@assistant-ui/core/react";

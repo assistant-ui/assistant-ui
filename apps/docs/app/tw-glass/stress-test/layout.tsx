@@ -4,6 +4,10 @@ import { SubProjectLayout } from "@/components/shared/sub-project-layout";
 
 export const metadata: Metadata = {
   title: "Stress Test | tw-glass by assistant-ui",
+  robots: {
+    index: false,
+    follow: true,
+  },
 };
 
 export default function StressTestLayout({

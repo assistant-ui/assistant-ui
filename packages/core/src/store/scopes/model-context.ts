@@ -1,7 +1,10 @@
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ModelContextProvider } from "../../model-context/types";
 
-export type ModelContextState = Record<string, never>;
+export type ModelContextState = {
+  readonly modelName?: string | undefined;
+  readonly toolNames: readonly string[];
+};
 
 export type ModelContextMethods = ModelContextProvider & {
   getState(): ModelContextState;

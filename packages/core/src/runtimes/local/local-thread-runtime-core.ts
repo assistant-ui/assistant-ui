@@ -54,6 +54,7 @@ export class LocalThreadRuntimeCore
   private abortController: AbortController | null = null;
 
   public readonly isDisabled = false;
+  public readonly isSendDisabled = false;
 
   private _isLoading = false;
   public get isLoading() {

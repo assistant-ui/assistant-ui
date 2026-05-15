@@ -1,30 +1,55 @@
-# @assistant-ui/store
+# `@assistant-ui/store`
 
-Tap-based state management with React Context integration.
+[![npm version](https://img.shields.io/npm/v/@assistant-ui/store)](https://www.npmjs.com/package/@assistant-ui/store)
+[![GitHub stars](https://img.shields.io/github/stars/assistant-ui/assistant-ui)](https://github.com/assistant-ui/assistant-ui)
 
-## Quick Start
+Tap-based state container with React Context integration. Bridges `@assistant-ui/tap` resources into React via `useAui`, `useAuiState`, and `<AuiProvider>`.
+
+`store` powers the runtime layer of assistant-ui. Most users do not install it directly; reach for `@assistant-ui/react` instead.
+
+## Installation
+
+```bash
+npm install @assistant-ui/store @assistant-ui/tap
+```
+
+## Usage
 
 ```typescript
 import { resource, tapState } from "@assistant-ui/tap";
-import { useAui, useAuiState, AuiProvider, type ClientOutput } from "@assistant-ui/store";
+import {
+  useAui,
+  useAuiState,
+  AuiProvider,
+  type ClientOutput,
+} from "@assistant-ui/store";
 
-// 1. Define client type
 declare module "@assistant-ui/store" {
   interface ScopeRegistry {
-    counter: { methods: { getState: () => { count: number }; increment: () => void } };
+    counter: {
+      methods: {
+        getState: () => { count: number };
+        increment: () => void;
+      };
+    };
   }
 }
 
-// 2. Create resource
 const CounterClient = resource((): ClientOutput<"counter"> => {
   const [state, setState] = tapState({ count: 0 });
-  return { getState: () => state, increment: () => setState({ count: state.count + 1 }) };
+  return {
+    getState: () => state,
+    increment: () => setState({ count: state.count + 1 }),
+  };
 });
 
-// 3. Use in React
 function App() {
   const aui = useAui({ counter: CounterClient() });
-  return <AuiProvider value={aui}><Counter /></AuiProvider>;
+  return (
+    <AuiProvider value={aui}>
+      <Counter />
+    </AuiProvider>
+  );
 }
 
 function Counter() {
@@ -34,58 +59,4 @@ function Counter() {
 }
 ```
 
-## Concepts
-
-**Clients**: Named state containers registered via module augmentation.
-```typescript
-declare module "@assistant-ui/store" {
-  interface ScopeRegistry {
-    myClient: {
-      methods: MyMethods; // must include getState(): MyState
-      meta?: { source: "parent"; query: { id: string } };
-      events?: { "myClient.updated": { id: string } };
-    };
-  }
-}
-```
-
-**Derived Clients**: Access nested clients from parents.
-```typescript
-useAui({
-  item: Derived({ source: "list", query: { index: 0 }, get: (aui) => aui.list().item({ index: 0 }) }),
-});
-```
-
-**Events**:
-```typescript
-const emit = tapAssistantEmit();
-emit("myClient.updated", { id: "123" });
-
-useAuiEvent("myClient.updated", (p) => console.log(p.id));
-```
-
-## API
-
-| Hook/Component | Description |
-|----------------|-------------|
-| `useAui()` | Get client from context |
-| `useAui(clients)` | Create/extend client |
-| `useAuiState(selector)` | Subscribe to state |
-| `useAuiEvent(event, cb)` | Subscribe to events |
-| `AuiProvider` | Provide client to tree |
-| `AuiIf` | Conditional rendering |
-
-| Tap Utility | Description |
-|-------------|-------------|
-| `tapAssistantClientRef()` | Access client ref in resources |
-| `tapAssistantEmit()` | Emit events from resources |
-| `tapClientResource(element)` | Wrap resource for event scoping (1:1 mappings) |
-| `tapClientLookup(map, fn, deps)` | Lookup by `{index}` or `{key}` |
-| `tapClientList(config)` | Dynamic list with add/remove |
-| `attachTransformScopes(resource, fn)` | Attach scope transform |
-
-| Type | Description |
-|------|-------------|
-| `ClientOutput<K>` | Resource return type (methods object) |
-| `ScopeRegistry` | Module augmentation interface |
-| `AssistantClient` | Full client type |
+Full API reference (clients, derived clients, events, `tapClientLookup`, `tapClientList`) at [assistant-ui.com/tap/docs/store/quickstart](https://www.assistant-ui.com/tap/docs/store/quickstart).

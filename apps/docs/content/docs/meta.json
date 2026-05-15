@@ -10,6 +10,7 @@
     "ink",
     "cloud",
     "utilities",
+    "migrations",
     "(reference)"
   ]
 }
