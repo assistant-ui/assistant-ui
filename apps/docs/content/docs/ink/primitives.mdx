@@ -558,28 +558,57 @@ Renders user message attachments using the provided component configuration.
 import { AttachmentPrimitive } from "@assistant-ui/react-ink";
 ```
 
-Primitives for rendering individual attachments.
+Primitives for rendering individual attachments. Each primitive reads from the current attachment context (provided by `ComposerPrimitive.Attachments`, `ComposerPrimitive.AttachmentByIndex`, `MessagePrimitive.Attachments`, or `MessagePrimitive.AttachmentByIndex`).
 
 ### Root
 
-Container `Box` for an attachment.
+Container `Box` for an attachment. Forwards all `Box` props.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Attachment sub-components |
+| `...rest` | `ComponentProps<typeof Box>` | Forwarded to the underlying Ink `Box` |
 
 ### Name
 
-`Text` component displaying the attachment filename.
+`Text` component displaying `s.attachment.name`.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `...rest` | `ComponentProps<typeof Text>` | Forwarded to the underlying Ink `Text` |
 
 ### Thumb
 
-`Text` component displaying the file extension.
+`Text` component displaying a short identifier for the attachment. Renders the file extension (`.pdf`, `.png`, …) when the name has one. Falls back to the attachment `type` (e.g. `image`, `document`) otherwise, and finally to `file`.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `...rest` | `ComponentProps<typeof Text>` | Forwarded to the underlying Ink `Text` |
+
+### Status
+
+`Text` component rendering the current attachment status from `s.attachment.status`. Uses the same visual vocabulary as `ToolFallback`: spinner = uploading, `?` = pending action, `x` = error, `||` = paused. By default, completed attachments render nothing.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `showComplete` | `boolean` | When `true`, completed attachments render `+ ready` instead of `null` |
+| `...rest` | `Omit<ComponentProps<typeof Text>, "children">` | Forwarded to the underlying Ink `Text`. Caller-supplied `color` overrides the per-status default. `children` is not accepted; `Status` always renders its own content. |
 
 ### Remove
 
-Pressable that removes the attachment from the composer.
+`Pressable` that calls `aui.attachment().remove()` when activated (Enter while focused). Disabled when not focused or when the `disabled` prop is set.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Visual content for the button |
+| `disabled` | `boolean` | Skip focus registration and ignore Enter |
+| `...rest` | `ComponentProps<typeof Box>` | Forwarded to the underlying Pressable's `Box` |
 
 ```tsx
 <AttachmentPrimitive.Root>
   <AttachmentPrimitive.Thumb />
   <AttachmentPrimitive.Name />
+  <AttachmentPrimitive.Status />
   <AttachmentPrimitive.Remove>
     <Text color="red">[x]</Text>
   </AttachmentPrimitive.Remove>
