@@ -41,7 +41,7 @@ describe("resolveProject", () => {
       expect.objectContaining({
         name: "cloud",
         category: "template",
-        hasLocalComponents: true,
+        hasLocalComponents: false,
       }),
     );
   });
@@ -283,11 +283,11 @@ describe("PROJECT_METADATA", () => {
     );
   });
 
-  it("all templates have hasLocalComponents: true", () => {
+  it("only the minimal template ships local components", () => {
     const templates = PROJECT_METADATA.filter((m) => m.category === "template");
-    for (const t of templates) {
-      expect(t.hasLocalComponents).toBe(true);
-    }
+    expect(
+      templates.filter((t) => t.hasLocalComponents).map((t) => t.name),
+    ).toEqual(["minimal"]);
   });
 
   it("examples have correct hasLocalComponents values", () => {

@@ -31,7 +31,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Default template with Vercel AI SDK",
     category: "template",
     path: "templates/default",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "minimal",
@@ -47,7 +47,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Cloud-backed persistence starter",
     category: "template",
     path: "templates/cloud",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "cloud-clerk",
@@ -55,7 +55,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Cloud-backed starter with Clerk auth",
     category: "template",
     path: "templates/cloud-clerk",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "langgraph",
@@ -63,7 +63,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "LangGraph starter template",
     category: "template",
     path: "templates/langgraph",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "mcp",
@@ -71,7 +71,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "MCP tools + MCP Apps renderer starter",
     category: "template",
     path: "templates/mcp",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   // Examples
   {
