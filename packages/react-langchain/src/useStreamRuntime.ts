@@ -400,9 +400,11 @@ export const useLangChainSubmit = () => {
  */
 export const useLangChainSend = () => {
   const aui = useAui();
-  const submit = useLangChainSubmit();
-  return (messages: readonly unknown[], options?: Record<string, unknown>) => {
-    const { messagesKey } = asLangChainRuntimeExtras(
+  return (
+    messages: readonly LangChainBaseMessage[],
+    options?: Record<string, unknown>,
+  ) => {
+    const { submit, messagesKey } = asLangChainRuntimeExtras(
       aui.thread().getState().extras,
     );
     return submit({ [messagesKey]: messages }, options);
