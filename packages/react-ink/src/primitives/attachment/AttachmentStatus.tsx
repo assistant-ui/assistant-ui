@@ -33,18 +33,14 @@ export const AttachmentStatus: FC<AttachmentStatusProps> = ({
     );
   }
 
-  if (status.type === "incomplete" && status.reason === "error") {
+  if (status.type === "incomplete") {
+    const { text, defaultColor } =
+      status.reason === "error"
+        ? { text: "x error", defaultColor: "red" }
+        : { text: "|| paused", defaultColor: "yellow" };
     return (
-      <Text {...textProps} color={textProps.color ?? "red"}>
-        x error
-      </Text>
-    );
-  }
-
-  if (status.type === "incomplete" && status.reason === "upload-paused") {
-    return (
-      <Text {...textProps} color={textProps.color ?? "yellow"}>
-        || paused
+      <Text {...textProps} color={textProps.color ?? defaultColor}>
+        {text}
       </Text>
     );
   }

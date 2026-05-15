@@ -471,7 +471,7 @@ Container `Box` for an attachment. Forwards all `Box` props.
 | Prop | Type | Description |
 |------|------|-------------|
 | `children` | `ReactNode` | Attachment sub-components |
-| ...rest | `ComponentProps<typeof Box>` | Forwarded to the underlying Ink `Box` |
+| `...rest` | `ComponentProps<typeof Box>` | Forwarded to the underlying Ink `Box` |
 
 ### Name
 
@@ -479,7 +479,7 @@ Container `Box` for an attachment. Forwards all `Box` props.
 
 | Prop | Type | Description |
 |------|------|-------------|
-| ...rest | `ComponentProps<typeof Text>` | Forwarded to the underlying Ink `Text` |
+| `...rest` | `ComponentProps<typeof Text>` | Forwarded to the underlying Ink `Text` |
 
 ### Thumb
 
@@ -487,7 +487,7 @@ Container `Box` for an attachment. Forwards all `Box` props.
 
 | Prop | Type | Description |
 |------|------|-------------|
-| ...rest | `ComponentProps<typeof Text>` | Forwarded to the underlying Ink `Text` |
+| `...rest` | `ComponentProps<typeof Text>` | Forwarded to the underlying Ink `Text` |
 
 ### Status
 
@@ -496,7 +496,7 @@ Container `Box` for an attachment. Forwards all `Box` props.
 | Prop | Type | Description |
 |------|------|-------------|
 | `showComplete` | `boolean` | When `true`, completed attachments render `+ ready` instead of `null` |
-| ...rest | `Omit<ComponentProps<typeof Text>, "children">` | Forwarded to the underlying Ink `Text`. Caller-supplied `color` overrides the per-status default. `children` is not accepted — `Status` always renders its own content. |
+| `...rest` | `Omit<ComponentProps<typeof Text>, "children">` | Forwarded to the underlying Ink `Text`. Caller-supplied `color` overrides the per-status default. `children` is not accepted; `Status` always renders its own content. |
 
 ### Remove
 
@@ -506,7 +506,7 @@ Container `Box` for an attachment. Forwards all `Box` props.
 |------|------|-------------|
 | `children` | `ReactNode` | Visual content for the button |
 | `disabled` | `boolean` | Skip focus registration and ignore Enter |
-| ...rest | `ComponentProps<typeof Box>` | Forwarded to the underlying Pressable's `Box` |
+| `...rest` | `ComponentProps<typeof Box>` | Forwarded to the underlying Pressable's `Box` |
 
 ```tsx
 <AttachmentPrimitive.Root>
