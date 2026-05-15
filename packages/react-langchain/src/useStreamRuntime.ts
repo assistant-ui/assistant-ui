@@ -65,8 +65,8 @@ type LangChainRuntimeExtraOptions = {
    */
   autoCancelPendingToolCalls?: boolean | undefined;
   /**
-   * Enables the Cancel button in the composer and routes its click to
-   * `useStream().stop()`. Off by default.
+   * Routes the Cancel button's click to `useStream().stop()`. On by
+   * default. Pass `false` to disable the Cancel button.
    */
   unstable_allowCancellation?: boolean | undefined;
   /**
@@ -300,12 +300,13 @@ const useStreamThreadRuntime = (
         ],
       });
     },
-    onCancel: unstable_allowCancellation
-      ? async () => {
-          await stream.stop();
-          await toolInvocations.abort();
-        }
-      : undefined,
+    onCancel:
+      unstable_allowCancellation !== false
+        ? async () => {
+            await stream.stop();
+            await toolInvocations.abort();
+          }
+        : undefined,
   });
 
   return runtime;
@@ -349,8 +350,8 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
 
   const cloudAdapter = useCloudThreadListAdapter({
     cloud,
-    ...(create && { create }),
-    ...(deleteFn && { delete: deleteFn }),
+    create,
+    delete: deleteFn,
   });
   const adapter = unstable_threadListAdapter ?? cloudAdapter;
 
@@ -399,9 +400,11 @@ export const useLangChainSubmit = () => {
  */
 export const useLangChainSend = () => {
   const aui = useAui();
+  const submit = useLangChainSubmit();
   return (messages: readonly unknown[], options?: Record<string, unknown>) => {
-    const extras = aui.thread().getState().extras;
-    const { submit, messagesKey } = asLangChainRuntimeExtras(extras);
+    const { messagesKey } = asLangChainRuntimeExtras(
+      aui.thread().getState().extras,
+    );
     return submit({ [messagesKey]: messages }, options);
   };
 };
