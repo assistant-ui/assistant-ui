@@ -153,6 +153,17 @@ describe("resolveScaffoldSelector", () => {
     );
   });
 
+  it("rejects --template with --example", () => {
+    expect(() =>
+      resolveScaffoldSelector({
+        template: "default",
+        example: "with-ai-sdk-v6",
+      }),
+    ).toThrow(
+      "Only one scaffold selector can be provided (--template, --example). Choose one scaffold selector: --template <name>, --example <name>, --native, or --ink. --preset <name-or-url> can be used with --template or by itself.",
+    );
+  });
+
   it("rejects --ink with --template", () => {
     expect(() =>
       resolveScaffoldSelector({ ink: true, template: "default" }),

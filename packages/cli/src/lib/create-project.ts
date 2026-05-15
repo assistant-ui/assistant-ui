@@ -362,6 +362,8 @@ async function installShadcnRegistry(
   pm: PackageManagerName,
 ): Promise<void> {
   const [cmd, dlxArgs] = dlxCommand(pm);
+  // For npm, dlxArgs may already include `--yes` for npx auto-install.
+  // The trailing `--yes` is for shadcn's own confirmation prompt.
   const addArgs = [...dlxArgs, "shadcn@latest", "add", ...components, "--yes"];
 
   try {
