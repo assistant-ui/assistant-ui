@@ -549,7 +549,8 @@ Pressable that removes the queue item by calling `aui.queueItem().remove()`.
 |------|------|-------------|
 | `children` | `ReactNode` | Button content |
 | `disabled` | `boolean` | Disable Enter activation and focus |
-| `...rest` | `Omit<PressableProps, "onPress" \| "children" \| "disabled">` | Standard Ink Box props forwarded to the underlying `Pressable` |
+
+Remaining props are forwarded to the underlying `Pressable` (Ink `Box` props).
 
 ### Steer
 
@@ -565,23 +566,8 @@ Pressable that promotes the queue item to run next by calling `aui.queueItem().s
 |------|------|-------------|
 | `children` | `ReactNode` | Button content |
 | `disabled` | `boolean` | Disable Enter activation and focus |
-| `...rest` | `Omit<PressableProps, "onPress" \| "children" \| "disabled">` | Standard Ink Box props forwarded to the underlying `Pressable` |
 
-```tsx
-<ComposerPrimitive.Queue>
-  {({ queueItem }) => (
-    <Box gap={1}>
-      <QueueItemPrimitive.Text color="gray" />
-      <QueueItemPrimitive.Steer>
-        <Text color="cyan">[Run Now]</Text>
-      </QueueItemPrimitive.Steer>
-      <QueueItemPrimitive.Remove>
-        <Text color="red">[x]</Text>
-      </QueueItemPrimitive.Remove>
-    </Box>
-  )}
-</ComposerPrimitive.Queue>
-```
+Remaining props are forwarded to the underlying `Pressable` (Ink `Box` props).
 
 ## ActionBar
 
