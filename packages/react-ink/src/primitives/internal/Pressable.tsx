@@ -27,7 +27,7 @@ export const Pressable = ({
         onPress();
       }
     },
-    { isActive: isFocused },
+    { isActive: isFocused && !isDisabled },
   );
 
   return (
