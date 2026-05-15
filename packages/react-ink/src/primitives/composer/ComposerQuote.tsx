@@ -10,7 +10,7 @@ export const ComposerQuote = ({
   children,
   ...boxProps
 }: ComposerQuoteProps) => {
-  const quote = useAuiState((s) => s.composer.quote);
-  if (!quote) return null;
+  const hasQuote = useAuiState((s) => s.composer.quote !== undefined);
+  if (!hasQuote) return null;
   return <Box {...boxProps}>{children}</Box>;
 };
