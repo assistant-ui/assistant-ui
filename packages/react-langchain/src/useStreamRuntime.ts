@@ -20,7 +20,7 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
 import { useStream, type UseStreamOptions } from "@langchain/react";
 import type { LangChainBaseMessage, LangChainToolCall } from "./types";
-import { convertLangChainBaseMessage } from "./convertMessages";
+import { convertLangChainBaseMessage, getMessageType } from "./convertMessages";
 
 const symbolLangChainRuntimeExtras = Symbol("langchain-runtime-extras");
 
@@ -85,10 +85,7 @@ const getPendingToolCalls = (
 ): LangChainToolCall[] => {
   const pending = new Map<string, LangChainToolCall>();
   for (const m of messages) {
-    const type =
-      typeof m._getType === "function"
-        ? m._getType()
-        : (m as unknown as { type: string }).type;
+    const type = getMessageType(m);
     if (type === "ai") {
       for (const tc of m.tool_calls ?? []) pending.set(tc.id, tc);
     } else if (type === "tool" && m.tool_call_id) {
