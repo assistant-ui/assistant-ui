@@ -378,6 +378,12 @@ export {
   type RegisteredTrigger as Unstable_RegisteredTrigger,
   type TriggerBehavior as Unstable_TriggerBehavior,
 } from "./primitives/composer/trigger";
+export type {
+  Unstable_DirectiveFormatter,
+  Unstable_DirectiveSegment,
+  Unstable_TriggerItem,
+} from "@assistant-ui/core";
+export { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 
 export type { Assistant } from "./augmentations";
 

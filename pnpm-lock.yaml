@@ -3757,9 +3757,6 @@ importers:
 
   packages/ui:
     dependencies:
-      '@assistant-ui/core':
-        specifier: workspace:*
-        version: link:../core
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../react
