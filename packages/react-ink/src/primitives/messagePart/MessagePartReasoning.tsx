@@ -14,14 +14,14 @@ export namespace MessagePartPrimitiveReasoning {
 export const MessagePartPrimitiveReasoning = (
   props: MessagePartPrimitiveReasoning.Props,
 ) => {
-  const text = useAuiState((s) => {
+  const reasoning = useAuiState((s) => {
     if (s.part.type !== "reasoning")
       throw new Error(
         "MessagePartPrimitive.Reasoning can only be used inside reasoning message parts.",
       );
     return s.part.text;
   });
-  return <Text {...props}>{text}</Text>;
+  return <Text {...props}>{reasoning}</Text>;
 };
 
 MessagePartPrimitiveReasoning.displayName = "MessagePartPrimitive.Reasoning";

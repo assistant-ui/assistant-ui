@@ -54,6 +54,8 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
         Unstable_Audio:
           components.Unstable_Audio ??
           messagePartsDefaultComponents.Unstable_Audio,
+        // Ink injects a terminal-safe `Fallback` when callers pass `data` without
+        // one; intentional divergence from @assistant-ui/react and @assistant-ui/react-native.
         data: components.data
           ? {
               by_name: components.data.by_name,

@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { Text } from "ink";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup } from "ink-testing-library";
@@ -32,7 +33,7 @@ vi.mock("@assistant-ui/core/react", async (importOriginal) => {
       children,
     }: {
       index: number;
-      children: React.ReactElement;
+      children: ReactElement;
     }) => {
       partContext.index = index;
       return children;

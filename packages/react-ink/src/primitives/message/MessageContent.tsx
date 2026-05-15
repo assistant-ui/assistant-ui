@@ -112,7 +112,7 @@ const DataUIDisplay = ({
     const named = s.dataRenderers.renderers[part.name];
     if (Array.isArray(named)) return named[0];
     if (named) return named;
-    const fallback = s.dataRenderers.fallbacks?.[0];
+    const fallback = s.dataRenderers.fallbacks[0];
     if (fallback) return fallback;
     return undefined;
   });
