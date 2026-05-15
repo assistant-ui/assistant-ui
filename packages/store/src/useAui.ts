@@ -398,12 +398,10 @@ export function useAui(): AssistantClient;
 /**
  * Extends the parent `AssistantClient` with additional scopes.
  *
- * Highly experimental advanced overload used when building primitives or
- * providers — for example, when a custom provider needs to register a
- * `message`, `part`, or other scope onto the client visible to its
- * descendants. This API may change in a minor release. Application code
- * rarely reaches for this; use {@link useAui} with no arguments to read
- * the existing client.
+ * Advanced overload used when building primitives or providers — for example,
+ * when a custom provider needs to register a `message`, `part`, or other scope
+ * onto the client visible to its descendants. Application code rarely reaches
+ * for this; use {@link useAui} with no arguments to read the existing client.
  *
  * @example
  * ```tsx
@@ -417,16 +415,10 @@ export function useAui(): AssistantClient;
  *
  * const role = useAuiState((s) => s.message.role);
  * ```
- *
- * @deprecated This API is highly experimental and may be changed in a
- * minor release.
  */
 export function useAui(clients: useAui.Props): AssistantClient;
 /**
  * Extends an explicit parent `AssistantClient` with additional scopes.
- *
- * @deprecated This API is highly experimental and may be changed in a
- * minor release.
  */
 export function useAui(
   clients: useAui.Props,
