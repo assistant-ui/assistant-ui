@@ -1,73 +1,71 @@
-# @assistant-ui/react-ink
+# `@assistant-ui/react-ink`
 
-React Ink (terminal UI) bindings for [assistant-ui](https://www.assistant-ui.com/).
+[![npm version](https://img.shields.io/npm/v/@assistant-ui/react-ink)](https://www.npmjs.com/package/@assistant-ui/react-ink)
+[![npm downloads](https://img.shields.io/npm/dm/@assistant-ui/react-ink)](https://www.npmjs.com/package/@assistant-ui/react-ink)
+[![GitHub stars](https://img.shields.io/github/stars/assistant-ui/assistant-ui)](https://github.com/assistant-ui/assistant-ui)
+![License](https://img.shields.io/npm/l/@assistant-ui/react-ink)
 
-Build AI chat interfaces for the terminal using [Ink](https://github.com/vadimdemedes/ink) — React for CLIs — powered by the same runtime as assistant-ui.
+[Ink](https://github.com/vadimdemedes/ink) bindings for assistant-ui. Composable, unstyled terminal primitives that share the same runtime, adapters, and tools as `@assistant-ui/react`, so you can ship a CLI chat UI without rewriting your backend code.
 
 ## Installation
 
-```sh
+Requires React 19 and ink 6 or newer.
+
+```bash
 npm install @assistant-ui/react-ink ink react
 ```
 
-## Quick Start
+For markdown rendering with syntax highlighting, also install [`@assistant-ui/react-ink-markdown`](https://www.npmjs.com/package/@assistant-ui/react-ink-markdown).
+
+## Usage
 
 ```tsx
-import { render } from "ink";
-import { Box, Text } from "ink";
+import { render, Box, Text } from "ink";
 import {
-  AssistantProvider,
+  AssistantRuntimeProvider,
   useLocalRuntime,
-  ThreadRoot,
-  ThreadMessages,
-  ComposerInput,
+  ThreadPrimitive,
+  ComposerPrimitive,
+  useAuiState,
   type ChatModelAdapter,
 } from "@assistant-ui/react-ink";
 
-const myAdapter: ChatModelAdapter = {
+const adapter: ChatModelAdapter = {
   async *run({ messages }) {
-    // your AI backend here
     yield { content: [{ type: "text", text: "Hello from AI!" }] };
   },
 };
 
-function App() {
-  const runtime = useLocalRuntime(myAdapter);
-
+const Message = () => {
+  const message = useAuiState((s) => s.message);
+  const text = message.content.find((p) => p.type === "text")?.text ?? "";
   return (
-    <AssistantProvider runtime={runtime}>
-      <ThreadRoot>
-        <ThreadMessages
-          renderMessage={({ message }) => (
-            <Box marginBottom={1}>
-              <Text>
-                {message.content
-                  .filter((p) => p.type === "text")
-                  .map((p) => p.text)
-                  .join("")}
-              </Text>
-            </Box>
-          )}
-        />
-        <ComposerInput submitOnEnter placeholder="Message..." autoFocus />
-      </ThreadRoot>
-    </AssistantProvider>
+    <Box marginBottom={1}>
+      <Text color={message.role === "user" ? "green" : "blue"}>
+        {message.role === "user" ? "You: " : "AI: "}
+      </Text>
+      <Text>{text}</Text>
+    </Box>
   );
-}
+};
+
+const App = () => {
+  const runtime = useLocalRuntime(adapter);
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ThreadPrimitive.Root>
+        <ThreadPrimitive.Messages>{() => <Message />}</ThreadPrimitive.Messages>
+        <Box borderStyle="round" paddingX={1}>
+          <Text>{"> "}</Text>
+          <ComposerPrimitive.Input submitOnEnter placeholder="Message..." autoFocus />
+        </Box>
+      </ThreadPrimitive.Root>
+    </AssistantRuntimeProvider>
+  );
+};
 
 render(<App />);
 ```
-
-## Features
-
-- Composable, unstyled primitives (Thread, Composer, Message, ActionBar, etc.)
-- Streaming responses with real-time updates
-- Tool call support with built-in ToolFallback component
-- Diff rendering with DiffPrimitive components and DiffView for unified diffs and file comparisons in the terminal
-- Message branching and editing
-- Multi-thread support with thread list management
-- Markdown rendering via `@assistant-ui/react-ink-markdown`
-- Same runtime as `@assistant-ui/react` — share adapters, tools, and backend code
 
 ## Documentation
 
@@ -76,12 +74,7 @@ render(<App />);
 - [Primitives](https://www.assistant-ui.com/docs/ink/primitives)
 - [Hooks](https://www.assistant-ui.com/docs/ink/hooks)
 
-## Related Packages
+## For other platforms
 
-- [`@assistant-ui/react-ink-markdown`](https://www.npmjs.com/package/@assistant-ui/react-ink-markdown) — Terminal markdown rendering with syntax highlighting
-- [`@assistant-ui/react`](https://www.npmjs.com/package/@assistant-ui/react) — Web (React) bindings
-- [`@assistant-ui/react-native`](https://www.npmjs.com/package/@assistant-ui/react-native) — React Native bindings
-
-## License
-
-MIT
+- Web: [`@assistant-ui/react`](https://www.npmjs.com/package/@assistant-ui/react)
+- React Native: [`@assistant-ui/react-native`](https://www.npmjs.com/package/@assistant-ui/react-native)

@@ -14,18 +14,22 @@ const extractDomain = (url: string): string => {
   }
 };
 
-const getDomainInitial = (url: string): string => {
-  const domain = extractDomain(url);
-  return domain.charAt(0).toUpperCase();
-};
+const defaultFaviconUrl = (domain: string) =>
+  `https://icons.duckduckgo.com/ip3/${domain}.ico`;
 
 function SourceIcon({
   url,
   className,
+  faviconUrl = defaultFaviconUrl,
   ...props
-}: ComponentProps<"span"> & { url: string }) {
-  const [hasError, setHasError] = useState(false);
+}: ComponentProps<"span"> & {
+  url: string;
+  faviconUrl?: (domain: string) => string;
+}) {
   const domain = extractDomain(url);
+  const src = faviconUrl(domain);
+  const [errorSrc, setErrorSrc] = useState<string | undefined>(undefined);
+  const hasError = errorSrc === src;
 
   if (hasError) {
     return (
@@ -37,7 +41,7 @@ function SourceIcon({
         )}
         {...props}
       >
-        {getDomainInitial(url)}
+        {domain.charAt(0).toUpperCase() || "?"}
       </span>
     );
   }
@@ -45,10 +49,10 @@ function SourceIcon({
   return (
     <img
       data-slot="source-icon"
-      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+      src={src}
       alt=""
       className={cn("size-3 shrink-0 rounded-sm", className)}
-      onError={() => setHasError(true)}
+      onError={() => setErrorSrc(src)}
       {...(props as ComponentProps<"img">)}
     />
   );

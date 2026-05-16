@@ -10,12 +10,18 @@ import { DevToolsProviderApi } from "../devtools/DevToolsHooks";
 export namespace AssistantRuntimeProvider {
   export type Props = PropsWithChildren<{
     /**
-     * The runtime to provide to the rest of your app.
+     * The assistant runtime to expose to descendants. Build one with
+     * `useLocalRuntime`, `useExternalStoreRuntime`, or
+     * `useAssistantTransportRuntime`.
      */
     runtime: AssistantRuntime;
 
     /**
-     * The aui instance to extend. If not provided, a new aui instance will be created.
+     * Optional parent `AssistantClient` whose scopes are inherited by the
+     * client created for this runtime. Use this when nesting an
+     * `AssistantRuntimeProvider` inside another assistant context. Omit this
+     * prop when there is no parent client.
+     * @defaultValue undefined
      */
     aui?: AssistantClient;
   }>;

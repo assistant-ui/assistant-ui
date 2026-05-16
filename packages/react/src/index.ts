@@ -281,6 +281,7 @@ export type {
   DataMessagePart,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
+  ToolModelContentPart,
   MessageStatus,
   MessagePartStatus,
   ToolCallMessagePartStatus,
@@ -377,5 +378,34 @@ export {
   type RegisteredTrigger as Unstable_RegisteredTrigger,
   type TriggerBehavior as Unstable_TriggerBehavior,
 } from "./primitives/composer/trigger";
+export type {
+  Unstable_DirectiveFormatter,
+  Unstable_DirectiveSegment,
+  Unstable_TriggerItem,
+} from "@assistant-ui/core";
+export { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 
 export type { Assistant } from "./augmentations";
+
+// --- mcp-apps ---
+export {
+  McpAppRenderer,
+  McpAppsRemoteHost,
+  getMcpAppFromToolPart,
+} from "./mcp-apps";
+export type {
+  McpAppRendererOptions,
+  McpAppMetadata,
+  McpAppResource,
+  McpAppResourceMeta,
+  McpAppResourceCSP,
+  McpAppSandboxConfig,
+  McpAppHostInfo,
+  McpAppHostContext,
+  McpAppDisplayMode,
+  McpAppsHost,
+  McpAppsRemoteHostOptions,
+  McpAppToolCallParams,
+  ToolCallMessagePartMcpMetadata,
+} from "./mcp-apps";
+export type { McpAppResourceOutput } from "@assistant-ui/core/react";

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { AISDKMessageConverter } from "./convertMessage";
 
 describe("AISDKMessageConverter", () => {
@@ -394,5 +395,275 @@ describe("AISDKMessageConverter", () => {
       type: "high_stock_model",
       limit: 5,
     });
+  });
+
+  it("preserves last good input when AI SDK briefly emits null input", () => {
+    const metadata = {
+      toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
+      toolLastInputCache: new Map<string, ReadonlyJSONObject>(),
+    };
+
+    const convertWithInput = (input: unknown) =>
+      AISDKMessageConverter.toThreadMessages(
+        [
+          {
+            id: "a1",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-weather",
+                toolCallId: "tc-1",
+                state: "input-streaming",
+                input,
+              },
+            ],
+          } as any,
+        ],
+        false,
+        metadata,
+      )[0]?.content.find((part): part is any => part.type === "tool-call");
+
+    const first = convertWithInput({ city: "NYC" });
+    expect(first?.argsText).toBe('{"city":"NYC');
+    expect(first?.args).toEqual({ city: "NYC" });
+
+    const dropped = convertWithInput(null);
+    expect(dropped?.argsText).toBe('{"city":"NYC');
+    expect(dropped?.args).toEqual({ city: "NYC" });
+
+    const undef = convertWithInput(undefined);
+    expect(undef?.argsText).toBe('{"city":"NYC');
+    expect(undef?.args).toEqual({ city: "NYC" });
+
+    const grown = convertWithInput({ city: "NYC", units: "F" });
+    expect(grown?.argsText).toBe('{"city":"NYC","units":"F');
+    expect(grown?.args).toEqual({ city: "NYC", units: "F" });
+  });
+
+  it("preserves last good input across terminal state transitions", () => {
+    const metadata = {
+      toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
+      toolLastInputCache: new Map<string, ReadonlyJSONObject>(),
+    };
+
+    AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-weather",
+              toolCallId: "tc-1",
+              state: "input-available",
+              input: { city: "NYC" },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const terminal = AISDKMessageConverter.toThreadMessages(
+      [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "tool-weather",
+              toolCallId: "tc-1",
+              state: "output-available",
+              input: null,
+              output: { temp: 70 },
+            },
+          ],
+        } as any,
+      ],
+      false,
+      metadata,
+    );
+
+    const call = terminal[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.args).toEqual({ city: "NYC" });
+    expect(call?.result).toEqual({ temp: 70 });
+  });
+
+  it("unwraps the modelContent envelope produced by frontend tool execution", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-readPdf",
+            toolCallId: "tc-pdf",
+            state: "output-available",
+            input: {},
+            output: {
+              __aui_modelContent: [
+                { type: "text", text: "PDF contents:" },
+                {
+                  type: "file",
+                  data: "JVBERi0xLjQK",
+                  mediaType: "application/pdf",
+                },
+              ],
+              value: { mediaType: "application/pdf", base64: "JVBERi0xLjQK" },
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.result).toEqual({
+      mediaType: "application/pdf",
+      base64: "JVBERi0xLjQK",
+    });
+    expect(call?.modelContent).toEqual([
+      { type: "text", text: "PDF contents:" },
+      {
+        type: "file",
+        data: "JVBERi0xLjQK",
+        mediaType: "application/pdf",
+      },
+    ]);
+  });
+
+  it("leaves a plain output untouched when no envelope is present", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { city: "NYC" },
+            output: { temp: 72 },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.result).toEqual({ temp: 72 });
+    expect(call?.modelContent).toBeUndefined();
+  });
+
+  it("forwards callProviderMetadata.mcp.app onto ToolCallMessagePart.mcp.app", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-search",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: { query: "hi" },
+            output: { results: [] },
+            callProviderMetadata: {
+              mcp: {
+                app: {
+                  resourceUri: "ui://example/search",
+                  mimeType: "text/html;profile=mcp-app",
+                  visibility: ["app", "model", "bogus"],
+                },
+              },
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://example/search",
+      mimeType: "text/html;profile=mcp-app",
+      visibility: ["app", "model"],
+    });
+  });
+
+  it("extracts MCP app metadata from output._meta['ui/resourceUri']", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-hello_ui",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: {},
+            output: {
+              _meta: { "ui/resourceUri": "ui://app/hello_ui.html" },
+              content: [{ type: "text", text: "" }],
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://app/hello_ui.html",
+    });
+  });
+
+  it("memoizes MCP app metadata across conversions by resourceUri", () => {
+    const metadata = {
+      mcpAppMetadataCache: new Map(),
+    };
+
+    const buildMessage = (id: string) => ({
+      id,
+      role: "assistant" as const,
+      parts: [
+        {
+          type: "tool-search",
+          toolCallId: `${id}-call`,
+          state: "output-available",
+          input: { q: "hi" },
+          output: {},
+          callProviderMetadata: {
+            mcp: { app: { resourceUri: "ui://example/search" } },
+          },
+        } as any,
+      ],
+    });
+
+    const first = AISDKMessageConverter.toThreadMessages(
+      [buildMessage("a1")],
+      false,
+      metadata,
+    );
+    const second = AISDKMessageConverter.toThreadMessages(
+      [buildMessage("a2")],
+      false,
+      metadata,
+    );
+
+    const firstApp = first[0]?.content.find(
+      (p): p is any => p.type === "tool-call",
+    )?.mcp?.app;
+    const secondApp = second[0]?.content.find(
+      (p): p is any => p.type === "tool-call",
+    )?.mcp?.app;
+    expect(firstApp).toBeDefined();
+    expect(firstApp).toBe(secondApp);
   });
 });

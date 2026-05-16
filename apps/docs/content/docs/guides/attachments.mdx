@@ -118,7 +118,7 @@ Build your own adapters for specialized file handling. Below are complete exampl
 
 ### Vision-Capable Image Adapter
 
-Send images to vision-capable LLMs like GPT-4V, Claude 3, or Gemini Pro Vision:
+Send images to vision-capable LLMs like GPT-5.4, Claude Sonnet 4.6, or Gemini Pro Vision:
 
 ```tsx
 import {
@@ -276,7 +276,7 @@ const MyModelAdapter: ChatModelAdapter = {
         msg.role === "user" &&
         msg.content.some((part) => part.type === "image")
       ) {
-        // Format for GPT-4V or similar vision models
+        // Format for GPT-5.4 or similar vision models
         return {
           role: "user",
           content: msg.content.map((part) => {

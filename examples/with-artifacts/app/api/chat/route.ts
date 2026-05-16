@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-nano"),
     system:
       "You are a helpful assistant that can generate HTML code. When the user asks you to create any visual content, UI, or webpage, use the render_html tool to render it in the browser. Always use the render_html tool for HTML output rather than showing code in a code block.",
     messages: await convertToModelMessages(messages),

@@ -289,6 +289,12 @@ importers:
       recharts:
         specifier: ^3.8.1
         version: 3.8.1(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-is@19.2.5)(react@19.2.5)(redux@5.0.1)
+      rehype-parse:
+        specifier: ^9.0.1
+        version: 9.0.1
+      rehype-remark:
+        specifier: ^10.0.1
+        version: 10.0.1
       remark:
         specifier: ^15.0.1
         version: 15.0.1
@@ -298,6 +304,9 @@ importers:
       remark-mdx:
         specifier: ^3.1.1
         version: 3.1.1
+      remark-stringify:
+        specifier: ^11.0.0
+        version: 11.0.0
       safe-content-frame:
         specifier: workspace:*
         version: link:../../packages/safe-content-frame
@@ -322,6 +331,9 @@ importers:
       tw-shimmer:
         specifier: workspace:*
         version: link:../../packages/tw-shimmer
+      unified:
+        specifier: ^11.0.5
+        version: 11.0.5
       vaul:
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -1833,11 +1845,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@langchain/langgraph-sdk':
-        specifier: ^1.9.1
-        version: 1.9.1(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(ws@8.20.0)
+        specifier: ^1.9.2
+        version: 1.9.2(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(ws@8.20.0)
       '@langchain/react':
-        specifier: ^0.3.3
-        version: 0.3.5(@langchain/core@1.1.44(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+        specifier: ^1.0.2
+        version: 1.0.2(@langchain/core@1.1.44(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0))(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(ws@8.20.0)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2789,7 +2801,7 @@ importers:
   packages/core:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.13
+        specifier: ^0.3.14
         version: link:../assistant-stream
       nanoid:
         specifier: ^5.1.11
@@ -2944,7 +2956,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.0
+        specifier: ^0.2.2
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.10
@@ -2974,7 +2986,7 @@ importers:
         specifier: ^0.1.27
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.13
+        specifier: ^0.3.14
         version: link:../assistant-stream
       nanoid:
         specifier: ^5.1.11
@@ -2985,6 +2997,9 @@ importers:
       react-textarea-autosize:
         specifier: ^8.5.9
         version: 8.5.9(@types/react@19.2.14)(react@19.2.5)
+      safe-content-frame:
+        specifier: ^0.0.19
+        version: link:../safe-content-frame
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -3051,10 +3066,10 @@ importers:
         specifier: ^0.0.53
         version: 0.0.53
       '@assistant-ui/core':
-        specifier: ^0.2.0
+        specifier: ^0.2.1
         version: link:../core
       assistant-stream:
-        specifier: ^0.3.13
+        specifier: ^0.3.14
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3079,7 +3094,7 @@ importers:
         specifier: ^3.0.177
         version: 3.0.177(react@19.2.5)(zod@4.4.3)
       '@assistant-ui/core':
-        specifier: ^0.2.0
+        specifier: ^0.2.2
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.10
@@ -3243,7 +3258,7 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.0
+        specifier: ^0.2.1
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.10
@@ -3252,7 +3267,7 @@ importers:
         specifier: ^0.5.11
         version: link:../tap
       assistant-stream:
-        specifier: ^0.3.13
+        specifier: ^0.3.14
         version: link:../assistant-stream
       diff:
         specifier: ^9.0.0
@@ -3292,7 +3307,7 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.0
+        specifier: ^0.2.2
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.10
@@ -3348,11 +3363,11 @@ importers:
         specifier: ^1.1.44
         version: 1.1.44(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0)
       '@langchain/langgraph-sdk':
-        specifier: ^1.9.1
-        version: 1.9.1(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(ws@8.20.0)
+        specifier: ^1.9.2
+        version: 1.9.2(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(ws@8.20.0)
       '@langchain/react':
-        specifier: ^0.3.3
-        version: 0.3.5(@langchain/core@1.1.44(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+        specifier: ^1.0.2
+        version: 1.0.2(@langchain/core@1.1.44(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0))(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(ws@8.20.0)
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -3495,7 +3510,7 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.0
+        specifier: ^0.2.1
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.10
@@ -3504,7 +3519,7 @@ importers:
         specifier: ^0.5.11
         version: link:../tap
       assistant-stream:
-        specifier: ^0.3.13
+        specifier: ^0.3.14
         version: link:../assistant-stream
       zustand:
         specifier: ^5.0.13
@@ -3778,6 +3793,9 @@ importers:
       embla-carousel-react:
         specifier: ^8.6.0
         version: 8.6.0(react@19.2.5)
+      heat-graph:
+        specifier: workspace:*
+        version: link:../heat-graph
       input-otp:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -3833,6 +3851,9 @@ importers:
         specifier: ^5.0.13
         version: 5.0.13(@types/react@19.2.14)(immer@11.1.6)(react@19.2.5)(use-sync-external-store@1.6.0(react@19.2.5))
     devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../x-buildutils
       '@types/react':
         specifier: ^19.2.14
         version: 19.2.14
@@ -6592,17 +6613,14 @@ packages:
     engines: {node: ^18.19.0 || >=20.16.0}
     hasBin: true
 
-  '@langchain/langgraph-sdk@1.8.10':
-    resolution: {integrity: sha512-wrB3rkRw5KAmsqezwvKP3midT4qJrV6Hj9XJMYo+cbvXC4HYpSAmyY/VriSyeTFRbLG/OP/pY2Yz+9Z54nSaXQ==}
+  '@langchain/langgraph-sdk@1.9.1':
+    resolution: {integrity: sha512-pHojybde9HoMz7ZDtyW3pgDdomAN4C0pbdgXASjccFS+S2Cqx75iZBtBUUg1A/CSer5xh9GakdIqyihxZOf7VA==}
     peerDependencies:
-      '@langchain/core': ^1.1.16
       react: ^18 || ^19
       react-dom: ^18 || ^19
       svelte: ^4.0.0 || ^5.0.0
       vue: ^3.0.0
     peerDependenciesMeta:
-      '@langchain/core':
-        optional: true
       react:
         optional: true
       react-dom:
@@ -6612,8 +6630,8 @@ packages:
       vue:
         optional: true
 
-  '@langchain/langgraph-sdk@1.9.1':
-    resolution: {integrity: sha512-pHojybde9HoMz7ZDtyW3pgDdomAN4C0pbdgXASjccFS+S2Cqx75iZBtBUUg1A/CSer5xh9GakdIqyihxZOf7VA==}
+  '@langchain/langgraph-sdk@1.9.2':
+    resolution: {integrity: sha512-1kDPjR0VH/39q2h8k0Sxi35KxOvEQPModVCepxGLlRkbZmuWUH+zfICuJd3rmD1ByeOKQBZEaB7Y+VCYmSMt1w==}
     peerDependencies:
       react: ^18 || ^19
       react-dom: ^18 || ^19
@@ -6648,10 +6666,10 @@ packages:
   '@langchain/protocol@0.0.15':
     resolution: {integrity: sha512-MllvbpMjqHevUm+v94M422mH7XKN+wGCvJRBVROTWBotEDOATYB4Ktk2UheYP859y9o2LlhtPek5t1T9eyfAbQ==}
 
-  '@langchain/react@0.3.5':
-    resolution: {integrity: sha512-7Srdp8JTw0iYv7K7rDtiHbZ46ycnko7Er0aBvLjOoUOemdMZs4/aa1hdSiWMPlrXX/7UIBwvZ2vvT+IIU1VBVg==}
+  '@langchain/react@1.0.2':
+    resolution: {integrity: sha512-+95jBl1mbu3UJkVE9AN0a3bddrS6+jkEGT4EQ+an9HNS4qVERFg3DaIBSloS0VYDLB8GxKaZEnL1kGDuQaYh1Q==}
     peerDependencies:
-      '@langchain/core': ^1.1.27
+      '@langchain/core': ^1.1.44
       react: ^18 || ^19
 
   '@lexical/clipboard@0.44.0':
@@ -11801,6 +11819,9 @@ packages:
     resolution: {integrity: sha512-ej4AhfhfL2Q2zpMmLo7U1Uv9+PyhIZpgQLGT1F9miIGmiCJIoCgSmczFdrc97mWT4kVY72KA+WnnhJ5pghSvSg==}
     engines: {node: '>= 0.4'}
 
+  hast-util-embedded@3.0.0:
+    resolution: {integrity: sha512-naH8sld4Pe2ep03qqULEtvYr7EjrLK2QHY8KJR6RJkTUjPGObe1vnx585uzem2hGra+s1q08DZZpfgDVYRbaXA==}
+
   hast-util-from-dom@5.0.1:
     resolution: {integrity: sha512-N+LqofjR2zuzTjCPzyDUdSshy4Ma6li7p/c3pA78uTwzFgENbgbUrm2ugwsOdcjI1muO+o6Dgzp9p8WHtn/39Q==}
 
@@ -11813,11 +11834,23 @@ packages:
   hast-util-from-parse5@8.0.3:
     resolution: {integrity: sha512-3kxEVkEKt0zvcZ3hCRYI8rqrgwtlIOFMWkbclACvjlDw8Li9S2hk/d51OI0nr/gIpdMHNepwgOKqZ/sy0Clpyg==}
 
+  hast-util-has-property@3.0.0:
+    resolution: {integrity: sha512-MNilsvEKLFpV604hwfhVStK0usFY/QmM5zX16bo7EjnAEGofr5YyI37kzopBlZJkHD4t887i+q/C8/tr5Q94cA==}
+
+  hast-util-is-body-ok-link@3.0.1:
+    resolution: {integrity: sha512-0qpnzOBLztXHbHQenVB8uNuxTnm/QBFUOmdOSsEn7GnBtyY07+ENTWVFBAnXd/zEgd9/SUG3lRY7hSIBWRgGpQ==}
+
   hast-util-is-element@3.0.0:
     resolution: {integrity: sha512-Val9mnv2IWpLbNPqc/pUem+a7Ipj2aHacCwgNfTiK0vJKl0LF+4Ba4+v1oPHFpf3bLYmreq0/l3Gud9S5OH42g==}
 
+  hast-util-minify-whitespace@1.0.1:
+    resolution: {integrity: sha512-L96fPOVpnclQE0xzdWb/D12VT5FabA7SnZOUMtL1DbXmYiHJMXZvFkIZfiMmTCNJHUeO2K9UYNXoVyfz+QHuOw==}
+
   hast-util-parse-selector@4.0.0:
     resolution: {integrity: sha512-wkQCkSYoOGCRKERFWcxMVMOcYE2K1AaNLU8DXS9arxnLOUEWbOXKXiJUNzEpqZ3JOKpnha3jkFrumEjVliDe7A==}
+
+  hast-util-phrasing@3.0.1:
+    resolution: {integrity: sha512-6h60VfI3uBQUxHqTyMymMZnEbNl1XmEGtOxxKYL7stY2o601COo62AWAYBQR9lZbYXYSBoxag8UpPRXK+9fqSQ==}
 
   hast-util-raw@9.1.0:
     resolution: {integrity: sha512-Y8/SBAHkZGoNkpzqqfCldijcuUKh7/su31kEBp67cFY09Wy0mTRgtsLYsiIxMJxlu0f6AA5SUTbDR8K0rxnbUw==}
@@ -11833,6 +11866,9 @@ packages:
 
   hast-util-to-jsx-runtime@2.3.6:
     resolution: {integrity: sha512-zl6s8LwNyo1P9uw+XJGvZtdFF1GdAkOg8ujOw+4Pyb76874fLps4ueHXDhXWdk6YHQ6OgUtinliG7RsYvCbbBg==}
+
+  hast-util-to-mdast@10.1.2:
+    resolution: {integrity: sha512-FiCRI7NmOvM4y+f5w32jPRzcxDIz+PUqDwEqn1A+1q2cdp3B8Gx7aVrXORdOKjMNDQsD1ogOr896+0jJHW1EFQ==}
 
   hast-util-to-parse5@8.0.1:
     resolution: {integrity: sha512-MlWT6Pjt4CG9lFCjiz4BH7l9wmrMkfkJYCxFwKQic8+RTZgWPuWxwAfjJElsXkex7DJjfSJsQIt931ilUgmwdA==}
@@ -14525,11 +14561,20 @@ packages:
   rehype-katex@7.0.1:
     resolution: {integrity: sha512-OiM2wrZ/wuhKkigASodFoo8wimG3H12LWQaH8qSPVJn9apWKFSH3YOCtbKpBorTVw/eI7cuT21XBbvwEswbIOA==}
 
+  rehype-minify-whitespace@6.0.2:
+    resolution: {integrity: sha512-Zk0pyQ06A3Lyxhe9vGtOtzz3Z0+qZ5+7icZ/PL/2x1SHPbKao5oB/g/rlc6BCTajqBb33JcOe71Ye1oFsuYbnw==}
+
+  rehype-parse@9.0.1:
+    resolution: {integrity: sha512-ksCzCD0Fgfh7trPDxr2rSylbwq9iYDkSn8TCDmEJ49ljEUBxDVCzCHv7QNzZOfODanX4+bWQ4WZqLCRWYLfhag==}
+
   rehype-raw@7.0.0:
     resolution: {integrity: sha512-/aE8hCfKlQeA8LmyeyQvQF3eBiLRGNlfBJEvWH7ivp9sBqs7TNqBL5X3v157rM4IFETqDnIOO+z5M/biZbo9Ww==}
 
   rehype-recma@1.0.0:
     resolution: {integrity: sha512-lqA4rGUf1JmacCNWWZx0Wv1dHqMwxzsDWYMTowuplHF3xH0N/MmrZ/G3BDZnzAkRmxDadujCjaKM2hqYdCBOGw==}
+
+  rehype-remark@10.0.1:
+    resolution: {integrity: sha512-EmDndlb5NVwXGfUa4c9GPK+lXeItTilLhE6ADSaQuHr4JUlKw9MidzGzx4HpqZrNCt6vnHmEifXQiiA+CEnjYQ==}
 
   rehype-sanitize@6.0.0:
     resolution: {integrity: sha512-CsnhKNsyI8Tub6L4sm5ZFsme4puGfc6pYylvXo1AeqaGbjOYyzNv3qZPwvs0oMJ39eryyeOdmxwUIo94IpEhqg==}
@@ -15357,6 +15402,9 @@ packages:
 
   trim-lines@3.0.1:
     resolution: {integrity: sha512-kRj8B+YHZCc9kQYdWfJB2/oUl9rA99qbowYYBtr4ui4mZyAQ2JpvVBd/6U2YloATfqBhBTSMhTpgBHtU0Mf3Rg==}
+
+  trim-trailing-lines@2.1.0:
+    resolution: {integrity: sha512-5UR5Biq4VlVOtzqkm2AZlgvSlDJtME46uV0br0gENbwN4l5+mMKT4b9gJKqWtuL2zAIqajGJGuvbCbcAJUZqBg==}
 
   triple-beam@1.4.1:
     resolution: {integrity: sha512-aZbgViZrg1QNcG+LULa7nhZpJTZSLm/mXnHXnbAbjmN5aSa0y7V+wvv6+4WaBtpISJzThKy+PIPxc1Nq1EJ9mg==}
@@ -18679,18 +18727,25 @@ snapshots:
       - utf-8-validate
       - ws
 
-  '@langchain/langgraph-sdk@1.8.10(@langchain/core@1.1.44(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
+  '@langchain/langgraph-sdk@1.9.1(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(ws@8.20.0)':
     dependencies:
+      '@langchain/core': 1.1.44(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0)
+      '@langchain/protocol': 0.0.15
       '@types/json-schema': 7.0.15
       p-queue: 9.2.0
       p-retry: 7.1.1
       uuid: 13.0.2
     optionalDependencies:
-      '@langchain/core': 1.1.44(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0)
       react: 19.2.5
       react-dom: 19.2.5(react@19.2.5)
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - openai
+      - ws
 
-  '@langchain/langgraph-sdk@1.9.1(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(ws@8.20.0)':
+  '@langchain/langgraph-sdk@1.9.2(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(ws@8.20.0)':
     dependencies:
       '@langchain/core': 1.1.44(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0)
       '@langchain/protocol': 0.0.15
@@ -18720,7 +18775,7 @@ snapshots:
     dependencies:
       '@langchain/core': 1.1.44(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0)
       '@langchain/langgraph-checkpoint': 1.0.2(@langchain/core@1.1.44(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0))
-      '@langchain/langgraph-sdk': 1.9.1(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(ws@8.20.0)
+      '@langchain/langgraph-sdk': 1.9.2(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(ws@8.20.0)
       '@langchain/protocol': 0.0.15
       '@standard-schema/spec': 1.1.0
       uuid: 10.0.0
@@ -18740,15 +18795,20 @@ snapshots:
 
   '@langchain/protocol@0.0.15': {}
 
-  '@langchain/react@0.3.5(@langchain/core@1.1.44(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)':
+  '@langchain/react@1.0.2(@langchain/core@1.1.44(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0))(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(ws@8.20.0)':
     dependencies:
       '@langchain/core': 1.1.44(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0)
-      '@langchain/langgraph-sdk': 1.8.10(@langchain/core@1.1.44(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(ws@8.20.0))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@langchain/langgraph-sdk': 1.9.2(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.36.0(ws@8.20.0)(zod@4.4.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(ws@8.20.0)
       react: 19.2.5
     transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - openai
       - react-dom
       - svelte
       - vue
+      - ws
 
   '@lexical/clipboard@0.44.0':
     dependencies:
@@ -24734,6 +24794,11 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
 
+  hast-util-embedded@3.0.0:
+    dependencies:
+      '@types/hast': 3.0.4
+      hast-util-is-element: 3.0.0
+
   hast-util-from-dom@5.0.1:
     dependencies:
       '@types/hast': 3.0.4
@@ -24767,13 +24832,37 @@ snapshots:
       vfile-location: 5.0.3
       web-namespaces: 2.0.1
 
+  hast-util-has-property@3.0.0:
+    dependencies:
+      '@types/hast': 3.0.4
+
+  hast-util-is-body-ok-link@3.0.1:
+    dependencies:
+      '@types/hast': 3.0.4
+
   hast-util-is-element@3.0.0:
     dependencies:
       '@types/hast': 3.0.4
 
+  hast-util-minify-whitespace@1.0.1:
+    dependencies:
+      '@types/hast': 3.0.4
+      hast-util-embedded: 3.0.0
+      hast-util-is-element: 3.0.0
+      hast-util-whitespace: 3.0.0
+      unist-util-is: 6.0.1
+
   hast-util-parse-selector@4.0.0:
     dependencies:
       '@types/hast': 3.0.4
+
+  hast-util-phrasing@3.0.1:
+    dependencies:
+      '@types/hast': 3.0.4
+      hast-util-embedded: 3.0.0
+      hast-util-has-property: 3.0.0
+      hast-util-is-body-ok-link: 3.0.1
+      hast-util-is-element: 3.0.0
 
   hast-util-raw@9.1.0:
     dependencies:
@@ -24851,6 +24940,23 @@ snapshots:
       vfile-message: 4.0.3
     transitivePeerDependencies:
       - supports-color
+
+  hast-util-to-mdast@10.1.2:
+    dependencies:
+      '@types/hast': 3.0.4
+      '@types/mdast': 4.0.4
+      '@ungap/structured-clone': 1.3.0
+      hast-util-phrasing: 3.0.1
+      hast-util-to-html: 9.0.5
+      hast-util-to-text: 4.0.2
+      hast-util-whitespace: 3.0.0
+      mdast-util-phrasing: 4.1.0
+      mdast-util-to-hast: 13.2.1
+      mdast-util-to-string: 4.0.0
+      rehype-minify-whitespace: 6.0.2
+      trim-trailing-lines: 2.1.0
+      unist-util-position: 5.0.0
+      unist-util-visit: 5.1.0
 
   hast-util-to-parse5@8.0.1:
     dependencies:
@@ -28418,6 +28524,17 @@ snapshots:
       unist-util-visit-parents: 6.0.2
       vfile: 6.0.3
 
+  rehype-minify-whitespace@6.0.2:
+    dependencies:
+      '@types/hast': 3.0.4
+      hast-util-minify-whitespace: 1.0.1
+
+  rehype-parse@9.0.1:
+    dependencies:
+      '@types/hast': 3.0.4
+      hast-util-from-html: 2.0.3
+      unified: 11.0.5
+
   rehype-raw@7.0.0:
     dependencies:
       '@types/hast': 3.0.4
@@ -28431,6 +28548,14 @@ snapshots:
       hast-util-to-estree: 3.1.3
     transitivePeerDependencies:
       - supports-color
+
+  rehype-remark@10.0.1:
+    dependencies:
+      '@types/hast': 3.0.4
+      '@types/mdast': 4.0.4
+      hast-util-to-mdast: 10.1.2
+      unified: 11.0.5
+      vfile: 6.0.3
 
   rehype-sanitize@6.0.0:
     dependencies:
@@ -29411,6 +29536,8 @@ snapshots:
   tree-kill@1.2.2: {}
 
   trim-lines@3.0.1: {}
+
+  trim-trailing-lines@2.1.0: {}
 
   triple-beam@1.4.1: {}
 

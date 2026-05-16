@@ -29,18 +29,63 @@ type ToolCallPartInit = {
   response?: ToolResponseLike<ReadonlyJSONValue>;
 };
 
+/**
+ * Imperative writer for constructing an {@link AssistantStream}.
+ *
+ * The controller handles part boundaries for common streaming operations. Use
+ * `appendText` and `appendReasoning` for simple token streams, or open explicit
+ * parts with `addTextPart` and `addToolCallPart` when you need direct control.
+ */
 export type AssistantStreamController = {
+  /** Appends text to the current text part, opening one if needed. */
   appendText(textDelta: string): void;
+  /** Appends reasoning text to the current reasoning part, opening one if needed. */
   appendReasoning(reasoningDelta: string): void;
+  /** Appends a source citation part to the stream. */
   appendSource(options: SourcePart): void;
+  /** Appends a file part to the stream. */
   appendFile(options: FilePart): void;
+  /** Appends a named data part to the stream. */
   appendData(options: DataPart): void;
+  /**
+   * Opens a text part and returns its writer.
+   *
+   * Close the returned controller when the text part is complete. Opening a new
+   * part through this controller closes any implicit text or reasoning append
+   * part first.
+   */
   addTextPart(): TextStreamController;
+  /**
+   * Opens a tool-call part by tool name and returns its writer.
+   *
+   * A tool call id is generated automatically. Use the object overload when the
+   * caller already has an id, initial args, args text, or response.
+   */
   addToolCallPart(options: string): ToolCallStreamController;
+  /**
+   * Opens a tool-call part and returns its writer.
+   *
+   * Use this overload to provide a stable `toolCallId`, initial arguments,
+   * streamed argument text, or an immediate {@link ToolResponseLike}.
+   */
   addToolCallPart(options: ToolCallPartInit): ToolCallStreamController;
+  /** Enqueues a raw protocol chunk. Prefer higher-level helpers when possible. */
   enqueue(chunk: AssistantStreamChunk): void;
+  /**
+   * Merges another assistant stream into this stream.
+   *
+   * Paths from the merged stream are remapped so its parts appear at the next
+   * available position in this controller's output.
+   */
   merge(stream: AssistantStream): void;
+  /** Closes any active part and finishes the stream. */
   close(): void;
+  /**
+   * Returns a controller that writes child parts with `parentId` attached.
+   *
+   * Use this for nested or related parts that should be associated with an
+   * existing message or part in downstream renderers.
+   */
   withParentId(parentId: string): AssistantStreamController;
 };
 
@@ -226,6 +271,15 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 }
 
+/**
+ * Creates an {@link AssistantStream} and writes to it with an
+ * {@link AssistantStreamController}.
+ *
+ * The callback may write synchronously or asynchronously. If it throws, an
+ * `error` chunk is emitted before the error is rethrown; when the callback
+ * settles, the stream is closed automatically unless the controller was
+ * already closed.
+ */
 export function createAssistantStream(
   callback: (controller: AssistantStreamController) => PromiseLike<void> | void,
 ): AssistantStream {
@@ -254,6 +308,13 @@ export function createAssistantStream(
   return controller.__internal_getReadable();
 }
 
+/**
+ * Creates an {@link AssistantStream} together with the controller used to
+ * write into it.
+ *
+ * Use this when the stream needs to be returned before all writers are known.
+ * Closing the returned controller finishes the paired stream.
+ */
 export function createAssistantStreamController() {
   const { resolve, promise } = promiseWithResolvers<void>();
   let controller!: AssistantStreamController;
@@ -269,6 +330,13 @@ export function createAssistantStreamController() {
   return [stream, controller] as const;
 }
 
+/**
+ * Creates a `Response` whose body is an encoded {@link AssistantStream}.
+ *
+ * This is the HTTP-route convenience form of {@link createAssistantStream}; it
+ * uses {@link DataStreamEncoder} so the response can be consumed by matching
+ * assistant-ui data stream decoders.
+ */
 export function createAssistantStreamResponse(
   callback: (controller: AssistantStreamController) => PromiseLike<void> | void,
 ) {

@@ -1,58 +1,32 @@
 # `@assistant-ui/react-ai-sdk`
 
-Vercel AI SDK integration for `@assistant-ui/react`.
+[Vercel AI SDK](https://sdk.vercel.ai) v6 integration for `@assistant-ui/react`. Wraps the AI SDK chat in an assistant-ui runtime and forwards system messages and frontend tools through `AssistantChatTransport`.
 
-## Features
+## Installation
 
-- Seamless integration with Vercel AI SDK v6
-- Automatic system message and frontend tools forwarding via `AssistantChatTransport`
-- Support for custom transport configuration
+```bash
+npm install @assistant-ui/react @assistant-ui/react-ai-sdk
+```
 
 ## Usage
 
-### Basic Setup
+```tsx
+"use client";
 
-```typescript
-import { useChatRuntime } from '@assistant-ui/react-ai-sdk';
-import { AssistantRuntimeProvider } from '@assistant-ui/react';
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { Thread } from "@/components/assistant-ui/thread";
 
-function App() {
-  // By default, uses AssistantChatTransport which forwards system messages and tools
+export function Chat() {
   const runtime = useChatRuntime();
-
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      {/* Your assistant-ui components */}
+      <Thread />
     </AssistantRuntimeProvider>
   );
 }
 ```
 
-### Custom Transport
+`useChatRuntime` defaults to `AssistantChatTransport`, which forwards frontend system messages and tool definitions to your backend. To customize the API URL, the cache, or other transport settings, pass a configured `AssistantChatTransport` to keep that forwarding behavior; pass `DefaultChatTransport` to opt out.
 
-When you need to customize the transport configuration:
-
-```typescript
-import { DefaultChatTransport } from "ai";
-import { AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
-
-// Custom API URL while keeping system/tools forwarding
-const runtime = useChatRuntime({
-  transport: new AssistantChatTransport({
-    api: "/my-custom-api/chat",
-  }),
-});
-
-// Or disable system/tools forwarding entirely
-const runtime = useChatRuntime({
-  transport: new DefaultChatTransport(),
-});
-```
-
-**Important:** When customizing the API URL, you must explicitly use `AssistantChatTransport` to keep frontend system messages and tools forwarding.
-
-## AssistantChatTransport vs DefaultChatTransport
-
-- **AssistantChatTransport** (default): Automatically forwards system messages and frontend tools from the assistant-ui context to your backend API
-- **DefaultChatTransport**: Standard AI SDK transport without automatic forwarding
+Full reference at [assistant-ui.com/docs/runtimes/ai-sdk](https://www.assistant-ui.com/docs/runtimes/ai-sdk).

@@ -1,59 +1,28 @@
-# @assistant-ui/react-ink-markdown
+# `@assistant-ui/react-ink-markdown`
 
-Terminal markdown rendering for [`@assistant-ui/react-ink`](https://www.assistant-ui.com/). Wraps [markdansi](https://github.com/steipete/Markdansi) to render formatted headings, code blocks, tables, lists, and more in the terminal.
+Terminal markdown rendering for [`@assistant-ui/react-ink`](https://www.npmjs.com/package/@assistant-ui/react-ink). Wraps [`markdansi`](https://github.com/steipete/Markdansi) to render formatted headings, code blocks, tables, lists, and more in the terminal, with Shiki syntax highlighting.
 
 ## Installation
 
 ```bash
-npm install @assistant-ui/react-ink-markdown
-```
-
-For syntax highlighting in code blocks, also install Shiki (optional):
-
-```bash
-npm install shiki
+npm install @assistant-ui/react-ink @assistant-ui/react-ink-markdown ink react shiki
 ```
 
 ## Usage
 
-```tsx
-import { MarkdownText } from "@assistant-ui/react-ink-markdown";
-
-// Standalone — pass text directly
-<MarkdownText text="# Hello **world**" />
-
-// With MessageContent's renderText slot
-<MessageContent
-  renderText={({ part }) => <MarkdownText text={part.text} />}
-/>
-```
-
-### With syntax highlighting
+Inside `MessagePrimitive.Parts`, use `MarkdownTextPrimitive` to read text and status from the runtime context automatically:
 
 ```tsx
-import { MarkdownText, useShikiHighlighter } from "@assistant-ui/react-ink-markdown";
-
-const App = ({ text }: { text: string }) => {
-  const highlighter = useShikiHighlighter({ theme: "github-dark" });
-  return <MarkdownText text={text} highlighter={highlighter} />;
-};
-```
-
-### Auto-wired primitive
-
-Use `MarkdownTextPrimitive` inside `MessagePrimitive.Parts` — it reads text and status from the runtime context automatically:
-
-```tsx
+import { MessagePrimitive } from "@assistant-ui/react-ink";
 import { MarkdownTextPrimitive } from "@assistant-ui/react-ink-markdown";
 
 <MessagePrimitive.Parts>
-  {({ part }) => {
-    if (part.type === "text") return <MarkdownTextPrimitive />;
-    return null;
-  }}
-</MessagePrimitive.Parts>
+  {({ part }) => (part.type === "text" ? <MarkdownTextPrimitive /> : null)}
+</MessagePrimitive.Parts>;
 ```
 
-## API
+For standalone use or to attach a custom Shiki highlighter, see the Documentation section below.
 
-See the [assistant-ui docs](https://www.assistant-ui.com/) for full API reference.
+## Documentation
+
+Full reference at [assistant-ui.com/docs/ink](https://www.assistant-ui.com/docs/ink).

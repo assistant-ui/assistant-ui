@@ -5,9 +5,13 @@ import { useAuiState } from "@assistant-ui/store";
 export type AttachmentThumbProps = ComponentProps<typeof Text>;
 
 export const AttachmentThumb: FC<AttachmentThumbProps> = (props) => {
-  const ext = useAuiState((s) => {
-    const parts = s.attachment.name.split(".");
-    return parts.length > 1 ? parts.pop()! : "";
+  const label = useAuiState((s) => {
+    const name = s.attachment.name;
+    const dot = name.lastIndexOf(".");
+    if (dot > 0 && dot < name.length - 1) {
+      return `.${name.slice(dot + 1)}`;
+    }
+    return s.attachment.type;
   });
-  return <Text {...props}>.{ext}</Text>;
+  return <Text {...props}>{label}</Text>;
 };

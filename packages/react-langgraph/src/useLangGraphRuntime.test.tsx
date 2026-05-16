@@ -581,4 +581,55 @@ describe("useLangGraphRuntime", () => {
 
     expect(signal?.aborted).toBe(true);
   });
+
+  it("invokes user-provided create when stream calls initialize without cloud", async () => {
+    const userCreate = vi.fn(async () => ({ externalId: "lg-thread-xyz" }));
+
+    let initResult:
+      | { remoteId: string; externalId: string | undefined }
+      | undefined;
+    const streamMock = vi.fn().mockImplementation(
+      // biome-ignore lint/correctness/useYield: empty stream — only used to await initialize
+      async function* (
+        _messages: LangChainMessage[],
+        config: {
+          initialize: () => Promise<{
+            remoteId: string;
+            externalId: string | undefined;
+          }>;
+        },
+      ) {
+        initResult = await config.initialize();
+      },
+    );
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        create: userCreate,
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const {
+      result: { current: sendResult },
+    } = renderHook(() => useLangGraphSend(), { wrapper });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    act(() => {
+      sendResult([{ type: "human", content: "Hello, world!" }], {});
+    });
+
+    await waitFor(() => {
+      expect(streamMock).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(userCreate).toHaveBeenCalled();
+    });
+
+    expect(initResult?.externalId).toBe("lg-thread-xyz");
+  });
 });

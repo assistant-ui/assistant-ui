@@ -6,7 +6,7 @@ import type { ThreadListRuntime } from "../runtime/ThreadListRuntime";
 import { createStateHookForRuntime } from "../../context/react/utils/createStateHookForRuntime";
 
 /**
- * @deprecated Use `useAui()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use {@link useAui} instead. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  *
  * Hook to access the AssistantRuntime from the current context.
  *
@@ -62,6 +62,6 @@ const useThreadListRuntime = (opt: {
 }): ThreadListRuntime | null => useAssistantRuntime(opt)?.threads ?? null;
 
 /**
- * @deprecated Use `useAuiState((s) => s.threads)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use {@link useAuiState}: `useAuiState((s) => s.threads)`. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export const useThreadList = createStateHookForRuntime(useThreadListRuntime);

@@ -151,7 +151,7 @@ export async function POST(req: Request) {
       return new Response("Config too large", { status: 400 });
     }
 
-    const model = getModel("openai/gpt-5-nano");
+    const model = getModel("openai/gpt-5.4-nano");
 
     const prunedMessages = pruneMessages({
       messages: await convertToModelMessages(messages),

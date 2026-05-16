@@ -6,7 +6,7 @@
   <a href="https://www.assistant-ui.com">Product</a> ·
   <a href="https://www.assistant-ui.com/docs">Documentation</a> ·
   <a href="https://www.assistant-ui.com/examples">Examples</a> ·
-  <a href="https://discord.gg/S9dwgCNEFs">Discord Community</a> ·
+  <a href="https://discord.gg/S9dwgCNEFs">Discord</a> ·
   <a href="https://cal.com/simon-farshid/assistant-ui">Contact Sales</a>
 </p>
 
@@ -15,63 +15,74 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/assistant-ui/assistant-ui)
 [![Weave Badge](https://img.shields.io/endpoint?url=https%3A%2F%2Fapp.workweave.ai%2Fapi%2Frepository%2Fbadge%2Forg_GhSIrtWo37b5B3Mv0At3wQ1Q%2F722184017&cacheSeconds=3600)](https://app.workweave.ai/reports/repository/org_GhSIrtWo37b5B3Mv0At3wQ1Q/722184017)
 ![GitHub License](https://img.shields.io/github/license/assistant-ui/assistant-ui)
+[![GitHub stars](https://img.shields.io/github/stars/assistant-ui/assistant-ui)](https://github.com/assistant-ui/assistant-ui)
 ![Backed by Y Combinator](https://img.shields.io/badge/Backed_by-Y_Combinator-orange)
-<!-- [![Manta Graph badge](https://getmanta.ai/api/badges?text=Manta%20Graph&link=assistant-ui)](https://getmanta.ai/assistant-ui) -->
-
-[⭐️ Star us on GitHub](https://github.com/assistant-ui/assistant-ui)
 
 ## The UX of ChatGPT in your React app 💬🚀
 
-**assistant-ui** is an open source TypeScript/React library to build production-grade AI chat experiences fast.
+**assistant-ui** is an open-source TypeScript/React library to build production-grade AI chat experiences fast.
 
-- Handles streaming, auto-scrolling, accessibility, and real-time updates for you
-- Fully composable primitives inspired by shadcn/ui and cmdk — customize every pixel
-- Works with your stack: AI SDK, LangGraph, Mastra, or any custom backend
-- Broad model support out of the box (OpenAI, Anthropic, Mistral, Perplexity, AWS Bedrock, Azure, Google Gemini, Hugging Face, Fireworks, Cohere, Replicate, Ollama) with easy extension to custom APIs
+## Installation
 
-## Why assistant-ui
-
-- **Fast to production**: battle-tested primitives, built-in streaming and attachments
-- **Designed for customization**: composable pieces instead of a monolithic widget
-- **Great DX**: sensible defaults, keyboard shortcuts, a11y, and strong TypeScript
-- **Enterprise-ready**: optional chat history and analytics via Assistant Cloud
-
-## Getting Started
-
-Run one of the following in your terminal:
+The fastest path is the CLI, which scaffolds a Next.js app or adds the styled components to an existing project:
 
 ```bash
-npx assistant-ui create   # new project
-npx assistant-ui init     # add to existing project
+npx assistant-ui@latest create   # new project
+npx assistant-ui@latest init     # add to existing project
 ```
+
+Or install the packages directly:
+
+```bash
+npm install @assistant-ui/react @assistant-ui/react-ai-sdk
+```
+
+## Usage
+
+```tsx
+"use client";
+
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { Thread } from "@/components/assistant-ui/thread";
+
+export function Chat() {
+  const runtime = useChatRuntime();
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+`useChatRuntime` connects to the Vercel AI SDK out of the box. Swap it for `useLangGraphRuntime`, `useDataStreamRuntime`, or any custom runtime to integrate with your own backend.
 
 [![assistant-ui starter template](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/assistant-ui-starter.gif)](https://youtu.be/k6Dc8URmLjk)
 
-## Features
+## What you get
 
-- **Build**: composable primitives to create any chat UX (message list, input, thread, toolbar) and a polished shadcn/ui theme you can fully customize.
-
-- **Ship**: production-ready UX out of the box — streaming, auto-scroll, retries, attachments, markdown, code highlighting, and voice input (dictation) — plus keyboard shortcuts and accessibility by default.
-
-- **Generate**: render tool calls and JSON as components, collect human approvals inline, and enable safe frontend actions.
-
-- **Integrate**: works with AI SDK, LangGraph, Mastra, or custom backends; broad provider support; optional chat history and analytics via Assistant Cloud (single env var).
+- **Composable primitives**: build any chat UX from `Thread`, `Message`, `Composer`, `ThreadList`, `ActionBar`, and friends. Style every pixel yourself, or start from a polished shadcn/ui theme that the CLI copies into your project.
+- **Production UX out of the box**: streaming, auto-scroll, retries, attachments, markdown, code highlighting, voice dictation, keyboard shortcuts, and accessibility.
+- **Generative UI**: render tool calls and JSON as React components, collect inline human approvals, and expose safe frontend actions to the model.
+- **Strong TypeScript**: typed runtime APIs, tool schemas, message parts, and adapters end to end.
 
 ## Backends
 
-- **Assistant Cloud**: managed chat persistence and analytics. Deploy with the Cloud Starter template; bring any model/provider.
+| Integration                            | Package                                                          |
+| -------------------------------------- | ---------------------------------------------------------------- |
+| Vercel AI SDK                          | `@assistant-ui/react-ai-sdk`                                     |
+| LangGraph / LangChain                  | `@assistant-ui/react-langgraph`, `@assistant-ui/react-langchain` |
+| AG-UI / A2A protocols                  | `@assistant-ui/react-ag-ui`, `@assistant-ui/react-a2a`           |
+| Google ADK / OpenCode                  | `@assistant-ui/react-google-adk`, `@assistant-ui/react-opencode` |
+| Custom data-stream backend             | `@assistant-ui/react-data-stream`                                |
+| Managed thread history, telemetry, and file storage | `assistant-cloud`                                       |
 
-- **AI SDK**: integration with Vercel AI SDK; connect to any supported provider.
-
-- **LangGraph**: integration with LangGraph and LangGraph Cloud; connect via LangChain providers.
-
-- **Mastra**: integration with Mastra agents/workflows/RAG; model routing via Vercel AI SDK; optional Mastra Cloud.
-
-- **Custom**: use assistant-ui on top of your own backend/streaming protocol.
+Broad model support out of the box (OpenAI, Anthropic, Google Gemini, Mistral, Perplexity, AWS Bedrock, Azure, Fireworks, Ollama) plus community providers via the AI SDK, and easy extension to any custom HTTP backend.
 
 ## Customization
 
-assistant-ui takes a Radix-style approach: instead of a single monolithic chat component, you compose primitives and bring your own styles. We provide a great starter config; you control everything else.
+Radix-style: instead of a single monolithic chat component, you compose primitives and bring your own styles. The CLI ships a great starter; you control everything else.
 
 ![Overview of components](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/components.png)
 
@@ -79,11 +90,9 @@ Sample customization to make a Perplexity lookalike:
 
 ![Perplexity clone created with assistant-ui](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/perplexity.gif)
 
-## Traction
+## Used in production by
 
-assistant-ui is the most popular UI library for building AI chat.
-
-Hundreds of companies and projects use assistant-ui to build in-app AI assistants, including <a href="https://mastra.ai/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Mastra.svg" height="20" alt="Mastra"></a>, <a href="https://langchain.com/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/LangChain.svg" height="20" alt="LangChain"></a>, <a href="https://athenaintelligence.ai/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Athena-Intelligence.svg" height="20" alt="Athena Intelligence"></a>, <a href="https://browser-use.com/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Browser-Use.svg" height="20" alt="Browser Use"></a>, <a href="https://stack-ai.com/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Stack.svg" height="20" alt="Stack"></a>, <a href="https://inconvo.com/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Inconvo.svg" height="20" alt="Inconvo"></a>, <a href="https://iterable.com/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Iterable.svg" height="20" alt="Iterable"></a>, <a href="https://helicone.ai/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/helicone.svg" height="20" alt="Helicone"></a>, <a href="https://getgram.ai/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/gram.svg" height="20" alt="Gram"></a>, <a href="https://coreviz.io/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Coreviz.svg" height="20" alt="Coreviz"></a>, and more.
+<a href="https://mastra.ai/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Mastra.svg" height="20" alt="Mastra"></a>, <a href="https://langchain.com/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/LangChain.svg" height="20" alt="LangChain"></a>, <a href="https://athenaintelligence.ai/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Athena-Intelligence.svg" height="20" alt="Athena Intelligence"></a>, <a href="https://browser-use.com/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Browser-Use.svg" height="20" alt="Browser Use"></a>, <a href="https://stack-ai.com/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Stack.svg" height="20" alt="Stack"></a>, <a href="https://inconvo.com/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Inconvo.svg" height="20" alt="Inconvo"></a>, <a href="https://iterable.com/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Iterable.svg" height="20" alt="Iterable"></a>, <a href="https://helicone.ai/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/helicone.svg" height="20" alt="Helicone"></a>, <a href="https://getgram.ai/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/gram.svg" height="20" alt="Gram"></a>, <a href="https://coreviz.io/?ref=assistant-ui" target="_blank" rel="noopener noreferrer"><img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/logos/Coreviz.svg" height="20" alt="Coreviz"></a>, and many more.
 
 ![Chart of assistant-ui's traction](https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/traction.png)
 
@@ -106,11 +115,18 @@ Hundreds of companies and projects use assistant-ui to build in-app AI assistant
 
 ## Community & Support
 
-- [Check out example demos](https://www.assistant-ui.com/)
-- [Read the docs](https://www.assistant-ui.com/docs/)
-- [Join our Discord](https://discord.com/invite/S9dwgCNEFs)
+- [Examples](https://www.assistant-ui.com/examples)
+- [Documentation](https://www.assistant-ui.com/docs/)
+- [Discord](https://discord.com/invite/S9dwgCNEFs)
 - [Book a sales call](https://cal.com/simon-farshid/assistant-ui)
 
----
+## For other platforms
 
-Backed by Y Combinator. Building something with assistant-ui? We’d love to hear from you.
+- React Native: [`@assistant-ui/react-native`](https://www.npmjs.com/package/@assistant-ui/react-native)
+- Terminal (Ink): [`@assistant-ui/react-ink`](https://www.npmjs.com/package/@assistant-ui/react-ink)
+
+## License
+
+MIT, with optional Assistant Cloud for managed thread persistence and analytics.
+
+Backed by Y Combinator.

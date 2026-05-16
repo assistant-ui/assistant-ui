@@ -55,8 +55,8 @@ Subscribe to events without causing re-renders.
 ```tsx
 import { useAuiEvent } from "@assistant-ui/react-ink";
 
-useAuiEvent("thread.runStart", (payload) => {
-  console.log("Run started:", payload);
+useAuiEvent("thread.modelContextUpdate", ({ threadId }) => {
+  console.log("Model context updated:", threadId);
 });
 ```
 

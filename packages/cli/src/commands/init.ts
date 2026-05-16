@@ -1,22 +1,17 @@
 import { Command, Option } from "commander";
-import { spawn } from "cross-spawn";
 import fs from "node:fs";
 import path from "node:path";
-import { dlxCommand, resolvePackageManagerName } from "../lib/create-project";
+import {
+  dlxCommand,
+  resolvePackageManager,
+  resolvePackageManagerForCwd,
+} from "../lib/create-project";
+import { runSpawn, SpawnExitError } from "../lib/run-spawn";
 import { logger } from "../lib/utils/logger";
-import { create, resolvePackageManager } from "./create";
+import { create } from "./create";
 
 const DEFAULT_REGISTRY_URL =
   "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json";
-
-class SpawnExitError extends Error {
-  code: number;
-
-  constructor(code: number) {
-    super(`Process exited with code ${code}`);
-    this.code = code;
-  }
-}
 
 interface ExistingProjectInitPlan {
   initArgs: string[] | null;
@@ -50,31 +45,6 @@ export function isNonInteractiveShell(
   stdinIsTTY = process.stdin.isTTY,
 ): boolean {
   return !stdinIsTTY;
-}
-
-async function runSpawn(
-  command: string,
-  args: string[],
-  cwd: string,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      stdio: "inherit",
-      cwd,
-    });
-
-    child.on("error", (error) => {
-      reject(error);
-    });
-
-    child.on("close", (code) => {
-      if (code !== 0) {
-        reject(new SpawnExitError(code || 1));
-      } else {
-        resolve();
-      }
-    });
-  });
 }
 
 export const init = new Command()
@@ -152,11 +122,8 @@ export const init = new Command()
     }
 
     try {
-      // resolvePackageManagerName calls detect({ cwd: path.dirname(dir) }),
-      // which is designed for `create` where the dir doesn't exist yet.
-      // For init, targetDir IS the project root, so append a dummy segment.
-      const pm = await resolvePackageManagerName(
-        path.join(targetDir, "_"),
+      const pm = await resolvePackageManagerForCwd(
+        targetDir,
         resolvePackageManager(opts),
       );
       const [dlxCmd, dlxArgs] = dlxCommand(pm);
