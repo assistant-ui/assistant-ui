@@ -185,6 +185,7 @@ export {
   PartPrimitiveMessages,
   PartPrimitiveMessagesImpl,
 } from "./primitives/part/PartMessages";
+export { MessagePartPrimitiveInProgress } from "./primitives/messagePart/MessagePartInProgress";
 export { ThreadListItemPrimitiveTitle } from "./primitives/threadListItem/ThreadListItemTitle";
 export {
   ThreadPrimitiveSuggestions,
