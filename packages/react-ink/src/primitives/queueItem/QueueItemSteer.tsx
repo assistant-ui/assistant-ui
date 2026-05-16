@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { useCallback } from "react";
 import { useAui } from "@assistant-ui/store";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 
@@ -13,12 +12,8 @@ export const QueueItemSteer = ({
 }: QueueItemSteerProps) => {
   const aui = useAui();
 
-  const handleSteer = useCallback(() => {
-    aui.queueItem().steer();
-  }, [aui]);
-
   return (
-    <Pressable onPress={handleSteer} {...pressableProps}>
+    <Pressable onPress={() => aui.queueItem().steer()} {...pressableProps}>
       {children}
     </Pressable>
   );

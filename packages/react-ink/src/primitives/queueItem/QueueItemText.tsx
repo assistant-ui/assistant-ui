@@ -1,10 +1,8 @@
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps } from "react";
 import { Text } from "ink";
 import { useAuiState } from "@assistant-ui/store";
 
-export type QueueItemTextProps = ComponentProps<typeof Text> & {
-  children?: ReactNode;
-};
+export type QueueItemTextProps = ComponentProps<typeof Text>;
 
 export const QueueItemText = ({
   children,

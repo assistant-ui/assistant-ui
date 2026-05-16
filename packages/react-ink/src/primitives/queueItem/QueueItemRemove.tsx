@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { useCallback } from "react";
 import { useAui } from "@assistant-ui/store";
 import { Pressable, type PressableProps } from "../internal/Pressable";
 
@@ -13,12 +12,8 @@ export const QueueItemRemove = ({
 }: QueueItemRemoveProps) => {
   const aui = useAui();
 
-  const handleRemove = useCallback(() => {
-    aui.queueItem().remove();
-  }, [aui]);
-
   return (
-    <Pressable onPress={handleRemove} {...pressableProps}>
+    <Pressable onPress={() => aui.queueItem().remove()} {...pressableProps}>
       {children}
     </Pressable>
   );
