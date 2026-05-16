@@ -915,26 +915,26 @@ importers:
         version: 2.1.1
       lucide-react:
         specifier: ^1.7.0
-        version: 1.7.0(react@19.2.4)
+        version: 1.14.0(react@19.2.5)
       react:
         specifier: ^19.2.4
-        version: 19.2.4
+        version: 19.2.5
       react-dom:
         specifier: ^19.2.4
-        version: 19.2.4(react@19.2.4)
+        version: 19.2.5(react@19.2.5)
       tailwind-merge:
         specifier: ^3.5.0
         version: 3.5.0
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.2.2
-        version: 4.2.2
+        version: 4.2.4
       '@types/chrome':
         specifier: ^0.1.38
-        version: 0.1.38
+        version: 0.1.40
       '@types/node':
         specifier: ^25.5.0
-        version: 25.5.0
+        version: 25.6.0
       '@types/react':
         specifier: ^19.2.14
         version: 19.2.14
@@ -943,13 +943,13 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       esbuild:
         specifier: ^0.27.4
-        version: 0.27.4
+        version: 0.27.7
       postcss:
         specifier: ^8.5.8
-        version: 8.5.8
+        version: 8.5.14
       tailwindcss:
         specifier: ^4.2.2
-        version: 4.2.2
+        version: 4.2.4
       tsx:
         specifier: ^4.21.0
         version: 4.21.0

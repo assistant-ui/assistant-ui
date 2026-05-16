@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { ThreadMessageLike, AppendMessage } from "@assistant-ui/react";
 
 const INITIAL_MESSAGES: ThreadMessageLike[] = [];
@@ -17,10 +17,17 @@ export function useMockStore() {
   const [messages, setMessages] =
     useState<readonly ThreadMessageLike[]>(INITIAL_MESSAGES);
   const [isRunning, setIsRunning] = useState(false);
+  // Tracks the in-flight stream so a second `onNew` cancels the first and the
+  // late-arriving loop no longer mutates state once a newer one starts.
+  const activeRunRef = useRef<{ cancelled: boolean } | null>(null);
 
   const onNew = useCallback(async (message: AppendMessage) => {
     if (message.content.length !== 1 || message.content[0]?.type !== "text")
       return;
+
+    if (activeRunRef.current) activeRunRef.current.cancelled = true;
+    const run = { cancelled: false };
+    activeRunRef.current = run;
 
     const userMessage: ThreadMessageLike = {
       role: "user",
@@ -31,9 +38,11 @@ export function useMockStore() {
     setIsRunning(true);
 
     const words = CANNED_RESPONSE.split(" ");
+    let partial = "";
     for (let i = 0; i < words.length; i++) {
       await new Promise((resolve) => setTimeout(resolve, 30));
-      const partial = words.slice(0, i + 1).join(" ");
+      if (run.cancelled) return;
+      partial = partial ? `${partial} ${words[i]}` : (words[i] ?? "");
       setMessages((prev) => {
         const withoutLast =
           prev.at(-1)?.role === "assistant" ? prev.slice(0, -1) : prev;
@@ -44,7 +53,10 @@ export function useMockStore() {
       });
     }
 
-    setIsRunning(false);
+    if (activeRunRef.current === run) {
+      activeRunRef.current = null;
+      setIsRunning(false);
+    }
   }, []);
 
   return { messages, setMessages, isRunning, onNew };

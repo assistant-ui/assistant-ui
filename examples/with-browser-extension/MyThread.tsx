@@ -8,9 +8,9 @@ const suggestions = Suggestions([
     prompt: "What can you help me with?",
   },
   {
-    title: "Summarize this page",
-    label: "Get a quick summary",
-    prompt: "Can you summarize the content of this page?",
+    title: "How does this demo work?",
+    label: "Peek under the hood",
+    prompt: "How does this browser extension example work?",
   },
 ]);
 

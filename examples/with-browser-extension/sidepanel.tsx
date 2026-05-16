@@ -7,13 +7,7 @@ import { MyThread } from "./MyThread";
 import { useMockStore } from "./mock-store";
 
 function App() {
-  const store = useMockStore();
-  const runtime = useExternalStoreRuntime({
-    messages: store.messages,
-    setMessages: store.setMessages,
-    isRunning: store.isRunning,
-    onNew: store.onNew,
-  });
+  const runtime = useExternalStoreRuntime(useMockStore());
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
