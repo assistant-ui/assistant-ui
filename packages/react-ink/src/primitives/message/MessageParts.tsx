@@ -2,7 +2,6 @@ import type { FC } from "react";
 import { Text as InkText } from "ink";
 import {
   MessagePrimitiveParts as MessagePrimitivePartsBase,
-  MessagePartComponent as MessagePartComponentBase,
   MessagePrimitivePartByIndex as MessagePrimitivePartByIndexBase,
   messagePartsDefaultComponents,
 } from "@assistant-ui/core/react";
@@ -31,8 +30,47 @@ export namespace MessagePrimitiveParts {
   export type Props = MessagePrimitivePartsBase.Props;
 }
 
+const mergeWithInkDefaults = (
+  components: NonNullable<MessagePrimitiveParts.Props["components"]>,
+): NonNullable<MessagePrimitiveParts.Props["components"]> => {
+  const shared = {
+    Text: components.Text ?? inkDefaultComponents.Text,
+    Image: components.Image ?? inkDefaultComponents.Image,
+    Source: components.Source ?? inkDefaultComponents.Source,
+    File: components.File ?? inkDefaultComponents.File,
+    Unstable_Audio:
+      components.Unstable_Audio ?? messagePartsDefaultComponents.Unstable_Audio,
+    data: components.data
+      ? {
+          by_name: components.data.by_name,
+          Fallback:
+            components.data.Fallback ?? inkDefaultComponents.data.Fallback,
+        }
+      : inkDefaultComponents.data,
+    Quote: components.Quote,
+    Empty: components.Empty,
+  };
+
+  if ("ChainOfThought" in components) {
+    return { ...shared, ChainOfThought: components.ChainOfThought };
+  }
+
+  return {
+    ...shared,
+    Reasoning: components.Reasoning ?? inkDefaultComponents.Reasoning,
+    tools: components.tools,
+    ToolGroup: components.ToolGroup ?? messagePartsDefaultComponents.ToolGroup,
+    ReasoningGroup:
+      components.ReasoningGroup ?? messagePartsDefaultComponents.ReasoningGroup,
+  };
+};
+
 /**
  * Renders the parts of a message with Ink-specific default components.
+ *
+ * Diverges from `@assistant-ui/react` / `@assistant-ui/react-native` by
+ * injecting a terminal-safe `data.Fallback` when callers pass `data` without
+ * one, so unknown data parts render `[data: name]` instead of nothing.
  */
 export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
   props,
@@ -44,46 +82,16 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
   }
 
   const { components, ...rest } = props;
-  const merged = components
-    ? {
-        Text: components.Text ?? inkDefaultComponents.Text,
-        Image: components.Image ?? inkDefaultComponents.Image,
-        Reasoning: components.Reasoning ?? inkDefaultComponents.Reasoning,
-        Source: components.Source ?? inkDefaultComponents.Source,
-        File: components.File ?? inkDefaultComponents.File,
-        Unstable_Audio:
-          components.Unstable_Audio ??
-          messagePartsDefaultComponents.Unstable_Audio,
-        // Ink injects a terminal-safe `Fallback` when callers pass `data` without
-        // one; intentional divergence from @assistant-ui/react and @assistant-ui/react-native.
-        data: components.data
-          ? {
-              by_name: components.data.by_name,
-              Fallback:
-                components.data.Fallback ?? inkDefaultComponents.data.Fallback,
-            }
-          : inkDefaultComponents.data,
-        Quote: components.Quote,
-        ...("ChainOfThought" in components
-          ? { ChainOfThought: components.ChainOfThought }
-          : {
-              tools: components.tools,
-              ToolGroup:
-                components.ToolGroup ?? messagePartsDefaultComponents.ToolGroup,
-              ReasoningGroup:
-                components.ReasoningGroup ??
-                messagePartsDefaultComponents.ReasoningGroup,
-            }),
-        Empty: components.Empty,
+  return (
+    <MessagePrimitivePartsBase
+      components={
+        components ? mergeWithInkDefaults(components) : inkDefaultComponents
       }
-    : inkDefaultComponents;
-
-  return <MessagePrimitivePartsBase components={merged as any} {...rest} />;
+      {...rest}
+    />
+  );
 };
 
 MessagePrimitiveParts.displayName = "MessagePrimitive.Parts";
 
-export {
-  MessagePartComponentBase as MessagePartComponent,
-  MessagePrimitivePartByIndexBase as MessagePrimitivePartByIndex,
-};
+export { MessagePrimitivePartByIndexBase as MessagePrimitivePartByIndex };

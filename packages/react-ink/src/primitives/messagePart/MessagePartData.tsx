@@ -5,24 +5,22 @@ import { useAuiState } from "@assistant-ui/store";
 export type MessagePartPrimitiveDataProps = Omit<
   ComponentProps<typeof Text>,
   "children"
-> & {
-  name?: string | undefined;
-};
+>;
 
 export namespace MessagePartPrimitiveData {
   export type Props = MessagePartPrimitiveDataProps;
 }
 
-export const MessagePartPrimitiveData = ({
-  name,
-  ...props
-}: MessagePartPrimitiveData.Props) => {
+export const MessagePartPrimitiveData = (
+  props: MessagePartPrimitiveData.Props,
+) => {
   const partName = useAuiState((s) => {
-    if (s.part.type !== "data") return null;
-    if (name && s.part.name !== name) return null;
+    if (s.part.type !== "data")
+      throw new Error(
+        "MessagePartPrimitive.Data can only be used inside data message parts.",
+      );
     return s.part.name;
   });
-  if (partName === null) return null;
   return <Text {...props}>[data: {partName}]</Text>;
 };
 

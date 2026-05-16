@@ -1,4 +1,9 @@
-import { type ReactElement, Fragment, useMemo } from "react";
+import {
+  type ComponentType,
+  type ReactElement,
+  Fragment,
+  useMemo,
+} from "react";
 import type {
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
@@ -8,7 +13,6 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 import type {
   ToolCallMessagePartProps,
   DataMessagePartProps,
-  DataMessagePartComponent,
 } from "@assistant-ui/core/react";
 import { PartByIndexProvider } from "@assistant-ui/core/react";
 import { ToolFallback } from "../toolCall/ToolFallback";
@@ -48,13 +52,22 @@ export type MessageContentProps = {
   }) => ReactElement;
 };
 
-const DefaultTextRenderer = ({ index }: { index: number }) => {
-  return (
+const makeDefaultRenderer =
+  (Child: ComponentType): ComponentType<{ index: number }> =>
+  ({ index }) => (
     <PartByIndexProvider index={index}>
-      <MessagePartPrimitive.Text />
+      <Child />
     </PartByIndexProvider>
   );
-};
+
+const DefaultTextRenderer = makeDefaultRenderer(MessagePartPrimitive.Text);
+const DefaultImageRenderer = makeDefaultRenderer(MessagePartPrimitive.Image);
+const DefaultReasoningRenderer = makeDefaultRenderer(
+  MessagePartPrimitive.Reasoning,
+);
+const DefaultSourceRenderer = makeDefaultRenderer(MessagePartPrimitive.Source);
+const DefaultFileRenderer = makeDefaultRenderer(MessagePartPrimitive.File);
+const DefaultDataRenderer = makeDefaultRenderer(MessagePartPrimitive.Data);
 
 const ToolUIDisplay = ({
   Fallback,
@@ -108,46 +121,14 @@ const DataUIDisplay = ({
   part: Extract<MessageContentStatePart, { type: "data" }>;
   index: number;
 }) => {
-  const Render = useAuiState<DataMessagePartComponent | undefined>((s) => {
-    const named = s.dataRenderers.renderers[part.name];
-    if (Array.isArray(named)) return named[0];
-    if (named) return named;
-    const fallback = s.dataRenderers.fallbacks[0];
-    if (fallback) return fallback;
-    return undefined;
+  const Render = useAuiState((s) => {
+    const named = s.dataRenderers.renderers[part.name]?.[0];
+    return named ?? s.dataRenderers.fallbacks[0];
   });
   if (Render) return <Render {...(part as DataMessagePartProps)} />;
   if (Fallback) return <Fallback part={part} index={index} />;
-  return (
-    <PartByIndexProvider index={index}>
-      <MessagePartPrimitive.Data />
-    </PartByIndexProvider>
-  );
+  return <DefaultDataRenderer index={index} />;
 };
-
-const DefaultImageRenderer = ({ index }: { index: number }) => (
-  <PartByIndexProvider index={index}>
-    <MessagePartPrimitive.Image />
-  </PartByIndexProvider>
-);
-
-const DefaultReasoningRenderer = ({ index }: { index: number }) => (
-  <PartByIndexProvider index={index}>
-    <MessagePartPrimitive.Reasoning />
-  </PartByIndexProvider>
-);
-
-const DefaultSourceRenderer = ({ index }: { index: number }) => (
-  <PartByIndexProvider index={index}>
-    <MessagePartPrimitive.Source />
-  </PartByIndexProvider>
-);
-
-const DefaultFileRenderer = ({ index }: { index: number }) => (
-  <PartByIndexProvider index={index}>
-    <MessagePartPrimitive.File />
-  </PartByIndexProvider>
-);
 
 export const MessageContent = ({
   renderText,

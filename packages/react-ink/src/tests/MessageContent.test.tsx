@@ -259,7 +259,7 @@ describe("MessageContent", () => {
     const DataUI = () => <Text>registered data</Text>;
     mockMessageState(mockUseAuiState, {
       tools: { tools: {} },
-      dataRenderers: { renderers: { weather: DataUI }, fallbacks: [] },
+      dataRenderers: { renderers: { weather: [DataUI] }, fallbacks: [] },
       message: {
         parts: [
           {
