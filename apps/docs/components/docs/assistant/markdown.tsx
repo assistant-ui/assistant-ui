@@ -11,11 +11,12 @@ import {
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
-import { type CSSProperties, type FC, memo, useState } from "react";
+import { type CSSProperties, type FC, memo } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ShikiHighlighter from "react-shiki";
 import Link from "next/link";
+import { useCopyToClipboard } from "@assistant-ui/ui/hooks/use-copy-to-clipboard";
 
 const MarkdownTextImpl = () => {
   return (
@@ -28,24 +29,6 @@ const MarkdownTextImpl = () => {
 };
 
 export const MarkdownText = memo(MarkdownTextImpl);
-
-const useCopyToClipboard = ({
-  copiedDuration = 3000,
-}: {
-  copiedDuration?: number;
-} = {}) => {
-  const [isCopied, setIsCopied] = useState<boolean>(false);
-
-  const copyToClipboard = (value: string) => {
-    if (!value) return;
-    navigator.clipboard.writeText(value).then(() => {
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), copiedDuration);
-    });
-  };
-
-  return { isCopied, copyToClipboard };
-};
 
 const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   const { isCopied, copyToClipboard } = useCopyToClipboard();
