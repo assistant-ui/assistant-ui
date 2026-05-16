@@ -26,6 +26,15 @@ export type ComposerState = {
   readonly runConfig: RunConfig;
   readonly isEditing: boolean;
   readonly canCancel: boolean;
+  /**
+   * Whether the composer is currently willing to send. `true` when the
+   * composer is in editing mode and has non-empty content; for thread
+   * composers also requires the thread's `isSendDisabled` flag to be unset.
+   * Edit composers (saving message edits) ignore `isSendDisabled` since it
+   * is a thread-scoped gate. Cross-thread gating (running, queue capability)
+   * is layered on top by `useComposerSend`.
+   */
+  readonly canSend: boolean;
   readonly attachmentAccept: string;
   readonly isEmpty: boolean;
   readonly type: "thread" | "edit";

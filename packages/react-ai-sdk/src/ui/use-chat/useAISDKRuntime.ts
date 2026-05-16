@@ -14,18 +14,22 @@ import type {
   ThreadHistoryAdapter,
   AssistantRuntime,
   ThreadMessage,
+  ThreadSuggestion,
   MessageFormatAdapter,
   MessageFormatItem,
   MessageFormatRepository,
   AppendMessage,
   RunConfig,
+  McpAppMetadata,
 } from "@assistant-ui/core";
 import { getExternalStoreMessages } from "@assistant-ui/core";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
 import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
 import { getVercelAIMessages } from "../getVercelAIMessages";
 import { AISDKMessageConverter } from "../utils/convertMessage";
+import { wrapModelContentEnvelope } from "../../modelContentEnvelope";
 import {
   type AISDKStorageFormat,
   aiSDKV6FormatAdapter,
@@ -68,6 +72,21 @@ export type AISDKRuntimeAdapter = {
    * @default true
    */
   cancelPendingToolCallsOnSend?: boolean | undefined;
+  /**
+   * Called when `runtime.thread.resumeRun(config)` is invoked.
+   *
+   * When omitted, `resumeRun` throws `"Runtime does not support resuming runs."`.
+   * Provide this to bridge resume invocations into a custom replay channel
+   * (for example, an SSE reconnect endpoint keyed by turn id).
+   */
+  onResume?: ExternalStoreAdapter["onResume"];
+  /**
+   * Follow up suggestions to surface on the thread. Use this to drive
+   * dynamic suggestions from application state, tool results, or backend
+   * responses; flows into `thread.suggestions` and is rendered by
+   * components that read it (such as the shadcn `ThreadFollowupSuggestions`).
+   */
+  suggestions?: readonly ThreadSuggestion[] | undefined;
 };
 
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -76,6 +95,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     adapters,
     toCreateMessage: customToCreateMessage,
     cancelPendingToolCallsOnSend = true,
+    onResume,
+    suggestions,
   }: AISDKRuntimeAdapter = {},
 ) => {
   const contextAdapters = useRuntimeAdapters();
@@ -85,6 +106,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
+  const toolLastInputCacheRef = useRef<Map<string, ReadonlyJSONObject>>(
+    new Map(),
+  );
+  const mcpAppMetadataCacheRef = useRef<Map<string, McpAppMetadata>>(new Map());
   const lastRunConfigRef = useRef<RunConfig | undefined>(undefined);
 
   const hasExecutingTools = Object.values(toolStatuses).some(
@@ -105,6 +130,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolStatuses,
         messageTiming,
         toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
+        toolLastInputCache: toolLastInputCacheRef.current,
+        mcpAppMetadataCache: mcpAppMetadataCacheRef.current,
         ...(chatHelpers.error && { error: chatHelpers.error.message }),
       }),
       [toolStatuses, messageTiming, chatHelpers.error],
@@ -125,10 +152,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     getTools: () => runtimeRef.current.thread.getModelContext().tools,
     onResult: (command) => {
       if (command.type === "add-tool-result") {
+        const output =
+          command.modelContent !== undefined
+            ? wrapModelContentEnvelope(command.result, command.modelContent)
+            : command.result;
         chatHelpers.addToolResult({
           tool: command.toolName,
           toolCallId: command.toolCallId,
-          output: command.result,
+          output,
           options: { metadata: lastRunConfigRef.current },
         });
       }
@@ -319,6 +350,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     onResumeToolCall: (options) =>
       toolInvocations.resume(options.toolCallId, options.payload),
+    ...(onResume && { onResume }),
+    ...(suggestions && { suggestions }),
     adapters: {
       attachments: vercelAttachmentAdapter,
       ...contextAdapters,

@@ -297,6 +297,56 @@ Renders all queued composer items. Each item is wrapped in a `QueueItemByIndexPr
 |------|------|-------------|
 | `children` | `(value: { queueItem: QueueItemState }) => ReactNode` | Render function called for each queue item |
 
+### Quote
+
+Renders the active composer quote preview. Children are only rendered while `s.composer.quote` is set, so this acts as both a container and a gate.
+
+```tsx
+<ComposerPrimitive.Quote>
+  <Box>
+    <Text dimColor>Quoting:</Text>
+    <ComposerPrimitive.QuoteText color="gray" />
+    <ComposerPrimitive.QuoteDismiss>
+      <Text color="red">[x]</Text>
+    </ComposerPrimitive.QuoteDismiss>
+  </Box>
+</ComposerPrimitive.Quote>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Quote preview content; only rendered when a quote is set |
+| `...rest` | `BoxProps` | Standard Ink Box props |
+
+### QuoteText
+
+Renders the quoted text from `s.composer.quote?.text`. Pass `children` to override the displayed value.
+
+```tsx
+<ComposerPrimitive.QuoteText color="gray" />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Override content; defaults to `s.composer.quote?.text` |
+| `...rest` | `TextProps` | Standard Ink Text props |
+
+### QuoteDismiss
+
+Pressable that clears the active quote by calling `aui.composer().setQuote(undefined)`.
+
+```tsx
+<ComposerPrimitive.QuoteDismiss>
+  <Text color="red">[x]</Text>
+</ComposerPrimitive.QuoteDismiss>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Button content |
+| `disabled` | `boolean` | Disable Enter activation and focus |
+| `...rest` | `BoxProps` | Standard Ink Box props |
+
 ### Conditional Rendering (Composer)
 
 Use `AuiIf` for conditional rendering based on composer state:
@@ -347,7 +397,7 @@ Conditional rendering based on composer state. Shared from `@assistant-ui/core/r
 ## Message
 
 ```tsx
-import { MessagePrimitive } from "@assistant-ui/react-ink";
+import { MessagePartPrimitive, MessagePrimitive } from "@assistant-ui/react-ink";
 ```
 
 ### Root
@@ -362,7 +412,7 @@ Container `Box` for a single message.
 
 ### Parts
 
-Renders message content parts via a `components` prop. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to components provided here. A default `Text` component using Ink's `<Text>` is provided out of the box.
+Renders message content parts via a `components` prop. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to components provided here. Default terminal-safe renderers are provided for text, reasoning, source, image, file, and data parts.
 
 ```tsx
 <MessagePrimitive.Parts>
@@ -374,10 +424,26 @@ Renders message content parts via a `components` prop. Tool call and data parts 
 </MessagePrimitive.Parts>
 ```
 
+Override part rendering with app-owned components when you need richer terminal UI:
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    Image: () => <Text color="cyan">image available</Text>,
+    Reasoning: () => null,
+    data: {
+      by_name: {
+        weather_card: ({ data }) => <Text>{data.city}: {data.temperature}</Text>,
+      },
+    },
+  }}
+/>
+```
+
 ### Content (deprecated)
 
 <Callout type="warn">
-  Deprecated. Use `MessagePrimitive.Parts` instead. See the [v0.11 migration guide](/docs/reference/migrations/v0-11) for details.
+  Deprecated. Use `MessagePrimitive.Parts` instead. See the [v0.11 migration guide](/docs/migrations/v0-11) for details.
 </Callout>
 
 Renders message content parts using render props. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to render props if provided.
@@ -398,6 +464,36 @@ Renders message content parts using render props. Tool call and data parts autom
 | `renderSource` | `(props: { part; index }) => ReactElement` | Source part renderer |
 | `renderFile` | `(props: { part; index }) => ReactElement` | File part renderer |
 | `renderData` | `(props: { part; index }) => ReactElement` | Data part fallback |
+
+## MessagePartPrimitive
+
+Composable primitives for rendering the current message part inside part context from `MessagePrimitive.Parts`, `MessagePrimitive.PartByIndex`, or `PartByIndexProvider`.
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    Text: () => (
+      <>
+        <MessagePartPrimitive.Text />
+        <MessagePartPrimitive.InProgress>
+          <Text color="yellow"> ...</Text>
+        </MessagePartPrimitive.InProgress>
+      </>
+    ),
+    File: () => <MessagePartPrimitive.File dimColor />,
+  }}
+/>
+```
+
+| Primitive | Default terminal behavior |
+|-----------|---------------------------|
+| `MessagePartPrimitive.Text` | Renders text with Ink `<Text>` |
+| `MessagePartPrimitive.InProgress` | Renders children only while the current part status is `running` |
+| `MessagePartPrimitive.Image` | Renders `[image: filename]` or `[image]`; never emits image data or terminal image protocols |
+| `MessagePartPrimitive.File` | Renders `[file: filename mimeType]` or `[file: mimeType]`; never prints file data |
+| `MessagePartPrimitive.Source` | Renders source title and/or URL metadata |
+| `MessagePartPrimitive.Reasoning` | Renders conservative reasoning text by default; override or return `null` to suppress |
+| `MessagePartPrimitive.Data` | Renders `[data: name]` when no registered data renderer is available |
 
 ### PartByIndex
 
@@ -486,28 +582,57 @@ Renders user message attachments using the provided component configuration.
 import { AttachmentPrimitive } from "@assistant-ui/react-ink";
 ```
 
-Primitives for rendering individual attachments.
+Primitives for rendering individual attachments. Each primitive reads from the current attachment context (provided by `ComposerPrimitive.Attachments`, `ComposerPrimitive.AttachmentByIndex`, `MessagePrimitive.Attachments`, or `MessagePrimitive.AttachmentByIndex`).
 
 ### Root
 
-Container `Box` for an attachment.
+Container `Box` for an attachment. Forwards all `Box` props.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Attachment sub-components |
+| `...rest` | `ComponentProps<typeof Box>` | Forwarded to the underlying Ink `Box` |
 
 ### Name
 
-`Text` component displaying the attachment filename.
+`Text` component displaying `s.attachment.name`.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `...rest` | `ComponentProps<typeof Text>` | Forwarded to the underlying Ink `Text` |
 
 ### Thumb
 
-`Text` component displaying the file extension.
+`Text` component displaying a short identifier for the attachment. Renders the file extension (`.pdf`, `.png`, …) when the name has one. Falls back to the attachment `type` (e.g. `image`, `document`) otherwise, and finally to `file`.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `...rest` | `ComponentProps<typeof Text>` | Forwarded to the underlying Ink `Text` |
+
+### Status
+
+`Text` component rendering the current attachment status from `s.attachment.status`. Uses the same visual vocabulary as `ToolFallback`: spinner = uploading, `?` = pending action, `x` = error, `||` = paused. By default, completed attachments render nothing.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `showComplete` | `boolean` | When `true`, completed attachments render `+ ready` instead of `null` |
+| `...rest` | `Omit<ComponentProps<typeof Text>, "children">` | Forwarded to the underlying Ink `Text`. Caller-supplied `color` overrides the per-status default. `children` is not accepted; `Status` always renders its own content. |
 
 ### Remove
 
-Pressable that removes the attachment from the composer.
+`Pressable` that calls `aui.attachment().remove()` when activated (Enter while focused). Disabled when not focused or when the `disabled` prop is set.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Visual content for the button |
+| `disabled` | `boolean` | Skip focus registration and ignore Enter |
+| `...rest` | `ComponentProps<typeof Box>` | Forwarded to the underlying Pressable's `Box` |
 
 ```tsx
 <AttachmentPrimitive.Root>
   <AttachmentPrimitive.Thumb />
   <AttachmentPrimitive.Name />
+  <AttachmentPrimitive.Status />
   <AttachmentPrimitive.Remove>
     <Text color="red">[x]</Text>
   </AttachmentPrimitive.Remove>
@@ -824,6 +949,8 @@ Components for rendering code diffs in the terminal.
 ### DiffView
 
 Pre-composed component that combines all diff primitives for easy diff rendering. Accepts either a unified diff patch string or old/new file content for inline comparison.
+
+When a replacement is rendered as an equal-length adjacent `-`/`+` run, `DiffView` also highlights the changed word spans inside those lines. The existing prefixes, line numbers, folding, and primitive API surface stay the same. This intra-line behavior is internal to `DiffView`; `DiffPrimitive.Line` remains a line-level primitive.
 
 ```tsx
 // From a patch string

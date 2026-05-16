@@ -1,6 +1,6 @@
 ---
 title: Gemini Clone
-description: Customized colors and styles for a Gemini look and feel
+description: Open-source Gemini clone in React — Material Design surface colors, two-line greeting, suggestion chips, functional Tools and Model dropdowns, and a Mic↔Send transition.
 ---
 
 import { Gemini } from "@/components/examples/gemini";
@@ -11,16 +11,17 @@ import { Gemini } from "@/components/examples/gemini";
 
 ## Overview
 
-The Gemini Clone demonstrates how to customize assistant-ui to match Google Gemini's interface. This example features Google's Material Design color system, a distinctive welcome screen with sparkle icon and suggestion chips, and a clean composer with model selector.
+The Gemini Clone demonstrates how to customize assistant-ui to match Google Gemini's interface. The empty state shows a two-line greeting, a centered composer, and a row of suggestion chips. The composer has functional Tools and Model dropdowns, and the trailing slot animates between Mic, Send, and Cancel.
 
 ## Features
 
-- **Material Design Colors**: Google's surface/on-surface color token system
-- **Welcome State**: Gemini sparkle icon, greeting text, and suggestion chips
-- **Composer**: White input with shadow, `+` upload, Tools, model picker, and mic buttons
-- **User Messages**: Right-aligned bubbles with sharp top-right corner (`4px 24px 24px 24px`)
-- **Assistant Messages**: Gemini sparkle avatar on the left with response text
-- **Action Bar**: Thumbs up/down, regenerate, copy, and more menu on hover
+- **Two-line Greeting**: Sparkle icon + "Hi there" + large "Where would you like to start?" headline
+- **Five Suggestion Chips**: Create image, Make music, Help me learn, Write anything, Boost my day
+- **Functional Tools Dropdown**: Deep Research / Create image / Search the web / Help me learn
+- **Functional Model Picker**: Fast / Thinking / Pro with descriptions and "Upgrade to Gemini Advanced"
+- **Animated Send Slot**: Mic when composer is empty, Send circle when typing, Cancel when running (CSS `group-data-[empty]` transitions on `ComposerPrimitive.Root`)
+- **Distinctive User Bubble**: `rounded-3xl rounded-tr` — sharp top-right corner, signature Gemini look
+- **Sparkle Avatar**: Gemini icon on the left of every assistant message
 
 ## Quick Start
 
@@ -30,7 +31,7 @@ npx assistant-ui add thread
 
 ## Code
 
-The Gemini clone uses Google's Material Design surface colors:
+The empty state and chat state share the same `Composer`. The composer carries `data-empty` and `data-running` attributes that drive the Mic↔Send transition:
 
 ```tsx
 import {
@@ -40,38 +41,77 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 
-export const Gemini = () => {
-  return (
-    <ThreadPrimitive.Root className="flex h-full flex-col bg-[#f8f9fa] dark:bg-[#131314]">
-      <ThreadPrimitive.Empty>
-        {/* Welcome: sparkle + greeting + title + composer + chips */}
-      </ThreadPrimitive.Empty>
-
-      <AuiIf condition={(s) => !s.thread.isEmpty}>
-        <ThreadPrimitive.Viewport>
-          <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
-        </ThreadPrimitive.Viewport>
-        <Composer />
-      </AuiIf>
-    </ThreadPrimitive.Root>
-  );
-};
+export const Gemini = () => (
+  <ThreadPrimitive.Root className="bg-[#f8f9fa] dark:bg-[#131314]">
+    <AuiIf condition={(s) => s.thread.isEmpty}>
+      <EmptyState />
+    </AuiIf>
+    <AuiIf condition={(s) => !s.thread.isEmpty}>
+      <ThreadPrimitive.Viewport>
+        <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+      </ThreadPrimitive.Viewport>
+      <Composer />
+    </AuiIf>
+  </ThreadPrimitive.Root>
+);
 
 const Composer = () => {
+  const isEmpty = useAuiState((s) => s.composer.isEmpty);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   return (
-    <ComposerPrimitive.Root className="group/composer rounded-4xl bg-white p-3 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.16)] dark:bg-[#1e1f20]">
-      <ComposerPrimitive.Input
-        placeholder="Ask Gemini"
-        className="w-full bg-transparent text-[#1f1f1f] outline-none dark:text-[#e3e3e3]"
-      />
-      <div className="flex items-center text-[#444746] dark:text-[#c4c7c5]">
-        <ComposerPrimitive.AddAttachment>+</ComposerPrimitive.AddAttachment>
-        <button>Tools</button>
-        {/* right side: model picker, send, mic */}
+    <ComposerPrimitive.Root
+      className="group/composer rounded-4xl bg-white p-3 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.16)] dark:bg-[#1e1f20]"
+      data-empty={isEmpty}
+      data-running={isRunning}
+    >
+      <ComposerPrimitive.Input placeholder="Ask Gemini" />
+      <div className="flex items-center">
+        <ComposerPrimitive.AddAttachment />
+        <ToolsMenu />
+        <div className="ml-auto flex items-center gap-2">
+          <ModelPicker />
+          <SendOrMic />
+        </div>
       </div>
     </ComposerPrimitive.Root>
   );
 };
+```
+
+### Mic ↔ Send Transition
+
+The composer passes `isEmpty` and `isRunning` as data attributes; the children animate via `group-data-[empty]` selectors:
+
+```tsx
+<div className="relative size-10 rounded-full">
+  {/* Mic: visible when empty + idle */}
+  <button className="group-data-[empty=false]/composer:scale-0 group-data-[running=true]/composer:scale-0">
+    <Mic />
+  </button>
+  {/* Send: visible when typing + idle */}
+  <ComposerPrimitive.Send className="bg-[#d3e3fd] group-data-[empty=true]/composer:scale-0 group-data-[running=true]/composer:scale-0">
+    <SendHorizonal />
+  </ComposerPrimitive.Send>
+  {/* Cancel: visible while running */}
+  <ComposerPrimitive.Cancel className="bg-[#d3e3fd] group-data-[running=false]/composer:scale-0">
+    <Square />
+  </ComposerPrimitive.Cancel>
+</div>
+```
+
+### Functional Dropdowns
+
+```tsx
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/shared/dropdown-menu";
+
+<DropdownMenu>
+  <DropdownMenuTrigger>Tools</DropdownMenuTrigger>
+  <DropdownMenuContent>
+    <DropdownMenuItem icon={<Telescope />}>Deep Research</DropdownMenuItem>
+    <DropdownMenuItem icon={<ImageIcon />}>Create image</DropdownMenuItem>
+    {/* ... */}
+  </DropdownMenuContent>
+</DropdownMenu>
 ```
 
 ### Color Palette
@@ -79,12 +119,12 @@ const Composer = () => {
 | Element | Light | Dark |
 |---------|-------|------|
 | Background | `#f8f9fa` | `#131314` |
-| Composer bg | `#fff` | `#1e1f20` |
-| Text | `#1f1f1f` | `#e3e3e3` |
+| Composer surface | `#ffffff` | `#1e1f20` |
+| Primary text | `#1f1f1f` | `#e3e3e3` |
 | Muted text | `#444746` | `#c4c7c5` |
 | User bubble | `#e9eef6` | `#282a2c` |
-| Send button | `#d3e3fd` | `#1f3760` |
-| Suggestion chips | `#fff` | `#282a2c` |
+| Send button | `#d3e3fd` (light blue) | `#1f3760` |
+| Suggestion chips | `#ffffff` | `#282a2c` |
 
 ### User Message Bubble
 

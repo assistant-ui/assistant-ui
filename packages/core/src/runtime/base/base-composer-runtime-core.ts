@@ -52,6 +52,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public abstract get canCancel(): boolean;
+  public abstract get canSend(): boolean;
 
   public get isEmpty() {
     return !this.text.trim() && !this.attachments.length;
@@ -157,7 +158,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async send(options?: SendOptions) {
-    if (this.isEmpty) return;
+    if (!this.canSend) return;
 
     if (this._dictationSession) {
       this._dictationSession.cancel();

@@ -17,6 +17,7 @@ export type {
   ReasoningMessagePart,
   SourceMessagePart,
   ToolCallMessagePart,
+  ToolModelContentPart,
   ImageMessagePart,
   FileMessagePart,
   DataMessagePart,
@@ -127,6 +128,7 @@ export * as SuggestionPrimitive from "./primitives/suggestion";
 export * as ToolCallPrimitive from "./primitives/toolCall";
 export * as ErrorPrimitive from "./primitives/error";
 export * as DiffPrimitive from "./primitives/diff";
+export * as MessagePartPrimitive from "./primitives/messagePart";
 export { DiffView, type DiffViewProps } from "./primitives/diff/DiffView";
 
 // Re-export shared providers from core/react

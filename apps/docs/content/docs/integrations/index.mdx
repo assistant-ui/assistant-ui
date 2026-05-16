@@ -1,11 +1,15 @@
 ---
 title: Integrations
-description: Third-party services and adapter recipes that plug into a working assistant-ui app.
+description: Adapters for Vercel AI SDK, LangChain, LangGraph, Mastra, plus auth, persistence, observability, and tool services — drop into a React chat UI built with assistant-ui.
 ---
 
+import { CloudflareIcon } from "@/components/icons/cloudflare";
+import { HeliconeIcon } from "@/components/icons/helicone";
 import { MastraIcon } from "@/components/icons/mastra";
-import { VercelIcon } from "@/components/icons/vercel";
+import { LangfuseIcon } from "@/components/icons/langfuse";
 import { LangChainIcon } from "@/components/icons/langchain";
+import { McpIcon } from "@/components/icons/mcp";
+import { VercelIcon } from "@/components/icons/vercel";
 
 Integrations are wiring guides for using third-party services with assistant-ui, plus canonical recipes for the adapter slots (persistence, attachments). They are distinct from [runtimes](/docs/runtimes/pick-a-runtime), which are the React adapter packages (`@assistant-ui/react-ai-sdk`, `@assistant-ui/react-langgraph`, etc.) that connect the UI to a backend. An integration assumes you already have a working runtime and adds something on top.
 
@@ -40,6 +44,12 @@ Framework integrations that pair with assistant-ui at the API-route layer.
   />
   <PlatformOnly platforms={["react"]}>
     <Card
+      icon={<CloudflareIcon width={20} height={20} />}
+      title="Cloudflare Agents"
+      description="Stateful Durable Object agents. Wired through the AI SDK runtime with WebSocket streaming."
+      href="/docs/integrations/frameworks/cloudflare-agents/overview"
+    />
+    <Card
       icon={<MastraIcon width={20} height={20} />}
       title="Mastra"
       description="TypeScript agent framework. Routed through the AI SDK runtime, full-stack or separate server."
@@ -54,6 +64,7 @@ Pluggable tool catalogs and protocols.
 
 <Cards>
   <Card
+    icon={<McpIcon width={20} height={20} />}
     title="Model Context Protocol (MCP)"
     description="Connect any MCP server as a tool catalog through the AI SDK MCP client."
     href="/docs/integrations/tools/mcp"
@@ -78,12 +89,13 @@ Log, monitor, trace, and evaluate LLM calls. These pair with any runtime.
 
 <Cards>
   <Card
+    icon={<HeliconeIcon width={20} height={20} />}
     title="Helicone"
     description="Observability proxy. Drop-in baseURL swap that logs cost, latency, and prompts."
     href="/docs/integrations/observability/helicone"
   />
   <Card
-    icon={<LangChainIcon width={20} height={20} className="text-[#7FC8FF]" />}
+    icon={<LangfuseIcon width={20} height={20} />}
     title="Langfuse"
     description="OpenTelemetry-based tracing and evals. Open source, self-hostable."
     href="/docs/integrations/observability/langfuse"

@@ -7,6 +7,7 @@ import {
   ToolResponse,
   unstable_toolResultStream,
   type Tool,
+  type ToolModelContentPart,
 } from "assistant-stream";
 import {
   AssistantMetaTransformStream,
@@ -28,6 +29,7 @@ export type AddToolResultCommand = {
   readonly result: ReadonlyJSONValue;
   readonly isError: boolean;
   readonly artifact?: ReadonlyJSONValue;
+  readonly modelContent?: readonly ToolModelContentPart[];
 };
 
 const isArgsTextComplete = (argsText: string) => {
@@ -67,9 +69,23 @@ type UseToolInvocationsParams = {
   ) => void;
 };
 
+/**
+ * Streaming execution state for a frontend tool.
+ *
+ * Custom runtime integrations use this to mirror in-flight tool calls while
+ * `useToolInvocations` executes tools in the browser.
+ */
 export type ToolExecutionStatus =
-  | { type: "executing" }
-  | { type: "interrupt"; payload: { type: "human"; payload: unknown } };
+  | {
+      /** The tool's execute function is currently running. */
+      type: "executing";
+    }
+  | {
+      /** The tool is waiting for a human input payload before continuing. */
+      type: "interrupt";
+      /** Human input request emitted by the tool execution context. */
+      payload: { type: "human"; payload: unknown };
+    };
 
 type ToolState = {
   argsText: string;
@@ -124,6 +140,7 @@ export function useToolInvocations({
       Object.entries(tools).map(([name, tool]) => {
         const execute = tool.execute;
         const streamCall = tool.streamCall;
+        const toModelOutput = tool.toModelOutput;
 
         const wrappedTool = {
           ...tool,
@@ -143,6 +160,15 @@ export function useToolInvocations({
               streamCall(reader, {
                 ...context,
                 toolCallId: getLogicalToolCallId(context.toolCallId),
+              }),
+          }),
+          ...(toModelOutput !== undefined && {
+            toModelOutput: (
+              options: Parameters<NonNullable<typeof toModelOutput>>[0],
+            ) =>
+              toModelOutput({
+                ...options,
+                toolCallId: getLogicalToolCallId(options.toolCallId),
               }),
           }),
         } as Tool;
@@ -249,7 +275,12 @@ export function useToolInvocations({
                 toolName: chunk.meta.toolName,
                 result: chunk.result,
                 isError: chunk.isError,
-                ...(chunk.artifact && { artifact: chunk.artifact }),
+                ...(chunk.artifact !== undefined && {
+                  artifact: chunk.artifact,
+                }),
+                ...(chunk.modelContent !== undefined && {
+                  modelContent: chunk.modelContent,
+                }),
               });
             }
           },
@@ -533,6 +564,9 @@ export function useToolInvocations({
                     result: content.result as ReadonlyJSONValue,
                     artifact: content.artifact as ReadonlyJSONValue | undefined,
                     isError: content.isError,
+                    ...(content.modelContent !== undefined
+                      ? { modelContent: content.modelContent }
+                      : {}),
                   }),
                 );
                 lastState.controller.close();

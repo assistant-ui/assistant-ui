@@ -8,8 +8,21 @@ import {
   type UIMessage,
 } from "ai";
 import { toToolsJSONSchema } from "assistant-stream";
+import {
+  RESUMABLE_STREAM_ID_HEADER,
+  type AssistantChatResumableOptions,
+} from "../resumable";
 
 type InitializableThreadListItem = Pick<ThreadListItemRuntime, "initialize">;
+
+const FINISH_MARKER = '"type":"finish"';
+const FINISH_BUFFER_LIMIT = 4096;
+const FINISH_BUFFER_TAIL = 1024;
+
+export type AssistantChatTransportInitOptions<UI_MESSAGE extends UIMessage> =
+  HttpChatTransportInitOptions<UI_MESSAGE> & {
+    resumable?: AssistantChatResumableOptions;
+  };
 
 export class AssistantChatTransport<
   UI_MESSAGE extends UIMessage,
@@ -18,9 +31,22 @@ export class AssistantChatTransport<
   private getThreadListItem:
     | (() => InitializableThreadListItem | undefined)
     | undefined;
-  constructor(initOptions?: HttpChatTransportInitOptions<UI_MESSAGE>) {
+  private readonly resumable: AssistantChatResumableOptions | undefined;
+
+  constructor(initOptions?: AssistantChatTransportInitOptions<UI_MESSAGE>) {
+    const { resumable, ...rest } = initOptions ?? {};
+    const userFetch = rest.fetch;
+    const userPrepareReconnect = rest.prepareReconnectToStreamRequest;
+
     super({
-      ...initOptions,
+      ...rest,
+      ...(resumable && {
+        fetch: wrapFetchWithResumable(resumable, userFetch),
+        prepareReconnectToStreamRequest: wrapPrepareReconnect(
+          resumable,
+          userPrepareReconnect,
+        ),
+      }),
       prepareSendMessagesRequest: async (options) => {
         const context = this.runtime?.thread.getModelContext();
         const threadListItem =
@@ -38,7 +64,7 @@ export class AssistantChatTransport<
           },
         };
         const preparedRequest =
-          await initOptions?.prepareSendMessagesRequest?.(optionsEx);
+          await rest.prepareSendMessagesRequest?.(optionsEx);
 
         return {
           ...preparedRequest,
@@ -53,10 +79,16 @@ export class AssistantChatTransport<
         };
       },
     });
+
+    this.resumable = resumable;
   }
 
   setRuntime(runtime: AssistantRuntime) {
     this.runtime = runtime;
+  }
+
+  getResumableAdapter(): AssistantChatResumableOptions | undefined {
+    return this.resumable;
   }
 
   __internal_setGetThreadListItem(
@@ -64,4 +96,73 @@ export class AssistantChatTransport<
   ) {
     this.getThreadListItem = getter;
   }
+}
+
+function wrapFetchWithResumable(
+  resumable: AssistantChatResumableOptions,
+  userFetch: HttpChatTransportInitOptions<UIMessage>["fetch"],
+): NonNullable<HttpChatTransportInitOptions<UIMessage>["fetch"]> {
+  const baseFetch: typeof globalThis.fetch = userFetch
+    ? (input, init) => userFetch(input as RequestInfo | URL, init)
+    : globalThis.fetch.bind(globalThis);
+
+  return async (input, init) => {
+    const res = await baseFetch(input, init);
+    const id = res.headers.get(RESUMABLE_STREAM_ID_HEADER);
+    if (id) resumable.storage.setStreamId(id);
+    if (!res.body) return res;
+
+    const detectFinish = resumable.isFinishEvent ?? defaultIsFinishEvent;
+    // a single decoder is required so multi-byte sequences split across
+    // chunks buffer via stream: true rather than getting dropped.
+    const decoder = new TextDecoder();
+    let accumulator = "";
+    const tap = new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        controller.enqueue(chunk);
+        accumulator += decoder.decode(chunk, { stream: true });
+        if (detectFinish(chunk, accumulator)) {
+          resumable.storage.clear();
+          accumulator = "";
+        } else if (accumulator.length > FINISH_BUFFER_LIMIT) {
+          accumulator = accumulator.slice(-FINISH_BUFFER_TAIL);
+        }
+      },
+    });
+
+    return new Response(res.body.pipeThrough(tap), {
+      status: res.status,
+      statusText: res.statusText,
+      headers: res.headers,
+    });
+  };
+}
+
+function defaultIsFinishEvent(_chunk: Uint8Array, accumulator: string) {
+  return accumulator.includes(FINISH_MARKER);
+}
+
+function wrapPrepareReconnect(
+  resumable: AssistantChatResumableOptions,
+  userPrepareReconnect: HttpChatTransportInitOptions<UIMessage>["prepareReconnectToStreamRequest"],
+): NonNullable<
+  HttpChatTransportInitOptions<UIMessage>["prepareReconnectToStreamRequest"]
+> {
+  return async (options) => {
+    const streamId = resumable.storage.getStreamId();
+    if (!streamId) {
+      throw new Error(
+        "AssistantChatTransport: no resumable stream id available; nothing to resume",
+      );
+    }
+    const api =
+      typeof resumable.resumeApi === "function"
+        ? resumable.resumeApi(streamId)
+        : resumable.resumeApi;
+    const userPrepared = await userPrepareReconnect?.({ ...options, api });
+    return {
+      ...userPrepared,
+      api: userPrepared?.api ?? api,
+    };
+  };
 }

@@ -1,9 +1,6 @@
 import type { ThreadMessage } from "../../types/message";
 import type { RunConfig } from "../../types/message";
-import type {
-  SpeechState,
-  SubmittedFeedback,
-} from "../../runtime/interfaces/thread-runtime-core";
+import type { SpeechState } from "../../runtime/interfaces/thread-runtime-core";
 import type { MessageRuntime } from "../../runtime/api/message-runtime";
 import type { ComposerMethods, ComposerState } from "./composer";
 import type { PartMethods, PartState } from "./part";
@@ -31,8 +28,6 @@ export type MessageState = ThreadMessage & {
    * });
    */
   readonly speech: SpeechState | undefined;
-  /** @deprecated Use `message.metadata.submittedFeedback` instead. This will be removed in 0.12.0. */
-  readonly submittedFeedback: SubmittedFeedback | undefined;
   readonly composer: ComposerState;
   readonly parts: readonly PartState[];
   readonly isCopied: boolean;

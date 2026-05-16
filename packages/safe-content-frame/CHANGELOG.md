@@ -1,5 +1,11 @@
 # safe-content-frame
 
+## 0.0.19
+
+### Patch Changes
+
+- Guard the iframe `onload` handler against firing twice. When the browser fires `load` for both the initial about:blank and the navigated shim URL, the second invocation tried to transfer an already-transferred `MessagePort`, throwing `"Failed to execute 'postMessage' on 'Window': Port at index 0 is already neutered."` and leaving the real shim without a working back-channel (breaking auto-resize and any other host↔widget messaging).
+
 ## 0.0.18
 
 ### Patch Changes
