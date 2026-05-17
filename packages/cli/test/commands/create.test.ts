@@ -29,6 +29,15 @@ describe("create command", () => {
     );
     expect(exampleOption).toBeDefined();
   });
+
+  it("exposes --debug-source-root as a hidden option", () => {
+    const debugSourceRootOption = create.options.find(
+      (option) => option.long === "--debug-source-root",
+    );
+    expect(debugSourceRootOption).toBeDefined();
+    expect(debugSourceRootOption?.hidden).toBe(true);
+    expect(create.helpInformation()).not.toContain("--debug-source-root");
+  });
 });
 
 describe("resolveProject", () => {

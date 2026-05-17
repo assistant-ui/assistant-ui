@@ -27,6 +27,16 @@ export interface TransformOptions {
   packageManager: PackageManagerName;
 }
 
+export type ProjectSource =
+  | {
+      kind: "github";
+      ref?: string;
+    }
+  | {
+      kind: "local";
+      rootDir: string;
+    };
+
 export function resolvePackageManager(opts: {
   useNpm?: boolean;
   usePnpm?: boolean;
@@ -100,6 +110,38 @@ export async function downloadProject(
       process.env.DEBUG = origDebug;
     }
   }
+}
+
+function shouldCopyLocalProjectPath(src: string, rootDir: string): boolean {
+  const relative = path.relative(rootDir, src);
+  if (!relative || relative.startsWith("..")) return true;
+
+  const segments = relative.split(path.sep);
+  return !segments.some((segment) =>
+    ["node_modules", ".next", "dist", "build"].includes(segment),
+  );
+}
+
+export async function scaffoldProject(
+  repoPath: string,
+  destDir: string,
+  source: ProjectSource,
+): Promise<void> {
+  if (source.kind === "github") {
+    await downloadProject(repoPath, destDir, source.ref);
+    return;
+  }
+
+  const localProjectDir = path.resolve(source.rootDir, repoPath);
+  if (!fs.existsSync(localProjectDir)) {
+    throw new Error(`Local project source does not exist: ${localProjectDir}`);
+  }
+
+  fs.cpSync(localProjectDir, destDir, {
+    recursive: true,
+    force: true,
+    filter: (src) => shouldCopyLocalProjectPath(src, localProjectDir),
+  });
 }
 
 function detectFromUserAgent(): PackageManagerName | undefined {
@@ -225,7 +267,9 @@ async function transformTsConfig(projectDir: string): Promise<void> {
   // Remove workspace paths
   if (tsconfig.compilerOptions?.paths) {
     delete tsconfig.compilerOptions.paths["@/components/assistant-ui/*"];
+    delete tsconfig.compilerOptions.paths["@/components/icons/*"];
     delete tsconfig.compilerOptions.paths["@/components/ui/*"];
+    delete tsconfig.compilerOptions.paths["@/hooks/*"];
     delete tsconfig.compilerOptions.paths["@/lib/utils"];
     delete tsconfig.compilerOptions.paths["@assistant-ui/ui/*"];
 

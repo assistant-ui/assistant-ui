@@ -14,6 +14,7 @@ import { EventEmitter } from "node:events";
 import {
   resolveLatestReleaseRef,
   downloadProject,
+  scaffoldProject,
   transformProject,
 } from "../../src/lib/create-project";
 
@@ -125,6 +126,55 @@ describe("downloadProject", () => {
   });
 });
 
+describe("scaffoldProject", () => {
+  it("downloads from GitHub sources", async () => {
+    await scaffoldProject("templates/default", "/tmp/dest", {
+      kind: "github",
+      ref: "v1.0.0",
+    });
+
+    expect(downloadTemplate).toHaveBeenCalledWith(
+      "gh:assistant-ui/assistant-ui/templates/default#v1.0.0",
+      expect.objectContaining({ dir: "/tmp/dest", force: true, silent: true }),
+    );
+  });
+
+  it("copies from a local assistant-ui repo root", async () => {
+    const repoRoot = path.join(testDir, "repo");
+    const destDir = path.join(testDir, "dest");
+    const templateDir = path.join(repoRoot, "templates", "default");
+    fs.mkdirSync(path.join(templateDir, "app"), { recursive: true });
+    fs.mkdirSync(path.join(templateDir, "node_modules", "pkg"), {
+      recursive: true,
+    });
+    fs.writeFileSync(path.join(templateDir, "package.json"), "{}");
+    fs.writeFileSync(path.join(templateDir, "app", "page.tsx"), "export {};");
+    fs.writeFileSync(
+      path.join(templateDir, "node_modules", "pkg", "index.js"),
+      "module.exports = {};",
+    );
+
+    await scaffoldProject("templates/default", destDir, {
+      kind: "local",
+      rootDir: repoRoot,
+    });
+
+    expect(fs.existsSync(path.join(destDir, "package.json"))).toBe(true);
+    expect(fs.existsSync(path.join(destDir, "app", "page.tsx"))).toBe(true);
+    expect(fs.existsSync(path.join(destDir, "node_modules"))).toBe(false);
+    expect(downloadTemplate).not.toHaveBeenCalled();
+  });
+
+  it("rejects missing local project sources", async () => {
+    await expect(
+      scaffoldProject("templates/missing", path.join(testDir, "dest"), {
+        kind: "local",
+        rootDir: testDir,
+      }),
+    ).rejects.toThrow("Local project source does not exist:");
+  });
+});
+
 describe("transformProject — hasLocalComponents: true", () => {
   it("transforms package.json correctly", async () => {
     writeJSON("package.json", {
@@ -174,7 +224,9 @@ describe("transformProject — hasLocalComponents: false", () => {
         compilerOptions: {
           paths: {
             "@/components/assistant-ui/*": ["./components/assistant-ui/*"],
+            "@/components/icons/*": ["./components/icons/*"],
             "@/components/ui/*": ["./components/ui/*"],
+            "@/hooks/*": ["./hooks/*"],
             "@/lib/utils": ["./lib/utils"],
             "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
             "@/*": ["./*"],
@@ -187,7 +239,9 @@ describe("transformProject — hasLocalComponents: false", () => {
       const tsconfig = readJSON("tsconfig.json");
       const paths = tsconfig.compilerOptions.paths;
       expect(paths["@/components/assistant-ui/*"]).toBeUndefined();
+      expect(paths["@/components/icons/*"]).toBeUndefined();
       expect(paths["@/components/ui/*"]).toBeUndefined();
+      expect(paths["@/hooks/*"]).toBeUndefined();
       expect(paths["@/lib/utils"]).toBeUndefined();
       expect(paths["@assistant-ui/ui/*"]).toBeUndefined();
       expect(paths["@/*"]).toEqual(["./*"]);
@@ -217,7 +271,9 @@ describe("transformProject — hasLocalComponents: false", () => {
         compilerOptions: {
           paths: {
             "@/components/assistant-ui/*": ["./components/assistant-ui/*"],
+            "@/components/icons/*": ["./components/icons/*"],
             "@/components/ui/*": ["./components/ui/*"],
+            "@/hooks/*": ["./hooks/*"],
             "@/lib/utils": ["./lib/utils"],
             "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
           },
