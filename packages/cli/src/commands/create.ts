@@ -569,13 +569,13 @@ export const create = new Command()
           : "Downloading project...",
       );
       try {
-        await scaffoldProject(
-          project.path,
-          absoluteProjectDir,
-          localSourceRoot
-            ? { kind: "local", rootDir: localSourceRoot }
-            : { kind: "github", ref },
-        );
+        const source = localSourceRoot
+          ? { kind: "local" as const, rootDir: localSourceRoot }
+          : {
+              kind: "github" as const,
+              ...(ref !== undefined ? { ref } : {}),
+            };
+        await scaffoldProject(project.path, absoluteProjectDir, source);
 
         // If the template didn't exist at the release tag, retry from HEAD
         if (
