@@ -1089,7 +1089,7 @@ import { ToolApproval } from "@assistant-ui/react-ink";
 
 A keyboard-driven approval UI for tool calls that require user authorization. Supports two runtime flows: interrupt-based (`context.human()`) and human-tool-names (`unstable_humanToolNames`). Renders inline keybindings for approve, reject, edit args, and trust escalation.
 
-`ToolCallPrimitive.Fallback` (the default tool-call renderer) embeds `ToolApproval` automatically when a tool call has `requires-action` status and the runtime supplies `addResult` and `resume`. To customize the approval UI for a specific tool, register a tool renderer with `makeAssistantToolUI` and forward `approvalProps`. For tool calls handled by the unstyled fallback path (`renderToolCall` on `MessagePrimitive.Content`), use `ToolApproval` directly inside your fallback.
+`ToolCallPrimitive.Fallback` (the default tool-call renderer) embeds `ToolApproval` automatically when a tool call has `requires-action` status and the runtime supplies `addResult` and `resume`. To customize the approval UI for a specific tool, register a tool renderer with `makeAssistantToolUI` and forward `approvalProps`. Note that `MessagePrimitive.Content`'s `renderToolCall` callback only receives `{ part, index }` — it does not provide `addResult`/`resume`, so `ToolApproval` cannot be used there directly.
 
 ### Keyboard shortcuts
 
