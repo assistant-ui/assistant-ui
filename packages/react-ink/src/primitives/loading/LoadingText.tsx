@@ -1,15 +1,17 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Text } from "ink";
 
-export type LoadingTextProps = {
-  children?: ReactNode;
-  color?: ComponentProps<typeof Text>["color"];
-};
+export namespace LoadingText {
+  export type Props = {
+    children?: ReactNode;
+    color?: ComponentProps<typeof Text>["color"];
+  };
+}
 
 export const LoadingText = ({
   children = "Thinking...",
   color = "yellow",
-}: LoadingTextProps) => {
+}: LoadingText.Props) => {
   return <Text color={color}>{children}</Text>;
 };
 

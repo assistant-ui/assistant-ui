@@ -11,21 +11,22 @@ const LOADING_FRAMES = {
   bounce: ["[*   ]", "[ *  ]", "[  * ]", "[   *]", "[  * ]", "[ *  ]"],
 } as const;
 
-export type LoadingSpinnerVariant = keyof typeof LOADING_FRAMES;
-
-export type LoadingSpinnerProps = {
-  variant?: LoadingSpinnerVariant;
-  type?: ComponentProps<typeof InkSpinner>["type"];
-  color?: ComponentProps<typeof Text>["color"];
-  intervalMs?: number;
-};
+export namespace LoadingSpinner {
+  export type Variant = keyof typeof LOADING_FRAMES;
+  export type Props = {
+    variant?: Variant;
+    type?: ComponentProps<typeof InkSpinner>["type"];
+    color?: ComponentProps<typeof Text>["color"];
+    intervalMs?: number;
+  };
+}
 
 export const LoadingSpinner = ({
   variant = "spinner",
   type = "dots",
   color = "yellow",
   intervalMs = 120,
-}: LoadingSpinnerProps) => {
+}: LoadingSpinner.Props) => {
   const [frameIndex, setFrameIndex] = useState(0);
 
   useEffect(() => {

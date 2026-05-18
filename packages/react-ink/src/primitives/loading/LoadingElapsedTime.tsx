@@ -12,15 +12,17 @@ const defaultFormat = (seconds: number) => {
   return `${minutes}m ${remainingSeconds}s`;
 };
 
-export type LoadingElapsedTimeProps = {
-  color?: ComponentProps<typeof Text>["color"];
-  format?: (seconds: number) => string;
-};
+export namespace LoadingElapsedTime {
+  export type Props = {
+    color?: ComponentProps<typeof Text>["color"];
+    format?: (seconds: number) => string;
+  };
+}
 
 export const LoadingElapsedTime = ({
   color = "gray",
   format = defaultFormat,
-}: LoadingElapsedTimeProps) => {
+}: LoadingElapsedTime.Props) => {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const streamStartTime = useAuiState((s) => {
     const lastMessage = s.thread.messages.at(-1);
