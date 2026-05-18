@@ -26,6 +26,7 @@ export const LoadingElapsedTime = ({
     const lastMessage = s.thread.messages.at(-1);
 
     if (lastMessage?.role !== "assistant") return undefined;
+    if (lastMessage.status?.type !== "running") return undefined;
     return lastMessage.metadata?.timing?.streamStartTime;
   });
   const [now, setNow] = useState(() => Date.now());
