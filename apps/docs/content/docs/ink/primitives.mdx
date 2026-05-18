@@ -1080,3 +1080,71 @@ For custom layouts, use the primitives directly:
   </Box>
 </DiffPrimitive.Root>
 ```
+
+## StatusBar
+
+```tsx
+import { StatusBarPrimitive } from "@assistant-ui/react-ink";
+```
+
+Primitives for rendering a compact terminal status bar showing run state, model, message count, token usage, and latency. All sub-components read directly from the active thread state.
+
+### Root
+
+Container `Box` for the status bar. Defaults to `gap={1}` so its children are space-separated; forwards all other `Box` props.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Status bar sub-components |
+| `gap` | `number` | Spacing between children (default: `1`) |
+| `...rest` | `ComponentProps<typeof Box>` | Forwarded to the underlying Ink `Box` |
+
+### ModelName
+
+`Text` component displaying the current model name. The name is supplied as a prop — the primitive does not infer it from state.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `name` | `ReactNode` | Model label to render (default: `"unknown"`) |
+
+### MessageCount
+
+`Text` component displaying the number of messages on the current thread, formatted as `N msgs` by default. Renders nothing when the thread is empty.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `format` | `(count: number) => string` | Custom formatter for the count (default: `` `${count} msgs` ``) |
+
+### TokenCount
+
+`Text` component summing `metadata.timing.tokenCount` across all assistant messages on the thread, formatted with `toLocaleString()` + `" tokens"` by default. Renders nothing when the total is `0`.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `format` | `(tokens: number) => string` | Custom formatter for the total (default: `` `${tokens.toLocaleString()} tokens` ``) |
+
+### Latency
+
+`Text` component displaying `metadata.timing.tokensPerSecond` from the most recent assistant message, formatted as `N tok/s` (rounded) by default. Renders nothing when the field is missing.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `format` | `(tokensPerSecond: number) => string` | Custom formatter (default: `` `${Math.round(tokensPerSecond)} tok/s` ``) |
+
+### Status
+
+`Text` component reporting the thread's run state. Resolves to one of `"running"` (while `s.thread.isRunning`), `"error"` (when the last assistant message is `incomplete` with reason `error`), or `"idle"`. The label color follows the resolved state — `green` for idle, `yellow` for running, `red` for error — regardless of the `format` output.
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `format` | `(status: "idle" \| "running" \| "error") => string` | Custom label formatter (default: returns the state string verbatim) |
+
+```tsx
+<StatusBarPrimitive.Root>
+  <StatusBarPrimitive.Status />
+  <StatusBarPrimitive.ModelName name="gpt-5" />
+  <StatusBarPrimitive.MessageCount />
+  <StatusBarPrimitive.TokenCount />
+  <StatusBarPrimitive.Latency />
+</StatusBarPrimitive.Root>
+```
