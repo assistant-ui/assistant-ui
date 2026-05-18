@@ -1,15 +1,19 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Box } from "ink";
 
-export type StatusBarRootProps = ComponentProps<typeof Box> & {
+export type StatusBarPrimitiveRootProps = ComponentProps<typeof Box> & {
   children: ReactNode;
 };
 
-export const StatusBarRoot = ({
+export namespace StatusBarPrimitiveRoot {
+  export type Props = StatusBarPrimitiveRootProps;
+}
+
+export const StatusBarPrimitiveRoot = ({
   children,
   gap = 1,
   ...props
-}: StatusBarRootProps) => {
+}: StatusBarPrimitiveRoot.Props) => {
   return (
     <Box gap={gap} {...props}>
       {children}
@@ -17,4 +21,4 @@ export const StatusBarRoot = ({
   );
 };
 
-StatusBarRoot.displayName = "StatusBarPrimitive.Root";
+StatusBarPrimitiveRoot.displayName = "StatusBarPrimitive.Root";

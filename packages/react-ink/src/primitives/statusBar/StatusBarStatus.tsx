@@ -1,7 +1,7 @@
 import { Text } from "ink";
 import { useAuiState } from "@assistant-ui/store";
 
-type StatusType = "idle" | "running" | "error";
+export type StatusType = "idle" | "running" | "error";
 
 const defaultFormat = (status: StatusType) => status;
 
@@ -11,13 +11,17 @@ const COLOR_MAP: Record<StatusType, string> = {
   error: "red",
 };
 
-export type StatusBarStatusProps = {
+export type StatusBarPrimitiveStatusProps = {
   format?: (status: StatusType) => string;
 };
 
-export const StatusBarStatus = ({
+export namespace StatusBarPrimitiveStatus {
+  export type Props = StatusBarPrimitiveStatusProps;
+}
+
+export const StatusBarPrimitiveStatus = ({
   format = defaultFormat,
-}: StatusBarStatusProps) => {
+}: StatusBarPrimitiveStatus.Props) => {
   const status = useAuiState((s): StatusType => {
     if (s.thread.isRunning) return "running";
 
@@ -35,4 +39,4 @@ export const StatusBarStatus = ({
   return <Text color={COLOR_MAP[status]}>{format(status)}</Text>;
 };
 
-StatusBarStatus.displayName = "StatusBarPrimitive.Status";
+StatusBarPrimitiveStatus.displayName = "StatusBarPrimitive.Status";

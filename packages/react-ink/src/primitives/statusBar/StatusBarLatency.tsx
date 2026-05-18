@@ -4,13 +4,17 @@ import { useAuiState } from "@assistant-ui/store";
 const defaultFormat = (tokensPerSecond: number) =>
   `${Math.round(tokensPerSecond)} tok/s`;
 
-export type StatusBarLatencyProps = {
+export type StatusBarPrimitiveLatencyProps = {
   format?: (tokensPerSecond: number) => string;
 };
 
-export const StatusBarLatency = ({
+export namespace StatusBarPrimitiveLatency {
+  export type Props = StatusBarPrimitiveLatencyProps;
+}
+
+export const StatusBarPrimitiveLatency = ({
   format = defaultFormat,
-}: StatusBarLatencyProps) => {
+}: StatusBarPrimitiveLatency.Props) => {
   const tokensPerSecond = useAuiState((s) => {
     const lastAssistant = s.thread.messages.findLast(
       (m) => m.role === "assistant",
@@ -23,4 +27,4 @@ export const StatusBarLatency = ({
   return <Text dimColor>{format(tokensPerSecond)}</Text>;
 };
 
-StatusBarLatency.displayName = "StatusBarPrimitive.Latency";
+StatusBarPrimitiveLatency.displayName = "StatusBarPrimitive.Latency";

@@ -3,13 +3,17 @@ import { useAuiState } from "@assistant-ui/store";
 
 const defaultFormat = (tokens: number) => `${tokens.toLocaleString()} tokens`;
 
-export type StatusBarTokenCountProps = {
+export type StatusBarPrimitiveTokenCountProps = {
   format?: (tokens: number) => string;
 };
 
-export const StatusBarTokenCount = ({
+export namespace StatusBarPrimitiveTokenCount {
+  export type Props = StatusBarPrimitiveTokenCountProps;
+}
+
+export const StatusBarPrimitiveTokenCount = ({
   format = defaultFormat,
-}: StatusBarTokenCountProps) => {
+}: StatusBarPrimitiveTokenCount.Props) => {
   const totalTokens = useAuiState((s) =>
     s.thread.messages.reduce((sum, msg) => {
       if (msg.role !== "assistant") return sum;
@@ -22,4 +26,4 @@ export const StatusBarTokenCount = ({
   return <Text dimColor>{format(totalTokens)}</Text>;
 };
 
-StatusBarTokenCount.displayName = "StatusBarPrimitive.TokenCount";
+StatusBarPrimitiveTokenCount.displayName = "StatusBarPrimitive.TokenCount";
