@@ -635,4 +635,201 @@ describe("useToolInvocations", () => {
       expect(onResult).not.toHaveBeenCalled();
     });
   });
+
+  it("fires streamCall for already-resolved tool calls loaded after the initial snapshot", async () => {
+    const execute = vi.fn(async () => ({ forecast: "ok" }));
+    const streamCall = vi.fn();
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute,
+        streamCall,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const setToolStatuses = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ state }: { state: AssistantTransportState }) =>
+        useToolInvocations({
+          state,
+          getTools,
+          onResult,
+          setToolStatuses,
+        }),
+      {
+        initialProps: {
+          state: createState([]),
+        },
+      },
+    );
+
+    act(() => {
+      rerender({
+        state: createState([
+          createAssistantMessage(
+            '{"query":"London"}',
+            { query: "London" },
+            { result: { source: "history" } },
+          ),
+        ]),
+      });
+    });
+
+    await waitFor(() => {
+      expect(streamCall).toHaveBeenCalledTimes(1);
+    });
+
+    const [reader] = streamCall.mock.calls[0]!;
+    await expect(reader.args.get("query")).resolves.toBe("London");
+    const response = await reader.response.get();
+    expect(response.result).toEqual({ source: "history" });
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+    expect(setToolStatuses).not.toHaveBeenCalled();
+  });
+
+  it("does not fire streamCall for tool calls present in the initial snapshot", async () => {
+    const streamCall = vi.fn();
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        streamCall,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const setToolStatuses = vi.fn();
+
+    renderHook(
+      ({ state }: { state: AssistantTransportState }) =>
+        useToolInvocations({
+          state,
+          getTools,
+          onResult,
+          setToolStatuses,
+        }),
+      {
+        initialProps: {
+          state: createState([
+            createAssistantMessage(
+              '{"query":"London"}',
+              { query: "London" },
+              { result: { source: "history" } },
+            ),
+          ]),
+        },
+      },
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(streamCall).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("promotes an in-progress tool call from the initial snapshot when it changes", async () => {
+    const execute = vi.fn(async () => ({ forecast: "ok" }));
+    const streamCall = vi.fn();
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute,
+        streamCall,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const setToolStatuses = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ state }: { state: AssistantTransportState }) =>
+        useToolInvocations({
+          state,
+          getTools,
+          onResult,
+          setToolStatuses,
+        }),
+      {
+        initialProps: {
+          state: createState([
+            createAssistantMessage('{"query":"Lon', { query: "Lon" }),
+          ]),
+        },
+      },
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(streamCall).not.toHaveBeenCalled();
+
+    act(() => {
+      rerender({
+        state: createState([
+          createAssistantMessage(
+            '{"query":"London"}',
+            { query: "London" },
+            { result: { source: "history" } },
+          ),
+        ]),
+      });
+    });
+
+    await waitFor(() => {
+      expect(streamCall).toHaveBeenCalledTimes(1);
+    });
+
+    const [reader] = streamCall.mock.calls[0]!;
+    await expect(reader.args.get("query")).resolves.toBe("London");
+    const response = await reader.response.get();
+    expect(response.result).toEqual({ source: "history" });
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("does not re-fire streamCall when an initial-snapshot tool call is unchanged in later snapshots", async () => {
+    const streamCall = vi.fn();
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        streamCall,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const setToolStatuses = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ state }: { state: AssistantTransportState }) =>
+        useToolInvocations({
+          state,
+          getTools,
+          onResult,
+          setToolStatuses,
+        }),
+      {
+        initialProps: {
+          state: createState([
+            createAssistantMessage(
+              '{"query":"London"}',
+              { query: "London" },
+              { result: { source: "history" } },
+            ),
+          ]),
+        },
+      },
+    );
+
+    act(() => {
+      rerender({
+        state: createState([
+          createAssistantMessage(
+            '{"query":"London"}',
+            { query: "London" },
+            { result: { source: "history" } },
+          ),
+        ]),
+      });
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(streamCall).not.toHaveBeenCalled();
+  });
 });
