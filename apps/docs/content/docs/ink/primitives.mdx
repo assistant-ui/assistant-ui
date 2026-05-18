@@ -1133,11 +1133,11 @@ Container `Box` for the status bar. Defaults to `gap={1}` so its children are sp
 
 ### Status
 
-`Text` component reporting the thread's run state. Resolves to one of `"running"` (while `s.thread.isRunning`), `"error"` (when the last assistant message is `incomplete` with reason `error`), or `"idle"`. The label color follows the resolved state — `green` for idle, `yellow` for running, `red` for error — regardless of the `format` output.
+`Text` component reporting the thread's run state. Resolves to `"running"` while `s.thread.isRunning`, otherwise inspects the most recent assistant message: `"error"` when its status is `incomplete` with reason `error`, `"cancelled"` when reason is `cancelled`, and `"idle"` for every other case. The label color follows the resolved state — `green` for idle, `yellow` for running, `red` for error, `gray` for cancelled — regardless of the `format` output.
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `format` | `(status: "idle" \| "running" \| "error") => string` | Custom label formatter (default: returns the state string verbatim) |
+| `format` | `(status: "idle" \| "running" \| "error" \| "cancelled") => string` | Custom label formatter (default: returns the state string verbatim) |
 
 ```tsx
 <StatusBarPrimitive.Root>
