@@ -2,4 +2,4 @@
 "@assistant-ui/react-ink": patch
 ---
 
-feat: add ToolApproval component for interactive tool call approval
+feat(react-ink): add ToolApproval component for interactive tool call approval

@@ -146,6 +146,53 @@ describe("ToolApproval", () => {
     expect(defaultProps.addResult).not.toHaveBeenCalled();
   });
 
+  it("edit-mode arrow-left + insert places character mid-text", async () => {
+    const inst = await renderFrame(
+      <ToolApproval
+        {...defaultProps}
+        argsText="12"
+        interrupt={{ type: "human", payload: {} }}
+      />,
+    );
+    inst.stdin.write("e");
+    await tick();
+    // cursor starts at end (offset 2). Left arrow -> offset 1. Insert "0" -> "102".
+    inst.stdin.write("[D"); // Left arrow
+    await tick();
+    inst.stdin.write("0");
+    await tick();
+    inst.stdin.write("\r");
+    await tick();
+
+    expect(defaultProps.resume).toHaveBeenCalledWith({
+      approved: true,
+      args: 102,
+    });
+  });
+
+  it("edit-mode Ctrl+U clears from cursor to start of line", async () => {
+    const inst = await renderFrame(
+      <ToolApproval
+        {...defaultProps}
+        argsText="123"
+        interrupt={{ type: "human", payload: {} }}
+      />,
+    );
+    inst.stdin.write("e");
+    await tick();
+    inst.stdin.write(""); // Ctrl+U -> kill-start: drops "123"
+    await tick();
+    inst.stdin.write("9");
+    await tick();
+    inst.stdin.write("\r");
+    await tick();
+
+    expect(defaultProps.resume).toHaveBeenCalledWith({
+      approved: true,
+      args: 9,
+    });
+  });
+
   it("edit-submit shows error on invalid JSON without resolving", async () => {
     const inst = await renderFrame(
       <ToolApproval

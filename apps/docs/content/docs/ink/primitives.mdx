@@ -1101,7 +1101,7 @@ A keyboard-driven approval UI for tool calls that require user authorization. Su
 | `A` | Always allow this tool |
 | `S` | Allow all tools this session |
 
-The inline editor opened by `E` supports character append and `Backspace` only — there is no cursor movement, selection, or arrow-key navigation. `Enter` submits the edited JSON; `Esc` cancels without resolving.
+The inline editor opened by `E` is the same grapheme-safe buffer used by `ComposerPrimitive.Input` and supports arrow-key navigation, `Home` / `End`, word-wise movement (`Alt+B` / `Alt+F`), and the standard `Ctrl+A` / `Ctrl+E` / `Ctrl+W` / `Ctrl+U` / `Ctrl+K` / `Ctrl+D` shortcuts. `Enter` submits the edited JSON; `Shift+Enter` or `Ctrl+J` inserts a newline; `Esc` cancels without resolving.
 
 ### Per-tool customization via `makeAssistantToolUI`
 

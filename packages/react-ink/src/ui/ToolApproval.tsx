@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback, useId } from "react";
 import { Box, Text, useFocus, useFocusManager, useInput } from "ink";
 import { ToolResponse } from "assistant-stream";
 import { prettyPrintArgs } from "../utils/prettyPrintArgs";
+import {
+  getGraphemeAt,
+  useTextBuffer,
+} from "../primitives/composer/useTextBuffer";
 
 export type TrustLevel = "once" | "tool" | "session";
 
@@ -88,7 +92,11 @@ export const ToolApproval = ({
     }
   }, [state, focusNext]);
 
-  const [editText, setEditText] = useState(() => prettyPrintArgs(argsText));
+  const {
+    text: editText,
+    cursorOffset,
+    dispatchAction: editDispatch,
+  } = useTextBuffer(prettyPrintArgs(argsText));
   const [editError, setEditError] = useState("");
   const [countdown, setCountdown] = useState(autoRejectTimeout);
 
@@ -150,20 +158,114 @@ export const ToolApproval = ({
   useInput(
     (input, key) => {
       if (state === "editing") {
+        const extendedKey = key as typeof key & {
+          home?: boolean;
+          end?: boolean;
+          shift?: boolean;
+        };
+        const lowerInput = input.toLowerCase();
+
         if (key.escape) {
           setState("idle");
           return;
         }
         if (key.return) {
+          if (extendedKey.shift) {
+            editDispatch({ type: "insert", text: "\n" });
+            setEditError("");
+            return;
+          }
           doEditSubmit();
           return;
         }
-        if (key.backspace || key.delete) {
-          setEditText((t) => t.slice(0, -1));
+        if (key.ctrl) {
+          if (lowerInput === "j") {
+            editDispatch({ type: "insert", text: "\n" });
+            setEditError("");
+            return;
+          }
+          if (lowerInput === "a") {
+            editDispatch({ type: "move-home", multiLine: true });
+            return;
+          }
+          if (lowerInput === "e") {
+            editDispatch({ type: "move-end", multiLine: true });
+            return;
+          }
+          if (lowerInput === "w") {
+            editDispatch({ type: "kill-word-backward" });
+            setEditError("");
+            return;
+          }
+          if (lowerInput === "u") {
+            editDispatch({ type: "kill-start", multiLine: true });
+            setEditError("");
+            return;
+          }
+          if (lowerInput === "k") {
+            editDispatch({ type: "kill-end", multiLine: true });
+            setEditError("");
+            return;
+          }
+          if (lowerInput === "d") {
+            editDispatch({ type: "delete-forward" });
+            setEditError("");
+            return;
+          }
           return;
         }
-        if (input && !key.ctrl && !key.meta) {
-          setEditText((t) => t + input);
+        if (key.meta) {
+          if (lowerInput === "b") {
+            editDispatch({ type: "move-word-left" });
+            return;
+          }
+          if (lowerInput === "f") {
+            editDispatch({ type: "move-word-right" });
+            return;
+          }
+          if (lowerInput === "d") {
+            editDispatch({ type: "kill-word-forward" });
+            setEditError("");
+            return;
+          }
+          return;
+        }
+        if (key.leftArrow) {
+          editDispatch({ type: "move-left" });
+          return;
+        }
+        if (key.rightArrow) {
+          editDispatch({ type: "move-right" });
+          return;
+        }
+        if (key.upArrow) {
+          editDispatch({ type: "move-up" });
+          return;
+        }
+        if (key.downArrow) {
+          editDispatch({ type: "move-down" });
+          return;
+        }
+        if (extendedKey.home) {
+          editDispatch({ type: "move-home", multiLine: true });
+          return;
+        }
+        if (extendedKey.end) {
+          editDispatch({ type: "move-end", multiLine: true });
+          return;
+        }
+        if (key.backspace) {
+          editDispatch({ type: "delete-backward" });
+          setEditError("");
+          return;
+        }
+        if (key.delete) {
+          editDispatch({ type: "delete-forward" });
+          setEditError("");
+          return;
+        }
+        if (input) {
+          editDispatch({ type: "insert", text: input });
           setEditError("");
         }
         return;
@@ -182,12 +284,27 @@ export const ToolApproval = ({
   if (state === "resolved") return null;
 
   if (state === "editing") {
+    const hasText = editText.length > 0;
+    const before = hasText ? editText.slice(0, cursorOffset) : "";
+    const charAtCursor = hasText ? getGraphemeAt(editText, cursorOffset) : "";
+    const isOnNewline = charAtCursor === "\n";
+    const atCursor = charAtCursor === "" || isOnNewline ? " " : charAtCursor;
+    const after = hasText
+      ? isOnNewline
+        ? editText.slice(cursorOffset)
+        : editText.slice(cursorOffset + charAtCursor.length)
+      : "";
+
     return (
       <Box flexDirection="column">
-        <Text dimColor>Edit args (Enter to submit, Esc to cancel):</Text>
+        <Text dimColor>
+          Edit args (Enter to submit, Shift+Enter or Ctrl+J for newline, Esc to
+          cancel):
+        </Text>
         <Text>
-          {editText}
-          <Text inverse> </Text>
+          {before}
+          <Text inverse>{atCursor}</Text>
+          {after}
         </Text>
         {editError ? <Text color="red">{editError}</Text> : null}
       </Box>
