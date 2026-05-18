@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "ink-testing-library";
 import { ToolResponse } from "assistant-stream";
-import { ToolApproval } from "./ToolApproval";
+import { ToolApproval } from "../ui/ToolApproval";
 
 const defaultProps = {
   toolName: "read_file",
