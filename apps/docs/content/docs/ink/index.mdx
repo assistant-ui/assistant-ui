@@ -159,13 +159,11 @@ const Message = () => {
 };
 
 const StatusIndicator = () => (
-  <Box marginBottom={1}>
-    <LoadingPrimitive.Root>
-      <LoadingPrimitive.Spinner variant="bar" />
-      <LoadingPrimitive.Text />
-      <LoadingPrimitive.ElapsedTime />
-    </LoadingPrimitive.Root>
-  </Box>
+  <LoadingPrimitive.Root marginBottom={1}>
+    <LoadingPrimitive.Spinner variant="bar" />
+    <LoadingPrimitive.Text />
+    <LoadingPrimitive.ElapsedTime />
+  </LoadingPrimitive.Root>
 );
 
 export const Thread = () => {
