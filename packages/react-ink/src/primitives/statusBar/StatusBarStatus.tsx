@@ -1,7 +1,7 @@
 import { Text } from "ink";
 import { useAuiState } from "@assistant-ui/store";
 
-export type StatusType = "idle" | "running" | "error";
+export type StatusType = "idle" | "running" | "error" | "cancelled";
 
 const defaultFormat = (status: StatusType) => status;
 
@@ -9,6 +9,7 @@ const COLOR_MAP: Record<StatusType, string> = {
   idle: "green",
   running: "yellow",
   error: "red",
+  cancelled: "gray",
 };
 
 export type StatusBarPrimitiveStatusProps = {
@@ -25,13 +26,13 @@ export const StatusBarPrimitiveStatus = ({
   const status = useAuiState((s): StatusType => {
     if (s.thread.isRunning) return "running";
 
-    const lastMessage = s.thread.messages.at(-1);
-    if (
-      lastMessage?.role === "assistant" &&
-      lastMessage.status?.type === "incomplete" &&
-      lastMessage.status.reason === "error"
-    )
-      return "error";
+    const lastAssistant = s.thread.messages.findLast(
+      (m) => m.role === "assistant",
+    );
+    if (lastAssistant?.status?.type === "incomplete") {
+      if (lastAssistant.status.reason === "error") return "error";
+      if (lastAssistant.status.reason === "cancelled") return "cancelled";
+    }
 
     return "idle";
   });

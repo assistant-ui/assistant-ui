@@ -136,6 +136,18 @@ describe("StatusBarPrimitive.Latency", () => {
     const { lastFrame } = render(<StatusBarPrimitiveLatency />);
     expect(lastFrame()).toBe("");
   });
+
+  it("applies a custom format", () => {
+    setThreadState({
+      messages: [
+        { role: "assistant", metadata: { timing: { tokensPerSecond: 50 } } },
+      ],
+    });
+    const { lastFrame } = render(
+      <StatusBarPrimitiveLatency format={(tps) => `tps=${tps.toFixed(1)}`} />,
+    );
+    expect(lastFrame()).toContain("tps=50.0");
+  });
 });
 
 describe("StatusBarPrimitive.Status", () => {
@@ -157,6 +169,35 @@ describe("StatusBarPrimitive.Status", () => {
     });
     const { lastFrame } = render(<StatusBarPrimitiveStatus />);
     expect(lastFrame()).toContain("error");
+  });
+
+  it("reports 'error' even when a user message follows an errored assistant", () => {
+    setThreadState({
+      isRunning: false,
+      messages: [
+        {
+          role: "assistant",
+          status: { type: "incomplete", reason: "error" },
+        },
+        { role: "user" },
+      ],
+    });
+    const { lastFrame } = render(<StatusBarPrimitiveStatus />);
+    expect(lastFrame()).toContain("error");
+  });
+
+  it("reports 'cancelled' when the last assistant message was cancelled", () => {
+    setThreadState({
+      isRunning: false,
+      messages: [
+        {
+          role: "assistant",
+          status: { type: "incomplete", reason: "cancelled" },
+        },
+      ],
+    });
+    const { lastFrame } = render(<StatusBarPrimitiveStatus />);
+    expect(lastFrame()).toContain("cancelled");
   });
 
   it("reports 'idle' otherwise", () => {
