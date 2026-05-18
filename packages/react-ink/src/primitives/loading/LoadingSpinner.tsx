@@ -32,8 +32,6 @@ export const LoadingSpinner = ({
   useEffect(() => {
     if (variant === "spinner") return;
 
-    setFrameIndex(0);
-
     const interval = setInterval(() => {
       setFrameIndex((current) => current + 1);
     }, intervalMs);

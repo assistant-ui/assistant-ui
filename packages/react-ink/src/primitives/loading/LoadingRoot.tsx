@@ -5,7 +5,6 @@ import { useAuiState } from "@assistant-ui/store";
 export namespace LoadingRoot {
   export type Props = ComponentProps<typeof Box> & {
     children: ReactNode;
-    gap?: number;
   };
 }
 
