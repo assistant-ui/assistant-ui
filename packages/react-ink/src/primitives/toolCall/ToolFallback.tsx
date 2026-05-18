@@ -3,7 +3,7 @@ import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
 import type { ToolCallMessagePartStatus } from "@assistant-ui/core";
 import type { ToolCallMessagePartProps } from "@assistant-ui/core/react";
-import { ToolApproval, type ToolApprovalProps } from "../../ui/ToolApproval";
+import { ToolApproval } from "../../ui/ToolApproval";
 import { prettyPrintArgs } from "../../utils/prettyPrintArgs";
 
 export type ToolCallStatus =
@@ -72,7 +72,7 @@ export type ToolFallbackProps = ToolFallbackBaseProps & {
   /** Props forwarded to ToolApproval when status is requires-action */
   approvalProps?: Partial<
     Pick<
-      ToolApprovalProps,
+      ToolApproval.Props,
       | "onTrustChange"
       | "autoRejectTimeout"
       | "allowEdit"

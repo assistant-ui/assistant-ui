@@ -130,13 +130,7 @@ export * as ErrorPrimitive from "./primitives/error";
 export * as DiffPrimitive from "./primitives/diff";
 export * as MessagePartPrimitive from "./primitives/messagePart";
 export { DiffView, type DiffViewProps } from "./primitives/diff/DiffView";
-
-// UI components
-export {
-  ToolApproval,
-  type ToolApprovalProps,
-  type TrustLevel,
-} from "./ui/ToolApproval";
+export { ToolApproval } from "./ui/ToolApproval";
 
 // Re-export shared providers from core/react
 export {

@@ -7,51 +7,56 @@ import {
   useTextBuffer,
 } from "../primitives/composer/useTextBuffer";
 
-export type TrustLevel = "once" | "tool" | "session";
+export namespace ToolApproval {
+  export type TrustLevel = "once" | "tool" | "session";
 
-export type ToolApprovalProps = {
-  /** Tool name being approved */
-  toolName: string;
-  /** Raw JSON string of tool arguments */
-  argsText: string;
-
-  /** Runtime callback to submit a tool result (used for rejection) */
-  addResult: (result: unknown) => void;
-  /** Runtime callback to resume an interrupted tool call (used for approval) */
-  resume: (payload: unknown) => void;
-
-  /** Interrupt payload from the runtime */
-  interrupt?: { type: "human"; payload: unknown } | undefined;
-
-  /**
-   * Called when user sets a trust level for this tool.
-   * The consuming app is responsible for persisting trust decisions.
-   */
-  onTrustChange?: ((toolName: string, level: TrustLevel) => void) | undefined;
-
-  /** Auto-deny timeout in seconds. 0 = no timeout. Default: 0 */
-  autoRejectTimeout?: number | undefined;
-
-  /**
-   * Whether to show the args editor. Defaults to `true` when `interrupt` is
-   * present. Edit submission only takes effect in the interrupt flow — without
-   * an `interrupt`, edited arguments cannot be returned to the runtime, so the
-   * `[E]` affordance is hidden even when this prop is `true`.
-   */
-  allowEdit?: boolean | undefined;
-
-  /** Whether to show trust level options. Default: true */
-  showTrustOptions?: boolean | undefined;
-
-  /** Custom labels for the approval UI */
-  labels?: {
+  export type Labels = {
     approve?: string;
     reject?: string;
     edit?: string;
     trustTool?: string;
     trustSession?: string;
   };
-};
+
+  export type Props = {
+    /** Tool name being approved */
+    toolName: string;
+    /** Raw JSON string of tool arguments */
+    argsText: string;
+
+    /** Runtime callback to submit a tool result (used for rejection) */
+    addResult: (result: unknown) => void;
+    /** Runtime callback to resume an interrupted tool call (used for approval) */
+    resume: (payload: unknown) => void;
+
+    /** Interrupt payload from the runtime */
+    interrupt?: { type: "human"; payload: unknown } | undefined;
+
+    /**
+     * Called when user sets a trust level for this tool.
+     * The consuming app is responsible for persisting trust decisions.
+     */
+    onTrustChange?: ((toolName: string, level: TrustLevel) => void) | undefined;
+
+    /** Auto-deny timeout in seconds. 0 = no timeout. Default: 0 */
+    autoRejectTimeout?: number | undefined;
+
+    /**
+     * Whether to show the args editor. Defaults to `true` when `interrupt` is
+     * present. Edit submission only takes effect in the interrupt flow —
+     * without an `interrupt`, edited arguments cannot be returned to the
+     * runtime, so the `[E]` affordance is hidden even when this prop is
+     * `true`.
+     */
+    allowEdit?: boolean | undefined;
+
+    /** Whether to show trust level options. Default: true */
+    showTrustOptions?: boolean | undefined;
+
+    /** Custom labels for the approval UI */
+    labels?: Labels;
+  };
+}
 
 type ApprovalState = "idle" | "editing" | "resolved";
 
@@ -74,7 +79,7 @@ export const ToolApproval = ({
   allowEdit = !!interrupt,
   showTrustOptions = true,
   labels: labelsProp,
-}: ToolApprovalProps) => {
+}: ToolApproval.Props) => {
   const labels = { ...DEFAULT_LABELS, ...labelsProp };
   const [state, setState] = useState<ApprovalState>("idle");
   const isActive = state !== "resolved";
@@ -103,7 +108,7 @@ export const ToolApproval = ({
   const editEnabled = allowEdit && !!argsText && !!interrupt;
 
   const doApprove = useCallback(
-    (trustLevel?: TrustLevel) => {
+    (trustLevel?: ToolApproval.TrustLevel) => {
       setState("resolved");
       if (trustLevel && trustLevel !== "once") {
         onTrustChange?.(toolName, trustLevel);

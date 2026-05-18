@@ -1160,16 +1160,16 @@ The default `ToolCallPrimitive.Fallback` (used when no tool UI is registered) al
 | `addResult` | `(result: unknown) => void` | — | Runtime callback to submit a tool result |
 | `resume` | `(payload: unknown) => void` | — | Runtime callback to resume an interrupted tool call |
 | `interrupt` | `{ type: "human"; payload: unknown }` | `undefined` | Interrupt payload from the runtime |
-| `onTrustChange` | `(toolName: string, level: TrustLevel) => void` | `undefined` | Called when user sets a trust level |
+| `onTrustChange` | `(toolName: string, level: ToolApproval.TrustLevel) => void` | `undefined` | Called when user sets a trust level |
 | `autoRejectTimeout` | `number` | `0` | Auto-deny countdown in seconds. `0` disables |
 | `allowEdit` | `boolean` | `!!interrupt` | Show the args editor. Edits only resolve in the interrupt flow |
 | `showTrustOptions` | `boolean` | `true` | Show trust level options (`[A]`, `[S]`) |
 | `labels` | `object` | — | Custom labels for approve, reject, edit, trustTool, trustSession |
 
-### TrustLevel
+### ToolApproval.TrustLevel
 
 ```tsx
-type TrustLevel = "once" | "tool" | "session";
+type ToolApproval.TrustLevel = "once" | "tool" | "session";
 ```
 
 The `onTrustChange` callback receives the trust level the user selected. Your app is responsible for persisting trust decisions and auto-approving future tool calls accordingly.
