@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import type { RemoteThreadListResponse } from "../runtimes/remote-thread-list/types";
 import {
   createCore,
@@ -7,6 +7,10 @@ import {
 } from "./remote-thread-list-test-helpers";
 
 describe("RemoteThreadListThreadListRuntimeCore.reload", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("refetches list() after a successful empty load", async () => {
     const listFn = vi
       .fn<() => Promise<RemoteThreadListResponse>>()
@@ -92,6 +96,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reload", () => {
   });
 
   it("recovers after a failed initial load", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const listFn = vi
       .fn<() => Promise<RemoteThreadListResponse>>()
       .mockRejectedValueOnce(new Error("401"))

@@ -98,11 +98,6 @@ export type ThreadMethods = {
    * @param config The configuration for resuming the run
    */
   resumeRun(config: CreateResumeRunConfig): void;
-
-  /**
-   * @deprecated Use `resumeRun` instead.
-   */
-  unstable_resumeRun(config: CreateResumeRunConfig): void;
   cancelRun(): void;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;

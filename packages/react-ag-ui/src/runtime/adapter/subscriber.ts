@@ -2,6 +2,7 @@
 
 import type { AgUiEvent } from "../types";
 import { parseAgUiEvent } from "../event-parser";
+import type { Logger } from "../logger";
 
 type Dispatch = (event: AgUiEvent) => void;
 
@@ -31,6 +32,7 @@ type Subscriber = {
   onMessagesSnapshotEvent?: (payload: { event: unknown }) => void;
   onCustomEvent?: (payload: { event: unknown }) => void;
   onRawEvent?: (payload: { event: unknown }) => void;
+  onRunFinishedEvent?: (payload: { event: unknown }) => void;
   onRunFinalized?: () => void;
   onRunFailed?: (payload: { error: Error }) => void;
 };
@@ -38,37 +40,40 @@ type Subscriber = {
 const ensureEvent = (
   raw: unknown,
   type: AgUiEvent["type"],
+  logger?: Logger,
 ): AgUiEvent | null => {
+  const parseOptions = logger ? { logger } : undefined;
+  let parsed: AgUiEvent | null;
   if (raw && typeof raw === "object") {
     const payload = raw as Record<string, unknown>;
     if (typeof payload.type === "string") {
-      return parseAgUiEvent(payload);
+      parsed = parseAgUiEvent(payload, parseOptions);
+    } else {
+      parsed = parseAgUiEvent({ type, ...payload }, parseOptions);
     }
-    return parseAgUiEvent({ type, ...payload });
+  } else {
+    parsed = parseAgUiEvent({ type }, parseOptions);
   }
-  return parseAgUiEvent({ type });
-};
-
-const dispatchIfValid = (
-  dispatch: Dispatch,
-  raw: unknown,
-  type: AgUiEvent["type"],
-) => {
-  const event = ensureEvent(raw, type);
-  if (!event) return;
-  dispatch(event);
+  return parsed && parsed.type === type ? parsed : null;
 };
 
 type SubscriberOptions = {
   dispatch: Dispatch;
   runId: string;
+  logger?: Logger;
   onRunFailed?: (error: Error) => void;
 };
 
 export const createAgUiSubscriber = (
   options: SubscriberOptions,
 ): Subscriber => {
-  const { dispatch, runId, onRunFailed } = options;
+  const { dispatch, runId, logger, onRunFailed } = options;
+  let runFinishedDispatched = false;
+  const dispatchIfValid = (raw: unknown, type: AgUiEvent["type"]) => {
+    const event = ensureEvent(raw, type, logger);
+    if (!event) return;
+    dispatch(event);
+  };
   return {
     onEvent: ({ event }) => {
       const typeCandidate =
@@ -83,52 +88,57 @@ export const createAgUiSubscriber = (
       if (parsed) dispatch(parsed);
     },
     onTextMessageStartEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "TEXT_MESSAGE_START"),
+      dispatchIfValid(event, "TEXT_MESSAGE_START"),
     onTextMessageContentEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "TEXT_MESSAGE_CONTENT"),
+      dispatchIfValid(event, "TEXT_MESSAGE_CONTENT"),
     onTextMessageEndEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "TEXT_MESSAGE_END"),
+      dispatchIfValid(event, "TEXT_MESSAGE_END"),
     onTextMessageChunkEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "TEXT_MESSAGE_CHUNK"),
+      dispatchIfValid(event, "TEXT_MESSAGE_CHUNK"),
     onThinkingStartEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "THINKING_START"),
-    onThinkingEndEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "THINKING_END"),
+      dispatchIfValid(event, "THINKING_START"),
+    onThinkingEndEvent: ({ event }) => dispatchIfValid(event, "THINKING_END"),
     onThinkingTextMessageStartEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "THINKING_TEXT_MESSAGE_START"),
+      dispatchIfValid(event, "THINKING_TEXT_MESSAGE_START"),
     onThinkingTextMessageContentEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "THINKING_TEXT_MESSAGE_CONTENT"),
+      dispatchIfValid(event, "THINKING_TEXT_MESSAGE_CONTENT"),
     onThinkingTextMessageEndEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "THINKING_TEXT_MESSAGE_END"),
+      dispatchIfValid(event, "THINKING_TEXT_MESSAGE_END"),
     onReasoningStartEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "REASONING_START"),
-    onReasoningEndEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "REASONING_END"),
+      dispatchIfValid(event, "REASONING_START"),
+    onReasoningEndEvent: ({ event }) => dispatchIfValid(event, "REASONING_END"),
     onReasoningMessageStartEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "REASONING_MESSAGE_START"),
+      dispatchIfValid(event, "REASONING_MESSAGE_START"),
     onReasoningMessageContentEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "REASONING_MESSAGE_CONTENT"),
+      dispatchIfValid(event, "REASONING_MESSAGE_CONTENT"),
     onReasoningMessageEndEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "REASONING_MESSAGE_END"),
+      dispatchIfValid(event, "REASONING_MESSAGE_END"),
     onToolCallStartEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "TOOL_CALL_START"),
+      dispatchIfValid(event, "TOOL_CALL_START"),
     onToolCallArgsEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "TOOL_CALL_ARGS"),
-    onToolCallEndEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "TOOL_CALL_END"),
+      dispatchIfValid(event, "TOOL_CALL_ARGS"),
+    onToolCallEndEvent: ({ event }) => dispatchIfValid(event, "TOOL_CALL_END"),
     onToolCallChunkEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "TOOL_CALL_CHUNK"),
+      dispatchIfValid(event, "TOOL_CALL_CHUNK"),
     onToolCallResultEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "TOOL_CALL_RESULT"),
+      dispatchIfValid(event, "TOOL_CALL_RESULT"),
     onStateSnapshotEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "STATE_SNAPSHOT"),
-    onStateDeltaEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "STATE_DELTA"),
+      dispatchIfValid(event, "STATE_SNAPSHOT"),
+    onStateDeltaEvent: ({ event }) => dispatchIfValid(event, "STATE_DELTA"),
     onMessagesSnapshotEvent: ({ event }) =>
-      dispatchIfValid(dispatch, event, "MESSAGES_SNAPSHOT"),
-    onCustomEvent: ({ event }) => dispatchIfValid(dispatch, event, "CUSTOM"),
-    onRawEvent: ({ event }) => dispatchIfValid(dispatch, event, "RAW"),
-    onRunFinalized: () => dispatch({ type: "RUN_FINISHED", runId }),
+      dispatchIfValid(event, "MESSAGES_SNAPSHOT"),
+    onCustomEvent: ({ event }) => dispatchIfValid(event, "CUSTOM"),
+    onRawEvent: ({ event }) => dispatchIfValid(event, "RAW"),
+    onRunFinishedEvent: ({ event }) => {
+      const parsed = ensureEvent(event, "RUN_FINISHED", logger);
+      if (!parsed) return;
+      runFinishedDispatched = true;
+      dispatch(parsed);
+    },
+    onRunFinalized: () => {
+      if (runFinishedDispatched) return;
+      dispatch({ type: "RUN_FINISHED", runId });
+    },
     onRunFailed: ({ error }) => {
       onRunFailed?.(error);
       const message =

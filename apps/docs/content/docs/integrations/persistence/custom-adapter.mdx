@@ -19,8 +19,8 @@ If you're rolling your own auth, replace `auth()` calls with whatever your stack
 ## How it works
 
 ```
-browser  ──►  /api/threads/*   (RemoteThreadListAdapter)  ──►  threads table
-              /api/messages/*  (ThreadHistoryAdapter)     ──►  messages table
+client  ──►  /api/threads/*   (RemoteThreadListAdapter)  ──►  threads table
+             /api/messages/*  (ThreadHistoryAdapter)     ──►  messages table
 ```
 
 Two adapters, two tables:
@@ -213,6 +213,9 @@ export async function POST(
 
 The adapter calls your endpoints. `unstable_Provider` injects the per-thread history adapter so messages persist alongside metadata.
 
+<PlatformTabs>
+<Tab value="React">
+
 ```tsx title="app/runtime/thread-adapter.tsx"
 "use client";
 
@@ -327,6 +330,247 @@ export const threadListAdapter: RemoteThreadListAdapter = {
 };
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx title="runtime/thread-adapter.tsx"
+import {
+  RuntimeAdapterProvider,
+  useAui,
+  type RemoteThreadListAdapter,
+  type ThreadHistoryAdapter,
+} from "@assistant-ui/react-native";
+import { createAssistantStream } from "assistant-stream";
+import { useMemo } from "react";
+
+export const threadListAdapter: RemoteThreadListAdapter = {
+  async list() {
+    const rows = await fetch(`${API_URL}/threads`).then((r) => r.json());
+    return {
+      threads: rows.map((t: any) => ({
+        status: t.status,
+        remoteId: t.id,
+        title: t.title ?? undefined,
+      })),
+    };
+  },
+  async initialize() {
+    const { id } = await fetch(`${API_URL}/threads`, { method: "POST" }).then(
+      (r) => r.json(),
+    );
+    return { remoteId: id };
+  },
+  async rename(remoteId, title) {
+    await fetch(`${API_URL}/threads/${remoteId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    });
+  },
+  async archive(remoteId) {
+    await fetch(`${API_URL}/threads/${remoteId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "archived" }),
+    });
+  },
+  async unarchive(remoteId) {
+    await fetch(`${API_URL}/threads/${remoteId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "regular" }),
+    });
+  },
+  async delete(remoteId) {
+    await fetch(`${API_URL}/threads/${remoteId}`, { method: "DELETE" });
+  },
+  async fetch(remoteId) {
+    const t = await fetch(`${API_URL}/threads/${remoteId}`).then((r) =>
+      r.json(),
+    );
+    return { status: t.status, remoteId: t.id, title: t.title };
+  },
+  async generateTitle(remoteId, messages) {
+    return createAssistantStream(async (controller) => {
+      const { title } = await fetch(`${API_URL}/threads/${remoteId}/title`, {
+        method: "POST",
+        body: JSON.stringify({ messages }),
+      }).then((r) => r.json());
+      controller.appendText(title);
+    });
+  },
+  unstable_Provider({ children }) {
+    const aui = useAui();
+    const history = useMemo<ThreadHistoryAdapter>(
+      () => ({
+        async load() {
+          return { messages: [] };
+        },
+        async append() {},
+        withFormat: (fmt) => ({
+          async load() {
+            const { remoteId } = aui.threadListItem().getState();
+            if (!remoteId) return { messages: [] };
+            const rows = await fetch(
+              `${API_URL}/threads/${remoteId}/messages`,
+            ).then((r) => r.json());
+            return {
+              messages: rows.map((row: any) =>
+                fmt.decode({
+                  id: row.id,
+                  parent_id: row.parent_id,
+                  format: row.format,
+                  content: row.content,
+                }),
+              ),
+            };
+          },
+          async append(item) {
+            const { remoteId } = await aui.threadListItem().initialize();
+            await fetch(`${API_URL}/threads/${remoteId}/messages`, {
+              method: "POST",
+              body: JSON.stringify({
+                id: fmt.getId(item.message),
+                parent_id: item.parentId,
+                format: fmt.format,
+                content: fmt.encode(item),
+              }),
+            });
+          },
+        }),
+      }),
+      [aui],
+    );
+    return (
+      <RuntimeAdapterProvider adapters={{ history }}>
+        {children}
+      </RuntimeAdapterProvider>
+    );
+  },
+};
+```
+
+`API_URL` points at the backend that hosts the route handlers above (e.g. `https://your-app.example`). Set it from your env. `fetch` is global on React Native; no polyfill required.
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="runtime/thread-adapter.tsx"
+import {
+  RuntimeAdapterProvider,
+  useAui,
+  type RemoteThreadListAdapter,
+  type ThreadHistoryAdapter,
+} from "@assistant-ui/react-ink";
+import { createAssistantStream } from "assistant-stream";
+import { useMemo } from "react";
+
+export const threadListAdapter: RemoteThreadListAdapter = {
+  async list() {
+    const rows = await fetch(`${API_URL}/threads`).then((r) => r.json());
+    return {
+      threads: rows.map((t: any) => ({
+        status: t.status,
+        remoteId: t.id,
+        title: t.title ?? undefined,
+      })),
+    };
+  },
+  async initialize() {
+    const { id } = await fetch(`${API_URL}/threads`, { method: "POST" }).then(
+      (r) => r.json(),
+    );
+    return { remoteId: id };
+  },
+  async rename(remoteId, title) {
+    await fetch(`${API_URL}/threads/${remoteId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    });
+  },
+  async archive(remoteId) {
+    await fetch(`${API_URL}/threads/${remoteId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "archived" }),
+    });
+  },
+  async unarchive(remoteId) {
+    await fetch(`${API_URL}/threads/${remoteId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "regular" }),
+    });
+  },
+  async delete(remoteId) {
+    await fetch(`${API_URL}/threads/${remoteId}`, { method: "DELETE" });
+  },
+  async fetch(remoteId) {
+    const t = await fetch(`${API_URL}/threads/${remoteId}`).then((r) =>
+      r.json(),
+    );
+    return { status: t.status, remoteId: t.id, title: t.title };
+  },
+  async generateTitle(remoteId, messages) {
+    return createAssistantStream(async (controller) => {
+      const { title } = await fetch(`${API_URL}/threads/${remoteId}/title`, {
+        method: "POST",
+        body: JSON.stringify({ messages }),
+      }).then((r) => r.json());
+      controller.appendText(title);
+    });
+  },
+  unstable_Provider({ children }) {
+    const aui = useAui();
+    const history = useMemo<ThreadHistoryAdapter>(
+      () => ({
+        async load() {
+          return { messages: [] };
+        },
+        async append() {},
+        withFormat: (fmt) => ({
+          async load() {
+            const { remoteId } = aui.threadListItem().getState();
+            if (!remoteId) return { messages: [] };
+            const rows = await fetch(
+              `${API_URL}/threads/${remoteId}/messages`,
+            ).then((r) => r.json());
+            return {
+              messages: rows.map((row: any) =>
+                fmt.decode({
+                  id: row.id,
+                  parent_id: row.parent_id,
+                  format: row.format,
+                  content: row.content,
+                }),
+              ),
+            };
+          },
+          async append(item) {
+            const { remoteId } = await aui.threadListItem().initialize();
+            await fetch(`${API_URL}/threads/${remoteId}/messages`, {
+              method: "POST",
+              body: JSON.stringify({
+                id: fmt.getId(item.message),
+                parent_id: item.parentId,
+                format: fmt.format,
+                content: fmt.encode(item),
+              }),
+            });
+          },
+        }),
+      }),
+      [aui],
+    );
+    return (
+      <RuntimeAdapterProvider adapters={{ history }}>
+        {children}
+      </RuntimeAdapterProvider>
+    );
+  },
+};
+```
+
+`API_URL` points at the backend that hosts the route handlers above. Node 20+ exposes `fetch` globally; no extra dependency needed.
+
+</Tab>
+</PlatformTabs>
+
 The top-level `load`/`append` on the history adapter are required by the type but unused by `useChatRuntime`. The AI SDK code path always goes through `withFormat`.
 
 </Step>
@@ -335,6 +579,9 @@ The top-level `load`/`append` on the history adapter are required by the type bu
 ### Mount the runtime
 
 Wrap the app in a `useRemoteThreadListRuntime` that delegates per-thread runtime to `useChatRuntime`:
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx title="app/runtime/MyProvider.tsx"
 "use client";
@@ -358,6 +605,69 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
   );
 }
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```tsx title="runtime/MyProvider.tsx"
+import {
+  AssistantRuntimeProvider,
+  useRemoteThreadListRuntime,
+} from "@assistant-ui/react-native";
+import {
+  AssistantChatTransport,
+  useChatRuntime,
+} from "@assistant-ui/react-ai-sdk";
+import { threadListAdapter } from "./thread-adapter";
+
+export function MyProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useRemoteThreadListRuntime({
+    runtimeHook: () =>
+      useChatRuntime({
+        transport: new AssistantChatTransport({ api: `${API_URL}/chat` }),
+      }),
+    adapter: threadListAdapter,
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="runtime/MyProvider.tsx"
+import {
+  AssistantRuntimeProvider,
+  useRemoteThreadListRuntime,
+} from "@assistant-ui/react-ink";
+import {
+  AssistantChatTransport,
+  useChatRuntime,
+} from "@assistant-ui/react-ai-sdk";
+import { threadListAdapter } from "./thread-adapter";
+
+export function MyProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useRemoteThreadListRuntime({
+    runtimeHook: () =>
+      useChatRuntime({
+        transport: new AssistantChatTransport({ api: `${API_URL}/chat` }),
+      }),
+    adapter: threadListAdapter,
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 <Step>

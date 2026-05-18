@@ -19,7 +19,23 @@ If your backend exposes a richer state surface, consider [`AssistantTransport`](
 
 ## Install
 
+<PlatformTabs>
+<Tab value="React">
+
 <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-data-stream"]} />
+
+</Tab>
+<Tab value="React Native">
+
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-data-stream"]} />
+
+</Tab>
+<Tab value="React Ink">
+
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/react-data-stream", "ink", "react"]} />
+
+</Tab>
+</PlatformTabs>
 
 ## Quickstart
 
@@ -27,6 +43,9 @@ If your backend exposes a richer state surface, consider [`AssistantTransport`](
 <Step>
 
 ### Set up the runtime
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx title="app/page.tsx"
 "use client";
@@ -45,12 +64,63 @@ export default function ChatPage() {
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx title="app/index.tsx"
+import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
+import { View } from "react-native";
+import { Thread } from "@/components/assistant-ui/thread";
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+
+export default function ChatPage() {
+  const runtime = useDataStreamRuntime({ api: `${API_URL}/api/chat` });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <View style={{ flex: 1 }}>
+        <Thread />
+      </View>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="app.tsx"
+import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-ink";
+import { Box } from "ink";
+import { Thread } from "./components/thread.js";
+
+export function App() {
+  const runtime = useDataStreamRuntime({
+    api: "http://localhost:3000/api/chat",
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Box flexDirection="column">
+        <Thread />
+      </Box>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 </Step>
 <Step>
 
 ### Create the backend endpoint
 
 Your backend should accept POST requests and return data stream responses:
+For React Native and Ink, host this endpoint in a separate backend project and
+point the client runtime at its absolute URL.
 
 ```ts title="app/api/chat/route.ts"
 import { createAssistantStreamResponse } from "assistant-stream";

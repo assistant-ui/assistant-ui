@@ -14,3 +14,7 @@ export {
   AttachmentRemove as Remove,
   type AttachmentRemoveProps as RemoveProps,
 } from "./attachment/AttachmentRemove";
+export {
+  AttachmentStatus as Status,
+  type AttachmentStatusProps as StatusProps,
+} from "./attachment/AttachmentStatus";

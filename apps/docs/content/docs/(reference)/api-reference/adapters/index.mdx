@@ -1,0 +1,34 @@
+---
+title: Adapters API Reference
+description: Adapter interfaces for connecting chat models, persistence, file attachments, feedback, and suggestions to assistant-ui React runtimes.
+---
+
+{/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
+{/* The page list is generated from exported APIs; edit only the manual prose slot. */}
+
+{/* api-manual:start */}
+Adapters define the boundaries between assistant-ui and the systems around it. Use them when you need custom model execution, attachment handling, persistence, feedback collection, or prompt suggestions.
+{/* api-manual:end */}
+
+## Pages
+
+<Cards>
+  <Card title={"Attachment Adapters"} href={"/docs/api-reference/adapters/attachments"}>
+    {"Attachment adapters for uploading files, handling lifecycle events, and bringing app-owned content into assistant-ui composers and messages."}
+  </Card>
+  <Card title={"Feedback Adapter"} href={"/docs/api-reference/adapters/feedback"}>
+    {"Capture and respond to message feedback submitted through action primitives or runtime actions."}
+  </Card>
+  <Card title={"Model Adapters"} href={"/docs/api-reference/adapters/model"}>
+    {"Adapter interfaces for connecting chat models, streaming responses, and model execution to assistant-ui runtimes."}
+  </Card>
+  <Card title={"Persistence Adapters"} href={"/docs/api-reference/adapters/persistence"}>
+    {"Persistence adapters for saving assistant-ui message history, remote thread lists, and long-running chat sessions across browser reloads."}
+  </Card>
+  <Card title={"Runtime Adapter Context"} href={"/docs/api-reference/adapters/runtime"}>
+    {"Provide assistant-ui runtime adapters through React context for model, attachment, speech, and feedback behavior."}
+  </Card>
+  <Card title={"Suggestion Adapters"} href={"/docs/api-reference/adapters/suggestions"}>
+    {"Suggestion adapters for providing starter prompts, contextual actions, and guided composer options to assistant-ui runtimes."}
+  </Card>
+</Cards>

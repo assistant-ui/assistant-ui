@@ -23,28 +23,83 @@ If you already keep messages in redux, zustand, tanstack-query, or another store
 <Steps>
 <Step>
 
-### Create a Next.js project
+### Create a project
+
+<PlatformTabs>
+<Tab value="React">
 
 ```sh
 npx create-next-app@latest my-app
 cd my-app
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```sh
+npx create-expo-app@latest my-app
+cd my-app
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```sh
+mkdir my-app
+cd my-app
+npm init -y
+```
+
+</Tab>
+</PlatformTabs>
+
 </Step>
 <Step>
 
-### Install `@assistant-ui/react`
+### Install dependencies
+
+<PlatformTabs>
+<Tab value="React">
 
 <InstallCommand npm={["@assistant-ui/react"]} />
+
+</Tab>
+<Tab value="React Native">
+
+<InstallCommand expo={["@assistant-ui/react-native"]} />
+
+</Tab>
+<Tab value="React Ink">
+
+<InstallCommand npm={["@assistant-ui/react-ink", "ink", "react"]} />
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 <Step>
 
 ### Add the Thread component
 
+<PlatformTabs>
+<Tab value="React">
+
 ```sh
 npx assistant-ui@latest add thread
 ```
+
+</Tab>
+<Tab value="React Native">
+
+Use your React Native thread component from the [React Native setup](/docs/react-native).
+
+</Tab>
+<Tab value="React Ink">
+
+Use your terminal thread component from the [Ink setup](/docs/ink).
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 <Step>
@@ -52,6 +107,9 @@ npx assistant-ui@latest add thread
 ### Define a `MyRuntimeProvider`
 
 Replace the `MyModelAdapter` body with your backend call.
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx title="app/MyRuntimeProvider.tsx"
 "use client";
@@ -90,10 +148,92 @@ export function MyRuntimeProvider({
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx title="runtime/MyRuntimeProvider.tsx"
+import type { ReactNode } from "react";
+import {
+  AssistantRuntimeProvider,
+  useLocalRuntime,
+  type ChatModelAdapter,
+} from "@assistant-ui/react-native";
+
+const MyModelAdapter: ChatModelAdapter = {
+  async run({ messages, abortSignal }) {
+    const result = await fetch("<YOUR_API_ENDPOINT>", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+      signal: abortSignal,
+    });
+    const data = await result.json();
+    return {
+      content: [{ type: "text", text: data.text }],
+    };
+  },
+};
+
+export function MyRuntimeProvider({
+  children,
+}: Readonly<{ children: ReactNode }>) {
+  const runtime = useLocalRuntime(MyModelAdapter);
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="runtime/MyRuntimeProvider.tsx"
+import type { ReactNode } from "react";
+import {
+  AssistantRuntimeProvider,
+  useLocalRuntime,
+  type ChatModelAdapter,
+} from "@assistant-ui/react-ink";
+
+const MyModelAdapter: ChatModelAdapter = {
+  async run({ messages, abortSignal }) {
+    const result = await fetch("<YOUR_API_ENDPOINT>", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+      signal: abortSignal,
+    });
+    const data = await result.json();
+    return {
+      content: [{ type: "text", text: data.text }],
+    };
+  },
+};
+
+export function MyRuntimeProvider({
+  children,
+}: Readonly<{ children: ReactNode }>) {
+  const runtime = useLocalRuntime(MyModelAdapter);
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 </Step>
 <Step>
 
 ### Wrap your app
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx title="app/layout.tsx"
 import type { ReactNode } from "react";
@@ -110,10 +250,51 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx title="app/_layout.tsx"
+import { Stack } from "expo-router";
+import { MyRuntimeProvider } from "@/runtime/MyRuntimeProvider";
+
+export default function RootLayout() {
+  return (
+    <MyRuntimeProvider>
+      <Stack />
+    </MyRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="app.tsx"
+import { Box } from "ink";
+import { Thread } from "./components/thread.js";
+import { MyRuntimeProvider } from "./runtime/MyRuntimeProvider.js";
+
+export function App() {
+  return (
+    <MyRuntimeProvider>
+      <Box flexDirection="column">
+        <Thread />
+      </Box>
+    </MyRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 </Step>
 <Step>
 
 ### Render the Thread
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx title="app/page.tsx"
 import { Thread } from "@/components/assistant-ui/thread";
@@ -122,6 +303,35 @@ export default function Page() {
   return <Thread />;
 }
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```tsx title="app/index.tsx"
+import { View } from "react-native";
+import { Thread } from "@/components/assistant-ui/thread";
+
+export default function Page() {
+  return (
+    <View style={{ flex: 1 }}>
+      <Thread />
+    </View>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="index.tsx"
+import { render } from "ink";
+import { App } from "./app.js";
+
+render(<App />);
+```
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 </Steps>
@@ -143,7 +353,7 @@ const openai = new OpenAI();
 const MyModelAdapter: ChatModelAdapter = {
   async *run({ messages, abortSignal, context }) {
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.4-mini",
       messages: convertToOpenAIMessages(messages),
       stream: true,
       signal: abortSignal,
@@ -169,7 +379,7 @@ Accumulate tool calls in a `Map` outside the streaming loop so they persist acro
 ```tsx
 async *run({ messages, abortSignal, context }) {
   const stream = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.4-mini",
     messages: convertToOpenAIMessages(messages),
     tools: context.tools,
     stream: true,
@@ -337,7 +547,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const OpenAIAdapter: ChatModelAdapter = {
   async *run({ messages, abortSignal, context }) {
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.4-mini",
       messages: messages.map((m) => ({
         role: m.role,
         content: m.content

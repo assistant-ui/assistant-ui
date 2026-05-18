@@ -1,6 +1,6 @@
 ---
-title: Form Filling Co-Pilot
-description: AssistantSidebar copilot which fills forms for the user
+title: Form-Filling AI Copilot
+description: Open-source AI copilot that fills forms for users — sidebar UI, field-aware tool calls, and a working React example built with assistant-ui.
 ---
 
 
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-nano"),
     messages: await convertToModelMessages(messages),
     system,
     tools: {

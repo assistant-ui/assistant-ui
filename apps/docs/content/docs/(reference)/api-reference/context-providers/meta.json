@@ -1,0 +1,5 @@
+{
+  "title": "Context Providers",
+  "description": "React context providers including AssistantRuntimeProvider that scope assistant-ui runtime, thread, message part, and attachment state for primitives, hooks, and custom chat components.",
+  "pages": ["index", "assistant-runtime-provider", "scoped-providers"]
+}

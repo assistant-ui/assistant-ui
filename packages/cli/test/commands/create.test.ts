@@ -4,6 +4,7 @@ import {
   resolveCreateProjectDirectory,
   resolvePresetUrl,
   resolveProject,
+  resolveScaffoldSelector,
   PROJECT_METADATA,
 } from "../../src/commands/create";
 
@@ -114,6 +115,106 @@ describe("resolveProject", () => {
   });
 });
 
+describe("resolveScaffoldSelector", () => {
+  it("returns an empty selector when no scaffold selector is provided", () => {
+    expect(resolveScaffoldSelector({})).toEqual({});
+  });
+
+  it("maps --native to the Expo example", () => {
+    expect(resolveScaffoldSelector({ native: true })).toEqual({
+      example: "with-expo",
+    });
+  });
+
+  it("maps --ink to the React Ink example", () => {
+    expect(resolveScaffoldSelector({ ink: true })).toEqual({
+      example: "with-react-ink",
+    });
+  });
+
+  it("uses the default template when only --preset is provided", () => {
+    expect(resolveScaffoldSelector({ preset: "chatgpt" })).toEqual({
+      template: "default",
+      preset: "chatgpt",
+    });
+  });
+
+  it("rejects --native with --ink", () => {
+    expect(() => resolveScaffoldSelector({ native: true, ink: true })).toThrow(
+      "Only one scaffold selector can be provided (--native, --ink). Choose one scaffold selector: --template <name>, --example <name>, --native, or --ink. --preset <name-or-url> can be used with --template or by itself.",
+    );
+  });
+
+  it("rejects --native with --example", () => {
+    expect(() =>
+      resolveScaffoldSelector({ native: true, example: "with-tanstack" }),
+    ).toThrow(
+      "Only one scaffold selector can be provided (--example, --native). Choose one scaffold selector: --template <name>, --example <name>, --native, or --ink. --preset <name-or-url> can be used with --template or by itself.",
+    );
+  });
+
+  it("rejects --template with --example", () => {
+    expect(() =>
+      resolveScaffoldSelector({
+        template: "default",
+        example: "with-ai-sdk-v6",
+      }),
+    ).toThrow(
+      "Only one scaffold selector can be provided (--template, --example). Choose one scaffold selector: --template <name>, --example <name>, --native, or --ink. --preset <name-or-url> can be used with --template or by itself.",
+    );
+  });
+
+  it("rejects --ink with --template", () => {
+    expect(() =>
+      resolveScaffoldSelector({ ink: true, template: "default" }),
+    ).toThrow(
+      "Only one scaffold selector can be provided (--template, --ink). Choose one scaffold selector: --template <name>, --example <name>, --native, or --ink. --preset <name-or-url> can be used with --template or by itself.",
+    );
+  });
+
+  it("allows --preset with --template", () => {
+    expect(
+      resolveScaffoldSelector({ preset: "chatgpt", template: "minimal" }),
+    ).toEqual({
+      template: "minimal",
+      preset: "chatgpt",
+    });
+  });
+
+  it("rejects --preset with --example", () => {
+    expect(() =>
+      resolveScaffoldSelector({
+        preset: "chatgpt",
+        example: "with-ai-sdk-v6",
+      }),
+    ).toThrow(
+      "Cannot use --preset with --example. Choose one scaffold selector: --template <name>, --example <name>, --native, or --ink. --preset <name-or-url> can be used with --template or by itself.",
+    );
+  });
+
+  it("rejects --preset with --native", () => {
+    expect(() =>
+      resolveScaffoldSelector({
+        preset: "chatgpt",
+        native: true,
+      }),
+    ).toThrow(
+      "Cannot use --preset with --native. Choose one scaffold selector: --template <name>, --example <name>, --native, or --ink. --preset <name-or-url> can be used with --template or by itself.",
+    );
+  });
+
+  it("rejects --preset with --ink", () => {
+    expect(() =>
+      resolveScaffoldSelector({
+        preset: "chatgpt",
+        ink: true,
+      }),
+    ).toThrow(
+      "Cannot use --preset with --ink. Choose one scaffold selector: --template <name>, --example <name>, --native, or --ink. --preset <name-or-url> can be used with --template or by itself.",
+    );
+  });
+});
+
 describe("resolveProject error handling", () => {
   let exitSpy: ReturnType<typeof vi.spyOn>;
 
@@ -134,9 +235,23 @@ describe("resolveProject error handling", () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
+  it("--template rejects an empty name", async () => {
+    await expect(
+      resolveProject({ template: "", stdinIsTTY: true }),
+    ).rejects.toThrow("process.exit");
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
   it("--example rejects a template name", async () => {
     await expect(
       resolveProject({ example: "cloud", stdinIsTTY: true }),
+    ).rejects.toThrow("process.exit");
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("--example rejects an empty name", async () => {
+    await expect(
+      resolveProject({ example: "", stdinIsTTY: true }),
     ).rejects.toThrow("process.exit");
     expect(exitSpy).toHaveBeenCalledWith(1);
   });

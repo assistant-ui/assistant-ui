@@ -17,6 +17,7 @@ export type {
   ReasoningMessagePart,
   SourceMessagePart,
   ToolCallMessagePart,
+  ToolModelContentPart,
   ImageMessagePart,
   FileMessagePart,
   DataMessagePart,
@@ -40,6 +41,7 @@ export type {
   // Attachment types
   Attachment,
   PendingAttachment,
+  CompleteAttachment,
   CreateAttachment,
   AttachmentRuntime,
   // Adapter types
@@ -77,6 +79,7 @@ export type {
   ComposerState,
   AttachmentState,
   ThreadListItemState,
+  QueueItemState,
 } from "@assistant-ui/core/store";
 
 // Store hooks and components
@@ -97,6 +100,11 @@ export {
 
 // Context providers
 export { AssistantRuntimeProvider } from "./context/AssistantContext";
+export {
+  RuntimeAdapterProvider,
+  useRuntimeAdapters,
+  type RuntimeAdapters,
+} from "@assistant-ui/core/react";
 
 // Runtime
 export {
@@ -108,6 +116,7 @@ export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntim
 // Primitives
 export * as ThreadPrimitive from "./primitives/thread";
 export * as ComposerPrimitive from "./primitives/composer";
+export * as QueueItemPrimitive from "./primitives/queueItem";
 export * as MessagePrimitive from "./primitives/message";
 export * as ThreadListPrimitive from "./primitives/threadList";
 export * as ActionBarPrimitive from "./primitives/actionBar";
@@ -119,6 +128,7 @@ export * as SuggestionPrimitive from "./primitives/suggestion";
 export * as ToolCallPrimitive from "./primitives/toolCall";
 export * as ErrorPrimitive from "./primitives/error";
 export * as DiffPrimitive from "./primitives/diff";
+export * as MessagePartPrimitive from "./primitives/messagePart";
 export { DiffView, type DiffViewProps } from "./primitives/diff/DiffView";
 
 // Re-export shared providers from core/react

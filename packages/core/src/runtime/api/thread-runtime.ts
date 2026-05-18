@@ -253,10 +253,6 @@ export type ThreadRuntime = {
   append(message: CreateAppendMessage): void;
 
   /**
-   * @deprecated pass an object with `parentId` instead. This will be removed in 0.12.0.
-   */
-  startRun(parentId: string | null): void;
-  /**
    * Start a new run with the given configuration.
    * @param config The configuration for starting the run
    */
@@ -267,11 +263,6 @@ export type ThreadRuntime = {
    * @param config The configuration for resuming the run
    **/
   resumeRun(config: CreateResumeRunConfig): void;
-
-  /**
-   * @deprecated Use `resumeRun` instead.
-   */
-  unstable_resumeRun(config: CreateResumeRunConfig): void;
 
   /**
    * Export the thread state in the external store format.
@@ -289,21 +280,9 @@ export type ThreadRuntime = {
    */
   importExternalState(state: any): void;
 
-  /**
-   * Load external state into the thread.
-   * @deprecated Use importExternalState instead. This method will be removed in 0.12.0.
-   * @param state The state to load into the thread
-   */
-  unstable_loadExternalState(state: any): void;
-
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
   getModelContext(): ModelContext;
-
-  /**
-   * @deprecated This method was renamed to `getModelContext`.
-   */
-  getModelConfig(): ModelContext;
 
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
@@ -396,9 +375,6 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   protected __internal_bindMethods() {
     this.append = this.append.bind(this);
     this.resumeRun = this.resumeRun.bind(this);
-    this.unstable_resumeRun = this.unstable_resumeRun.bind(this);
-    this.unstable_loadExternalState =
-      this.unstable_loadExternalState.bind(this);
     this.importExternalState = this.importExternalState.bind(this);
     this.exportExternalState = this.exportExternalState.bind(this);
     this.startRun = this.startRun.bind(this);
@@ -418,7 +394,6 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this.subscribe = this.subscribe.bind(this);
     this.unstable_on = this.unstable_on.bind(this);
     this.getModelContext = this.getModelContext.bind(this);
-    this.getModelConfig = this.getModelConfig.bind(this);
     this.getState = this.getState.bind(this);
   }
 
@@ -444,25 +419,12 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     return this._threadBinding.getState().getModelContext();
   }
 
-  public getModelConfig() {
-    return this.getModelContext();
-  }
-
-  public startRun(configOrParentId: string | null | CreateStartRunConfig) {
-    const config =
-      configOrParentId === null || typeof configOrParentId === "string"
-        ? { parentId: configOrParentId }
-        : configOrParentId;
+  public startRun(config: CreateStartRunConfig) {
     return this._threadBinding.getState().startRun(toStartRunConfig(config));
   }
 
   public resumeRun(config: CreateResumeRunConfig) {
     return this._threadBinding.getState().resumeRun(toResumeRunConfig(config));
-  }
-
-  /** @deprecated Use `resumeRun` instead. */
-  public unstable_resumeRun(config: CreateResumeRunConfig) {
-    return this.resumeRun(config);
   }
 
   public exportExternalState() {
@@ -471,10 +433,6 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
   public importExternalState(state: any) {
     this._threadBinding.getState().importExternalState(state);
-  }
-
-  public unstable_loadExternalState(state: any) {
-    this._threadBinding.getState().unstable_loadExternalState(state);
   }
 
   public cancelRun() {
@@ -575,7 +533,6 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
           const thread = this._threadBinding.getState();
 
           const branches = thread.getBranches(message.id);
-          const submittedFeedback = message.metadata.submittedFeedback;
 
           return {
             ...message,
@@ -590,8 +547,6 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
             speech:
               speechState?.messageId === message.id ? speechState : undefined,
-
-            submittedFeedback,
           } satisfies MessageState;
         },
         subscribe: (callback) => this._threadBinding.subscribe(callback),

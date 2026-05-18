@@ -2,7 +2,10 @@ import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "assistant-stream/utils";
+import type { ToolModelContentPart } from "assistant-stream";
 import type { CompleteAttachment } from "./attachment";
+
+export type { ToolModelContentPart };
 
 export type TextMessagePart = {
   readonly type: "text";
@@ -16,14 +19,31 @@ export type ReasoningMessagePart = {
   readonly parentId?: string;
 };
 
-export type SourceMessagePart = {
-  readonly type: "source";
-  readonly sourceType: "url";
-  readonly id: string;
-  readonly url: string;
-  readonly title?: string;
-  readonly parentId?: string;
+export type SourceProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
 };
+
+export type SourceMessagePart =
+  | {
+      readonly type: "source";
+      readonly sourceType: "url";
+      readonly id: string;
+      readonly url: string;
+      readonly title?: string;
+      readonly providerMetadata?: SourceProviderMetadata;
+      readonly parentId?: string;
+    }
+  | {
+      readonly type: "source";
+      readonly sourceType: "document";
+      readonly id: string;
+      readonly url?: undefined;
+      readonly title: string;
+      readonly mediaType: string;
+      readonly filename?: string;
+      readonly providerMetadata?: SourceProviderMetadata;
+      readonly parentId?: string;
+    };
 
 export type ImageMessagePart = {
   readonly type: "image";
@@ -53,20 +73,57 @@ export type DataMessagePart<T = any> = {
   readonly data: T;
 };
 
+export type McpAppMetadata = {
+  readonly resourceUri: string;
+  readonly mimeType?: string;
+  readonly visibility?: readonly ("model" | "app")[];
+};
+
+export const MCP_APP_URI_SCHEME = "ui://";
+
+export const isMcpAppUri = (uri: string | undefined): boolean =>
+  !!uri?.startsWith(MCP_APP_URI_SCHEME);
+
+export type ToolCallMessagePartMcpMetadata = {
+  readonly app?: McpAppMetadata;
+};
+
 export type ToolCallMessagePart<
   TArgs = ReadonlyJSONObject,
   TResult = unknown,
 > = {
+  /** Identifies this part as a tool call. */
   readonly type: "tool-call";
+  /** Stable identifier for this invocation of the tool. */
   readonly toolCallId: string;
+  /** Name of the tool requested by the model. */
   readonly toolName: string;
+  /**
+   * Arguments supplied by the model. During streaming this is a partial parse:
+   * fields may be missing or incomplete. From a tool-call renderer, use
+   * `useToolArgsStatus` to detect which fields are still arriving.
+   */
   readonly args: TArgs;
+  /** Result returned by the tool, if it has completed. */
   readonly result?: TResult | undefined;
+  /** Whether the result represents a tool execution error. */
   readonly isError?: boolean | undefined;
+  /** Raw JSON argument text streamed by the model. */
   readonly argsText: string;
+  /** UI-only artifact associated with the tool result. */
   readonly artifact?: unknown;
+  /** MCP app metadata associated with this tool call, when present. */
+  readonly mcp?: ToolCallMessagePartMcpMetadata;
+  /** Content returned to the model for this tool result. */
+  readonly modelContent?: readonly ToolModelContentPart[] | undefined;
+  /** Human-input request that must be resolved before the run can continue. */
   readonly interrupt?: { type: "human"; payload: unknown };
+  /** Parent message-part ID when this part belongs to a nested structure. */
   readonly parentId?: string;
+  /**
+   * Nested thread messages produced by this tool call, for example a sub-agent
+   * conversation.
+   */
   readonly messages?: readonly ThreadMessage[];
 };
 
@@ -106,7 +163,9 @@ export type MessagePartStatus =
 
 export type ToolCallMessagePartStatus =
   | {
+      /** The tool call is waiting for UI or human input before continuing. */
       readonly type: "requires-action";
+      /** Reason the tool call requires action. */
       readonly reason: "interrupt";
     }
   | MessagePartStatus;

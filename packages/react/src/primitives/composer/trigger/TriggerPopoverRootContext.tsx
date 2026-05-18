@@ -29,16 +29,42 @@ export type TriggerPopoverLifecycleListener = {
   removed(char: string): void;
 };
 
+/**
+ * ARIA descriptor of the popover that is currently open. Consumed by the
+ * focused element (typically the composer textarea) so it can advertise the
+ * combobox relationship per the WAI-ARIA editable combobox pattern.
+ */
+export type TriggerPopoverActiveAria = {
+  popoverId: string;
+  highlightedItemId: string | undefined;
+};
+
 export type TriggerPopoverRootContextValue = {
   register(trigger: RegisteredTrigger): () => void;
   getTriggers(): ReadonlyMap<string, RegisteredTrigger>;
   subscribe(listener: () => void): () => void;
   /** Subscribe to per-trigger add/remove events. */
   subscribeLifecycle(listener: TriggerPopoverLifecycleListener): () => void;
+  /** ARIA descriptor of the open popover, or null if none is open. */
+  getActiveAria(): TriggerPopoverActiveAria | null;
+  /** Subscribe to changes in the active ARIA descriptor. */
+  subscribeAria(listener: () => void): () => void;
+};
+
+/**
+ * Write-side of the ARIA descriptor, scoped to `TriggerPopover` children of a
+ * `TriggerPopoverRoot`. Intentionally not exposed on the public root context
+ * value: external consumers can read ARIA state but cannot publish or clear it.
+ */
+type TriggerPopoverAriaPublish = {
+  setActiveAria(char: string, aria: TriggerPopoverActiveAria | null): void;
 };
 
 const TriggerPopoverRootContext =
   createContext<TriggerPopoverRootContextValue | null>(null);
+
+const TriggerPopoverAriaPublishContext =
+  createContext<TriggerPopoverAriaPublish | null>(null);
 
 export const useTriggerPopoverRootContext = () => {
   const ctx = useContext(TriggerPopoverRootContext);
@@ -51,6 +77,19 @@ export const useTriggerPopoverRootContext = () => {
 
 export const useTriggerPopoverRootContextOptional = () =>
   useContext(TriggerPopoverRootContext);
+
+/**
+ * Internal hook used by `TriggerPopover` children to publish their open and
+ * highlight state. Not exported from the trigger module.
+ */
+export const useTriggerPopoverAriaPublish = (): TriggerPopoverAriaPublish => {
+  const ctx = useContext(TriggerPopoverAriaPublishContext);
+  if (!ctx)
+    throw new Error(
+      "useTriggerPopoverAriaPublish must be used within ComposerPrimitive.TriggerPopoverRoot",
+    );
+  return ctx;
+};
 
 /**
  * Live map of registered triggers, re-rendering on change. Prefer
@@ -75,24 +114,57 @@ export const useTriggerPopoverTriggersOptional = () => {
   );
 };
 
+const getNullAria = () => null;
+
+/**
+ * Returns the ARIA descriptor of the currently open trigger popover, or
+ * `null` if none is open or the consumer is rendered outside a
+ * `TriggerPopoverRoot`.
+ */
+export const useTriggerPopoverActiveAriaOptional =
+  (): TriggerPopoverActiveAria | null => {
+    const ctx = useTriggerPopoverRootContextOptional();
+    return useSyncExternalStore(
+      ctx ? ctx.subscribeAria : noopSubscribe,
+      ctx ? ctx.getActiveAria : getNullAria,
+      ctx ? ctx.getActiveAria : getNullAria,
+    );
+  };
+
 export namespace ComposerPrimitiveTriggerPopoverRoot {
   export type Props = {
     children: ReactNode;
   };
 }
 
+/**
+ * Local helper for the simple "notify-all listeners" subscribable pattern.
+ * Used twice in this file (trigger registry, active ARIA); kept inline to
+ * avoid pulling a single-use abstraction into the wider tree.
+ */
+function useSimpleSubscribable() {
+  const listenersRef = useRef<Set<() => void>>(new Set());
+  const notify = useCallback(() => {
+    for (const listener of listenersRef.current) listener();
+  }, []);
+  const subscribe = useCallback((listener: () => void) => {
+    listenersRef.current.add(listener);
+    return () => {
+      listenersRef.current.delete(listener);
+    };
+  }, []);
+  return { notify, subscribe };
+}
+
 const TriggerPopoverRootInner: FC<
   ComposerPrimitiveTriggerPopoverRoot.Props
 > = ({ children }) => {
   const triggersRef = useRef<ReadonlyMap<string, RegisteredTrigger>>(new Map());
-  const listenersRef = useRef<Set<() => void>>(new Set());
   const lifecycleListenersRef = useRef<Set<TriggerPopoverLifecycleListener>>(
     new Set(),
   );
 
-  const notify = useCallback(() => {
-    for (const listener of listenersRef.current) listener();
-  }, []);
+  const { notify, subscribe } = useSimpleSubscribable();
 
   const register = useCallback<TriggerPopoverRootContextValue["register"]>(
     (trigger) => {
@@ -137,16 +209,6 @@ const TriggerPopoverRootInner: FC<
     TriggerPopoverRootContextValue["getTriggers"]
   >(() => triggersRef.current, []);
 
-  const subscribe = useCallback<TriggerPopoverRootContextValue["subscribe"]>(
-    (listener) => {
-      listenersRef.current.add(listener);
-      return () => {
-        listenersRef.current.delete(listener);
-      };
-    },
-    [],
-  );
-
   const subscribeLifecycle = useCallback<
     TriggerPopoverRootContextValue["subscribeLifecycle"]
   >((listener) => {
@@ -156,14 +218,69 @@ const TriggerPopoverRootInner: FC<
     };
   }, []);
 
+  const activeAriaRef = useRef<TriggerPopoverActiveAria | null>(null);
+  const activeAriaCharRef = useRef<string | null>(null);
+  const { notify: notifyAria, subscribe: subscribeAria } =
+    useSimpleSubscribable();
+
+  const setActiveAria = useCallback<TriggerPopoverAriaPublish["setActiveAria"]>(
+    (char, aria) => {
+      if (aria === null) {
+        if (activeAriaCharRef.current !== char) return;
+        activeAriaRef.current = null;
+        activeAriaCharRef.current = null;
+        notifyAria();
+        return;
+      }
+      const prev = activeAriaRef.current;
+      if (
+        activeAriaCharRef.current === char &&
+        prev !== null &&
+        prev.popoverId === aria.popoverId &&
+        prev.highlightedItemId === aria.highlightedItemId
+      ) {
+        return;
+      }
+      activeAriaRef.current = aria;
+      activeAriaCharRef.current = char;
+      notifyAria();
+    },
+    [notifyAria],
+  );
+
+  const getActiveAria = useCallback<
+    TriggerPopoverRootContextValue["getActiveAria"]
+  >(() => activeAriaRef.current, []);
+
   const value = useMemo<TriggerPopoverRootContextValue>(
-    () => ({ register, getTriggers, subscribe, subscribeLifecycle }),
-    [register, getTriggers, subscribe, subscribeLifecycle],
+    () => ({
+      register,
+      getTriggers,
+      subscribe,
+      subscribeLifecycle,
+      getActiveAria,
+      subscribeAria,
+    }),
+    [
+      register,
+      getTriggers,
+      subscribe,
+      subscribeLifecycle,
+      getActiveAria,
+      subscribeAria,
+    ],
+  );
+
+  const ariaPublishValue = useMemo<TriggerPopoverAriaPublish>(
+    () => ({ setActiveAria }),
+    [setActiveAria],
   );
 
   return (
     <TriggerPopoverRootContext.Provider value={value}>
-      {children}
+      <TriggerPopoverAriaPublishContext.Provider value={ariaPublishValue}>
+        {children}
+      </TriggerPopoverAriaPublishContext.Provider>
     </TriggerPopoverRootContext.Provider>
   );
 };

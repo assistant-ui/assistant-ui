@@ -1,4 +1,5 @@
 import type { UIMessage } from "@ai-sdk/react";
+import { getToolName, isStaticToolUIPart, isToolUIPart } from "ai";
 import type { SamplingCallData } from "assistant-cloud";
 
 const MAX_SPAN_CONTENT = 50_000;
@@ -109,36 +110,16 @@ function normalizeUsage(usage: UsageFields):
 }
 
 type Part = UIMessage["parts"][number];
+type ToolPart = Extract<Part, { toolCallId: string }>;
 
-function isToolPart(
-  part: Part,
-): part is Part & { toolCallId: string; input?: unknown; output?: unknown } {
-  if (!("toolCallId" in part)) return false;
-  const { type } = part;
-  return (
-    type === "dynamic-tool" ||
-    type.startsWith("tool-") ||
-    type.startsWith("dynamic-tool-")
-  );
-}
-
-function isDynamicTool(part: Part): boolean {
-  return part.type === "dynamic-tool" || part.type.startsWith("dynamic-tool-");
-}
-
-function getToolName(part: Part & { toolCallId: string }): string {
-  if ("toolName" in part && typeof part.toolName === "string") {
-    return part.toolName;
-  }
-  // typed tool part: type is "tool-{NAME}"
-  return part.type.slice(5);
-}
-
-function buildToolCall(part: Part & { toolCallId: string }): TelemetryToolCall {
-  const isMcp = isDynamicTool(part);
+function buildToolCall(part: ToolPart): TelemetryToolCall {
+  // dynamic-tool → mcp, static `tool-*` → frontend. matches server-side
+  // createAssistantRun (apps/cloud-api/src/endpoints/runs/stream.ts).
+  const isMcp = !isStaticToolUIPart(part);
   const call: TelemetryToolCall = {
     tool_name: getToolName(part),
     tool_call_id: part.toolCallId,
+    tool_source: isMcp ? "mcp" : "frontend",
   };
 
   const input = "input" in part ? part.input : undefined;
@@ -149,14 +130,12 @@ function buildToolCall(part: Part & { toolCallId: string }): TelemetryToolCall {
   const toolResult = isMcp ? summarizeMcpResult(output) : safeStringify(output);
   if (toolResult !== undefined) call.tool_result = toolResult;
 
-  if (isMcp) call.tool_source = "mcp";
   return call;
 }
 
 export function extractRunTelemetry(
   messages: UIMessage[],
 ): RunTelemetryData | null {
-  // Find last assistant message
   let assistant: UIMessage | undefined;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i]!.role === "assistant") {
@@ -175,26 +154,24 @@ export function extractRunTelemetry(
       stepCount++;
     } else if (part.type === "text" && part.text) {
       textParts.push(part.text);
-    } else if (isToolPart(part)) {
+    } else if (isToolUIPart(part)) {
       toolCalls.push(buildToolCall(part));
     }
   }
 
   const hasText = textParts.length > 0;
   const outputText = hasText ? truncateStr(textParts.join("")) : undefined;
+  // fallback heuristic; callers with the onFinish event should override via deriveStatus.
   const status: RunTelemetryData["status"] = hasText
     ? "completed"
     : "incomplete";
 
-  // Metadata-dependent fields (require route messageMetadata config)
   const metadata = assistant.metadata as Record<string, unknown> | undefined;
   const modelId =
     typeof metadata?.modelId === "string" ? metadata.modelId : undefined;
   const usage = metadata?.usage as UsageFields | undefined;
   const normalizedUsage = usage ? normalizeUsage(usage) : undefined;
 
-  // Sampling calls from sub-agent / delegated model invocations.
-  // Server attaches via messageMetadata: { samplingCalls: { [toolCallId]: SamplingCallData[] } }
   const rawSamplingCalls = metadata?.samplingCalls;
   const samplingCallsMap =
     rawSamplingCalls != null && typeof rawSamplingCalls === "object"

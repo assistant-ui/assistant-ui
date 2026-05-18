@@ -87,6 +87,16 @@ export type ThreadViewportState = {
     readonly visibleHeight: number;
   } | null;
 
+  /**
+   * The current top-anchor turn activated in this viewport session.
+   * History-loaded messages do not populate this; it is set when a run creates
+   * a live user/assistant pair and remains after the run completes.
+   */
+  readonly topAnchorTurn: {
+    readonly anchorId: string;
+    readonly targetId: string;
+  } | null;
+
   /** Register a viewport and get a handle to update its height */
   readonly registerViewport: () => SizeHandle;
 
@@ -110,6 +120,10 @@ export type ThreadViewportState = {
     element: HTMLElement | null,
     config?: { readonly tallerThan: number; readonly visibleHeight: number },
   ) => Unsubscribe;
+
+  readonly setTopAnchorTurn: (
+    turn: { readonly anchorId: string; readonly targetId: string } | null,
+  ) => void;
 };
 
 export type ThreadViewportStoreOptions = {
@@ -197,6 +211,7 @@ export const makeThreadViewportStore = (
       target: null,
     },
     targetConfig: null,
+    topAnchorTurn: null,
 
     registerViewport: viewportRegistry.register,
     registerContentInset: insetRegistry.register,
@@ -222,6 +237,9 @@ export const makeThreadViewportStore = (
           targetConfig: null,
         });
       };
+    },
+    setTopAnchorTurn: (topAnchorTurn) => {
+      store.setState({ topAnchorTurn });
     },
   }));
 

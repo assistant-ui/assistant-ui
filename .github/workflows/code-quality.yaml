@@ -7,6 +7,8 @@ on:
       - "packages/**"
       - "apps/**"
       - "examples/**"
+      - "templates/**"
+      - "scripts/sync-templates.sh"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -17,6 +19,8 @@ on:
       - "packages/**"
       - "apps/**"
       - "examples/**"
+      - "templates/**"
+      - "scripts/sync-templates.sh"
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -50,6 +54,19 @@ jobs:
 
       - name: Run Biome
         run: pnpm lint
+
+  template-sync:
+    name: Template Sync
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 2
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Verify templates match packages/ui source
+        run: bash scripts/sync-templates.sh
 
   build:
     name: Build Changed Packages

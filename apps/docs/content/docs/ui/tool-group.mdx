@@ -18,31 +18,56 @@ A wrapper component that groups consecutive tool calls together, displaying them
 <Steps>
   <Step>
 
-### Add `tool-group`
+### Add `tool-group` and `tool-fallback`
 
-<InstallCommand shadcn={["tool-group"]} />
+<InstallCommand shadcn={["tool-group", "tool-fallback"]} />
 
-This adds a `/components/assistant-ui/tool-group.tsx` file to your project, which you can adjust as needed.
+This adds `/components/assistant-ui/tool-group.tsx` and `/components/assistant-ui/tool-fallback.tsx` files to your project, which you can adjust as needed.
 
   </Step>
   <Step>
 
 ### Use it in your application
 
-Pass the `ToolGroup` component to the `MessagePrimitive.Parts` component
+Use `MessagePrimitive.GroupedParts` and return `"group-tool"` for tool-call parts. The group case wraps `children`; the tool-call leaf renders the resolved tool UI or your fallback.
 
-```tsx title="/components/assistant-ui/thread.tsx" {1,8}
-import { ToolGroup } from "@/components/assistant-ui/tool-group";
+```tsx title="/components/assistant-ui/thread.tsx"
+import { MessagePrimitive } from "@assistant-ui/react";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import {
+  ToolGroupContent,
+  ToolGroupRoot,
+  ToolGroupTrigger,
+} from "@/components/assistant-ui/tool-group";
 
 const AssistantMessage = () => {
   return (
     <MessagePrimitive.Root>
-      <MessagePrimitive.Parts>
-        {({ part }) => {
-          if (part.type === "tool-call") return <ToolGroup {...part} />;
+      <MessagePrimitive.GroupedParts
+        groupBy={(part) => {
+          if (part.type === "tool-call") return ["group-tool"];
           return null;
         }}
-      </MessagePrimitive.Parts>
+      >
+        {({ part, children }) => {
+          switch (part.type) {
+            case "group-tool":
+              return (
+                <ToolGroupRoot>
+                  <ToolGroupTrigger
+                    count={part.indices.length}
+                    active={part.status.type === "running"}
+                  />
+                  <ToolGroupContent>{children}</ToolGroupContent>
+                </ToolGroupRoot>
+              );
+            case "tool-call":
+              return part.toolUI ?? <ToolFallback {...part} />;
+            default:
+              return null;
+          }
+        }}
+      </MessagePrimitive.GroupedParts>
     </MessagePrimitive.Root>
   );
 };
@@ -182,7 +207,9 @@ import {
   ]}
 />
 
-### ToolGroup (Default Export)
+### ToolGroup (Legacy Wrapper)
+
+`ToolGroup` is kept for existing code that still uses the deprecated `components.ToolGroup` prop on `MessagePrimitive.Parts`. Prefer composing `ToolGroupRoot`, `ToolGroupTrigger`, and `ToolGroupContent` inside `MessagePrimitive.GroupedParts`.
 
 <ParametersTable
   type="ToolGroupProps"

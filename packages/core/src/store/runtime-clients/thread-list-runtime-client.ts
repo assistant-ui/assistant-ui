@@ -53,6 +53,8 @@ export const ThreadListClient = resource(
         mainThreadId: runtimeState.mainThreadId,
         newThreadId: runtimeState.newThreadId ?? null,
         isLoading: runtimeState.isLoading,
+        isLoadingMore: runtimeState.isLoadingMore,
+        hasMore: runtimeState.hasMore,
         threadIds: runtimeState.threadIds,
         archivedThreadIds: runtimeState.archivedThreadIds,
         threadItems: threadItems.state,
@@ -87,6 +89,7 @@ export const ThreadListClient = resource(
       },
       getLoadThreadsPromise: () => runtime.getLoadThreadsPromise(),
       reload: () => runtime.reload(),
+      loadMore: () => runtime.loadMore(),
       __internal_getAssistantRuntime: () => __internal_assistantRuntime,
     };
   },

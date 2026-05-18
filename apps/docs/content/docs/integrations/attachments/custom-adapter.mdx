@@ -36,7 +36,7 @@ Three ideas to internalize before reading the code:
 
 ### Build the presign endpoint
 
-The browser cannot mint upload credentials safely; the server creates a short-lived presigned URL. The example below uses S3, but R2, GCS, and Vercel Blob have nearly identical shapes.
+The client cannot mint upload credentials safely; the server creates a short-lived presigned URL. The example below uses S3, but R2, GCS, and Vercel Blob have nearly identical shapes.
 
 ```sh title=".env.local"
 AWS_REGION=us-east-1
@@ -111,6 +111,9 @@ export async function DELETE(
 
 ### Implement the adapter
 
+<PlatformTabs>
+<Tab value="React">
+
 ```tsx title="app/runtime/attachment-adapter.ts"
 import type {
   AttachmentAdapter,
@@ -176,12 +179,170 @@ export const attachmentAdapter: AttachmentAdapter = {
 };
 ```
 
+</Tab>
+<Tab value="React Native">
+
+On React Native, the picker (e.g. `expo-document-picker`, `expo-image-picker`) returns a `{ uri, name, mimeType }` object. Wrap it as a `File`-shaped object before handing it to the composer:
+
+```tsx title="runtime/attachment-adapter.ts"
+import type {
+  AttachmentAdapter,
+  PendingAttachment,
+  CompleteAttachment,
+} from "@assistant-ui/react-native";
+
+type Pending = PendingAttachment & { key: string; url: string };
+
+export const attachmentAdapter: AttachmentAdapter = {
+  accept: "image/*,application/pdf",
+
+  async add({ file }) {
+    const presign = await fetch(`${API_URL}/upload`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: file.name, contentType: file.type }),
+    }).then((r) => r.json());
+
+    const blob = await fetch((file as any).uri).then((r) => r.blob());
+    const put = await fetch(presign.uploadUrl, {
+      method: "PUT",
+      headers: { "content-type": file.type },
+      body: blob,
+    });
+    if (!put.ok) throw new Error(`upload failed: ${put.status}`);
+
+    const pending: Pending = {
+      id: presign.key,
+      type: file.type.startsWith("image/") ? "image" : "document",
+      name: file.name,
+      contentType: file.type,
+      file,
+      url: presign.publicUrl,
+      key: presign.key,
+      status: { type: "requires-action", reason: "composer-send" },
+    };
+    return pending;
+  },
+
+  async send(attachment): Promise<CompleteAttachment> {
+    const { url, type, name, contentType } = attachment as Pending;
+
+    const content =
+      type === "image"
+        ? [{ type: "image" as const, image: url }]
+        : [
+            {
+              type: "file" as const,
+              filename: name,
+              mimeType: contentType ?? "application/octet-stream",
+              data: url,
+            },
+          ];
+
+    return { ...attachment, status: { type: "complete" }, content };
+  },
+
+  async remove(attachment) {
+    await fetch(`${API_URL}/upload/${(attachment as Pending).key}`, {
+      method: "DELETE",
+    });
+  },
+};
+```
+
+The picker result has a `uri` (file://… or content://…). `fetch(uri)` reads it into a Blob that the storage backend accepts.
+
+</Tab>
+<Tab value="React Ink">
+
+On Ink, the user types a path; read it from disk before uploading.
+
+```tsx title="runtime/attachment-adapter.ts"
+import type {
+  AttachmentAdapter,
+  PendingAttachment,
+  CompleteAttachment,
+} from "@assistant-ui/react-ink";
+import { readFile } from "node:fs/promises";
+import { basename } from "node:path";
+
+type Pending = PendingAttachment & { key: string; url: string };
+
+export const attachmentAdapter: AttachmentAdapter = {
+  accept: "image/*,application/pdf",
+
+  async add({ file }) {
+    const path = (file as any).path as string;
+    const name = file.name ?? basename(path);
+    const contentType = file.type ?? "application/octet-stream";
+
+    const presign = await fetch(`${API_URL}/upload`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name, contentType }),
+    }).then((r) => r.json());
+
+    const buffer = await readFile(path);
+    const put = await fetch(presign.uploadUrl, {
+      method: "PUT",
+      headers: { "content-type": contentType },
+      body: buffer,
+    });
+    if (!put.ok) throw new Error(`upload failed: ${put.status}`);
+
+    const pending: Pending = {
+      id: presign.key,
+      type: contentType.startsWith("image/") ? "image" : "document",
+      name,
+      contentType,
+      file,
+      url: presign.publicUrl,
+      key: presign.key,
+      status: { type: "requires-action", reason: "composer-send" },
+    };
+    return pending;
+  },
+
+  async send(attachment): Promise<CompleteAttachment> {
+    const { url, type, name, contentType } = attachment as Pending;
+
+    const content =
+      type === "image"
+        ? [{ type: "image" as const, image: url }]
+        : [
+            {
+              type: "file" as const,
+              filename: name,
+              mimeType: contentType ?? "application/octet-stream",
+              data: url,
+            },
+          ];
+
+    return { ...attachment, status: { type: "complete" }, content };
+  },
+
+  async remove(attachment) {
+    await fetch(`${API_URL}/upload/${(attachment as Pending).key}`, {
+      method: "DELETE",
+    });
+  },
+};
+```
+
+`file.path` is whatever your input prompt collected from the user (a tilde-expanded absolute path). Node 20+ exposes `fetch` globally.
+
+</Tab>
+</PlatformTabs>
+
 The shape of `content` matches the AI SDK part types. Use `image` for images and `file` for everything else; AI SDK forwards them to multimodal models that accept URL-based content.
 
 </Step>
 <Step>
 
 ### Wire it into the runtime
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx title="app/runtime/MyProvider.tsx"
 "use client";
@@ -202,7 +363,58 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-The composer paperclip button appears automatically. The `accept` string filters the file picker.
+</Tab>
+<Tab value="React Native">
+
+```tsx title="runtime/MyProvider.tsx"
+import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
+import {
+  AssistantChatTransport,
+  useChatRuntime,
+} from "@assistant-ui/react-ai-sdk";
+import { attachmentAdapter } from "./attachment-adapter";
+
+export function MyProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({ api: `${API_URL}/chat` }),
+    adapters: { attachments: attachmentAdapter },
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="runtime/MyProvider.tsx"
+import { AssistantRuntimeProvider } from "@assistant-ui/react-ink";
+import {
+  AssistantChatTransport,
+  useChatRuntime,
+} from "@assistant-ui/react-ai-sdk";
+import { attachmentAdapter } from "./attachment-adapter";
+
+export function MyProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({ api: `${API_URL}/chat` }),
+    adapters: { attachments: attachmentAdapter },
+  });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
+The composer paperclip button appears automatically on platforms with a built-in composer UI. The `accept` string filters the file picker.
 
 </Step>
 <Step>
@@ -290,7 +502,7 @@ In the adapter's `add`, call Uploadthing's client upload and read `url` from the
 - **Persistence.** A URL the model sees on Monday must still resolve next week if the thread is reloaded. Either use storage with no expiry on the public URL, or have your [history adapter](/docs/integrations/persistence/custom-adapter) regenerate signed URLs on `load`. Don't store presigned URLs in the message row.
 - **Cleanup.** `remove` runs only if the user dismisses the attachment before sending. Files in sent messages are kept; deleting them later breaks message rendering.
 - **`accept` string.** Comma-separated MIME types or extensions, including wildcards (`image/*`). The composer file picker uses this directly. To handle multiple type families with different upload paths, use [`CompositeAttachmentAdapter`](/docs/runtimes/concepts/adapters#attachment-adapter).
-- **Server-side validation.** Even with presigning, validate `contentType` and file size on the server. The browser controls what it sends; trust nothing.
+- **Server-side validation.** Even with presigning, validate `contentType` and file size on the server. The client controls what it sends; trust nothing.
 
 ## Related
 

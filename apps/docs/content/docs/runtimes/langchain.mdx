@@ -1,6 +1,6 @@
 ---
-title: LangChain useStream
-description: Lighter-weight LangGraph adapter that wraps @langchain/react's useStream hook.
+title: LangChain React Runtime
+description: Use LangChain's useStream hook with a React chat UI through assistant-ui — a lighter LangGraph adapter that delegates streaming to @langchain/react.
 ---
 
 import { LangGraphIcon } from "@/components/icons/langgraph";
@@ -40,12 +40,31 @@ Shared adapters (attachments, speech, feedback) work the same way described in [
 
 ### Install dependencies
 
+<PlatformTabs>
+<Tab value="React">
+
 <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-langchain", "@langchain/react", "@langchain/langgraph-sdk"]} />
+
+</Tab>
+<Tab value="React Native">
+
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-langchain", "@langchain/react", "@langchain/langgraph-sdk"]} />
+
+</Tab>
+<Tab value="React Ink">
+
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/react-langchain", "@langchain/react", "@langchain/langgraph-sdk", "ink", "react"]} />
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 <Step>
 
 ### Define the assistant component
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx title="@/components/MyAssistant.tsx"
 "use client";
@@ -68,10 +87,60 @@ export function MyAssistant() {
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx title="components/MyAssistant.tsx"
+import { Thread } from "@/components/assistant-ui/thread";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
+import { useStreamRuntime } from "@assistant-ui/react-langchain";
+
+export function MyAssistant() {
+  const runtime = useStreamRuntime({
+    assistantId: process.env.EXPO_PUBLIC_LANGGRAPH_ASSISTANT_ID!,
+    apiUrl: process.env.EXPO_PUBLIC_LANGGRAPH_API_URL,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="components/MyAssistant.tsx"
+import { Thread } from "./thread.js";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-ink";
+import { useStreamRuntime } from "@assistant-ui/react-langchain";
+
+export function MyAssistant() {
+  const runtime = useStreamRuntime({
+    assistantId: process.env.LANGGRAPH_ASSISTANT_ID!,
+    apiUrl: process.env.LANGGRAPH_API_URL,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 </Step>
 <Step>
 
 ### Mount the component
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx title="@/app/page.tsx"
 import { MyAssistant } from "@/components/MyAssistant";
@@ -85,22 +154,95 @@ export default function Home() {
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx title="app/index.tsx"
+import { View } from "react-native";
+import { MyAssistant } from "@/components/MyAssistant";
+
+export default function Home() {
+  return (
+    <View style={{ flex: 1 }}>
+      <MyAssistant />
+    </View>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="app.tsx"
+import { Box } from "ink";
+import { MyAssistant } from "./components/MyAssistant.js";
+
+export function App() {
+  return (
+    <Box flexDirection="column">
+      <MyAssistant />
+    </Box>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 </Step>
 <Step>
 
 ### Set environment variables
+
+<PlatformTabs>
+<Tab value="React">
 
 ```sh title=".env.local"
 NEXT_PUBLIC_LANGGRAPH_API_URL=http://localhost:2024
 NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=your_graph_id
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```sh title=".env"
+EXPO_PUBLIC_LANGGRAPH_API_URL=http://localhost:2024
+EXPO_PUBLIC_LANGGRAPH_ASSISTANT_ID=your_graph_id
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```sh title=".env"
+LANGGRAPH_API_URL=http://localhost:2024
+LANGGRAPH_ASSISTANT_ID=your_graph_id
+```
+
+</Tab>
+</PlatformTabs>
+
 </Step>
 <Step>
 
 ### Set up UI components
 
+<PlatformTabs>
+<Tab value="React">
+
 Follow the [UI Components guide](/docs/ui/thread).
+
+</Tab>
+<Tab value="React Native">
+
+Follow the [React Native setup](/docs/react-native).
+
+</Tab>
+<Tab value="React Ink">
+
+Follow the [Ink setup](/docs/ink).
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 </Steps>
@@ -118,6 +260,9 @@ Follow the [UI Components guide](/docs/ui/thread).
 ## Reading custom state keys
 
 LangGraph agents often expose structured state beyond messages (plans, todos, scratch files, generative-UI artifacts). Read them directly with `useLangChainState`. It mirrors `useStream().values[key]` upstream and updates when the stream emits new state.
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx
 import { useLangChainState } from "@assistant-ui/react-langchain";
@@ -138,6 +283,55 @@ function TodoList() {
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx
+import { useLangChainState } from "@assistant-ui/react-langchain";
+import { Text, View } from "react-native";
+
+type Todo = { id: string; title: string; done: boolean };
+
+function TodoList() {
+  const todos = useLangChainState<Todo[]>("todos", []);
+  return (
+    <View>
+      {todos.map((t) => (
+        <Text key={t.id}>
+          {t.done ? "✓" : "○"} {t.title}
+        </Text>
+      ))}
+    </View>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx
+import { useLangChainState } from "@assistant-ui/react-langchain";
+import { Box, Text } from "ink";
+
+type Todo = { id: string; title: string; done: boolean };
+
+function TodoList() {
+  const todos = useLangChainState<Todo[]>("todos", []);
+  return (
+    <Box flexDirection="column">
+      {todos.map((t) => (
+        <Text key={t.id}>
+          {t.done ? "✓" : "○"} {t.title}
+        </Text>
+      ))}
+    </Box>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 Signatures:
 
 ```ts
@@ -154,6 +348,9 @@ Added in v0.0.2 — see issue [#3862](https://github.com/assistant-ui/assistant-
 ## Interrupts
 
 LangGraph interrupts pause the graph and wait for client input. `useLangChainInterruptState` exposes the current interrupt; `useLangChainSubmit` resumes the graph with a raw state update.
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx
 import {
@@ -180,6 +377,69 @@ function InterruptPrompt() {
   );
 }
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```tsx
+import {
+  useLangChainInterruptState,
+  useLangChainSubmit,
+} from "@assistant-ui/react-langchain";
+import { Command } from "@langchain/langgraph-sdk";
+import { Pressable, Text, View } from "react-native";
+
+function InterruptPrompt() {
+  const interrupt = useLangChainInterruptState();
+  const submit = useLangChainSubmit();
+  if (!interrupt) return null;
+  return (
+    <View>
+      <Text>{JSON.stringify(interrupt.value, null, 2)}</Text>
+      <Pressable
+        onPress={() =>
+          submit(null, { command: new Command({ resume: "approved" }) })
+        }
+      >
+        <Text>Approve</Text>
+      </Pressable>
+    </View>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx
+import {
+  useLangChainInterruptState,
+  useLangChainSubmit,
+} from "@assistant-ui/react-langchain";
+import { Command } from "@langchain/langgraph-sdk";
+import { Box, Text, useInput } from "ink";
+
+function InterruptPrompt() {
+  const interrupt = useLangChainInterruptState();
+  const submit = useLangChainSubmit();
+
+  useInput((input) => {
+    if (!interrupt || input !== "a") return;
+    submit(null, { command: new Command({ resume: "approved" }) });
+  });
+
+  if (!interrupt) return null;
+  return (
+    <Box flexDirection="column">
+      <Text>{JSON.stringify(interrupt.value, null, 2)}</Text>
+      <Text>Press a to approve.</Text>
+    </Box>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
 
 ## Message conversion
 

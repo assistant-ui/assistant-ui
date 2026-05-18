@@ -1,6 +1,6 @@
 ---
-title: Overview
-description: Connect to any A2A v1.0 protocol-compliant agent server.
+title: A2A Agent Runtime
+description: Connect any A2A v1.0 protocol-compliant agent server to a React chat UI with assistant-ui — full streaming, tool calls, and message metadata supported.
 ---
 
 `@assistant-ui/react-a2a` is a runtime adapter for the [A2A (Agent-to-Agent) v1.0 protocol](https://github.com/a2aproject/A2A). Use it when your backend speaks A2A; the adapter handles the wire protocol so you can focus on the UI.
@@ -26,7 +26,23 @@ If your backend is not A2A-compliant, see [picking a runtime](/docs/runtimes/pic
 
 ## Install
 
+<PlatformTabs>
+<Tab value="React">
+
 <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-a2a"]} />
+
+</Tab>
+<Tab value="React Native">
+
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-a2a"]} />
+
+</Tab>
+<Tab value="React Ink">
+
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/react-a2a", "ink", "react"]} />
+
+</Tab>
+</PlatformTabs>
 
 ## Next
 

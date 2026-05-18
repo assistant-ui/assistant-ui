@@ -1,4 +1,7 @@
-import type { RemoteThreadInitializeResponse } from "./types";
+import type {
+  RemoteThreadInitializeResponse,
+  RemoteThreadMetadata,
+} from "./types";
 
 export type RemoteThreadData =
   | {
@@ -34,8 +37,58 @@ export function createThreadMappingId(id: string): THREAD_MAPPING_ID {
   return id as THREAD_MAPPING_ID;
 }
 
+export const normalizeCursor = (c: string | undefined): string | undefined =>
+  c || undefined;
+
+type ClassifyAccumulator = {
+  threadIds: string[];
+  archivedThreadIds: string[];
+  threadIdMap: Record<string, THREAD_MAPPING_ID>;
+  threadData: Record<THREAD_MAPPING_ID, RemoteThreadData>;
+};
+
+export const classifyThreads = (
+  threads: readonly RemoteThreadMetadata[],
+  acc: ClassifyAccumulator,
+): ClassifyAccumulator => {
+  for (const thread of threads) {
+    if (acc.threadIdMap[thread.remoteId] !== undefined) continue;
+
+    switch (thread.status) {
+      case "regular":
+        acc.threadIds.push(thread.remoteId);
+        break;
+      case "archived":
+        acc.archivedThreadIds.push(thread.remoteId);
+        break;
+      default: {
+        const _exhaustiveCheck: never = thread.status;
+        throw new Error(`Unsupported state: ${_exhaustiveCheck}`);
+      }
+    }
+
+    const mappingId = createThreadMappingId(thread.remoteId);
+    acc.threadIdMap[thread.remoteId] = mappingId;
+    acc.threadData[mappingId] = {
+      id: thread.remoteId,
+      remoteId: thread.remoteId,
+      externalId: thread.externalId,
+      status: thread.status,
+      title: thread.title,
+      custom: thread.custom,
+      initializeTask: Promise.resolve({
+        remoteId: thread.remoteId,
+        externalId: thread.externalId,
+      }),
+    };
+  }
+  return acc;
+};
+
 export type RemoteThreadState = {
   readonly isLoading: boolean;
+  readonly isLoadingMore: boolean;
+  readonly cursor: string | undefined;
   readonly newThreadId: string | undefined;
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];

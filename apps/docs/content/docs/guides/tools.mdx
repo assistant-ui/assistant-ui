@@ -1,6 +1,6 @@
 ---
-title: Tools
-description: Give your assistant actions like API calls, database queries, and more.
+title: Tool Calling
+description: Add API calls, database queries, and custom actions to your AI chat with assistant-ui's tool calling. Real-time visualization, type safety, and streaming.
 platforms: ["react"]
 ---
 
@@ -27,7 +27,7 @@ When tools are executed, you can display custom generative UI components that pr
 
 ## Tools() API
 
-The `Tools()` API is the recommended way to register tools in assistant-ui. It provides centralized tool registration that prevents duplicate registrations and works seamlessly with all runtimes.
+The `Tools()` API is the recommended starting point for registering tools in assistant-ui. It provides centralized tool registration that prevents duplicate registrations and works seamlessly with all runtimes. For tools whose availability depends on a specific part of your UI being mounted, see the [component-based APIs](#component-based-apis) below; both styles are supported and can be mixed in the same app.
 
 ### Quick Start
 
@@ -100,6 +100,7 @@ type ToolDefinition =
       description?: string;
       parameters: StandardSchemaV1 | JSONSchema7; // e.g. a Zod schema
       execute: (args, context) => Promise<any>;
+      toModelOutput?: (opts) => ToolModelContentPart[]; // see "Multi-modal tool results"
       render?: (props) => React.ReactNode;
     }
   | {
@@ -115,6 +116,66 @@ type ToolDefinition =
       render?: (props) => React.ReactNode;
     };
 ```
+
+### Multi-modal Tool Results
+
+By default, the value returned from `execute` is sent to the model as a single JSON blob. That is fine for most tools, but it does not work for tools whose useful output is a file or image: a "read PDF" tool, an OCR tool, a chart-rendering tool, etc.
+
+`toModelOutput` is an optional callback that maps the developer-facing `execute` result into the multi-modal content the model actually sees. Your `render` function still receives the rich, typed `result`; the model receives the projection.
+
+```tsx
+import { tool } from "@assistant-ui/react";
+import { convertUint8ArrayToBase64 } from "@ai-sdk/provider-utils";
+import { z } from "zod";
+
+const readPdfTool = tool({
+  description: "Fetch a PDF from a URL and return it",
+  parameters: z.object({ url: z.string().url() }),
+  execute: async ({ url }) => {
+    const res = await fetch(url);
+    const buf = new Uint8Array(await res.arrayBuffer());
+    const base64 = convertUint8ArrayToBase64(buf);
+    return { mediaType: "application/pdf", base64, byteLength: buf.byteLength };
+  },
+  toModelOutput: ({ output }) => [
+    { type: "text", text: "PDF contents:" },
+    {
+      type: "file",
+      data: output.base64,
+      mediaType: output.mediaType,
+    },
+  ],
+});
+```
+
+`ToolModelContentPart` is a union of `{ type: "text"; text }` and `{ type: "file"; data; mediaType; filename? }`. Use `mediaType` (e.g. `image/png`, `application/pdf`) to tell the model how to interpret the bytes.
+
+When using the AI SDK runtime, frontend tool results round-trip through the AI SDK chat protocol back to your route handler on the next turn. For `toModelOutput` to fire on those round-tripped results, your route handler must also pass the tool registry to `convertToModelMessages`. This is the [same pattern AI SDK documents](https://ai-sdk.dev/docs/reference/ai-sdk-ui/convert-to-model-messages#multi-modal-tool-responses) for any multi-modal tool response:
+
+```ts
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { convertToModelMessages, streamText } from "ai";
+
+const aiSDKTools = { ...frontendTools(tools ?? {}) };
+
+const result = streamText({
+  model,
+  // Pass tools to both calls. convertToModelMessages reads `toModelOutput`
+  // from `tools[toolName]` to project prior tool results.
+  messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+  tools: aiSDKTools,
+});
+```
+
+If you skip the `{ tools: aiSDKTools }` argument, prior tool results will be sent to the model as a plain JSON blob (the AI SDK default), and your `toModelOutput` will be silently ignored. Tools that do not declare `toModelOutput` are unaffected either way.
+
+<Callout type="warn">
+  **Reserved property name.** When `toModelOutput` is set, the runtime wraps the AI SDK chat output as `{ __aui_modelContent: ToolModelContentPart[], value: <your result> }` before persisting. Do not return objects whose top-level key is literally `__aui_modelContent` from any tool's `execute`, or it will be misread as the envelope. The prefix is namespaced for this reason; any other property name is fine.
+</Callout>
+
+<Callout type="warn">
+  **Read/write compatibility for persisted threads.** The `__aui_modelContent` envelope is recognized by `@assistant-ui/react-ai-sdk` from this version onward. If you persist UI messages (thread history adapter, cloud, etc.) and read them from multiple environments, upgrade every reader before any writer starts producing `toModelOutput`. Older readers will treat the entire envelope as the `result`, which breaks tool `render` functions for those messages.
+</Callout>
 
 ### Organizing Large Toolkits
 
@@ -315,11 +376,20 @@ const SearchToolUI = makeAssistantToolUI<{ query: string; limit: number }, unkno
 
 ## Component-Based APIs
 
-`makeAssistantTool`, `useAssistantTool`, and `makeAssistantToolUI` are component-and-hook-based APIs that coexist with the [`Tools()`](#tools-api) toolkit pattern. They are fully supported and useful when you want tool registration tied to the React tree rather than declared in a toolkit object. The toolkit pattern is generally more ergonomic for larger tool sets; pick whichever fits your codebase.
+`makeAssistantTool`, `useAssistantTool`, and `makeAssistantToolUI` are component-and-hook-based APIs that coexist with the [`Tools()`](#tools-api) toolkit pattern. They are fully supported and the natural fit for the [intelligent components](/docs/copilots/motivation) pattern, where each part of your UI registers the tools it owns when it is mounted, for example a product-specific tool that should only be exposed while that product's screen is open.
 
 <Callout type="info">
   Be careful not to register the same tool from both APIs at once: each API
   registers under `toolName`, and duplicate registrations will be rejected.
+</Callout>
+
+<Callout type="warn">
+  Tool **execution** can be registered dynamically (when a component mounts),
+  but tool **UI** should generally be pre-registered. A `render` function that
+  is only registered while a specific component is mounted will not render
+  when chat history is replayed or during server-side rendering. Either
+  declare the tool's `render` in a `Tools()` toolkit, or mount
+  `makeAssistantToolUI` near the root of your tree.
 </Callout>
 
 ### Using `makeAssistantTool`
@@ -455,7 +525,7 @@ import { z } from "zod";
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-nano"),
     messages: await convertToModelMessages(messages),
     tools: {
       queryDatabase: tool({
@@ -510,7 +580,7 @@ export async function POST(req: Request) {
   const { messages, tools } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-nano"),
     messages: await convertToModelMessages(messages),
     tools: {
       ...frontendTools(tools), // Client-defined tools
@@ -549,7 +619,7 @@ export async function POST(req: Request) {
     const tools = await client.tools();
 
     const result = streamText({
-      model: openai("gpt-4o"),
+      model: openai("gpt-5.4-nano"),
       tools,
       messages: await convertToModelMessages(messages),
     });

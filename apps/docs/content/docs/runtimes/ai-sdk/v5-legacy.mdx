@@ -22,9 +22,7 @@ This page is reference for existing v5 projects. Plan to migrate to v6 when feas
 
 ### Install v5-compatible versions
 
-```sh
-npm install @assistant-ui/react @assistant-ui/react-ai-sdk@0.x ai@^5 @ai-sdk/openai@^1 zod
-```
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ai-sdk@0.x", "ai@^5", "@ai-sdk/openai@^1", "zod"]} />
 
 </Step>
 <Step>
@@ -42,7 +40,7 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages }: { messages: Message[] } = await req.json();
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-nano"),
     messages,
     tools: {
       get_current_weather: tool({

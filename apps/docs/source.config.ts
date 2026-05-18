@@ -47,6 +47,7 @@ export const docs = defineDocs({
   meta: {
     schema: metaSchema.extend({
       description: z.string().optional(),
+      overview: z.string().optional(),
       platforms: z.array(platformSchema).optional(),
     }),
   },

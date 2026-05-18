@@ -627,7 +627,15 @@ useExternalStoreRuntime({
     {
       name: "isDisabled",
       type: "boolean",
-      description: "Whether the chat input should be disabled.",
+      description:
+        "Disables the entire composer, including the text input. For a narrower gate that keeps the input usable but blocks only sending, use isSendDisabled.",
+      default: "false",
+    },
+    {
+      name: "isSendDisabled",
+      type: "boolean",
+      description:
+        "Blocks new-message sending while leaving the input usable. When true, the thread composer's canSend becomes false, the Send button is disabled, Enter and the steer hotkey are no-ops, and aui.composer().send() short-circuits. Edit composers (saving message edits) ignore this flag. Use this to gate sending on external React state (e.g. while tools or auth are still loading).",
       default: "false",
     },
     {

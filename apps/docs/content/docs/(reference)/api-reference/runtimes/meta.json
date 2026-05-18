@@ -1,11 +1,14 @@
 {
-  "title": "Runtime Hooks",
+  "title": "Runtimes",
+  "description": "Runtime state and actions exposed through useAui and useAuiState, covering AssistantRuntime, ThreadRuntime, ThreadListRuntime, ComposerRuntime, MessageRuntime, and attachment APIs for controlling assistant-ui chat.",
   "pages": [
+    "index",
     "assistant-runtime",
     "attachment-runtime",
     "composer-runtime",
     "message-part-runtime",
     "message-runtime",
+    "queue-state",
     "thread-list-item-runtime",
     "thread-list-runtime",
     "thread-runtime"

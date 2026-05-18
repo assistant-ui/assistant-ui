@@ -3,6 +3,9 @@ import Link from "next/link";
 import type { FC, ReactNode } from "react";
 import { StatusBadge } from "./status-badge";
 
+const DESCRIPTION_LINK_CLASSNAME =
+  "font-medium text-foreground underline underline-offset-2";
+
 type ParameterDef = {
   name: string;
   type?: string;
@@ -26,7 +29,7 @@ const COMMON_PARAMS: Record<string, ParameterDef> = {
         <br />
         Read the{" "}
         <Link
-          className="font-medium text-foreground underline underline-offset-2"
+          className={DESCRIPTION_LINK_CLASSNAME}
           href="/docs/api-reference/primitives/composition"
         >
           Composition
@@ -36,6 +39,57 @@ const COMMON_PARAMS: Record<string, ParameterDef> = {
     ),
   },
 };
+
+const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+
+function renderLinkLabel(label: string): ReactNode {
+  if (label.startsWith("`") && label.endsWith("`")) {
+    return <code>{label.slice(1, -1)}</code>;
+  }
+  return label;
+}
+
+function renderDescription(description: string | ReactNode): ReactNode {
+  if (typeof description !== "string") return description;
+
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  for (const match of description.matchAll(MARKDOWN_LINK_REGEX)) {
+    const fullMatch = match[0]!;
+    const label = match[1]!;
+    const linkHref = match[2]!;
+    const index = match.index ?? 0;
+    if (index > lastIndex) {
+      parts.push(description.slice(lastIndex, index));
+    }
+
+    const children = renderLinkLabel(label);
+    parts.push(
+      linkHref.startsWith("/") ? (
+        <Link
+          key={`${linkHref}-${index}`}
+          className={DESCRIPTION_LINK_CLASSNAME}
+          href={linkHref}
+        >
+          {children}
+        </Link>
+      ) : (
+        <a
+          key={`${linkHref}-${index}`}
+          className={DESCRIPTION_LINK_CLASSNAME}
+          href={linkHref}
+        >
+          {children}
+        </a>
+      ),
+    );
+    lastIndex = index + fullMatch.length;
+  }
+
+  if (lastIndex === 0) return description;
+  if (lastIndex < description.length) parts.push(description.slice(lastIndex));
+  return parts;
+}
 
 const Parameter: FC<{
   parameter: ParameterDef;
@@ -51,47 +105,56 @@ const Parameter: FC<{
   return (
     <div
       className={cn(
-        "group flex flex-col gap-2 border-border/50 border-b px-4 py-3 last:border-b-0",
+        "group border-border/50 border-b px-4 py-3 last:border-b-0",
         isNested && "bg-muted/30",
       )}
     >
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <code className="font-mono font-semibold text-foreground text-sm">
-          {parameter.name}
-        </code>
-        {parameter.deprecated && <StatusBadge variant="deprecated" />}
-        {parameter.name.startsWith("unstable_") && (
-          <StatusBadge variant="unstable" />
-        )}
-        {parameter.type && (
-          <code className="font-mono text-muted-foreground text-xs">
-            {isOptional && "?"}
-            {": "}
-            {parameter.type}
+      <dt>
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <code className="font-mono font-semibold text-foreground text-sm">
+            {parameter.name}
           </code>
-        )}
-        {parameter.default && (
-          <span className="font-mono text-muted-foreground text-xs">
-            = {parameter.default}
-          </span>
-        )}
-      </div>
-
-      <p className="text-muted-foreground text-sm leading-relaxed">
-        {parameter.description}
-      </p>
-
-      {parameter.deprecated && (
-        <p className="text-amber-600 text-xs dark:text-amber-400">
-          Deprecated: {parameter.deprecated}
-        </p>
-      )}
-
-      {parameter.children?.map((child, i) => (
-        <div key={child.type ?? i} className="mt-2">
-          <ParametersBox {...child} isNested />
+          {parameter.deprecated && <StatusBadge variant="deprecated" />}
+          {parameter.name.startsWith("unstable_") && (
+            <StatusBadge variant="unstable" />
+          )}
+          {parameter.type && (
+            <>
+              {" "}
+              <code className="font-mono text-muted-foreground text-xs">
+                {isOptional && "?"}
+                {": "}
+                {parameter.type}
+              </code>
+            </>
+          )}
+          {parameter.default && (
+            <>
+              {" "}
+              <span className="font-mono text-muted-foreground text-xs">
+                = {parameter.default}
+              </span>
+            </>
+          )}
         </div>
-      ))}
+      </dt>
+      <dd className="pt-2">
+        <p className="whitespace-pre-line text-muted-foreground text-sm leading-relaxed">
+          {renderDescription(parameter.description)}
+        </p>
+
+        {parameter.deprecated && (
+          <p className="mt-2 text-amber-600 text-xs dark:text-amber-400">
+            Deprecated: {parameter.deprecated}
+          </p>
+        )}
+
+        {parameter.children?.map((child, i) => (
+          <div key={child.type ?? i} className="mt-3">
+            <ParametersBox {...child} isNested />
+          </div>
+        ))}
+      </dd>
     </div>
   );
 };
@@ -106,19 +169,14 @@ const ParametersBox: FC<
         isNested && "border-border/40",
       )}
     >
-      {type && (
-        <div
-          className={cn(
-            "border-border/60 border-b bg-muted/50 px-4 py-2",
-            isNested && "border-border/40 bg-muted/30",
-          )}
-        >
+      {type && !isNested && (
+        <div className="border-border/60 border-b bg-muted/50 px-4 py-2">
           <code className="font-medium font-mono text-muted-foreground text-xs">
             {type}
           </code>
         </div>
       )}
-      <div>
+      <dl>
         {parameters.map((parameter) => (
           <Parameter
             key={parameter.name}
@@ -126,7 +184,7 @@ const ParametersBox: FC<
             isNested={isNested}
           />
         ))}
-      </div>
+      </dl>
     </div>
   );
 };

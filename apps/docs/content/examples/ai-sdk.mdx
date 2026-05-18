@@ -1,6 +1,6 @@
 ---
-title: AI SDK + Chat Persistence
-description: Chat persistence with AI SDK
+title: AI SDK Chat Persistence
+description: Vercel AI SDK chat with thread persistence — open-source React example combining the AI SDK and assistant-ui for streaming, thread management, and message history.
 ---
 
 import { Shadcn } from "@/components/examples/shadcn";
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-nano"),
     messages: await convertToModelMessages(messages),
     // Optional: Add system prompt
     system: "You are a helpful assistant.",

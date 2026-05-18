@@ -1,6 +1,5 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { spawn } from "cross-spawn";
 import fs from "node:fs";
 import path from "node:path";
 import * as p from "@clack/prompts";
@@ -9,10 +8,11 @@ import {
   dlxCommand,
   downloadProject,
   resolveLatestReleaseRef,
-  resolvePackageManagerName,
+  resolvePackageManager,
+  resolvePackageManagerForCwd,
   transformProject,
-  type PackageManagerName,
 } from "../lib/create-project";
+import { runSpawn, SpawnExitError } from "../lib/run-spawn";
 
 export interface ProjectMetadata {
   name: string;
@@ -68,7 +68,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
   {
     name: "mcp",
     label: "MCP",
-    description: "MCP starter template",
+    description: "MCP tools + MCP Apps renderer starter",
     category: "template",
     path: "templates/mcp",
     hasLocalComponents: true,
@@ -276,7 +276,7 @@ export async function resolveProject(params: {
     isCancel = p.isCancel,
   } = params;
 
-  if (template) {
+  if (template !== undefined) {
     const meta = PROJECT_METADATA.find(
       (m) => m.name === template && m.category === "template",
     );
@@ -288,7 +288,7 @@ export async function resolveProject(params: {
     return meta;
   }
 
-  if (example) {
+  if (example !== undefined) {
     const meta = PROJECT_METADATA.find(
       (m) => m.name === example && m.category === "example",
     );
@@ -342,37 +342,6 @@ export async function resolveProject(params: {
   return meta;
 }
 
-class SpawnExitError extends Error {
-  code: number;
-
-  constructor(code: number) {
-    super(`Process exited with code ${code}`);
-    this.code = code;
-  }
-}
-
-async function runSpawn(
-  command: string,
-  args: string[],
-  cwd?: string,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      stdio: "inherit",
-      cwd,
-    });
-
-    child.on("error", (error) => reject(error));
-    child.on("close", (code) => {
-      if (code !== 0) {
-        reject(new SpawnExitError(code || 1));
-      } else {
-        resolve();
-      }
-    });
-  });
-}
-
 export function resolveCreateProjectDirectory(params: {
   projectDirectory?: string;
   stdinIsTTY?: boolean;
@@ -384,19 +353,6 @@ export function resolveCreateProjectDirectory(params: {
   return undefined;
 }
 
-export function resolvePackageManager(opts: {
-  useNpm?: boolean;
-  usePnpm?: boolean;
-  useYarn?: boolean;
-  useBun?: boolean;
-}): PackageManagerName | undefined {
-  if (opts.useNpm) return "npm";
-  if (opts.usePnpm) return "pnpm";
-  if (opts.useYarn) return "yarn";
-  if (opts.useBun) return "bun";
-  return undefined;
-}
-
 const PLAYGROUND_PRESET_BASE_URL =
   "https://www.assistant-ui.com/playground/init";
 
@@ -405,6 +361,68 @@ export function resolvePresetUrl(preset: string): string {
     return preset;
   }
   return `${PLAYGROUND_PRESET_BASE_URL}?preset=${encodeURIComponent(preset)}`;
+}
+
+export interface ScaffoldSelectorOptions {
+  template?: string;
+  example?: string;
+  preset?: string;
+  native?: boolean;
+  ink?: boolean;
+}
+
+export interface ResolvedScaffoldSelector {
+  template?: string;
+  example?: string;
+  preset?: string;
+}
+
+const scaffoldSelectorHelp =
+  "Choose one scaffold selector: --template <name>, --example <name>, --native, or --ink. --preset <name-or-url> can be used with --template or by itself.";
+
+function getPresetConflict(opts: ScaffoldSelectorOptions): string | undefined {
+  if (opts.example !== undefined) return "--example";
+  if (opts.native) return "--native";
+  if (opts.ink) return "--ink";
+  return undefined;
+}
+
+export function resolveScaffoldSelector(
+  opts: ScaffoldSelectorOptions,
+): ResolvedScaffoldSelector {
+  const hasPreset = opts.preset !== undefined;
+  const presetConflict = getPresetConflict(opts);
+  const selectors = [
+    opts.template !== undefined ? "--template" : undefined,
+    opts.example !== undefined ? "--example" : undefined,
+    opts.native ? "--native" : undefined,
+    opts.ink ? "--ink" : undefined,
+  ].filter((selector): selector is string => selector !== undefined);
+
+  if (selectors.length > 1) {
+    throw new Error(
+      `Only one scaffold selector can be provided (${selectors.join(", ")}). ${scaffoldSelectorHelp}`,
+    );
+  }
+
+  if (hasPreset && presetConflict) {
+    throw new Error(
+      `Cannot use --preset with ${presetConflict}. ${scaffoldSelectorHelp}`,
+    );
+  }
+
+  if (opts.native) return { example: "with-expo" };
+  if (opts.ink) return { example: "with-react-ink" };
+
+  if (opts.preset !== undefined && opts.template === undefined) {
+    return { template: "default", preset: opts.preset };
+  }
+
+  return {
+    ...(opts.template !== undefined && { template: opts.template }),
+    ...(opts.example !== undefined && { example: opts.example }),
+    ...(hasPreset && { preset: opts.preset }),
+  };
 }
 
 export const create = new Command()
@@ -432,21 +450,12 @@ export const create = new Command()
   .option("--ink", "create a React Ink terminal project")
   .option("--skip-install", "skip installing packages")
   .action(async (projectDirectory, opts) => {
-    if (opts.native) {
-      opts.example = "with-expo";
-    }
-
-    if (opts.ink) {
-      opts.example = "with-react-ink";
-    }
-
-    if (opts.example && opts.preset) {
-      logger.error("Cannot use --preset with --example.");
-      process.exit(1);
-    }
-
-    if (opts.template && opts.example) {
-      logger.error("Cannot use both --template and --example.");
+    let scaffoldSelector: ResolvedScaffoldSelector;
+    try {
+      scaffoldSelector = resolveScaffoldSelector(opts);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(message);
       process.exit(1);
     }
 
@@ -510,10 +519,7 @@ export const create = new Command()
     }
 
     // 2. Resolve scaffold target
-    const project = await resolveProject({
-      template: opts.template,
-      example: opts.example,
-    });
+    const project = await resolveProject(scaffoldSelector);
     if (!project) {
       p.cancel("Project creation cancelled.");
       process.exit(0);
@@ -522,8 +528,8 @@ export const create = new Command()
     logger.info(`Creating project from ${project.category}: ${project.label}`);
     logger.break();
 
-    const pm = await resolvePackageManagerName(
-      absoluteProjectDir,
+    const pm = await resolvePackageManagerForCwd(
+      path.dirname(absoluteProjectDir),
       resolvePackageManager(opts),
     );
 
@@ -571,8 +577,8 @@ export const create = new Command()
       }
 
       // 6. Apply preset if provided
-      if (opts.preset) {
-        const presetUrl = resolvePresetUrl(opts.preset);
+      if (scaffoldSelector.preset) {
+        const presetUrl = resolvePresetUrl(scaffoldSelector.preset);
         logger.info("Applying preset configuration...");
         logger.break();
         const [dlxCmd, dlxArgs] = dlxCommand(pm);

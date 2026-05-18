@@ -94,7 +94,8 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     }
   }
 
-  // Rendered outside the user's Provider so deferred `children` cannot strand the binding.
+  // Rendered as a child of the user's Provider so the runtime hook can
+  // read context the Provider injects (e.g. RuntimeAdapterProvider).
   private _RuntimeBinder: FC<PropsWithChildren<{ threadId: string }>> = ({
     threadId,
     children,
@@ -172,7 +173,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
             console.warn(
               "RemoteThreadListAdapter.unstable_Provider did not render its `children` synchronously. " +
                 "Render `children` on first commit; deferring them behind a loading state, Suspense boundary, " +
-                "or `useEffect` gate leaves thread context unavailable to downstream consumers.",
+                "or `useEffect` gate strands the runtime binder and leaves the thread without context.",
             );
           }
         }, 100);
@@ -183,11 +184,11 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
     return (
       <ThreadListItemRuntimeProvider runtime={runtime}>
-        <this._RuntimeBinder threadId={threadId}>
-          <Provider>
+        <Provider>
+          <this._RuntimeBinder threadId={threadId}>
             <ProviderRenderDetector detectorRef={detectorRef} />
-          </Provider>
-        </this._RuntimeBinder>
+          </this._RuntimeBinder>
+        </Provider>
       </ThreadListItemRuntimeProvider>
     );
   });

@@ -7,7 +7,7 @@ import { VercelIcon } from "@/components/icons/vercel";
 
 [Helicone](https://www.helicone.ai/) is an LLM observability proxy. Point your provider client at Helicone's URL, add an auth header, and every request and response is recorded with cost, latency, and prompt-level diffs.
 
-Helicone is independent of which assistant-ui runtime you use. It slots in at the LLM-client layer (OpenAI SDK, AI SDK provider, or any HTTP-based provider client) on the server, not at the runtime layer in the browser. So it pairs with any backend: AI SDK, LangGraph, Mastra, custom.
+Helicone is independent of which assistant-ui runtime you use. It slots in at the LLM-client layer (OpenAI SDK, AI SDK provider, or any HTTP-based provider client) on the server, not at the assistant-ui client runtime layer. So it pairs with any backend: AI SDK, LangGraph, Mastra, custom.
 
 ## How it works
 
@@ -58,7 +58,7 @@ const openai = createOpenAI({
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-mini"),
     messages: await convertToModelMessages(messages),
   });
   return result.toUIMessageStreamResponse();
@@ -81,7 +81,7 @@ const openai = new OpenAI({
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const stream = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.4-mini",
     messages,
     stream: true,
   });
@@ -108,7 +108,7 @@ If nothing appears, check the request in your network tab. The host should be `o
 
 ## Notes
 
-- **Server-side only.** Never set the Helicone key in browser code; the proxy receives your provider key and must run server-side.
+- **Server-side only.** Never set the Helicone key in client code; the proxy receives your provider key and must run server-side.
 - **Other providers.** For Anthropic, Gemini, and others, swap the base URL: see Helicone's [provider docs](https://docs.helicone.ai/getting-started/integration-method/gateway).
 - **Custom metadata.** Add `Helicone-User-Id`, `Helicone-Property-*`, or session headers per request to filter and aggregate in the dashboard. The headers are in the [request headers reference](https://docs.helicone.ai/helicone-headers/header-directory).
 - **Streaming, tools, attachments** all keep working unchanged because Helicone wraps the underlying provider transparently.

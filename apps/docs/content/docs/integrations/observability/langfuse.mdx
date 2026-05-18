@@ -3,6 +3,10 @@ title: Langfuse
 description: Trace AI SDK calls into Langfuse via OpenTelemetry for tracing, evals, and prompt management.
 ---
 
+import { HeliconeIcon } from "@/components/icons/helicone";
+import { LangChainIcon } from "@/components/icons/langchain";
+import { VercelIcon } from "@/components/icons/vercel";
+
 [Langfuse](https://langfuse.com/) is an open-source LLM observability platform. It gives you a hierarchical trace per request (planner → tool calls → final LLM step), prompt-level analytics, datasets, and LLM-as-judge evals. Self-hostable, OpenTelemetry-native.
 
 Pick Langfuse when you want to see the agent's full call tree inside a single turn. It's complementary to [Helicone](/docs/integrations/observability/helicone), which proxies and logs individual provider calls; many teams run both, with Helicone capturing the request log and Langfuse capturing the trace.
@@ -99,7 +103,7 @@ export async function POST(req: Request) {
     { traceName: "chat-completion", userId, sessionId },
     async () =>
       streamText({
-        model: openai("gpt-4o"),
+        model: openai("gpt-5.4-nano"),
         messages: await convertToModelMessages(messages),
         experimental_telemetry: { isEnabled: true },
       }),
@@ -139,16 +143,19 @@ If nothing appears, check the server logs for OTel errors and confirm `LANGFUSE_
 
 <Cards>
   <Card
+    icon={<LangChainIcon width={20} height={20} className="text-[#7FC8FF]" />}
     title="LangSmith"
     description="LangChain ecosystem alternative, uses wrapAISDK instead of OpenTelemetry."
     href="/docs/integrations/observability/langsmith"
   />
   <Card
+    icon={<HeliconeIcon width={20} height={20} />}
     title="Helicone"
     description="Proxy-based request logging with cost, latency, and prompt diffs per call."
     href="/docs/integrations/observability/helicone"
   />
   <Card
+    icon={<VercelIcon width={20} height={20} />}
     title="AI SDK runtime"
     description="The runtime that emits the telemetry Langfuse consumes."
     href="/docs/runtimes/ai-sdk/v6"

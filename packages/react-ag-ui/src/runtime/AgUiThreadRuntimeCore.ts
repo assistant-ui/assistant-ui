@@ -1,6 +1,11 @@
 "use client";
 
-import { generateId, fromThreadMessageLike } from "@assistant-ui/core/internal";
+import {
+  generateId,
+  generateOptimisticId,
+  isOptimisticId,
+  fromThreadMessageLike,
+} from "@assistant-ui/core/internal";
 import type {
   AddToolResultOptions,
   AppendMessage,
@@ -13,15 +18,21 @@ import type {
 } from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
-import type { AgUiEvent } from "./types";
+import type { AgUiEvent, AgUiInterrupt, AgUiResumeEntry } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
-import { RunAggregator } from "./adapter/run-aggregator";
+import {
+  AG_UI_METADATA_NAMESPACE,
+  type AgUiCustomMetadata,
+  RunAggregator,
+} from "./adapter/run-aggregator";
 import {
   fromAgUiMessages,
   toAgUiMessages,
   toAgUiTools,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
+
+const symbolResumeShim = Symbol("agui-resume-shim");
 
 type RunConfig = NonNullable<AppendMessage["runConfig"]>;
 type ResumeRunConfig = {
@@ -72,6 +83,7 @@ export class AgUiThreadRuntimeCore {
     this.onCancel = options.onCancel;
     this.history = options.history;
     this.notifyUpdate = options.notifyUpdate;
+    this.installResumeShim();
   }
 
   updateOptions(options: Omit<CoreOptions, "notifyUpdate">) {
@@ -81,6 +93,7 @@ export class AgUiThreadRuntimeCore {
     this.onError = options.onError;
     this.onCancel = options.onCancel;
     this.history = options.history;
+    this.installResumeShim();
   }
 
   attachRuntime(runtime: AssistantRuntime) {
@@ -143,6 +156,7 @@ export class AgUiThreadRuntimeCore {
 
   async append(message: AppendMessage): Promise<void> {
     const startRun = message.startRun ?? message.role === "user";
+    if (startRun) this.assertNoPendingInterrupts();
     if (message.sourceId) {
       this.messages = this.messages.filter(
         (entry) => entry.id !== message.sourceId,
@@ -167,6 +181,7 @@ export class AgUiThreadRuntimeCore {
     parentId: string | null,
     config: { runConfig?: RunConfig } = {},
   ): Promise<void> {
+    this.assertNoPendingInterrupts();
     this.resetHead(parentId);
     this.notifyUpdate();
     await this.startRun(parentId, config.runConfig);
@@ -178,6 +193,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   async resume(config: ResumeRunConfig): Promise<void> {
+    this.assertNoPendingInterrupts();
     if (config.stream) {
       this.logger.debug?.(
         "[agui] resume stream is not supported, falling back to regular run",
@@ -187,6 +203,143 @@ export class AgUiThreadRuntimeCore {
       config.parentId,
       config.runConfig ?? this.lastRunConfig,
     );
+  }
+
+  private assertNoPendingInterrupts(): void {
+    if (!this.getPendingInterrupts()) return;
+    throw new Error(
+      "[agui] cannot start a new run while interrupts are pending; resolve them with submitInterruptResponses()",
+    );
+  }
+
+  getPendingInterrupts(): {
+    messageId: string;
+    interrupts: readonly AgUiInterrupt[];
+  } | null {
+    const assistant = this.messages.findLast((m) => m.role === "assistant") as
+      | ThreadAssistantMessage
+      | undefined;
+    if (
+      !assistant ||
+      assistant.status?.type !== "requires-action" ||
+      assistant.status.reason !== "interrupt"
+    ) {
+      return null;
+    }
+    const stored = (
+      assistant.metadata.custom[AG_UI_METADATA_NAMESPACE] as
+        | AgUiCustomMetadata
+        | undefined
+    )?.interrupts;
+    if (!stored?.length) return null;
+    return { messageId: assistant.id, interrupts: stored };
+  }
+
+  async submitInterruptResponses(
+    responses: readonly AgUiResumeEntry[],
+  ): Promise<void> {
+    const pending = this.getPendingInterrupts();
+    if (!pending) {
+      throw new Error(
+        "[agui] submitInterruptResponses: no pending interrupts on this thread",
+      );
+    }
+
+    const responsesById = new Map<string, AgUiResumeEntry>();
+    for (const entry of responses) {
+      if (!entry || typeof entry.interruptId !== "string") {
+        throw new Error(
+          "[agui] submitInterruptResponses: every entry must have an interruptId",
+        );
+      }
+      if (entry.status !== "resolved" && entry.status !== "cancelled") {
+        throw new Error(
+          `[agui] submitInterruptResponses: invalid status "${entry.status}" for interrupt ${entry.interruptId}`,
+        );
+      }
+      if (responsesById.has(entry.interruptId)) {
+        throw new Error(
+          `[agui] submitInterruptResponses: duplicate response for interrupt ${entry.interruptId}`,
+        );
+      }
+      responsesById.set(entry.interruptId, entry);
+    }
+
+    const openIds = pending.interrupts.map((i) => i.id);
+    const missing = openIds.filter((id) => !responsesById.has(id));
+    if (missing.length > 0) {
+      throw new Error(
+        `[agui] submitInterruptResponses: missing responses for open interrupts: ${missing.join(", ")}`,
+      );
+    }
+    const known = new Set(openIds);
+    const unknownIds = [...responsesById.keys()].filter((id) => !known.has(id));
+    if (unknownIds.length > 0) {
+      throw new Error(
+        `[agui] submitInterruptResponses: unknown interrupt ids: ${unknownIds.join(", ")}`,
+      );
+    }
+
+    const now = Date.now();
+    for (const interrupt of pending.interrupts) {
+      if (!interrupt.expiresAt) continue;
+      const expiry = new Date(interrupt.expiresAt).getTime();
+      if (Number.isNaN(expiry)) {
+        throw new Error(
+          `[agui] submitInterruptResponses: interrupt ${interrupt.id} has malformed expiresAt "${interrupt.expiresAt}"`,
+        );
+      }
+      if (expiry <= now) {
+        throw new Error(
+          `[agui] submitInterruptResponses: interrupt ${interrupt.id} expired at ${interrupt.expiresAt}`,
+        );
+      }
+    }
+
+    const resume: AgUiResumeEntry[] = openIds.map(
+      (id) => responsesById.get(id)!,
+    );
+
+    if (this.isRunningFlag) {
+      throw new Error(
+        "[agui] submitInterruptResponses: a run is already in progress",
+      );
+    }
+
+    this.clearPendingInterrupts(pending.messageId);
+    await this.startRun(pending.messageId, this.lastRunConfig, resume);
+  }
+
+  private clearPendingInterrupts(messageId: string): void {
+    let touched = false;
+    this.messages = this.messages.map((message) => {
+      if (message.id !== messageId || message.role !== "assistant")
+        return message;
+      const assistant = message as ThreadAssistantMessage;
+      if (
+        assistant.status?.type !== "requires-action" ||
+        assistant.status.reason !== "interrupt"
+      ) {
+        return assistant;
+      }
+      touched = true;
+      const aguiMeta = assistant.metadata.custom[AG_UI_METADATA_NAMESPACE] as
+        | AgUiCustomMetadata
+        | undefined;
+      const { interrupts: _drop, ...restAgui } = aguiMeta ?? {};
+      const newCustom = { ...assistant.metadata.custom };
+      if (Object.keys(restAgui).length > 0) {
+        newCustom[AG_UI_METADATA_NAMESPACE] = restAgui;
+      } else {
+        delete newCustom[AG_UI_METADATA_NAMESPACE];
+      }
+      return {
+        ...assistant,
+        status: { type: "complete" as const, reason: "unknown" as const },
+        metadata: { ...assistant.metadata, custom: newCustom },
+      };
+    });
+    if (touched) this.notifyUpdate();
   }
 
   findMessageIdForToolCall(toolCallId: string): string | undefined {
@@ -288,6 +441,7 @@ export class AgUiThreadRuntimeCore {
   private async startRun(
     parentId: string | null,
     runConfig?: RunConfig,
+    resume?: AgUiResumeEntry[],
   ): Promise<void> {
     const normalizedRunConfig = runConfig ?? {};
     this.lastRunConfig = normalizedRunConfig;
@@ -300,6 +454,7 @@ export class AgUiThreadRuntimeCore {
       runId,
       normalizedRunConfig,
       historicalMessages,
+      resume,
     );
     const assistantParentId = parentId ?? this.messages.at(-1)?.id ?? null;
     let assistantMessageId: string | undefined;
@@ -314,7 +469,18 @@ export class AgUiThreadRuntimeCore {
     const aggregator = new RunAggregator({
       showThinking: this.showThinking,
       logger: this.logger,
-      emit: (update) => this.updateAssistantMessage(ensureAssistant(), update),
+      emit: (update) => {
+        const resolved = this.updateAssistantMessage(ensureAssistant(), update);
+        if (resolved !== assistantMessageId) {
+          assistantMessageId = resolved;
+        }
+      },
+      onServerMessageId: (serverId) => {
+        const placeholder = ensureAssistant();
+        if (placeholder === serverId) return;
+        this.reassignAssistantId(placeholder, serverId);
+        assistantMessageId = serverId;
+      },
     });
     const dispatch = (event: AgUiEvent) => this.handleEvent(aggregator, event);
 
@@ -335,6 +501,7 @@ export class AgUiThreadRuntimeCore {
     const subscriber = createAgUiSubscriber({
       dispatch,
       runId,
+      logger: this.logger,
       onRunFailed: (error) => {
         this.pendingError = error;
         this.onError?.(error);
@@ -348,6 +515,7 @@ export class AgUiThreadRuntimeCore {
       try {
         (this.agent as any).messages = input.messages;
         (this.agent as any).threadId = input.threadId;
+        (this.agent as any).state = input.state ?? null;
       } catch {
         // ignore
       }
@@ -376,6 +544,7 @@ export class AgUiThreadRuntimeCore {
     runId: string,
     runConfig: RunConfig | undefined,
     historyMessages: readonly ThreadMessage[] | undefined,
+    resume?: AgUiResumeEntry[],
   ) {
     const threadId = this.agent.threadId || "main";
     const messages = toAgUiMessages(historyMessages ?? this.messages);
@@ -394,6 +563,28 @@ export class AgUiThreadRuntimeCore {
         ...(context?.config ?? {}),
         ...(runConfig?.custom ? { runConfig: runConfig.custom } : {}),
       },
+      ...(resume !== undefined ? { resume } : {}),
+    };
+  }
+
+  private installResumeShim(): void {
+    const agent = this.agent as any;
+    if (agent[symbolResumeShim]) return;
+    agent[symbolResumeShim] = true;
+    const onInstance = Object.hasOwn(agent, "prepareRunAgentInput");
+    const original = onInstance
+      ? agent.prepareRunAgentInput
+      : Object.getPrototypeOf(agent)?.prepareRunAgentInput;
+    if (typeof original !== "function") return;
+    agent.prepareRunAgentInput = function (
+      this: unknown,
+      params: { resume?: unknown } | undefined,
+    ) {
+      const input = original.call(this, params);
+      if (params?.resume !== undefined && input && typeof input === "object") {
+        return { ...(input as object), resume: params.resume };
+      }
+      return input;
     };
   }
 
@@ -410,7 +601,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   private insertAssistantPlaceholder(): string {
-    const id = generateId();
+    const id = generateOptimisticId();
     const assistant: ThreadAssistantMessage = {
       id,
       role: "assistant",
@@ -430,10 +621,43 @@ export class AgUiThreadRuntimeCore {
     return id;
   }
 
+  private reassignAssistantId(oldId: string, newId: string): void {
+    if (oldId === newId) return;
+
+    const collidesWithExisting = this.messages.some((m) => m.id === newId);
+
+    if (collidesWithExisting) {
+      this.logger.debug?.(
+        "[agui] reassignAssistantId: server id already present in messages, dropping placeholder",
+        { oldId, newId },
+      );
+      this.messages = this.messages.filter((m) => m.id !== oldId);
+    } else {
+      this.messages = this.messages.map((m) =>
+        m.id === oldId ? { ...m, id: newId } : m,
+      );
+    }
+
+    const pendingParent = this.assistantHistoryParents.get(oldId);
+    if (pendingParent !== undefined) {
+      this.assistantHistoryParents.delete(oldId);
+      if (!this.assistantHistoryParents.has(newId)) {
+        this.assistantHistoryParents.set(newId, pendingParent);
+      }
+    }
+
+    if (this.recordedHistoryIds.has(oldId)) {
+      this.recordedHistoryIds.delete(oldId);
+      this.recordedHistoryIds.add(newId);
+    }
+
+    this.notifyUpdate();
+  }
+
   private updateAssistantMessage(
     messageId: string,
     update: ChatModelRunResult,
-  ) {
+  ): string {
     let touched = false;
     let latestStatus: MessageStatus | undefined;
     this.messages = this.messages.map((message) => {
@@ -453,12 +677,22 @@ export class AgUiThreadRuntimeCore {
         metadata,
       };
     });
-    if (touched) {
+    if (!touched) return messageId;
+
+    let resolvedMessageId = messageId;
+    const isSettled =
+      latestStatus !== undefined && latestStatus.type !== "running";
+    if (isSettled && isOptimisticId(messageId)) {
+      const stableId = generateId();
+      this.reassignAssistantId(messageId, stableId);
+      resolvedMessageId = stableId;
+    } else {
       this.notifyUpdate();
-      if (this.isTerminalStatus(latestStatus)) {
-        this.persistAssistantHistory(messageId);
-      }
     }
+    if (this.isPersistableStatus(latestStatus)) {
+      this.persistAssistantHistory(resolvedMessageId);
+    }
+    return resolvedMessageId;
   }
 
   private mergeAssistantMetadata(
@@ -559,6 +793,11 @@ export class AgUiThreadRuntimeCore {
     return status?.type === "complete" || status?.type === "incomplete";
   }
 
+  private isPersistableStatus(status?: MessageStatus): boolean {
+    if (this.isTerminalStatus(status)) return true;
+    return status?.type === "requires-action" && status.reason === "interrupt";
+  }
+
   private recordHistoryEntry(parentId: string | null, message: ThreadMessage) {
     this.appendHistoryItem(parentId, message);
   }
@@ -577,7 +816,7 @@ export class AgUiThreadRuntimeCore {
     if (parentId === undefined) return;
     const message = this.messages.find((m) => m.id === messageId);
     if (!message || message.role !== "assistant") return;
-    if (!this.isTerminalStatus(message.status)) return;
+    if (!this.isPersistableStatus(message.status)) return;
     this.assistantHistoryParents.delete(messageId);
     this.appendHistoryItem(parentId, message);
   }

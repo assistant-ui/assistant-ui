@@ -48,6 +48,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   protected readonly repository = new MessageRepository();
   public abstract get adapters(): BaseThreadAdapters | undefined;
   public abstract get isDisabled(): boolean;
+  public abstract get isSendDisabled(): boolean;
   public abstract get isLoading(): boolean;
   public abstract get suggestions(): readonly ThreadSuggestion[];
   public abstract get extras(): unknown;
@@ -61,7 +62,6 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   public abstract cancelRun(): void;
   public abstract exportExternalState(): any;
   public abstract importExternalState(state: any): void;
-  public abstract unstable_loadExternalState(state: any): void;
 
   protected _voiceMessages: ThreadMessage[] = [];
   protected _voiceGeneration = 0;

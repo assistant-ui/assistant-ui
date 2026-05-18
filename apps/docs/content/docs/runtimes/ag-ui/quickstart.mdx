@@ -12,6 +12,9 @@ Three steps to a working chat against an AG-UI agent. Assumes you have already i
 
 Create an `HttpAgent` pointing at your AG-UI endpoint and pass it to `useAgUiRuntime`:
 
+<PlatformTabs>
+<Tab value="React">
+
 ```tsx title="app/MyRuntimeProvider.tsx"
 "use client";
 
@@ -43,13 +46,83 @@ export function MyRuntimeProvider({
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx title="runtime/MyRuntimeProvider.tsx"
+import { useMemo } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
+import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
+import { HttpAgent } from "@ag-ui/client";
+
+export function MyRuntimeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const agent = useMemo(
+    () =>
+      new HttpAgent({
+        url: "http://localhost:8000/agent",
+      }),
+    [],
+  );
+
+  const runtime = useAgUiRuntime({ agent });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="runtime/MyRuntimeProvider.tsx"
+import { useMemo } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-ink";
+import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
+import { HttpAgent } from "@ag-ui/client";
+
+export function MyRuntimeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const agent = useMemo(
+    () =>
+      new HttpAgent({
+        url: "http://localhost:8000/agent",
+      }),
+    [],
+  );
+
+  const runtime = useAgUiRuntime({ agent });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 </Step>
 <Step>
 
 ### Render the Thread
 
+<PlatformTabs>
+<Tab value="React">
+
 ```tsx title="app/page.tsx"
-import { Thread } from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/thread";
 import { MyRuntimeProvider } from "./MyRuntimeProvider";
 
 export default function Page() {
@@ -61,12 +134,69 @@ export default function Page() {
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx title="app/index.tsx"
+import { View } from "react-native";
+import { Thread } from "@/components/assistant-ui/thread";
+import { MyRuntimeProvider } from "@/runtime/MyRuntimeProvider";
+
+export default function Page() {
+  return (
+    <MyRuntimeProvider>
+      <View style={{ flex: 1 }}>
+        <Thread />
+      </View>
+    </MyRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="app.tsx"
+import { Box } from "ink";
+import { Thread } from "./components/thread.js";
+import { MyRuntimeProvider } from "./runtime/MyRuntimeProvider.js";
+
+export function App() {
+  return (
+    <MyRuntimeProvider>
+      <Box flexDirection="column">
+        <Thread />
+      </Box>
+    </MyRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 </Step>
 <Step>
 
 ### Set up UI components
 
+<PlatformTabs>
+<Tab value="React">
+
 Follow the [UI Components guide](/docs/ui/thread) to wire up the Thread, composer, and supporting primitives.
+
+</Tab>
+<Tab value="React Native">
+
+Follow the [React Native setup](/docs/react-native) to add a native Thread, composer, and supporting primitives.
+
+</Tab>
+<Tab value="React Ink">
+
+Follow the [Ink setup](/docs/ink) to add a terminal Thread, composer, and supporting primitives.
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 </Steps>

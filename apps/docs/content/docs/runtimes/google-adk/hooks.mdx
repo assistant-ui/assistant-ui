@@ -32,6 +32,9 @@ function MyComponent() {
 
 When ADK's `SecurityPlugin` or tool callbacks request user confirmation before executing a tool, use `useAdkToolConfirmations` to read pending requests and `useAdkConfirmTool` to respond:
 
+<PlatformTabs>
+<Tab value="React">
+
 ```tsx
 import {
   useAdkToolConfirmations,
@@ -56,9 +59,85 @@ function ToolConfirmationUI() {
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx
+import {
+  useAdkToolConfirmations,
+  useAdkConfirmTool,
+} from "@assistant-ui/react-google-adk";
+import { Pressable, Text, View } from "react-native";
+
+function ToolConfirmationUI() {
+  const confirmations = useAdkToolConfirmations();
+  const confirmTool = useAdkConfirmTool();
+
+  if (confirmations.length === 0) return null;
+
+  return (
+    <View>
+      {confirmations.map((conf) => (
+        <View key={conf.toolCallId}>
+          <Text>
+            Tool "{conf.toolName}" wants to run. {conf.hint}
+          </Text>
+          <Pressable onPress={() => confirmTool(conf.toolCallId, true)}>
+            <Text>Approve</Text>
+          </Pressable>
+          <Pressable onPress={() => confirmTool(conf.toolCallId, false)}>
+            <Text>Deny</Text>
+          </Pressable>
+        </View>
+      ))}
+    </View>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx
+import {
+  useAdkToolConfirmations,
+  useAdkConfirmTool,
+} from "@assistant-ui/react-google-adk";
+import { Box, Text, useInput } from "ink";
+
+function ToolConfirmationUI() {
+  const confirmations = useAdkToolConfirmations();
+  const confirmTool = useAdkConfirmTool();
+  const active = confirmations[0];
+
+  useInput((input) => {
+    if (!active) return;
+    if (input === "y") confirmTool(active.toolCallId, true);
+    if (input === "n") confirmTool(active.toolCallId, false);
+  });
+
+  if (!active) return null;
+
+  return (
+    <Box flexDirection="column">
+      <Text>
+        Tool "{active.toolName}" wants to run. {active.hint}
+      </Text>
+      <Text>Press y to approve, n to deny.</Text>
+    </Box>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 ## Auth requests
 
 When a tool requires OAuth or other authentication, use `useAdkAuthRequests` to read pending requests and `useAdkSubmitAuth` to submit credentials:
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx
 import {
@@ -91,11 +170,91 @@ function AuthUI() {
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx
+import {
+  useAdkAuthRequests,
+  useAdkSubmitAuth,
+  type AdkAuthCredential,
+} from "@assistant-ui/react-google-adk";
+import { Pressable, Text, View } from "react-native";
+
+function AuthUI() {
+  const authRequests = useAdkAuthRequests();
+  const submitAuth = useAdkSubmitAuth();
+
+  if (authRequests.length === 0) return null;
+
+  return (
+    <View>
+      {authRequests.map((req) => (
+        <Pressable
+          key={req.toolCallId}
+          onPress={() => {
+            const credential: AdkAuthCredential = {
+              authType: "oauth2",
+              oauth2: { accessToken: "..." },
+            };
+            submitAuth(req.toolCallId, credential);
+          }}
+        >
+          <Text>Authenticate</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx
+import {
+  useAdkAuthRequests,
+  useAdkSubmitAuth,
+  type AdkAuthCredential,
+} from "@assistant-ui/react-google-adk";
+import { Box, Text, useInput } from "ink";
+
+function AuthUI() {
+  const authRequests = useAdkAuthRequests();
+  const submitAuth = useAdkSubmitAuth();
+  const active = authRequests[0];
+
+  useInput((input) => {
+    if (!active || input !== "a") return;
+    const credential: AdkAuthCredential = {
+      authType: "oauth2",
+      oauth2: { accessToken: "..." },
+    };
+    submitAuth(active.toolCallId, credential);
+  });
+
+  if (!active) return null;
+
+  return (
+    <Box flexDirection="column">
+      <Text>Authentication required for a tool call.</Text>
+      <Text>Press a after completing your auth flow.</Text>
+    </Box>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 `AdkAuthCredential` supports all ADK auth types: `apiKey`, `http`, `oauth2`, `openIdConnect`, `serviceAccount`.
 
 ## Input requests
 
 When an ADK Python 2.0+ Workflow's `RequestInput` node pauses execution to ask the user a question, ADK emits an `adk_request_input` function call marked as long-running. Respond with `useAdkSubmitInput` inside a tool UI; the helper wraps the answer as `{ result }` to match ADK's `unwrap_response` contract, so the Workflow node resumes with the unwrapped value:
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx
 import { makeAssistantToolUI } from "@assistant-ui/react";
@@ -139,7 +298,102 @@ export const RequestInputToolUI = makeAssistantToolUI<
 });
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx
+import { makeAssistantToolUI } from "@assistant-ui/react-native";
+import { useAdkSubmitInput } from "@assistant-ui/react-google-adk";
+import { useState } from "react";
+import { Pressable, Text, TextInput, View } from "react-native";
+
+type RequestInputArgs = {
+  interrupt_id?: string;
+  message?: string;
+  payload?: unknown;
+  response_schema?: unknown;
+};
+
+export const RequestInputToolUI = makeAssistantToolUI<
+  RequestInputArgs,
+  unknown
+>({
+  toolName: "adk_request_input",
+  render: function RequestInputUI({ toolCallId, args, result }) {
+    const submitInput = useAdkSubmitInput();
+    const [value, setValue] = useState("");
+
+    if (result !== undefined) {
+      return <Text>Answered: {String(result)}</Text>;
+    }
+
+    return (
+      <View>
+        <Text>{args.message ?? "Please provide input:"}</Text>
+        <TextInput value={value} onChangeText={setValue} autoFocus />
+        <Pressable onPress={() => submitInput(toolCallId, value)}>
+          <Text>Submit</Text>
+        </Pressable>
+      </View>
+    );
+  },
+});
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx
+import { makeAssistantToolUI } from "@assistant-ui/react-ink";
+import { useAdkSubmitInput } from "@assistant-ui/react-google-adk";
+import { useState } from "react";
+import { Box, Text, useInput } from "ink";
+
+type RequestInputArgs = {
+  interrupt_id?: string;
+  message?: string;
+  payload?: unknown;
+  response_schema?: unknown;
+};
+
+export const RequestInputToolUI = makeAssistantToolUI<
+  RequestInputArgs,
+  unknown
+>({
+  toolName: "adk_request_input",
+  render: function RequestInputUI({ toolCallId, args, result }) {
+    const submitInput = useAdkSubmitInput();
+    const [value, setValue] = useState("");
+
+    useInput((input, key) => {
+      if (result !== undefined) return;
+      if (key.return) submitInput(toolCallId, value);
+      else if (key.backspace || key.delete) setValue((text) => text.slice(0, -1));
+      else if (input) setValue((text) => text + input);
+    });
+
+    if (result !== undefined) {
+      return <Text>Answered: {String(result)}</Text>;
+    }
+
+    return (
+      <Box flexDirection="column">
+        <Text>{args.message ?? "Please provide input:"}</Text>
+        <Text>{value}</Text>
+        <Text dimColor>Press enter to submit.</Text>
+      </Box>
+    );
+  },
+});
+```
+
+</Tab>
+</PlatformTabs>
+
 Register the tool UI inside `AssistantRuntimeProvider`:
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx
 <AssistantRuntimeProvider runtime={runtime}>
@@ -147,6 +401,39 @@ Register the tool UI inside `AssistantRuntimeProvider`:
   <Thread />
 </AssistantRuntimeProvider>
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```tsx
+import { View } from "react-native";
+import { Thread } from "@/components/assistant-ui/thread";
+
+<AssistantRuntimeProvider runtime={runtime}>
+  <RequestInputToolUI />
+  <View style={{ flex: 1 }}>
+    <Thread />
+  </View>
+</AssistantRuntimeProvider>;
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx
+import { Box } from "ink";
+import { Thread } from "./components/thread.js";
+
+<AssistantRuntimeProvider runtime={runtime}>
+  <RequestInputToolUI />
+  <Box flexDirection="column">
+    <Thread />
+  </Box>
+</AssistantRuntimeProvider>;
+```
+
+</Tab>
+</PlatformTabs>
 
 <Callout type="info">
 `adk_request_input` is emitted only by ADK Python 2.0+ Workflow `RequestInput` nodes; ADK JS has no equivalent. Always respond via a tool UI with `useAdkSubmitInput`. HITL interrupts are automatically exempt from `autoCancelPendingToolCalls`, so typing a normal message in the composer will not overwrite the pending interrupt.
@@ -197,7 +484,10 @@ await artifacts.delete(sessionId, "document.pdf");
 
 Detect when an agent requests escalation to a human operator:
 
-```ts
+<PlatformTabs>
+<Tab value="React">
+
+```tsx
 import { useAdkEscalation } from "@assistant-ui/react-google-adk";
 
 function EscalationBanner() {
@@ -207,11 +497,45 @@ function EscalationBanner() {
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx
+import { useAdkEscalation } from "@assistant-ui/react-google-adk";
+import { Text } from "react-native";
+
+function EscalationBanner() {
+  const escalated = useAdkEscalation();
+  if (!escalated) return null;
+  return <Text>Agent has requested human assistance.</Text>;
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx
+import { useAdkEscalation } from "@assistant-ui/react-google-adk";
+import { Text } from "ink";
+
+function EscalationBanner() {
+  const escalated = useAdkEscalation();
+  if (!escalated) return null;
+  return <Text>Agent has requested human assistance.</Text>;
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 ## Long-running tools
 
 Track tools that are executing asynchronously and awaiting external input:
 
-```ts
+<PlatformTabs>
+<Tab value="React">
+
+```tsx
 import { useAdkLongRunningToolIds } from "@assistant-ui/react-google-adk";
 
 function PendingToolsIndicator() {
@@ -220,6 +544,37 @@ function PendingToolsIndicator() {
   return <div>{pendingToolIds.length} tool(s) awaiting input</div>;
 }
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```tsx
+import { useAdkLongRunningToolIds } from "@assistant-ui/react-google-adk";
+import { Text } from "react-native";
+
+function PendingToolsIndicator() {
+  const pendingToolIds = useAdkLongRunningToolIds();
+  if (pendingToolIds.length === 0) return null;
+  return <Text>{pendingToolIds.length} tool(s) awaiting input</Text>;
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx
+import { useAdkLongRunningToolIds } from "@assistant-ui/react-google-adk";
+import { Text } from "ink";
+
+function PendingToolsIndicator() {
+  const pendingToolIds = useAdkLongRunningToolIds();
+  if (pendingToolIds.length === 0) return null;
+  return <Text>{pendingToolIds.length} tool(s) awaiting input</Text>;
+}
+```
+
+</Tab>
+</PlatformTabs>
 
 This hook reports every tool call ADK marked via `long_running_tool_ids`, including HITL interrupts. To respond to a specific HITL type, see [tool confirmations](#tool-confirmations), [auth requests](#auth-requests), or [input requests](#input-requests).
 

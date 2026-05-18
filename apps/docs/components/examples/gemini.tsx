@@ -11,6 +11,7 @@ import {
 } from "@assistant-ui/react";
 
 import {
+  CheckIcon,
   ChevronDownIcon,
   Cross2Icon,
   MixerHorizontalIcon,
@@ -21,13 +22,16 @@ import {
 import {
   CopyIcon,
   EllipsisVertical,
+  Globe,
   ImageIcon,
   Lightbulb,
   Mic,
+  Music,
   PenLine,
   SendHorizonal,
   Sparkles,
   Square,
+  Telescope,
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
@@ -35,19 +39,25 @@ import { type FC, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { GeminiIcon } from "@/components/icons/gemini";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/shared/dropdown-menu";
 
 export const Gemini: FC = () => {
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#f8f9fa] dark:bg-[#131314]">
-      <ThreadPrimitive.Empty>
+      <AuiIf condition={(s) => s.thread.isEmpty}>
         <div className="flex h-full flex-col justify-center px-4">
           <div className="mx-auto w-full max-w-3xl">
             <div className="mb-1 flex items-center gap-3">
-              {/* biome-ignore lint/performance/noImgElement: example component */}
-              <img src="/icons/gemini.svg" alt="" className="size-5" />
-              <p className="text-black text-xl dark:text-white">Hello there</p>
+              <GeminiIcon className="size-5" />
+              <p className="text-black text-xl dark:text-white">Hi there</p>
             </div>
-            <p className="mb-6 bg-clip-text text-4xl text-black dark:text-white">
+            <p className="mb-6 text-3xl text-black sm:text-4xl dark:text-white">
               Where would you like to start?
             </p>
           </div>
@@ -55,6 +65,9 @@ export const Gemini: FC = () => {
           <div className="mx-auto mt-4 flex w-full max-w-3xl flex-wrap justify-center gap-2">
             <SuggestionChip icon={<ImageIcon width={16} height={16} />}>
               Create image
+            </SuggestionChip>
+            <SuggestionChip icon={<Music width={16} height={16} />}>
+              Make music
             </SuggestionChip>
             <SuggestionChip icon={<Lightbulb width={16} height={16} />}>
               Help me learn
@@ -67,15 +80,15 @@ export const Gemini: FC = () => {
             </SuggestionChip>
           </div>
         </div>
-      </ThreadPrimitive.Empty>
+      </AuiIf>
 
-      <AuiIf condition={(s) => s.thread.isEmpty === false}>
+      <AuiIf condition={(s) => !s.thread.isEmpty}>
         <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">
           <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
         </ThreadPrimitive.Viewport>
-        <div className="space-y-2">
+        <div className="space-y-2 px-4 pb-4">
           <Composer />
-          <p className="my-3 text-center text-[#70757a] text-xs dark:text-[#9aa0a6]">
+          <p className="text-center text-[#70757a] text-xs dark:text-[#9aa0a6]">
             Gemini may display inaccurate info, including about people, so
             double-check its responses.
           </p>
@@ -134,23 +147,11 @@ const Composer: FC = () => {
             <ComposerPrimitive.AddAttachment className="flex size-10 items-center justify-center rounded-full transition-all hover:bg-[#444746]/8 active:scale-[0.98] dark:hover:bg-[#c4c7c5]/8">
               <PlusIcon width={20} height={20} />
             </ComposerPrimitive.AddAttachment>
-            <button
-              type="button"
-              className="flex h-10 items-center justify-center gap-1.5 rounded-full px-3 text-sm transition hover:bg-[#444746]/8 dark:hover:bg-[#c4c7c5]/8"
-            >
-              <MixerHorizontalIcon width={16} height={16} />
-              <span>Tools</span>
-            </button>
+            <GeminiToolsMenu />
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="flex h-10 items-center justify-center gap-1 whitespace-nowrap rounded-full px-3 text-sm transition hover:bg-[#444746]/8 dark:hover:bg-[#c4c7c5]/8"
-            >
-              <span>Flash</span>
-              <ChevronDownIcon width={20} height={20} className="opacity-60" />
-            </button>
+            <GeminiModelPicker />
             <div className="relative size-10 shrink-0">
               <button
                 type="button"
@@ -170,6 +171,78 @@ const Composer: FC = () => {
         </div>
       </div>
     </ComposerPrimitive.Root>
+  );
+};
+
+const GEMINI_TOOLS = [
+  { id: "research", label: "Deep Research", Icon: Telescope },
+  { id: "image", label: "Create image", Icon: ImageIcon },
+  { id: "search", label: "Search the web", Icon: Globe },
+  { id: "study", label: "Help me learn", Icon: Lightbulb },
+];
+
+const GeminiToolsMenu: FC = () => {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex h-10 items-center justify-center gap-1.5 rounded-full px-3 text-sm transition hover:bg-[#444746]/8 dark:hover:bg-[#c4c7c5]/8">
+        <MixerHorizontalIcon width={16} height={16} />
+        <span>Tools</span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-56">
+        {GEMINI_TOOLS.map(({ id, label, Icon }) => (
+          <DropdownMenuItem
+            key={id}
+            icon={<Icon className="size-4" />}
+            className="text-foreground text-sm"
+          >
+            {label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+const GEMINI_MODELS = [
+  { id: "fast", name: "Fast", description: "Best for quick chats" },
+  { id: "thinking", name: "Thinking", description: "Best for reasoning" },
+  { id: "pro", name: "Pro", description: "Best for complex tasks" },
+];
+
+const GeminiModelPicker: FC = () => {
+  const [model, setModel] = useState(GEMINI_MODELS[0]!.id);
+  const current = GEMINI_MODELS.find((m) => m.id === model);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex h-10 items-center justify-center gap-1 whitespace-nowrap rounded-full px-3 text-sm transition hover:bg-[#444746]/8 dark:hover:bg-[#c4c7c5]/8">
+        <span>{current?.name}</span>
+        <ChevronDownIcon width={20} height={20} className="opacity-60" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-60">
+        {GEMINI_MODELS.map((m) => (
+          <DropdownMenuItem
+            key={m.id}
+            onSelect={() => setModel(m.id)}
+            className="flex items-start gap-3"
+          >
+            <span className="mt-0.5 flex size-4 items-center justify-center text-[#1a73e8] dark:text-[#8ab4f8]">
+              {m.id === model ? <CheckIcon /> : null}
+            </span>
+            <span className="flex flex-1 flex-col">
+              <span className="text-foreground text-sm">{m.name}</span>
+              <span className="text-muted-foreground text-xs">
+                {m.description}
+              </span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="text-muted-foreground text-sm">
+          Upgrade to Gemini Advanced
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 

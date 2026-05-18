@@ -6,11 +6,9 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { Button } from "@/components/ui/button";
 import {
   AuiIf,
-  ChainOfThoughtPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
-  useAuiState,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
@@ -76,60 +74,68 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="mx-auto w-full max-w-(--thread-max-width) py-3">
       <div className="flex flex-col gap-2 px-2 leading-relaxed">
-        {/* Text parts are rendered inline; ChainOfThought is rendered separately below. */}
-        <MessagePrimitive.Parts>
-          {({ part }) => {
-            if (part.type === "text") return <MarkdownText />;
+        <MessagePrimitive.GroupedParts
+          groupBy={(part) => {
+            if (part.type === "reasoning")
+              return ["group-chainOfThought", "group-reasoning"];
+            if (part.type === "tool-call")
+              return ["group-chainOfThought", "group-tool"];
             return null;
           }}
-        </MessagePrimitive.Parts>
-        <ChainOfThought />
+        >
+          {({ part, children }) => {
+            switch (part.type) {
+              case "group-chainOfThought":
+                return <ChainOfThoughtGroup>{children}</ChainOfThoughtGroup>;
+              case "group-reasoning":
+                return <PartLayout label="Thinking">{children}</PartLayout>;
+              case "group-tool":
+                return (
+                  <PartLayout label="Taking action">{children}</PartLayout>
+                );
+              case "text":
+                return <MarkdownText />;
+              case "reasoning":
+                return <Reasoning {...part} />;
+              case "tool-call":
+                return <ToolCall {...part} />;
+              default:
+                return null;
+            }
+          }}
+        </MessagePrimitive.GroupedParts>
       </div>
     </MessagePrimitive.Root>
   );
 };
 
-/**
- * ChainOfThought component — rendered by MessagePrimitive.Parts when it
- * encounters consecutive reasoning + tool-call parts.
- *
- * Uses ChainOfThoughtPrimitive.Root, AccordionTrigger, and Parts to create
- * a collapsible accordion that groups all "thinking" steps together.
- */
-const ChainOfThought: FC = () => {
+const ChainOfThoughtGroup: FC<PropsWithChildren> = ({ children }) => {
+  const [open, setOpen] = useState(false);
+
   return (
-    <ChainOfThoughtPrimitive.Root className="my-2 rounded-lg border">
-      <ChainOfThoughtPrimitive.AccordionTrigger className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 font-medium text-sm hover:bg-muted/50">
-        <AuiIf condition={(s) => s.chainOfThought.collapsed}>
-          <ChevronRightIcon className="size-4 shrink-0" />
-        </AuiIf>
-        <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
+    <div className="my-2 rounded-lg border">
+      <button
+        type="button"
+        className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 font-medium text-sm hover:bg-muted/50"
+        onClick={() => setOpen((o) => !o)}
+      >
+        {open ? (
           <ChevronDownIcon className="size-4 shrink-0" />
-        </AuiIf>
+        ) : (
+          <ChevronRightIcon className="size-4 shrink-0" />
+        )}
         Thinking
-      </ChainOfThoughtPrimitive.AccordionTrigger>
-      <AuiIf condition={(s) => !s.chainOfThought.collapsed}>
-        <ChainOfThoughtPrimitive.Parts>
-          {({ part }) => {
-            if (part.type === "reasoning")
-              return (
-                <PartLayout>
-                  <Reasoning {...part} />
-                </PartLayout>
-              );
-            return null;
-          }}
-        </ChainOfThoughtPrimitive.Parts>
-      </AuiIf>
-    </ChainOfThoughtPrimitive.Root>
+      </button>
+      {open && children}
+    </div>
   );
 };
 
-const PartLayout: FC<PropsWithChildren> = ({ children }) => {
-  const partType = useAuiState((s) => s.part.type);
+const PartLayout: FC<PropsWithChildren<{ label: string }>> = ({
+  children,
+  label,
+}) => {
   const [open, setOpen] = useState(true);
-
-  const label = partType === "reasoning" ? "Thinking" : "Taking action";
 
   return (
     <div className="border-t">
@@ -155,6 +161,23 @@ const Reasoning: FC<{ text: string }> = ({ text }) => {
     <p className="whitespace-pre-wrap px-4 py-2 text-muted-foreground text-sm italic">
       {text}
     </p>
+  );
+};
+
+const ToolCall: FC<{ toolName: string; status: { type: string } }> = ({
+  toolName,
+  status,
+}) => {
+  return (
+    <div className="px-4 py-2 text-sm">
+      {status.type === "running"
+        ? `Running ${toolName}...`
+        : status.type === "complete"
+          ? `${toolName} completed`
+          : status.type === "incomplete"
+            ? `${toolName} failed`
+            : `${toolName} requires action`}
+    </div>
   );
 };
 

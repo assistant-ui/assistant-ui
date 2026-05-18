@@ -7,6 +7,9 @@ Two paths to a running chat against a LangGraph Cloud server. The template is fa
 
 ## From the template
 
+<PlatformTabs>
+<Tab value="React">
+
 ```sh
 npx create-assistant-ui@latest -t langgraph my-app
 cd my-app
@@ -27,6 +30,19 @@ npm run dev
 
 Skip ahead to [streaming](/docs/runtimes/langgraph/streaming) to start adding features.
 
+</Tab>
+<Tab value="React Native">
+
+There is not a React Native LangGraph template yet. Use the manual setup below in an Expo app.
+
+</Tab>
+<Tab value="React Ink">
+
+There is not an Ink LangGraph template yet. Use the manual setup below in a Node/Ink app.
+
+</Tab>
+</PlatformTabs>
+
 ## Manual setup in an existing project
 
 <Steps>
@@ -34,12 +50,31 @@ Skip ahead to [streaming](/docs/runtimes/langgraph/streaming) to start adding fe
 
 ### Install dependencies
 
+<PlatformTabs>
+<Tab value="React">
+
 <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-langgraph", "@langchain/langgraph-sdk"]} />
+
+</Tab>
+<Tab value="React Native">
+
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-langgraph", "@langchain/langgraph-sdk"]} />
+
+</Tab>
+<Tab value="React Ink">
+
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/react-langgraph", "@langchain/langgraph-sdk", "ink", "react"]} />
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 <Step>
 
 ### Create the LangGraph client helper
+
+<PlatformTabs>
+<Tab value="React">
 
 ```ts title="@/lib/chatApi.ts"
 import { Client } from "@langchain/langgraph-sdk";
@@ -54,10 +89,41 @@ export const createClient = () => {
 };
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```ts title="lib/chatApi.ts"
+import { Client } from "@langchain/langgraph-sdk";
+
+export const createClient = () => {
+  const apiUrl =
+    process.env.EXPO_PUBLIC_LANGGRAPH_API_URL ?? "http://localhost:2024";
+  return new Client({ apiUrl });
+};
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```ts title="lib/chatApi.ts"
+import { Client } from "@langchain/langgraph-sdk";
+
+export const createClient = () => {
+  const apiUrl = process.env.LANGGRAPH_API_URL ?? "http://localhost:2024";
+  return new Client({ apiUrl });
+};
+```
+
+</Tab>
+</PlatformTabs>
+
 </Step>
 <Step>
 
 ### Build the assistant component
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx title="@/components/MyAssistant.tsx"
 "use client";
@@ -112,10 +178,124 @@ export function MyAssistant() {
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx title="components/MyAssistant.tsx"
+import { useMemo } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
+import {
+  unstable_createLangGraphStream,
+  useLangGraphRuntime,
+  type LangChainMessage,
+} from "@assistant-ui/react-langgraph";
+import { Thread } from "@/components/assistant-ui/thread";
+
+import { createClient } from "@/lib/chatApi";
+
+const ASSISTANT_ID = process.env.EXPO_PUBLIC_LANGGRAPH_ASSISTANT_ID!;
+
+export function MyAssistant() {
+  const client = useMemo(() => createClient(), []);
+  const stream = useMemo(
+    () =>
+      unstable_createLangGraphStream({
+        client,
+        assistantId: ASSISTANT_ID,
+      }),
+    [client],
+  );
+
+  const runtime = useLangGraphRuntime({
+    unstable_allowCancellation: true,
+    stream,
+    create: async () => {
+      const { thread_id } = await client.threads.create();
+      return { externalId: thread_id };
+    },
+    load: async (externalId) => {
+      const state = await client.threads.getState<{
+        messages: LangChainMessage[];
+      }>(externalId);
+      return {
+        messages: state.values.messages,
+        interrupts: state.tasks[0]?.interrupts,
+      };
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="components/MyAssistant.tsx"
+import { useMemo } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-ink";
+import {
+  unstable_createLangGraphStream,
+  useLangGraphRuntime,
+  type LangChainMessage,
+} from "@assistant-ui/react-langgraph";
+import { Thread } from "./thread.js";
+
+import { createClient } from "../lib/chatApi.js";
+
+const ASSISTANT_ID = process.env.LANGGRAPH_ASSISTANT_ID!;
+
+export function MyAssistant() {
+  const client = useMemo(() => createClient(), []);
+  const stream = useMemo(
+    () =>
+      unstable_createLangGraphStream({
+        client,
+        assistantId: ASSISTANT_ID,
+      }),
+    [client],
+  );
+
+  const runtime = useLangGraphRuntime({
+    unstable_allowCancellation: true,
+    stream,
+    create: async () => {
+      const { thread_id } = await client.threads.create();
+      return { externalId: thread_id };
+    },
+    load: async (externalId) => {
+      const state = await client.threads.getState<{
+        messages: LangChainMessage[];
+      }>(externalId);
+      return {
+        messages: state.values.messages,
+        interrupts: state.tasks[0]?.interrupts,
+      };
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 </Step>
 <Step>
 
 ### Mount the component
+
+<PlatformTabs>
+<Tab value="React">
 
 ```tsx title="@/app/page.tsx"
 import { MyAssistant } from "@/components/MyAssistant";
@@ -129,26 +309,99 @@ export default function Home() {
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+```tsx title="app/index.tsx"
+import { View } from "react-native";
+import { MyAssistant } from "@/components/MyAssistant";
+
+export default function Home() {
+  return (
+    <View style={{ flex: 1 }}>
+      <MyAssistant />
+    </View>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="app.tsx"
+import { Box } from "ink";
+import { MyAssistant } from "./components/MyAssistant.js";
+
+export function App() {
+  return (
+    <Box flexDirection="column">
+      <MyAssistant />
+    </Box>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 </Step>
 <Step>
 
 ### Set environment variables
 
-Same `.env.local` shape as the template path [above](#from-the-template).
+<PlatformTabs>
+<Tab value="React">
+
+Use the same `.env.local` shape as the template path [above](#from-the-template).
+
+</Tab>
+<Tab value="React Native">
+
+```sh title=".env"
+EXPO_PUBLIC_LANGGRAPH_API_URL=http://localhost:2024
+EXPO_PUBLIC_LANGGRAPH_ASSISTANT_ID=your_graph_id
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```sh title=".env"
+LANGGRAPH_API_URL=http://localhost:2024
+LANGGRAPH_ASSISTANT_ID=your_graph_id
+```
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 <Step>
 
 ### Set up UI components
 
+<PlatformTabs>
+<Tab value="React">
+
 Follow the [UI Components guide](/docs/ui/thread) to wire up the Thread, composer, and supporting primitives.
+
+</Tab>
+<Tab value="React Native">
+
+Follow the [React Native setup](/docs/react-native) to add a native Thread, composer, and supporting primitives.
+
+</Tab>
+<Tab value="React Ink">
+
+Follow the [Ink setup](/docs/ink) to add a terminal Thread, composer, and supporting primitives.
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 </Steps>
 
 ## Production proxy backend
 
-For development, the client above hits LangGraph Cloud directly using `NEXT_PUBLIC_LANGGRAPH_API_URL`. For production, proxy through your own backend so your API key never reaches the browser. Limit the proxy to the endpoints you actually need.
+For development, the client above hits LangGraph Cloud directly using `NEXT_PUBLIC_LANGGRAPH_API_URL`. For production, proxy through your own backend so your API key never reaches the client. Limit the proxy to the endpoints you actually need.
 
 ```ts title="@/app/api/[...path]/route.ts"
 import { NextRequest, NextResponse } from "next/server";

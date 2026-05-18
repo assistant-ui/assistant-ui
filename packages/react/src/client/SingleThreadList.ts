@@ -47,6 +47,8 @@ export const SingleThreadList = resource(
         mainThreadId: THREAD_ID,
         newThreadId: null,
         isLoading: false,
+        isLoadingMore: false,
+        hasMore: false,
         threadIds: [THREAD_ID],
         archivedThreadIds: [],
         threadItems: [itemClient.state],
@@ -65,6 +67,7 @@ export const SingleThreadList = resource(
       },
       getLoadThreadsPromise: () => RESOLVED_PROMISE,
       reload: () => RESOLVED_PROMISE,
+      loadMore: () => RESOLVED_PROMISE,
       item: (selector) => {
         if (
           selector !== "main" &&

@@ -2,6 +2,7 @@ import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "../../utils/json/json-value";
+import type { ToolModelContentPart } from "../tool/tool-types";
 
 type TextStatus =
   | {
@@ -61,6 +62,7 @@ type ToolCallPartBase = {
   args: ReadonlyJSONObject;
   artifact?: ReadonlyJSONValue;
   result?: ReadonlyJSONValue;
+  modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
   parentId?: string;
 };
@@ -68,12 +70,14 @@ type ToolCallPartBase = {
 type ToolCallPartWithoutResult = ToolCallPartBase & {
   state: "partial-call" | "call";
   result?: undefined;
+  modelContent?: undefined;
 };
 
 type ToolCallPartWithResult = ToolCallPartBase & {
   state: "result";
   result: ReadonlyJSONValue;
   artifact?: ReadonlyJSONValue;
+  modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
 };
 

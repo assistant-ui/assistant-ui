@@ -209,6 +209,59 @@ function ReloadOnAuth() {
 
 `reload()` discards in-flight responses from superseded calls, so it is safe to invoke on every auth transition.
 
+### Paginating the thread list
+
+If your backend returns thread pages, return a `nextCursor` from `list()` and consume `aui.threads().hasMore` plus `aui.threads().loadMore()` in the UI. The runtime threads `params.after` back through `list()` on every `loadMore()`; the initial call passes no `params`, so treat a missing `after` as "first page". `reload()` resets the cursor so the next load starts from page 1 again.
+
+```ts title="threadListAdapter.ts (excerpt)"
+async list({ after } = {}) {
+  const url = new URL("/api/threads", location.origin);
+  if (after) url.searchParams.set("after", after);
+  const response = await fetch(url);
+  const { threads, next_cursor } = await response.json();
+  return {
+    threads: threads.map((thread) => ({
+      remoteId: thread.id,
+      status: thread.is_archived ? "archived" : "regular",
+      title: thread.title ?? undefined,
+    })),
+    nextCursor: next_cursor ?? undefined,
+  };
+},
+```
+
+For a button-driven UI, drop `<ThreadListPrimitive.LoadMore>` at the bottom of your list. It ships disabled while the runtime is loading or when no `nextCursor` is available. To trigger it on scroll instead, wrap the same primitive in an `IntersectionObserver` at the application layer; assistant-ui leaves visibility-driven loading to userland by design.
+
+```tsx title="ThreadList.tsx"
+import {
+  ThreadListPrimitive,
+  ThreadListItemPrimitive,
+} from "@assistant-ui/react";
+
+export function ThreadList() {
+  return (
+    <ThreadListPrimitive.Root>
+      <ThreadListPrimitive.Items>
+        {() => (
+          <ThreadListItemPrimitive.Root>
+            <ThreadListItemPrimitive.Trigger>
+              <ThreadListItemPrimitive.Title />
+            </ThreadListItemPrimitive.Trigger>
+          </ThreadListItemPrimitive.Root>
+        )}
+      </ThreadListPrimitive.Items>
+      <ThreadListPrimitive.LoadMore>Load more</ThreadListPrimitive.LoadMore>
+    </ThreadListPrimitive.Root>
+  );
+}
+```
+
+A few invariants worth knowing when wiring a custom UI on top of `loadMore()`:
+
+- **Empty-string cursors collapse to "no more pages".** `nextCursor: ""` is treated the same as `nextCursor: undefined`, so an off-by-one in your backend that returns an empty cursor will not loop forever.
+- **Concurrent `loadMore()` calls are deduped.** The runtime keeps a single in-flight promise per page, so calling `loadMore()` from a sentinel and a button at the same time issues only one network request.
+- **Page errors are swallowed.** If `list({ after })` rejects, the cursor is preserved and the next `loadMore()` retries with the same `after` value. The promise returned to the caller resolves regardless. Surface adapter errors yourself if you need user-visible feedback.
+
 ### Adapter contract
 
 <ParametersTable
@@ -216,9 +269,9 @@ function ReloadOnAuth() {
   parameters={[
     {
       name: "list",
-      type: "() => Promise<{ threads: RemoteThreadMetadata[] }>",
+      type: "(params?: { after?: string }) => Promise<{ threads: RemoteThreadMetadata[]; nextCursor?: string }>",
       description:
-        "Hydrate threads on mount. Each thread must include status and remoteId; title, externalId, and custom are optional.",
+        "Hydrate threads on mount. Each thread must include status and remoteId; title, externalId, and custom are optional. Return a `nextCursor` to enable `aui.threads().loadMore()`; the runtime will pass it back as `params.after` on the next call.",
       required: true,
     },
     {

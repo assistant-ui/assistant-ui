@@ -1,5 +1,6 @@
 import pytest
 from assistant_stream import create_run, RunController
+from assistant_stream.assistant_stream_chunk import UpdateStateChunk
 from assistant_stream.serialization.assistant_transport import AssistantTransportEncoder
 import json
 
@@ -129,3 +130,21 @@ async def test_assistant_transport_encoder_tool_calls():
     tool_result_chunks = [c for c in collected_chunks if c["type"] == "tool-result"]
     assert len(tool_result_chunks) == 1
     assert tool_result_chunks[0]["toolCallId"] == "tool_1"
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_update_state_shape():
+    """Test that update-state chunks preserve operation payload shape."""
+    encoder = AssistantTransportEncoder()
+    operations = [
+        {"type": "append-text", "path": ["messages", "0", "text"], "value": "hi"}
+    ]
+
+    async def stream():
+        yield UpdateStateChunk(operations=operations)
+
+    collected_output = [line async for line in encoder.encode_stream(stream())]
+
+    assert collected_output[-1] == "data: [DONE]\n\n"
+    update_state_payload = json.loads(collected_output[0][6:-2])
+    assert update_state_payload == {"type": "update-state", "operations": operations}

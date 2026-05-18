@@ -1,4 +1,5 @@
 {
   "title": "Mastra",
+  "platforms": ["react"],
   "pages": ["overview", "full-stack", "separate-server"]
 }

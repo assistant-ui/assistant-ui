@@ -1,28 +1,23 @@
-# Assistant-UI MCP Docs Server
+# `@assistant-ui/mcp-docs-server`
 
-A Model Context Protocol (MCP) server that provides AI assistants with direct access to assistant-ui's documentation and examples.
+Model Context Protocol (MCP) server that gives AI assistants direct access to assistant-ui's documentation and example projects. Exposes `assistantUIDocs` (retrieve documentation by path) and `assistantUIExamples` (access complete example projects).
 
-> **📖 Full Documentation**
-> For detailed installation instructions, troubleshooting, and advanced usage, visit the [complete documentation](https://www.assistant-ui.com/docs/llm#mcp).
+> [!NOTE]
+> Detailed installation, troubleshooting, and advanced usage at [assistant-ui.com/docs/llm#mcp](https://www.assistant-ui.com/docs/llm#mcp).
 
 ## Installation
 
 ### Claude Code
 
 ```bash
-# Add to current project
 claude mcp add assistant-ui -- npx -y @assistant-ui/mcp-docs-server
-
-# Or add globally for all projects
+# or globally for all projects
 claude mcp add --scope user assistant-ui -- npx -y @assistant-ui/mcp-docs-server
 ```
 
 ### Claude Desktop
 
-Add to your Claude Desktop configuration:
-
-- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
@@ -35,39 +30,13 @@ Add to your Claude Desktop configuration:
 }
 ```
 
-### Cursor
+### Cursor / Windsurf
 
-Add to `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
+Add to `.cursor/mcp.json` (or `~/.cursor/mcp.json`) for Cursor, or `~/.codeium/windsurf/mcp_config.json` for Windsurf, using the same `mcpServers` block as above.
 
-```json
-{
-  "mcpServers": {
-    "assistant-ui": {
-      "command": "npx",
-      "args": ["-y", "@assistant-ui/mcp-docs-server"]
-    }
-  }
-}
-```
+### VS Code
 
-### Windsurf
-
-Add to `~/.codeium/windsurf/mcp_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "assistant-ui": {
-      "command": "npx",
-      "args": ["-y", "@assistant-ui/mcp-docs-server"]
-    }
-  }
-}
-```
-
-### VSCode
-
-Add to `.vscode/mcp.json` in your project:
+Add to `.vscode/mcp.json`:
 
 ```json
 {
@@ -83,7 +52,7 @@ Add to `.vscode/mcp.json` in your project:
 
 ### Zed
 
-Add to `settings.json` (open via `cmd+,` or `zed: open settings`):
+Add to `settings.json`:
 
 ```json
 {
@@ -91,38 +60,11 @@ Add to `settings.json` (open via `cmd+,` or `zed: open settings`):
     "assistant-ui": {
       "command": {
         "path": "npx",
-        "args": ["-y", "@assistant-ui/mcp-docs-server"],
-        "env": {}
-      },
-      "settings": {}
+        "args": ["-y", "@assistant-ui/mcp-docs-server"]
+      }
     }
   }
 }
 ```
 
-## Tools
-
-- **assistantUIDocs** - Retrieve documentation by path
-- **assistantUIExamples** - Access complete example projects
-
-## Managing the Server
-
-### Claude Code
-
-```bash
-# View configured servers
-claude mcp list
-
-# Get server details
-claude mcp get assistant-ui
-
-# Remove the server
-claude mcp remove assistant-ui
-
-# Restart the server
-claude mcp restart assistant-ui
-```
-
-## License
-
-MIT
+To list, get, or remove the server, use your editor's MCP management commands.

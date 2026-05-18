@@ -12,6 +12,7 @@ import {
 } from "@assistant-ui/react";
 import {
   ArrowUpIcon,
+  CheckIcon,
   ChevronDownIcon,
   CopyIcon,
   Cross2Icon,
@@ -25,11 +26,19 @@ import {
   Square,
   ThumbsDown,
   ThumbsUp,
+  Zap,
 } from "lucide-react";
 import { useEffect, useState, type FC } from "react";
 import { useShallow } from "zustand/shallow";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { GrokIcon } from "@/components/icons/grok";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/shared/dropdown-menu";
 
 export const Grok: FC = () => {
   return (
@@ -86,18 +95,7 @@ const Composer: FC = () => {
             className="my-2 h-6 max-h-100 min-w-0 flex-1 resize-none bg-transparent text-[#0d0d0d] text-base leading-6 outline-none placeholder:text-[#9a9a9a] dark:text-white dark:placeholder:text-[#6b6b6b]"
           />
 
-          <button
-            type="button"
-            className="mb-0.5 flex h-9 shrink-0 items-center gap-2 rounded-full px-2.5 text-[#0d0d0d] hover:bg-[#f0f0f0] dark:text-white dark:hover:bg-[#2a2a2a]"
-          >
-            <Moon width={18} height={18} className="shrink-0" />
-            <div className="flex items-center gap-1 overflow-hidden transition-[max-width,opacity] duration-300 group-data-[empty=false]/composer:max-w-0 group-data-[empty=true]/composer:max-w-24 group-data-[empty=false]/composer:opacity-0 group-data-[empty=true]/composer:opacity-100">
-              <span className="whitespace-nowrap font-semibold text-sm">
-                Grok 4.1
-              </span>
-              <ChevronDownIcon width={16} height={16} className="shrink-0" />
-            </div>
-          </button>
+          <GrokModelPicker />
 
           <div className="relative mb-0.5 h-9 w-9 shrink-0 rounded-full bg-[#0d0d0d] text-white dark:bg-white dark:text-[#0d0d0d]">
             <button
@@ -119,6 +117,70 @@ const Composer: FC = () => {
         </div>
       </div>
     </ComposerPrimitive.Root>
+  );
+};
+
+const GROK_MODELS = [
+  {
+    id: "grok-4.1-fast",
+    name: "Fast",
+    description: "Default. Quick responses",
+    Icon: Zap,
+  },
+  {
+    id: "grok-4.1",
+    name: "Grok 4.1",
+    description: "Standard reasoning",
+    Icon: Moon,
+  },
+  {
+    id: "grok-4.1-think",
+    name: "Think",
+    description: "Multi-step reasoning",
+    Icon: Moon,
+  },
+];
+
+const GrokModelPicker: FC = () => {
+  const [model, setModel] = useState(GROK_MODELS[0]!.id);
+  const current = GROK_MODELS.find((m) => m.id === model) ?? GROK_MODELS[0]!;
+  const CurrentIcon = current.Icon;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="mb-0.5 flex h-9 shrink-0 items-center gap-2 rounded-full px-2.5 text-[#0d0d0d] hover:bg-[#f0f0f0] dark:text-white dark:hover:bg-[#2a2a2a]">
+        <CurrentIcon width={18} height={18} className="shrink-0" />
+        <div className="flex items-center gap-1 overflow-hidden transition-[max-width,opacity] duration-300 group-data-[empty=false]/composer:max-w-0 group-data-[empty=true]/composer:max-w-32 group-data-[empty=false]/composer:opacity-0 group-data-[empty=true]/composer:opacity-100">
+          <span className="whitespace-nowrap font-semibold text-sm">
+            {current.name}
+          </span>
+          <ChevronDownIcon width={16} height={16} className="shrink-0" />
+        </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-60">
+        {GROK_MODELS.map(({ id, name, description, Icon }) => (
+          <DropdownMenuItem
+            key={id}
+            onSelect={() => setModel(id)}
+            className="flex items-start gap-3"
+          >
+            <span className="mt-0.5 flex size-4 items-center justify-center text-[#0d0d0d] dark:text-white">
+              {id === model ? <CheckIcon /> : <Icon width={14} height={14} />}
+            </span>
+            <span className="flex flex-1 flex-col">
+              <span className="text-foreground text-sm">{name}</span>
+              <span className="text-muted-foreground text-xs">
+                {description}
+              </span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="text-muted-foreground text-sm">
+          Subscribe to SuperGrok
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 

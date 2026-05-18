@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const body = await req.json();
   const { messages, tools } = body;
 
-  const model = openai("gpt-4o-mini");
+  const model = openai("gpt-5.4-nano");
 
   const prunedMessages = pruneMessages({
     messages: await convertToModelMessages(messages),

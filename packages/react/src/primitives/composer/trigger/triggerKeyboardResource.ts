@@ -103,7 +103,8 @@ export const TriggerKeyboardResource = resource(
             });
             return true;
           }
-          case "Enter": {
+          case "Enter":
+          case "Tab": {
             if (e.shiftKey) return false;
             e.preventDefault();
             const item = navigableList[highlightedIndex];

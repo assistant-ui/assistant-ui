@@ -30,7 +30,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-1",
             content: "",
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "AIMessageChunk",
             name: null,
             tool_calls: [],
@@ -81,7 +81,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-1",
             content: "",
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "AIMessageChunk",
             name: null,
             tool_calls: [],
@@ -100,7 +100,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-1",
             content: "Hello!",
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "AIMessageChunk",
             name: null,
             tool_calls: [],
@@ -119,7 +119,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-1",
             content: " How may I assist you today?",
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "AIMessageChunk",
             name: null,
             tool_calls: [],
@@ -175,7 +175,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-1",
             content: "",
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "AIMessageChunk",
             name: null,
             tool_calls: [],
@@ -194,7 +194,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-1",
             content: "Hello!",
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "AIMessageChunk",
             name: null,
             tool_calls: [],
@@ -213,7 +213,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-2",
             content: " How may I assist you today?",
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "AIMessageChunk",
             name: null,
             tool_calls: [],
@@ -273,7 +273,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-1",
             content: "",
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "AIMessageChunk",
             name: null,
             tool_calls: [],
@@ -292,7 +292,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-1",
             content: "Hello!",
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "AIMessageChunk",
             name: null,
             tool_calls: [],
@@ -311,7 +311,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-1",
             content: " How may I assist you today?",
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "AIMessageChunk",
             name: null,
             tool_calls: [],
@@ -423,7 +423,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-1",
             content: "",
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "AIMessageChunk",
             name: null,
             tool_calls: [],
@@ -442,7 +442,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-1",
             content: "Hello!",
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "AIMessageChunk",
             name: null,
             tool_calls: [],
@@ -461,7 +461,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-1",
             content: " How may I assist you today?",
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "AIMessageChunk",
             name: null,
             tool_calls: [],
@@ -529,7 +529,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-1",
             content: "",
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "AIMessageChunk",
             name: null,
             tool_calls: [],
@@ -548,7 +548,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-1",
             content: "Hello!",
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "AIMessageChunk",
             name: null,
             tool_calls: [],
@@ -567,7 +567,7 @@ describe("useLangGraphMessages", {}, () => {
             id: "run-2",
             content: [{ type: "text", text: "How may I assist you today?" }],
             additional_kwargs: {},
-            response_metadata: { model_name: "claude-3-7-sonnet-latest" },
+            response_metadata: { model_name: "claude-sonnet-4-6" },
             type: "ai",
             name: null,
             tool_calls: [],
@@ -861,7 +861,7 @@ describe("useLangGraphMessages", {}, () => {
     const tupleMetadata = {
       langgraph_step: 1,
       langgraph_node: "agent",
-      ls_model_name: "claude-3-7-sonnet-latest",
+      ls_model_name: "claude-sonnet-4-6",
     };
 
     const mockStreamCallback = mockStreamCallbackFactory([
@@ -933,7 +933,7 @@ describe("useLangGraphMessages", {}, () => {
           },
           {
             langgraph_step: 1,
-            ls_model_name: "claude-3-7-sonnet-latest",
+            ls_model_name: "claude-sonnet-4-6",
           },
         ],
       },
@@ -956,7 +956,7 @@ describe("useLangGraphMessages", {}, () => {
       expect(metadata).toBeDefined();
       expect(metadata!.langgraph_step).toBe(1);
       expect(metadata!.langgraph_node).toBe("agent");
-      expect(metadata!.ls_model_name).toBe("claude-3-7-sonnet-latest");
+      expect(metadata!.ls_model_name).toBe("claude-sonnet-4-6");
     });
   });
 
@@ -1120,7 +1120,7 @@ describe("useLangGraphMessages", {}, () => {
       result.current.sendMessage([{ type: "human", content: "test" }], {
         checkpointId: "cp-456",
         command: { resume: "yes" },
-        runConfig: { model: "gpt-4" },
+        runConfig: { model: "gpt-5.4-nano" },
       });
     });
 
@@ -1129,7 +1129,7 @@ describe("useLangGraphMessages", {}, () => {
       const config = streamSpy.mock.calls[0]![1];
       expect(config.checkpointId).toBe("cp-456");
       expect(config.command).toEqual({ resume: "yes" });
-      expect(config.runConfig).toEqual({ model: "gpt-4" });
+      expect(config.runConfig).toEqual({ model: "gpt-5.4-nano" });
       expect(config.abortSignal).toBeInstanceOf(AbortSignal);
       expect(typeof config.initialize).toBe("function");
     });
@@ -2737,7 +2737,7 @@ describe("useLangGraphMessages", {}, () => {
           {
             langgraph_step: 1,
             langgraph_node: "agent",
-            ls_model_name: "claude-3-7-sonnet-latest",
+            ls_model_name: "claude-sonnet-4-6",
           } satisfies LangGraphTupleMetadata,
         ],
       },
@@ -2773,7 +2773,7 @@ describe("useLangGraphMessages", {}, () => {
       const metadata = result.current.messageMetadata.get("ai-1");
       expect(metadata).toBeDefined();
       expect(metadata!.langgraph_node).toBe("agent");
-      expect(metadata!.ls_model_name).toBe("claude-3-7-sonnet-latest");
+      expect(metadata!.ls_model_name).toBe("claude-sonnet-4-6");
     });
   });
 

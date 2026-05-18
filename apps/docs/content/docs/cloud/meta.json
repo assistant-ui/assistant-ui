@@ -3,7 +3,6 @@
   "description": "AssistantCloud services",
   "icon": "Cloud",
   "root": true,
-  "platforms": ["react"],
   "pages": [
     "index",
     "ai-sdk",

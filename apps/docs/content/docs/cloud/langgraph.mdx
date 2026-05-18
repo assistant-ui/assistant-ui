@@ -36,6 +36,9 @@ Create a new project in the [assistant-cloud dashboard](https://cloud.assistant-
 
 Add the following environment variables to your project:
 
+<PlatformTabs>
+<Tab value="React">
+
 ```bash title=".env.local"
 # Frontend API URL from your cloud project settings
 NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
@@ -43,6 +46,31 @@ NEXT_PUBLIC_ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
 # API key for server-side operations
 ASSISTANT_API_KEY=your-api-key-here
 ```
+
+</Tab>
+<Tab value="React Native">
+
+```bash title=".env"
+# Client API URL from your cloud project settings
+EXPO_PUBLIC_ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
+
+# API key for server-side operations; do not ship this in your app bundle
+ASSISTANT_API_KEY=your-api-key-here
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```bash title=".env"
+# Client API URL from your cloud project settings
+ASSISTANT_BASE_URL=https://proj-[YOUR-ID].assistant-api.com
+
+# API key for server-side operations; do not ship this in your CLI bundle
+ASSISTANT_API_KEY=your-api-key-here
+```
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 
@@ -52,7 +80,23 @@ ASSISTANT_API_KEY=your-api-key-here
 
 Install the required packages:
 
+<PlatformTabs>
+<Tab value="React">
+
 <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-langgraph"]} />
+
+</Tab>
+<Tab value="React Native">
+
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-langgraph", "assistant-cloud"]} />
+
+</Tab>
+<Tab value="React Ink">
+
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/react-langgraph", "assistant-cloud", "ink", "react"]} />
+
+</Tab>
+</PlatformTabs>
 
 </Step>
 
@@ -61,6 +105,9 @@ Install the required packages:
 ### Create the Runtime Provider
 
 Create a runtime provider that integrates LangGraph with assistant-cloud. Choose between anonymous mode for demos/prototypes or authenticated mode for production:
+
+<PlatformTabs>
+<Tab value="React">
 
 <Tabs items={["Anonymous", "Authenticated (Clerk)"]}>
 
@@ -204,6 +251,135 @@ export function MyRuntimeProvider({
 
 </Tabs>
 
+</Tab>
+<Tab value="React Native">
+
+```tsx title="components/runtime-provider.tsx"
+import { useMemo, type ReactNode } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
+import { AssistantCloud } from "assistant-cloud";
+import {
+  type LangChainMessage,
+  useLangGraphRuntime,
+} from "@assistant-ui/react-langgraph";
+import { createThread, deleteThread, getThreadState, sendMessage } from "@/lib/chatApi";
+
+async function getAssistantToken() {
+  // Return a user token from your auth provider.
+  return "...";
+}
+
+export function MyRuntimeProvider({ children }: { children: ReactNode }) {
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.EXPO_PUBLIC_ASSISTANT_BASE_URL!,
+        authToken: getAssistantToken,
+      }),
+    [],
+  );
+
+  const runtime = useLangGraphRuntime({
+    cloud,
+    stream: async function* (messages, { initialize }) {
+      const { externalId } = await initialize();
+      if (!externalId) throw new Error("Thread not found");
+
+      return sendMessage({
+        threadId: externalId,
+        messages,
+      });
+    },
+    create: async () => {
+      const { thread_id } = await createThread();
+      return { externalId: thread_id };
+    },
+    load: async (externalId) => {
+      const state = await getThreadState(externalId);
+      return {
+        messages:
+          (state.values as { messages?: LangChainMessage[] }).messages ?? [],
+      };
+    },
+    delete: async (externalId) => {
+      await deleteThread(externalId);
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+```tsx title="runtime-provider.tsx"
+import { useMemo, type ReactNode } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react-ink";
+import { AssistantCloud } from "assistant-cloud";
+import {
+  type LangChainMessage,
+  useLangGraphRuntime,
+} from "@assistant-ui/react-langgraph";
+import { createThread, deleteThread, getThreadState, sendMessage } from "./chat-api.js";
+
+async function getAssistantToken() {
+  // Return a user token from your auth provider.
+  return "...";
+}
+
+export function MyRuntimeProvider({ children }: { children: ReactNode }) {
+  const cloud = useMemo(
+    () =>
+      new AssistantCloud({
+        baseUrl: process.env.ASSISTANT_BASE_URL!,
+        authToken: getAssistantToken,
+      }),
+    [],
+  );
+
+  const runtime = useLangGraphRuntime({
+    cloud,
+    stream: async function* (messages, { initialize }) {
+      const { externalId } = await initialize();
+      if (!externalId) throw new Error("Thread not found");
+
+      return sendMessage({
+        threadId: externalId,
+        messages,
+      });
+    },
+    create: async () => {
+      const { thread_id } = await createThread();
+      return { externalId: thread_id };
+    },
+    load: async (externalId) => {
+      const state = await getThreadState(externalId);
+      return {
+        messages:
+          (state.values as { messages?: LangChainMessage[] }).messages ?? [],
+      };
+    },
+    delete: async (externalId) => {
+      await deleteThread(externalId);
+    },
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 <Callout type="info">
   The `useLangGraphRuntime` hook accepts `cloud`, `create`, `load`, and `delete` parameters for simplified thread management. The runtime handles the thread lifecycle internally.
 
@@ -219,6 +395,9 @@ export function MyRuntimeProvider({
 ### Add Thread UI Components
 
 Install the thread list component:
+
+<PlatformTabs>
+<Tab value="React">
 
 <Tabs items={["assistant-ui", "shadcn (namespace)", "shadcn"]}>
   <Tab>
@@ -260,16 +439,109 @@ export default function ChatPage() {
 }
 ```
 
+</Tab>
+<Tab value="React Native">
+
+Follow the [React Native setup](/docs/react-native) for `Thread`, then compose it with the native thread-list primitives:
+
+```tsx title="app/chat.tsx"
+import { Text, View } from "react-native";
+import {
+  ThreadListItemPrimitive,
+  ThreadListPrimitive,
+} from "@assistant-ui/react-native";
+import { Thread } from "@/components/assistant-ui/thread";
+
+function ThreadList() {
+  return (
+    <ThreadListPrimitive.Root>
+      <ThreadListPrimitive.New>
+        <Text>New chat</Text>
+      </ThreadListPrimitive.New>
+      <ThreadListPrimitive.Items
+        renderItem={({ threadId }) => (
+          <ThreadListItemPrimitive.Root key={threadId}>
+            <ThreadListItemPrimitive.Trigger>
+              <ThreadListItemPrimitive.Title fallback="New conversation" />
+            </ThreadListItemPrimitive.Trigger>
+          </ThreadListItemPrimitive.Root>
+        )}
+      />
+    </ThreadListPrimitive.Root>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <MyRuntimeProvider>
+      <View style={{ flex: 1 }}>
+        <ThreadList />
+        <Thread />
+      </View>
+    </MyRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+<Tab value="React Ink">
+
+Follow the [Ink setup](/docs/ink) for `Thread`, then compose it with the terminal thread-list primitives:
+
+```tsx title="chat.tsx"
+import { Box, Text } from "ink";
+import {
+  ThreadListItemPrimitive,
+  ThreadListPrimitive,
+} from "@assistant-ui/react-ink";
+import { Thread } from "./components/thread.js";
+
+function ThreadList() {
+  return (
+    <ThreadListPrimitive.Root>
+      <ThreadListPrimitive.New>
+        <Text color="green">[New chat]</Text>
+      </ThreadListPrimitive.New>
+      <ThreadListPrimitive.Items
+        renderItem={({ threadId }) => (
+          <ThreadListItemPrimitive.Root key={threadId}>
+            <ThreadListItemPrimitive.Trigger>
+              <ThreadListItemPrimitive.Title fallback="New conversation" />
+            </ThreadListItemPrimitive.Trigger>
+          </ThreadListItemPrimitive.Root>
+        )}
+      />
+    </ThreadListPrimitive.Root>
+  );
+}
+
+export function ChatPage() {
+  return (
+    <MyRuntimeProvider>
+      <Box flexDirection="column">
+        <ThreadList />
+        <Thread />
+      </Box>
+    </MyRuntimeProvider>
+  );
+}
+```
+
+</Tab>
+</PlatformTabs>
+
 </Step>
 
 </Steps>
 
 ## Authentication
 
-The examples above show two authentication modes:
+The React runtime-provider tab shows two authentication modes:
 
-- **Anonymous**: Suitable for demos and prototypes. Creates a browser session-based user ID.
+- **Anonymous**: Suitable for React demos and prototypes. Creates a browser session-based user ID.
 - **Authenticated**: For production use with user accounts. The authenticated example uses [Clerk](https://clerk.com/), but you can integrate any auth provider.
+
+The React Native and React Ink tabs use explicit `authToken` callbacks, which is the recommended shape outside browser-session-based demos.
 
 For other authentication providers or custom implementations, see the [Cloud Authorization](/docs/cloud/authorization) guide.
 

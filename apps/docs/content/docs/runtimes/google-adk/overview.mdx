@@ -1,6 +1,6 @@
 ---
-title: Overview
-description: Connect to Google ADK agents with streaming, tool calls, and multi-agent support.
+title: Google ADK Runtime
+description: Connect Google's Agent Development Kit (ADK) to a React chat UI with assistant-ui — streaming, tool calls, and multi-agent orchestration supported.
 ---
 
 `@assistant-ui/react-google-adk` integrates with [Google ADK JS](https://github.com/google/adk-js), Google's official agent framework for TypeScript, and works with ADK Python backends as well. It supports streaming text, tool calls, multi-agent orchestration, code execution, session state, tool confirmations, auth flows, and input requests.
@@ -26,7 +26,23 @@ The package automatically normalizes snake_case event fields from ADK Python bac
 
 ## Install
 
+<PlatformTabs>
+<Tab value="React">
+
 <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-google-adk", "@google/adk"]} />
+
+</Tab>
+<Tab value="React Native">
+
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-google-adk"]} />
+
+</Tab>
+<Tab value="React Ink">
+
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/react-google-adk", "ink", "react"]} />
+
+</Tab>
+</PlatformTabs>
 
 <Callout type="info">
 `@google/adk` is only needed on the server side. The client-side runtime has no dependency on it.

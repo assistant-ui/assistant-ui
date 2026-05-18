@@ -1,6 +1,6 @@
 "use client";
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { ChatModelRunResult } from "@assistant-ui/core";
 import { RunAggregator } from "../src/runtime/adapter/run-aggregator";
 import type { AgUiEvent } from "../src/runtime/types";
@@ -17,11 +17,15 @@ describe("RunAggregator", () => {
     results = [];
   });
 
-  const createAggregator = (showThinking: boolean) =>
+  const createAggregator = (
+    showThinking: boolean,
+    onServerMessageId?: (id: string) => void,
+  ) =>
     new RunAggregator({
       showThinking,
       logger: makeLogger(),
       emit: (update) => results.push(update),
+      ...(onServerMessageId ? { onServerMessageId } : {}),
     });
 
   it("streams text content", () => {
@@ -320,6 +324,85 @@ describe("RunAggregator", () => {
     });
   });
 
+  it("emits requires-action.reason: interrupt with interrupts metadata", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "need approval",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [
+          { id: "int-1", reason: "tool_call", toolCallId: "call-1" },
+        ],
+      },
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(last?.status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+    expect(last?.metadata?.custom).toMatchObject({
+      agui: {
+        interrupts: [
+          { id: "int-1", reason: "tool_call", toolCallId: "call-1" },
+        ],
+      },
+    });
+  });
+
+  it("treats success outcome as complete even with pending tool calls", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "search",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: { type: "success" },
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(last?.status).toMatchObject({
+      type: "complete",
+      reason: "unknown",
+    });
+  });
+
+  it("clears interrupts metadata when a fresh run starts", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [{ id: "int-1", reason: "tool_call" }],
+      },
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r2" } as AgUiEvent);
+    aggregator.handle({
+      type: "RUN_FINISHED",
+      runId: "r2",
+      outcome: { type: "success" },
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(last?.status).toMatchObject({ type: "complete" });
+    expect(last?.metadata?.custom).toBeUndefined();
+  });
+
   it("parses tool call results and defaults metadata", () => {
     const aggregator = createAggregator(false);
 
@@ -341,6 +424,143 @@ describe("RunAggregator", () => {
     expect(toolPart.isError).toBe(false);
   });
 
+  it("reports the first TEXT_MESSAGE_START.messageId exactly once per run", () => {
+    const onServerMessageId = vi.fn();
+    const aggregator = createAggregator(false, onServerMessageId);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "srv-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "srv-1",
+      delta: "hi",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_END",
+      messageId: "srv-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    expect(onServerMessageId).toHaveBeenCalledTimes(1);
+    expect(onServerMessageId).toHaveBeenCalledWith("srv-1");
+  });
+
+  it("ignores subsequent server messageIds within the same run", () => {
+    const onServerMessageId = vi.fn();
+    const aggregator = createAggregator(false, onServerMessageId);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "srv-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_END",
+      messageId: "srv-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "srv-2",
+    } as AgUiEvent);
+
+    expect(onServerMessageId).toHaveBeenCalledTimes(1);
+    expect(onServerMessageId).toHaveBeenCalledWith("srv-1");
+  });
+
+  it("re-arms server messageId reporting across runs", () => {
+    const onServerMessageId = vi.fn();
+    const aggregator = createAggregator(false, onServerMessageId);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "srv-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r2" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "srv-2",
+    } as AgUiEvent);
+
+    expect(onServerMessageId).toHaveBeenCalledTimes(2);
+    expect(onServerMessageId.mock.calls[0]?.[0]).toBe("srv-1");
+    expect(onServerMessageId.mock.calls[1]?.[0]).toBe("srv-2");
+  });
+
+  it("falls back to TEXT_MESSAGE_CONTENT.messageId when START omits it", () => {
+    const onServerMessageId = vi.fn();
+    const aggregator = createAggregator(false, onServerMessageId);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "srv-3",
+      delta: "hi",
+    } as AgUiEvent);
+
+    expect(onServerMessageId).toHaveBeenCalledWith("srv-3");
+  });
+
+  it("reports TOOL_CALL_START.parentMessageId for tool-only runs", () => {
+    const onServerMessageId = vi.fn();
+    const aggregator = createAggregator(false, onServerMessageId);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tc-1",
+      toolCallName: "search",
+      parentMessageId: "srv-parent",
+    } as AgUiEvent);
+
+    expect(onServerMessageId).toHaveBeenCalledWith("srv-parent");
+  });
+
+  it("does not fire when no event carries a messageId", () => {
+    const onServerMessageId = vi.fn();
+    const aggregator = createAggregator(false, onServerMessageId);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "TEXT_MESSAGE_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "hi",
+    } as AgUiEvent);
+
+    expect(onServerMessageId).not.toHaveBeenCalled();
+  });
+
+  it("surfaces TOOL_CALL_RESULT.messageId as unstable_toolMessageId", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tc-1",
+      toolCallName: "lookup",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tc-1",
+      messageId: "tool-msg-7",
+      content: '{"ok":true}',
+      role: "tool",
+    } as AgUiEvent);
+
+    const last = results.at(-1);
+    const toolPart = last?.content?.find(
+      (part) => part.type === "tool-call",
+    ) as any;
+    expect(toolPart).toMatchObject({
+      toolCallId: "tc-1",
+      unstable_toolMessageId: "tool-msg-7",
+    });
+  });
+
   it("emits timing metadata in message metadata", () => {
     const aggregator = createAggregator(false);
 
@@ -357,8 +577,8 @@ describe("RunAggregator", () => {
 
     const last = results.at(-1);
     expect(last?.metadata?.timing).toBeDefined();
-    expect(last?.metadata?.timing.totalChunks).toBeGreaterThan(0);
-    expect(last?.metadata?.timing.toolCallCount).toBe(0);
+    expect(last?.metadata?.timing?.totalChunks).toBeGreaterThan(0);
+    expect(last?.metadata?.timing?.toolCallCount).toBe(0);
   });
 
   it("tracks tool calls in timing metadata", () => {
@@ -368,8 +588,7 @@ describe("RunAggregator", () => {
     aggregator.handle({
       type: "TOOL_CALL_START",
       toolCallId: "t1",
-      toolName: "search",
-      input: '{"q":"test"}',
+      toolCallName: "search",
     } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_CHUNK",
@@ -380,6 +599,6 @@ describe("RunAggregator", () => {
 
     const last = results.at(-1);
     expect(last?.metadata?.timing).toBeDefined();
-    expect(last?.metadata?.timing.toolCallCount).toBe(1);
+    expect(last?.metadata?.timing?.toolCallCount).toBe(1);
   });
 });

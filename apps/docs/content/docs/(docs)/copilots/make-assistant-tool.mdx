@@ -4,9 +4,13 @@ description: Create React components that provide reusable tools to the assistan
 platforms: ["react"]
 ---
 
-<Callout type="warn">
-  `makeAssistantTool` is deprecated. Use the `Tools()` API instead. See the
-  [Tools guide](/docs/guides/tools) for the recommended approach.
+<Callout type="info">
+  For most apps, the [`Tools()` API](/docs/guides/tools) is an easier starting
+  point: tool definitions live in a toolkit object rather than the component
+  tree. `makeAssistantTool` is fully supported and remains a good fit when a
+  tool's availability is tied to a component being mounted, for example a
+  product-specific tool that should only be exposed while that product's UI is
+  on screen (the [intelligent components](/docs/copilots/motivation) pattern).
 </Callout>
 
 `makeAssistantTool` creates a React component that provides a tool to the assistant. This is useful for defining reusable tools that can be composed into your application.
