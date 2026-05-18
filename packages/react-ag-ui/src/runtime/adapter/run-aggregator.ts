@@ -66,9 +66,9 @@ export class RunAggregator {
   private textPartCounter = 0;
   private serverMessageIdReported = false;
 
-  private _streamStartTime: number | undefined;
-  private _firstTokenTime: number | undefined;
-  private _totalChunks = 0;
+  private streamStartTime: number | undefined;
+  private firstTokenTime: number | undefined;
+  private totalChunks = 0;
 
   constructor(options: RunAggregatorOptions) {
     this.emitUpdate = options.emit;
@@ -90,9 +90,9 @@ export class RunAggregator {
         this.activeTextMessageId = undefined;
         this.interrupts = undefined;
         this.serverMessageIdReported = false;
-        this._streamStartTime = Date.now();
-        this._firstTokenTime = undefined;
-        this._totalChunks = 0;
+        this.streamStartTime = Date.now();
+        this.firstTokenTime = undefined;
+        this.totalChunks = 0;
         this.status = { type: "running" };
         this.emit();
         break;
@@ -149,7 +149,7 @@ export class RunAggregator {
         this.recordFirstToken();
         const id = this.resolveTextMessageId(incomingId);
         this.appendText(id, event.delta);
-        this._totalChunks++;
+        this.totalChunks++;
         this.emit();
         break;
       }
@@ -171,7 +171,7 @@ export class RunAggregator {
       case "THINKING_TEXT_MESSAGE_CONTENT":
       case "REASONING_MESSAGE_CONTENT":
         this.handleReasoningContent(event.delta);
-        this._totalChunks++;
+        this.totalChunks++;
         this.recordFirstToken();
         break;
       case "THINKING_TEXT_MESSAGE_END":
@@ -437,20 +437,20 @@ export class RunAggregator {
 
   private recordFirstToken(): void {
     if (
-      this._firstTokenTime === undefined &&
-      this._streamStartTime !== undefined
+      this.firstTokenTime === undefined &&
+      this.streamStartTime !== undefined
     ) {
-      this._firstTokenTime = Date.now() - this._streamStartTime;
+      this.firstTokenTime = Date.now() - this.streamStartTime;
     }
   }
 
   private getTiming(): MessageTiming | undefined {
-    if (this._streamStartTime === undefined) return undefined;
+    if (this.streamStartTime === undefined) return undefined;
 
     const now = Date.now();
-    const totalStreamTime = now - this._streamStartTime;
+    const totalStreamTime = now - this.streamStartTime;
     const tokenCount =
-      this._totalChunks > 0
+      this.totalChunks > 0
         ? Math.ceil(
             Array.from(this.textParts.values()).reduce(
               (sum, p) => sum + p.buffer.length,
@@ -464,14 +464,14 @@ export class RunAggregator {
         : undefined;
 
     return {
-      streamStartTime: this._streamStartTime,
-      ...(this._firstTokenTime !== undefined
-        ? { firstTokenTime: this._firstTokenTime }
+      streamStartTime: this.streamStartTime,
+      ...(this.firstTokenTime !== undefined
+        ? { firstTokenTime: this.firstTokenTime }
         : {}),
       totalStreamTime,
       ...(tokenCount !== undefined ? { tokenCount } : {}),
       ...(tokensPerSecond !== undefined ? { tokensPerSecond } : {}),
-      totalChunks: this._totalChunks,
+      totalChunks: this.totalChunks,
       toolCallCount: this.toolCalls.size,
     };
   }

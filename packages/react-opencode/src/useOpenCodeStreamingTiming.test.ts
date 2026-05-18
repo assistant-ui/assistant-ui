@@ -23,8 +23,10 @@ function makeState(
     pendingUserMessages: {},
     interactions: {
       permissions: { pending: {}, resolved: {} },
-      questions: { pending: {}, answered: {} },
+      questions: { pending: {}, answered: {}, rejected: {} },
     },
+    unhandledEvents: [],
+    sync: {},
   } as OpenCodeThreadState;
 }
 
@@ -33,6 +35,7 @@ function msg(
   parts: { type: string; text?: string }[],
 ): OpenCodeThreadState["messagesById"][string] {
   return {
+    id,
     info: { id, role: "assistant" } as never,
     parts: parts as never,
     shadowParts: undefined,

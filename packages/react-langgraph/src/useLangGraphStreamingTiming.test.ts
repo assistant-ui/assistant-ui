@@ -56,10 +56,11 @@ describe("useLangGraphStreamingTiming", () => {
       rerender({ msgs: updatedMessages, running: false });
     });
 
-    expect(result.current["msg-1"]).toBeDefined();
-    expect(result.current["msg-1"].totalStreamTime).toBeGreaterThanOrEqual(300);
-    expect(result.current["msg-1"].totalChunks).toBe(2);
-    expect(result.current["msg-1"].toolCallCount).toBe(0);
+    const timing = result.current["msg-1"];
+    expect(timing).toBeDefined();
+    expect(timing!.totalStreamTime).toBeGreaterThanOrEqual(300);
+    expect(timing!.totalChunks).toBe(2);
+    expect(timing!.toolCallCount).toBe(0);
   });
 
   it("tracks first token time on content growth", () => {
@@ -90,7 +91,7 @@ describe("useLangGraphStreamingTiming", () => {
 
     const timing = result.current["msg-1"];
     expect(timing).toBeDefined();
-    expect(timing.firstTokenTime).toBe(50);
+    expect(timing!.firstTokenTime).toBe(50);
   });
 
   it("tracks tool calls", () => {
@@ -115,7 +116,7 @@ describe("useLangGraphStreamingTiming", () => {
       rerender({ msgs: messages, running: false });
     });
 
-    expect(result.current["msg-1"].toolCallCount).toBe(2);
+    expect(result.current["msg-1"]?.toolCallCount).toBe(2);
   });
 
   it("tracks multiple content updates as chunks", () => {
@@ -148,7 +149,7 @@ describe("useLangGraphStreamingTiming", () => {
       });
     });
 
-    expect(result.current["msg-1"].totalChunks).toBe(3);
+    expect(result.current["msg-1"]?.totalChunks).toBe(3);
   });
 
   it("does not finalize timing while still running", () => {

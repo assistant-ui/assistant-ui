@@ -156,7 +156,6 @@ const useOpenCodeThreadRuntime = (
     void controller.load().catch(onLoadError);
   }, [controller]);
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const isRunning = isOpenCodeStateRunning(state);
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
