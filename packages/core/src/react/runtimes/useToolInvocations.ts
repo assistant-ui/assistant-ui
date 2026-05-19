@@ -610,9 +610,15 @@ export function useToolInvocations({
           processArgsText(entry, content);
 
           if (content.result !== undefined && !entry.hasResult) {
+            // `entry` is in active phase from this point — either it was
+            // just created by `startActiveEntry` above, or it pre-existed
+            // and `processArgsText` preserved (or replaced via rewrite) its
+            // controller. Narrow once instead of asserting at every use.
+            const { controller: activeController } = entry;
+            if (!activeController) return;
             entry.hasResult = true;
             entry.argsComplete = true;
-            entry.controller!.setResponse(
+            activeController.setResponse(
               new ToolResponse({
                 result: content.result as ReadonlyJSONValue,
                 artifact: content.artifact as ReadonlyJSONValue | undefined,
@@ -622,7 +628,7 @@ export function useToolInvocations({
                   : {}),
               }),
             );
-            entry.controller!.close();
+            activeController.close();
           }
 
           if (content.messages) processMessages(content.messages);
