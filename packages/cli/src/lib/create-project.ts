@@ -192,7 +192,6 @@ export async function transformProject(
   projectDir: string,
   opts: TransformOptions,
 ): Promise<void> {
-  // 1. Transform package.json (always)
   logger.step("Transforming package.json...");
   transformPackageJson(projectDir);
 
@@ -210,7 +209,6 @@ export async function transformProject(
     shadcnUI = components.shadcnUI;
   }
 
-  // 6. Install dependencies
   const pm = opts.packageManager;
   if (!opts.skipInstall) {
     logger.step("Installing dependencies...");
@@ -218,14 +216,12 @@ export async function transformProject(
   }
 
   if (!opts.hasLocalComponents && shadcnUI && assistantUI) {
-    // 7. Install shadcn UI components
     const allShadcn = shadcnUI.includes("utils")
       ? shadcnUI
       : [...shadcnUI, "utils"];
     logger.step(`Installing shadcn UI components: ${allShadcn.join(", ")}...`);
     await installShadcnRegistry(projectDir, allShadcn, "shadcn components", pm);
 
-    // 8. Install assistant-ui components
     if (assistantUI.length > 0) {
       const auiComponents = assistantUI.map((c) => `@assistant-ui/${c}`);
       logger.step(
