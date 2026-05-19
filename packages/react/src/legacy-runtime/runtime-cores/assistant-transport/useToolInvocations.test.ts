@@ -880,11 +880,12 @@ describe("useToolInvocations", () => {
       result.current.reset();
     });
 
-    // Wait long enough for the executor's abort race to settle and any
-    // cancellation `result` chunk to flow through the pipeline.
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    });
+    // Flush microtasks through the executor's abort race + the stream
+    // pipeline so any cancellation `result` chunk has a chance to land
+    // before we assert it didn't.
+    for (let i = 0; i < 5; i++) {
+      await act(async () => {});
+    }
 
     expect(onResult).not.toHaveBeenCalled();
   });

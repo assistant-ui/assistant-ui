@@ -334,11 +334,18 @@ export function useToolInvocations({
             const logicalToolCallId = getLogicalToolCallId(streamId);
             const entry = entriesRef.current.get(logicalToolCallId);
 
-            // Result chunk from an abandoned stream (rewrite supersession or
-            // pre-resolved stream cancelled by `reset()`/abort): drop it and
-            // clean up the alias.
+            // Result chunk from a rewrite-superseded stream: drop and clean
+            // up the alias.
             if (abandonedStreamIdsRef.current.delete(streamId)) {
               streamToLogicalRef.current.delete(streamId);
+              return;
+            }
+
+            // Pre-resolved tool call whose entry has been cleared by
+            // `reset()`. Both the real result chunk and the post-abort
+            // cancellation chunk can land here in either order; suppress
+            // both via the long-lived `skipExecuteStreamIdsRef` marker.
+            if (!entry && skipExecuteStreamIdsRef.current.has(streamId)) {
               return;
             }
 
@@ -648,26 +655,13 @@ export function useToolInvocations({
   return {
     reset: () => {
       pendingRestoreRef.current = true;
-      // Pre-resolved tool calls have a never-settling Promise in the
-      // executor's `toolCallPromises`. When `abort()` fires, the executor
-      // races the abort signal and enqueues a cancellation `result` chunk.
-      // Mark those streams abandoned so the chunk is dropped before reaching
-      // `onResult` — the host has already moved on. Non-pre-resolved streams
-      // still surface their cancellation through `onResult` (existing
-      // contract).
-      for (const entry of entriesRef.current.values()) {
-        if (!entry.controller) continue;
-        if (skipExecuteStreamIdsRef.current.has(entry.streamId)) {
-          abandonedStreamIdsRef.current.add(entry.streamId);
-        }
-      }
       entriesRef.current.clear();
-      // `abandonedStreamIdsRef` is not cleared here — the consumer deletes
-      // each id as it processes the corresponding result chunk.
-      // `skipExecuteStreamIdsRef` is also not cleared: it has to outlive
-      // `reset()` so any wrapper call still inbound through the stream
-      // pipeline continues to short-circuit `execute`. Membership grows by
-      // one per pre-resolved tool call observed in the session.
+      // `skipExecuteStreamIdsRef` is not cleared: it has to outlive `reset()`
+      // so (a) any wrapper call still inbound through the stream pipeline
+      // continues to short-circuit `execute`, and (b) the consumer can
+      // recognize and drop any post-abort cancellation `result` chunks for
+      // pre-resolved streams whose entries have been cleared. Membership
+      // grows by one per pre-resolved tool call observed in the session.
       void abort().finally(() => {
         executingRef.current.clear();
         streamToLogicalRef.current.clear();
