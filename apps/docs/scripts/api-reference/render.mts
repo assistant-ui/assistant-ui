@@ -104,7 +104,7 @@ function renderJsDocExample(value: string): string {
   const trimmed = value.trim();
   const example = trimmed.includes("```")
     ? trimmed
-    : ["```ts", trimmed, "```"].join("\n");
+    : ["```tsx", trimmed, "```"].join("\n");
   return mdxEscape(example);
 }
 
