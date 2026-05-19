@@ -386,22 +386,6 @@ describe("transformProject — hasLocalComponents: false", () => {
       expect(shadcnCall![1]).not.toContain("button.tsx");
     });
   });
-
-  // Workspace component removal
-  describe("workspace component removal", () => {
-    it("removes components/assistant-ui directory", async () => {
-      writeFile(
-        "components/assistant-ui/thread.tsx",
-        "export default function Thread() {}",
-      );
-
-      await run();
-
-      expect(
-        fs.existsSync(path.join(testDir, "components", "assistant-ui")),
-      ).toBe(false);
-    });
-  });
 });
 
 describe("transformProject — install behavior", () => {

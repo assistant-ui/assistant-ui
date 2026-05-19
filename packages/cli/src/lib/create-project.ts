@@ -201,9 +201,6 @@ export async function transformProject(
     ]);
     assistantUI = components.assistantUI;
     shadcnUI = components.shadcnUI;
-
-    // 5. Remove workspace components (after scan completes — scan reads these files)
-    await removeWorkspaceComponents(projectDir);
   }
 
   // 6. Install dependencies
@@ -236,7 +233,7 @@ async function transformPackageJson(projectDir: string): Promise<void> {
   const pkgPath = path.join(projectDir, "package.json");
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
 
-  // Remove @assistant-ui/react-ui (workspace-only package)
+  // Remove @assistant-ui/ui dependency
   if (pkg.dependencies?.["@assistant-ui/ui"]) {
     delete pkg.dependencies["@assistant-ui/ui"];
   }
@@ -391,11 +388,6 @@ async function scanRequiredComponents(
     assistantUI: Array.from(assistantUIComponents),
     shadcnUI: Array.from(shadcnUIComponents),
   };
-}
-
-async function removeWorkspaceComponents(projectDir: string): Promise<void> {
-  const componentsDir = path.join(projectDir, "components", "assistant-ui");
-  fs.rmSync(componentsDir, { recursive: true, force: true });
 }
 
 async function installDependencies(
