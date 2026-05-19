@@ -52,5 +52,13 @@ When mounting a runtime built with one of the runtime hooks, use
 [AssistantRuntimeProvider](/docs/api-reference/context-providers/assistant-runtime-provider#assistantruntimeprovider) — it installs an `AuiProvider`
 internally — rather than wiring `AuiProvider` yourself.
 
+```tsx
+function ScopedAssistant({ children, scopes }) {
+  const aui = useAui(scopes);
+
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
+}
+```
+
 <ParametersTable {...AuiProvider} />
 {/* api-reference:end */}

@@ -100,6 +100,14 @@ function mdxEscape(value: string): string {
     .join("");
 }
 
+function renderJsDocExample(value: string): string {
+  const trimmed = value.trim();
+  const example = trimmed.includes("```")
+    ? trimmed
+    : ["```ts", trimmed, "```"].join("\n");
+  return mdxEscape(example);
+}
+
 function mdxCommentMarker(name: string, boundary: "start" | "end"): string {
   return `{/* ${name}:${boundary} */}`;
 }
@@ -342,7 +350,13 @@ function exportSection(
     lines.push(mdxEscape(item.jsDoc), "");
   }
   const example = slots.examples.get(item.name);
-  if (example) lines.push(example, "");
+  if (example) {
+    lines.push(example, "");
+  } else if (item.jsDocExamples) {
+    for (const jsDocExample of item.jsDocExamples) {
+      lines.push(renderJsDocExample(jsDocExample), "");
+    }
+  }
   if (typeDocNames.has(item.name)) {
     lines.push(
       `<ParametersTable {...${typeDocBindings.get(item.name) ?? item.name}} />`,
@@ -363,6 +377,7 @@ function hasGeneratedEntryContent(
 ): boolean {
   return Boolean(
     item.jsDoc ||
+      item.jsDocExamples?.length ||
       item.deprecated ||
       typeDocNames.has(item.name) ||
       item.signature ||

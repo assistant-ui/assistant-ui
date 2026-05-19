@@ -44,6 +44,14 @@ Hook that returns the quote info for the current message, if any.
 
 Reads from `message.metadata.custom.quote`.
 
+```tsx
+function QuoteBlock() {
+  const quote = useMessageQuote();
+  if (!quote) return null;
+  return <blockquote>{quote.text}</blockquote>;
+}
+```
+
 ```ts
 const useMessageQuote: () => QuoteInfo;
 ```
@@ -53,6 +61,14 @@ const useMessageQuote: () => QuoteInfo;
 Hook that returns timing information for the current assistant message.
 
 Reads from `message.metadata.timing`.
+
+```tsx
+function MessageStats() {
+  const timing = useMessageTiming();
+  if (!timing) return null;
+  return <span>{timing.tokensPerSecond?.toFixed(1)} tok/s</span>;
+}
+```
 
 ```ts
 const useMessageTiming: () => MessageTiming;
@@ -81,6 +97,16 @@ temporarily locks its scroll position while the animation completes.
 - Prevents forced reflows: no layout reads, mutations scoped to scrollable parent only
 - Reactive: only intercepts scroll events when browser actually adjusts
 - Cleans up automatically after animation duration
+
+```tsx
+const collapsibleRef = useRef<HTMLDivElement>(null);
+const lockScroll = useScrollLock(collapsibleRef, 200);
+
+const handleCollapse = () => {
+  lockScroll(); // Lock scroll before collapsing
+  setIsOpen(false);
+};
+```
 
 <ParametersTable {...useScrollLock} />
 
@@ -121,6 +147,26 @@ Hook to access the AssistantRuntime from the current context.
 The AssistantRuntime provides access to the top-level assistant state and actions,
 including thread management, tool registration, and configuration.
 
+```tsx
+// Before:
+function MyComponent() {
+  const runtime = useAssistantRuntime();
+  const handleNewThread = () => {
+    runtime.switchToNewThread();
+  };
+  return <button onClick={handleNewThread}>New Thread</button>;
+}
+
+// After:
+function MyComponent() {
+  const aui = useAui();
+  const handleNewThread = () => {
+    aui.threads().switchToNewThread();
+  };
+  return <button onClick={handleNewThread}>New Thread</button>;
+}
+```
+
 <ParametersTable {...useAssistantRuntime} />
 
 ### useAttachment
@@ -152,6 +198,36 @@ Hook to access the current composer state.
 This hook provides reactive access to the composer's state, including text content,
 attachments, editing status, and send/cancel capabilities.
 
+```tsx
+// Before:
+function ComposerStatus() {
+  const text = useComposer((state) => state.text);
+  const canSend = useComposer((state) => state.canSend);
+  const attachmentCount = useComposer((state) => state.attachments.length);
+  return (
+    <div>
+      Text: {text.length} chars,
+      Attachments: {attachmentCount},
+      Can send: {canSend}
+    </div>
+  );
+}
+
+// After:
+function ComposerStatus() {
+  const text = useAuiState((s) => s.composer.text);
+  const canSend = useAuiState((s) => s.composer.canSend);
+  const attachmentCount = useAuiState((s) => s.composer.attachments.length);
+  return (
+    <div>
+      Text: {text.length} chars,
+      Attachments: {attachmentCount},
+      Can send: {canSend}
+    </div>
+  );
+}
+```
+
 ```ts
 const useComposer: { (): ComposerState; <TSelected>(selector: (state: ComposerState) => TSelected): TSelected; <TSelected>(selector: ((state: ComposerState) => TSelected) | undefined): ComposerState | TSelected; (options: { optional?: false | undefined; }): ComposerState; (options: { optional?: boolean | undefined; }): ComposerState | null; <TSelected>(options: { optional?: false | undefined; selector: (state: ComposerState) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: ComposerState) => TSelected) | undefined; }): ComposerState | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: ComposerState) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: ComposerState) => TSelected) | undefined; }): ComposerState | TSelected | null; };
 ```
@@ -168,6 +244,52 @@ The ComposerRuntime provides access to composer state and actions for message
 composition, including text input, attachments, and sending functionality.
 This hook automatically resolves to either the message's edit composer or
 the thread's main composer depending on the context.
+
+```tsx
+// Before:
+function ComposerActions() {
+  const runtime = useComposerRuntime();
+  const handleSend = () => {
+    if (runtime.getState().canSend) {
+      runtime.send();
+    }
+  };
+  const handleCancel = () => {
+    if (runtime.getState().canCancel) {
+      runtime.cancel();
+    }
+  };
+  return (
+    <div>
+      <button onClick={handleSend}>Send</button>
+      <button onClick={handleCancel}>Cancel</button>
+    </div>
+  );
+}
+
+// After:
+function ComposerActions() {
+  const aui = useAui();
+  const canSend = useAuiState((s) => s.composer.canSend);
+  const canCancel = useAuiState((s) => s.composer.canCancel);
+  const handleSend = () => {
+    if (canSend) {
+      aui.composer().send();
+    }
+  };
+  const handleCancel = () => {
+    if (canCancel) {
+      aui.composer().cancel();
+    }
+  };
+  return (
+    <div>
+      <button onClick={handleSend}>Send</button>
+      <button onClick={handleCancel}>Cancel</button>
+    </div>
+  );
+}
+```
 
 <ParametersTable {...useComposerRuntime} />
 
@@ -192,6 +314,32 @@ Hook to access the current message state.
 This hook provides reactive access to the message's state, including content,
 role, status, and other message-level properties.
 
+```tsx
+// Before:
+function MessageContent() {
+  const role = useMessage((state) => state.role);
+  const content = useMessage((state) => state.content);
+  const isLoading = useMessage((state) => state.status.type === "running");
+  return (
+    <div className={`message-${role}`}>
+      {isLoading ? "Loading..." : content.map(part => part.text).join("")}
+    </div>
+  );
+}
+
+// After:
+function MessageContent() {
+  const role = useAuiState((s) => s.message.role);
+  const content = useAuiState((s) => s.message.content);
+  const isLoading = useAuiState((s) => s.message.status.type === "running");
+  return (
+    <div className={`message-${role}`}>
+      {isLoading ? "Loading..." : content.map(part => part.text).join("")}
+    </div>
+  );
+}
+```
+
 ```ts
 const useMessage: { (): MessageState; <TSelected>(selector: (state: MessageState) => TSelected): TSelected; <TSelected>(selector: ((state: MessageState) => TSelected) | undefined): MessageState | TSelected; (options: { optional?: false | undefined; }): MessageState; (options: { optional?: boolean | undefined; }): MessageState | null; <TSelected>(options: { optional?: false | undefined; selector: (state: MessageState) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: MessageState) => TSelected) | undefined; }): MessageState | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: MessageState) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: MessageState) => TSelected) | undefined; }): MessageState | TSelected | null; };
 ```
@@ -214,6 +362,16 @@ Return `null` for optional rendering, or throw inside the selector to
 preserve the old hook's strict behavior.
 </Callout>
 
+```tsx
+const part = useAuiState((s) =>
+  s.part.type === "data" && (!name || s.part.name === name)
+    ? s.part
+    : null,
+);
+```
+
+See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+
 <ParametersTable {...useMessagePartData} />
 
 ### useMessagePartFile
@@ -223,6 +381,15 @@ preserve the old hook's strict behavior.
 Return `null` for optional rendering, or throw inside the selector to
 preserve the old hook's strict behavior.
 </Callout>
+
+```tsx
+const file = useAuiState((s) => {
+  if (s.part.type !== "file") return null;
+  return s.part;
+});
+```
+
+See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
 
 ```ts
 const useMessagePartFile: () => FileMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; };
@@ -236,6 +403,15 @@ Return `null` for optional rendering, or throw inside the selector to
 preserve the old hook's strict behavior.
 </Callout>
 
+```tsx
+const image = useAuiState((s) => {
+  if (s.part.type !== "image") return null;
+  return s.part;
+});
+```
+
+See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+
 ```ts
 const useMessagePartImage: () => ImageMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; };
 ```
@@ -247,6 +423,15 @@ const useMessagePartImage: () => ImageMessagePart & { readonly status: MessagePa
 Return `null` for optional rendering, or throw inside the selector to
 preserve the old hook's strict behavior.
 </Callout>
+
+```tsx
+const reasoning = useAuiState((s) => {
+  if (s.part.type !== "reasoning") return null;
+  return s.part;
+});
+```
+
+See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
 
 ```ts
 const useMessagePartReasoning: () => ReasoningMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; };
@@ -268,6 +453,15 @@ Return `null` for optional rendering, or throw inside the selector to
 preserve the old hook's strict behavior.
 </Callout>
 
+```tsx
+const source = useAuiState((s) => {
+  if (s.part.type !== "source") return null;
+  return s.part;
+});
+```
+
+See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
+
 ```ts
 const useMessagePartSource: () => ({ readonly type: "source"; readonly sourceType: "url"; readonly id: string; readonly url: string; readonly title?: string; readonly providerMetadata?: SourceProviderMetadata; readonly parentId?: string; } & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; }) | ({ readonly type: "source"; readonly sourceType: "document"; readonly id: string; readonly url?: undefined; readonly title: string; readonly mediaType: string; readonly filename?: string; readonly providerMetadata?: SourceProviderMetadata; readonly parentId?: string; } & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; });
 ```
@@ -279,6 +473,15 @@ const useMessagePartSource: () => ({ readonly type: "source"; readonly sourceTyp
 Return `null` for optional rendering, or throw inside the selector to
 preserve the old hook's strict behavior.
 </Callout>
+
+```tsx
+const text = useAuiState((s) => {
+  if (s.part.type !== "text" && s.part.type !== "reasoning") return null;
+  return s.part;
+});
+```
+
+See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
 
 ```ts
 const useMessagePartText: () => (TextMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; }) | (ReasoningMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; });
@@ -295,6 +498,42 @@ Hook to access the MessageRuntime from the current context.
 The MessageRuntime provides access to message-level state and actions,
 including message content, status, editing capabilities, and branching.
 
+```tsx
+// Before:
+function MessageActions() {
+  const runtime = useMessageRuntime();
+  const handleReload = () => {
+    runtime.reload();
+  };
+  const handleEdit = () => {
+    runtime.startEdit();
+  };
+  return (
+    <div>
+      <button onClick={handleReload}>Reload</button>
+      <button onClick={handleEdit}>Edit</button>
+    </div>
+  );
+}
+
+// After:
+function MessageActions() {
+  const aui = useAui();
+  const handleReload = () => {
+    aui.message().reload();
+  };
+  const handleEdit = () => {
+    aui.message().startEdit();
+  };
+  return (
+    <div>
+      <button onClick={handleReload}>Reload</button>
+      <button onClick={handleEdit}>Edit</button>
+    </div>
+  );
+}
+```
+
 <ParametersTable {...useMessageRuntime} />
 
 ### useThread
@@ -307,6 +546,22 @@ Hook to access the current thread state.
 
 This hook provides reactive access to the thread's state, including messages,
 running status, capabilities, and other thread-level properties.
+
+```tsx
+// Before:
+function ThreadStatus() {
+  const isRunning = useThread((state) => state.isRunning);
+  const messageCount = useThread((state) => state.messages.length);
+  return <div>Running: {isRunning}, Messages: {messageCount}</div>;
+}
+
+// After:
+function ThreadStatus() {
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const messageCount = useAuiState((s) => s.thread.messages.length);
+  return <div>Running: {isRunning}, Messages: {messageCount}</div>;
+}
+```
 
 ```ts
 const useThread: { (): ThreadState; <TSelected>(selector: (state: ThreadState) => TSelected): TSelected; <TSelected>(selector: ((state: ThreadState) => TSelected) | undefined): ThreadState | TSelected; (options: { optional?: false | undefined; }): ThreadState; (options: { optional?: boolean | undefined; }): ThreadState | null; <TSelected>(options: { optional?: false | undefined; selector: (state: ThreadState) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: ThreadState) => TSelected) | undefined; }): ThreadState | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: ThreadState) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: ThreadState) => TSelected) | undefined; }): ThreadState | TSelected | null; };
@@ -360,6 +615,26 @@ Hook to access the ThreadRuntime from the current context.
 
 The ThreadRuntime provides access to thread-level state and actions,
 including message management, thread state, and composer functionality.
+
+```tsx
+// Before:
+function MyComponent() {
+  const runtime = useThreadRuntime();
+  const handleSendMessage = (text: string) => {
+    runtime.append({ role: "user", content: [{ type: "text", text }] });
+  };
+  return <button onClick={() => handleSendMessage("Hello!")}>Send</button>;
+}
+
+// After:
+function MyComponent() {
+  const aui = useAui();
+  const handleSendMessage = (text: string) => {
+    aui.thread().append({ role: "user", content: [{ type: "text", text }] });
+  };
+  return <button onClick={() => handleSendMessage("Hello!")}>Send</button>;
+}
+```
 
 <ParametersTable {...useThreadRuntime} />
 {/* api-reference:end */}

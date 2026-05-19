@@ -46,6 +46,7 @@ export type ExportInfo = {
   pageRole: "primary" | "related" | "supporting-type";
   sourcePath?: string;
   jsDoc?: string;
+  jsDocExamples?: string[];
   deprecated?: string;
   signature?: string;
   classificationRule: string;
@@ -308,6 +309,7 @@ function buildExportInfo(
     pageRole: overrides.pageRole ?? placement.role,
     sourcePath,
     jsDoc: docs.jsDoc,
+    jsDocExamples: docs.examples,
     deprecated: resolvedDeprecated,
     signature,
     classificationRule: overrides.classificationRule ?? placement.rule,

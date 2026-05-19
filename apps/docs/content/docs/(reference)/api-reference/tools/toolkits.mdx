@@ -30,6 +30,19 @@ export for a [Toolkit](/docs/api-reference/tools/toolkits#toolkit), [Tools](/doc
 Inference from parameter schemas is currently limited, so provide generic
 arguments when you need precise args or result types.
 
+```ts
+const getWeather = tool<{ city: string }, string>({
+  type: "frontend",
+  description: "Get the weather for a city.",
+  parameters: {
+    type: "object",
+    properties: { city: { type: "string" } },
+    required: ["city"],
+  },
+  execute: async ({ city }) => `Sunny in ${city}`,
+});
+```
+
 <ParametersTable {...tool} />
 
 ### ToolDefinition
@@ -49,6 +62,18 @@ required for frontend and human tools and optional for backend tools.
 Named collection of tools exposed to the assistant model.
 
 Keys are the tool names the model receives and uses in tool calls.
+
+```tsx
+const toolkit = {
+  get_weather: {
+    type: "frontend",
+    description: "Get the weather for a city.",
+    parameters: weatherSchema,
+    execute: async ({ city }: { city: string }) => fetchWeather(city),
+    render: WeatherToolUI,
+  },
+} satisfies Toolkit;
+```
 
 ```ts
 type Toolkit = Record<string, ToolDefinition<any, any>>;

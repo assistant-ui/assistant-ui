@@ -65,6 +65,11 @@ Creates a spreadable `{ adapter, directive }` bundle for `@` mentions.
 Supports tools registered via `useAssistantTool`, explicit items, or both —
 flat or categorized.
 
+```tsx
+const mention = unstable_useMentionAdapter();
+<ComposerTriggerPopover char="@" {...mention} />
+```
+
 <ParametersTable {...unstable_useMentionAdapter} />
 
 ### unstable_useSlashCommandAdapter
@@ -77,6 +82,17 @@ Bundles slash command definitions (with inline `execute` callbacks) into
 `{adapter, action}` that plug directly into `ComposerTriggerPopover`.
 `execute` stays in the hook closure and is never attached to the returned
 `TriggerItem`, keeping items serializable.
+
+```tsx
+const slash = unstable_useSlashCommandAdapter({
+  commands: [
+    { id: "summarize", execute: () => runSummarize(), icon: "FileText" },
+    { id: "translate", execute: () => runTranslate(), icon: "Languages" },
+  ],
+});
+
+<ComposerTriggerPopover char="/" {...slash} />
+```
 
 <ParametersTable {...unstable_useSlashCommandAdapter} />
 {/* api-reference:end */}
