@@ -2,4 +2,4 @@
 "assistant-ui": patch
 ---
 
-chore: resolve template UI components from the shared package source
+feat: resolve template UI components from the shared package source

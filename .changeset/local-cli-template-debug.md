@@ -2,4 +2,4 @@
 "assistant-ui": patch
 ---
 
-chore: add a hidden local source override for CLI template testing
+feat: add a local source override flag `--debug-source-root` for local CLI template testing
