@@ -722,7 +722,7 @@ describe("useToolInvocations", () => {
       },
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await act(async () => {});
     expect(streamCall).not.toHaveBeenCalled();
     expect(onResult).not.toHaveBeenCalled();
   });
@@ -757,7 +757,7 @@ describe("useToolInvocations", () => {
       },
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await act(async () => {});
     expect(streamCall).not.toHaveBeenCalled();
 
     act(() => {
@@ -829,7 +829,63 @@ describe("useToolInvocations", () => {
       });
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await act(async () => {});
     expect(streamCall).not.toHaveBeenCalled();
+  });
+
+  it("does not emit a cancellation onResult for pre-resolved tool calls aborted by reset", async () => {
+    const streamCall = vi.fn();
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute: vi.fn(async () => ({ forecast: "ok" })),
+        streamCall,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const setToolStatuses = vi.fn();
+
+    const { result, rerender } = renderHook(
+      ({ state }: { state: AssistantTransportState }) =>
+        useToolInvocations({
+          state,
+          getTools,
+          onResult,
+          setToolStatuses,
+        }),
+      {
+        initialProps: {
+          state: createState([]),
+        },
+      },
+    );
+
+    act(() => {
+      rerender({
+        state: createState([
+          createAssistantMessage(
+            '{"query":"London"}',
+            { query: "London" },
+            { result: { source: "history" } },
+          ),
+        ]),
+      });
+    });
+
+    await waitFor(() => {
+      expect(streamCall).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      result.current.reset();
+    });
+
+    // Wait long enough for the executor's abort race to settle and any
+    // cancellation `result` chunk to flow through the pipeline.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(onResult).not.toHaveBeenCalled();
   });
 });

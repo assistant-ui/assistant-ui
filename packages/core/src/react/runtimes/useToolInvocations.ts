@@ -104,9 +104,6 @@ type ToolCallEntry = {
       controller?: undefined;
       streamId?: undefined;
       argsComplete?: undefined;
-      skipExecute?: undefined;
-      abandonedStreamIds?: undefined;
-      executingStreamIds?: undefined;
     }
   | {
       /** Active phase — chunks are flowing through `controller`. */
@@ -114,14 +111,6 @@ type ToolCallEntry = {
       /** Current physical stream id (differs from logical id after a rewrite). */
       streamId: string;
       argsComplete: boolean;
-      /**
-       * The tool-call was observed pre-resolved on first live appearance;
-       * the executor's `execute` callback must short-circuit so the host's
-       * tool execute fn doesn't run again. `streamCall` still fires.
-       */
-      skipExecute: boolean;
-      /** Stream ids superseded by argsText restarts. Results are discarded. */
-      abandonedStreamIds?: Set<string>;
     }
 );
 
@@ -155,6 +144,24 @@ export function useToolInvocations({
    * `getLogicalToolCallId`.
    */
   const streamToLogicalRef = useRef<Map<string, string>>(new Map());
+
+  /**
+   * Stream ids whose `result` chunks must be dropped before reaching `onResult`.
+   * Populated when:
+   *   - an argsText rewrite supersedes a stream (the old stream's result, if
+   *     any, is no longer authoritative)
+   *   - `reset()` is called while a pre-resolved tool call has a never-settling
+   *     Promise pending in the executor — the eventual cancellation chunk
+   *     would otherwise be forwarded to a host that has already moved on.
+   */
+  const abandonedStreamIdsRef = useRef<Set<string>>(new Set());
+
+  /**
+   * Stream ids whose `execute` should be short-circuited in the tool wrapper.
+   * Tracked by physical stream id (not logical id) so cleanup is keyed off
+   * the same id the wrapper sees in its context.
+   */
+  const skipExecuteStreamIdsRef = useRef<Set<string>>(new Set());
 
   const humanInputRef = useRef<
     Map<
@@ -205,19 +212,17 @@ export function useToolInvocations({
             execute: (
               ...[args, context]: Parameters<NonNullable<typeof execute>>
             ) => {
-              const logicalToolCallId = getLogicalToolCallId(
-                context.toolCallId,
-              );
-              const entry = entriesRef.current.get(logicalToolCallId);
-              if (entry?.skipExecute) {
+              if (skipExecuteStreamIdsRef.current.has(context.toolCallId)) {
                 // Pre-resolved on first live observation: never invoke the
                 // host's execute fn. Returning a never-settling Promise keeps
                 // the executor's pending entry alive but enqueues nothing.
+                // The membership in skipExecuteStreamIdsRef survives `reset()`
+                // so a late args-text-finish still short-circuits.
                 return new Promise(() => {}) as never;
               }
               return execute(args, {
                 ...context,
-                toolCallId: logicalToolCallId,
+                toolCallId: getLogicalToolCallId(context.toolCallId),
               });
             },
           }),
@@ -278,12 +283,10 @@ export function useToolInvocations({
       },
       {
         onExecutionStart: (streamId: string) => {
-          const logicalToolCallId = getLogicalToolCallId(streamId);
-          const entry = entriesRef.current.get(logicalToolCallId);
-          if (!entry?.controller) return;
-          if (entry.skipExecute) return;
+          if (skipExecuteStreamIdsRef.current.has(streamId)) return;
 
-          const abandoned = entry.abandonedStreamIds?.has(streamId) ?? false;
+          const logicalToolCallId = getLogicalToolCallId(streamId);
+          const abandoned = abandonedStreamIdsRef.current.has(streamId);
           executingRef.current.set(streamId, {
             logicalToolCallId,
             abandoned,
@@ -328,10 +331,10 @@ export function useToolInvocations({
             const logicalToolCallId = getLogicalToolCallId(streamId);
             const entry = entriesRef.current.get(logicalToolCallId);
 
-            // Result chunk from an abandoned (rewritten-past) stream — drop
-            // it and clean up its alias.
-            if (entry?.abandonedStreamIds?.has(streamId)) {
-              entry.abandonedStreamIds.delete(streamId);
+            // Result chunk from an abandoned stream (rewrite supersession or
+            // pre-resolved stream cancelled by `reset()`/abort): drop it and
+            // clean up the alias.
+            if (abandonedStreamIdsRef.current.delete(streamId)) {
               streamToLogicalRef.current.delete(streamId);
               return;
             }
@@ -397,6 +400,9 @@ export function useToolInvocations({
         toolName,
         toolCallId,
       });
+      if (skipExecute) {
+        skipExecuteStreamIdsRef.current.add(toolCallId);
+      }
       const entry: ToolCallEntry = {
         toolName,
         controller: toolCallController,
@@ -404,7 +410,6 @@ export function useToolInvocations({
         argsText: "",
         hasResult: false,
         argsComplete: false,
-        skipExecute,
       };
       entriesRef.current.set(toolCallId, entry);
       return entry;
@@ -412,8 +417,13 @@ export function useToolInvocations({
 
     const restartArgsStream = (entry: ToolCallEntry, toolCallId: string) => {
       if (!entry.controller) return;
-      entry.abandonedStreamIds ??= new Set();
-      entry.abandonedStreamIds.add(entry.streamId);
+      abandonedStreamIdsRef.current.add(entry.streamId);
+      // The wrapper's execute short-circuit follows the current stream id;
+      // the abandoned id stays in `skipExecuteStreamIdsRef` if it was there,
+      // which is harmless and keeps in-flight chunks consistent.
+      const wasSkipExecute = skipExecuteStreamIdsRef.current.has(
+        entry.streamId,
+      );
       entry.controller.argsText.close();
 
       const newStreamId = `${toolCallId}:rewrite:${rewriteCounterRef.current++}`;
@@ -422,6 +432,9 @@ export function useToolInvocations({
         toolName: entry.toolName,
         toolCallId: newStreamId,
       });
+      if (wasSkipExecute) {
+        skipExecuteStreamIdsRef.current.add(newStreamId);
+      }
 
       if (process.env.NODE_ENV !== "production") {
         console.warn("started replacement stream tool call", {
@@ -632,7 +645,24 @@ export function useToolInvocations({
   return {
     reset: () => {
       pendingRestoreRef.current = true;
+      // Pre-resolved tool calls have a never-settling Promise in the
+      // executor's `toolCallPromises`. When `abort()` fires, the executor
+      // races the abort signal and enqueues a cancellation `result` chunk.
+      // Mark those streams abandoned so the chunk is dropped before reaching
+      // `onResult` — the host has already moved on. Non-pre-resolved streams
+      // still surface their cancellation through `onResult` (existing
+      // contract).
+      for (const entry of entriesRef.current.values()) {
+        if (!entry.controller) continue;
+        if (skipExecuteStreamIdsRef.current.has(entry.streamId)) {
+          abandonedStreamIdsRef.current.add(entry.streamId);
+        }
+      }
       entriesRef.current.clear();
+      // `abandonedStreamIdsRef` and `skipExecuteStreamIdsRef` are not cleared
+      // here — the consumer deletes the abandoned id as it processes each
+      // result chunk, and the wrapper's execute short-circuit needs to remain
+      // intact for any args-text-finish still in the pipeline.
       void abort().finally(() => {
         executingRef.current.clear();
         streamToLogicalRef.current.clear();
