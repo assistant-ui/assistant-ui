@@ -216,8 +216,11 @@ export function useToolInvocations({
                 // Pre-resolved on first live observation: never invoke the
                 // host's execute fn. Returning a never-settling Promise keeps
                 // the executor's pending entry alive but enqueues nothing.
-                // The membership in skipExecuteStreamIdsRef survives `reset()`
-                // so a late args-text-finish still short-circuits.
+                // The membership in skipExecuteStreamIdsRef must outlive the
+                // wrapper call so `reset()`'s seeding loop (which reads this
+                // Set to identify pre-resolved entries needing cancellation
+                // suppression) sees the entry. Growth is bounded by the
+                // number of pre-resolved tool calls observed in the session.
                 return new Promise(() => {}) as never;
               }
               return execute(args, {
@@ -659,10 +662,12 @@ export function useToolInvocations({
         }
       }
       entriesRef.current.clear();
-      // `abandonedStreamIdsRef` and `skipExecuteStreamIdsRef` are not cleared
-      // here — the consumer deletes the abandoned id as it processes each
-      // result chunk, and the wrapper's execute short-circuit needs to remain
-      // intact for any args-text-finish still in the pipeline.
+      // `abandonedStreamIdsRef` is not cleared here — the consumer deletes
+      // each id as it processes the corresponding result chunk.
+      // `skipExecuteStreamIdsRef` is also not cleared: it has to outlive
+      // `reset()` so any wrapper call still inbound through the stream
+      // pipeline continues to short-circuit `execute`. Membership grows by
+      // one per pre-resolved tool call observed in the session.
       void abort().finally(() => {
         executingRef.current.clear();
         streamToLogicalRef.current.clear();
