@@ -527,7 +527,7 @@ function generateApiPage({
   if (guideLine) lines.push(guideLine, "");
   if (slots.manual) lines.push(slots.manual, "");
   lines.push(generatedReferenceRegion(reference));
-  return lines.join("\n");
+  return `${lines.join("\n")}\n`;
 }
 
 function generatedImportsForPage(
