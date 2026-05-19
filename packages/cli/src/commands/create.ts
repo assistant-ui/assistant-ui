@@ -466,10 +466,9 @@ export const create = new Command()
       process.exit(1);
     }
 
-    const localSourceRoot =
-      typeof opts.debugSourceRoot === "string" && opts.debugSourceRoot
-        ? path.resolve(opts.debugSourceRoot)
-        : undefined;
+    const localSourceRoot = opts.debugSourceRoot
+      ? path.resolve(opts.debugSourceRoot)
+      : undefined;
 
     // Start release ref resolution early (runs during user prompts)
     const refPromise = localSourceRoot
@@ -574,7 +573,7 @@ export const create = new Command()
           ? { kind: "local" as const, rootDir: localSourceRoot }
           : {
               kind: "github" as const,
-              ...(ref !== undefined ? { ref } : {}),
+              ref,
             };
         await scaffoldProject(project.path, absoluteProjectDir, source);
 

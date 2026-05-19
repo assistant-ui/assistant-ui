@@ -30,7 +30,7 @@ export interface TransformOptions {
 export type ProjectSource =
   | {
       kind: "github";
-      ref?: string;
+      ref: string | undefined;
     }
   | {
       kind: "local";
@@ -144,15 +144,24 @@ export async function scaffoldProject(
   }
 
   const localProjectDir = path.resolve(source.rootDir, repoPath);
-  if (!fs.existsSync(localProjectDir)) {
-    throw new Error(`Local project source does not exist: ${localProjectDir}`);
+  try {
+    fs.cpSync(localProjectDir, destDir, {
+      recursive: true,
+      force: true,
+      filter: (src) => shouldCopyLocalProjectPath(src, localProjectDir),
+    });
+  } catch (error) {
+    const code =
+      error instanceof Error
+        ? (error as NodeJS.ErrnoException).code
+        : undefined;
+    if (code === "ENOENT") {
+      throw new Error(
+        `Local project source does not exist: ${localProjectDir}`,
+      );
+    }
+    throw error;
   }
-
-  fs.cpSync(localProjectDir, destDir, {
-    recursive: true,
-    force: true,
-    filter: (src) => shouldCopyLocalProjectPath(src, localProjectDir),
-  });
 }
 
 function detectFromUserAgent(): PackageManagerName | undefined {
@@ -185,7 +194,7 @@ export async function transformProject(
 ): Promise<void> {
   // 1. Transform package.json (always)
   logger.step("Transforming package.json...");
-  await transformPackageJson(projectDir);
+  transformPackageJson(projectDir);
 
   let assistantUI: string[] | undefined;
   let shadcnUI: string[] | undefined;
@@ -193,12 +202,10 @@ export async function transformProject(
   if (!opts.hasLocalComponents) {
     logger.step("Transforming project files...");
 
-    // 2–4. Transform tsconfig, CSS, and scan components in parallel
-    const [, , components] = await Promise.all([
-      transformTsConfig(projectDir),
-      transformCssFiles(projectDir),
-      scanRequiredComponents(projectDir),
-    ]);
+    transformTsConfig(projectDir);
+    transformCssFiles(projectDir);
+
+    const components = scanRequiredComponents(projectDir);
     assistantUI = components.assistantUI;
     shadcnUI = components.shadcnUI;
   }
@@ -229,7 +236,7 @@ export async function transformProject(
   }
 }
 
-async function transformPackageJson(projectDir: string): Promise<void> {
+function transformPackageJson(projectDir: string): void {
   const pkgPath = path.join(projectDir, "package.json");
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
 
@@ -262,7 +269,7 @@ async function transformPackageJson(projectDir: string): Promise<void> {
   fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 }
 
-async function transformTsConfig(projectDir: string): Promise<void> {
+function transformTsConfig(projectDir: string): void {
   const tsconfigPath = path.join(projectDir, "tsconfig.json");
 
   if (!fs.existsSync(tsconfigPath)) {
@@ -319,7 +326,7 @@ async function transformTsConfig(projectDir: string): Promise<void> {
   fs.writeFileSync(tsconfigPath, `${JSON.stringify(tsconfig, null, 2)}\n`);
 }
 
-async function transformCssFiles(projectDir: string): Promise<void> {
+function transformCssFiles(projectDir: string): void {
   const cssFiles = globSync("**/*.css", {
     cwd: projectDir,
     ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
@@ -353,9 +360,7 @@ function stripImportExtension(component: string): string {
   return component.replace(/\.[cm]?[tj]sx?$/, "");
 }
 
-async function scanRequiredComponents(
-  projectDir: string,
-): Promise<RequiredComponents> {
+function scanRequiredComponents(projectDir: string): RequiredComponents {
   const files = globSync("**/*.{ts,tsx}", {
     cwd: projectDir,
     ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
