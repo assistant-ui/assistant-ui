@@ -37,12 +37,12 @@ export type ProjectSource =
       rootDir: string;
     };
 
-const LOCAL_PROJECT_ARTIFACT_DIRS = [
+const LOCAL_PROJECT_ARTIFACT_DIRS: readonly string[] = [
   "node_modules",
   ".next",
   "dist",
   "build",
-] as const;
+];
 
 const LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES = LOCAL_PROJECT_ARTIFACT_DIRS.map(
   (dir) => `**/${dir}/**`,
@@ -123,13 +123,13 @@ export async function downloadProject(
   }
 }
 
-function shouldCopyLocalProjectPath(src: string, rootDir: string): boolean {
-  const relative = path.relative(rootDir, src);
+function shouldCopyLocalProjectPath(src: string, projectDir: string): boolean {
+  const relative = path.relative(projectDir, src);
   if (!relative) return true;
 
   const segments = relative.split(path.sep);
   return !segments.some((segment) =>
-    LOCAL_PROJECT_ARTIFACT_DIRS.some((dir) => dir === segment),
+    LOCAL_PROJECT_ARTIFACT_DIRS.includes(segment),
   );
 }
 
@@ -352,6 +352,10 @@ interface RequiredComponents {
   shadcnUI: string[];
 }
 
+function stripImportExtension(component: string): string {
+  return component.replace(/\.[cm]?[tj]sx?$/, "");
+}
+
 async function scanRequiredComponents(
   projectDir: string,
 ): Promise<RequiredComponents> {
@@ -371,12 +375,12 @@ async function scanRequiredComponents(
       const assistantUIRegex =
         /from\s+["']@\/components\/assistant-ui\/([^"']+)["']/g;
       for (const match of content.matchAll(assistantUIRegex)) {
-        assistantUIComponents.add(match[1]!);
+        assistantUIComponents.add(stripImportExtension(match[1]!));
       }
 
       const uiRegex = /from\s+["']@\/components\/ui\/([^"']+)["']/g;
       for (const match of content.matchAll(uiRegex)) {
-        shadcnUIComponents.add(match[1]!);
+        shadcnUIComponents.add(stripImportExtension(match[1]!));
       }
     } catch {
       // Ignore files that cannot be read

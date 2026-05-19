@@ -359,7 +359,7 @@ describe("transformProject — hasLocalComponents: false", () => {
     it("detects assistant-ui and shadcn component imports", async () => {
       writeFile(
         "app/page.tsx",
-        'import { Thread } from "@/components/assistant-ui/thread";\nimport { Button } from "@/components/ui/button";\nexport default function Page() { return <Thread />; }\n',
+        'import { Thread } from "@/components/assistant-ui/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
       );
 
       await run();
@@ -373,6 +373,7 @@ describe("transformProject — hasLocalComponents: false", () => {
       );
       expect(auiCall).toBeDefined();
       expect(auiCall![1]).toContain("@assistant-ui/thread");
+      expect(auiCall![1]).not.toContain("@assistant-ui/thread.tsx");
 
       // shadcn UI components installed separately
       const shadcnCall = findSpawnCall(
@@ -382,6 +383,7 @@ describe("transformProject — hasLocalComponents: false", () => {
           args.includes("button"),
       );
       expect(shadcnCall).toBeDefined();
+      expect(shadcnCall![1]).not.toContain("button.tsx");
     });
   });
 
