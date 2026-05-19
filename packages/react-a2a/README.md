@@ -33,4 +33,4 @@ Supports all 9 A2A task states (including `input_required` and `auth_required`),
 - `@assistant-ui/react-ag-ui` for the AG-UI protocol.
 - `@assistant-ui/react-langgraph` for LangGraph agents.
 
-Full reference at [assistant-ui.com/docs/runtimes/a2a](https://www.assistant-ui.com/docs/runtimes/a2a).
+Full reference at [assistant-ui.com/docs/runtimes/a2a](https://www.assistant-ui.com/docs/runtimes/a2a/overview).
