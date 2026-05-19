@@ -80,6 +80,14 @@ function supportingTypeRole(kind: ExportKind): ExportInfo["pageRole"] {
 }
 
 export function pageForToolExport(name: string): string {
+  if (
+    name === "makeAssistantTool" ||
+    name === "useAssistantTool" ||
+    name === "AssistantTool" ||
+    name === "AssistantToolProps"
+  ) {
+    return "component-tools";
+  }
   if (name === "DataRenderers") {
     return "rendering";
   }
@@ -98,7 +106,7 @@ export function pageForToolExport(name: string): string {
   ) {
     return "rendering";
   }
-  return "definition";
+  return "toolkits";
 }
 
 function classification(
@@ -119,6 +127,8 @@ function toolsRule(input: ClassificationInput): Classification | undefined {
     name === "Tool" ||
     name === "Toolkit" ||
     name === "ToolDefinition" ||
+    name === "ToolsConfig" ||
+    name === "McpAppResourceOutput" ||
     name === "makeAssistantTool" ||
     name === "makeAssistantToolUI" ||
     name === "makeAssistantDataUI" ||
@@ -142,7 +152,7 @@ function toolsRule(input: ClassificationInput): Classification | undefined {
         : supportingTypeRole(kind),
       "feature:tools",
       "strong",
-      "tool definition, toolkit, rendering, or status export",
+      "tool definition, toolkit, component registration, rendering, or status export",
     );
   }
 }

@@ -586,6 +586,22 @@ function generatedImports({
   return lines.join("\n");
 }
 
+const PAGE_ORDER_BY_SECTION: Partial<Record<ApiSection, readonly string[]>> = {
+  tools: ["toolkits", "component-tools", "rendering", "status"],
+};
+
+function comparePageSlugs(section: ApiSection, a: string, b: string): number {
+  const order = PAGE_ORDER_BY_SECTION[section];
+  const aIndex = order?.indexOf(a) ?? -1;
+  const bIndex = order?.indexOf(b) ?? -1;
+  if (aIndex !== bIndex) {
+    if (aIndex === -1) return 1;
+    if (bIndex === -1) return -1;
+    return aIndex - bIndex;
+  }
+  return a.localeCompare(b);
+}
+
 function generateSectionOverviewPage(
   section: ApiSection,
   pages: PageSummary[],
@@ -785,7 +801,7 @@ export function writeApiReferencePages(
 
     const pages = [...(grouped.get(section) ?? new Map()).entries()]
       .filter(([, items]) => items.some((item) => item.pageRole === "primary"))
-      .sort(([a], [b]) => a.localeCompare(b));
+      .sort(([a], [b]) => comparePageSlugs(section, a, b));
 
     const pageSummaries: PageSummary[] = [];
 
