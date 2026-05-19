@@ -129,12 +129,6 @@ function toolsRule(input: ClassificationInput): Classification | undefined {
     name === "ToolDefinition" ||
     name === "ToolsConfig" ||
     name === "McpAppResourceOutput" ||
-    name === "makeAssistantTool" ||
-    name === "makeAssistantToolUI" ||
-    name === "makeAssistantDataUI" ||
-    name === "useAssistantTool" ||
-    name === "useAssistantToolUI" ||
-    name === "useAssistantDataUI" ||
     name === "useToolArgsStatus" ||
     name === "Tools" ||
     name === "DataRenderers" ||
