@@ -466,8 +466,13 @@ export const create = new Command()
       process.exit(1);
     }
 
+    const localSourceRoot =
+      typeof opts.debugSourceRoot === "string" && opts.debugSourceRoot
+        ? path.resolve(opts.debugSourceRoot)
+        : undefined;
+
     // Start release ref resolution early (runs during user prompts)
-    const refPromise = opts.debugSourceRoot
+    const refPromise = localSourceRoot
       ? Promise.resolve(undefined)
       : resolveLatestReleaseRef();
 
@@ -550,10 +555,6 @@ export const create = new Command()
 
     try {
       // 3. Resolve latest release ref (started before prompts)
-      const localSourceRoot =
-        typeof opts.debugSourceRoot === "string"
-          ? path.resolve(opts.debugSourceRoot)
-          : undefined;
       if (!localSourceRoot) {
         logger.step("Resolving latest release...");
       }

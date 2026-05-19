@@ -147,12 +147,20 @@ describe("scaffoldProject", () => {
     fs.mkdirSync(path.join(templateDir, "node_modules", "pkg"), {
       recursive: true,
     });
+    fs.mkdirSync(path.join(templateDir, ".next", "server"), {
+      recursive: true,
+    });
+    fs.mkdirSync(path.join(templateDir, "dist"), { recursive: true });
+    fs.mkdirSync(path.join(templateDir, "build"), { recursive: true });
     fs.writeFileSync(path.join(templateDir, "package.json"), "{}");
     fs.writeFileSync(path.join(templateDir, "app", "page.tsx"), "export {};");
     fs.writeFileSync(
       path.join(templateDir, "node_modules", "pkg", "index.js"),
       "module.exports = {};",
     );
+    fs.writeFileSync(path.join(templateDir, ".next", "server", "page.js"), "");
+    fs.writeFileSync(path.join(templateDir, "dist", "index.js"), "");
+    fs.writeFileSync(path.join(templateDir, "build", "index.js"), "");
 
     await scaffoldProject("templates/default", destDir, {
       kind: "local",
@@ -162,6 +170,9 @@ describe("scaffoldProject", () => {
     expect(fs.existsSync(path.join(destDir, "package.json"))).toBe(true);
     expect(fs.existsSync(path.join(destDir, "app", "page.tsx"))).toBe(true);
     expect(fs.existsSync(path.join(destDir, "node_modules"))).toBe(false);
+    expect(fs.existsSync(path.join(destDir, ".next"))).toBe(false);
+    expect(fs.existsSync(path.join(destDir, "dist"))).toBe(false);
+    expect(fs.existsSync(path.join(destDir, "build"))).toBe(false);
     expect(downloadTemplate).not.toHaveBeenCalled();
   });
 

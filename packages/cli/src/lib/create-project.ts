@@ -37,6 +37,17 @@ export type ProjectSource =
       rootDir: string;
     };
 
+const LOCAL_PROJECT_ARTIFACT_DIRS = [
+  "node_modules",
+  ".next",
+  "dist",
+  "build",
+] as const;
+
+const LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES = LOCAL_PROJECT_ARTIFACT_DIRS.map(
+  (dir) => `**/${dir}/**`,
+);
+
 export function resolvePackageManager(opts: {
   useNpm?: boolean;
   usePnpm?: boolean;
@@ -114,11 +125,11 @@ export async function downloadProject(
 
 function shouldCopyLocalProjectPath(src: string, rootDir: string): boolean {
   const relative = path.relative(rootDir, src);
-  if (!relative || relative.startsWith("..")) return true;
+  if (!relative) return true;
 
   const segments = relative.split(path.sep);
   return !segments.some((segment) =>
-    ["node_modules", ".next", "dist", "build"].includes(segment),
+    LOCAL_PROJECT_ARTIFACT_DIRS.some((dir) => dir === segment),
   );
 }
 
@@ -314,7 +325,7 @@ async function transformTsConfig(projectDir: string): Promise<void> {
 async function transformCssFiles(projectDir: string): Promise<void> {
   const cssFiles = globSync("**/*.css", {
     cwd: projectDir,
-    ignore: ["**/node_modules/**", "**/dist/**", "**/.next/**"],
+    ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
   });
 
   for (const file of cssFiles) {
@@ -346,7 +357,7 @@ async function scanRequiredComponents(
 ): Promise<RequiredComponents> {
   const files = globSync("**/*.{ts,tsx}", {
     cwd: projectDir,
-    ignore: ["**/node_modules/**", "**/dist/**", "**/.next/**"],
+    ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
   });
 
   const assistantUIComponents = new Set<string>();
