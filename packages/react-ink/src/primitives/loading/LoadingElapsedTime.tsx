@@ -5,12 +5,12 @@ import { useThreadIsRunning } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
 
 const defaultFormat = (seconds: number) => {
-  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 60) return `(${seconds}s)`;
 
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
 
-  return `${minutes}m ${remainingSeconds}s`;
+  return `(${minutes}m ${remainingSeconds}s)`;
 };
 
 export type LoadingElapsedTimeProps = Omit<
@@ -50,7 +50,7 @@ export const LoadingElapsedTime = ({
   const startTime = streamStartTime ?? fallbackStartTimeRef.current;
   const elapsedSeconds = Math.max(0, Math.floor((now - startTime) / 1000));
 
-  return <Text {...textProps}>({format(elapsedSeconds)})</Text>;
+  return <Text {...textProps}>{format(elapsedSeconds)}</Text>;
 };
 
 LoadingElapsedTime.displayName = "LoadingPrimitive.ElapsedTime";
