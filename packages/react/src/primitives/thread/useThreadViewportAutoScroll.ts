@@ -27,9 +27,7 @@ export namespace useThreadViewportAutoScroll {
     scrollToBottomOnRunStart?: boolean | undefined;
 
     /**
-     * Whether to scroll to bottom when messages first appear in the thread,
-     * whether from sync `initialMessages`, an async history adapter, or
-     * the first programmatic append.
+     * Whether to scroll to bottom when messages first appear in the thread.
      *
      * Defaults to true.
      */
@@ -61,9 +59,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
   const lastScrollTop = useRef<number>(0);
 
-  // bug: when ScrollToBottom's button changes its disabled state, the scroll stops
-  // fix: delay the state change until the scroll is done
-  // stores the scroll behavior to reuse during content resize, or null if not scrolling
+  // Pending bottom-scroll intent. Planted by initialize/run-start/switch/button
+  // triggers, cleared only when handleScroll confirms we reached bottom.
+  // Resize retries fulfill it if content wasn't measurable yet.
   const scrollingToBottomBehaviorRef = useRef<ScrollBehavior | null>(null);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
@@ -92,13 +90,19 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       Math.abs(div.scrollHeight - div.scrollTop - div.clientHeight) < 1 ||
       div.scrollHeight <= div.clientHeight;
 
-    if (!newIsAtBottom && lastScrollTop.current < div.scrollTop) {
-      // ignore scroll down
+    const isInFlightDownwardScroll =
+      !newIsAtBottom && lastScrollTop.current < div.scrollTop;
+    if (isInFlightDownwardScroll) {
+      // no-op: a smooth scroll-to-bottom fires many midpoint scroll events
+      // before landing, don't flicker isAtBottom or clear intent mid-animation
     } else {
       if (newIsAtBottom) {
         // newIsAtBottom is ambiguous when the viewport doesn't overflow — keep intent alive
         const viewportOverflows = div.scrollHeight > div.clientHeight + 1;
-        if (viewportOverflows || scrollingToBottomBehaviorRef.current === null) {
+        if (
+          viewportOverflows ||
+          scrollingToBottomBehaviorRef.current === null
+        ) {
           scrollingToBottomBehaviorRef.current = null;
         }
       }
@@ -130,7 +134,13 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     handleScroll();
   });
 
-  // initialize-scroll when messages first appear
+  const scrollRef = useManagedRef<HTMLElement>((el) => {
+    el.addEventListener("scroll", handleScroll);
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+    };
+  });
+
   useLayoutEffect(() => {
     if (!scrollToBottomOnInitialize) return;
     if (messageCount === 0) {
@@ -146,18 +156,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     });
   }, [messageCount, scrollToBottom, scrollToBottomOnInitialize]);
 
-  const scrollRef = useManagedRef<HTMLElement>((el) => {
-    el.addEventListener("scroll", handleScroll);
-    return () => {
-      el.removeEventListener("scroll", handleScroll);
-    };
-  });
-
   useOnScrollToBottom(({ behavior }) => {
     scrollToBottom(behavior);
   });
 
-  // autoscroll on run start
   useAuiEvent("thread.runStart", () => {
     if (!scrollToBottomOnRunStart) return;
     if (threadViewportStore.getState().turnAnchor === "top") return;
@@ -168,7 +170,6 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     });
   });
 
-  // scroll to bottom instantly when switching threads
   useAuiEvent("threadListItem.switchedTo", () => {
     if (!scrollToBottomOnThreadSwitch) return;
     scrollingToBottomBehaviorRef.current = "instant";
