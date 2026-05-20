@@ -1,8 +1,8 @@
 "use client";
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { useCallback, useRef, type RefCallback } from "react";
-import { useAuiEvent } from "@assistant-ui/store";
+import { useCallback, useLayoutEffect, useRef, type RefCallback } from "react";
+import { useAuiEvent, useAuiState } from "@assistant-ui/store";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
@@ -61,6 +61,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // fix: delay the state change until the scroll is done
   // stores the scroll behavior to reuse during content resize, or null if not scrolling
   const scrollingToBottomBehaviorRef = useRef<ScrollBehavior | null>(null);
+  const didScrollOnInitializeRef = useRef(false);
+  const messageCount = useAuiState((s) => s.thread.messages.length);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
     const div = divRef.current;
@@ -132,6 +134,21 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   useOnScrollToBottom(({ behavior }) => {
     scrollToBottom(behavior);
   });
+
+  useLayoutEffect(() => {
+    if (!scrollToBottomOnInitialize) return;
+    if (messageCount === 0) {
+      didScrollOnInitializeRef.current = false;
+      return;
+    }
+    if (didScrollOnInitializeRef.current) return;
+
+    didScrollOnInitializeRef.current = true;
+    scrollingToBottomBehaviorRef.current = "instant";
+    requestAnimationFrame(() => {
+      scrollToBottom("instant");
+    });
+  }, [messageCount, scrollToBottom, scrollToBottomOnInitialize]);
 
   // autoscroll on run start
   useAuiEvent("thread.runStart", () => {
