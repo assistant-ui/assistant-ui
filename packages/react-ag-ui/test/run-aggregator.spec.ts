@@ -706,7 +706,7 @@ describe("RunAggregator", () => {
     expect((reasoningParts[0] as any).text).toBe("Part A Part B");
   });
 
-  it("positions first reasoning block before text using the existing heuristic", () => {
+  it("reasoning arriving after text starts a new part at its chronological position", () => {
     const aggregator = createAggregator(true);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
@@ -731,8 +731,9 @@ describe("RunAggregator", () => {
 
     const last = results.at(-1);
     const types = (last?.content ?? []).map((p) => p.type);
-    expect(types[0]).toBe("reasoning");
-    expect(types[1]).toBe("text");
+    // Arrival order is preserved: text came first, then reasoning
+    expect(types[0]).toBe("text");
+    expect(types[1]).toBe("reasoning");
   });
 
   it("resets reasoning state on RUN_STARTED so blocks from the previous run do not leak", () => {
