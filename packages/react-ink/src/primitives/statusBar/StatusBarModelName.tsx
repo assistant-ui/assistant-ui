@@ -1,7 +1,10 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { Text } from "ink";
 
-export type StatusBarPrimitiveModelNameProps = {
+export type StatusBarPrimitiveModelNameProps = Omit<
+  ComponentProps<typeof Text>,
+  "children"
+> & {
   name?: ReactNode;
 };
 
@@ -11,8 +14,9 @@ export namespace StatusBarPrimitiveModelName {
 
 export const StatusBarPrimitiveModelName = ({
   name = "unknown",
+  ...textProps
 }: StatusBarPrimitiveModelName.Props) => {
-  return <Text dimColor>{name}</Text>;
+  return <Text {...textProps}>{name}</Text>;
 };
 
 StatusBarPrimitiveModelName.displayName = "StatusBarPrimitive.ModelName";

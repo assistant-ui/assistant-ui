@@ -11,14 +11,9 @@ export namespace StatusBarPrimitiveRoot {
 
 export const StatusBarPrimitiveRoot = ({
   children,
-  gap = 1,
   ...props
 }: StatusBarPrimitiveRoot.Props) => {
-  return (
-    <Box gap={gap} {...props}>
-      {children}
-    </Box>
-  );
+  return <Box {...props}>{children}</Box>;
 };
 
 StatusBarPrimitiveRoot.displayName = "StatusBarPrimitive.Root";

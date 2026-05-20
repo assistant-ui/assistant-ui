@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { Text } from "ink";
 import { useAuiState } from "@assistant-ui/store";
 
@@ -5,14 +6,10 @@ export type StatusType = "idle" | "running" | "error" | "cancelled";
 
 const defaultFormat = (status: StatusType) => status;
 
-const COLOR_MAP: Record<StatusType, string> = {
-  idle: "green",
-  running: "yellow",
-  error: "red",
-  cancelled: "gray",
-};
-
-export type StatusBarPrimitiveStatusProps = {
+export type StatusBarPrimitiveStatusProps = Omit<
+  ComponentProps<typeof Text>,
+  "children"
+> & {
   format?: (status: StatusType) => string;
 };
 
@@ -22,6 +19,7 @@ export namespace StatusBarPrimitiveStatus {
 
 export const StatusBarPrimitiveStatus = ({
   format = defaultFormat,
+  ...textProps
 }: StatusBarPrimitiveStatus.Props) => {
   const status = useAuiState((s): StatusType => {
     if (s.thread.isRunning) return "running";
@@ -37,7 +35,7 @@ export const StatusBarPrimitiveStatus = ({
     return "idle";
   });
 
-  return <Text color={COLOR_MAP[status]}>{format(status)}</Text>;
+  return <Text {...textProps}>{format(status)}</Text>;
 };
 
 StatusBarPrimitiveStatus.displayName = "StatusBarPrimitive.Status";
