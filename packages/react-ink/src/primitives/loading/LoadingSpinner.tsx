@@ -11,22 +11,24 @@ const LOADING_FRAMES = {
   bounce: ["[*   ]", "[ *  ]", "[  * ]", "[   *]", "[  * ]", "[ *  ]"],
 } as const;
 
-export namespace LoadingSpinner {
-  export type Variant = keyof typeof LOADING_FRAMES;
-  export type Props = {
-    variant?: Variant;
-    type?: ComponentProps<typeof InkSpinner>["type"];
-    color?: ComponentProps<typeof Text>["color"];
-    intervalMs?: number;
-  };
-}
+export type LoadingSpinnerVariant = keyof typeof LOADING_FRAMES;
+
+export type LoadingSpinnerProps = Omit<
+  ComponentProps<typeof Text>,
+  "children"
+> & {
+  variant?: LoadingSpinnerVariant;
+  type?: ComponentProps<typeof InkSpinner>["type"];
+  intervalMs?: number;
+};
 
 export const LoadingSpinner = ({
   variant = "spinner",
   type = "dots",
   color = "yellow",
   intervalMs = 120,
-}: LoadingSpinner.Props) => {
+  ...textProps
+}: LoadingSpinnerProps) => {
   const [frameIndex, setFrameIndex] = useState(0);
 
   useEffect(() => {
@@ -45,11 +47,15 @@ export const LoadingSpinner = ({
     const frames = LOADING_FRAMES[variant];
     const frame = frames[frameIndex % frames.length];
 
-    return <Text color={color}>{frame}</Text>;
+    return (
+      <Text color={color} {...textProps}>
+        {frame}
+      </Text>
+    );
   }
 
   return (
-    <Text color={color}>
+    <Text color={color} {...textProps}>
       <InkSpinner type={type} />
     </Text>
   );

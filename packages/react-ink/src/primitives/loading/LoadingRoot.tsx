@@ -2,17 +2,15 @@ import type { ComponentProps, ReactNode } from "react";
 import { Box } from "ink";
 import { useAuiState } from "@assistant-ui/store";
 
-export namespace LoadingRoot {
-  export type Props = ComponentProps<typeof Box> & {
-    children: ReactNode;
-  };
-}
+export type LoadingRootProps = ComponentProps<typeof Box> & {
+  children: ReactNode;
+};
 
 export const LoadingRoot = ({
   children,
   gap = 1,
   ...boxProps
-}: LoadingRoot.Props) => {
+}: LoadingRootProps) => {
   const isRunning = useAuiState((s) => s.thread.isRunning);
 
   if (!isRunning) return null;

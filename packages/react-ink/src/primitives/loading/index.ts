@@ -1,4 +1,17 @@
-export { LoadingRoot as Root } from "./LoadingRoot";
-export { LoadingSpinner as Spinner } from "./LoadingSpinner";
-export { LoadingText as Text } from "./LoadingText";
-export { LoadingElapsedTime as ElapsedTime } from "./LoadingElapsedTime";
+export {
+  LoadingRoot as Root,
+  type LoadingRootProps as RootProps,
+} from "./LoadingRoot";
+export {
+  LoadingSpinner as Spinner,
+  type LoadingSpinnerProps as SpinnerProps,
+  type LoadingSpinnerVariant as SpinnerVariant,
+} from "./LoadingSpinner";
+export {
+  LoadingText as Text,
+  type LoadingTextProps as TextProps,
+} from "./LoadingText";
+export {
+  LoadingElapsedTime as ElapsedTime,
+  type LoadingElapsedTimeProps as ElapsedTimeProps,
+} from "./LoadingElapsedTime";
