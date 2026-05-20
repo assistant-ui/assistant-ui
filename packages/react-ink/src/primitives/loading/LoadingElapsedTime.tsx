@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ComponentProps } from "react";
 import { Text } from "ink";
+import { useThreadIsRunning } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
 
 const defaultFormat = (seconds: number) => {
@@ -20,12 +21,10 @@ export type LoadingElapsedTimeProps = Omit<
 };
 
 export const LoadingElapsedTime = ({
-  color = "gray",
-  dimColor = true,
   format = defaultFormat,
   ...textProps
 }: LoadingElapsedTimeProps) => {
-  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const isRunning = useThreadIsRunning();
   const streamStartTime = useAuiState((s) => {
     const lastMessage = s.thread.messages.at(-1);
 
@@ -35,16 +34,6 @@ export const LoadingElapsedTime = ({
   });
   const [now, setNow] = useState(() => Date.now());
   const fallbackStartTimeRef = useRef(Date.now());
-  const wasRunningRef = useRef(isRunning);
-
-  useEffect(() => {
-    if (isRunning && !wasRunningRef.current) {
-      fallbackStartTimeRef.current = Date.now();
-      setNow(Date.now());
-    }
-
-    wasRunningRef.current = isRunning;
-  }, [isRunning]);
 
   useEffect(() => {
     if (!isRunning) return;
@@ -61,11 +50,7 @@ export const LoadingElapsedTime = ({
   const startTime = streamStartTime ?? fallbackStartTimeRef.current;
   const elapsedSeconds = Math.max(0, Math.floor((now - startTime) / 1000));
 
-  return (
-    <Text color={color} dimColor={dimColor} {...textProps}>
-      ({format(elapsedSeconds)})
-    </Text>
-  );
+  return <Text {...textProps}>({format(elapsedSeconds)})</Text>;
 };
 
 LoadingElapsedTime.displayName = "LoadingPrimitive.ElapsedTime";

@@ -24,7 +24,6 @@ export type LoadingSpinnerProps = Omit<
 export const LoadingSpinner = ({
   variant = "spinner",
   type = "dots",
-  color = "yellow",
   intervalMs = 120,
   ...textProps
 }: LoadingSpinnerProps) => {
@@ -46,15 +45,11 @@ export const LoadingSpinner = ({
     const frames = LOADING_FRAMES[variant];
     const frame = frames[frameIndex % frames.length];
 
-    return (
-      <Text color={color} {...textProps}>
-        {frame}
-      </Text>
-    );
+    return <Text {...textProps}>{frame}</Text>;
   }
 
   return (
-    <Text color={color} {...textProps}>
+    <Text {...textProps}>
       <InkSpinner type={type} />
     </Text>
   );
