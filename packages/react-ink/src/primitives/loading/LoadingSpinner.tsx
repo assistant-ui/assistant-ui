@@ -28,24 +28,22 @@ export const LoadingSpinner = ({
   ...textProps
 }: LoadingSpinnerProps) => {
   const [frameIndex, setFrameIndex] = useState(0);
+  const frames = variant === "spinner" ? null : LOADING_FRAMES[variant];
 
   useEffect(() => {
-    if (variant === "spinner") return;
+    if (!frames) return;
 
     const interval = setInterval(() => {
-      setFrameIndex((current) => current + 1);
+      setFrameIndex((current) => (current + 1) % frames.length);
     }, intervalMs);
 
     return () => {
       clearInterval(interval);
     };
-  }, [intervalMs, variant]);
+  }, [intervalMs, frames]);
 
-  if (variant !== "spinner") {
-    const frames = LOADING_FRAMES[variant];
-    const frame = frames[frameIndex % frames.length];
-
-    return <Text {...textProps}>{frame}</Text>;
+  if (frames) {
+    return <Text {...textProps}>{frames[frameIndex % frames.length]}</Text>;
   }
 
   return (
