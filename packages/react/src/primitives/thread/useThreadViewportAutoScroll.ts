@@ -61,7 +61,6 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
   // Pending bottom-scroll intent. Planted by initialize/run-start/switch/button
   // triggers, cleared only when handleScroll confirms we reached bottom.
-  // Resize retries fulfill it if content wasn't measurable yet.
   const scrollingToBottomBehaviorRef = useRef<ScrollBehavior | null>(null);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
@@ -97,12 +96,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       // before landing, don't flicker isAtBottom or clear intent mid-animation
     } else {
       if (newIsAtBottom) {
-        // newIsAtBottom is ambiguous when the viewport doesn't overflow — keep intent alive
+        // newIsAtBottom is ambiguous when the viewport doesn't overflow —
+        // keep intent alive until content can actually scroll
         const viewportOverflows = div.scrollHeight > div.clientHeight + 1;
-        if (
-          viewportOverflows ||
-          scrollingToBottomBehaviorRef.current === null
-        ) {
+        if (viewportOverflows) {
           scrollingToBottomBehaviorRef.current = null;
         }
       }
