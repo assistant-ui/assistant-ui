@@ -54,15 +54,15 @@ export class RunAggregator {
     { buffer: string; touched: boolean }
   >();
   private activeTextMessageId: string | undefined;
-  private reasoningBuffer = "";
-  private reasoningActive = false;
+  private readonly reasoningParts = new Map<string, string>(); // key → buffer
+  private activeReasoningKey: string | undefined;
+  private reasoningPartCounter = 0;
   private readonly toolCalls = new Map<string, ToolCallState>();
   private readonly partOrder: (
     | { kind: "text"; key: string }
-    | { kind: "reasoning" }
+    | { kind: "reasoning"; key: string }
     | { kind: "tool-call"; toolCallId: string }
   )[] = [];
-  private hasReasoningPart = false;
   private textPartCounter = 0;
   private serverMessageIdReported = false;
 
@@ -81,11 +81,11 @@ export class RunAggregator {
     switch (event.type) {
       case "RUN_STARTED": {
         this.clearTextParts();
-        this.reasoningBuffer = "";
-        this.reasoningActive = false;
+        this.reasoningParts.clear();
+        this.activeReasoningKey = undefined;
+        this.reasoningPartCounter = 0;
         this.toolCalls.clear();
         this.partOrder.length = 0;
-        this.hasReasoningPart = false;
         this.textPartCounter = 0;
         this.activeTextMessageId = undefined;
         this.interrupts = undefined;
@@ -166,7 +166,9 @@ export class RunAggregator {
       case "THINKING_TEXT_MESSAGE_START":
       case "REASONING_START":
       case "REASONING_MESSAGE_START":
-        this.handleReasoningStart();
+        this.handleReasoningStart(
+          "messageId" in event ? event.messageId : undefined,
+        );
         break;
       case "THINKING_TEXT_MESSAGE_CONTENT":
       case "REASONING_MESSAGE_CONTENT":
@@ -376,14 +378,11 @@ export class RunAggregator {
 
     for (const part of this.partOrder) {
       if (part.kind === "reasoning") {
-        if (
-          this.showThinking &&
-          (this.reasoningActive || this.reasoningBuffer.length > 0)
-        ) {
-          snapshot.push({
-            type: "reasoning",
-            text: this.reasoningBuffer,
-          } as const);
+        if (this.showThinking) {
+          const buffer = this.reasoningParts.get(part.key) ?? "";
+          if (buffer.length > 0 || this.activeReasoningKey === part.key) {
+            snapshot.push({ type: "reasoning", text: buffer } as const);
+          }
         }
         continue;
       }
@@ -476,34 +475,37 @@ export class RunAggregator {
     };
   }
 
-  private handleReasoningStart(): void {
+  private handleReasoningStart(messageId?: string): void {
     if (!this.showThinking) return;
-    this.reasoningActive = true;
-    this.ensureReasoningPart();
+    const key = messageId ?? `reasoning-${++this.reasoningPartCounter}`;
+    if (!this.reasoningParts.has(key)) {
+      this.reasoningParts.set(key, "");
+      // First block: honour the existing heuristic (insert before first text).
+      // Subsequent blocks: append at the current tail of partOrder so they stay
+      // chronologically after the tool-call results that preceded them.
+      const isFirst = this.reasoningParts.size === 1;
+      const textIndex = this.partOrder.findIndex((p) => p.kind === "text");
+      if (isFirst && textIndex !== -1) {
+        this.partOrder.splice(textIndex, 0, { kind: "reasoning", key });
+      } else {
+        this.partOrder.push({ kind: "reasoning", key });
+      }
+    }
+    this.activeReasoningKey = key;
     this.emit();
   }
 
   private handleReasoningContent(delta: string): void {
     if (!this.showThinking || !delta) return;
-    this.reasoningBuffer += delta;
-    this.ensureReasoningPart();
+    const key = this.activeReasoningKey;
+    if (!key) return;
+    this.reasoningParts.set(key, (this.reasoningParts.get(key) ?? "") + delta);
     this.emit();
   }
 
   private handleReasoningEnd(): void {
     if (!this.showThinking) return;
+    this.activeReasoningKey = undefined;
     this.emit();
-  }
-
-  private ensureReasoningPart(): void {
-    if (this.hasReasoningPart) return;
-    // ensure reasoning appears before the first text segment if possible
-    const textIndex = this.partOrder.findIndex((part) => part.kind === "text");
-    if (textIndex === -1) {
-      this.partOrder.push({ kind: "reasoning" });
-    } else {
-      this.partOrder.splice(textIndex, 0, { kind: "reasoning" });
-    }
-    this.hasReasoningPart = true;
   }
 }
