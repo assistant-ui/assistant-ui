@@ -27,7 +27,9 @@ export namespace useThreadViewportAutoScroll {
     scrollToBottomOnRunStart?: boolean | undefined;
 
     /**
-     * Whether to scroll to bottom when thread history is first loaded.
+     * Whether to scroll to bottom when messages first appear in the thread,
+     * whether from sync `initialMessages`, an async history adapter, or
+     * the first programmatic append.
      *
      * Defaults to true.
      */
