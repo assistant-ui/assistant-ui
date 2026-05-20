@@ -1,8 +1,8 @@
 "use client";
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { useCallback, useRef, type RefCallback } from "react";
-import { useAuiEvent } from "@assistant-ui/store";
+import { useCallback, useLayoutEffect, useRef, type RefCallback } from "react";
+import { useAuiEvent, useAuiState } from "@assistant-ui/store";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
@@ -49,6 +49,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   scrollToBottomOnThreadSwitch = true,
 }: useThreadViewportAutoScroll.Options): RefCallback<TElement> => {
   const divRef = useRef<TElement>(null);
+  const messageCount = useAuiState((s) => s.thread.messages.length);
+  const initializeScrollRequestedRef = useRef(false);
 
   const threadViewportStore = useThreadViewportStore();
   if (autoScroll === undefined) {
@@ -92,7 +94,11 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       // ignore scroll down
     } else {
       if (newIsAtBottom) {
-        scrollingToBottomBehaviorRef.current = null;
+        // newIsAtBottom is ambiguous when the viewport doesn't overflow — keep intent alive
+        const viewportOverflows = div.scrollHeight > div.clientHeight + 1;
+        if (viewportOverflows || scrollingToBottomBehaviorRef.current === null) {
+          scrollingToBottomBehaviorRef.current = null;
+        }
       }
 
       const shouldUpdate =
@@ -122,6 +128,22 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     handleScroll();
   });
 
+  // initialize-scroll when messages first appear
+  useLayoutEffect(() => {
+    if (!scrollToBottomOnInitialize) return;
+    if (messageCount === 0) {
+      initializeScrollRequestedRef.current = false;
+      return;
+    }
+    if (initializeScrollRequestedRef.current) return;
+
+    initializeScrollRequestedRef.current = true;
+    scrollingToBottomBehaviorRef.current = "instant";
+    requestAnimationFrame(() => {
+      scrollToBottom("instant");
+    });
+  }, [messageCount, scrollToBottom, scrollToBottomOnInitialize]);
+
   const scrollRef = useManagedRef<HTMLElement>((el) => {
     el.addEventListener("scroll", handleScroll);
     return () => {
@@ -141,15 +163,6 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     scrollingToBottomBehaviorRef.current = "auto";
     requestAnimationFrame(() => {
       scrollToBottom("auto");
-    });
-  });
-
-  // scroll to bottom instantly when thread history is first loaded
-  useAuiEvent("thread.initialize", () => {
-    if (!scrollToBottomOnInitialize) return;
-    scrollingToBottomBehaviorRef.current = "instant";
-    requestAnimationFrame(() => {
-      scrollToBottom("instant");
     });
   });
 
