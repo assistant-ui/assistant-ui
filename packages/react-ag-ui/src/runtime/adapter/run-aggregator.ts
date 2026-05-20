@@ -301,6 +301,9 @@ export class RunAggregator {
     parentMessageId?: string,
   ) {
     if (!id) return;
+    // A new tool call acts as a boundary: any anonymous text that arrives
+    // after it should be a new part, not appended to the pre-tool text.
+    this.activeTextMessageId = undefined;
     if (
       !this.partOrder.some(
         (part) => part.kind === "tool-call" && part.toolCallId === id,
@@ -484,19 +487,13 @@ export class RunAggregator {
 
   private handleReasoningStart(messageId?: string): void {
     if (!this.showThinking) return;
+    // A reasoning block acts as a boundary: anonymous text arriving after it
+    // should be a new part, not appended to any pre-reasoning text.
+    this.activeTextMessageId = undefined;
     const key = messageId ?? `__auto-reasoning-${++this.reasoningPartCounter}`;
     if (!this.reasoningParts.has(key)) {
       this.reasoningParts.set(key, "");
-      // First block: honour the existing heuristic (insert before first text).
-      // Subsequent blocks: append at the current tail of partOrder so they stay
-      // chronologically after the tool-call results that preceded them.
-      const isFirst = this.reasoningParts.size === 1;
-      const textIndex = this.partOrder.findIndex((p) => p.kind === "text");
-      if (isFirst && textIndex !== -1) {
-        this.partOrder.splice(textIndex, 0, { kind: "reasoning", key });
-      } else {
-        this.partOrder.push({ kind: "reasoning", key });
-      }
+      this.partOrder.push({ kind: "reasoning", key });
     }
     this.activeReasoningKey = key;
     this.emit();
@@ -504,7 +501,11 @@ export class RunAggregator {
 
   private handleReasoningContent(delta: string, messageId?: string): void {
     if (!this.showThinking || !delta) return;
-    const key = this.activeReasoningKey ?? messageId;
+    if (!this.activeReasoningKey) {
+      // Content arrived without a preceding START — create the slot lazily.
+      this.handleReasoningStart(messageId);
+    }
+    const key = this.activeReasoningKey;
     if (!key) return;
     this.reasoningParts.set(key, (this.reasoningParts.get(key) ?? "") + delta);
     this.emit();

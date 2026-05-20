@@ -766,4 +766,37 @@ describe("RunAggregator", () => {
       "Clean slate",
     );
   });
+
+  it("creates a new anonymous text part after a tool call boundary", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "intro",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tc-1",
+      toolCallName: "search",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "tc-1",
+      content: '"result"',
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "followup",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    const parts = last?.content ?? [];
+    const types = parts.map((p) => p.type);
+
+    expect(types).toEqual(["text", "tool-call", "text"]);
+    expect((parts[0] as any).text).toBe("intro");
+    expect((parts[2] as any).text).toBe("followup");
+  });
 });
