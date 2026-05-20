@@ -201,6 +201,7 @@ built-in text-based variants for more terminal-native styles.
 | `type` | `ink-spinner` type | Spinner preset used when `variant="spinner"` |
 | `color` | `TextProps["color"]` | Ink text color (default: `"yellow"`) |
 | `intervalMs` | `number` | Animation speed for non-spinner variants (default: `120`) |
+| `...rest` | `TextProps` | Standard Ink Text props |
 
 ### Text
 
@@ -210,6 +211,7 @@ Status label rendered as Ink `Text`.
 |------|------|-------------|
 | `children` | `ReactNode` | Message text (default: `"Thinking..."`) |
 | `color` | `TextProps["color"]` | Ink text color (default: `"yellow"`) |
+| `...rest` | `TextProps` | Standard Ink Text props |
 
 ### ElapsedTime
 
@@ -221,6 +223,7 @@ testing.
 |------|------|-------------|
 | `color` | `TextProps["color"]` | Ink text color (default: `"gray"`) |
 | `format` | `(seconds: number) => string` | Custom formatter for the elapsed time label |
+| `...rest` | `TextProps` | Standard Ink Text props |
 
 ## Composer
 
