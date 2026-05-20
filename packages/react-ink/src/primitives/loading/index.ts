@@ -5,7 +5,6 @@ export {
 export {
   LoadingSpinner as Spinner,
   type LoadingSpinnerProps as SpinnerProps,
-  type LoadingSpinnerVariant as SpinnerVariant,
 } from "./LoadingSpinner";
 export {
   LoadingText as Text,

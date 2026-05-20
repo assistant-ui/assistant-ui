@@ -4,14 +4,13 @@ import { Text } from "ink";
 import InkSpinner from "ink-spinner";
 
 const LOADING_FRAMES = {
-  spinner: [],
   dots: [".  ", ".. ", "..."],
   pulse: ["*--", "-*-", "--*"],
   bar: ["[=   ]", "[==  ]", "[=== ]", "[ ===]", "[  ==]", "[   =]"],
   bounce: ["[*   ]", "[ *  ]", "[  * ]", "[   *]", "[  * ]", "[ *  ]"],
 } as const;
 
-export type LoadingSpinnerVariant = keyof typeof LOADING_FRAMES;
+type LoadingSpinnerVariant = "spinner" | keyof typeof LOADING_FRAMES;
 
 export type LoadingSpinnerProps = Omit<
   ComponentProps<typeof Text>,
