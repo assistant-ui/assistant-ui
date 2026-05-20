@@ -150,6 +150,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     if (initializeScrollRequestedRef.current) return;
 
     initializeScrollRequestedRef.current = true;
+    // defer to an in-flight run (e.g. first message on a new thread) that
+    // already planted intent — otherwise we'd downgrade its "auto" to "instant"
+    if (scrollingToBottomBehaviorRef.current !== null) return;
     scrollingToBottomBehaviorRef.current = "instant";
     requestAnimationFrame(() => {
       scrollToBottom("instant");

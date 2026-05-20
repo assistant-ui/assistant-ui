@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import {
   afterAll,
   afterEach,
@@ -166,6 +166,14 @@ const Thread = ({
   </ThreadPrimitiveRoot>
 );
 
+const BottomAnchorThread = () => (
+  <ThreadPrimitiveRoot>
+    <ThreadPrimitiveViewport data-testid="viewport">
+      <ThreadPrimitiveMessages components={{ Message }} />
+    </ThreadPrimitiveViewport>
+  </ThreadPrimitiveRoot>
+);
+
 const SyncRuntimeProvider: FC<PropsWithChildren> = ({ children }) => {
   const runtime = useLocalRuntime(adapter, { initialMessages: messages });
 
@@ -255,6 +263,43 @@ describe("useThreadViewportAutoScroll", () => {
     await waitFor(() => {
       expect(getViewport().scrollTop).toBe(getMaxScrollTop(getViewport()));
     });
+  });
+
+  it("preserves run-start's auto behavior on the first message of an empty thread", async () => {
+    const scrollToSpy = vi.spyOn(HTMLElement.prototype, "scrollTo");
+
+    let runtime: ReturnType<typeof useLocalRuntime> | null = null;
+    const Harness: FC = () => {
+      runtime = useLocalRuntime(adapter);
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <BottomAnchorThread />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<Harness />);
+
+    expect(screen.queryAllByTestId("thread-message")).toHaveLength(0);
+
+    await act(async () => {
+      runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(scrollToSpy).toHaveBeenCalled();
+    });
+
+    const behaviors = scrollToSpy.mock.calls.map(
+      (call) => (call[0] as ScrollToOptions).behavior,
+    );
+    expect(behaviors[0]).toBe("auto");
+    expect(behaviors).not.toContain("instant");
+
+    scrollToSpy.mockRestore();
   });
 
   it("does not scroll initial messages when initialize scrolling is disabled", async () => {
