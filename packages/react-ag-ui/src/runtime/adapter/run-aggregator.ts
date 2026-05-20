@@ -171,8 +171,15 @@ export class RunAggregator {
         );
         break;
       case "THINKING_TEXT_MESSAGE_CONTENT":
-      case "REASONING_MESSAGE_CONTENT":
         this.handleReasoningContent(event.delta);
+        this.totalChunks++;
+        this.recordFirstToken();
+        break;
+      case "REASONING_MESSAGE_CONTENT":
+        this.handleReasoningContent(
+          event.delta,
+          "messageId" in event ? event.messageId : undefined,
+        );
         this.totalChunks++;
         this.recordFirstToken();
         break;
@@ -477,7 +484,7 @@ export class RunAggregator {
 
   private handleReasoningStart(messageId?: string): void {
     if (!this.showThinking) return;
-    const key = messageId ?? `reasoning-${++this.reasoningPartCounter}`;
+    const key = messageId ?? `__auto-reasoning-${++this.reasoningPartCounter}`;
     if (!this.reasoningParts.has(key)) {
       this.reasoningParts.set(key, "");
       // First block: honour the existing heuristic (insert before first text).
@@ -495,9 +502,9 @@ export class RunAggregator {
     this.emit();
   }
 
-  private handleReasoningContent(delta: string): void {
+  private handleReasoningContent(delta: string, messageId?: string): void {
     if (!this.showThinking || !delta) return;
-    const key = this.activeReasoningKey;
+    const key = this.activeReasoningKey ?? messageId;
     if (!key) return;
     this.reasoningParts.set(key, (this.reasoningParts.get(key) ?? "") + delta);
     this.emit();
