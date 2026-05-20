@@ -49,8 +49,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   scrollToBottomOnThreadSwitch = true,
 }: useThreadViewportAutoScroll.Options): RefCallback<TElement> => {
   const divRef = useRef<TElement>(null);
-  const messageCount = useAuiState((s) => s.thread.messages.length);
+  const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const initializeScrollRequestedRef = useRef(false);
+  const scheduledFrameRef = useRef<number | null>(null);
 
   const threadViewportStore = useThreadViewportStore();
   if (autoScroll === undefined) {
@@ -70,6 +71,29 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     scrollingToBottomBehaviorRef.current = behavior;
     div.scrollTo({ top: div.scrollHeight, behavior });
   }, []);
+
+  const scheduleScrollToBottom = useCallback(
+    (behavior: ScrollBehavior) => {
+      scrollingToBottomBehaviorRef.current = behavior;
+      if (scheduledFrameRef.current !== null) {
+        cancelAnimationFrame(scheduledFrameRef.current);
+      }
+      scheduledFrameRef.current = requestAnimationFrame(() => {
+        scheduledFrameRef.current = null;
+        scrollToBottom(behavior);
+      });
+    },
+    [scrollToBottom],
+  );
+
+  useLayoutEffect(
+    () => () => {
+      if (scheduledFrameRef.current !== null) {
+        cancelAnimationFrame(scheduledFrameRef.current);
+      }
+    },
+    [],
+  );
 
   const hasActiveTopAnchor = useCallback(() => {
     const state = threadViewportStore.getState();
@@ -140,7 +164,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
   useLayoutEffect(() => {
     if (!scrollToBottomOnInitialize) return;
-    if (messageCount === 0) {
+    if (!hasMessages) {
       initializeScrollRequestedRef.current = false;
       return;
     }
@@ -150,11 +174,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     // defer to an in-flight run (e.g. first message on a new thread) that
     // already planted intent — otherwise we'd downgrade its "auto" to "instant"
     if (scrollingToBottomBehaviorRef.current !== null) return;
-    scrollingToBottomBehaviorRef.current = "instant";
-    requestAnimationFrame(() => {
-      scrollToBottom("instant");
-    });
-  }, [messageCount, scrollToBottom, scrollToBottomOnInitialize]);
+    scheduleScrollToBottom("instant");
+  }, [hasMessages, scheduleScrollToBottom, scrollToBottomOnInitialize]);
 
   useOnScrollToBottom(({ behavior }) => {
     scrollToBottom(behavior);
@@ -163,19 +184,12 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   useAuiEvent("thread.runStart", () => {
     if (!scrollToBottomOnRunStart) return;
     if (threadViewportStore.getState().turnAnchor === "top") return;
-
-    scrollingToBottomBehaviorRef.current = "auto";
-    requestAnimationFrame(() => {
-      scrollToBottom("auto");
-    });
+    scheduleScrollToBottom("auto");
   });
 
   useAuiEvent("threadListItem.switchedTo", () => {
     if (!scrollToBottomOnThreadSwitch) return;
-    scrollingToBottomBehaviorRef.current = "instant";
-    requestAnimationFrame(() => {
-      scrollToBottom("instant");
-    });
+    scheduleScrollToBottom("instant");
   });
 
   const autoScrollRef = useComposedRefs<TElement>(resizeRef, scrollRef, divRef);
