@@ -7,7 +7,10 @@ import type {
   Part,
   PendingUserMessage,
 } from "./types";
-import { ExportedMessageRepository } from "@assistant-ui/react";
+import {
+  ExportedMessageRepository,
+  type MessageTiming,
+} from "@assistant-ui/react";
 
 type ProjectedContentPart = Exclude<
   OpenCodeProjectedThreadMessage["content"],
@@ -458,6 +461,7 @@ const mergeServerMessages = (
 const projectServerMessage = (
   state: OpenCodeThreadState,
   message: OpenCodeServerMessage,
+  timing?: MessageTiming,
 ): OpenCodeProjectedThreadMessage | null => {
   if (!message.info) return null;
 
@@ -487,6 +491,7 @@ const projectServerMessage = (
           tokens: assistantInfo.tokens,
           mode: assistantInfo.mode,
         },
+        ...(timing && { timing }),
       },
     };
   }
@@ -531,6 +536,7 @@ const projectPendingMessage = (
 
 export const projectOpenCodeThreadMessages = (
   state: OpenCodeThreadState,
+  messageTiming: Record<string, MessageTiming> = {},
 ): OpenCodeProjectedThreadMessage[] => {
   const mergedServerMessages = mergeServerMessages(
     state.messageOrder.flatMap((messageId: string) => {
@@ -540,7 +546,9 @@ export const projectOpenCodeThreadMessages = (
   );
 
   const serverMessages = mergedServerMessages
-    .map((message) => projectServerMessage(state, message))
+    .map((message) =>
+      projectServerMessage(state, message, messageTiming[message.id]),
+    )
     .filter(
       (message): message is OpenCodeProjectedThreadMessage => message !== null,
     );
@@ -554,8 +562,11 @@ export const projectOpenCodeThreadMessages = (
   return mergeProjectedMessages(serverMessages, pendingMessages);
 };
 
-export const projectOpenCodeThreadRepository = (state: OpenCodeThreadState) => {
+export const projectOpenCodeThreadRepository = (
+  state: OpenCodeThreadState,
+  messageTiming: Record<string, MessageTiming> = {},
+) => {
   return ExportedMessageRepository.fromArray(
-    projectOpenCodeThreadMessages(state),
+    projectOpenCodeThreadMessages(state, messageTiming),
   );
 };

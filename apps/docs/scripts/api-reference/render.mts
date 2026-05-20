@@ -100,6 +100,14 @@ function mdxEscape(value: string): string {
     .join("");
 }
 
+function renderJsDocExample(value: string): string {
+  const trimmed = value.trim();
+  const example = trimmed.includes("```")
+    ? trimmed
+    : ["```tsx", trimmed, "```"].join("\n");
+  return mdxEscape(example);
+}
+
 function mdxCommentMarker(name: string, boundary: "start" | "end"): string {
   return `{/* ${name}:${boundary} */}`;
 }
@@ -342,7 +350,13 @@ function exportSection(
     lines.push(mdxEscape(item.jsDoc), "");
   }
   const example = slots.examples.get(item.name);
-  if (example) lines.push(example, "");
+  if (example) {
+    lines.push(example, "");
+  } else if (item.jsDocExamples) {
+    for (const jsDocExample of item.jsDocExamples) {
+      lines.push(renderJsDocExample(jsDocExample), "");
+    }
+  }
   if (typeDocNames.has(item.name)) {
     lines.push(
       `<ParametersTable {...${typeDocBindings.get(item.name) ?? item.name}} />`,
@@ -363,6 +377,7 @@ function hasGeneratedEntryContent(
 ): boolean {
   return Boolean(
     item.jsDoc ||
+      item.jsDocExamples?.length ||
       item.deprecated ||
       typeDocNames.has(item.name) ||
       item.signature ||
@@ -527,7 +542,7 @@ function generateApiPage({
   if (guideLine) lines.push(guideLine, "");
   if (slots.manual) lines.push(slots.manual, "");
   lines.push(generatedReferenceRegion(reference));
-  return lines.join("\n");
+  return `${lines.join("\n")}\n`;
 }
 
 function generatedImportsForPage(
@@ -584,6 +599,22 @@ function generatedImports({
     );
   }
   return lines.join("\n");
+}
+
+const PAGE_ORDER_BY_SECTION: Partial<Record<ApiSection, readonly string[]>> = {
+  tools: ["toolkits", "component-tools", "rendering", "status"],
+};
+
+function comparePageSlugs(section: ApiSection, a: string, b: string): number {
+  const order = PAGE_ORDER_BY_SECTION[section];
+  const aIndex = order?.indexOf(a) ?? -1;
+  const bIndex = order?.indexOf(b) ?? -1;
+  if (aIndex !== bIndex) {
+    if (aIndex === -1) return 1;
+    if (bIndex === -1) return -1;
+    return aIndex - bIndex;
+  }
+  return a.localeCompare(b);
 }
 
 function generateSectionOverviewPage(
@@ -785,7 +816,7 @@ export function writeApiReferencePages(
 
     const pages = [...(grouped.get(section) ?? new Map()).entries()]
       .filter(([, items]) => items.some((item) => item.pageRole === "primary"))
-      .sort(([a], [b]) => a.localeCompare(b));
+      .sort(([a], [b]) => comparePageSlugs(section, a, b));
 
     const pageSummaries: PageSummary[] = [];
 

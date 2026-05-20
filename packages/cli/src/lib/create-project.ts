@@ -27,6 +27,27 @@ export interface TransformOptions {
   packageManager: PackageManagerName;
 }
 
+export type ProjectSource =
+  | {
+      kind: "github";
+      ref: string | undefined;
+    }
+  | {
+      kind: "local";
+      rootDir: string;
+    };
+
+const LOCAL_PROJECT_ARTIFACT_DIRS: readonly string[] = [
+  "node_modules",
+  ".next",
+  "dist",
+  "build",
+];
+
+const LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES = LOCAL_PROJECT_ARTIFACT_DIRS.map(
+  (dir) => `**/${dir}/**`,
+);
+
 export function resolvePackageManager(opts: {
   useNpm?: boolean;
   usePnpm?: boolean;
@@ -102,6 +123,47 @@ export async function downloadProject(
   }
 }
 
+function shouldCopyLocalProjectPath(src: string, projectDir: string): boolean {
+  const relative = path.relative(projectDir, src);
+  if (!relative) return true;
+
+  const segments = relative.split(path.sep);
+  return !segments.some((segment) =>
+    LOCAL_PROJECT_ARTIFACT_DIRS.includes(segment),
+  );
+}
+
+export async function scaffoldProject(
+  repoPath: string,
+  destDir: string,
+  source: ProjectSource,
+): Promise<void> {
+  if (source.kind === "github") {
+    await downloadProject(repoPath, destDir, source.ref);
+    return;
+  }
+
+  const localProjectDir = path.resolve(source.rootDir, repoPath);
+  try {
+    fs.cpSync(localProjectDir, destDir, {
+      recursive: true,
+      force: true,
+      filter: (src) => shouldCopyLocalProjectPath(src, localProjectDir),
+    });
+  } catch (error) {
+    const code =
+      error instanceof Error
+        ? (error as NodeJS.ErrnoException).code
+        : undefined;
+    if (code === "ENOENT") {
+      throw new Error(
+        `Local project source does not exist: ${localProjectDir}`,
+      );
+    }
+    throw error;
+  }
+}
+
 function detectFromUserAgent(): PackageManagerName | undefined {
   const ua = process.env.npm_config_user_agent;
   if (!ua) return undefined;
@@ -130,9 +192,8 @@ export async function transformProject(
   projectDir: string,
   opts: TransformOptions,
 ): Promise<void> {
-  // 1. Transform package.json (always)
   logger.step("Transforming package.json...");
-  await transformPackageJson(projectDir);
+  transformPackageJson(projectDir);
 
   let assistantUI: string[] | undefined;
   let shadcnUI: string[] | undefined;
@@ -140,20 +201,14 @@ export async function transformProject(
   if (!opts.hasLocalComponents) {
     logger.step("Transforming project files...");
 
-    // 2–4. Transform tsconfig, CSS, and scan components in parallel
-    const [, , components] = await Promise.all([
-      transformTsConfig(projectDir),
-      transformCssFiles(projectDir),
-      scanRequiredComponents(projectDir),
-    ]);
+    transformTsConfig(projectDir);
+    transformCssFiles(projectDir);
+
+    const components = scanRequiredComponents(projectDir);
     assistantUI = components.assistantUI;
     shadcnUI = components.shadcnUI;
-
-    // 5. Remove workspace components (after scan completes — scan reads these files)
-    await removeWorkspaceComponents(projectDir);
   }
 
-  // 6. Install dependencies
   const pm = opts.packageManager;
   if (!opts.skipInstall) {
     logger.step("Installing dependencies...");
@@ -161,14 +216,12 @@ export async function transformProject(
   }
 
   if (!opts.hasLocalComponents && shadcnUI && assistantUI) {
-    // 7. Install shadcn UI components
     const allShadcn = shadcnUI.includes("utils")
       ? shadcnUI
       : [...shadcnUI, "utils"];
     logger.step(`Installing shadcn UI components: ${allShadcn.join(", ")}...`);
     await installShadcnRegistry(projectDir, allShadcn, "shadcn components", pm);
 
-    // 8. Install assistant-ui components
     if (assistantUI.length > 0) {
       const auiComponents = assistantUI.map((c) => `@assistant-ui/${c}`);
       logger.step(
@@ -179,11 +232,11 @@ export async function transformProject(
   }
 }
 
-async function transformPackageJson(projectDir: string): Promise<void> {
+function transformPackageJson(projectDir: string): void {
   const pkgPath = path.join(projectDir, "package.json");
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
 
-  // Remove @assistant-ui/react-ui (workspace-only package)
+  // Remove @assistant-ui/ui dependency
   if (pkg.dependencies?.["@assistant-ui/ui"]) {
     delete pkg.dependencies["@assistant-ui/ui"];
   }
@@ -212,7 +265,7 @@ async function transformPackageJson(projectDir: string): Promise<void> {
   fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 }
 
-async function transformTsConfig(projectDir: string): Promise<void> {
+function transformTsConfig(projectDir: string): void {
   const tsconfigPath = path.join(projectDir, "tsconfig.json");
 
   if (!fs.existsSync(tsconfigPath)) {
@@ -225,7 +278,9 @@ async function transformTsConfig(projectDir: string): Promise<void> {
   // Remove workspace paths
   if (tsconfig.compilerOptions?.paths) {
     delete tsconfig.compilerOptions.paths["@/components/assistant-ui/*"];
+    delete tsconfig.compilerOptions.paths["@/components/icons/*"];
     delete tsconfig.compilerOptions.paths["@/components/ui/*"];
+    delete tsconfig.compilerOptions.paths["@/hooks/*"];
     delete tsconfig.compilerOptions.paths["@/lib/utils"];
     delete tsconfig.compilerOptions.paths["@assistant-ui/ui/*"];
 
@@ -267,10 +322,10 @@ async function transformTsConfig(projectDir: string): Promise<void> {
   fs.writeFileSync(tsconfigPath, `${JSON.stringify(tsconfig, null, 2)}\n`);
 }
 
-async function transformCssFiles(projectDir: string): Promise<void> {
+function transformCssFiles(projectDir: string): void {
   const cssFiles = globSync("**/*.css", {
     cwd: projectDir,
-    ignore: ["**/node_modules/**", "**/dist/**", "**/.next/**"],
+    ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
   });
 
   for (const file of cssFiles) {
@@ -297,12 +352,14 @@ interface RequiredComponents {
   shadcnUI: string[];
 }
 
-async function scanRequiredComponents(
-  projectDir: string,
-): Promise<RequiredComponents> {
+function stripImportExtension(component: string): string {
+  return component.replace(/\.[cm]?[tj]sx?$/, "");
+}
+
+function scanRequiredComponents(projectDir: string): RequiredComponents {
   const files = globSync("**/*.{ts,tsx}", {
     cwd: projectDir,
-    ignore: ["**/node_modules/**", "**/dist/**", "**/.next/**"],
+    ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
   });
 
   const assistantUIComponents = new Set<string>();
@@ -316,12 +373,12 @@ async function scanRequiredComponents(
       const assistantUIRegex =
         /from\s+["']@\/components\/assistant-ui\/([^"']+)["']/g;
       for (const match of content.matchAll(assistantUIRegex)) {
-        assistantUIComponents.add(match[1]!);
+        assistantUIComponents.add(stripImportExtension(match[1]!));
       }
 
       const uiRegex = /from\s+["']@\/components\/ui\/([^"']+)["']/g;
       for (const match of content.matchAll(uiRegex)) {
-        shadcnUIComponents.add(match[1]!);
+        shadcnUIComponents.add(stripImportExtension(match[1]!));
       }
     } catch {
       // Ignore files that cannot be read
@@ -332,11 +389,6 @@ async function scanRequiredComponents(
     assistantUI: Array.from(assistantUIComponents),
     shadcnUI: Array.from(shadcnUIComponents),
   };
-}
-
-async function removeWorkspaceComponents(projectDir: string): Promise<void> {
-  const componentsDir = path.join(projectDir, "components", "assistant-ui");
-  fs.rmSync(componentsDir, { recursive: true, force: true });
 }
 
 async function installDependencies(

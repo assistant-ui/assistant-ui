@@ -29,6 +29,15 @@ describe("create command", () => {
     );
     expect(exampleOption).toBeDefined();
   });
+
+  it("exposes --debug-source-root as a hidden option", () => {
+    const debugSourceRootOption = create.options.find(
+      (option) => option.long === "--debug-source-root",
+    );
+    expect(debugSourceRootOption).toBeDefined();
+    expect(debugSourceRootOption?.hidden).toBe(true);
+    expect(create.helpInformation()).not.toContain("--debug-source-root");
+  });
 });
 
 describe("resolveProject", () => {
@@ -41,7 +50,7 @@ describe("resolveProject", () => {
       expect.objectContaining({
         name: "cloud",
         category: "template",
-        hasLocalComponents: true,
+        hasLocalComponents: false,
       }),
     );
   });
@@ -283,11 +292,11 @@ describe("PROJECT_METADATA", () => {
     );
   });
 
-  it("all templates have hasLocalComponents: true", () => {
+  it("only the minimal template ships local components", () => {
     const templates = PROJECT_METADATA.filter((m) => m.category === "template");
-    for (const t of templates) {
-      expect(t.hasLocalComponents).toBe(true);
-    }
+    expect(
+      templates.filter((t) => t.hasLocalComponents).map((t) => t.name),
+    ).toEqual(["minimal"]);
   });
 
   it("examples have correct hasLocalComponents values", () => {

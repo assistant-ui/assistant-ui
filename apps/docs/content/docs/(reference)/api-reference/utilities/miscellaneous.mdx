@@ -101,4 +101,14 @@ const Suggestions: {
   >;
 };
 ```
+
+### unstable_defaultDirectiveFormatter
+
+Default directive formatter using the `:type[label]{name=id}` syntax.
+
+When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
+
+```ts
+const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
+```
 {/* api-reference:end */}

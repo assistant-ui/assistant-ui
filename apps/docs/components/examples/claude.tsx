@@ -266,11 +266,7 @@ const ChatMessage: FC = () => {
               }}
             </MessagePrimitive.Parts>
           </div>
-          <ActionBarPrimitive.Root
-            hideWhenRunning
-            autohide="not-last"
-            className="-mt-px flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100"
-          >
+          <ActionBarPrimitive.Root className="-mt-px flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
             <ActionBarPrimitive.Edit className={messageActionButtonClassName}>
               <Pencil1Icon width={16} height={16} />
             </ActionBarPrimitive.Edit>
@@ -296,11 +292,7 @@ const ChatMessage: FC = () => {
               }}
             </MessagePrimitive.Parts>
           </div>
-          <ActionBarPrimitive.Root
-            hideWhenRunning
-            autohide="not-last"
-            className="mt-2 flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100"
-          >
+          <ActionBarPrimitive.Root className="mt-2 flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
             <ActionBarPrimitive.Copy className={messageActionButtonClassName}>
               <AuiIf condition={(s) => s.message.isCopied}>
                 <CheckIcon />

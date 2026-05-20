@@ -27,6 +27,7 @@ import { OpenCodeEventSource } from "./OpenCodeEventSource";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { projectOpenCodeThreadRepository } from "./openCodeMessageProjection";
 import { createOpenCodeThreadState } from "./openCodeThreadState";
+import { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 
 type OpenCodeControllerRegistry = {
   eventSource: OpenCodeEventSource;
@@ -131,6 +132,13 @@ const useOpenCodeControllerState = (
   );
 };
 
+const isOpenCodeStateRunning = (state: OpenCodeThreadState): boolean =>
+  state.runState.type === "streaming" ||
+  state.runState.type === "cancelling" ||
+  state.runState.type === "reverting" ||
+  state.sessionStatus?.type === "busy" ||
+  state.sessionStatus?.type === "retry";
+
 const useOpenCodeThreadRuntime = (
   controller: OpenCodeThreadControllerLike,
   options: OpenCodeRuntimeOptions,
@@ -148,10 +156,15 @@ const useOpenCodeThreadRuntime = (
     void controller.load().catch(onLoadError);
   }, [controller]);
 
+  const isRunning = isOpenCodeStateRunning(state);
+
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const messageTiming = useOpenCodeStreamingTiming(state, isRunning);
+
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const messageRepository = useMemo(
-    () => projectOpenCodeThreadRepository(state),
-    [state],
+    () => projectOpenCodeThreadRepository(state, messageTiming),
+    [state, messageTiming],
   );
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
@@ -185,12 +198,7 @@ const useOpenCodeThreadRuntime = (
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   return useExternalStoreRuntime<ThreadMessage>({
     isLoading: state.loadState.type === "loading",
-    isRunning:
-      state.runState.type === "streaming" ||
-      state.runState.type === "cancelling" ||
-      state.runState.type === "reverting" ||
-      state.sessionStatus?.type === "busy" ||
-      state.sessionStatus?.type === "retry",
+    isRunning: isOpenCodeStateRunning(state),
     messageRepository,
     extras,
     onNew: async (message: any) => {

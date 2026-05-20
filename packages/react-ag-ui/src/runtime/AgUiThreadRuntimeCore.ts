@@ -716,6 +716,7 @@ export class AgUiThreadRuntimeCore {
       unstable_annotations: annotations,
       unstable_data: data,
       steps,
+      ...(incoming.timing ? { timing: incoming.timing } : {}),
       custom: incoming.custom
         ? { ...current.custom, ...incoming.custom }
         : current.custom,

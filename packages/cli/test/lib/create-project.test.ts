@@ -14,6 +14,7 @@ import { EventEmitter } from "node:events";
 import {
   resolveLatestReleaseRef,
   downloadProject,
+  scaffoldProject,
   transformProject,
 } from "../../src/lib/create-project";
 
@@ -125,6 +126,66 @@ describe("downloadProject", () => {
   });
 });
 
+describe("scaffoldProject", () => {
+  it("downloads from GitHub sources", async () => {
+    await scaffoldProject("templates/default", "/tmp/dest", {
+      kind: "github",
+      ref: "v1.0.0",
+    });
+
+    expect(downloadTemplate).toHaveBeenCalledWith(
+      "gh:assistant-ui/assistant-ui/templates/default#v1.0.0",
+      expect.objectContaining({ dir: "/tmp/dest", force: true, silent: true }),
+    );
+  });
+
+  it("copies from a local assistant-ui repo root", async () => {
+    const repoRoot = path.join(testDir, "repo");
+    const destDir = path.join(testDir, "dest");
+    const templateDir = path.join(repoRoot, "templates", "default");
+    fs.mkdirSync(path.join(templateDir, "app"), { recursive: true });
+    fs.mkdirSync(path.join(templateDir, "node_modules", "pkg"), {
+      recursive: true,
+    });
+    fs.mkdirSync(path.join(templateDir, ".next", "server"), {
+      recursive: true,
+    });
+    fs.mkdirSync(path.join(templateDir, "dist"), { recursive: true });
+    fs.mkdirSync(path.join(templateDir, "build"), { recursive: true });
+    fs.writeFileSync(path.join(templateDir, "package.json"), "{}");
+    fs.writeFileSync(path.join(templateDir, "app", "page.tsx"), "export {};");
+    fs.writeFileSync(
+      path.join(templateDir, "node_modules", "pkg", "index.js"),
+      "module.exports = {};",
+    );
+    fs.writeFileSync(path.join(templateDir, ".next", "server", "page.js"), "");
+    fs.writeFileSync(path.join(templateDir, "dist", "index.js"), "");
+    fs.writeFileSync(path.join(templateDir, "build", "index.js"), "");
+
+    await scaffoldProject("templates/default", destDir, {
+      kind: "local",
+      rootDir: repoRoot,
+    });
+
+    expect(fs.existsSync(path.join(destDir, "package.json"))).toBe(true);
+    expect(fs.existsSync(path.join(destDir, "app", "page.tsx"))).toBe(true);
+    expect(fs.existsSync(path.join(destDir, "node_modules"))).toBe(false);
+    expect(fs.existsSync(path.join(destDir, ".next"))).toBe(false);
+    expect(fs.existsSync(path.join(destDir, "dist"))).toBe(false);
+    expect(fs.existsSync(path.join(destDir, "build"))).toBe(false);
+    expect(downloadTemplate).not.toHaveBeenCalled();
+  });
+
+  it("rejects missing local project sources", async () => {
+    await expect(
+      scaffoldProject("templates/missing", path.join(testDir, "dest"), {
+        kind: "local",
+        rootDir: testDir,
+      }),
+    ).rejects.toThrow("Local project source does not exist:");
+  });
+});
+
 describe("transformProject — hasLocalComponents: true", () => {
   it("transforms package.json correctly", async () => {
     writeJSON("package.json", {
@@ -174,7 +235,9 @@ describe("transformProject — hasLocalComponents: false", () => {
         compilerOptions: {
           paths: {
             "@/components/assistant-ui/*": ["./components/assistant-ui/*"],
+            "@/components/icons/*": ["./components/icons/*"],
             "@/components/ui/*": ["./components/ui/*"],
+            "@/hooks/*": ["./hooks/*"],
             "@/lib/utils": ["./lib/utils"],
             "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
             "@/*": ["./*"],
@@ -187,7 +250,9 @@ describe("transformProject — hasLocalComponents: false", () => {
       const tsconfig = readJSON("tsconfig.json");
       const paths = tsconfig.compilerOptions.paths;
       expect(paths["@/components/assistant-ui/*"]).toBeUndefined();
+      expect(paths["@/components/icons/*"]).toBeUndefined();
       expect(paths["@/components/ui/*"]).toBeUndefined();
+      expect(paths["@/hooks/*"]).toBeUndefined();
       expect(paths["@/lib/utils"]).toBeUndefined();
       expect(paths["@assistant-ui/ui/*"]).toBeUndefined();
       expect(paths["@/*"]).toEqual(["./*"]);
@@ -217,7 +282,9 @@ describe("transformProject — hasLocalComponents: false", () => {
         compilerOptions: {
           paths: {
             "@/components/assistant-ui/*": ["./components/assistant-ui/*"],
+            "@/components/icons/*": ["./components/icons/*"],
             "@/components/ui/*": ["./components/ui/*"],
+            "@/hooks/*": ["./hooks/*"],
             "@/lib/utils": ["./lib/utils"],
             "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
           },
@@ -292,7 +359,7 @@ describe("transformProject — hasLocalComponents: false", () => {
     it("detects assistant-ui and shadcn component imports", async () => {
       writeFile(
         "app/page.tsx",
-        'import { Thread } from "@/components/assistant-ui/thread";\nimport { Button } from "@/components/ui/button";\nexport default function Page() { return <Thread />; }\n',
+        'import { Thread } from "@/components/assistant-ui/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
       );
 
       await run();
@@ -306,6 +373,7 @@ describe("transformProject — hasLocalComponents: false", () => {
       );
       expect(auiCall).toBeDefined();
       expect(auiCall![1]).toContain("@assistant-ui/thread");
+      expect(auiCall![1]).not.toContain("@assistant-ui/thread.tsx");
 
       // shadcn UI components installed separately
       const shadcnCall = findSpawnCall(
@@ -315,22 +383,7 @@ describe("transformProject — hasLocalComponents: false", () => {
           args.includes("button"),
       );
       expect(shadcnCall).toBeDefined();
-    });
-  });
-
-  // Workspace component removal
-  describe("workspace component removal", () => {
-    it("removes components/assistant-ui directory", async () => {
-      writeFile(
-        "components/assistant-ui/thread.tsx",
-        "export default function Thread() {}",
-      );
-
-      await run();
-
-      expect(
-        fs.existsSync(path.join(testDir, "components", "assistant-ui")),
-      ).toBe(false);
+      expect(shadcnCall![1]).not.toContain("button.tsx");
     });
   });
 });

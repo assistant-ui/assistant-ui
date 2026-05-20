@@ -335,6 +335,23 @@ export function jsDocTag(
     : undefined;
 }
 
+function jsDocTags(
+  doc: JSDoc | undefined,
+  name: string,
+  source = "unknown source",
+  options?: JsDocRenderOptions,
+): string[] | undefined {
+  const tags =
+    doc
+      ?.getTags()
+      .filter((tag) => tag.getTagName() === name)
+      .map((tag) => cleanJsDocTagText(tag.getCommentText()))
+      .filter((text): text is string => Boolean(text))
+      .map((text) => renderJsDocLinks(text, `${source} @${name}`, options)) ??
+    [];
+  return tags.length > 0 ? tags : undefined;
+}
+
 function getJsDocs(node: TsNode | undefined): JSDoc[] {
   if (!node) return [];
   if (
@@ -358,12 +375,14 @@ export function extractJsDoc(
 ): {
   jsDoc?: string;
   deprecated?: string;
+  examples?: string[];
 } {
   const doc = getJsDocs(node)[0];
   const source = jsDocSourceLabel(node);
   return {
     jsDoc: doc ? getJsDocCommentText(doc, source, options) : undefined,
     deprecated: jsDocTag(doc, "deprecated", source, options),
+    examples: jsDocTags(doc, "example", source, options),
   };
 }
 

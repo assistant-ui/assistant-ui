@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import chalk from "chalk";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,6 +10,7 @@ import {
   resolveLatestReleaseRef,
   resolvePackageManager,
   resolvePackageManagerForCwd,
+  scaffoldProject,
   transformProject,
 } from "../lib/create-project";
 import { runSpawn, SpawnExitError } from "../lib/run-spawn";
@@ -31,7 +32,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Default template with Vercel AI SDK",
     category: "template",
     path: "templates/default",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "minimal",
@@ -47,7 +48,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Cloud-backed persistence starter",
     category: "template",
     path: "templates/cloud",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "cloud-clerk",
@@ -55,7 +56,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Cloud-backed starter with Clerk auth",
     category: "template",
     path: "templates/cloud-clerk",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "langgraph",
@@ -63,7 +64,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "LangGraph starter template",
     category: "template",
     path: "templates/langgraph",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   {
     name: "mcp",
@@ -71,7 +72,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "MCP tools + MCP Apps renderer starter",
     category: "template",
     path: "templates/mcp",
-    hasLocalComponents: true,
+    hasLocalComponents: false,
   },
   // Examples
   {
@@ -449,6 +450,12 @@ export const create = new Command()
   .option("--native", "create an Expo / React Native project")
   .option("--ink", "create a React Ink terminal project")
   .option("--skip-install", "skip installing packages")
+  .addOption(
+    new Option(
+      "--debug-source-root <path>",
+      "copy templates/examples from a local assistant-ui repo root",
+    ).hideHelp(),
+  )
   .action(async (projectDirectory, opts) => {
     let scaffoldSelector: ResolvedScaffoldSelector;
     try {
@@ -459,8 +466,14 @@ export const create = new Command()
       process.exit(1);
     }
 
+    const localSourceRoot = opts.debugSourceRoot
+      ? path.resolve(opts.debugSourceRoot)
+      : undefined;
+
     // Start release ref resolution early (runs during user prompts)
-    const refPromise = resolveLatestReleaseRef();
+    const refPromise = localSourceRoot
+      ? Promise.resolve(undefined)
+      : resolveLatestReleaseRef();
 
     // 1. Resolve project directory
     let resolvedProjectDirectory = resolveCreateProjectDirectory({
@@ -541,19 +554,32 @@ export const create = new Command()
 
     try {
       // 3. Resolve latest release ref (started before prompts)
-      logger.step("Resolving latest release...");
+      if (!localSourceRoot) {
+        logger.step("Resolving latest release...");
+      }
       const ref = await refPromise;
-      if (!ref) {
+      if (!localSourceRoot && !ref) {
         logger.warn("Could not resolve latest release, downloading from HEAD");
       }
 
-      // 4. Download project
-      logger.step("Downloading project...");
+      // 4. Scaffold project
+      logger.step(
+        localSourceRoot
+          ? `Copying project from local source: ${localSourceRoot}`
+          : "Downloading project...",
+      );
       try {
-        await downloadProject(project.path, absoluteProjectDir, ref);
+        const source = localSourceRoot
+          ? { kind: "local" as const, rootDir: localSourceRoot }
+          : {
+              kind: "github" as const,
+              ref,
+            };
+        await scaffoldProject(project.path, absoluteProjectDir, source);
 
         // If the template didn't exist at the release tag, retry from HEAD
         if (
+          !localSourceRoot &&
           ref &&
           !fs.existsSync(path.join(absoluteProjectDir, "package.json"))
         ) {

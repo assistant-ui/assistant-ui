@@ -2,6 +2,7 @@
 
 import type {
   ChatModelRunResult,
+  MessageTiming,
   ThreadAssistantMessagePart,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
@@ -65,6 +66,10 @@ export class RunAggregator {
   private textPartCounter = 0;
   private serverMessageIdReported = false;
 
+  private streamStartTime: number | undefined;
+  private firstTokenTime: number | undefined;
+  private totalChunks = 0;
+
   constructor(options: RunAggregatorOptions) {
     this.emitUpdate = options.emit;
     this.showThinking = options.showThinking;
@@ -85,6 +90,9 @@ export class RunAggregator {
         this.activeTextMessageId = undefined;
         this.interrupts = undefined;
         this.serverMessageIdReported = false;
+        this.streamStartTime = Date.now();
+        this.firstTokenTime = undefined;
+        this.totalChunks = 0;
         this.status = { type: "running" };
         this.emit();
         break;
@@ -138,8 +146,10 @@ export class RunAggregator {
         const incomingId = "messageId" in event ? event.messageId : undefined;
         this.reportServerMessageId(incomingId);
         if (!event.delta) break;
+        this.recordFirstToken();
         const id = this.resolveTextMessageId(incomingId);
         this.appendText(id, event.delta);
+        this.totalChunks++;
         this.emit();
         break;
       }
@@ -161,6 +171,8 @@ export class RunAggregator {
       case "THINKING_TEXT_MESSAGE_CONTENT":
       case "REASONING_MESSAGE_CONTENT":
         this.handleReasoningContent(event.delta);
+        this.totalChunks++;
+        this.recordFirstToken();
         break;
       case "THINKING_TEXT_MESSAGE_END":
       case "THINKING_END":
@@ -402,22 +414,66 @@ export class RunAggregator {
       snapshot.push(toolPart);
     }
 
+    const timing = this.getTiming();
+    const metadata = {
+      ...(timing ? { timing } : {}),
+      ...(this.interrupts
+        ? {
+            custom: {
+              [AG_UI_METADATA_NAMESPACE]: {
+                interrupts: this.interrupts,
+              } satisfies AgUiCustomMetadata,
+            },
+          }
+        : {}),
+    };
     const result: ChatModelRunResult = {
       content: snapshot,
       ...(this.status ? { status: this.status } : undefined),
-      ...(this.interrupts
-        ? {
-            metadata: {
-              custom: {
-                [AG_UI_METADATA_NAMESPACE]: {
-                  interrupts: this.interrupts,
-                } satisfies AgUiCustomMetadata,
-              },
-            },
-          }
-        : undefined),
+      ...(Object.keys(metadata).length > 0 ? { metadata } : undefined),
     };
     this.emitUpdate(result);
+  }
+
+  private recordFirstToken(): void {
+    if (
+      this.firstTokenTime === undefined &&
+      this.streamStartTime !== undefined
+    ) {
+      this.firstTokenTime = Date.now() - this.streamStartTime;
+    }
+  }
+
+  private getTiming(): MessageTiming | undefined {
+    if (this.streamStartTime === undefined) return undefined;
+
+    const now = Date.now();
+    const totalStreamTime = now - this.streamStartTime;
+    const tokenCount =
+      this.totalChunks > 0
+        ? Math.ceil(
+            Array.from(this.textParts.values()).reduce(
+              (sum, p) => sum + p.buffer.length,
+              0,
+            ) / 4,
+          )
+        : undefined;
+    const tokensPerSecond =
+      tokenCount && totalStreamTime > 0
+        ? (tokenCount / totalStreamTime) * 1000
+        : undefined;
+
+    return {
+      streamStartTime: this.streamStartTime,
+      ...(this.firstTokenTime !== undefined
+        ? { firstTokenTime: this.firstTokenTime }
+        : {}),
+      totalStreamTime,
+      ...(tokenCount !== undefined ? { tokenCount } : {}),
+      ...(tokensPerSecond !== undefined ? { tokensPerSecond } : {}),
+      totalChunks: this.totalChunks,
+      toolCallCount: this.toolCalls.size,
+    };
   }
 
   private handleReasoningStart(): void {

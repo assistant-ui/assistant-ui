@@ -304,11 +304,7 @@ const ChatMessage: FC = () => {
           </div>
 
           <div className="flex items-start gap-2">
-            <ActionBarPrimitive.Root
-              hideWhenRunning
-              autohide="not-last"
-              className="mt-1 flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100"
-            >
+            <ActionBarPrimitive.Root className="mt-1 flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
               <ActionBarPrimitive.Copy className={messageActionClassName}>
                 <CopyIcon className="size-4" />
               </ActionBarPrimitive.Copy>
@@ -341,10 +337,7 @@ const ChatMessage: FC = () => {
 
             <div className="mt-2 flex items-center gap-2">
               <BranchPicker />
-              <ActionBarPrimitive.Root
-                hideWhenRunning
-                className="flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100"
-              >
+              <ActionBarPrimitive.Root className="flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
                 <ActionBarPrimitive.Reload className={messageActionClassName}>
                   <ReloadIcon className="size-4" />
                 </ActionBarPrimitive.Reload>

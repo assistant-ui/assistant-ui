@@ -400,7 +400,7 @@ describe("RunAggregator", () => {
 
     const last = results.at(-1);
     expect(last?.status).toMatchObject({ type: "complete" });
-    expect(last?.metadata).toBeUndefined();
+    expect(last?.metadata?.custom).toBeUndefined();
   });
 
   it("parses tool call results and defaults metadata", () => {
@@ -559,5 +559,46 @@ describe("RunAggregator", () => {
       toolCallId: "tc-1",
       unstable_toolMessageId: "tool-msg-7",
     });
+  });
+
+  it("emits timing metadata in message metadata", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "Hello",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: " world",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(last?.metadata?.timing).toBeDefined();
+    expect(last?.metadata?.timing?.totalChunks).toBeGreaterThan(0);
+    expect(last?.metadata?.timing?.toolCallCount).toBe(0);
+  });
+
+  it("tracks tool calls in timing metadata", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t1",
+      toolCallName: "search",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_CHUNK",
+      toolCallId: "t1",
+      delta: '{"q":"test"}',
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(last?.metadata?.timing).toBeDefined();
+    expect(last?.metadata?.timing?.toolCallCount).toBe(1);
   });
 });

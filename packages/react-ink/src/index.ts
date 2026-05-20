@@ -129,6 +129,7 @@ export * as ToolCallPrimitive from "./primitives/toolCall";
 export * as ErrorPrimitive from "./primitives/error";
 export * as DiffPrimitive from "./primitives/diff";
 export * as MessagePartPrimitive from "./primitives/messagePart";
+export * as LoadingPrimitive from "./primitives/loading";
 export * as StatusBarPrimitive from "./primitives/statusBar";
 export { DiffView, type DiffViewProps } from "./primitives/diff/DiffView";
 
