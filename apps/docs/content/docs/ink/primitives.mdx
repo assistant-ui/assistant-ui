@@ -1154,12 +1154,11 @@ Primitives for rendering a compact terminal status bar showing run state, model,
 
 ### Root
 
-Container `Box` for the status bar. Defaults to `gap={1}` so its children are space-separated; forwards all other `Box` props.
+Container `Box` for the status bar. Forwards all `Box` props; pass `gap` to space its children.
 
 | Prop | Type | Description |
 |------|------|-------------|
 | `children` | `ReactNode` | Status bar sub-components |
-| `gap` | `number` | Spacing between children (default: `1`) |
 | `...rest` | `ComponentProps<typeof Box>` | Forwarded to the underlying Ink `Box` |
 
 ### ModelName
@@ -1169,6 +1168,7 @@ Container `Box` for the status bar. Defaults to `gap={1}` so its children are sp
 | Prop | Type | Description |
 |------|------|-------------|
 | `name` | `ReactNode` | Model label to render (default: `"unknown"`) |
+| `...rest` | `ComponentProps<typeof Text>` | Forwarded to the underlying Ink `Text` |
 
 ### MessageCount
 
@@ -1177,6 +1177,7 @@ Container `Box` for the status bar. Defaults to `gap={1}` so its children are sp
 | Prop | Type | Description |
 |------|------|-------------|
 | `format` | `(count: number) => string` | Custom formatter for the count (default: `` `${count} msgs` ``) |
+| `...rest` | `ComponentProps<typeof Text>` | Forwarded to the underlying Ink `Text` |
 
 ### TokenCount
 
@@ -1185,6 +1186,7 @@ Container `Box` for the status bar. Defaults to `gap={1}` so its children are sp
 | Prop | Type | Description |
 |------|------|-------------|
 | `format` | `(tokens: number) => string` | Custom formatter for the total (default: `` `${tokens.toLocaleString()} tokens` ``) |
+| `...rest` | `ComponentProps<typeof Text>` | Forwarded to the underlying Ink `Text` |
 
 ### Latency
 
@@ -1193,17 +1195,19 @@ Container `Box` for the status bar. Defaults to `gap={1}` so its children are sp
 | Prop | Type | Description |
 |------|------|-------------|
 | `format` | `(tokensPerSecond: number) => string` | Custom formatter (default: `` `${Math.round(tokensPerSecond)} tok/s` ``) |
+| `...rest` | `ComponentProps<typeof Text>` | Forwarded to the underlying Ink `Text` |
 
 ### Status
 
-`Text` component reporting the thread's run state. Resolves to `"running"` while `s.thread.isRunning`, otherwise inspects the most recent assistant message: `"error"` when its status is `incomplete` with reason `error`, `"cancelled"` when reason is `cancelled`, and `"idle"` for every other case. The label color follows the resolved state — `green` for idle, `yellow` for running, `red` for error, `gray` for cancelled — regardless of the `format` output.
+`Text` component reporting the thread's run state. Resolves to `"running"` while `s.thread.isRunning`, otherwise inspects the most recent assistant message: `"error"` when its status is `incomplete` with reason `error`, `"cancelled"` when reason is `cancelled`, and `"idle"` for every other case. Pass `color` (or any `Text` prop) to style the label.
 
 | Prop | Type | Description |
 |------|------|-------------|
 | `format` | `(status: "idle" \| "running" \| "error" \| "cancelled") => string` | Custom label formatter (default: returns the state string verbatim) |
+| `...rest` | `ComponentProps<typeof Text>` | Forwarded to the underlying Ink `Text` |
 
 ```tsx
-<StatusBarPrimitive.Root>
+<StatusBarPrimitive.Root gap={1}>
   <StatusBarPrimitive.Status />
   <StatusBarPrimitive.ModelName name="gpt-5" />
   <StatusBarPrimitive.MessageCount />
