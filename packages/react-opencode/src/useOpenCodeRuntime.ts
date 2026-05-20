@@ -15,6 +15,7 @@ import {
   useEffect,
   useEffectEvent,
   useMemo,
+  useRef,
   useSyncExternalStore,
 } from "react";
 import type {
@@ -289,10 +290,28 @@ export const useOpenCodeRuntime = (
     [baseUrl, options.client],
   );
   const registry = useMemo(() => createRegistry(client), [client]);
+  const pendingRegistryDisposeRef = useRef(
+    new Map<OpenCodeControllerRegistry, ReturnType<typeof setTimeout>>(),
+  );
 
   useEffect(() => {
+    const pendingDispose = pendingRegistryDisposeRef.current.get(registry);
+    if (pendingDispose) {
+      clearTimeout(pendingDispose);
+      pendingRegistryDisposeRef.current.delete(registry);
+    }
+
     return () => {
-      registry.dispose();
+      const timeout = setTimeout(() => {
+        if (pendingRegistryDisposeRef.current.get(registry) !== timeout) {
+          return;
+        }
+
+        pendingRegistryDisposeRef.current.delete(registry);
+        registry.dispose();
+      }, 0);
+
+      pendingRegistryDisposeRef.current.set(registry, timeout);
     };
   }, [registry]);
 
