@@ -79,10 +79,12 @@ export function ChainOfThoughtPrimitiveTool({
   const searchResults = extractSearchResults(toolName, toolResult);
 
   // Read from the reactive part state first (matches `statusType` above);
-  // fall back to the prop for callers outside the message scope.
+  // fall back to the prop for callers outside the message scope. Treat
+  // `requires-action` like `running` so the badge spinner aligns with
+  // the shimmering activity label above.
   const badgeStatusType = toolPart?.status?.type ?? status?.type;
   const badgeStatus: "running" | "complete" | "error" =
-    badgeStatusType === "running"
+    badgeStatusType === "running" || badgeStatusType === "requires-action"
       ? "running"
       : badgeStatusType === "incomplete"
         ? "error"

@@ -179,7 +179,7 @@ export type ChainOfThoughtTraceDisclosureSharedProps = {
   autoCollapseOnComplete?: boolean | undefined;
   disableGroupExpansionWhileStreaming?: boolean | undefined;
   rootProps?:
-    | Omit<ChainOfThoughtRootProps, "open" | "onOpenChange">
+    | Omit<ChainOfThoughtRootProps, "open" | "onOpenChange" | "defaultOpen">
     | undefined;
   triggerProps?:
     | Omit<ChainOfThoughtTriggerProps, "reasoningLabel" | "phase">

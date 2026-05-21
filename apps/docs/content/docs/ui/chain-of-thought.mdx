@@ -68,10 +68,8 @@ Pass `toolActivityLabels` to override the label shown for a specific tool. The r
   toolActivityLabels={{
     fetch_weather: ({ statusType }) =>
       statusType === "running" ? "Checking forecast..." : "Got forecast",
-    create_pr: ({ part, statusType }) =>
-      statusType === "running"
-        ? `Opening PR for ${part?.args?.branch}`
-        : "PR ready",
+    create_pr: ({ statusType, fallbackLabel }) =>
+      statusType === "incomplete" ? "PR failed" : fallbackLabel,
   }}
 />
 ```
