@@ -30,7 +30,7 @@ import { createOpenCodeThreadState } from "./openCodeThreadState";
 import { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 
 type OpenCodeControllerRegistry = {
-  eventSource: OpenCodeEventSource;
+  getEventSource(): OpenCodeEventSource;
   controllers: Map<string, OpenCodeThreadController>;
   dispose(): void;
 };
@@ -70,18 +70,23 @@ const EMPTY_THREAD_STATE = createOpenCodeThreadState("__pending__");
 const createRegistry = (
   client: ReturnType<typeof createOpencodeClient>,
 ): OpenCodeControllerRegistry => {
-  const eventSource = new OpenCodeEventSource(client);
+  let eventSource: OpenCodeEventSource | null = null;
   const controllers = new Map<string, OpenCodeThreadController>();
 
+  const getEventSource = () => {
+    eventSource ??= new OpenCodeEventSource(client);
+    return eventSource;
+  };
+
   return {
-    eventSource,
+    getEventSource,
     controllers,
     dispose() {
-      eventSource.dispose();
+      eventSource?.dispose();
+      eventSource = null;
       for (const controller of controllers.values()) {
         controller.dispose();
       }
-      controllers.clear();
     },
   };
 };
@@ -96,7 +101,7 @@ const getController = (
 
   const controller = new OpenCodeThreadController(
     client,
-    registry.eventSource,
+    registry.getEventSource,
     sessionId,
   );
   registry.controllers.set(sessionId, controller);

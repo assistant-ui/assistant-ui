@@ -1,4 +1,5 @@
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
+import type { OpenCodeServerEvent } from "./types";
 
 const createDeferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -12,7 +13,106 @@ const createDeferred = <T>() => {
   return { promise, resolve, reject };
 };
 
+const createEventSource = () => {
+  let listener: ((event: OpenCodeServerEvent) => void) | undefined;
+  const unsubscribe = vi.fn();
+
+  return {
+    emit(event: OpenCodeServerEvent) {
+      listener?.(event);
+    },
+    subscribe: vi.fn((nextListener: (event: OpenCodeServerEvent) => void) => {
+      listener = nextListener;
+      return unsubscribe;
+    }),
+    unsubscribe,
+  };
+};
+
 describe("OpenCodeThreadController", () => {
+  it("re-subscribes through the provider after dispose", () => {
+    let eventSource = createEventSource();
+    const getEventSource = vi.fn(() => eventSource);
+    const controller = new OpenCodeThreadController(
+      {} as never,
+      getEventSource as never,
+      "ses_1",
+    );
+
+    const firstListener = vi.fn();
+    controller.subscribe(firstListener);
+
+    expect(getEventSource).toHaveBeenCalledTimes(1);
+    expect(eventSource.subscribe).toHaveBeenCalledTimes(1);
+
+    controller.dispose();
+
+    expect(eventSource.unsubscribe).toHaveBeenCalledTimes(1);
+
+    eventSource = createEventSource();
+    const secondListener = vi.fn();
+    controller.subscribe(secondListener);
+
+    eventSource.emit({
+      type: "session.updated",
+      sessionId: "ses_1",
+      properties: {
+        info: {
+          id: "ses_1",
+          title: "Recovered session",
+          time: {},
+        },
+      },
+      raw: {},
+    });
+
+    expect(getEventSource).toHaveBeenCalledTimes(2);
+    expect(eventSource.subscribe).toHaveBeenCalledTimes(1);
+    expect(secondListener).toHaveBeenCalledTimes(1);
+    expect(controller.getState().session).toMatchObject({
+      id: "ses_1",
+      title: "Recovered session",
+    });
+  });
+
+  it("detaches from OpenCode events when the last state listener unsubscribes", () => {
+    const eventSource = createEventSource();
+    const controller = new OpenCodeThreadController(
+      {} as never,
+      eventSource as never,
+      "ses_1",
+    );
+
+    const unsubscribeFirstState = controller.subscribe(vi.fn());
+    const secondListener = vi.fn();
+    const unsubscribeSecondState = controller.subscribe(secondListener);
+
+    expect(eventSource.subscribe).toHaveBeenCalledTimes(1);
+
+    unsubscribeFirstState();
+
+    expect(eventSource.unsubscribe).not.toHaveBeenCalled();
+
+    eventSource.emit({
+      type: "session.updated",
+      sessionId: "ses_1",
+      properties: {
+        info: {
+          id: "ses_1",
+          title: "Still attached",
+          time: {},
+        },
+      },
+      raw: {},
+    });
+
+    expect(secondListener).toHaveBeenCalledTimes(1);
+
+    unsubscribeSecondState();
+
+    expect(eventSource.unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps forced reloads authoritative while earlier loads finish", async () => {
     const firstSession = createDeferred<{ data: unknown }>();
     const firstMessages = createDeferred<{ data: unknown[] }>();

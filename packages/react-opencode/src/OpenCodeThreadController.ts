@@ -24,6 +24,10 @@ import type {
 import type { OpenCodeEventSource } from "./OpenCodeEventSource";
 import { serializeUserParts } from "./serializeUserParts";
 
+type OpenCodeEventSourceProvider =
+  | OpenCodeEventSource
+  | (() => OpenCodeEventSource);
+
 const createLocalId = (prefix: string) =>
   `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
@@ -161,23 +165,32 @@ const isSupportedDelta = (
 export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private state: OpenCodeThreadState;
   private readonly listeners = new Set<() => void>();
-  private readonly unsubscribeFromEvents: () => void;
+  private readonly getEventSource: () => OpenCodeEventSource;
+  private unsubscribeFromEvents: (() => void) | null = null;
   private loadPromise: Promise<void> | null = null;
 
   constructor(
     private readonly client: OpencodeClient,
-    private readonly eventSource: OpenCodeEventSource,
+    eventSource: OpenCodeEventSourceProvider,
     private readonly sessionId: string,
   ) {
     this.state = createOpenCodeThreadState(sessionId);
-    this.unsubscribeFromEvents = this.eventSource.subscribe((event) => {
-      if (event.sessionId !== sessionId) return;
+    this.getEventSource =
+      typeof eventSource === "function" ? eventSource : () => eventSource;
+  }
+
+  private ensureEventSubscription() {
+    if (this.unsubscribeFromEvents) return;
+
+    this.unsubscribeFromEvents = this.getEventSource().subscribe((event) => {
+      if (event.sessionId !== this.sessionId) return;
       this.handleServerEvent(event);
     });
   }
 
   public dispose() {
-    this.unsubscribeFromEvents();
+    this.unsubscribeFromEvents?.();
+    this.unsubscribeFromEvents = null;
     this.listeners.clear();
   }
 
@@ -187,7 +200,15 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
   public subscribe(listener: () => void) {
     this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+    this.ensureEventSubscription();
+
+    return () => {
+      this.listeners.delete(listener);
+      if (this.listeners.size === 0) {
+        this.unsubscribeFromEvents?.();
+        this.unsubscribeFromEvents = null;
+      }
+    };
   }
 
   public async load(force = false) {
