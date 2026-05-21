@@ -107,8 +107,14 @@ const renderNode = <TKey extends `group-${string}`>(
   render: (info: MessagePrimitiveGroupedParts.RenderInfo<TKey>) => ReactNode,
 ): ReactNode => {
   if (node.type === "part") {
+    // Key by absolute part index, not structural nodeKey. Otherwise a
+    // tree reshape (e.g., thread switch where the new parts list has
+    // a different group layout) reuses the same fiber at a given
+    // structural slot but with a new `index` prop — keeping the prior
+    // tap subscription alive against an index that may now point at a
+    // different part or be out of range (#4051).
     return (
-      <MessagePartChildren key={node.nodeKey} index={node.index}>
+      <MessagePartChildren key={node.index} index={node.index}>
         {({ part }) => render({ part, children: <PartChildrenSentinel /> })}
       </MessagePartChildren>
     );

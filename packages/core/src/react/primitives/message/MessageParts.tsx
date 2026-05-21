@@ -775,13 +775,16 @@ const MessagePrimitivePartsCompat: FC<{
           >
             {Array.from(
               { length: range.endIndex - range.startIndex + 1 },
-              (_, i) => (
-                <MessagePrimitivePartByIndex
-                  key={i}
-                  index={range.startIndex + i}
-                  components={components}
-                />
-              ),
+              (_, i) => {
+                const partIndex = range.startIndex + i;
+                return (
+                  <MessagePrimitivePartByIndex
+                    key={partIndex}
+                    index={partIndex}
+                    components={components}
+                  />
+                );
+              },
             )}
           </ToolGroupComponent>
         );
@@ -797,13 +800,16 @@ const MessagePrimitivePartsCompat: FC<{
           >
             {Array.from(
               { length: range.endIndex - range.startIndex + 1 },
-              (_, i) => (
-                <MessagePrimitivePartByIndex
-                  key={i}
-                  index={range.startIndex + i}
-                  components={components}
-                />
-              ),
+              (_, i) => {
+                const partIndex = range.startIndex + i;
+                return (
+                  <MessagePrimitivePartByIndex
+                    key={partIndex}
+                    index={partIndex}
+                    components={components}
+                  />
+                );
+              },
             )}
           </ReasoningGroupComponent>
         );
