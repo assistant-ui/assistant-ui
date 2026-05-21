@@ -45,16 +45,23 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "jsdom": "^29.1.1",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "vitest": "^4.1.7"
   },
   "peerDependencies": {
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19"
   },
-  "scripts": {}
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  }
 }
