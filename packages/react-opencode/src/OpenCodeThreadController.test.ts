@@ -35,7 +35,7 @@ describe("OpenCodeThreadController", () => {
     const getEventSource = vi.fn(() => eventSource);
     const controller = new OpenCodeThreadController(
       {} as never,
-      getEventSource as never,
+      getEventSource,
       "ses_1",
     );
 
@@ -79,7 +79,7 @@ describe("OpenCodeThreadController", () => {
     const eventSource = createEventSource();
     const controller = new OpenCodeThreadController(
       {} as never,
-      eventSource as never,
+      () => eventSource,
       "ses_1",
     );
 
@@ -134,7 +134,7 @@ describe("OpenCodeThreadController", () => {
 
     const controller = new OpenCodeThreadController(
       client as never,
-      { subscribe: () => () => {} } as never,
+      () => ({ subscribe: () => () => {} }),
       "ses_1",
     );
 
@@ -212,7 +212,7 @@ describe("OpenCodeThreadController", () => {
 
     const controller = new OpenCodeThreadController(
       client as never,
-      { subscribe: () => () => {} } as never,
+      () => ({ subscribe: () => () => {} }),
       "ses_1",
     );
 
@@ -260,7 +260,7 @@ describe("OpenCodeThreadController", () => {
 
     const controller = new OpenCodeThreadController(
       client as never,
-      { subscribe: () => () => {} } as never,
+      () => ({ subscribe: () => () => {} }),
       "ses_1",
     );
 

@@ -24,9 +24,7 @@ import type {
 import type { OpenCodeEventSource } from "./OpenCodeEventSource";
 import { serializeUserParts } from "./serializeUserParts";
 
-type OpenCodeEventSourceProvider =
-  | OpenCodeEventSource
-  | (() => OpenCodeEventSource);
+type OpenCodeEventSourceProvider = () => Pick<OpenCodeEventSource, "subscribe">;
 
 const createLocalId = (prefix: string) =>
   `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -165,18 +163,17 @@ const isSupportedDelta = (
 export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private state: OpenCodeThreadState;
   private readonly listeners = new Set<() => void>();
-  private readonly getEventSource: () => OpenCodeEventSource;
+  private readonly getEventSource: OpenCodeEventSourceProvider;
   private unsubscribeFromEvents: (() => void) | null = null;
   private loadPromise: Promise<void> | null = null;
 
   constructor(
     private readonly client: OpencodeClient,
-    eventSource: OpenCodeEventSourceProvider,
+    getEventSource: OpenCodeEventSourceProvider,
     private readonly sessionId: string,
   ) {
     this.state = createOpenCodeThreadState(sessionId);
-    this.getEventSource =
-      typeof eventSource === "function" ? eventSource : () => eventSource;
+    this.getEventSource = getEventSource;
   }
 
   private ensureEventSubscription() {
@@ -189,6 +186,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   public dispose() {
+    // React StrictMode can detach and then resubscribe the same controller.
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
     this.listeners.clear();

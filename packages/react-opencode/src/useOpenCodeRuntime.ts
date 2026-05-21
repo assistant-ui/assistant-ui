@@ -87,6 +87,8 @@ const createRegistry = (
       for (const controller of controllers.values()) {
         controller.dispose();
       }
+      // Keep controllers cached across React StrictMode cleanup/remount.
+      // Cleanup only detaches subscriptions; a real unmount drops this registry.
     },
   };
 };
