@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useAuiState } from "@assistant-ui/store";
+import { useEffect, useMemo, useState } from "react";
+import { useAui } from "@assistant-ui/store";
 import type {
   MessagePartStatus,
   ReasoningMessagePart,
@@ -75,12 +75,24 @@ export const useSmooth = (
   smooth: boolean = false,
 ): MessagePartState & (TextMessagePart | ReasoningMessagePart) => {
   const { text } = state;
-  const id = useAuiState((s) => s.message.id);
 
-  const idRef = useRef(id);
   const [displayedText, setDisplayedText] = useState(
     state.status.type === "running" ? "" : text,
   );
+
+  // Render-phase resync on part flip or text discontinuity, so the
+  // first paint after a thread switch never shows the previous
+  // part's text (#4051).
+  const part = useAui().part();
+  const [prevPart, setPrevPart] = useState(part);
+  const [prevText, setPrevText] = useState(text);
+  if (part !== prevPart || (text !== prevText && !text.startsWith(prevText))) {
+    setPrevPart(part);
+    setPrevText(text);
+    setDisplayedText(state.status.type === "running" ? "" : text);
+  } else if (text !== prevText) {
+    setPrevText(text);
+  }
 
   const smoothStatusStore = useSmoothStatusStore({ optional: true });
   const setText = useCallbackRef((text: string) => {
@@ -115,29 +127,23 @@ export const useSmooth = (
       return;
     }
 
-    if (idRef.current !== id || !text.startsWith(animatorRef.targetText)) {
-      idRef.current = id;
-
+    // Discontinuity — sync the animator's cursor to the new target.
+    if (!text.startsWith(animatorRef.targetText)) {
       if (state.status.type === "running") {
-        // New streaming message → animate from empty string
-        setText("");
         animatorRef.currentText = "";
         animatorRef.targetText = text;
         animatorRef.start();
       } else {
-        // Completed message → display immediately
-        setText(text);
         animatorRef.currentText = text;
         animatorRef.targetText = text;
         animatorRef.stop();
       }
-
       return;
     }
 
     animatorRef.targetText = text;
     animatorRef.start();
-  }, [setText, animatorRef, id, smooth, text, state.status.type]);
+  }, [animatorRef, smooth, text, state.status.type]);
 
   useEffect(() => {
     return () => {
