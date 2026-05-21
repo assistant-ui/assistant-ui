@@ -229,14 +229,13 @@ const DerivedClientAccessorResource = resource(
     propsRef.current = element.props;
 
     return tapMemo(() => {
-      const clientFunction = () =>
-        propsRef.current.get(clientRef.current!);
+      const clientFunction = () => propsRef.current.get(clientRef.current!);
       Object.defineProperties(clientFunction, {
         source: {
-          value: element.props.source,
+          value: propsRef.current.source,
         },
         query: {
-          value: element.props.query,
+          value: propsRef.current.query,
         },
         name: {
           value: name,
