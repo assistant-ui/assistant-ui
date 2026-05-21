@@ -72,7 +72,7 @@ function findFolderByPath(
       (node): node is PageTree.Folder =>
         node.type === "folder" &&
         normalizeSegment(typeof node.name === "string" ? node.name : "") ===
-          segment.toLowerCase(),
+          normalizeSegment(segment),
     );
     if (!folder) return undefined;
     currentFolder = folder;
