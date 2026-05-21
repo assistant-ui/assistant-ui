@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAui } from "@assistant-ui/store";
 import type {
   MessagePartStatus,
@@ -82,16 +82,15 @@ export const useSmooth = (
 
   // Render-phase resync on part flip or text discontinuity, so the
   // first paint after a thread switch never shows the previous
-  // part's text (#4051).
+  // part's text (#4051). `displayedText` is already a prefix of
+  // `text` during normal streaming, so use it as the previous-text
+  // reference instead of carrying separate state — avoids the
+  // double render per streaming token.
   const part = useAui().part();
   const [prevPart, setPrevPart] = useState(part);
-  const [prevText, setPrevText] = useState(text);
-  if (part !== prevPart || (text !== prevText && !text.startsWith(prevText))) {
+  if (part !== prevPart || !text.startsWith(displayedText)) {
     setPrevPart(part);
-    setPrevText(text);
     setDisplayedText(state.status.type === "running" ? "" : text);
-  } else if (text !== prevText) {
-    setPrevText(text);
   }
 
   const smoothStatusStore = useSmoothStatusStore({ optional: true });
@@ -121,14 +120,21 @@ export const useSmooth = (
     new TextStreamAnimator(displayedText, setText),
   );
 
+  const animatorPartRef = useRef(part);
   useEffect(() => {
     if (!smooth) {
       animatorRef.stop();
       return;
     }
 
-    // Discontinuity — sync the animator's cursor to the new target.
-    if (!text.startsWith(animatorRef.targetText)) {
+    // Discontinuity: part flipped, or new text breaks continuation
+    // of the animator's current target. Either case requires
+    // resetting the cursor — without the part check, a new part
+    // whose text happens to share a prefix with the previous target
+    // would keep the stale cursor and flicker.
+    const partChanged = animatorPartRef.current !== part;
+    animatorPartRef.current = part;
+    if (partChanged || !text.startsWith(animatorRef.targetText)) {
       if (state.status.type === "running") {
         animatorRef.currentText = "";
         animatorRef.targetText = text;
@@ -143,7 +149,7 @@ export const useSmooth = (
 
     animatorRef.targetText = text;
     animatorRef.start();
-  }, [animatorRef, smooth, text, state.status.type]);
+  }, [animatorRef, smooth, text, state.status.type, part]);
 
   useEffect(() => {
     return () => {
