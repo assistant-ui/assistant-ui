@@ -263,3 +263,87 @@ describe("ExternalStoreThreadRuntimeCore - messages reconciliation", () => {
     expect(userChildren).toEqual(["server_id"]);
   });
 });
+
+describe("ExternalStoreThreadRuntimeCore - initialize event replay", () => {
+  const message = { id: "m", role: "assistant" as const, content: [] };
+  const flushMicrotasks = () =>
+    new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+  it("replays initialize to subscribers that attach after initialization", async () => {
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [message] }),
+    );
+
+    const callback = vi.fn();
+    runtime.unstable_on("initialize", callback);
+
+    expect(callback).not.toHaveBeenCalled();
+    await flushMicrotasks();
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fire before initialization, then fires exactly once", () => {
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [] }),
+    );
+
+    const callback = vi.fn();
+    runtime.unstable_on("initialize", callback);
+    expect(callback).not.toHaveBeenCalled();
+
+    runtime.__internal_setAdapter(makeStore({ messages: [message] }));
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    runtime.__internal_setAdapter(makeStore({ messages: [message] }));
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it("delivers initialize once to each late subscriber", async () => {
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [message] }),
+    );
+
+    const late1 = vi.fn();
+    const late2 = vi.fn();
+    runtime.unstable_on("initialize", late1);
+    runtime.unstable_on("initialize", late2);
+
+    await flushMicrotasks();
+    expect(late1).toHaveBeenCalledTimes(1);
+    expect(late2).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips the replay when the subscriber unsubscribes before it runs", async () => {
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [message] }),
+    );
+
+    const callback = vi.fn();
+    const unsubscribe = runtime.unstable_on("initialize", callback);
+    unsubscribe();
+
+    await flushMicrotasks();
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it("does not replay non-latched events such as runEnd", async () => {
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [message], isRunning: true }),
+    );
+
+    runtime.__internal_setAdapter(
+      makeStore({ messages: [message], isRunning: false }),
+    );
+
+    const callback = vi.fn();
+    runtime.unstable_on("runEnd", callback);
+
+    await flushMicrotasks();
+    expect(callback).not.toHaveBeenCalled();
+  });
+});

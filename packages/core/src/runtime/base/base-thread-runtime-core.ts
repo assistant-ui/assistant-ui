@@ -478,6 +478,14 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     }
     subscribers.add(wrapped);
 
+    // `initialize` latches: replay it (deferred) to subscribers that attach
+    // after the thread already initialized, mirroring a BehaviorSubject.
+    if (event === "initialize" && this._isInitialized) {
+      queueMicrotask(() => {
+        if (this._eventSubscribers.get(event)?.has(wrapped)) wrapped({});
+      });
+    }
+
     return () => {
       this._eventSubscribers.get(event)?.delete(wrapped);
     };
