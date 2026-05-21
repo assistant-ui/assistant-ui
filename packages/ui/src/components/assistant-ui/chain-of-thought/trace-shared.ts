@@ -5,7 +5,6 @@ import type { LucideIcon } from "lucide-react";
 import type {
   MessagePrimitive,
   ThreadAssistantMessagePart,
-  ThreadMessage,
   ThreadUserMessagePart,
 } from "@assistant-ui/react";
 import type {
@@ -69,7 +68,7 @@ export const groupMessagePartsByParentId: PartsGroupedGroupingFunction = (
 export const isTraceGroup = (node: TraceNode): node is TraceGroup =>
   node.kind === "group";
 
-export const isTraceStep = (node: TraceNode): node is TraceStep =>
+const isTraceStep = (node: TraceNode): node is TraceStep =>
   node.kind === "step";
 
 export const mapTraceStatusToStepStatus = (
@@ -79,7 +78,6 @@ export const mapTraceStatusToStepStatus = (
     case "running":
       return "active";
     case "incomplete":
-    case "error":
       return "error";
     default:
       return "complete";
@@ -87,7 +85,13 @@ export const mapTraceStatusToStepStatus = (
 };
 
 const stepStatusToTrace = (s: StepStatus): TraceStatus =>
-  s === "active" ? "running" : s === "pending" ? "incomplete" : s;
+  s === "active"
+    ? "running"
+    : s === "pending"
+      ? "incomplete"
+      : s === "error"
+        ? "incomplete"
+        : "complete";
 
 export const mapTraceStatusToToolBadge = (
   status?: TraceStatus,
@@ -96,7 +100,6 @@ export const mapTraceStatusToToolBadge = (
     case "running":
       return "running";
     case "incomplete":
-    case "error":
       return "error";
     default:
       return "complete";
@@ -255,13 +258,4 @@ export const traceFromMessageParts = (
       ...(toolName != null ? { toolName } : {}),
     } satisfies TraceStep;
   });
-};
-
-export type TraceFromThreadMessageOptions = TraceFromMessagePartsOptions;
-
-export const traceFromThreadMessage = (
-  message: ThreadMessage,
-  options: TraceFromThreadMessageOptions = {},
-): TraceNode[] => {
-  return traceFromMessageParts(message.content, options);
 };

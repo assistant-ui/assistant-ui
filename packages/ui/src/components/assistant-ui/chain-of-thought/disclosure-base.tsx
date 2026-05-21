@@ -77,7 +77,7 @@ export function DisclosureRoot({
   );
 }
 
-export const DISCLOSURE_CONTENT_CLASSNAME = cn(
+const DISCLOSURE_CONTENT_CLASSNAME = cn(
   "relative overflow-hidden outline-none",
   "group/collapsible-content ease-out",
   "data-[state=closed]:animate-collapsible-up",

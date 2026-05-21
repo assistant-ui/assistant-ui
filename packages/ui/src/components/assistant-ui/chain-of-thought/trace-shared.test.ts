@@ -7,9 +7,7 @@ import {
   mapTraceStatusToStepStatus,
   mapTraceStatusToToolBadge,
   traceFromMessageParts,
-  traceFromThreadMessage,
 } from "./trace-shared";
-import type { ThreadMessage } from "@assistant-ui/react";
 import type { TraceNode, TraceStep } from "../chain-of-thought";
 
 describe("trace-shared", () => {
@@ -33,13 +31,11 @@ describe("trace-shared", () => {
   it("maps trace statuses to step/tool badge statuses", () => {
     expect(mapTraceStatusToStepStatus("running")).toBe("active");
     expect(mapTraceStatusToStepStatus("incomplete")).toBe("error");
-    expect(mapTraceStatusToStepStatus("error")).toBe("error");
     expect(mapTraceStatusToStepStatus("complete")).toBe("complete");
     expect(mapTraceStatusToStepStatus(undefined)).toBe("complete");
 
     expect(mapTraceStatusToToolBadge("running")).toBe("running");
     expect(mapTraceStatusToToolBadge("incomplete")).toBe("error");
-    expect(mapTraceStatusToToolBadge("error")).toBe("error");
     expect(mapTraceStatusToToolBadge("complete")).toBe("complete");
     expect(mapTraceStatusToToolBadge(undefined)).toBe("complete");
   });
@@ -87,30 +83,6 @@ describe("trace-shared", () => {
         status: "running",
       },
     ]);
-  });
-
-  it("converts thread messages to trace via message content", () => {
-    const message: ThreadMessage = {
-      id: "m-1",
-      role: "assistant",
-      createdAt: new Date("2024-01-01T00:00:00.000Z"),
-      content: [{ type: "tool-call", toolName: "image_search" }] as any,
-      metadata: {
-        unstable_state: null,
-        unstable_annotations: [],
-        unstable_data: [],
-        steps: [],
-        custom: {},
-      },
-      status: { type: "complete", reason: "stop" },
-    } as ThreadMessage;
-
-    const trace = traceFromThreadMessage(message);
-    expect(trace[0]).toMatchObject({
-      kind: "step",
-      type: "search",
-      toolName: "image_search",
-    });
   });
 
   it("finds the latest step in nested trace nodes", () => {

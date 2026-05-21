@@ -65,7 +65,7 @@ export const derivePhase = ({
 export type StepType = keyof typeof stepTypeIcons;
 export type StepStatus = "pending" | "active" | "complete" | "error";
 
-export type TraceStatus = "running" | "complete" | "incomplete" | "error";
+export type TraceStatus = "running" | "complete" | "incomplete";
 
 export type TraceOutputStatus = "streaming" | "complete";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, memo, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import {
   useAuiState,
   type ToolCallMessagePartComponent,
@@ -20,31 +20,6 @@ import {
   partStatusOrFallback,
   type ToolActivity,
 } from "./runtime-activity";
-
-export const ChainOfThoughtTraceTool = memo(function ChainOfThoughtTraceTool({
-  toolName,
-  status,
-}: {
-  toolName: string;
-  argsText?: string;
-  result?: unknown;
-  status?: { type: string; reason?: string; error?: unknown };
-}) {
-  const badgeStatus: "running" | "complete" | "error" =
-    status?.type === "running"
-      ? "running"
-      : status?.type === "incomplete"
-        ? "error"
-        : "complete";
-
-  return (
-    <ChainOfThoughtToolBadge
-      toolName={toolName}
-      status={badgeStatus}
-      showIcon={false}
-    />
-  );
-});
 
 export const ToolActivityLabelsContext = createContext<
   Record<string, ToolActivity> | undefined
@@ -103,10 +78,13 @@ export function ChainOfThoughtPrimitiveTool({
   const toolResult = result ?? toolPart?.result;
   const searchResults = extractSearchResults(toolName, toolResult);
 
+  // Read from the reactive part state first (matches `statusType` above);
+  // fall back to the prop for callers outside the message scope.
+  const badgeStatusType = toolPart?.status?.type ?? status?.type;
   const badgeStatus: "running" | "complete" | "error" =
-    status?.type === "running"
+    badgeStatusType === "running"
       ? "running"
-      : status?.type === "incomplete"
+      : badgeStatusType === "incomplete"
         ? "error"
         : "complete";
 

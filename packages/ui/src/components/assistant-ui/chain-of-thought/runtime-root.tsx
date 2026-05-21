@@ -116,7 +116,10 @@ export const ChainOfThoughtImpl = ({
   });
   const isActivePhase = phase === "running" || phase === "requires-action";
   const elapsedSeconds = useElapsedSeconds(isActivePhase);
-  const [streamingOpenOverride, setStreamingOpenOverride] = useState(false);
+  // Seed from the initial streaming snapshot so a mid-stream mount renders
+  // expanded on the first paint instead of flickering closed → open.
+  const [streamingOpenOverride, setStreamingOpenOverride] =
+    useState(isChainStreaming);
   const wasStreamingRef = useRef(isChainStreaming);
 
   useEffect(() => {

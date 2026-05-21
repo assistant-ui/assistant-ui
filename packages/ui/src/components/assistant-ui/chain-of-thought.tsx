@@ -49,6 +49,14 @@ import type {
  * For rendering a pre-shaped trace (e.g. from a server-side tool agent),
  * use `ChainOfThought.Trace` or `ChainOfThought.TraceDisclosure`.
  *
+ * @remarks
+ * Built on `ChainOfThoughtPrimitive`, which upstream marks as the legacy
+ * accordion API. If you need full control over grouping (e.g. mixing tool
+ * calls with custom adjacent parts), prefer composing
+ * `MessagePrimitive.GroupedParts` directly — see the guide at
+ * `/docs/guides/chain-of-thought`. This component is intended as the
+ * batteries-included default for the common chain-of-thought case.
+ *
  * @example
  * ```tsx
  * <MessagePrimitive.Parts components={{ ChainOfThought }} />

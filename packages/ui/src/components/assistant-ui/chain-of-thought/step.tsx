@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
   AlertCircleIcon,
   RotateCcwIcon,
@@ -240,36 +240,6 @@ export function ChainOfThoughtStep({
   );
 }
 
-export function ChainOfThoughtAnnouncer({
-  message,
-}: {
-  message: string | null;
-}) {
-  const [announcement, setAnnouncement] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (message) {
-      setAnnouncement(message);
-      const timer = setTimeout(() => setAnnouncement(null), 1000);
-      return () => clearTimeout(timer);
-    }
-
-    return undefined;
-  }, [message]);
-
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      data-slot="chain-of-thought-announcer"
-      className="aui-chain-of-thought-announcer sr-only"
-    >
-      {announcement}
-    </div>
-  );
-}
-
 export function ChainOfThoughtStepHeader({
   className,
   ...props
@@ -296,40 +266,6 @@ export function ChainOfThoughtStepBody({
       className={cn(
         "aui-chain-of-thought-step-body",
         "[&_li]:leading-relaxed",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-export function ChainOfThoughtStepBadges({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="chain-of-thought-step-badges"
-      className={cn(
-        "aui-chain-of-thought-step-badges mt-1.5 flex flex-wrap gap-1.5 pb-0.5",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
-export function ChainOfThoughtBadge({
-  className,
-  ...props
-}: React.ComponentProps<"span">) {
-  return (
-    <span
-      data-slot="chain-of-thought-badge"
-      className={cn(
-        "aui-chain-of-thought-badge",
-        "inline-flex items-center rounded-full bg-muted px-2.5 py-0.5",
-        "text-muted-foreground text-xs",
         className,
       )}
       {...props}
@@ -391,36 +327,4 @@ export function ChainOfThoughtToolBadge({
       </span>
     </span>
   );
-}
-
-export function ChainOfThoughtStepImage({
-  className,
-  src,
-  alt = "",
-  ...props
-}: React.ComponentProps<"div"> & { src?: string; alt?: string }) {
-  if (!src) return null;
-
-  return (
-    <div
-      data-slot="chain-of-thought-step-image"
-      className={cn(
-        "aui-chain-of-thought-step-image mt-2 overflow-hidden rounded-lg",
-        className,
-      )}
-      {...props}
-    >
-      <img
-        src={src}
-        alt={alt}
-        className="aui-chain-of-thought-step-image-img max-h-48 w-auto rounded-lg border object-cover"
-      />
-    </div>
-  );
-}
-
-export function renderStepTypeBaseIcon(type: StepType) {
-  const TypeIcon = stepTypeIcons[type];
-  if (!TypeIcon) return <BulletDot />;
-  return <TypeIcon className={STEP_ICON_CLASS} />;
 }
