@@ -779,7 +779,7 @@ const MessagePrimitivePartsCompat: FC<{
                 const partIndex = range.startIndex + i;
                 return (
                   <MessagePrimitivePartByIndex
-                    key={partIndex}
+                    key={`part-${partIndex}`}
                     index={partIndex}
                     components={components}
                   />
@@ -804,7 +804,7 @@ const MessagePrimitivePartsCompat: FC<{
                 const partIndex = range.startIndex + i;
                 return (
                   <MessagePrimitivePartByIndex
-                    key={partIndex}
+                    key={`part-${partIndex}`}
                     index={partIndex}
                     components={components}
                   />
