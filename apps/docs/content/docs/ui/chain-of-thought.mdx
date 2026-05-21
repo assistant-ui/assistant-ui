@@ -1,8 +1,179 @@
 ---
 title: Chain of Thought
-description: Interactive demo for the Chain of Thought UI component.
+description: Collapsible thinking panel that groups consecutive reasoning and tool-call message parts under a single timeline with a live activity label.
+platforms: ["react"]
 ---
 
 import { ChainOfThoughtSample } from "@/components/docs/samples/chain-of-thought";
 
 <ChainOfThoughtSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `chain-of-thought`
+
+<InstallCommand shadcn={["chain-of-thought"]} />
+
+This adds `/components/assistant-ui/chain-of-thought.tsx` (plus an internal `/components/assistant-ui/chain-of-thought/` module) to your project.
+
+  </Step>
+  <Step>
+
+### Wire it into your assistant message
+
+Mount `ChainOfThought` as the `components.ChainOfThought` slot on `MessagePrimitive.Parts`. The component subscribes to the chain-of-thought scope and renders all consecutive reasoning and tool-call parts inside a single collapsible panel.
+
+```tsx title="/app/components/assistant-ui/thread.tsx"
+import { MessagePrimitive } from "@assistant-ui/react";
+import { ChainOfThought } from "@/components/assistant-ui/chain-of-thought"; // [!code ++]
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+
+const AssistantMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts
+        components={{
+          Text: MarkdownText,
+          tools: { Fallback: ToolFallback },
+          ChainOfThought, // [!code ++]
+        }}
+      />
+    </MessagePrimitive.Root>
+  );
+};
+```
+
+The trigger shows a live activity label (e.g. "Searching web", "Reading sources") and an elapsed-time counter while streaming. Once the chain finishes, the panel auto-collapses to a one-line summary like "Researched 3 sources (12s)".
+
+  </Step>
+</Steps>
+
+## Customizing tool activity labels
+
+Pass `toolActivityLabels` to override the label shown for a specific tool. The resolver receives the part status and can return a static string or compute one from the part itself.
+
+```tsx
+<ChainOfThought
+  toolActivityLabels={{
+    fetch_weather: ({ statusType }) =>
+      statusType === "running" ? "Checking forecast..." : "Got forecast",
+    create_pr: ({ part, statusType }) =>
+      statusType === "running"
+        ? `Opening PR for ${part?.args?.branch}`
+        : "PR ready",
+  }}
+/>
+```
+
+If a tool has no entry, the component falls back to a humanized version of the tool name with verb inflection (e.g. `search_web` → "Searching web" / "Searched web").
+
+## Custom trigger
+
+Render your own trigger body via `renderTriggerContent`:
+
+```tsx
+<ChainOfThought
+  renderTriggerContent={({ phase, isOpen, activityLabel, elapsedSeconds }) => (
+    <span>
+      {phase === "running" ? "Thinking" : "Thought"}
+      {elapsedSeconds ? ` for ${elapsedSeconds}s` : null}
+      {activityLabel ? ` — ${activityLabel}` : null}
+    </span>
+  )}
+/>
+```
+
+## Composing your own layout
+
+`ChainOfThought.Root`, `.Trigger`, `.Content`, `.Timeline`, and `.Step*` primitives are exported for custom compositions:
+
+```tsx
+import { ChainOfThought } from "@/components/assistant-ui/chain-of-thought";
+
+<ChainOfThought.Root variant="muted">
+  <ChainOfThought.Trigger phase="running" isOpen={true} />
+  <ChainOfThought.Content>
+    <ChainOfThought.Timeline>
+      <ChainOfThought.Step status="complete" type="search">
+        <ChainOfThought.StepHeader>Searched docs</ChainOfThought.StepHeader>
+        <ChainOfThought.StepBody>3 results</ChainOfThought.StepBody>
+      </ChainOfThought.Step>
+    </ChainOfThought.Timeline>
+  </ChainOfThought.Content>
+</ChainOfThought.Root>;
+```
+
+## Rendering a pre-shaped trace
+
+For agents that produce a structured trace server-side, render it without the runtime via `ChainOfThought.Trace` or `ChainOfThought.TraceDisclosure`:
+
+```tsx
+import {
+  ChainOfThought,
+  type TraceNode,
+} from "@/components/assistant-ui/chain-of-thought";
+
+const trace: TraceNode[] = [
+  {
+    kind: "group",
+    id: "research",
+    label: "Research",
+    status: "complete",
+    children: [
+      { kind: "step", id: "s1", label: "Searched docs", status: "complete" },
+      { kind: "step", id: "s2", label: "Fetched 2 sources", status: "complete" },
+    ],
+  },
+];
+
+<ChainOfThought.TraceDisclosure trace={trace} />;
+```
+
+`TraceDisclosure` wraps `Trace` in a collapsible shell with a trigger; use `Trace` directly when you want to embed the timeline elsewhere.
+
+## Variants
+
+Pass `variant` on `ChainOfThought` (or `ChainOfThought.Root`) to change the visual chrome:
+
+| Variant   | Description                            |
+| --------- | -------------------------------------- |
+| `ghost`   | No surrounding chrome (default)        |
+| `outline` | Rounded border + padding               |
+| `muted`   | Muted background fill                  |
+
+## API Reference
+
+### `ChainOfThought` props
+
+| Prop                      | Description                                                                |
+| ------------------------- | -------------------------------------------------------------------------- |
+| `constrainHeight`         | Cap the timeline height and add a fade gradient for overflow. Default `false`. |
+| `autoCollapseOnComplete`  | Collapse the panel automatically once streaming completes. Default `true`. |
+| `toolActivityLabels`      | Per-tool label resolver overrides.                                         |
+| `renderTriggerContent`    | Render a custom trigger body.                                              |
+| `variant`                 | Visual style. `"ghost" \| "outline" \| "muted"`.                         |
+
+### Composable API
+
+| Component                       | Description                                              |
+| ------------------------------- | -------------------------------------------------------- |
+| `ChainOfThought.Root`           | Collapsible container with scroll lock                   |
+| `ChainOfThought.Trigger`        | Button with phase-aware label, activity, and chevron     |
+| `ChainOfThought.Content`        | Animated collapsible content wrapper                     |
+| `ChainOfThought.Placeholder`    | Empty-state placeholder                                  |
+| `ChainOfThought.Timeline`       | Vertical timeline with auto-scroll                       |
+| `ChainOfThought.Step`           | A single step (uses status/active/type)                  |
+| `ChainOfThought.StepHeader`     | Label slot                                               |
+| `ChainOfThought.StepBody`       | Body slot                                                |
+| `ChainOfThought.Trace`          | Render a `TraceNode[]` or derive from message parts      |
+| `ChainOfThought.TraceDisclosure`| `Trace` wrapped in a `Root`/`Trigger`/`Content` shell    |
+
+## Related Components
+
+- [Reasoning](/docs/ui/reasoning) - Reasoning-only collapsible panel
+- [ToolGroup](/docs/ui/tool-group) - Grouping pattern for adjacent tool calls
+- [PartGrouping](/docs/ui/part-grouping) - Advanced `MessagePrimitive.GroupedParts` usage
