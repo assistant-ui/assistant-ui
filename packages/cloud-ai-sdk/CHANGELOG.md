@@ -1,5 +1,12 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.15
+
+### Patch Changes
+
+- Updated dependencies [[`845c7c1`](https://github.com/assistant-ui/assistant-ui/commit/845c7c12fecbb448da7f1135c33163b653a50710)]:
+  - assistant-cloud@0.1.28
+
 ## 0.1.14
 
 ### Patch Changes

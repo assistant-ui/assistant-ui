@@ -32,8 +32,8 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.2.0",
-    "@assistant-ui/store": "^0.2.10",
+    "@assistant-ui/core": "^0.2.3",
+    "@assistant-ui/store": "^0.2.11",
     "zod": "^4.4.3"
   },
   "peerDependencies": {

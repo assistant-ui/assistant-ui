@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.15
+
+### Patch Changes
+
+- [#4023](https://github.com/assistant-ui/assistant-ui/pull/4023) [`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33) - docs: add JSDoc for assistant stream tool definitions ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
 ## 0.3.14
 
 ### Patch Changes

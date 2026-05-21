@@ -1,5 +1,37 @@
 # @assistant-ui/react-ink
 
+## 0.0.17
+
+### Patch Changes
+
+- [#3635](https://github.com/assistant-ui/assistant-ui/pull/3635) [`4ae1d2b`](https://github.com/assistant-ui/assistant-ui/commit/4ae1d2bfb7f9bceadbf8e476cd5e580a31584897) - feat(react-ink): add StatusBarPrimitive components ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#3860](https://github.com/assistant-ui/assistant-ui/pull/3860) [`c1ffce1`](https://github.com/assistant-ui/assistant-ui/commit/c1ffce17208cc95da8e4222033a67386176f4f17) - feat(react-ink): add intra-line highlighting to DiffView replacement lines ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#3983](https://github.com/assistant-ui/assistant-ui/pull/3983) [`a26f2bd`](https://github.com/assistant-ui/assistant-ui/commit/a26f2bdf201a680dfe65991f358479ae91887872) - fix(react-ink): guard `Pressable`'s `onPress` against the `disabled` prop independently of `isFocused`, so `disabled` reliably blocks key presses even when focus state and the prop disagree. ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#3633](https://github.com/assistant-ui/assistant-ui/pull/3633) [`300b3eb`](https://github.com/assistant-ui/assistant-ui/commit/300b3ebbb5f7bfa27ff4bad72c3c951dc0ce19b3) - feat(react-ink): add LoadingPrimitive for terminal loading states ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#3983](https://github.com/assistant-ui/assistant-ui/pull/3983) [`a26f2bd`](https://github.com/assistant-ui/assistant-ui/commit/a26f2bdf201a680dfe65991f358479ae91887872) - feat(react-ink): add `Status` sub-component for terminal-safe attachment status display, and fall back from extensionless filenames to the attachment `type` in `Thumb`. ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#3965](https://github.com/assistant-ui/assistant-ui/pull/3965) [`a71f716`](https://github.com/assistant-ui/assistant-ui/commit/a71f716e95602531264603f1ce405ac2e0a5ab8b) - feat(react-ink): add ComposerPrimitive.Queue and QueueItemPrimitive (Text, Remove, Steer) ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#3969](https://github.com/assistant-ui/assistant-ui/pull/3969) [`2bcbaf2`](https://github.com/assistant-ui/assistant-ui/commit/2bcbaf2105fc2035a478cf6b4350f6add8ce703a) - feat(react-ink): add ComposerPrimitive.Quote, QuoteText, and QuoteDismiss for terminal composer quote parity with `@assistant-ui/react` ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#3957](https://github.com/assistant-ui/assistant-ui/pull/3957) [`a25381e`](https://github.com/assistant-ui/assistant-ui/commit/a25381e08e9a5ca59d38b2c3cdf9f6ee3fa6e3c2) - feat(react-ink): harden terminal pressable interactions ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#3958](https://github.com/assistant-ui/assistant-ui/pull/3958) [`7a8bf26`](https://github.com/assistant-ui/assistant-ui/commit/7a8bf26eda76f5f8490f96b3ff9dce1ccd072917) - feat(react-ink): add `MessagePartPrimitive` namespace with terminal-safe defaults for image, file, source, reasoning, and data parts. ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+  Behavior changes in `react-ink`:
+  - `MessagePrimitive.Content` (deprecated) now renders the new terminal-safe defaults for image/file/source/reasoning/data parts when no `render*` prop is provided; previously these parts were silently dropped. Pass `render*={() => null}` to restore the prior behavior.
+  - `MessagePrimitive.Content` now consults `dataRenderers.fallbacks[0]` before falling back to the inline data renderer, matching `MessagePrimitive.Parts`.
+  - `MessagePrimitive.Parts` now forwards `data` and `Quote` components alongside `ChainOfThought`; previously `data` was dropped when `ChainOfThought` was set.
+
+- Updated dependencies [[`db721df`](https://github.com/assistant-ui/assistant-ui/commit/db721df32434296ac14eab27030628107975b71c), [`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33), [`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33), [`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33), [`8b6fc88`](https://github.com/assistant-ui/assistant-ui/commit/8b6fc8836871e62efc2fd8c131c6783e12c5fc47), [`179895f`](https://github.com/assistant-ui/assistant-ui/commit/179895fdcb56edee2e8d9efb4b38cd3859eeecdd), [`7a8bf26`](https://github.com/assistant-ui/assistant-ui/commit/7a8bf26eda76f5f8490f96b3ff9dce1ccd072917), [`3b2bbce`](https://github.com/assistant-ui/assistant-ui/commit/3b2bbce1589b44a13b8b7a570c19bf35a2266fbd)]:
+  - @assistant-ui/store@0.2.11
+  - assistant-stream@0.3.15
+  - @assistant-ui/core@0.2.3
+
 ## 0.0.16
 
 ### Patch Changes

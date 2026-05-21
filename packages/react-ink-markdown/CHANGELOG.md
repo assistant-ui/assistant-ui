@@ -1,5 +1,14 @@
 # @assistant-ui/react-ink-markdown
 
+## 0.0.16
+
+### Patch Changes
+
+- Updated dependencies [[`4ae1d2b`](https://github.com/assistant-ui/assistant-ui/commit/4ae1d2bfb7f9bceadbf8e476cd5e580a31584897), [`db721df`](https://github.com/assistant-ui/assistant-ui/commit/db721df32434296ac14eab27030628107975b71c), [`c1ffce1`](https://github.com/assistant-ui/assistant-ui/commit/c1ffce17208cc95da8e4222033a67386176f4f17), [`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33), [`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33), [`8b6fc88`](https://github.com/assistant-ui/assistant-ui/commit/8b6fc8836871e62efc2fd8c131c6783e12c5fc47), [`a26f2bd`](https://github.com/assistant-ui/assistant-ui/commit/a26f2bdf201a680dfe65991f358479ae91887872), [`179895f`](https://github.com/assistant-ui/assistant-ui/commit/179895fdcb56edee2e8d9efb4b38cd3859eeecdd), [`7a8bf26`](https://github.com/assistant-ui/assistant-ui/commit/7a8bf26eda76f5f8490f96b3ff9dce1ccd072917), [`300b3eb`](https://github.com/assistant-ui/assistant-ui/commit/300b3ebbb5f7bfa27ff4bad72c3c951dc0ce19b3), [`3b2bbce`](https://github.com/assistant-ui/assistant-ui/commit/3b2bbce1589b44a13b8b7a570c19bf35a2266fbd), [`a26f2bd`](https://github.com/assistant-ui/assistant-ui/commit/a26f2bdf201a680dfe65991f358479ae91887872), [`a71f716`](https://github.com/assistant-ui/assistant-ui/commit/a71f716e95602531264603f1ce405ac2e0a5ab8b), [`2bcbaf2`](https://github.com/assistant-ui/assistant-ui/commit/2bcbaf2105fc2035a478cf6b4350f6add8ce703a), [`a25381e`](https://github.com/assistant-ui/assistant-ui/commit/a25381e08e9a5ca59d38b2c3cdf9f6ee3fa6e3c2), [`7a8bf26`](https://github.com/assistant-ui/assistant-ui/commit/7a8bf26eda76f5f8490f96b3ff9dce1ccd072917)]:
+  - @assistant-ui/react-ink@0.0.17
+  - @assistant-ui/store@0.2.11
+  - @assistant-ui/core@0.2.3
+
 ## 0.0.15
 
 ### Patch Changes

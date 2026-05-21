@@ -1,5 +1,21 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.31
+
+### Patch Changes
+
+- [#4066](https://github.com/assistant-ui/assistant-ui/pull/4066) [`3bc6dc0`](https://github.com/assistant-ui/assistant-ui/commit/3bc6dc0c407dfc19d7654c75efa22c45cf11d6d0) - fix(react-ag-ui): preserve arrival order of parts in RunAggregator ([@tlecomte](https://github.com/tlecomte))
+
+  The aggregator now strictly preserves the order events arrive from the upstream stream. Each `REASONING_START`, `TOOL_CALL_START`, and `TEXT_MESSAGE_END` acts as a boundary that closes the current active part, so consecutive events of the same type are grouped into one part while interleaved events of a different type produce separate parts in chronological order.
+
+  Previously, the first reasoning block was always moved before the first text part regardless of arrival order, and multiple reasoning cycles were merged into a single block. Both behaviours have been removed.
+
+- [#3925](https://github.com/assistant-ui/assistant-ui/pull/3925) [`53cdc51`](https://github.com/assistant-ui/assistant-ui/commit/53cdc51665a48dfeb0220455f6c32a34981e0b0e) - feat(react-ag-ui): track streaming timing on the run aggregator so `useMessageTiming()` works on AG-UI assistant messages ([@shashank-100](https://github.com/shashank-100))
+
+- Updated dependencies [[`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33), [`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33), [`8b6fc88`](https://github.com/assistant-ui/assistant-ui/commit/8b6fc8836871e62efc2fd8c131c6783e12c5fc47), [`179895f`](https://github.com/assistant-ui/assistant-ui/commit/179895fdcb56edee2e8d9efb4b38cd3859eeecdd), [`7a8bf26`](https://github.com/assistant-ui/assistant-ui/commit/7a8bf26eda76f5f8490f96b3ff9dce1ccd072917), [`3b2bbce`](https://github.com/assistant-ui/assistant-ui/commit/3b2bbce1589b44a13b8b7a570c19bf35a2266fbd)]:
+  - assistant-stream@0.3.15
+  - @assistant-ui/core@0.2.3
+
 ## 0.0.30
 
 ### Patch Changes

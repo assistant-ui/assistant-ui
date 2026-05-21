@@ -1,5 +1,16 @@
 # @assistant-ui/react-opencode
 
+## 0.2.1
+
+### Patch Changes
+
+- [#3925](https://github.com/assistant-ui/assistant-ui/pull/3925) [`53cdc51`](https://github.com/assistant-ui/assistant-ui/commit/53cdc51665a48dfeb0220455f6c32a34981e0b0e) - feat(react-opencode): track streaming timing via `useOpenCodeStreamingTiming` so `useMessageTiming()` works on OpenCode assistant messages ([@shashank-100](https://github.com/shashank-100))
+
+- [#4068](https://github.com/assistant-ui/assistant-ui/pull/4068) [`22ae10e`](https://github.com/assistant-ui/assistant-ui/commit/22ae10e9f2c0ed34da9ea8b1aed5b56a9a8973dc) - fix(react-opencode): make the OpenCode runtime registry recover after React StrictMode cleanup. ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33), [`8b6fc88`](https://github.com/assistant-ui/assistant-ui/commit/8b6fc8836871e62efc2fd8c131c6783e12c5fc47), [`b481ec5`](https://github.com/assistant-ui/assistant-ui/commit/b481ec5129e6c1ae6de2683cdafdeecff1d8ed6b), [`8f0dbb8`](https://github.com/assistant-ui/assistant-ui/commit/8f0dbb80a0c89c7406bad1ad397e75831b9b8fa7), [`7a8bf26`](https://github.com/assistant-ui/assistant-ui/commit/7a8bf26eda76f5f8490f96b3ff9dce1ccd072917), [`693922b`](https://github.com/assistant-ui/assistant-ui/commit/693922b182b876b28d986f528b21d33da7c5bb51)]:
+  - @assistant-ui/react@0.14.6
+
 ## 0.2.0
 
 ### Patch Changes
