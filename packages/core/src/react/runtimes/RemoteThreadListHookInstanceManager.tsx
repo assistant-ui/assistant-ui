@@ -140,6 +140,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     }, [threadBinding]);
 
     useEffect(() => {
+      hasInitializedRef.current = false;
       return runtime.threads.main.unstable_on("initialize", () => {
         if (hasInitializedRef.current) return;
 

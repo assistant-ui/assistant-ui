@@ -266,8 +266,7 @@ describe("ExternalStoreThreadRuntimeCore - messages reconciliation", () => {
 
 describe("ExternalStoreThreadRuntimeCore - initialize event replay", () => {
   const message = { id: "m", role: "assistant" as const, content: [] };
-  const flushMicrotasks = () =>
-    new Promise<void>((resolve) => setTimeout(resolve, 0));
+  const flushMicrotasks = () => Promise.resolve();
 
   it("replays initialize to subscribers that attach after initialization", async () => {
     const runtime = new ExternalStoreThreadRuntimeCore(
