@@ -1,5 +1,19 @@
 # @assistant-ui/react
 
+## 0.14.7
+
+### Patch Changes
+
+- [#4073](https://github.com/assistant-ui/assistant-ui/pull/4073) [`44ac459`](https://github.com/assistant-ui/assistant-ui/commit/44ac45910cf49960ea0910cce32167d726a03ed1) - fix(react|useSmooth): render-phase resync of displayed text on part change ([@Yonom](https://github.com/Yonom))
+
+  Drop one frame of stale text after a thread switch by resyncing
+  `displayedText` in render when the part instance flips or `text`
+  breaks its streaming-append continuity, instead of waiting for
+  the post-commit effect.
+
+- Updated dependencies [[`221d320`](https://github.com/assistant-ui/assistant-ui/commit/221d320cee987a4cd464c9cbae152d918197499e)]:
+  - @assistant-ui/core@0.2.4
+
 ## 0.14.6
 
 ### Patch Changes
