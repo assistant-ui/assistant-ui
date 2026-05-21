@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useAui } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import type {
   MessagePartStatus,
   ReasoningMessagePart,
@@ -85,8 +85,12 @@ export const useSmooth = (
   // part's text (#4051). `displayedText` is already a prefix of
   // `text` during normal streaming, so use it as the previous-text
   // reference instead of carrying separate state — avoids the
-  // double render per streaming token.
-  const part = useAui().part();
+  // double render per streaming token. Read part identity through
+  // `useAuiState` so we actually subscribe to its changes instead
+  // of relying on a render-time proxy reference that may be stable
+  // across thread swaps.
+  const aui = useAui();
+  const part = useAuiState(() => aui.part());
   const [prevPart, setPrevPart] = useState(part);
   if (part !== prevPart || !text.startsWith(displayedText)) {
     setPrevPart(part);
