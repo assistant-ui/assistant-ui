@@ -250,7 +250,22 @@ const DerivedClientAccessorResource = resource(
 const serializeMeta = <K extends ClientNames>(
   name: K,
   meta: ClientMeta<K>,
-): string => `${name}::${meta.source}::${JSON.stringify(meta.query)}`;
+): string => {
+  // Sort top-level keys so {a, b} and {b, a} hash to the same fiber
+  // identity, and guard JSON.stringify against unusual values (BigInt,
+  // circular refs) so render never throws here.
+  let queryKey: string;
+  try {
+    const sorted: Record<string, unknown> = {};
+    for (const k of Object.keys(meta.query as object).sort()) {
+      sorted[k] = (meta.query as Record<string, unknown>)[k];
+    }
+    queryKey = JSON.stringify(sorted);
+  } catch {
+    queryKey = String(meta.query);
+  }
+  return `${name}::${meta.source}::${queryKey}`;
+};
 
 const DerivedClientsAccessorsResource = resource(
   ({
