@@ -132,6 +132,9 @@ export const McpServerResource = resource(
       setConnectionState("connecting");
       setLastError(null);
       setAuthorizationUrl(null);
+      // Clear tools so a reconnect (error → connect, or authRequired
+      // → connect) doesn't expose the previous attempt's tool list.
+      setTools([]);
       let transport: StreamableHTTPClientTransport | null = null;
       try {
         transport = await buildTransport();
