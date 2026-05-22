@@ -116,7 +116,7 @@ Per-name `setToolUI` registrations always win over the MCP fallback — you can 
 
 `@assistant-ui/react-ai-sdk` forwards `callProviderMetadata.mcp.app` from AI SDK tool UI parts into `ToolCallMessagePart.mcp.app`. With AI SDK 5.x and an MCP-Apps-capable MCP server, no extra wiring is required on the part shape.
 
-The rich UI comes from the MCP server's metadata, not from the model, so the path is identical whichever provider drives the conversation. Running Claude is just a different `model:` in `streamText` (`anthropic("claude-sonnet-4-6")` via `@ai-sdk/anthropic`); the MCP server, `splitMcpAppTools`, and the renderer are unchanged. MCP Apps is the open standard Anthropic ships for Claude, so a standard MCP-Apps server renders out of the box. The bridge below is only needed for servers that use OpenAI's `openai/outputTemplate` convention, again independent of which model you run.
+The rich UI comes from the MCP server's metadata, not from the model, so the path is identical whichever provider drives the conversation. Running Claude is just a different `model:` in `streamText` (`anthropic("claude-sonnet-4-6")` via `@ai-sdk/anthropic`); the MCP server, `splitMcpAppTools`, and the renderer are unchanged. MCP Apps is an open standard in the MCP ecosystem (Claude is one of its hosts), so a standard MCP-Apps server renders out of the box. The bridge below is only needed for servers that use OpenAI's `openai/outputTemplate` convention, again independent of which model you run.
 
 On the chat route, use `splitMcpAppTools()` (from `@ai-sdk/mcp`) to keep app-only tools out of the model's view:
 
@@ -140,28 +140,40 @@ const result = streamText({
 The renderer needs no change; you only have to surface the pointer. assistant-ui already reads `result._meta["ui/resourceUri"]` off tool results, so the smallest bridge is to copy the template onto the result by tool name. Build the map once from the tool listing, then stamp it inside each tool's `execute`:
 
 ```ts
-// where you build the MCP tools for streamText
-const { tools: defs } = await client.listTools();
+import type { Tool } from "ai";
+
+// reuse the listTools() result from the AI SDK integration step above; no second round-trip
 const templateByTool = new Map(
-  defs
+  tools.tools
     .filter((t) => typeof t._meta?.["openai/outputTemplate"] === "string")
     .map((t) => [t.name, t._meta["openai/outputTemplate"] as string]),
 );
 
-const withTemplateUri = (tool, name) => {
+const withTemplateUri = (tool: Tool, name: string): Tool => {
   const uri = templateByTool.get(name);
-  if (!uri || !tool.execute) return tool;
+  const exec = tool.execute;
+  if (!uri || !exec) return tool;
   return {
     ...tool,
-    execute: async (args, opts) => {
-      const result = await tool.execute(args, opts);
+    execute: async (args, options) => {
+      const result = (await exec(args, options)) as { _meta?: Record<string, unknown> };
       return { ...result, _meta: { ...result._meta, "ui/resourceUri": uri } };
     },
-  };
+  } satisfies Tool;
 };
 ```
 
-Wrap each tool with `withTemplateUri` before handing it to `streamText`. Your `mcp-apps/read-resource` handler reads the `ui://` resource exactly as above; return the server's HTML in `html` whether its MIME is `text/html;profile=mcp-app` or `text/html+skybridge`.
+Wrap the AI SDK tool objects before handing them to `streamText`:
+
+```ts
+const aiTools = await client.tools();
+const wrappedTools = Object.fromEntries(
+  Object.entries(aiTools).map(([name, t]) => [name, withTemplateUri(t, name)]),
+);
+// pass wrappedTools to streamText
+```
+
+Your `mcp-apps/read-resource` handler reads the `ui://` resource as in the route example above. Set the response `mimeType` to the `text/html;profile=mcp-app` literal that `McpAppResource` expects and keep the server's HTML in `html`; don't forward the raw `text/html+skybridge` value, which the type rejects.
 
 The cleaner long-term fix is upstream: if `@ai-sdk/mcp`'s `getMCPAppToolMeta` also read `openai/outputTemplate`, then `callProviderMetadata.mcp.app` would populate automatically and this bridge would be unnecessary.
 
