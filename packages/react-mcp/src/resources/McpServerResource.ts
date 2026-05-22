@@ -140,18 +140,20 @@ export const McpServerResource = resource(
         // doConnect / doDisconnect calls treat as live.
         await finalizeConnect(transport);
       } catch (err) {
-        if (transport) {
-          try {
-            await transport.close();
-          } catch {
-            // ignore
-          }
-        }
         if (err instanceof UnauthorizedError) {
-          // OAuth: keep the transport so completeAuth can call finishAuth on it.
+          // OAuth: keep the transport alive so completeAuth can call
+          // finishAuth on it. Closing it before storing would leave a
+          // closed transport on transportRef.
           transportRef.current = transport;
           setConnectionState("authRequired");
         } else {
+          if (transport) {
+            try {
+              await transport.close();
+            } catch {
+              // ignore close errors
+            }
+          }
           setLastError({
             message: err instanceof Error ? err.message : String(err),
           });
@@ -184,6 +186,16 @@ export const McpServerResource = resource(
         setAuthorizationUrl(null);
         await finalizeConnect(transport);
       } catch (err) {
+        const t = transportRef.current;
+        transportRef.current = null;
+        clientRef.current = null;
+        if (t) {
+          try {
+            await t.close();
+          } catch {
+            // ignore close errors
+          }
+        }
         setLastError({
           message: err instanceof Error ? err.message : String(err),
         });

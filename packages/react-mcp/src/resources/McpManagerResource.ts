@@ -60,7 +60,14 @@ export const McpManagerResource = resource(
       try {
         const records = await storage.loadCustomServers();
         if (signal.cancelled) return;
-        setCustomServers(records);
+        // Merge rather than replace so any addCustomServer calls that
+        // happened before hydration resolved aren't silently overwritten.
+        // Persisted order wins; pre-hydration locals append.
+        setCustomServers((prev) => {
+          if (prev.length === 0) return records;
+          const persistedIds = new Set(records.map((r) => r.id));
+          return [...records, ...prev.filter((r) => !persistedIds.has(r.id))];
+        });
       } finally {
         if (!signal.cancelled) {
           hydratedRef.current = true;
@@ -147,7 +154,7 @@ export const McpManagerResource = resource(
     // avoid collisions across connected servers.
     const toolkit = tapMemo<Record<string, Tool<any, any>>>(() => {
       const out: Record<string, Tool<any, any>> = {};
-      for (const server of lookup.state) {
+      for (const server of state.servers) {
         if (server.connectionState !== "connected") continue;
         for (const tool of server.tools) {
           const fullName = `${server.id}__${tool.name}`;
@@ -165,7 +172,7 @@ export const McpManagerResource = resource(
         }
       }
       return out;
-    }, [lookup, lookup.state]);
+    }, [state, lookup]);
 
     const clientRef = tapAssistantClientRef();
 

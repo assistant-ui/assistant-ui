@@ -1,5 +1,4 @@
 import { createContext, useContext } from "react";
-import type { MCPAuthConfig } from "../../mcp-scope";
 
 export type AddFormAuthType = "none" | "bearer" | "oauth";
 
@@ -22,7 +21,6 @@ export type AddFormContextValue = {
   reset: () => void;
   submit: () => Promise<void>;
   cancel: () => void;
-  buildAuth: () => MCPAuthConfig;
 };
 
 export const AddFormContext = createContext<AddFormContextValue | null>(null);

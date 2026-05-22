@@ -118,8 +118,8 @@ export const McpAddFormPrimitiveRoot = forwardRef<
   }, [onCancel]);
 
   const value = useMemo(
-    () => ({ state, setField, reset, submit, cancel, buildAuth }),
-    [state, setField, reset, submit, cancel, buildAuth],
+    () => ({ state, setField, reset, submit, cancel }),
+    [state, setField, reset, submit, cancel],
   );
 
   const onFormSubmit: FormEventHandler<HTMLFormElement> = (e) => {
