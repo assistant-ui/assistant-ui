@@ -20,6 +20,7 @@
 "@assistant-ui/react-langchain": patch
 "@assistant-ui/react-langgraph": patch
 "@assistant-ui/react-lexical": patch
+"@assistant-ui/react-mcp": patch
 "@assistant-ui/react-markdown": patch
 "@assistant-ui/react-native": patch
 "@assistant-ui/react-o11y": patch
