@@ -84,14 +84,25 @@ function findFolderByPath(
 
 function listChildren(nodes: PageTree.Node[]) {
   return nodes.flatMap((node) => {
+    const description =
+      "description" in node && typeof node.description === "string"
+        ? node.description
+        : undefined;
+
     switch (node.type) {
       case "page":
-        return { type: "page", title: node.name, url: node.url };
+        return {
+          type: "page",
+          title: node.name,
+          url: node.url,
+          ...(description ? { description } : {}),
+        };
       case "folder":
         return {
           type: "folder",
           name: node.name,
           ...(node.index ? { url: node.index.url } : {}),
+          ...(description ? { description } : {}),
         };
       default:
         return [];
@@ -347,15 +358,11 @@ export async function POST(req: Request): Promise<Response> {
             if (!path) {
               // Return root categories
               return [
-                ...pageTree.children
-                  .filter(
+                ...listChildren(
+                  pageTree.children.filter(
                     (node): node is PageTree.Folder => node.type === "folder",
-                  )
-                  .map((folder) => ({
-                    type: "folder",
-                    name: folder.name,
-                    ...(folder.index ? { url: folder.index.url } : {}),
-                  })),
+                  ),
+                ),
                 { type: "folder", name: "examples", url: "/examples" },
               ];
             }

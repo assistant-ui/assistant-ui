@@ -4,22 +4,10 @@ packages:
   - apps/*
   - templates/*
 
-ignoredBuiltDependencies:
-  - '@google/genai'
-  - '@modelcontextprotocol/ext-apps'
-  - '@mongodb-js/zstd'
-  - node-liblzma
-
-onlyBuiltDependencies:
-  - '@clerk/shared'
-  - '@tailwindcss/oxide@4.1.17'
-  - core-js
-  - esbuild
-  - protobufjs
-  - react-grab
-  - sharp@0.34.5
-  - sqlite3
-  - unrs-resolver@1.11.1
+linkWorkspacePackages: true
+preferWorkspacePackages: true
+publicHoistPattern:
+  - '@types/*'
 
 strictDepBuilds: true
 
@@ -37,3 +25,20 @@ minimumReleaseAgeExclude:
   - safe-content-frame
   - tw-glass
   - tw-shimmer
+
+allowBuilds:
+  '@clerk/shared': false
+  '@google/genai': false
+  '@modelcontextprotocol/ext-apps': false
+  '@mongodb-js/zstd': false
+  '@tailwindcss/oxide': false
+  core-js: false
+  esbuild@0.25.12: true
+  esbuild@0.27.7: true
+  esbuild@0.28.0: true
+  msgpackr-extract: true
+  node-liblzma: false
+  protobufjs: false
+  react-grab: false
+  sharp@0.34.5: true
+  sqlite3@5.1.7: true

@@ -1,5 +1,6 @@
 {
   "title": "Tutorial: Stockbroker",
+  "description": "Step-by-step LangGraph stockbroker tutorial covering setup, generative UI, and approval flows with assistant-ui.",
   "platforms": ["react"],
   "pages": ["introduction", "part-1", "part-2", "part-3"]
 }

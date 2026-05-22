@@ -1,4 +1,5 @@
 {
   "title": "Google ADK",
+  "description": "Google ADK runtime docs for connecting ADK agents to assistant-ui with streaming, tools, sessions, hooks, and server helpers.",
   "pages": ["overview", "quickstart", "api", "hooks"]
 }

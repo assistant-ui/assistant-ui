@@ -183,6 +183,31 @@ export const registry: RegistryItem[] = [
     dependencies: ["@assistant-ui/react", "lucide-react"],
   },
   {
+    name: "mcp-config",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/mcp-config.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/mcp-config.tsx",
+      },
+    ],
+    registryDependencies: [
+      "badge",
+      "button",
+      "dialog",
+      "input",
+      "label",
+      "separator",
+    ],
+    dependencies: [
+      "@assistant-ui/react-mcp",
+      "@assistant-ui/store",
+      "lucide-react",
+    ],
+  },
+  {
     name: "attachment",
     type: "registry:component",
     files: [

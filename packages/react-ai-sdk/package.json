@@ -35,10 +35,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/react": "^3.0.177",
+    "@ai-sdk/react": "^3.0.190",
     "@assistant-ui/core": "^0.2.3",
     "@assistant-ui/store": "^0.2.11",
-    "ai": "^6.0.175",
+    "ai": "^6.0.188",
     "assistant-cloud": "*"
   },
   "peerDependencies": {
@@ -54,12 +54,12 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/react": "^16.3.2",
     "@types/json-schema": "^7.0.15",
-    "@types/react": "^19.2.14",
+    "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "assistant-stream": "workspace:*",
     "jsdom": "^29.1.1",
-    "react": "^19.2.5",
-    "vitest": "^4.1.5"
+    "react": "^19.2.6",
+    "vitest": "^4.1.7"
   },
   "publishConfig": {
     "access": "public",
