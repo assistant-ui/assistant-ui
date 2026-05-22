@@ -31,9 +31,10 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "tailwind-merge": "^3.5.0",
-    "zod": "^3.23.8"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.2.4",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
