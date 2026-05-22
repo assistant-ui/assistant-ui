@@ -72,7 +72,7 @@
     "@types/json-schema": "^7.0.15",
     "ioredis": "^5.10.1",
     "redis": "^5.12.1",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.7"
   },
   "publishConfig": {
     "access": "public",

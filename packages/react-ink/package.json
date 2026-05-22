@@ -59,12 +59,12 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.14",
-    "ink": "^7.0.2",
+    "@types/react": "^19.2.15",
+    "ink": "^7.0.3",
     "ink-testing-library": "^4.0.0",
-    "react": "^19.2.5",
-    "tsx": "^4.21.0",
-    "vitest": "^4.1.5"
+    "react": "^19.2.6",
+    "tsx": "^4.22.3",
+    "vitest": "^4.1.7"
   },
   "publishConfig": {
     "access": "public",
