@@ -1,0 +1,102 @@
+---
+title: MCP Config Dialog
+description: Drop-in shadcn dialog that lists MCP connectors and custom servers, with inline OAuth/bearer auth controls and an add form.
+platforms: ["react"]
+---
+
+`McpConfigDialog` is a shadcn template that wraps the [`@assistant-ui/react-mcp`](/docs/integrations/tools/react-mcp) primitives. Render it anywhere inside an `McpManagerResource`-mounted client and your users get a styled MCP server panel — no manual primitive composition.
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Install the package and the component
+
+<InstallCommand npm={["@assistant-ui/react-mcp"]} />
+
+<InstallCommand shadcn={["mcp-config"]} />
+
+  </Step>
+  <Step>
+
+### Mount the manager
+
+```tsx title="app/providers.tsx"
+"use client";
+
+import { AuiProvider, useAui } from "@assistant-ui/react";
+import { McpManagerResource, defineConnector } from "@assistant-ui/react-mcp";
+
+const connectors = [
+  defineConnector({
+    id: "linear",
+    name: "Linear",
+    url: "https://mcp.linear.app",
+    auth: { type: "oauth", scopes: ["read"] },
+  }),
+];
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  const aui = useAui({ mcp: McpManagerResource({ connectors }) });
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
+}
+```
+
+  </Step>
+  <Step>
+
+### Drop the dialog in
+
+```tsx title="app/page.tsx"
+import { McpConfigDialog } from "@/components/assistant-ui/mcp-config";
+
+export default function Page() {
+  return (
+    <header className="flex items-center justify-between">
+      <h1>My app</h1>
+      <McpConfigDialog />
+    </header>
+  );
+}
+```
+
+That's it. The default trigger is an outline `"🔌 MCP servers"` button. Click it to open the dialog, which renders a **Connectors** list (your app-defined presets with connect/authorize/disconnect controls), a **Custom servers** list (user-added entries with the same controls plus a remove button), and an inline **Add server** form for URL + name + auth selection.
+
+  </Step>
+  <Step>
+
+### Override the trigger (optional)
+
+Pass children to swap the default button for your own:
+
+```tsx
+<McpConfigDialog>
+  <Button variant="ghost">Servers</Button>
+</McpConfigDialog>
+```
+
+  </Step>
+  <Step>
+
+### Wire up the OAuth callback
+
+Required for any OAuth-enabled connector or custom server. See the [OAuth callback section in the react-mcp guide](/docs/integrations/tools/react-mcp#handle-the-oauth-callback) for the route handler.
+
+  </Step>
+</Steps>
+
+## Related
+
+<Cards>
+  <Card
+    title="User-managed MCP servers"
+    description="Full @assistant-ui/react-mcp guide — connectors, custom servers, OAuth, storage, custom primitives."
+    href="/docs/integrations/tools/react-mcp"
+  />
+  <Card
+    title="Server-side MCP"
+    description="App-developer-controlled MCP servers wired into the API route."
+    href="/docs/integrations/tools/mcp"
+  />
+</Cards>

@@ -1,0 +1,337 @@
+---
+title: User-managed MCP servers
+description: Let end users add and authenticate MCP servers from the browser with @assistant-ui/react-mcp.
+---
+
+[`@assistant-ui/react-mcp`](https://npmjs.com/package/@assistant-ui/react-mcp) is the user-facing layer for MCP. Where the [server-side MCP guide](/docs/integrations/tools/mcp) wires a single fixed set of MCP servers into your API route, this package lets *end users* see a list of connectors, sign in via OAuth, paste a custom server URL, and have the resulting tool catalog flow into the chat — automatically.
+
+Two ways a server reaches the user:
+
+- **Connector** — a preset declared by the app developer with `defineConnector(...)`. The user just clicks Connect (and completes auth).
+- **Custom server** — the user supplies the URL, name, and auth in `<McpAddFormPrimitive>`. Hide the add UI to disable.
+
+Both flow through one connection lifecycle, one persisted state surface, and one tool registration path.
+
+## How it works
+
+```
+useAui({ mcp: McpManagerResource({ connectors }) })
+        │
+        ├─ Tap resource — connection lifecycle, server lookup, OAuth/bearer auth
+        ├─ Auto-mounts the modelContext scope when no chat runtime provides one
+        └─ Registers connected tools as frontend tools — your chat sees them automatically
+```
+
+The manager is a single tap resource. Mount it with `useAui` like any other scope. OAuth (PKCE + RFC 7591 dynamic client registration), bearer, and "no auth" are first-class. Token refresh runs inside the MCP SDK on 401; this package mediates persistence and the redirect step.
+
+## Setup
+
+<Steps>
+<Step>
+
+### Install
+
+<InstallCommand npm={["@assistant-ui/react-mcp"]} />
+
+</Step>
+<Step>
+
+### Mount the manager
+
+Declare your connectors and provide the `mcp` scope on `useAui`. No provider wrapper, no imperative hooks:
+
+```tsx title="app/providers.tsx"
+"use client";
+
+import { AuiProvider, useAui } from "@assistant-ui/react";
+import { McpManagerResource, defineConnector } from "@assistant-ui/react-mcp";
+
+const connectors = [
+  defineConnector({
+    id: "linear",
+    name: "Linear",
+    url: "https://mcp.linear.app",
+    auth: { type: "oauth", scopes: ["read"] },
+    icon: "/icons/linear.svg",
+  }),
+  defineConnector({
+    id: "weather",
+    name: "Weather",
+    url: "https://mcp.example.com/weather",
+    auth: { type: "none" },
+  }),
+];
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  const aui = useAui({ mcp: McpManagerResource({ connectors }) });
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
+}
+```
+
+Defaults baked in:
+
+- `storage` — `McpLocalStorage()` (override for production; see [Storage](#storage))
+- `oauthRedirectUri` — `${window.location.origin}/mcp/callback`
+- `autoConnect` — `true` (connect on mount when usable auth is persisted)
+
+</Step>
+<Step>
+
+### Pick your UI
+
+You have two options:
+
+**Drop-in shadcn dialog** (recommended for most apps) — install the `mcp-config` component via the assistant-ui registry, then render `<McpConfigDialog />` anywhere inside the provider. You get a styled trigger, server cards, status badges, error banners, and the add form for free:
+
+<InstallCommand shadcn={["mcp-config"]} />
+
+```tsx title="app/page.tsx"
+import { McpConfigDialog } from "@/components/assistant-ui/mcp-config";
+
+export default function Page() {
+  return (
+    <header className="flex items-center justify-between">
+      <h1>My app</h1>
+      <McpConfigDialog />
+    </header>
+  );
+}
+```
+
+Pass children to override the trigger:
+
+```tsx
+<McpConfigDialog>
+  <Button variant="ghost">Servers</Button>
+</McpConfigDialog>
+```
+
+**Compose your own from primitives** — three namespaces, all unstyled and `data-*`-driven. The iteration primitives take a **render function** so the body re-runs per server with the right scope:
+
+```tsx title="app/mcp/page.tsx"
+"use client";
+
+import {
+  McpManagerPrimitive,
+  McpServerPrimitive,
+} from "@assistant-ui/react-mcp";
+
+const ServerCard = () => (
+  <McpServerPrimitive.Root>
+    <McpServerPrimitive.Icon />
+    <McpServerPrimitive.Name />
+    <McpServerPrimitive.Status />
+    <McpServerPrimitive.ConnectButton>Connect</McpServerPrimitive.ConnectButton>
+    <McpServerPrimitive.DisconnectButton>Disconnect</McpServerPrimitive.DisconnectButton>
+    <McpServerPrimitive.OAuthLink>Authorize ↗</McpServerPrimitive.OAuthLink>
+    <McpServerPrimitive.RemoveButton>Remove</McpServerPrimitive.RemoveButton>
+    <McpServerPrimitive.Error />
+  </McpServerPrimitive.Root>
+);
+
+export default function McpPage() {
+  return (
+    <McpManagerPrimitive.Root>
+      <h2>Connectors</h2>
+      <McpManagerPrimitive.Connectors>
+        {() => <ServerCard />}
+      </McpManagerPrimitive.Connectors>
+
+      <h2>Your servers</h2>
+      <McpManagerPrimitive.CustomServers>
+        {() => <ServerCard />}
+      </McpManagerPrimitive.CustomServers>
+
+      <McpManagerPrimitive.AddCustomTrigger>
+        Add custom server
+      </McpManagerPrimitive.AddCustomTrigger>
+    </McpManagerPrimitive.Root>
+  );
+}
+```
+
+To disable custom servers entirely, just don't render `AddCustomTrigger` and `CustomServers`.
+
+The iteration primitives wrap each item in an `McpServerByIdProvider`, so the nested `<McpServerPrimitive.*>` automatically reads the right scope. `<ConnectButton>`, `<DisconnectButton>`, `<OAuthLink>` and `<RemoveButton>` only render when the relevant state matches — no manual gating. `<RemoveButton>` is also hidden on connector items (which the user can't remove).
+
+</Step>
+<Step>
+
+### Add the custom-server form
+
+```tsx
+<McpAddFormPrimitive.Root onSubmitted={() => closeDialog()}>
+  <McpAddFormPrimitive.NameField />
+  <McpAddFormPrimitive.UrlField />
+  <McpAddFormPrimitive.AuthSelect /> {/* none | bearer | oauth */}
+  <McpAddFormPrimitive.AuthFields /> {/* token or scope input depending on selection */}
+  <McpAddFormPrimitive.Error />
+  <McpAddFormPrimitive.Submit>Add</McpAddFormPrimitive.Submit>
+  <McpAddFormPrimitive.Cancel>Cancel</McpAddFormPrimitive.Cancel>
+</McpAddFormPrimitive.Root>
+```
+
+The form owns its own draft state and submits via `aui.mcp().addCustomServer(...)`. Pass a render function to `AuthFields` to fully customize it.
+
+</Step>
+<Step>
+
+### Handle the OAuth callback
+
+Add a route at `/mcp/callback` (or whatever you set `oauthRedirectUri` to):
+
+```tsx title="app/mcp/callback/page.tsx"
+"use client";
+
+import { McpOAuthCallback } from "@assistant-ui/react-mcp";
+import { useRouter } from "next/navigation";
+import { Providers } from "../../providers";
+
+export default function Callback() {
+  const router = useRouter();
+  return (
+    <Providers>
+      <McpOAuthCallback onComplete={() => router.replace("/mcp")} />
+    </Providers>
+  );
+}
+```
+
+The callback reads `?state=...&code=...` from the URL, derives the target server id (encoded in the OAuth `state` parameter automatically), and calls `completeAuth` on the right server.
+
+</Step>
+<Step>
+
+### That's it — the chat sees your tools
+
+`McpManagerResource` registers connected tools as **frontend tools** with the `modelContext` scope. Any chat runtime mounted in the same store (e.g. `@assistant-ui/react-ai-sdk`'s `useChatRuntime`) sees them and exposes them to the model — no `useMcpTools` hook, no adapter call.
+
+```tsx
+"use client";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+
+export function Chat() {
+  const runtime = useChatRuntime({ api: "/api/chat" });
+  /* … */
+}
+```
+
+Tool names are prefixed `serverId__toolName` to avoid collisions across connected servers. The toolkit re-registers whenever a server connects / disconnects or its tool list changes.
+
+If no chat runtime is mounted, `McpManagerResource` brings its own minimal `modelContext` along. Tools are still callable directly:
+
+```ts
+// In an event handler — never in render. See the tap conventions.
+const aui = useAui();
+const out = await aui.mcp().server({ id: "linear" }).callTool("search", { q });
+```
+
+</Step>
+</Steps>
+
+## Storage
+
+All persisted state — custom server records, OAuth tokens, PKCE verifiers, DCR client info — goes through a single `MCPStorage` resource. Three built-ins:
+
+- `McpLocalStorage()` — default. Stores under the `aui-mcp:` prefix in `window.localStorage`.
+- `McpMemoryStorage()` — in-process Map. Use for SSR/tests where localStorage is absent.
+- `McpCustomStorage({...})` — bring your own load/save. Use for app-controlled backends (e.g. POST to your API).
+
+```tsx
+import { McpManagerResource, McpCustomStorage } from "@assistant-ui/react-mcp";
+
+const aui = useAui({
+  mcp: McpManagerResource({
+    connectors,
+    storage: McpCustomStorage({
+      loadCustomServers: async () => fetch("/api/mcp/servers").then((r) => r.json()),
+      saveCustomServers: async (records) =>
+        fetch("/api/mcp/servers", { method: "PUT", body: JSON.stringify(records) }),
+      loadAuthState: async (id) =>
+        fetch(`/api/mcp/auth/${id}`).then((r) => (r.ok ? r.json() : null)),
+      saveAuthState: async (id, state) =>
+        fetch(`/api/mcp/auth/${id}`, { method: "PUT", body: JSON.stringify(state) }),
+      clearAuthState: async (id) =>
+        fetch(`/api/mcp/auth/${id}`, { method: "DELETE" }),
+    }),
+  }),
+});
+```
+
+<Callout type="warn">
+`McpLocalStorage` stores tokens in plain text and is XSS-exposed. For anything beyond local prototyping, use `McpCustomStorage` against an HTTP-only-cookie-backed endpoint, or wrap localStorage with your own encrypted serializer.
+</Callout>
+
+## Auth
+
+Three modes, declared per-connector or per-custom-record:
+
+```ts
+{ type: "none" }                                    // no auth header
+{ type: "bearer", token?: "…" }                     // Authorization: Bearer …
+{ type: "oauth",                                    // PKCE + DCR + refresh
+  scopes?: ["read"],
+  authorizationEndpoint?: "…",                      // overrides RFC 8414 discovery
+  tokenEndpoint?: "…",
+  registrationEndpoint?: "…",
+  clientId?: "…",                                   // skip DCR with a static client
+  clientSecret?: "…",
+}
+```
+
+The OAuth provider implements the MCP SDK's `OAuthClientProvider`. The SDK handles discovery (RFC 8414), DCR (RFC 7591), PKCE, token exchange, and refresh; this package mediates `MCPStorage` reads/writes and the redirect step. The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route knows which server to complete.
+
+## State & methods
+
+Render-time state — `useAuiState`:
+
+```ts
+import { useAuiState } from "@assistant-ui/store";
+
+const isHydrated = useAuiState((s) => s.mcp.isHydrated);
+const connectionState = useAuiState((s) => s.mcpServer.connectionState);
+//                                          ^ requires McpServerByIdProvider
+```
+
+Imperative methods — `useAui` + resolve in a callback (never during render — see the [tap skill](https://github.com/assistant-ui/assistant-ui/blob/main/.claude/skills/tap/SKILL.md) for why):
+
+```ts
+const aui = useAui();
+
+// inside an event handler:
+await aui.mcp().addCustomServer({ name, url, auth: { type: "bearer", token } });
+await aui.mcp().server({ id }).connect();
+await aui.mcp().server({ id }).callTool("echo", { text: "hi" });
+```
+
+## v1 scope
+
+What ships:
+
+- Tool listing and invocation, auto-registered as frontend tools
+- OAuth (PKCE + DCR), bearer, none
+- StreamableHTTP transport
+- Manual connect/disconnect
+
+What's deferred:
+
+- Resources, prompts, sampling
+- Auto-reconnect with backoff
+- Per-tool enable/disable persistence
+- Per-tool consent prompts
+- Out-of-the-box token encryption (use `McpCustomStorage` against a server endpoint)
+
+## Related
+
+<Cards>
+  <Card
+    title="Server-side MCP"
+    description="App-developer-controlled MCP servers wired into the API route."
+    href="/docs/integrations/tools/mcp"
+  />
+  <Card
+    title="Tools and tool UI"
+    description="Build custom renderers for tool calls and approvals."
+    href="/docs/guides/tools"
+  />
+</Cards>
