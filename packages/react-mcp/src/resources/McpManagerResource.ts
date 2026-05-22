@@ -151,7 +151,8 @@ export const McpManagerResource = resource(
     // ─── Auto-register MCP tools as frontend tools in modelContext ─────
     // Build the toolkit from connected servers; re-register when the visible
     // tool surface changes. Tool names are prefixed with the server id to
-    // avoid collisions across connected servers.
+    // avoid collisions across connected servers — server ids must not
+    // contain `__` (enforced by `defineConnector`/`addCustomServer`).
     const toolkit = tapMemo<Record<string, Tool<any, any>>>(() => {
       const out: Record<string, Tool<any, any>> = {};
       for (const server of state.servers) {
@@ -219,16 +220,16 @@ export const McpManagerResource = resource(
         return record.id;
       },
       removeServer: async (id) => {
-        // Disconnect the live transport before removing — otherwise the
-        // resource unmount cleanup closes it in the background, which can
-        // leave an HTTP request mid-flight with no listeners.
+        // Delegate to McpServerResource.remove() which disconnects,
+        // clears auth state, and unregisters from customServers in one
+        // place. Fallback to manual cleanup if the lookup is empty
+        // (server already gone).
         try {
-          await lookup.get({ key: id }).disconnect();
+          await lookup.get({ key: id }).remove();
         } catch {
-          // Already missing from the lookup (e.g. previously removed).
+          await storage.clearAuthState(id);
+          setCustomServers((prev) => prev.filter((s) => s.id !== id));
         }
-        await storage.clearAuthState(id);
-        setCustomServers((prev) => prev.filter((s) => s.id !== id));
       },
     };
   },
