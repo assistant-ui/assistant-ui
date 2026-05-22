@@ -1,9 +1,21 @@
 ---
 title: Adapters
-description: Title generation adapters for React Ink.
+description: Title generation and storage adapters for React Ink.
 ---
 
 Adapters customize runtime behavior. They can be passed as options to `useLocalRuntime` or `useRemoteThreadListRuntime`.
+
+## createFileStorageAdapter
+
+A `RemoteThreadListAdapter` that persists threads and messages to a local directory. See [Custom Backend → Option 2](/docs/ink/custom-backend#option-2-local-file-persistence) for usage.
+
+```ts
+import { createFileStorageAdapter } from "@assistant-ui/react-ink";
+
+const adapter = createFileStorageAdapter({
+  dir: "/path/to/threads",
+});
+```
 
 ## RemoteThreadListAdapter
 
