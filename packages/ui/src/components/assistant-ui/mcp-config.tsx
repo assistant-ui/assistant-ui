@@ -186,6 +186,7 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> =
     connected: "default",
     connecting: "secondary",
     authRequired: "secondary",
+    authPending: "secondary",
     error: "destructive",
     disconnected: "secondary",
   };
@@ -194,6 +195,7 @@ const STATUS_LABEL: Record<string, string> = {
   connected: "Connected",
   connecting: "Connecting…",
   authRequired: "Auth required",
+  authPending: "Authorizing…",
   error: "Error",
   disconnected: "Disconnected",
 };
@@ -261,7 +263,7 @@ const ServerActions: FC = () => (
 
 const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
   return (
-    <McpAddFormPrimitive.Root onSubmitted={onClose}>
+    <McpAddFormPrimitive.Root onSubmitted={onClose} onCancel={onClose}>
       <div className="aui-mcp-add-form flex flex-col gap-3 rounded-lg border p-3">
         <div className="flex items-center justify-between">
           <h4 className="font-medium text-sm">New server</h4>
@@ -304,7 +306,7 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
         <McpAddFormPrimitive.Error className="text-destructive text-xs" />
         <div className="flex justify-end gap-2">
           <McpAddFormPrimitive.Cancel asChild>
-            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+            <Button type="button" variant="ghost" size="sm">
               Cancel
             </Button>
           </McpAddFormPrimitive.Cancel>

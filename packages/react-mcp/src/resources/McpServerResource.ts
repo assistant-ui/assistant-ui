@@ -186,16 +186,7 @@ export const McpServerResource = resource(
         setAuthorizationUrl(null);
         await finalizeConnect(transport);
       } catch (err) {
-        const t = transportRef.current;
-        transportRef.current = null;
-        clientRef.current = null;
-        if (t) {
-          try {
-            await t.close();
-          } catch {
-            // ignore close errors
-          }
-        }
+        await closeTransport();
         setLastError({
           message: err instanceof Error ? err.message : String(err),
         });
