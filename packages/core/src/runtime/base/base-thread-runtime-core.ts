@@ -482,7 +482,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     // after the thread already initialized, mirroring a BehaviorSubject.
     if (event === "initialize" && this._isInitialized) {
       queueMicrotask(() => {
-        if (this._eventSubscribers.get(event)?.has(wrapped)) wrapped({});
+        if (subscribers.has(wrapped)) wrapped({});
       });
     }
 
