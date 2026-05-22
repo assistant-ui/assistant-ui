@@ -12,15 +12,14 @@ const UnknownComponentFallback = ({ component }: { component: string }) => (
 /**
  * Self-contained demo of the GenerativeUI primitive.
  *
- * Renders a hand-written `GenerativeUISpec` directly via `GenerativeUIRender`
- * — the same internal renderer that backs `MessagePrimitive.GenerativeUI`
- * when a `generative-ui` part flows through `MessagePrimitive.Parts`.
+ * Renders a hand-written `GenerativeUISpec` directly via `GenerativeUIRender`,
+ * the same renderer that backs `MessagePrimitive.GenerativeUI` when a
+ * `generative-ui` part flows through `MessagePrimitive.Parts`.
  *
  * In a real integration the spec arrives as a `generative-ui` message part
  * from the agent; the consumer-provided allowlist is the security boundary.
  */
 const exampleSpec: GenerativeUISpec = {
-  version: 1,
   root: [
     {
       component: "Card",
@@ -59,10 +58,7 @@ const exampleSpec: GenerativeUISpec = {
           component: "Stack",
           props: { direction: "row", gap: "md" },
           children: [
-            {
-              component: "Stat",
-              props: { label: "Revenue", value: "$124k" },
-            },
+            { component: "Stat", props: { label: "Revenue", value: "$124k" } },
             {
               component: "Stat",
               props: { label: "Active Users", value: "8.2k" },
@@ -75,7 +71,7 @@ const exampleSpec: GenerativeUISpec = {
   ],
 };
 
-export default function Home() {
+export default function GenerativeUIPrimitivePage() {
   return (
     <main className="mx-auto flex h-full max-w-2xl flex-col gap-6 p-8">
       <header>

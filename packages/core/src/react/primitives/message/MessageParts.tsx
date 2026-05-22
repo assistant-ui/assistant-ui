@@ -33,7 +33,11 @@ import type {
   GenerativeUIComponentRegistry,
 } from "../../types/MessagePartComponentTypes";
 import { GenerativeUIRender } from "../generativeUI/GenerativeUI";
-import { isMcpAppUri, type MessagePartStatus } from "../../../types/message";
+import {
+  isMcpAppUri,
+  type MessagePartStatus,
+  type GenerativeUIMessagePart,
+} from "../../../types/message";
 import type { DataRenderersState } from "../../types/scopes/dataRenderers";
 import type { ToolsState } from "../../types/scopes/tools";
 import { useShallow } from "zustand/shallow";
@@ -188,8 +192,6 @@ export namespace MessagePrimitiveParts {
       | {
           /** The component allowlist (the security boundary). */
           components: GenerativeUIComponentRegistry;
-          /** Rendering strategy. Defaults to `"same-realm"`. */
-          sandbox?: "same-realm" | "iframe" | undefined;
           /** Optional fallback for unknown component names. */
           Fallback?:
             | ComponentType<{ component: string; props?: unknown }>
@@ -433,9 +435,8 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
       }
       return (
         <GenerativeUIRender
-          spec={(part as any).spec}
+          spec={(part as GenerativeUIMessagePart).spec}
           components={generativeUI.components}
-          sandbox={generativeUI.sandbox}
           Fallback={generativeUI.Fallback}
         />
       );

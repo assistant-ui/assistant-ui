@@ -9,9 +9,9 @@ component per tool, the agent emits a `generative-ui` message part containing
 a tree of components by name. assistant-ui resolves each name against a
 **consumer-provided allowlist** and renders the result.
 
-> The allowlist is the security boundary in the default same-realm path. Any
-> name that is not in the allowlist throws a typed `GenerativeUIRenderError`
-> — there is no implicit fallback.
+> The allowlist controls **which** components the agent may render: any name
+> not in it throws a typed `GenerativeUIRenderError` (no implicit fallback). It
+> does not constrain the props passed to those components; see [Security](#security).
 
 ## Quick start
 
@@ -65,7 +65,6 @@ A `GenerativeUIMessagePart` carries a JSON spec:
 {
   type: "generative-ui",
   spec: {
-    version: 1,
     root: {
       component: "Card",
       props: { title: "Welcome" },
@@ -77,14 +76,13 @@ A `GenerativeUIMessagePart` carries a JSON spec:
 }
 ```
 
-Strings (or `{ "$text": "..." }` objects) act as inline text leaves.
+Bare strings act as inline text leaves.
 
 ## Spec shape
 
 ```ts
 type GenerativeUINode =
   | string
-  | { $text: string }
   | {
       component: string;             // resolved against the allowlist
       props?: Record<string, unknown>;
@@ -93,7 +91,6 @@ type GenerativeUINode =
     };
 
 type GenerativeUISpec = {
-  version?: 1;
   root: GenerativeUINode | GenerativeUINode[];
 };
 ```
@@ -107,26 +104,11 @@ The primitive is stream-friendly: any partial spec renders progressively. As
 new nodes arrive (filling in `children`, refining `props`), the rendered tree
 updates without reflows or lost local state for already-mounted children.
 
-## Sandboxing
+## Security
 
-The primitive supports two strategies via the `sandbox` prop:
+The allowlist is the boundary on **which** components render: a spec can only instantiate components you put in the registry, with no `eval` and no dynamic import (names are looked up in the registry and nothing else). An unknown name throws `GenerativeUIRenderError` or invokes your `Fallback`.
 
-| Mode | Default | What you get |
-| ---- | ------- | ------------ |
-| `"same-realm"` | yes | Direct render with allowlist enforcement. |
-| `"iframe"` | opt-in | Same-document portal into a sandboxed iframe for CSS / DOM isolation. |
-
-```tsx
-<MessagePrimitive.GenerativeUI
-  components={componentsAllowlist}
-  sandbox="iframe"
-/>
-```
-
-For full origin isolation (e.g. when rendering untrusted third-party content
-or running scripts described by the agent), use the
-`@assistant-ui/safe-content-frame` package directly — it ships an isolated
-document on `scf.auiusercontent.com`.
+It does **not** constrain the `props` the agent supplies. Spec props are spread directly onto your allowlisted components, so treat every allowlisted component as receiving untrusted input: never forward agent-supplied props into `dangerouslySetInnerHTML`, validate or reject `href` / `src` values (for example block `javascript:` URLs), and avoid passing spec props anywhere they become executable. The safest allowlisted components accept only primitive, display-oriented props.
 
 ## Error handling
 

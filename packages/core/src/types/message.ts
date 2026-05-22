@@ -85,9 +85,6 @@ export type DataMessagePart<T = any> = {
 export type GenerativeUINode =
   | string
   | {
-      readonly $text: string;
-    }
-  | {
       /** Allowlisted component name (resolved against the consumer registry). */
       readonly component: string;
       /** Props passed to the resolved component (must be JSON-serializable). */
@@ -102,8 +99,6 @@ export type GenerativeUINode =
  * The root spec for a generative UI tree.
  */
 export type GenerativeUISpec = {
-  /** Schema version. */
-  readonly version?: 1;
   /** Root node(s) to render. */
   readonly root: GenerativeUINode | readonly GenerativeUINode[];
 };

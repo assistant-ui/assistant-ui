@@ -102,15 +102,6 @@ export type GenerativeUIRenderProps = {
   spec: GenerativeUISpec;
   /** The component allowlist. */
   components: GenerativeUIComponentRegistry;
-  /**
-   * Rendering strategy:
-   * - `"same-realm"` (default): render directly in the host realm, with the
-   *   allowlist as the security boundary.
-   * - `"iframe"`: render inside an isolated iframe via `safe-content-frame`.
-   *   The component instances run in the host realm but the spec is shipped
-   *   across the boundary, allowing CSS/origin isolation.
-   */
-  sandbox?: "same-realm" | "iframe" | undefined;
   /** Optional fallback for unknown component names. */
   Fallback?: ComponentType<{ component: string; props?: unknown }> | undefined;
 };

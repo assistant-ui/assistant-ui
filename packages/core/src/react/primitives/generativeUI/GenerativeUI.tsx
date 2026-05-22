@@ -51,11 +51,6 @@ const renderNode = (
 
   if (typeof node === "string") return node;
 
-  // text leaf node
-  if (isObjectNode(node) && "$text" in node) {
-    return node.$text;
-  }
-
   if (!isObjectNode(node) || !("component" in node)) {
     if (
       typeof process !== "undefined" &&
@@ -107,26 +102,9 @@ const normalizeRoot = (
 export const GenerativeUIRender: FC<GenerativeUIRenderProps> = ({
   spec,
   components,
-  sandbox = "same-realm",
   Fallback,
 }) => {
   const nodes = useMemo(() => normalizeRoot(spec), [spec]);
-
-  if (sandbox === "iframe") {
-    // Iframe sandbox is provided by the web distribution
-    // (`packages/react/src/primitives/generativeUI/GenerativeUIIframe.tsx`).
-    // In the core (platform-agnostic) renderer we degrade to same-realm with
-    // a warning rather than silently dropping rendering.
-    if (
-      typeof process !== "undefined" &&
-      process.env?.NODE_ENV !== "production"
-    ) {
-      console.warn(
-        '[generative-ui] sandbox="iframe" is only supported in the web ' +
-          "distribution. Falling back to same-realm rendering.",
-      );
-    }
-  }
 
   return (
     <>
@@ -147,11 +125,6 @@ export namespace MessagePrimitiveGenerativeUI {
      * rejected with {@link GenerativeUIRenderError}.
      */
     components: GenerativeUIComponentRegistry;
-    /**
-     * Rendering strategy. Defaults to `"same-realm"`. Set to `"iframe"` to
-     * render inside an isolated iframe (web distribution only).
-     */
-    sandbox?: "same-realm" | "iframe" | undefined;
     /**
      * Optional override spec. If omitted, the primitive reads the
      * `generative-ui` part from the surrounding `MessagePartProvider` /
@@ -181,18 +154,10 @@ export namespace MessagePrimitiveGenerativeUI {
  *   components={{ Card: MyCard, Button: MyButton }}
  * />
  * ```
- *
- * @example Sandbox via iframe
- * ```tsx
- * <MessagePrimitive.GenerativeUI
- *   components={{ Card, Button }}
- *   sandbox="iframe"
- * />
- * ```
  */
 export const MessagePrimitiveGenerativeUI: FC<
   MessagePrimitiveGenerativeUI.Props
-> = ({ components, sandbox, spec, Fallback }) => {
+> = ({ components, spec, Fallback }) => {
   // Selector reads store state only — combining with the `spec` prop inside
   // the selector closes over a value that may change identity per render and
   // would trigger spurious tearing-detection re-renders in
@@ -209,7 +174,6 @@ export const MessagePrimitiveGenerativeUI: FC<
     <GenerativeUIRender
       spec={partSpec}
       components={components}
-      sandbox={sandbox}
       Fallback={Fallback}
     />
   );

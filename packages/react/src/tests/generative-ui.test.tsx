@@ -21,7 +21,6 @@ const Button = ({ label }: any) => (
 describe("MessagePrimitive.GenerativeUI (same-realm renderer)", () => {
   it("renders a flat tree with allowlisted components", () => {
     const spec: GenerativeUISpec = {
-      version: 1,
       root: {
         component: "Card",
         props: { title: "Hello" },
@@ -53,12 +52,12 @@ describe("MessagePrimitive.GenerativeUI (same-realm renderer)", () => {
     expect(out).toContain("<h3>B</h3>");
   });
 
-  it("renders string and $text children inline", () => {
+  it("renders string children inline", () => {
     const spec: GenerativeUISpec = {
       root: {
         component: "Card",
         props: { title: "T" },
-        children: ["hello ", { $text: "world" }],
+        children: ["hello ", "world"],
       },
     };
     const out = renderToStaticMarkup(
