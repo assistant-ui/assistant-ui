@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/x-buildutils",
   "private": false,
-  "version": "0.0.6",
+  "version": "0.0.8",
   "description": "Internal build utilities for assistant-ui packages",
   "keywords": [
     "build",
@@ -16,7 +16,8 @@
     "bin",
     "src",
     "ts",
-    "types"
+    "types",
+    "README.md"
   ],
   "bin": {
     "aui-build": "./bin/aui-build.js"
@@ -29,7 +30,7 @@
     "typescript": "^6.0.3"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0"
+    "@types/node": "^25.9.1"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {

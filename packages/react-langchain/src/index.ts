@@ -1,6 +1,8 @@
 export {
   useStreamRuntime,
   useLangChainInterruptState,
+  useLangChainSend,
+  useLangChainSendCommand,
   useLangChainState,
   useLangChainSubmit,
 } from "./useStreamRuntime";

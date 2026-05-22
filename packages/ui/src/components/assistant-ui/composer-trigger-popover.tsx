@@ -1,12 +1,12 @@
 "use client";
 
 import { memo, useRef, type ComponentPropsWithoutRef, type FC } from "react";
-import { ComposerPrimitive } from "@assistant-ui/react";
-import type {
-  Unstable_DirectiveFormatter,
-  Unstable_TriggerItem,
-} from "@assistant-ui/core";
-import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+import {
+  ComposerPrimitive,
+  unstable_defaultDirectiveFormatter,
+  type Unstable_DirectiveFormatter,
+  type Unstable_TriggerItem,
+} from "@assistant-ui/react";
 import { ChevronLeftIcon, ChevronRightIcon, SparklesIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 

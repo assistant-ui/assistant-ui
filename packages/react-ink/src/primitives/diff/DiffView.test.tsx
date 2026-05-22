@@ -4,14 +4,39 @@ import { cleanup, render } from "ink-testing-library";
 import { parsePatch, computeDiff, foldContext } from "./diff-utils";
 import { DiffContent } from "./DiffContent";
 import { DiffHeader } from "./DiffHeader";
+import { buildIntraLineSegments, buildLinePairMap } from "./intra-line-utils";
 import { DiffRoot } from "./DiffRoot";
 import { DiffView } from "./DiffView";
+import type { ParsedLine } from "./types";
 
 const renderFrame = async (node: ReactElement) => {
   const instance = render(node);
   await new Promise((resolve) => setTimeout(resolve, 0));
   return instance.lastFrame() ?? "";
 };
+
+const makeDelLine = (content: string, oldLineNumber: number): ParsedLine => ({
+  type: "del",
+  content,
+  oldLineNumber,
+});
+
+const makeAddLine = (content: string, newLineNumber: number): ParsedLine => ({
+  type: "add",
+  content,
+  newLineNumber,
+});
+
+const makeNormalLine = (
+  content: string,
+  oldLineNumber: number,
+  newLineNumber: number,
+): ParsedLine => ({
+  type: "normal",
+  content,
+  oldLineNumber,
+  newLineNumber,
+});
 
 afterEach(() => {
   cleanup();
@@ -28,6 +53,123 @@ index 1234567..abcdefg 100644
 +line 2.5 added
  line 3
 `;
+
+describe("buildLinePairMap", () => {
+  it("pairs a single adjacent replacement", () => {
+    const del = makeDelLine("old value", 1);
+    const add = makeAddLine("new value", 1);
+
+    const pairMap = buildLinePairMap([del, add]);
+
+    expect(pairMap.size).toBe(1);
+    expect(pairMap.get(del)).toBe(add);
+  });
+
+  it("pairs equal-length adjacent delete and add runs in order", () => {
+    const del1 = makeDelLine("old alpha", 1);
+    const del2 = makeDelLine("old beta", 2);
+    const add1 = makeAddLine("new alpha", 1);
+    const add2 = makeAddLine("new beta", 2);
+
+    const pairMap = buildLinePairMap([del1, del2, add1, add2]);
+
+    expect(pairMap.get(del1)).toBe(add1);
+    expect(pairMap.get(del2)).toBe(add2);
+  });
+
+  it("pairs equal-length block rewrites of length three", () => {
+    const del1 = makeDelLine("old alpha", 1);
+    const del2 = makeDelLine("old beta", 2);
+    const del3 = makeDelLine("old gamma", 3);
+    const add1 = makeAddLine("new alpha", 1);
+    const add2 = makeAddLine("new beta", 2);
+    const add3 = makeAddLine("new gamma", 3);
+
+    const pairMap = buildLinePairMap([del1, del2, del3, add1, add2, add3]);
+
+    expect(pairMap.get(del1)).toBe(add1);
+    expect(pairMap.get(del2)).toBe(add2);
+    expect(pairMap.get(del3)).toBe(add3);
+  });
+
+  it("does not pair unequal-length adjacent runs", () => {
+    const pairMap = buildLinePairMap([
+      makeDelLine("old 1", 1),
+      makeDelLine("old 2", 2),
+      makeAddLine("new 1", 1),
+      makeAddLine("new 2", 2),
+      makeAddLine("new 3", 3),
+    ]);
+
+    expect(pairMap.size).toBe(0);
+  });
+
+  it("does not pair non-adjacent delete and add lines", () => {
+    const del = makeDelLine("old value", 1);
+    const normal = makeNormalLine("context", 2, 2);
+    const add = makeAddLine("new value", 3);
+
+    const pairMap = buildLinePairMap([del, normal, add]);
+
+    expect(pairMap.size).toBe(0);
+  });
+
+  it("does not pair an unpaired add line", () => {
+    const pairMap = buildLinePairMap([
+      makeNormalLine("context", 1, 1),
+      makeAddLine("new value", 2),
+    ]);
+
+    expect(pairMap.size).toBe(0);
+  });
+
+  it("does not pair across file boundaries when called per file", () => {
+    const firstFile = buildLinePairMap([
+      makeDelLine("old value", 1),
+      makeNormalLine("context", 2, 2),
+    ]);
+    const secondFile = buildLinePairMap([makeAddLine("new value", 1)]);
+
+    expect(firstFile.size).toBe(0);
+    expect(secondFile.size).toBe(0);
+  });
+});
+
+describe("buildIntraLineSegments", () => {
+  it("marks only changed whitespace for whitespace-only edits", () => {
+    expect(buildIntraLineSegments("a b", "a  b")).toEqual({
+      delSegments: [
+        { text: "a", changed: false },
+        { text: " ", changed: true },
+        { text: "b", changed: false },
+      ],
+      addSegments: [
+        { text: "a", changed: false },
+        { text: "  ", changed: true },
+        { text: "b", changed: false },
+      ],
+    });
+  });
+
+  it("treats identical paired content as fully unchanged", () => {
+    expect(buildIntraLineSegments("same text", "same text")).toEqual({
+      delSegments: [{ text: "same text", changed: false }],
+      addSegments: [{ text: "same text", changed: false }],
+    });
+  });
+
+  it("handles empty content without throwing", () => {
+    expect(buildIntraLineSegments("", "new")).toEqual({
+      delSegments: [],
+      addSegments: [{ text: "new", changed: true }],
+    });
+
+    expect(buildIntraLineSegments("old", "")).toEqual({
+      delSegments: [{ text: "old", changed: true }],
+      addSegments: [],
+    });
+  });
+});
 
 describe("parsePatch", () => {
   it("parses a unified diff string", () => {
@@ -276,6 +418,41 @@ describe("DiffView", () => {
     expect(frame).toContain("-");
   });
 
+  it("renders paired replacements with visible text preserved", async () => {
+    const frame = await renderFrame(
+      <DiffView
+        oldFile={{ content: "const value = oldName;\n", name: "demo.ts" }}
+        newFile={{ content: "const value = newName;\n", name: "demo.ts" }}
+      />,
+    );
+
+    expect(frame).toContain("- const value = oldName;");
+    expect(frame).toContain("+ const value = newName;");
+  });
+
+  it("falls back to line-level rendering for unpaired runs", async () => {
+    const frame = await renderFrame(
+      <DiffView
+        patch={`diff --git a/demo.ts b/demo.ts
+--- a/demo.ts
++++ b/demo.ts
+@@ -1,2 +1,3 @@
+-old one
+-old two
++new one
++new two
++new three
+`}
+      />,
+    );
+
+    expect(frame).toContain("- old one");
+    expect(frame).toContain("- old two");
+    expect(frame).toContain("+ new one");
+    expect(frame).toContain("+ new two");
+    expect(frame).toContain("+ new three");
+  });
+
   it("hides line numbers when showLineNumbers=false", async () => {
     const withNumbers = await renderFrame(<DiffView patch={SAMPLE_PATCH} />);
     const withoutNumbers = await renderFrame(
@@ -310,13 +487,16 @@ ${manyLines}
 +++ b/ctx.txt
 @@ -1,21 +1,22 @@
 ${normalBefore}
-+inserted
+-old value
++new value
 ${normalAfter}
 `;
     const frame = await renderFrame(
       <DiffView patch={patch} contextLines={2} />,
     );
     expect(frame).toContain("lines hidden");
+    expect(frame).toContain("- old value");
+    expect(frame).toContain("+ new value");
   });
 
   it("renders multi-file patches", async () => {

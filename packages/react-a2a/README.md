@@ -1,23 +1,22 @@
 # `@assistant-ui/react-a2a`
 
-[A2A (Agent-to-Agent) v1.0](https://github.com/a2aproject/A2A) protocol adapter for [assistant-ui](https://www.assistant-ui.com/).
+[A2A (Agent-to-Agent) v1.0](https://github.com/a2aproject/A2A) protocol integration for `@assistant-ui/react`. Built-in HTTP client with SSE streaming, agent-card discovery, multi-tenancy, and structured error handling.
 
 ## Installation
 
-```sh
+```bash
 npm install @assistant-ui/react @assistant-ui/react-a2a
 ```
 
-## Quick Start
+## Usage
 
 ```tsx
-import { AssistantRuntimeProvider, Thread } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useA2ARuntime } from "@assistant-ui/react-a2a";
+import { Thread } from "@/components/assistant-ui/thread";
 
-function App() {
-  const runtime = useA2ARuntime({
-    baseUrl: "http://localhost:9999",
-  });
+export function App() {
+  const runtime = useA2ARuntime({ baseUrl: "http://localhost:9999" });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -27,23 +26,11 @@ function App() {
 }
 ```
 
-## Documentation
+Supports all 9 A2A task states (including `input_required` and `auth_required`), artifact streaming, push-notification config, extension negotiation, and streaming/non-streaming auto-fallback.
 
-Full documentation is available at [assistant-ui.com/docs/runtimes/a2a](https://www.assistant-ui.com/docs/runtimes/a2a).
+## See also
 
-## Features
+- `@assistant-ui/react-ag-ui` for the AG-UI protocol.
+- `@assistant-ui/react-langgraph` for LangGraph agents.
 
-- Full A2A v1.0 protocol support
-- Built-in HTTP client with SSE streaming
-- All 9 task states (including `input_required`, `auth_required`)
-- Artifact streaming with append/lastChunk support
-- Agent card discovery
-- Multi-tenancy
-- Structured error handling (google.rpc.Status)
-- Push notification config CRUD
-- Extension negotiation
-- Streaming/non-streaming auto-fallback
-
-## License
-
-MIT
+Full reference at [assistant-ui.com/docs/runtimes/a2a](https://www.assistant-ui.com/docs/runtimes/a2a/overview).

@@ -38,7 +38,12 @@ const useActionBarPrimitiveCopy = ({
 } = {}) => {
   const { copy, disabled } = useActionBarCopy({
     copiedDuration,
-    copyToClipboard: (text) => navigator.clipboard.writeText(text),
+    copyToClipboard: (text) => {
+      if (typeof navigator === "undefined" || !navigator.clipboard) {
+        return Promise.reject(new Error("Clipboard API is unavailable"));
+      }
+      return navigator.clipboard.writeText(text);
+    },
   });
   if (disabled) return null;
   return copy;

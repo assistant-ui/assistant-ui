@@ -35,6 +35,10 @@ class TestComposerCore extends BaseComposerRuntimeCore {
     return false;
   }
 
+  get canSend() {
+    return !this.isEmpty;
+  }
+
   protected handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
@@ -110,7 +114,7 @@ describe("BaseComposerRuntimeCore", () => {
   });
 
   it("sets and gets runConfig", () => {
-    const config = { custom: { model: "gpt-4" } };
+    const config = { custom: { model: "gpt-5.4-nano" } };
     composer.setRunConfig(config);
     expect(composer.runConfig).toBe(config);
   });

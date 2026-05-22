@@ -2,6 +2,7 @@ export type {
   // Message parts
   TextMessagePart,
   ReasoningMessagePart,
+  SourceProviderMetadata,
   SourceMessagePart,
   ImageMessagePart,
   FileMessagePart,
@@ -11,6 +12,7 @@ export type {
   GenerativeUISpec,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
+  ToolModelContentPart,
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   // Message status

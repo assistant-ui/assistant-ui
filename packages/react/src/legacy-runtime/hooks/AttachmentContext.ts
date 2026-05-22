@@ -5,7 +5,7 @@ import { createStateHookForRuntime } from "../../context/react/utils/createState
 import { useAui, useAuiState } from "@assistant-ui/store";
 
 /**
- * @deprecated Use `useAui()` with `aui.attachment()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use {@link useAui} with `aui.attachment()` instead. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export function useAttachmentRuntime(options?: {
   optional?: false | undefined;
@@ -84,7 +84,7 @@ export function useMessageAttachmentRuntime(options?: {
 }
 
 /**
- * @deprecated Use `useAuiState((s) => s.attachment)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use {@link useAuiState}: `useAuiState((s) => s.attachment)`. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export const useAttachment = createStateHookForRuntime(useAttachmentRuntime);
 

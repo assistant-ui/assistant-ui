@@ -1,6 +1,6 @@
 ---
-title: Context API
-description: Read and update assistant state to build custom components.
+title: Assistant Context API
+description: Read and update assistant state to build custom React components in your chat UI — composable context API for thread, message, and runtime data via assistant-ui.
 platforms: ["react"]
 ---
 
@@ -258,8 +258,8 @@ useAuiEvent("composer.send", (event) => {
 });
 
 // Listen to thread events
-useAuiEvent("thread.runStart", (event) => {
-  console.log("Run started in thread:", event.threadId);
+useAuiEvent("thread.modelContextUpdate", (event) => {
+  console.log("Model context updated in thread:", event.threadId);
 });
 
 // Listen to all events of a type across all scopes

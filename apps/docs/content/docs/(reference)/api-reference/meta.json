@@ -2,12 +2,17 @@
   "title": "API Reference",
   "pages": [
     "overview",
+    "tools",
+    "model-context",
+    "transport",
+    "external-store",
+    "voice",
     "primitives",
     "hooks",
     "adapters",
     "runtimes",
     "context-providers",
     "integrations",
-    "..."
+    "utilities"
   ]
 }

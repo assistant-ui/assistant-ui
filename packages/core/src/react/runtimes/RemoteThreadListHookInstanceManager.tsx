@@ -128,6 +128,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
     const aui = useAui();
     const initPromiseRef = useRef<Promise<unknown> | undefined>(undefined);
+    const hasInitializedRef = useRef(false);
 
     useEffect(() => {
       const runtimeCore = threadBinding.getState();
@@ -139,17 +140,20 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     }, [threadBinding]);
 
     useEffect(() => {
+      hasInitializedRef.current = false;
       return runtime.threads.main.unstable_on("initialize", () => {
+        if (hasInitializedRef.current) return;
+
         const state = aui.threadListItem().getState();
-        if (state.status === "new") {
-          initPromiseRef.current = aui.threadListItem().initialize();
+        if (state.status !== "new") return;
+        hasInitializedRef.current = true;
 
-          const dispose = runtime.thread.unstable_on("runEnd", () => {
-            dispose();
+        initPromiseRef.current = aui.threadListItem().initialize();
 
-            aui.threadListItem().generateTitle();
-          });
-        }
+        const dispose = runtime.thread.unstable_on("runEnd", () => {
+          dispose();
+          aui.threadListItem().generateTitle();
+        });
       });
     }, [runtime, aui]);
 

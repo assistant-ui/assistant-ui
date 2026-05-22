@@ -20,8 +20,10 @@
     "---Tools & Generative UI---",
     "tools",
     "tool-ui",
+    "mcp-apps",
     "interactables",
     "multi-agent",
+    "image-generation",
     "---Display---",
     "chain-of-thought",
     "latex",
@@ -29,6 +31,10 @@
     "voice",
     "speech",
     "---Programmatic---",
-    "context-api"
+    "context-api",
+    "---Resilience---",
+    "resumable-streams",
+    "resumable-stream-stores",
+    "resumable-stream-deployment"
   ]
 }

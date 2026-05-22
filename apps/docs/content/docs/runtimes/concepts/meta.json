@@ -1,4 +1,5 @@
 {
   "title": "Concepts",
+  "description": "Shared runtime concepts for architecture, adapters, thread management, and stability across assistant-ui runtime integrations.",
   "pages": ["architecture", "adapters", "threads", "stability"]
 }

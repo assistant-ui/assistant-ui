@@ -43,7 +43,7 @@ export {
 } from "./model-context/useToolArgsStatus";
 
 // client
-export { Tools } from "./client/Tools";
+export { Tools, type McpAppResourceOutput } from "./client/Tools";
 export { DataRenderers } from "./client/DataRenderers";
 export { Interactables } from "./client/Interactables";
 
@@ -194,6 +194,7 @@ export {
   PartPrimitiveMessages,
   PartPrimitiveMessagesImpl,
 } from "./primitives/part/PartMessages";
+export { MessagePartPrimitiveInProgress } from "./primitives/messagePart/MessagePartInProgress";
 export { ThreadListItemPrimitiveTitle } from "./primitives/threadListItem/ThreadListItemTitle";
 export {
   ThreadPrimitiveSuggestions,

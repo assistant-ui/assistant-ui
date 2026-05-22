@@ -1,6 +1,13 @@
 {
   "title": "Adapters",
-  "description": "Interfaces for persistence, files, speech, dictation, feedback, suggestions, and runtime composition.",
-  "overview": "Adapters let you replace runtime behavior without replacing the UI. They are usually passed through runtime options or provided by integration packages.",
-  "pages": ["index", "runtime", "attachments", "persistence", "feedback-speech"]
+  "description": "Adapter interfaces for connecting chat models, persistence, file attachments, feedback, and suggestions to assistant-ui React runtimes.",
+  "pages": [
+    "index",
+    "attachments",
+    "feedback",
+    "model",
+    "persistence",
+    "runtime",
+    "suggestions"
+  ]
 }

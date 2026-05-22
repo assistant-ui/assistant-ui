@@ -5,7 +5,7 @@ import { createStateHookForRuntime } from "../../context/react/utils/createState
 import { useAui, useAuiState } from "@assistant-ui/store";
 
 /**
- * @deprecated Use `useAui()` with `aui.threadListItem()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use {@link useAui} with `aui.threadListItem()` instead. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export function useThreadListItemRuntime(options?: {
   optional?: false | undefined;
@@ -29,7 +29,7 @@ export function useThreadListItemRuntime(options?: {
 }
 
 /**
- * @deprecated Use `useAuiState((s) => s.threadListItem)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use {@link useAuiState}: `useAuiState((s) => s.threadListItem)`. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export const useThreadListItem = createStateHookForRuntime(
   useThreadListItemRuntime,

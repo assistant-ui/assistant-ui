@@ -150,3 +150,199 @@ describe("ExternalStoreThreadRuntimeCore - state reference stability", () => {
     expect(runtime.capabilities).toBe(capsBefore);
   });
 });
+
+describe("ExternalStoreThreadRuntimeCore - messages reconciliation", () => {
+  const user = { id: "u", role: "user" as const, content: [] };
+
+  it("drops ids that disappear between syncs (same length, swapped assistant id)", () => {
+    const a1 = { id: "a1", role: "assistant" as const, content: [] };
+    const a2 = { id: "a2", role: "assistant" as const, content: [] };
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [user, a1] }),
+    );
+
+    runtime.__internal_setAdapter(makeStore({ messages: [user, a2] }));
+
+    const exported = runtime.export();
+    expect(exported.messages.map((m) => m.message.id)).toEqual(["u", "a2"]);
+    const userChildren = exported.messages
+      .filter((m) => m.parentId === "u")
+      .map((m) => m.message.id);
+    expect(userChildren).toEqual(["a2"]);
+  });
+
+  it("keeps prior ids when they remain in the new sync", () => {
+    const a = { id: "a", role: "assistant" as const, content: [] };
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [user, a] }),
+    );
+
+    runtime.__internal_setAdapter(makeStore({ messages: [user, a] }));
+
+    expect(runtime.export().messages.map((m) => m.message.id)).toEqual([
+      "u",
+      "a",
+    ]);
+  });
+
+  it("removes trailing messages dropped from the new sync", () => {
+    const a = { id: "a", role: "assistant" as const, content: [] };
+    const u2 = { id: "u2", role: "user" as const, content: [] };
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [user, a, u2] }),
+    );
+
+    runtime.__internal_setAdapter(makeStore({ messages: [user, a] }));
+
+    expect(runtime.export().messages.map((m) => m.message.id)).toEqual([
+      "u",
+      "a",
+    ]);
+  });
+
+  it("does not crash on the next sync after cancelRun removes a leaf user", () => {
+    const userWithText = {
+      id: "u",
+      role: "user" as const,
+      content: [{ type: "text" as const, text: "hi" }],
+    };
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [userWithText],
+        onCancel: vi.fn(),
+        isRunning: true,
+      }),
+    );
+
+    runtime.cancelRun();
+
+    expect(() => {
+      runtime.__internal_setAdapter(makeStore({ messages: [] }));
+    }).not.toThrow();
+  });
+
+  it("drops phantom sibling when convertMessage swaps the assistant id", () => {
+    type Raw = { id: string; role: "user" | "assistant"; text: string };
+    const rawU: Raw = { id: "u", role: "user", text: "hi" };
+    const rawA1: Raw = { id: "client_id", role: "assistant", text: "" };
+    const rawA2: Raw = { id: "server_id", role: "assistant", text: "" };
+
+    const convertMessage = (m: Raw) => ({
+      id: m.id,
+      role: m.role,
+      content: [{ type: "text" as const, text: m.text }],
+    });
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [rawU, rawA1] as any,
+        convertMessage: convertMessage as any,
+      }),
+    );
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [rawU, rawA2] as any,
+        convertMessage: convertMessage as any,
+      }),
+    );
+
+    const userChildren = runtime
+      .export()
+      .messages.filter((m) => m.parentId === "u")
+      .map((m) => m.message.id);
+    expect(userChildren).toEqual(["server_id"]);
+  });
+});
+
+describe("ExternalStoreThreadRuntimeCore - initialize event replay", () => {
+  const message = { id: "m", role: "assistant" as const, content: [] };
+  const flushMicrotasks = () => Promise.resolve();
+
+  it("replays initialize to subscribers that attach after initialization", async () => {
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [message] }),
+    );
+
+    const callback = vi.fn();
+    runtime.unstable_on("initialize", callback);
+
+    expect(callback).not.toHaveBeenCalled();
+    await flushMicrotasks();
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fire before initialization, then fires exactly once", () => {
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [] }),
+    );
+
+    const callback = vi.fn();
+    runtime.unstable_on("initialize", callback);
+    expect(callback).not.toHaveBeenCalled();
+
+    runtime.__internal_setAdapter(makeStore({ messages: [message] }));
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    runtime.__internal_setAdapter(makeStore({ messages: [message] }));
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it("delivers initialize once to each late subscriber", async () => {
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [message] }),
+    );
+
+    const late1 = vi.fn();
+    const late2 = vi.fn();
+    runtime.unstable_on("initialize", late1);
+    runtime.unstable_on("initialize", late2);
+
+    await flushMicrotasks();
+    expect(late1).toHaveBeenCalledTimes(1);
+    expect(late2).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips the replay when the subscriber unsubscribes before it runs", async () => {
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [message] }),
+    );
+
+    const callback = vi.fn();
+    const unsubscribe = runtime.unstable_on("initialize", callback);
+    unsubscribe();
+
+    await flushMicrotasks();
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it("does not replay non-latched events such as runEnd", async () => {
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [message], isRunning: true }),
+    );
+
+    runtime.__internal_setAdapter(
+      makeStore({ messages: [message], isRunning: false }),
+    );
+
+    const callback = vi.fn();
+    runtime.unstable_on("runEnd", callback);
+
+    await flushMicrotasks();
+    expect(callback).not.toHaveBeenCalled();
+  });
+});

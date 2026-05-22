@@ -8,7 +8,7 @@ import type { ThreadComposerRuntime } from "@assistant-ui/core";
 import { useAui, useAuiEvent, useAuiState } from "@assistant-ui/store";
 
 /**
- * @deprecated Use `useAui()` with `aui.thread()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use {@link useAui} with `aui.thread()` instead. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  *
  * Hook to access the ThreadRuntime from the current context.
  *
@@ -58,7 +58,7 @@ export function useThreadRuntime(options?: { optional?: boolean | undefined }) {
 }
 
 /**
- * @deprecated Use `useAuiState((s) => s.thread)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use {@link useAuiState}: `useAuiState((s) => s.thread)`. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  *
  * Hook to access the current thread state.
  *
@@ -92,14 +92,14 @@ const useThreadComposerRuntime = (opt: {
 }): ThreadComposerRuntime | null => useThreadRuntime(opt)?.composer ?? null;
 
 /**
- * @deprecated Use `useAuiState((s) => s.thread.composer)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use {@link useAuiState}: `useAuiState((s) => s.thread.composer)`. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export const useThreadComposer = createStateHookForRuntime(
   useThreadComposerRuntime,
 );
 
 /**
- * @deprecated Use `useAuiState((s) => s.thread.modelContext)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use {@link useAuiState}: `useAuiState((s) => s.thread.modelContext)`. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export function useThreadModelContext(options?: {
   optional?: false | undefined;

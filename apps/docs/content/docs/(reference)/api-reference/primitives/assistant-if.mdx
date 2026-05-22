@@ -1,10 +1,11 @@
 ---
 title: AuiIf
-description: Conditional rendering component based on thread, message, or composer state.
+description: Conditional rendering primitive for showing React UI from assistant-ui thread, message, composer, and runtime state.
 ---
 
-Conditionally render children based on assistant state.
+{/* api-reference:skip-auto-generation */}
 
+{/* api-manual:start */}
 
 ## Anatomy
 
@@ -13,7 +14,7 @@ import { AuiIf } from "@assistant-ui/react";
 
 <AuiIf condition={(s) => s.thread.isEmpty}>
   <WelcomeScreen />
-</AuiIf>
+</AuiIf>;
 ```
 
 ## Overview
@@ -29,7 +30,8 @@ import { AuiIf } from "@assistant-ui/react";
       name: "condition",
       type: "(state: AssistantState) => boolean",
       required: true,
-      description: "A function that receives the assistant state and returns whether to render children.",
+      description:
+        "A function that receives the assistant state and returns whether to render children.",
     },
     {
       name: "children",
@@ -54,7 +56,8 @@ The condition function receives an `AssistantState` object with the following pr
     {
       name: "message",
       type: "MessageState",
-      description: "The current message state (available within a message context).",
+      description:
+        "The current message state (available within a message context).",
     },
     {
       name: "composer",
@@ -64,12 +67,14 @@ The condition function receives an `AssistantState` object with the following pr
     {
       name: "part",
       type: "PartState",
-      description: "The current message part state (available within a part context).",
+      description:
+        "The current message part state (available within a part context).",
     },
     {
       name: "attachment",
       type: "AttachmentState",
-      description: "The current attachment state (available within an attachment context).",
+      description:
+        "The current attachment state (available within an attachment context).",
     },
   ]}
 />
@@ -184,23 +189,37 @@ const isThreadEmpty: AuiIf.Condition = (s) => s.thread.isEmpty;
 
 <AuiIf condition={isThreadEmpty}>
   <WelcomeScreen />
-</AuiIf>
+</AuiIf>;
 ```
 
 ## Migration from Deprecated Components
 
 <Callout type="warn">
-`ThreadPrimitive.If`, `MessagePrimitive.If`, and `ComposerPrimitive.If` are deprecated. Use `AuiIf` instead.
+  `ThreadPrimitive.If`, `MessagePrimitive.If`, and `ComposerPrimitive.If` are
+  deprecated. Use `AuiIf` instead.
 </Callout>
 
-| Before | After |
-|--------|-------|
-| `<ThreadPrimitive.If empty>` | `<AuiIf condition={(s) => s.thread.isEmpty}>` |
-| `<ThreadPrimitive.If running>` | `<AuiIf condition={(s) => s.thread.isRunning}>` |
-| `<ThreadPrimitive.If running={false}>` | `<AuiIf condition={(s) => !s.thread.isRunning}>` |
-| `<MessagePrimitive.If user>` | `<AuiIf condition={(s) => s.message.role === "user"}>` |
-| `<MessagePrimitive.If assistant>` | `<AuiIf condition={(s) => s.message.role === "assistant"}>` |
-| `<MessagePrimitive.If copied>` | `<AuiIf condition={(s) => s.message.isCopied}>` |
-| `<MessagePrimitive.If speaking>` | `<AuiIf condition={(s) => s.message.speech != null}>` |
-| `<MessagePrimitive.If last>` | `<AuiIf condition={(s) => s.message.isLast}>` |
-| `<ComposerPrimitive.If editing>` | `<AuiIf condition={(s) => s.composer.isEditing}>` |
+| Before                                 | After                                                       |
+| -------------------------------------- | ----------------------------------------------------------- |
+| `<ThreadPrimitive.If empty>`           | `<AuiIf condition={(s) => s.thread.isEmpty}>`               |
+| `<ThreadPrimitive.If running>`         | `<AuiIf condition={(s) => s.thread.isRunning}>`             |
+| `<ThreadPrimitive.If running={false}>` | `<AuiIf condition={(s) => !s.thread.isRunning}>`            |
+| `<MessagePrimitive.If user>`           | `<AuiIf condition={(s) => s.message.role === "user"}>`      |
+| `<MessagePrimitive.If assistant>`      | `<AuiIf condition={(s) => s.message.role === "assistant"}>` |
+| `<MessagePrimitive.If copied>`         | `<AuiIf condition={(s) => s.message.isCopied}>`             |
+| `<MessagePrimitive.If speaking>`       | `<AuiIf condition={(s) => s.message.speech != null}>`       |
+| `<MessagePrimitive.If last>`           | `<AuiIf condition={(s) => s.message.isLast}>`               |
+| `<ComposerPrimitive.If editing>`       | `<AuiIf condition={(s) => s.composer.isEditing}>`           |
+
+## AssistantIf
+
+<Callout type="warn">
+  <strong>Deprecated:</strong> Use `AuiIf` instead. This alias was removed in
+  v0.13.
+</Callout>
+
+```tsx
+import { AssistantIf } from "@assistant-ui/react";
+```
+
+{/* api-manual:end */}

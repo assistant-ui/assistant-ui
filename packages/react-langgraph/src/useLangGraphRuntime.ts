@@ -45,6 +45,7 @@ import {
   useLangGraphMessages,
 } from "./useLangGraphMessages";
 import { appendLangChainChunk } from "./appendLangChainChunk";
+import { useLangGraphStreamingTiming } from "./useLangGraphStreamingTiming";
 
 const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
@@ -210,14 +211,6 @@ export type UseLangGraphRuntimeOptions = {
     threadId: string,
     parentMessages: LangChainMessage[],
   ) => Promise<string | null>;
-  /**
-   * @deprecated This method has been renamed to `load`. Use `load` instead.
-   */
-  onSwitchToThread?: (threadId: string) => Promise<{
-    messages: LangChainMessage[];
-    interrupts?: LangGraphInterruptState[];
-    uiMessages?: UIMessage[];
-  }>;
   load?: (
     threadId: string,
     config?: { signal: AbortSignal },
@@ -349,8 +342,7 @@ const useLangGraphRuntimeImpl = ({
   adapters: { attachments, feedback, speech } = {},
   unstable_allowCancellation,
   stream,
-  onSwitchToThread: _onSwitchToThread,
-  load = _onSwitchToThread,
+  load,
   getCheckpointId,
   eventHandlers,
   uiStateKey,
@@ -453,6 +445,12 @@ const useLangGraphRuntimeImpl = ({
   const effectiveIsRunning = isRunning || hasExecutingTools;
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const messageTiming = useLangGraphStreamingTiming(
+    messages,
+    effectiveIsRunning,
+  );
+
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const uiMessagesByParent = useMemo(() => {
     const map = new Map<string, UIMessage[]>();
     for (const ui of uiMessages) {
@@ -475,8 +473,9 @@ const useLangGraphRuntimeImpl = ({
       ({
         toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
         uiMessagesByParent,
+        messageTiming,
       }) as unknown as useExternalMessageConverter.Metadata,
-    [uiMessagesByParent],
+    [uiMessagesByParent, messageTiming],
   );
 
   const handleSendMessage = (

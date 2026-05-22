@@ -1,6 +1,6 @@
 ---
-title: Chain of Thought
-description: Group reasoning and tool calls into a collapsible accordion UI.
+title: Chain of Thought UI
+description: Show AI reasoning steps and tool calls in a collapsible thinking accordion. Build chain-of-thought visualizations in React chat with assistant-ui.
 platforms: ["react"]
 ---
 
@@ -8,7 +8,7 @@ LLMs often produce reasoning steps and tool calls in succession. Chain of Though
 
 ## Overview
 
-When a model like OpenAI's `o4-mini` responds, it may emit a sequence of reasoning tokens and tool calls before producing its final text answer. Use `MessagePrimitive.GroupedParts` to group those adjacent reasoning and tool-call parts into a single collapsible "thinking" section.
+When a reasoning model responds, it may emit a sequence of reasoning tokens and tool calls before producing its final text answer. Use `MessagePrimitive.GroupedParts` to group those adjacent reasoning and tool-call parts into a single collapsible "thinking" section.
 
 <Callout type="info">
 The older `components.ChainOfThought` prop on `MessagePrimitive.Parts` and `components` prop on `ChainOfThoughtPrimitive.Parts` are legacy APIs. They still work for existing code, but new code should use `MessagePrimitive.GroupedParts`.
@@ -101,7 +101,7 @@ const AssistantMessage: FC = () => {
 
 ### Use a Reasoning Model
 
-Chain of Thought is most useful with models that produce reasoning tokens (e.g. OpenAI `o4-mini`). Here's an example backend route using the AI SDK:
+Chain of Thought is most useful with models that produce reasoning tokens. Here's an example backend route using the AI SDK:
 
 ```tsx title="app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
@@ -111,7 +111,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: openai("o4-mini"),
+    model: openai("gpt-5.4-mini"),
     messages: await convertToModelMessages(messages),
   });
 

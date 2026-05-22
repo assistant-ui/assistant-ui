@@ -2,6 +2,7 @@
 
 import type {
   DataMessagePart,
+  MessageTiming,
   ThreadAssistantMessage,
   ThreadUserMessage,
   ToolCallMessagePart,
@@ -22,6 +23,7 @@ type LangGraphMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
     uiMessagesByParent?: Map<string, UIMessage[]>;
+    messageTiming?: Record<string, MessageTiming>;
   };
 
 const uiMessageToDataPart = (ui: UIMessage): DataMessagePart => ({
@@ -349,6 +351,10 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
               ?.map(uiMessageToDataPart)
           : undefined) ?? [];
 
+      const timing = message.id
+        ? metadata.messageTiming?.[message.id]
+        : undefined;
+
       return {
         role: "assistant",
         id: message.id,
@@ -357,7 +363,10 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
           ...toolCallParts,
           ...uiDataParts,
         ],
-        metadata: { custom: getCustomMetadata(message.additional_kwargs) },
+        metadata: {
+          custom: getCustomMetadata(message.additional_kwargs),
+          ...(timing && { timing }),
+        },
         ...(message.status && { status: message.status }),
       };
     }

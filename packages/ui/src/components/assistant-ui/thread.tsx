@@ -27,6 +27,7 @@ import {
   BranchPickerPrimitive,
   ComposerPrimitive,
   ErrorPrimitive,
+  getMcpAppFromToolPart,
   MessagePrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
@@ -243,8 +244,10 @@ const AssistantMessage: FC = () => {
           groupBy={(part) => {
             if (part.type === "reasoning")
               return ["group-chainOfThought", "group-reasoning"];
-            if (part.type === "tool-call")
+            if (part.type === "tool-call") {
+              if (getMcpAppFromToolPart(part)) return null;
               return ["group-chainOfThought", "group-tool"];
+            }
             return null;
           }}
         >

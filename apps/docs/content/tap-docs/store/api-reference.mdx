@@ -106,21 +106,14 @@ function Derived<K extends ClientNames>(config: Derived.Props<K>): DerivedElemen
 Creates a derived scope that points to data in a parent scope.
 
 ```ts
-// static meta
 Derived({
   source: "thread",
   query: { index: 0 },
   get: (aui) => aui.thread().message({ index: 0 }),
 });
-
-// dynamic meta
-Derived({
-  getMeta: (aui) => ({ source: "thread", query: { index } }),
-  get: (aui) => aui.thread().message({ index }),
-});
 ```
 
-The `get` function receives the current `AssistantClient` and must return the result of calling a parent scope method. It uses `tapEffectEvent` internally — always calls the latest closure.
+The `get` function receives the current `AssistantClient` and must return the result of calling a parent scope method. The meta (`source`, `query`) acts as identity: when `query` changes between renders, a new derived client function is returned in the same render pass — useful for keying child consumers like `MessageByIndex` by index.
 
 ### attachTransformScopes
 

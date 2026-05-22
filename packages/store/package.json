@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/store",
-  "version": "0.2.9",
+  "version": "0.2.11",
   "description": "Tap-based state management for @assistant-ui",
   "keywords": [
     "state-management",
@@ -35,7 +35,7 @@
     "use-effect-event": "^2.0.3"
   },
   "peerDependencies": {
-    "@assistant-ui/tap": "^0.5.10",
+    "@assistant-ui/tap": "^0.5.11",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
@@ -48,11 +48,11 @@
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/react": "^16.3.2",
-    "@types/react": "^19.2.14",
+    "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "jsdom": "^29.1.1",
-    "react": "^19.2.5",
-    "vitest": "^4.1.5"
+    "react": "^19.2.6",
+    "vitest": "^4.1.7"
   },
   "publishConfig": {
     "access": "public",

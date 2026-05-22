@@ -1,0 +1,74 @@
+---
+title: Image Generation
+description: Generate images in your backend and render them inline in an assistant-ui thread.
+---
+
+Image generation needs no dedicated primitive. Generate the image wherever you already run model calls (a route handler or a tool), store the result as an `ImageMessagePart`, and render it with the `@assistant-ui/ui` `Image` component.
+
+<Callout type="info">
+  This covers non-streaming generation, rendering, and actions. Streaming partial images and multi-image galleries are out of scope.
+</Callout>
+
+## Generate in your backend
+
+Call your provider from a server route. With the AI SDK that is `generateImage`; return the image as a data URI (or an object-store URL) plus any provider metadata you want to keep.
+
+```ts
+// app/api/image/route.ts
+import { generateImage } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+export async function POST(req: Request) {
+  const { prompt } = await req.json();
+  const result = await generateImage({
+    model: openai.image("gpt-image-1"),
+    prompt,
+  });
+  const revisedPrompt = (
+    result.providerMetadata as
+      | Record<string, Record<string, unknown>>
+      | undefined
+  )?.openai?.revisedPrompt;
+  return Response.json({
+    image: `data:${result.image.mediaType};base64,${result.image.base64}`,
+    mimeType: result.image.mediaType,
+    ...(typeof revisedPrompt === "string" && { revisedPrompt }),
+  });
+}
+```
+
+The model provider is irrelevant to rendering; swap `openai.image(...)` for any AI SDK image model.
+
+## Store it as an `ImageMessagePart`
+
+An `ImageMessagePart` only needs `image` (a `data:` URI, an `https://` URL, or a `blob:` URL) plus an optional `filename`. Keep any provenance you want to display, the prompt, a revised prompt, a model id, in your own component state or in message metadata; the part itself stays minimal.
+
+```ts
+const part: ImageMessagePart = {
+  type: "image",
+  image: result.image, // data:, https://, or blob: URL
+};
+```
+
+## Render with the `Image` component
+
+The `Image` component in `@assistant-ui/ui` handles the render states for you:
+
+1. **Running** (`status.type === "running"`) renders a spinner.
+2. **Content filter** (`status.type === "incomplete"` with `reason: "content-filter"`) renders an error card with no `<img src>`.
+3. **Complete** renders a zoomable `<img>` with optional `Image.Actions`.
+
+`Image.Actions` provides download and copy buttons, plus a regenerate button when you pass an `onRegenerate` callback. Wire it to the same generation flow you used above; debounce, rate limiting, and confirmation are your call.
+
+```tsx
+import { Image } from "@assistant-ui/ui";
+
+<>
+  <Image {...imagePart} />
+  <Image.Actions part={imagePart} onRegenerate={() => regenerate(prompt)} />
+</>;
+```
+
+## Example
+
+A complete Next.js example (with a mock fallback when `OPENAI_API_KEY` is unset) lives in [`examples/with-image-generation`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-image-generation).

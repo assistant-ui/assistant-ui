@@ -103,7 +103,7 @@ async def openai_agent(messages: list, run_id: str, thread_id: str) -> AsyncGene
 
     try:
         stream = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5.4-nano",
             messages=openai_messages,
             stream=True,
         )

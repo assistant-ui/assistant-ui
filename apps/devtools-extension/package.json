@@ -9,16 +9,16 @@
   },
   "dependencies": {
     "@assistant-ui/react-devtools": "workspace:*",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/chrome": "^0.1.40",
-    "@types/node": "^25.6.0",
+    "@types/chrome": "^0.1.42",
+    "@types/node": "^25.9.1",
     "@types/webextension-polyfill": "^0.12.5",
     "esbuild": "^0.28.0",
-    "tsx": "^4.21.0",
+    "tsx": "^4.22.3",
     "typescript": "^6.0.3"
   }
 }

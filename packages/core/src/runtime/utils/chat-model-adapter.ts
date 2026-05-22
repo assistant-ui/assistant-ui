@@ -50,11 +50,6 @@ export type ChatModelRunOptions = {
   readonly abortSignal: AbortSignal;
   readonly context: ModelContext;
 
-  /**
-   * @deprecated This field was renamed to `context`.
-   */
-  readonly config: ModelContext;
-
   readonly unstable_assistantMessageId?: string | undefined;
   readonly unstable_threadId?: string | undefined;
   readonly unstable_parentId?: string | null | undefined;

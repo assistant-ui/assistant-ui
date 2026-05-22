@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-a2a",
-  "version": "0.2.12",
+  "version": "0.2.15",
   "description": "A2A (Agent-to-Agent) v1.0 protocol adapter for assistant-ui",
   "keywords": [
     "a2a",
@@ -34,8 +34,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.1.17",
-    "@assistant-ui/store": "^0.2.9"
+    "@assistant-ui/core": "^0.2.3",
+    "@assistant-ui/store": "^0.2.11"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -48,9 +48,9 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.14",
-    "react": "^19.2.5",
-    "vitest": "^4.1.5"
+    "@types/react": "^19.2.15",
+    "react": "^19.2.6",
+    "vitest": "^4.1.7"
   },
   "publishConfig": {
     "access": "public",

@@ -312,7 +312,7 @@ async def test_all_parameters():
             tools=tools,
             system="You are an analyzer",
             unstable_assistantMessageId="asst-456",
-            runConfig={"model": "gpt-4"},
+            runConfig={"model": "gpt-5.4-nano"},
             state={"session": "abc"},
             custom_field="custom_value"
         )
@@ -326,7 +326,7 @@ async def test_all_parameters():
         assert payload["messages"] == messages
         assert payload["tools"] == tools
         assert payload["unstable_assistantMessageId"] == "asst-456"
-        assert payload["runConfig"] == {"model": "gpt-4"}
+        assert payload["runConfig"] == {"model": "gpt-5.4-nano"}
         assert payload["state"] == {"session": "abc"}
         assert payload["custom_field"] == "custom_value"
 
