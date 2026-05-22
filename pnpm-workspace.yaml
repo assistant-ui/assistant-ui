@@ -5,21 +5,20 @@ packages:
   - templates/*
 
 ignoredBuiltDependencies:
+  - '@clerk/shared'
   - '@google/genai'
   - '@modelcontextprotocol/ext-apps'
   - '@mongodb-js/zstd'
+  - core-js
   - node-liblzma
+  - protobufjs
 
 onlyBuiltDependencies:
-  - '@clerk/shared'
-  - '@tailwindcss/oxide@4.1.17'
-  - core-js
-  - esbuild
-  - protobufjs
-  - react-grab
+  - esbuild@0.25.12
+  - esbuild@0.27.7
+  - esbuild@0.28.0
   - sharp@0.34.5
-  - sqlite3
-  - unrs-resolver@1.11.1
+  - sqlite3@5.1.7
 
 strictDepBuilds: true
 
