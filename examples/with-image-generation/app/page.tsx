@@ -1,13 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import type {
-  ImageGenerationAdapter,
-  ImageGenerationResult,
-  ImageMessagePart,
-  MessagePartStatus,
-} from "@assistant-ui/react";
-import { useImageGeneration } from "@assistant-ui/react";
+import { useCallback, useState } from "react";
+import type { ImageMessagePart, MessagePartStatus } from "@assistant-ui/react";
 import { Image } from "@/components/assistant-ui/image";
 
 type ImageView = ImageMessagePart & { status: MessagePartStatus };
@@ -15,77 +9,64 @@ type ImageView = ImageMessagePart & { status: MessagePartStatus };
 export default function Home() {
   const [prompt, setPrompt] = useState("A golden retriever wearing a top hat");
   const [view, setView] = useState<ImageView | null>(null);
+  const [revisedPrompt, setRevisedPrompt] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const adapter = useMemo<ImageGenerationAdapter>(
-    () => ({
-      async generate(p, opts): Promise<ImageGenerationResult> {
-        const res = await fetch("/api/image", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            prompt: p,
-            size: opts?.size,
-            seed: opts?.seed,
-          }),
-        });
-        if (!res.ok) throw new Error(await res.text());
-        return res.json();
-      },
-    }),
-    [],
-  );
-
-  const { generate, isGenerating, error } = useImageGeneration(adapter, {
-    onImageGenerated: (info) => {
-      // eslint-disable-next-line no-console
-      console.log("[image]", info);
-    },
-  });
-
-  const onSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
+  const generate = useCallback(async (p: string) => {
+    setIsGenerating(true);
+    setError(null);
+    setRevisedPrompt(null);
+    setView({ type: "image", image: "", status: { type: "running" } });
+    try {
+      const res = await fetch("/api/image", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt: p }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const result = (await res.json()) as {
+        image: string;
+        metadata?: { revisedPrompt?: string };
+      };
+      setView({
+        type: "image",
+        image: result.image,
+        status: { type: "complete" },
+      });
+      if (typeof result.metadata?.revisedPrompt === "string") {
+        setRevisedPrompt(result.metadata.revisedPrompt);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
       setView({
         type: "image",
         image: "",
-        prompt,
-        status: { type: "running" },
+        status: { type: "incomplete", reason: "error" },
       });
-      try {
-        const result = await generate(prompt);
-        setView({
-          type: "image",
-          image: result.image,
-          prompt,
-          ...(result.mimeType && { mimeType: result.mimeType }),
-          ...(typeof result.metadata?.revisedPrompt === "string" && {
-            revisedPrompt: result.metadata.revisedPrompt as string,
-          }),
-          status: { type: "complete" },
-        });
-      } catch {
-        setView({
-          type: "image",
-          image: "",
-          prompt,
-          status: { type: "incomplete", reason: "error" },
-        });
-      }
-    },
-    [generate, prompt],
-  );
+    } finally {
+      setIsGenerating(false);
+    }
+  }, []);
 
   return (
     <main className="mx-auto flex h-full max-w-xl flex-col gap-4 p-6">
       <header>
         <h1 className="font-semibold text-xl">Image Generation</h1>
         <p className="text-muted-foreground text-sm">
-          Demonstrates <code>useImageGeneration</code> + the{" "}
-          <code>@assistant-ui/ui</code> Image primitive with actions.
+          Calls a server route that runs <code>ai.generateImage</code> and
+          renders the result with the <code>@assistant-ui/ui</code> Image
+          component.
         </p>
       </header>
 
-      <form onSubmit={onSubmit} className="flex gap-2">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void generate(prompt);
+        }}
+        className="flex gap-2"
+      >
         <input
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
@@ -103,56 +84,20 @@ export default function Home() {
 
       {error && (
         <p className="text-destructive text-sm" role="alert">
-          {error.message}
+          {error}
         </p>
       )}
 
       {view && (
         <div className="space-y-2">
           <Image {...view} />
-          {view.revisedPrompt && (
+          {revisedPrompt && (
             <p className="text-muted-foreground text-xs">
-              <strong>Revised prompt:</strong> {view.revisedPrompt}
+              <strong>Revised prompt:</strong> {revisedPrompt}
             </p>
           )}
           {view.status.type === "complete" && view.image && (
-            <Image.Actions
-              part={view}
-              adapter={adapter}
-              regenerateOptions={{
-                pricingHint: "~$0.19 per HD image",
-                rateLimit: { maxPerMinute: 3 },
-              }}
-              onRegenerateStart={() => {
-                setView((prev) =>
-                  prev ? { ...prev, status: { type: "running" } } : prev,
-                );
-              }}
-              onRegenerated={(result) => {
-                setView((prev) => ({
-                  type: "image",
-                  image: result.image,
-                  // Preserve the prompt from the part that was regenerated,
-                  // not the current textbox state.
-                  prompt: prev?.prompt ?? prompt,
-                  ...(result.mimeType && { mimeType: result.mimeType }),
-                  ...(typeof result.metadata?.revisedPrompt === "string" && {
-                    revisedPrompt: result.metadata.revisedPrompt as string,
-                  }),
-                  status: { type: "complete" },
-                }));
-              }}
-              onRegenerateError={() => {
-                setView((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        status: { type: "incomplete", reason: "error" },
-                      }
-                    : prev,
-                );
-              }}
-            />
+            <Image.Actions part={view} onRegenerate={() => generate(prompt)} />
           )}
         </div>
       )}

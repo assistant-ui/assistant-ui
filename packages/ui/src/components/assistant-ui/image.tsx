@@ -22,15 +22,75 @@ import type {
   ImageMessagePart,
   ImageMessagePartComponent,
 } from "@assistant-ui/react";
-import {
-  useImagePartCopy,
-  useImagePartDownload,
-  useImagePartRegenerate,
-  type ImageGenerationAdapter,
-  type ImageGenerationResult,
-  type UseImagePartRegenerateOptions,
-} from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
+
+const extensionForMimeType = (mimeType?: string): string => {
+  switch (mimeType) {
+    case "image/png":
+      return "png";
+    case "image/jpeg":
+    case "image/jpg":
+      return "jpg";
+    case "image/webp":
+      return "webp";
+    case "image/gif":
+      return "gif";
+    case "image/svg+xml":
+      return "svg";
+    default:
+      return "png";
+  }
+};
+
+const dataUriToBlob = (dataUri: string): Blob => {
+  const [meta, base64] = dataUri.split(",");
+  const mime = meta?.match(/data:([^;]+)/)?.[1] ?? "application/octet-stream";
+  const bytes = atob(base64 ?? "");
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+};
+
+const mimeFromImage = (image: string): string | undefined =>
+  image.match(/^data:([^;,]+)/)?.[1];
+
+const downloadImagePart = (
+  part: Pick<ImageMessagePart, "image" | "filename">,
+): void => {
+  if (typeof document === "undefined") return;
+  const ext = extensionForMimeType(mimeFromImage(part.image));
+  const filename = part.filename ?? `image.${ext}`;
+  const isDataUri = part.image.startsWith("data:");
+  const objectUrl = isDataUri
+    ? URL.createObjectURL(dataUriToBlob(part.image))
+    : null;
+  const href = objectUrl ?? part.image;
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  if (objectUrl) URL.revokeObjectURL(objectUrl);
+};
+
+const copyImagePart = async (
+  part: Pick<ImageMessagePart, "image">,
+): Promise<void> => {
+  if (
+    typeof navigator === "undefined" ||
+    !navigator.clipboard ||
+    typeof ClipboardItem === "undefined"
+  ) {
+    throw new Error("Clipboard API is not available in this environment.");
+  }
+  const blob = part.image.startsWith("data:")
+    ? dataUriToBlob(part.image)
+    : await fetch(part.image).then((r) => r.blob());
+  const mime = mimeFromImage(part.image) ?? blob.type ?? "image/png";
+  await navigator.clipboard.write([new ClipboardItem({ [mime]: blob })]);
+};
 
 const imageVariants = cva(
   "aui-image-root relative overflow-hidden rounded-lg",
@@ -288,62 +348,29 @@ function ImageContentFilterError({
 
 export type ImageActionsProps = {
   part: ImageMessagePart;
-  adapter?: ImageGenerationAdapter;
-  regenerateOptions?: UseImagePartRegenerateOptions;
-  /** Fires when a regenerate call starts (after debounce + rate-limit + confirm). */
-  onRegenerateStart?: () => void;
-  /** Fires when a regenerate call resolves with a result. */
-  onRegenerated?: (result: ImageGenerationResult) => void;
-  /** Fires when a regenerate call rejects. */
-  onRegenerateError?: (error: Error) => void;
+  /**
+   * Wire to your own generation call to show a regenerate button. The button
+   * renders only when this is set and the part carries a `prompt`.
+   */
+  onRegenerate?: () => void | Promise<void>;
   className?: string;
 };
 
 function RegenerateButton({
-  part,
-  adapter,
-  regenerateOptions,
-  onRegenerateStart,
-  onRegenerated,
-  onRegenerateError,
+  onRegenerate,
 }: {
-  part: ImageMessagePart;
-  adapter: ImageGenerationAdapter;
-  regenerateOptions?: UseImagePartRegenerateOptions | undefined;
-  onRegenerateStart?: (() => void) | undefined;
-  onRegenerated?: ((result: ImageGenerationResult) => void) | undefined;
-  onRegenerateError?: ((error: Error) => void) | undefined;
+  onRegenerate: () => void | Promise<void>;
 }) {
-  const wiredOptions = regenerateOptions
-    ? {
-        ...regenerateOptions,
-        observers: {
-          ...regenerateOptions.observers,
-          onStart: (info: { prompt: string; model?: string | undefined }) => {
-            regenerateOptions.observers?.onStart?.(info);
-            onRegenerateStart?.();
-          },
-        },
-      }
-    : onRegenerateStart
-      ? { observers: { onStart: () => onRegenerateStart() } }
-      : undefined;
-  const { regenerate, isRegenerating } = useImagePartRegenerate(
-    part,
-    adapter,
-    wiredOptions,
-  );
+  const [isRegenerating, setIsRegenerating] = useState(false);
   return (
     <button
       type="button"
       onClick={async () => {
+        setIsRegenerating(true);
         try {
-          const result = await regenerate();
-          if (result) onRegenerated?.(result);
-        } catch (err) {
-          onRegenerateError?.(
-            err instanceof Error ? err : new Error(String(err)),
-          );
+          await onRegenerate();
+        } finally {
+          setIsRegenerating(false);
         }
       }}
       disabled={isRegenerating}
@@ -358,18 +385,7 @@ function RegenerateButton({
   );
 }
 
-function ImageActions({
-  part,
-  adapter,
-  regenerateOptions,
-  onRegenerateStart,
-  onRegenerated,
-  onRegenerateError,
-  className,
-}: ImageActionsProps) {
-  const download = useImagePartDownload(part);
-  const copy = useImagePartCopy(part);
-
+function ImageActions({ part, onRegenerate, className }: ImageActionsProps) {
   return (
     <div
       data-slot="image-actions"
@@ -377,7 +393,7 @@ function ImageActions({
     >
       <button
         type="button"
-        onClick={download}
+        onClick={() => downloadImagePart(part)}
         data-slot="image-download"
         aria-label="Download image"
         className="inline-flex size-7 items-center justify-center rounded hover:bg-muted"
@@ -387,7 +403,7 @@ function ImageActions({
       <button
         type="button"
         onClick={() => {
-          copy().catch(() => {});
+          copyImagePart(part).catch(() => {});
         }}
         data-slot="image-copy"
         aria-label="Copy image"
@@ -395,16 +411,7 @@ function ImageActions({
       >
         <CopyIcon className="size-4" />
       </button>
-      {adapter && part.prompt && (
-        <RegenerateButton
-          part={part}
-          adapter={adapter}
-          regenerateOptions={regenerateOptions}
-          onRegenerateStart={onRegenerateStart}
-          onRegenerated={onRegenerated}
-          onRegenerateError={onRegenerateError}
-        />
-      )}
+      {onRegenerate && <RegenerateButton onRegenerate={onRegenerate} />}
     </div>
   );
 }

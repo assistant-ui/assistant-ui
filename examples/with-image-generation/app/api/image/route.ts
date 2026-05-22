@@ -1,8 +1,12 @@
 import { openai } from "@ai-sdk/openai";
-import { createMockImageAdapter } from "@assistant-ui/react-ai-sdk";
 import { generateImage } from "ai";
 
 export const maxDuration = 60;
+
+// 1x1 transparent PNG, returned as a stand-in when no OPENAI_API_KEY is set so
+// the example runs without credentials.
+const MOCK_IMAGE =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
 export async function POST(req: Request) {
   const { prompt, size, seed } = (await req.json()) as {
@@ -15,18 +19,11 @@ export async function POST(req: Request) {
   }
 
   if (!process.env.OPENAI_API_KEY) {
-    const mock = createMockImageAdapter({
-      delayMs: 400,
-      revisedPrompt: (p) => `${p} (mock)`,
-    });
-    const result = await mock.generate(prompt, {
-      ...(size && { size }),
-      ...(seed !== undefined && { seed }),
-    });
+    await new Promise((r) => setTimeout(r, 400));
     return Response.json({
-      image: result.image,
-      mimeType: result.mimeType,
-      metadata: result.metadata,
+      image: MOCK_IMAGE,
+      mimeType: "image/png",
+      metadata: { revisedPrompt: `${prompt} (mock)` },
     });
   }
 

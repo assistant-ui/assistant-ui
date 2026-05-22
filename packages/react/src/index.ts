@@ -264,18 +264,6 @@ export { useThreadViewportAutoScroll } from "./primitives/thread/useThreadViewpo
 export { useScrollLock } from "./primitives/reasoning/useScrollLock";
 export { useMessageQuote } from "./hooks/useMessageQuote";
 export { useMessageTiming } from "./hooks/useMessageTiming";
-export {
-  useImageGeneration,
-  useImagePartRegenerate,
-  useImagePartDownload,
-  useImagePartCopy,
-} from "./hooks/useImageGeneration";
-export type {
-  ImageGenerationObservers,
-  UseImageGenerationReturn,
-  UseImagePartRegenerateOptions,
-  UseImagePartRegenerateReturn,
-} from "./hooks/useImageGeneration";
 
 // Re-export core types from @assistant-ui/core
 export type {
@@ -307,9 +295,6 @@ export type {
   Unsubscribe,
   QuoteInfo,
   CreateAttachment,
-  ImageGenerationAdapter,
-  ImageGenerationOptions,
-  ImageGenerationResult,
 } from "@assistant-ui/core";
 
 // React component types (from core/react)
