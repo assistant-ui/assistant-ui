@@ -11,11 +11,17 @@
     "start:server": "tsx server/server.ts"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.61",
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/react-ai-sdk": "workspace:*",
+    "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/react-mcp": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "ai": "^6.0.175",
+    "assistant-stream": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",

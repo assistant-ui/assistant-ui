@@ -1,7 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { AuiProvider, useAui } from "@assistant-ui/store";
+import { AssistantRuntimeProvider, useAui } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { McpManagerResource, defineConnector } from "@assistant-ui/react-mcp";
 
 const connectors = [
@@ -15,5 +16,10 @@ const connectors = [
 
 export function Providers({ children }: { children: ReactNode }) {
   const aui = useAui({ mcp: McpManagerResource({ connectors }) });
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  const runtime = useChatRuntime();
+  return (
+    <AssistantRuntimeProvider runtime={runtime} aui={aui}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
 }
