@@ -82,6 +82,23 @@ function findFolderByPath(
   return currentFolder;
 }
 
+function listChildren(nodes: PageTree.Node[]) {
+  return nodes.flatMap((node) => {
+    switch (node.type) {
+      case "page":
+        return { type: "page", title: node.name, url: node.url };
+      case "folder":
+        return {
+          type: "folder",
+          name: node.name,
+          ...(node.index ? { url: node.index.url } : {}),
+        };
+      default:
+        return [];
+    }
+  });
+}
+
 const DOCS_PATH_ERROR = "Only local docs paths are supported";
 
 function normalizeDocPath(slugOrUrl: string, routeUrl: string): string {
@@ -343,41 +360,19 @@ export async function POST(req: Request): Promise<Response> {
               ];
             }
 
-            if (path === "examples") {
-              return examplesSource.pageTree.children.flatMap((node) => {
-                switch (node.type) {
-                  case "page":
-                    return { type: "page", title: node.name, url: node.url };
-                  case "folder":
-                    return {
-                      type: "folder",
-                      name: node.name,
-                      ...(node.index ? { url: node.index.url } : {}),
-                    };
-                  default:
-                    return [];
-                }
-              });
+            const segments = path.split("/").filter(Boolean);
+            if (segments[0] === "examples") {
+              const rest = segments.slice(1).join("/");
+              const target = rest
+                ? findFolderByPath(examplesSource.pageTree, rest)
+                : examplesSource.pageTree;
+              if (!target) return { error: "Path not found" };
+              return listChildren(target.children);
             }
 
-            // Find folder at path, return children
             const targetFolder = findFolderByPath(pageTree, path);
             if (!targetFolder) return { error: "Path not found" };
-
-            return targetFolder.children.flatMap((node) => {
-              switch (node.type) {
-                case "page":
-                  return { type: "page", title: node.name, url: node.url };
-                case "folder":
-                  return {
-                    type: "folder",
-                    name: node.name,
-                    ...(node.index ? { url: node.index.url } : {}),
-                  };
-                default:
-                  return [];
-              }
-            });
+            return listChildren(targetFolder.children);
           },
         }),
         readDoc: tool({
@@ -401,15 +396,11 @@ export async function POST(req: Request): Promise<Response> {
             }
 
             const slugs = normalized.split("/").filter(Boolean);
-            if (slugs[0] === "examples") {
-              const page = examplesSource.getPage(slugs.slice(1));
-              if (!page) return { error: `Page not found: ${slugOrUrl}` };
+            const isExample = slugs[0] === "examples";
+            const docSource = isExample ? examplesSource : source;
+            const docSlugs = isExample ? slugs.slice(1) : slugs;
 
-              const content = await getLLMText(page);
-              return { title: page.data.title, url: page.url, content };
-            }
-
-            const page = source.getPage(slugs);
+            const page = docSource.getPage(docSlugs);
             if (!page) return { error: `Page not found: ${slugOrUrl}` };
 
             const content = await getLLMText(page);
