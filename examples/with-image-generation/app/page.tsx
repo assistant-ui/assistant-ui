@@ -8,6 +8,7 @@ type ImageView = ImageMessagePart & { status: MessagePartStatus };
 
 export default function Home() {
   const [prompt, setPrompt] = useState("A golden retriever wearing a top hat");
+  const [activePrompt, setActivePrompt] = useState("");
   const [view, setView] = useState<ImageView | null>(null);
   const [revisedPrompt, setRevisedPrompt] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -15,6 +16,7 @@ export default function Home() {
 
   const generate = useCallback(async (p: string) => {
     setIsGenerating(true);
+    setActivePrompt(p);
     setError(null);
     setRevisedPrompt(null);
     setView({ type: "image", image: "", status: { type: "running" } });
@@ -97,7 +99,10 @@ export default function Home() {
             </p>
           )}
           {view.status.type === "complete" && view.image && (
-            <Image.Actions part={view} onRegenerate={() => generate(prompt)} />
+            <Image.Actions
+              part={view}
+              onRegenerate={() => generate(activePrompt)}
+            />
           )}
         </div>
       )}
