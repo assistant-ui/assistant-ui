@@ -59,7 +59,22 @@ type ExternalStoreMessageConverterAdapter<T> = {
 };
 
 type ExternalStoreAdapterBase<T> = {
+  /**
+   * Whether the entire thread is disabled. When `true`, the composer's input
+   * is also disabled (the user cannot type, attach files, or submit). For a
+   * narrower gate that keeps the input usable but blocks only sending, use
+   * `isSendDisabled`.
+   */
   isDisabled?: boolean | undefined;
+  /**
+   * Whether sending new messages is currently disabled. When `true`, the
+   * thread composer's input remains usable but `send()` becomes a no-op
+   * and the thread composer's `canSend` is `false`. Use this to gate
+   * sending on external React state (e.g. while tool config is loading)
+   * without disabling the input itself the way `isDisabled` does. Edit
+   * composers (saving message edits) intentionally ignore this flag.
+   */
+  isSendDisabled?: boolean | undefined;
   /**
    * Whether the thread is running. When provided, this value flows directly
    * to `thread.isRunning`, letting the application keep the thread in a

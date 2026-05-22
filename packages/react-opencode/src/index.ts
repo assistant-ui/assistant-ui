@@ -7,6 +7,8 @@ export {
   useOpenCodeThreadState,
 } from "./useOpenCodeRuntime";
 
+export { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
+
 export { OpenCodeEventSource } from "./OpenCodeEventSource";
 export { OpenCodeThreadController } from "./OpenCodeThreadController";
 export {

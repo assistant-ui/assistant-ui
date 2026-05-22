@@ -93,7 +93,7 @@ const MessagePrimitiveAttachmentsInner: FC<{
 }> = ({ children }) => {
   const attachmentsCount = useAuiState((s) => {
     if (s.message.role !== "user") return 0;
-    return s.message.attachments.length;
+    return (s.message.attachments ?? []).length;
   });
 
   return useMemo(

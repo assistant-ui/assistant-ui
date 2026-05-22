@@ -2,12 +2,14 @@ export type {
   // Message parts
   TextMessagePart,
   ReasoningMessagePart,
+  SourceProviderMetadata,
   SourceMessagePart,
   ImageMessagePart,
   FileMessagePart,
   DataMessagePart,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
+  ToolModelContentPart,
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   // Message status

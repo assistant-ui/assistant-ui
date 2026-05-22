@@ -1,6 +1,6 @@
 {
   "name": "assistant-ui",
-  "version": "0.0.90",
+  "version": "0.0.92",
   "description": "CLI for assistant-ui",
   "keywords": [
     "cli",

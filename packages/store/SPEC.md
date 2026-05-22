@@ -56,9 +56,8 @@ Selectors: `"client.event"` | `{ scope: "parent", event }` | `{ scope: "*", even
 ### Derived
 ```typescript
 Derived<K>({ source, query, get: (client) => methods });
-Derived<K>({ getMeta: (client) => { source, query }, get });
 ```
-Returns marker element. `get` uses `tapEffectEvent` - always calls latest closure.
+Returns marker element. Meta (`source`, `query`) keys the derived scope's resource fiber — a different meta yields a new client function in the same render pass, so consumers see the new derivation immediately rather than after the next commit.
 
 ### attachTransformScopes
 ```typescript

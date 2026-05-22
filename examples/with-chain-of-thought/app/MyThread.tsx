@@ -5,10 +5,11 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import {
-  AuiIf,
   ComposerPrimitive,
   MessagePrimitive,
+  SuggestionPrimitive,
   ThreadPrimitive,
+  useThread,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
@@ -25,6 +26,10 @@ export const MyThread: FC = () => {
       style={{ ["--thread-max-width" as string]: "44rem" }}
     >
       <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-scroll scroll-smooth px-4 pt-8">
+        <ThreadPrimitive.Empty>
+          <ThreadWelcome />
+        </ThreadPrimitive.Empty>
+
         <ThreadPrimitive.Messages>
           {({ message }) => {
             if (message.role === "user") return <UserMessage />;
@@ -51,6 +56,36 @@ export const MyThread: FC = () => {
 
 const Text: FC<{ text: string }> = ({ text }) => {
   return <p>{text}</p>;
+};
+
+const ThreadWelcome: FC = () => {
+  return (
+    <div className="mx-auto flex w-full max-w-(--thread-max-width) grow flex-col justify-center gap-6">
+      <div>
+        <h1 className="font-semibold text-2xl">What should we calculate?</h1>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <ThreadPrimitive.Suggestions>
+          {() => <ThreadSuggestionItem />}
+        </ThreadPrimitive.Suggestions>
+      </div>
+    </div>
+  );
+};
+
+const ThreadSuggestionItem: FC = () => {
+  return (
+    <SuggestionPrimitive.Trigger send asChild>
+      <Button
+        type="button"
+        variant="ghost"
+        className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border bg-background px-4 py-3 text-start text-sm hover:bg-muted sm:w-[calc(50%-0.25rem)]"
+      >
+        <SuggestionPrimitive.Title className="font-medium" />
+        <SuggestionPrimitive.Description className="text-muted-foreground empty:hidden" />
+      </Button>
+    </SuggestionPrimitive.Trigger>
+  );
 };
 
 const UserMessage: FC = () => {
@@ -182,6 +217,8 @@ const ToolCall: FC<{ toolName: string; status: { type: string } }> = ({
 };
 
 const Composer: FC = () => {
+  const isRunning = useThread((state) => state.isRunning);
+
   return (
     <ComposerPrimitive.Root className="flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20">
       <ComposerPrimitive.Input
@@ -191,7 +228,7 @@ const Composer: FC = () => {
         autoFocus
       />
       <div className="relative mx-2 mb-2 flex items-center justify-end">
-        <AuiIf condition={(s) => !s.thread.isRunning}>
+        {!isRunning ? (
           <ComposerPrimitive.Send asChild>
             <TooltipIconButton
               tooltip="Send"
@@ -203,8 +240,7 @@ const Composer: FC = () => {
               <ArrowUpIcon className="size-4" />
             </TooltipIconButton>
           </ComposerPrimitive.Send>
-        </AuiIf>
-        <AuiIf condition={(s) => s.thread.isRunning}>
+        ) : (
           <ComposerPrimitive.Cancel asChild>
             <Button
               type="button"
@@ -215,7 +251,7 @@ const Composer: FC = () => {
               <SquareIcon className="size-3 fill-current" />
             </Button>
           </ComposerPrimitive.Cancel>
-        </AuiIf>
+        )}
       </div>
     </ComposerPrimitive.Root>
   );

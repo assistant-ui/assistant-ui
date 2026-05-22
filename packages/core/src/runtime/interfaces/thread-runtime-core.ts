@@ -85,11 +85,12 @@ export type ThreadRuntimeEventPayload = {
    */
   runEnd: Record<string, never>;
   /**
-   * @deprecated State-derivable. This event fires at the initialization
-   * transition immediately BEFORE the first message is added, so reading state
-   * inside the handler still sees an empty thread; observe `state.messages`
-   * becoming non-empty via a regular `subscribe` callback instead. Kept for
-   * backward compatibility.
+   * @deprecated State-derivable. Observe `state.messages` becoming non-empty
+   * via a regular `subscribe` callback instead. This event fires once at the
+   * initialization transition; subscribers that attach afterwards receive a
+   * one-off replay (on a microtask), by which point the thread already has
+   * messages, so handler-visible state differs between live and replayed
+   * delivery. Kept for backward compatibility.
    */
   initialize: Record<string, never>;
   /**
@@ -158,6 +159,12 @@ export type ThreadRuntimeCore = Readonly<{
 
   capabilities: Readonly<RuntimeCapabilities>;
   isDisabled: boolean;
+  /**
+   * Whether sending from this thread's composer is disabled. Surfaces the
+   * `isSendDisabled` flag from external-store adapters; internal runtimes
+   * default to `false`. Composer state derives `canSend` from this.
+   */
+  isSendDisabled: boolean;
   isLoading: boolean;
   /**
    * Optional explicit thread-level running flag. When provided, takes
@@ -194,9 +201,4 @@ export type ThreadRuntimeCore = Readonly<{
     event: E,
     callback: ThreadRuntimeEventCallback<E>,
   ): Unsubscribe;
-
-  /**
-   * @deprecated Use importExternalState instead. This method will be removed in 0.12.0.
-   */
-  unstable_loadExternalState: (state: any) => void;
 }>;

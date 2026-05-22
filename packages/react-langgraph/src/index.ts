@@ -8,6 +8,8 @@ export {
 } from "./useLangGraphRuntime";
 export type { UseLangGraphRuntimeOptions } from "./useLangGraphRuntime";
 
+export { useLangGraphStreamingTiming } from "./useLangGraphStreamingTiming";
+
 export {
   useLangGraphMessages,
   type LangGraphInterruptState,

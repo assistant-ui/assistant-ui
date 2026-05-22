@@ -23,6 +23,7 @@ import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useAuiState, useAui } from "@assistant-ui/store";
 import { flushResourcesSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
+import { useTriggerPopoverActiveAriaOptional } from "./trigger/TriggerPopoverRootContext";
 
 export namespace ComposerPrimitiveInput {
   export type Element = HTMLTextAreaElement;
@@ -100,6 +101,12 @@ export namespace ComposerPrimitiveInput {
  * keyboard shortcuts, file paste support, and intelligent focus management.
  * It integrates with the composer context to manage message state and submission.
  *
+ * When rendered inside `Unstable_TriggerPopoverRoot` and a popover is open, the
+ * underlying `<textarea>` automatically receives `aria-controls`,
+ * `aria-expanded`, `aria-haspopup`, and `aria-activedescendant` for the
+ * combobox relationship. These computed attributes override user-provided
+ * values for those four ARIA props while the popover is open.
+ *
  * @example
  * ```tsx
  * // Ctrl/Cmd+Enter to submit (plain Enter inserts newline)
@@ -142,6 +149,7 @@ export const ComposerPrimitiveInput = forwardRef<
   ) => {
     const aui = useAui();
     const pluginRegistry = useComposerInputPluginRegistryOptional();
+    const activeAria = useTriggerPopoverActiveAriaOptional();
 
     const effectiveSubmitMode =
       submitMode ?? (submitOnEnter === false ? "none" : "enter");
@@ -197,13 +205,13 @@ export const ComposerPrimitiveInput = forwardRef<
         const threadState = aui.thread().getState();
         const hasQueue = threadState.capabilities.queue;
 
-        // Steer hotkey: Cmd/Ctrl+Shift+Enter (respects submitMode="none" and isEmpty)
+        // Steer hotkey: Cmd/Ctrl+Shift+Enter (respects submitMode="none" and canSend)
         if (
           e.shiftKey &&
           (e.ctrlKey || e.metaKey) &&
           hasQueue &&
           effectiveSubmitMode !== "none" &&
-          !aui.composer().getState().isEmpty
+          aui.composer().getState().canSend
         ) {
           e.preventDefault();
           aui.composer().send({ steer: true });
@@ -287,10 +295,20 @@ export const ComposerPrimitiveInput = forwardRef<
       return aui.on("threadListItem.switchedTo", focus);
     }, [unstable_focusOnThreadSwitched, focus, aui]);
 
+    const ariaComboboxProps = activeAria
+      ? {
+          "aria-controls": activeAria.popoverId,
+          "aria-expanded": true as const,
+          "aria-haspopup": "listbox" as const,
+          "aria-activedescendant": activeAria.highlightedItemId,
+        }
+      : {};
+
     const inputProps = {
       name: "input" as const,
       value,
       ...rest,
+      ...ariaComboboxProps,
       ref: ref as React.ForwardedRef<HTMLTextAreaElement>,
       disabled: isDisabled,
       onChange: composeEventHandlers(

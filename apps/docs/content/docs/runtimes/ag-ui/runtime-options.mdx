@@ -62,13 +62,43 @@ const runtime = useAgUiRuntime({
 });
 ```
 
+## Interrupts (experimental)
+
+<Callout type="warn">
+The interrupt API is experimental and may change without notice.
+</Callout>
+
+When the agent emits `RUN_FINISHED` with `outcome = { type: "interrupt", interrupts: [...] }`, the active assistant message is marked `requires-action` with `reason: "interrupt"` and the `Interrupt[]` payload is written to `metadata.custom.agui.interrupts`. Render an approval / input UI from there.
+
+`useAgUiRuntime` returns an `AgUiAssistantRuntime` with two extra methods:
+
+| Method | Description |
+| --- | --- |
+| `unstable_getPendingInterrupts(): readonly AgUiInterrupt[]` | Snapshot of the open interrupts on the most recent assistant message. |
+| `unstable_submitInterruptResponses(responses: ResumeEntry[]): Promise<void>` | Submits one `ResumeEntry` per open interrupt and resumes the run. |
+
+`responses` must address every open interrupt; missing entries, unknown ids, or expired interrupts (`expiresAt`) reject before any network call. Each entry is `{ interruptId, status: "resolved" | "cancelled", payload? }`. The next `RunAgentInput` carries `resume: ResumeEntry[]`.
+
+```tsx
+const runtime = useAgUiRuntime({ agent });
+const pending = runtime.unstable_getPendingInterrupts();
+
+await runtime.unstable_submitInterruptResponses(
+  pending.map((i) => ({
+    interruptId: i.id,
+    status: "resolved",
+    payload: { approved: true },
+  })),
+);
+```
+
 ## Supported events
 
 The runtime parses the AG-UI event stream and maps each event type to assistant-ui state.
 
 | Event | Effect |
 | --- | --- |
-| `RUN_STARTED` / `RUN_FINISHED` | Toggles thread `isRunning`. |
+| `RUN_STARTED` / `RUN_FINISHED` | Toggles thread `isRunning`. `RUN_FINISHED.outcome` is honored (success / interrupt). |
 | `RUN_CANCELLED` | Marks the in-flight assistant message as cancelled. |
 | `RUN_ERROR` | Marks the message as errored; fires `onError`. |
 | `TEXT_MESSAGE_START` / `_CONTENT` / `_END` | Streams text content into an assistant message. |
@@ -98,6 +128,7 @@ The runtime parses the AG-UI event stream and maps each event type to assistant-
 | Message editing | Yes |
 | Message reload | Yes |
 | Run resumption | Yes |
+| Interrupts (human-in-the-loop) | Experimental (`unstable_*` API, see [Interrupts](#interrupts-experimental)) |
 | Multi-thread | Experimental (`adapters.threadList`) |
 | History persistence | Via [history adapter](/docs/runtimes/concepts/adapters#history-adapter) |
 

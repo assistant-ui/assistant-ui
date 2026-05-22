@@ -9,173 +9,312 @@ import {
   ThreadPrimitive,
   useAuiState,
 } from "@assistant-ui/react";
-import { Avatar } from "radix-ui";
 import {
   ArrowUpIcon,
+  CheckIcon,
   ChevronDownIcon,
   ClipboardIcon,
   Cross2Icon,
-  MixerHorizontalIcon,
   Pencil1Icon,
   PlusIcon,
   ReloadIcon,
 } from "@radix-ui/react-icons";
-import { ThumbsDown, ThumbsUp } from "lucide-react";
+import {
+  AudioLines,
+  Calendar as CalendarIcon,
+  Code as CodeIcon,
+  FolderOpen,
+  GraduationCap,
+  PenLine,
+  Sparkle,
+  ThumbsDown,
+  ThumbsUp,
+} from "lucide-react";
 import { useEffect, useState, type FC } from "react";
 import { useShallow } from "zustand/shallow";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/shared/dropdown-menu";
+
+const messageActionButtonClassName =
+  "flex size-8 items-center justify-center rounded-md text-[#5b5950] transition-colors hover:bg-[#1a1a18]/5 hover:text-[#1a1a18] dark:text-[#a3a098] dark:hover:bg-white/5 dark:hover:text-[#eee]";
 
 export const Claude: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#F5F5F0] p-4 pt-16 font-serif dark:bg-[#2b2a27]">
-      <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll">
-        <ThreadPrimitive.Messages>
-          {() => <ChatMessage />}
-        </ThreadPrimitive.Messages>
-        <div aria-hidden="true" className="h-4" />
-      </ThreadPrimitive.Viewport>
+    <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#F0ECE0] font-serif text-[#1a1a18] dark:bg-[#2b2a27] dark:text-[#eee]">
+      <AuiIf condition={(s) => s.thread.isEmpty}>
+        <EmptyState />
+      </AuiIf>
 
-      <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl flex-col rounded-2xl border border-transparent bg-white p-0.5 shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.035),0_0_0_0.5px_rgba(0,0,0,0.08)] transition-shadow duration-200 focus-within:shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.075),0_0_0_0.5px_rgba(0,0,0,0.15)] hover:shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.05),0_0_0_0.5px_rgba(0,0,0,0.12)] dark:bg-[#1f1e1b] dark:shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.4),0_0_0_0.5px_rgba(108,106,96,0.15)] dark:hover:shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.4),0_0_0_0.5px_rgba(108,106,96,0.3)] dark:focus-within:shadow-[0_0.25rem_1.25rem_rgba(0,0,0,0.5),0_0_0_0.5px_rgba(108,106,96,0.3)]">
-        <div className="m-3.5 flex flex-col gap-3.5">
-          <div className="relative">
-            <div className="wrap-break-word max-h-96 w-full overflow-y-auto">
-              <ComposerPrimitive.Input
-                placeholder="How can I help you today?"
-                className="block min-h-6 w-full resize-none bg-transparent text-[#1a1a18] outline-none placeholder:text-[#9a9893] dark:text-[#eee] dark:placeholder:text-[#9a9893]"
-              />
-            </div>
-          </div>
-          <div className="flex w-full items-center gap-2">
-            <div className="relative flex min-w-0 flex-1 shrink items-center gap-2">
-              <ComposerPrimitive.AddAttachment className="flex h-8 min-w-8 items-center justify-center overflow-hidden rounded-lg border border-[#00000015] bg-transparent px-1.5 text-[#6b6a68] transition-all hover:bg-[#f5f5f0] hover:text-[#1a1a18] active:scale-[0.98] dark:border-[#6c6a6040] dark:text-[#9a9893] dark:hover:bg-[#393937] dark:hover:text-[#eee]">
-                <PlusIcon width={16} height={16} />
-              </ComposerPrimitive.AddAttachment>
-              <button
-                type="button"
-                className="flex h-8 min-w-8 items-center justify-center overflow-hidden rounded-lg border border-[#00000015] bg-transparent px-1.5 text-[#6b6a68] transition-all hover:bg-[#f5f5f0] hover:text-[#1a1a18] active:scale-[0.98] dark:border-[#6c6a6040] dark:text-[#9a9893] dark:hover:bg-[#393937] dark:hover:text-[#eee]"
-                aria-label="Open tools menu"
-              >
-                <MixerHorizontalIcon width={16} height={16} />
-              </button>
-              <button
-                type="button"
-                className="flex h-8 min-w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#00000015] bg-transparent px-1.5 text-[#6b6a68] transition-all hover:bg-[#f5f5f0] hover:text-[#1a1a18] active:scale-[0.98] dark:border-[#6c6a6040] dark:text-[#9a9893] dark:hover:bg-[#393937] dark:hover:text-[#eee]"
-                aria-label="Extended thinking"
-              >
-                <ReloadIcon width={16} height={16} />
-              </button>
-            </div>
-            <button
-              type="button"
-              className="flex h-8 min-w-16 items-center justify-center gap-1 whitespace-nowrap rounded-md px-2 pr-2 pl-2.5 text-[#1a1a18] text-xs transition duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)] hover:bg-[#f5f5f0] active:scale-[0.985] dark:text-[#eee] dark:hover:bg-[#393937]"
-            >
-              <span className="font-serif text-[14px]">Sonnet 4.5</span>
-              <ChevronDownIcon width={20} height={20} className="opacity-75" />
-            </button>
-            <ComposerPrimitive.Send className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#ae5630] transition-colors hover:bg-[#c4633a] active:scale-95 disabled:pointer-events-none disabled:opacity-50 dark:bg-[#ae5630] dark:hover:bg-[#c4633a]">
-              <ArrowUpIcon width={16} height={16} className="text-white" />
-            </ComposerPrimitive.Send>
-          </div>
-        </div>
-        <AuiIf condition={(s) => s.composer.attachments.length > 0}>
-          <div className="overflow-hidden rounded-b-2xl">
-            <div className="overflow-x-auto rounded-b-2xl border-[#00000015] border-t bg-[#f5f5f0] p-3.5 dark:border-[#6c6a6040] dark:bg-[#393937]">
-              <div className="flex flex-row gap-3">
-                <ComposerPrimitive.Attachments>
-                  {() => <ClaudeAttachment />}
-                </ComposerPrimitive.Attachments>
-              </div>
-            </div>
-          </div>
-        </AuiIf>
-      </ComposerPrimitive.Root>
+      <AuiIf condition={(s) => !s.thread.isEmpty}>
+        <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-auto px-4 pt-12">
+          <ThreadPrimitive.Messages>
+            {() => <ChatMessage />}
+          </ThreadPrimitive.Messages>
+
+          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-3xl bg-linear-to-b from-transparent via-[#F0ECE0]/85 to-[#F0ECE0] pt-4 pb-2 dark:via-[#2b2a27]/85 dark:to-[#2b2a27]">
+            <Composer />
+            <p className="pt-2 text-center text-[#8a8780] text-xs dark:text-[#a3a098]">
+              Claude can make mistakes. Please double-check responses.
+            </p>
+          </ThreadPrimitive.ViewportFooter>
+        </ThreadPrimitive.Viewport>
+      </AuiIf>
     </ThreadPrimitive.Root>
+  );
+};
+
+const EmptyState: FC = () => {
+  return (
+    <div className="flex grow flex-col items-center justify-center px-4">
+      <div className="mx-auto flex w-full max-w-2xl flex-col items-stretch gap-5">
+        <h1 className="flex items-center justify-center gap-3 font-serif text-3xl text-[#1a1a18] sm:text-4xl dark:text-[#eee]">
+          <Sparkle className="size-7 fill-[#c96442] text-[#c96442]" />
+          <span>How can I help you today?</span>
+        </h1>
+        <Composer />
+        <ModeTabs />
+      </div>
+    </div>
+  );
+};
+
+const Composer: FC = () => {
+  return (
+    <ComposerPrimitive.Root className="flex w-full flex-col gap-2 rounded-2xl border border-[#E5E0D6] bg-white px-3.5 pt-3 pb-2.5 dark:border-[#3d3a35] dark:bg-[#1f1e1b]">
+      <ComposerPrimitive.Input
+        placeholder="How can I help you today?"
+        rows={1}
+        className="block max-h-72 min-h-6 w-full resize-none bg-transparent text-[#1a1a18] outline-none placeholder:text-[#9a9893] dark:text-[#eee] dark:placeholder:text-[#9a9893]"
+      />
+
+      <div className="flex w-full items-center gap-2">
+        <ComposerPrimitive.AddAttachment
+          aria-label="Add attachment"
+          className="flex size-8 shrink-0 items-center justify-center rounded-md text-[#5b5950] transition-colors hover:bg-[#1a1a18]/5 hover:text-[#1a1a18] dark:text-[#a3a098] dark:hover:bg-white/5 dark:hover:text-[#eee]"
+        >
+          <PlusIcon width={16} height={16} />
+        </ComposerPrimitive.AddAttachment>
+
+        <div className="ml-auto flex items-center gap-1">
+          <ClaudeModelPicker />
+          <ComposerPrimaryAction />
+        </div>
+      </div>
+
+      <AuiIf condition={(s) => s.composer.attachments.length > 0}>
+        <div className="-mx-1 -mb-1 flex flex-row gap-2 overflow-x-auto pt-1">
+          <ComposerPrimitive.Attachments>
+            {() => <ClaudeAttachment />}
+          </ComposerPrimitive.Attachments>
+        </div>
+      </AuiIf>
+    </ComposerPrimitive.Root>
+  );
+};
+
+const ComposerPrimaryAction: FC = () => {
+  return (
+    <>
+      <AuiIf condition={(s) => s.thread.isRunning}>
+        <ComposerPrimitive.Cancel className="flex size-8 items-center justify-center rounded-md bg-[#c96442] text-white transition-colors hover:bg-[#b1573a]">
+          <div className="size-2.5 rounded-[2px] bg-current" />
+        </ComposerPrimitive.Cancel>
+      </AuiIf>
+
+      <AuiIf
+        condition={(s) => !s.thread.isRunning && s.composer.dictation != null}
+      >
+        <ComposerPrimitive.StopDictation
+          className="flex size-8 items-center justify-center rounded-md bg-[#c96442] text-white transition-colors hover:bg-[#b1573a]"
+          aria-label="Stop dictation"
+        >
+          <div className="size-2.5 animate-pulse rounded-[2px] bg-current" />
+        </ComposerPrimitive.StopDictation>
+      </AuiIf>
+
+      <AuiIf
+        condition={(s) =>
+          !s.thread.isRunning &&
+          s.composer.dictation == null &&
+          !s.composer.isEmpty
+        }
+      >
+        <ComposerPrimitive.Send className="flex size-8 items-center justify-center rounded-md bg-[#c96442] text-white transition-colors hover:bg-[#b1573a] disabled:pointer-events-none disabled:opacity-50">
+          <ArrowUpIcon width={16} height={16} />
+        </ComposerPrimitive.Send>
+      </AuiIf>
+
+      <AuiIf
+        condition={(s) =>
+          !s.thread.isRunning &&
+          s.composer.dictation == null &&
+          s.composer.isEmpty
+        }
+      >
+        <ComposerPrimitive.Dictate
+          className="flex size-8 items-center justify-center rounded-md text-[#5b5950] transition-colors hover:bg-[#1a1a18]/5 hover:text-[#1a1a18] dark:text-[#a3a098] dark:hover:bg-white/5 dark:hover:text-[#eee]"
+          aria-label="Use voice mode"
+        >
+          <AudioLines className="size-4" />
+        </ComposerPrimitive.Dictate>
+      </AuiIf>
+    </>
+  );
+};
+
+const CLAUDE_MODELS = [
+  {
+    id: "sonnet-4.5",
+    name: "Sonnet 4.5",
+    description: "Smart, fast, everyday tasks",
+  },
+  {
+    id: "opus-4.7",
+    name: "Opus 4.7",
+    description: "Anthropic's most capable model",
+  },
+  {
+    id: "haiku-4.5",
+    name: "Haiku 4.5",
+    description: "Fastest, most affordable",
+  },
+];
+
+const ClaudeModelPicker: FC = () => {
+  const [model, setModel] = useState(CLAUDE_MODELS[0]!.id);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex h-8 items-center gap-1 whitespace-nowrap rounded-md px-2.5 text-[#1a1a18] text-sm transition hover:bg-[#1a1a18]/5 dark:text-[#eee] dark:hover:bg-white/5">
+        <span className="font-serif">
+          {CLAUDE_MODELS.find((m) => m.id === model)?.name}
+        </span>
+        <ChevronDownIcon width={16} height={16} className="opacity-60" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-64">
+        {CLAUDE_MODELS.map((m) => (
+          <DropdownMenuItem
+            key={m.id}
+            onSelect={() => setModel(m.id)}
+            className="flex items-start gap-3"
+          >
+            <span className="mt-0.5 flex size-4 items-center justify-center text-[#c96442]">
+              {m.id === model ? <CheckIcon /> : null}
+            </span>
+            <span className="flex flex-1 flex-col">
+              <span className="font-serif text-foreground text-sm">
+                {m.name}
+              </span>
+              <span className="text-muted-foreground text-xs">
+                {m.description}
+              </span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="text-muted-foreground text-sm">
+          More options
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
+const ModeTabs: FC = () => {
+  const tabs = [
+    { label: "Write", Icon: PenLine },
+    { label: "Learn", Icon: GraduationCap },
+    { label: "Code", Icon: CodeIcon },
+    { label: "From Drive", Icon: FolderOpen },
+    { label: "From Calendar", Icon: CalendarIcon },
+  ];
+
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-2">
+      {tabs.map(({ label, Icon }) => (
+        <button
+          key={label}
+          type="button"
+          aria-hidden="true"
+          tabIndex={-1}
+          className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border border-[#E5E0D6] bg-transparent px-3 text-[#3d3a35] text-sm transition-colors hover:bg-white/60 dark:border-[#3d3a35] dark:text-[#cdc9be] dark:hover:bg-[#1f1e1b]/60"
+        >
+          <Icon className="size-3.5 text-[#8a8780] dark:text-[#a3a098]" />
+          <span className="font-serif">{label}</span>
+        </button>
+      ))}
+    </div>
   );
 };
 
 const ChatMessage: FC = () => {
   return (
-    <MessagePrimitive.Root className="group relative mx-auto mt-1 mb-1 block w-full max-w-3xl">
+    <MessagePrimitive.Root className="group/message relative mx-auto flex w-full max-w-3xl flex-col py-2">
       <AuiIf condition={(s) => s.message.role === "user"}>
-        <div className="group/user wrap-break-word relative inline-flex max-w-[75ch] flex-col gap-2 rounded-xl bg-[#DDD9CE] py-2.5 pr-6 pl-2.5 text-[#1a1a18] transition-all dark:bg-[#393937] dark:text-[#eee]">
-          <div className="relative flex flex-row gap-2">
-            <div className="shrink-0 self-start transition-all duration-300">
-              <Avatar.Root className="flex h-7 w-7 shrink-0 select-none items-center justify-center rounded-full bg-[#1a1a18] font-bold text-[12px] text-white dark:bg-[#eee] dark:text-[#2b2a27]">
-                <Avatar.AvatarFallback>U</Avatar.AvatarFallback>
-              </Avatar.Root>
-            </div>
-            <div className="flex-1">
-              <div className="relative grid grid-cols-1 gap-2 py-0.5">
-                <div className="wrap-break-word whitespace-pre-wrap">
-                  <MessagePrimitive.Parts>
-                    {({ part }) => {
-                      if (part.type === "text") return <MarkdownText />;
-                      return null;
-                    }}
-                  </MessagePrimitive.Parts>
-                </div>
-              </div>
-            </div>
+        <div className="flex flex-col items-end gap-1">
+          <div className="wrap-break-word max-w-[80%] whitespace-pre-wrap rounded-2xl bg-[#E5E0D6] px-4 py-2.5 text-[#1a1a18] dark:bg-[#393937] dark:text-[#eee]">
+            <MessagePrimitive.Parts>
+              {({ part }) => {
+                if (part.type === "text") return <MarkdownText />;
+                return null;
+              }}
+            </MessagePrimitive.Parts>
           </div>
-          <div className="pointer-events-none absolute right-2 bottom-0">
-            <ActionBarPrimitive.Root
-              autohide="not-last"
-              className="pointer-events-auto min-w-max translate-x-1 translate-y-4 rounded-lg border-[#00000015] border-[0.5px] bg-white/80 p-0.5 opacity-0 shadow-sm backdrop-blur-sm transition group-hover/user:translate-x-0.5 group-hover/user:opacity-100 dark:border-[#6c6a6040] dark:bg-[#1f1e1b]/80"
-            >
-              <div className="flex items-center text-[#6b6a68] dark:text-[#9a9893]">
-                <ActionBarPrimitive.Reload className="flex h-8 w-8 items-center justify-center rounded-md transition duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)] hover:bg-transparent active:scale-95">
-                  <ReloadIcon width={20} height={20} />
-                </ActionBarPrimitive.Reload>
-                <ActionBarPrimitive.Edit className="flex h-8 w-8 items-center justify-center rounded-md transition duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)] hover:bg-transparent active:scale-95">
-                  <Pencil1Icon width={20} height={20} />
-                </ActionBarPrimitive.Edit>
-              </div>
-            </ActionBarPrimitive.Root>
-          </div>
+          <ActionBarPrimitive.Root className="-mt-px flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
+            <ActionBarPrimitive.Edit className={messageActionButtonClassName}>
+              <Pencil1Icon width={16} height={16} />
+            </ActionBarPrimitive.Edit>
+            <ActionBarPrimitive.Copy className={messageActionButtonClassName}>
+              <AuiIf condition={(s) => s.message.isCopied}>
+                <CheckIcon />
+              </AuiIf>
+              <AuiIf condition={(s) => !s.message.isCopied}>
+                <ClipboardIcon width={16} height={16} />
+              </AuiIf>
+            </ActionBarPrimitive.Copy>
+          </ActionBarPrimitive.Root>
         </div>
       </AuiIf>
 
       <AuiIf condition={(s) => s.message.role === "assistant"}>
-        <div className="relative mb-12 font-serif">
-          <div className="relative leading-[1.65rem]">
-            <div className="grid grid-cols-1 gap-2.5">
-              <div className="wrap-break-word whitespace-normal pr-8 pl-2 font-serif text-[#1a1a18] dark:text-[#eee]">
-                <MessagePrimitive.Parts>
-                  {({ part }) => {
-                    if (part.type === "text") return <MarkdownText />;
-                    return null;
-                  }}
-                </MessagePrimitive.Parts>
-              </div>
-            </div>
+        <div className="flex flex-col">
+          <div className="prose prose-claude wrap-break-word font-serif text-[#1a1a18] leading-[1.65rem] dark:text-[#eee]">
+            <MessagePrimitive.Parts>
+              {({ part }) => {
+                if (part.type === "text") return <MarkdownText />;
+                return null;
+              }}
+            </MessagePrimitive.Parts>
           </div>
-          <div className="pointer-events-none absolute inset-x-0 bottom-0">
-            <ActionBarPrimitive.Root
-              hideWhenRunning
-              autohide="not-last"
-              className="pointer-events-auto flex w-full translate-y-full flex-col items-end px-2 pt-2 transition"
-            >
-              <div className="flex items-center text-[#6b6a68] dark:text-[#9a9893]">
-                <ActionBarPrimitive.Copy className="flex h-8 w-8 items-center justify-center rounded-md transition duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)] hover:bg-transparent active:scale-95">
-                  <ClipboardIcon width={20} height={20} />
-                </ActionBarPrimitive.Copy>
-                <ActionBarPrimitive.FeedbackPositive className="flex h-8 w-8 items-center justify-center rounded-md transition duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)] hover:bg-transparent active:scale-95">
-                  <ThumbsUp width={16} height={16} />
-                </ActionBarPrimitive.FeedbackPositive>
-                <ActionBarPrimitive.FeedbackNegative className="flex h-8 w-8 items-center justify-center rounded-md transition duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)] hover:bg-transparent active:scale-95">
-                  <ThumbsDown width={16} height={16} />
-                </ActionBarPrimitive.FeedbackNegative>
-                <ActionBarPrimitive.Reload className="flex h-8 w-8 items-center justify-center rounded-md transition duration-300 ease-[cubic-bezier(0.165,0.85,0.45,1)] hover:bg-transparent active:scale-95">
-                  <ReloadIcon width={20} height={20} />
-                </ActionBarPrimitive.Reload>
-              </div>
-              <AuiIf condition={(s) => s.message.isLast}>
-                <p className="mt-2 w-full text-right text-[#8a8985] text-[0.65rem] leading-[0.85rem] opacity-90 sm:text-[0.75rem] dark:text-[#b8b5a9]">
-                  Claude can make mistakes. Please double-check responses.
-                </p>
+          <ActionBarPrimitive.Root className="mt-2 flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
+            <ActionBarPrimitive.Copy className={messageActionButtonClassName}>
+              <AuiIf condition={(s) => s.message.isCopied}>
+                <CheckIcon />
               </AuiIf>
-            </ActionBarPrimitive.Root>
-          </div>
+              <AuiIf condition={(s) => !s.message.isCopied}>
+                <ClipboardIcon width={16} height={16} />
+              </AuiIf>
+            </ActionBarPrimitive.Copy>
+            <ActionBarPrimitive.FeedbackPositive
+              className={messageActionButtonClassName}
+            >
+              <ThumbsUp className="size-4" />
+            </ActionBarPrimitive.FeedbackPositive>
+            <ActionBarPrimitive.FeedbackNegative
+              className={messageActionButtonClassName}
+            >
+              <ThumbsDown className="size-4" />
+            </ActionBarPrimitive.FeedbackNegative>
+            <ActionBarPrimitive.Reload className={messageActionButtonClassName}>
+              <ReloadIcon width={16} height={16} />
+            </ActionBarPrimitive.Reload>
+          </ActionBarPrimitive.Root>
         </div>
       </AuiIf>
     </MessagePrimitive.Root>
@@ -224,35 +363,24 @@ const ClaudeAttachment: FC = () => {
   return (
     <AttachmentPrimitive.Root className="group/thumbnail relative">
       <div
-        className="can-focus-within overflow-hidden rounded-lg border border-[#00000020] shadow-sm hover:border-[#00000040] hover:shadow-md dark:border-[#6c6a6040] dark:hover:border-[#6c6a6080]"
-        style={{
-          width: "120px",
-          height: "120px",
-          minWidth: "120px",
-          minHeight: "120px",
-        }}
+        className="overflow-hidden rounded-lg border border-[#E5E0D6] dark:border-[#3d3a35]"
+        style={{ width: "80px", height: "80px" }}
       >
-        <button
-          type="button"
-          className="relative bg-white dark:bg-[#2b2a27]"
-          style={{ width: "120px", height: "120px" }}
-        >
-          {isImage && src ? (
-            // biome-ignore lint/performance/noImgElement: example component
-            <img
-              className="h-full w-full object-cover opacity-100 transition duration-400"
-              alt="Attachment"
-              src={src}
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-[#6b6a68] dark:text-[#9a9893]">
-              <AttachmentPrimitive.unstable_Thumb className="text-xs" />
-            </div>
-          )}
-        </button>
+        {isImage && src ? (
+          // biome-ignore lint/performance/noImgElement: example component
+          <img
+            className="h-full w-full object-cover"
+            alt="Attachment"
+            src={src}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-white text-[#5b5950] dark:bg-[#2b2a27] dark:text-[#a3a098]">
+            <AttachmentPrimitive.unstable_Thumb className="text-xs" />
+          </div>
+        )}
       </div>
       <AttachmentPrimitive.Remove
-        className="absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full border border-[#00000020] bg-white/90 text-[#6b6a68] opacity-0 backdrop-blur-sm transition-all hover:bg-white hover:text-[#1a1a18] group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 dark:border-[#6c6a6040] dark:bg-[#1f1e1b]/90 dark:text-[#9a9893] dark:hover:bg-[#1f1e1b] dark:hover:text-[#eee]"
+        className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-[#1a1a18] text-white opacity-0 transition-opacity hover:bg-[#3d3a35] group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 dark:bg-white dark:text-[#1a1a18] dark:hover:bg-[#cdc9be]"
         aria-label="Remove attachment"
       >
         <Cross2Icon width={12} height={12} />

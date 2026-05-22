@@ -1,6 +1,6 @@
 ---
 title: Gemini Clone
-description: Customized colors and styles for a Gemini look and feel
+description: Open-source Gemini clone in React with a centered greeting over an ambient glow, a single-row pill composer, avatar-free assistant replies, and disabled, ready, and stop send states.
 ---
 
 import { Gemini } from "@/components/examples/gemini";
@@ -11,16 +11,17 @@ import { Gemini } from "@/components/examples/gemini";
 
 ## Overview
 
-The Gemini Clone demonstrates how to customize assistant-ui to match Google Gemini's interface. This example features Google's Material Design color system, a distinctive welcome screen with sparkle icon and suggestion chips, and a clean composer with model selector.
+The Gemini Clone shows how to restyle assistant-ui to match Google Gemini's current interface. The empty state centers a single-line greeting over a soft blue glow, and a single-row pill composer is shared by both the empty and chat states. Assistant replies render as full-width markdown with no avatar, and user turns sit in a rounded grey bubble.
 
 ## Features
 
-- **Material Design Colors**: Google's surface/on-surface color token system
-- **Welcome State**: Gemini sparkle icon, greeting text, and suggestion chips
-- **Composer**: White input with shadow, `+` upload, Tools, model picker, and mic buttons
-- **User Messages**: Right-aligned bubbles with sharp top-right corner (`4px 24px 24px 24px`)
-- **Assistant Messages**: Gemini sparkle avatar on the left with response text
-- **Action Bar**: Thumbs up/down, regenerate, copy, and more menu on hover
+- **Centered greeting**: one "How can I help you today?" headline, centered over a blurred radial glow.
+- **Single-row composer**: a 32px pill that holds the `+` menu, the input, the model picker, the mic, and send on one line.
+- **Combined `+` menu**: "Add photos & files" sits next to the Deep Research, Canvas, Create image, and Guided Learning tools.
+- **Model picker**: Fast and Thinking, each with a short description and a check mark on the active model.
+- **Send states**: a disabled grey arrow when empty, a blue arrow when ready, and a stop square while a response streams.
+- **Avatar-free replies**: assistant messages are full-width markdown, with the action bar revealed on hover.
+- **Grey user bubble**: a `rounded-3xl` warm-grey bubble, right-aligned, with copy and edit actions on hover.
 
 ## Quick Start
 
@@ -30,69 +31,138 @@ npx assistant-ui add thread
 
 ## Code
 
-The Gemini clone uses Google's Material Design surface colors:
+The empty and chat states render the same `Composer`. It is a flex column: an optional attachment row on top, then a single action row with the input as the `flex-1` middle and the controls bottom-aligned around it.
 
 ```tsx
 import {
   AuiIf,
-  ThreadPrimitive,
   ComposerPrimitive,
-  useAuiState,
+  ThreadPrimitive,
 } from "@assistant-ui/react";
 
-export const Gemini = () => {
-  return (
-    <ThreadPrimitive.Root className="flex h-full flex-col bg-[#f8f9fa] dark:bg-[#131314]">
-      <ThreadPrimitive.Empty>
-        {/* Welcome: sparkle + greeting + title + composer + chips */}
-      </ThreadPrimitive.Empty>
+export const Gemini = () => (
+  <ThreadPrimitive.Root className="bg-[#fdfcfc] dark:bg-[#131314]">
+    <AuiIf condition={(s) => s.thread.isEmpty}>
+      <EmptyState />
+    </AuiIf>
+    <AuiIf condition={(s) => !s.thread.isEmpty}>
+      <ThreadPrimitive.Viewport>
+        <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+        <ThreadPrimitive.ViewportFooter className="sticky bottom-0">
+          <Composer />
+        </ThreadPrimitive.ViewportFooter>
+      </ThreadPrimitive.Viewport>
+    </AuiIf>
+  </ThreadPrimitive.Root>
+);
 
-      <AuiIf condition={(s) => !s.thread.isEmpty}>
-        <ThreadPrimitive.Viewport>
-          <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
-        </ThreadPrimitive.Viewport>
-        <Composer />
-      </AuiIf>
-    </ThreadPrimitive.Root>
-  );
-};
-
-const Composer = () => {
-  return (
-    <ComposerPrimitive.Root className="group/composer rounded-4xl bg-white p-3 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.16)] dark:bg-[#1e1f20]">
+const Composer = () => (
+  <ComposerPrimitive.Root className="flex flex-col rounded-4xl bg-white p-3 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.18)] dark:bg-[#1e1f20]">
+    <AuiIf condition={(s) => s.composer.attachments.length > 0}>
+      <ComposerPrimitive.Attachments
+        components={{ Attachment: GeminiAttachment }}
+      />
+    </AuiIf>
+    <div className="flex items-end gap-1">
+      <PlusMenu />
       <ComposerPrimitive.Input
         placeholder="Ask Gemini"
-        className="w-full bg-transparent text-[#1f1f1f] outline-none dark:text-[#e3e3e3]"
+        className="flex-1 resize-none bg-transparent text-[17px]"
       />
-      <div className="flex items-center text-[#444746] dark:text-[#c4c7c5]">
-        <ComposerPrimitive.AddAttachment>+</ComposerPrimitive.AddAttachment>
-        <button>Tools</button>
-        {/* right side: model picker, send, mic */}
-      </div>
-    </ComposerPrimitive.Root>
-  );
-};
+      <ModelPicker />
+      <VoiceButton />
+      <SendButton />
+    </div>
+  </ComposerPrimitive.Root>
+);
 ```
 
-### Color Palette
+### Send states
 
-| Element | Light | Dark |
-|---------|-------|------|
-| Background | `#f8f9fa` | `#131314` |
-| Composer bg | `#fff` | `#1e1f20` |
-| Text | `#1f1f1f` | `#e3e3e3` |
-| Muted text | `#444746` | `#c4c7c5` |
-| User bubble | `#e9eef6` | `#282a2c` |
-| Send button | `#d3e3fd` | `#1f3760` |
-| Suggestion chips | `#fff` | `#282a2c` |
-
-### User Message Bubble
-
-The distinctive Gemini user bubble has a sharp corner on one side:
+The trailing slot swaps between Send and Cancel with `AuiIf`. `ComposerPrimitive.Send` disables itself while the composer is empty, so the disabled, ready, and running looks are all driven by state instead of manual class toggling:
 
 ```tsx
-<div className="rounded-3xl rounded-tr bg-[#e9eef6] dark:bg-[#282a2c]">
-  {/* 4px top-right, 24px everywhere else */}
+{/* Send: disabled grey when empty, blue when there is text */}
+<AuiIf condition={(s) => !s.thread.isRunning}>
+  <ComposerPrimitive.Send className="bg-[#d3e3fd] text-[#062e6f] disabled:bg-[#e8eaed] disabled:text-[#1f1f1f]/40">
+    <ArrowUpIcon />
+  </ComposerPrimitive.Send>
+</AuiIf>
+{/* Cancel: stop square while a response streams */}
+<AuiIf condition={(s) => s.thread.isRunning}>
+  <ComposerPrimitive.Cancel className="bg-[#d3e3fd] text-[#062e6f]">
+    <span className="size-3 rounded-[3px] bg-current" />
+  </ComposerPrimitive.Cancel>
+</AuiIf>
+```
+
+### Combined `+` menu
+
+The `+` button opens one menu for both attachments and tools. `ComposerPrimitive.AddAttachment` is rendered as the first item via `asChild`, so picking it opens the file dialog and closes the menu:
+
+```tsx
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/shared/dropdown-menu";
+
+<DropdownMenu>
+  <DropdownMenuTrigger>
+    <PlusIcon />
+  </DropdownMenuTrigger>
+  <DropdownMenuContent align="start" side="bottom">
+    <DropdownMenuItem asChild>
+      <ComposerPrimitive.AddAttachment>
+        <Paperclip /> Add photos & files
+      </ComposerPrimitive.AddAttachment>
+    </DropdownMenuItem>
+    <DropdownMenuSeparator />
+    <DropdownMenuItem icon={<Telescope />}>Deep Research</DropdownMenuItem>
+    <DropdownMenuItem icon={<PencilRuler />}>Canvas</DropdownMenuItem>
+    {/* Create image, Guided Learning ... */}
+  </DropdownMenuContent>
+</DropdownMenu>
+```
+
+### Ambient glow
+
+The empty state places a single blurred ellipse behind the greeting and composer. It is decorative, so it is `pointer-events-none` and `aria-hidden`:
+
+```tsx
+<div className="relative flex grow items-center justify-center">
+  <div
+    aria-hidden="true"
+    className="pointer-events-none absolute top-1/2 left-1/2 h-[330px] w-[720px] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(closest-side,#a9d1fb,transparent)] opacity-70 blur-[55px] dark:bg-[radial-gradient(closest-side,#1d4068,transparent)] dark:opacity-65"
+  />
+  <div className="relative z-10">
+    <h1 className="text-center text-4xl">How can I help you today?</h1>
+    <Composer />
+  </div>
+</div>
+```
+
+### Color palette
+
+| Element            | Light                 | Dark      |
+| ------------------ | --------------------- | --------- |
+| Background         | `#fdfcfc`             | `#131314` |
+| Composer surface   | `#ffffff`             | `#1e1f20` |
+| Primary text       | `#1f1f1f`             | `#e3e3e3` |
+| Muted text & icons | `#444746`             | `#c4c7c5` |
+| User bubble        | `#f2f0f0`             | `#333537` |
+| Send (ready)       | `#d3e3fd`             | `#1f3760` |
+| Ambient glow       | `#a9d1fb`             | `#1d4068` |
+
+### Messages
+
+Assistant replies have no avatar; the markdown spans the full content width and the action bar (feedback, copy, regenerate, more) fades in on hover. User turns sit in a rounded grey bubble, right-aligned, with copy and edit actions to its left:
+
+```tsx
+<div className="max-w-[75%] rounded-3xl bg-[#f2f0f0] px-5 py-3 dark:bg-[#333537]">
+  <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
 </div>
 ```
 

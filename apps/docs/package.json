@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "pnpm generate:docs && next build",
-    "generate:docs": "tsx ./scripts/generate-docs.mts && tsx ./scripts/generate-primitive-docs.mts && tsx ./scripts/generate-api-reference-overviews.mts && tsx ./scripts/generate-source-snapshot.mts",
+    "generate:docs": "tsx ./scripts/generate-reference-docs.mts && tsx ./scripts/generate-source-snapshot.mts",
     "dev": "pnpm generate:docs && next dev",
     "start": "next start",
     "postinstall": "fumadocs-mdx"
@@ -68,12 +68,15 @@
     "react-hook-form": "^7.75.0",
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^4.11.0",
-    "react-shiki": "^0.9.3",
+    "react-shiki": "^0.10.0",
     "react-syntax-highlighter": "^16.1.1",
     "recharts": "^3.8.1",
+    "rehype-parse": "^9.0.1",
+    "rehype-remark": "^10.0.1",
     "remark": "^15.0.1",
     "remark-gfm": "^4.0.1",
     "remark-mdx": "^3.1.1",
+    "remark-stringify": "^11.0.0",
     "safe-content-frame": "workspace:*",
     "shiki": "^4.0.2",
     "sonner": "^2.0.7",
@@ -82,6 +85,7 @@
     "tailwind-scrollbar": "^4.0.2",
     "tw-glass": "workspace:*",
     "tw-shimmer": "workspace:*",
+    "unified": "^11.0.5",
     "vaul": "^1.1.2",
     "zod": "^4.4.3",
     "zustand": "^5.0.13"

@@ -42,5 +42,5 @@ export namespace Derived {
    */
   export type Props<K extends ClientNames> = {
     get: (client: AssistantClient) => ReturnType<AssistantClientAccessor<K>>;
-  } & (ClientMeta<K> | { getMeta: (client: AssistantClient) => ClientMeta<K> });
+  } & ClientMeta<K>;
 }

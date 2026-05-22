@@ -212,7 +212,7 @@ describe("LangGraphMessageAccumulator reconcileMessages", () => {
     const acc = new LangGraphMessageAccumulator<LangChainMessage>();
     acc.addMessageWithMetadata(
       { id: "ai-1", type: "ai", content: "Hello" },
-      { langgraph_node: "agent", ls_model_name: "claude-3-7-sonnet-latest" },
+      { langgraph_node: "agent", ls_model_name: "claude-sonnet-4-6" },
     );
     acc.addMessageWithMetadata(
       { id: "sub-ai-1", type: "ai", content: "Sub" },
@@ -222,7 +222,7 @@ describe("LangGraphMessageAccumulator reconcileMessages", () => {
     const metadata = acc.getMetadataMap();
     expect(metadata.get("ai-1")).toEqual({
       langgraph_node: "agent",
-      ls_model_name: "claude-3-7-sonnet-latest",
+      ls_model_name: "claude-sonnet-4-6",
     });
     // Subgraph message metadata preserved since the message still exists
     expect(metadata.get("sub-ai-1")).toEqual({ langgraph_node: "sub_agent" });

@@ -116,7 +116,6 @@ export const ThreadClient = resource(
       append: runtime.append,
       startRun: runtime.startRun,
       resumeRun: runtime.resumeRun,
-      unstable_resumeRun: runtime.resumeRun,
       cancelRun: runtime.cancelRun,
       getModelContext: runtime.getModelContext,
       export: runtime.export,

@@ -41,6 +41,7 @@ export type {
 
 type BaseComposerState = {
   readonly canCancel: boolean;
+  readonly canSend: boolean;
   readonly isEditing: boolean;
   readonly isEmpty: boolean;
 
@@ -86,6 +87,7 @@ const getThreadComposerState = (
 
     isEditing: runtime?.isEditing ?? false,
     canCancel: runtime?.canCancel ?? false,
+    canSend: runtime?.canSend ?? false,
     isEmpty: runtime?.isEmpty ?? true,
 
     attachments: runtime?.attachments ?? EMPTY_ARRAY,
@@ -108,6 +110,7 @@ const getEditComposerState = (
 
     isEditing: runtime?.isEditing ?? false,
     canCancel: runtime?.canCancel ?? false,
+    canSend: runtime?.canSend ?? false,
     isEmpty: runtime?.isEmpty ?? true,
 
     text: runtime?.text ?? "",

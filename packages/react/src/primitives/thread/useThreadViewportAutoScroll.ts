@@ -1,8 +1,8 @@
 "use client";
 
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
-import { useCallback, useRef, type RefCallback } from "react";
-import { useAuiEvent } from "@assistant-ui/store";
+import { useCallback, useLayoutEffect, useRef, type RefCallback } from "react";
+import { useAuiEvent, useAuiState } from "@assistant-ui/store";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
@@ -27,7 +27,7 @@ export namespace useThreadViewportAutoScroll {
     scrollToBottomOnRunStart?: boolean | undefined;
 
     /**
-     * Whether to scroll to bottom when thread history is first loaded.
+     * Whether to scroll to bottom when messages first appear in the thread.
      *
      * Defaults to true.
      */
@@ -49,6 +49,9 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   scrollToBottomOnThreadSwitch = true,
 }: useThreadViewportAutoScroll.Options): RefCallback<TElement> => {
   const divRef = useRef<TElement>(null);
+  const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
+  const initializeScrollRequestedRef = useRef(false);
+  const scheduledFrameRef = useRef<number | null>(null);
 
   const threadViewportStore = useThreadViewportStore();
   if (autoScroll === undefined) {
@@ -57,9 +60,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
   const lastScrollTop = useRef<number>(0);
 
-  // bug: when ScrollToBottom's button changes its disabled state, the scroll stops
-  // fix: delay the state change until the scroll is done
-  // stores the scroll behavior to reuse during content resize, or null if not scrolling
+  // Pending bottom-scroll intent. Planted by initialize/run-start/switch/button
+  // triggers, cleared only when handleScroll confirms we reached bottom.
   const scrollingToBottomBehaviorRef = useRef<ScrollBehavior | null>(null);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
@@ -69,6 +71,29 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     scrollingToBottomBehaviorRef.current = behavior;
     div.scrollTo({ top: div.scrollHeight, behavior });
   }, []);
+
+  const scheduleScrollToBottom = useCallback(
+    (behavior: ScrollBehavior) => {
+      scrollingToBottomBehaviorRef.current = behavior;
+      if (scheduledFrameRef.current !== null) {
+        cancelAnimationFrame(scheduledFrameRef.current);
+      }
+      scheduledFrameRef.current = requestAnimationFrame(() => {
+        scheduledFrameRef.current = null;
+        scrollToBottom(behavior);
+      });
+    },
+    [scrollToBottom],
+  );
+
+  useLayoutEffect(
+    () => () => {
+      if (scheduledFrameRef.current !== null) {
+        cancelAnimationFrame(scheduledFrameRef.current);
+      }
+    },
+    [],
+  );
 
   const hasActiveTopAnchor = useCallback(() => {
     const state = threadViewportStore.getState();
@@ -88,11 +113,19 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       Math.abs(div.scrollHeight - div.scrollTop - div.clientHeight) < 1 ||
       div.scrollHeight <= div.clientHeight;
 
-    if (!newIsAtBottom && lastScrollTop.current < div.scrollTop) {
-      // ignore scroll down
+    const isInFlightDownwardScroll =
+      !newIsAtBottom && lastScrollTop.current < div.scrollTop;
+    if (isInFlightDownwardScroll) {
+      // no-op: a smooth scroll-to-bottom fires many midpoint scroll events
+      // before landing, don't flicker isAtBottom or clear intent mid-animation
     } else {
       if (newIsAtBottom) {
-        scrollingToBottomBehaviorRef.current = null;
+        // newIsAtBottom is ambiguous when the viewport doesn't overflow —
+        // keep intent alive until content can actually scroll
+        const viewportOverflows = div.scrollHeight > div.clientHeight + 1;
+        if (viewportOverflows) {
+          scrollingToBottomBehaviorRef.current = null;
+        }
       }
 
       const shouldUpdate =
@@ -129,37 +162,34 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     };
   });
 
+  useLayoutEffect(() => {
+    if (!scrollToBottomOnInitialize) return;
+    if (!hasMessages) {
+      initializeScrollRequestedRef.current = false;
+      return;
+    }
+    if (initializeScrollRequestedRef.current) return;
+
+    initializeScrollRequestedRef.current = true;
+    // defer to an in-flight run (e.g. first message on a new thread) that
+    // already planted intent — otherwise we'd downgrade its "auto" to "instant"
+    if (scrollingToBottomBehaviorRef.current !== null) return;
+    scheduleScrollToBottom("instant");
+  }, [hasMessages, scheduleScrollToBottom, scrollToBottomOnInitialize]);
+
   useOnScrollToBottom(({ behavior }) => {
     scrollToBottom(behavior);
   });
 
-  // autoscroll on run start
   useAuiEvent("thread.runStart", () => {
     if (!scrollToBottomOnRunStart) return;
     if (threadViewportStore.getState().turnAnchor === "top") return;
-
-    scrollingToBottomBehaviorRef.current = "auto";
-    requestAnimationFrame(() => {
-      scrollToBottom("auto");
-    });
+    scheduleScrollToBottom("auto");
   });
 
-  // scroll to bottom instantly when thread history is first loaded
-  useAuiEvent("thread.initialize", () => {
-    if (!scrollToBottomOnInitialize) return;
-    scrollingToBottomBehaviorRef.current = "instant";
-    requestAnimationFrame(() => {
-      scrollToBottom("instant");
-    });
-  });
-
-  // scroll to bottom instantly when switching threads
   useAuiEvent("threadListItem.switchedTo", () => {
     if (!scrollToBottomOnThreadSwitch) return;
-    scrollingToBottomBehaviorRef.current = "instant";
-    requestAnimationFrame(() => {
-      scrollToBottom("instant");
-    });
+    scheduleScrollToBottom("instant");
   });
 
   const autoScrollRef = useComposedRefs<TElement>(resizeRef, scrollRef, divRef);

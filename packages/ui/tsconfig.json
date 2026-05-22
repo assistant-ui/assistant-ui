@@ -10,7 +10,12 @@
     "esModuleInterop": true,
     "declaration": true,
     "noEmit": true,
-    "baseUrl": ".",
+    "typeRoots": [
+      "./node_modules/@types",
+      "../../node_modules/@types",
+      "./node_modules/@assistant-ui/x-buildutils/types"
+    ],
+    "types": ["browser-process"],
     "paths": {
       "@assistant-ui/ui/*": ["./src/*"],
       "@/*": ["./src/*"]

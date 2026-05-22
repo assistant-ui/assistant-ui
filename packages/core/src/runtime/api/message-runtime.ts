@@ -1,7 +1,4 @@
-import type {
-  SpeechState,
-  SubmittedFeedback,
-} from "../interfaces/thread-runtime-core";
+import type { SpeechState } from "../interfaces/thread-runtime-core";
 import { symbolInnerMessage } from "../utils/external-store-message";
 import type {
   ToolCallMessagePartStatus,
@@ -90,10 +87,6 @@ export type MessageState = ThreadMessage & {
    * @deprecated This API is still under active development and might change without notice.
    */
   readonly speech: SpeechState | undefined;
-  /**
-   * @deprecated Use `message.metadata.submittedFeedback` instead. This will be removed in 0.12.0.
-   */
-  readonly submittedFeedback: SubmittedFeedback | undefined;
 };
 
 export type { MessageStateBinding } from "./bindings";

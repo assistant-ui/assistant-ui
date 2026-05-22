@@ -1,6 +1,6 @@
 ---
-title: Streamdown
-description: Alternative markdown renderer with built-in syntax highlighting, math, and diagram support.
+title: Streamdown Markdown Renderer
+description: Stream markdown into a React chat UI with syntax highlighting, math, and Mermaid diagrams. Powered by Vercel Streamdown, integrated for assistant-ui.
 links:
   - label: Streamdown
     url: https://github.com/vercel/streamdown
@@ -25,6 +25,36 @@ import { StreamdownSample } from "@/components/docs/samples/streamdown";
 For additional features, install the optional plugins:
 
 <PackageManagerTabs packages={["@streamdown/code", "@streamdown/math", "@streamdown/mermaid", "@streamdown/cjk"]} />
+
+## CSS setup
+
+Streamdown's controls (code-block copy/download buttons, mermaid fullscreen overlay) and the streaming caret are written as Tailwind utility classes. Tailwind v4 does not scan `node_modules` by default, so add a `@source` directive for Streamdown (and one per installed plugin) to the same global stylesheet that imports Tailwind:
+
+```css
+@import "tailwindcss";
+
+@source "../node_modules/streamdown/dist/*.js";
+@source "../node_modules/@streamdown/code/dist/*.js";
+@source "../node_modules/@streamdown/math/dist/*.js";
+@source "../node_modules/@streamdown/mermaid/dist/*.js";
+@source "../node_modules/@streamdown/cjk/dist/*.js";
+```
+
+Adjust the relative path to wherever your project's `node_modules` lives. In a pnpm or Turbo monorepo with hoisted dependencies, you typically need more `../` segments to reach the workspace root. Only include the plugin lines for packages you actually installed.
+
+Without these directives, the copy/download/fullscreen buttons render with no padding or cursor styling (and look broken), and the `caret` indicator stays invisible.
+
+<Callout type="info">
+  Streamdown's components assume the shadcn/ui design tokens (`--background`, `--muted-foreground`, `--border`, etc.). If you are not on shadcn/ui, copy the minimum variable set from the [Streamdown README](https://github.com/vercel/streamdown#css-custom-properties-design-tokens).
+</Callout>
+
+If you opt into the `animated` prop or use `createAnimatePlugin` for word-level fade-in, also import the keyframes once at your app entry:
+
+```ts
+import "streamdown/styles.css";
+```
+
+The bare `caret` prop does **not** require this import; only the word-level animation does.
 
 ## Basic Usage
 
@@ -172,6 +202,8 @@ Display a caret indicator during streaming:
 <StreamdownTextPrimitive caret="block" />  // ▋
 <StreamdownTextPrimitive caret="circle" /> // ●
 ```
+
+The caret is implemented as a Tailwind `::after` utility on the wrapper, so it only appears if your Tailwind setup includes the `@source` directive from [CSS setup](#css-setup).
 
 ### Link Safety
 

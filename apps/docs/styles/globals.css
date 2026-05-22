@@ -12,6 +12,7 @@
 @plugin "tailwind-scrollbar";
 
 @source "../../../packages/ui/src";
+@source "../node_modules/streamdown/dist/*.js";
 
 @custom-variant dark (&:is(.dark *));
 
