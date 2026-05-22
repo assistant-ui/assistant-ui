@@ -221,6 +221,13 @@ export const McpManagerResource = resource(
         return record.id;
       },
       removeServer: async (id) => {
+        // removeServer is custom-server only — connectors are app-defined
+        // and not user-removable. Refuse rather than silently no-op.
+        if (state.connectors.some((c) => c.id === id)) {
+          throw new Error(
+            `Cannot remove connector "${id}" — connectors are app-defined and not removable. Use a custom server id instead.`,
+          );
+        }
         // Delegate to McpServerResource.remove() which disconnects,
         // clears auth state, and unregisters from customServers in one
         // place. Fallback to manual cleanup if the lookup is empty
