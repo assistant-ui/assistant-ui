@@ -26,6 +26,7 @@ export const McpServerPrimitiveOAuthLink = forwardRef<
   if (!effective) return null;
   return (
     <Primitive.a
+      target="_blank"
       {...props}
       ref={ref}
       href={effective}

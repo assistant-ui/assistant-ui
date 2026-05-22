@@ -197,20 +197,23 @@ export const McpServerResource = resource(
     const tryAutoConnect = tapEffectEvent(
       async (signal: { cancelled: boolean }) => {
         if (!props.autoConnect) return;
-        if (props.auth.type === "oauth") {
-          const persisted = await props.storage.loadAuthState(props.id);
-          if (signal.cancelled) return;
-          if (!persisted?.tokens) return;
+        if (props.auth.type === "none") {
           void doConnect();
-        } else if (props.auth.type === "bearer") {
-          const persisted = await props.storage.loadAuthState(props.id);
-          if (signal.cancelled) return;
-          const token = persisted?.token ?? props.auth.token;
-          if (!token) return;
-          void doConnect();
-        } else {
-          void doConnect();
+          return;
         }
+        // Static connector token short-circuits the storage read.
+        if (props.auth.type === "bearer" && props.auth.token) {
+          void doConnect();
+          return;
+        }
+        const persisted = await props.storage.loadAuthState(props.id);
+        if (signal.cancelled) return;
+        if (props.auth.type === "oauth") {
+          if (!persisted?.tokens) return;
+        } else if (!persisted?.token) {
+          return;
+        }
+        void doConnect();
       },
     );
 

@@ -247,8 +247,6 @@ const ServerActions: FC = () => (
         buttonVariants({ variant: "default", size: "sm" }),
         "aui-mcp-server-authorize h-8 gap-2 text-xs",
       )}
-      target="_blank"
-      rel="noreferrer"
     >
       Authorize
     </McpServerPrimitive.OAuthLink>
