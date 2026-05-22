@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useAddForm } from "./context";
+import { type AddFormAuthType, useAddForm } from "./context";
 
 export namespace McpAddFormPrimitiveAuthFields {
   export type Props = {
@@ -7,7 +7,7 @@ export namespace McpAddFormPrimitiveAuthFields {
      * Optional render override. Receives the current auth type so apps can render
      * fully custom inputs. Defaults to a minimal built-in for bearer / oauth.
      */
-    children?: FC<{ authType: "none" | "bearer" | "oauth" }>;
+    children?: FC<{ authType: AddFormAuthType }>;
   };
 }
 

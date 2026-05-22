@@ -11,4 +11,9 @@ export function assertValidServerId(id: string): void {
       `MCP server id "${id}" must not contain "__" — that sequence is reserved for separating server id from tool name.`,
     );
   }
+  if (id.includes("\x1f")) {
+    throw new Error(
+      `MCP server id "${id}" must not contain the ASCII Unit Separator (\\x1f) — it is reserved as the list delimiter in primitive id-list selectors.`,
+    );
+  }
 }
