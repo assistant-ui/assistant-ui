@@ -1,5 +1,6 @@
 {
   "title": "Auth",
+  "description": "Auth integration guides for gating chat routes and scoping thread persistence to signed-in users.",
   "platforms": ["react"],
   "pages": ["clerk", "better-auth", "next-auth"]
 }

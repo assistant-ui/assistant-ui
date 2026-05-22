@@ -1,4 +1,5 @@
 {
   "title": "Gateways",
+  "description": "Gateway integration guides for routing assistant-ui LLM traffic through OpenAI-compatible proxies and provider gateways.",
   "pages": ["index"]
 }

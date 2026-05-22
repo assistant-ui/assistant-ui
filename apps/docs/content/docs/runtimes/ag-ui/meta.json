@@ -1,4 +1,5 @@
 {
   "title": "AG-UI Protocol",
+  "description": "AG-UI runtime docs for connecting AG-UI agents to assistant-ui with streaming text, tool calls, state, and runtime options.",
   "pages": ["overview", "quickstart", "runtime-options"]
 }

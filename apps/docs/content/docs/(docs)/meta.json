@@ -1,6 +1,6 @@
 {
   "title": "Docs",
-  "description": "Getting started with assistant-ui",
+  "description": "Core assistant-ui docs for getting started, installation, CLI usage, architecture, DevTools, and foundational app-building concepts.",
   "icon": "BookOpen",
   "root": true,
   "pages": [

@@ -1,5 +1,6 @@
 {
   "title": "OpenCode",
+  "description": "OpenCode runtime docs for coding-agent chat UIs, including setup, permissions, questions, session state, file edits, and terminal output.",
   "platforms": ["react"],
   "pages": ["overview", "quickstart", "hooks"]
 }

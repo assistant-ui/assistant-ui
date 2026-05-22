@@ -1,5 +1,6 @@
 {
   "title": "LangGraph Cloud",
+  "description": "LangGraph runtime docs for assistant-ui, covering setup, streaming, generative UI, interrupts, threads, and the stockbroker tutorial.",
   "pages": [
     "overview",
     "quickstart",

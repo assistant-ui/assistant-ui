@@ -1,6 +1,6 @@
 {
   "title": "Runtimes",
-  "description": "Backend integrations",
+  "description": "Runtime adapters and backend connection guides for wiring assistant-ui to AI backends, protocols, and framework-specific streaming APIs.",
   "icon": "Server",
   "root": true,
   "pages": [
