@@ -116,6 +116,8 @@ Per-name `setToolUI` registrations always win over the MCP fallback — you can 
 
 `@assistant-ui/react-ai-sdk` forwards `callProviderMetadata.mcp.app` from AI SDK tool UI parts into `ToolCallMessagePart.mcp.app`. With AI SDK 5.x and an MCP-Apps-capable MCP server, no extra wiring is required on the part shape.
 
+The rich UI comes from the MCP server's metadata, not from the model, so the path is identical whichever provider drives the conversation. Running Claude is just a different `model:` in `streamText` (`anthropic("claude-sonnet-4-6")` via `@ai-sdk/anthropic`); the MCP server, `splitMcpAppTools`, and the renderer are unchanged. MCP Apps is the open standard Anthropic ships for Claude, so a standard MCP-Apps server renders out of the box. The bridge below is only needed for servers that use OpenAI's `openai/outputTemplate` convention, again independent of which model you run.
+
 On the chat route, use `splitMcpAppTools()` (from `@ai-sdk/mcp`) to keep app-only tools out of the model's view:
 
 ```ts
@@ -130,6 +132,38 @@ const result = streamText({
   // ...
 });
 ```
+
+### OpenAI Apps SDK servers
+
+[OpenAI Apps SDK](https://developers.openai.com/apps-sdk) servers carry the same `ui://` template under a different convention: the pointer is `_meta["openai/outputTemplate"]` on the tool definition (not `_meta.ui.resourceUri`), and the resource is served as `text/html+skybridge` rather than `text/html;profile=mcp-app`. `@ai-sdk/mcp` does not recognize `openai/outputTemplate`, so it never populates `callProviderMetadata.mcp.app` and the renderer stays idle.
+
+The renderer needs no change; you only have to surface the pointer. assistant-ui already reads `result._meta["ui/resourceUri"]` off tool results, so the smallest bridge is to copy the template onto the result by tool name. Build the map once from the tool listing, then stamp it inside each tool's `execute`:
+
+```ts
+// where you build the MCP tools for streamText
+const { tools: defs } = await client.listTools();
+const templateByTool = new Map(
+  defs
+    .filter((t) => typeof t._meta?.["openai/outputTemplate"] === "string")
+    .map((t) => [t.name, t._meta["openai/outputTemplate"] as string]),
+);
+
+const withTemplateUri = (tool, name) => {
+  const uri = templateByTool.get(name);
+  if (!uri || !tool.execute) return tool;
+  return {
+    ...tool,
+    execute: async (args, opts) => {
+      const result = await tool.execute(args, opts);
+      return { ...result, _meta: { ...result._meta, "ui/resourceUri": uri } };
+    },
+  };
+};
+```
+
+Wrap each tool with `withTemplateUri` before handing it to `streamText`. Your `mcp-apps/read-resource` handler reads the `ui://` resource exactly as above; return the server's HTML in `html` whether its MIME is `text/html;profile=mcp-app` or `text/html+skybridge`.
+
+The cleaner long-term fix is upstream: if `@ai-sdk/mcp`'s `getMCPAppToolMeta` also read `openai/outputTemplate`, then `callProviderMetadata.mcp.app` would populate automatically and this bridge would be unnecessary.
 
 ## Bridge protocol
 
