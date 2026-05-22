@@ -151,8 +151,9 @@ export const McpManagerResource = resource(
     // ─── Auto-register MCP tools as frontend tools in modelContext ─────
     // Build the toolkit from connected servers; re-register when the visible
     // tool surface changes. Tool names are prefixed with the server id to
-    // avoid collisions across connected servers — server ids must not
-    // contain `__` (enforced by `defineConnector`/`addCustomServer`).
+    // avoid collisions across connected servers — connector ids must not
+    // contain `__` (enforced by `defineConnector`); `addCustomServer`
+    // generates UUIDs that satisfy the constraint by construction.
     const toolkit = tapMemo<Record<string, Tool<any, any>>>(() => {
       const out: Record<string, Tool<any, any>> = {};
       for (const server of state.servers) {
