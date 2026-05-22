@@ -89,6 +89,10 @@ export const McpAddFormPrimitiveRoot = forwardRef<
       setState((p) => ({ ...p, error: "Name is required" }));
       return;
     }
+    if (state.authType === "bearer" && !state.bearerToken.trim()) {
+      setState((p) => ({ ...p, error: "Bearer token is required" }));
+      return;
+    }
     const urlResult = validateUrl(state.url);
     if ("error" in urlResult) {
       setState((p) => ({ ...p, error: urlResult.error }));

@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
+import type { MCPAuthConfig } from "../../mcp-scope";
 
-export type AddFormAuthType = "none" | "bearer" | "oauth";
+export type AddFormAuthType = MCPAuthConfig["type"];
 
 export type AddFormState = {
   name: string;

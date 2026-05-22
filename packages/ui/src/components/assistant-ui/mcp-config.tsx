@@ -6,6 +6,7 @@ import {
   McpAddFormPrimitive,
   McpManagerPrimitive,
   McpServerPrimitive,
+  type MCPConnectionState,
 } from "@assistant-ui/react-mcp";
 import {
   Loader2Icon,
@@ -181,17 +182,19 @@ const ServerAvatar: FC = () => {
   );
 };
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"> =
-  {
-    connected: "default",
-    connecting: "secondary",
-    authRequired: "secondary",
-    authPending: "secondary",
-    error: "destructive",
-    disconnected: "secondary",
-  };
+const STATUS_VARIANT: Record<
+  MCPConnectionState,
+  "default" | "secondary" | "destructive"
+> = {
+  connected: "default",
+  connecting: "secondary",
+  authRequired: "secondary",
+  authPending: "secondary",
+  error: "destructive",
+  disconnected: "secondary",
+};
 
-const STATUS_LABEL: Record<string, string> = {
+const STATUS_LABEL: Record<MCPConnectionState, string> = {
   connected: "Connected",
   connecting: "Connecting…",
   authRequired: "Auth required",
@@ -202,8 +205,8 @@ const STATUS_LABEL: Record<string, string> = {
 
 const StatusLine: FC = () => {
   const status = useAuiState((s) => s.mcpServer.connectionState);
-  const variant = STATUS_VARIANT[status] ?? "secondary";
-  const label = STATUS_LABEL[status] ?? status;
+  const variant = STATUS_VARIANT[status];
+  const label = STATUS_LABEL[status];
   return (
     <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
       <Badge variant={variant}>
@@ -267,16 +270,17 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
       <div className="aui-mcp-add-form flex flex-col gap-3 rounded-lg border p-3">
         <div className="flex items-center justify-between">
           <h4 className="font-medium text-sm">New server</h4>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-7 text-muted-foreground"
-            onClick={onClose}
-          >
-            <XIcon className="size-4" />
-            <span className="sr-only">Close</span>
-          </Button>
+          <McpAddFormPrimitive.Cancel asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 text-muted-foreground"
+            >
+              <XIcon className="size-4" />
+              <span className="sr-only">Close</span>
+            </Button>
+          </McpAddFormPrimitive.Cancel>
         </div>
         <FormRow label="Name">
           <McpAddFormPrimitive.NameField asChild>
