@@ -6,7 +6,7 @@ import path from "node:path";
 import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateDocChatInput } from "@/lib/validate-input";
-import { source } from "@/lib/source";
+import { source, examples as examplesSource } from "@/lib/source";
 import { getModel } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { createBashTool } from "bash-tool";
@@ -329,15 +329,35 @@ export async function POST(req: Request): Promise<Response> {
 
             if (!path) {
               // Return root categories
-              return pageTree.children
-                .filter(
-                  (node): node is PageTree.Folder => node.type === "folder",
-                )
-                .map((folder) => ({
-                  type: "folder",
-                  name: folder.name,
-                  ...(folder.index ? { url: folder.index.url } : {}),
-                }));
+              return [
+                ...pageTree.children
+                  .filter(
+                    (node): node is PageTree.Folder => node.type === "folder",
+                  )
+                  .map((folder) => ({
+                    type: "folder",
+                    name: folder.name,
+                    ...(folder.index ? { url: folder.index.url } : {}),
+                  })),
+                { type: "folder", name: "examples", url: "/examples" },
+              ];
+            }
+
+            if (path === "examples") {
+              return examplesSource.pageTree.children.flatMap((node) => {
+                switch (node.type) {
+                  case "page":
+                    return { type: "page", title: node.name, url: node.url };
+                  case "folder":
+                    return {
+                      type: "folder",
+                      name: node.name,
+                      ...(node.index ? { url: node.index.url } : {}),
+                    };
+                  default:
+                    return [];
+                }
+              });
             }
 
             // Find folder at path, return children
@@ -381,6 +401,13 @@ export async function POST(req: Request): Promise<Response> {
             }
 
             const slugs = normalized.split("/").filter(Boolean);
+            if (slugs[0] === "examples") {
+              const page = examplesSource.getPage(slugs.slice(1));
+              if (!page) return { error: `Page not found: ${slugOrUrl}` };
+
+              const content = await getLLMText(page);
+              return { title: page.data.title, url: page.url, content };
+            }
 
             const page = source.getPage(slugs);
             if (!page) return { error: `Page not found: ${slugOrUrl}` };
