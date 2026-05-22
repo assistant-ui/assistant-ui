@@ -16,6 +16,7 @@ import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { createOAuthProvider } from "../auth/createOAuthProvider";
 import { buildHeaders } from "../auth/buildHeaders";
+import { assertValidServerId } from "../utils/serverId";
 import type { MCPStorage } from "./storage/types";
 import type {
   MCPAuthConfig,
@@ -40,6 +41,7 @@ export type McpServerResourceProps = {
 
 export const McpServerResource = resource(
   (props: McpServerResourceProps): ClientOutput<"mcpServer"> => {
+    assertValidServerId(props.id);
     const [connectionState, setConnectionState] =
       tapState<MCPConnectionState>("disconnected");
     const [tools, setTools] = tapState<MCPToolInfo[]>([]);
