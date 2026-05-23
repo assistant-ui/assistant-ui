@@ -33,6 +33,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "aui-build",
+    "rs-build": "rslib build",
     "prepublishOnly": "pnpm turbo build",
     "test": "vitest run",
     "test:watch": "vitest"
