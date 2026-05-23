@@ -1,7 +1,6 @@
 import { Gorp } from "./Gorp";
 import type { GorpMessage, GorpOperation } from "./Gorp";
 import { Flusher } from "./internal";
-import type { GorpConfig } from "./GorpClient";
 
 /**
  * Authoritative replica that owns one `T`. Writes through the live `state`
@@ -23,9 +22,12 @@ export class GorpServer<T extends Record<string, unknown>, C> {
   private readonly _state: T;
   private _nextSeq = 0;
 
-  constructor(config: GorpConfig<T, C>) {
-    this.gorp = new Gorp<T>(config.initialState);
-    this.mutator = config.mutator;
+  constructor(
+    initialState: T,
+    mutator: (state: T, command: C, seq: number) => void,
+  ) {
+    this.gorp = new Gorp<T>(initialState);
+    this.mutator = mutator;
     this._state = this.gorp.draft((op) => this.flusher.enqueueOp(op));
   }
 

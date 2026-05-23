@@ -22,10 +22,7 @@ function recordSubscriber() {
 
 describe("GorpServer — state writes", () => {
   it("emits a set op for a deep state write via the proxy", async () => {
-    const server = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: () => {},
-    });
+    const server = new GorpServer<State, Command>(initial(), () => {});
     const sub = recordSubscriber();
     server.subscribe(sub.callback);
     server.state.count = 5;
@@ -36,10 +33,7 @@ describe("GorpServer — state writes", () => {
   });
 
   it("assigning to state emits a single root set op", async () => {
-    const server = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: () => {},
-    });
+    const server = new GorpServer<State, Command>(initial(), () => {});
     const sub = recordSubscriber();
     server.subscribe(sub.callback);
     const next: State = { count: 99, items: { x: { name: "ex" } } };
@@ -49,10 +43,7 @@ describe("GorpServer — state writes", () => {
   });
 
   it("coalesces multiple writes in one tick into a single envelope", async () => {
-    const server = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: () => {},
-    });
+    const server = new GorpServer<State, Command>(initial(), () => {});
     const sub = recordSubscriber();
     server.subscribe(sub.callback);
     server.state.count += 1;
@@ -66,11 +57,8 @@ describe("GorpServer — state writes", () => {
 describe("GorpServer — receive", () => {
   it("runs the handler and reports ack: 0 after one receive", async () => {
     const seen: Command[] = [];
-    const server = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: (_state, cmd) => {
-        seen.push(cmd);
-      },
+    const server = new GorpServer<State, Command>(initial(), (_state, cmd) => {
+      seen.push(cmd);
     });
     const sub = recordSubscriber();
     server.subscribe(sub.callback);
@@ -81,13 +69,10 @@ describe("GorpServer — receive", () => {
   });
 
   it("bundles handler-driven ops and ack in the same envelope", async () => {
-    const server = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: (_state, cmd) => {
-        if (cmd.type === "addItem") {
-          server.state.items[cmd.id] = { name: cmd.name };
-        }
-      },
+    const server = new GorpServer<State, Command>(initial(), (_state, cmd) => {
+      if (cmd.type === "addItem") {
+        server.state.items[cmd.id] = { name: cmd.name };
+      }
     });
     const sub = recordSubscriber();
     server.subscribe(sub.callback);
@@ -101,10 +86,7 @@ describe("GorpServer — receive", () => {
   });
 
   it("ack advances monotonically across receives in one tick", async () => {
-    const server = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: () => {},
-    });
+    const server = new GorpServer<State, Command>(initial(), () => {});
     const sub = recordSubscriber();
     server.subscribe(sub.callback);
     server.receive({ type: "incCount" });
@@ -116,10 +98,7 @@ describe("GorpServer — receive", () => {
   });
 
   it("ack persists across flushes (cumulative)", async () => {
-    const server = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: () => {},
-    });
+    const server = new GorpServer<State, Command>(initial(), () => {});
     const sub = recordSubscriber();
     server.subscribe(sub.callback);
     server.receive({ type: "incCount" });
@@ -133,10 +112,7 @@ describe("GorpServer — receive", () => {
 
 describe("GorpServer — subscribe", () => {
   it("unsubscribes cleanly", async () => {
-    const server = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: () => {},
-    });
+    const server = new GorpServer<State, Command>(initial(), () => {});
     const sub = recordSubscriber();
     const unsubscribe = server.subscribe(sub.callback);
     unsubscribe();
@@ -146,10 +122,7 @@ describe("GorpServer — subscribe", () => {
   });
 
   it("suppresses no-op flushes (no ops, ack unchanged)", async () => {
-    const server = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: () => {},
-    });
+    const server = new GorpServer<State, Command>(initial(), () => {});
     const sub = recordSubscriber();
     server.subscribe(sub.callback);
     await flushMicrotasks();

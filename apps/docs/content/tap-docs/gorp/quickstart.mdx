@@ -25,27 +25,24 @@ type Command =
   | { type: "set"; value: number };
 ```
 
-## Define a `GorpConfig`
+## Define a mutator
 
-The state machine — initial state plus the mutator that responds to
-commands — lives in a single `GorpConfig` object that both client and
-server consume. Write it once, share it across the wire.
+The mutator is a single function that responds to commands by writing to
+state. `GorpClient` and `GorpServer` both take the same signature, so the
+same function definition can live in shared code and run on both sides.
 
 ```ts
-import type { GorpConfig } from "@assistant-ui/gorp";
+const initialState: State = { count: 0 };
 
-const config: GorpConfig<State, Command> = {
-  initialState: { count: 0 },
-  mutator: (state, cmd) => {
-    switch (cmd.type) {
-      case "inc":
-        state.count += 1;
-        break;
-      case "set":
-        state.count = cmd.value;
-        break;
-    }
-  },
+const mutator = (state: State, cmd: Command) => {
+  switch (cmd.type) {
+    case "inc":
+      state.count += 1;
+      break;
+    case "set":
+      state.count = cmd.value;
+      break;
+  }
 };
 ```
 
@@ -60,19 +57,20 @@ batched per microtask and emitted as deep-patch ops to every subscriber.
 ```ts
 import { GorpServer, GorpSessions } from "@assistant-ui/gorp";
 
-const server = new GorpServer(config);
+const server = new GorpServer(initialState, mutator);
 const sessions = new GorpSessions(server);
 ```
 
 ## Set up the client
 
 `GorpClient` is a replica plus an optimistic view layered on top of the
-last server-confirmed state. Pass it the same config.
+last server-confirmed state. Pass it the same `initialState` and
+`mutator`.
 
 ```ts
 import { GorpClient } from "@assistant-ui/gorp";
 
-const client = new GorpClient(config);
+const client = new GorpClient(initialState, mutator);
 ```
 
 ## Connect them

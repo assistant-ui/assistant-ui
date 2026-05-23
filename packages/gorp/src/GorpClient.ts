@@ -3,20 +3,6 @@ import { lookupState } from "./internal";
 import type { DeepReadonly } from "./internal";
 import type { GorpMessage } from "./Gorp";
 
-/**
- * Shared definition of a gorp app's state machine. The same config can be
- * passed to both `GorpServer` (authoritative) and `GorpClient` (replica) so
- * a single mutator definition runs identically on both sides.
- *
- * `mutator` runs server-side once per `receive`; client-side it runs once
- * per `send` and again on every replay, so it must be deterministic in
- * `(state, command, seq)`.
- */
-export type GorpConfig<T extends Record<string, unknown>, C> = {
-  initialState: T;
-  mutator: (state: T, command: C, seq: number) => void;
-};
-
 // ────────────────────────────────────────────────────────────
 //  Change Tree
 //
@@ -146,10 +132,13 @@ export class GorpClient<T extends Record<string, unknown>, C> {
   // told to re-read those paths (their values may have been reverted).
   private optimisticDirty: ChangeNode = {};
 
-  constructor(config: GorpConfig<T, C>) {
-    this.mutator = config.mutator;
-    this.committed = new Gorp<T>(config.initialState);
-    this.optimistic = new Gorp<T>(config.initialState);
+  constructor(
+    initialState: T,
+    mutator: (state: T, command: C, seq: number) => void,
+  ) {
+    this.mutator = mutator;
+    this.committed = new Gorp<T>(initialState);
+    this.optimistic = new Gorp<T>(initialState);
     this.previousState = this.optimistic.state;
   }
 

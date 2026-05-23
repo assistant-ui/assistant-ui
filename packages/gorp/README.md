@@ -32,35 +32,6 @@ Wire protocol:
 
 ---
 
-## `GorpConfig<T, C>`
-
-Shared definition of a gorp app's state machine. The same value is passed
-to both `GorpClient` (replica) and `GorpServer` (authoritative), so a
-single mutator runs identically on both sides.
-
-```ts
-type GorpConfig<T, C> = {
-  initialState: T;
-  mutator: (state: T, command: C, seq: number) => void;
-};
-```
-
-Define it once and reuse:
-
-```ts
-const config: GorpConfig<State, Command> = {
-  initialState: { count: 0 },
-  mutator: (state, cmd) => {
-    if (cmd.type === "inc") state.count += 1;
-  },
-};
-
-const server = new GorpServer(config);
-const client = new GorpClient(config);
-```
-
----
-
 ## `GorpClient<T, C>`
 
 Maintains a `committed` replica that follows the server, and an `optimistic`
@@ -69,7 +40,10 @@ a new diff frame; consumers query `isChangedAt` / `getChangedKeys`
 synchronously after `apply()` or `send()` to learn what moved.
 
 ```ts
-new GorpClient<T, C>(config: GorpConfig<T, C>)
+new GorpClient<T, C>(
+  initialState: T,
+  mutator: (state: T, command: C, seq: number) => void,
+)
 
 client.state: DeepReadonly<T>
 client.pending: readonly C[]
@@ -79,6 +53,9 @@ client.apply(message: GorpMessage): void
 client.isChangedAt(path: string[]): boolean
 client.getChangedKeys(path: string[]): string[]
 ```
+
+`mutator` is the same shape `GorpServer` takes, so both sides can share a
+single function definition.
 
 `mutator` runs once per `send` and again on every replay against fresh
 committed state. Must be deterministic in `(state, command, seq)`; `seq` is
@@ -92,7 +69,10 @@ Authoritative state container. No sessions. Pair with `GorpSessions` if you
 want the sessioned wire protocol.
 
 ```ts
-new GorpServer<T, C>(config: GorpConfig<T, C>)
+new GorpServer<T, C>(
+  initialState: T,
+  mutator: (state: T, command: C, seq: number) => void,
+)
 
 server.state: T                                      // live mutable proxy
 server.state = newValue                              // root replace
@@ -100,11 +80,11 @@ server.receive(command: C): void                     // run the mutator
 server.subscribe(cb: (env: SubscribeEnvelope) => void): () => void
 ```
 
-`mutator`'s signature matches `GorpClient` for parity — the `state` arg
-is the same live proxy as `server.state`, and `seq` is a per-server
-monotonic counter that increments on every `receive`. Server handlers
-never replay, so `seq` here is just an id; it's not meaningful the way
-the client's replay-stable seq is.
+`mutator`'s signature matches `GorpClient` — the `state` arg is the same
+live proxy as `server.state`, and `seq` is a per-server monotonic counter
+that increments on every `receive`. Server mutators never replay, so
+`seq` here is just an id; it's not meaningful the way the client's
+replay-stable seq is.
 
 `state` is a live mutable proxy. Property writes queue ops (batched per
 microtask); assigning to `state` itself emits a single `set [] value` op.

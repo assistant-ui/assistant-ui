@@ -8,14 +8,14 @@ const SESSION_TTL_MS = 60 * 60 * 1000;
  * The structural interface `GorpSessions` needs from its inner. Both
  * `GorpServer` and `GorpRelay` satisfy it.
  */
-export interface GorpPubsub<C> {
+interface GorpPubsub<C> {
   readonly state: unknown;
   receive(command: C): void;
   subscribe(callback: (env: GorpMessage) => void): () => void;
 }
 
 /** Per-session state exposed via the `sessions` getter. */
-export type GorpSession = {
+type GorpSession = {
   /** Highest browser-seq the inner has confirmed processed. */
   highWater: number;
   /** Wall-clock ms of last activity, used for TTL pruning. */

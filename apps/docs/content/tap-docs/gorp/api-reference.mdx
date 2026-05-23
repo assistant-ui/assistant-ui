@@ -5,22 +5,6 @@ description: All exports from @assistant-ui/gorp.
 
 ## Types
 
-### GorpConfig
-
-Shared definition of a gorp app's state machine. The same value is passed
-to both `GorpClient` and `GorpServer` so a single mutator runs identically
-on both sides.
-
-```ts
-type GorpConfig<T extends Record<string, unknown>, C> = {
-  initialState: T;
-  mutator: (state: T, command: C, seq: number) => void;
-};
-```
-
-The mutator must be deterministic in `(state, command, seq)` — `GorpClient`
-re-runs it on every replay to rebuild the optimistic view.
-
 ### GorpMessage
 
 Server-to-client envelope.
@@ -49,17 +33,6 @@ Snapshot shape returned by `GorpRelay.serialize`.
 type RelaySerializedState<T> = { state: T };
 ```
 
-### GorpSession
-
-Per-session view exposed by `GorpSessions.sessions` for inspection.
-
-```ts
-type GorpSession = {
-  highWater: number;     // highest browser-seq the inner has confirmed
-  lastActivity: number;  // wall-clock ms of last activity
-};
-```
-
 ### GorpSessionsState
 
 Snapshot shape returned by `GorpSessions.serialize`.
@@ -70,19 +43,6 @@ type GorpSessionsState = {
 };
 ```
 
-### GorpPubsub
-
-The minimum surface `GorpSessions` requires from whatever it wraps —
-satisfied by both `GorpServer` and `GorpRelay`.
-
-```ts
-interface GorpPubsub<C> {
-  readonly state: unknown;
-  receive(command: C): void;
-  subscribe(callback: (env: GorpMessage) => void): () => void;
-}
-```
-
 ---
 
 ## GorpClient
@@ -91,8 +51,15 @@ Leaf-side replica with an optimistic view layered on top of the latest
 server-confirmed state.
 
 ```ts
-new GorpClient<T, C>(config: GorpConfig<T, C>)
+new GorpClient<T, C>(
+  initialState: T,
+  mutator: (state: T, command: C, seq: number) => void,
+)
 ```
+
+The mutator's signature matches `GorpServer` so both sides can share a
+single definition. It must be deterministic in `(state, command, seq)` —
+`GorpClient` re-runs it on every replay to rebuild the optimistic view.
 
 ### Properties
 
@@ -125,7 +92,10 @@ Authoritative state container. Pair with [`GorpSessions`](#gorpsessions)
 for the sessioned wire protocol.
 
 ```ts
-new GorpServer<T, C>(config: GorpConfig<T, C>)
+new GorpServer<T, C>(
+  initialState: T,
+  mutator: (state: T, command: C, seq: number) => void,
+)
 ```
 
 ### Properties
@@ -183,18 +153,11 @@ relay.restore(state: RelaySerializedState<T>): void
 
 ## GorpSessions
 
-Wraps a `GorpPubsub<C>` (either a `GorpServer` or `GorpRelay`) and adds
-the sessioned wire protocol: per-`sessionId` dedup, ack flushing, and
-resume-after-reconnect.
+Wraps either a `GorpServer` or `GorpRelay` and adds the sessioned wire
+protocol: per-`sessionId` dedup, ack flushing, and resume-after-reconnect.
 
 ```ts
-new GorpSessions<C>(inner: GorpPubsub<C>)
-```
-
-### Properties
-
-```ts
-sessions.sessions: ReadonlyMap<string, GorpSession>
+new GorpSessions<C>(inner: GorpServer | GorpRelay)
 ```
 
 ### Methods
@@ -220,8 +183,7 @@ currently-connected sessions are never pruned.
 
 ## GorpWebSocket
 
-Browser WebSocket client with auto-reconnect and seq-aware handshake. Pair
-with [`bindClient`](#bindclient) to wire it to a `GorpClient`.
+Browser WebSocket client with auto-reconnect and seq-aware handshake.
 
 ```ts
 new GorpWebSocket<C>({
@@ -247,22 +209,18 @@ ws.onConnect(cb: () => void): () => void
 ws.onConnectionChange(cb: (state: ConnectionState) => void): () => void
 ```
 
+Wire it to a `GorpClient` by forwarding outbox commands to the socket,
+applying inbound messages, and calling `resync` on every reconnect:
+
+```ts
+const offOutbox = client.onOutbox((cmd) => ws.send(cmd));
+const offMessage = ws.onMessage((msg) => client.apply(msg));
+const offConnect = ws.onConnect(() => client.resync());
+```
+
 ---
 
 ## Functions
-
-### bindClient
-
-Wires a `GorpClient` to a `GorpWebSocket`: forwards outbox commands to the
-socket, applies inbound messages, and calls `resync` on every reconnect.
-Returns an unsubscribe function.
-
-```ts
-function bindClient<T, C>(
-  client: GorpClient<T, C>,
-  transport: GorpWebSocket<C>,
-): () => void;
-```
 
 ### appendText
 
@@ -274,14 +232,4 @@ optimistic mutator too.
 import { appendText } from "@assistant-ui/gorp";
 
 server.state.messages[id].parts[0].text = appendText(chunk);
-```
-
-### snapshotMessage
-
-Builds a `GorpMessage` whose ops are a single root `set` carrying the
-provided value. Used internally to send initial snapshots; rarely needed
-by application code.
-
-```ts
-function snapshotMessage<T>(value: T): GorpMessage;
 ```

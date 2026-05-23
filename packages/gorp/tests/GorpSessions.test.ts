@@ -24,10 +24,7 @@ function recordingClient() {
 
 describe("GorpSessions — over GorpServer", () => {
   it("addClient sends an initial snapshot envelope", () => {
-    const server = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: () => {},
-    });
+    const server = new GorpServer<State, Command>(initial(), () => {});
     const sessions = new GorpSessions<Command>(server);
     const c = recordingClient();
     sessions.addClient("A", 0, c.send);
@@ -39,13 +36,10 @@ describe("GorpSessions — over GorpServer", () => {
   });
 
   it("acks the highest-processed seq per session after receive", async () => {
-    const server = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: (_state, cmd) => {
-        if (cmd.type === "addItem") {
-          server.state.items[cmd.id] = { name: cmd.name };
-        }
-      },
+    const server = new GorpServer<State, Command>(initial(), (_state, cmd) => {
+      if (cmd.type === "addItem") {
+        server.state.items[cmd.id] = { name: cmd.name };
+      }
     });
     const sessions = new GorpSessions<Command>(server);
     const c = recordingClient();
@@ -61,11 +55,8 @@ describe("GorpSessions — over GorpServer", () => {
 
   it("dedups a re-sent seq without re-running the handler", async () => {
     let handlerCalls = 0;
-    const server = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: () => {
-        handlerCalls += 1;
-      },
+    const server = new GorpServer<State, Command>(initial(), () => {
+      handlerCalls += 1;
     });
     const sessions = new GorpSessions<Command>(server);
     const c1 = recordingClient();
@@ -85,11 +76,8 @@ describe("GorpSessions — over GorpServer", () => {
   });
 
   it("fans out to multiple sessions with per-session acks", async () => {
-    const server = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: (_state, cmd) => {
-        if (cmd.type === "incCount") server.state.count += 1;
-      },
+    const server = new GorpServer<State, Command>(initial(), (_state, cmd) => {
+      if (cmd.type === "incCount") server.state.count += 1;
     });
     const sessions = new GorpSessions<Command>(server);
     const a = recordingClient();
@@ -115,16 +103,16 @@ describe("GorpSessions — over GorpRelay", () => {
    * the sandbox-runner ships GorpServer envelopes to the DO over WS.
    */
   function makeFixture() {
-    const upstream = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: (_state, cmd) => {
+    const upstream = new GorpServer<State, Command>(
+      initial(),
+      (_state, cmd) => {
         if (cmd.type === "addItem") {
           upstream.state.items[cmd.id] = { name: cmd.name };
         } else {
           upstream.state.count += 1;
         }
       },
-    });
+    );
 
     const relay = new GorpRelay<State, Command>(initial(), (cmd) => {
       upstream.receive(cmd);
@@ -170,10 +158,7 @@ describe("GorpSessions — over GorpRelay", () => {
 
 describe("GorpSessions — persistence", () => {
   it("round-trips sessions; lastForwardedSeq rebuilt from highWater", async () => {
-    const server = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: () => {},
-    });
+    const server = new GorpServer<State, Command>(initial(), () => {});
     const sessions = new GorpSessions<Command>(server);
     const c = recordingClient();
     const h = sessions.addClient("A", 0, c.send);
@@ -186,11 +171,8 @@ describe("GorpSessions — persistence", () => {
 
     // Restore into a fresh wrapper around a fresh server.
     let handlerCalls = 0;
-    const freshServer = new GorpServer<State, Command>({
-      initialState: initial(),
-      mutator: () => {
-        handlerCalls += 1;
-      },
+    const freshServer = new GorpServer<State, Command>(initial(), () => {
+      handlerCalls += 1;
     });
     const fresh = new GorpSessions<Command>(freshServer);
     fresh.restore(snapshot);
