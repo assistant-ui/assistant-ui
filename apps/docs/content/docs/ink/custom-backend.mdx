@@ -103,7 +103,7 @@ Writes are atomic (temp file + `rename`), so a crash mid-write cannot leave a pa
 |---|---|
 | `dir` | Directory where thread files are stored. Created if missing. |
 | `prefix` | Key prefix for stored files. Defaults to `@assistant-ui:`. Useful when two apps share a directory. |
-| `titleGenerator` | Optional [`TitleGenerationAdapter`](/docs/ink/adapters) — auto-generate thread titles from the first messages. |
+| `titleGenerator` | Optional [`TitleGenerationAdapter`](/docs/ink/adapters) that auto-generates thread titles from the first messages. Pass `createSimpleTitleAdapter()` for the built-in implementation. |
 
 ### When this fits
 
@@ -244,7 +244,7 @@ export function App() {
 
 ## Which option to choose?
 
-| | Option 1: ChatModelAdapter | Option 2: FileStorage | Option 3: RemoteThreadListAdapter |
+| | Option 1: ChatModelAdapter | Option 2: createFileStorageAdapter | Option 3: RemoteThreadListAdapter |
 |---|---|---|---|
 | **Thread storage** | In-memory (process lifetime) | Local disk | Your backend |
 | **Message storage** | In-memory | Local disk | In-memory (can add history adapter for server-side) |
