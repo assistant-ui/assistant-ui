@@ -114,11 +114,12 @@ export {
 export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntime";
 export {
   createFileStorageAdapter,
-  FileStorage,
-  type AsyncStorageLike,
   type CreateFileStorageAdapterOptions,
-  type FileStorageOptions,
-} from "./adapters";
+} from "./adapters/FileStorage";
+export {
+  createSimpleTitleAdapter,
+  type TitleGenerationAdapter,
+} from "@assistant-ui/core/react";
 
 // Primitives
 export * as ThreadPrimitive from "./primitives/thread";
