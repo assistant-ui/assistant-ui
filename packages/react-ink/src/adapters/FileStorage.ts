@@ -8,12 +8,6 @@ import {
   type TitleGenerationAdapter,
 } from "@assistant-ui/core/react";
 
-export type { AsyncStorageLike } from "@assistant-ui/core/react";
-
-export type FileStorageOptions = {
-  dir: string;
-};
-
 export type CreateFileStorageAdapterOptions = {
   dir: string;
   prefix?: string | undefined;
@@ -27,12 +21,9 @@ const isEnoent = (error: unknown): boolean =>
   (error as { code: unknown }).code === "ENOENT";
 
 export class FileStorage implements AsyncStorageLike {
-  private dir: string;
   private ready: Promise<void> | undefined;
 
-  public constructor(options: FileStorageOptions) {
-    this.dir = options.dir;
-  }
+  constructor(private dir: string) {}
 
   private getFilePath(key: string) {
     return join(this.dir, `${encodeURIComponent(key)}.json`);
@@ -40,7 +31,12 @@ export class FileStorage implements AsyncStorageLike {
 
   private ensureDir(): Promise<void> {
     if (!this.ready) {
-      this.ready = mkdir(this.dir, { recursive: true }).then(() => undefined);
+      this.ready = mkdir(this.dir, { recursive: true })
+        .then(() => undefined)
+        .catch((error) => {
+          this.ready = undefined;
+          throw error;
+        });
     }
     return this.ready;
   }
@@ -80,7 +76,7 @@ export const createFileStorageAdapter = (
   const { dir, prefix, titleGenerator } = options;
 
   return createLocalStorageAdapter({
-    storage: new FileStorage({ dir }),
+    storage: new FileStorage(dir),
     prefix,
     titleGenerator,
   });

@@ -23,14 +23,14 @@ afterEach(async () => {
 describe("FileStorage", () => {
   it("returns null for missing keys", async () => {
     const dir = await createTempDir();
-    const storage = new FileStorage({ dir });
+    const storage = new FileStorage(dir);
 
     await expect(storage.getItem("missing")).resolves.toBeNull();
   });
 
   it("writes, reads, and overwrites values", async () => {
     const dir = await createTempDir();
-    const storage = new FileStorage({ dir });
+    const storage = new FileStorage(dir);
 
     await storage.setItem("@assistant-ui:threads", '{"count":1}');
     await expect(storage.getItem("@assistant-ui:threads")).resolves.toBe(
@@ -48,7 +48,7 @@ describe("FileStorage", () => {
 
   it("removes existing keys and ignores missing ones", async () => {
     const dir = await createTempDir();
-    const storage = new FileStorage({ dir });
+    const storage = new FileStorage(dir);
 
     await storage.setItem("thread-1", "hello");
     await storage.removeItem("thread-1");
@@ -59,7 +59,7 @@ describe("FileStorage", () => {
 
   it("uses unique temp files for concurrent writes", async () => {
     const dir = await createTempDir();
-    const storage = new FileStorage({ dir });
+    const storage = new FileStorage(dir);
 
     await Promise.all([
       storage.setItem("thread-1", "first"),
@@ -97,5 +97,58 @@ describe("createFileStorageAdapter", () => {
 
     const threadsFile = join(dir, "%40assistant-ui%3Atest%3Athreads.json");
     await expect(readFile(threadsFile, "utf8")).resolves.toContain("thread-1");
+  });
+
+  it("persists rename, archive, unarchive, and delete across reloads", async () => {
+    const dir = await createTempDir();
+    const adapter = createFileStorageAdapter({ dir });
+
+    await adapter.initialize("thread-1");
+    await adapter.rename("thread-1", "Renamed");
+    await adapter.archive("thread-1");
+
+    await expect(
+      createFileStorageAdapter({ dir }).fetch("thread-1"),
+    ).resolves.toEqual({
+      remoteId: "thread-1",
+      externalId: undefined,
+      status: "archived",
+      title: "Renamed",
+    });
+
+    await adapter.unarchive("thread-1");
+    await expect(
+      createFileStorageAdapter({ dir }).fetch("thread-1"),
+    ).resolves.toEqual({
+      remoteId: "thread-1",
+      externalId: undefined,
+      status: "regular",
+      title: "Renamed",
+    });
+
+    await adapter.delete("thread-1");
+    await expect(createFileStorageAdapter({ dir }).list()).resolves.toEqual({
+      threads: [],
+    });
+  });
+
+  it("generates and persists titles via the titleGenerator", async () => {
+    const dir = await createTempDir();
+    const adapter = createFileStorageAdapter({
+      dir,
+      titleGenerator: { generateTitle: async () => "Generated title" },
+    });
+
+    await adapter.initialize("thread-1");
+    await adapter.generateTitle("thread-1", []);
+
+    await expect(
+      createFileStorageAdapter({ dir }).fetch("thread-1"),
+    ).resolves.toEqual({
+      remoteId: "thread-1",
+      externalId: undefined,
+      status: "regular",
+      title: "Generated title",
+    });
   });
 });
