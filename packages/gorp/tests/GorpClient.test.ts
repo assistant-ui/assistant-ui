@@ -22,7 +22,10 @@ function makeClient() {
       state.count++;
     }
   };
-  const client = new GorpClient<State, Command>(initial(), mutator);
+  const client = new GorpClient<State, Command>({
+    initialState: initial(),
+    mutator: mutator,
+  });
   return { client, replays };
 }
 
@@ -127,10 +130,10 @@ describe("GorpClient — replay determinism", () => {
     const mutator = (state: SmartState, _: SmartCommand) => {
       if (state.latestId) state.tags[state.latestId] = true;
     };
-    const client = new GorpClient<SmartState, SmartCommand>(
-      initialSmart(),
+    const client = new GorpClient<SmartState, SmartCommand>({
+      initialState: initialSmart(),
       mutator,
-    );
+    });
     // Server says latestId is "first".
     client.apply({
       ops: [{ type: "set", path: ["latestId"], value: "first" }],

@@ -1,6 +1,7 @@
 import { Gorp } from "./Gorp";
 import type { GorpMessage, GorpOperation } from "./Gorp";
 import { Flusher } from "./internal";
+import type { GorpConfig } from "./GorpClient";
 
 /**
  * Authoritative replica that owns one `T`. Writes through the live `state`
@@ -17,13 +18,14 @@ import { Flusher } from "./internal";
  */
 export class GorpServer<T extends Record<string, unknown>, C> {
   private readonly gorp: Gorp<T>;
-  private readonly commandHandler: (command: C) => void;
+  private readonly mutator: (state: T, command: C, seq: number) => void;
   private readonly flusher = new Flusher();
   private readonly _state: T;
+  private _nextSeq = 0;
 
-  constructor(initialState: T, commandHandler: (command: C) => void) {
-    this.gorp = new Gorp<T>(initialState);
-    this.commandHandler = commandHandler;
+  constructor(config: GorpConfig<T, C>) {
+    this.gorp = new Gorp<T>(config.initialState);
+    this.mutator = config.mutator;
     this._state = this.gorp.draft((op) => this.flusher.enqueueOp(op));
   }
 
@@ -44,7 +46,7 @@ export class GorpServer<T extends Record<string, unknown>, C> {
    * handler makes accumulate into the same flush as the ack bump.
    */
   receive(command: C): void {
-    this.commandHandler(command);
+    this.mutator(this._state, command, this._nextSeq++);
     this.flusher.bumpAck();
   }
 

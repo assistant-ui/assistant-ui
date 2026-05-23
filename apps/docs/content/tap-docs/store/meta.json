@@ -1,0 +1,17 @@
+{
+  "title": "Store",
+  "root": true,
+  "pages": [
+    "why-store",
+    "quickstart",
+    "scopes",
+    "methods",
+    "state",
+    "events",
+    "meta",
+    "child-scopes",
+    "rendering-lists",
+    "sibling-scopes",
+    "api-reference"
+  ]
+}

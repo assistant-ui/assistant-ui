@@ -1,0 +1,287 @@
+---
+title: API Reference
+description: All exports from @assistant-ui/gorp.
+---
+
+## Types
+
+### GorpConfig
+
+Shared definition of a gorp app's state machine. The same value is passed
+to both `GorpClient` and `GorpServer` so a single mutator runs identically
+on both sides.
+
+```ts
+type GorpConfig<T extends Record<string, unknown>, C> = {
+  initialState: T;
+  mutator: (state: T, command: C, seq: number) => void;
+};
+```
+
+The mutator must be deterministic in `(state, command, seq)` — `GorpClient`
+re-runs it on every replay to rebuild the optimistic view.
+
+### GorpMessage
+
+Server-to-client envelope.
+
+```ts
+type GorpMessage = {
+  ops: GorpOperation[];
+  ack?: number;
+};
+```
+
+`ops` is a deep patch list; `ack` is the per-session high-water seq the
+inner has processed. Receiving the same `ack` twice is harmless.
+
+### ConnectionState
+
+```ts
+type ConnectionState = "connecting" | "connected" | "disconnected";
+```
+
+### RelaySerializedState
+
+Snapshot shape returned by `GorpRelay.serialize`.
+
+```ts
+type RelaySerializedState<T> = { state: T };
+```
+
+### GorpSession
+
+Per-session view exposed by `GorpSessions.sessions` for inspection.
+
+```ts
+type GorpSession = {
+  highWater: number;     // highest browser-seq the inner has confirmed
+  lastActivity: number;  // wall-clock ms of last activity
+};
+```
+
+### GorpSessionsState
+
+Snapshot shape returned by `GorpSessions.serialize`.
+
+```ts
+type GorpSessionsState = {
+  sessions: Record<string, { highWater: number }>;
+};
+```
+
+### GorpPubsub
+
+The minimum surface `GorpSessions` requires from whatever it wraps —
+satisfied by both `GorpServer` and `GorpRelay`.
+
+```ts
+interface GorpPubsub<C> {
+  readonly state: unknown;
+  receive(command: C): void;
+  subscribe(callback: (env: GorpMessage) => void): () => void;
+}
+```
+
+---
+
+## GorpClient
+
+Leaf-side replica with an optimistic view layered on top of the latest
+server-confirmed state.
+
+```ts
+new GorpClient<T, C>(config: GorpConfig<T, C>)
+```
+
+### Properties
+
+```ts
+client.state: DeepReadonly<T>     // optimistic view (committed + replay(pending))
+client.pending: readonly C[]      // commands awaiting server confirmation
+client.firstPendingSeq: number    // seq of pending[0]; pass on (re)connect handshake
+```
+
+### Methods
+
+```ts
+client.send(command: C): void
+client.apply(message: GorpMessage): void
+client.resync(): void              // re-emit pending to outbox after reconnect
+client.onOutbox(cb: (command: C) => void): () => void
+client.onChange(cb: () => void): () => void
+client.isChangedAt(path: string[]): boolean
+client.getChangedKeys(path: string[]): string[]
+```
+
+`isChangedAt` / `getChangedKeys` are valid synchronously after `apply()` or
+`send()` — they describe what moved since the last public method call.
+
+---
+
+## GorpServer
+
+Authoritative state container. Pair with [`GorpSessions`](#gorpsessions)
+for the sessioned wire protocol.
+
+```ts
+new GorpServer<T, C>(config: GorpConfig<T, C>)
+```
+
+### Properties
+
+```ts
+server.state: T          // live mutable proxy — writes queue ops, batched per microtask
+server.state = newValue  // root replace — emits a single `set []` op
+```
+
+Mutating array methods (`push`, `pop`, `splice`, …) throw — use
+`state.list = [...state.list, x]` instead.
+
+### Methods
+
+```ts
+server.receive(command: C): void
+server.subscribe(cb: (env: GorpMessage) => void): () => void
+```
+
+`receive` runs the mutator synchronously and bumps the cumulative `ack`
+counter; ops + ack land in the same envelope.
+
+---
+
+## GorpRelay
+
+State mirror + upstream pipe. Same `state`/`receive`/`subscribe` surface
+as `GorpServer`, but state changes come from upstream `GorpMessage`
+envelopes instead of a local mutator.
+
+```ts
+new GorpRelay<T, C>(
+  initialState: T,
+  sendUpstream: (command: C) => void,
+)
+```
+
+### Properties
+
+```ts
+relay.state: DeepReadonly<T>
+```
+
+### Methods
+
+```ts
+relay.receive(command: C): void                  // forward upstream
+relay.applyUpstream(msg: GorpMessage): void      // inbound from upstream
+relay.subscribe(cb: (env: GorpMessage) => void): () => void
+relay.serialize(): RelaySerializedState<T>
+relay.restore(state: RelaySerializedState<T>): void
+```
+
+---
+
+## GorpSessions
+
+Wraps a `GorpPubsub<C>` (either a `GorpServer` or `GorpRelay`) and adds
+the sessioned wire protocol: per-`sessionId` dedup, ack flushing, and
+resume-after-reconnect.
+
+```ts
+new GorpSessions<C>(inner: GorpPubsub<C>)
+```
+
+### Properties
+
+```ts
+sessions.sessions: ReadonlyMap<string, GorpSession>
+```
+
+### Methods
+
+```ts
+sessions.addClient(
+  sessionId: string,
+  fromSeq: number,
+  send: (msg: GorpMessage) => void,
+): { receive(command: C): void; remove(): void }
+
+sessions.close(): void
+sessions.serialize(): GorpSessionsState
+sessions.restore(state: GorpSessionsState): void
+```
+
+`addClient` sends an initial `{ ops: [{ set [] state }], ack? }` envelope
+so a reconnecting client splices any already-processed pending without a
+round-trip. Sessions are retained for 1 hour after their last activity;
+currently-connected sessions are never pruned.
+
+---
+
+## GorpWebSocket
+
+Browser WebSocket client with auto-reconnect and seq-aware handshake. Pair
+with [`bindClient`](#bindclient) to wire it to a `GorpClient`.
+
+```ts
+new GorpWebSocket<C>({
+  url: string;
+  sessionId: string;
+  getFromSeq: () => number;
+})
+```
+
+### Properties
+
+```ts
+ws.connection: ConnectionState
+```
+
+### Methods
+
+```ts
+ws.send(command: C): void
+ws.close(): void
+ws.onMessage(cb: (msg: GorpMessage) => void): () => void
+ws.onConnect(cb: () => void): () => void
+ws.onConnectionChange(cb: (state: ConnectionState) => void): () => void
+```
+
+---
+
+## Functions
+
+### bindClient
+
+Wires a `GorpClient` to a `GorpWebSocket`: forwards outbox commands to the
+socket, applies inbound messages, and calls `resync` on every reconnect.
+Returns an unsubscribe function.
+
+```ts
+function bindClient<T, C>(
+  client: GorpClient<T, C>,
+  transport: GorpWebSocket<C>,
+): () => void;
+```
+
+### appendText
+
+Marker for the `append-text` op type — streaming text concatenation
+without retransmitting prior content. Works inside `GorpClient`'s
+optimistic mutator too.
+
+```ts
+import { appendText } from "@assistant-ui/gorp";
+
+server.state.messages[id].parts[0].text = appendText(chunk);
+```
+
+### snapshotMessage
+
+Builds a `GorpMessage` whose ops are a single root `set` carrying the
+provided value. Used internally to send initial snapshots; rarely needed
+by application code.
+
+```ts
+function snapshotMessage<T>(value: T): GorpMessage;
+```

@@ -23,6 +23,8 @@ type DocsRootLayoutProps = {
   tree: PageTree.Root;
   section: string;
   sectionHref: string;
+  /** Set false for sections that don't share the main docs' React / RN / Ink platform tree. */
+  platformAware?: boolean;
   children: ReactNode;
 };
 
@@ -30,6 +32,7 @@ export function DocsRootLayout({
   tree,
   section,
   sectionHref,
+  platformAware = true,
   children,
 }: DocsRootLayoutProps) {
   return (
@@ -50,7 +53,7 @@ export function DocsRootLayout({
                 </DocsLayout>
               </DocsContent>
               <DocsSidebar>
-                <SidebarContent tree={tree} />
+                <SidebarContent tree={tree} platformAware={platformAware} />
               </DocsSidebar>
             </DocsSidebarProvider>
           </PlatformProvider>

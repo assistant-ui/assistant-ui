@@ -1,0 +1,98 @@
+---
+title: Quickstart
+description: Install gorp and wire up your first client/server replica.
+---
+
+## Installation
+
+```sh
+npm install @assistant-ui/gorp
+```
+
+## Define your state and commands
+
+A gorp app has two types: the shape of the synced **state**, and the
+**commands** the client can send. Both live in shared code so client and
+server can stay in lockstep.
+
+```ts
+type State = {
+  count: number;
+};
+
+type Command =
+  | { type: "inc" }
+  | { type: "set"; value: number };
+```
+
+## Define a `GorpConfig`
+
+The state machine — initial state plus the mutator that responds to
+commands — lives in a single `GorpConfig` object that both client and
+server consume. Write it once, share it across the wire.
+
+```ts
+import type { GorpConfig } from "@assistant-ui/gorp";
+
+const config: GorpConfig<State, Command> = {
+  initialState: { count: 0 },
+  mutator: (state, cmd) => {
+    switch (cmd.type) {
+      case "inc":
+        state.count += 1;
+        break;
+      case "set":
+        state.count = cmd.value;
+        break;
+    }
+  },
+};
+```
+
+The mutator must be deterministic in `(state, command, seq)` — `GorpClient`
+re-runs it on every replay to rebuild the optimistic view.
+
+## Set up the server
+
+`GorpServer` owns the authoritative state. Writes inside the mutator are
+batched per microtask and emitted as deep-patch ops to every subscriber.
+
+```ts
+import { GorpServer, GorpSessions } from "@assistant-ui/gorp";
+
+const server = new GorpServer(config);
+const sessions = new GorpSessions(server);
+```
+
+## Set up the client
+
+`GorpClient` is a replica plus an optimistic view layered on top of the
+last server-confirmed state. Pass it the same config.
+
+```ts
+import { GorpClient } from "@assistant-ui/gorp";
+
+const client = new GorpClient(config);
+```
+
+## Connect them
+
+Any duplex transport works. Pipe `sessions.addClient` outputs over the
+wire and feed inbound messages into `client.apply`.
+
+```ts
+const ws = new WebSocket(
+  `wss://example.com/gorp?sessionId=${sessionId}&fromSeq=${client.firstPendingSeq}`,
+);
+
+ws.onmessage = (e) => client.apply(JSON.parse(e.data));
+
+// send a command
+ws.send(JSON.stringify({ type: "inc" }));
+client.send({ type: "inc" }); // mirror locally for the optimistic view
+
+client.state.count; // 1, immediately
+```
+
+The server's first envelope is always a full snapshot, so a fresh client
+catches up without an explicit handshake. After that, only patches flow.

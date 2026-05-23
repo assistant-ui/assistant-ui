@@ -1,6 +1,7 @@
 export { appendText, snapshotMessage } from "./Gorp";
 export type { GorpMessage } from "./Gorp";
 export { GorpClient } from "./GorpClient";
+export type { GorpConfig } from "./GorpClient";
 export { GorpServer } from "./GorpServer";
 export { GorpRelay } from "./GorpRelay";
 export type { RelaySerializedState } from "./GorpRelay";

@@ -187,7 +187,13 @@ function SidebarSection({
   );
 }
 
-export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
+export function SidebarContent({
+  tree,
+  platformAware = true,
+}: {
+  tree?: PageTree.Root;
+  platformAware?: boolean;
+}) {
   const { setOpen: setSidebarOpen } = useDocsSidebar();
   const pathname = usePathname();
   const { platform, setPlatform } = usePlatform();
@@ -205,8 +211,9 @@ export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
   );
 
   const sections = useMemo(
-    () => buildPlatformSections(allFolders, platform),
-    [allFolders, platform],
+    () =>
+      platformAware ? buildPlatformSections(allFolders, platform) : allFolders,
+    [allFolders, platform, platformAware],
   );
 
   const activePath = useMemo(() => {
@@ -276,7 +283,7 @@ export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
         ref={navRef}
         className="sidebar-tree-content flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pt-4 pb-4"
       >
-        <PlatformSwitcher tree={tree} />
+        {platformAware && <PlatformSwitcher tree={tree} />}
         {sections.map((section) => (
           <SidebarSection
             key={section.$id}

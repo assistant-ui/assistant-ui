@@ -1,0 +1,14 @@
+{
+  "title": "Tap",
+  "root": true,
+  "pages": [
+    "quickstart",
+    "resources",
+    "hooks",
+    "composition",
+    "trees-and-rerenders",
+    "lifecycle",
+    "context",
+    "api-reference"
+  ]
+}

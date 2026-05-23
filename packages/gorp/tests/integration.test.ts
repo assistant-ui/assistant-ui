@@ -29,13 +29,19 @@ function setup(sessionId = "session-A") {
     }
   };
 
-  const client = new GorpClient<State, Command>(initial(), optimistic);
-  const server = new GorpServer<State, Command>(initial(), (cmd) => {
-    if (cmd.type === "addItem") {
-      server.state.items[cmd.id] = { name: cmd.name };
-    } else {
-      server.state.count += 1;
-    }
+  const client = new GorpClient<State, Command>({
+    initialState: initial(),
+    mutator: optimistic,
+  });
+  const server = new GorpServer<State, Command>({
+    initialState: initial(),
+    mutator: (_state, cmd) => {
+      if (cmd.type === "addItem") {
+        server.state.items[cmd.id] = { name: cmd.name };
+      } else {
+        server.state.count += 1;
+      }
+    },
   });
   const sessions = new GorpSessions<Command>(server);
 
@@ -127,7 +133,10 @@ describe("integration", () => {
     // Same server (via a.sessions); second client joins.
     const b = (() => {
       const optimistic = () => {};
-      const client = new GorpClient<State, Command>(initial(), optimistic);
+      const client = new GorpClient<State, Command>({
+        initialState: initial(),
+        mutator: optimistic,
+      });
       const sendToB = (msg: GorpMessage) => client.apply(msg);
       const handle = a.sessions.addClient(
         "session-B",
