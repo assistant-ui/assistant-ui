@@ -3,7 +3,7 @@ title: MessagePrimitive
 description: Message primitives for rendering assistant and user turns, message parts, attachments, actions, editing, and branch controls.
 ---
 
-import { MessagePrimitiveAttachmentByIndexProps, MessagePrimitiveAttachmentsProps, MessagePrimitiveContentProps, MessagePrimitiveGroupedPartsProps, MessagePrimitiveIfProps, MessagePrimitivePartByIndexProps, MessagePrimitivePartsProps, MessagePrimitiveQuoteProps, MessagePrimitiveRootProps, MessagePrimitiveUnstable_PartsGroupedByParentIdProps, MessagePrimitiveUnstable_PartsGroupedProps } from "@/generated/typeDocs";
+import { MessagePrimitiveAttachmentByIndexProps, MessagePrimitiveAttachmentsProps, MessagePrimitiveContentProps, MessagePrimitiveGenerativeUIProps, MessagePrimitiveGroupedPartsProps, MessagePrimitiveIfProps, MessagePrimitivePartByIndexProps, MessagePrimitivePartsProps, MessagePrimitiveQuoteProps, MessagePrimitiveRootProps, MessagePrimitiveUnstable_PartsGroupedByParentIdProps, MessagePrimitiveUnstable_PartsGroupedProps } from "@/generated/typeDocs";
 import { MessagePrimitive as MessagePrimitiveDocs } from "@/generated/primitiveDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
@@ -202,6 +202,22 @@ const AssistantMessage = () => (
 )}
 
 <ParametersTable {...MessagePrimitiveGroupedPartsProps} />
+
+### GenerativeUI
+
+{MessagePrimitiveDocs.GenerativeUI?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {MessagePrimitiveDocs.GenerativeUI.deprecated}
+  </Callout>
+)}
+
+{MessagePrimitiveDocs.GenerativeUI?.description}
+
+{MessagePrimitiveDocs.GenerativeUI?.element && (
+  <p>This primitive renders a <code>{`<${MessagePrimitiveDocs.GenerativeUI?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+<ParametersTable {...MessagePrimitiveGenerativeUIProps} />
 
 ### Unstable_PartsGrouped
 
