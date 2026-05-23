@@ -51,22 +51,32 @@ Leaf-side replica with an optimistic view layered on top of the latest
 server-confirmed state.
 
 ```ts
-new GorpClient<T, C>(
-  initialState: T,
-  mutator: (state: T, command: C, seq: number) => void,
-)
+new GorpClient<T, C>(config: GorpClient.Config<T, C>)
 ```
 
-The mutator's signature matches `GorpServer` so both sides can share a
-single definition. It must be deterministic in `(state, command, seq)` —
-`GorpClient` re-runs it on every replay to rebuild the optimistic view.
+### `GorpClient.Config<T, C>`
+
+```ts
+{
+  initialState: T;
+  mutator: (state: T, command: C, seq: number) => void;
+  send: (command: C) => void;
+}
+```
+
+The mutator must be deterministic in `(state, command, seq)` — `GorpClient`
+re-runs it on every replay to rebuild the optimistic view. The shape
+matches `GorpServer.Config` so a single function can run on both sides.
+
+`send` is invoked synchronously on every `client.send(cmd)` and again for
+every pending entry when `client.resync()` is called.
 
 ### Properties
 
 ```ts
 client.state: DeepReadonly<T>     // optimistic view (committed + replay(pending))
-client.pending: readonly C[]      // commands awaiting server confirmation
-client.firstPendingSeq: number    // seq of pending[0]; pass on (re)connect handshake
+client.pending: readonly C[]
+client.firstPendingSeq: number    // pass on (re)connect handshake
 ```
 
 ### Methods
@@ -74,15 +84,14 @@ client.firstPendingSeq: number    // seq of pending[0]; pass on (re)connect hand
 ```ts
 client.send(command: C): void
 client.apply(message: GorpMessage): void
-client.resync(): void              // re-emit pending to outbox after reconnect
-client.onOutbox(cb: (command: C) => void): () => void
+client.resync(): void              // re-emit pending via config.send
 client.onChange(cb: () => void): () => void
 client.isChangedAt(path: string[]): boolean
 client.getChangedKeys(path: string[]): string[]
 ```
 
-`isChangedAt` / `getChangedKeys` are valid synchronously after `apply()` or
-`send()` — they describe what moved since the last public method call.
+`isChangedAt` / `getChangedKeys` are valid synchronously after `apply()`
+or `send()` — they describe what moved since the last public method call.
 
 ---
 
@@ -92,10 +101,16 @@ Authoritative state container. Pair with [`GorpSessions`](#gorpsessions)
 for the sessioned wire protocol.
 
 ```ts
-new GorpServer<T, C>(
-  initialState: T,
-  mutator: (state: T, command: C, seq: number) => void,
-)
+new GorpServer<T, C>(config: GorpServer.Config<T, C>)
+```
+
+### `GorpServer.Config<T, C>`
+
+```ts
+{
+  initialState: T;
+  mutator: (state: T, command: C, seq: number) => void;
+}
 ```
 
 ### Properties
@@ -115,9 +130,6 @@ server.receive(command: C): void
 server.subscribe(cb: (env: GorpMessage) => void): () => void
 ```
 
-`receive` runs the mutator synchronously and bumps the cumulative `ack`
-counter; ops + ack land in the same envelope.
-
 ---
 
 ## GorpRelay
@@ -127,10 +139,16 @@ as `GorpServer`, but state changes come from upstream `GorpMessage`
 envelopes instead of a local mutator.
 
 ```ts
-new GorpRelay<T, C>(
-  initialState: T,
-  sendUpstream: (command: C) => void,
-)
+new GorpRelay<T, C>(config: GorpRelay.Config<T, C>)
+```
+
+### `GorpRelay.Config<T, C>`
+
+```ts
+{
+  initialState: T;
+  send: (command: C) => void;       // upstream transport callback
+}
 ```
 
 ### Properties
@@ -142,7 +160,7 @@ relay.state: DeepReadonly<T>
 ### Methods
 
 ```ts
-relay.receive(command: C): void                  // forward upstream
+relay.receive(command: C): void                  // forward upstream via config.send
 relay.applyUpstream(msg: GorpMessage): void      // inbound from upstream
 relay.subscribe(cb: (env: GorpMessage) => void): () => void
 relay.serialize(): RelaySerializedState<T>
@@ -209,11 +227,10 @@ ws.onConnect(cb: () => void): () => void
 ws.onConnectionChange(cb: (state: ConnectionState) => void): () => void
 ```
 
-Wire it to a `GorpClient` by forwarding outbox commands to the socket,
-applying inbound messages, and calling `resync` on every reconnect:
+Wire it to a `GorpClient` by passing `send: (cmd) => ws.send(cmd)` in the
+client config, then in an effect:
 
 ```ts
-const offOutbox = client.onOutbox((cmd) => ws.send(cmd));
 const offMessage = ws.onMessage((msg) => client.apply(msg));
 const offConnect = ws.onConnect(() => client.resync());
 ```

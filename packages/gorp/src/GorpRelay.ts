@@ -21,12 +21,12 @@ export type RelaySerializedState<T> = {
  */
 export class GorpRelay<T extends Record<string, unknown>, C> {
   private readonly gorp: Gorp<T>;
-  private readonly sendUpstream: (command: C) => void;
+  private readonly _send: (command: C) => void;
   private readonly subscribers = new Set<(env: GorpMessage) => void>();
 
-  constructor(initialState: T, sendUpstream: (command: C) => void) {
-    this.gorp = new Gorp<T>(initialState);
-    this.sendUpstream = sendUpstream;
+  constructor(config: GorpRelay.Config<T, C>) {
+    this.gorp = new Gorp<T>(config.initialState);
+    this._send = config.send;
   }
 
   /** Mirror of upstream state. Read-only. */
@@ -36,7 +36,7 @@ export class GorpRelay<T extends Record<string, unknown>, C> {
 
   /** Forward a command upstream. */
   receive(command: C): void {
-    this.sendUpstream(command);
+    this._send(command);
   }
 
   /**
@@ -63,4 +63,17 @@ export class GorpRelay<T extends Record<string, unknown>, C> {
   restore(serialized: RelaySerializedState<T>): void {
     this.gorp.apply(snapshotMessage(serialized.state).ops);
   }
+}
+
+export namespace GorpRelay {
+  /**
+   * Constructor config for `GorpRelay`. No mutator — state changes come from
+   * upstream `GorpMessage`s applied via `applyUpstream`. `send` is the
+   * upstream transport callback the relay invokes for every command it
+   * forwards.
+   */
+  export type Config<T extends Record<string, unknown>, C> = {
+    initialState: T;
+    send: (command: C) => void;
+  };
 }

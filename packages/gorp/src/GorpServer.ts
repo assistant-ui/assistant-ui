@@ -22,12 +22,9 @@ export class GorpServer<T extends Record<string, unknown>, C> {
   private readonly _state: T;
   private _nextSeq = 0;
 
-  constructor(
-    initialState: T,
-    mutator: (state: T, command: C, seq: number) => void,
-  ) {
-    this.gorp = new Gorp<T>(initialState);
-    this.mutator = mutator;
+  constructor(config: GorpServer.Config<T, C>) {
+    this.gorp = new Gorp<T>(config.initialState);
+    this.mutator = config.mutator;
     this._state = this.gorp.draft((op) => this.flusher.enqueueOp(op));
   }
 
@@ -55,4 +52,16 @@ export class GorpServer<T extends Record<string, unknown>, C> {
   subscribe(callback: (env: GorpMessage) => void): () => void {
     return this.flusher.subscribe(callback);
   }
+}
+
+export namespace GorpServer {
+  /**
+   * Constructor config for `GorpServer`. Same `(state, command, seq) => void`
+   * mutator shape as `GorpClient` so a single function definition works on
+   * both sides.
+   */
+  export type Config<T extends Record<string, unknown>, C> = {
+    initialState: T;
+    mutator: (state: T, command: C, seq: number) => void;
+  };
 }

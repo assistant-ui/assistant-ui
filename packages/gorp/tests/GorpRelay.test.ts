@@ -19,9 +19,10 @@ function recordSubscriber() {
 describe("GorpRelay — forwarding", () => {
   it("forwards each received command via sendUpstream", () => {
     const sent: Command[] = [];
-    const relay = new GorpRelay<State, Command>(initial(), (cmd) =>
-      sent.push(cmd),
-    );
+    const relay = new GorpRelay<State, Command>({
+      initialState: initial(),
+      send: (cmd) => sent.push(cmd),
+    });
     relay.receive({ type: "incCount" });
     relay.receive({ type: "incCount" });
     expect(sent).toHaveLength(2);
@@ -30,7 +31,10 @@ describe("GorpRelay — forwarding", () => {
 
 describe("GorpRelay — applyUpstream", () => {
   it("applies ops into the state mirror and forwards them to subscribers", () => {
-    const relay = new GorpRelay<State, Command>(initial(), () => {});
+    const relay = new GorpRelay<State, Command>({
+      initialState: initial(),
+      send: () => {},
+    });
     const sub = recordSubscriber();
     relay.subscribe(sub.callback);
     relay.applyUpstream({
@@ -43,7 +47,10 @@ describe("GorpRelay — applyUpstream", () => {
   });
 
   it("forwards ack verbatim to subscribers", () => {
-    const relay = new GorpRelay<State, Command>(initial(), () => {});
+    const relay = new GorpRelay<State, Command>({
+      initialState: initial(),
+      send: () => {},
+    });
     const sub = recordSubscriber();
     relay.subscribe(sub.callback);
     relay.applyUpstream({ ops: [], ack: 5 });
@@ -51,7 +58,10 @@ describe("GorpRelay — applyUpstream", () => {
   });
 
   it("synchronous emit — no microtask delay", () => {
-    const relay = new GorpRelay<State, Command>(initial(), () => {});
+    const relay = new GorpRelay<State, Command>({
+      initialState: initial(),
+      send: () => {},
+    });
     const sub = recordSubscriber();
     relay.subscribe(sub.callback);
     relay.applyUpstream({ ops: [{ type: "set", path: ["count"], value: 1 }] });
@@ -60,7 +70,10 @@ describe("GorpRelay — applyUpstream", () => {
   });
 
   it("suppresses fully-empty envelopes", () => {
-    const relay = new GorpRelay<State, Command>(initial(), () => {});
+    const relay = new GorpRelay<State, Command>({
+      initialState: initial(),
+      send: () => {},
+    });
     const sub = recordSubscriber();
     relay.subscribe(sub.callback);
     relay.applyUpstream({ ops: [] });
@@ -70,7 +83,10 @@ describe("GorpRelay — applyUpstream", () => {
 
 describe("GorpRelay — persistence", () => {
   it("round-trips state", () => {
-    const relay = new GorpRelay<State, Command>(initial(), () => {});
+    const relay = new GorpRelay<State, Command>({
+      initialState: initial(),
+      send: () => {},
+    });
     relay.applyUpstream({
       ops: [{ type: "set", path: ["count"], value: 5 }],
     });
@@ -78,7 +94,10 @@ describe("GorpRelay — persistence", () => {
     const serialized = relay.serialize();
     expect(serialized.state).toEqual({ count: 5 });
 
-    const fresh = new GorpRelay<State, Command>(initial(), () => {});
+    const fresh = new GorpRelay<State, Command>({
+      initialState: initial(),
+      send: () => {},
+    });
     fresh.restore(serialized);
     expect(fresh.state).toEqual({ count: 5 });
   });

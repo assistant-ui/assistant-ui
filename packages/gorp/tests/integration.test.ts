@@ -29,18 +29,27 @@ function setup(sessionId = "session-A") {
     }
   };
 
-  const client = new GorpClient<State, Command>(initial(), optimistic);
-  const server = new GorpServer<State, Command>(initial(), (_state, cmd) => {
-    if (cmd.type === "addItem") {
-      server.state.items[cmd.id] = { name: cmd.name };
-    } else {
-      server.state.count += 1;
-    }
+  let connected = true;
+  let handle: { receive(cmd: Command): void; remove(): void } | null = null;
+
+  const client = new GorpClient<State, Command>({
+    initialState: initial(),
+    mutator: optimistic,
+    send: (cmd) => {
+      if (connected && handle) handle.receive(cmd);
+    },
+  });
+  const server = new GorpServer<State, Command>({
+    initialState: initial(),
+    mutator: (_state, cmd) => {
+      if (cmd.type === "addItem") {
+        server.state.items[cmd.id] = { name: cmd.name };
+      } else {
+        server.state.count += 1;
+      }
+    },
   });
   const sessions = new GorpSessions<Command>(server);
-
-  let connected = true;
-  let handle: ReturnType<typeof sessions.addClient> | null = null;
 
   const sendToClient = (msg: GorpMessage) => {
     if (connected) client.apply(msg);
@@ -52,7 +61,7 @@ function setup(sessionId = "session-A") {
       client.firstPendingSeq,
       sendToClient,
     );
-    for (const cmd of client.pending) handle.receive(cmd);
+    client.resync();
   };
   connect();
 
@@ -62,7 +71,6 @@ function setup(sessionId = "session-A") {
     sessions,
     userSend(cmd: Command) {
       client.send(cmd);
-      if (connected && handle) handle.receive(cmd);
     },
     disconnect() {
       connected = false;
@@ -127,14 +135,20 @@ describe("integration", () => {
     // Same server (via a.sessions); second client joins.
     const b = (() => {
       const optimistic = () => {};
-      const client = new GorpClient<State, Command>(initial(), optimistic);
+      let bHandle: { receive(cmd: Command): void; remove(): void } | null =
+        null;
+      const client = new GorpClient<State, Command>({
+        initialState: initial(),
+        mutator: optimistic,
+        send: (cmd) => bHandle?.receive(cmd),
+      });
       const sendToB = (msg: GorpMessage) => client.apply(msg);
-      const handle = a.sessions.addClient(
+      bHandle = a.sessions.addClient(
         "session-B",
         client.firstPendingSeq,
         sendToB,
       );
-      return { client, handle };
+      return { client, handle: bHandle };
     })();
 
     a.userSend({ type: "addItem", id: "a", name: "alpha" });

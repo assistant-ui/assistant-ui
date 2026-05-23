@@ -40,26 +40,35 @@ a new diff frame; consumers query `isChangedAt` / `getChangedKeys`
 synchronously after `apply()` or `send()` to learn what moved.
 
 ```ts
-new GorpClient<T, C>(
-  initialState: T,
-  mutator: (state: T, command: C, seq: number) => void,
-)
+new GorpClient<T, C>(config: GorpClient.Config<T, C>)
+
+namespace GorpClient {
+  type Config<T, C> = {
+    initialState: T;
+    mutator: (state: T, command: C, seq: number) => void;
+    send: (command: C) => void;
+  };
+}
 
 client.state: DeepReadonly<T>
 client.pending: readonly C[]
 client.firstPendingSeq: number
 client.send(command: C): void
 client.apply(message: GorpMessage): void
+client.resync(): void
+client.onChange(cb: () => void): () => void
 client.isChangedAt(path: string[]): boolean
 client.getChangedKeys(path: string[]): string[]
 ```
 
-`mutator` is the same shape `GorpServer` takes, so both sides can share a
-single function definition.
+`mutator` has the same `(state, command, seq) => void` shape `GorpServer`
+takes, so both sides can share a single function definition. It runs once
+per `send` and again on every replay against fresh committed state —
+must be deterministic. `seq` is stable across replays — derive any
+optimistic ids from it.
 
-`mutator` runs once per `send` and again on every replay against fresh
-committed state. Must be deterministic in `(state, command, seq)`; `seq` is
-stable across replays — derive any optimistic ids from it.
+`send` is the outbound transport callback. Gorp invokes it for every
+`send(cmd)` call and re-invokes it for each pending entry on `resync()`.
 
 ---
 
@@ -69,15 +78,19 @@ Authoritative state container. No sessions. Pair with `GorpSessions` if you
 want the sessioned wire protocol.
 
 ```ts
-new GorpServer<T, C>(
-  initialState: T,
-  mutator: (state: T, command: C, seq: number) => void,
-)
+new GorpServer<T, C>(config: GorpServer.Config<T, C>)
+
+namespace GorpServer {
+  type Config<T, C> = {
+    initialState: T;
+    mutator: (state: T, command: C, seq: number) => void;
+  };
+}
 
 server.state: T                                      // live mutable proxy
 server.state = newValue                              // root replace
 server.receive(command: C): void                     // run the mutator
-server.subscribe(cb: (env: SubscribeEnvelope) => void): () => void
+server.subscribe(cb: (env: GorpMessage) => void): () => void
 ```
 
 `mutator`'s signature matches `GorpClient` — the `state` arg is the same
@@ -111,13 +124,17 @@ rather than a local handler. Pure pass-through — no in-flight tracking, no
 resume protocol.
 
 ```ts
-new GorpRelay<T, C>(
-  initialState: T,
-  sendUpstream: (command: C) => void,
-)
+new GorpRelay<T, C>(config: GorpRelay.Config<T, C>)
+
+namespace GorpRelay {
+  type Config<T, C> = {
+    initialState: T;
+    send: (command: C) => void;       // upstream transport callback
+  };
+}
 
 relay.state: DeepReadonly<T>
-relay.receive(command: C): void                      // forward upstream
+relay.receive(command: C): void                      // forward upstream via config.send
 relay.applyUpstream(msg: GorpMessage): void          // inbound from upstream
 relay.subscribe(cb: (env: GorpMessage) => void): () => void
 
@@ -125,7 +142,7 @@ relay.serialize(): RelaySerializedState<T>           // { state }
 relay.restore(state: RelaySerializedState<T>): void
 ```
 
-`receive` just forwards via `sendUpstream`. `applyUpstream` applies ops
+`receive` just forwards via `config.send`. `applyUpstream` applies ops
 into the mirror and republishes the envelope to subscribers verbatim
 (synchronously — no microtask delay). `ack` flows through as-is; the
 wrapping `GorpSessions` interprets it.

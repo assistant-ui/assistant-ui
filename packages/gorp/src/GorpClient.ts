@@ -115,11 +115,11 @@ function diffKeys(newNode: unknown, oldNode: unknown): string[] {
  */
 export class GorpClient<T extends Record<string, unknown>, C> {
   private readonly mutator: (state: T, command: C, seq: number) => void;
+  private readonly _send: (command: C) => void;
   private committed: Gorp<T>;
   private optimistic: Gorp<T>;
   private _pending: C[] = [];
   private _nextSeq = 0;
-  private readonly outboxListeners = new Set<(command: C) => void>();
   private readonly changeListeners = new Set<() => void>();
 
   // Diff frame: change set + state snapshot since the last public method
@@ -132,13 +132,11 @@ export class GorpClient<T extends Record<string, unknown>, C> {
   // told to re-read those paths (their values may have been reverted).
   private optimisticDirty: ChangeNode = {};
 
-  constructor(
-    initialState: T,
-    mutator: (state: T, command: C, seq: number) => void,
-  ) {
-    this.mutator = mutator;
-    this.committed = new Gorp<T>(initialState);
-    this.optimistic = new Gorp<T>(initialState);
+  constructor(config: GorpClient.Config<T, C>) {
+    this.mutator = config.mutator;
+    this._send = config.send;
+    this.committed = new Gorp<T>(config.initialState);
+    this.optimistic = new Gorp<T>(config.initialState);
     this.previousState = this.optimistic.state;
   }
 
@@ -189,23 +187,11 @@ export class GorpClient<T extends Record<string, unknown>, C> {
     const seq = this._nextSeq++;
     this._pending.push(command);
     this.replayMutator(command, seq);
-    for (const listener of this.outboxListeners) listener(command);
+    this._send(command);
     for (const listener of this.changeListeners) listener();
   }
 
   // ─── Transport hooks ────────────────────────────────────
-
-  /**
-   * Subscribe to outbound commands. Fires once per `send(cmd)` synchronously,
-   * and once per pending entry (in order) on every `resync()`. Returns an
-   * unsubscribe function.
-   */
-  onOutbox(callback: (command: C) => void): () => void {
-    this.outboxListeners.add(callback);
-    return () => {
-      this.outboxListeners.delete(callback);
-    };
-  }
 
   /**
    * Subscribe to state changes. Fires after every `apply` / `send`, regardless
@@ -220,15 +206,13 @@ export class GorpClient<T extends Record<string, unknown>, C> {
   }
 
   /**
-   * Re-fire every pending command through `onOutbox` listeners, in order.
-   * Transports call this on (re)connect so the server can dedup against the
-   * session high-water — the URL handshake's `fromSeq` covers the protocol
-   * side, this covers the wire side.
+   * Re-fire every pending command through `config.send`, in order. Transports
+   * call this on (re)connect so the server can dedup against the session
+   * high-water — the URL handshake's `fromSeq` covers the protocol side,
+   * this covers the wire side.
    */
   resync(): void {
-    for (const command of this._pending) {
-      for (const listener of this.outboxListeners) listener(command);
-    }
+    for (const command of this._pending) this._send(command);
   }
 
   // ─── Query change set ───────────────────────────────────
@@ -278,4 +262,19 @@ export class GorpClient<T extends Record<string, unknown>, C> {
       this.replayMutator(this._pending[i]!, firstPending + i);
     }
   }
+}
+
+export namespace GorpClient {
+  /**
+   * Constructor config for `GorpClient`. `mutator` runs once per `send` and
+   * again on every replay against fresh committed state, so it must be
+   * deterministic in `(state, command, seq)`. `send` is the transport
+   * callback gorp invokes for every outbound command (and re-invokes for
+   * each pending entry on `resync`).
+   */
+  export type Config<T extends Record<string, unknown>, C> = {
+    initialState: T;
+    mutator: (state: T, command: C, seq: number) => void;
+    send: (command: C) => void;
+  };
 }
