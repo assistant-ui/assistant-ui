@@ -157,11 +157,11 @@ commands are lost — application-level idempotency is the recovery story.
 
 ## `GorpSessions<C>`
 
-Wraps either a `GorpServer` or `GorpRelay` (any `GorpPubsub<C>`) and adds
-the sessioned wire protocol.
+Wraps either a `GorpServer` or `GorpRelay` and adds the sessioned wire
+protocol.
 
 ```ts
-new GorpSessions<C>(inner: GorpPubsub<C>)
+new GorpSessions<C>(inner: GorpServer<T, C> | GorpRelay<T, C>)
 
 sessions.addClient(
   sessionId: string,

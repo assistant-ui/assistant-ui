@@ -12,12 +12,13 @@ description: "gorp: A small state-sync primitive for client/server replicas with
 <div className="mr-2 lg:mr-5 -my-5 lg:-my-2 lg:[&_pre]:pr-6">
 
 ```ts
-const client = new GorpClient(
-  { count: 0 },
-  (state, cmd: "inc") => {
+const client = new GorpClient<{ count: number }, "inc">({
+  initialState: { count: 0 },
+  mutator: (state) => {
     state.count += 1;
   },
-);
+  send: (cmd) => ws.send(cmd),
+});
 
 client.send("inc");
 client.state.count; // 1 (optimistic)

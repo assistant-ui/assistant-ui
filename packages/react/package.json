@@ -34,8 +34,8 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
     }
   },
   "main": "./dist/index.js",
