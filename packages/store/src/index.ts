@@ -20,8 +20,6 @@ export type { ScopesConfig } from "./attachTransformScopes";
 export {
   tapAssistantClientRef,
   tapAssistantEmit,
-  withAssistantTapContextProvider,
-  type AssistantTapContextValue,
 } from "./utils/tap-assistant-context";
 export { tapClientResource } from "./tapClientResource";
 export { tapClientLookup } from "./tapClientLookup";

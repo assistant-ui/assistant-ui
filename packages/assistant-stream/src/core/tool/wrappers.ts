@@ -2,11 +2,8 @@ import { toToolsJSONSchema, type ToolJSONSchema } from "./schema-utils";
 import type { Tool } from "./tool-types";
 
 export type DiscoveryWrapperOptions = {
-  adapterId: string;
   tools: Record<string, Tool> | undefined;
   deferredTools: Record<string, Tool> | undefined;
-  /** Optional pre-known catalog entries to pre-warm the wrapper schema. */
-  catalogKnownTools?: Record<string, Tool>;
 };
 
 const DISCOVER_NAME = "aui_discover_tools";
@@ -18,14 +15,13 @@ const RUN_NAME = "aui_run_dynamic_tool";
  *   - `aui_run_dynamic_tool` — stable execution wrapper,
  *   - any eager (non-deferred) tools from `tools`.
  *
- * Deferred tools and catalog known tools are NOT shipped on the wire.
- * The consumer's AI SDK route handler implements `execute` for both
- * wrapper tools, typically by dispatching into a registered `ToolCatalog`.
+ * Deferred tools are NOT shipped on the wire. The consumer's AI SDK route
+ * handler implements `execute` for both wrapper tools, dispatching to the
+ * relevant deferred tool by name.
  *
  * This is the cache-safe fallback for providers without native deferred
- * loading (data-stream, langgraph, ag-ui, google-adk). It replaces the
- * pre-PR5 `mergeDeferredToolsWithWarning`, which reintroduced context
- * bloat by shipping the entire deferred catalog on every request.
+ * loading (data-stream, ag-ui): the cacheable prefix stays stable regardless
+ * of how many deferred tools exist.
  */
 export function injectDiscoveryWrappers(
   options: DiscoveryWrapperOptions,

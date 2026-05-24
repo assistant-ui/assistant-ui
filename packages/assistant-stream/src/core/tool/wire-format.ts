@@ -9,21 +9,6 @@ export type ToolWireFormatInput = {
   tools: Record<string, Tool> | undefined;
   /** Tools registered via `useAssistantTool({ deferLoading: true })`. */
   deferredTools: Record<string, Tool> | undefined;
-  /**
-   * Dynamic tool catalogs registered via `useToolCatalog`. Each entry
-   * carries a `catalogId` and an optional snapshot of pre-known tools that
-   * the adapter can include as deferred definitions. Adapters use this to
-   * inject per-catalog search entries (Anthropic custom search,
-   * OpenAI client-executed `tool_search`, etc.).
-   */
-  catalogs?: ReadonlyArray<{
-    catalogId: string;
-    /**
-     * Pre-warmed snapshot of the catalog's currently-known tools, if any.
-     * Catalogs may keep this empty and rely on runtime discovery.
-     */
-    knownTools?: Record<string, Tool>;
-  }>;
 };
 
 /**
@@ -54,10 +39,9 @@ export type ToolSearchEntry =
  *
  * Implementations:
  *  - {@link anthropicToolSearchAdapter} for Claude Sonnet 4.x+ via AI SDK v6.
- *  - {@link openaiToolSearchAdapter} for GPT-5.4+ via AI SDK v6 (Phase 3).
+ *  - {@link openaiToolSearchAdapter} for GPT-5.4+ via AI SDK v6.
  *  - {@link genericFallbackAdapter} for adapters without native deferred
- *    loading (data-stream, langgraph, ag-ui, google-adk) — replaced with
- *    discovery-wrapper injection in Phase 5.
+ *    loading; injects stable discovery wrappers instead.
  */
 export interface ToolWireFormatAdapter {
   readonly id: string;

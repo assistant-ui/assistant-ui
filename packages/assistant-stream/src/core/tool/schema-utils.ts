@@ -179,13 +179,14 @@ export function toToolsJSONSchema(
 const _warnedAdapters = new Set<string>();
 
 /**
- * @deprecated Use `injectDiscoveryWrappers` instead. Merging deferred tools
- * into the core tools map reintroduces context bloat and breaks prompt
- * caching past a few dozen tools. `injectDiscoveryWrappers` keeps the
- * cacheable prefix stable by exposing only `aui_discover_tools` +
- * `aui_run_dynamic_tool` and routing discovery to a `ToolCatalog`.
+ * Merges deferred tools back into the eager tool map for adapters that
+ * execute tools client-side (langgraph, google-adk, data-stream) and have
+ * no native progressive-disclosure wire format. Warns once per adapter past
+ * `threshold` deferred tools, since shipping them all reintroduces context
+ * bloat — those adapters should move large catalogs to the backend.
  *
- * Scheduled for removal in the next major.
+ * For server wire formats, prefer `injectDiscoveryWrappers`, which keeps the
+ * cacheable prefix stable by exposing only the two discovery wrappers.
  */
 export function mergeDeferredToolsWithWarning(
   adapterId: string,

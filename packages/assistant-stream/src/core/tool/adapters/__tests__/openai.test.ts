@@ -108,19 +108,9 @@ describe("openaiToolSearchAdapter", () => {
   });
 
   describe("adapter id", () => {
-    it("has id openai-tool-search:hosted by default", () => {
+    it("has id openai-tool-search", () => {
       const adapter = openaiToolSearchAdapter();
-      expect(adapter.id).toBe("openai-tool-search:hosted");
-    });
-
-    it("has id openai-tool-search:hosted when mode is hosted", () => {
-      const adapter = openaiToolSearchAdapter({ mode: "hosted" });
-      expect(adapter.id).toBe("openai-tool-search:hosted");
-    });
-
-    it("has id openai-tool-search:client when mode is client", () => {
-      const adapter = openaiToolSearchAdapter({ mode: "client" });
-      expect(adapter.id).toBe("openai-tool-search:client");
+      expect(adapter.id).toBe("openai-tool-search");
     });
   });
 
@@ -158,84 +148,6 @@ describe("openaiToolSearchAdapter", () => {
 
       const keys = Object.keys(result.tools).filter((k) => k !== "tool_search");
       expect(keys).toEqual([...keys].sort());
-    });
-  });
-
-  describe("catalog support (Phase 4)", () => {
-    it("injects one tool_search__<id> entry per catalog", () => {
-      const adapter = openaiToolSearchAdapter();
-      const result = adapter.format({
-        tools: undefined,
-        deferredTools: undefined,
-        catalogs: [{ catalogId: "my-catalog" }],
-      });
-
-      const entry = result.tools["tool_search__my-catalog"] as any;
-      expect(entry).toBeDefined();
-    });
-
-    it("catalog search entry has type: tool_search and execution: client", () => {
-      const adapter = openaiToolSearchAdapter();
-      const result = adapter.format({
-        tools: undefined,
-        deferredTools: undefined,
-        catalogs: [{ catalogId: "shop" }],
-      });
-
-      const entry = result.tools["tool_search__shop"] as any;
-      expect(entry.type).toBe("tool_search");
-      expect(entry.execution).toBe("client");
-    });
-
-    it("catalog search entry carries providerOptions.aui.catalogId", () => {
-      const adapter = openaiToolSearchAdapter();
-      const result = adapter.format({
-        tools: undefined,
-        deferredTools: undefined,
-        catalogs: [{ catalogId: "shop" }],
-      });
-
-      const entry = result.tools["tool_search__shop"] as any;
-      expect(entry.providerOptions?.aui?.catalogId).toBe("shop");
-    });
-
-    it("injects one entry per catalog when multiple catalogs provided", () => {
-      const adapter = openaiToolSearchAdapter();
-      const result = adapter.format({
-        tools: undefined,
-        deferredTools: undefined,
-        catalogs: [{ catalogId: "cat-a" }, { catalogId: "cat-b" }],
-      });
-
-      expect(result.tools["tool_search__cat-a"]).toBeDefined();
-      expect(result.tools["tool_search__cat-b"]).toBeDefined();
-    });
-
-    it("no catalog entries when catalogs array is empty", () => {
-      const adapter = openaiToolSearchAdapter();
-      const result = adapter.format({
-        tools: { core: stubTool() },
-        deferredTools: undefined,
-        catalogs: [],
-      });
-
-      const catalogKeys = Object.keys(result.tools).filter((k) =>
-        k.startsWith("tool_search__"),
-      );
-      expect(catalogKeys).toHaveLength(0);
-    });
-
-    it("no catalog entries when catalogs is undefined", () => {
-      const adapter = openaiToolSearchAdapter();
-      const result = adapter.format({
-        tools: { core: stubTool() },
-        deferredTools: undefined,
-      });
-
-      const catalogKeys = Object.keys(result.tools).filter((k) =>
-        k.startsWith("tool_search__"),
-      );
-      expect(catalogKeys).toHaveLength(0);
     });
   });
 });

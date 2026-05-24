@@ -13,7 +13,6 @@ import {
   genericFallbackAdapter,
   type ToolWireFormatAdapter,
 } from "assistant-stream";
-import type { AssistantClient } from "@assistant-ui/store";
 import {
   RESUMABLE_STREAM_ID_HEADER,
   type AssistantChatResumableOptions,
@@ -50,7 +49,6 @@ export class AssistantChatTransport<
   UI_MESSAGE extends UIMessage,
 > extends DefaultChatTransport<UI_MESSAGE> {
   private runtime: AssistantRuntime | undefined;
-  private aui: AssistantClient | undefined;
   private getThreadListItem:
     | (() => InitializableThreadListItem | undefined)
     | undefined;
@@ -92,14 +90,6 @@ export class AssistantChatTransport<
           this.getThreadListItem?.() ?? this.runtime?.threads.mainItem;
         const id = (await threadListItem?.initialize())?.remoteId ?? options.id;
 
-        // Collect registered catalogs from the tap client scope (if available).
-        const catalogScope = this.aui?.toolCatalogs.source
-          ? this.aui.toolCatalogs()
-          : undefined;
-        const catalogs = catalogScope
-          ? catalogScope.list().map((c) => ({ catalogId: c.catalogId }))
-          : undefined;
-
         const modelName = context?.config?.modelName;
         const adapter =
           staticAdapter ??
@@ -118,7 +108,6 @@ export class AssistantChatTransport<
         const { tools, extraHeaders, extraBody } = adapter.format({
           tools: context?.tools,
           deferredTools: context?.deferredTools,
-          ...(catalogs && { catalogs }),
         });
         const headers = extraHeaders
           ? { ...options?.headers, ...extraHeaders }
@@ -158,15 +147,6 @@ export class AssistantChatTransport<
 
   setRuntime(runtime: AssistantRuntime) {
     this.runtime = runtime;
-  }
-
-  /**
-   * Provides the tap client so the transport can read scopes such as
-   * `toolCatalogs`. Called from `useChatRuntime` after the aui client is
-   * available.
-   */
-  setAui(aui: AssistantClient) {
-    this.aui = aui;
   }
 
   getResumableAdapter(): AssistantChatResumableOptions | undefined {

@@ -236,13 +236,6 @@ export type {
 export { FRAME_MESSAGE_CHANNEL } from "@assistant-ui/core";
 export { useAssistantFrameHost } from "./model-context/frame/useAssistantFrameHost";
 
-// Re-export deferred-tool helpers for third-party adapter authors
-export {
-  injectDiscoveryWrappers,
-  /** @deprecated use injectDiscoveryWrappers */
-  mergeDeferredToolsWithWarning,
-} from "assistant-stream";
-
 export * as ActionBarPrimitive from "./primitives/actionBar";
 export * as ActionBarMorePrimitive from "./primitives/actionBarMore";
 export * as AssistantModalPrimitive from "./primitives/assistantModal";

@@ -553,7 +553,6 @@ export class AgUiThreadRuntimeCore {
       messages,
       tools: Object.entries(
         injectDiscoveryWrappers({
-          adapterId: "react-ag-ui",
           tools: context?.tools,
           deferredTools: context?.deferredTools,
         }),

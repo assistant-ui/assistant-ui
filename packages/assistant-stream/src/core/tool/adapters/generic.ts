@@ -13,14 +13,10 @@ export type GenericFallbackOptions = {
  * Fallback adapter for providers without native deferred loading. Injects two
  * stable wrapper tools (`aui_discover_tools`, `aui_run_dynamic_tool`) and
  * keeps deferred tools off the wire entirely, preserving prompt-cache
- * stability regardless of catalog size.
- *
- * Replaces the pre-Phase-5 `mergeDeferredToolsWithWarning` approach, which
- * reintroduced context bloat by shipping the full deferred catalog on every
- * request.
+ * stability regardless of how many deferred tools exist.
  *
  * Consumers must implement `aui_discover_tools` and `aui_run_dynamic_tool`
- * on the server side, typically by dispatching into a registered `ToolCatalog`.
+ * on the server side, dispatching to the relevant deferred tool by name.
  */
 export function genericFallbackAdapter(
   options: GenericFallbackOptions,
@@ -30,7 +26,6 @@ export function genericFallbackAdapter(
     format(input: ToolWireFormatInput): ToolWireFormatOutput {
       return {
         tools: injectDiscoveryWrappers({
-          adapterId: options.adapterId,
           tools: input.tools,
           deferredTools: input.deferredTools,
         }),

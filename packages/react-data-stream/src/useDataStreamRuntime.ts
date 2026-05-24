@@ -116,7 +116,6 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
           unstable_includeId: this.options.sendExtraMessageFields,
         }) as DataStreamRuntimeRequestOptions["messages"],
         tools: injectDiscoveryWrappers({
-          adapterId: "react-data-stream",
           tools: context.tools,
           deferredTools: context.deferredTools,
         }) as unknown as DataStreamRuntimeRequestOptions["tools"],

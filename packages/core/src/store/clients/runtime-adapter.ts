@@ -9,7 +9,6 @@ import {
 } from "@assistant-ui/store";
 import { ModelContext } from "./model-context-client";
 import { Suggestions } from "./suggestions";
-import { ToolCatalogs } from "../../react/client/ToolCatalogs";
 
 export const RuntimeAdapterResource = resource((runtime: AssistantRuntime) => {
   const clientRef = tapAssistantClientRef();
@@ -53,8 +52,5 @@ export const baseRuntimeAdapterTransformScopes = (
   }
   if (!scopes.suggestions && parent.suggestions.source === null) {
     scopes.suggestions = Suggestions();
-  }
-  if (!scopes.toolCatalogs && parent.toolCatalogs.source === null) {
-    scopes.toolCatalogs = ToolCatalogs();
   }
 };

@@ -42,13 +42,10 @@ export {
   type ToolArgsStatus,
 } from "./model-context/useToolArgsStatus";
 
-export { useToolCatalog } from "./model-context/useToolCatalog";
-
 // client
 export { Tools, type McpAppResourceOutput } from "./client/Tools";
 export { DataRenderers } from "./client/DataRenderers";
 export { Interactables } from "./client/Interactables";
-export { ToolCatalogs } from "./client/ToolCatalogs";
 
 // types
 export type {
