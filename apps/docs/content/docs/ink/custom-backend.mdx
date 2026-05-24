@@ -103,7 +103,7 @@ Writes are atomic (temp file + `rename`), so a crash mid-write cannot leave a pa
 |---|---|
 | `dir` | Directory where thread files are stored. Created if missing. |
 | `prefix` | Key prefix for stored files. Defaults to `@assistant-ui:`. Useful when two apps share a directory. |
-| `titleGenerator` | Optional [`TitleGenerationAdapter`](/docs/ink/adapters) that auto-generates thread titles from the first messages. Pass `createSimpleTitleAdapter()` for the built-in implementation. |
+| `titleGenerator` | Optional [`TitleGenerationAdapter`](/docs/ink/adapters#titlegenerationadapter) that auto-generates thread titles from the first messages. Pass `createSimpleTitleAdapter()` for the built-in implementation. |
 
 ### When this fits
 

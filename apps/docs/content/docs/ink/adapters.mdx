@@ -17,6 +17,30 @@ const adapter = createFileStorageAdapter({
 });
 ```
 
+## TitleGenerationAdapter
+
+Produces a thread title from a thread's messages. Pass one as the `titleGenerator` option to `createFileStorageAdapter`, or call it from a custom `RemoteThreadListAdapter`.
+
+```ts
+type TitleGenerationAdapter = {
+  generateTitle(messages: readonly ThreadMessage[]): Promise<string>;
+};
+```
+
+`createSimpleTitleAdapter` is the built-in implementation; it derives the title from the first user message, truncated to 50 characters.
+
+```ts
+import {
+  createFileStorageAdapter,
+  createSimpleTitleAdapter,
+} from "@assistant-ui/react-ink";
+
+const adapter = createFileStorageAdapter({
+  dir: "/path/to/threads",
+  titleGenerator: createSimpleTitleAdapter(),
+});
+```
+
 ## RemoteThreadListAdapter
 
 Title generation is configured via the `generateTitle` method on `RemoteThreadListAdapter`. See the [Custom Backend](/docs/ink/custom-backend) page for a full example.
