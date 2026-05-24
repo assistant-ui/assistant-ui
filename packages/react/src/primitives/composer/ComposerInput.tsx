@@ -20,10 +20,13 @@ import TextareaAutosize, {
 } from "react-textarea-autosize";
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
+import { useMediaQuery } from "../../utils/hooks/useMediaQuery";
 import { useAuiState, useAui } from "@assistant-ui/store";
 import { flushResourcesSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
 import { useTriggerPopoverActiveAriaOptional } from "./trigger/TriggerPopoverRootContext";
+
+const TOUCH_PRIMARY_QUERY = "(pointer: coarse) and (not (any-pointer: fine))";
 
 export namespace ComposerPrimitiveInput {
   export type Element = HTMLTextAreaElement;
@@ -58,6 +61,14 @@ export namespace ComposerPrimitiveInput {
      * @default true
      */
     unstable_focusOnThreadSwitched?: boolean | undefined;
+    /**
+     * Whether plain Enter on a touch-primary device should insert a newline
+     * instead of submitting, detected via
+     * `(pointer: coarse) and (not (any-pointer: fine))`. Only takes effect
+     * when `submitMode` resolves to `"enter"`.
+     * @default false
+     */
+    unstable_insertNewlineOnTouchEnter?: boolean | undefined;
     /**
      * Whether to automatically add pasted files as attachments.
      * @default true
@@ -115,6 +126,12 @@ export namespace ComposerPrimitiveInput {
  *   submitMode="ctrlEnter"
  * />
  *
+ * // Insert a newline on Enter on touch-primary devices.
+ * <ComposerPrimitive.Input
+ *   placeholder="Type your message..."
+ *   unstable_insertNewlineOnTouchEnter
+ * />
+ *
  * // Old API (deprecated, still supported)
  * <ComposerPrimitive.Input
  *   placeholder="Type your message..."
@@ -142,6 +159,7 @@ export const ComposerPrimitiveInput = forwardRef<
       unstable_focusOnRunStart = true,
       unstable_focusOnScrollToBottom = true,
       unstable_focusOnThreadSwitched = true,
+      unstable_insertNewlineOnTouchEnter = false,
       addAttachmentOnPaste = true,
       ...rest
     },
@@ -151,8 +169,15 @@ export const ComposerPrimitiveInput = forwardRef<
     const pluginRegistry = useComposerInputPluginRegistryOptional();
     const activeAria = useTriggerPopoverActiveAriaOptional();
 
-    const effectiveSubmitMode =
+    const declaredSubmitMode =
       submitMode ?? (submitOnEnter === false ? "none" : "enter");
+    const isTouchPrimary = useMediaQuery(TOUCH_PRIMARY_QUERY);
+    const effectiveSubmitMode =
+      unstable_insertNewlineOnTouchEnter &&
+      isTouchPrimary &&
+      declaredSubmitMode === "enter"
+        ? "none"
+        : declaredSubmitMode;
 
     const value = useAuiState((s) => {
       if (!s.composer.isEditing) return "";

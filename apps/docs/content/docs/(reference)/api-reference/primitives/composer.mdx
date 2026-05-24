@@ -114,6 +114,26 @@ With `submitMode="ctrlEnter"`:
 | <Kbd>Ctrl/Cmd + Enter</Kbd> | Sends the message. |
 | <Kbd>Enter</Kbd> | Inserts a newline. |
 | <Kbd>Escape</Kbd> | Sends a cancel action. |
+
+With `submitMode="none"`:
+
+| Key | Description |
+| --- | --- |
+| <Kbd>Enter</Kbd> | Inserts a newline (no keyboard submission). |
+| <Kbd>Escape</Kbd> | Sends a cancel action. |
+
+#### Touch-primary devices
+
+Pass `unstable_insertNewlineOnTouchEnter` to make plain Enter insert a newline on phones and tablets without a hardware keyboard, detected via the `(pointer: coarse) and (not (any-pointer: fine))` media query. Messages then dispatch only via the explicit Send button, matching the chat-input convention used by WhatsApp, Slack, Discord, iMessage, ChatGPT, and Claude.ai.
+
+```tsx
+<ComposerPrimitive.Input
+  placeholder="Ask anything..."
+  unstable_insertNewlineOnTouchEnter
+/>
+```
+
+Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlEnter"` and `"none"` are unchanged, so a tablet paired with a hardware keyboard can still submit via Cmd/Ctrl+Enter.
 {/* api-manual:ComposerPrimitive.Input:end */}
 
 ### Send
