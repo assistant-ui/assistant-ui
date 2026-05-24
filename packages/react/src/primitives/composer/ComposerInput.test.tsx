@@ -8,6 +8,7 @@ import { ComposerPrimitiveInput } from "./ComposerInput";
 
 const setText = vi.fn<(text: string) => void>();
 const setCursorPosition = vi.fn<(pos: number) => void>();
+const sendSpy = vi.fn<(options?: { steer?: boolean }) => void>();
 
 const composerState = {
   isEditing: true,
@@ -15,6 +16,7 @@ const composerState = {
   type: "thread" as const,
   isEmpty: true,
   canCancel: false,
+  canSend: true,
   dictation: undefined as undefined | { inputDisabled: boolean },
 };
 
@@ -39,7 +41,7 @@ vi.mock("@assistant-ui/store", () => {
       setText,
       getState: () => composerState,
       cancel: () => {},
-      send: () => {},
+      send: sendSpy,
       addAttachment: async () => {},
     }),
     thread: () => ({
@@ -166,9 +168,11 @@ describe("ComposerPrimitiveInput", () => {
   beforeEach(() => {
     setText.mockReset();
     setCursorPosition.mockReset();
+    sendSpy.mockReset();
     composerState.isEditing = true;
     composerState.text = "";
     composerState.isEmpty = true;
+    composerState.canSend = true;
     composerState.dictation = undefined;
     threadState.isDisabled = false;
     threadState.isRunning = false;
@@ -456,6 +460,44 @@ describe("ComposerPrimitiveInput", () => {
       });
 
       expect(requestSubmitSpy).toHaveBeenCalledTimes(1);
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it("unstable_insertNewlineOnTouchEnter does not override submitMode='none'", async () => {
+      setMatchMedia(true);
+      const textarea = await mount({
+        submitMode: "none",
+        unstable_insertNewlineOnTouchEnter: true,
+      });
+
+      let event!: KeyboardEvent;
+      await act(async () => {
+        event = fireKeyDown(textarea, { key: "Enter" });
+      });
+
+      expect(requestSubmitSpy).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it("preserves steer (Cmd+Shift+Enter) on touch when unstable_insertNewlineOnTouchEnter is set", async () => {
+      setMatchMedia(true);
+      threadState.capabilities = { queue: true, attachments: false };
+      const textarea = await mount({
+        unstable_insertNewlineOnTouchEnter: true,
+      });
+
+      let event!: KeyboardEvent;
+      await act(async () => {
+        event = fireKeyDown(textarea, {
+          key: "Enter",
+          metaKey: true,
+          shiftKey: true,
+        });
+      });
+
+      expect(sendSpy).toHaveBeenCalledTimes(1);
+      expect(sendSpy).toHaveBeenCalledWith({ steer: true });
+      expect(requestSubmitSpy).not.toHaveBeenCalled();
       expect(event.defaultPrevented).toBe(true);
     });
   });

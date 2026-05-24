@@ -3,11 +3,13 @@
 import { useCallback, useSyncExternalStore } from "react";
 
 const getServerSnapshot = () => false;
+const noopUnsubscribe = () => {};
 
-export const useMediaQuery = (query: string): boolean => {
+export const useMediaQuery = (query: string | null): boolean => {
   const subscribe = useCallback(
     (callback: () => void) => {
-      if (typeof window === "undefined") return () => {};
+      if (typeof window === "undefined" || query === null)
+        return noopUnsubscribe;
       const mql = window.matchMedia(query);
       mql.addEventListener("change", callback);
       return () => mql.removeEventListener("change", callback);
@@ -16,7 +18,7 @@ export const useMediaQuery = (query: string): boolean => {
   );
 
   const getSnapshot = useCallback(() => {
-    if (typeof window === "undefined") return false;
+    if (typeof window === "undefined" || query === null) return false;
     return window.matchMedia(query).matches;
   }, [query]);
 

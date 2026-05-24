@@ -171,7 +171,9 @@ export const ComposerPrimitiveInput = forwardRef<
 
     const declaredSubmitMode =
       submitMode ?? (submitOnEnter === false ? "none" : "enter");
-    const isTouchPrimary = useMediaQuery(TOUCH_PRIMARY_QUERY);
+    const isTouchPrimary = useMediaQuery(
+      unstable_insertNewlineOnTouchEnter ? TOUCH_PRIMARY_QUERY : null,
+    );
     const effectiveSubmitMode =
       unstable_insertNewlineOnTouchEnter &&
       isTouchPrimary &&
@@ -235,7 +237,7 @@ export const ComposerPrimitiveInput = forwardRef<
           e.shiftKey &&
           (e.ctrlKey || e.metaKey) &&
           hasQueue &&
-          effectiveSubmitMode !== "none" &&
+          declaredSubmitMode !== "none" &&
           aui.composer().getState().canSend
         ) {
           e.preventDefault();
