@@ -12,6 +12,14 @@ export type AssistantToolProps<
 > = CoreAssistantToolProps<TArgs, TResult> & {
   /** Component used to render calls to this tool in assistant messages. */
   render?: ToolCallMessagePartComponent<TArgs, TResult> | undefined;
+  /**
+   * When true, this tool is contributed as a deferred tool — adapters that
+   * support progressive disclosure (Anthropic Tool Search Tool, OpenAI tool
+   * filter) translate it to a searchable catalog rather than shipping it on
+   * every request. Adapters without native support fall back to treating it
+   * as a normal tool and emit a console warning past 50 deferred tools.
+   */
+  deferLoading?: boolean | undefined;
 };
 
 /**
@@ -58,12 +66,10 @@ export const useAssistantTool = <
   }, [aui, tool.toolName, tool.render]);
 
   useEffect(() => {
-    const { toolName, render, ...rest } = tool;
-    const context = {
-      tools: {
-        [toolName]: rest,
-      },
-    };
+    const { toolName, render, deferLoading, ...rest } = tool;
+    const context = deferLoading
+      ? { deferredTools: { [toolName]: rest } }
+      : { tools: { [toolName]: rest } };
     return aui.modelContext().register({
       getModelContext: () => context,
     });

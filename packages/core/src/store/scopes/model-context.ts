@@ -4,6 +4,7 @@ import type { ModelContextProvider } from "../../model-context/types";
 export type ModelContextState = {
   readonly modelName?: string | undefined;
   readonly toolNames: readonly string[];
+  readonly deferredToolNames: readonly string[];
 };
 
 export type ModelContextMethods = ModelContextProvider & {

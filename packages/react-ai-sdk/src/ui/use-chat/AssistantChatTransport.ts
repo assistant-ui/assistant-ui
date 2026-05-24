@@ -7,7 +7,13 @@ import {
   type HttpChatTransportInitOptions,
   type UIMessage,
 } from "ai";
-import { toToolsJSONSchema } from "assistant-stream";
+import {
+  anthropicToolSearchAdapter,
+  openaiToolSearchAdapter,
+  genericFallbackAdapter,
+  type ToolWireFormatAdapter,
+} from "assistant-stream";
+import type { AssistantClient } from "@assistant-ui/store";
 import {
   RESUMABLE_STREAM_ID_HEADER,
   type AssistantChatResumableOptions,
@@ -22,19 +28,52 @@ const FINISH_BUFFER_TAIL = 1024;
 export type AssistantChatTransportInitOptions<UI_MESSAGE extends UIMessage> =
   HttpChatTransportInitOptions<UI_MESSAGE> & {
     resumable?: AssistantChatResumableOptions;
+    /**
+     * Wire-format adapter for translating `(tools, deferredTools)` into
+     * the provider's expected request shape. Pass a string shortcut, a
+     * concrete adapter instance, or omit to default to Anthropic.
+     */
+    toolWireFormat?:
+      | ToolWireFormatAdapter
+      | "anthropic"
+      | "openai"
+      | "auto"
+      | "generic";
+    /**
+     * Variant of Anthropic's Tool Search Tool when `toolWireFormat`
+     * resolves to Anthropic. Defaults to `"bm25"`.
+     */
+    toolSearchVariant?: "bm25" | "regex";
   };
 
 export class AssistantChatTransport<
   UI_MESSAGE extends UIMessage,
 > extends DefaultChatTransport<UI_MESSAGE> {
   private runtime: AssistantRuntime | undefined;
+  private aui: AssistantClient | undefined;
   private getThreadListItem:
     | (() => InitializableThreadListItem | undefined)
     | undefined;
   private readonly resumable: AssistantChatResumableOptions | undefined;
 
   constructor(initOptions?: AssistantChatTransportInitOptions<UI_MESSAGE>) {
-    const { resumable, ...rest } = initOptions ?? {};
+    const {
+      resumable,
+      toolWireFormat,
+      toolSearchVariant = "bm25",
+      ...rest
+    } = initOptions ?? {};
+    // If the caller passed a concrete adapter instance, resolve once up-front.
+    // For string shortcuts (including undefined / "auto"), resolve per-request
+    // so provider auto-detection can read modelName from the live context.
+    const staticAdapter =
+      toolWireFormat && typeof toolWireFormat === "object"
+        ? toolWireFormat
+        : undefined;
+    // Eagerly validate string shortcuts at construction time so typos fail fast.
+    if (toolWireFormat && typeof toolWireFormat === "string") {
+      resolveWireFormat(toolWireFormat, { toolSearchVariant });
+    }
     const userFetch = rest.fetch;
     const userPrepareReconnect = rest.prepareReconnectToStreamRequest;
 
@@ -53,13 +92,47 @@ export class AssistantChatTransport<
           this.getThreadListItem?.() ?? this.runtime?.threads.mainItem;
         const id = (await threadListItem?.initialize())?.remoteId ?? options.id;
 
+        // Collect registered catalogs from the tap client scope (if available).
+        const catalogScope = this.aui?.toolCatalogs.source
+          ? this.aui.toolCatalogs()
+          : undefined;
+        const catalogs = catalogScope
+          ? catalogScope.list().map((c) => ({ catalogId: c.catalogId }))
+          : undefined;
+
+        const modelName = context?.config?.modelName;
+        const adapter =
+          staticAdapter ??
+          resolveWireFormat(
+            toolWireFormat as
+              | "anthropic"
+              | "openai"
+              | "auto"
+              | "generic"
+              | undefined,
+            {
+              toolSearchVariant,
+              ...(modelName && { modelName }),
+            },
+          );
+        const { tools, extraHeaders, extraBody } = adapter.format({
+          tools: context?.tools,
+          deferredTools: context?.deferredTools,
+          ...(catalogs && { catalogs }),
+        });
+        const headers = extraHeaders
+          ? { ...options?.headers, ...extraHeaders }
+          : options?.headers;
+
         const optionsEx = {
           ...options,
+          ...(headers && { headers }),
           body: {
             callSettings: context?.callSettings,
             system: context?.system,
             config: context?.config,
-            tools: toToolsJSONSchema(context?.tools ?? {}),
+            tools,
+            ...extraBody,
             ...options?.body,
           },
         };
@@ -87,6 +160,15 @@ export class AssistantChatTransport<
     this.runtime = runtime;
   }
 
+  /**
+   * Provides the tap client so the transport can read scopes such as
+   * `toolCatalogs`. Called from `useChatRuntime` after the aui client is
+   * available.
+   */
+  setAui(aui: AssistantClient) {
+    this.aui = aui;
+  }
+
   getResumableAdapter(): AssistantChatResumableOptions | undefined {
     return this.resumable;
   }
@@ -96,6 +178,41 @@ export class AssistantChatTransport<
   ) {
     this.getThreadListItem = getter;
   }
+}
+
+function resolveWireFormat(
+  input:
+    | ToolWireFormatAdapter
+    | "anthropic"
+    | "openai"
+    | "auto"
+    | "generic"
+    | undefined,
+  options: { toolSearchVariant: "bm25" | "regex"; modelName?: string },
+): ToolWireFormatAdapter {
+  if (input && typeof input === "object") return input;
+  switch (input) {
+    case "auto":
+    case undefined:
+      return detectWireFormat(options.modelName, options.toolSearchVariant);
+    case "anthropic":
+      return anthropicToolSearchAdapter({ variant: options.toolSearchVariant });
+    case "openai":
+      return openaiToolSearchAdapter();
+    case "generic":
+      return genericFallbackAdapter({ adapterId: "react-ai-sdk" });
+  }
+}
+
+function detectWireFormat(
+  modelName: string | undefined,
+  variant: "bm25" | "regex",
+): ToolWireFormatAdapter {
+  if (!modelName) return anthropicToolSearchAdapter({ variant });
+  if (/^(claude|anthropic)/i.test(modelName))
+    return anthropicToolSearchAdapter({ variant });
+  if (/^(gpt|o[0-9]|openai)/i.test(modelName)) return openaiToolSearchAdapter();
+  return anthropicToolSearchAdapter({ variant });
 }
 
 function wrapFetchWithResumable(

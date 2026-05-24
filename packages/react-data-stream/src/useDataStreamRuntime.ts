@@ -15,9 +15,10 @@ import {
 import {
   AssistantMessageAccumulator,
   DataStreamDecoder,
-  toToolsJSONSchema,
+  injectDiscoveryWrappers,
   UIMessageStreamDecoder,
   unstable_toolResultStream,
+  mergeDeferredToolsWithWarning,
 } from "assistant-stream";
 import { asAsyncIterableStream } from "assistant-stream/utils";
 
@@ -96,6 +97,15 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
     const headers = new Headers(headersValue);
     headers.set("Content-Type", "application/json");
 
+    // Merged tools for client-side execution (unstable_toolResultStream needs
+    // the full Tool objects including execute functions). This is separate from
+    // the server wire format, which uses injectDiscoveryWrappers.
+    const allTools = mergeDeferredToolsWithWarning(
+      "react-data-stream",
+      context.tools,
+      context.deferredTools,
+    );
+
     const result = await fetch(this.options.api, {
       method: "POST",
       headers,
@@ -105,9 +115,11 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
         messages: toLanguageModelMessages(messages, {
           unstable_includeId: this.options.sendExtraMessageFields,
         }) as DataStreamRuntimeRequestOptions["messages"],
-        tools: toToolsJSONSchema(
-          context.tools ?? {},
-        ) as unknown as DataStreamRuntimeRequestOptions["tools"],
+        tools: injectDiscoveryWrappers({
+          adapterId: "react-data-stream",
+          tools: context.tools,
+          deferredTools: context.deferredTools,
+        }) as unknown as DataStreamRuntimeRequestOptions["tools"],
         ...(unstable_assistantMessageId ? { unstable_assistantMessageId } : {}),
         ...(unstable_threadId ? { threadId: unstable_threadId } : {}),
         ...(unstable_parentId !== undefined
@@ -143,7 +155,7 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
       const stream = result.body
         .pipeThrough(decoder)
         .pipeThrough(
-          unstable_toolResultStream(context.tools, abortSignal, () => {
+          unstable_toolResultStream(allTools, abortSignal, () => {
             throw new Error(
               "Tool interrupt is not supported in data stream runtime",
             );

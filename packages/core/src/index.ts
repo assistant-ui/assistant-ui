@@ -78,6 +78,14 @@ export type {
 } from "./model-context/types";
 export { mergeModelContexts } from "./model-context/types";
 
+export type {
+  ToolCatalog,
+  ToolCatalogDescriptor,
+  ToolCatalogDescription,
+} from "./model-context/tool-catalog";
+export { ToolCatalogs } from "./react/client/ToolCatalogs";
+export { useToolCatalog } from "./react/model-context/useToolCatalog";
+
 export { tool } from "./model-context/tool";
 
 export { ModelContextRegistry } from "./model-context/registry";

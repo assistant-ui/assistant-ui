@@ -32,6 +32,7 @@ import { useAdkMessages } from "./useAdkMessages";
 import { convertAdkMessage } from "./convertAdkMessages";
 import { symbolAdkRuntimeExtras, type AdkRuntimeExtras } from "./hooks";
 import { v4 as uuidv4 } from "uuid";
+import { mergeDeferredToolsWithWarning } from "assistant-stream";
 
 /** @internal — exported for unit tests. */
 export const getMessageContent = (msg: AppendMessage) => {
@@ -245,7 +246,14 @@ const useAdkRuntimeImpl = ({
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const toolInvocations = useToolInvocations({
     state: { messages: threadMessages, isRunning: effectiveIsRunning },
-    getTools: () => runtimeRef.current.thread.getModelContext().tools,
+    getTools: () => {
+      const ctx = runtimeRef.current.thread.getModelContext();
+      return mergeDeferredToolsWithWarning(
+        "react-google-adk",
+        ctx.tools,
+        ctx.deferredTools,
+      );
+    },
     onResult: (command) => {
       if (command.type === "add-tool-result") {
         void handleSendMessage(

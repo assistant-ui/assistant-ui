@@ -21,6 +21,7 @@ export type ModelContext = {
   priority?: number | undefined;
   system?: string | undefined;
   tools?: Record<string, Tool<any, any>> | undefined;
+  deferredTools?: Record<string, Tool<any, any>> | undefined;
   callSettings?: LanguageModelV1CallSettings | undefined;
   config?: LanguageModelConfig | undefined;
 };
@@ -74,6 +75,18 @@ export const mergeModelContexts = (
 
         if (!acc.tools) acc.tools = {};
         acc.tools[name] = tool;
+      }
+    }
+    if (config.deferredTools) {
+      for (const [name, tool] of Object.entries(config.deferredTools)) {
+        const existing = acc.deferredTools?.[name];
+        if (existing && existing !== tool) {
+          throw new Error(
+            `You tried to define a deferred tool with the name ${name}, but it already exists.`,
+          );
+        }
+        if (!acc.deferredTools) acc.deferredTools = {};
+        acc.deferredTools[name] = tool;
       }
     }
     if (config.config) {

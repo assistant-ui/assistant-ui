@@ -52,9 +52,26 @@ export {
   toJSONSchema,
   toPartialJSONSchema,
   toToolsJSONSchema,
+  mergeDeferredToolsWithWarning,
   type ToolJSONSchema,
   type ToToolsJSONSchemaOptions,
 } from "./core/tool/schema-utils";
+export type {
+  ToolWireFormatAdapter,
+  ToolWireFormatInput,
+  ToolWireFormatOutput,
+  ToolSearchEntry,
+} from "./core/tool/wire-format";
+export { anthropicToolSearchAdapter } from "./core/tool/adapters/anthropic";
+export type { AnthropicToolSearchOptions } from "./core/tool/adapters/anthropic";
+export { openaiToolSearchAdapter } from "./core/tool/adapters/openai";
+export type { OpenAIToolSearchOptions } from "./core/tool/adapters/openai";
+export { genericFallbackAdapter } from "./core/tool/adapters/generic";
+export type { GenericFallbackOptions } from "./core/tool/adapters/generic";
+export {
+  injectDiscoveryWrappers,
+  type DiscoveryWrapperOptions,
+} from "./core/tool/wrappers";
 
 export type { TextStreamController } from "./core/modules/text";
 export type { ToolCallStreamController } from "./core/modules/tool-call";

@@ -20,16 +20,13 @@ import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
 import type { AgUiEvent, AgUiInterrupt, AgUiResumeEntry } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import { injectDiscoveryWrappers } from "assistant-stream";
 import {
   AG_UI_METADATA_NAMESPACE,
   type AgUiCustomMetadata,
   RunAggregator,
 } from "./adapter/run-aggregator";
-import {
-  fromAgUiMessages,
-  toAgUiMessages,
-  toAgUiTools,
-} from "./adapter/conversions";
+import { fromAgUiMessages, toAgUiMessages } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
 
 const symbolResumeShim = Symbol("agui-resume-shim");
@@ -554,7 +551,17 @@ export class AgUiThreadRuntimeCore {
       runId,
       state: this.stateSnapshot ?? null,
       messages,
-      tools: toAgUiTools(context?.tools),
+      tools: Object.entries(
+        injectDiscoveryWrappers({
+          adapterId: "react-ag-ui",
+          tools: context?.tools,
+          deferredTools: context?.deferredTools,
+        }),
+      ).map(([name, tool]) => ({
+        name,
+        description: tool.description,
+        parameters: tool.parameters,
+      })),
       context: context?.system
         ? [{ description: "system", value: context.system }]
         : [],

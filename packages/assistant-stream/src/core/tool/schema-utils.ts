@@ -16,6 +16,20 @@ export type ToToolsJSONSchemaOptions = {
    * Defaults to excluding disabled tools and backend tools.
    */
   filter?: (name: string, tool: Tool) => boolean;
+  /**
+   * Optional post-processor applied to each serialized tool schema.
+   * Useful for stamping per-tool fields such as `defer_loading: true`
+   * without rewriting the helper.
+   */
+  decorate?: (name: string, schema: ToolJSONSchema) => ToolJSONSchema;
+  /**
+   * Sort tool entries by name before serialization. Defaults to `true`.
+   * Sorting is critical for provider prompt caching: two mount orders that
+   * produce the same logical tool set must produce byte-identical request
+   * bodies. Pass `false` only if the consumer guarantees insertion order
+   * stability some other way.
+   */
+  sort?: boolean;
 };
 
 function isStandardSchema(schema: unknown): schema is StandardSchemaV1 & {
@@ -143,16 +157,54 @@ export function toToolsJSONSchema(
   if (!tools) return {};
 
   const filter = options.filter ?? defaultToolFilter;
+  const decorate = options.decorate;
+  const sort = options.sort ?? true;
+
+  const entries = Object.entries(tools);
+  if (sort) entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
 
   return Object.fromEntries(
-    Object.entries(tools)
+    entries
       .filter(([name, tool]) => filter(name, tool) && tool.parameters)
-      .map(([name, tool]) => [
-        name,
-        {
+      .map(([name, tool]) => {
+        const schema: ToolJSONSchema = {
           ...(tool.description && { description: tool.description }),
           parameters: toJSONSchema(tool.parameters!),
-        },
-      ]),
+        };
+        return [name, decorate ? decorate(name, schema) : schema];
+      }),
   );
+}
+
+const _warnedAdapters = new Set<string>();
+
+/**
+ * @deprecated Use `injectDiscoveryWrappers` instead. Merging deferred tools
+ * into the core tools map reintroduces context bloat and breaks prompt
+ * caching past a few dozen tools. `injectDiscoveryWrappers` keeps the
+ * cacheable prefix stable by exposing only `aui_discover_tools` +
+ * `aui_run_dynamic_tool` and routing discovery to a `ToolCatalog`.
+ *
+ * Scheduled for removal in the next major.
+ */
+export function mergeDeferredToolsWithWarning(
+  adapterId: string,
+  tools: Record<string, Tool> | undefined,
+  deferredTools: Record<string, Tool> | undefined,
+  threshold = 50,
+): Record<string, Tool> {
+  const deferredCount = deferredTools ? Object.keys(deferredTools).length : 0;
+  if (
+    deferredCount > threshold &&
+    !_warnedAdapters.has(adapterId) &&
+    typeof console !== "undefined"
+  ) {
+    _warnedAdapters.add(adapterId);
+    console.warn(
+      `[assistant-ui] ${adapterId} does not support progressive tool disclosure; ` +
+        `${deferredCount} deferred tools are being shipped on every request. ` +
+        `Consider migrating to an adapter that supports defer_loading or moving these tools to the backend.`,
+    );
+  }
+  return { ...(tools ?? {}), ...(deferredTools ?? {}) };
 }

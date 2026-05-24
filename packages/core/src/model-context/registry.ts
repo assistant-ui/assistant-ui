@@ -53,6 +53,13 @@ export class ModelContextRegistry implements ModelContextProvider {
       context.tools = { ...(context.tools || {}), ...providerContexts.tools };
     }
 
+    if (providerContexts.deferredTools) {
+      context.deferredTools = {
+        ...(context.deferredTools || {}),
+        ...providerContexts.deferredTools,
+      };
+    }
+
     if (providerContexts.callSettings) {
       context.callSettings = providerContexts.callSettings;
     }

@@ -29,6 +29,7 @@ describe("ModelContext", () => {
       const state = sub.getValue().getState();
       expect(state.modelName).toBeUndefined();
       expect(state.toolNames).toEqual([]);
+      expect(state.deferredToolNames).toEqual([]);
     } finally {
       unmount();
     }
@@ -101,6 +102,69 @@ describe("ModelContext", () => {
       sub.getValue().register(provider({ config: { modelName: "gpt-4" } }));
 
       expect(sub.getValue().getState().modelName).toBe("gpt-4");
+    } finally {
+      unmount();
+    }
+  });
+
+  it("reflects deferredToolNames from a provider with deferredTools", async () => {
+    const { sub, unmount } = render();
+    try {
+      sub
+        .getValue()
+        .register(
+          provider({ deferredTools: { alpha: stubTool(), beta: stubTool() } }),
+        );
+      await tick();
+
+      expect(sub.getValue().getState().deferredToolNames).toEqual([
+        "alpha",
+        "beta",
+      ]);
+    } finally {
+      unmount();
+    }
+  });
+
+  it("keeps deferredToolNames separate from toolNames", async () => {
+    const { sub, unmount } = render();
+    try {
+      sub.getValue().register(
+        provider({
+          tools: { coreTool: stubTool() },
+          deferredTools: { deferredTool: stubTool() },
+        }),
+      );
+      await tick();
+
+      expect(sub.getValue().getState().toolNames).toEqual(["coreTool"]);
+      expect(sub.getValue().getState().deferredToolNames).toEqual([
+        "deferredTool",
+      ]);
+    } finally {
+      unmount();
+    }
+  });
+
+  it("keeps the same state reference when only an unrelated provider changes but deferred set is stable", async () => {
+    const { sub, unmount } = render();
+    try {
+      const alphaTool = stubTool();
+      sub
+        .getValue()
+        .register(provider({ deferredTools: { alpha: alphaTool } }));
+      await tick();
+      const before = sub.getValue().getState();
+
+      // Register an unrelated provider (config only) — deferred set unchanged.
+      sub.getValue().register(provider({ config: { modelName: undefined } }));
+      await tick();
+      const after = sub.getValue().getState();
+
+      // State reference is the same when neither toolNames nor deferredToolNames changed.
+      expect(after).toBe(before);
+      // deferredToolNames content still includes alpha
+      expect(after.deferredToolNames).toContain("alpha");
     } finally {
       unmount();
     }

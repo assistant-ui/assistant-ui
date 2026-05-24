@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   toJSONSchema,
   toPartialJSONSchema,
   toToolsJSONSchema,
+  mergeDeferredToolsWithWarning,
 } from "./schema-utils";
 import type { Tool } from "./tool-types";
 
@@ -494,5 +495,312 @@ describe("toToolsJSONSchema", () => {
       expect(result).toHaveProperty("tool_2");
       expect(result).not.toHaveProperty("tool_3");
     });
+  });
+
+  describe("sort option", () => {
+    it("sorts tool names alphabetically by default", () => {
+      const tools: Record<string, Tool> = {
+        zebra: {
+          description: "Zebra tool",
+          parameters: { type: "object", properties: {} },
+        },
+        apple: {
+          description: "Apple tool",
+          parameters: { type: "object", properties: {} },
+        },
+        mango: {
+          description: "Mango tool",
+          parameters: { type: "object", properties: {} },
+        },
+      };
+
+      const result = toToolsJSONSchema(tools);
+      expect(Object.keys(result)).toEqual(["apple", "mango", "zebra"]);
+    });
+
+    it("produces identical output regardless of insertion order", () => {
+      const tools1: Record<string, Tool> = {
+        zebra: { parameters: { type: "object", properties: {} } },
+        apple: { parameters: { type: "object", properties: {} } },
+        mango: { parameters: { type: "object", properties: {} } },
+      };
+      const tools2: Record<string, Tool> = {
+        mango: { parameters: { type: "object", properties: {} } },
+        zebra: { parameters: { type: "object", properties: {} } },
+        apple: { parameters: { type: "object", properties: {} } },
+      };
+
+      const result1 = toToolsJSONSchema(tools1);
+      const result2 = toToolsJSONSchema(tools2);
+      expect(Object.keys(result1)).toEqual(Object.keys(result2));
+      expect(JSON.stringify(result1)).toBe(JSON.stringify(result2));
+    });
+
+    it("preserves insertion order when sort: false", () => {
+      const tools: Record<string, Tool> = {
+        zebra: {
+          description: "Zebra tool",
+          parameters: { type: "object", properties: {} },
+        },
+        apple: {
+          description: "Apple tool",
+          parameters: { type: "object", properties: {} },
+        },
+        mango: {
+          description: "Mango tool",
+          parameters: { type: "object", properties: {} },
+        },
+      };
+
+      const result = toToolsJSONSchema(tools, { sort: false });
+      expect(Object.keys(result)).toEqual(["zebra", "apple", "mango"]);
+    });
+
+    it("sort interacts correctly with filter — only included tools are sorted", () => {
+      const tools: Record<string, Tool> = {
+        zebra: {
+          description: "Zebra",
+          parameters: { type: "object", properties: {} },
+        },
+        disabled_apple: {
+          disabled: true,
+          description: "Apple",
+          parameters: { type: "object", properties: {} },
+        },
+        mango: {
+          description: "Mango",
+          parameters: { type: "object", properties: {} },
+        },
+      };
+
+      const result = toToolsJSONSchema(tools);
+      expect(Object.keys(result)).toEqual(["mango", "zebra"]);
+      expect(result).not.toHaveProperty("disabled_apple");
+    });
+
+    it("sort interacts correctly with decorate — decoration is applied after sort", () => {
+      const tools: Record<string, Tool> = {
+        zebra: { parameters: { type: "object", properties: {} } },
+        apple: { parameters: { type: "object", properties: {} } },
+      };
+
+      const decorateOrder: string[] = [];
+      const result = toToolsJSONSchema(tools, {
+        decorate: (name, schema) => {
+          decorateOrder.push(name);
+          return { ...schema, extra: name };
+        },
+      });
+
+      // Decoration happens in sorted order
+      expect(decorateOrder).toEqual(["apple", "zebra"]);
+      expect(Object.keys(result)).toEqual(["apple", "zebra"]);
+    });
+  });
+
+  describe("decorate option", () => {
+    it("stamps per-tool fields via decorate callback", () => {
+      const tools: Record<string, Tool> = {
+        myTool: {
+          description: "A tool",
+          parameters: { type: "object", properties: {} },
+        },
+      };
+
+      const result = toToolsJSONSchema(tools, {
+        decorate: (_name, schema) => ({ ...schema, defer_loading: true }),
+      });
+
+      expect((result.myTool as any).defer_loading).toBe(true);
+      expect(result.myTool!.description).toBe("A tool");
+    });
+
+    it("preserves ordering — decorate is applied per tool independently", () => {
+      const tools: Record<string, Tool> = {
+        alpha: {
+          description: "Alpha",
+          parameters: { type: "object", properties: {} },
+        },
+        beta: {
+          description: "Beta",
+          parameters: { type: "object", properties: {} },
+        },
+      };
+
+      const decorated: string[] = [];
+      toToolsJSONSchema(tools, {
+        decorate: (name, schema) => {
+          decorated.push(name);
+          return schema;
+        },
+      });
+
+      expect(decorated).toContain("alpha");
+      expect(decorated).toContain("beta");
+      expect(decorated).toHaveLength(2);
+    });
+
+    it("composes with filter — decorate only runs on non-filtered tools", () => {
+      const tools: Record<string, Tool> = {
+        included: {
+          description: "Included",
+          parameters: { type: "object", properties: {} },
+        },
+        excluded: {
+          disabled: true,
+          description: "Excluded",
+          parameters: { type: "object", properties: {} },
+        },
+      };
+
+      const decorated: string[] = [];
+      toToolsJSONSchema(tools, {
+        decorate: (name, schema) => {
+          decorated.push(name);
+          return schema;
+        },
+      });
+
+      expect(decorated).toEqual(["included"]);
+    });
+
+    it("does not mutate schema when decorate is not provided", () => {
+      const tools: Record<string, Tool> = {
+        myTool: {
+          description: "A tool",
+          parameters: { type: "object", properties: {} },
+        },
+      };
+
+      const result = toToolsJSONSchema(tools);
+      expect(result.myTool).not.toHaveProperty("defer_loading");
+    });
+  });
+});
+
+describe("mergeDeferredToolsWithWarning", () => {
+  beforeEach(() => {
+    // Clear call history on any existing spy and install a fresh mock.
+    vi.clearAllMocks();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  it("merges deferred tools into core tools", () => {
+    const core: Record<string, Tool> = {
+      coreTool: {
+        description: "core",
+        parameters: { type: "object", properties: {} },
+      },
+    };
+    const deferred: Record<string, Tool> = {
+      deferredTool: {
+        description: "deferred",
+        parameters: { type: "object", properties: {} },
+      },
+    };
+
+    const result = mergeDeferredToolsWithWarning(
+      "test-adapter-merge",
+      core,
+      deferred,
+    );
+    expect(result).toHaveProperty("coreTool");
+    expect(result).toHaveProperty("deferredTool");
+  });
+
+  it("handles undefined core tools", () => {
+    const deferred: Record<string, Tool> = {
+      deferredTool: {
+        description: "deferred",
+        parameters: { type: "object", properties: {} },
+      },
+    };
+
+    const result = mergeDeferredToolsWithWarning(
+      "test-adapter-undef-core",
+      undefined,
+      deferred,
+    );
+    expect(result).toHaveProperty("deferredTool");
+  });
+
+  it("handles undefined deferred tools", () => {
+    const core: Record<string, Tool> = {
+      coreTool: {
+        description: "core",
+        parameters: { type: "object", properties: {} },
+      },
+    };
+
+    const result = mergeDeferredToolsWithWarning(
+      "test-adapter-undef-deferred",
+      core,
+      undefined,
+    );
+    expect(result).toHaveProperty("coreTool");
+    expect(result).not.toHaveProperty("deferredTool");
+    expect(console.warn).not.toHaveBeenCalled();
+  });
+
+  it("does not warn when deferred count is at or below threshold", () => {
+    const deferred: Record<string, Tool> = {};
+    for (let i = 0; i < 50; i++) {
+      deferred[`tool${i}`] = {
+        description: `tool ${i}`,
+        parameters: { type: "object", properties: {} },
+      };
+    }
+
+    mergeDeferredToolsWithWarning(
+      "test-adapter-at-threshold",
+      undefined,
+      deferred,
+      50,
+    );
+    expect(console.warn).not.toHaveBeenCalled();
+  });
+
+  it("warns once when deferred count exceeds threshold", () => {
+    const deferred: Record<string, Tool> = {};
+    for (let i = 0; i < 51; i++) {
+      deferred[`warn-tool${i}`] = {
+        description: `tool ${i}`,
+        parameters: { type: "object", properties: {} },
+      };
+    }
+
+    // Use unique adapterId to avoid interference from the module-level set
+    mergeDeferredToolsWithWarning(
+      "test-adapter-over-threshold-unique-1",
+      undefined,
+      deferred,
+      50,
+    );
+    expect(console.warn).toHaveBeenCalledTimes(1);
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining("test-adapter-over-threshold-unique-1"),
+    );
+  });
+
+  it("does not warn a second time for the same adapterId", () => {
+    // Use a fresh unique adapterId so this test is self-contained.
+    // The first call triggers the warning; the second call must not.
+    const deferred: Record<string, Tool> = {};
+    for (let i = 0; i < 51; i++) {
+      deferred[`nodupe-tool${i}`] = {
+        description: `tool ${i}`,
+        parameters: { type: "object", properties: {} },
+      };
+    }
+
+    const uniqueId = "test-adapter-no-dup-warn-unique-2";
+
+    // First call — should warn once.
+    mergeDeferredToolsWithWarning(uniqueId, undefined, deferred, 50);
+    expect(console.warn).toHaveBeenCalledTimes(1);
+
+    // Second call with same id — should NOT warn again.
+    mergeDeferredToolsWithWarning(uniqueId, undefined, deferred, 50);
+    expect(console.warn).toHaveBeenCalledTimes(1);
   });
 });

@@ -46,6 +46,7 @@ import {
 } from "./useLangGraphMessages";
 import { appendLangChainChunk } from "./appendLangChainChunk";
 import { useLangGraphStreamingTiming } from "./useLangGraphStreamingTiming";
+import { mergeDeferredToolsWithWarning } from "assistant-stream";
 
 const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
@@ -516,7 +517,14 @@ const useLangGraphRuntimeImpl = ({
       messages: threadMessages,
       isRunning: effectiveIsRunning,
     },
-    getTools: () => runtimeRef.current.thread.getModelContext().tools,
+    getTools: () => {
+      const ctx = runtimeRef.current.thread.getModelContext();
+      return mergeDeferredToolsWithWarning(
+        "react-langgraph",
+        ctx.tools,
+        ctx.deferredTools,
+      );
+    },
     onResult: (command) => {
       if (command.type === "add-tool-result") {
         void handleSendMessage(

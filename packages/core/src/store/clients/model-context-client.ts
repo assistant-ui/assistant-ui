@@ -8,6 +8,7 @@ const EMPTY_TOOL_NAMES: readonly string[] = [];
 const INITIAL_STATE: ModelContextState = {
   modelName: undefined,
   toolNames: EMPTY_TOOL_NAMES,
+  deferredToolNames: EMPTY_TOOL_NAMES,
 };
 
 const toolNamesEqual = (a: readonly string[], b: readonly string[]): boolean =>
@@ -21,11 +22,19 @@ const deriveState = (
   const modelName = ctx.config?.modelName;
   const keys = ctx.tools ? Object.keys(ctx.tools).sort() : EMPTY_TOOL_NAMES;
   const toolNames = keys.length ? keys : EMPTY_TOOL_NAMES;
+  const dkeys = ctx.deferredTools
+    ? Object.keys(ctx.deferredTools).sort()
+    : EMPTY_TOOL_NAMES;
+  const deferredToolNames = dkeys.length ? dkeys : EMPTY_TOOL_NAMES;
 
-  if (modelName === prev.modelName && toolNamesEqual(toolNames, prev.toolNames))
+  if (
+    modelName === prev.modelName &&
+    toolNamesEqual(toolNames, prev.toolNames) &&
+    toolNamesEqual(deferredToolNames, prev.deferredToolNames)
+  )
     return prev;
 
-  return { modelName, toolNames };
+  return { modelName, toolNames, deferredToolNames };
 };
 
 export const ModelContext = resource((): ClientOutput<"modelContext"> => {
