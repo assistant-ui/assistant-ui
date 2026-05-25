@@ -26,7 +26,7 @@ If your backend exposes a richer state surface, consider [`AssistantTransport`](
 | `"ui-message-stream"` | yes | AI SDK v6's `result.toUIMessageStreamResponse()` (SSE) |
 | `"data-stream"` | no | `createAssistantStreamResponse` from `assistant-stream`, or AI SDK v4's `toDataStreamResponse()` (Vercel data stream v1) |
 
-Pass `protocol: "data-stream"` explicitly when pairing with `createAssistantStreamResponse` or an AI SDK v4 backend; the default decoder expects an SSE stream and cannot parse the data stream line format.
+Pairing the default decoder with a data stream backend throws `Stream ended abruptly without receiving [DONE] marker` at flush; pass `protocol: "data-stream"` to switch decoders.
 
 ## Install
 
@@ -157,7 +157,7 @@ export async function POST(request: Request) {
 
 The request body includes `messages`, `tools`, `system` (if configured), and `threadId`.
 
-`createAssistantStreamResponse` returns a standard Web `Response`. It drops into any Fetch-style route (Next.js App Router, Hono, Bun.serve, Deno, Cloudflare Workers) without ceremony. On frameworks that use their own response object (Express, Fastify), copy `status` and `headers` over and pipe the `Response` body into the framework's streaming API; do not call `body.getReader()` and write into a `res` that is already managing its own lifecycle.
+`createAssistantStreamResponse` returns a standard Web `Response`. It drops into any Fetch-style route (Next.js App Router, Hono, Bun.serve, Deno, Cloudflare Workers) without ceremony. On frameworks that use their own response object (Express, Fastify), copy `status` and `headers` over, then pipe `response.body` into the framework's writable stream. Avoid sending the `Response` body into a `res` object whose lifecycle is already controlled by the framework (that is the `ERR_INVALID_STATE: Controller is already closed` failure mode).
 
 </Step>
 </Steps>
@@ -167,6 +167,7 @@ The request body includes `messages`, `tools`, `system` (if configured), and `th
 ```tsx
 const runtime = useDataStreamRuntime({
   api: "/api/chat",
+  protocol: "data-stream",
   headers: { Authorization: `Bearer ${token}`, "X-Custom-Header": "value" },
   credentials: "include",
 });
@@ -177,6 +178,7 @@ Evaluate per-request:
 ```tsx
 const runtime = useDataStreamRuntime({
   api: "/api/chat",
+  protocol: "data-stream",
   headers: async () => ({
     Authorization: `Bearer ${await getAuthToken()}`,
   }),
@@ -193,6 +195,7 @@ const runtime = useDataStreamRuntime({
 ```tsx
 const runtime = useDataStreamRuntime({
   api: "/api/chat",
+  protocol: "data-stream",
   onResponse: (response) => console.log("status:", response.status),
   onFinish: (message) => console.log("done:", message),
   onError: (error) => console.error(error),
@@ -227,6 +230,7 @@ const myTools = {
 
 const runtime = useDataStreamRuntime({
   api: "/api/chat",
+  protocol: "data-stream",
   body: { tools: toToolsJSONSchema(myTools) },
 });
 ```
@@ -287,6 +291,7 @@ const runtime = useCloudRuntime({
 ```tsx
 const runtime = useDataStreamRuntime({
   api: "/api/chat",
+  protocol: "data-stream",
   initialMessages: [
     { role: "user", content: [{ type: "text", text: "Hello" }] },
     { role: "assistant", content: [{ type: "text", text: "Hi!" }] },
