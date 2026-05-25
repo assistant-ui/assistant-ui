@@ -178,6 +178,15 @@ const MANUAL_API_REFERENCE_LINKS = new Map([
     "AssistantState",
     "/docs/api-reference/primitives/assistant-if#assistantstate",
   ],
+  [
+    "EnrichedPartState",
+    "/docs/api-reference/runtimes/message-part-runtime#enrichedpartstate",
+  ],
+  [
+    "GenerativeUIRenderError",
+    "/docs/api-reference/utilities/miscellaneous#generativeuirendererror",
+  ],
+  ["GenerativeUISpec", "/docs/guides/generative-ui"],
 ]);
 
 function collectExportInputs(entryPath: string): DiscoveredExportInput[] {
@@ -324,6 +333,12 @@ export function discoverExports(): ExportInfo[] {
   const inputs = getReactApiInputs();
   const linkResolver = createApiReferenceLinkResolver(getReactApiLinkItems());
   return inputs.map((input) => buildExportInfo(input, linkResolver));
+}
+
+export function createReactApiLinkResolver(): (
+  target: string,
+) => string | undefined {
+  return createApiReferenceLinkResolver(getReactApiLinkItems());
 }
 
 export function discoverIntegrationExports(

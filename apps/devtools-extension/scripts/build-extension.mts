@@ -1,4 +1,4 @@
-import { build } from "esbuild";
+import { build, type BuildOptions } from "esbuild";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
@@ -14,6 +14,13 @@ console.log("frameUrl", frameUrl);
 const defineEnv = {
   "process.env.NODE_ENV": JSON.stringify(nodeEnv),
   "process.env.DEVTOOLS_FRAME_URL": JSON.stringify(frameUrl),
+};
+
+// tsdown's unbundle output keeps bare `import "./foo.js"` lines for files
+// whose named values were all inlined. With "sideEffects": false declared
+// upstream, esbuild correctly drops them — silence the noisy warning.
+const logOverride: BuildOptions["logOverride"] = {
+  "ignored-bare-import": "silent",
 };
 
 const buildExtension = async () => {
@@ -47,6 +54,7 @@ const buildExtension = async () => {
       minify: true,
       sourcemap: true,
       define: defineEnv,
+      logOverride,
     });
     console.log("✅ Content script built");
   } catch {
@@ -66,6 +74,7 @@ const buildExtension = async () => {
       minify: true,
       sourcemap: true,
       define: defineEnv,
+      logOverride,
     });
     console.log("✅ DevTools panel built");
   } catch {
@@ -84,6 +93,7 @@ const buildExtension = async () => {
       minify: true,
       sourcemap: true,
       define: defineEnv,
+      logOverride,
     });
     console.log("✅ DevTools main script built");
   } catch {
@@ -102,6 +112,7 @@ const buildExtension = async () => {
       minify: true,
       sourcemap: true,
       define: defineEnv,
+      logOverride,
     });
     console.log("✅ Background service worker built");
   } catch {
@@ -134,6 +145,7 @@ const buildExtension = async () => {
     // minify: true,
     sourcemap: true,
     define: defineEnv,
+    logOverride,
   });
   console.log("✅ Inject script built");
 

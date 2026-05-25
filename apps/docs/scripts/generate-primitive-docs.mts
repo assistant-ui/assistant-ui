@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { createReactApiLinkResolver } from "./api-reference/discover.mts";
 import { PRIMITIVE_DOCS_OUTPUT } from "./api-reference/paths.mts";
 import {
   extractPrimitiveParts,
@@ -189,7 +190,9 @@ function serialize(grouped: GroupedPrimitives): string {
 // ── Main ───────────────────────────────────────────────────────────────────
 
 console.log("Generating primitive docs...");
-const parts = extractPrimitiveParts();
+const parts = extractPrimitiveParts({
+  linkResolver: createReactApiLinkResolver(),
+});
 const grouped = projectToPrimitiveDocs(parts);
 const output = serialize(grouped);
 

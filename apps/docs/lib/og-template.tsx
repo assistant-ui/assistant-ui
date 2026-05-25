@@ -150,7 +150,6 @@ export function OgTemplate({
           justifyContent: "center",
           alignItems: "center",
           gap: 24,
-          zIndex: 1,
         }}
       >
         {children}

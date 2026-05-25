@@ -470,10 +470,12 @@ export function extractPrimitivePartsFor(
 
 /** Extract every primitive part across every primitive. Used by
  *  generate-primitive-docs.mts. */
-export function extractPrimitiveParts(): PrimitivePartModel[] {
+export function extractPrimitiveParts(
+  options?: JsDocRenderOptions,
+): PrimitivePartModel[] {
   const result: PrimitivePartModel[] = [];
   for (const primitiveName of discoverPrimitiveBarrelExports().keys()) {
-    result.push(...extractPrimitivePartsFor(primitiveName));
+    result.push(...extractPrimitivePartsFor(primitiveName, options));
   }
   return result;
 }
