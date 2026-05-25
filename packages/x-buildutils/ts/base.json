@@ -17,6 +17,8 @@
     "jsx": "react-jsx",
     "lib": ["dom", "dom.iterable", "ES2023"],
     "stripInternal": true,
+    "declaration": true,
+    "declarationMap": true,
     "noPropertyAccessFromIndexSignature": false
   }
 }

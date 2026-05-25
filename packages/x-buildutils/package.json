@@ -27,6 +27,7 @@
     "@tsconfig/strictest": "^2.0.8",
     "jiti": "^2.7.0",
     "tinyglobby": "^0.2.16",
+    "tsdown": "^0.22.0",
     "typescript": "^6.0.3"
   },
   "devDependencies": {
