@@ -1,6 +1,12 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "react", "import", "oxc"],
+  "jsPlugins": [
+    {
+      "name": "tap-hooks",
+      "specifier": "./scripts/oxlint-plugins/tap-hooks.mjs"
+    }
+  ],
   "categories": {
     "correctness": "error",
     "perf": "off",
@@ -20,6 +26,12 @@
     "react/react-in-jsx-scope": "off",
     "react/exhaustive-deps": "warn",
     "react/rules-of-hooks": "warn",
+    "tap-hooks/exhaustive-deps": [
+      "warn",
+      {
+        "additionalHooks": "^(tapEffect|tapMemo|tapCallback|tapResources)$"
+      }
+    ],
     "no-unused-vars": "off",
     "typescript/no-unused-vars": [
       "warn",
