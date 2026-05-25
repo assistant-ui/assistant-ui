@@ -274,7 +274,10 @@ export class RemoteThreadListThreadListRuntimeCore
     return getThreadData(this._state.value, threadIdOrRemoteId);
   }
 
-  public async switchToThread(threadIdOrRemoteId: string): Promise<void> {
+  public async switchToThread(
+    threadIdOrRemoteId: string,
+    options?: { unarchive?: boolean },
+  ): Promise<void> {
     let data = this.getItemById(threadIdOrRemoteId);
 
     if (!data) {
@@ -343,7 +346,9 @@ export class RemoteThreadListThreadListRuntimeCore
       task.then(() => this._notifySubscribers());
     }
 
-    if (data.status === "archived") await this.unarchive(data.id);
+    if (data.status === "archived" && options?.unarchive !== false) {
+      await this.unarchive(data.id);
+    }
     this._mainThreadId = data.id;
 
     this._notifySubscribers();

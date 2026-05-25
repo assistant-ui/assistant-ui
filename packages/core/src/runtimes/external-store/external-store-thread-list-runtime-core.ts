@@ -168,7 +168,10 @@ export class ExternalStoreThreadListRuntimeCore
     this._notifySubscribers();
   }
 
-  public async switchToThread(threadId: string): Promise<void> {
+  public async switchToThread(
+    threadId: string,
+    _options?: { unarchive?: boolean },
+  ): Promise<void> {
     if (this._mainThreadId === threadId) return;
     const onSwitchToThread = this.adapter.onSwitchToThread;
     if (!onSwitchToThread)

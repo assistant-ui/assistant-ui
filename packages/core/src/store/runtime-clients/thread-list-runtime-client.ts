@@ -81,8 +81,8 @@ export const ThreadListClient = resource(
           : state.threadIds[index]!;
         return threadItems.get({ key: id });
       },
-      switchToThread: async (threadId) => {
-        await runtime.switchToThread(threadId);
+      switchToThread: async (threadId, options) => {
+        await runtime.switchToThread(threadId, options);
       },
       switchToNewThread: async () => {
         await runtime.switchToNewThread();

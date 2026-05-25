@@ -32,7 +32,10 @@ export type ThreadListRuntimeCore = {
 
   getItemById(threadId: string): ThreadListItemCoreState | undefined;
 
-  switchToThread(threadId: string): Promise<void>;
+  switchToThread(
+    threadId: string,
+    options?: { unarchive?: boolean },
+  ): Promise<void>;
   switchToNewThread(): Promise<void>;
 
   getLoadThreadsPromise(): Promise<void>;
