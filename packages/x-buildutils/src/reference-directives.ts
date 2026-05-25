@@ -1,8 +1,8 @@
-import { promises as fs } from "node:fs";
+import { open } from "node:fs/promises";
 import type { Plugin } from "rolldown";
 
 const TRIPLE_SLASH_RE =
-  /^\s*\/\/\/\s*<reference\s+(path|types)\s*=\s*"([^"]+)"\s*\/>/;
+  /^\s*\/\/\/\s*<reference\s+(?<kind>path|types)\s*=\s*"(?<value>[^"]+)"\s*\/>/;
 
 /**
  * Extracts leading `/// <reference path|types="..." />` directives from a
@@ -10,28 +10,35 @@ const TRIPLE_SLASH_RE =
  * (path refs have their `.ts(x)` extensions swapped to `.d.ts`).
  *
  * TypeScript only treats triple-slash directives at the top of the file
- * (before any statement) as actual directives — we honor that by stopping
- * at the first non-comment, non-blank line.
+ * (before any statement) as actual directives — we only need the first
+ * 1KB and stop at the first non-comment, non-blank line.
  */
 async function extractDirectives(srcFile: string): Promise<string[]> {
-  let content: string;
+  let head: string;
   try {
-    content = await fs.readFile(srcFile, "utf-8");
+    const handle = await open(srcFile, "r");
+    try {
+      const buffer = Buffer.alloc(1024);
+      const { bytesRead } = await handle.read(buffer, 0, 1024, 0);
+      head = buffer.toString("utf-8", 0, bytesRead);
+    } finally {
+      await handle.close();
+    }
   } catch {
     return [];
   }
 
   const directives: string[] = [];
-  for (const line of content.split("\n")) {
+  for (const line of head.split("\n")) {
     const trimmed = line.trim();
     if (trimmed === "") continue;
     if (!trimmed.startsWith("//")) break;
     const match = trimmed.match(TRIPLE_SLASH_RE);
-    if (!match) continue;
-    const [, kind, value] = match as unknown as [string, string, string];
+    if (!match?.groups) continue;
+    const { kind, value } = match.groups;
     if (kind === "path") {
       directives.push(
-        `/// <reference path="${value.replace(/\.tsx?$/, ".d.ts")}" />`,
+        `/// <reference path="${value!.replace(/\.tsx?$/, ".d.ts")}" />`,
       );
     } else {
       directives.push(`/// <reference types="${value}" />`);
@@ -55,10 +62,11 @@ export function preserveReferenceDirectives(): Plugin {
         return null;
       }
       const base = chunk.facadeModuleId.replace(/\.d\.ts$/, "");
-      let directives = await extractDirectives(`${base}.ts`);
-      if (directives.length === 0) {
-        directives = await extractDirectives(`${base}.tsx`);
-      }
+      const [ts, tsx] = await Promise.all([
+        extractDirectives(`${base}.ts`),
+        extractDirectives(`${base}.tsx`),
+      ]);
+      const directives = ts.length > 0 ? ts : tsx;
       if (directives.length === 0) return null;
       return { code: `${directives.join("\n")}\n${code}`, map: null };
     },
