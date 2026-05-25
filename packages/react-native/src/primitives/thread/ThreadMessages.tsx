@@ -124,6 +124,7 @@ const ThreadMessageByIndex = memo(
   (prev, next) =>
     prev.index === next.index && prev.components === next.components,
 );
+ThreadMessageByIndex.displayName = "ThreadPrimitive.MessageByIndex";
 
 const ThreadMessageByChildren = memo(
   ({
@@ -151,6 +152,7 @@ const ThreadMessageByChildren = memo(
   },
   (prev, next) => prev.index === next.index && prev.children === next.children,
 );
+ThreadMessageByChildren.displayName = "ThreadPrimitive.MessageByChildren";
 
 export const ThreadMessages = ({
   components,
@@ -184,3 +186,4 @@ export const ThreadMessages = ({
     />
   );
 };
+ThreadMessages.displayName = "ThreadPrimitive.Messages";
