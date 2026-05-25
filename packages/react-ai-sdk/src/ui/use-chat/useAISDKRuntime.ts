@@ -350,6 +350,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     onResumeToolCall: (options) =>
       toolInvocations.resume(options.toolCallId, options.payload),
+    onRespondToToolApproval: ({ approvalId, approved, reason }) => {
+      void chatHelpers.addToolApprovalResponse({
+        id: approvalId,
+        approved,
+        ...(reason != null && { reason }),
+        options: { metadata: lastRunConfigRef.current },
+      });
+    },
     ...(onResume && { onResume }),
     ...(suggestions && { suggestions }),
     adapters: {

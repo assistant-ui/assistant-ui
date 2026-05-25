@@ -186,7 +186,7 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
-  it("deduplicates tool calls by toolCallId and maps interrupt states", () => {
+  it("deduplicates tool calls by toolCallId and surfaces approval / interrupt state", () => {
     const converted = AISDKMessageConverter.toThreadMessages(
       [
         {
@@ -212,13 +212,46 @@ describe("AISDKMessageConverter", () => {
               toolCallId: "tc-2",
               state: "approval-requested",
               input: { action: "deploy" },
-              approval: { reason: "need human review" },
+              approval: { id: "appr-1" },
             },
             {
               type: "tool-human",
               toolCallId: "tc-3",
               state: "input-available",
               input: { task: "confirm" },
+            },
+            {
+              type: "tool-approve",
+              toolCallId: "tc-4",
+              state: "approval-responded",
+              input: { action: "rollback" },
+              approval: { id: "appr-2", approved: true, reason: "looks ok" },
+            },
+            {
+              type: "tool-approve",
+              toolCallId: "tc-5",
+              state: "approval-requested",
+              input: { action: "auto" },
+              approval: { id: "appr-3", isAutomatic: true },
+            },
+            {
+              type: "tool-approve",
+              toolCallId: "tc-6",
+              state: "output-denied",
+              input: { action: "wipe" },
+              approval: {
+                id: "appr-4",
+                approved: false,
+                reason: "user denied",
+              },
+            },
+            {
+              type: "tool-approve",
+              toolCallId: "tc-7",
+              state: "output-available",
+              input: { action: "ship" },
+              output: { ok: true },
+              approval: { id: "appr-5", approved: true, isAutomatic: true },
             },
           ],
         } as any,
@@ -237,16 +270,48 @@ describe("AISDKMessageConverter", () => {
     const toolCalls = converted[0]?.content.filter(
       (part): part is any => part.type === "tool-call",
     );
-    expect(toolCalls).toHaveLength(3);
+    expect(toolCalls).toHaveLength(7);
 
     expect(toolCalls?.filter((p) => p.toolCallId === "tc-1")).toHaveLength(1);
-    expect(toolCalls?.find((p) => p.toolCallId === "tc-2")?.status).toEqual({
-      type: "requires-action",
-      reason: "interrupt",
+
+    expect(toolCalls?.find((p) => p.toolCallId === "tc-2")?.approval).toEqual({
+      id: "appr-1",
     });
+    expect(
+      toolCalls?.find((p) => p.toolCallId === "tc-2")?.interrupt,
+    ).toBeUndefined();
+
     expect(toolCalls?.find((p) => p.toolCallId === "tc-3")?.interrupt).toEqual({
       type: "human",
       payload: { kind: "human" },
+    });
+    expect(
+      toolCalls?.find((p) => p.toolCallId === "tc-3")?.approval,
+    ).toBeUndefined();
+
+    expect(toolCalls?.find((p) => p.toolCallId === "tc-4")?.approval).toEqual({
+      id: "appr-2",
+      approved: true,
+      reason: "looks ok",
+    });
+
+    expect(toolCalls?.find((p) => p.toolCallId === "tc-5")?.approval).toEqual({
+      id: "appr-3",
+      isAutomatic: true,
+    });
+
+    const denied = toolCalls?.find((p) => p.toolCallId === "tc-6");
+    expect(denied?.approval).toEqual({
+      id: "appr-4",
+      approved: false,
+      reason: "user denied",
+    });
+    expect(denied?.isError).toBe(true);
+
+    expect(toolCalls?.find((p) => p.toolCallId === "tc-7")?.approval).toEqual({
+      id: "appr-5",
+      approved: true,
+      isAutomatic: true,
     });
   });
 

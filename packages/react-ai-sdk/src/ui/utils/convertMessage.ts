@@ -141,37 +141,39 @@ function stableStringifyToolArgs(
   return JSON.stringify(stableArgs);
 }
 
-/**
- * Resolves the interrupt fields for a tool call part.
- *
- * Two interrupt paths for tool approvals:
- * 1. AI SDK server-side approval: approval-requested state with part.approval payload
- * 2. Frontend tools: toolStatuses interrupt from context.human()
- */
-function getToolInterrupt(
-  part: { state: string; approval?: unknown },
+function getToolApprovalAndInterrupt(
+  part: {
+    approval?:
+      | {
+          id: string;
+          approved?: boolean;
+          reason?: string;
+          isAutomatic?: boolean;
+        }
+      | undefined;
+  },
   toolStatus: { type: string; payload?: unknown } | undefined,
-): Record<string, unknown> {
-  if (part.state === "approval-requested" && "approval" in part) {
+): {
+  approval?: NonNullable<ToolCallMessagePart["approval"]>;
+  interrupt?: NonNullable<ToolCallMessagePart["interrupt"]>;
+} {
+  if (part.approval && typeof part.approval.id === "string") {
+    const { id, approved, reason, isAutomatic } = part.approval;
     return {
-      interrupt: {
-        type: "human" as const,
-        payload: (part as { approval: unknown }).approval,
-      },
-      status: {
-        type: "requires-action" as const,
-        reason: "interrupt" as const,
+      approval: {
+        id,
+        ...(typeof approved === "boolean" && { approved }),
+        ...(typeof reason === "string" && { reason }),
+        ...(isAutomatic === true && { isAutomatic: true }),
       },
     };
   }
 
   if (toolStatus?.type === "interrupt") {
     return {
-      interrupt: toolStatus.payload,
-      status: {
-        type: "requires-action" as const,
-        reason: "interrupt" as const,
-      },
+      interrupt: toolStatus.payload as NonNullable<
+        ToolCallMessagePart["interrupt"]
+      >,
     };
   }
 
@@ -281,7 +283,7 @@ function convertParts(
           isError,
           ...(modelContent !== undefined && { modelContent }),
           ...(mcpApp && { mcp: { app: mcpApp } }),
-          ...getToolInterrupt(part, toolStatus),
+          ...getToolApprovalAndInterrupt(part, toolStatus),
         } satisfies ToolCallMessagePart;
       }
 
