@@ -17,6 +17,17 @@ Pick this runtime when:
 
 If your backend exposes a richer state surface, consider [`AssistantTransport`](/docs/runtimes/custom/assistant-transport) instead.
 
+## Wire protocols
+
+`useDataStreamRuntime` accepts two wire formats via its `protocol` option:
+
+| Protocol | Default | Matching backend |
+| --- | --- | --- |
+| `"ui-message-stream"` | yes | AI SDK v6's `result.toUIMessageStreamResponse()` (SSE) |
+| `"data-stream"` | no | `createAssistantStreamResponse` from `assistant-stream`, or AI SDK v4's `toDataStreamResponse()` (Vercel data stream v1) |
+
+Pass `protocol: "data-stream"` explicitly when pairing with `createAssistantStreamResponse` or an AI SDK v4 backend; the default decoder expects an SSE stream and cannot parse the data stream line format.
+
 ## Install
 
 <PlatformTabs>
@@ -55,7 +66,10 @@ import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { Thread } from "@/components/assistant-ui/thread";
 
 export default function ChatPage() {
-  const runtime = useDataStreamRuntime({ api: "/api/chat" });
+  const runtime = useDataStreamRuntime({
+    api: "/api/chat",
+    protocol: "data-stream",
+  });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <Thread />
@@ -76,7 +90,10 @@ import { Thread } from "@/components/assistant-ui/thread";
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
 export default function ChatPage() {
-  const runtime = useDataStreamRuntime({ api: `${API_URL}/api/chat` });
+  const runtime = useDataStreamRuntime({
+    api: `${API_URL}/api/chat`,
+    protocol: "data-stream",
+  });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <View style={{ flex: 1 }}>
@@ -99,6 +116,7 @@ import { Thread } from "./components/thread.js";
 export function App() {
   const runtime = useDataStreamRuntime({
     api: "http://localhost:3000/api/chat",
+    protocol: "data-stream",
   });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -138,6 +156,8 @@ export async function POST(request: Request) {
 ```
 
 The request body includes `messages`, `tools`, `system` (if configured), and `threadId`.
+
+`createAssistantStreamResponse` returns a standard Web `Response`. It drops into any Fetch-style route (Next.js App Router, Hono, Bun.serve, Deno, Cloudflare Workers) without ceremony. On frameworks that use their own response object (Express, Fastify), copy `status` and `headers` over and pipe the `Response` body into the framework's streaming API; do not call `body.getReader()` and write into a `res` that is already managing its own lifecycle.
 
 </Step>
 </Steps>

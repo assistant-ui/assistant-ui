@@ -53,7 +53,10 @@ import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
 import { Thread } from "@/components/assistant-ui/thread";
 
 export default function Home() {
-  const runtime = useDataStreamRuntime({ api: "/api/chat" });
+  const runtime = useDataStreamRuntime({
+    api: "/api/chat",
+    protocol: "data-stream",
+  });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <div className="h-full">
@@ -63,6 +66,8 @@ export default function Home() {
   );
 }
 ```
+
+AI SDK v4's `toDataStreamResponse()` emits the data stream wire format, so `protocol: "data-stream"` is required to pair with it; the default `protocol: "ui-message-stream"` expects the SSE format introduced in AI SDK v6.
 
 </Step>
 </Steps>
