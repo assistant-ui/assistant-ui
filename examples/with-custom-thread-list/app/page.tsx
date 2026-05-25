@@ -12,19 +12,19 @@ import {
 function ThreadList() {
   return (
     <ThreadListPrimitive.Root className="flex flex-col gap-1 overflow-y-auto">
-      <ThreadListPrimitive.New className="flex h-9 items-center gap-2 rounded-lg border px-3 text-sm hover:bg-muted">
+      <ThreadListPrimitive.New className="hover:bg-muted flex h-9 items-center gap-2 rounded-lg border px-3 text-sm">
         New Thread
       </ThreadListPrimitive.New>
       <ThreadListPrimitive.Items>
         {() => (
-          <ThreadListItemPrimitive.Root className="flex h-9 items-center rounded-lg hover:bg-muted data-active:bg-muted">
+          <ThreadListItemPrimitive.Root className="hover:bg-muted data-active:bg-muted flex h-9 items-center rounded-lg">
             <ThreadListItemPrimitive.Trigger className="flex-1 truncate px-3 text-start text-sm">
               <ThreadListItemPrimitive.Title fallback="New Chat" />
             </ThreadListItemPrimitive.Trigger>
           </ThreadListItemPrimitive.Root>
         )}
       </ThreadListPrimitive.Items>
-      <ThreadListPrimitive.LoadMore className="mt-1 h-9 rounded-lg border px-3 text-sm hover:bg-muted disabled:opacity-50">
+      <ThreadListPrimitive.LoadMore className="hover:bg-muted mt-1 h-9 rounded-lg border px-3 text-sm disabled:opacity-50">
         Load more
       </ThreadListPrimitive.LoadMore>
     </ThreadListPrimitive.Root>

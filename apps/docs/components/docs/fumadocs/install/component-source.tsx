@@ -238,7 +238,7 @@ export async function ComponentSource({
 
   if (!item?.files?.[0]?.content) {
     return (
-      <div className="rounded-md border border-destructive bg-destructive/10 p-4 text-destructive text-sm">
+      <div className="border-destructive bg-destructive/10 text-destructive rounded-md border p-4 text-sm">
         Component &quot;{name}&quot; not found in registry
       </div>
     );

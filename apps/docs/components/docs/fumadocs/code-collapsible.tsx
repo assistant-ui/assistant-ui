@@ -36,7 +36,7 @@ export function CodeCollapsible({
         {children}
       </CollapsibleContent>
       {!isOpen && (
-        <CollapsibleTrigger className="absolute inset-x-0 bottom-0 flex h-24 items-end justify-center rounded-b-lg bg-linear-to-t from-fd-background via-fd-background/90 to-transparent pb-2 text-muted-foreground text-sm">
+        <CollapsibleTrigger className="from-fd-background via-fd-background/90 text-muted-foreground absolute inset-x-0 bottom-0 flex h-24 items-end justify-center rounded-b-lg bg-linear-to-t to-transparent pb-2 text-sm">
           <span className="flex items-center gap-1">
             <ChevronDownIcon className="size-4" />
             Show more

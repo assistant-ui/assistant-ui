@@ -111,7 +111,7 @@ const Parameter: FC<{
     >
       <dt>
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <code className="font-mono font-semibold text-foreground text-sm">
+          <code className="text-foreground font-mono text-sm font-semibold">
             {parameter.name}
           </code>
           {parameter.deprecated && <StatusBadge variant="deprecated" />}
@@ -121,7 +121,7 @@ const Parameter: FC<{
           {parameter.type && (
             <>
               {" "}
-              <code className="font-mono text-muted-foreground text-xs">
+              <code className="text-muted-foreground font-mono text-xs">
                 {isOptional && "?"}
                 {": "}
                 {parameter.type}
@@ -131,7 +131,7 @@ const Parameter: FC<{
           {parameter.default && (
             <>
               {" "}
-              <span className="font-mono text-muted-foreground text-xs">
+              <span className="text-muted-foreground font-mono text-xs">
                 = {parameter.default}
               </span>
             </>
@@ -139,12 +139,12 @@ const Parameter: FC<{
         </div>
       </dt>
       <dd className="pt-2">
-        <p className="whitespace-pre-line text-muted-foreground text-sm leading-relaxed">
+        <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-line">
           {renderDescription(parameter.description)}
         </p>
 
         {parameter.deprecated && (
-          <p className="mt-2 text-amber-600 text-xs dark:text-amber-400">
+          <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
             Deprecated: {parameter.deprecated}
           </p>
         )}
@@ -165,13 +165,13 @@ const ParametersBox: FC<
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-lg border border-border/60",
+        "border-border/60 overflow-hidden rounded-lg border",
         isNested && "border-border/40",
       )}
     >
       {type && !isNested && (
-        <div className="border-border/60 border-b bg-muted/50 px-4 py-2">
-          <code className="font-medium font-mono text-muted-foreground text-xs">
+        <div className="border-border/60 bg-muted/50 border-b px-4 py-2">
+          <code className="text-muted-foreground font-mono text-xs font-medium">
             {type}
           </code>
         </div>

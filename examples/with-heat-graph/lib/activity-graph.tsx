@@ -29,7 +29,7 @@ function MonthLabels() {
       <HeatGraph.MonthLabels>
         {({ label, totalWeeks }) => (
           <span
-            className="absolute text-gray-500 text-xs"
+            className="absolute text-xs text-gray-500"
             style={{ left: `${(label.column / totalWeeks) * 100}%` }}
           >
             {HeatGraph.MONTH_SHORT[label.month]}
@@ -45,7 +45,7 @@ function DayLabels() {
     <div className="flex w-8 shrink-0 flex-col justify-between py-[2px]">
       <HeatGraph.DayLabels>
         {({ label }) => (
-          <span className="flex h-[13px] items-center text-gray-500 text-xs">
+          <span className="flex h-[13px] items-center text-xs text-gray-500">
             {label.row % 2 === 0 ? HeatGraph.DAY_SHORT[label.dayOfWeek] : ""}
           </span>
         )}
@@ -64,7 +64,7 @@ function CellGrid() {
 
 function CellTooltip() {
   return (
-    <HeatGraph.Tooltip className="pointer-events-none whitespace-nowrap rounded-md bg-gray-900 px-3 py-1.5 text-white text-xs shadow-lg">
+    <HeatGraph.Tooltip className="pointer-events-none rounded-md bg-gray-900 px-3 py-1.5 text-xs whitespace-nowrap text-white shadow-lg">
       {({ cell }) => (
         <>
           <strong>{cell.count} contributions</strong> on{" "}
@@ -81,7 +81,7 @@ function CellTooltip() {
 
 function GraphLegend() {
   return (
-    <div className="ml-auto flex items-center gap-1 text-gray-500 text-xs">
+    <div className="ml-auto flex items-center gap-1 text-xs text-gray-500">
       <span>Less</span>
       <HeatGraph.Legend>
         {() => (

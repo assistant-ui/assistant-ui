@@ -47,7 +47,7 @@ function AccordionItem({
         "aui-accordion-item group/accordion-item",
         "group-data-[variant=default]/accordion:border-b group-data-[variant=default]/accordion:last:border-b-0",
         "group-data-[variant=outline]/accordion:border-b group-data-[variant=outline]/accordion:last:border-b-0",
-        "group-data-[variant=ghost]/accordion:rounded-lg group-data-[variant=ghost]/accordion:data-[state=open]:bg-muted/50",
+        "group-data-[variant=ghost]/accordion:data-[state=open]:bg-muted/50 group-data-[variant=ghost]/accordion:rounded-lg",
         className,
       )}
       {...props}
@@ -65,16 +65,16 @@ function AccordionTrigger({
       <AccordionPrimitive.Trigger
         data-slot="accordion-trigger"
         className={cn(
-          "aui-accordion-trigger group/accordion-trigger flex w-full flex-1 items-center justify-between gap-4 text-start font-medium text-sm outline-none transition-all disabled:pointer-events-none disabled:opacity-50",
-          "group-data-[variant=default]/accordion:py-4 group-data-[variant=default]/accordion:focus-visible:ring-2 group-data-[variant=default]/accordion:focus-visible:ring-ring/50 group-data-[variant=default]/accordion:hover:underline",
-          "group-data-[variant=outline]/accordion:px-4 group-data-[variant=outline]/accordion:py-3 group-data-[variant=outline]/accordion:focus-visible:ring-2 group-data-[variant=outline]/accordion:focus-visible:ring-ring/50 group-data-[variant=outline]/accordion:focus-visible:ring-inset group-data-[variant=outline]/accordion:hover:bg-muted/50",
-          "group-data-[variant=ghost]/accordion:rounded-lg group-data-[variant=ghost]/accordion:px-4 group-data-[variant=ghost]/accordion:py-2 group-data-[variant=ghost]/accordion:focus-visible:ring-2 group-data-[variant=ghost]/accordion:focus-visible:ring-ring/50 group-data-[variant=ghost]/accordion:hover:bg-muted/50",
+          "aui-accordion-trigger group/accordion-trigger flex w-full flex-1 items-center justify-between gap-4 text-start text-sm font-medium transition-all outline-none disabled:pointer-events-none disabled:opacity-50",
+          "group-data-[variant=default]/accordion:focus-visible:ring-ring/50 group-data-[variant=default]/accordion:py-4 group-data-[variant=default]/accordion:hover:underline group-data-[variant=default]/accordion:focus-visible:ring-2",
+          "group-data-[variant=outline]/accordion:focus-visible:ring-ring/50 group-data-[variant=outline]/accordion:hover:bg-muted/50 group-data-[variant=outline]/accordion:px-4 group-data-[variant=outline]/accordion:py-3 group-data-[variant=outline]/accordion:focus-visible:ring-2 group-data-[variant=outline]/accordion:focus-visible:ring-inset",
+          "group-data-[variant=ghost]/accordion:focus-visible:ring-ring/50 group-data-[variant=ghost]/accordion:hover:bg-muted/50 group-data-[variant=ghost]/accordion:rounded-lg group-data-[variant=ghost]/accordion:px-4 group-data-[variant=ghost]/accordion:py-2 group-data-[variant=ghost]/accordion:focus-visible:ring-2",
           className,
         )}
         {...props}
       >
         {children}
-        <ChevronDownIcon className="pointer-events-none size-4 shrink-0 text-muted-foreground transition-transform duration-200 ease-out group-data-[state=open]/accordion-trigger:rotate-180" />
+        <ChevronDownIcon className="text-muted-foreground pointer-events-none size-4 shrink-0 transition-transform duration-200 ease-out group-data-[state=open]/accordion-trigger:rotate-180" />
       </AccordionPrimitive.Trigger>
     </AccordionPrimitive.Header>
   );
@@ -88,7 +88,7 @@ function AccordionContent({
   return (
     <AccordionPrimitive.Content
       data-slot="accordion-content"
-      className="aui-accordion-content overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down"
+      className="aui-accordion-content data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down overflow-hidden text-sm"
       {...props}
     >
       <div

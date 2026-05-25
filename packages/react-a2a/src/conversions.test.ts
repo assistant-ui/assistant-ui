@@ -200,14 +200,12 @@ describe("taskStateToMessageStatus", () => {
 });
 
 describe("isTerminalTaskState", () => {
-  it.each([
-    "completed",
-    "failed",
-    "canceled",
-    "rejected",
-  ] as A2ATaskState[])("returns true for %s", (state) => {
-    expect(isTerminalTaskState(state)).toBe(true);
-  });
+  it.each(["completed", "failed", "canceled", "rejected"] as A2ATaskState[])(
+    "returns true for %s",
+    (state) => {
+      expect(isTerminalTaskState(state)).toBe(true);
+    },
+  );
 
   it.each([
     "submitted",
@@ -221,12 +219,12 @@ describe("isTerminalTaskState", () => {
 });
 
 describe("isInterruptedTaskState", () => {
-  it.each([
-    "input_required",
-    "auth_required",
-  ] as A2ATaskState[])("returns true for %s", (state) => {
-    expect(isInterruptedTaskState(state)).toBe(true);
-  });
+  it.each(["input_required", "auth_required"] as A2ATaskState[])(
+    "returns true for %s",
+    (state) => {
+      expect(isInterruptedTaskState(state)).toBe(true);
+    },
+  );
 
   it.each([
     "submitted",

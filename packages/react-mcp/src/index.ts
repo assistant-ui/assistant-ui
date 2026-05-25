@@ -24,10 +24,7 @@ export {
 } from "./resources/storage/McpLocalStorage";
 export { McpMemoryStorage } from "./resources/storage/McpMemoryStorage";
 export { McpCustomStorage } from "./resources/storage/McpCustomStorage";
-export type {
-  MCPStorage,
-  MCPStorageElement,
-} from "./resources/storage/types";
+export type { MCPStorage, MCPStorageElement } from "./resources/storage/types";
 
 // Primitives (namespaced)
 export * as McpManagerPrimitive from "./primitives/manager";

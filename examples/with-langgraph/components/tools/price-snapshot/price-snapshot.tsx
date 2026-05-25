@@ -29,17 +29,17 @@ export function PriceSnapshot({
   return (
     <Card className="mx-auto w-full max-w-md">
       <CardHeader>
-        <CardTitle className="font-bold text-2xl">{ticker}</CardTitle>
+        <CardTitle className="text-2xl font-bold">{ticker}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
-            <p className="font-semibold text-3xl">${price?.toFixed(2)}</p>
+            <p className="text-3xl font-semibold">${price?.toFixed(2)}</p>
           </div>
           <div>
             <p className="text-muted-foreground text-sm">Day Change</p>
             <p
-              className={`flex items-center font-medium text-lg ${changeColor}`}
+              className={`flex items-center text-lg font-medium ${changeColor}`}
             >
               <ArrowIcon className="mr-1 h-4 w-4" />$
               {Math.abs(day_change)?.toFixed(2)} (
@@ -48,7 +48,7 @@ export function PriceSnapshot({
           </div>
           <div>
             <p className="text-muted-foreground text-sm">Last Updated</p>
-            <p className="font-medium text-lg">
+            <p className="text-lg font-medium">
               {new Date(time).toLocaleTimeString()}
             </p>
           </div>

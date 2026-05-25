@@ -1,25 +1,24 @@
 {
   "typescript.tsdk": "node_modules/typescript/lib",
-  "editor.defaultFormatter": "biomejs.biome",
+  "editor.defaultFormatter": "oxc.oxc-vscode",
   "editor.formatOnSave": true,
   "editor.formatOnPaste": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll.biome": "explicit",
-    "source.organizeImports.biome": "explicit"
+    "source.fixAll.oxc": "explicit"
   },
   "[typescript]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "[json]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "[javascript]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "[jsonc]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "[typescriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "oxc.oxc-vscode"
   }
 }

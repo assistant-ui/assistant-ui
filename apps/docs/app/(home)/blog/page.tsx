@@ -28,11 +28,11 @@ export default function BlogIndex(): React.ReactElement {
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-16 md:py-24">
       <header className="mb-12">
-        <p className="mb-3 text-muted-foreground text-sm">Blog</p>
-        <h1 className="font-medium text-2xl tracking-tight">
+        <p className="text-muted-foreground mb-3 text-sm">Blog</p>
+        <h1 className="text-2xl font-medium tracking-tight">
           News and updates
         </h1>
-        <p className="mt-2 text-muted-foreground">
+        <p className="text-muted-foreground mt-2">
           The latest from assistant-ui.
         </p>
       </header>
@@ -45,17 +45,17 @@ export default function BlogIndex(): React.ReactElement {
             className="group block sm:flex sm:items-start sm:justify-between sm:gap-4"
           >
             <div className="min-w-0 sm:flex-1">
-              <h2 className="font-medium text-foreground/80 transition-colors group-hover:text-foreground">
+              <h2 className="text-foreground/80 group-hover:text-foreground font-medium transition-colors">
                 {post.data.title}
               </h2>
               {post.data.description && (
-                <p className="mt-1 text-muted-foreground text-sm">
+                <p className="text-muted-foreground mt-1 text-sm">
                   {post.data.description}
                 </p>
               )}
             </div>
             {post.data.date && (
-              <time className="mt-2 block text-muted-foreground text-sm sm:mt-0 sm:shrink-0">
+              <time className="text-muted-foreground mt-2 block text-sm sm:mt-0 sm:shrink-0">
                 {formatDate(post.data.date)}
               </time>
             )}

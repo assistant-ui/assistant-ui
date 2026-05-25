@@ -55,7 +55,7 @@ export function ShareButton({ className }: ShareButtonProps) {
       type="button"
       onClick={handleShare}
       className={cn(
-        "flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium text-xs transition-colors",
+        "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
         copied
           ? "bg-green-500/10 text-green-600 dark:text-green-400"
           : "text-muted-foreground hover:text-foreground",

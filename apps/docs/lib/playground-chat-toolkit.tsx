@@ -100,7 +100,7 @@ export function createPlaygroundChatToolkit(
         const isRunning = status?.type === "running";
         const sections = Object.keys(args ?? {});
         return (
-          <div className="my-1.5 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5 text-muted-foreground text-xs">
+          <div className="border-border/60 bg-muted/30 text-muted-foreground my-1.5 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs">
             <Settings2 className="size-3" />
             <span className="flex-1 truncate">
               {isRunning ? "Updating" : "Updated"}{" "}

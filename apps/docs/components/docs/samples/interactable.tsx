@@ -126,12 +126,12 @@ const TaskBoard: FC = () => {
   const doneCount = state.tasks.filter((t) => t.done).length;
 
   return (
-    <div className="flex h-full flex-col border-s bg-muted/30">
+    <div className="bg-muted/30 flex h-full flex-col border-s">
       <div className="flex items-center gap-2 border-b px-4 py-3">
-        <ListTodoIcon className="size-4 text-muted-foreground" />
-        <span className="font-medium text-sm">Task Board</span>
+        <ListTodoIcon className="text-muted-foreground size-4" />
+        <span className="text-sm font-medium">Task Board</span>
         {state.tasks.length > 0 && (
-          <span className="ms-auto text-muted-foreground text-xs">
+          <span className="text-muted-foreground ms-auto text-xs">
             {doneCount}/{state.tasks.length}
           </span>
         )}
@@ -139,7 +139,7 @@ const TaskBoard: FC = () => {
 
       <div className="flex-1 overflow-y-auto p-3">
         {state.tasks.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground text-xs">
+          <div className="text-muted-foreground flex h-full flex-col items-center justify-center text-center text-xs">
             <ListTodoIcon className="mb-2 size-8 opacity-30" />
             <p>No tasks yet.</p>
             <p className="mt-1 opacity-70">Ask the assistant to add some!</p>
@@ -152,14 +152,14 @@ const TaskBoard: FC = () => {
                   type="button"
                   onClick={() => toggleTask(task.id)}
                   className={cn(
-                    "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-start text-sm transition-colors hover:bg-muted",
+                    "hover:bg-muted flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-start text-sm transition-colors",
                     task.done && "opacity-50",
                   )}
                 >
                   {task.done ? (
-                    <CheckCircle2Icon className="size-4 shrink-0 text-primary" />
+                    <CheckCircle2Icon className="text-primary size-4 shrink-0" />
                   ) : (
-                    <CircleIcon className="size-4 shrink-0 text-muted-foreground" />
+                    <CircleIcon className="text-muted-foreground size-4 shrink-0" />
                   )}
                   <span className={cn("flex-1", task.done && "line-through")}>
                     {task.title}
@@ -176,12 +176,12 @@ const TaskBoard: FC = () => {
 
 const MiniThread: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col bg-background">
+    <ThreadPrimitive.Root className="bg-background flex h-full min-h-0 flex-col">
       <ThreadPrimitive.Viewport className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-3">
         <AuiIf condition={(s) => s.thread.isEmpty}>
           <div className="flex grow flex-col items-center justify-center text-center">
-            <p className="font-medium text-sm">Task Assistant</p>
-            <p className="mt-1 text-muted-foreground text-xs">
+            <p className="text-sm font-medium">Task Assistant</p>
+            <p className="text-muted-foreground mt-1 text-xs">
               Ask me to add tasks to your board.
             </p>
           </div>
@@ -206,7 +206,7 @@ const MiniThread: FC = () => {
 
 const UserMsg: FC = () => (
   <MessagePrimitive.Root className="flex justify-end py-2">
-    <div className="max-w-[80%] rounded-2xl bg-primary px-3.5 py-2 text-primary-foreground text-sm">
+    <div className="bg-primary text-primary-foreground max-w-[80%] rounded-2xl px-3.5 py-2 text-sm">
       <MessagePrimitive.Parts />
     </div>
   </MessagePrimitive.Root>
@@ -245,7 +245,7 @@ const MiniSuggestions: FC = () => {
         >
           <button
             type="button"
-            className="rounded-full border bg-background px-2.5 py-1 text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
+            className="bg-background text-muted-foreground hover:bg-muted hover:text-foreground rounded-full border px-2.5 py-1 text-xs transition-colors"
           >
             {s.label}
           </button>
@@ -256,10 +256,10 @@ const MiniSuggestions: FC = () => {
 };
 
 const MiniComposer: FC = () => (
-  <ComposerPrimitive.Root className="flex items-end gap-2 rounded-2xl border bg-muted px-3 py-2">
+  <ComposerPrimitive.Root className="bg-muted flex items-end gap-2 rounded-2xl border px-3 py-2">
     <ComposerPrimitive.Input
       placeholder="Add 3 tasks for a grocery run"
-      className="min-h-6 flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+      className="placeholder:text-muted-foreground/60 min-h-6 flex-1 resize-none bg-transparent text-sm outline-none"
       rows={1}
       autoFocus
     />
@@ -267,7 +267,7 @@ const MiniComposer: FC = () => (
       <ComposerPrimitive.Send asChild>
         <button
           type="button"
-          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
+          className="bg-primary text-primary-foreground flex size-7 shrink-0 items-center justify-center rounded-full"
         >
           <ArrowUpIcon className="size-4" />
         </button>
@@ -277,7 +277,7 @@ const MiniComposer: FC = () => (
       <ComposerPrimitive.Cancel asChild>
         <button
           type="button"
-          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
+          className="bg-primary text-primary-foreground flex size-7 shrink-0 items-center justify-center rounded-full"
         >
           <Square className="size-3 fill-current" />
         </button>
@@ -343,7 +343,7 @@ function InteractableRuntimeProvider({
 
 export const InteractableSample = () => {
   return (
-    <SampleFrame className="overflow-hidden bg-muted/40">
+    <SampleFrame className="bg-muted/40 overflow-hidden">
       <InteractableRuntimeProvider>
         <div className="grid h-full min-h-0 grid-cols-[1fr_220px]">
           <MiniThread />

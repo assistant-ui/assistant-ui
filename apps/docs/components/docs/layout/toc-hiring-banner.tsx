@@ -15,12 +15,12 @@ export const TOCHiringBanner = () => {
     <div className="group relative">
       <Link
         href="/careers"
-        className="block rounded-xl bg-muted px-3.5 py-3 transition-colors hover:bg-accent"
+        className="bg-muted hover:bg-accent block rounded-xl px-3.5 py-3 transition-colors"
       >
-        <p className="shimmer font-medium text-[11px] text-foreground/80 uppercase tracking-wide">
+        <p className="shimmer text-foreground/80 text-[11px] font-medium tracking-wide uppercase">
           We are hiring
         </p>
-        <p className="mt-1.5 text-muted-foreground text-xs leading-relaxed">
+        <p className="text-muted-foreground mt-1.5 text-xs leading-relaxed">
           Build the future of agentic UI with us →
         </p>
       </Link>
@@ -31,7 +31,7 @@ export const TOCHiringBanner = () => {
           e.preventDefault();
           setDismissed(true);
         }}
-        className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-background text-muted-foreground opacity-0 shadow-sm transition-all hover:text-foreground group-hover:opacity-100"
+        className="bg-background text-muted-foreground hover:text-foreground absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full opacity-0 shadow-sm transition-all group-hover:opacity-100"
       >
         <X className="size-3" />
       </button>

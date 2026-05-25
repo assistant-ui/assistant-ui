@@ -63,7 +63,7 @@ function HighlightedText({
           key={i}
           className={cn(
             segment.styles?.highlight &&
-              "rounded bg-primary/15 px-0.5 text-primary",
+              "bg-primary/15 text-primary rounded px-0.5",
           )}
         >
           {segment.content}
@@ -289,8 +289,8 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
           <DialogDescription>Search documentation</DialogDescription>
         </DialogHeader>
         <div className="overflow-hidden rounded-2xl border">
-          <div className="flex items-center gap-2.5 border-border/50 border-b px-3">
-            <Search className="size-4 text-muted-foreground" />
+          <div className="border-border/50 flex items-center gap-2.5 border-b px-3">
+            <Search className="text-muted-foreground size-4" />
             <input
               type="text"
               placeholder="Search documentation..."
@@ -299,28 +299,28 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                 setInputValue(e.target.value);
               }}
               onKeyDown={handleKeyDown}
-              className="h-11 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+              className="placeholder:text-muted-foreground/60 h-11 flex-1 bg-transparent text-sm outline-none"
               autoFocus
             />
             {showAskAI && (
               <button
                 type="button"
                 onClick={handleAskAI}
-                className="hidden shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-pink-500 transition-colors hover:bg-accent sm:flex"
+                className="hover:bg-accent hidden shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-pink-500 transition-colors sm:flex"
               >
                 <Sparkles className="size-3.5" />
-                <span className="font-medium text-xs">Ask AI</span>
+                <span className="text-xs font-medium">Ask AI</span>
               </button>
             )}
           </div>
 
           <div
             ref={listRef}
-            className="h-[min(400px,90vh)] overflow-y-auto overflow-x-hidden overscroll-contain"
+            className="h-[min(400px,90vh)] overflow-x-hidden overflow-y-auto overscroll-contain"
           >
             {inputValue.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
-                <div className="flex items-center gap-6 text-muted-foreground/60">
+                <div className="text-muted-foreground/60 flex items-center gap-6">
                   <span className="flex items-center gap-1.5 text-sm">
                     <ArrowUp className="size-3" />
                     <ArrowDown className="size-3" />
@@ -334,7 +334,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
               </div>
             ) : query.isLoading && results.length === 0 ? (
               <div className="flex h-full items-center justify-center">
-                <div className="flex items-center gap-2 text-muted-foreground/60">
+                <div className="text-muted-foreground/60 flex items-center gap-2">
                   <div className="size-1 animate-pulse rounded-full bg-current" />
                   <div className="size-1 animate-pulse rounded-full bg-current [animation-delay:150ms]" />
                   <div className="size-1 animate-pulse rounded-full bg-current [animation-delay:300ms]" />
@@ -372,25 +372,25 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                               isNested ? "pl-9" : "pl-3",
                             )}
                           >
-                            <div className="shrink-0 text-muted-foreground">
+                            <div className="text-muted-foreground shrink-0">
                               <ResultIcon type={item.type} />
                             </div>
                             <div className="flex min-w-0 flex-1 flex-col">
-                              <span className="truncate font-medium text-foreground text-sm">
+                              <span className="text-foreground truncate text-sm font-medium">
                                 <HighlightedText
                                   segments={item.contentWithHighlights}
                                   fallback={title}
                                 />
                               </span>
                               {showBreadcrumb && (
-                                <span className="truncate text-muted-foreground text-xs">
+                                <span className="text-muted-foreground truncate text-xs">
                                   {formatBreadcrumb(item.url)}
                                 </span>
                               )}
                             </div>
                             <CornerDownLeft
                               className={cn(
-                                "size-3.5 shrink-0 text-muted-foreground transition-opacity",
+                                "text-muted-foreground size-3.5 shrink-0 transition-opacity",
                                 isSelected ? "opacity-60" : "opacity-0",
                               )}
                             />

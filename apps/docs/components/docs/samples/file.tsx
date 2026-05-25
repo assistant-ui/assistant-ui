@@ -29,7 +29,7 @@ function VariantRow({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <span className="font-medium text-muted-foreground text-xs">{label}</span>
+      <span className="text-muted-foreground text-xs font-medium">{label}</span>
       <div className="flex flex-wrap items-center gap-2">
         {files.slice(0, 3).map((file) => (
           <FileRoot key={file.filename} variant={variant}>
@@ -54,7 +54,7 @@ function SizeRow() {
   const file = files[0]!;
   return (
     <div className="flex flex-col gap-2">
-      <span className="font-medium text-muted-foreground text-xs">Sizes</span>
+      <span className="text-muted-foreground text-xs font-medium">Sizes</span>
       <div className="flex flex-wrap items-center gap-2">
         {(["sm", "default", "lg"] as const).map((size) => {
           const filename = `${size}.pdf`;
@@ -81,7 +81,7 @@ function SizeRow() {
 function MimeTypeRow() {
   return (
     <div className="flex flex-col gap-2">
-      <span className="font-medium text-muted-foreground text-xs">
+      <span className="text-muted-foreground text-xs font-medium">
         MimeType Icons
       </span>
       <div className="flex flex-wrap items-center gap-2">

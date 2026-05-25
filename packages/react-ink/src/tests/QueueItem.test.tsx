@@ -19,7 +19,7 @@ const mockUseAui = vi.fn(() => ({
 const mockUseAuiState = vi.fn();
 
 type UseAuiStateSelector = Parameters<
-  typeof import("@assistant-ui/store")["useAuiState"]
+  (typeof import("@assistant-ui/store"))["useAuiState"]
 >[0];
 
 type InputHandler = (

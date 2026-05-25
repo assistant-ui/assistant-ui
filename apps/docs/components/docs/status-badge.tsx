@@ -39,7 +39,7 @@ export function StatusBadge({
   const badge = (
     <span
       className={cn(
-        "inline-flex items-center rounded px-1.5 py-0.5 font-medium text-xs",
+        "inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium",
         VARIANTS[variant].className,
         className,
       )}

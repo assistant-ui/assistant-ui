@@ -53,10 +53,10 @@ export function DocsSidebar({ children }: { children: ReactNode }) {
     <aside
       className={cn(
         // mobile: fullscreen overlay, opacity-toggled
-        "fixed inset-x-0 top-12 bottom-0 z-40 bg-background transition-opacity duration-200",
+        "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200",
         open ? "opacity-100" : "pointer-events-none opacity-0",
         // desktop: collapse to left rail, always visible
-        "md:pointer-events-auto md:right-auto md:z-30 md:w-(--sidebar-width) md:border-border/60 md:border-r md:opacity-100",
+        "md:border-border/60 md:pointer-events-auto md:right-auto md:z-30 md:w-(--sidebar-width) md:border-r md:opacity-100",
       )}
       style={
         {

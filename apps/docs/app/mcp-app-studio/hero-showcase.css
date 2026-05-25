@@ -47,9 +47,13 @@
   );
   background-size: 300% 300%;
   animation: gradient-shift 8s ease infinite;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   opacity: 0.6;
   transition: opacity 0.3s ease;
@@ -74,10 +78,8 @@
 .hero-showcase-grid {
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(
-      rgba(255, 255, 255, 0.02) 1px,
-      transparent 1px
-    ),
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
   background-size: 40px 40px;
   mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);

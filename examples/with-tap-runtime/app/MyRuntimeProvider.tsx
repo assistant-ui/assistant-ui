@@ -200,7 +200,7 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
           {children}
 
           {/* Control panel */}
-          <div className="border-t bg-card p-4">
+          <div className="bg-card border-t p-4">
             <div className="mx-auto flex max-w-2xl flex-col gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground text-sm">Controls:</span>
@@ -216,7 +216,7 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
                       },
                     ]);
                   }}
-                  className="rounded-md bg-primary px-3 py-1 font-medium text-primary-foreground text-sm hover:bg-primary/90"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-3 py-1 text-sm font-medium"
                 >
                   Add User Message
                 </button>
@@ -234,21 +234,21 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
                       },
                     ]);
                   }}
-                  className="rounded-md bg-secondary px-3 py-1 font-medium text-secondary-foreground text-sm hover:bg-secondary/80"
+                  className="bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md px-3 py-1 text-sm font-medium"
                 >
                   Add Assistant Message
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsRunning(!isRunning)}
-                  className="rounded-md bg-accent px-3 py-1 font-medium text-accent-foreground text-sm hover:bg-accent/80"
+                  className="bg-accent text-accent-foreground hover:bg-accent/80 rounded-md px-3 py-1 text-sm font-medium"
                 >
                   {isRunning ? "Stop" : "Start"} Running
                 </button>
                 <button
                   type="button"
                   onClick={() => updateCurrentThreadMessages(() => [])}
-                  className="rounded-md bg-destructive px-3 py-1 font-medium text-sm text-white hover:bg-destructive/90"
+                  className="bg-destructive hover:bg-destructive/90 rounded-md px-3 py-1 text-sm font-medium text-white"
                 >
                   Clear
                 </button>
@@ -268,9 +268,9 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 
 function ThreadListSidebar() {
   return (
-    <ThreadListPrimitive.Root className="flex w-64 flex-col border-r bg-muted/30">
+    <ThreadListPrimitive.Root className="bg-muted/30 flex w-64 flex-col border-r">
       <div className="border-b p-4">
-        <h2 className="font-semibold text-lg">Threads</h2>
+        <h2 className="text-lg font-semibold">Threads</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto p-2">
@@ -280,7 +280,7 @@ function ThreadListSidebar() {
       </div>
 
       <div className="border-t p-2">
-        <ThreadListPrimitive.New className="w-full rounded-md bg-primary px-3 py-2 font-medium text-primary-foreground text-sm hover:bg-primary/90">
+        <ThreadListPrimitive.New className="bg-primary text-primary-foreground hover:bg-primary/90 w-full rounded-md px-3 py-2 text-sm font-medium">
           + New Thread
         </ThreadListPrimitive.New>
       </div>
@@ -290,7 +290,7 @@ function ThreadListSidebar() {
 
 function ThreadListItem() {
   return (
-    <ThreadListItemPrimitive.Root className="mb-1 w-full rounded-md p-3 text-left transition-colors hover:bg-muted data-active:bg-primary data-active:text-primary-foreground">
+    <ThreadListItemPrimitive.Root className="hover:bg-muted data-active:bg-primary data-active:text-primary-foreground mb-1 w-full rounded-md p-3 text-left transition-colors">
       <ThreadListItemPrimitive.Trigger className="w-full text-left">
         <div className="font-medium">
           <ThreadListItemPrimitive.Title fallback="New Thread" />

@@ -258,7 +258,7 @@ function ToolFallbackError({
       className={cn("aui-tool-fallback-error px-4", className)}
       {...props}
     >
-      <p className="aui-tool-fallback-error-header font-semibold text-muted-foreground">
+      <p className="aui-tool-fallback-error-header text-muted-foreground font-semibold">
         {headerText}
       </p>
       <p className="aui-tool-fallback-error-reason text-muted-foreground">

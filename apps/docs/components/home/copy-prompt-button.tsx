@@ -24,7 +24,7 @@ export function CopyPromptButton({
     <button
       type="button"
       onClick={copyToClipboard}
-      className="group inline-flex w-fit items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-3 py-1.5 text-sm transition-all hover:border-border hover:bg-muted/50"
+      className="group border-border/60 bg-muted/30 hover:border-border hover:bg-muted/50 inline-flex w-fit items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-all"
       aria-label="Copy setup prompt for AI coding agents"
     >
       <div className="relative flex size-4 items-center justify-center">
@@ -36,7 +36,7 @@ export function CopyPromptButton({
         />
         <SparklesIcon
           className={cn(
-            "absolute size-3.5 text-foreground/70 transition-all duration-100 group-hover:text-foreground",
+            "text-foreground/70 group-hover:text-foreground absolute size-3.5 transition-all duration-100",
             copied ? "scale-50 opacity-0" : "scale-100 opacity-100",
           )}
         />

@@ -35,9 +35,9 @@ export function PatternPicker({
             aria-label={p.name}
             title={p.name}
             className={cn(
-              "size-11 cursor-pointer overflow-hidden rounded-xl bg-muted transition-all",
+              "bg-muted size-11 cursor-pointer overflow-hidden rounded-xl transition-all",
               active === i
-                ? "ring-2 ring-foreground/40 ring-offset-2 ring-offset-background"
+                ? "ring-foreground/40 ring-offset-background ring-2 ring-offset-2"
                 : "opacity-70 hover:opacity-100",
             )}
             style={{

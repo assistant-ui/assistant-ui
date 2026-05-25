@@ -38,14 +38,14 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   };
 
   return (
-    <div className="mt-2.5 flex items-center justify-between rounded-t-lg border border-border/50 border-b-0 bg-muted/50 px-3 py-1.5 text-xs">
-      <span className="font-medium text-muted-foreground lowercase">
+    <div className="border-border/50 bg-muted/50 mt-2.5 flex items-center justify-between rounded-t-lg border border-b-0 px-3 py-1.5 text-xs">
+      <span className="text-muted-foreground font-medium lowercase">
         {language}
       </span>
       <button
         type="button"
         onClick={onCopy}
-        className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="text-muted-foreground hover:bg-muted hover:text-foreground flex size-6 items-center justify-center rounded-md transition-colors"
       >
         {isCopied ? (
           <CheckIcon className="size-3.5" />
@@ -66,7 +66,7 @@ const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code, language }) => {
       showLanguage={false}
       showLineNumbers
       defaultColor={false}
-      className="[&_pre]:scrollbar-none [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-lg [&_pre]:border [&_pre]:border-border/50 [&_pre]:border-t-0 [&_pre]:bg-muted/30 [&_pre]:py-3 [&_pre]:pr-3 [&_pre]:pl-1 [&_pre]:text-xs [&_pre]:leading-relaxed"
+      className="[&_pre]:border-border/50 [&_pre]:bg-muted/30 [&_pre]:scrollbar-none [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-lg [&_pre]:border [&_pre]:border-t-0 [&_pre]:py-3 [&_pre]:pr-3 [&_pre]:pl-1 [&_pre]:text-xs [&_pre]:leading-relaxed"
       style={
         {
           "--line-numbers-foreground": "var(--color-muted-foreground)",
@@ -86,7 +86,7 @@ const markdownComponents = memoizeMarkdownComponents({
   h1: ({ className, ...props }) => (
     <h1
       className={cn(
-        "mb-2 font-semibold text-base first:mt-0 last:mb-0",
+        "mb-2 text-base font-semibold first:mt-0 last:mb-0",
         className,
       )}
       {...props}
@@ -95,7 +95,7 @@ const markdownComponents = memoizeMarkdownComponents({
   h2: ({ className, ...props }) => (
     <h2
       className={cn(
-        "mt-3 mb-1.5 font-semibold text-sm first:mt-0 last:mb-0",
+        "mt-3 mb-1.5 text-sm font-semibold first:mt-0 last:mb-0",
         className,
       )}
       {...props}
@@ -104,7 +104,7 @@ const markdownComponents = memoizeMarkdownComponents({
   h3: ({ className, ...props }) => (
     <h3
       className={cn(
-        "mt-2.5 mb-1 font-semibold text-sm first:mt-0 last:mb-0",
+        "mt-2.5 mb-1 text-sm font-semibold first:mt-0 last:mb-0",
         className,
       )}
       {...props}
@@ -113,7 +113,7 @@ const markdownComponents = memoizeMarkdownComponents({
   h4: ({ className, ...props }) => (
     <h4
       className={cn(
-        "mt-2 mb-1 font-medium text-sm first:mt-0 last:mb-0",
+        "mt-2 mb-1 text-sm font-medium first:mt-0 last:mb-0",
         className,
       )}
       {...props}
@@ -122,7 +122,7 @@ const markdownComponents = memoizeMarkdownComponents({
   h5: ({ className, ...props }) => (
     <h5
       className={cn(
-        "mt-2 mb-1 font-medium text-sm first:mt-0 last:mb-0",
+        "mt-2 mb-1 text-sm font-medium first:mt-0 last:mb-0",
         className,
       )}
       {...props}
@@ -131,7 +131,7 @@ const markdownComponents = memoizeMarkdownComponents({
   h6: ({ className, ...props }) => (
     <h6
       className={cn(
-        "mt-2 mb-1 font-medium text-sm first:mt-0 last:mb-0",
+        "mt-2 mb-1 text-sm font-medium first:mt-0 last:mb-0",
         className,
       )}
       {...props}
@@ -145,7 +145,7 @@ const markdownComponents = memoizeMarkdownComponents({
   ),
   a: ({ className, href, children, title, target, rel }) => {
     const linkClass = cn(
-      "text-primary underline underline-offset-2 hover:text-primary/80",
+      "text-primary hover:text-primary/80 underline underline-offset-2",
       className,
     );
 
@@ -171,7 +171,7 @@ const markdownComponents = memoizeMarkdownComponents({
   blockquote: ({ className, ...props }) => (
     <blockquote
       className={cn(
-        "my-2.5 border-muted-foreground/30 border-l-2 pl-3 text-muted-foreground italic",
+        "border-muted-foreground/30 text-muted-foreground my-2.5 border-l-2 pl-3 italic",
         className,
       )}
       {...props}
@@ -180,7 +180,7 @@ const markdownComponents = memoizeMarkdownComponents({
   ul: ({ className, ...props }) => (
     <ul
       className={cn(
-        "my-2 ml-4 list-disc marker:text-muted-foreground [&>li]:mt-1",
+        "marker:text-muted-foreground my-2 ml-4 list-disc [&>li]:mt-1",
         className,
       )}
       {...props}
@@ -189,7 +189,7 @@ const markdownComponents = memoizeMarkdownComponents({
   ol: ({ className, ...props }) => (
     <ol
       className={cn(
-        "my-2 ml-4 list-decimal marker:text-muted-foreground [&>li]:mt-1",
+        "marker:text-muted-foreground my-2 ml-4 list-decimal [&>li]:mt-1",
         className,
       )}
       {...props}
@@ -200,7 +200,7 @@ const markdownComponents = memoizeMarkdownComponents({
   ),
   hr: ({ className, ...props }) => (
     <hr
-      className={cn("my-2 border-muted-foreground/20", className)}
+      className={cn("border-muted-foreground/20 my-2", className)}
       {...props}
     />
   ),
@@ -215,7 +215,7 @@ const markdownComponents = memoizeMarkdownComponents({
   th: ({ className, ...props }) => (
     <th
       className={cn(
-        "border border-muted-foreground/20 bg-muted px-2 py-1 text-left font-medium",
+        "border-muted-foreground/20 bg-muted border px-2 py-1 text-left font-medium",
         className,
       )}
       {...props}
@@ -224,7 +224,7 @@ const markdownComponents = memoizeMarkdownComponents({
   td: ({ className, ...props }) => (
     <td
       className={cn(
-        "border border-muted-foreground/20 px-2 py-1 text-left",
+        "border-muted-foreground/20 border px-2 py-1 text-left",
         className,
       )}
       {...props}
@@ -234,7 +234,7 @@ const markdownComponents = memoizeMarkdownComponents({
   pre: ({ className, ...props }) => (
     <pre
       className={cn(
-        "overflow-x-auto rounded-t-none rounded-b-lg border border-border/50 border-t-0 bg-muted/30 p-3 text-xs leading-relaxed",
+        "border-border/50 bg-muted/30 overflow-x-auto rounded-t-none rounded-b-lg border border-t-0 p-3 text-xs leading-relaxed",
         className,
       )}
       {...props}
@@ -246,7 +246,7 @@ const markdownComponents = memoizeMarkdownComponents({
       <code
         className={cn(
           !isCodeBlock &&
-            "rounded-md border border-border/50 bg-muted/50 px-1.5 py-0.5 font-mono text-[0.85em]",
+            "border-border/50 bg-muted/50 rounded-md border px-1.5 py-0.5 font-mono text-[0.85em]",
           className,
         )}
         {...props}

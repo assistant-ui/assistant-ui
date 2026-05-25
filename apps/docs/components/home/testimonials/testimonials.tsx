@@ -37,7 +37,7 @@ const TestimonialCard: FC<Testimonial> = ({
     href={url}
     target="_blank"
     rel="noopener noreferrer"
-    className="mb-4 block break-inside-avoid-column space-y-3 rounded-lg border bg-card p-4 transition-colors hover:bg-muted/50"
+    className="bg-card hover:bg-muted/50 mb-4 block break-inside-avoid-column space-y-3 rounded-lg border p-4 transition-colors"
   >
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -52,7 +52,7 @@ const TestimonialCard: FC<Testimonial> = ({
         <span className="text-muted-foreground text-xs">{username}</span>
       </div>
       <svg
-        className="size-3 text-muted-foreground/50"
+        className="text-muted-foreground/50 size-3"
         fill="currentColor"
         viewBox="0 0 24 24"
         aria-hidden="true"
@@ -60,6 +60,6 @@ const TestimonialCard: FC<Testimonial> = ({
         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
       </svg>
     </div>
-    <p className="whitespace-pre-line text-sm leading-relaxed">{message}</p>
+    <p className="text-sm leading-relaxed whitespace-pre-line">{message}</p>
   </a>
 );

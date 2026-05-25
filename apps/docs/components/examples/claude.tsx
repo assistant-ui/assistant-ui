@@ -59,7 +59,7 @@ export const Claude: FC = () => {
 
           <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-3xl bg-linear-to-b from-transparent via-[#F0ECE0]/85 to-[#F0ECE0] pt-4 pb-2 dark:via-[#2b2a27]/85 dark:to-[#2b2a27]">
             <Composer />
-            <p className="pt-2 text-center text-[#8a8780] text-xs dark:text-[#a3a098]">
+            <p className="pt-2 text-center text-xs text-[#8a8780] dark:text-[#a3a098]">
               Claude can make mistakes. Please double-check responses.
             </p>
           </ThreadPrimitive.ViewportFooter>
@@ -191,7 +191,7 @@ const ClaudeModelPicker: FC = () => {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex h-8 items-center gap-1 whitespace-nowrap rounded-md px-2.5 text-[#1a1a18] text-sm transition hover:bg-[#1a1a18]/5 dark:text-[#eee] dark:hover:bg-white/5">
+      <DropdownMenuTrigger className="flex h-8 items-center gap-1 rounded-md px-2.5 text-sm whitespace-nowrap text-[#1a1a18] transition hover:bg-[#1a1a18]/5 dark:text-[#eee] dark:hover:bg-white/5">
         <span className="font-serif">
           {CLAUDE_MODELS.find((m) => m.id === model)?.name}
         </span>
@@ -208,7 +208,7 @@ const ClaudeModelPicker: FC = () => {
               {m.id === model ? <CheckIcon /> : null}
             </span>
             <span className="flex flex-1 flex-col">
-              <span className="font-serif text-foreground text-sm">
+              <span className="text-foreground font-serif text-sm">
                 {m.name}
               </span>
               <span className="text-muted-foreground text-xs">
@@ -243,7 +243,7 @@ const ModeTabs: FC = () => {
           type="button"
           aria-hidden="true"
           tabIndex={-1}
-          className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border border-[#E5E0D6] bg-transparent px-3 text-[#3d3a35] text-sm transition-colors hover:bg-white/60 dark:border-[#3d3a35] dark:text-[#cdc9be] dark:hover:bg-[#1f1e1b]/60"
+          className="flex h-8 items-center gap-1.5 rounded-lg border border-[#E5E0D6] bg-transparent px-3 text-sm whitespace-nowrap text-[#3d3a35] transition-colors hover:bg-white/60 dark:border-[#3d3a35] dark:text-[#cdc9be] dark:hover:bg-[#1f1e1b]/60"
         >
           <Icon className="size-3.5 text-[#8a8780] dark:text-[#a3a098]" />
           <span className="font-serif">{label}</span>
@@ -258,7 +258,7 @@ const ChatMessage: FC = () => {
     <MessagePrimitive.Root className="group/message relative mx-auto flex w-full max-w-3xl flex-col py-2">
       <AuiIf condition={(s) => s.message.role === "user"}>
         <div className="flex flex-col items-end gap-1">
-          <div className="wrap-break-word max-w-[80%] whitespace-pre-wrap rounded-2xl bg-[#E5E0D6] px-4 py-2.5 text-[#1a1a18] dark:bg-[#393937] dark:text-[#eee]">
+          <div className="max-w-[80%] rounded-2xl bg-[#E5E0D6] px-4 py-2.5 wrap-break-word whitespace-pre-wrap text-[#1a1a18] dark:bg-[#393937] dark:text-[#eee]">
             <MessagePrimitive.Parts>
               {({ part }) => {
                 if (part.type === "text") return <MarkdownText />;
@@ -284,7 +284,7 @@ const ChatMessage: FC = () => {
 
       <AuiIf condition={(s) => s.message.role === "assistant"}>
         <div className="flex flex-col">
-          <div className="prose prose-claude wrap-break-word font-serif text-[#1a1a18] leading-[1.65rem] dark:text-[#eee]">
+          <div className="prose prose-claude font-serif leading-[1.65rem] wrap-break-word text-[#1a1a18] dark:text-[#eee]">
             <MessagePrimitive.Parts>
               {({ part }) => {
                 if (part.type === "text") return <MarkdownText />;
@@ -380,7 +380,7 @@ const ClaudeAttachment: FC = () => {
         )}
       </div>
       <AttachmentPrimitive.Remove
-        className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-[#1a1a18] text-white opacity-0 transition-opacity hover:bg-[#3d3a35] group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 dark:bg-white dark:text-[#1a1a18] dark:hover:bg-[#cdc9be]"
+        className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-[#1a1a18] text-white opacity-0 transition-opacity group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 hover:bg-[#3d3a35] dark:bg-white dark:text-[#1a1a18] dark:hover:bg-[#cdc9be]"
         aria-label="Remove attachment"
       >
         <Cross2Icon width={12} height={12} />

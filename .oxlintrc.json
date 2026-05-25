@@ -1,0 +1,89 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "import", "oxc"],
+  "categories": {
+    "correctness": "error",
+    "perf": "off",
+    "suspicious": "off",
+    "pedantic": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
+  },
+  "rules": {
+    "no-explicit-any": "off",
+    "no-array-index-key": "off",
+    "no-non-null-assertion": "off",
+    "no-namespace": "off",
+    "react/forward-ref-uses-ref": "off",
+    "react/no-array-index-key": "off",
+    "react/react-in-jsx-scope": "off",
+    "react/exhaustive-deps": "warn",
+    "react/rules-of-hooks": "warn",
+    "no-unused-vars": "off",
+    "typescript/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "no-labels": "error",
+    "no-empty-pattern": "warn",
+    "no-prototype-builtins": "off",
+    "import/no-duplicates": "off",
+    "typescript/triple-slash-reference": "off",
+    "no-unsafe-optional-chaining": "warn",
+    "require-yield": "off",
+    "no-eval": "off",
+    "no-unused-expressions": "off",
+    "typescript/no-this-alias": "off",
+    "typescript/no-unnecessary-parameter-property-assignment": "off",
+    "oxc/const-comparisons": "warn"
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/.vercel/**",
+    "**/out/**",
+    "**/.source/**",
+    "**/next-env.d.ts",
+    "**/.tanstack/**",
+    "**/.output/**",
+    "**/routeTree.gen.ts",
+    "**/packages/mcp-app-studio/templates/**",
+    "**/*.html",
+    "**/build/**",
+    "**/.turbo/**",
+    "**/coverage/**",
+    "apps/docs/components/tool-ui/weather-widget/generated/**"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "packages/ui/src/components/ui/**",
+        "packages/ui/src/components/assistant-ui/**",
+        "packages/ui/src/components/icons/**",
+        "templates/*/components/ui/**",
+        "templates/*/components/assistant-ui/**",
+        "templates/*/components/icons/**"
+      ],
+      "rules": {
+        "react/exhaustive-deps": "off"
+      }
+    },
+    {
+      "files": [
+        "packages/core/src/react/runtimes/RemoteThreadListThreadListRuntimeCore.tsx",
+        "packages/core/src/react/runtimes/RemoteThreadListHookInstanceManager.tsx",
+        "packages/react/src/unstable/**",
+        "packages/react/src/context/react/utils/createStateHookForRuntime.ts"
+      ],
+      "rules": {
+        "react/rules-of-hooks": "off"
+      }
+    }
+  ]
+}

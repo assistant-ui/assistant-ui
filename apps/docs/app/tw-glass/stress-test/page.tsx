@@ -16,11 +16,11 @@ const BG_STYLE: React.CSSProperties = {
 
 export default function GlassStressTestPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background min-h-screen">
       <div className="mx-auto max-w-7xl px-4 py-12">
         <header className="mb-12 space-y-4">
-          <h1 className="font-bold text-4xl">Glass Stress Test</h1>
-          <p className="max-w-2xl text-muted-foreground">
+          <h1 className="text-4xl font-bold">Glass Stress Test</h1>
+          <p className="text-muted-foreground max-w-2xl">
             Pressure-test tw-glass rendering under heavy load: many elements,
             nested glass, extreme blur, rapid resizing, and all variants
             simultaneously.
@@ -62,7 +62,7 @@ function TableOfContents() {
 
   return (
     <nav className="sticky top-24">
-      <h2 className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+      <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
         Sections
       </h2>
       <ul className="space-y-1">
@@ -70,7 +70,7 @@ function TableOfContents() {
           <li key={id}>
             <a
               href={`#${id}`}
-              className="block rounded-md px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground block rounded-md px-3 py-1.5 text-sm transition-colors"
             >
               {label}
             </a>
@@ -95,7 +95,7 @@ function Section({
   return (
     <section id={id} className="scroll-mt-8 space-y-6">
       <div className="space-y-2">
-        <h2 className="font-bold text-2xl">{title}</h2>
+        <h2 className="text-2xl font-bold">{title}</h2>
         {description && <p className="text-muted-foreground">{description}</p>}
       </div>
       {children}
@@ -128,7 +128,7 @@ function TestCard({
 function DemoArea({ children }: { children: ReactNode }) {
   return (
     <div
-      className="relative overflow-hidden rounded-lg bg-muted p-6 shadow-[inset_0_1px_4px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4)]"
+      className="bg-muted relative overflow-hidden rounded-lg p-6 shadow-[inset_0_1px_4px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_1px_4px_rgba(0,0,0,0.4)]"
       style={BG_STYLE}
     >
       {children}
@@ -150,7 +150,7 @@ function GlassPanel({
       className={cn("rounded-xl", className, compact ? "px-4 py-6" : "p-6")}
       style={{ minHeight: compact ? 80 : 100 }}
     >
-      <code className="rounded bg-foreground/10 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+      <code className="bg-foreground/10 text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[10px]">
         {label}
       </code>
     </div>
@@ -186,7 +186,7 @@ function useFps() {
 function FpsCounter() {
   const fps = useFps();
   return (
-    <div className="inline-flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1 font-mono text-sm">
+    <div className="bg-background/80 inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-sm">
       <span
         className={cn("size-2 rounded-full", {
           "bg-green-500": fps >= 55,
@@ -215,11 +215,11 @@ function MassGridSection() {
       >
         <div className="mb-4 flex items-center gap-4">
           <label
-            className="flex items-center gap-2 font-medium text-sm"
+            className="flex items-center gap-2 text-sm font-medium"
             htmlFor="mass-grid-count"
           >
             Elements
-            <span className="font-mono text-muted-foreground">{count}</span>
+            <span className="text-muted-foreground font-mono">{count}</span>
           </label>
           <input
             id="mass-grid-count"
@@ -315,11 +315,11 @@ function NestedGlassSection() {
       >
         <div className="mb-4 flex items-center gap-4">
           <label
-            className="flex items-center gap-2 font-medium text-sm"
+            className="flex items-center gap-2 text-sm font-medium"
             htmlFor="nest-depth"
           >
             Depth
-            <span className="font-mono text-muted-foreground">{depth}</span>
+            <span className="text-muted-foreground font-mono">{depth}</span>
           </label>
           <input
             id="nest-depth"
@@ -343,7 +343,7 @@ function NestLevel({ current, max }: { current: number; max: number }) {
   if (current > max) return null;
   return (
     <div className="glass glass-surface rounded-xl p-4">
-      <code className="mb-2 block w-fit rounded bg-foreground/10 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+      <code className="bg-foreground/10 text-muted-foreground mb-2 block w-fit rounded px-1.5 py-0.5 font-mono text-[10px]">
         Level {current}
       </code>
       {current < max ? (
@@ -351,7 +351,7 @@ function NestLevel({ current, max }: { current: number; max: number }) {
           <NestLevel current={current + 1} max={max} />
         </div>
       ) : (
-        <p className="mt-2 text-muted-foreground text-sm">Innermost layer</p>
+        <p className="text-muted-foreground mt-2 text-sm">Innermost layer</p>
       )}
     </div>
   );
@@ -375,7 +375,7 @@ function ScrollStressSection() {
           <div className="space-y-3 p-4">
             {Array.from({ length: 60 }).map((_, i) => (
               <div key={i} className="glass glass-surface rounded-xl px-4 py-3">
-                <code className="font-mono text-[10px] text-muted-foreground">
+                <code className="text-muted-foreground font-mono text-[10px]">
                   Panel {i + 1}
                 </code>
               </div>
@@ -403,10 +403,10 @@ function ResizeBehaviorSection() {
             className="glass glass-surface glass-strength-30 resize overflow-auto rounded-xl p-6"
             style={{ width: 300, height: 200, minWidth: 100, minHeight: 80 }}
           >
-            <code className="rounded bg-foreground/10 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            <code className="bg-foreground/10 text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[10px]">
               Resize me (CSS resize: both)
             </code>
-            <p className="mt-3 text-muted-foreground text-sm">
+            <p className="text-muted-foreground mt-3 text-sm">
               The SVG displacement map uses objectBoundingBox units, so it
               should scale smoothly as you drag.
             </p>
@@ -568,11 +568,11 @@ function InteractiveSection() {
             <span className="text-sm">Chromatic aberration</span>
           </label>
 
-          <div className="rounded-lg bg-muted p-4">
-            <p className="mb-2 font-medium text-muted-foreground text-xs">
+          <div className="bg-muted rounded-lg p-4">
+            <p className="text-muted-foreground mb-2 text-xs font-medium">
               Applied Classes:
             </p>
-            <code className="block break-all text-sm">{fullClass}</code>
+            <code className="block text-sm break-all">{fullClass}</code>
           </div>
 
           <FpsCounter />
@@ -622,11 +622,11 @@ function SliderControl({
   return (
     <div className="space-y-2">
       <label
-        className="flex items-center justify-between font-medium text-sm"
+        className="flex items-center justify-between text-sm font-medium"
         htmlFor={id}
       >
         <span>{label}</span>
-        <span className="font-mono text-muted-foreground">{display}</span>
+        <span className="text-muted-foreground font-mono">{display}</span>
       </label>
       <input
         id={id}

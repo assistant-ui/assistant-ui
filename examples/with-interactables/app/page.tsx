@@ -109,20 +109,20 @@ function TaskBoard() {
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-2 border-b px-4 py-3">
-        <ListTodoIcon className="size-4 text-muted-foreground" />
-        <span className="font-semibold text-sm">Task Board</span>
+        <ListTodoIcon className="text-muted-foreground size-4" />
+        <span className="text-sm font-semibold">Task Board</span>
         {isPending && (
-          <Loader2Icon className="size-3 animate-spin text-muted-foreground" />
+          <Loader2Icon className="text-muted-foreground size-3 animate-spin" />
         )}
         {state.tasks.length > 0 && (
-          <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary text-xs">
+          <span className="bg-primary/10 text-primary ml-auto rounded-full px-2 py-0.5 text-xs font-medium">
             {doneCount}/{state.tasks.length}
           </span>
         )}
       </div>
       <div className="flex-1 overflow-y-auto p-3">
         {state.tasks.length === 0 ? (
-          <p className="py-6 text-center text-muted-foreground text-xs">
+          <p className="text-muted-foreground py-6 text-center text-xs">
             No tasks yet. Ask the assistant!
           </p>
         ) : (
@@ -130,7 +130,7 @@ function TaskBoard() {
             {state.tasks.map((task) => (
               <li
                 key={task.id}
-                className="group flex items-center gap-2 rounded-lg px-3 py-2 transition-colors hover:bg-muted"
+                className="group hover:bg-muted flex items-center gap-2 rounded-lg px-3 py-2 transition-colors"
               >
                 <button
                   type="button"
@@ -144,9 +144,9 @@ function TaskBoard() {
                   className="shrink-0"
                 >
                   {task.done ? (
-                    <CheckCircle2Icon className="size-4 text-primary" />
+                    <CheckCircle2Icon className="text-primary size-4" />
                   ) : (
-                    <CircleIcon className="size-4 text-muted-foreground" />
+                    <CircleIcon className="text-muted-foreground size-4" />
                   )}
                 </button>
                 <span
@@ -163,7 +163,7 @@ function TaskBoard() {
                   }
                   className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                 >
-                  <Trash2Icon className="size-3.5 text-muted-foreground hover:text-destructive" />
+                  <Trash2Icon className="text-muted-foreground hover:text-destructive size-3.5" />
                 </button>
               </li>
             ))}
@@ -233,14 +233,14 @@ function NoteCard({
       tabIndex={0}
       onClick={handleClick}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && handleClick()}
-      className={`group relative flex w-full cursor-pointer flex-col gap-1 rounded-lg border-2 p-3 text-left transition-all ${COLORS[state.color] ?? COLORS.yellow} ${isSelected ? "ring-2 ring-primary ring-offset-1" : "hover:shadow-sm"}`}
+      className={`group relative flex w-full cursor-pointer flex-col gap-1 rounded-lg border-2 p-3 text-left transition-all ${COLORS[state.color] ?? COLORS.yellow} ${isSelected ? "ring-primary ring-2 ring-offset-1" : "hover:shadow-sm"}`}
     >
       {isSelected && (
-        <span className="absolute top-1.5 right-2 rounded bg-primary px-1.5 py-0.5 font-medium text-[10px] text-primary-foreground leading-none">
+        <span className="bg-primary text-primary-foreground absolute top-1.5 right-2 rounded px-1.5 py-0.5 text-[10px] leading-none font-medium">
           SELECTED
         </span>
       )}
-      <span className="pr-16 font-semibold text-sm text-zinc-800">
+      <span className="pr-16 text-sm font-semibold text-zinc-800">
         {state.title}
       </span>
       <span className="line-clamp-3 text-xs text-zinc-600">
@@ -252,7 +252,7 @@ function NoteCard({
           e.stopPropagation();
           onRemove(noteId);
         }}
-        className="absolute right-2 bottom-2 rounded p-0.5 opacity-0 transition-opacity hover:bg-black/10 group-hover:opacity-100"
+        className="absolute right-2 bottom-2 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/10"
       >
         <Trash2Icon className="size-3 text-zinc-500" />
       </button>
@@ -339,9 +339,9 @@ function NotesPanel() {
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-2 border-b px-4 py-3">
-        <StickyNoteIcon className="size-4 text-muted-foreground" />
-        <span className="font-semibold text-sm">Notes</span>
-        <span className="ml-auto text-muted-foreground text-xs">
+        <StickyNoteIcon className="text-muted-foreground size-4" />
+        <span className="text-sm font-semibold">Notes</span>
+        <span className="text-muted-foreground ml-auto text-xs">
           {noteIds.length}
         </span>
         <button
@@ -350,14 +350,14 @@ function NotesPanel() {
             const id = `note-${Date.now().toString(36)}`;
             setNoteIds((prev) => [...prev, id]);
           }}
-          className="rounded p-1 transition-colors hover:bg-muted"
+          className="hover:bg-muted rounded p-1 transition-colors"
         >
-          <PlusIcon className="size-3.5 text-muted-foreground" />
+          <PlusIcon className="text-muted-foreground size-3.5" />
         </button>
       </div>
       <div className="flex-1 overflow-y-auto p-3">
         {noteIds.length === 0 ? (
-          <p className="py-6 text-center text-muted-foreground text-xs">
+          <p className="text-muted-foreground py-6 text-center text-xs">
             No notes yet. Ask the assistant!
           </p>
         ) : (

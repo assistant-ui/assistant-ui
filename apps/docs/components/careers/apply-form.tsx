@@ -68,65 +68,65 @@ export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
   return (
     <form onSubmit={handleSubmit} className="grid gap-5">
       <label className="grid gap-2 text-sm">
-        <span className="font-medium text-foreground">Full Name</span>
+        <span className="text-foreground font-medium">Full Name</span>
         <input
           type="text"
           name="full_name"
           required
           autoComplete="name"
-          className="rounded-lg border border-border bg-background px-3 py-2 text-base shadow-sm outline-none ring-0 transition focus:border-primary"
+          className="border-border bg-background focus:border-primary rounded-lg border px-3 py-2 text-base shadow-sm ring-0 transition outline-none"
           placeholder="Ada Lovelace"
         />
       </label>
 
       <label className="grid gap-2 text-sm">
-        <span className="font-medium text-foreground">
+        <span className="text-foreground font-medium">
           URLs that best describe you
         </span>
         <textarea
           name="urls"
           required
           rows={3}
-          className="rounded-lg border border-border bg-background px-3 py-2 text-base shadow-sm outline-none ring-0 transition focus:border-primary"
+          className="border-border bg-background focus:border-primary rounded-lg border px-3 py-2 text-base shadow-sm ring-0 transition outline-none"
           placeholder="Portfolio, GitHub, LinkedIn, blog – one per line"
         ></textarea>
       </label>
 
       <label className="grid gap-2 text-sm">
-        <span className="font-medium text-foreground">
+        <span className="text-foreground font-medium">
           Anything else?{" "}
           <span className="text-muted-foreground">(optional)</span>
         </span>
         <textarea
           name="notes"
           rows={4}
-          className="rounded-lg border border-border bg-background px-3 py-2 text-base shadow-sm outline-none ring-0 transition focus:border-primary"
+          className="border-border bg-background focus:border-primary rounded-lg border px-3 py-2 text-base shadow-sm ring-0 transition outline-none"
           placeholder="Tell us about goals, timelines, or anything you'd like us to know."
         ></textarea>
       </label>
 
       <button
         type="submit"
-        className="inline-flex w-fit items-center justify-center rounded-full border border-border px-5 py-2 font-medium text-foreground text-sm transition hover:border-primary hover:bg-primary/5 hover:text-primary"
+        className="border-border text-foreground hover:border-primary hover:bg-primary/5 hover:text-primary inline-flex w-fit items-center justify-center rounded-full border px-5 py-2 text-sm font-medium transition"
       >
         Apply now
       </button>
 
       {fallbackVisible ? (
-        <div className="mt-2 grid gap-2 rounded-lg border border-border/70 border-dashed bg-background/50 p-3">
+        <div className="border-border/70 bg-background/50 mt-2 grid gap-2 rounded-lg border border-dashed p-3">
           <p className="text-muted-foreground text-xs">
             If your email client didn&apos;t open, use the options below.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <a
               href={mailtoHref}
-              className="inline-flex items-center justify-center rounded-full border border-border px-4 py-1.5 font-medium text-foreground text-xs transition hover:border-primary hover:bg-primary/5 hover:text-primary"
+              className="border-border text-foreground hover:border-primary hover:bg-primary/5 hover:text-primary inline-flex items-center justify-center rounded-full border px-4 py-1.5 text-xs font-medium transition"
             >
               Open email client
             </a>
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-full border border-border px-4 py-1.5 font-medium text-foreground text-xs transition hover:border-primary hover:bg-primary/5 hover:text-primary"
+              className="border-border text-foreground hover:border-primary hover:bg-primary/5 hover:text-primary inline-flex items-center justify-center rounded-full border px-4 py-1.5 text-xs font-medium transition"
               onClick={async () => {
                 try {
                   const text = `To: careers@assistant-ui.com
@@ -152,9 +152,9 @@ ${composedBody}`;
                   : ""}
             </span>
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-muted-foreground text-[11px]">
             Or email{" "}
-            <span className="font-medium text-foreground">
+            <span className="text-foreground font-medium">
               careers@assistant-ui.com
             </span>{" "}
             with the subject &quot;Application: {roleTitle}&quot;.

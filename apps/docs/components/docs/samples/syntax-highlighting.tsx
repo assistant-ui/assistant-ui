@@ -13,11 +13,11 @@ const message = greet("World");`;
 
 export const SyntaxHighlightingSample = () => {
   return (
-    <SampleFrame className="h-auto bg-background p-4">
+    <SampleFrame className="bg-background h-auto p-4">
       <div className="overflow-hidden rounded-lg">
-        <div className="flex items-center justify-between gap-4 rounded-t-lg bg-muted-foreground/15 px-4 py-2 font-semibold text-foreground text-sm dark:bg-muted-foreground/20">
+        <div className="bg-muted-foreground/15 text-foreground dark:bg-muted-foreground/20 flex items-center justify-between gap-4 rounded-t-lg px-4 py-2 text-sm font-semibold">
           <span className="lowercase">typescript</span>
-          <button type="button" className="rounded p-1 hover:bg-muted">
+          <button type="button" className="hover:bg-muted rounded p-1">
             <CopyIcon className="size-4" />
           </button>
         </div>

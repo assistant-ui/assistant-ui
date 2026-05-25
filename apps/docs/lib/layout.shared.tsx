@@ -28,7 +28,7 @@ export const baseOptions: BaseLayoutProps = {
           height={18}
           className="inline dark:hue-rotate-180 dark:invert"
         />
-        <span className="font-medium text-base tracking-tight">
+        <span className="text-base font-medium tracking-tight">
           assistant-ui
         </span>
       </>

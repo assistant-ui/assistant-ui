@@ -20,7 +20,7 @@ export function Card({
 }: CardProps) {
   const content = (
     <>
-      <span className="flex items-center gap-2 font-medium text-sm">
+      <span className="flex items-center gap-2 text-sm font-medium">
         {icon}
         {title}
       </span>

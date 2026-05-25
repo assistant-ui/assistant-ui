@@ -11,7 +11,7 @@ export function SourceLink({ href }: SourceLinkProps) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground"
+      className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-sm transition-colors"
     >
       <ExternalLink className="size-4" />
       View full source on GitHub

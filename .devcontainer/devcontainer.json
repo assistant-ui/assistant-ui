@@ -9,14 +9,14 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "biomejs.biome",
+        "oxc.oxc-vscode",
         "ms-vscode.vscode-typescript-next",
         "bradlc.vscode-tailwindcss",
         "anthropics.claude-code"
       ],
       "settings": {
         "editor.formatOnSave": true,
-        "editor.defaultFormatter": "biomejs.biome"
+        "editor.defaultFormatter": "oxc.oxc-vscode"
       }
     }
   },

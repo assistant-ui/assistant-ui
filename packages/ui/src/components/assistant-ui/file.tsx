@@ -19,7 +19,7 @@ const fileVariants = cva(
   {
     variants: {
       variant: {
-        outline: "border border-border hover:bg-muted/50",
+        outline: "border-border hover:bg-muted/50 border",
         ghost: "hover:bg-muted/50",
         muted: "bg-muted/50 hover:bg-muted/70",
       },
@@ -113,7 +113,7 @@ function FileIconDisplay({
   return (
     <span
       data-slot="file-icon"
-      className={cn("shrink-0 text-muted-foreground", className)}
+      className={cn("text-muted-foreground shrink-0", className)}
       {...props}
     >
       {children ?? <IconComponent className="size-5" />}
@@ -145,7 +145,7 @@ function FileSize({ bytes, className, ...props }: FileSizeProps) {
   return (
     <span
       data-slot="file-size"
-      className={cn("shrink-0 text-muted-foreground", className)}
+      className={cn("text-muted-foreground shrink-0", className)}
       {...props}
     >
       {formatFileSize(bytes)}
@@ -177,7 +177,7 @@ function FileDownload({
       href={href}
       download={filename || "download"}
       className={cn(
-        "shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+        "text-muted-foreground hover:bg-accent hover:text-accent-foreground shrink-0 rounded-md p-1 transition-colors",
         className,
       )}
       {...props}

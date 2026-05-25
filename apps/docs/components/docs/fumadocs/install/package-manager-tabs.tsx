@@ -117,7 +117,7 @@ function CommandTabs({
             onMouseEnter={() => setHoveredIndex(index)}
             onMouseLeave={() => setHoveredIndex(null)}
             className={cn(
-              "relative z-10 rounded-md px-2.5 py-1 font-medium text-xs transition-colors duration-200",
+              "relative z-10 rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-200",
               pm === manager
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground",

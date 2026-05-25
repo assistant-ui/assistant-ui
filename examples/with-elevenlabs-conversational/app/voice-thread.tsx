@@ -23,7 +23,7 @@ import type { FC } from "react";
 export const VoiceThread: FC = () => {
   return (
     <ThreadPrimitive.Root
-      className="aui-root aui-thread-root flex h-full flex-col bg-background"
+      className="aui-root aui-thread-root bg-background flex h-full flex-col"
       style={{ ["--thread-max-width" as string]: "44rem" }}
     >
       <ThreadPrimitive.Viewport className="aui-thread-viewport relative flex flex-1 flex-col overflow-y-scroll scroll-smooth px-4 pt-4">
@@ -35,7 +35,7 @@ export const VoiceThread: FC = () => {
           {() => <ThreadMessage />}
         </ThreadPrimitive.Messages>
 
-        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col items-center bg-background pt-4 pb-6">
+        <ThreadPrimitive.ViewportFooter className="bg-background sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col items-center pt-4 pb-6">
           <ThreadScrollToBottom />
           <VoiceControlCenter />
         </ThreadPrimitive.ViewportFooter>
@@ -47,7 +47,7 @@ export const VoiceThread: FC = () => {
 const VoiceWelcome: FC = () => {
   return (
     <div className="aui-thread-welcome-root mx-auto my-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center justify-center gap-2">
-      <p className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both font-semibold text-2xl duration-200">
+      <p className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-semibold duration-200">
         Voice Conversation
       </p>
       <p className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-muted-foreground delay-75 duration-200">
@@ -63,7 +63,7 @@ const ThreadScrollToBottom: FC = () => {
       <TooltipIconButton
         tooltip="Scroll to bottom"
         variant="outline"
-        className="absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible dark:border-border dark:bg-background dark:hover:bg-accent"
+        className="dark:border-border dark:bg-background dark:hover:bg-accent absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible"
       >
         <ArrowDownIcon />
       </TooltipIconButton>
@@ -114,7 +114,7 @@ const VoiceWaveform: FC = () => {
         return (
           <span
             key={i}
-            className="aui-voice-waveform-bar h-full w-[3px] origin-center rounded-full bg-foreground/50 transition-transform duration-100"
+            className="aui-voice-waveform-bar bg-foreground/50 h-full w-[3px] origin-center rounded-full transition-transform duration-100"
             style={{ transform: `scaleY(${scale})` }}
           />
         );
@@ -132,10 +132,10 @@ const ThreadMessage: FC = () => {
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root
-      className="aui-assistant-message-root fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
+      className="aui-assistant-message-root fade-in slide-in-from-bottom-1 animate-in relative mx-auto w-full max-w-(--thread-max-width) py-3 duration-150"
       data-role="assistant"
     >
-      <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
+      <div className="aui-assistant-message-content text-foreground px-2 leading-relaxed wrap-break-word">
         <MessagePrimitive.Parts>
           {({ part }) => {
             if (part.type === "text") return <MarkdownText />;
@@ -150,10 +150,10 @@ const AssistantMessage: FC = () => {
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
-      className="aui-user-message-root fade-in slide-in-from-bottom-1 mx-auto flex w-full max-w-(--thread-max-width) animate-in justify-end px-2 py-3 duration-150"
+      className="aui-user-message-root fade-in slide-in-from-bottom-1 animate-in mx-auto flex w-full max-w-(--thread-max-width) justify-end px-2 py-3 duration-150"
       data-role="user"
     >
-      <div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
+      <div className="aui-user-message-content bg-muted text-foreground rounded-2xl px-4 py-2.5 wrap-break-word">
         <MessagePrimitive.Parts />
       </div>
     </MessagePrimitive.Root>

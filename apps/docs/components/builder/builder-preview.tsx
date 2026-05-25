@@ -268,7 +268,7 @@ const ThreadWelcome: FC<ThreadWelcomeProps> = ({ config }) => {
         <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-4">
           <h1
             className={cn(
-              "aui-thread-welcome-message-inner font-semibold text-2xl",
+              "aui-thread-welcome-message-inner text-2xl font-semibold",
               styles.animations &&
                 "fade-in slide-in-from-bottom-1 animate-in duration-200",
             )}
@@ -313,12 +313,12 @@ const ThreadSuggestions: FC<ThreadSuggestionsProps> = ({ config }) => {
   const { styles } = config;
 
   return (
-    <div className="aui-thread-welcome-suggestions grid w-full @md:grid-cols-2 gap-2 pb-4">
+    <div className="aui-thread-welcome-suggestions grid w-full gap-2 pb-4 @md:grid-cols-2">
       {SUGGESTIONS.map((suggestion, index) => (
         <div
           key={suggestion.prompt}
           className={cn(
-            "aui-thread-welcome-suggestion-display @md:nth-[n+3]:block nth-[n+3]:hidden",
+            "aui-thread-welcome-suggestion-display nth-[n+3]:hidden @md:nth-[n+3]:block",
             styles.animations &&
               "fade-in slide-in-from-bottom-2 animate-in fill-mode-both duration-200",
           )}
@@ -331,7 +331,7 @@ const ThreadSuggestions: FC<ThreadSuggestionsProps> = ({ config }) => {
           <ThreadPrimitive.Suggestion prompt={suggestion.prompt} send asChild>
             <Button
               variant="ghost"
-              className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-2xl px-4 py-3 text-left text-sm transition-colors"
+              className="aui-thread-welcome-suggestion h-auto w-full flex-wrap items-start justify-start gap-1 rounded-2xl px-4 py-3 text-left text-sm transition-colors @md:flex-col"
               style={{
                 backgroundColor: "var(--aui-suggestion-background)",
                 borderWidth: "1px",
@@ -368,9 +368,9 @@ const Composer: FC<ComposerProps> = ({ config }) => {
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone
         className={cn(
-          "aui-composer-attachment-dropzone flex w-full flex-col px-1 pt-2 outline-none transition-shadow",
-          "has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20",
-          "data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50",
+          "aui-composer-attachment-dropzone flex w-full flex-col px-1 pt-2 transition-shadow outline-none",
+          "has-[textarea:focus-visible]:ring-ring/20 has-[textarea:focus-visible]:ring-2",
+          "data-[dragging=true]:bg-accent/50 data-[dragging=true]:border-dashed",
           BORDER_RADIUS_CLASS[styles.borderRadius],
         )}
         style={{
@@ -505,10 +505,10 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
             <UserIcon className="size-4" />
           </div>
         )}
-        <div className="relative min-w-0 max-w-[80%]">
+        <div className="relative max-w-[80%] min-w-0">
           <div
             className={cn(
-              "aui-user-message-content wrap-break-word peer px-4 py-2.5 empty:hidden",
+              "aui-user-message-content peer px-4 py-2.5 wrap-break-word empty:hidden",
               BORDER_RADIUS_CLASS[styles.borderRadius],
             )}
             style={{ backgroundColor: "var(--aui-user-message-background)" }}
@@ -554,7 +554,7 @@ const UserMessage: FC<UserMessageProps> = ({ config }) => {
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div
           className={cn(
-            "aui-user-message-content wrap-break-word peer px-4 py-2.5 empty:hidden",
+            "aui-user-message-content peer px-4 py-2.5 wrap-break-word empty:hidden",
             BORDER_RADIUS_CLASS[styles.borderRadius],
           )}
           style={{ backgroundColor: "var(--aui-user-message-background)" }}
@@ -644,7 +644,7 @@ const AssistantMessage: FC<AssistantMessageProps> = ({ config }) => {
 
           <div
             className={cn(
-              "aui-assistant-message-content wrap-break-word leading-relaxed",
+              "aui-assistant-message-content leading-relaxed wrap-break-word",
               styles.colors.assistantMessage && "rounded-2xl px-4 py-3",
             )}
             style={
@@ -837,9 +837,9 @@ const BranchPicker: FC<BranchPickerProps> = ({ className }) => {
 const EditComposer: FC = () => {
   return (
     <MessagePrimitive.Root className="aui-edit-composer-wrapper mx-auto flex w-full max-w-(--aui-thread-max-width) flex-col px-2 py-3">
-      <ComposerPrimitive.Root className="aui-edit-composer-root ml-auto flex w-full max-w-[85%] flex-col rounded-2xl bg-muted">
+      <ComposerPrimitive.Root className="aui-edit-composer-root bg-muted ml-auto flex w-full max-w-[85%] flex-col rounded-2xl">
         <ComposerPrimitive.Input
-          className="aui-edit-composer-input min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none"
+          className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent p-4 text-sm outline-none"
           autoFocus
         />
         <div className="aui-edit-composer-footer mx-3 mb-3 flex items-center gap-2 self-end">
@@ -858,8 +858,8 @@ const EditComposer: FC = () => {
 };
 
 const MarkdownCodeHeader: FC<CodeHeaderProps> = ({ language }) => (
-  <div className="mt-2.5 flex items-center justify-between rounded-t-lg border border-border/50 border-b-0 bg-muted/50 px-3 py-1.5 text-xs">
-    <span className="font-medium text-muted-foreground lowercase">
+  <div className="border-border/50 bg-muted/50 mt-2.5 flex items-center justify-between rounded-t-lg border border-b-0 px-3 py-1.5 text-xs">
+    <span className="text-muted-foreground font-medium lowercase">
       {language}
     </span>
   </div>
@@ -871,7 +871,7 @@ const MarkdownH1: FC<React.ComponentProps<"h1">> = ({
 }) => (
   <h1
     className={cn(
-      "mb-2 scroll-m-20 font-semibold text-base first:mt-0 last:mb-0",
+      "mb-2 scroll-m-20 text-base font-semibold first:mt-0 last:mb-0",
       className,
     )}
     {...props}
@@ -884,7 +884,7 @@ const MarkdownH2: FC<React.ComponentProps<"h2">> = ({
 }) => (
   <h2
     className={cn(
-      "mt-3 mb-1.5 scroll-m-20 font-semibold text-sm first:mt-0 last:mb-0",
+      "mt-3 mb-1.5 scroll-m-20 text-sm font-semibold first:mt-0 last:mb-0",
       className,
     )}
     {...props}
@@ -897,7 +897,7 @@ const MarkdownH3: FC<React.ComponentProps<"h3">> = ({
 }) => (
   <h3
     className={cn(
-      "mt-2.5 mb-1 scroll-m-20 font-semibold text-sm first:mt-0 last:mb-0",
+      "mt-2.5 mb-1 scroll-m-20 text-sm font-semibold first:mt-0 last:mb-0",
       className,
     )}
     {...props}
@@ -917,7 +917,7 @@ const MarkdownUl: FC<React.ComponentProps<"ul">> = ({
 }) => (
   <ul
     className={cn(
-      "my-2 ml-4 list-disc marker:text-muted-foreground [&>li]:mt-1",
+      "marker:text-muted-foreground my-2 ml-4 list-disc [&>li]:mt-1",
       className,
     )}
     {...props}
@@ -930,7 +930,7 @@ const MarkdownOl: FC<React.ComponentProps<"ol">> = ({
 }) => (
   <ol
     className={cn(
-      "my-2 ml-4 list-decimal marker:text-muted-foreground [&>li]:mt-1",
+      "marker:text-muted-foreground my-2 ml-4 list-decimal [&>li]:mt-1",
       className,
     )}
     {...props}
@@ -943,7 +943,7 @@ const MarkdownPre: FC<React.ComponentProps<"pre">> = ({
 }) => (
   <pre
     className={cn(
-      "overflow-x-auto rounded-t-none rounded-b-lg border border-border/50 border-t-0 bg-muted/30 p-3 text-xs leading-relaxed",
+      "border-border/50 bg-muted/30 overflow-x-auto rounded-t-none rounded-b-lg border border-t-0 p-3 text-xs leading-relaxed",
       className,
     )}
     {...props}
@@ -959,7 +959,7 @@ const MarkdownCode: FC<React.ComponentProps<"code">> = ({
     <code
       className={cn(
         !isCodeBlock &&
-          "rounded-md border border-border/50 bg-muted/50 px-1.5 py-0.5 font-mono text-[0.85em]",
+          "border-border/50 bg-muted/50 rounded-md border px-1.5 py-0.5 font-mono text-[0.85em]",
         className,
       )}
       {...props}
@@ -998,7 +998,7 @@ const createSyntaxHighlighter = (
       addDefaultStyles={false}
       showLanguage={false}
       as="div"
-      className="not-fumadocs-codeblock overflow-x-auto rounded-t-none rounded-b-lg border border-border/50 border-t-0 bg-muted/30 p-3 text-xs leading-relaxed [&_.line:last-child:empty]:hidden"
+      className="not-fumadocs-codeblock border-border/50 bg-muted/30 overflow-x-auto rounded-t-none rounded-b-lg border border-t-0 p-3 text-xs leading-relaxed [&_.line:last-child:empty]:hidden"
     >
       {code}
     </ShikiHighlighter>

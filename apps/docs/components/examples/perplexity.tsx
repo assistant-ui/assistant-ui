@@ -81,7 +81,7 @@ const EmptyState: FC = () => {
   return (
     <div className="flex h-full flex-col justify-center px-4">
       <div className="mx-auto w-full max-w-(--thread-max-width)">
-        <p className="mb-8 text-center font-display text-5xl text-[#25211c] leading-none tracking-[-0.06em] sm:text-[3.1rem] dark:text-[#f5f2ed]">
+        <p className="font-display mb-8 text-center text-5xl leading-none tracking-[-0.06em] text-[#25211c] sm:text-[3.1rem] dark:text-[#f5f2ed]">
           perplexity
         </p>
         <Composer placeholder="Ask anything..." />
@@ -222,7 +222,7 @@ const SearchModePicker: FC = () => {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex h-8 items-center gap-1.5 rounded-full border border-[#e0d8cb] bg-[#f5f1eb] px-3 text-[#3a342d] text-sm transition-colors hover:bg-[#ede6dd] dark:border-[#3a342f] dark:bg-[#2a2724] dark:text-[#e6dfd5] dark:hover:bg-[#332f2c]">
+      <DropdownMenuTrigger className="flex h-8 items-center gap-1.5 rounded-full border border-[#e0d8cb] bg-[#f5f1eb] px-3 text-sm text-[#3a342d] transition-colors hover:bg-[#ede6dd] dark:border-[#3a342f] dark:bg-[#2a2724] dark:text-[#e6dfd5] dark:hover:bg-[#332f2c]">
         <CurrentIcon className="size-3.5" />
         <span>{current.name}</span>
         <ChevronDownIcon className="size-3.5 opacity-70" />
@@ -265,7 +265,7 @@ const ModelPicker: FC = () => {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="hidden h-8 items-center gap-1 rounded-full px-2.5 text-[#746c62] text-sm transition-colors hover:bg-[#f2ede6] hover:text-[#1f1b17] sm:flex dark:text-[#a19a91] dark:hover:bg-[#2b2825] dark:hover:text-[#f5f2ed]">
+      <DropdownMenuTrigger className="hidden h-8 items-center gap-1 rounded-full px-2.5 text-sm text-[#746c62] transition-colors hover:bg-[#f2ede6] hover:text-[#1f1b17] sm:flex dark:text-[#a19a91] dark:hover:bg-[#2b2825] dark:hover:text-[#f5f2ed]">
         <span>{current.name}</span>
         <ChevronDownIcon className="size-4 opacity-70" />
       </DropdownMenuTrigger>
@@ -314,7 +314,7 @@ const ChatMessage: FC = () => {
             </ActionBarPrimitive.Root>
 
             <div className="max-w-[85%] rounded-3xl rounded-tr-md border border-[#ddd5c9] bg-[#fcfbf8] px-4 py-3 text-[#2c2721] shadow-[0_1px_0_rgba(31,27,23,0.03)] dark:border-[#38332e] dark:bg-[#23211f] dark:text-[#f1ede7]">
-              <div className="prose prose-sm wrap-break-word dark:prose-invert prose-p:my-0">
+              <div className="prose prose-sm dark:prose-invert prose-p:my-0 wrap-break-word">
                 <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
               </div>
             </div>
@@ -331,7 +331,7 @@ const ChatMessage: FC = () => {
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="prose prose-sm wrap-break-word dark:prose-invert prose-li:my-1 prose-p:my-2 prose-ul:my-2 text-[#2c2721] dark:text-[#ece7df]">
+            <div className="prose prose-sm dark:prose-invert prose-li:my-1 prose-p:my-2 prose-ul:my-2 wrap-break-word text-[#2c2721] dark:text-[#ece7df]">
               <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
             </div>
 
@@ -366,7 +366,7 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
-        "inline-flex items-center gap-1 text-[#8a8176] text-xs dark:text-[#9f978e]",
+        "inline-flex items-center gap-1 text-xs text-[#8a8176] dark:text-[#9f978e]",
         className,
       )}
       {...props}
@@ -455,17 +455,17 @@ const AttachmentPreview: FC<{ removable: boolean }> = ({ removable }) => {
           )}
         </div>
         <div className="min-w-0">
-          <p className="truncate text-[#2d2822] text-sm leading-5 dark:text-[#f3efe9]">
+          <p className="truncate text-sm leading-5 text-[#2d2822] dark:text-[#f3efe9]">
             <AttachmentPrimitive.Name />
           </p>
-          <p className="text-[#7d7469] text-xs dark:text-[#9d968d]">
+          <p className="text-xs text-[#7d7469] dark:text-[#9d968d]">
             <AttachmentTypeLabel />
           </p>
         </div>
       </div>
 
       {removable ? (
-        <AttachmentPrimitive.Remove className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-[#ede6dd] text-[#5f574d] opacity-0 transition-all hover:bg-[#dfd5c8] group-hover/attachment:opacity-100 dark:bg-[#3a342f] dark:text-[#d4ccc2] dark:hover:bg-[#4a433b]">
+        <AttachmentPrimitive.Remove className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-[#ede6dd] text-[#5f574d] opacity-0 transition-all group-hover/attachment:opacity-100 hover:bg-[#dfd5c8] dark:bg-[#3a342f] dark:text-[#d4ccc2] dark:hover:bg-[#4a433b]">
           <Cross2Icon className="size-3.5" />
         </AttachmentPrimitive.Remove>
       ) : null}

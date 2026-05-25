@@ -45,14 +45,14 @@ export function ActivityHeatmap({
 
   if (commits.length === 0 && releases.length === 0) {
     return (
-      <div className="flex h-[220px] items-center justify-center rounded-lg border border-border border-dashed text-muted-foreground text-sm">
+      <div className="border-border text-muted-foreground flex h-[220px] items-center justify-center rounded-lg border border-dashed text-sm">
         Activity is currently unavailable.
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-border p-4 md:p-5">
+    <div className="border-border rounded-lg border p-4 md:p-5">
       <HeatGraph.Root
         data={commits}
         weekStart="sunday"
@@ -66,7 +66,7 @@ export function ActivityHeatmap({
           <HeatGraph.MonthLabels>
             {({ label, totalWeeks }) => (
               <span
-                className="absolute text-[11px] text-muted-foreground leading-[14px]"
+                className="text-muted-foreground absolute text-[11px] leading-[14px]"
                 style={{ left: `${(label.column / totalWeeks) * 100}%` }}
               >
                 {HeatGraph.MONTH_SHORT[label.month]}
@@ -80,7 +80,7 @@ export function ActivityHeatmap({
             <HeatGraph.DayLabels>
               {({ label }) => (
                 <span
-                  className="relative text-[10px] text-muted-foreground"
+                  className="text-muted-foreground relative text-[10px]"
                   style={{ height: 11 }}
                 >
                   {label.row % 2 === 1 ? (
@@ -114,7 +114,7 @@ export function ActivityHeatmap({
         </div>
 
         <div
-          className="flex flex-wrap items-center justify-end text-[11px] text-muted-foreground"
+          className="text-muted-foreground flex flex-wrap items-center justify-end text-[11px]"
           style={{ marginTop: 10, gap: 12 }}
         >
           <div className="flex items-center" style={{ gap: 4 }}>
@@ -144,7 +144,7 @@ export function ActivityHeatmap({
           </div>
         </div>
 
-        <HeatGraph.Tooltip className="pointer-events-none whitespace-nowrap rounded-md border border-border bg-popover px-3 py-1.5 text-popover-foreground text-xs shadow-md">
+        <HeatGraph.Tooltip className="border-border bg-popover text-popover-foreground pointer-events-none rounded-md border px-3 py-1.5 text-xs whitespace-nowrap shadow-md">
           {({ cell }) => {
             const released = releaseDays.has(localDateKey(cell.date));
             const headline =

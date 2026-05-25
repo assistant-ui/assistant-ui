@@ -11,11 +11,11 @@ const BG_IMAGE = unsplash(PHOTO_ID);
 
 export default function GlassTextStressTestPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background min-h-screen">
       <div className="mx-auto max-w-7xl px-4 py-12">
         <header className="mb-12 space-y-4">
-          <h1 className="font-bold text-4xl">Glass Text Stress Test</h1>
-          <p className="max-w-2xl text-muted-foreground">
+          <h1 className="text-4xl font-bold">Glass Text Stress Test</h1>
+          <p className="text-muted-foreground max-w-2xl">
             Pressure-test the glass-text utility under heavy load: many
             elements, extreme sizes, varied backgrounds, long copy, and all
             options simultaneously.
@@ -57,7 +57,7 @@ function TableOfContents() {
 
   return (
     <nav className="sticky top-24">
-      <h2 className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+      <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
         Sections
       </h2>
       <ul className="space-y-1">
@@ -65,7 +65,7 @@ function TableOfContents() {
           <li key={id}>
             <a
               href={`#${id}`}
-              className="block rounded-md px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground block rounded-md px-3 py-1.5 text-sm transition-colors"
             >
               {label}
             </a>
@@ -90,7 +90,7 @@ function Section({
   return (
     <section id={id} className="scroll-mt-8 space-y-6">
       <div className="space-y-2">
-        <h2 className="font-bold text-2xl">{title}</h2>
+        <h2 className="text-2xl font-bold">{title}</h2>
         {description && <p className="text-muted-foreground">{description}</p>}
       </div>
       {children}
@@ -130,7 +130,7 @@ function DemoArea({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-lg bg-muted p-6",
+        "bg-muted relative overflow-hidden rounded-lg p-6",
         className,
       )}
     >
@@ -191,7 +191,7 @@ function useFps() {
 function FpsCounter() {
   const fps = useFps();
   return (
-    <div className="inline-flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1 font-mono text-sm">
+    <div className="bg-background/80 inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-sm">
       <span
         className={cn("size-2 rounded-full", {
           "bg-green-500": fps >= 55,
@@ -220,11 +220,11 @@ function MassGridSection() {
       >
         <div className="mb-4 flex items-center gap-4">
           <label
-            className="flex items-center gap-2 font-medium text-sm"
+            className="flex items-center gap-2 text-sm font-medium"
             htmlFor="mass-grid-count"
           >
             Elements
-            <span className="font-mono text-muted-foreground">{count}</span>
+            <span className="text-muted-foreground font-mono">{count}</span>
           </label>
           <input
             id="mass-grid-count"
@@ -246,7 +246,7 @@ function MassGridSection() {
           >
             {Array.from({ length: count }).map((_, i) => (
               <div key={i} className="text-center">
-                <GlassText className="font-bold text-3xl">Glass</GlassText>
+                <GlassText className="text-3xl font-bold">Glass</GlassText>
               </div>
             ))}
           </div>
@@ -281,7 +281,7 @@ function FontSizeSection() {
           <div className="space-y-6">
             {FONT_SIZES.map(({ label, cls }) => (
               <div key={label} className="space-y-1">
-                <code className="rounded bg-foreground/10 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                <code className="bg-foreground/10 text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[10px]">
                   {label}
                 </code>
                 <div>
@@ -324,7 +324,7 @@ function FontWeightSection() {
           <div className="space-y-4">
             {FONT_WEIGHTS.map(({ label, cls }) => (
               <div key={label} className="flex items-baseline gap-4">
-                <code className="w-32 shrink-0 rounded bg-foreground/10 px-1.5 py-0.5 text-right font-mono text-[10px] text-muted-foreground">
+                <code className="bg-foreground/10 text-muted-foreground w-32 shrink-0 rounded px-1.5 py-0.5 text-right font-mono text-[10px]">
                   {label}
                 </code>
                 <GlassText className={cn("text-5xl", cls)}>tw-glass</GlassText>
@@ -395,11 +395,11 @@ function BackgroundVariantsSection() {
           <div className="grid gap-6 sm:grid-cols-2">
             {BG_VARIANTS.map(({ label, style }) => (
               <div key={label} className="space-y-1">
-                <code className="rounded bg-foreground/10 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                <code className="bg-foreground/10 text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[10px]">
                   {label}
                 </code>
                 <div>
-                  <GlassText className="font-bold text-5xl" style={style}>
+                  <GlassText className="text-5xl font-bold" style={style}>
                     tw-glass
                   </GlassText>
                 </div>
@@ -429,33 +429,33 @@ function LongCopySection() {
         <DemoArea>
           <div className="space-y-6">
             <div className="space-y-1">
-              <code className="rounded bg-foreground/10 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+              <code className="bg-foreground/10 text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[10px]">
                 text-lg
               </code>
               <p>
-                <GlassText className="font-medium text-lg leading-relaxed">
+                <GlassText className="text-lg leading-relaxed font-medium">
                   {LOREM} {LOREM}
                 </GlassText>
               </p>
             </div>
 
             <div className="space-y-1">
-              <code className="rounded bg-foreground/10 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+              <code className="bg-foreground/10 text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[10px]">
                 text-2xl
               </code>
               <p>
-                <GlassText className="font-semibold text-2xl leading-relaxed">
+                <GlassText className="text-2xl leading-relaxed font-semibold">
                   {LOREM}
                 </GlassText>
               </p>
             </div>
 
             <div className="space-y-1">
-              <code className="rounded bg-foreground/10 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+              <code className="bg-foreground/10 text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[10px]">
                 text-4xl (multiline)
               </code>
               <p>
-                <GlassText className="font-bold text-4xl leading-tight">
+                <GlassText className="text-4xl leading-tight font-bold">
                   {LOREM}
                 </GlassText>
               </p>
@@ -481,26 +481,26 @@ function NestedContainersSection() {
         <DemoArea>
           <div className="space-y-4">
             <div className="glass glass-surface rounded-xl p-6">
-              <GlassText className="font-bold text-4xl">
+              <GlassText className="text-4xl font-bold">
                 Heading inside glass
               </GlassText>
-              <p className="mt-2 text-muted-foreground text-sm">
+              <p className="text-muted-foreground mt-2 text-sm">
                 Regular text below the glass heading.
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="glass glass-surface glass-strength-30 rounded-xl p-6">
-                <GlassText className="font-bold text-2xl">Panel A</GlassText>
+                <GlassText className="text-2xl font-bold">Panel A</GlassText>
               </div>
               <div className="glass glass-surface glass-chromatic-20 rounded-xl p-6">
-                <GlassText className="font-bold text-2xl">Panel B</GlassText>
+                <GlassText className="text-2xl font-bold">Panel B</GlassText>
               </div>
             </div>
 
             <div className="glass glass-surface rounded-xl p-6">
               <div className="glass glass-surface rounded-lg p-4">
-                <GlassText className="font-bold text-3xl">
+                <GlassText className="text-3xl font-bold">
                   Double nested
                 </GlassText>
               </div>
@@ -523,14 +523,14 @@ function ScrollStressSection() {
         title="Scroll through glass text headings"
         description="Each heading uses background-clip: text with a fixed background. Tests performance during scroll."
       >
-        <div className="relative h-[500px] overflow-y-auto rounded-lg bg-muted">
+        <div className="bg-muted relative h-[500px] overflow-y-auto rounded-lg">
           <div className="space-y-4 p-4">
             {Array.from({ length: 40 }).map((_, i) => (
               <div
                 key={i}
-                className="rounded-xl border border-foreground/10 border-dashed px-4 py-3"
+                className="border-foreground/10 rounded-xl border border-dashed px-4 py-3"
               >
-                <GlassText className="font-bold text-3xl">
+                <GlassText className="text-3xl font-bold">
                   Glass heading {i + 1}
                 </GlassText>
               </div>
@@ -610,7 +610,7 @@ function InteractiveSection() {
           />
 
           <div className="space-y-2">
-            <label className="font-medium text-sm" htmlFor="int-text">
+            <label className="text-sm font-medium" htmlFor="int-text">
               Text
             </label>
             <input
@@ -618,12 +618,12 @@ function InteractiveSection() {
               type="text"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              className="bg-background w-full rounded-md border px-3 py-2 text-sm"
             />
           </div>
 
           <div className="space-y-2">
-            <span className="font-medium text-sm">Background</span>
+            <span className="text-sm font-medium">Background</span>
             <div className="flex gap-2">
               {PHOTO_OPTIONS.map((p, i) => (
                 <button
@@ -700,11 +700,11 @@ function SliderControl({
   return (
     <div className="space-y-2">
       <label
-        className="flex items-center justify-between font-medium text-sm"
+        className="flex items-center justify-between text-sm font-medium"
         htmlFor={id}
       >
         <span>{label}</span>
-        <span className="font-mono text-muted-foreground">{display}</span>
+        <span className="text-muted-foreground font-mono">{display}</span>
       </label>
       <input
         id={id}

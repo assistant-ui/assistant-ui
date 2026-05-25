@@ -11,7 +11,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className="h-dvh bg-background text-foreground">{children}</body>
+      <body className="bg-background text-foreground h-dvh">{children}</body>
     </html>
   );
 }

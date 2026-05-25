@@ -33,11 +33,11 @@ export default function CareersPage(): ReactElement {
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-16 md:py-24">
       <header className="mb-12">
-        <p className="mb-3 text-muted-foreground text-sm">Careers</p>
-        <h1 className="font-medium text-2xl tracking-tight">
+        <p className="text-muted-foreground mb-3 text-sm">Careers</p>
+        <h1 className="text-2xl font-medium tracking-tight">
           Build the future of agentic UI
         </h1>
-        <p className="mt-2 max-w-xl text-muted-foreground">
+        <p className="text-muted-foreground mt-2 max-w-xl">
           We&apos;re a small, product-obsessed team crafting the tools that
           power the next generation of AI-native products.
         </p>
@@ -45,7 +45,7 @@ export default function CareersPage(): ReactElement {
 
       <section>
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="font-medium text-sm">Open roles</h2>
+          <h2 className="text-sm font-medium">Open roles</h2>
           <p className="text-muted-foreground text-sm">
             {roles.length} {roles.length === 1 ? "position" : "positions"}
           </p>
@@ -54,10 +54,10 @@ export default function CareersPage(): ReactElement {
         <div className="space-y-6">
           {roles.map((role) => (
             <Link key={role.url} href={role.url} className="group block">
-              <h3 className="font-medium text-foreground/80 transition-colors group-hover:text-foreground">
+              <h3 className="text-foreground/80 group-hover:text-foreground font-medium transition-colors">
                 {role.data.title}
               </h3>
-              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground text-sm">
+              <p className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                 <span>{role.data.location}</span>
                 <span className="text-muted-foreground/40">·</span>
                 <span>{role.data.type}</span>
@@ -78,7 +78,7 @@ export default function CareersPage(): ReactElement {
           Don&apos;t see the perfect fit?{" "}
           <a
             href="mailto:hello@assistant-ui.com"
-            className="font-medium text-foreground transition-colors hover:text-foreground/70"
+            className="text-foreground hover:text-foreground/70 font-medium transition-colors"
           >
             Reach out anyway →
           </a>

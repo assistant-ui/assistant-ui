@@ -100,11 +100,11 @@ export default function ShowcasePage() {
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-16 md:py-24">
       <header className="mb-16 max-w-2xl">
-        <p className="mb-3 text-muted-foreground text-sm">Showcase</p>
-        <h1 className="font-medium text-2xl tracking-tight">
+        <p className="text-muted-foreground mb-3 text-sm">Showcase</p>
+        <h1 className="text-2xl font-medium tracking-tight">
           Built with assistant-ui
         </h1>
-        <p className="mt-2 text-muted-foreground">
+        <p className="text-muted-foreground mt-2">
           Explore projects from the community using assistant-ui to build
           production AI chat experiences.
         </p>
@@ -121,7 +121,7 @@ export default function ShowcasePage() {
           Building something cool?{" "}
           <a
             href="mailto:showcase@assistant-ui.com"
-            className="font-medium text-foreground transition-colors hover:text-foreground/70"
+            className="text-foreground hover:text-foreground/70 font-medium transition-colors"
           >
             Let us know →
           </a>
@@ -142,37 +142,37 @@ function ShowcaseCard({
   description,
 }: ShowcaseItem) {
   return (
-    <div className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card">
+    <div className="group border-border bg-card flex flex-col overflow-hidden rounded-lg border">
       <Link
         href={link}
         target="_blank"
         rel="noopener noreferrer"
         className="block"
       >
-        <div className="relative aspect-[16/10] overflow-hidden bg-muted">
+        <div className="bg-muted relative aspect-[16/10] overflow-hidden">
           <Image src={image} alt={title} fill className="object-cover" />
         </div>
       </Link>
 
       <div className="flex flex-1 flex-col p-4">
         <div className="mb-2 flex items-center gap-2">
-          <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground text-xs">
+          <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs">
             {tag}
           </span>
           {secondaryTag && (
-            <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-green-600 text-xs dark:text-green-400">
+            <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs text-green-600 dark:text-green-400">
               {secondaryTag}
             </span>
           )}
         </div>
 
         <Link href={link} target="_blank" rel="noopener noreferrer">
-          <h3 className="font-medium text-foreground/80 transition-colors group-hover:text-foreground">
+          <h3 className="text-foreground/80 group-hover:text-foreground font-medium transition-colors">
             {title}
           </h3>
         </Link>
 
-        <p className="mt-1 flex-1 text-muted-foreground text-sm">
+        <p className="text-muted-foreground mt-1 flex-1 text-sm">
           {description}
         </p>
 
@@ -183,7 +183,7 @@ function ShowcaseCard({
                 href={repositoryLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-xs transition-colors"
               >
                 <GitHubIcon className="h-3.5 w-3.5" />
                 <span>Source</span>
@@ -194,7 +194,7 @@ function ShowcaseCard({
                 href={announcementLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-xs transition-colors"
               >
                 <Megaphone className="h-3.5 w-3.5" />
                 <span>Blog</span>

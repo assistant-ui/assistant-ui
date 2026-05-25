@@ -26,7 +26,7 @@ import { Code } from "@radix-ui/themes";
 function Kbd({ children, ...props }: ComponentProps<"kbd">) {
   return (
     <kbd
-      className="inline-flex h-5 min-w-5 items-center justify-center rounded-sm bg-muted px-1.5 font-mono text-muted-foreground text-xs"
+      className="bg-muted text-muted-foreground inline-flex h-5 min-w-5 items-center justify-center rounded-sm px-1.5 font-mono text-xs"
       {...props}
     >
       {children}

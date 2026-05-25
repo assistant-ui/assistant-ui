@@ -14,7 +14,7 @@ export function Message({ message }: MessageProps) {
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[80%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-sm",
+          "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm break-words whitespace-pre-wrap",
           isUser
             ? "bg-primary text-primary-foreground"
             : "bg-muted text-foreground",

@@ -10,8 +10,10 @@
     "ci:version": "changeset version && pnpm install --no-frozen-lockfile",
     "ci:publish": "turbo build --filter=\"./packages/*\" && changeset publish",
     "build": "turbo build",
-    "lint": "pnpm exec biome check",
-    "lint:fix": "pnpm exec biome check --fix",
+    "lint": "pnpm exec oxlint && pnpm exec oxfmt --check",
+    "lint:fix": "pnpm exec oxlint --fix && pnpm exec oxfmt",
+    "format": "pnpm exec oxfmt --check",
+    "format:fix": "pnpm exec oxfmt",
     "sync-templates": "bash scripts/sync-templates.sh",
     "test": "turbo test",
     "prepare": "husky",
@@ -20,16 +22,20 @@
   },
   "devDependencies": {
     "@assistant-ui/x-changelog": "workspace:*",
-    "@biomejs/biome": "^2.4.15",
     "@changesets/cli": "^2.31.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.5",
+    "oxfmt": "^0.51.0",
+    "oxlint": "^1.66.0",
     "turbo": "^2.9.14",
     "typescript": "^6.0.3"
   },
   "packageManager": "pnpm@11.3.0",
   "lint-staged": {
-    "*": "biome check --fix --no-errors-on-unmatched"
+    "*.{js,jsx,ts,tsx,cjs,mjs,cts,mts,json,jsonc}": [
+      "oxlint --fix --no-error-on-unmatched-pattern",
+      "oxfmt --no-error-on-unmatched-pattern"
+    ]
   },
   "browserslist": [
     "chrome 111",

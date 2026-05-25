@@ -20,7 +20,7 @@ function PropName({ row }: { row: TypeTableRow }) {
   return (
     <code
       className={cn(
-        "w-1/4 min-w-0 overflow-x-auto whitespace-nowrap bg-transparent! p-0! pe-2 font-medium font-mono text-fd-primary [-ms-overflow-style:none] [mask-image:linear-gradient(to_right,black_calc(100%-12px),transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "text-fd-primary w-1/4 min-w-0 [scrollbar-width:none] overflow-x-auto bg-transparent! [mask-image:linear-gradient(to_right,black_calc(100%-12px),transparent)] p-0! pe-2 font-mono font-medium whitespace-nowrap [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
         row.deprecated && "text-fd-primary/50 line-through",
       )}
     >
@@ -40,8 +40,8 @@ function TypeCell({
   return (
     <span
       className={cn(
-        "[&>figure]:!my-0 [&_pre]:!bg-transparent [&_pre]:!p-0 [&_code]:!text-[0.8125rem] [&_code]:!bg-transparent [&_code]:!border-0 [&_code]:!p-0 min-w-0 flex-1 overflow-hidden",
-        "overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "min-w-0 flex-1 overflow-hidden [&_code]:!border-0 [&_code]:!bg-transparent [&_code]:!p-0 [&_code]:!text-[0.8125rem] [&_pre]:!bg-transparent [&_pre]:!p-0 [&>figure]:!my-0",
+        "[scrollbar-width:none] overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
         className,
       )}
     >
@@ -105,14 +105,14 @@ function Item({
       className={cn(
         "group scroll-m-20 overflow-hidden rounded-xl border transition-all",
         open
-          ? "not-last:mb-2 bg-fd-background shadow-sm"
+          ? "bg-fd-background shadow-sm not-last:mb-2"
           : "border-transparent",
       )}
     >
-      <Collapsible.Trigger className="not-prose group/trigger relative flex w-full flex-row items-center px-3 py-2 text-start hover:bg-fd-accent">
+      <Collapsible.Trigger className="not-prose group/trigger hover:bg-fd-accent relative flex w-full flex-row items-center px-3 py-2 text-start">
         <PropName row={row} />
         <TypeCell className="@max-xl:hidden">{row.type}</TypeCell>
-        <ChevronDown className="absolute end-2 size-4 text-fd-muted-foreground transition-transform group-data-[state=open]/trigger:rotate-180" />
+        <ChevronDown className="text-fd-muted-foreground absolute end-2 size-4 transition-transform group-data-[state=open]/trigger:rotate-180" />
       </Collapsible.Trigger>
 
       <Collapsible.Content
@@ -128,7 +128,7 @@ function Item({
           </div>
           {row.typeFull && (
             <>
-              <span className="not-prose pe-2 text-fd-muted-foreground">
+              <span className="not-prose text-fd-muted-foreground pe-2">
                 Type
               </span>
               <TypeCell>
@@ -138,7 +138,7 @@ function Item({
           )}
           {row.default && (
             <>
-              <span className="not-prose pe-2 text-fd-muted-foreground">
+              <span className="not-prose text-fd-muted-foreground pe-2">
                 Default
               </span>
               <TypeCell className="my-auto">
@@ -170,13 +170,13 @@ export function TypeTableClient({
     <div
       id={id}
       className={cn(
-        "@container flex flex-col overflow-hidden rounded-2xl border bg-fd-card p-1 text-fd-card-foreground text-sm",
+        "bg-fd-card text-fd-card-foreground @container flex flex-col overflow-hidden rounded-2xl border p-1 text-sm",
         nested ? "bg-fd-secondary/50" : "my-6",
       )}
     >
-      <div className="not-prose flex items-center px-3 py-1 font-medium text-fd-muted-foreground">
+      <div className="not-prose text-fd-muted-foreground flex items-center px-3 py-1 font-medium">
         <p className="w-1/4 shrink-0 pe-2">Prop</p>
-        <p className="@max-xl:hidden min-w-0 flex-1 pl-4">Type</p>
+        <p className="min-w-0 flex-1 pl-4 @max-xl:hidden">Type</p>
       </div>
       {rows.map((row) => (
         <Item key={row.name} row={row} parentId={id} />

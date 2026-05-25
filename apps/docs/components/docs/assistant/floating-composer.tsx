@@ -129,8 +129,8 @@ export function FloatingComposer(): ReactNode {
             className={cn(
               "relative rounded-xl border shadow-lg backdrop-blur-sm transition-all duration-200 ease-out",
               expanded
-                ? "border-ring/50 bg-background/90 ring-1 ring-ring/20"
-                : "border-border bg-background/80 hover:ring-2 hover:ring-ring/30",
+                ? "border-ring/50 bg-background/90 ring-ring/20 ring-1"
+                : "border-border bg-background/80 hover:ring-ring/30 hover:ring-2",
             )}
           >
             <div className="relative">
@@ -143,7 +143,7 @@ export function FloatingComposer(): ReactNode {
                 <textarea
                   placeholder="Ask a question..."
                   className={cn(
-                    `field-sizing-content tw-shimer w-full resize-none bg-transparent text-sm leading-5 transition-[max-height,padding] duration-200 ease-out placeholder:text-muted-foreground focus:outline-none`,
+                    `tw-shimer placeholder:text-muted-foreground field-sizing-content w-full resize-none bg-transparent text-sm leading-5 transition-[max-height,padding] duration-200 ease-out focus:outline-none`,
                     expanded
                       ? "max-h-32 pt-2.5 pr-3 pb-10 pl-3"
                       : "max-h-9.5 overflow-hidden pt-3 pr-3 pb-1.5 pl-8",
@@ -166,7 +166,7 @@ export function FloatingComposer(): ReactNode {
               </ComposerPrimitive.Input>
               <SparklesIcon
                 className={cn(
-                  `pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground transition-opacity duration-200`,
+                  `text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 transition-opacity duration-200`,
                   {
                     "opacity-0": expanded || !isEmpty,
                     "opacity-100": !expanded && isEmpty,

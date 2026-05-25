@@ -83,9 +83,8 @@ describe("Errors - Effect Errors", () => {
     });
 
     // Should throw aggregate error
-    expect(() =>
-      renderTest(resource, undefined),
-    ).toThrowErrorMatchingInlineSnapshot(`
+    expect(() => renderTest(resource, undefined))
+      .toThrowErrorMatchingInlineSnapshot(`
       [AggregateError: Errors during commit]
     `);
     expect(goodEffect).toHaveBeenCalledTimes(1);

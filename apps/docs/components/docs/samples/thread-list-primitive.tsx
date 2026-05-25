@@ -25,12 +25,12 @@ export function ThreadListPrimitiveSample() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   return (
-    <SampleFrame className="flex h-auto items-start justify-center bg-background p-8">
+    <SampleFrame className="bg-background flex h-auto items-start justify-center p-8">
       <div className="w-full max-w-xs">
         <div className="flex flex-col gap-1">
           <button
             type="button"
-            className="flex h-9 items-center gap-2 rounded-lg border border-border px-3 text-sm hover:bg-muted data-active:bg-muted"
+            className="border-border hover:bg-muted data-active:bg-muted flex h-9 items-center gap-2 rounded-lg border px-3 text-sm"
           >
             <PlusIcon className="size-4" />
             New Thread
@@ -66,7 +66,7 @@ function ThreadItem({
   return (
     <div
       data-active={thread.active ? "true" : undefined}
-      className="group relative flex h-9 items-center gap-2 rounded-lg transition-colors hover:bg-muted data-active:bg-muted"
+      className="group hover:bg-muted data-active:bg-muted relative flex h-9 items-center gap-2 rounded-lg transition-colors"
     >
       <button
         type="button"
@@ -84,11 +84,11 @@ function ThreadItem({
         <DropdownMenuTrigger
           className={
             menuOpen
-              ? "mr-2 flex size-7 bg-accent opacity-100"
+              ? "bg-accent mr-2 flex size-7 opacity-100"
               : "mr-2 flex size-7 opacity-0 group-hover:opacity-100 group-data-active:opacity-100"
           }
         >
-          <MoreHorizontalIcon className="size-4 text-muted-foreground" />
+          <MoreHorizontalIcon className="text-muted-foreground size-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent className="min-w-32 rounded-md p-1" sideOffset={4}>
           <DropdownMenuItem
@@ -101,7 +101,7 @@ function ThreadItem({
           <DropdownMenuItem
             icon={<TrashIcon className="size-4" />}
             onSelect={onCloseMenu}
-            className="gap-2 rounded-sm px-2 py-1.5 text-destructive focus:bg-destructive/10 focus:text-destructive"
+            className="text-destructive focus:bg-destructive/10 focus:text-destructive gap-2 rounded-sm px-2 py-1.5"
           >
             Delete
           </DropdownMenuItem>

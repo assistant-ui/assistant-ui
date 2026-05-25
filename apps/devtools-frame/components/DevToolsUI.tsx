@@ -81,7 +81,7 @@ const ControlButton = ({
 }: ButtonHTMLAttributes<HTMLButtonElement>) => (
   <button
     className={clsx(
-      "inline-flex h-8 items-center rounded-md border border-zinc-300 px-3 font-medium text-xs text-zinc-700 transition-colors hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:border-zinc-700 dark:text-zinc-200 dark:focus-visible:ring-offset-zinc-900 dark:hover:bg-zinc-800",
+      "inline-flex h-8 items-center rounded-md border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800 dark:focus-visible:ring-offset-zinc-900",
       className,
     )}
     {...props}
@@ -89,7 +89,7 @@ const ControlButton = ({
 );
 
 const JSONPreview = ({ value }: { value: unknown }) => (
-  <pre className="wrap-break-word whitespace-pre-wrap rounded-lg bg-zinc-100 p-3 text-[11px] text-zinc-800 leading-relaxed dark:bg-zinc-900 dark:text-zinc-200">
+  <pre className="rounded-lg bg-zinc-100 p-3 text-[11px] leading-relaxed wrap-break-word whitespace-pre-wrap text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200">
     {JSON.stringify(value, null, 2)}
   </pre>
 );
@@ -176,7 +176,7 @@ const ThreadDetails = ({
 }) => (
   <div className="flex flex-col gap-3">
     {title ? (
-      <div className="font-semibold text-[10px] text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+      <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
         {title}
       </div>
     ) : null}
@@ -204,14 +204,14 @@ const ThreadDetails = ({
 
     {thread.capabilities.length ? (
       <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
-        <div className="font-semibold text-[10px] text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+        <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
           Capabilities
         </div>
         <div className="mt-1 flex flex-wrap gap-1">
           {thread.capabilities.map((capability) => (
             <span
               key={capability}
-              className="rounded bg-zinc-200 px-1.5 py-0.5 font-medium text-[10px] text-zinc-600 uppercase tracking-wide dark:bg-zinc-800 dark:text-zinc-300"
+              className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300"
             >
               {capability}
             </span>
@@ -222,7 +222,7 @@ const ThreadDetails = ({
 
     {thread.messages.length ? (
       <div className="rounded-md border border-zinc-200 bg-white text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
-        <div className="border-zinc-200 border-b bg-zinc-100 px-3 py-2 font-semibold text-[10px] text-zinc-500 uppercase tracking-wide dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+        <div className="border-b border-zinc-200 bg-zinc-100 px-3 py-2 text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
           Recent Messages
         </div>
         <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -253,7 +253,7 @@ const ThreadDetails = ({
                     {message.attachments.map((attachment, index) => (
                       <span
                         key={`${message.id}-attachment-${index}`}
-                        className="rounded bg-zinc-200 px-1.5 py-0.5 font-medium text-[10px] text-zinc-600 uppercase tracking-wide dark:bg-zinc-800 dark:text-zinc-300"
+                        className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300"
                       >
                         {attachment}
                       </span>
@@ -261,7 +261,7 @@ const ThreadDetails = ({
                   </div>
                 ) : null}
                 {message.status ? (
-                  <div className="text-[10px] text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+                  <div className="text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
                     Status: {message.status}
                   </div>
                 ) : null}
@@ -272,8 +272,8 @@ const ThreadDetails = ({
     ) : null}
 
     {thread.suggestions.length ? (
-      <div className="rounded-md border border-zinc-300 border-dashed bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900/30 dark:text-zinc-200">
-        <div className="font-semibold text-[10px] text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+      <div className="rounded-md border border-dashed border-zinc-300 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900/30 dark:text-zinc-200">
+        <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
           Suggestions
         </div>
         <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -286,7 +286,7 @@ const ThreadDetails = ({
 
     {thread.composer ? (
       <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
-        <div className="font-semibold text-[10px] text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+        <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
           Composer
         </div>
         <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -303,7 +303,7 @@ const ThreadDetails = ({
             <SummaryItem label="Mode" value={thread.composer.type} />
           ) : null}
         </div>
-        <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+        <div className="mt-2 flex flex-wrap gap-2 text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
           {typeof thread.composer.isEditing === "boolean" ? (
             <span>Edit: {formatBoolean(thread.composer.isEditing)}</span>
           ) : null}
@@ -532,7 +532,7 @@ const parseThreadListPreview = (value: unknown): ThreadListPreview | null => {
 
 const SummaryItem = ({ label, value }: { label: string; value: ReactNode }) => (
   <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
-    <div className="font-semibold text-[10px] text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+    <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
       {label}
     </div>
     <div className="mt-1 font-semibold text-zinc-800 dark:text-zinc-100">
@@ -570,7 +570,7 @@ const renderToolUIsStatePreview = (value: unknown) => {
               <span className="font-semibold text-zinc-800 dark:text-zinc-100">
                 {toolName}
               </span>
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+              <span className="text-[10px] tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
                 {list.length} component{list.length === 1 ? "" : "s"}
               </span>
             </div>
@@ -620,12 +620,12 @@ const renderThreadsStatePreview = (value: unknown) => {
 
       {threadItems.length ? (
         <div className="flex flex-col gap-2">
-          <div className="font-semibold text-[10px] text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+          <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
             Thread Items ({state.threadItems.length})
           </div>
           <div className="overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800">
             <table className="w-full table-fixed border-collapse text-left">
-              <thead className="bg-zinc-100 text-[10px] text-zinc-500 uppercase tracking-wide dark:bg-zinc-900 dark:text-zinc-400">
+              <thead className="bg-zinc-100 text-[10px] tracking-wide text-zinc-500 uppercase dark:bg-zinc-900 dark:text-zinc-400">
                 <tr>
                   <th className="px-3 py-2">Title</th>
                   <th className="px-3 py-2">Status</th>
@@ -636,7 +636,7 @@ const renderThreadsStatePreview = (value: unknown) => {
                 {threadItems.map((item) => (
                   <tr
                     key={item.id}
-                    className="border-zinc-200 border-t bg-white dark:border-zinc-800 dark:bg-zinc-950/40"
+                    className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950/40"
                   >
                     <td className="px-3 py-2 align-top">
                       <div className="font-medium text-zinc-800 dark:text-zinc-100">
@@ -701,7 +701,7 @@ const renderThreadListItemStatePreview = (value: unknown) => {
       </div>
       {item.title ? (
         <div className="rounded-md border border-zinc-200 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
-          <div className="font-semibold text-[10px] text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+          <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
             Title
           </div>
           <div className="mt-1 font-semibold text-zinc-800 dark:text-zinc-100">
@@ -767,10 +767,10 @@ const renderComposerStatePreview = (value: unknown) => {
 
       {text ? (
         <div className="rounded-md border border-zinc-200 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
-          <div className="font-semibold text-[10px] text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+          <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
             Text Preview
           </div>
-          <div className="wrap-break-word mt-1 whitespace-pre-wrap text-zinc-700 dark:text-zinc-200">
+          <div className="mt-1 wrap-break-word whitespace-pre-wrap text-zinc-700 dark:text-zinc-200">
             {truncate(text, 240)}
           </div>
         </div>
@@ -778,14 +778,14 @@ const renderComposerStatePreview = (value: unknown) => {
 
       {attachmentsDetail.length ? (
         <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-200">
-          <div className="font-semibold text-[10px] text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+          <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
             Attachments
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
             {attachmentsDetail.map((attachment, index) => (
               <span
                 key={`composer-attachment-${index}`}
-                className="rounded bg-zinc-200 px-1.5 py-0.5 font-medium text-[10px] text-zinc-600 uppercase tracking-wide dark:bg-zinc-800 dark:text-zinc-300"
+                className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300"
               >
                 {attachment}
               </span>
@@ -796,7 +796,7 @@ const renderComposerStatePreview = (value: unknown) => {
 
       {runConfig !== undefined ? (
         <div className="rounded-md border border-zinc-200 bg-white p-3 text-[11px] text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-200">
-          <div className="font-semibold text-[10px] text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+          <div className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
             Run Config
           </div>
           <JSONPreview value={runConfig} />
@@ -837,7 +837,7 @@ const CenteredMessage = ({ children }: { children: ReactNode }) => (
 );
 
 const SectionTitle = ({ children }: { children: ReactNode }) => (
-  <h3 className="mb-2 font-semibold text-sm text-zinc-800 dark:text-zinc-100">
+  <h3 className="mb-2 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
     {children}
   </h3>
 );
@@ -1079,7 +1079,7 @@ export function DevToolsUI() {
     }
 
     return (
-      <div className="flex items-center gap-2 border-zinc-200 border-b bg-zinc-50 px-4 py-2 text-xs text-zinc-500 dark:border-zinc-900 dark:bg-zinc-950">
+      <div className="flex items-center gap-2 border-b border-zinc-200 bg-zinc-50 px-4 py-2 text-xs text-zinc-500 dark:border-zinc-900 dark:bg-zinc-950">
         <span className="font-medium">API</span>
         <select
           value={selectedApiId ?? ""}
@@ -1137,7 +1137,7 @@ export function DevToolsUI() {
 
     if (Object.keys(selectedApi.state).length === 0) {
       return (
-        <div className="rounded-lg border border-zinc-300 border-dashed bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+        <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
           No state detected for this assistant instance.
         </div>
       );
@@ -1155,17 +1155,17 @@ export function DevToolsUI() {
               <button
                 type="button"
                 onClick={() => toggleStateSection(key)}
-                className="flex w-full items-center justify-between bg-zinc-50 px-4 py-3 text-left font-semibold text-sm text-zinc-800 transition-colors hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                className="flex w-full items-center justify-between bg-zinc-50 px-4 py-3 text-left text-sm font-semibold text-zinc-800 transition-colors hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
               >
                 <span>{key}</span>
                 <span className="text-lg">{expanded ? "−" : "+"}</span>
               </button>
               {expanded && (
-                <div className="border-zinc-200 border-t p-4 text-[11px] transition-colors dark:border-zinc-800">
+                <div className="border-t border-zinc-200 p-4 text-[11px] transition-colors dark:border-zinc-800">
                   {viewMode === "preview" ? (
                     renderStatePreview(key, value)
                   ) : (
-                    <pre className="overflow-auto whitespace-pre rounded-lg bg-zinc-100 p-3 text-[11px] text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+                    <pre className="overflow-auto rounded-lg bg-zinc-100 p-3 text-[11px] whitespace-pre text-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
                       {JSON.stringify(value, null, 2)}
                     </pre>
                   )}
@@ -1189,7 +1189,7 @@ export function DevToolsUI() {
       <label
         key={eventType}
         className={clsx(
-          "flex items-center gap-2 rounded-md border px-2 py-1 font-medium text-[11px] transition-colors",
+          "flex items-center gap-2 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors",
           !unselectedEventTypes.has(eventType)
             ? "border-blue-500 bg-blue-500/10 text-blue-600 dark:border-blue-400 dark:bg-blue-500/20 dark:text-blue-200"
             : "border-zinc-200 bg-white text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300",
@@ -1214,7 +1214,7 @@ export function DevToolsUI() {
         )}
         {filteredLogs.length === 0 ? (
           <div className="flex h-full items-center justify-center">
-            <div className="rounded-lg border border-zinc-300 border-dashed bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+            <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
               {eventTypes.length === 0
                 ? "No events logged for this assistant instance."
                 : "No events match the current filters."}
@@ -1223,7 +1223,7 @@ export function DevToolsUI() {
         ) : (
           <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm transition-colors dark:border-zinc-800 dark:bg-zinc-900">
             <table className="w-full table-auto border-collapse text-left">
-              <thead className="bg-zinc-100 text-[11px] text-zinc-500 uppercase tracking-wide dark:bg-zinc-800 dark:text-zinc-300">
+              <thead className="bg-zinc-100 text-[11px] tracking-wide text-zinc-500 uppercase dark:bg-zinc-800 dark:text-zinc-300">
                 <tr>
                   <th className="px-4 py-2 font-semibold">Time</th>
                   <th className="px-4 py-2 font-semibold">Event</th>
@@ -1234,9 +1234,9 @@ export function DevToolsUI() {
                 {filteredLogs.map((log, index) => (
                   <tr
                     key={`${log.event}-${index}`}
-                    className="border-zinc-200 border-t bg-white text-[11px] transition-colors dark:border-zinc-800 dark:bg-zinc-900"
+                    className="border-t border-zinc-200 bg-white text-[11px] transition-colors dark:border-zinc-800 dark:bg-zinc-900"
                   >
-                    <td className="whitespace-nowrap px-4 py-2 align-top text-zinc-600 dark:text-zinc-300">
+                    <td className="px-4 py-2 align-top whitespace-nowrap text-zinc-600 dark:text-zinc-300">
                       {formatTime(log.time)}
                     </td>
                     <td className="px-4 py-2 align-top font-semibold text-zinc-800 dark:text-zinc-100">
@@ -1273,7 +1273,7 @@ export function DevToolsUI() {
     if (!hasSystem && !hasTools && !hasCallSettings) {
       return (
         <div className="flex h-full items-center justify-center">
-          <div className="rounded-lg border border-zinc-300 border-dashed bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+          <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
             No model context configured for this assistant instance.
           </div>
         </div>
@@ -1285,7 +1285,7 @@ export function DevToolsUI() {
         {hasSystem && (
           <InfoCard>
             <SectionTitle>System Prompt</SectionTitle>
-            <pre className="whitespace-pre-wrap rounded-lg bg-zinc-100 p-3 text-[11px] text-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
+            <pre className="rounded-lg bg-zinc-100 p-3 text-[11px] whitespace-pre-wrap text-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
               {selectedApi.modelContext!.system}
             </pre>
           </InfoCard>
@@ -1302,12 +1302,12 @@ export function DevToolsUI() {
                   <div className="flex flex-wrap items-center gap-2 font-semibold text-zinc-800 dark:text-zinc-100">
                     <span>{tool.name}</span>
                     {tool.type ? (
-                      <span className="rounded bg-zinc-200 px-1.5 py-0.5 font-medium text-[10px] text-zinc-600 uppercase tracking-wide dark:bg-zinc-800 dark:text-zinc-300">
+                      <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-600 uppercase dark:bg-zinc-800 dark:text-zinc-300">
                         {tool.type}
                       </span>
                     ) : null}
                     {tool.disabled ? (
-                      <span className="font-semibold text-[10px] text-amber-600 uppercase tracking-wide dark:text-amber-400">
+                      <span className="text-[10px] font-semibold tracking-wide text-amber-600 uppercase dark:text-amber-400">
                         Disabled
                       </span>
                     ) : null}
@@ -1319,7 +1319,7 @@ export function DevToolsUI() {
                   ) : null}
                   {tool.parameters ? (
                     <div className="mt-2">
-                      <div className="mb-1 font-medium text-[10px] text-zinc-500 uppercase tracking-wide dark:text-zinc-400">
+                      <div className="mb-1 text-[10px] font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
                         Parameters
                       </div>
                       <JSONPreview value={tool.parameters} />
@@ -1356,7 +1356,7 @@ export function DevToolsUI() {
       <div className="flex h-full flex-col bg-white font-mono text-xs text-zinc-900 transition-colors dark:bg-zinc-950 dark:text-zinc-100">
         {renderToolbar()}
 
-        <nav className="flex h-10 items-center justify-between border-zinc-200 border-b bg-zinc-50 px-2 dark:border-zinc-900 dark:bg-zinc-950">
+        <nav className="flex h-10 items-center justify-between border-b border-zinc-200 bg-zinc-50 px-2 dark:border-zinc-900 dark:bg-zinc-950">
           <div className="flex h-full items-center gap-1">
             {["state", "modelContext", "events"].map((tab) => (
               <button
@@ -1364,10 +1364,10 @@ export function DevToolsUI() {
                 key={tab}
                 onClick={() => setActiveTab(tab as TabType)}
                 className={clsx(
-                  "flex h-full items-center px-2.5 font-semibold text-[11px] text-zinc-500 uppercase tracking-wide transition-colors",
+                  "flex h-full items-center px-2.5 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase transition-colors",
                   activeTab === tab
-                    ? "border-blue-500 border-b-2 text-zinc-900 dark:border-blue-400 dark:text-zinc-100"
-                    : "border-transparent border-b-2 hover:text-zinc-700 dark:hover:text-zinc-200",
+                    ? "border-b-2 border-blue-500 text-zinc-900 dark:border-blue-400 dark:text-zinc-100"
+                    : "border-b-2 border-transparent hover:text-zinc-700 dark:hover:text-zinc-200",
                 )}
               >
                 {tab === "modelContext" ? "Model Context" : tab}
@@ -1381,7 +1381,7 @@ export function DevToolsUI() {
           {renderTabContent()}
         </section>
 
-        <footer className="flex items-center justify-between border-zinc-200 border-t bg-zinc-50 px-4 py-2 text-[11px] text-zinc-500 transition-colors dark:border-zinc-900 dark:bg-zinc-950 dark:text-zinc-500">
+        <footer className="flex items-center justify-between border-t border-zinc-200 bg-zinc-50 px-4 py-2 text-[11px] text-zinc-500 transition-colors dark:border-zinc-900 dark:bg-zinc-950 dark:text-zinc-500">
           <span>
             Status:{" "}
             {apis.length > 0

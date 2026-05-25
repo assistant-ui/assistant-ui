@@ -52,12 +52,12 @@ export function FeedbackPopover({
       <Popover.Trigger asChild>{children}</Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
-          className="z-50 w-72 rounded-lg border border-border bg-popover p-4 shadow-md"
+          className="border-border bg-popover z-50 w-72 rounded-lg border p-4 shadow-md"
           sideOffset={5}
           align="start"
         >
           <div className="space-y-3">
-            <p className="font-medium text-sm">What went wrong?</p>
+            <p className="text-sm font-medium">What went wrong?</p>
             <div className="space-y-2">
               {CATEGORIES.map((cat) => (
                 <label
@@ -81,8 +81,8 @@ export function FeedbackPopover({
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               className={cn(
-                "w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm",
-                "placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring",
+                "border-border bg-background w-full resize-none rounded-md border px-3 py-2 text-sm",
+                "placeholder:text-muted-foreground focus:ring-ring focus:ring-1 focus:outline-none",
               )}
               rows={2}
             />
@@ -91,7 +91,7 @@ export function FeedbackPopover({
               onClick={handleSubmit}
               disabled={!category}
               className={cn(
-                "w-full rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground text-sm",
+                "bg-primary text-primary-foreground w-full rounded-md px-3 py-1.5 text-sm font-medium",
                 "disabled:cursor-not-allowed disabled:opacity-50",
                 "hover:bg-primary/90",
               )}

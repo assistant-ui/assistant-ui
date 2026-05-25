@@ -15,10 +15,10 @@ export function Hero() {
         <StarPill />
 
         <div className="flex flex-col gap-1">
-          <h1 className="font-medium text-2xl">
+          <h1 className="text-2xl font-medium">
             The UX of ChatGPT in your own app
           </h1>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-muted-foreground text-lg">
             Open-source React toolkit for production AI chat experiences.
           </p>
         </div>
@@ -28,31 +28,31 @@ export function Hero() {
           <CopyPromptButton analyticsContext={{ section: "hero" }} />
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-[13px] text-muted-foreground">
+        <div className="text-muted-foreground flex flex-wrap items-center gap-x-5 gap-y-3 text-[13px]">
           <Link
             href="/docs"
             onClick={() => analytics.cta.clicked("get_started", "hero")}
-            className="shimmer font-medium text-foreground/60 hover:text-foreground"
+            className="shimmer text-foreground/60 hover:text-foreground font-medium"
           >
             Get Started →
           </Link>
-          <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
+          <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
           <Link
             href="/traction"
             onClick={() => analytics.cta.clicked("why_us", "hero")}
-            className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+            className="text-foreground/60 hover:text-foreground font-medium transition-colors"
           >
             Why us?
           </Link>
-          <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
+          <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
           <Link
             href="https://cal.com/simon-farshid/assistant-ui"
             onClick={() => analytics.cta.clicked("contact_sales", "hero")}
-            className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+            className="text-foreground/60 hover:text-foreground font-medium transition-colors"
           >
             Contact Sales
           </Link>
-          <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
+          <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
           <span className="inline-flex w-full items-center gap-1.5 sm:w-auto">
             Backed by
             <Image

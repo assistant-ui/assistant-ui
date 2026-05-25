@@ -27,7 +27,7 @@ const SMALL_PATCH = `--- a/example.ts
 
 export function DiffViewerSample() {
   return (
-    <SampleFrame className="h-auto overflow-hidden bg-muted/40 p-4">
+    <SampleFrame className="bg-muted/40 h-auto overflow-hidden p-4">
       <DiffViewer patch={SAMPLE_PATCH} />
     </SampleFrame>
   );
@@ -35,7 +35,7 @@ export function DiffViewerSample() {
 
 export function DiffViewerSplitSample() {
   return (
-    <SampleFrame className="h-auto overflow-hidden bg-muted/40 p-4">
+    <SampleFrame className="bg-muted/40 h-auto overflow-hidden p-4">
       <DiffViewer patch={SAMPLE_PATCH} viewMode="split" />
     </SampleFrame>
   );
@@ -45,7 +45,7 @@ export function DiffViewerViewModesSample() {
   const [viewMode, setViewMode] = useState<"unified" | "split">("unified");
 
   return (
-    <SampleFrame className="h-auto overflow-hidden bg-muted/40">
+    <SampleFrame className="bg-muted/40 h-auto overflow-hidden">
       <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-4">
         <div className="flex gap-2">
           <button
@@ -79,10 +79,10 @@ export function DiffViewerViewModesSample() {
 
 export function DiffViewerVariantsSample() {
   return (
-    <SampleFrame className="h-auto overflow-hidden bg-muted/40 p-4">
+    <SampleFrame className="bg-muted/40 h-auto overflow-hidden p-4">
       <div className="grid w-full max-w-3xl gap-4 md:grid-cols-3">
         <div className="flex flex-col gap-2">
-          <span className="font-medium text-muted-foreground text-xs">
+          <span className="text-muted-foreground text-xs font-medium">
             default
           </span>
           <DiffViewer
@@ -92,7 +92,7 @@ export function DiffViewerVariantsSample() {
           />
         </div>
         <div className="flex flex-col gap-2">
-          <span className="font-medium text-muted-foreground text-xs">
+          <span className="text-muted-foreground text-xs font-medium">
             ghost
           </span>
           <DiffViewer
@@ -102,7 +102,7 @@ export function DiffViewerVariantsSample() {
           />
         </div>
         <div className="flex flex-col gap-2">
-          <span className="font-medium text-muted-foreground text-xs">
+          <span className="text-muted-foreground text-xs font-medium">
             muted
           </span>
           <DiffViewer
@@ -118,14 +118,14 @@ export function DiffViewerVariantsSample() {
 
 export function DiffViewerSizesSample() {
   return (
-    <SampleFrame className="h-auto overflow-hidden bg-muted/40 p-4">
+    <SampleFrame className="bg-muted/40 h-auto overflow-hidden p-4">
       <div className="flex w-full max-w-3xl flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <span className="font-medium text-muted-foreground text-xs">sm</span>
+          <span className="text-muted-foreground text-xs font-medium">sm</span>
           <DiffViewer patch={SMALL_PATCH} size="sm" showLineNumbers={false} />
         </div>
         <div className="flex flex-col gap-2">
-          <span className="font-medium text-muted-foreground text-xs">
+          <span className="text-muted-foreground text-xs font-medium">
             default
           </span>
           <DiffViewer
@@ -135,7 +135,7 @@ export function DiffViewerSizesSample() {
           />
         </div>
         <div className="flex flex-col gap-2">
-          <span className="font-medium text-muted-foreground text-xs">lg</span>
+          <span className="text-muted-foreground text-xs font-medium">lg</span>
           <DiffViewer patch={SMALL_PATCH} size="lg" showLineNumbers={false} />
         </div>
       </div>

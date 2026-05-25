@@ -37,9 +37,9 @@ export default async function ChangelogPage({
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-16 md:py-24">
       <header className="mb-12">
-        <p className="mb-3 text-muted-foreground text-sm">Changelog</p>
-        <h1 className="font-medium text-2xl tracking-tight">Release history</h1>
-        <p className="mt-2 text-muted-foreground">
+        <p className="text-muted-foreground mb-3 text-sm">Changelog</p>
+        <h1 className="text-2xl font-medium tracking-tight">Release history</h1>
+        <p className="text-muted-foreground mt-2">
           All releases published from the assistant-ui monorepo, grouped by
           date.
         </p>

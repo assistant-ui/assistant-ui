@@ -22,7 +22,7 @@ function VariantRow({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <span className="font-medium text-muted-foreground text-xs">{label}</span>
+      <span className="text-muted-foreground text-xs font-medium">{label}</span>
       <div className="flex flex-wrap items-center gap-2">
         {sources.map((source) => (
           <Source key={source.url} variant={variant} href={source.url}>

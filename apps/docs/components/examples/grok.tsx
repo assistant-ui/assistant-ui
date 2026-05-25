@@ -57,7 +57,7 @@ export const Grok: FC = () => {
           </ThreadPrimitive.Messages>
         </ThreadPrimitive.Viewport>
         <Composer />
-        <p className="mx-auto w-full max-w-3xl pb-2 text-center text-[#9a9a9a] text-xs">
+        <p className="mx-auto w-full max-w-3xl pb-2 text-center text-xs text-[#9a9a9a]">
           Grok can make mistakes. Verify important information.
         </p>
       </AuiIf>
@@ -75,7 +75,7 @@ const Composer: FC = () => {
       data-empty={isEmpty}
       data-running={isRunning}
     >
-      <div className="overflow-hidden rounded-4xl bg-[#f8f8f8] shadow-xs ring-1 ring-[#e5e5e5] ring-inset transition-shadow focus-within:ring-[#d0d0d0] dark:bg-[#212121] dark:ring-[#2a2a2a] dark:focus-within:ring-[#3a3a3a]">
+      <div className="overflow-hidden rounded-4xl bg-[#f8f8f8] shadow-xs ring-1 ring-[#e5e5e5] transition-shadow ring-inset focus-within:ring-[#d0d0d0] dark:bg-[#212121] dark:ring-[#2a2a2a] dark:focus-within:ring-[#3a3a3a]">
         <AuiIf condition={(s) => s.composer.attachments.length > 0}>
           <div className="flex flex-row flex-wrap gap-2 px-4 pt-3">
             <ComposerPrimitive.Attachments>
@@ -92,7 +92,7 @@ const Composer: FC = () => {
           <ComposerPrimitive.Input
             placeholder="What do you want to know?"
             minRows={1}
-            className="my-2 h-6 max-h-100 min-w-0 flex-1 resize-none bg-transparent text-[#0d0d0d] text-base leading-6 outline-none placeholder:text-[#9a9a9a] dark:text-white dark:placeholder:text-[#6b6b6b]"
+            className="my-2 h-6 max-h-100 min-w-0 flex-1 resize-none bg-transparent text-base leading-6 text-[#0d0d0d] outline-none placeholder:text-[#9a9a9a] dark:text-white dark:placeholder:text-[#6b6b6b]"
           />
 
           <GrokModelPicker />
@@ -100,13 +100,13 @@ const Composer: FC = () => {
           <div className="relative mb-0.5 h-9 w-9 shrink-0 rounded-full bg-[#0d0d0d] text-white dark:bg-white dark:text-[#0d0d0d]">
             <button
               type="button"
-              className="absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out group-data-[empty=false]/composer:scale-0 group-data-[running=true]/composer:scale-0 group-data-[empty=false]/composer:opacity-0 group-data-[running=true]/composer:opacity-0"
+              className="absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out group-data-[empty=false]/composer:scale-0 group-data-[empty=false]/composer:opacity-0 group-data-[running=true]/composer:scale-0 group-data-[running=true]/composer:opacity-0"
               aria-label="Voice mode"
             >
               <Mic width={18} height={18} />
             </button>
 
-            <ComposerPrimitive.Send className="absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out group-data-[empty=true]/composer:scale-0 group-data-[running=true]/composer:scale-0 group-data-[empty=true]/composer:opacity-0 group-data-[running=true]/composer:opacity-0">
+            <ComposerPrimitive.Send className="absolute inset-0 flex items-center justify-center transition-all duration-300 ease-out group-data-[empty=true]/composer:scale-0 group-data-[empty=true]/composer:opacity-0 group-data-[running=true]/composer:scale-0 group-data-[running=true]/composer:opacity-0">
               <ArrowUpIcon width={18} height={18} />
             </ComposerPrimitive.Send>
 
@@ -150,8 +150,8 @@ const GrokModelPicker: FC = () => {
     <DropdownMenu>
       <DropdownMenuTrigger className="mb-0.5 flex h-9 shrink-0 items-center gap-2 rounded-full px-2.5 text-[#0d0d0d] hover:bg-[#f0f0f0] dark:text-white dark:hover:bg-[#2a2a2a]">
         <CurrentIcon width={18} height={18} className="shrink-0" />
-        <div className="flex items-center gap-1 overflow-hidden transition-[max-width,opacity] duration-300 group-data-[empty=false]/composer:max-w-0 group-data-[empty=true]/composer:max-w-32 group-data-[empty=false]/composer:opacity-0 group-data-[empty=true]/composer:opacity-100">
-          <span className="whitespace-nowrap font-semibold text-sm">
+        <div className="flex items-center gap-1 overflow-hidden transition-[max-width,opacity] duration-300 group-data-[empty=false]/composer:max-w-0 group-data-[empty=false]/composer:opacity-0 group-data-[empty=true]/composer:max-w-32 group-data-[empty=true]/composer:opacity-100">
+          <span className="text-sm font-semibold whitespace-nowrap">
             {current.name}
           </span>
           <ChevronDownIcon width={16} height={16} className="shrink-0" />
@@ -190,7 +190,7 @@ const ChatMessage: FC = () => {
       <AuiIf condition={(s) => s.message.role === "user"}>
         <div className="flex flex-col items-end">
           <div className="relative max-w-[90%] rounded-3xl rounded-br-lg border border-[#e5e5e5] bg-[#f0f0f0] px-4 py-3 text-[#0d0d0d] dark:border-[#2a2a2a] dark:bg-[#1a1a1a] dark:text-white">
-            <div className="prose prose-sm dark:prose-invert wrap-break-word prose-p:my-0">
+            <div className="prose prose-sm dark:prose-invert prose-p:my-0 wrap-break-word">
               <MessagePrimitive.Parts>
                 {({ part }) => {
                   if (part.type === "text") return <MarkdownText />;
@@ -215,7 +215,7 @@ const ChatMessage: FC = () => {
       <AuiIf condition={(s) => s.message.role === "assistant"}>
         <div className="flex flex-col items-start">
           <div className="w-full max-w-none">
-            <div className="prose prose-sm wrap-break-word dark:prose-invert prose-li:my-1 prose-ol:my-1 prose-p:my-2 prose-ul:my-1 text-[#0d0d0d] dark:text-[#e5e5e5]">
+            <div className="prose prose-sm dark:prose-invert prose-li:my-1 prose-ol:my-1 prose-p:my-2 prose-ul:my-1 wrap-break-word text-[#0d0d0d] dark:text-[#e5e5e5]">
               <MessagePrimitive.Parts>
                 {({ part }) => {
                   if (part.type === "text") return <MarkdownText />;
@@ -270,11 +270,11 @@ const MessageTimingDisplay: FC = () => {
     <div className="group/timing relative">
       <button
         type="button"
-        className="ml-1 flex h-auto items-center justify-center rounded-md px-1.5 py-0.5 font-mono text-[#6b6b6b] text-xs tabular-nums transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white"
+        className="ml-1 flex h-auto items-center justify-center rounded-md px-1.5 py-0.5 font-mono text-xs text-[#6b6b6b] tabular-nums transition-colors hover:bg-[#e5e5e5] hover:text-[#0d0d0d] dark:text-[#9a9a9a] dark:hover:bg-[#2a2a2a] dark:hover:text-white"
       >
         {totalTimeText}
       </button>
-      <div className="pointer-events-none absolute top-1/2 left-full z-10 ml-2 -translate-y-1/2 scale-95 rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 opacity-0 shadow-lg transition-all before:absolute before:top-0 before:-left-2 before:h-full before:w-2 before:content-[''] group-hover/timing:pointer-events-auto group-hover/timing:scale-100 group-hover/timing:opacity-100 dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
+      <div className="pointer-events-none absolute top-1/2 left-full z-10 ml-2 -translate-y-1/2 scale-95 rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 opacity-0 shadow-lg transition-all group-hover/timing:pointer-events-auto group-hover/timing:scale-100 group-hover/timing:opacity-100 before:absolute before:top-0 before:-left-2 before:h-full before:w-2 before:content-[''] dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
         <div className="grid min-w-[140px] gap-1.5 text-xs">
           {timing.firstTokenTime !== undefined && (
             <div className="flex items-center justify-between gap-4">
@@ -367,7 +367,7 @@ const GrokAttachment: FC = () => {
           </div>
         </AuiIf>
       </div>
-      <AttachmentPrimitive.Remove className="absolute -top-1.5 -right-1.5 flex h-6 w-6 scale-50 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#6b6b6b] opacity-0 transition-all hover:bg-[#f5f5f5] hover:text-[#0d0d0d] group-hover/attachment:scale-100 group-hover/attachment:opacity-100 dark:border-[#3a3a3a] dark:bg-[#1a1a1a] dark:text-[#9a9a9a] dark:hover:bg-[#252525] dark:hover:text-white">
+      <AttachmentPrimitive.Remove className="absolute -top-1.5 -right-1.5 flex h-6 w-6 scale-50 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#6b6b6b] opacity-0 transition-all group-hover/attachment:scale-100 group-hover/attachment:opacity-100 hover:bg-[#f5f5f5] hover:text-[#0d0d0d] dark:border-[#3a3a3a] dark:bg-[#1a1a1a] dark:text-[#9a9a9a] dark:hover:bg-[#252525] dark:hover:text-white">
         <Cross2Icon width={14} height={14} />
       </AttachmentPrimitive.Remove>
     </AttachmentPrimitive.Root>

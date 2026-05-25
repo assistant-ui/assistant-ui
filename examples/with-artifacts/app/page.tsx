@@ -27,7 +27,7 @@ const RenderHTMLTool = makeAssistantTool({
   },
   render: () => {
     return (
-      <div className="my-2 inline-flex items-center gap-2 rounded-full border bg-primary px-4 py-2 text-primary-foreground">
+      <div className="bg-primary text-primary-foreground my-2 inline-flex items-center gap-2 rounded-full border px-4 py-2">
         <TerminalIcon className="size-4" />
         render_html(&#123; code: &quot;...&quot; &#125;)
       </div>
@@ -62,7 +62,7 @@ function ArtifactsView() {
           <button
             type="button"
             onClick={() => setTab("source")}
-            className={`inline-flex flex-1 items-center justify-center gap-2 px-4 py-2.5 font-medium text-sm transition-colors ${
+            className={`inline-flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
               tab === "source"
                 ? "bg-background text-foreground"
                 : "text-muted-foreground hover:text-foreground"
@@ -75,7 +75,7 @@ function ArtifactsView() {
             type="button"
             onClick={() => isComplete && setTab("preview")}
             disabled={!isComplete}
-            className={`inline-flex flex-1 items-center justify-center gap-2 px-4 py-2.5 font-medium text-sm transition-colors ${
+            className={`inline-flex flex-1 items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
               !isComplete
                 ? "cursor-not-allowed opacity-50"
                 : tab === "preview"
@@ -88,7 +88,7 @@ function ArtifactsView() {
           </button>
         </div>
         {tab === "source" || !isComplete ? (
-          <div className="h-full overflow-y-auto whitespace-pre-line break-words px-4 py-2 font-mono text-sm">
+          <div className="h-full overflow-y-auto px-4 py-2 font-mono text-sm break-words whitespace-pre-line">
             {code}
           </div>
         ) : (

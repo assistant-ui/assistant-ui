@@ -21,12 +21,12 @@ export function StarPill() {
       href="https://github.com/assistant-ui/assistant-ui"
       className="rainbow-border relative inline-flex w-fit rounded-full p-px text-sm after:absolute after:inset-0 after:-z-10 after:block after:rounded-full"
     >
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-background px-4 py-1.5">
+      <span className="bg-background inline-flex items-center gap-1.5 rounded-full px-4 py-1.5">
         <StarIcon className="size-3.5 fill-amber-400 text-amber-500" />
         <span className="font-medium text-amber-600 tabular-nums dark:text-amber-400">
           {stars ? formatStars(stars) : "—"}
         </span>
-        <span className="ml-1 font-medium text-foreground/80">
+        <span className="text-foreground/80 ml-1 font-medium">
           Star us on GitHub
         </span>
       </span>

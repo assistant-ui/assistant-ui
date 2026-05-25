@@ -98,7 +98,7 @@ export interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
    */
   streamText<PathT extends TypePath<TArgs>>(
     ...fieldPath: PathT
-  ): TypeAtPath<TArgs, PathT> extends string & infer U
+  ): TypeAtPath<TArgs, PathT> extends string & (infer U)
     ? AsyncIterableStream<U>
     : never;
 

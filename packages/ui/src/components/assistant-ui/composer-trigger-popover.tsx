@@ -93,18 +93,18 @@ const Categories: FC<CategoriesProps> = ({
             <ComposerPrimitive.Unstable_TriggerPopoverCategoryItem
               key={cat.id}
               categoryId={cat.id}
-              className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm outline-none transition-colors hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent"
+              className="hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm transition-colors outline-none"
             >
               <span className="flex items-center gap-2">
-                <Icon className="size-4 text-muted-foreground" />
+                <Icon className="text-muted-foreground size-4" />
                 {cat.label}
               </span>
-              <ChevronRightIcon className="size-4 text-muted-foreground" />
+              <ChevronRightIcon className="text-muted-foreground size-4" />
             </ComposerPrimitive.Unstable_TriggerPopoverCategoryItem>
           );
         })}
         {categories.length === 0 && (
-          <div className="px-3 py-2 text-muted-foreground text-sm">
+          <div className="text-muted-foreground px-3 py-2 text-sm">
             {emptyLabel}
           </div>
         )}
@@ -133,7 +133,7 @@ const Items: FC<ItemsProps> = ({
           data-slot="composer-trigger-popover-items"
           className="flex flex-col"
         >
-          <ComposerPrimitive.Unstable_TriggerPopoverBack className="flex cursor-pointer items-center gap-1.5 border-b px-3 py-2 text-muted-foreground text-xs uppercase tracking-wide transition-colors hover:bg-accent">
+          <ComposerPrimitive.Unstable_TriggerPopoverBack className="text-muted-foreground hover:bg-accent flex cursor-pointer items-center gap-1.5 border-b px-3 py-2 text-xs tracking-wide uppercase transition-colors">
             <ChevronLeftIcon className="size-3.5" />
             {backLabel}
           </ComposerPrimitive.Unstable_TriggerPopoverBack>
@@ -150,14 +150,14 @@ const Items: FC<ItemsProps> = ({
                   key={item.id}
                   item={item}
                   index={index}
-                  className="flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-start outline-none transition-colors hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent"
+                  className="hover:bg-accent focus:bg-accent data-[highlighted]:bg-accent flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-start transition-colors outline-none"
                 >
-                  <span className="flex items-center gap-2 font-medium text-sm">
-                    <Icon className="size-3.5 text-primary" />
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <Icon className="text-primary size-3.5" />
                     {item.label}
                   </span>
                   {item.description && (
-                    <span className="ms-5.5 text-muted-foreground text-xs leading-tight">
+                    <span className="text-muted-foreground ms-5.5 text-xs leading-tight">
                       {item.description}
                     </span>
                   )}
@@ -165,7 +165,7 @@ const Items: FC<ItemsProps> = ({
               );
             })}
             {items.length === 0 && (
-              <div className="px-3 py-2 text-muted-foreground text-sm">
+              <div className="text-muted-foreground px-3 py-2 text-sm">
                 {emptyLabel}
               </div>
             )}
@@ -207,7 +207,7 @@ const ComposerTriggerPopoverImpl: FC<ComposerTriggerPopoverProps> = ({
     <ComposerPrimitive.Unstable_TriggerPopover
       data-slot="composer-trigger-popover"
       className={cn(
-        "aui-composer-trigger-popover absolute start-0 bottom-full z-50 mb-2 w-64 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-lg",
+        "aui-composer-trigger-popover bg-popover text-popover-foreground absolute start-0 bottom-full z-50 mb-2 w-64 overflow-hidden rounded-xl border shadow-lg",
         className,
       )}
       {...props}

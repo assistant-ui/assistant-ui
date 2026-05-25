@@ -25,11 +25,11 @@ export function CopyCommandButton({
     <button
       type="button"
       onClick={copyToClipboard}
-      className="group inline-flex w-fit items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-3 py-1.5 font-mono text-sm transition-all hover:border-border hover:bg-muted/50"
+      className="group border-border/60 bg-muted/30 hover:border-border hover:bg-muted/50 inline-flex w-fit items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-sm transition-all"
     >
       <span className="text-muted-foreground/70">$</span>
       <span>{command}</span>
-      <div className="relative ml-1 flex size-4 items-center justify-center text-muted-foreground">
+      <div className="text-muted-foreground relative ml-1 flex size-4 items-center justify-center">
         <CheckIcon
           className={cn(
             "absolute size-3.5 text-green-500 transition-all duration-100",

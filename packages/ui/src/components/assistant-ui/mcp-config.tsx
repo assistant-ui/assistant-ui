@@ -128,7 +128,7 @@ const CustomServersSection: FC = () => {
 };
 
 const SectionTitle: FC<{ children: ReactNode }> = ({ children }) => (
-  <h3 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+  <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
     {children}
   </h3>
 );
@@ -144,7 +144,7 @@ const ServerCard: FC = () => {
       <div className="flex items-center gap-3">
         <ServerAvatar />
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate font-medium text-sm">
+          <span className="truncate text-sm font-medium">
             <McpServerPrimitive.Name />
           </span>
           <StatusLine />
@@ -155,7 +155,7 @@ const ServerCard: FC = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="aui-mcp-server-remove size-7 text-muted-foreground hover:text-destructive"
+              className="aui-mcp-server-remove text-muted-foreground hover:text-destructive size-7"
             >
               <Trash2Icon className="size-4" />
               <span className="sr-only">Remove</span>
@@ -172,7 +172,7 @@ const ServerAvatar: FC = () => {
   const icon = useAuiState((s) => s.mcpServer.icon ?? null);
   const name = useAuiState((s) => s.mcpServer.name);
   return (
-    <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted text-muted-foreground">
+    <div className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md border">
       {icon ? (
         <img src={icon} alt={name} className="size-full object-cover" />
       ) : (
@@ -208,7 +208,7 @@ const StatusLine: FC = () => {
   const variant = STATUS_VARIANT[status];
   const label = STATUS_LABEL[status];
   return (
-    <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+    <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
       <Badge variant={variant}>
         {status === "connecting" && (
           <Loader2Icon className="size-3 animate-spin" />
@@ -223,7 +223,7 @@ const ServerError: FC = () => {
   const message = useAuiState((s) => s.mcpServer.lastError?.message ?? null);
   if (!message) return null;
   return (
-    <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-2 py-1.5 text-destructive text-xs">
+    <div className="border-destructive/40 bg-destructive/5 text-destructive flex items-start gap-2 rounded-md border px-2 py-1.5 text-xs">
       <ShieldAlertIcon className="mt-0.5 size-3.5 shrink-0" />
       <span className="break-words">{message}</span>
     </div>
@@ -267,13 +267,13 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
     <McpAddFormPrimitive.Root onSubmitted={onClose} onCancel={onClose}>
       <div className="aui-mcp-add-form flex flex-col gap-3 rounded-lg border p-3">
         <div className="flex items-center justify-between">
-          <h4 className="font-medium text-sm">New server</h4>
+          <h4 className="text-sm font-medium">New server</h4>
           <McpAddFormPrimitive.Cancel asChild>
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="size-7 text-muted-foreground"
+              className="text-muted-foreground size-7"
             >
               <XIcon className="size-4" />
               <span className="sr-only">Close</span>
@@ -291,14 +291,14 @@ const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
           </McpAddFormPrimitive.UrlField>
         </FormRow>
         <FormRow label="Auth">
-          <McpAddFormPrimitive.AuthSelect className="aui-mcp-auth-select h-9 w-full rounded-md border bg-background px-2 text-sm" />
+          <McpAddFormPrimitive.AuthSelect className="aui-mcp-auth-select bg-background h-9 w-full rounded-md border px-2 text-sm" />
           <div
             className={cn(
               // Style the default `<input>` inside AuthFields without
               // needing to thread useAddForm out of the primitive. Mirrors
               // the shadcn <Input> look.
-              "empty:hidden [&_input]:flex [&_input]:h-9 [&_input]:w-full [&_input]:rounded-md [&_input]:border [&_input]:border-input [&_input]:bg-transparent [&_input]:px-3 [&_input]:py-1 [&_input]:text-sm [&_input]:shadow-xs [&_input]:outline-none [&_input]:transition-[color,box-shadow]",
-              "[&_input:focus-visible]:border-ring [&_input:focus-visible]:ring-[3px] [&_input:focus-visible]:ring-ring/50",
+              "[&_input]:border-input empty:hidden [&_input]:flex [&_input]:h-9 [&_input]:w-full [&_input]:rounded-md [&_input]:border [&_input]:bg-transparent [&_input]:px-3 [&_input]:py-1 [&_input]:text-sm [&_input]:shadow-xs [&_input]:transition-[color,box-shadow] [&_input]:outline-none",
+              "[&_input:focus-visible]:border-ring [&_input:focus-visible]:ring-ring/50 [&_input:focus-visible]:ring-[3px]",
               "[&_input::placeholder]:text-muted-foreground",
             )}
           >

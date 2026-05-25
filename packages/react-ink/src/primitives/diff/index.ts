@@ -7,10 +7,7 @@ export {
   DiffContent as Content,
   type DiffContentProps as ContentProps,
 } from "./DiffContent";
-export {
-  DiffLine as Line,
-  type DiffLineProps as LineProps,
-} from "./DiffLine";
+export { DiffLine as Line, type DiffLineProps as LineProps } from "./DiffLine";
 export {
   DiffStats as Stats,
   type DiffStatsProps as StatsProps,

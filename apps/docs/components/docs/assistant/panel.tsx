@@ -47,7 +47,7 @@ function ResizeHandle() {
         "after:absolute after:top-0 after:bottom-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:transition-colors",
         isResizing
           ? "after:bg-primary/40"
-          : "after:bg-transparent hover:after:bg-primary/20",
+          : "hover:after:bg-primary/20 after:bg-transparent",
       )}
     />
   );
@@ -67,7 +67,7 @@ export function AssistantPanelToggle(): React.ReactNode {
       size="icon"
       onClick={handleClick}
       className={cn(
-        "absolute top-1/2 left-0 z-10 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-background shadow-sm transition-opacity duration-300",
+        "bg-background absolute top-1/2 left-0 z-10 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border shadow-sm transition-opacity duration-300",
         open ? "opacity-100" : "pointer-events-none opacity-0",
       )}
       aria-label="Close AI Chat"
@@ -88,7 +88,7 @@ export function AssistantPanelContent(): React.ReactNode {
   return (
     <div
       className={cn(
-        "relative h-full w-(--panel-content-width) bg-background before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-border before:transition-opacity before:duration-300",
+        "bg-background before:bg-border relative h-full w-(--panel-content-width) before:absolute before:inset-y-0 before:left-0 before:w-px before:transition-opacity before:duration-300",
         open ? "before:opacity-100" : "before:opacity-0",
       )}
     >
@@ -97,7 +97,7 @@ export function AssistantPanelContent(): React.ReactNode {
         onClick={handleTriggerClick}
         className={cn(
           "absolute inset-y-0 left-0 z-20 cursor-pointer",
-          "before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-border before:opacity-0 before:transition-opacity hover:before:opacity-100 focus-visible:outline-none focus-visible:before:opacity-100",
+          "before:bg-border before:absolute before:inset-y-0 before:left-0 before:w-px before:opacity-0 before:transition-opacity hover:before:opacity-100 focus-visible:outline-none focus-visible:before:opacity-100",
           open ? "pointer-events-none opacity-0" : "opacity-100",
         )}
         style={{ width: COLLAPSED_WIDTH }}

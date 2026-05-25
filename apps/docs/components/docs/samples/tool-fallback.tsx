@@ -139,7 +139,7 @@ function ToolFallbackStreamingDemo() {
           {streamedArgs ? (
             <ToolFallbackArgs argsText={streamedArgs} />
           ) : (
-            <div className="px-4 text-muted-foreground/50 italic">
+            <div className="text-muted-foreground/50 px-4 italic">
               Click &quot;Start Tool Call&quot; to see the streaming effect
             </div>
           )}

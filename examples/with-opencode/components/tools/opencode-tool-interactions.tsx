@@ -149,13 +149,13 @@ export const AskQuestionInline: ToolCallMessagePartComponent = memo(
     const statusType = status?.type ?? "complete";
 
     return (
-      <div className="flex items-center gap-2 py-0.5 text-muted-foreground text-sm">
+      <div className="text-muted-foreground flex items-center gap-2 py-0.5 text-sm">
         {statusType === "requires-action" ? (
           <CircleHelpIcon className="size-3.5 shrink-0" />
         ) : statusType === "running" ? (
           <LoaderIcon className="size-3.5 shrink-0 animate-spin" />
         ) : statusType === "incomplete" ? (
-          <XCircleIcon className="size-3.5 shrink-0 text-destructive" />
+          <XCircleIcon className="text-destructive size-3.5 shrink-0" />
         ) : (
           <CheckCircle2Icon className="size-3.5 shrink-0" />
         )}

@@ -55,19 +55,19 @@ export default function TwShimmerPage() {
     <div className="container mx-auto max-w-7xl space-y-16 px-4 py-12">
       <HighlightStyles />
       <div className="mx-auto flex w-fit flex-col items-center space-y-6 text-center">
-        <div className="flex cursor-default rounded-full bg-border p-px">
-          <div className="flex items-center gap-2 rounded-full bg-background px-4 py-1.5 text-sm">
+        <div className="bg-border flex cursor-default rounded-full p-px">
+          <div className="bg-background flex items-center gap-2 rounded-full px-4 py-1.5 text-sm">
             <Sparkle className="size-4 opacity-50" />
             <span className="text-foreground/60">Tailwind CSS v4 Plugin</span>
           </div>
         </div>
 
         <div className="flex flex-col gap-5">
-          <div className="pointer-events-none select-none font-bold text-5xl tracking-tight lg:text-7xl">
-            <h1 className="shimmer inline text-foreground/50">tw-shimmer</h1>
+          <div className="pointer-events-none text-5xl font-bold tracking-tight select-none lg:text-7xl">
+            <h1 className="shimmer text-foreground/50 inline">tw-shimmer</h1>
           </div>
 
-          <p className="max-w-[520px] text-balance font-light text-lg text-muted-foreground">
+          <p className="text-muted-foreground max-w-[520px] text-lg font-light text-balance">
             Zero-dependency CSS-only shimmer. Simple, beautiful, and
             lightweight.
           </p>
@@ -76,7 +76,7 @@ export default function TwShimmerPage() {
 
       <div id="installation" className="space-y-8">
         <div className="text-center">
-          <h2 className="font-medium text-3xl">Installation</h2>
+          <h2 className="text-3xl font-medium">Installation</h2>
         </div>
 
         <div className="mx-auto max-w-3xl space-y-6">
@@ -116,14 +116,14 @@ export default function TwShimmerPage() {
 
       <div className="space-y-8">
         <div className="text-center">
-          <h2 className="mb-2 font-medium text-3xl">Text Shimmer</h2>
+          <h2 className="mb-2 text-3xl font-medium">Text Shimmer</h2>
           <p className="text-muted-foreground text-xl">
             Add shimmer effects to text elements.
           </p>
         </div>
 
         <div className="mx-auto max-w-3xl space-y-6">
-          <div className="border border-blue-500/20 border-dashed bg-blue-500/5 p-4 text-sm">
+          <div className="border border-dashed border-blue-500/20 bg-blue-500/5 p-4 text-sm">
             <p className="mb-1 font-semibold">💡 Important</p>
             <p className="text-muted-foreground">
               You won&apos;t see the shimmer if your text color is{" "}
@@ -149,7 +149,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <span className="shimmer font-semibold text-foreground/80 text-xl dark:text-foreground/60">
+              <span className="shimmer text-foreground/80 dark:text-foreground/60 text-xl font-semibold">
                 Shimmer Effect
               </span>
             </BoxContent>
@@ -177,7 +177,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <span className="shimmer shimmer-invert font-semibold text-foreground/60 text-xl dark:text-foreground/80">
+              <span className="shimmer shimmer-invert text-foreground/60 dark:text-foreground/80 text-xl font-semibold">
                 Shimmer Effect
               </span>
             </BoxContent>
@@ -197,7 +197,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <span className="shimmer font-semibold text-blue-600 text-xl">
+              <span className="shimmer text-xl font-semibold text-blue-600">
                 Blue Shimmer
               </span>
             </BoxContent>
@@ -217,7 +217,7 @@ export default function TwShimmerPage() {
               />
             </BoxCode>
             <BoxContent>
-              <span className="shimmer shimmer-color-orange-500 font-semibold text-foreground/40 text-xl">
+              <span className="shimmer shimmer-color-orange-500 text-foreground/40 text-xl font-semibold">
                 Orange Shimmer
               </span>
             </BoxContent>
@@ -238,13 +238,13 @@ export default function TwShimmerPage() {
             </BoxCode>
             <BoxContent>
               <div className="flex flex-col items-start gap-2">
-                <span className="shimmer shimmer-spread-60 shimmer-duration-5000 font-semibold text-foreground/40 text-xl">
+                <span className="shimmer shimmer-spread-60 shimmer-duration-5000 text-foreground/40 text-xl font-semibold">
                   Shimmer Effect (60px)
                 </span>
-                <span className="shimmer shimmer-duration-5000 font-semibold text-foreground/40 text-xl">
+                <span className="shimmer shimmer-duration-5000 text-foreground/40 text-xl font-semibold">
                   Shimmer Effect (120px)
                 </span>
-                <span className="shimmer shimmer-spread-200 shimmer-duration-5000 font-semibold text-foreground/40 text-xl">
+                <span className="shimmer shimmer-spread-200 shimmer-duration-5000 text-foreground/40 text-xl font-semibold">
                   Shimmer Effect (200px)
                 </span>
               </div>
@@ -266,13 +266,13 @@ export default function TwShimmerPage() {
             </BoxCode>
             <BoxContent>
               <div className="flex flex-col items-start gap-2">
-                <span className="shimmer shimmer-angle-0 shimmer-duration-5000 font-semibold text-foreground/40 text-xl">
+                <span className="shimmer shimmer-angle-0 shimmer-duration-5000 text-foreground/40 text-xl font-semibold">
                   Shimmer Effect (0deg)
                 </span>
-                <span className="shimmer shimmer-duration-5000 font-semibold text-foreground/40 text-xl">
+                <span className="shimmer shimmer-duration-5000 text-foreground/40 text-xl font-semibold">
                   Shimmer Effect (15deg)
                 </span>
-                <span className="shimmer shimmer-angle-75 shimmer-duration-5000 font-semibold text-foreground/40 text-xl">
+                <span className="shimmer shimmer-angle-75 shimmer-duration-5000 text-foreground/40 text-xl font-semibold">
                   Shimmer Effect (75deg)
                 </span>
               </div>
@@ -283,7 +283,7 @@ export default function TwShimmerPage() {
 
       <div className="space-y-8">
         <div className="text-center">
-          <h2 className="mb-2 font-medium text-3xl">Animation Timing</h2>
+          <h2 className="mb-2 text-3xl font-medium">Animation Timing</h2>
           <p className="text-muted-foreground text-xl">
             Control how long the shimmer animation takes.
           </p>
@@ -291,7 +291,7 @@ export default function TwShimmerPage() {
 
         <div className="mx-auto max-w-3xl space-y-6">
           <div className="rounded-md border border-dashed p-6">
-            <p className="mb-4 text-center text-muted-foreground text-sm">
+            <p className="text-muted-foreground mb-4 text-center text-sm">
               Total animation cycle
             </p>
             <div className="flex items-center justify-center gap-2">
@@ -303,7 +303,7 @@ export default function TwShimmerPage() {
                   (duration or speed)
                 </span>
               </div>
-              <span className="font-mono text-muted-foreground text-xl">+</span>
+              <span className="text-muted-foreground font-mono text-xl">+</span>
               <div className="flex flex-col items-center gap-1">
                 <div className="rounded bg-orange-500/20 px-4 py-2 font-mono text-sm">
                   repeat delay
@@ -317,15 +317,15 @@ export default function TwShimmerPage() {
 
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">
-              <p className="font-medium text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-sm font-medium">
                 Option A
               </p>
               <Box>
-                <div className="space-y-2 bg-muted/40 p-6">
+                <div className="bg-muted/40 space-y-2 p-6">
                   <h3 className="font-mono text-lg">
                     shimmer-duration-{"{ms}"}
                   </h3>
-                  <p className="max-w-[70ch] text-muted-foreground text-sm">
+                  <p className="text-muted-foreground max-w-[70ch] text-sm">
                     Fixed duration in milliseconds. Larger elements will appear
                     to move faster since they cover more distance in the same
                     time.
@@ -341,17 +341,17 @@ export default function TwShimmerPage() {
                 </BoxCode>
                 <BoxContent>
                   <div className="flex flex-col items-start gap-2">
-                    <span className="shimmer shimmer-duration-2000 font-semibold text-foreground/40 text-xl">
+                    <span className="shimmer shimmer-duration-2000 text-foreground/40 text-xl font-semibold">
                       Short
                     </span>
-                    <span className="shimmer shimmer-duration-2000 font-semibold text-foreground/40 text-xl">
+                    <span className="shimmer shimmer-duration-2000 text-foreground/40 text-xl font-semibold">
                       Medium Length Text
                     </span>
-                    <span className="shimmer shimmer-duration-2000 font-semibold text-foreground/40 text-xl">
+                    <span className="shimmer shimmer-duration-2000 text-foreground/40 text-xl font-semibold">
                       This Is A Much Longer Text
                     </span>
                   </div>
-                  <p className="mt-4 text-muted-foreground text-xs">
+                  <p className="text-muted-foreground mt-4 text-xs">
                     Same duration, different perceived speeds
                   </p>
                 </BoxContent>
@@ -359,15 +359,15 @@ export default function TwShimmerPage() {
             </div>
 
             <div className="space-y-2">
-              <p className="font-medium text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-sm font-medium">
                 Option B
               </p>
               <Box>
-                <div className="space-y-2 bg-muted/40 p-6">
+                <div className="bg-muted/40 space-y-2 p-6">
                   <h3 className="font-mono text-lg">
                     shimmer-speed-{"{px/s}"}
                   </h3>
-                  <p className="max-w-[70ch] text-muted-foreground text-sm">
+                  <p className="text-muted-foreground max-w-[70ch] text-sm">
                     Speed in pixels per second. All elements sweep at the same
                     visual speed regardless of width. Default: 200px/s.
                   </p>
@@ -382,17 +382,17 @@ export default function TwShimmerPage() {
                 </BoxCode>
                 <BoxContent>
                   <div className="flex flex-col items-start gap-2">
-                    <span className="shimmer shimmer-speed-200 shimmer-repeat-delay-1975 font-semibold text-foreground/40 text-xl [--shimmer-track-width:50px]">
+                    <span className="shimmer shimmer-speed-200 shimmer-repeat-delay-1975 text-foreground/40 text-xl font-semibold [--shimmer-track-width:50px]">
                       Short
                     </span>
-                    <span className="shimmer shimmer-speed-200 shimmer-repeat-delay-1300 font-semibold text-foreground/40 text-xl [--shimmer-track-width:185px]">
+                    <span className="shimmer shimmer-speed-200 shimmer-repeat-delay-1300 text-foreground/40 text-xl font-semibold [--shimmer-track-width:185px]">
                       Medium Length Text
                     </span>
-                    <span className="shimmer shimmer-speed-200 font-semibold text-foreground/40 text-xl [--shimmer-track-width:245px]">
+                    <span className="shimmer shimmer-speed-200 text-foreground/40 text-xl font-semibold [--shimmer-track-width:245px]">
                       This Is A Much Longer Text
                     </span>
                   </div>
-                  <p className="mt-4 text-muted-foreground text-xs">
+                  <p className="text-muted-foreground mt-4 text-xs">
                     Same speed, different durations
                   </p>
                 </BoxContent>
@@ -402,7 +402,7 @@ export default function TwShimmerPage() {
 
           <div className="grid gap-6 md:grid-cols-2">
             <div />
-            <div className="border border-amber-500/20 border-dashed bg-amber-500/5 p-4 text-sm">
+            <div className="border border-dashed border-amber-500/20 bg-amber-500/5 p-4 text-sm">
               <p className="mb-1 font-semibold">
                 Width Required for shimmer-speed
               </p>
@@ -410,7 +410,7 @@ export default function TwShimmerPage() {
                 CSS can&apos;t read text width, so you need to measure it with
                 JavaScript and pass it in. Without it, defaults to 200px.
               </p>
-              <code className="mt-2 block rounded bg-muted px-2 py-1 text-xs">
+              <code className="bg-muted mt-2 block rounded px-2 py-1 text-xs">
                 {'style={{ "--shimmer-track-width": width }}'}
               </code>
             </div>
@@ -431,13 +431,13 @@ export default function TwShimmerPage() {
             </BoxCode>
             <BoxContent>
               <div className="flex flex-col items-start gap-2 [--shimmer-track-height:28px]">
-                <span className="shimmer shimmer-repeat-delay-0 shimmer-duration-3000 font-semibold text-foreground/40 text-xl">
+                <span className="shimmer shimmer-repeat-delay-0 shimmer-duration-3000 text-foreground/40 text-xl font-semibold">
                   Shimmer Effect (0ms)
                 </span>
-                <span className="shimmer shimmer-duration-3000 font-semibold text-foreground/40 text-xl">
+                <span className="shimmer shimmer-duration-3000 text-foreground/40 text-xl font-semibold">
                   Shimmer Effect (1000ms)
                 </span>
-                <span className="shimmer shimmer-repeat-delay-2000 shimmer-duration-3000 font-semibold text-foreground/40 text-xl">
+                <span className="shimmer shimmer-repeat-delay-2000 shimmer-duration-3000 text-foreground/40 text-xl font-semibold">
                   Shimmer Effect (2000ms)
                 </span>
               </div>
@@ -448,7 +448,7 @@ export default function TwShimmerPage() {
 
       <div className="space-y-8">
         <div className="text-center">
-          <h2 className="mb-2 font-medium text-3xl">Background Shimmer</h2>
+          <h2 className="mb-2 text-3xl font-medium">Background Shimmer</h2>
           <p className="text-muted-foreground text-xl">
             Add shimmer to skeleton components and non-text elements.
           </p>
@@ -470,7 +470,7 @@ export default function TwShimmerPage() {
             </BoxCode>
             <BoxContent>
               <div className="shimmer-container">
-                <div className="shimmer shimmer-bg h-4 w-64 rounded bg-muted" />
+                <div className="shimmer shimmer-bg bg-muted h-4 w-64 rounded" />
               </div>
             </BoxContent>
           </Box>
@@ -498,28 +498,28 @@ export default function TwShimmerPage() {
             <BoxContent>
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <p className="font-medium text-muted-foreground text-sm">
+                  <p className="text-muted-foreground text-sm font-medium">
                     Uncoordinated
                   </p>
                   <div className="shimmer-container flex gap-3">
-                    <div className="shimmer shimmer-bg size-12 shrink-0 rounded-full bg-muted" />
+                    <div className="shimmer shimmer-bg bg-muted size-12 shrink-0 rounded-full" />
                     <div className="flex-1 space-y-1">
-                      <div className="shimmer shimmer-bg h-4 w-1/4 rounded bg-muted" />
-                      <div className="shimmer shimmer-bg h-4 w-full rounded bg-muted" />
-                      <div className="shimmer shimmer-bg h-4 w-4/5 rounded bg-muted" />
+                      <div className="shimmer shimmer-bg bg-muted h-4 w-1/4 rounded" />
+                      <div className="shimmer shimmer-bg bg-muted h-4 w-full rounded" />
+                      <div className="shimmer shimmer-bg bg-muted h-4 w-4/5 rounded" />
                     </div>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <p className="font-medium text-muted-foreground text-sm">
+                  <p className="text-muted-foreground text-sm font-medium">
                     Synchronized with x/y coordinates
                   </p>
                   <div className="shimmer-container flex gap-3">
-                    <div className="shimmer shimmer-bg size-12 shrink-0 rounded-full bg-muted [--shimmer-x:0] [--shimmer-y:0]" />
+                    <div className="shimmer shimmer-bg bg-muted size-12 shrink-0 rounded-full [--shimmer-x:0] [--shimmer-y:0]" />
                     <div className="flex-1 space-y-1">
-                      <div className="shimmer shimmer-bg h-4 w-1/4 rounded bg-muted [--shimmer-x:60] [--shimmer-y:0]" />
-                      <div className="shimmer shimmer-bg h-4 w-full rounded bg-muted [--shimmer-x:60] [--shimmer-y:20]" />
-                      <div className="shimmer shimmer-bg h-4 w-4/5 rounded bg-muted [--shimmer-x:60] [--shimmer-y:40]" />
+                      <div className="shimmer shimmer-bg bg-muted h-4 w-1/4 rounded [--shimmer-x:60] [--shimmer-y:0]" />
+                      <div className="shimmer shimmer-bg bg-muted h-4 w-full rounded [--shimmer-x:60] [--shimmer-y:20]" />
+                      <div className="shimmer shimmer-bg bg-muted h-4 w-4/5 rounded [--shimmer-x:60] [--shimmer-y:40]" />
                     </div>
                   </div>
                 </div>
@@ -543,10 +543,10 @@ export default function TwShimmerPage() {
             </BoxCode>
             <BoxContent>
               <div className="shimmer-container space-y-1">
-                <div className="shimmer shimmer-bg shimmer-color-blue-300/30 h-4 w-48 rounded bg-muted" />
-                <div className="shimmer shimmer-bg shimmer-color-amber-200/30 h-4 w-48 rounded bg-muted" />
+                <div className="shimmer shimmer-bg shimmer-color-blue-300/30 bg-muted h-4 w-48 rounded" />
+                <div className="shimmer shimmer-bg shimmer-color-amber-200/30 bg-muted h-4 w-48 rounded" />
               </div>
-              <p className="mt-4 mb-2 font-medium text-muted-foreground text-sm">
+              <p className="text-muted-foreground mt-4 mb-2 text-sm font-medium">
                 With custom background color
               </p>
               <div className="shimmer-container space-y-1">
@@ -640,9 +640,9 @@ function Box({ children }: { children: React.ReactNode }) {
 
 function BoxTitle({ title, description }: BoxTitleProps) {
   return (
-    <div className="space-y-2 bg-muted/40 p-6">
+    <div className="bg-muted/40 space-y-2 p-6">
       <h3 className="font-mono text-lg">{title}</h3>
-      <p className="max-w-[70ch] text-muted-foreground text-sm">
+      <p className="text-muted-foreground max-w-[70ch] text-sm">
         {description}
       </p>
     </div>
@@ -655,8 +655,8 @@ function BoxContent({ children }: { children: React.ReactNode }) {
 
 function BoxCodeHeader({ fileName }: BoxCodeHeaderProps) {
   return (
-    <div className="flex items-center gap-2 px-6 py-4 font-medium font-mono text-sm">
-      <FileCode className="size-4 text-muted-foreground" />
+    <div className="flex items-center gap-2 px-6 py-4 font-mono text-sm font-medium">
+      <FileCode className="text-muted-foreground size-4" />
       {fileName}
     </div>
   );

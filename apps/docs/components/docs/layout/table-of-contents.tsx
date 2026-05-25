@@ -167,12 +167,12 @@ export function TableOfContents({
     // biome-ignore lint/correctness/useUniqueElementIds: framework-specific toc anchor
     <div id="nd-toc" className="w-56 [grid-area:toc] max-xl:hidden">
       <div className="sticky top-14 flex max-h-[calc(100vh-3.5rem)] flex-col pe-4 pb-2">
-        <p className="mb-3 shrink-0 text-muted-foreground/70 text-xs">
+        <p className="text-muted-foreground/70 mb-3 shrink-0 text-xs">
           On this page
         </p>
         <ul
           ref={listRef}
-          className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex min-h-0 flex-1 [scrollbar-width:none] flex-col gap-1 overflow-x-hidden overflow-y-auto [&::-webkit-scrollbar]:hidden"
         >
           {items.map((item) => {
             const id = item.url.slice(1);
@@ -186,9 +186,9 @@ export function TableOfContents({
                   href={item.url}
                   style={{ paddingLeft: indent || undefined }}
                   className={cn(
-                    "wrap-break-word block py-1 text-[13px] leading-snug transition-colors",
+                    "block py-1 text-[13px] leading-snug wrap-break-word transition-colors",
                     isActive
-                      ? "font-medium text-foreground"
+                      ? "text-foreground font-medium"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                   onClick={() =>

@@ -35,7 +35,7 @@ const ToolCallShell = ({
   const isCancelled = isCancelledToolStatus(status);
 
   return (
-    <div className="flex items-center gap-2 py-0.5 text-muted-foreground text-sm">
+    <div className="text-muted-foreground flex items-center gap-2 py-0.5 text-sm">
       <ToolStatusIcon status={status} />
       <span
         className={cn(

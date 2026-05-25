@@ -36,7 +36,7 @@ export default function Page(props: {
       <main className="mx-auto w-full max-w-3xl px-4 py-16 md:py-24">
         <Link
           href="/blog"
-          className="inline-flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Blog
@@ -48,11 +48,11 @@ export default function Page(props: {
               {formatDate(page.data.date)}
             </time>
           )}
-          <h1 className="mt-2 font-medium text-3xl tracking-tight">
+          <h1 className="mt-2 text-3xl font-medium tracking-tight">
             {page.data.title}
           </h1>
           {page.data.description && (
-            <p className="mt-3 text-lg text-muted-foreground">
+            <p className="text-muted-foreground mt-3 text-lg">
               {page.data.description}
             </p>
           )}

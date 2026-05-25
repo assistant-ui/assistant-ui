@@ -83,31 +83,31 @@ export default async function PackagesPage() {
       <header className="mb-12 max-w-3xl">
         <Link
           href="/traction"
-          className="mb-3 inline-flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground mb-3 inline-flex items-center gap-1.5 text-sm transition-colors"
         >
           <ArrowLeft className="size-3.5" />
           Back to traction
         </Link>
-        <h1 className="font-medium text-3xl tracking-tight md:text-4xl">
+        <h1 className="text-3xl font-medium tracking-tight md:text-4xl">
           Every distribution, in one place.
         </h1>
-        <p className="mt-3 text-muted-foreground md:text-lg">
+        <p className="text-muted-foreground mt-3 md:text-lg">
           {PACKAGES.length} packages on npm, grouped by surface area. Pick the
           one that fits your stack.
         </p>
       </header>
 
       <section className="mb-12">
-        <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border md:grid-cols-3">
+        <div className="border-border bg-border grid grid-cols-1 gap-px overflow-hidden rounded-xl border md:grid-cols-3">
           {heroStats.map((stat) => {
             const Icon = stat.icon;
             return (
               <div
                 key={stat.label}
-                className="flex flex-col gap-3 bg-background p-6"
+                className="bg-background flex flex-col gap-3 p-6"
               >
-                <Icon className="size-4 text-muted-foreground" />
-                <div className="font-medium text-3xl tabular-nums tracking-tight md:text-4xl">
+                <Icon className="text-muted-foreground size-4" />
+                <div className="text-3xl font-medium tracking-tight tabular-nums md:text-4xl">
                   {stat.value}
                 </div>
                 <div className="flex flex-col gap-0.5">
@@ -123,10 +123,10 @@ export default async function PackagesPage() {
       </section>
 
       {topPackages.length > 0 ? (
-        <section className="mb-12 rounded-xl border border-border p-4 md:p-6">
+        <section className="border-border mb-12 rounded-xl border p-4 md:p-6">
           <div className="mb-4 flex items-end justify-between gap-3">
             <div className="flex flex-col gap-0.5">
-              <h2 className="font-medium text-sm">
+              <h2 className="text-sm font-medium">
                 Top packages by weekly downloads
               </h2>
               <p className="text-muted-foreground text-xs">
@@ -140,7 +140,7 @@ export default async function PackagesPage() {
 
       <nav
         aria-label="Package categories"
-        className="sticky top-12 z-10 -mx-4 mb-12 border-border border-y bg-background/85 px-4 py-3 backdrop-blur"
+        className="border-border bg-background/85 sticky top-12 z-10 -mx-4 mb-12 border-y px-4 py-3 backdrop-blur"
       >
         <ul className="flex flex-wrap gap-1.5">
           {visibleCategories.map((category) => {
@@ -150,7 +150,7 @@ export default async function PackagesPage() {
               <li key={category}>
                 <a
                   href={`#${category}`}
-                  className="flex items-center gap-1.5 rounded-md border border-transparent bg-muted/40 px-2.5 py-1 text-muted-foreground text-xs transition-colors hover:border-border hover:bg-muted hover:text-foreground"
+                  className="bg-muted/40 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground flex items-center gap-1.5 rounded-md border border-transparent px-2.5 py-1 text-xs transition-colors"
                 >
                   {meta.label}
                   <span className="text-muted-foreground/70 tabular-nums">
@@ -173,9 +173,9 @@ export default async function PackagesPage() {
               id={category}
               className="flex scroll-mt-28 flex-col gap-4"
             >
-              <div className="flex items-end justify-between gap-4 border-border border-b pb-3">
+              <div className="border-border flex items-end justify-between gap-4 border-b pb-3">
                 <div className="flex flex-col gap-0.5">
-                  <h3 className="font-medium text-sm">{meta.label}</h3>
+                  <h3 className="text-sm font-medium">{meta.label}</h3>
                   <p className="text-muted-foreground text-xs">
                     {meta.description}
                   </p>
@@ -251,13 +251,13 @@ function PackageRow({
       href={npmHref}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex flex-col gap-1.5 rounded-lg border border-border p-4 transition-colors hover:border-foreground/30 hover:bg-muted/40"
+      className="group border-border hover:border-foreground/30 hover:bg-muted/40 flex flex-col gap-1.5 rounded-lg border p-4 transition-colors"
     >
       <div className="flex items-center justify-between gap-3">
-        <span className="truncate font-medium font-mono text-sm">
+        <span className="truncate font-mono text-sm font-medium">
           {pkg.name}
         </span>
-        <ArrowUpRight className="size-3.5 flex-shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        <ArrowUpRight className="text-muted-foreground size-3.5 flex-shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
       </div>
       <p className="text-muted-foreground text-sm leading-relaxed">
         {pkg.description}

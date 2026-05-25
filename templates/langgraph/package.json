@@ -8,10 +8,10 @@
     "dev:backend": "langgraphjs dev",
     "build": "next build",
     "start": "next start",
-    "lint": "biome check .",
-    "format": "biome format .",
-    "format:fix": "biome format --write .",
-    "lint:fix": "biome check --write ."
+    "lint": "oxlint && oxfmt --check",
+    "format": "oxfmt --check",
+    "format:fix": "oxfmt",
+    "lint:fix": "oxlint --fix && oxfmt"
   },
   "dependencies": {
     "@assistant-ui/react": "workspace:*",
@@ -40,7 +40,6 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.15",
     "@langchain/core": "^1.1.48",
     "@langchain/langgraph-cli": "^1.2.2",
     "@tailwindcss/postcss": "^4.3.0",
@@ -48,6 +47,8 @@
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "concurrently": "^9.2.1",
+    "oxfmt": "^0.51.0",
+    "oxlint": "^1.66.0",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3"
   }

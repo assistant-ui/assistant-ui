@@ -61,11 +61,11 @@ export default function PricingPage() {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-16 md:py-24">
       <header className="mb-16">
-        <p className="mb-3 text-muted-foreground text-sm">Pricing</p>
-        <h1 className="font-medium text-2xl tracking-tight">
+        <p className="text-muted-foreground mb-3 text-sm">Pricing</p>
+        <h1 className="text-2xl font-medium tracking-tight">
           Simple, transparent pricing
         </h1>
-        <p className="mt-2 text-muted-foreground">
+        <p className="text-muted-foreground mt-2">
           Choose the plan that fits your needs.
         </p>
       </header>
@@ -73,10 +73,10 @@ export default function PricingPage() {
       {/* assistant-cloud section */}
       <section className="mb-20">
         <div className="mb-8">
-          <h2 className="font-medium text-xl tracking-tight">
+          <h2 className="text-xl font-medium tracking-tight">
             assistant-cloud
           </h2>
-          <p className="mt-1 text-muted-foreground">
+          <p className="text-muted-foreground mt-1">
             Fully managed backend for AI chat applications
           </p>
         </div>
@@ -87,7 +87,7 @@ export default function PricingPage() {
           ))}
         </div>
 
-        <p className="mt-4 text-muted-foreground text-xs">
+        <p className="text-muted-foreground mt-4 text-xs">
           * MAU = Monthly Active Users who send at least one message.{" "}
           <a href="mailto:b2c-pricing@assistant.dev" className="underline">
             Contact us
@@ -99,20 +99,20 @@ export default function PricingPage() {
       {/* assistant-ui section */}
       <section>
         <div className="mb-8">
-          <h2 className="font-medium text-xl tracking-tight">assistant-ui</h2>
-          <p className="mt-1 text-muted-foreground">
+          <h2 className="text-xl font-medium tracking-tight">assistant-ui</h2>
+          <p className="text-muted-foreground mt-1">
             TypeScript/React library for AI chat
           </p>
         </div>
 
-        <div className="rounded-lg border border-border p-6">
+        <div className="border-border rounded-lg border p-6">
           <div className="flex items-start gap-3">
             <GitHubIcon className="mt-0.5 h-5 w-5 flex-shrink-0" />
             <div>
-              <h3 className="font-medium text-sm">
+              <h3 className="text-sm font-medium">
                 Forever free & open source
               </h3>
-              <p className="mt-1 text-muted-foreground text-sm">MIT License</p>
+              <p className="text-muted-foreground mt-1 text-sm">MIT License</p>
             </div>
           </div>
 
@@ -124,9 +124,9 @@ export default function PricingPage() {
             ].map((feature) => (
               <li
                 key={feature}
-                className="flex items-start gap-2 text-muted-foreground text-sm"
+                className="text-muted-foreground flex items-start gap-2 text-sm"
               >
-                <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-foreground/60" />
+                <Check className="text-foreground/60 mt-0.5 h-4 w-4 flex-shrink-0" />
                 <span>{feature}</span>
               </li>
             ))}

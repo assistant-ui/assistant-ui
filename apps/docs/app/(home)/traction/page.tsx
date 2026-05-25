@@ -137,11 +137,11 @@ export default async function TractionPage() {
   return (
     <main className="mx-auto w-full max-w-7xl px-4 pt-14 pb-16 md:pb-24">
       <header className="mb-16 max-w-3xl">
-        <p className="mb-3 text-muted-foreground text-sm">Traction</p>
-        <h1 className="font-medium text-3xl tracking-tight md:text-4xl">
+        <p className="text-muted-foreground mb-3 text-sm">Traction</p>
+        <h1 className="text-3xl font-medium tracking-tight md:text-4xl">
           The receipts behind assistant-ui.
         </h1>
-        <p className="mt-3 text-muted-foreground md:text-lg">
+        <p className="text-muted-foreground mt-3 md:text-lg">
           assistant-ui is the open-source UX layer for AI chat. Here are the
           numbers, the packages, and the teams shipping with it today.
         </p>
@@ -164,7 +164,7 @@ export default async function TractionPage() {
       </header>
 
       <section className="mb-20">
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border md:grid-cols-4">
+        <div className="border-border bg-border grid grid-cols-2 gap-px overflow-hidden rounded-xl border md:grid-cols-4">
           {heroStats.map((stat) => {
             if (stat.label === "Weekly downloads") {
               return (
@@ -185,10 +185,10 @@ export default async function TractionPage() {
             return (
               <div
                 key={stat.label}
-                className="flex flex-col gap-3 bg-background p-6"
+                className="bg-background flex flex-col gap-3 p-6"
               >
-                <Icon className="size-4 text-muted-foreground" />
-                <div className="font-medium text-3xl tabular-nums tracking-tight md:text-4xl">
+                <Icon className="text-muted-foreground size-4" />
+                <div className="text-3xl font-medium tracking-tight tabular-nums md:text-4xl">
                   {stat.value}
                 </div>
                 <div className="flex flex-col gap-0.5">
@@ -215,7 +215,7 @@ export default async function TractionPage() {
       <section className="mb-20 grid gap-12 lg:grid-cols-2">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
-            <h2 className="font-medium text-xl tracking-tight">
+            <h2 className="text-xl font-medium tracking-tight">
               Stars over time
             </h2>
             <p className="text-muted-foreground text-sm">
@@ -226,7 +226,7 @@ export default async function TractionPage() {
         </div>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
-            <h2 className="font-medium text-xl tracking-tight">
+            <h2 className="text-xl font-medium tracking-tight">
               Ecosystem downloads
             </h2>
             <p className="text-muted-foreground text-sm">
@@ -240,7 +240,7 @@ export default async function TractionPage() {
 
       <section className="mb-20 flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h2 className="font-medium text-xl tracking-tight">
+          <h2 className="text-xl font-medium tracking-tight">
             Shipping cadence
           </h2>
           <p className="text-muted-foreground text-sm">
@@ -253,7 +253,7 @@ export default async function TractionPage() {
 
       <section className="mb-20">
         <div className="mb-8 flex flex-col gap-1">
-          <h2 className="font-medium text-xl tracking-tight">
+          <h2 className="text-xl font-medium tracking-tight">
             Repository momentum
           </h2>
           <p className="text-muted-foreground text-sm">
@@ -266,11 +266,11 @@ export default async function TractionPage() {
             return (
               <div
                 key={stat.label}
-                className="flex items-start gap-4 rounded-lg border border-border p-5"
+                className="border-border flex items-start gap-4 rounded-lg border p-5"
               >
-                <Icon className="mt-1 size-4 text-muted-foreground" />
+                <Icon className="text-muted-foreground mt-1 size-4" />
                 <div className="flex flex-col">
-                  <span className="font-medium text-2xl tabular-nums tracking-tight">
+                  <span className="text-2xl font-medium tracking-tight tabular-nums">
                     {stat.value}
                   </span>
                   <span className="text-muted-foreground text-sm">
@@ -286,7 +286,7 @@ export default async function TractionPage() {
       {contributors.length > 0 ? (
         <section className="mb-20">
           <div className="mb-8 flex flex-col gap-1">
-            <h2 className="font-medium text-xl tracking-tight">
+            <h2 className="text-xl font-medium tracking-tight">
               Built by {contributors.length} contributors
             </h2>
             <p className="text-muted-foreground text-sm">
@@ -310,7 +310,7 @@ export default async function TractionPage() {
                   width={32}
                   height={32}
                   loading="lazy"
-                  className="size-8 rounded-full border border-border"
+                  className="border-border size-8 rounded-full border"
                 />
               </a>
             ))}
@@ -318,10 +318,10 @@ export default async function TractionPage() {
         </section>
       ) : null}
 
-      <section className="mb-20 rounded-xl border border-border p-8 md:p-12">
+      <section className="border-border mb-20 rounded-xl border p-8 md:p-12">
         <div className="grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
           <div className="flex flex-col gap-2">
-            <h2 className="font-medium text-xl tracking-tight">
+            <h2 className="text-xl font-medium tracking-tight">
               Used by teams shipping AI in production.
             </h2>
             <p className="text-muted-foreground text-sm">
@@ -347,7 +347,7 @@ export default async function TractionPage() {
       </section>
 
       <section className="flex flex-col items-center gap-6 py-8 text-center">
-        <p className="font-medium text-2xl tracking-tight">
+        <p className="text-2xl font-medium tracking-tight">
           Build on a library teams already trust.
         </p>
         <div className="flex items-center gap-3">

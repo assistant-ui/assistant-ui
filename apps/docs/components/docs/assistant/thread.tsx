@@ -52,9 +52,9 @@ function PendingMessageHandler() {
 
 export function AssistantThread(): React.ReactNode {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col bg-background">
+    <ThreadPrimitive.Root className="bg-background flex h-full flex-col">
       <PendingMessageHandler />
-      <ThreadPrimitive.Viewport className="scrollbar-none flex flex-1 flex-col overflow-y-auto px-3 pt-3">
+      <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col overflow-y-auto px-3 pt-3">
         <AuiIf condition={(s) => s.thread.isEmpty}>
           <AssistantWelcome />
         </AuiIf>
@@ -69,7 +69,7 @@ export function AssistantThread(): React.ReactNode {
           </ThreadPrimitive.Messages>
         </div>
 
-        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto flex flex-col overflow-visible rounded-t-xl bg-background">
+        <ThreadPrimitive.ViewportFooter className="bg-background sticky bottom-0 mt-auto flex flex-col overflow-visible rounded-t-xl">
           <AssistantComposer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>

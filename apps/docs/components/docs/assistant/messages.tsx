@@ -25,7 +25,7 @@ import { Reasoning } from "@/components/assistant-ui/reasoning";
 export function UserMessage(): ReactNode {
   return (
     <MessagePrimitive.Root className="flex justify-end py-2" data-role="user">
-      <div className="max-w-[85%] rounded-2xl bg-muted px-3 py-2 text-sm empty:hidden">
+      <div className="bg-muted max-w-[85%] rounded-2xl px-3 py-2 text-sm empty:hidden">
         <MessagePrimitive.Parts />
       </div>
     </MessagePrimitive.Root>
@@ -50,7 +50,7 @@ export function AssistantMessage(): ReactNode {
             s.thread.isRunning && s.message.content.length === 0
           }
         >
-          <div className="flex items-center gap-2 py-1 text-muted-foreground">
+          <div className="text-muted-foreground flex items-center gap-2 py-1">
             <LoaderIcon className="size-3 animate-spin" />
             <span className="text-sm">Thinking...</span>
           </div>
@@ -162,7 +162,7 @@ function ToolCall({
   return (
     <div
       className={cn(
-        "my-1.5 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5 text-muted-foreground text-xs",
+        "border-border/60 bg-muted/30 text-muted-foreground my-1.5 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs",
         isRunning && "animate-pulse",
       )}
     >
@@ -182,7 +182,7 @@ function ToolCall({
 function MessageError(): ReactNode {
   return (
     <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive bg-destructive/10 p-2 text-destructive text-xs dark:bg-destructive/5 dark:text-red-200">
+      <ErrorPrimitive.Root className="border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-2 text-xs dark:text-red-200">
         <ErrorPrimitive.Message className="line-clamp-2" />
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>

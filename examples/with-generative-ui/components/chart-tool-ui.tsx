@@ -44,7 +44,7 @@ export const ChartToolUI = makeAssistantToolUI<ChartArgs, ChartResult>({
     if (status.type === "running" && !args.data?.length) {
       return (
         <div className="flex items-center gap-2 rounded-lg border p-4">
-          <Loader2Icon className="size-4 animate-spin text-muted-foreground" />
+          <Loader2Icon className="text-muted-foreground size-4 animate-spin" />
           <span className="text-muted-foreground text-sm">
             Generating chart...
           </span>
@@ -57,7 +57,7 @@ export const ChartToolUI = makeAssistantToolUI<ChartArgs, ChartResult>({
 
     return (
       <div className="my-2 rounded-lg border p-4">
-        <h3 className="mb-3 text-center font-semibold text-sm">{title}</h3>
+        <h3 className="mb-3 text-center text-sm font-semibold">{title}</h3>
         <div className="h-[280px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             {type === "bar" ? (

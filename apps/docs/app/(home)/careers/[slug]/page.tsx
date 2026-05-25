@@ -32,7 +32,7 @@ export default function CareerRolePage({
     <main className="mx-auto w-full max-w-3xl px-4 py-16 md:py-24">
       <Link
         href="/careers"
-        className="inline-flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Careers
@@ -43,11 +43,11 @@ export default function CareerRolePage({
           {role.data.location} · {role.data.type}
           {role.data.salary && ` · ${role.data.salary}`}
         </p>
-        <h1 className="mt-2 font-medium text-3xl tracking-tight">
+        <h1 className="mt-2 text-3xl font-medium tracking-tight">
           {role.data.title}
         </h1>
         {role.data.summary && (
-          <p className="mt-3 text-lg text-muted-foreground">
+          <p className="text-muted-foreground mt-3 text-lg">
             {role.data.summary}
           </p>
         )}
@@ -58,8 +58,8 @@ export default function CareerRolePage({
       </article>
 
       <section className="mt-16">
-        <h2 className="font-medium text-xl">Apply for this role</h2>
-        <p className="mt-2 text-muted-foreground text-sm">
+        <h2 className="text-xl font-medium">Apply for this role</h2>
+        <p className="text-muted-foreground mt-2 text-sm">
           Send a quick introduction and a few links. We read every submission.
         </p>
         <div className="mt-6">

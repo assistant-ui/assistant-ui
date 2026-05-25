@@ -21,9 +21,11 @@ Every PR that changes a published package needs a changeset. Always use **patch*
 feat: description of the change
 ```
 
-## Biome custom hooks
+## Lint / format (oxlint + oxfmt)
 
-`useExhaustiveDependencies` tracks: `tapEffect`, `tapMemo`, `tapCallback`, `tapConst`, `tapResources`. `tapEffectEvent` returns a stable value.
+Lint with `pnpm lint`, autofix with `pnpm lint:fix`. Backed by `.oxlintrc.json` (oxlint) and `.oxfmtrc.json` (oxfmt).
+
+Known gap from the Biome era: oxlint's `react-hooks/exhaustive-deps` only understands the built-in React hooks. The custom `tapEffect` / `tapMemo` / `tapCallback` / `tapConst` / `tapResources` dependency tracking that Biome enforced is **not** checked. Review tap dep arrays manually; remember `tapEffectEvent` returns a stable value and `tapState`'s setter is stable.
 
 ## Package boundaries
 

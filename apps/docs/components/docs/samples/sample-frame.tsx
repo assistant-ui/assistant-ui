@@ -33,7 +33,7 @@ export function SampleFrame({ code, children, className }: SampleFrameProps) {
             <button
               type="button"
               onClick={handleCopy}
-              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors"
             >
               {copied ? (
                 <>
@@ -51,7 +51,7 @@ export function SampleFrame({ code, children, className }: SampleFrameProps) {
           <button
             type="button"
             onClick={() => setShowCode(!showCode)}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors"
           >
             <ToggleIcon className="size-3.5" />
             {buttonLabel}
@@ -61,7 +61,7 @@ export function SampleFrame({ code, children, className }: SampleFrameProps) {
 
       <div
         className={cn(
-          "relative h-150 rounded-xl border border-border/50",
+          "border-border/50 relative h-150 rounded-xl border",
           className,
         )}
       >

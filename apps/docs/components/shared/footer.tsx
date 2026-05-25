@@ -65,7 +65,7 @@ export function Footer(): React.ReactElement {
         <div className="grid grid-cols-2 gap-x-12 gap-y-8 sm:grid-cols-4 md:order-2 lg:gap-x-16">
           {Object.entries(FOOTER_LINKS).map(([category, links]) => (
             <div key={category} className="flex flex-col gap-3">
-              <p className="font-medium text-sm">{category}</p>
+              <p className="text-sm font-medium">{category}</p>
               {links.map((link) => (
                 <FooterLink
                   key={link.href}
@@ -88,7 +88,7 @@ export function Footer(): React.ReactElement {
               height={24}
               className="size-6 dark:hue-rotate-180 dark:invert"
             />
-            <span className="font-medium text-xl">assistant-ui</span>
+            <span className="text-xl font-medium">assistant-ui</span>
           </Link>
 
           <div className="flex gap-3">
@@ -97,7 +97,7 @@ export function Footer(): React.ReactElement {
               href="https://x.com/assistantui"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground transition-colors hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground transition-colors"
               aria-label="X (Twitter)"
             >
               <svg
@@ -113,7 +113,7 @@ export function Footer(): React.ReactElement {
               href="https://github.com/assistant-ui"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground transition-colors hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground transition-colors"
               aria-label="GitHub"
             >
               <GitHubIcon className="size-5" />
@@ -122,7 +122,7 @@ export function Footer(): React.ReactElement {
               href="https://discord.gg/S9dwgCNEFs"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground transition-colors hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Discord"
             >
               <DiscordIcon className="size-5" />
@@ -133,7 +133,7 @@ export function Footer(): React.ReactElement {
             href="https://agentbase.dev"
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-auto text-muted-foreground text-sm transition-colors hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground mt-auto text-sm transition-colors"
           >
             &copy; {new Date().getFullYear()} AgentbaseAI Inc.
           </a>
@@ -153,7 +153,7 @@ const FooterLink: FC<{
   if (isExternal) {
     return (
       <a
-        className="inline-flex items-center gap-1 text-muted-foreground text-sm transition-colors hover:text-foreground"
+        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm transition-colors"
         href={href}
         target="_blank"
         rel="noopener noreferrer"
@@ -166,7 +166,7 @@ const FooterLink: FC<{
 
   return (
     <Link
-      className="text-muted-foreground text-sm transition-colors hover:text-foreground"
+      className="text-muted-foreground hover:text-foreground text-sm transition-colors"
       href={href}
     >
       {children}

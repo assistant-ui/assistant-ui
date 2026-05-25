@@ -29,20 +29,20 @@ export const ArtifactsView = () => {
           <TabsPrimitive.List className="grid w-full grid-cols-2 border-b">
             <TabsPrimitive.Trigger
               value="source"
-              className="border-transparent border-b-2 px-4 py-2 font-medium text-sm transition-colors hover:border-gray-300 data-[state=active]:border-primary"
+              className="data-[state=active]:border-primary border-b-2 border-transparent px-4 py-2 text-sm font-medium transition-colors hover:border-gray-300"
             >
               Source Code
             </TabsPrimitive.Trigger>
             <TabsPrimitive.Trigger
               value="preview"
-              className="border-transparent border-b-2 px-4 py-2 font-medium text-sm transition-colors hover:border-gray-300 data-[state=active]:border-primary"
+              className="data-[state=active]:border-primary border-b-2 border-transparent px-4 py-2 text-sm font-medium transition-colors hover:border-gray-300"
             >
               Preview
             </TabsPrimitive.Trigger>
           </TabsPrimitive.List>
           <TabsPrimitive.Content
             value="source"
-            className="wrap-break-word grow overflow-y-scroll whitespace-pre-line px-4 py-2 font-mono text-sm"
+            className="grow overflow-y-scroll px-4 py-2 font-mono text-sm wrap-break-word whitespace-pre-line"
           >
             {artifact}
           </TabsPrimitive.Content>

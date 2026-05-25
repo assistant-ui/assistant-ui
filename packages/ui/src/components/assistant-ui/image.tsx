@@ -100,7 +100,7 @@ const imageVariants = cva(
   {
     variants: {
       variant: {
-        outline: "border border-border",
+        outline: "border-border border",
         ghost: "",
         muted: "bg-muted/50",
       },
@@ -179,17 +179,17 @@ function ImagePreview({
       {!loaded && !error && (
         <div
           data-slot="image-preview-loading"
-          className="absolute inset-0 flex items-center justify-center bg-muted/50"
+          className="bg-muted/50 absolute inset-0 flex items-center justify-center"
         >
-          <ImageIcon className="size-8 animate-pulse text-muted-foreground" />
+          <ImageIcon className="text-muted-foreground size-8 animate-pulse" />
         </div>
       )}
       {error ? (
         <div
           data-slot="image-preview-error"
-          className="flex min-h-32 items-center justify-center bg-muted/50 p-4"
+          className="bg-muted/50 flex min-h-32 items-center justify-center p-4"
         >
-          <ImageOffIcon className="size-8 text-muted-foreground" />
+          <ImageOffIcon className="text-muted-foreground size-8" />
         </div>
       ) : (
         <img
@@ -227,7 +227,7 @@ function ImageFilename({
     <span
       data-slot="image-filename"
       className={cn(
-        "block truncate px-2 py-1.5 text-muted-foreground text-xs",
+        "text-muted-foreground block truncate px-2 py-1.5 text-xs",
         className,
       )}
       {...props}
@@ -290,7 +290,7 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
             data-slot="image-zoom-overlay"
             role="button"
             tabIndex={0}
-            className="aui-image-zoom-overlay fade-in fixed inset-0 z-50 flex animate-in items-center justify-center bg-black/80 duration-200"
+            className="aui-image-zoom-overlay fade-in animate-in fixed inset-0 z-50 flex items-center justify-center bg-black/80 duration-200"
             onClick={handleClose}
             onKeyDown={(e) => e.key === "Enter" && handleClose()}
             aria-label="Close zoomed image"
@@ -299,7 +299,7 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
               data-slot="image-zoom-content"
               src={src}
               alt={alt}
-              className="aui-image-zoom-content fade-in zoom-in-95 max-h-[90vh] max-w-[90vw] animate-in cursor-zoom-out object-contain duration-200"
+              className="aui-image-zoom-content fade-in zoom-in-95 animate-in max-h-[90vh] max-w-[90vw] cursor-zoom-out object-contain duration-200"
               onClick={(e) => {
                 e.stopPropagation();
                 handleClose();
@@ -317,11 +317,11 @@ function ImageGenerating({ className }: { className?: string }) {
     <div
       data-slot="image-generating"
       className={cn(
-        "flex min-h-32 items-center justify-center bg-muted/50 p-4",
+        "bg-muted/50 flex min-h-32 items-center justify-center p-4",
         className,
       )}
     >
-      <Loader2Icon className="size-8 animate-spin text-muted-foreground" />
+      <Loader2Icon className="text-muted-foreground size-8 animate-spin" />
       <span className="sr-only">Generating image…</span>
     </div>
   );
@@ -338,12 +338,12 @@ function ImageContentFilterError({
     <div
       data-slot="image-content-filter-error"
       className={cn(
-        "flex min-h-32 flex-col items-center justify-center gap-2 bg-muted/50 p-4 text-center",
+        "bg-muted/50 flex min-h-32 flex-col items-center justify-center gap-2 p-4 text-center",
         className,
       )}
     >
-      <ShieldAlertIcon className="size-8 text-muted-foreground" />
-      <p className="font-medium text-sm">Image could not be generated</p>
+      <ShieldAlertIcon className="text-muted-foreground size-8" />
+      <p className="text-sm font-medium">Image could not be generated</p>
       {reason && <p className="text-muted-foreground text-xs">{reason}</p>}
     </div>
   );
@@ -379,7 +379,7 @@ function RegenerateButton({
       disabled={isRegenerating}
       data-slot="image-regenerate"
       aria-label="Regenerate image"
-      className="inline-flex size-7 items-center justify-center rounded hover:bg-muted disabled:opacity-50"
+      className="hover:bg-muted inline-flex size-7 items-center justify-center rounded disabled:opacity-50"
     >
       <RefreshCwIcon
         className={cn("size-4", isRegenerating && "animate-spin")}
@@ -399,7 +399,7 @@ function ImageActions({ part, onRegenerate, className }: ImageActionsProps) {
         onClick={() => downloadImagePart(part)}
         data-slot="image-download"
         aria-label="Download image"
-        className="inline-flex size-7 items-center justify-center rounded hover:bg-muted"
+        className="hover:bg-muted inline-flex size-7 items-center justify-center rounded"
       >
         <DownloadIcon className="size-4" />
       </button>
@@ -410,7 +410,7 @@ function ImageActions({ part, onRegenerate, className }: ImageActionsProps) {
         }}
         data-slot="image-copy"
         aria-label="Copy image"
-        className="inline-flex size-7 items-center justify-center rounded hover:bg-muted"
+        className="hover:bg-muted inline-flex size-7 items-center justify-center rounded"
       >
         <CopyIcon className="size-4" />
       </button>

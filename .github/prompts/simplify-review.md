@@ -33,7 +33,7 @@ Review the same changes for hacky patterns:
 5. **Unclear naming**: vague variable/function names that obscure intent — look for names that don't clearly convey purpose or type
 6. **Stringly-typed code**: using raw strings where constants, enums (string unions), or branded types already exist in the codebase
 7. **Unnecessary JSX nesting**: wrapper Boxes/elements that add no layout value — check if inner component props (flexShrink, alignItems, etc.) already provide the needed behavior
-8. **Project convention deviations**: check AGENTS.md and CLAUDE.md for project conventions. Do not flag issues that Biome already enforces (formatting, import sorting, Tailwind class order).
+8. **Project convention deviations**: check AGENTS.md and CLAUDE.md for project conventions. Do not flag issues that oxlint/oxfmt already enforce (formatting, Tailwind class order).
 
 ### Efficiency
 

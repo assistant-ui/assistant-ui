@@ -56,12 +56,12 @@ export const BashTerminal: ToolCallMessagePartComponent = memo(
         <CollapsibleTrigger asChild>
           <button
             type="button"
-            className="group flex w-full items-center gap-2 py-0.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+            className="group text-muted-foreground hover:text-foreground flex w-full items-center gap-2 py-0.5 text-sm transition-colors"
           >
             {isRunning ? (
               <ToolStatusIcon status={status} />
             ) : isError ? (
-              <XCircleIcon className="size-3 shrink-0 text-destructive" />
+              <XCircleIcon className="text-destructive size-3 shrink-0" />
             ) : (
               <ToolStatusIcon
                 status={status}
@@ -81,10 +81,10 @@ export const BashTerminal: ToolCallMessagePartComponent = memo(
 
             {hasOutput && (
               <>
-                <span className="mt-0.5 min-w-4 flex-1 self-center border-muted-foreground/20 border-b-[0.5px] transition-colors group-hover:border-muted-foreground/50" />
+                <span className="border-muted-foreground/20 group-hover:border-muted-foreground/50 mt-0.5 min-w-4 flex-1 self-center border-b-[0.5px] transition-colors" />
                 <ChevronRightIcon
                   className={cn(
-                    "mt-0.5 size-3.75 shrink-0 stroke-muted-foreground/60 transition-[transform,stroke] group-hover:stroke-foreground/60",
+                    "stroke-muted-foreground/60 group-hover:stroke-foreground/60 mt-0.5 size-3.75 shrink-0 transition-[transform,stroke]",
                     open && "rotate-90",
                   )}
                 />
@@ -94,20 +94,20 @@ export const BashTerminal: ToolCallMessagePartComponent = memo(
         </CollapsibleTrigger>
 
         {hasOutput && (
-          <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down data-[state=closed]:ease-out data-[state=open]:ease-in">
-            <div className="mt-1 ml-5 max-h-96 overflow-y-auto rounded-md border bg-muted/50 p-3 font-mono text-xs">
+          <CollapsibleContent className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden data-[state=closed]:ease-out data-[state=open]:ease-in">
+            <div className="bg-muted/50 mt-1 ml-5 max-h-96 overflow-y-auto rounded-md border p-3 font-mono text-xs">
               {command && (
-                <div className="mb-2 text-muted-foreground">$ {command}</div>
+                <div className="text-muted-foreground mb-2">$ {command}</div>
               )}
               {stdout && (
-                <pre className="wrap-break-word whitespace-pre-wrap text-foreground">
+                <pre className="text-foreground wrap-break-word whitespace-pre-wrap">
                   {stdout}
                 </pre>
               )}
               {stderr && (
                 <pre
                   className={cn(
-                    "wrap-break-word whitespace-pre-wrap text-destructive",
+                    "text-destructive wrap-break-word whitespace-pre-wrap",
                     stdout && "mt-2",
                   )}
                 >

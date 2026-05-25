@@ -32,7 +32,7 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
     <button
       type="button"
       onClick={onToggle}
-      className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+      className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
       aria-label="Search (⌘K)"
     >
       <Search className="size-4" />
@@ -43,21 +43,21 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
 function HiringBanner({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div className="relative flex justify-center">
-      <div className="relative flex items-center gap-3 rounded-full border border-border/50 bg-background/60 px-4 py-1.5 backdrop-blur-md">
+      <div className="border-border/50 bg-background/60 relative flex items-center gap-3 rounded-full border px-4 py-1.5 backdrop-blur-md">
         <Link
           href="/careers"
           className="group inline-flex items-center gap-1.5 text-xs"
         >
-          <span className="shimmer text-muted-foreground transition-colors group-hover:text-foreground">
+          <span className="shimmer text-muted-foreground group-hover:text-foreground transition-colors">
             We&apos;re hiring. Build the future of agentic UI.
           </span>
-          <ArrowRight className="size-3 text-muted-foreground transition-all group-hover:translate-x-0.5 group-hover:text-foreground" />
+          <ArrowRight className="text-muted-foreground group-hover:text-foreground size-3 transition-all group-hover:translate-x-0.5" />
         </Link>
         <button
           type="button"
           aria-label="Dismiss"
           onClick={onDismiss}
-          className="flex size-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="text-muted-foreground hover:bg-muted hover:text-foreground flex size-5 items-center justify-center rounded-full transition-colors"
         >
           <X className="size-3" />
         </button>
@@ -83,7 +83,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full">
-      <div className="mask-[linear-gradient(to_bottom,black_75%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b from-background to-transparent backdrop-blur-xl" />
+      <div className="from-background pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b to-transparent mask-[linear-gradient(to_bottom,black_75%,transparent)] backdrop-blur-xl" />
       <div className="relative mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4">
         <Link href="/" className="flex items-center gap-2">
           <Image
@@ -131,7 +131,7 @@ export function Header() {
             href="https://github.com/assistant-ui/assistant-ui"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground sm:flex"
+            className="text-muted-foreground hover:text-foreground hidden size-8 items-center justify-center transition-colors sm:flex"
             aria-label="GitHub"
           >
             <GitHubIcon className="size-4" />
@@ -141,7 +141,7 @@ export function Header() {
             href="https://discord.gg/S9dwgCNEFs"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground sm:flex"
+            className="text-muted-foreground hover:text-foreground hidden size-8 items-center justify-center transition-colors sm:flex"
             aria-label="Discord"
           >
             <DiscordIcon className="size-4" />
@@ -152,7 +152,7 @@ export function Header() {
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground md:hidden"
+            className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors md:hidden"
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? (
@@ -166,7 +166,7 @@ export function Header() {
 
       <div
         className={cn(
-          "fixed inset-x-0 top-12 bottom-0 z-40 bg-background transition-opacity duration-200 md:hidden",
+          "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200 md:hidden",
           mobileMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >
@@ -180,7 +180,7 @@ export function Header() {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="py-3 text-foreground text-lg transition-colors"
+                  className="text-foreground py-3 text-lg transition-colors"
                 >
                   {item.label}
                 </a>
@@ -189,14 +189,14 @@ export function Header() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="py-3 text-foreground text-lg transition-colors"
+                  className="text-foreground py-3 text-lg transition-colors"
                 >
                   {item.label}
                 </Link>
               )
             ) : (
               <div key={item.label} className="flex flex-col">
-                <span className="py-3 text-muted-foreground text-sm">
+                <span className="text-muted-foreground py-3 text-sm">
                   {item.label}
                 </span>
                 {item.items.map((link) =>
@@ -207,7 +207,7 @@ export function Header() {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-1.5 py-2 pl-4 text-foreground text-lg transition-colors"
+                      className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
                     >
                       {link.label}
                       <ArrowUpRight className="size-3.5 opacity-40" />
@@ -217,7 +217,7 @@ export function Header() {
                       key={link.href}
                       href={link.href}
                       onClick={() => setMobileMenuOpen(false)}
-                      className="py-2 pl-4 text-foreground text-lg transition-colors"
+                      className="text-foreground py-2 pl-4 text-lg transition-colors"
                     >
                       {link.label}
                     </Link>
@@ -232,7 +232,7 @@ export function Header() {
               href="https://github.com/assistant-ui/assistant-ui"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
             >
               <GitHubIcon className="size-5" />
             </a>
@@ -240,7 +240,7 @@ export function Header() {
               href="https://discord.gg/S9dwgCNEFs"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
             >
               <DiscordIcon className="size-5" />
             </a>

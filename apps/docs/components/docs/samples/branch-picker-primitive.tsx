@@ -33,7 +33,7 @@ export function BranchPickerPrimitiveSample() {
   const runtime = useLocalRuntime(adapter, { initialMessages });
 
   return (
-    <div className="not-prose flex items-end rounded-xl border border-border/50 bg-muted/40 p-6">
+    <div className="not-prose border-border/50 bg-muted/40 flex items-end rounded-xl border p-6">
       <div className="mx-auto flex w-full max-w-lg flex-col gap-3">
         <AssistantRuntimeProvider runtime={runtime}>
           <ThreadPrimitive.Messages
@@ -48,7 +48,7 @@ export function BranchPickerPrimitiveSample() {
 function UserMessage() {
   return (
     <MessagePrimitive.Root className="flex justify-end">
-      <div className="max-w-[80%] rounded-2xl bg-primary px-4 py-2.5 text-primary-foreground text-sm">
+      <div className="bg-primary text-primary-foreground max-w-[80%] rounded-2xl px-4 py-2.5 text-sm">
         <MessagePrimitive.Parts />
       </div>
     </MessagePrimitive.Root>
@@ -58,18 +58,18 @@ function UserMessage() {
 function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="flex flex-col items-start gap-1">
-      <div className="max-w-[80%] rounded-2xl bg-muted px-4 py-2.5 text-sm">
+      <div className="bg-muted max-w-[80%] rounded-2xl px-4 py-2.5 text-sm">
         <MessagePrimitive.Parts />
       </div>
       <BranchSeeder />
-      <BranchPickerPrimitive.Root className="inline-flex items-center gap-0.5 text-muted-foreground text-xs">
-        <BranchPickerPrimitive.Previous className="flex size-6 items-center justify-center rounded-md hover:bg-muted disabled:opacity-30">
+      <BranchPickerPrimitive.Root className="text-muted-foreground inline-flex items-center gap-0.5 text-xs">
+        <BranchPickerPrimitive.Previous className="hover:bg-muted flex size-6 items-center justify-center rounded-md disabled:opacity-30">
           <ChevronLeftIcon className="size-3.5" />
         </BranchPickerPrimitive.Previous>
         <span className="tabular-nums">
           <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
         </span>
-        <BranchPickerPrimitive.Next className="flex size-6 items-center justify-center rounded-md hover:bg-muted disabled:opacity-30">
+        <BranchPickerPrimitive.Next className="hover:bg-muted flex size-6 items-center justify-center rounded-md disabled:opacity-30">
           <ChevronRightIcon className="size-3.5" />
         </BranchPickerPrimitive.Next>
       </BranchPickerPrimitive.Root>

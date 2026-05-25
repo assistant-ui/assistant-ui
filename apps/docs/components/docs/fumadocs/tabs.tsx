@@ -114,15 +114,15 @@ export function Tabs({
       {items && (
         <div
           ref={containerRef}
-          className="scrollbar-none relative flex items-center gap-1 overflow-x-auto"
+          className="relative flex scrollbar-none items-center gap-1 overflow-x-auto"
         >
           {label && (
-            <span className="my-auto me-auto font-medium text-sm">{label}</span>
+            <span className="my-auto me-auto text-sm font-medium">{label}</span>
           )}
 
           {hoveredIndex !== null && hoverStyle.width > 0 && (
             <div
-              className="pointer-events-none absolute top-0 h-7.5 rounded-md bg-fd-accent transition-all duration-200 ease-out"
+              className="bg-fd-accent pointer-events-none absolute top-0 h-7.5 rounded-md transition-all duration-200 ease-out"
               style={{
                 left: `${hoverStyle.left}px`,
                 width: `${hoverStyle.width}px`,
@@ -132,7 +132,7 @@ export function Tabs({
 
           {activeStyle.width > 0 && (
             <div
-              className="pointer-events-none absolute top-0 h-7.5 rounded-md bg-fd-accent transition-all duration-200 ease-out"
+              className="bg-fd-accent pointer-events-none absolute top-0 h-7.5 rounded-md transition-all duration-200 ease-out"
               style={{
                 left: `${activeStyle.left}px`,
                 width: `${activeStyle.width}px`,
@@ -151,9 +151,9 @@ export function Tabs({
               aria-selected={escapeValue(item) === value}
               data-state={escapeValue(item) === value ? "active" : "inactive"}
               className={cn(
-                "relative z-10 flex h-7.5 cursor-pointer items-center justify-center whitespace-nowrap rounded-md px-3 text-sm transition-colors",
+                "relative z-10 flex h-7.5 cursor-pointer items-center justify-center rounded-md px-3 text-sm whitespace-nowrap transition-colors",
                 "text-fd-muted-foreground hover:text-fd-foreground",
-                "data-[state=active]:font-medium data-[state=active]:text-fd-foreground",
+                "data-[state=active]:text-fd-foreground data-[state=active]:font-medium",
               )}
               onClick={() => setValue(escapeValue(item))}
               onMouseEnter={() => setHoveredIndex(index)}
@@ -209,7 +209,7 @@ export function Tab({
       hidden={!isActive}
       className={cn(
         "prose-no-margin mt-4 min-w-0 text-sm",
-        "[&_a]:font-medium [&_a]:text-fd-primary [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:text-fd-primary/80",
+        "[&_a]:text-fd-primary hover:[&_a]:text-fd-primary/80 [&_a]:font-medium [&_a]:underline [&_a]:underline-offset-2",
         "data-[state=inactive]:hidden",
         className,
       )}

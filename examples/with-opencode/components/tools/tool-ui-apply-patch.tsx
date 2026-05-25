@@ -162,7 +162,7 @@ export const ApplyPatchDiff: ToolCallMessagePartComponent = memo(
         <CollapsibleTrigger asChild>
           <button
             type="button"
-            className="group flex w-full items-center gap-2 py-0.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+            className="group text-muted-foreground hover:text-foreground flex w-full items-center gap-2 py-0.5 text-sm transition-colors"
           >
             <ToolStatusIcon
               status={status}
@@ -197,10 +197,10 @@ export const ApplyPatchDiff: ToolCallMessagePartComponent = memo(
 
             {hasDiff && (
               <>
-                <span className="mt-0.5 min-w-4 flex-1 self-center border-muted-foreground/20 border-b-[0.5px] transition-colors group-hover:border-muted-foreground/50" />
+                <span className="border-muted-foreground/20 group-hover:border-muted-foreground/50 mt-0.5 min-w-4 flex-1 self-center border-b-[0.5px] transition-colors" />
                 <ChevronRightIcon
                   className={cn(
-                    "mt-0.5 size-3.75 shrink-0 stroke-muted-foreground/60 transition-[transform,stroke] group-hover:stroke-foreground/60",
+                    "stroke-muted-foreground/60 group-hover:stroke-foreground/60 mt-0.5 size-3.75 shrink-0 transition-[transform,stroke]",
                     open && "rotate-90",
                   )}
                 />
@@ -210,7 +210,7 @@ export const ApplyPatchDiff: ToolCallMessagePartComponent = memo(
         </CollapsibleTrigger>
 
         {hasDiff && (
-          <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down data-[state=closed]:ease-out data-[state=open]:ease-in">
+          <CollapsibleContent className="data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden data-[state=closed]:ease-out data-[state=open]:ease-in">
             <div className="mt-1 ml-5 overflow-hidden rounded-md border">
               <PatchDiff
                 patch={unifiedPatch}

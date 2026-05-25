@@ -51,11 +51,11 @@ function WeatherToolUI({
         <Icon className={cn("size-5", config.color)} />
       </div>
       <div className="flex-1">
-        <div className="flex items-center gap-1 text-muted-foreground text-xs">
+        <div className="text-muted-foreground flex items-center gap-1 text-xs">
           <MapPinIcon className="size-3" />
           {location}
         </div>
-        <div className="font-medium text-lg">{temperature}°F</div>
+        <div className="text-lg font-medium">{temperature}°F</div>
       </div>
       <div className="text-muted-foreground text-sm">{condition}</div>
     </div>
@@ -108,7 +108,7 @@ function VariantRow({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <span className="font-medium text-muted-foreground text-xs">{label}</span>
+      <span className="text-muted-foreground text-xs font-medium">{label}</span>
       <ToolGroupDemo variant={variant} />
     </div>
   );
@@ -149,7 +149,7 @@ function StreamingWeatherToolUI({
     <div className="flex items-center gap-3 rounded-lg border p-3">
       <div className={cn("rounded-full p-2", config?.bg ?? "bg-muted")}>
         {isLoading ? (
-          <div className="size-5 animate-pulse rounded-full bg-muted-foreground/20" />
+          <div className="bg-muted-foreground/20 size-5 animate-pulse rounded-full" />
         ) : (
           <Icon
             className={cn("size-5", config?.color ?? "text-muted-foreground")}
@@ -157,24 +157,24 @@ function StreamingWeatherToolUI({
         )}
       </div>
       <div className="flex-1">
-        <div className="flex items-center gap-1 text-muted-foreground text-xs">
+        <div className="text-muted-foreground flex items-center gap-1 text-xs">
           <MapPinIcon className="size-3" />
           {location ?? (
-            <span className="h-3 w-16 animate-pulse rounded bg-muted" />
+            <span className="bg-muted h-3 w-16 animate-pulse rounded" />
           )}
         </div>
-        <div className="font-medium text-lg">
+        <div className="text-lg font-medium">
           {temperature !== undefined ? (
             `${temperature}°F`
           ) : (
-            <span className="inline-block h-6 w-12 animate-pulse rounded bg-muted" />
+            <span className="bg-muted inline-block h-6 w-12 animate-pulse rounded" />
           )}
         </div>
       </div>
       <div className="text-muted-foreground text-sm">
         {condition ??
           (isLoading && (
-            <span className="h-4 w-12 animate-pulse rounded bg-muted" />
+            <span className="bg-muted h-4 w-12 animate-pulse rounded" />
           ))}
       </div>
     </div>
@@ -357,7 +357,7 @@ function ToolGroupStreamingDemo() {
         </ToolGroupRoot>
       )}
       {toolCount === 0 && (
-        <div className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm italic">
+        <div className="text-muted-foreground rounded-lg border border-dashed p-4 text-center text-sm italic">
           Click &quot;Start Tool Calls&quot; to see mixed custom UI + fallback
         </div>
       )}

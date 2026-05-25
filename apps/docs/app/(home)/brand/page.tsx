@@ -9,16 +9,16 @@ export const metadata: Metadata = {
 export default function BrandPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-20">
-      <h1 className="font-bold text-4xl tracking-tight">Brand Guidelines</h1>
+      <h1 className="text-4xl font-bold tracking-tight">Brand Guidelines</h1>
 
       <section className="mt-10">
-        <h2 className="font-semibold text-xl">Usage</h2>
-        <p className="mt-3 text-muted-foreground leading-relaxed">
+        <h2 className="text-xl font-semibold">Usage</h2>
+        <p className="text-muted-foreground mt-3 leading-relaxed">
           You are free to use the assistant-ui logo and brand assets to
           reference assistant-ui in your projects, blog posts, talks, and social
           media. Please follow these guidelines:
         </p>
-        <ul className="mt-4 list-disc space-y-2 pl-6 text-muted-foreground leading-relaxed">
+        <ul className="text-muted-foreground mt-4 list-disc space-y-2 pl-6 leading-relaxed">
           <li>Use the original, unmodified logo files from the brand kit.</li>
           <li>
             Do not alter the colors, proportions, or orientation of the logo.
@@ -35,8 +35,8 @@ export default function BrandPage() {
       </section>
 
       <section className="mt-10">
-        <h2 className="font-semibold text-xl">Attribution</h2>
-        <p className="mt-3 text-muted-foreground leading-relaxed">
+        <h2 className="text-xl font-semibold">Attribution</h2>
+        <p className="text-muted-foreground mt-3 leading-relaxed">
           The assistant-ui logo is based on the{" "}
           <Link
             href="https://lucide.dev"
@@ -63,7 +63,7 @@ export default function BrandPage() {
         <a
           href="/assistant-ui-brand.zip"
           download
-          className="inline-flex items-center rounded-lg bg-foreground px-5 py-2.5 font-medium text-background text-sm transition-opacity hover:opacity-90"
+          className="bg-foreground text-background inline-flex items-center rounded-lg px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
         >
           Download brand assets
         </a>

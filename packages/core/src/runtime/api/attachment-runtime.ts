@@ -42,8 +42,7 @@ export type AttachmentRuntime<
 
 export abstract class AttachmentRuntimeImpl<
   Source extends AttachmentRuntimeSource = AttachmentRuntimeSource,
-> implements AttachmentRuntime
-{
+> implements AttachmentRuntime {
   public get path() {
     return this._core.path;
   }

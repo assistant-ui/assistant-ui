@@ -61,8 +61,8 @@ export default function NotFound() {
   return (
     <main className="flex h-dvh min-h-0 flex-col items-center justify-center overflow-hidden px-4">
       <div className="flex w-full max-w-md flex-col gap-4">
-        <div className="fade-in slide-in-from-bottom-2 flex animate-in justify-end fill-mode-both duration-500">
-          <div className="rounded-2xl rounded-tr-sm bg-primary px-4 py-3 text-primary-foreground">
+        <div className="fade-in slide-in-from-bottom-2 animate-in fill-mode-both flex justify-end duration-500">
+          <div className="bg-primary text-primary-foreground rounded-2xl rounded-tr-sm px-4 py-3">
             <p className="text-sm">
               Take me to <code className="font-mono">{url}</code>
             </p>
@@ -70,8 +70,8 @@ export default function NotFound() {
         </div>
 
         {showAssistant && (
-          <div className="fade-in slide-in-from-bottom-2 flex animate-in items-start gap-3 fill-mode-both duration-500">
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
+          <div className="fade-in slide-in-from-bottom-2 animate-in fill-mode-both flex items-start gap-3 duration-500">
+            <div className="bg-muted flex size-8 shrink-0 items-center justify-center rounded-full">
               <Image
                 src="/favicon/icon.svg"
                 alt="assistant-ui"
@@ -84,18 +84,18 @@ export default function NotFound() {
               <span className="text-muted-foreground text-xs">
                 assistant-ui
               </span>
-              <div className="rounded-2xl rounded-tl-sm bg-muted px-4 py-3">
-                <p className="font-medium text-sm">
+              <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3">
+                <p className="text-sm font-medium">
                   {displayedTitle}
                   {displayedTitle.length < TITLE.length && (
-                    <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-foreground" />
+                    <span className="bg-foreground ml-0.5 inline-block h-4 w-0.5 animate-pulse" />
                   )}
                 </p>
                 {displayedTitle.length === TITLE.length && (
-                  <p className="mt-1 text-muted-foreground text-sm">
+                  <p className="text-muted-foreground mt-1 text-sm">
                     {displayedMessage}
                     {displayedMessage.length < MESSAGE.length && (
-                      <span className="ml-0.5 inline-block h-3 w-0.5 animate-pulse bg-muted-foreground" />
+                      <span className="bg-muted-foreground ml-0.5 inline-block h-3 w-0.5 animate-pulse" />
                     )}
                   </p>
                 )}
@@ -105,19 +105,19 @@ export default function NotFound() {
         )}
 
         {showActions && (
-          <div className="fade-in slide-in-from-bottom-2 flex animate-in flex-col gap-2 fill-mode-both pl-11 duration-500">
+          <div className="fade-in slide-in-from-bottom-2 animate-in fill-mode-both flex flex-col gap-2 pl-11 duration-500">
             {canGoBack && (
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/50"
+                className="bg-muted/30 hover:bg-muted/50 flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors"
               >
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground shadow-sm">
+                <div className="bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md shadow-sm">
                   <ArrowLeft className="size-4" />
                 </div>
                 <div className="flex min-w-0 flex-col gap-0.5 text-left">
-                  <span className="truncate font-medium text-sm">Go back</span>
-                  <span className="truncate text-muted-foreground text-xs">
+                  <span className="truncate text-sm font-medium">Go back</span>
+                  <span className="text-muted-foreground truncate text-xs">
                     Return to previous page
                   </span>
                 </div>
@@ -125,14 +125,14 @@ export default function NotFound() {
             )}
             <Link
               href="/"
-              className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/50"
+              className="bg-muted/30 hover:bg-muted/50 flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors"
             >
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground shadow-sm">
+              <div className="bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md shadow-sm">
                 <Home className="size-4" />
               </div>
               <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="truncate font-medium text-sm">Home</span>
-                <span className="truncate text-muted-foreground text-xs">
+                <span className="truncate text-sm font-medium">Home</span>
+                <span className="text-muted-foreground truncate text-xs">
                   Go to homepage
                 </span>
               </div>

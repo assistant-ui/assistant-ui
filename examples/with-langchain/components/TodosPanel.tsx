@@ -26,15 +26,15 @@ export function TodosPanel() {
     return (
       <div className="text-muted-foreground text-sm">
         Todos from the agent will appear here. This panel reads{" "}
-        <code className="rounded bg-muted px-1">state.todos</code> via{" "}
-        <code className="rounded bg-muted px-1">useLangChainState</code>.
+        <code className="bg-muted rounded px-1">state.todos</code> via{" "}
+        <code className="bg-muted rounded px-1">useLangChainState</code>.
       </div>
     );
   }
 
   return (
     <div className="space-y-2">
-      <h2 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
+      <h2 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
         Agent todos
       </h2>
       <ul className="space-y-1">

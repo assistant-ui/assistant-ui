@@ -30,7 +30,7 @@ export default function HomePage() {
       />
 
       <section className="flex flex-col items-center gap-6 py-16 text-center">
-        <p className="font-medium text-2xl tracking-tight">
+        <p className="text-2xl font-medium tracking-tight">
           Build once. Ready for production.
         </p>
         <div className="flex items-center gap-6">

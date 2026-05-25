@@ -18,7 +18,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+      className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
       aria-label="Toggle theme"
     >
       {mounted ? (

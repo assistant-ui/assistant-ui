@@ -112,7 +112,7 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
             )}
             <p>Running ffmpeg</p>
           </div>
-          <pre className="overflow-y-scroll font-sm">
+          <pre className="font-sm overflow-y-scroll">
             ffmpeg {command?.join(" ")}
           </pre>
           {success === false && (
@@ -288,22 +288,28 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
 
       return (
         <div className="mb-2 flex flex-col gap-3 rounded-lg border px-5 py-4">
-          {blobUrl && isImage && (
-            // biome-ignore lint/performance/noImgElement: blob URL display
-            <img
-              src={blobUrl}
-              alt={fileName}
-              className="max-h-64 w-fit rounded"
-            />
-          )}
-          {blobUrl && isVideo && (
-            // biome-ignore lint/a11y/useMediaCaption: generated output
-            <video src={blobUrl} controls className="max-h-64 w-fit rounded" />
-          )}
+          {blobUrl &&
+            isImage && (
+              // biome-ignore lint/performance/noImgElement: blob URL display
+              <img
+                src={blobUrl}
+                alt={fileName}
+                className="max-h-64 w-fit rounded"
+              />
+            )}
+          {blobUrl &&
+            isVideo && (
+              // biome-ignore lint/a11y/useMediaCaption: generated output
+              <video
+                src={blobUrl}
+                controls
+                className="max-h-64 w-fit rounded"
+              />
+            )}
           {/* biome-ignore lint/a11y/useMediaCaption: generated output */}
           {blobUrl && isAudio && <audio src={blobUrl} controls />}
           {blobUrl && !isImage && !isVideo && !isAudio && (
-            <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="text-muted-foreground flex items-center gap-2">
               <FileIcon className="size-5" />
               <span>{fileName}</span>
             </div>
@@ -311,7 +317,7 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
           <button
             type="button"
             onClick={handleDownload}
-            className="flex w-fit items-center gap-2 rounded-md border bg-background px-4 py-2 text-sm hover:bg-accent"
+            className="bg-background hover:bg-accent flex w-fit items-center gap-2 rounded-md border px-4 py-2 text-sm"
           >
             <DownloadIcon className="size-4" />
             Download {fileName}

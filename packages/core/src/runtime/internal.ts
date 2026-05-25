@@ -18,10 +18,7 @@ export { DefaultEditComposerRuntimeCore } from "./base/default-edit-composer-run
 // Runtime Impl Classes
 export { AssistantRuntimeImpl } from "./api/assistant-runtime";
 
-export {
-  getThreadState,
-  ThreadRuntimeImpl,
-} from "./api/thread-runtime";
+export { getThreadState, ThreadRuntimeImpl } from "./api/thread-runtime";
 export type {
   ThreadRuntimeCoreBinding,
   ThreadListItemRuntimeBinding,

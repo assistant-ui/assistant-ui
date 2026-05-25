@@ -32,7 +32,7 @@ function FileGroup({ title, group }: { title: string; group: ResolvedGroup }) {
 
   return (
     <div className="mt-6">
-      <h4 className="mb-3 font-medium text-muted-foreground text-sm">
+      <h4 className="text-muted-foreground mb-3 text-sm font-medium">
         {title}
       </h4>
       {group.dependencies.length > 0 && (

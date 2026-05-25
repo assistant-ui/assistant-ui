@@ -382,7 +382,7 @@ export function WeatherDataOverlay({
     <div
       ref={containerRef}
       className={cn(
-        "pointer-events-auto absolute inset-0 z-10 flex select-none flex-col",
+        "pointer-events-auto absolute inset-0 z-10 flex flex-col select-none",
         className,
       )}
     >
@@ -391,7 +391,7 @@ export function WeatherDataOverlay({
         <div className="flex flex-col items-start">
           <h2
             className={cn(
-              "font-medium leading-[1.08] tracking-tight",
+              "leading-[1.08] font-medium tracking-tight",
               textSecondary,
             )}
             style={{
@@ -406,7 +406,7 @@ export function WeatherDataOverlay({
           <div className="-mt-0.5 flex items-start gap-1">
             <span
               className={cn(
-                "font-[250] tabular-nums leading-[1.02] tracking-[-0.015em]",
+                "leading-[1.02] font-[250] tracking-[-0.015em] tabular-nums",
                 textPrimarySoft,
               )}
               style={{
@@ -525,7 +525,7 @@ export function WeatherDataOverlay({
                     >
                       <span
                         className={cn(
-                          "text-[10px] uppercase tracking-[0.08em]",
+                          "text-[10px] tracking-[0.08em] uppercase",
                           index === 0 ? "font-semibold" : "font-medium",
                           textPrimary,
                         )}
@@ -547,7 +547,7 @@ export function WeatherDataOverlay({
                       <div className="flex flex-col items-center gap-0.5">
                         <span
                           className={cn(
-                            "text-[15px] tabular-nums leading-[1.2] tracking-[-0.01em]",
+                            "text-[15px] leading-[1.2] tracking-[-0.01em] tabular-nums",
                             index === 0 ? "font-semibold" : "font-medium",
                             textPrimary,
                           )}
@@ -556,7 +556,7 @@ export function WeatherDataOverlay({
                         </span>
                         <span
                           className={cn(
-                            "font-normal text-[12px] tabular-nums leading-[1.3]",
+                            "text-[12px] leading-[1.3] font-normal tabular-nums",
                             textPrimary,
                           )}
                         >

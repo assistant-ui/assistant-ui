@@ -22,9 +22,7 @@ const DEFAULT_THREAD_DATA = Object.freeze({
   [DEFAULT_THREAD_ID]: DEFAULT_THREAD,
 });
 
-export class ExternalStoreThreadListRuntimeCore
-  implements ThreadListRuntimeCore
-{
+export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore {
   private _mainThreadId: string = DEFAULT_THREAD_ID;
   private _threads: readonly string[] = DEFAULT_THREADS;
   private _archivedThreads: readonly string[] = EMPTY_ARRAY;

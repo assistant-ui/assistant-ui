@@ -46,7 +46,7 @@ export const SignupForm: FC = () => {
       <Card>
         <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
           <CheckCircle2 className="size-10 text-green-600" />
-          <p className="font-semibold text-lg">You&apos;re signed up!</p>
+          <p className="text-lg font-semibold">You&apos;re signed up!</p>
           <p className="text-muted-foreground text-sm">
             Thanks for registering. You&apos;ll hear from us soon.
           </p>
@@ -180,7 +180,7 @@ export const SignupForm: FC = () => {
           />
         </CardContent>
 
-        <CardFooter className="sticky bottom-0 justify-end gap-3 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/75">
+        <CardFooter className="bg-card/95 supports-[backdrop-filter]:bg-card/75 sticky bottom-0 justify-end gap-3 border-t backdrop-blur">
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="size-4 animate-spin" />}
             {isSubmitting ? "Submitting..." : "Submit"}

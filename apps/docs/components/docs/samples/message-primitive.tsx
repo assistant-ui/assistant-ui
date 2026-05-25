@@ -9,7 +9,7 @@ import { SampleRuntimeProvider } from "./sample-runtime-provider";
 
 export function MessagePrimitiveSample() {
   return (
-    <div className="not-prose flex items-end rounded-xl border border-border/50 bg-muted/40 p-4">
+    <div className="not-prose border-border/50 bg-muted/40 flex items-end rounded-xl border p-4">
       <div className="mx-auto flex w-full max-w-lg flex-col gap-3">
         <SampleRuntimeProvider>
           <ThreadPrimitive.Messages
@@ -27,7 +27,7 @@ export function MessagePrimitiveSample() {
 function CustomUserMessage() {
   return (
     <MessagePrimitive.Root className="flex justify-end">
-      <div className="max-w-[80%] rounded-2xl bg-primary px-4 py-2.5 text-primary-foreground text-sm">
+      <div className="bg-primary text-primary-foreground max-w-[80%] rounded-2xl px-4 py-2.5 text-sm">
         <MessagePrimitive.Parts components={{ Text: UserText }} />
       </div>
     </MessagePrimitive.Root>
@@ -37,10 +37,10 @@ function CustomUserMessage() {
 function CustomAssistantMessage() {
   return (
     <MessagePrimitive.Root className="flex justify-start gap-3">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-medium text-primary text-xs">
+      <div className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium">
         AI
       </div>
-      <div className="max-w-[80%] space-y-2 rounded-2xl bg-muted px-4 py-2.5 text-sm">
+      <div className="bg-muted max-w-[80%] space-y-2 rounded-2xl px-4 py-2.5 text-sm">
         <MessagePrimitive.Parts components={{ Text: AssistantText }} />
       </div>
     </MessagePrimitive.Root>

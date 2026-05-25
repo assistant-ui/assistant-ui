@@ -10,8 +10,8 @@ import { SampleFrame } from "./sample-frame";
 export function AssistantModalSample() {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   return (
-    <SampleFrame className="h-125 bg-muted/40 md:h-160">
-      <div ref={setContainer} className="contain-[layout] absolute inset-0">
+    <SampleFrame className="bg-muted/40 h-125 md:h-160">
+      <div ref={setContainer} className="absolute inset-0 contain-[layout]">
         {container && <AssistantModal container={container} />}
       </div>
     </SampleFrame>
@@ -30,7 +30,7 @@ export function AssistantModal({ container }: { container?: HTMLElement }) {
         sideOffset={16}
         avoidCollisions={false}
         portalProps={{ container }}
-        className="data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-1/2 data-[state=closed]:slide-out-to-right-1/2 data-[state=closed]:zoom-out data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-1/2 data-[state=open]:slide-in-from-right-1/2 data-[state=open]:zoom-in z-50 h-100 w-72 overflow-clip rounded-xl border bg-popover p-0 text-popover-foreground shadow-md outline-none data-[state=closed]:animate-out data-[state=open]:animate-in md:h-137.5 md:w-105 [&>.aui-thread-root]:bg-inherit [&>.aui-thread-root_.aui-thread-viewport-footer]:bg-inherit"
+        className="data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-1/2 data-[state=closed]:slide-out-to-right-1/2 data-[state=closed]:zoom-out data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-1/2 data-[state=open]:slide-in-from-right-1/2 data-[state=open]:zoom-in bg-popover text-popover-foreground data-[state=closed]:animate-out data-[state=open]:animate-in z-50 h-100 w-72 overflow-clip rounded-xl border p-0 shadow-md outline-none md:h-137.5 md:w-105 [&>.aui-thread-root]:bg-inherit [&>.aui-thread-root_.aui-thread-viewport-footer]:bg-inherit"
       >
         <Thread />
       </AssistantModalPrimitive.Content>
@@ -57,11 +57,11 @@ const AssistantModalButton = forwardRef<
     >
       <BotIcon
         data-state={state}
-        className="absolute size-6 transition-all data-[state=closed]:rotate-0 data-[state=open]:rotate-90 data-[state=closed]:scale-100 data-[state=open]:scale-0"
+        className="absolute size-6 transition-all data-[state=closed]:scale-100 data-[state=closed]:rotate-0 data-[state=open]:scale-0 data-[state=open]:rotate-90"
       />
       <ChevronDownIcon
         data-state={state}
-        className="absolute size-6 transition-all data-[state=closed]:-rotate-90 data-[state=open]:rotate-0 data-[state=closed]:scale-0 data-[state=open]:scale-100"
+        className="absolute size-6 transition-all data-[state=closed]:scale-0 data-[state=closed]:-rotate-90 data-[state=open]:scale-100 data-[state=open]:rotate-0"
       />
       <span className="sr-only">{tooltip}</span>
     </TooltipIconButton>

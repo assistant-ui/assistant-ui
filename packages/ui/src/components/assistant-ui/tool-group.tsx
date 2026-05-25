@@ -25,7 +25,7 @@ const toolGroupVariants = cva("aui-tool-group-root group/tool-group w-full", {
     variant: {
       outline: "rounded-lg border py-3",
       ghost: "",
-      muted: "rounded-lg border border-muted-foreground/30 bg-muted/30 py-3",
+      muted: "border-muted-foreground/30 bg-muted/30 rounded-lg border py-3",
     },
   },
   defaultVariants: { variant: "outline" },
@@ -125,7 +125,7 @@ function ToolGroupTrigger({
       <span
         data-slot="tool-group-trigger-label"
         className={cn(
-          "aui-tool-group-trigger-label-wrapper relative inline-block text-start font-medium leading-none",
+          "aui-tool-group-trigger-label-wrapper relative inline-block text-start leading-none font-medium",
           "group-data-[variant=outline]/tool-group-root:grow",
           "group-data-[variant=muted]/tool-group-root:grow",
         )}

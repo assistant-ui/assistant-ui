@@ -83,7 +83,7 @@ function TypeBadge({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-baseline gap-1 rounded-md px-1.5 py-0.5 font-medium font-mono text-[10px] uppercase leading-none tracking-wide ring-1 ring-inset",
+        "inline-flex shrink-0 items-baseline gap-1 rounded-md px-1.5 py-0.5 font-mono text-[10px] leading-none font-medium tracking-wide uppercase ring-1 ring-inset",
         TYPE_BADGE[type],
       )}
     >
@@ -98,7 +98,7 @@ function TypeBadge({
 const inlineMarkdownComponents: Components = {
   p: ({ children }) => <>{children}</>,
   code: ({ children }) => (
-    <code className="rounded bg-foreground/[0.07] px-1 py-0.5 font-mono text-[0.85em] text-foreground ring-1 ring-foreground/10">
+    <code className="bg-foreground/[0.07] text-foreground ring-foreground/10 rounded px-1 py-0.5 font-mono text-[0.85em] ring-1">
       {children}
     </code>
   ),
@@ -107,7 +107,7 @@ const inlineMarkdownComponents: Components = {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-foreground/90 underline decoration-foreground/30 underline-offset-2 transition-colors hover:decoration-foreground"
+      className="text-foreground/90 decoration-foreground/30 hover:decoration-foreground underline underline-offset-2 transition-colors"
     >
       {children}
     </a>
@@ -134,7 +134,7 @@ function MetaLine({ item }: { item: ParsedBullet }) {
         href={item.pr.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="font-mono transition-colors hover:text-foreground"
+        className="hover:text-foreground font-mono transition-colors"
       >
         #{item.pr.number}
       </a>,
@@ -147,7 +147,7 @@ function MetaLine({ item }: { item: ParsedBullet }) {
         href={item.hash.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="font-mono transition-colors hover:text-foreground"
+        className="hover:text-foreground font-mono transition-colors"
       >
         {item.hash.value}
       </a>,
@@ -160,7 +160,7 @@ function MetaLine({ item }: { item: ParsedBullet }) {
         href={item.author.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="transition-colors hover:text-foreground"
+        className="hover:text-foreground transition-colors"
       >
         @{item.author.handle}
       </a>,
@@ -171,7 +171,7 @@ function MetaLine({ item }: { item: ParsedBullet }) {
   parts.forEach((node, i) => {
     if (i > 0) {
       interleaved.push(
-        <span key={`sep-${i}`} className="select-none opacity-40">
+        <span key={`sep-${i}`} className="opacity-40 select-none">
           ·
         </span>,
       );
@@ -179,7 +179,7 @@ function MetaLine({ item }: { item: ParsedBullet }) {
     interleaved.push(node);
   });
   return (
-    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-muted-foreground/80 text-xs">
+    <div className="text-muted-foreground/80 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
       {interleaved}
     </div>
   );
@@ -205,7 +205,7 @@ function BulletItem({ item }: { item: ParsedBullet }) {
           <button
             type="button"
             onClick={() => setExpanded((e) => !e)}
-            className="text-muted-foreground/70 text-xs transition-colors hover:text-foreground"
+            className="text-muted-foreground/70 hover:text-foreground text-xs transition-colors"
           >
             {expanded ? "Hide description" : "Show description"}
           </button>
@@ -231,8 +231,8 @@ function TypeGroup({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-baseline gap-2 border-border/60 border-b pb-1.5">
-        <h4 className="font-medium text-foreground/70 text-xs uppercase tracking-wide">
+      <div className="border-border/60 flex items-baseline gap-2 border-b pb-1.5">
+        <h4 className="text-foreground/70 text-xs font-medium tracking-wide uppercase">
           {TYPE_LABELS[type]}
         </h4>
         <span className="text-muted-foreground text-xs tabular-nums">
@@ -256,13 +256,13 @@ function ReleaseEntry({ release }: { release: PackageRelease }) {
   return (
     <details className="group/release" open>
       <summary className="flex cursor-pointer list-none items-center gap-2 py-1 [&::-webkit-details-marker]:hidden">
-        <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open/release:rotate-90" />
-        <span className="font-medium font-mono text-foreground/80 text-sm transition-colors group-hover/release:text-foreground">
+        <ChevronRight className="text-muted-foreground size-3.5 shrink-0 transition-transform group-open/release:rotate-90" />
+        <span className="text-foreground/80 group-hover/release:text-foreground font-mono text-sm font-medium transition-colors">
           {release.pkg}@{release.version}
         </span>
         {semver && (
           <span
-            className={`shrink-0 rounded-full px-1.5 py-0.5 font-medium text-[10px] leading-none ${semverBadge[semver]}`}
+            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-medium ${semverBadge[semver]}`}
           >
             {semver}
           </span>
@@ -272,7 +272,7 @@ function ReleaseEntry({ release }: { release: PackageRelease }) {
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className="ml-auto shrink-0 text-muted-foreground text-xs transition-colors hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground ml-auto shrink-0 text-xs transition-colors"
         >
           GitHub →
         </Link>
@@ -299,10 +299,10 @@ function ReleaseEntry({ release }: { release: PackageRelease }) {
 function DateSection({ group }: { group: ReleaseGroup }) {
   return (
     <section>
-      <h2 className="font-medium text-lg tracking-tight">
+      <h2 className="text-lg font-medium tracking-tight">
         {formatDate(group.date)}
       </h2>
-      <p className="mt-1 text-muted-foreground text-sm">
+      <p className="text-muted-foreground mt-1 text-sm">
         {group.releases.length}{" "}
         {group.releases.length === 1 ? "package" : "packages"}
       </p>

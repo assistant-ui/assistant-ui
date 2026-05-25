@@ -95,7 +95,7 @@ export function ContextDisplaySample() {
                 className="inline-flex items-center rounded-md px-2 py-1 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
+                  <div className="bg-muted h-1.5 w-16 overflow-hidden rounded-full">
                     <div
                       className={cn(
                         "h-full rounded-full",
@@ -104,7 +104,7 @@ export function ContextDisplaySample() {
                       style={{ width: `${percent}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-muted-foreground tabular-nums">
+                  <span className="text-muted-foreground text-[10px] tabular-nums">
                     {formatTokenCount(totalTokens)} ({percent}%)
                   </span>
                 </div>
@@ -125,7 +125,7 @@ export function ContextDisplaySample() {
             return (
               <div
                 key={label}
-                className="inline-flex items-center rounded-md px-2 py-1 font-mono text-muted-foreground text-xs tabular-nums transition-colors hover:bg-accent hover:text-accent-foreground"
+                className="text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex items-center rounded-md px-2 py-1 font-mono text-xs tabular-nums transition-colors"
               >
                 {formatTokenCount(totalTokens)} /{" "}
                 {formatTokenCount(MODEL_CONTEXT_WINDOW)}
@@ -138,7 +138,7 @@ export function ContextDisplaySample() {
       {/* Tooltip popover example */}
       <div className="flex flex-col items-center gap-3">
         <span className="text-muted-foreground text-xs">On hover</span>
-        <div className="grid min-w-40 gap-1.5 rounded-lg border bg-popover px-3 py-2 text-popover-foreground text-xs shadow-md">
+        <div className="bg-popover text-popover-foreground grid min-w-40 gap-1.5 rounded-lg border px-3 py-2 text-xs shadow-md">
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Usage</span>
             <span className="font-mono tabular-nums">72%</span>
