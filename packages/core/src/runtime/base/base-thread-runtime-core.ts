@@ -15,6 +15,7 @@ import { DefaultThreadComposerRuntimeCore } from "./default-thread-composer-runt
 import type {
   AddToolResultOptions,
   ResumeToolCallOptions,
+  RespondToToolApprovalOptions,
   ThreadSuggestion,
   SubmitFeedbackOptions,
   ThreadRuntimeCore,
@@ -59,6 +60,9 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   public abstract resumeRun(config: ResumeRunConfig): void;
   public abstract addToolResult(options: AddToolResultOptions): void;
   public abstract resumeToolCall(options: ResumeToolCallOptions): void;
+  public abstract respondToToolApproval(
+    options: RespondToToolApprovalOptions,
+  ): void;
   public abstract cancelRun(): void;
   public abstract exportExternalState(): any;
   public abstract importExternalState(state: any): void;

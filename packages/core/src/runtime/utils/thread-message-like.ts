@@ -54,6 +54,13 @@ export type ThreadMessageLike = {
             readonly isError?: boolean | undefined;
             readonly parentId?: string | undefined;
             readonly messages?: readonly ThreadMessage[] | undefined;
+            readonly interrupt?: { type: "human"; payload: unknown };
+            readonly approval?: {
+              readonly id: string;
+              readonly approved?: boolean;
+              readonly reason?: string;
+              readonly isAutomatic?: boolean;
+            };
           }
       )[];
   readonly id?: string | undefined;

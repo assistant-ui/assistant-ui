@@ -9,6 +9,7 @@ import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { FeedbackAdapter } from "../../adapters/feedback";
 import type {
   AddToolResultOptions,
+  RespondToToolApprovalOptions,
   StartRunConfig,
   ResumeRunConfig,
   ThreadSuggestion,
@@ -107,6 +108,9 @@ type ExternalStoreAdapterBase<T> = {
     | undefined;
   onResumeToolCall?:
     | ((options: { toolCallId: string; payload: unknown }) => void)
+    | undefined;
+  onRespondToToolApproval?:
+    | ((options: RespondToToolApprovalOptions) => Promise<void> | void)
     | undefined;
   convertMessage?: ExternalStoreMessageConverter<T> | undefined;
   adapters?:

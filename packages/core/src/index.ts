@@ -170,6 +170,7 @@ export type {
   RuntimeCapabilities,
   AddToolResultOptions,
   ResumeToolCallOptions,
+  RespondToToolApprovalOptions,
   SubmitFeedbackOptions,
   ThreadSuggestion,
   SpeechState,

@@ -71,6 +71,14 @@ export type ToolCallMessagePartProps<
      * paused frontend tool execution.
      */
     resume: (payload: unknown) => void;
+    /**
+     * Responds to a server-side tool approval gate. Only valid while
+     * `approval` is set on the part and `approval.approved === undefined`.
+     */
+    respondToApproval: (response: {
+      approved: boolean;
+      reason?: string;
+    }) => void;
   };
 
 /** Component used to render a tool-call message part. */

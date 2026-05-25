@@ -26,6 +26,7 @@ type MessagePartSnapshotBinding = SubscribableWithState<
 export type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
+  respondToToolApproval(response: { approved: boolean; reason?: string }): void;
 
   readonly path: MessagePartRuntimePath;
   getState(): MessagePartState;
@@ -48,6 +49,7 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
   protected __internal_bindMethods() {
     this.addToolResult = this.addToolResult.bind(this);
     this.resumeToolCall = this.resumeToolCall.bind(this);
+    this.respondToToolApproval = this.respondToToolApproval.bind(this);
     this.getState = this.getState.bind(this);
     this.subscribe = this.subscribe.bind(this);
   }
@@ -99,6 +101,30 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
     this.threadApi.getState().resumeToolCall({
       toolCallId,
       payload,
+    });
+  }
+
+  public respondToToolApproval(response: {
+    approved: boolean;
+    reason?: string;
+  }) {
+    const state = this.contentBinding.getState();
+    if (!state) throw new Error("Message part is not available");
+
+    if (state.type !== "tool-call")
+      throw new Error(
+        "Tried to respond to tool approval on non-tool message part",
+      );
+
+    if (!state.approval || state.approval.approved !== undefined)
+      throw new Error("Tool call has no pending approval");
+
+    if (!this.threadApi) throw new Error("Thread API is not available");
+
+    this.threadApi.getState().respondToToolApproval({
+      approvalId: state.approval.id,
+      approved: response.approved,
+      ...(response.reason != null && { reason: response.reason }),
     });
   }
 

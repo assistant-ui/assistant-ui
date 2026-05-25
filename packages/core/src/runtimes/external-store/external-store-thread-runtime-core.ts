@@ -3,6 +3,7 @@ import type {
   AddToolResultOptions,
   ResumeRunConfig,
   ResumeToolCallOptions,
+  RespondToToolApprovalOptions,
   StartRunConfig,
   ThreadSuggestion,
 } from "../../runtime/interfaces/thread-runtime-core";
@@ -370,6 +371,12 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onResumeToolCall)
       throw new Error("Runtime does not support resuming tool calls.");
     this._store.onResumeToolCall(options);
+  }
+
+  public respondToToolApproval(options: RespondToToolApprovalOptions) {
+    if (!this._store.onRespondToToolApproval)
+      throw new Error("Runtime does not support tool approvals.");
+    this._store.onRespondToToolApproval(options);
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {

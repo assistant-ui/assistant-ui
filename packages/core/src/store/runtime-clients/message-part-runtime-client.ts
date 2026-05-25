@@ -11,6 +11,8 @@ export const MessagePartClient = resource(
       getState: () => state,
       addToolResult: (result) => runtime.addToolResult(result),
       resumeToolCall: (payload) => runtime.resumeToolCall(payload),
+      respondToToolApproval: (response) =>
+        runtime.respondToToolApproval(response),
       __internal_getRuntime: () => runtime,
     };
   },

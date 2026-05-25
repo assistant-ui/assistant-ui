@@ -335,6 +335,15 @@ export const convertExternalMessages = <T extends WeakKey>(
   const result = chunks.map((message, idx) => {
     const isLast = idx === chunks.length - 1;
     const joined = joinExternalMessages(message.outputs);
+    const hasInterruptedToolCalls =
+      typeof joined.content === "object" &&
+      joined.content.some(
+        (c) =>
+          c.type === "tool-call" &&
+          c.result === undefined &&
+          (c.interrupt != null ||
+            (c.approval != null && c.approval.approved === undefined)),
+      );
     const hasPendingToolCalls =
       typeof joined.content === "object" &&
       joined.content.some(
@@ -343,7 +352,7 @@ export const convertExternalMessages = <T extends WeakKey>(
     const autoStatus = getAutoStatus(
       isLast,
       isRunning,
-      hasPendingToolCalls,
+      hasInterruptedToolCalls,
       hasPendingToolCalls,
       isLast ? metadata.error : undefined,
     );
@@ -425,10 +434,14 @@ export const useExternalMessageConverter = <T extends WeakKey>({
         const isLast = idx === chunks.length - 1;
 
         const joined = joinExternalMessages(message.outputs);
-        const hasSuspendedToolCalls =
+        const hasInterruptedToolCalls =
           typeof joined.content === "object" &&
           joined.content.some(
-            (c) => c.type === "tool-call" && c.result === undefined,
+            (c) =>
+              c.type === "tool-call" &&
+              c.result === undefined &&
+              (c.interrupt != null ||
+                (c.approval != null && c.approval.approved === undefined)),
           );
         const hasPendingToolCalls =
           typeof joined.content === "object" &&
@@ -438,7 +451,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
         const autoStatus = getAutoStatus(
           isLast,
           isRunning,
-          hasSuspendedToolCalls,
+          hasInterruptedToolCalls,
           hasPendingToolCalls,
           isLast ? state.metadata.error : undefined,
         );

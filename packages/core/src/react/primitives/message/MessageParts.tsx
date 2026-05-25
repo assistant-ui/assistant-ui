@@ -379,8 +379,16 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
   if (type === "tool-call") {
     const addResult = aui.part().addToolResult;
     const resume = aui.part().resumeToolCall;
+    const respondToApproval = aui.part().respondToToolApproval;
     if ("Override" in tools)
-      return <tools.Override {...part} addResult={addResult} resume={resume} />;
+      return (
+        <tools.Override
+          {...part}
+          addResult={addResult}
+          resume={resume}
+          respondToApproval={respondToApproval}
+        />
+      );
     const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
     return (
       <ToolUIDisplay
@@ -388,6 +396,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
         Fallback={Tool}
         addResult={addResult}
         resume={resume}
+        respondToApproval={respondToApproval}
       />
     );
   }
@@ -592,6 +601,7 @@ const RegisteredToolUI: FC = () => {
       {...part}
       addResult={aui.part().addToolResult}
       resume={aui.part().resumeToolCall}
+      respondToApproval={aui.part().respondToToolApproval}
     />
   );
 };
@@ -657,6 +667,8 @@ export type EnrichedPartState =
       addResult: ToolCallMessagePartProps["addResult"];
       /** Resume a tool call waiting for human input. */
       resume: ToolCallMessagePartProps["resume"];
+      /** Respond to a server-side tool approval gate. */
+      respondToApproval: ToolCallMessagePartProps["respondToApproval"];
     })
   | (Extract<PartState, { type: "data" }> & {
       /** The registered data renderer UI element, or null if none registered. */
@@ -706,6 +718,7 @@ export const MessagePartChildren: FC<{
                   toolUI: hasUI ? <RegisteredToolUI /> : null,
                   addResult: partMethods.addToolResult,
                   resume: partMethods.resumeToolCall,
+                  respondToApproval: partMethods.respondToToolApproval,
                 };
               }
               if (state.type === "data") {

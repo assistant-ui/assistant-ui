@@ -165,6 +165,13 @@ export type ToolCallMessagePart<
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   /** Human-input request that must be resolved before the run can continue. */
   readonly interrupt?: { type: "human"; payload: unknown };
+  /** Server-side approval gate. `approved === undefined` is the only state in which `respondToApproval` may be called. */
+  readonly approval?: {
+    readonly id: string;
+    readonly approved?: boolean;
+    readonly reason?: string;
+    readonly isAutomatic?: boolean;
+  };
   /** Parent message-part ID when this part belongs to a nested structure. */
   readonly parentId?: string;
   /**
