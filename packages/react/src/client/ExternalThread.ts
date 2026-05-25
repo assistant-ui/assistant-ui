@@ -220,6 +220,7 @@ const PartResource = resource(
       getState: () => state,
       addToolResult: () => {},
       resumeToolCall: () => {},
+      respondToToolApproval: () => {},
     };
   },
 );

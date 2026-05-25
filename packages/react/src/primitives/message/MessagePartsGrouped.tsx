@@ -294,8 +294,16 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
   if (type === "tool-call") {
     const addResult = aui.part().addToolResult;
     const resume = aui.part().resumeToolCall;
+    const respondToApproval = aui.part().respondToToolApproval;
     if ("Override" in tools)
-      return <tools.Override {...part} addResult={addResult} resume={resume} />;
+      return (
+        <tools.Override
+          {...part}
+          addResult={addResult}
+          resume={resume}
+          respondToApproval={respondToApproval}
+        />
+      );
     const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
     return (
       <ToolUIDisplay
@@ -303,6 +311,7 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
         Fallback={Tool}
         addResult={addResult}
         resume={resume}
+        respondToApproval={respondToApproval}
       />
     );
   }

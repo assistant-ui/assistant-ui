@@ -98,6 +98,7 @@ const ToolUIDisplay = ({
     ...(part as ToolCallMessagePartProps),
     addResult: partMethods.addToolResult,
     resume: partMethods.resumeToolCall,
+    respondToApproval: partMethods.respondToToolApproval,
   };
 
   if (Render) {
