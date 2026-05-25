@@ -21,6 +21,7 @@
       "@/lib/utils": ["../../packages/ui/src/lib/utils"],
       "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
       "@assistant-ui/*": ["../../packages/*/src"],
+      "@assistant-ui/core/*": ["../../packages/core/src/*"],
       "@assistant-ui/react/*": ["../../packages/react/src/*"],
       "@assistant-ui/tap/*": ["../../packages/tap/src/*"],
       "assistant-stream": ["../../packages/assistant-stream/src"],
