@@ -207,8 +207,7 @@ The Blaxel preview only proxies **port 3000** on **0.0.0.0**. The sandbox image 
    - uvicorn: \`uvicorn main:app --host 0.0.0.0 --port 3000\`
    - Flask: \`flask run --host 0.0.0.0 --port 3000\`
 
-2. **Kill anything already on the port before (re)starting** — a previous attempt may still hold it:
-   \`(lsof -ti:3000 | xargs -r kill -9) || true; pkill -f "next dev" || true; pkill -f vite || true; pkill -f uvicorn || true; sleep 1\`
+2. **If restarting, kill anything already on the port 3000**
 
 3. **Start it backgrounded with logs to a file** so the exec call returns immediately and you can inspect output:
    \`cd /workspace/<project> && nohup <your start command bound to 0.0.0.0:3000> > /tmp/server.log 2>&1 &\`
