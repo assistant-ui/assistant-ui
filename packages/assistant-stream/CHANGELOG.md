@@ -1,5 +1,17 @@
 # assistant-stream
 
+## 0.3.16
+
+### Patch Changes
+
+- [#4096](https://github.com/assistant-ui/assistant-ui/pull/4096) [`13a12c4`](https://github.com/assistant-ui/assistant-ui/commit/13a12c46c94f7e5e62af02692cf3479fff48bd02) - docs(assistant-stream): fix README usage example and clarify wire-format pairing ([@okisdev](https://github.com/okisdev))
+
+  the README Usage snippet was calling `controller.appendText()` with no arguments and treating the return value as a writer, but `AssistantStreamController.appendText` has signature `(textDelta: string): void`. copy-pasting the old snippet threw `TypeError: Cannot read properties of undefined (reading 'append')` at the first `text.append(...)` call. switched the example to the actual API.
+
+  also added a short note that `createAssistantStreamResponse` returns a standard Web `Response` (drops into Next.js / Hono / Bun / Deno / Cloudflare Workers; Express and Fastify need a small adapter), and that the emitted bytes are the data stream wire format. on the frontend pair it with `useDataStreamRuntime({ api, protocol: "data-stream" })`; the default `protocol: "ui-message-stream"` expects AI SDK v6's SSE-based UI message stream format and will throw `Stream ended abruptly without receiving [DONE] marker` against this output.
+
+- [#4085](https://github.com/assistant-ui/assistant-ui/pull/4085) [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.3.15
 
 ### Patch Changes

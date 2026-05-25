@@ -1,5 +1,27 @@
 # @assistant-ui/react-native
 
+## 0.1.17
+
+### Patch Changes
+
+- [#4085](https://github.com/assistant-ui/assistant-ui/pull/4085) [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4095](https://github.com/assistant-ui/assistant-ui/pull/4095) [`fa62e49`](https://github.com/assistant-ui/assistant-ui/commit/fa62e49425fcfa94581cbd24fd6fcfff324d77e9) - fix(react-native): support the children render-prop API on `ThreadPrimitive.Messages` ([@okisdev](https://github.com/okisdev))
+
+  `@assistant-ui/core/react`'s `ThreadPrimitive.Messages` was updated in [#3642](https://github.com/assistant-ui/assistant-ui/issues/3642) to accept either `components` or a `children` render function, and the docs and `examples/with-expo` were switched to the children form. The React Native primitive (`FlatList`-backed, separate implementation) was missed in that pass and kept requiring `components`, so the example crashed at runtime with `Cannot read property 'UserMessage' of undefined` (from `getComponent(undefined, role, isEditing)`).
+
+  Mirrors the core/react shape: `ThreadMessagesProps` is now a union of `{ components }` or `{ children }`, with a new `ThreadMessageByChildren` that wraps each row in `MessageByIndexProvider` + `RenderChildrenWithAccessor` so consumers get a lazy `{ message }` accessor without subscribing the row to the full message state. The `components` path is unchanged.
+
+  ```tsx
+  <ThreadPrimitive.Messages>{() => <MessageBubble />}</ThreadPrimitive.Messages>
+  ```
+
+- Updated dependencies [[`13a12c4`](https://github.com/assistant-ui/assistant-ui/commit/13a12c46c94f7e5e62af02692cf3479fff48bd02), [`0a0c306`](https://github.com/assistant-ui/assistant-ui/commit/0a0c306286598ea885b046a1dfb85016f720051c), [`6a0ecb2`](https://github.com/assistant-ui/assistant-ui/commit/6a0ecb2e49f24c5f066052018db5a9f1411dcc59), [`e4634a5`](https://github.com/assistant-ui/assistant-ui/commit/e4634a59b7a926d158e929d559326f243efe438b), [`325de4c`](https://github.com/assistant-ui/assistant-ui/commit/325de4c73b348d4c20dafa4a2ac6d436c69dbf28), [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154), [`f2ec01c`](https://github.com/assistant-ui/assistant-ui/commit/f2ec01ce0f01317a8444b779d88f9b6a26d691c5), [`1e21076`](https://github.com/assistant-ui/assistant-ui/commit/1e2107648bc281f1673f4ad053fd019b28a602d0)]:
+  - assistant-stream@0.3.16
+  - @assistant-ui/core@0.2.5
+  - @assistant-ui/store@0.2.12
+  - @assistant-ui/tap@0.5.12
+
 ## 0.1.16
 
 ### Patch Changes

@@ -1,5 +1,69 @@
 # @assistant-ui/react
 
+## 0.14.8
+
+### Patch Changes
+
+- [#4093](https://github.com/assistant-ui/assistant-ui/pull/4093) [`b02b701`](https://github.com/assistant-ui/assistant-ui/commit/b02b7012cff158b4e73b82503b9ea90638b7398d) - feat(react): `unstable_insertNewlineOnTouchEnter` on `ComposerPrimitive.Input` ([@okisdev](https://github.com/okisdev))
+
+  When set, plain Enter on a touch-primary device — detected via the `(pointer: coarse) and (not (any-pointer: fine))` media query — inserts a newline instead of submitting. Messages then dispatch only via the explicit Send button, matching the chat-input convention used by WhatsApp, Slack, Discord, iMessage, ChatGPT, and Claude.ai, and avoiding the consumer-side caret-aware re-insertion dance the previous workaround required.
+
+  Orthogonal to `submitMode`: only takes effect when `submitMode` resolves to `"enter"` (the default). A tablet paired with a hardware keyboard can still submit via `submitMode="ctrlEnter"` (Cmd/Ctrl+Enter), and `submitMode="none"` is unchanged.
+
+  ```tsx
+  <ComposerPrimitive.Input
+    placeholder="Ask anything..."
+    unstable_insertNewlineOnTouchEnter
+  />
+  ```
+
+  Stays `unstable_` until we have enough field signal to flip the behavior on by default.
+
+- [#3967](https://github.com/assistant-ui/assistant-ui/pull/3967) [`0a0c306`](https://github.com/assistant-ui/assistant-ui/commit/0a0c306286598ea885b046a1dfb85016f720051c) - feat(core, react): add `MessagePrimitive.GenerativeUI` primitive ([@samdickson22](https://github.com/samdickson22))
+
+  A new first-class primitive for rendering agent-described React UI from a JSON
+  spec, with a consumer-provided component allowlist as the security boundary.
+
+  The agent emits a new `generative-ui` message part containing a tree of
+  components by name; `MessagePrimitive.GenerativeUI` walks the spec and resolves
+  each name against the registry you pass in. Unknown names throw a typed
+  `GenerativeUIRenderError` (or invoke the optional `Fallback`). Composes with
+  `MessagePrimitive.Parts` via the new `components.generativeUI` option, and
+  supports streaming partial specs.
+
+  ```tsx
+  <MessagePrimitive.Parts
+    components={{
+      generativeUI: { components: { Card, Button } },
+    }}
+  />
+  ```
+
+- [#4085](https://github.com/assistant-ui/assistant-ui/pull/4085) [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4099](https://github.com/assistant-ui/assistant-ui/pull/4099) [`f2ec01c`](https://github.com/assistant-ui/assistant-ui/commit/f2ec01ce0f01317a8444b779d88f9b6a26d691c5) - feat(core, react): opt-out of auto-unarchive when switching threads ([@adityamohta](https://github.com/adityamohta))
+
+  `switchToThread` (and `ThreadListItemRuntime.switchTo`) now accept an optional `{ unarchive?: boolean }` argument. The default remains `true`, preserving the existing behavior of auto-unarchiving an archived thread when it becomes the main thread. Pass `unarchive: false` to keep the thread archived after switching — useful when the UI lets users preview an archived conversation without restoring it.
+
+  ```ts
+  // existing behavior — archived thread becomes regular
+  await threadList.switchToThread(threadId);
+
+  // new — keep status as archived
+  await threadList.switchToThread(threadId, { unarchive: false });
+
+  // same option on the item runtime
+  await threadListItem.switchTo({ unarchive: false });
+  ```
+
+- Updated dependencies [[`13a12c4`](https://github.com/assistant-ui/assistant-ui/commit/13a12c46c94f7e5e62af02692cf3479fff48bd02), [`0a0c306`](https://github.com/assistant-ui/assistant-ui/commit/0a0c306286598ea885b046a1dfb85016f720051c), [`6a0ecb2`](https://github.com/assistant-ui/assistant-ui/commit/6a0ecb2e49f24c5f066052018db5a9f1411dcc59), [`e4634a5`](https://github.com/assistant-ui/assistant-ui/commit/e4634a59b7a926d158e929d559326f243efe438b), [`325de4c`](https://github.com/assistant-ui/assistant-ui/commit/325de4c73b348d4c20dafa4a2ac6d436c69dbf28), [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154), [`f2ec01c`](https://github.com/assistant-ui/assistant-ui/commit/f2ec01ce0f01317a8444b779d88f9b6a26d691c5), [`1e21076`](https://github.com/assistant-ui/assistant-ui/commit/1e2107648bc281f1673f4ad053fd019b28a602d0)]:
+  - assistant-stream@0.3.16
+  - @assistant-ui/core@0.2.5
+  - assistant-cloud@0.1.29
+  - safe-content-frame@0.0.20
+  - @assistant-ui/store@0.2.12
+  - @assistant-ui/tap@0.5.12
+
 ## 0.14.7
 
 ### Patch Changes

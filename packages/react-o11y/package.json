@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-o11y",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "Observability primitives for @assistant-ui",
   "keywords": [
     "observability",
