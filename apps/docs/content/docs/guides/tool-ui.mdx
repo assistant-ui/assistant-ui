@@ -474,6 +474,54 @@ const ApprovalTool = makeAssistantTool({
   through user interaction.
 </Callout>
 
+### Server-side approval gates
+
+Some runtimes (notably AI SDK v6's `needsApproval` tools) pause on the server and emit an approval request that the client must acknowledge before the tool runs. assistant-ui surfaces this on the tool part as `approval` and exposes `respondToApproval({ approved, reason? })` on the renderer:
+
+```tsx
+import { makeAssistantToolUI } from "@assistant-ui/react";
+
+const DeployToolUI = makeAssistantToolUI<{ target: string }, { ok: boolean }>({
+  toolName: "deploy",
+  render: ({ args, approval, respondToApproval, result }) => {
+    if (approval?.approved === undefined) {
+      return (
+        <div>
+          <p>Approve deploy to {args.target}?</p>
+          <button onClick={() => respondToApproval({ approved: true })}>
+            Approve
+          </button>
+          <button
+            onClick={() =>
+              respondToApproval({ approved: false, reason: "user denied" })
+            }
+          >
+            Deny
+          </button>
+        </div>
+      );
+    }
+
+    if (approval?.approved === false) {
+      return <p>Denied{approval.reason ? `: ${approval.reason}` : ""}</p>;
+    }
+
+    if (result === undefined) return <p>Approved, running…</p>;
+    return <p>Deployed</p>;
+  },
+});
+```
+
+`approval.approved` is a three-state signal:
+
+- `undefined`: gate is open, the renderer should ask the user. This is the only state in which `respondToApproval` is legal.
+- `true`: decision recorded as allow. The server is producing the result (or has produced one, available on `result`).
+- `false`: decision recorded as deny. `output-denied` from the runtime sets `isError` and exposes `approval.reason`.
+
+`approval.isAutomatic` is `true` when the runtime granted the decision from a server-side policy rather than the user; render a "auto-approved" badge instead of buttons in that case.
+
+For the wire-side setup (`needsApproval`, `sendAutomaticallyWhen`), see [AI SDK v6 server-side tool approval](/docs/runtimes/ai-sdk/v6#server-side-tool-approval).
+
 ## Advanced Features
 
 ### Tool Status Handling

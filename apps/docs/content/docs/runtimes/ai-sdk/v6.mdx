@@ -286,6 +286,100 @@ export async function POST(req: Request) {
 
 Without a `stopWhen`, AI SDK runs a single inference step. Set `stepCountIs` (or one of AI SDK's other stop conditions) when your tools chain multiple calls.
 
+## Server-side tool approval
+
+AI SDK v6 lets a tool gate its own execution with `needsApproval`. The server pauses, emits an `approval-requested` part, and resumes once the client posts an approval response. assistant-ui surfaces the gate as `approval` on the tool part and adds a `respondToApproval` prop on the renderer, so tool components stay decoupled from `chatHelpers`.
+
+On the backend, mark the tool with `needsApproval` (boolean or function):
+
+```ts title="@/app/api/chat/route.ts"
+import { openai } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages, tool } from "ai";
+import { z } from "zod";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-5.4-mini"),
+    messages: await convertToModelMessages(messages),
+    tools: {
+      deploy: tool({
+        description: "Deploy the current build to an environment.",
+        inputSchema: z.object({ target: z.string() }),
+        needsApproval: ({ input }) => input.target === "production",
+        execute: async ({ target }) => ({ deployed: target }),
+      }),
+    },
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+On the client, configure `useChat` with `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses` so the response is sent back to the server when the user decides:
+
+```tsx title="@/app/page.tsx"
+import { useChat } from "@ai-sdk/react";
+import {
+  AssistantRuntimeProvider,
+  useAISDKRuntime,
+} from "@assistant-ui/react-ai-sdk";
+import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
+import { Thread } from "@/components/assistant-ui/thread";
+
+export default function Page() {
+  const chat = useChat({
+    api: "/api/chat",
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+  });
+  const runtime = useAISDKRuntime(chat);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Render the gate with a tool UI. The `approval` field carries the gate state, and `respondToApproval` is the only correct way to acknowledge it (it reads the approval id from the part):
+
+```tsx title="@/components/DeployToolUI.tsx"
+import { makeAssistantToolUI } from "@assistant-ui/react";
+
+export const DeployToolUI = makeAssistantToolUI<
+  { target: string },
+  { deployed: string }
+>({
+  toolName: "deploy",
+  render: ({ args, approval, respondToApproval, result }) => {
+    if (approval?.approved === undefined) {
+      return (
+        <div>
+          <p>Approve deploy to {args.target}?</p>
+          <button onClick={() => respondToApproval({ approved: true })}>
+            Approve
+          </button>
+          <button
+            onClick={() =>
+              respondToApproval({ approved: false, reason: "user denied" })
+            }
+          >
+            Deny
+          </button>
+        </div>
+      );
+    }
+    if (approval?.approved === false) return <p>Denied</p>;
+    if (result === undefined) return <p>Approved, deploying…</p>;
+    return <p>Deployed {result.deployed}</p>;
+  },
+});
+```
+
+See the [tool UI guide](/docs/guides/tool-ui#server-side-approval-gates) for the full three-state semantics of `approval.approved` and the `isAutomatic` flag.
+
 ## Quote context
 
 assistant-ui's composer can attach quote metadata to user messages (e.g. when the user selects text and clicks "Quote"). On the server, `injectQuoteContext` flattens that metadata into a markdown blockquote prefix so the LLM sees the quoted text:
