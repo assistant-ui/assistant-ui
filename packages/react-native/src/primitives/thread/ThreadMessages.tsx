@@ -1,7 +1,13 @@
-import { type ComponentType, type FC, memo, useCallback } from "react";
+import {
+  type ComponentType,
+  type FC,
+  type ReactNode,
+  memo,
+  useCallback,
+} from "react";
 import { FlatList, type FlatListProps } from "react-native";
-import type { ThreadMessage } from "@assistant-ui/core";
-import { useAuiState } from "@assistant-ui/store";
+import type { MessageState, ThreadMessage } from "@assistant-ui/core";
+import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
 import { MessageByIndexProvider } from "@assistant-ui/core/react";
 
 type MessageComponents =
@@ -26,12 +32,22 @@ type MessageComponents =
       SystemMessage?: ComponentType | undefined;
     };
 
+type MessagesContent =
+  | {
+      /** @deprecated Use the children render function instead. */
+      components: MessageComponents;
+      children?: never;
+    }
+  | {
+      children: (value: { message: MessageState }) => ReactNode;
+      components?: never;
+    };
+
 export type ThreadMessagesProps = Omit<
   FlatListProps<ThreadMessage>,
-  "data" | "renderItem"
-> & {
-  components: MessageComponents;
-};
+  "data" | "renderItem" | "children"
+> &
+  MessagesContent;
 
 const DEFAULT_SYSTEM_MESSAGE = () => null;
 
@@ -109,17 +125,52 @@ const ThreadMessageByIndex = memo(
     prev.index === next.index && prev.components === next.components,
 );
 
+const ThreadMessageByChildren = memo(
+  ({
+    index,
+    children,
+  }: {
+    index: number;
+    children: (value: { message: MessageState }) => ReactNode;
+  }) => {
+    return (
+      <MessageByIndexProvider index={index}>
+        <RenderChildrenWithAccessor
+          getItemState={(aui) => aui.thread().message({ index }).getState()}
+        >
+          {(getItem) =>
+            children({
+              get message() {
+                return getItem();
+              },
+            })
+          }
+        </RenderChildrenWithAccessor>
+      </MessageByIndexProvider>
+    );
+  },
+  (prev, next) => prev.index === next.index && prev.children === next.children,
+);
+
 export const ThreadMessages = ({
   components,
+  children,
   ...flatListProps
 }: ThreadMessagesProps) => {
   const messages = useAuiState((s) => s.thread.messages);
 
   const renderItem = useCallback(
     ({ index }: { item: ThreadMessage; index: number }) => {
-      return <ThreadMessageByIndex index={index} components={components} />;
+      if (children) {
+        return (
+          <ThreadMessageByChildren index={index}>
+            {children}
+          </ThreadMessageByChildren>
+        );
+      }
+      return <ThreadMessageByIndex index={index} components={components!} />;
     },
-    [components],
+    [components, children],
   );
 
   const keyExtractor = useCallback((item: ThreadMessage) => item.id, []);
