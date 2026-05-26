@@ -102,9 +102,7 @@ export function createDocsTools({ routeUrl }: { routeUrl: string }) {
           path: z
             .string()
             .optional()
-            .describe(
-              "Subpath to browse. Omit to list root categories first.",
-            ),
+            .describe("Subpath to browse. Omit to list root categories first."),
         }),
       ),
       execute: async ({ path }) => {
@@ -117,7 +115,12 @@ export function createDocsTools({ routeUrl }: { routeUrl: string }) {
                 (node): node is PageTree.Folder => node.type === "folder",
               ),
             ),
-            { type: "folder", name: "examples", url: "/examples" },
+            {
+              type: "folder",
+              name: "examples",
+              description:
+                "Examples of app types users can build with assistant-ui, showing instructions, recommended patterns, and UI structure.",
+            },
           ];
         }
 
@@ -170,4 +173,3 @@ export function createDocsTools({ routeUrl }: { routeUrl: string }) {
     }),
   };
 }
-
