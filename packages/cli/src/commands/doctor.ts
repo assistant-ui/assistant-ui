@@ -137,12 +137,20 @@ export function uniquePackageNames(packages: DiscoveredPackage[]): string[] {
   return Array.from(new Set(packages.map((p) => p.name))).sort();
 }
 
+// Package names use a restricted character set (`[a-z0-9._~-]` plus a
+// leading `@scope/` for scoped packages — see the npm package-name spec)
+// and the npm registry expects the scope's `@` and `/` un-encoded. So a
+// simple validation + concatenation is both correct and avoids the
+// CodeQL "incomplete string escaping" foot-gun of `encodeURIComponent`
+// + targeted un-escape.
+const VALID_NPM_NAME = /^(@[a-z0-9._~-]+\/)?[a-z0-9._~-]+$/;
+
 async function fetchLatestVersion(name: string): Promise<string | null> {
+  if (!VALID_NPM_NAME.test(name)) return null;
   try {
-    const res = await fetch(
-      `https://registry.npmjs.org/${encodeURIComponent(name).replace("%40", "@")}/latest`,
-      { headers: { Accept: "application/json" } },
-    );
+    const res = await fetch(`https://registry.npmjs.org/${name}/latest`, {
+      headers: { Accept: "application/json" },
+    });
     if (!res.ok) return null;
     const data = (await res.json()) as { version?: string };
     return data.version ?? null;
