@@ -11,6 +11,22 @@ import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
+
+type ThreadMessageLikeContentItem = Exclude<
+  ThreadMessageLike["content"],
+  string
+>[number];
+
+const isPendingToolCall = (c: ThreadMessageLikeContentItem): boolean =>
+  c.type === "tool-call" && c.result === undefined;
+
+const isInterruptedToolCall = (c: ThreadMessageLikeContentItem): boolean => {
+  if (c.type !== "tool-call" || c.result !== undefined) return false;
+  return (
+    c.interrupt != null ||
+    (c.approval != null && c.approval.approved === undefined)
+  );
+};
 import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
 import type { ToolExecutionStatus } from "./useToolInvocations";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
@@ -337,18 +353,10 @@ export const convertExternalMessages = <T extends WeakKey>(
     const joined = joinExternalMessages(message.outputs);
     const hasInterruptedToolCalls =
       typeof joined.content === "object" &&
-      joined.content.some(
-        (c) =>
-          c.type === "tool-call" &&
-          c.result === undefined &&
-          (c.interrupt != null ||
-            (c.approval != null && c.approval.approved === undefined)),
-      );
+      joined.content.some(isInterruptedToolCall);
     const hasPendingToolCalls =
       typeof joined.content === "object" &&
-      joined.content.some(
-        (c) => c.type === "tool-call" && c.result === undefined,
-      );
+      joined.content.some(isPendingToolCall);
     const autoStatus = getAutoStatus(
       isLast,
       isRunning,
@@ -436,18 +444,10 @@ export const useExternalMessageConverter = <T extends WeakKey>({
         const joined = joinExternalMessages(message.outputs);
         const hasInterruptedToolCalls =
           typeof joined.content === "object" &&
-          joined.content.some(
-            (c) =>
-              c.type === "tool-call" &&
-              c.result === undefined &&
-              (c.interrupt != null ||
-                (c.approval != null && c.approval.approved === undefined)),
-          );
+          joined.content.some(isInterruptedToolCall);
         const hasPendingToolCalls =
           typeof joined.content === "object" &&
-          joined.content.some(
-            (c) => c.type === "tool-call" && c.result === undefined,
-          );
+          joined.content.some(isPendingToolCall);
         const autoStatus = getAutoStatus(
           isLast,
           isRunning,
