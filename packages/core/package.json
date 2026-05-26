@@ -59,9 +59,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "prebuild": "node ./scripts/sync-version.mjs",
     "build": "aui-build",
-    "pretest": "node ./scripts/sync-version.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
