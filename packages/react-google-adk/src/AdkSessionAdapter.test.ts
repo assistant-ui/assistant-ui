@@ -212,7 +212,7 @@ describe("createAdkSessionAdapter - no-op methods", () => {
 describe("createAdkSessionAdapter - generateTitle", () => {
   it("returns an empty ReadableStream", async () => {
     const { adapter } = createAdkSessionAdapter(baseOptions);
-    const result = await adapter.generateTitle("s1");
+    const result = await adapter.generateTitle("s1", []);
     expect(result).toBeInstanceOf(ReadableStream);
   });
 });
