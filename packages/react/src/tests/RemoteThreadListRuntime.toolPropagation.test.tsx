@@ -22,6 +22,12 @@ const timeTool = {
   toolName: "get_local_time",
   type: "frontend" as const,
   description: "Get current local time",
+  parameters: {
+    type: "object" as const,
+    properties: {
+      format: { type: "string" as const, enum: ["iso", "time", "dateTime"] },
+    },
+  },
   execute: async () => ({ dateTime: "now" }),
 };
 
@@ -57,8 +63,6 @@ describe("tool propagation through useRemoteThreadListRuntime runtimeHook", () =
     await act(async () => {
       render(<Inner />);
     });
-
-    await waitFor(() => expect(capture.modelContext).toBeDefined());
 
     await waitFor(() => {
       const tools = capture.modelContext?.getModelContext().tools ?? {};
