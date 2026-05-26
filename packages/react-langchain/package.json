@@ -51,9 +51,9 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@langchain/core": "^1.1.47",
-    "@langchain/langgraph-sdk": "^1.9.4",
-    "@langchain/react": "^1.0.4",
+    "@langchain/core": "^1.1.48",
+    "@langchain/langgraph-sdk": "^1.9.6",
+    "@langchain/react": "^1.0.6",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.15",
     "jsdom": "^29.1.1",

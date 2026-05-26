@@ -27,7 +27,7 @@
     "turbo": "^2.9.14",
     "typescript": "^6.0.3"
   },
-  "packageManager": "pnpm@11.2.1",
+  "packageManager": "pnpm@11.3.0",
   "lint-staged": {
     "*": "biome check --fix --no-errors-on-unmatched"
   },

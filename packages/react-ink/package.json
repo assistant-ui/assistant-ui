@@ -61,7 +61,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
-    "ink": "^7.0.3",
+    "ink": "^7.0.4",
     "ink-testing-library": "^4.0.0",
     "react": "^19.2.6",
     "tsx": "^4.22.3",
