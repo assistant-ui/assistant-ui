@@ -244,7 +244,7 @@ function convertParts(
           isError = true;
           result = {
             error:
-              (part as { approval: { reason?: string } }).approval.reason ||
+              (part as { approval?: { reason?: string } }).approval?.reason ||
               "Tool approval denied",
           };
         }

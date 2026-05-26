@@ -11,6 +11,16 @@ import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
+import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
+import type { ToolExecutionStatus } from "./useToolInvocations";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import { generateErrorMessageId } from "../../utils/id";
+import type {
+  ThreadAssistantMessage,
+  ThreadMessage,
+  ToolCallMessagePart,
+} from "../../types/message";
+import type { MessageTiming } from "../../types/message";
 
 type ThreadMessageLikeContentItem = Exclude<
   ThreadMessageLike["content"],
@@ -27,16 +37,6 @@ const isInterruptedToolCall = (c: ThreadMessageLikeContentItem): boolean => {
     (c.approval != null && c.approval.approved === undefined)
   );
 };
-import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
-import type { ToolExecutionStatus } from "./useToolInvocations";
-import type { ReadonlyJSONValue } from "assistant-stream/utils";
-import { generateErrorMessageId } from "../../utils/id";
-import type {
-  ThreadAssistantMessage,
-  ThreadMessage,
-  ToolCallMessagePart,
-} from "../../types/message";
-import type { MessageTiming } from "../../types/message";
 
 export namespace useExternalMessageConverter {
   export type Message =
