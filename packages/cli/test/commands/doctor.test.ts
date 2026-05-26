@@ -34,7 +34,14 @@ describe("compareSemver", () => {
     expect(compareSemver("1.2.3", "1.2.3")).toBe(0);
   });
 
-  it("handles pre-release / unparseable strings via lexical fallback", () => {
+  it("treats a prerelease as less than the matching stable", () => {
+    expect(compareSemver("1.0.0-alpha", "1.0.0")).toBeLessThan(0);
+    expect(compareSemver("1.0.0", "1.0.0-alpha")).toBeGreaterThan(0);
+    expect(compareSemver("1.0.0-alpha.1", "1.0.0-alpha.2")).toBeLessThan(0);
+    expect(compareSemver("0.3.0-rc.1", "0.3.0")).toBeLessThan(0);
+  });
+
+  it("falls back to lexical comparison for unparseable strings", () => {
     expect(compareSemver("a", "b")).toBeLessThan(0);
   });
 });
@@ -93,6 +100,15 @@ describe("doctor — package discovery", () => {
       installPath: "node_modules/lodash",
     });
 
+    // A tracked package nested inside an *untracked* package — current
+    // behavior is to skip recursion into untracked subtrees so doctor
+    // stays fast on large repos.
+    writePackage(root, {
+      name: "@assistant-ui/core",
+      version: "0.0.0-buried",
+      installPath: "node_modules/lodash/node_modules/@assistant-ui/core",
+    });
+
     // Dot-prefixed directories must be skipped
     fs.mkdirSync(path.join(root, "node_modules", ".pnpm"), { recursive: true });
   });
@@ -114,6 +130,11 @@ describe("doctor — package discovery", () => {
     expect(summary).toContain("@assistant-ui/react-ai-sdk@1.3.26");
     expect(summary).toContain("assistant-stream@0.3.14");
     expect(summary).not.toContain("lodash");
+  });
+
+  it("does not recurse into untracked packages' node_modules", () => {
+    const found = discoverInstalledPackages(root);
+    expect(found.find((p) => p.version === "0.0.0-buried")).toBeUndefined();
   });
 
   it("flags @assistant-ui/core as duplicated across versions", () => {

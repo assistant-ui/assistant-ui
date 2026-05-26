@@ -49,15 +49,24 @@ function processPackageDir(
   visited.set.add(real);
 
   const pkgJson = readJson(path.join(pkgDir, "package.json"));
+  let isTracked = false;
   if (pkgJson) {
     const name = pkgJson.name as string | undefined;
     const version = pkgJson.version as string | undefined;
     if (name && version && isTrackedPackage(name)) {
       results.push({ name, version, installPath: pkgDir });
+      isTracked = true;
     }
   }
 
-  walkNodeModulesAt(pkgDir, results, visited);
+  // Only descend into nested node_modules of tracked packages. Transitive
+  // copies of @assistant-ui/* live inside packages that depend on them,
+  // which are themselves tracked. Walking every unrelated package's
+  // subtree turns a doctor run on a large repo into thousands of stat
+  // calls for no gain.
+  if (isTracked) {
+    walkNodeModulesAt(pkgDir, results, visited);
+  }
 }
 
 function walkNodeModulesAt(
@@ -172,15 +181,17 @@ interface SemverParts {
   major: number;
   minor: number;
   patch: number;
+  prerelease: string;
 }
 
 function parseSemver(v: string): SemverParts | null {
-  const m = /^(\d+)\.(\d+)\.(\d+)/.exec(v);
+  const m = /^(\d+)\.(\d+)\.(\d+)(?:-([^+\s]+))?/.exec(v);
   if (!m) return null;
   return {
     major: parseInt(m[1]!, 10),
     minor: parseInt(m[2]!, 10),
     patch: parseInt(m[3]!, 10),
+    prerelease: m[4] ?? "",
   };
 }
 
@@ -190,7 +201,16 @@ export function compareSemver(a: string, b: string): number {
   if (!pa || !pb) return a.localeCompare(b);
   if (pa.major !== pb.major) return pa.major - pb.major;
   if (pa.minor !== pb.minor) return pa.minor - pb.minor;
-  return pa.patch - pb.patch;
+  if (pa.patch !== pb.patch) return pa.patch - pb.patch;
+
+  // Per SemVer §11: a version with a prerelease tag is *less than* the
+  // same x.y.z without one. We compare tags lexically for a stable
+  // ordering across prereleases — good enough for doctor's "is X older
+  // than the npm latest" check.
+  if (pa.prerelease === pb.prerelease) return 0;
+  if (!pa.prerelease) return 1;
+  if (!pb.prerelease) return -1;
+  return pa.prerelease.localeCompare(pb.prerelease);
 }
 
 export interface OutdatedPackage {
