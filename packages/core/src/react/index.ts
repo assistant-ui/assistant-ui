@@ -244,6 +244,8 @@ export {
 } from "./primitive-hooks/useVoice";
 export { useBranchPickerNext } from "./primitive-hooks/useBranchPickerNext";
 export { useBranchPickerPrevious } from "./primitive-hooks/useBranchPickerPrevious";
+export { useArtifactVersionPickerNext } from "./primitive-hooks/useArtifactVersionPickerNext";
+export { useArtifactVersionPickerPrevious } from "./primitive-hooks/useArtifactVersionPickerPrevious";
 export {
   useSuggestionTrigger,
   type UseSuggestionTriggerOptions,
@@ -267,3 +269,30 @@ export {
   splitLocalRuntimeOptions,
   type LocalRuntimeOptions,
 } from "./runtimes/useLocalRuntime";
+
+// Artifacts
+export {
+  Artifacts,
+  htmlArtifactType,
+  defaultArtifactTypes,
+  svgArtifactType,
+  markdownArtifactType,
+  mermaidArtifactType,
+  updateArtifactPatch,
+  rewriteArtifactPatch,
+  defaultArtifactPatches,
+  type Artifact,
+  type ArtifactOperation,
+  type ArtifactOperationStatus,
+  type ArtifactStatusError,
+  type ArtifactSpec,
+  type ArtifactPatchSpec,
+  type ArtifactsConfig,
+  type ArtifactsState,
+  type ArtifactsMethods,
+} from "../store/clients/artifacts";
+
+// Shared artifact primitives (host-agnostic)
+export { ArtifactPrimitiveRoot } from "./primitives/artifact/ArtifactRoot";
+export { ArtifactPrimitiveSource } from "./primitives/artifact/ArtifactSource";
+export { ArtifactPrimitiveIf } from "./primitives/artifact/ArtifactIf";

@@ -76,6 +76,20 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "artifact-view",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/artifact-view.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/artifact-view.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+    registryDependencies: ["https://r.assistant-ui.com/thread.json", "tabs"],
+  },
+  {
     name: "voice",
     type: "registry:component",
     files: [

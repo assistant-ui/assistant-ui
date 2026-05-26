@@ -6,7 +6,7 @@ import {
   WebSpeechDictationAdapter,
   AssistantCloud,
   useAui,
-  Tools,
+  Artifacts,
   AuiProvider,
   type Toolkit,
 } from "@assistant-ui/react";
@@ -57,9 +57,8 @@ export function ArtifactsRuntimeProvider({
     cloud: assistantCloud,
   });
 
-  // Use the Tools API to register artifacts tools
   const aui = useAui({
-    tools: Tools({ toolkit: artifactsToolkit }),
+    artifacts: Artifacts({ toolkit: artifactsToolkit }),
     modelContext: ModelContext(),
   });
 

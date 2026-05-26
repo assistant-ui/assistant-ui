@@ -1,25 +1,10 @@
 "use client";
 
-import { useAuiState } from "@assistant-ui/react";
-import type { ToolCallMessagePart } from "@assistant-ui/react";
+import { ArtifactPrimitive } from "@assistant-ui/react";
 import { Tabs as TabsPrimitive } from "radix-ui";
 
-export const ArtifactsView = () => {
-  const artifact = useAuiState((s) => {
-    const messages = s.thread.messages || [];
-    return messages
-      .flatMap((m) =>
-        m.content.filter(
-          (c): c is ToolCallMessagePart =>
-            c.type === "tool-call" && c.toolName === "render_html",
-        ),
-      )
-      .at(-1)?.args.code as string | undefined;
-  });
-
-  if (!artifact) return null;
-
-  return (
+export const ArtifactsView = () => (
+  <ArtifactPrimitive.If fallback={null}>
     <div className="flex grow basis-full justify-stretch p-3 transition-[width]">
       <div className="h-full w-full overflow-hidden rounded-lg border">
         <TabsPrimitive.Root
@@ -44,19 +29,13 @@ export const ArtifactsView = () => {
             value="source"
             className="wrap-break-word grow overflow-y-scroll whitespace-pre-line px-4 py-2 font-mono text-sm"
           >
-            {artifact}
+            <ArtifactPrimitive.Source />
           </TabsPrimitive.Content>
           <TabsPrimitive.Content value="preview" className="grow px-4 py-2">
-            {artifact && (
-              <iframe
-                title="artifact-preview"
-                className="h-full w-full"
-                srcDoc={artifact}
-              />
-            )}
+            <ArtifactPrimitive.Preview className="h-full w-full" />
           </TabsPrimitive.Content>
         </TabsPrimitive.Root>
       </div>
     </div>
-  );
-};
+  </ArtifactPrimitive.If>
+);
