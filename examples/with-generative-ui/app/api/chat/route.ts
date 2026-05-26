@@ -54,7 +54,7 @@ export async function POST(req: Request) {
         description: renderGuiToolDescription,
         inputSchema: zodSchema(renderGuiToolInputSchema),
         execute: async (input) => ({
-          spec: renderGuiToolInputSchema.parse(input).spec,
+          spec: input.spec,
         }),
       }),
 
