@@ -1,5 +1,64 @@
 # @assistant-ui/react-langchain
 
+## 0.0.8
+
+### Patch Changes
+
+- [#3967](https://github.com/assistant-ui/assistant-ui/pull/3967) [`0a0c306`](https://github.com/assistant-ui/assistant-ui/commit/0a0c306286598ea885b046a1dfb85016f720051c) - feat(core, react): add `MessagePrimitive.GenerativeUI` primitive ([@samdickson22](https://github.com/samdickson22))
+
+  A new first-class primitive for rendering agent-described React UI from a JSON
+  spec, with a consumer-provided component allowlist as the security boundary.
+
+  The agent emits a new `generative-ui` message part containing a tree of
+  components by name; `MessagePrimitive.GenerativeUI` walks the spec and resolves
+  each name against the registry you pass in. Unknown names throw a typed
+  `GenerativeUIRenderError` (or invoke the optional `Fallback`). Composes with
+  `MessagePrimitive.Parts` via the new `components.generativeUI` option, and
+  supports streaming partial specs.
+
+  ```tsx
+  <MessagePrimitive.Parts
+    components={{
+      generativeUI: { components: { Card, Button } },
+    }}
+  />
+  ```
+
+- [#4085](https://github.com/assistant-ui/assistant-ui/pull/4085) [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`13a12c4`](https://github.com/assistant-ui/assistant-ui/commit/13a12c46c94f7e5e62af02692cf3479fff48bd02), [`0a0c306`](https://github.com/assistant-ui/assistant-ui/commit/0a0c306286598ea885b046a1dfb85016f720051c), [`6a0ecb2`](https://github.com/assistant-ui/assistant-ui/commit/6a0ecb2e49f24c5f066052018db5a9f1411dcc59), [`e4634a5`](https://github.com/assistant-ui/assistant-ui/commit/e4634a59b7a926d158e929d559326f243efe438b), [`325de4c`](https://github.com/assistant-ui/assistant-ui/commit/325de4c73b348d4c20dafa4a2ac6d436c69dbf28), [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154), [`f2ec01c`](https://github.com/assistant-ui/assistant-ui/commit/f2ec01ce0f01317a8444b779d88f9b6a26d691c5), [`1e21076`](https://github.com/assistant-ui/assistant-ui/commit/1e2107648bc281f1673f4ad053fd019b28a602d0)]:
+  - assistant-stream@0.3.16
+  - @assistant-ui/core@0.2.5
+  - assistant-cloud@0.1.29
+  - @assistant-ui/store@0.2.12
+
+## 0.0.7
+
+### Patch Changes
+
+- [#4049](https://github.com/assistant-ui/assistant-ui/pull/4049) [`3eaf583`](https://github.com/assistant-ui/assistant-ui/commit/3eaf58311a9fbecfdf18c5b8771aba3338f85c7c) - feat(react-langchain): parity options + send hooks (toward deprecating `react-langgraph`) ([@Yonom](https://github.com/Yonom))
+  - Adds `autoCancelPendingToolCalls` (default `true`): when a new user
+    message is submitted while previous tool calls are still pending,
+    automatically submit `tool` messages cancelling them so the agent's
+    tool-call accounting stays consistent.
+  - Adds `unstable_allowCancellation`: routes the Cancel button to
+    `useStream().stop()`. On by default; pass `false` to disable.
+  - Adds `unstable_threadListAdapter`: custom `RemoteThreadListAdapter`
+    override for self-hosted persistence (takes precedence over `cloud`).
+  - Adds `create` and `delete` options, forwarded to the underlying
+    `useCloudThreadListAdapter`.
+  - Adds `useLangChainSend()` and `useLangChainSendCommand()` parity
+    helpers for migrating away from `useLangGraphSend` /
+    `useLangGraphSendCommand`.
+
+- [#4048](https://github.com/assistant-ui/assistant-ui/pull/4048) [`94c2c8e`](https://github.com/assistant-ui/assistant-ui/commit/94c2c8ea453ac12a6121b70b91381ab936556cd5) - chore: bump `@langchain/react` peer dependency to `^1.0.2` (v1 useStream API) ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`845c7c1`](https://github.com/assistant-ui/assistant-ui/commit/845c7c12fecbb448da7f1135c33163b653a50710), [`db721df`](https://github.com/assistant-ui/assistant-ui/commit/db721df32434296ac14eab27030628107975b71c), [`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33), [`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33), [`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33), [`8b6fc88`](https://github.com/assistant-ui/assistant-ui/commit/8b6fc8836871e62efc2fd8c131c6783e12c5fc47), [`179895f`](https://github.com/assistant-ui/assistant-ui/commit/179895fdcb56edee2e8d9efb4b38cd3859eeecdd), [`7a8bf26`](https://github.com/assistant-ui/assistant-ui/commit/7a8bf26eda76f5f8490f96b3ff9dce1ccd072917), [`3b2bbce`](https://github.com/assistant-ui/assistant-ui/commit/3b2bbce1589b44a13b8b7a570c19bf35a2266fbd)]:
+  - assistant-cloud@0.1.28
+  - @assistant-ui/store@0.2.11
+  - assistant-stream@0.3.15
+  - @assistant-ui/core@0.2.3
+
 ## 0.0.6
 
 ### Patch Changes

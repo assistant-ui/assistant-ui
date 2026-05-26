@@ -3,6 +3,7 @@ import type {
   AddToolResultOptions,
   ResumeRunConfig,
   ResumeToolCallOptions,
+  RespondToToolApprovalOptions,
   StartRunConfig,
   ThreadSuggestion,
 } from "../../runtime/interfaces/thread-runtime-core";
@@ -53,6 +54,7 @@ export class ExternalStoreThreadRuntimeCore
   implements ThreadRuntimeCore
 {
   private _assistantOptimisticId: string | null = null;
+  private _lastSyncedMessageIds = new Set<string>();
 
   private _capabilities: RuntimeCapabilities = {
     switchToBranch: false,
@@ -170,6 +172,7 @@ export class ExternalStoreThreadRuntimeCore
       // Clear and import the message repository
       this.repository.clear();
       this._assistantOptimisticId = null;
+      this._lastSyncedMessageIds = new Set();
       this.repository.import(store.messageRepository);
 
       messages = this.repository.getMessages();
@@ -221,6 +224,12 @@ export class ExternalStoreThreadRuntimeCore
             bindExternalStoreMessage(newMessage, m);
             return newMessage;
           });
+
+      const nextIds = new Set(messages.map((m) => m.id));
+      for (const prevId of this._lastSyncedMessageIds) {
+        if (!nextIds.has(prevId)) this.repository.deleteMessage(prevId);
+      }
+      this._lastSyncedMessageIds = nextIds;
 
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
@@ -336,6 +345,7 @@ export class ExternalStoreThreadRuntimeCore
       previousMessage.id === messages.at(-1)?.id // ensure the previous message is a leaf node
     ) {
       this.repository.deleteMessage(previousMessage.id);
+      this._lastSyncedMessageIds.delete(previousMessage.id);
       if (!this.composer.text.trim()) {
         this.composer.setText(getThreadMessageText(previousMessage));
       }
@@ -363,7 +373,14 @@ export class ExternalStoreThreadRuntimeCore
     this._store.onResumeToolCall(options);
   }
 
+  public respondToToolApproval(options: RespondToToolApprovalOptions) {
+    if (!this._store.onRespondToToolApproval)
+      throw new Error("Runtime does not support tool approvals.");
+    this._store.onRespondToToolApproval(options);
+  }
+
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {
+    this._lastSyncedMessageIds = new Set();
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
     this.updateMessages(repo.getMessages());
@@ -371,6 +388,7 @@ export class ExternalStoreThreadRuntimeCore
 
   public override import(data: ExportedMessageRepository) {
     this._assistantOptimisticId = null;
+    this._lastSyncedMessageIds = new Set();
 
     super.import(data);
 

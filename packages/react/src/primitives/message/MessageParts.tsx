@@ -65,6 +65,7 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
             }),
         Empty: components.Empty,
         Quote: components.Quote,
+        generativeUI: components.generativeUI,
       }
     : webDefaultComponents;
 

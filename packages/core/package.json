@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/core",
-  "version": "0.2.0",
+  "version": "0.2.5",
   "description": "Framework-agnostic core runtime for assistant-ui",
   "keywords": [
     "assistant",
@@ -64,15 +64,15 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.13",
+    "assistant-stream": "^0.3.16",
     "nanoid": "^5.1.11"
   },
   "peerDependencies": {
-    "@assistant-ui/store": "^0.2.10",
-    "@assistant-ui/tap": "^0.5.11",
+    "@assistant-ui/store": "^0.2.12",
+    "@assistant-ui/tap": "^0.5.12",
     "@types/react": "*",
     "react": "^18 || ^19",
-    "assistant-cloud": "^0.1.27",
+    "assistant-cloud": "^0.1.29",
     "zustand": "^5.0.11"
   },
   "peerDependenciesMeta": {
@@ -93,10 +93,10 @@
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.14",
+    "@types/react": "^19.2.15",
     "assistant-cloud": "workspace:*",
-    "react": "^19.2.5",
-    "vitest": "^4.1.5",
+    "react": "^19.2.6",
+    "vitest": "^4.1.7",
     "zustand": "^5.0.13"
   },
   "publishConfig": {

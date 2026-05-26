@@ -27,9 +27,10 @@ import { OpenCodeEventSource } from "./OpenCodeEventSource";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { projectOpenCodeThreadRepository } from "./openCodeMessageProjection";
 import { createOpenCodeThreadState } from "./openCodeThreadState";
+import { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 
 type OpenCodeControllerRegistry = {
-  eventSource: OpenCodeEventSource;
+  getEventSource(): OpenCodeEventSource;
   controllers: Map<string, OpenCodeThreadController>;
   dispose(): void;
 };
@@ -69,18 +70,25 @@ const EMPTY_THREAD_STATE = createOpenCodeThreadState("__pending__");
 const createRegistry = (
   client: ReturnType<typeof createOpencodeClient>,
 ): OpenCodeControllerRegistry => {
-  const eventSource = new OpenCodeEventSource(client);
+  let eventSource: OpenCodeEventSource | null = null;
   const controllers = new Map<string, OpenCodeThreadController>();
 
+  const getEventSource = () => {
+    eventSource ??= new OpenCodeEventSource(client);
+    return eventSource;
+  };
+
   return {
-    eventSource,
+    getEventSource,
     controllers,
     dispose() {
-      eventSource.dispose();
+      eventSource?.dispose();
+      eventSource = null;
       for (const controller of controllers.values()) {
         controller.dispose();
       }
-      controllers.clear();
+      // Keep controllers cached across React StrictMode cleanup/remount.
+      // Cleanup only detaches subscriptions; a real unmount drops this registry.
     },
   };
 };
@@ -95,7 +103,7 @@ const getController = (
 
   const controller = new OpenCodeThreadController(
     client,
-    registry.eventSource,
+    registry.getEventSource,
     sessionId,
   );
   registry.controllers.set(sessionId, controller);
@@ -131,6 +139,13 @@ const useOpenCodeControllerState = (
   );
 };
 
+const isOpenCodeStateRunning = (state: OpenCodeThreadState): boolean =>
+  state.runState.type === "streaming" ||
+  state.runState.type === "cancelling" ||
+  state.runState.type === "reverting" ||
+  state.sessionStatus?.type === "busy" ||
+  state.sessionStatus?.type === "retry";
+
 const useOpenCodeThreadRuntime = (
   controller: OpenCodeThreadControllerLike,
   options: OpenCodeRuntimeOptions,
@@ -148,10 +163,15 @@ const useOpenCodeThreadRuntime = (
     void controller.load().catch(onLoadError);
   }, [controller]);
 
+  const isRunning = isOpenCodeStateRunning(state);
+
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const messageTiming = useOpenCodeStreamingTiming(state, isRunning);
+
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const messageRepository = useMemo(
-    () => projectOpenCodeThreadRepository(state),
-    [state],
+    () => projectOpenCodeThreadRepository(state, messageTiming),
+    [state, messageTiming],
   );
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
@@ -185,12 +205,7 @@ const useOpenCodeThreadRuntime = (
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   return useExternalStoreRuntime<ThreadMessage>({
     isLoading: state.loadState.type === "loading",
-    isRunning:
-      state.runState.type === "streaming" ||
-      state.runState.type === "cancelling" ||
-      state.runState.type === "reverting" ||
-      state.sessionStatus?.type === "busy" ||
-      state.sessionStatus?.type === "retry",
+    isRunning: isOpenCodeStateRunning(state),
     messageRepository,
     extras,
     onNew: async (message: any) => {

@@ -45,6 +45,12 @@ export type ResumeToolCallOptions = {
   payload: unknown;
 };
 
+export type RespondToToolApprovalOptions = {
+  approvalId: string;
+  approved: boolean;
+  reason?: string;
+};
+
 export type SubmitFeedbackOptions = {
   messageId: string;
   type: "negative" | "positive";
@@ -85,11 +91,12 @@ export type ThreadRuntimeEventPayload = {
    */
   runEnd: Record<string, never>;
   /**
-   * @deprecated State-derivable. This event fires at the initialization
-   * transition immediately BEFORE the first message is added, so reading state
-   * inside the handler still sees an empty thread; observe `state.messages`
-   * becoming non-empty via a regular `subscribe` callback instead. Kept for
-   * backward compatibility.
+   * @deprecated State-derivable. Observe `state.messages` becoming non-empty
+   * via a regular `subscribe` callback instead. This event fires once at the
+   * initialization transition; subscribers that attach afterwards receive a
+   * one-off replay (on a microtask), by which point the thread already has
+   * messages, so handler-visible state differs between live and replayed
+   * delivery. Kept for backward compatibility.
    */
   initialize: Record<string, never>;
   /**
@@ -136,6 +143,7 @@ export type ThreadRuntimeCore = Readonly<{
 
   addToolResult: (options: AddToolResultOptions) => void;
   resumeToolCall: (options: ResumeToolCallOptions) => void;
+  respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
 
   speak: (messageId: string) => void;
   stopSpeaking: () => void;

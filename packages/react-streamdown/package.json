@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-streamdown",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Streamdown-based markdown rendering for assistant-ui",
   "keywords": [
     "markdown",
@@ -40,7 +40,7 @@
     "streamdown": "^2.5.0"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.14.0",
+    "@assistant-ui/react": "^0.14.8",
     "@streamdown/code": "^1.0.0",
     "@streamdown/cjk": "^1.0.0",
     "@streamdown/math": "^1.0.0",
@@ -71,11 +71,11 @@
     "@streamdown/code": "^1.1.1",
     "@testing-library/react": "^16.3.2",
     "@types/hast": "^3.0.4",
-    "@types/react": "^19.2.14",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
+    "@types/react": "^19.2.15",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "remark-rehype": "^11.1.2",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.7"
   },
   "publishConfig": {
     "access": "public",

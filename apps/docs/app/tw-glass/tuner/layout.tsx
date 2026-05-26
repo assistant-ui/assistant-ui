@@ -4,6 +4,10 @@ import { SubProjectLayout } from "@/components/shared/sub-project-layout";
 
 export const metadata: Metadata = {
   title: "Glass Tuner | tw-glass by assistant-ui",
+  robots: {
+    index: false,
+    follow: true,
+  },
 };
 
 export default function TunerLayout({

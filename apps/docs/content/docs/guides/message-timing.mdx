@@ -76,9 +76,9 @@ const AssistantMessage: FC = () => {
 | AI SDK (`useChatRuntime`) | Yes | Automatic via client-side tracking |
 | Local (`useLocalRuntime`) | Yes | Pass timing in `ChatModelRunResult.metadata` |
 | ExternalStore | Yes | Pass timing in `ThreadMessageLike.metadata` |
-| LangGraph | No | Not yet implemented |
-| AG-UI | No | Not yet implemented |
-| OpenCode | No | Not yet implemented |
+| LangGraph | Yes | Automatic via client-side tracking |
+| AG-UI | Yes | Automatic via client-side tracking |
+| OpenCode | Yes | Automatic via client-side tracking |
 
 ### Data Stream
 
@@ -161,6 +161,39 @@ const message: ThreadMessageLike = {
     },
   },
 };
+```
+
+### LangGraph (`useLangGraphRuntime`)
+
+Timing is tracked automatically on the client side by observing streaming state transitions and `LangChainMessage` content changes. No setup required.
+
+```tsx
+import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
+
+const runtime = useLangGraphRuntime({ stream: myStream });
+// useMessageTiming() works out of the box
+```
+
+### AG-UI (`useAgUiThreadRuntime`)
+
+Timing is tracked automatically on the client side by the AG-UI run aggregator. Each emitted message includes timing metadata computed from stream chunk observations.
+
+```tsx
+import { useAgUiThreadRuntime } from "@assistant-ui/react-ag-ui";
+
+const runtime = useAgUiThreadRuntime({ runtimeUrl: "..." });
+// useMessageTiming() works out of the box
+```
+
+### OpenCode (`useOpenCodeRuntime`)
+
+Timing is tracked automatically on the client side by observing `OpenCodeThreadState` transitions and assistant message content deltas. No setup required.
+
+```tsx
+import { useOpenCodeRuntime } from "@assistant-ui/react-opencode";
+
+const runtime = useOpenCodeRuntime();
+// useMessageTiming() works out of the box
 ```
 
 ## API Reference

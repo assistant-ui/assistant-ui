@@ -4,7 +4,7 @@ import type { useExternalMessageConverter } from "@assistant-ui/core/react";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type { LangChainBaseMessage, LangChainContentBlock } from "./types";
 
-const getMessageType = (message: LangChainBaseMessage): string => {
+export const getMessageType = (message: LangChainBaseMessage): string => {
   if (typeof message._getType === "function") return message._getType();
   if ("type" in message)
     return (message as Record<string, unknown>).type as string;

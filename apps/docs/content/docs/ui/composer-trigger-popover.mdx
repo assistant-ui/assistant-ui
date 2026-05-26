@@ -158,9 +158,19 @@ const commandHandlers: Record<string, () => void> = {
 | --- | --- |
 | <Kbd>ArrowDown</Kbd> | Highlight next item |
 | <Kbd>ArrowUp</Kbd> | Highlight previous item |
-| <Kbd>Enter</Kbd> | Select highlighted item / drill into category |
+| <Kbd>Enter</Kbd> / <Kbd>Tab</Kbd> | Select highlighted item / drill into category |
+| <Kbd>Shift + Enter</Kbd> | Insert newline (popover stays open) |
+| <Kbd>Shift + Tab</Kbd> | Pass through (native focus traversal) |
 | <Kbd>Escape</Kbd> | Close popover |
 | <Kbd>Backspace</Kbd> | Go back to categories (when query is empty) |
+
+## Accessibility
+
+The popover implements the WAI-ARIA editable combobox pattern.
+
+- The listbox container has `role="listbox"` and each item has `role="option"` plus `aria-selected`.
+- When a popover is open, `ComposerPrimitive.Input` (the underlying `<textarea>`) automatically receives `aria-controls`, `aria-expanded="true"`, `aria-haspopup="listbox"`, and `aria-activedescendant` pointing at the highlighted option. Attributes are removed when the popover closes.
+- When `ComposerPrimitive.Input` is rendered outside a `TriggerPopoverRoot`, no ARIA attributes are added.
 
 ## API Reference
 

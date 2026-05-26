@@ -129,6 +129,7 @@ import { Box, Text } from "ink";
 import {
   ThreadPrimitive,
   ComposerPrimitive,
+  LoadingPrimitive,
   useAuiState,
 } from "@assistant-ui/react-ink";
 import { MarkdownText } from "@assistant-ui/react-ink-markdown";
@@ -158,15 +159,13 @@ const Message = () => {
   );
 };
 
-const StatusIndicator = () => {
-  const isRunning = useAuiState((s) => s.thread.isRunning);
-  if (!isRunning) return null;
-  return (
-    <Box marginBottom={1}>
-      <Text color="yellow">Thinking...</Text>
-    </Box>
-  );
-};
+const StatusIndicator = () => (
+  <LoadingPrimitive.Root marginBottom={1} gap={1}>
+    <LoadingPrimitive.Spinner variant="bar" />
+    <LoadingPrimitive.Text />
+    <LoadingPrimitive.ElapsedTime />
+  </LoadingPrimitive.Root>
+);
 
 export const Thread = () => {
   return (

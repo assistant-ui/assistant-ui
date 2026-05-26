@@ -1,6 +1,6 @@
 {
   "title": "Components",
-  "description": "shadcn/ui components",
+  "description": "Reusable assistant-ui React components for chat surfaces, composers, thread lists, message rendering, attachments, markdown, tools, and related UI.",
   "icon": "PanelsTopLeft",
   "root": true,
   "platforms": ["react"],
@@ -18,6 +18,7 @@
     "file",
     "image",
     "markdown",
+    "mcp-config",
     "mermaid",
     "model-selector",
     "quote",

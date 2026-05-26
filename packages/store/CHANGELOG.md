@@ -1,5 +1,33 @@
 # @assistant-ui/store
 
+## 0.2.12
+
+### Patch Changes
+
+- [#4085](https://github.com/assistant-ui/assistant-ui/pull/4085) [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4097](https://github.com/assistant-ui/assistant-ui/pull/4097) [`1e21076`](https://github.com/assistant-ui/assistant-ui/commit/1e2107648bc281f1673f4ad053fd019b28a602d0) - build(x-buildutils): migrate `aui-build` from `ts.createProgram` to `tsdown` with `unbundle: true` ([@Yonom](https://github.com/Yonom))
+
+  Tsdown drives both JS and `.d.ts` emission. Reference-directive restoration is preserved (tsdown/oxc drop `/// <reference>` lines, so we re-inject them in a `build:done` hook). `deps.skipNodeModulesBundle: true` keeps the old "never bundle anything from `node_modules`" behavior — devDependencies stay external instead of getting inlined into `dist`.
+
+  Side fixes the new strict dts pipeline surfaced:
+  - `@assistant-ui/tap`: dropped the `fnSymbol` brand from the public `ResourceElement` type. It referenced an `@internal` symbol that `stripInternal` removed from emit, leaving the published `.d.ts` with a dangling reference.
+  - `@assistant-ui/store`: un-marked `ClientSchema` as `@internal`. It was already re-exported from the public package index; treating the re-export as authoritative.
+
+- Updated dependencies [[`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154), [`1e21076`](https://github.com/assistant-ui/assistant-ui/commit/1e2107648bc281f1673f4ad053fd019b28a602d0)]:
+  - @assistant-ui/tap@0.5.12
+
+## 0.2.11
+
+### Patch Changes
+
+- [#4069](https://github.com/assistant-ui/assistant-ui/pull/4069) [`db721df`](https://github.com/assistant-ui/assistant-ui/commit/db721df32434296ac14eab27030628107975b71c) - fix(store): key `Derived` scopes by `{source, query}` so a meta change produces a new client function in the same render pass. Previously a `Derived` whose `query` changed (e.g. `MessageByIndexProvider` whose `index` prop changed across renders) kept its underlying resource fiber, and the `get` closure was updated via `tapEffectEvent` — which lags one commit. During the in-flight render after a meta change, child consumers reading through the derived scope could resolve through the previous closure and read an index the underlying store no longer had. Hashing the meta into the `tapResources` key forces the fiber to be replaced when meta changes, so the new `clientFunction` (and the new `get`) propagates through React context immediately. Also drops the unused dynamic-meta variant (`Derived({ getMeta })`); use static `source`/`query`. ([@Yonom](https://github.com/Yonom))
+
+- [#4023](https://github.com/assistant-ui/assistant-ui/pull/4023) [`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33) - docs: add JSDoc for `useAui`, `useAuiState`, `useAuiEvent`, `AuiIf`, and `AuiProvider` ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+- Updated dependencies []:
+  - @assistant-ui/tap@0.5.11
+
 ## 0.2.10
 
 ### Patch Changes

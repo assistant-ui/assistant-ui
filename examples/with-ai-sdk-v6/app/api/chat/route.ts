@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-4o"),
+    model: openai("gpt-5.4-nano"),
     messages: await convertToModelMessages(messages),
     ...(system ? { system } : {}),
     stopWhen: stepCountIs(10),

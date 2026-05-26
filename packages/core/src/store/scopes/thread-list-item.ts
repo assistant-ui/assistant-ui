@@ -12,7 +12,7 @@ export type ThreadListItemState = {
 
 export type ThreadListItemMethods = {
   getState(): ThreadListItemState;
-  switchTo(): void;
+  switchTo(options?: { unarchive?: boolean }): void;
   rename(newTitle: string): void;
   archive(): void;
   unarchive(): void;

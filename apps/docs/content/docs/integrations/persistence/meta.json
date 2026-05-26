@@ -1,4 +1,5 @@
 {
   "title": "Persistence",
+  "description": "Persistence guides for saving assistant-ui threads and messages to your own storage with thread list and history adapters.",
   "pages": ["custom-adapter"]
 }

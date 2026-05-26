@@ -22,6 +22,22 @@ import type {
 } from "../../types/message";
 import type { MessageTiming } from "../../types/message";
 
+type ThreadMessageLikeContentItem = Exclude<
+  ThreadMessageLike["content"],
+  string
+>[number];
+
+const isPendingToolCall = (c: ThreadMessageLikeContentItem): boolean =>
+  c.type === "tool-call" && c.result === undefined;
+
+const isInterruptedToolCall = (c: ThreadMessageLikeContentItem): boolean => {
+  if (c.type !== "tool-call" || c.result !== undefined) return false;
+  return (
+    c.interrupt != null ||
+    (c.approval != null && c.approval.approved === undefined)
+  );
+};
+
 export namespace useExternalMessageConverter {
   export type Message =
     | (ThreadMessageLike & {
@@ -335,15 +351,16 @@ export const convertExternalMessages = <T extends WeakKey>(
   const result = chunks.map((message, idx) => {
     const isLast = idx === chunks.length - 1;
     const joined = joinExternalMessages(message.outputs);
+    const hasInterruptedToolCalls =
+      typeof joined.content === "object" &&
+      joined.content.some(isInterruptedToolCall);
     const hasPendingToolCalls =
       typeof joined.content === "object" &&
-      joined.content.some(
-        (c) => c.type === "tool-call" && c.result === undefined,
-      );
+      joined.content.some(isPendingToolCall);
     const autoStatus = getAutoStatus(
       isLast,
       isRunning,
-      hasPendingToolCalls,
+      hasInterruptedToolCalls,
       hasPendingToolCalls,
       isLast ? metadata.error : undefined,
     );
@@ -425,20 +442,16 @@ export const useExternalMessageConverter = <T extends WeakKey>({
         const isLast = idx === chunks.length - 1;
 
         const joined = joinExternalMessages(message.outputs);
-        const hasSuspendedToolCalls =
+        const hasInterruptedToolCalls =
           typeof joined.content === "object" &&
-          joined.content.some(
-            (c) => c.type === "tool-call" && c.result === undefined,
-          );
+          joined.content.some(isInterruptedToolCall);
         const hasPendingToolCalls =
           typeof joined.content === "object" &&
-          joined.content.some(
-            (c) => c.type === "tool-call" && c.result === undefined,
-          );
+          joined.content.some(isPendingToolCall);
         const autoStatus = getAutoStatus(
           isLast,
           isRunning,
-          hasSuspendedToolCalls,
+          hasInterruptedToolCalls,
           hasPendingToolCalls,
           isLast ? state.metadata.error : undefined,
         );

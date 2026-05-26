@@ -15,12 +15,11 @@ export interface ClientMethods {
 type ClientMetaType = { source: ClientNames; query: Record<string, unknown> };
 
 /**
- * Schema of a client in the assistant system (internal type).
+ * Schema of a client in the assistant system.
  * @template TState - The state type for this client
  * @template TMethods - The methods available on this client
  * @template TMeta - Source/query metadata (optional)
  * @template TEvents - Events that this client can emit (optional)
- * @internal
  */
 export type ClientSchema<
   TMethods extends ClientMethods = ClientMethods,

@@ -2,6 +2,7 @@
 
 import type {
   ChatModelRunResult,
+  MessageTiming,
   ThreadAssistantMessagePart,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
@@ -24,12 +25,14 @@ type ToolCallState = {
   result: unknown;
   isError: boolean | undefined;
   parentMessageId?: string;
+  toolMessageId?: string;
 };
 
 export type RunAggregatorOptions = {
   showThinking: boolean;
   logger: Logger;
   emit: Emit;
+  onServerMessageId?: (messageId: string) => void;
 };
 
 /**
@@ -42,6 +45,7 @@ export class RunAggregator {
   private readonly emitUpdate: Emit;
   private readonly showThinking: boolean;
   private readonly logger: Logger;
+  private readonly onServerMessageId: ((messageId: string) => void) | undefined;
 
   private status: ChatModelRunResult["status"] | undefined;
   private interrupts: AgUiInterrupt[] | undefined;
@@ -50,35 +54,45 @@ export class RunAggregator {
     { buffer: string; touched: boolean }
   >();
   private activeTextMessageId: string | undefined;
-  private reasoningBuffer = "";
-  private reasoningActive = false;
+  private readonly reasoningParts = new Map<string, string>(); // key → buffer
+  private activeReasoningKey: string | undefined;
+  private reasoningPartCounter = 0;
   private readonly toolCalls = new Map<string, ToolCallState>();
   private readonly partOrder: (
     | { kind: "text"; key: string }
-    | { kind: "reasoning" }
+    | { kind: "reasoning"; key: string }
     | { kind: "tool-call"; toolCallId: string }
   )[] = [];
-  private hasReasoningPart = false;
   private textPartCounter = 0;
+  private serverMessageIdReported = false;
+
+  private streamStartTime: number | undefined;
+  private firstTokenTime: number | undefined;
+  private totalChunks = 0;
 
   constructor(options: RunAggregatorOptions) {
     this.emitUpdate = options.emit;
     this.showThinking = options.showThinking;
     this.logger = options.logger;
+    this.onServerMessageId = options.onServerMessageId;
   }
 
   handle(event: AgUiEvent): void {
     switch (event.type) {
       case "RUN_STARTED": {
         this.clearTextParts();
-        this.reasoningBuffer = "";
-        this.reasoningActive = false;
+        this.reasoningParts.clear();
+        this.activeReasoningKey = undefined;
+        this.reasoningPartCounter = 0;
         this.toolCalls.clear();
         this.partOrder.length = 0;
-        this.hasReasoningPart = false;
         this.textPartCounter = 0;
         this.activeTextMessageId = undefined;
         this.interrupts = undefined;
+        this.serverMessageIdReported = false;
+        this.streamStartTime = Date.now();
+        this.firstTokenTime = undefined;
+        this.totalChunks = 0;
         this.status = { type: "running" };
         this.emit();
         break;
@@ -119,6 +133,7 @@ export class RunAggregator {
       }
 
       case "TEXT_MESSAGE_START": {
+        this.reportServerMessageId(event.messageId);
         const id = this.startTextMessage(event.messageId);
         if (id) {
           this.markTextPartTouched(id);
@@ -128,15 +143,18 @@ export class RunAggregator {
       }
       case "TEXT_MESSAGE_CONTENT":
       case "TEXT_MESSAGE_CHUNK": {
+        const incomingId = "messageId" in event ? event.messageId : undefined;
+        this.reportServerMessageId(incomingId);
         if (!event.delta) break;
-        const id = this.resolveTextMessageId(
-          "messageId" in event ? event.messageId : undefined,
-        );
+        this.recordFirstToken();
+        const id = this.resolveTextMessageId(incomingId);
         this.appendText(id, event.delta);
+        this.totalChunks++;
         this.emit();
         break;
       }
       case "TEXT_MESSAGE_END": {
+        this.reportServerMessageId(event.messageId);
         if (event.messageId && this.activeTextMessageId === event.messageId) {
           this.activeTextMessageId = undefined;
         }
@@ -148,11 +166,22 @@ export class RunAggregator {
       case "THINKING_TEXT_MESSAGE_START":
       case "REASONING_START":
       case "REASONING_MESSAGE_START":
-        this.handleReasoningStart();
+        this.handleReasoningStart(
+          "messageId" in event ? event.messageId : undefined,
+        );
         break;
       case "THINKING_TEXT_MESSAGE_CONTENT":
-      case "REASONING_MESSAGE_CONTENT":
         this.handleReasoningContent(event.delta);
+        this.totalChunks++;
+        this.recordFirstToken();
+        break;
+      case "REASONING_MESSAGE_CONTENT":
+        this.handleReasoningContent(
+          event.delta,
+          "messageId" in event ? event.messageId : undefined,
+        );
+        this.totalChunks++;
+        this.recordFirstToken();
         break;
       case "THINKING_TEXT_MESSAGE_END":
       case "THINKING_END":
@@ -162,6 +191,7 @@ export class RunAggregator {
         break;
 
       case "TOOL_CALL_START": {
+        this.reportServerMessageId(event.parentMessageId);
         this.startToolCall(
           event.toolCallId,
           event.toolCallName,
@@ -172,6 +202,9 @@ export class RunAggregator {
       }
       case "TOOL_CALL_ARGS":
       case "TOOL_CALL_CHUNK": {
+        if (event.type === "TOOL_CALL_CHUNK") {
+          this.reportServerMessageId(event.parentMessageId);
+        }
         if (!event.delta) break;
         this.appendToolArgs(event.toolCallId, event.delta);
         this.emit();
@@ -186,6 +219,7 @@ export class RunAggregator {
           event.toolCallId,
           event.content ?? "",
           event.role === "tool" ? false : undefined,
+          event.messageId,
         );
         this.emit();
         break;
@@ -195,6 +229,12 @@ export class RunAggregator {
         this.logger.debug?.("[agui] aggregator ignored event", event);
       }
     }
+  }
+
+  private reportServerMessageId(messageId: string | undefined): void {
+    if (this.serverMessageIdReported || !messageId) return;
+    this.serverMessageIdReported = true;
+    this.onServerMessageId?.(messageId);
   }
 
   private clearTextParts(): void {
@@ -261,6 +301,9 @@ export class RunAggregator {
     parentMessageId?: string,
   ) {
     if (!id) return;
+    // A new tool call acts as a boundary: any anonymous text that arrives
+    // after it should be a new part, not appended to the pre-tool text.
+    this.activeTextMessageId = undefined;
     if (
       !this.partOrder.some(
         (part) => part.kind === "tool-call" && part.toolCallId === id,
@@ -298,7 +341,12 @@ export class RunAggregator {
     }
   }
 
-  private finishToolCall(id: string, content: string, isError?: boolean) {
+  private finishToolCall(
+    id: string,
+    content: string,
+    isError?: boolean,
+    toolMessageId?: string,
+  ) {
     if (!id) return;
     let entry = this.toolCalls.get(id);
     if (!entry) {
@@ -321,6 +369,9 @@ export class RunAggregator {
     }
     entry.result = this.tryParseJSON(content);
     entry.isError = isError;
+    if (toolMessageId) {
+      entry.toolMessageId = toolMessageId;
+    }
   }
 
   private tryParseJSON(value: string): unknown {
@@ -337,14 +388,11 @@ export class RunAggregator {
 
     for (const part of this.partOrder) {
       if (part.kind === "reasoning") {
-        if (
-          this.showThinking &&
-          (this.reasoningActive || this.reasoningBuffer.length > 0)
-        ) {
-          snapshot.push({
-            type: "reasoning",
-            text: this.reasoningBuffer,
-          } as const);
+        if (this.showThinking) {
+          const buffer = this.reasoningParts.get(part.key) ?? "";
+          if (buffer.length > 0 || this.activeReasoningKey === part.key) {
+            snapshot.push({ type: "reasoning", text: buffer } as const);
+          }
         }
         continue;
       }
@@ -368,56 +416,104 @@ export class RunAggregator {
         ...(entry.result !== undefined ? { result: entry.result } : {}),
         ...(entry.isError !== undefined ? { isError: entry.isError } : {}),
         ...(entry.parentMessageId ? { parentId: entry.parentMessageId } : {}),
-      } as ToolCallMessagePart;
+        ...(entry.toolMessageId
+          ? { unstable_toolMessageId: entry.toolMessageId }
+          : {}),
+      } as ToolCallMessagePart & { unstable_toolMessageId?: string };
       snapshot.push(toolPart);
     }
 
+    const timing = this.getTiming();
+    const metadata = {
+      ...(timing ? { timing } : {}),
+      ...(this.interrupts
+        ? {
+            custom: {
+              [AG_UI_METADATA_NAMESPACE]: {
+                interrupts: this.interrupts,
+              } satisfies AgUiCustomMetadata,
+            },
+          }
+        : {}),
+    };
     const result: ChatModelRunResult = {
       content: snapshot,
       ...(this.status ? { status: this.status } : undefined),
-      ...(this.interrupts
-        ? {
-            metadata: {
-              custom: {
-                [AG_UI_METADATA_NAMESPACE]: {
-                  interrupts: this.interrupts,
-                } satisfies AgUiCustomMetadata,
-              },
-            },
-          }
-        : undefined),
+      ...(Object.keys(metadata).length > 0 ? { metadata } : undefined),
     };
     this.emitUpdate(result);
   }
 
-  private handleReasoningStart(): void {
+  private recordFirstToken(): void {
+    if (
+      this.firstTokenTime === undefined &&
+      this.streamStartTime !== undefined
+    ) {
+      this.firstTokenTime = Date.now() - this.streamStartTime;
+    }
+  }
+
+  private getTiming(): MessageTiming | undefined {
+    if (this.streamStartTime === undefined) return undefined;
+
+    const now = Date.now();
+    const totalStreamTime = now - this.streamStartTime;
+    const tokenCount =
+      this.totalChunks > 0
+        ? Math.ceil(
+            Array.from(this.textParts.values()).reduce(
+              (sum, p) => sum + p.buffer.length,
+              0,
+            ) / 4,
+          )
+        : undefined;
+    const tokensPerSecond =
+      tokenCount && totalStreamTime > 0
+        ? (tokenCount / totalStreamTime) * 1000
+        : undefined;
+
+    return {
+      streamStartTime: this.streamStartTime,
+      ...(this.firstTokenTime !== undefined
+        ? { firstTokenTime: this.firstTokenTime }
+        : {}),
+      totalStreamTime,
+      ...(tokenCount !== undefined ? { tokenCount } : {}),
+      ...(tokensPerSecond !== undefined ? { tokensPerSecond } : {}),
+      totalChunks: this.totalChunks,
+      toolCallCount: this.toolCalls.size,
+    };
+  }
+
+  private handleReasoningStart(messageId?: string): void {
     if (!this.showThinking) return;
-    this.reasoningActive = true;
-    this.ensureReasoningPart();
+    // A reasoning block acts as a boundary: anonymous text arriving after it
+    // should be a new part, not appended to any pre-reasoning text.
+    this.activeTextMessageId = undefined;
+    const key = messageId ?? `__auto-reasoning-${++this.reasoningPartCounter}`;
+    if (!this.reasoningParts.has(key)) {
+      this.reasoningParts.set(key, "");
+      this.partOrder.push({ kind: "reasoning", key });
+    }
+    this.activeReasoningKey = key;
     this.emit();
   }
 
-  private handleReasoningContent(delta: string): void {
+  private handleReasoningContent(delta: string, messageId?: string): void {
     if (!this.showThinking || !delta) return;
-    this.reasoningBuffer += delta;
-    this.ensureReasoningPart();
+    if (!this.activeReasoningKey) {
+      // Content arrived without a preceding START — create the slot lazily.
+      this.handleReasoningStart(messageId);
+    }
+    const key = this.activeReasoningKey;
+    if (!key) return;
+    this.reasoningParts.set(key, (this.reasoningParts.get(key) ?? "") + delta);
     this.emit();
   }
 
   private handleReasoningEnd(): void {
     if (!this.showThinking) return;
+    this.activeReasoningKey = undefined;
     this.emit();
-  }
-
-  private ensureReasoningPart(): void {
-    if (this.hasReasoningPart) return;
-    // ensure reasoning appears before the first text segment if possible
-    const textIndex = this.partOrder.findIndex((part) => part.kind === "text");
-    if (textIndex === -1) {
-      this.partOrder.push({ kind: "reasoning" });
-    } else {
-      this.partOrder.splice(textIndex, 0, { kind: "reasoning" });
-    }
-    this.hasReasoningPart = true;
   }
 }

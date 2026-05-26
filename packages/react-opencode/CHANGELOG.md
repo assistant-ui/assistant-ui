@@ -1,5 +1,25 @@
 # @assistant-ui/react-opencode
 
+## 0.2.2
+
+### Patch Changes
+
+- [#4085](https://github.com/assistant-ui/assistant-ui/pull/4085) [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`b02b701`](https://github.com/assistant-ui/assistant-ui/commit/b02b7012cff158b4e73b82503b9ea90638b7398d), [`0a0c306`](https://github.com/assistant-ui/assistant-ui/commit/0a0c306286598ea885b046a1dfb85016f720051c), [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154), [`f2ec01c`](https://github.com/assistant-ui/assistant-ui/commit/f2ec01ce0f01317a8444b779d88f9b6a26d691c5)]:
+  - @assistant-ui/react@0.14.8
+
+## 0.2.1
+
+### Patch Changes
+
+- [#3925](https://github.com/assistant-ui/assistant-ui/pull/3925) [`53cdc51`](https://github.com/assistant-ui/assistant-ui/commit/53cdc51665a48dfeb0220455f6c32a34981e0b0e) - feat(react-opencode): track streaming timing via `useOpenCodeStreamingTiming` so `useMessageTiming()` works on OpenCode assistant messages ([@shashank-100](https://github.com/shashank-100))
+
+- [#4068](https://github.com/assistant-ui/assistant-ui/pull/4068) [`22ae10e`](https://github.com/assistant-ui/assistant-ui/commit/22ae10e9f2c0ed34da9ea8b1aed5b56a9a8973dc) - fix(react-opencode): make the OpenCode runtime registry recover after React StrictMode cleanup. ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33), [`8b6fc88`](https://github.com/assistant-ui/assistant-ui/commit/8b6fc8836871e62efc2fd8c131c6783e12c5fc47), [`b481ec5`](https://github.com/assistant-ui/assistant-ui/commit/b481ec5129e6c1ae6de2683cdafdeecff1d8ed6b), [`8f0dbb8`](https://github.com/assistant-ui/assistant-ui/commit/8f0dbb80a0c89c7406bad1ad397e75831b9b8fa7), [`7a8bf26`](https://github.com/assistant-ui/assistant-ui/commit/7a8bf26eda76f5f8490f96b3ff9dce1ccd072917), [`693922b`](https://github.com/assistant-ui/assistant-ui/commit/693922b182b876b28d986f528b21d33da7c5bb51)]:
+  - @assistant-ui/react@0.14.6
+
 ## 0.2.0
 
 ### Patch Changes

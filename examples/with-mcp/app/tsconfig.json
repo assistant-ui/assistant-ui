@@ -1,0 +1,29 @@
+{
+  "extends": "@assistant-ui/x-buildutils/ts/next",
+  "compilerOptions": {
+    "typeRoots": [
+      "./node_modules/@types",
+      "../node_modules/@types",
+      "../../../node_modules/@types",
+      "../node_modules/@assistant-ui/x-buildutils/types"
+    ],
+    "paths": {
+      "@/*": ["./*"],
+      "@/components/assistant-ui/*": [
+        "../../../packages/ui/src/components/assistant-ui/*"
+      ],
+      "@/components/ui/*": ["../../../packages/ui/src/components/ui/*"],
+      "@/lib/utils": ["../../../packages/ui/src/lib/utils"],
+      "@assistant-ui/ui/*": ["../../../packages/ui/src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts",
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": ["node_modules"]
+}

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-o11y",
-  "version": "0.0.13",
+  "version": "0.0.15",
   "description": "Observability primitives for @assistant-ui",
   "keywords": [
     "observability",
@@ -46,8 +46,8 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.14",
-    "react": "^19.2.5"
+    "@types/react": "^19.2.15",
+    "react": "^19.2.6"
   },
   "publishConfig": {
     "access": "public",

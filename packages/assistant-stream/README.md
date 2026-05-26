@@ -22,13 +22,15 @@ import { createAssistantStreamResponse } from "assistant-stream";
 
 export async function POST(request: Request) {
   return createAssistantStreamResponse(async (controller) => {
-    const text = controller.appendText();
-    text.append("Hello, ");
-    text.append("world!");
-    text.close();
+    controller.appendText("Hello, ");
+    controller.appendText("world!");
   });
 }
 ```
+
+`createAssistantStreamResponse` returns a standard Web `Response`, so it works out of the box with any Fetch-style route (Next.js App Router, Hono, Bun.serve, Deno, Cloudflare Workers). Frameworks that use their own response objects (Express, Fastify) need a small adapter: copy `status` and `headers`, then pipe `response.body` into the framework's writable stream. Avoid sending the `Response` body into a `res` object whose lifecycle is already controlled by the framework (that is the `ERR_INVALID_STATE: Controller is already closed` failure mode).
+
+`createAssistantStreamResponse` emits the data stream wire format. On the frontend, pair it with `useDataStreamRuntime({ api, protocol: "data-stream" })`; the default `protocol: "ui-message-stream"` expects an SSE-based format produced by AI SDK v6's `result.toUIMessageStreamResponse()` and will not decode this output.
 
 For tool execution, pipe through `ToolExecutionStream`; for resumable streams (clients can reconnect and replay), import from the `assistant-stream/resumable` sub-path with a `redis` or `ioredis` adapter.
 

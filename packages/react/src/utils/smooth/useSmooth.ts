@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import type {
   MessagePartStatus,
   ReasoningMessagePart,
@@ -75,12 +75,27 @@ export const useSmooth = (
   smooth: boolean = false,
 ): MessagePartState & (TextMessagePart | ReasoningMessagePart) => {
   const { text } = state;
-  const id = useAuiState((s) => s.message.id);
 
-  const idRef = useRef(id);
   const [displayedText, setDisplayedText] = useState(
     state.status.type === "running" ? "" : text,
   );
+
+  // Render-phase resync on part flip or text discontinuity, so the
+  // first paint after a thread switch never shows the previous
+  // part's text (#4051). `displayedText` is already a prefix of
+  // `text` during normal streaming, so use it as the previous-text
+  // reference instead of carrying separate state — avoids the
+  // double render per streaming token. Read part identity through
+  // `useAuiState` so we actually subscribe to its changes instead
+  // of relying on a render-time proxy reference that may be stable
+  // across thread swaps.
+  const aui = useAui();
+  const part = useAuiState(() => aui.part());
+  const [prevPart, setPrevPart] = useState(part);
+  if (part !== prevPart || !text.startsWith(displayedText)) {
+    setPrevPart(part);
+    setDisplayedText(state.status.type === "running" ? "" : text);
+  }
 
   const smoothStatusStore = useSmoothStatusStore({ optional: true });
   const setText = useCallbackRef((text: string) => {
@@ -109,35 +124,36 @@ export const useSmooth = (
     new TextStreamAnimator(displayedText, setText),
   );
 
+  const animatorPartRef = useRef(part);
   useEffect(() => {
     if (!smooth) {
       animatorRef.stop();
       return;
     }
 
-    if (idRef.current !== id || !text.startsWith(animatorRef.targetText)) {
-      idRef.current = id;
-
+    // Discontinuity: part flipped, or new text breaks continuation
+    // of the animator's current target. Either case requires
+    // resetting the cursor — without the part check, a new part
+    // whose text happens to share a prefix with the previous target
+    // would keep the stale cursor and flicker.
+    const partChanged = animatorPartRef.current !== part;
+    animatorPartRef.current = part;
+    if (partChanged || !text.startsWith(animatorRef.targetText)) {
       if (state.status.type === "running") {
-        // New streaming message → animate from empty string
-        setText("");
         animatorRef.currentText = "";
         animatorRef.targetText = text;
         animatorRef.start();
       } else {
-        // Completed message → display immediately
-        setText(text);
         animatorRef.currentText = text;
         animatorRef.targetText = text;
         animatorRef.stop();
       }
-
       return;
     }
 
     animatorRef.targetText = text;
     animatorRef.start();
-  }, [setText, animatorRef, id, smooth, text, state.status.type]);
+  }, [animatorRef, smooth, text, state.status.type, part]);
 
   useEffect(() => {
     return () => {

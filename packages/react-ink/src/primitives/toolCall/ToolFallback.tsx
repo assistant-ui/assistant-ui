@@ -12,9 +12,11 @@ export type ToolCallStatus =
 
 type ToolFallbackBaseProps = Omit<
   ToolCallMessagePartProps,
-  "addResult" | "resume"
+  "addResult" | "resume" | "respondToApproval"
 > &
-  Partial<Pick<ToolCallMessagePartProps, "addResult" | "resume">>;
+  Partial<
+    Pick<ToolCallMessagePartProps, "addResult" | "resume" | "respondToApproval">
+  >;
 
 const STATUS_ICONS: Record<Exclude<ToolCallStatus, "running">, string> = {
   complete: "+",

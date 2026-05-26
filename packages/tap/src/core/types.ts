@@ -1,8 +1,7 @@
 import type { tapEffect } from "../hooks/tap-effect";
-import type { fnSymbol } from "./helpers/callResourceFn";
 
 export type ResourceElement<R, P = any> = {
-  readonly type: Resource<R, P> & { [fnSymbol]: (props: P) => R };
+  readonly type: Resource<R, P>;
   readonly props: P;
   readonly key?: string | number;
 };

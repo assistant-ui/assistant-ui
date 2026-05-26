@@ -6,7 +6,7 @@ import { createStateHookForRuntime } from "../../context/react/utils/createState
 import type { EditComposerRuntime } from "@assistant-ui/core";
 
 /**
- * @deprecated Use `useAui()` with `aui.message()` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use {@link useAui} with `aui.message()` instead. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  *
  * Hook to access the MessageRuntime from the current context.
  *
@@ -76,7 +76,7 @@ export function useMessageRuntime(options?: {
 }
 
 /**
- * @deprecated Use `useAuiState((s) => s.message)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use {@link useAuiState}: `useAuiState((s) => s.message)`. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  *
  * Hook to access the current message state.
  *
@@ -120,7 +120,7 @@ const useEditComposerRuntime = (opt: {
 }): EditComposerRuntime | null => useMessageRuntime(opt)?.composer ?? null;
 
 /**
- * @deprecated Use `useAuiState((s) => s.message.composer)` instead. See migration guide: https://assistant-ui.com/docs/migrations/v0-12
+ * @deprecated Use {@link useAuiState}: `useAuiState((s) => s.message.composer)`. See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export const useEditComposer = createStateHookForRuntime(
   useEditComposerRuntime,

@@ -23,8 +23,23 @@ bunx assistant-ui@latest <command>
 # scaffold a new Next.js project
 npx assistant-ui@latest create my-app
 
+# scaffold a minimal project
+npx assistant-ui@latest create my-app --template minimal
+
+# scaffold from a feature example
+npx assistant-ui@latest create my-app --example with-ai-sdk-v6
+
+# scaffold an Expo / React Native project
+npx assistant-ui@latest create my-app --native
+
+# scaffold a React Ink terminal project
+npx assistant-ui@latest create my-app --ink
+
 # add assistant-ui to an existing project
 npx assistant-ui@latest init
+
+# initialize non-interactively for CI or agent flows
+npx assistant-ui@latest init --yes
 
 # add a component
 npx assistant-ui@latest add thread
@@ -39,11 +54,11 @@ npx assistant-ui@latest upgrade
 npx assistant-ui info
 ```
 
-`init` falls back to `create` when no `package.json` is found, so a single command works for both new and existing projects. `init` is non-interactive with `--yes` for CI and agent usage.
+`init` falls back to `create` when no `package.json` is found, so a single command works for both new and existing projects. Use `init --yes` for CI and agent flows where prompts are not available.
 
 ## Templates
 
-`create` scaffolds from named templates: `default` (AI SDK), `minimal`, `cloud`, `cloud-clerk`, `langgraph`, `mcp`. Pass `-t <name>`, or pass `--preset <url>` to scaffold from an `assistant-ui.com` playground link.
+`create` scaffolds from named templates: `default` (AI SDK), `minimal`, `cloud`, `cloud-clerk`, `langgraph`, `mcp`. Pass `-t <name>`, pass `--example <name>` for examples such as `with-ai-sdk-v6`, use `--native` for Expo / React Native, use `--ink` for React Ink, or pass `--preset <url>` to scaffold from an `assistant-ui.com` playground link.
 
 ## Documentation
 

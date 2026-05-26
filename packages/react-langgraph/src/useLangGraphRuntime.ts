@@ -45,6 +45,7 @@ import {
   useLangGraphMessages,
 } from "./useLangGraphMessages";
 import { appendLangChainChunk } from "./appendLangChainChunk";
+import { useLangGraphStreamingTiming } from "./useLangGraphStreamingTiming";
 
 const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
@@ -98,8 +99,12 @@ const getMessageContent = (msg: AppendMessage) => {
         throw new Error("Tool call appends are not supported.");
 
       default: {
-        const _exhaustiveCheck: "reasoning" | "source" | "audio" | "data" =
-          type;
+        const _exhaustiveCheck:
+          | "reasoning"
+          | "source"
+          | "audio"
+          | "data"
+          | "generative-ui" = type;
         throw new Error(
           `Unsupported append message part type: ${_exhaustiveCheck}`,
         );
@@ -440,6 +445,12 @@ const useLangGraphRuntimeImpl = ({
   const effectiveIsRunning = isRunning || hasExecutingTools;
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const messageTiming = useLangGraphStreamingTiming(
+    messages,
+    effectiveIsRunning,
+  );
+
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const uiMessagesByParent = useMemo(() => {
     const map = new Map<string, UIMessage[]>();
     for (const ui of uiMessages) {
@@ -462,8 +473,9 @@ const useLangGraphRuntimeImpl = ({
       ({
         toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
         uiMessagesByParent,
+        messageTiming,
       }) as unknown as useExternalMessageConverter.Metadata,
-    [uiMessagesByParent],
+    [uiMessagesByParent, messageTiming],
   );
 
   const handleSendMessage = (

@@ -36,7 +36,7 @@ export type ThreadListItemRuntime = {
   initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
   generateTitle(): Promise<void>;
 
-  switchTo(): Promise<void>;
+  switchTo(options?: { unarchive?: boolean }): Promise<void>;
   rename(newTitle: string): Promise<void>;
   archive(): Promise<void>;
   unarchive(): Promise<void>;
@@ -89,9 +89,9 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     return this._core.getState();
   }
 
-  public switchTo(): Promise<void> {
+  public switchTo(options?: { unarchive?: boolean }): Promise<void> {
     const state = this._core.getState();
-    return this._threadListBinding.switchToThread(state.id);
+    return this._threadListBinding.switchToThread(state.id, options);
   }
 
   public rename(newTitle: string): Promise<void> {

@@ -77,13 +77,13 @@ describe("useAISDKRuntime", () => {
       result.current.thread.append({
         role: "user",
         content: [{ type: "text", text: "hello" }],
-        runConfig: { custom: { model: "gpt-4.1" } },
+        runConfig: { custom: { model: "gpt-5.4-nano" } },
       });
     });
 
     await waitFor(() => {
       expect(chat.sendMessage).toHaveBeenCalledWith(expect.anything(), {
-        metadata: { custom: { model: "gpt-4.1" } },
+        metadata: { custom: { model: "gpt-5.4-nano" } },
       });
     });
   });

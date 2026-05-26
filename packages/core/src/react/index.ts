@@ -43,7 +43,7 @@ export {
 } from "./model-context/useToolArgsStatus";
 
 // client
-export { Tools } from "./client/Tools";
+export { Tools, type McpAppResourceOutput } from "./client/Tools";
 export { DataRenderers } from "./client/DataRenderers";
 export { Interactables } from "./client/Interactables";
 
@@ -71,6 +71,10 @@ export type {
   ReasoningGroupComponent,
   QuoteMessagePartComponent,
   QuoteMessagePartProps,
+  GenerativeUIComponentRegistry,
+  GenerativeUIMessagePartComponent,
+  GenerativeUIMessagePartProps,
+  GenerativeUIRenderProps,
 } from "./types/MessagePartComponentTypes";
 export type {
   ToolsState,
@@ -143,6 +147,14 @@ export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntim
 export { useCloudThreadListAdapter } from "./runtimes/cloud/useCloudThreadListAdapter";
 export { useAssistantCloudThreadHistoryAdapter } from "./runtimes/cloud/AssistantCloudThreadHistoryAdapter";
 export { CloudFileAttachmentAdapter } from "./runtimes/cloud/CloudFileAttachmentAdapter";
+export {
+  createLocalStorageAdapter,
+  type AsyncStorageLike,
+} from "./adapters/LocalStorageThreadListAdapter";
+export {
+  createSimpleTitleAdapter,
+  type TitleGenerationAdapter,
+} from "./adapters/TitleGenerationAdapter";
 
 // AssistantProvider base
 export {
@@ -166,6 +178,11 @@ export {
   type PartState,
 } from "./primitives/message/MessageParts";
 export { MessagePrimitiveGroupedParts } from "./primitives/message/MessageGroupedParts";
+export {
+  MessagePrimitiveGenerativeUI,
+  GenerativeUIRender,
+  GenerativeUIRenderError,
+} from "./primitives/generativeUI/GenerativeUI";
 export { MessagePrimitiveQuote } from "./primitives/message/MessageQuote";
 export {
   MessagePrimitiveAttachments,
@@ -185,6 +202,7 @@ export {
   PartPrimitiveMessages,
   PartPrimitiveMessagesImpl,
 } from "./primitives/part/PartMessages";
+export { MessagePartPrimitiveInProgress } from "./primitives/messagePart/MessagePartInProgress";
 export { ThreadListItemPrimitiveTitle } from "./primitives/threadListItem/ThreadListItemTitle";
 export {
   ThreadPrimitiveSuggestions,

@@ -28,6 +28,9 @@ const TextMessagePartClient = resource(
       resumeToolCall: () => {
         throw new Error("Not supported");
       },
+      respondToToolApproval: () => {
+        throw new Error("Not supported");
+      },
     };
   },
 );

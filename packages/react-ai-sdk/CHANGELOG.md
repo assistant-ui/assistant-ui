@@ -1,5 +1,86 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.27
+
+### Patch Changes
+
+- [#4085](https://github.com/assistant-ui/assistant-ui/pull/4085) [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`0a0c306`](https://github.com/assistant-ui/assistant-ui/commit/0a0c306286598ea885b046a1dfb85016f720051c), [`6a0ecb2`](https://github.com/assistant-ui/assistant-ui/commit/6a0ecb2e49f24c5f066052018db5a9f1411dcc59), [`e4634a5`](https://github.com/assistant-ui/assistant-ui/commit/e4634a59b7a926d158e929d559326f243efe438b), [`325de4c`](https://github.com/assistant-ui/assistant-ui/commit/325de4c73b348d4c20dafa4a2ac6d436c69dbf28), [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154), [`f2ec01c`](https://github.com/assistant-ui/assistant-ui/commit/f2ec01ce0f01317a8444b779d88f9b6a26d691c5), [`1e21076`](https://github.com/assistant-ui/assistant-ui/commit/1e2107648bc281f1673f4ad053fd019b28a602d0)]:
+  - @assistant-ui/core@0.2.5
+  - assistant-cloud@0.1.29
+  - @assistant-ui/store@0.2.12
+
+## 1.3.26
+
+### Patch Changes
+
+- [#4030](https://github.com/assistant-ui/assistant-ui/pull/4030) [`798a5ce`](https://github.com/assistant-ui/assistant-ui/commit/798a5ceec9dc6ea4688a66d42b6293a50ef5295a) - fix(react-ai-sdk): resolve MCP app metadata from tool output `_meta["ui/resourceUri"]` as a fallback when it isn't present in `callProviderMetadata.mcp.app`. MCP-UI tools (e.g. xmcp) surface the UI pointer in the call result, so the renderer previously never picked it up. ([@Yonom](https://github.com/Yonom))
+
+## 1.3.25
+
+### Patch Changes
+
+- [#4024](https://github.com/assistant-ui/assistant-ui/pull/4024) [`19d4d94`](https://github.com/assistant-ui/assistant-ui/commit/19d4d9412234628ae850b4b04da594201022a398) - feat: add native MCP Apps renderer — `McpAppRenderer` composes into `Tools` to render MCP UI resources inline in chat over a JSON-RPC postMessage bridge on `SafeContentFrame`. Adds an `mcp` field to `ToolCallMessagePart` and forwards `callProviderMetadata.mcp.app` through the AI SDK message converter. ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`19d4d94`](https://github.com/assistant-ui/assistant-ui/commit/19d4d9412234628ae850b4b04da594201022a398)]:
+  - @assistant-ui/core@0.2.2
+
+## 1.3.24
+
+### Patch Changes
+
+- [#4003](https://github.com/assistant-ui/assistant-ui/pull/4003) [`717bed2`](https://github.com/assistant-ui/assistant-ui/commit/717bed2810b0841cac43bc998ba8aef69f5c4979) - feat: expose `suggestions` on `useAISDKRuntime` and `useChatRuntime` ([@okisdev](https://github.com/okisdev))
+
+  both hooks now accept an optional `suggestions: readonly ThreadSuggestion[]` option that is forwarded to the underlying `useExternalStoreRuntime`. this lets AI SDK callers drive follow up suggestions from application state, tool results, or backend responses without dropping down to the raw external store runtime.
+
+- [#4001](https://github.com/assistant-ui/assistant-ui/pull/4001) [`283c250`](https://github.com/assistant-ui/assistant-ui/commit/283c250d2aba5633022b59634dbd18a870b28fe0) - feat(react-ai-sdk): expose `onResume` on `useAISDKRuntime` and `useChatRuntime` ([@okisdev](https://github.com/okisdev))
+
+  `AISDKRuntimeAdapter` and `UseChatRuntimeOptions` now accept `onResume`, which is forwarded to the underlying `useExternalStoreRuntime` adapter. `runtime.thread.resumeRun(config)` previously threw `"Runtime does not support resuming runs."` because the inner adapter literal omitted the field; consumers had to monkey-patch `runtime.thread.__internal_threadBinding.getState().resumeRun` to bridge their own replay channels (e.g. SSE reconnect endpoints keyed by turn id). This is a thin pass-through; the existing transport-level resume on `AssistantChatTransport` (auto-fired by `useChatRuntime` on mount) is unchanged and complementary.
+
+- [#3979](https://github.com/assistant-ui/assistant-ui/pull/3979) [`9ecda1d`](https://github.com/assistant-ui/assistant-ui/commit/9ecda1dfdd96f2c638e7b51cc951319ccacd06c9) - feat(react-ai-sdk): native resumable stream client integration ([@okisdev](https://github.com/okisdev))
+
+  `AssistantChatTransport` accepts a `resumable: { storage, resumeApi, isFinishEvent? }` option that captures the stream id from the response header, watches the SSE body for the AI SDK `finish` marker so the stored id is cleared on natural completion (cancellation leaves it intact for the next mount), and redirects `chat.resumeStream()` reconnects to `resumeApi`. `createResumableSessionStorage` is the default `sessionStorage`-backed `ResumableClientStorage`. `useChatRuntime` auto-fires `chat.resumeStream()` once on mount when storage already has an id, so adopters drop the manual `useEffect`.
+
+- [#4008](https://github.com/assistant-ui/assistant-ui/pull/4008) [`fa4510a`](https://github.com/assistant-ui/assistant-ui/commit/fa4510a3f3a23e0458ce8f3a397c352e3b0cde07) - feat: support multi-modal tool results via `toModelOutput` ([@okisdev](https://github.com/okisdev))
+
+  frontend tools can now project their execution output into multi-modal model content (text + image / pdf / arbitrary file parts), aligning with the AI SDK v6 `toModelOutput` callback. previously, tool results were always serialized as a single JSON value, so a "read pdf" style tool had no way to send the PDF back to a multi-modal model.
+  - `assistant-stream` exports a new `ToolModelContentPart` type (`{ type: "text", text } | { type: "file", data, mediaType, filename? }`) and a `ToolModelOutputFunction<TArgs, TResult>` callback type. `Tool.toModelOutput` is wired through `unstable_runPendingTools` and `ToolExecutionStream`, attaching the resulting `modelContent` to the `tool-call` part on the assistant message.
+  - `@assistant-ui/core` re-exports `ToolModelContentPart` and adds an optional `modelContent?: readonly ToolModelContentPart[]` field on `ToolCallMessagePart`. existing tools and renderers are unchanged.
+  - `@assistant-ui/react-ai-sdk`'s `frontendTools(...)` helper now also registers a `toModelOutput` on each forwarded tool. it transparently unwraps an envelope that `useAISDKRuntime` writes when a frontend-executed tool produced `modelContent`, turning it into AI SDK's `{ type: "content", value: [...] }` output. plain (non-envelope) outputs fall back to the existing `{ type: "text" | "json", value }` shape, so behavior for tools without `toModelOutput` is unchanged.
+
+  route handlers that adopt `toModelOutput` also need to pass `tools` to `convertToModelMessages` (this is the [AI SDK's documented pattern](https://ai-sdk.dev/docs/reference/ai-sdk-ui/convert-to-model-messages#multi-modal-tool-responses)):
+
+  ```ts
+  const aiSDKTools = { ...frontendTools(tools ?? {}) };
+  streamText({
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
+  });
+  ```
+
+  templates and existing examples are unchanged. they keep the simpler `convertToModelMessages(messages)` form because none of the tools they ship with use `toModelOutput`. the new tools guide page documents how to opt in.
+
+  **reserved key.** when a frontend tool defines `toModelOutput`, its result is persisted in the AI SDK chat as `{ __aui_modelContent: ToolModelContentPart[], value: <your result> }`. tools must not return objects whose top-level key is literally `__aui_modelContent`, or `convertMessage` will misread the result. the prefix is namespaced for this reason.
+
+  **read/write compatibility for persisted threads.** the envelope is recognized by `@assistant-ui/react-ai-sdk` from this version onward. if you persist UI messages and read them from multiple environments, upgrade every reader before any writer starts producing `toModelOutput`; otherwise older readers will treat the envelope object as the `result` and break the affected tool `render` functions.
+
+- [#4004](https://github.com/assistant-ui/assistant-ui/pull/4004) [`d3cf8cd`](https://github.com/assistant-ui/assistant-ui/commit/d3cf8cda6246a09cc4284dc2a333094faef120f6) - fix(react-ai-sdk): preserve tool args when AI SDK briefly emits null input ([@okisdev](https://github.com/okisdev))
+
+  the AI SDK occasionally emits snapshots of an in-flight tool call where
+  `input` is null/undefined, which previously collapsed `argsText` to `"{}"`
+  mid-stream and tripped the runtime's append-only invariant (warning + tool
+  args stream restart, losing accumulated state). `convertMessage` now caches
+  the last good input per `(message.id, toolCallId)` via a new
+  `toolLastInputCache` on `AISDKMessageConverterMetadata` and falls back to it
+  when a later snapshot drops `input`.
+
+- [#3634](https://github.com/assistant-ui/assistant-ui/pull/3634) [`9c3d24d`](https://github.com/assistant-ui/assistant-ui/commit/9c3d24d8a358bcf5f683f85473b82524ea018930) - Support AI SDK `source-document` parts by preserving them as assistant-ui ([@sicko7947](https://github.com/sicko7947))
+  document source message parts across conversion and cloud serialization,
+  including the legacy React cloud encoder.
+- Updated dependencies [[`35d0146`](https://github.com/assistant-ui/assistant-ui/commit/35d014628a69b0003799666895c2552b46ac7198), [`fa4510a`](https://github.com/assistant-ui/assistant-ui/commit/fa4510a3f3a23e0458ce8f3a397c352e3b0cde07), [`c9dd16c`](https://github.com/assistant-ui/assistant-ui/commit/c9dd16c4b1edc52f6a2529a9a07ebb7964aee9a1), [`dea8bc7`](https://github.com/assistant-ui/assistant-ui/commit/dea8bc7e122ad6ff53e48e6b0ffc6fcc2abaadd3), [`9c3d24d`](https://github.com/assistant-ui/assistant-ui/commit/9c3d24d8a358bcf5f683f85473b82524ea018930)]:
+  - @assistant-ui/core@0.2.1
+
 ## 1.3.23
 
 ### Patch Changes

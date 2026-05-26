@@ -18,7 +18,7 @@ export const chatStream = createServerFn({ method: "POST" })
     });
 
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5.4-nano",
       messages: data.messages,
       stream: true,
     });

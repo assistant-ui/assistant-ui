@@ -30,9 +30,16 @@ import type {
   ReasoningMessagePartComponent,
   ReasoningGroupComponent,
   QuoteMessagePartComponent,
+  GenerativeUIComponentRegistry,
 } from "../../types/MessagePartComponentTypes";
-import type { MessagePartStatus } from "../../../types/message";
+import { GenerativeUIRender } from "../generativeUI/GenerativeUI";
+import {
+  isMcpAppUri,
+  type MessagePartStatus,
+  type GenerativeUIMessagePart,
+} from "../../../types/message";
 import type { DataRenderersState } from "../../types/scopes/dataRenderers";
+import type { ToolsState } from "../../types/scopes/tools";
 import { useShallow } from "zustand/shallow";
 
 type MessagePartRange =
@@ -173,6 +180,24 @@ export namespace MessagePrimitiveParts {
     data?: DataConfig | undefined;
     /** Component for rendering a quoted message reference (from metadata, not parts) */
     Quote?: QuoteMessagePartComponent | undefined;
+    /**
+     * Configuration for generative-ui part rendering.
+     *
+     * `components` is the consumer-provided allowlist of React components
+     * the agent's JSON spec is permitted to render. Any name not present in
+     * the registry is rejected with a typed `GenerativeUIRenderError` —
+     * this is the security boundary in the same-realm rendering path.
+     */
+    generativeUI?:
+      | {
+          /** The component allowlist (the security boundary). */
+          components: GenerativeUIComponentRegistry;
+          /** Optional fallback for unknown component names. */
+          Fallback?:
+            | ComponentType<{ component: string; props?: unknown }>
+            | undefined;
+        }
+      | undefined;
   };
 
   type ToolsConfig =
@@ -344,6 +369,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
     tools = {},
     data,
+    generativeUI,
   } = {},
 }) => {
   const aui = useAui();
@@ -353,8 +379,16 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
   if (type === "tool-call") {
     const addResult = aui.part().addToolResult;
     const resume = aui.part().resumeToolCall;
+    const respondToApproval = aui.part().respondToToolApproval;
     if ("Override" in tools)
-      return <tools.Override {...part} addResult={addResult} resume={resume} />;
+      return (
+        <tools.Override
+          {...part}
+          addResult={addResult}
+          resume={resume}
+          respondToApproval={respondToApproval}
+        />
+      );
     const Tool = tools.by_name?.[part.toolName] ?? tools.Fallback;
     return (
       <ToolUIDisplay
@@ -362,6 +396,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
         Fallback={Tool}
         addResult={addResult}
         resume={resume}
+        respondToApproval={respondToApproval}
       />
     );
   }
@@ -391,6 +426,29 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
     case "data": {
       const Data = data?.by_name?.[part.name] ?? data?.Fallback;
       return <DataUIDisplay {...part} Fallback={Data} />;
+    }
+
+    case "generative-ui": {
+      if (!generativeUI?.components) {
+        if (
+          typeof process !== "undefined" &&
+          process.env?.NODE_ENV !== "production"
+        ) {
+          console.warn(
+            "MessagePrimitive.Parts received a generative-ui part but no " +
+              "`components.generativeUI.components` allowlist was provided. " +
+              "Pass an allowlist or render with <MessagePrimitive.GenerativeUI />.",
+          );
+        }
+        return null;
+      }
+      return (
+        <GenerativeUIRender
+          spec={(part as GenerativeUIMessagePart).spec}
+          components={generativeUI.components}
+          Fallback={generativeUI.Fallback}
+        />
+      );
     }
 
     default:
@@ -428,6 +486,7 @@ export const MessagePrimitivePartByIndex: FC<MessagePrimitivePartByIndex.Props> 
       prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
       prev.components?.tools === next.components?.tools &&
       prev.components?.data === next.components?.data &&
+      prev.components?.generativeUI === next.components?.generativeUI &&
       prev.components?.ToolGroup === next.components?.ToolGroup &&
       prev.components?.ReasoningGroup === next.components?.ReasoningGroup,
   );
@@ -511,6 +570,19 @@ const QuoteRendererImpl: FC<{ Quote: QuoteMessagePartComponent }> = ({
 
 const QuoteRenderer = memo(QuoteRendererImpl);
 
+function resolveToolRender(
+  toolsState: ToolsState,
+  part: Extract<PartState, { type: "tool-call" }>,
+): ToolCallMessagePartComponent | null {
+  const entry = toolsState.tools[part.toolName];
+  const named = Array.isArray(entry) ? (entry[0] ?? null) : (entry ?? null);
+  if (named) return named;
+  if (isMcpAppUri(part.mcp?.app?.resourceUri) && toolsState.mcpApp) {
+    return toolsState.mcpApp.render;
+  }
+  return null;
+}
+
 /**
  * Stable propless component that renders the registered tool UI for the
  * current part context. Reads tool registry and part state from context.
@@ -518,12 +590,9 @@ const QuoteRenderer = memo(QuoteRendererImpl);
 const RegisteredToolUI: FC = () => {
   const aui = useAui();
   const part = useAuiState((s) => s.part);
-  const Render = useAuiState((s) => {
-    if (s.part.type !== "tool-call") return null;
-    const entry = s.tools.tools[s.part.toolName];
-    if (Array.isArray(entry)) return entry[0] ?? null;
-    return entry ?? null;
-  });
+  const Render = useAuiState((s) =>
+    s.part.type === "tool-call" ? resolveToolRender(s.tools, s.part) : null,
+  );
 
   if (!Render || part.type !== "tool-call") return null;
 
@@ -532,6 +601,7 @@ const RegisteredToolUI: FC = () => {
       {...part}
       addResult={aui.part().addToolResult}
       resume={aui.part().resumeToolCall}
+      respondToApproval={aui.part().respondToToolApproval}
     />
   );
 };
@@ -597,6 +667,8 @@ export type EnrichedPartState =
       addResult: ToolCallMessagePartProps["addResult"];
       /** Resume a tool call waiting for human input. */
       resume: ToolCallMessagePartProps["resume"];
+      /** Respond to a server-side tool approval gate. */
+      respondToApproval: ToolCallMessagePartProps["respondToApproval"];
     })
   | (Extract<PartState, { type: "data" }> & {
       /** The registered data renderer UI element, or null if none registered. */
@@ -638,14 +710,15 @@ export const MessagePartChildren: FC<{
             get part() {
               const state = getItem();
               if (state.type === "tool-call") {
-                const entry = aui.tools().getState().tools[state.toolName];
-                const hasUI = Array.isArray(entry) ? !!entry[0] : !!entry;
+                const toolsState = aui.tools().getState();
+                const hasUI = resolveToolRender(toolsState, state) !== null;
                 const partMethods = aui.message().part({ index });
                 return {
                   ...state,
                   toolUI: hasUI ? <RegisteredToolUI /> : null,
                   addResult: partMethods.addToolResult,
                   resume: partMethods.resumeToolCall,
+                  respondToApproval: partMethods.respondToToolApproval,
                 };
               }
               if (state.type === "data") {
@@ -764,13 +837,16 @@ const MessagePrimitivePartsCompat: FC<{
           >
             {Array.from(
               { length: range.endIndex - range.startIndex + 1 },
-              (_, i) => (
-                <MessagePrimitivePartByIndex
-                  key={i}
-                  index={range.startIndex + i}
-                  components={components}
-                />
-              ),
+              (_, i) => {
+                const partIndex = range.startIndex + i;
+                return (
+                  <MessagePrimitivePartByIndex
+                    key={`part-${partIndex}`}
+                    index={partIndex}
+                    components={components}
+                  />
+                );
+              },
             )}
           </ToolGroupComponent>
         );
@@ -786,13 +862,16 @@ const MessagePrimitivePartsCompat: FC<{
           >
             {Array.from(
               { length: range.endIndex - range.startIndex + 1 },
-              (_, i) => (
-                <MessagePrimitivePartByIndex
-                  key={i}
-                  index={range.startIndex + i}
-                  components={components}
-                />
-              ),
+              (_, i) => {
+                const partIndex = range.startIndex + i;
+                return (
+                  <MessagePrimitivePartByIndex
+                    key={`part-${partIndex}`}
+                    index={partIndex}
+                    components={components}
+                  />
+                );
+              },
             )}
           </ReasoningGroupComponent>
         );

@@ -1,4 +1,5 @@
 {
   "title": "A2A Protocol",
+  "description": "A2A runtime docs for connecting protocol-compliant agent servers to assistant-ui with streaming tasks, artifacts, and hooks.",
   "pages": ["overview", "quickstart", "client-and-hooks"]
 }

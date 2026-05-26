@@ -79,7 +79,7 @@ export namespace MessagePrimitiveGroupedParts {
      *
      * Leaf parts receive the same {@link EnrichedPartState} that
      * `<MessagePrimitive.Parts>` would produce (`toolUI`, `addResult`,
-     * `resume`, `dataRendererUI`).
+     * `resume`, `respondToApproval`, `dataRendererUI`).
      */
     readonly children: (info: RenderInfo<TKey>) => ReactNode;
   };
@@ -107,8 +107,9 @@ const renderNode = <TKey extends `group-${string}`>(
   render: (info: MessagePrimitiveGroupedParts.RenderInfo<TKey>) => ReactNode,
 ): ReactNode => {
   if (node.type === "part") {
+    // Key by absolute part index, not structural nodeKey — prevents zombie fiber subscriptions when parts reshape (#4051).
     return (
-      <MessagePartChildren key={node.nodeKey} index={node.index}>
+      <MessagePartChildren key={`part-${node.index}`} index={node.index}>
         {({ part }) => render({ part, children: <PartChildrenSentinel /> })}
       </MessagePartChildren>
     );

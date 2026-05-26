@@ -1,0 +1,142 @@
+---
+title: Generative UI
+description: Render agent-described React UI from a JSON spec with a consumer-provided component allowlist.
+---
+
+`MessagePrimitive.GenerativeUI` is a first-class primitive for rendering UI
+described by the agent at runtime as a JSON spec. Instead of hard-coding a
+component per tool, the agent emits a `generative-ui` message part containing
+a tree of components by name. assistant-ui resolves each name against a
+**consumer-provided allowlist** and renders the result.
+
+> The allowlist controls **which** components the agent may render: any name
+> not in it throws a typed `GenerativeUIRenderError` (no implicit fallback). It
+> does not constrain the props passed to those components; see [Security](#security).
+
+## Quick start
+
+### 1. Define your component allowlist
+
+```tsx title="components/gui.tsx"
+const Card = ({ title, children }) => (
+  <div className="rounded-xl border bg-card p-4 shadow-sm">
+    <div className="text-base font-semibold">{title}</div>
+    <div className="mt-2">{children}</div>
+  </div>
+);
+
+const Button = ({ label }) => (
+  <button className="rounded-md bg-primary px-3 py-1.5 text-primary-foreground">
+    {label}
+  </button>
+);
+
+export const componentsAllowlist = { Card, Button };
+```
+
+### 2. Wire the primitive into your message renderer
+
+```tsx title="components/assistant-message.tsx"
+import { MessagePrimitive } from "@assistant-ui/react";
+import { componentsAllowlist } from "./gui";
+
+export function AssistantMessage() {
+  return (
+    <MessagePrimitive.Parts
+      components={{
+        generativeUI: { components: componentsAllowlist },
+      }}
+    />
+  );
+}
+```
+
+You can also use the standalone primitive form:
+
+```tsx
+<MessagePrimitive.GenerativeUI components={componentsAllowlist} />
+```
+
+### 3. Have the agent emit a `generative-ui` part
+
+A `GenerativeUIMessagePart` carries a JSON spec:
+
+```ts
+{
+  type: "generative-ui",
+  spec: {
+    root: {
+      component: "Card",
+      props: { title: "Welcome" },
+      children: [
+        { component: "Button", props: { label: "Get started" } },
+      ],
+    },
+  },
+}
+```
+
+Bare strings act as inline text leaves.
+
+## Spec shape
+
+```ts
+type GenerativeUINode =
+  | string
+  | {
+      component: string;             // resolved against the allowlist
+      props?: Record<string, unknown>;
+      children?: GenerativeUINode[];
+      key?: string;                   // optional stable React key
+    };
+
+type GenerativeUISpec = {
+  root: GenerativeUINode | GenerativeUINode[];
+};
+```
+
+The spec is plain JSON — easy for any agent to emit, and easy to validate
+on the server before delivery.
+
+## Streaming
+
+The primitive is stream-friendly: any partial spec renders progressively. As
+new nodes arrive (filling in `children`, refining `props`), the rendered tree
+updates without reflows or lost local state for already-mounted children.
+
+## Security
+
+The allowlist is the boundary on **which** components render: a spec can only instantiate components you put in the registry, with no `eval` and no dynamic import (names are looked up in the registry and nothing else). An unknown name throws `GenerativeUIRenderError` or invokes your `Fallback`.
+
+It does **not** constrain the `props` the agent supplies. Spec props are spread directly onto your allowlisted components, so treat every allowlisted component as receiving untrusted input: never forward agent-supplied props into `dangerouslySetInnerHTML`, validate or reject `href` / `src` values (for example block `javascript:` URLs), and avoid passing spec props anywhere they become executable. The safest allowlisted components accept only primitive, display-oriented props.
+
+## Error handling
+
+Unknown component names throw `GenerativeUIRenderError` with a typed
+`componentName` field. Catch it with a React error boundary, or pass a
+`Fallback` component to opt into a soft-fail UX:
+
+```tsx
+<MessagePrimitive.GenerativeUI
+  components={componentsAllowlist}
+  Fallback={({ component }) => (
+    <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+      unknown component: {component}
+    </span>
+  )}
+/>
+```
+
+## Composing with other primitives
+
+`generative-ui` is a regular `MessagePart` type, so it composes cleanly with
+`MessagePrimitive.Parts`, `MessagePrimitive.PartByIndex`, and
+`MessagePrimitive.GroupedParts`. Render it alongside text, tool calls, and
+reasoning in the same message.
+
+## Why a primitive (not just a tool)
+
+Tool-call UI is great when the agent already invoked a known tool. Generative
+UI flips it: the agent _composes_ UI from a vocabulary you ship. Useful for
+forms, dashboards, status panels, multi-step flows, and anywhere the
+component library you want is broader than a single tool's render surface.

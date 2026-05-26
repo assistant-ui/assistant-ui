@@ -6,7 +6,7 @@ import path from "node:path";
 import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateDocChatInput } from "@/lib/validate-input";
-import { source } from "@/lib/source";
+import { source, examples as examplesSource } from "@/lib/source";
 import { getModel } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { createBashTool } from "bash-tool";
@@ -72,7 +72,7 @@ function findFolderByPath(
       (node): node is PageTree.Folder =>
         node.type === "folder" &&
         normalizeSegment(typeof node.name === "string" ? node.name : "") ===
-          segment.toLowerCase(),
+          normalizeSegment(segment),
     );
     if (!folder) return undefined;
     currentFolder = folder;
@@ -80,6 +80,34 @@ function findFolderByPath(
   }
 
   return currentFolder;
+}
+
+function listChildren(nodes: PageTree.Node[]) {
+  return nodes.flatMap((node) => {
+    const description =
+      "description" in node && typeof node.description === "string"
+        ? node.description
+        : undefined;
+
+    switch (node.type) {
+      case "page":
+        return {
+          type: "page",
+          title: node.name,
+          url: node.url,
+          ...(description ? { description } : {}),
+        };
+      case "folder":
+        return {
+          type: "folder",
+          name: node.name,
+          ...(node.index ? { url: node.index.url } : {}),
+          ...(description ? { description } : {}),
+        };
+      default:
+        return [];
+    }
+  });
 }
 
 const DOCS_PATH_ERROR = "Only local docs paths are supported";
@@ -329,35 +357,29 @@ export async function POST(req: Request): Promise<Response> {
 
             if (!path) {
               // Return root categories
-              return pageTree.children
-                .filter(
-                  (node): node is PageTree.Folder => node.type === "folder",
-                )
-                .map((folder) => ({
-                  type: "folder",
-                  name: folder.name,
-                  ...(folder.index ? { url: folder.index.url } : {}),
-                }));
+              return [
+                ...listChildren(
+                  pageTree.children.filter(
+                    (node): node is PageTree.Folder => node.type === "folder",
+                  ),
+                ),
+                { type: "folder", name: "examples", url: "/examples" },
+              ];
             }
 
-            // Find folder at path, return children
+            const segments = path.split("/").filter(Boolean);
+            if (segments[0] === "examples") {
+              const rest = segments.slice(1).join("/");
+              const target = rest
+                ? findFolderByPath(examplesSource.pageTree, rest)
+                : examplesSource.pageTree;
+              if (!target) return { error: "Path not found" };
+              return listChildren(target.children);
+            }
+
             const targetFolder = findFolderByPath(pageTree, path);
             if (!targetFolder) return { error: "Path not found" };
-
-            return targetFolder.children.flatMap((node) => {
-              switch (node.type) {
-                case "page":
-                  return { type: "page", title: node.name, url: node.url };
-                case "folder":
-                  return {
-                    type: "folder",
-                    name: node.name,
-                    ...(node.index ? { url: node.index.url } : {}),
-                  };
-                default:
-                  return [];
-              }
-            });
+            return listChildren(targetFolder.children);
           },
         }),
         readDoc: tool({
@@ -381,8 +403,11 @@ export async function POST(req: Request): Promise<Response> {
             }
 
             const slugs = normalized.split("/").filter(Boolean);
+            const isExample = slugs[0] === "examples";
+            const docSource = isExample ? examplesSource : source;
+            const docSlugs = isExample ? slugs.slice(1) : slugs;
 
-            const page = source.getPage(slugs);
+            const page = docSource.getPage(docSlugs);
             if (!page) return { error: `Page not found: ${slugOrUrl}` };
 
             const content = await getLLMText(page);

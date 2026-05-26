@@ -59,7 +59,57 @@ This gives you:
 - In-memory thread list (lost on process exit)
 - Multi-thread support
 
-## Option 2: Full backend thread management
+## Option 2: Local file persistence
+
+When you want threads and messages to survive across sessions without running a backend, use `createFileStorageAdapter`. It writes each thread to a JSON file on disk and plugs into `useRemoteThreadListRuntime`.
+
+```tsx title="app.tsx"
+import { join } from "node:path";
+import { homedir } from "node:os";
+import {
+  useLocalRuntime,
+  useRemoteThreadListRuntime,
+  createFileStorageAdapter,
+  AssistantRuntimeProvider,
+} from "@assistant-ui/react-ink";
+import { myChatAdapter } from "./adapters/my-chat-adapter.js";
+
+const threadListAdapter = createFileStorageAdapter({
+  dir: join(homedir(), ".my-cli", "threads"),
+});
+
+function useAppRuntime() {
+  return useRemoteThreadListRuntime({
+    runtimeHook: () => useLocalRuntime(myChatAdapter),
+    adapter: threadListAdapter,
+  });
+}
+
+export function App() {
+  const runtime = useAppRuntime();
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {/* your chat UI */}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Writes are atomic (temp file + `rename`), so a crash mid-write cannot leave a partial JSON file. The directory is created lazily on first write.
+
+### Options
+
+| Option | Description |
+|---|---|
+| `dir` | Directory where thread files are stored. Created if missing. |
+| `prefix` | Key prefix for stored files. Defaults to `@assistant-ui:`. Useful when two apps share a directory. |
+| `titleGenerator` | Optional [`TitleGenerationAdapter`](/docs/ink/adapters#titlegenerationadapter) that auto-generates thread titles from the first messages. Pass `createSimpleTitleAdapter()` for the built-in implementation. |
+
+### When this fits
+
+Designed for single-process terminal apps where one user has one CLI running at a time. The wrapped read-modify-write on the thread list isn't lock-safe, so two CLI processes pointed at the same directory can lose updates to thread metadata (rename, archive). If that's your scenario, use Option 3 instead.
+
+## Option 3: Full backend thread management
 
 When you want your backend to own thread state (e.g. for persistence across sessions, team sharing, or server-side history), implement a `RemoteThreadListAdapter`.
 
@@ -194,10 +244,11 @@ export function App() {
 
 ## Which option to choose?
 
-| | Option 1: ChatModelAdapter | Option 2: RemoteThreadListAdapter |
-|---|---|---|
-| **Thread storage** | In-memory (process lifetime) | Your backend |
-| **Message storage** | In-memory | On-device (can add history adapter for server-side) |
-| **Cross-session persistence** | No | Yes |
-| **Setup complexity** | Minimal | Moderate |
-| **Best for** | CLI tools, demos, prototypes | Production apps with persistence |
+| | Option 1: ChatModelAdapter | Option 2: createFileStorageAdapter | Option 3: RemoteThreadListAdapter |
+|---|---|---|---|
+| **Thread storage** | In-memory (process lifetime) | Local disk | Your backend |
+| **Message storage** | In-memory | Local disk | In-memory (can add history adapter for server-side) |
+| **Cross-session persistence** | No | Yes | Yes |
+| **Multi-process safe** | N/A | No | Depends on backend |
+| **Setup complexity** | Minimal | Minimal | Moderate |
+| **Best for** | Demos, prototypes | Local CLI tools | Production apps with sync / team sharing |

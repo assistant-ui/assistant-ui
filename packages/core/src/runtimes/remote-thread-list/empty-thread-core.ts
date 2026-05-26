@@ -40,6 +40,10 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     throw EMPTY_THREAD_ERROR;
   },
 
+  respondToToolApproval() {
+    throw EMPTY_THREAD_ERROR;
+  },
+
   speak() {
     throw EMPTY_THREAD_ERROR;
   },

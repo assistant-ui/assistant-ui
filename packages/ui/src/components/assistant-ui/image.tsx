@@ -9,9 +9,91 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { cva, type VariantProps } from "class-variance-authority";
-import { ImageIcon, ImageOffIcon } from "lucide-react";
-import type { ImageMessagePartComponent } from "@assistant-ui/react";
+import {
+  CopyIcon,
+  DownloadIcon,
+  ImageIcon,
+  ImageOffIcon,
+  Loader2Icon,
+  RefreshCwIcon,
+  ShieldAlertIcon,
+} from "lucide-react";
+import type {
+  ImageMessagePart,
+  ImageMessagePartComponent,
+} from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
+
+const extensionForMimeType = (mimeType?: string): string => {
+  switch (mimeType) {
+    case "image/png":
+      return "png";
+    case "image/jpeg":
+    case "image/jpg":
+      return "jpg";
+    case "image/webp":
+      return "webp";
+    case "image/gif":
+      return "gif";
+    case "image/svg+xml":
+      return "svg";
+    default:
+      return "png";
+  }
+};
+
+const dataUriToBlob = (dataUri: string): Blob => {
+  const [meta, data] = dataUri.split(",");
+  const mime = meta?.match(/data:([^;]+)/)?.[1] ?? "application/octet-stream";
+  if (!/;base64/i.test(meta ?? "")) {
+    return new Blob([decodeURIComponent(data ?? "")], { type: mime });
+  }
+  const bytes = atob(data ?? "");
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+};
+
+const mimeFromImage = (image: string): string | undefined =>
+  image.match(/^data:([^;,]+)/)?.[1];
+
+const downloadImagePart = (
+  part: Pick<ImageMessagePart, "image" | "filename">,
+): void => {
+  if (typeof document === "undefined") return;
+  const ext = extensionForMimeType(mimeFromImage(part.image));
+  const filename = part.filename ?? `image.${ext}`;
+  const isDataUri = part.image.startsWith("data:");
+  const objectUrl = isDataUri
+    ? URL.createObjectURL(dataUriToBlob(part.image))
+    : null;
+  const href = objectUrl ?? part.image;
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  if (objectUrl) URL.revokeObjectURL(objectUrl);
+};
+
+const copyImagePart = async (
+  part: Pick<ImageMessagePart, "image">,
+): Promise<void> => {
+  if (
+    typeof navigator === "undefined" ||
+    !navigator.clipboard ||
+    typeof ClipboardItem === "undefined"
+  ) {
+    throw new Error("Clipboard API is not available in this environment.");
+  }
+  const blob = part.image.startsWith("data:")
+    ? dataUriToBlob(part.image)
+    : await fetch(part.image).then((r) => r.blob());
+  const mime = mimeFromImage(part.image) ?? blob.type ?? "image/png";
+  await navigator.clipboard.write([new ClipboardItem({ [mime]: blob })]);
+};
 
 const imageVariants = cva(
   "aui-image-root relative overflow-hidden rounded-lg",
@@ -213,7 +295,6 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
             onKeyDown={(e) => e.key === "Enter" && handleClose()}
             aria-label="Close zoomed image"
           >
-            {/* biome-ignore lint/a11y/useKeyWithClickEvents: parent handles keyboard events */}
             <img
               data-slot="image-zoom-content"
               src={src}
@@ -231,7 +312,133 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
   );
 }
 
-const ImageImpl: ImageMessagePartComponent = ({ image, filename }) => {
+function ImageGenerating({ className }: { className?: string }) {
+  return (
+    <div
+      data-slot="image-generating"
+      className={cn(
+        "flex min-h-32 items-center justify-center bg-muted/50 p-4",
+        className,
+      )}
+    >
+      <Loader2Icon className="size-8 animate-spin text-muted-foreground" />
+      <span className="sr-only">Generating image…</span>
+    </div>
+  );
+}
+
+function ImageContentFilterError({
+  className,
+  reason,
+}: {
+  className?: string;
+  reason?: string;
+}) {
+  return (
+    <div
+      data-slot="image-content-filter-error"
+      className={cn(
+        "flex min-h-32 flex-col items-center justify-center gap-2 bg-muted/50 p-4 text-center",
+        className,
+      )}
+    >
+      <ShieldAlertIcon className="size-8 text-muted-foreground" />
+      <p className="font-medium text-sm">Image could not be generated</p>
+      {reason && <p className="text-muted-foreground text-xs">{reason}</p>}
+    </div>
+  );
+}
+
+export type ImageActionsProps = {
+  part: ImageMessagePart;
+  /**
+   * Wire to your own generation call to show a regenerate button. The button
+   * renders only when this is set and the part carries a `prompt`.
+   */
+  onRegenerate?: () => void | Promise<void>;
+  className?: string;
+};
+
+function RegenerateButton({
+  onRegenerate,
+}: {
+  onRegenerate: () => void | Promise<void>;
+}) {
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        setIsRegenerating(true);
+        try {
+          await onRegenerate();
+        } finally {
+          setIsRegenerating(false);
+        }
+      }}
+      disabled={isRegenerating}
+      data-slot="image-regenerate"
+      aria-label="Regenerate image"
+      className="inline-flex size-7 items-center justify-center rounded hover:bg-muted disabled:opacity-50"
+    >
+      <RefreshCwIcon
+        className={cn("size-4", isRegenerating && "animate-spin")}
+      />
+    </button>
+  );
+}
+
+function ImageActions({ part, onRegenerate, className }: ImageActionsProps) {
+  return (
+    <div
+      data-slot="image-actions"
+      className={cn("flex items-center gap-1 p-1", className)}
+    >
+      <button
+        type="button"
+        onClick={() => downloadImagePart(part)}
+        data-slot="image-download"
+        aria-label="Download image"
+        className="inline-flex size-7 items-center justify-center rounded hover:bg-muted"
+      >
+        <DownloadIcon className="size-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          copyImagePart(part).catch(() => {});
+        }}
+        data-slot="image-copy"
+        aria-label="Copy image"
+        className="inline-flex size-7 items-center justify-center rounded hover:bg-muted"
+      >
+        <CopyIcon className="size-4" />
+      </button>
+      {onRegenerate && <RegenerateButton onRegenerate={onRegenerate} />}
+    </div>
+  );
+}
+
+const ImageImpl: ImageMessagePartComponent = (props) => {
+  const { image, filename, status } = props;
+
+  if (status?.type === "running") {
+    return (
+      <ImageRoot>
+        <ImageGenerating />
+        <ImageFilename>{filename}</ImageFilename>
+      </ImageRoot>
+    );
+  }
+
+  if (status?.type === "incomplete" && status.reason === "content-filter") {
+    return (
+      <ImageRoot>
+        <ImageContentFilterError reason="The provider blocked this image." />
+      </ImageRoot>
+    );
+  }
+
   return (
     <ImageRoot>
       <ImageZoom src={image} alt={filename || "Image content"}>
@@ -247,6 +454,9 @@ const Image = memo(ImageImpl) as unknown as ImageMessagePartComponent & {
   Preview: typeof ImagePreview;
   Filename: typeof ImageFilename;
   Zoom: typeof ImageZoom;
+  Actions: typeof ImageActions;
+  Generating: typeof ImageGenerating;
+  ContentFilterError: typeof ImageContentFilterError;
 };
 
 Image.displayName = "Image";
@@ -254,6 +464,9 @@ Image.Root = ImageRoot;
 Image.Preview = ImagePreview;
 Image.Filename = ImageFilename;
 Image.Zoom = ImageZoom;
+Image.Actions = ImageActions;
+Image.Generating = ImageGenerating;
+Image.ContentFilterError = ImageContentFilterError;
 
 export {
   Image,
@@ -261,5 +474,8 @@ export {
   ImagePreview,
   ImageFilename,
   ImageZoom,
+  ImageActions,
+  ImageGenerating,
+  ImageContentFilterError,
   imageVariants,
 };

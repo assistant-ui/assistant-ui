@@ -48,7 +48,10 @@ export type ThreadListRuntime = {
   getItemByIndex(idx: number): ThreadListItemRuntime;
   getArchivedItemByIndex(idx: number): ThreadListItemRuntime;
 
-  switchToThread(threadId: string): Promise<void>;
+  switchToThread(
+    threadId: string,
+    options?: { unarchive?: boolean },
+  ): Promise<void>;
   switchToNewThread(): Promise<void>;
 
   getLoadThreadsPromise(): Promise<void>;
@@ -152,8 +155,11 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     this.getArchivedItemByIndex = this.getArchivedItemByIndex.bind(this);
   }
 
-  public switchToThread(threadId: string): Promise<void> {
-    return this._core.switchToThread(threadId);
+  public switchToThread(
+    threadId: string,
+    options?: { unarchive?: boolean },
+  ): Promise<void> {
+    return this._core.switchToThread(threadId, options);
   }
 
   public switchToNewThread(): Promise<void> {

@@ -9,8 +9,13 @@ export type {
   ImageMessagePart,
   FileMessagePart,
   DataMessagePart,
+  GenerativeUIMessagePart,
+  GenerativeUINode,
+  GenerativeUISpec,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
+  ToolCallMessagePartMcpMetadata,
+  McpAppMetadata,
   ToolModelContentPart,
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
@@ -30,6 +35,8 @@ export type {
   RunConfig,
   AppendMessage,
 } from "./types/message";
+
+export { MCP_APP_URI_SCHEME, isMcpAppUri } from "./types/message";
 
 export type {
   Attachment,
@@ -163,6 +170,7 @@ export type {
   RuntimeCapabilities,
   AddToolResultOptions,
   ResumeToolCallOptions,
+  RespondToToolApprovalOptions,
   SubmitFeedbackOptions,
   ThreadSuggestion,
   SpeechState,

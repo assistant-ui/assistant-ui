@@ -11,9 +11,9 @@
     "satori": "^0.26.0"
   },
   "devDependencies": {
-    "@types/react": "^19.2.14",
-    "react": "^19.2.5",
-    "tsx": "^4.21.0",
+    "@types/react": "^19.2.15",
+    "react": "^19.2.6",
+    "tsx": "^4.22.3",
     "typescript": "^6.0.3"
   }
 }

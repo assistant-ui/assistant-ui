@@ -53,7 +53,7 @@ pnpm dev
 The included `server/agent.py` provides:
 
 - **Echo mode** (default): Echoes back user messages for testing
-- **OpenAI mode**: Uses GPT-4o-mini when `OPENAI_API_KEY` is set
+- **OpenAI mode**: Uses GPT-5.4 Nano when `OPENAI_API_KEY` is set
 
 ### Endpoints
 

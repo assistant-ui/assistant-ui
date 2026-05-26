@@ -137,6 +137,7 @@ export class OpenCodeEventSource {
       try {
         const subscription = await this.client.event.subscribe(undefined, {
           signal: abortController.signal,
+          sseMaxRetryAttempts: 1,
         });
         failedToConnect = false;
         this.nextReconnectDelayMs = this.reconnectDelayMs;
@@ -149,6 +150,9 @@ export class OpenCodeEventSource {
           const normalized = normalizeEventPayload(event);
           if (!normalized) continue;
           this.emit(normalized);
+        }
+        if (abortController.signal.aborted || this.stopped) {
+          return;
         }
       } catch (error) {
         if (abortController.signal.aborted || this.stopped) return;

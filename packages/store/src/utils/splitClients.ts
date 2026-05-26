@@ -6,7 +6,7 @@ import type {
 } from "../types/client";
 import { getTransformScopes } from "../attachTransformScopes";
 import type { useAui } from "../useAui";
-import { tapMemo } from "@assistant-ui/tap";
+import { tapMemo, type ResourceElement } from "@assistant-ui/tap";
 
 export type RootClients = Partial<
   Record<ClientNames, ClientElement<ClientNames>>
@@ -35,7 +35,9 @@ function splitClients(clients: useAui.Props, baseClient: AssistantClient) {
       if (visited.has(clientElement.type)) continue;
       visited.add(clientElement.type);
 
-      const transform = getTransformScopes(clientElement.type);
+      const transform = getTransformScopes(
+        clientElement.type as (props: any) => ResourceElement<any>,
+      );
       if (transform) {
         transform(scopes, baseClient);
         changed = true;

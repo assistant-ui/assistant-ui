@@ -3,6 +3,13 @@ import type { ClientOutput } from "@assistant-ui/store";
 import type { DataRenderersState } from "../types/scopes/dataRenderers";
 import type { DataMessagePartComponent } from "../types/MessagePartComponentTypes";
 
+/**
+ * Registers renderers for `data` message parts.
+ *
+ * Data renderers are looked up by the part's `name` field. Use this resource
+ * directly for a renderer scope, or prefer {@link useAssistantDataUI} /
+ * {@link makeAssistantDataUI} when registering from React components.
+ */
 export const DataRenderers = resource((): ClientOutput<"dataRenderers"> => {
   const [state, setState] = tapState<DataRenderersState>(() => ({
     renderers: {},

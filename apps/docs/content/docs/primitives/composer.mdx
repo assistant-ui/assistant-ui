@@ -577,6 +577,19 @@ For the difference between `isDisabled` and `isSendDisabled`, see the [external 
 
 With `submitMode="ctrlEnter"`, plain Enter inserts a newline and Ctrl/Cmd+Enter submits.
 
+### Mobile / touch devices
+
+```tsx
+<ComposerPrimitive.Root>
+  <ComposerPrimitive.Input unstable_insertNewlineOnTouchEnter />
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+`unstable_insertNewlineOnTouchEnter` switches Enter to insert a newline on touch-primary devices (detected via `(pointer: coarse) and (not (any-pointer: fine))`), so the on-screen Return key never accidentally sends a half-finished message. Submission moves to the explicit Send button, matching WhatsApp, Slack, Discord, iMessage, ChatGPT, and Claude.ai.
+
+Desktop behavior is unchanged. A tablet paired with a hardware keyboard still gets `submitMode`'s usual semantics if you set `submitMode="ctrlEnter"` or `"none"` — the flag only downgrades the default `"enter"` mode.
+
 ### Floating Composer
 
 Primitives aren't bound to any layout. Here's how the floating composer on this docs site is built, using the same `ComposerPrimitive.Root` and `ComposerPrimitive.Input` positioned with CSS:

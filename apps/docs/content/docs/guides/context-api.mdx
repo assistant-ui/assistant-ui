@@ -258,8 +258,8 @@ useAuiEvent("composer.send", (event) => {
 });
 
 // Listen to thread events
-useAuiEvent("thread.runStart", (event) => {
-  console.log("Run started in thread:", event.threadId);
+useAuiEvent("thread.modelContextUpdate", (event) => {
+  console.log("Model context updated in thread:", event.threadId);
 });
 
 // Listen to all events of a type across all scopes

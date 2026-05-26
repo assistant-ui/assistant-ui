@@ -1,5 +1,11 @@
 # mcp-app-studio
 
+## 0.7.14
+
+### Patch Changes
+
+- [#4085](https://github.com/assistant-ui/assistant-ui/pull/4085) [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.7.13
 
 ### Patch Changes

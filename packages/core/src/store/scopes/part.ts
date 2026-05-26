@@ -26,6 +26,10 @@ export type PartMethods = {
    * This is useful when a tool has requested human input and is waiting for a response.
    */
   resumeToolCall(payload: unknown): void;
+  /**
+   * Respond to a server-side tool approval gate. The approval id is read from the part.
+   */
+  respondToToolApproval(response: { approved: boolean; reason?: string }): void;
   __internal_getRuntime?(): MessagePartRuntime;
 };
 

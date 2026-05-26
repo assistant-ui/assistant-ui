@@ -1,5 +1,29 @@
 # assistant-ui
 
+## 0.0.93
+
+### Patch Changes
+
+- [#4085](https://github.com/assistant-ui/assistant-ui/pull/4085) [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154)]:
+  - @assistant-ui/agent-launcher@0.1.5
+
+## 0.0.92
+
+### Patch Changes
+
+- [#4044](https://github.com/assistant-ui/assistant-ui/pull/4044) [`b8fa682`](https://github.com/assistant-ui/assistant-ui/commit/b8fa6822a349cee204cb37d991d14d4fa58c7ef3) - fix: validate create scaffold selector conflicts, respect package managers in add, and refresh CLI README examples ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+- [#4054](https://github.com/assistant-ui/assistant-ui/pull/4054) [`c1add4a`](https://github.com/assistant-ui/assistant-ui/commit/c1add4a72608a33ff47b55f1890f37dbb8d4e488) - feat: add a local source override flag `--debug-source-root` for local CLI template testing ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+- [#4043](https://github.com/assistant-ui/assistant-ui/pull/4043) [`6123961`](https://github.com/assistant-ui/assistant-ui/commit/612396167e28eb2500c58956038a95b6cad36624) - docs: refresh assistant-ui skill examples with current model names ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+- [#4054](https://github.com/assistant-ui/assistant-ui/pull/4054) [`c1add4a`](https://github.com/assistant-ui/assistant-ui/commit/c1add4a72608a33ff47b55f1890f37dbb8d4e488) - feat: resolve template UI components from the shared package source ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+- Updated dependencies []:
+  - @assistant-ui/agent-launcher@0.1.4
+
 ## 0.0.91
 
 ### Patch Changes

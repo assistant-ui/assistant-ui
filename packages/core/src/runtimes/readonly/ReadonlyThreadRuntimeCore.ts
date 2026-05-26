@@ -65,6 +65,10 @@ export class ReadonlyThreadRuntimeCore
     throw READONLY_THREAD_ERROR;
   }
 
+  respondToToolApproval(): void {
+    throw READONLY_THREAD_ERROR;
+  }
+
   speak(): void {
     throw READONLY_THREAD_ERROR;
   }

@@ -279,6 +279,9 @@ export type {
   ImageMessagePart,
   FileMessagePart,
   DataMessagePart,
+  GenerativeUIMessagePart,
+  GenerativeUINode,
+  GenerativeUISpec,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
   ToolModelContentPart,
@@ -321,8 +324,18 @@ export type {
   ReasoningGroupComponent,
   QuoteMessagePartComponent,
   QuoteMessagePartProps,
+  GenerativeUIComponentRegistry,
+  GenerativeUIMessagePartComponent,
+  GenerativeUIMessagePartProps,
+  GenerativeUIRenderProps,
   EnrichedPartState,
   PartState,
+} from "@assistant-ui/core/react";
+
+// Generative UI runtime error + headless renderer (re-exported from core)
+export {
+  GenerativeUIRender,
+  GenerativeUIRenderError,
 } from "@assistant-ui/core/react";
 
 // Thread list item types
@@ -378,5 +391,34 @@ export {
   type RegisteredTrigger as Unstable_RegisteredTrigger,
   type TriggerBehavior as Unstable_TriggerBehavior,
 } from "./primitives/composer/trigger";
+export type {
+  Unstable_DirectiveFormatter,
+  Unstable_DirectiveSegment,
+  Unstable_TriggerItem,
+} from "@assistant-ui/core";
+export { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 
 export type { Assistant } from "./augmentations";
+
+// --- mcp-apps ---
+export {
+  McpAppRenderer,
+  McpAppsRemoteHost,
+  getMcpAppFromToolPart,
+} from "./mcp-apps";
+export type {
+  McpAppRendererOptions,
+  McpAppMetadata,
+  McpAppResource,
+  McpAppResourceMeta,
+  McpAppResourceCSP,
+  McpAppSandboxConfig,
+  McpAppHostInfo,
+  McpAppHostContext,
+  McpAppDisplayMode,
+  McpAppsHost,
+  McpAppsRemoteHostOptions,
+  McpAppToolCallParams,
+  ToolCallMessagePartMcpMetadata,
+} from "./mcp-apps";
+export type { McpAppResourceOutput } from "@assistant-ui/core/react";

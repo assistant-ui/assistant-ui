@@ -20,9 +20,13 @@ import TextareaAutosize, {
 } from "react-textarea-autosize";
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
+import { useMediaQuery } from "../../utils/hooks/useMediaQuery";
 import { useAuiState, useAui } from "@assistant-ui/store";
 import { flushResourcesSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
+import { useTriggerPopoverActiveAriaOptional } from "./trigger/TriggerPopoverRootContext";
+
+const TOUCH_PRIMARY_QUERY = "(pointer: coarse) and (not (any-pointer: fine))";
 
 export namespace ComposerPrimitiveInput {
   export type Element = HTMLTextAreaElement;
@@ -57,6 +61,14 @@ export namespace ComposerPrimitiveInput {
      * @default true
      */
     unstable_focusOnThreadSwitched?: boolean | undefined;
+    /**
+     * Whether plain Enter on a touch-primary device should insert a newline
+     * instead of submitting, detected via
+     * `(pointer: coarse) and (not (any-pointer: fine))`. Only takes effect
+     * when `submitMode` resolves to `"enter"`.
+     * @default false
+     */
+    unstable_insertNewlineOnTouchEnter?: boolean | undefined;
     /**
      * Whether to automatically add pasted files as attachments.
      * @default true
@@ -100,12 +112,24 @@ export namespace ComposerPrimitiveInput {
  * keyboard shortcuts, file paste support, and intelligent focus management.
  * It integrates with the composer context to manage message state and submission.
  *
+ * When rendered inside `Unstable_TriggerPopoverRoot` and a popover is open, the
+ * underlying `<textarea>` automatically receives `aria-controls`,
+ * `aria-expanded`, `aria-haspopup`, and `aria-activedescendant` for the
+ * combobox relationship. These computed attributes override user-provided
+ * values for those four ARIA props while the popover is open.
+ *
  * @example
  * ```tsx
  * // Ctrl/Cmd+Enter to submit (plain Enter inserts newline)
  * <ComposerPrimitive.Input
  *   placeholder="Type your message..."
  *   submitMode="ctrlEnter"
+ * />
+ *
+ * // Insert a newline on Enter on touch-primary devices.
+ * <ComposerPrimitive.Input
+ *   placeholder="Type your message..."
+ *   unstable_insertNewlineOnTouchEnter
  * />
  *
  * // Old API (deprecated, still supported)
@@ -135,6 +159,7 @@ export const ComposerPrimitiveInput = forwardRef<
       unstable_focusOnRunStart = true,
       unstable_focusOnScrollToBottom = true,
       unstable_focusOnThreadSwitched = true,
+      unstable_insertNewlineOnTouchEnter = false,
       addAttachmentOnPaste = true,
       ...rest
     },
@@ -142,9 +167,19 @@ export const ComposerPrimitiveInput = forwardRef<
   ) => {
     const aui = useAui();
     const pluginRegistry = useComposerInputPluginRegistryOptional();
+    const activeAria = useTriggerPopoverActiveAriaOptional();
 
-    const effectiveSubmitMode =
+    const declaredSubmitMode =
       submitMode ?? (submitOnEnter === false ? "none" : "enter");
+    const isTouchPrimary = useMediaQuery(
+      unstable_insertNewlineOnTouchEnter ? TOUCH_PRIMARY_QUERY : null,
+    );
+    const effectiveSubmitMode =
+      unstable_insertNewlineOnTouchEnter &&
+      isTouchPrimary &&
+      declaredSubmitMode === "enter"
+        ? "none"
+        : declaredSubmitMode;
 
     const value = useAuiState((s) => {
       if (!s.composer.isEditing) return "";
@@ -202,7 +237,7 @@ export const ComposerPrimitiveInput = forwardRef<
           e.shiftKey &&
           (e.ctrlKey || e.metaKey) &&
           hasQueue &&
-          effectiveSubmitMode !== "none" &&
+          declaredSubmitMode !== "none" &&
           aui.composer().getState().canSend
         ) {
           e.preventDefault();
@@ -287,10 +322,20 @@ export const ComposerPrimitiveInput = forwardRef<
       return aui.on("threadListItem.switchedTo", focus);
     }, [unstable_focusOnThreadSwitched, focus, aui]);
 
+    const ariaComboboxProps = activeAria
+      ? {
+          "aria-controls": activeAria.popoverId,
+          "aria-expanded": true as const,
+          "aria-haspopup": "listbox" as const,
+          "aria-activedescendant": activeAria.highlightedItemId,
+        }
+      : {};
+
     const inputProps = {
       name: "input" as const,
       value,
       ...rest,
+      ...ariaComboboxProps,
       ref: ref as React.ForwardedRef<HTMLTextAreaElement>,
       disabled: isDisabled,
       onChange: composeEventHandlers(

@@ -1,5 +1,57 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.32
+
+### Patch Changes
+
+- [#4085](https://github.com/assistant-ui/assistant-ui/pull/4085) [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`13a12c4`](https://github.com/assistant-ui/assistant-ui/commit/13a12c46c94f7e5e62af02692cf3479fff48bd02), [`0a0c306`](https://github.com/assistant-ui/assistant-ui/commit/0a0c306286598ea885b046a1dfb85016f720051c), [`6a0ecb2`](https://github.com/assistant-ui/assistant-ui/commit/6a0ecb2e49f24c5f066052018db5a9f1411dcc59), [`e4634a5`](https://github.com/assistant-ui/assistant-ui/commit/e4634a59b7a926d158e929d559326f243efe438b), [`325de4c`](https://github.com/assistant-ui/assistant-ui/commit/325de4c73b348d4c20dafa4a2ac6d436c69dbf28), [`01244a5`](https://github.com/assistant-ui/assistant-ui/commit/01244a56026ee92bd4e49cb985136f9eb6d45154), [`f2ec01c`](https://github.com/assistant-ui/assistant-ui/commit/f2ec01ce0f01317a8444b779d88f9b6a26d691c5)]:
+  - assistant-stream@0.3.16
+  - @assistant-ui/core@0.2.5
+
+## 0.0.31
+
+### Patch Changes
+
+- [#4066](https://github.com/assistant-ui/assistant-ui/pull/4066) [`3bc6dc0`](https://github.com/assistant-ui/assistant-ui/commit/3bc6dc0c407dfc19d7654c75efa22c45cf11d6d0) - fix(react-ag-ui): preserve arrival order of parts in RunAggregator ([@tlecomte](https://github.com/tlecomte))
+
+  The aggregator now strictly preserves the order events arrive from the upstream stream. Each `REASONING_START`, `TOOL_CALL_START`, and `TEXT_MESSAGE_END` acts as a boundary that closes the current active part, so consecutive events of the same type are grouped into one part while interleaved events of a different type produce separate parts in chronological order.
+
+  Previously, the first reasoning block was always moved before the first text part regardless of arrival order, and multiple reasoning cycles were merged into a single block. Both behaviours have been removed.
+
+- [#3925](https://github.com/assistant-ui/assistant-ui/pull/3925) [`53cdc51`](https://github.com/assistant-ui/assistant-ui/commit/53cdc51665a48dfeb0220455f6c32a34981e0b0e) - feat(react-ag-ui): track streaming timing on the run aggregator so `useMessageTiming()` works on AG-UI assistant messages ([@shashank-100](https://github.com/shashank-100))
+
+- Updated dependencies [[`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33), [`94548fa`](https://github.com/assistant-ui/assistant-ui/commit/94548fa8d587962d8ab0338a9609a9ff21240c33), [`8b6fc88`](https://github.com/assistant-ui/assistant-ui/commit/8b6fc8836871e62efc2fd8c131c6783e12c5fc47), [`179895f`](https://github.com/assistant-ui/assistant-ui/commit/179895fdcb56edee2e8d9efb4b38cd3859eeecdd), [`7a8bf26`](https://github.com/assistant-ui/assistant-ui/commit/7a8bf26eda76f5f8490f96b3ff9dce1ccd072917), [`3b2bbce`](https://github.com/assistant-ui/assistant-ui/commit/3b2bbce1589b44a13b8b7a570c19bf35a2266fbd)]:
+  - assistant-stream@0.3.15
+  - @assistant-ui/core@0.2.3
+
+## 0.0.30
+
+### Patch Changes
+
+- [#3974](https://github.com/assistant-ui/assistant-ui/pull/3974) [`1959f3a`](https://github.com/assistant-ui/assistant-ui/commit/1959f3ad9ac5da430e1882439cc64f0853a39d6a) - feat(react-ag-ui): surface AG-UI interrupt-aware run lifecycle ([@okisdev](https://github.com/okisdev))
+
+  `event-parser` reads the optional `outcome` on `RUN_FINISHED` and forwards both `success` and `interrupt` variants; the subscriber subscribes to `onRunFinishedEvent` (with `onRunFinalized` as a fallback for older servers). `RunAggregator` maps `outcome.type === "interrupt"` to `requires-action` with `reason: "interrupt"` and writes the interrupts to `metadata.custom.agui.interrupts`. `useAgUiRuntime` returns an `AgUiAssistantRuntime` augmented with `unstable_getPendingInterrupts` and `unstable_submitInterruptResponses`; the latter validates coverage and expiry on the client, then issues a fresh run with `RunAgentInput.resume` populated. the runtime state snapshot is also synced onto the agent before each run so `state` actually reaches the protocol layer.
+
+- [#3977](https://github.com/assistant-ui/assistant-ui/pull/3977) [`876abd1`](https://github.com/assistant-ui/assistant-ui/commit/876abd124854b864ef0ba4ea6b9e67a82bc743c0) - feat(react-ag-ui): tighten interrupt lifecycle ([@okisdev](https://github.com/okisdev))
+
+  `append`, `reload`, and `resume` now refuse to start a new run while interrupts are still pending on the thread; the call throws with a message pointing at `submitInterruptResponses` instead of letting the request hit the wire and rely on the agent to reject it (AG-UI interrupts spec rule 4).
+
+  `AgUiInterrupt.reason` is typed as `AgUiInterruptReason` (`"tool_call" | "input_required" | "confirmation" | (string & {})`), so the spec values autocomplete while string extension stays open.
+
+  `onRunFinishedEvent` now ignores payloads that parse as a different event type, so a misrouted callback can no longer suppress the `onRunFinalized` fallback.
+
+- [#4017](https://github.com/assistant-ui/assistant-ui/pull/4017) [`1802e08`](https://github.com/assistant-ui/assistant-ui/commit/1802e08fe86567125d8ef013d7bc9a5c10e0b022) - fix(react-ag-ui): adopt `TEXT_MESSAGE_START.messageId` as the assistant `ThreadMessage.id` ([@okisdev](https://github.com/okisdev))
+
+  `AgUiThreadRuntimeCore` now inserts the assistant placeholder under an optimistic id (`generateOptimisticId`), then atomically reassigns the message id to the server-supplied `messageId` the first time `RunAggregator` observes one (on `TEXT_MESSAGE_START`, `TEXT_MESSAGE_CONTENT`, `TEXT_MESSAGE_END`, or `TOOL_CALL_START.parentMessageId`). `assistantHistoryParents` and `recordedHistoryIds` migrate with the id, so `persistAssistantHistory`, `addToolResult`, and downstream lookups keep working and resolve to the canonical AG-UI id. This brings the streaming path in line with `MESSAGES_SNAPSHOT` imports, which were already keyed on the server id.
+
+  `TOOL_CALL_RESULT.messageId` is now surfaced as `unstable_toolMessageId` on the tool-call part, so tool messages round-trip back to AG-UI with their original id instead of a synthetic `${toolCallId}:tool` value.
+
+- Updated dependencies [[`9ecda1d`](https://github.com/assistant-ui/assistant-ui/commit/9ecda1dfdd96f2c638e7b51cc951319ccacd06c9), [`35d0146`](https://github.com/assistant-ui/assistant-ui/commit/35d014628a69b0003799666895c2552b46ac7198), [`fa4510a`](https://github.com/assistant-ui/assistant-ui/commit/fa4510a3f3a23e0458ce8f3a397c352e3b0cde07), [`c9dd16c`](https://github.com/assistant-ui/assistant-ui/commit/c9dd16c4b1edc52f6a2529a9a07ebb7964aee9a1), [`dea8bc7`](https://github.com/assistant-ui/assistant-ui/commit/dea8bc7e122ad6ff53e48e6b0ffc6fcc2abaadd3), [`9c3d24d`](https://github.com/assistant-ui/assistant-ui/commit/9c3d24d8a358bcf5f683f85473b82524ea018930)]:
+  - assistant-stream@0.3.14
+  - @assistant-ui/core@0.2.1
+
 ## 0.0.29
 
 ### Patch Changes

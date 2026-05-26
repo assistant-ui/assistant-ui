@@ -1,5 +1,6 @@
 {
   "title": "Custom Backend",
+  "description": "Runtime patterns for custom backends, including local state, external stores, data streams, and assistant transport.",
   "pages": [
     "overview",
     "local-runtime",

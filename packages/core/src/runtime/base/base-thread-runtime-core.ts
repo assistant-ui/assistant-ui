@@ -15,6 +15,7 @@ import { DefaultThreadComposerRuntimeCore } from "./default-thread-composer-runt
 import type {
   AddToolResultOptions,
   ResumeToolCallOptions,
+  RespondToToolApprovalOptions,
   ThreadSuggestion,
   SubmitFeedbackOptions,
   ThreadRuntimeCore,
@@ -59,6 +60,9 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   public abstract resumeRun(config: ResumeRunConfig): void;
   public abstract addToolResult(options: AddToolResultOptions): void;
   public abstract resumeToolCall(options: ResumeToolCallOptions): void;
+  public abstract respondToToolApproval(
+    options: RespondToToolApprovalOptions,
+  ): void;
   public abstract cancelRun(): void;
   public abstract exportExternalState(): any;
   public abstract importExternalState(state: any): void;
@@ -477,6 +481,14 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
       this._eventSubscribers.set(event, subscribers);
     }
     subscribers.add(wrapped);
+
+    // `initialize` latches: replay it (deferred) to subscribers that attach
+    // after the thread already initialized, mirroring a BehaviorSubject.
+    if (event === "initialize" && this._isInitialized) {
+      queueMicrotask(() => {
+        if (subscribers.has(wrapped)) wrapped({});
+      });
+    }
 
     return () => {
       this._eventSubscribers.get(event)?.delete(wrapped);

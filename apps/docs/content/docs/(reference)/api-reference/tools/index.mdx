@@ -1,0 +1,39 @@
+---
+title: Tools API Reference
+description: Tool definitions, React renderers, status helpers, and toolkits for exposing callable app capabilities to assistant-ui chat models.
+---
+
+{/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
+{/* The page list is generated from exported APIs; edit only the manual prose slot. */}
+
+{/* api-manual:start */}
+Use these APIs when your assistant needs to call application code, render a custom tool result, or expose tool state inside a React UI.
+
+Tool **registration** has two scopes. Pick the one that matches the lifecycle you want for the tool. Tool **rendering** and **status** are independent of either choice and apply to both.
+
+| | `Tools({ toolkit })` | `useAssistantTool` / `makeAssistantTool` |
+| --- | --- | --- |
+| Scope | Entire assistant subtree below the mount point | Only while the registering React component is mounted |
+| Lifecycle | Tied to the runtime / provider tree | Tied to a specific UI surface |
+| Typical use | App-wide tools, MCP merging, tools defined alongside the runtime | Tools whose availability depends on a UI being visible |
+| Stable reference | Pass a stable `toolkit` (module scope or `useMemo`) | Pass a stable tool object (module scope or `useMemo`) |
+
+Both styles can coexist in the same app, and tools registered through either path participate in rendering and status APIs the same way.
+{/* api-manual:end */}
+
+## Pages
+
+<Cards>
+  <Card title={"Toolkits"} href={"/docs/api-reference/tools/toolkits"}>
+    {"Define model-facing tools and compose them into named toolkits registered with an assistant-ui runtime scope."}
+  </Card>
+  <Card title={"Component Tools"} href={"/docs/api-reference/tools/component-tools"}>
+    {"Register assistant tools from mounted React components, scoped to the lifetime of part of the UI tree."}
+  </Card>
+  <Card title={"Tool Rendering"} href={"/docs/api-reference/tools/rendering"}>
+    {"Register React renderers for assistant-ui tool calls, tool results, and model data parts."}
+  </Card>
+  <Card title={"Tool Status"} href={"/docs/api-reference/tools/status"}>
+    {"Read tool arguments, execution status, and result state inside assistant-ui tool UI components."}
+  </Card>
+</Cards>
