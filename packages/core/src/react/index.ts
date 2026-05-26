@@ -1,5 +1,8 @@
 /// <reference path="./types/store-augmentation.ts" />
 
+import { registerCoreVersion } from "../internal/duplicate-detection";
+registerCoreVersion();
+
 // model-context
 export {
   makeAssistantTool,

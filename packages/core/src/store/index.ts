@@ -1,5 +1,8 @@
 /// <reference path="./scope-registration.ts" />
 
+import { registerCoreVersion } from "../internal/duplicate-detection";
+registerCoreVersion();
+
 // scopes
 export type {
   ThreadsState,

@@ -1,5 +1,8 @@
 // @assistant-ui/core - Framework-agnostic core runtime (public API)
 
+import { registerCoreVersion } from "./internal/duplicate-detection";
+registerCoreVersion();
+
 export type {
   // Message parts
   TextMessagePart,

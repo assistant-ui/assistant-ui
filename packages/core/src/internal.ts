@@ -1,6 +1,9 @@
 // @assistant-ui/core/internal - Internal implementation details
 // Not part of the public API. Used by @assistant-ui/react and other framework bindings.
 
+import { registerCoreVersion } from "./internal/duplicate-detection";
+registerCoreVersion();
+
 export {
   // Sentinel
   SKIP_UPDATE,
