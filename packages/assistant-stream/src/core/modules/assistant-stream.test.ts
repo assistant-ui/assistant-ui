@@ -49,4 +49,23 @@ describe("AssistantStreamController withParentId", () => {
     expect(grouped?.parentId).toBe("group-1");
     expect(source?.parentId).toBe("group-1");
   });
+
+  it("attaches parentId to reasoning parts across a data-stream round trip", async () => {
+    const response = createAssistantStreamResponse((controller) => {
+      controller.appendReasoning("thinking out loud");
+      const group = controller.withParentId("group-1");
+      group.appendReasoning("grouped reasoning");
+    });
+
+    const message = await accumulate(response);
+    const ungrouped = message.parts.find(
+      (p) => p.type === "reasoning" && p.text === "thinking out loud",
+    );
+    const grouped = message.parts.find(
+      (p) => p.type === "reasoning" && p.text === "grouped reasoning",
+    );
+
+    expect(ungrouped?.parentId).toBeUndefined();
+    expect(grouped?.parentId).toBe("group-1");
+  });
 });
