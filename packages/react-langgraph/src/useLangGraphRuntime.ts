@@ -1,4 +1,3 @@
-/// <reference types="@assistant-ui/core/store" />
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   LangChainMessage,

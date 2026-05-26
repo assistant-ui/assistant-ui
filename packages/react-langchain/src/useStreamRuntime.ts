@@ -1,4 +1,3 @@
-/// <reference types="@assistant-ui/core/store" />
 "use client";
 
 import { useMemo, useRef, useState } from "react";

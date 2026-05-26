@@ -1,3 +1,4 @@
+/// <reference path="../store/scope-registration.ts" />
 /// <reference path="./types/store-augmentation.ts" />
 
 // model-context

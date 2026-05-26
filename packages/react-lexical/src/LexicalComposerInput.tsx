@@ -1,8 +1,5 @@
 "use client";
 
-// Side-effect import: registers scope types (composer, thread, etc.) on ScopeRegistry
-import "@assistant-ui/core/store";
-
 import {
   type ComponentPropsWithoutRef,
   type FC,

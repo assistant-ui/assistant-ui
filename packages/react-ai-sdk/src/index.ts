@@ -1,4 +1,3 @@
-/// <reference types="@assistant-ui/core/store" />
 /// <reference types="@assistant-ui/core/react" />
 
 export { useAISDKRuntime } from "./ui/use-chat/useAISDKRuntime";

@@ -1,4 +1,3 @@
-/// <reference types="@assistant-ui/core/store" />
 import { useEffect, useRef, useState } from "react";
 import {
   getExternalStoreMessages,

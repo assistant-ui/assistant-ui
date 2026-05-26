@@ -1,5 +1,7 @@
 // @assistant-ui/core - Framework-agnostic core runtime (public API)
 
+/// <reference path="./store/scope-registration.ts" />
+
 import { checkDuplicateCore } from "./internal/duplicate-detection";
 
 if (process.env.NODE_ENV !== "production") {

@@ -1,5 +1,3 @@
-/// <reference types="@assistant-ui/core/store" />
-
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { v4 as uuidv4 } from "uuid";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
