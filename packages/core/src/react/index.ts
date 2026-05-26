@@ -130,12 +130,6 @@ export {
   useRuntimeAdapters,
   type RuntimeAdapters,
 } from "./runtimes/RuntimeAdapterProvider";
-export {
-  useToolInvocations,
-  type ToolExecutionStatus,
-  type AssistantTransportState,
-  type AddToolResultCommand,
-} from "./runtimes/useToolInvocations";
 export { useExternalStoreRuntime } from "./runtimes/useExternalStoreRuntime";
 export {
   useExternalMessageConverter,

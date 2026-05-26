@@ -1,12 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   useExternalStoreRuntime,
   useRuntimeAdapters,
-  useToolInvocations,
 } from "@assistant-ui/core/react";
-import type { ToolExecutionStatus } from "@assistant-ui/core/react";
+import type { ToolExecutionStatus } from "@assistant-ui/core";
 import type {
   AssistantRuntime,
   AppendMessage,
@@ -71,18 +77,6 @@ export function useAgUiRuntime(
     (s) => s?.type === "executing",
   );
 
-  const [runtimeRef] = useState(() => ({
-    get current(): AssistantRuntime {
-      return runtime;
-    },
-  }));
-
-  const toolInvocationsRef = useRef({
-    reset: () => {},
-    abort: (): Promise<void> => Promise.resolve(),
-    resume: (_toolCallId: string, _payload: unknown) => {},
-  });
-
   const threadList = useMemo(() => {
     if (!threadListAdapter) return undefined;
 
@@ -92,14 +86,12 @@ export function useAgUiRuntime(
       threadId: threadListAdapter.threadId,
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
-            toolInvocationsRef.current.reset();
             await onSwitchToNewThread();
             core.applyExternalMessages([]);
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
-            toolInvocationsRef.current.reset();
             const result = await onSwitchToThread(threadId);
             core.applyExternalMessages(result.messages);
             if (result.state) {
@@ -122,31 +114,6 @@ export function useAgUiRuntime(
     [adapters, runtimeAdapters, threadList],
   );
 
-  const toolInvocations = useToolInvocations({
-    state: {
-      messages: core.getMessages(),
-      isRunning: core.isRunning() || hasExecutingTools,
-    },
-    getTools: () => runtimeRef.current.thread.getModelContext().tools,
-    onResult: (command) => {
-      if (command.type === "add-tool-result") {
-        const messageId = core.findMessageIdForToolCall(command.toolCallId);
-        if (messageId) {
-          core.addToolResult({
-            messageId,
-            toolCallId: command.toolCallId,
-            toolName: command.toolName,
-            result: command.result,
-            isError: command.isError,
-            ...(command.artifact && { artifact: command.artifact }),
-          });
-        }
-      }
-    },
-    setToolStatuses,
-  });
-  toolInvocationsRef.current = toolInvocations;
-
   const store = useMemo(
     () => {
       void _version; // rerender on version change
@@ -156,21 +123,20 @@ export function useAgUiRuntime(
         messages: core.getMessages(),
         state: core.getState(),
         isRunning: core.isRunning() || hasExecutingTools,
+        unstable_enableToolInvocations: true,
         onNew: (message: AppendMessage) => core.append(message),
         onEdit: (message: AppendMessage) => core.edit(message),
         onReload: (parentId: string | null, config: { runConfig?: any }) =>
           core.reload(parentId, config),
         onCancel: async () => {
+          // The embedded tracker's abort() runs before this callback via
+          // the runtime's cancelRun.
           core.cancel();
-          await toolInvocationsRef.current.abort();
         },
         onAddToolResult: (options) => core.addToolResult(options),
         onResume: (config) => core.resume(config),
-        onResumeToolCall: (options) =>
-          toolInvocationsRef.current.resume(
-            options.toolCallId,
-            options.payload,
-          ),
+        // onResumeToolCall: the runtime calls the embedded tracker's
+        // resume() automatically.
         setMessages: (messages: readonly ThreadMessage[]) =>
           core.applyExternalMessages(messages),
         onImport: (messages: readonly ThreadMessage[]) =>
@@ -206,6 +172,34 @@ export function useAgUiRuntime(
   useEffect(() => {
     core.__internal_load();
   }, [core]);
+
+  // Mirror the embedded tracker's tool-status map into local React state so
+  // `hasExecutingTools` sees status changes.
+  const lastStatusesRef = useRef<ReadonlyMap<string, ToolExecutionStatus>>(
+    new Map(),
+  );
+  const subscribeThread = useCallback(
+    (cb: () => void) => runtime.thread.subscribe(cb),
+    [runtime],
+  );
+  const getStatusesMap = useCallback(
+    () => runtime.thread.getToolStatuses(),
+    [runtime],
+  );
+  const toolStatusesMap = useSyncExternalStore(
+    subscribeThread,
+    getStatusesMap,
+    getStatusesMap,
+  );
+  if (toolStatusesMap !== lastStatusesRef.current) {
+    lastStatusesRef.current = toolStatusesMap;
+    setToolStatuses(
+      Object.fromEntries(toolStatusesMap) as Record<
+        string,
+        ToolExecutionStatus
+      >,
+    );
+  }
 
   return runtime;
 }

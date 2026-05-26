@@ -35,6 +35,7 @@ import type { ThreadListItemState } from "./bindings";
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
+import type { ToolExecutionStatus } from "../../runtimes/tool-invocations/ToolInvocationTracker";
 import { EventSubscriptionSubject } from "../../subscribable/subscribable";
 import { symbolInnerMessage } from "../utils/external-store-message";
 import type { ModelContext } from "../../model-context/types";
@@ -284,6 +285,16 @@ export type ThreadRuntime = {
   cancelRun(): void;
   getModelContext(): ModelContext;
 
+  /**
+   * Per-tool-call execution status map. Populated when the underlying
+   * runtime opted into the client-side tool-invocations pipeline (e.g.
+   * `useExternalStoreRuntime` with `unstable_enableToolInvocations: true`,
+   * or `useAssistantTransportRuntime`). Empty for runtimes that don't run
+   * tools client-side. Subscribe via `subscribe()` to be notified of
+   * changes.
+   */
+  getToolStatuses(): ReadonlyMap<string, ToolExecutionStatus>;
+
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
 
@@ -417,6 +428,10 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
   public getModelContext() {
     return this._threadBinding.getState().getModelContext();
+  }
+
+  public getToolStatuses() {
+    return this._threadBinding.getState().getToolStatuses();
   }
 
   public startRun(config: CreateStartRunConfig) {

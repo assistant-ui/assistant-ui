@@ -131,6 +131,26 @@ type ExternalStoreAdapterBase<T> = {
         copy?: boolean | undefined;
       }
     | undefined;
+  /**
+   * Opt in to the built-in client-side tool-invocations pipeline
+   * (`streamCall` / `execute` / tool-status tracking) for this thread.
+   *
+   * Defaults to `false` — the runtime does *not* drive client-side tool
+   * callbacks on its own. Set to `true` to have the runtime construct a
+   * `ToolInvocationTracker` and feed every snapshot through it, so tool
+   * callbacks fire automatically for tool-call parts in `messages`.
+   *
+   * Opt-in by default because most external-store runtimes either run
+   * tools entirely server-side, or already wire their own client-side
+   * dispatch path. Enabling the embedded tracker on top of an existing
+   * dispatch path would cause tool callbacks to run twice.
+   *
+   * When enabled, client-side tool results (from `execute()` returning,
+   * or from `streamCall` resolving) flow back through
+   * `adapter.onAddToolResult` like any other tool result, with
+   * `modelContent` populated when present.
+   */
+  unstable_enableToolInvocations?: boolean | undefined;
 };
 
 export type ExternalStoreAdapter<T = ThreadMessage> =

@@ -88,6 +88,8 @@ export { mergeModelContexts } from "./model-context/types";
 
 export { tool } from "./model-context/tool";
 
+export type { ToolExecutionStatus } from "./runtimes/tool-invocations/ToolInvocationTracker";
+
 export { ModelContextRegistry } from "./model-context/registry";
 export type {
   ModelContextRegistryToolHandle,

@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   getExternalStoreMessages,
   type AttachmentAdapter,
@@ -7,14 +13,13 @@ import {
   type SpeechSynthesisAdapter,
   type AppendMessage,
   type ThreadMessage,
+  type ToolExecutionStatus,
 } from "@assistant-ui/core";
 import {
-  type ToolExecutionStatus,
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
   useExternalMessageConverter,
   useExternalStoreRuntime,
-  useToolInvocations,
 } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
@@ -235,40 +240,10 @@ const useAdkRuntimeImpl = ({
   threadMessagesRef.current = threadMessages;
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const [runtimeRef] = useState(() => ({
-    get current() {
-      return runtime;
-    },
-  }));
-
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const toolInvocations = useToolInvocations({
-    state: { messages: threadMessages, isRunning: effectiveIsRunning },
-    getTools: () => runtimeRef.current.thread.getModelContext().tools,
-    onResult: (command) => {
-      if (command.type === "add-tool-result") {
-        void handleSendMessage(
-          [
-            {
-              id: uuidv4(),
-              type: "tool",
-              name: command.toolName,
-              tool_call_id: command.toolCallId,
-              content: JSON.stringify(command.result),
-              status: command.isError ? "error" : "success",
-            },
-          ],
-          {},
-        );
-      }
-    },
-    setToolStatuses,
-  });
-
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runtime = useExternalStoreRuntime({
     isRunning: effectiveIsRunning,
     messages: threadMessages,
+    unstable_enableToolInvocations: true,
     adapters: { attachments, dictation, feedback, speech },
     extras: {
       [symbolAdkRuntimeExtras]: true,
@@ -283,8 +258,6 @@ const useAdkRuntimeImpl = ({
       send: handleSendMessage,
     } satisfies AdkRuntimeExtras,
     onNew: async (msg) => {
-      await toolInvocations.abort();
-
       const cancellations =
         autoCancelPendingToolCalls !== false
           ? getPendingCancellations(messages, longRunningToolIds)
@@ -304,7 +277,6 @@ const useAdkRuntimeImpl = ({
     },
     onEdit: getCheckpointId
       ? async (msg) => {
-          await toolInvocations.abort();
           const truncated = truncateAdkMessages(
             threadMessagesRef.current,
             msg.parentId,
@@ -331,7 +303,6 @@ const useAdkRuntimeImpl = ({
       : undefined,
     onReload: getCheckpointId
       ? async (parentId, config) => {
-          await toolInvocations.abort();
           const truncated = truncateAdkMessages(
             threadMessagesRef.current,
             parentId,
@@ -369,12 +340,13 @@ const useAdkRuntimeImpl = ({
         {},
       );
     },
-    onResumeToolCall: (options) =>
-      toolInvocations.resume(options.toolCallId, options.payload),
+    // onResumeToolCall: the runtime calls the embedded tracker's
+    // resume() automatically.
     onCancel: unstable_allowCancellation
       ? async () => {
+          // The embedded tracker's abort() runs before this callback via
+          // the runtime's cancelRun.
           cancel();
-          await toolInvocations.abort();
         }
       : undefined,
   });
@@ -404,6 +376,39 @@ const useAdkRuntimeImpl = ({
         },
       );
     }, [aui, replaceMessages]);
+  }
+
+  // Mirror the embedded tracker's tool-status map into local React state so
+  // `hasExecutingTools` (which gates `effectiveIsRunning`) sees status
+  // changes.
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const lastStatusesRef = useRef<ReadonlyMap<string, ToolExecutionStatus>>(
+    new Map(),
+  );
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const subscribeThread = useCallback(
+    (cb: () => void) => runtime.thread.subscribe(cb),
+    [runtime],
+  );
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const getStatusesMap = useCallback(
+    () => runtime.thread.getToolStatuses(),
+    [runtime],
+  );
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const toolStatusesMap = useSyncExternalStore(
+    subscribeThread,
+    getStatusesMap,
+    getStatusesMap,
+  );
+  if (toolStatusesMap !== lastStatusesRef.current) {
+    lastStatusesRef.current = toolStatusesMap;
+    setToolStatuses(
+      Object.fromEntries(toolStatusesMap) as Record<
+        string,
+        ToolExecutionStatus
+      >,
+    );
   }
 
   return runtime;

@@ -2,6 +2,9 @@ import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ThreadMessage } from "../../types/message";
 import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
 import { BaseSubscribable } from "../../subscribable/subscribable";
+import type { ToolExecutionStatus } from "../tool-invocations/ToolInvocationTracker";
+
+const EMPTY_TOOL_STATUSES: ReadonlyMap<string, ToolExecutionStatus> = new Map();
 
 const READONLY_THREAD_ERROR = new Error(
   "This is a readonly thread. You cannot perform mutations on readonly threads.",
@@ -98,6 +101,10 @@ export class ReadonlyThreadRuntimeCore
 
   getModelContext() {
     return {};
+  }
+
+  getToolStatuses() {
+    return EMPTY_TOOL_STATUSES;
   }
 
   exportExternalState() {

@@ -12,6 +12,9 @@ import {
   MessageRepository,
 } from "../utils/message-repository";
 import { DefaultThreadComposerRuntimeCore } from "./default-thread-composer-runtime-core";
+import type { ToolExecutionStatus } from "../../runtimes/tool-invocations/ToolInvocationTracker";
+
+const EMPTY_TOOL_STATUSES: ReadonlyMap<string, ToolExecutionStatus> = new Map();
 import type {
   AddToolResultOptions,
   ResumeToolCallOptions,
@@ -115,6 +118,16 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
   public getModelContext() {
     return this._contextProvider.getModelContext();
+  }
+
+  /**
+   * Per-tool-call execution status map. Returns an empty map by default;
+   * `ExternalStoreThreadRuntimeCore` overrides this with the embedded
+   * `ToolInvocationTracker`'s status map when the adapter opts in via
+   * `unstable_enableToolInvocations: true`.
+   */
+  public getToolStatuses(): ReadonlyMap<string, ToolExecutionStatus> {
+    return EMPTY_TOOL_STATUSES;
   }
 
   private _editComposers = new Map<string, DefaultEditComposerRuntimeCore>();

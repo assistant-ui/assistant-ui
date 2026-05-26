@@ -1,5 +1,7 @@
+import type { ToolModelContentPart } from "assistant-stream";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ModelContext } from "../../model-context/types";
+import type { ToolExecutionStatus } from "../../runtimes/tool-invocations/ToolInvocationTracker";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { RunConfig } from "../../types/message";
@@ -38,6 +40,13 @@ export type AddToolResultOptions = {
   result: ReadonlyJSONValue;
   isError: boolean;
   artifact?: ReadonlyJSONValue | undefined;
+  /**
+   * Optional model-content payload produced by the tool. Populated when a
+   * client-side `execute()` or `streamCall` returns a `ToolResponse` with
+   * `modelContent`. Forwarded through `adapter.onAddToolResult` so the
+   * adapter can include it when sending the result back to its backend.
+   */
+  modelContent?: readonly ToolModelContentPart[] | undefined;
 };
 
 export type ResumeToolCallOptions = {
@@ -156,6 +165,8 @@ export type ThreadRuntimeCore = Readonly<{
   submitFeedback: (feedback: SubmitFeedbackOptions) => void;
 
   getModelContext: () => ModelContext;
+
+  getToolStatuses: () => ReadonlyMap<string, ToolExecutionStatus>;
 
   composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;

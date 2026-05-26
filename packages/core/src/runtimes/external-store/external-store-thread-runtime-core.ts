@@ -30,6 +30,10 @@ import {
   ExportedMessageRepository,
   MessageRepository,
 } from "../../runtime/utils/message-repository";
+import {
+  ToolInvocationTracker,
+  type ToolExecutionStatus,
+} from "../tool-invocations/ToolInvocationTracker";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
@@ -104,6 +108,23 @@ export class ExternalStoreThreadRuntimeCore
   private _converter = new ThreadMessageConverter();
 
   private _store!: ExternalStoreAdapter<any>;
+
+  /**
+   * Client-side tool-invocations pipeline. Constructed lazily on first
+   * snapshot — only when `adapter.unstable_enableToolInvocations === true`.
+   */
+  private _toolInvocations: ToolInvocationTracker | null = null;
+  private _toolStatuses: ReadonlyMap<string, ToolExecutionStatus> = new Map();
+
+  /**
+   * @internal Read the current per-tool-call execution status map. Empty
+   * when no tracker is active (the adapter did not opt in via
+   * `unstable_enableToolInvocations: true`, or no tool calls have surfaced
+   * yet).
+   */
+  public override getToolStatuses(): ReadonlyMap<string, ToolExecutionStatus> {
+    return this._toolStatuses;
+  }
 
   public override beginEdit(messageId: string) {
     if (!this._store.onEdit)
@@ -273,7 +294,106 @@ export class ExternalStoreThreadRuntimeCore
     );
 
     this._messages = this.repository.getMessages();
+
+    this._driveToolInvocations();
+
     this._notifySubscribers();
+  }
+
+  /**
+   * Feed the current message snapshot into the tool-invocations tracker.
+   * Opt-in via `adapter.unstable_enableToolInvocations: true`. The tracker
+   * itself is fail-silent — see ToolInvocationTracker for the
+   * state-transition contract.
+   */
+  private _driveToolInvocations(): void {
+    if (!this._store.unstable_enableToolInvocations) {
+      // Adapter did not opt in (default). If a tracker was previously
+      // constructed (e.g. the adapter just toggled the flag off via a
+      // dynamic swap), drop it so subsequent snapshots are no-ops.
+      if (this._toolInvocations) {
+        this._toolInvocations.reset();
+        this._toolInvocations = null;
+        if (this._toolStatuses.size > 0) {
+          this._toolStatuses = new Map();
+        }
+      }
+      return;
+    }
+
+    if (!this._toolInvocations) {
+      this._toolInvocations = new ToolInvocationTracker(
+        () => this.getModelContext().tools,
+        {
+          onResult: (command) => {
+            try {
+              const messageId = this._findMessageIdForToolCall(
+                command.toolCallId,
+              );
+              if (messageId === undefined) {
+                // The tool call no longer exists in the snapshot (e.g.
+                // rolled back). Drop the result.
+                return;
+              }
+              this._store.onAddToolResult?.({
+                messageId,
+                toolCallId: command.toolCallId,
+                toolName: command.toolName,
+                result: command.result,
+                isError: command.isError,
+                ...(command.artifact !== undefined && {
+                  artifact: command.artifact,
+                }),
+                ...(command.modelContent !== undefined && {
+                  modelContent: command.modelContent,
+                }),
+              });
+            } catch (err) {
+              console.error(
+                "[ExternalStoreThreadRuntimeCore] onAddToolResult dispatch failed",
+                err,
+              );
+            }
+          },
+          onStatusesChange: (statuses) => {
+            this._toolStatuses = statuses;
+            this._notifySubscribers();
+          },
+        },
+      );
+    }
+
+    this._toolInvocations.setState({
+      messages: this._messages,
+      isRunning: this._store.isRunning ?? false,
+      ...(this._store.isLoading !== undefined && {
+        isLoading: this._store.isLoading,
+      }),
+    });
+  }
+
+  /**
+   * Walk the current message list (and nested sub-tool messages) looking for
+   * a tool-call part with the given id. Returns the id of the assistant
+   * message that owns it, or `undefined` if no such part exists in the
+   * current snapshot.
+   */
+  private _findMessageIdForToolCall(toolCallId: string): string | undefined {
+    const search = (messages: readonly ThreadMessage[]): string | undefined => {
+      for (const message of messages) {
+        if (!Array.isArray(message.content)) continue;
+        for (const part of message.content) {
+          if (!part || part.type !== "tool-call") continue;
+          if (part.toolCallId === toolCallId) return message.id;
+          if (part.messages) {
+            const nestedId = search(part.messages);
+            if (nestedId !== undefined) return nestedId;
+          }
+        }
+      }
+      return undefined;
+    };
+    return search(this._messages);
   }
 
   public override switchToBranch(branchId: string): void {
@@ -290,6 +410,16 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(message: AppendMessage): Promise<void> {
+    // Auto-abort in-flight client-side tool executions when a new run is
+    // about to start. Without this, a tool that finishes after the new turn
+    // begins would feed a stale result into `onAddToolResult`, racing with
+    // the new turn the user just initiated. `startRun` defaults to true for
+    // user messages — matches the satellites' historical opt-in cancel
+    // behavior, which is now built in.
+    if (message.startRun ?? message.role === "user") {
+      await this._toolInvocations?.abort();
+    }
+
     if (message.parentId !== (this.messages.at(-1)?.id ?? null)) {
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
@@ -302,6 +432,11 @@ export class ExternalStoreThreadRuntimeCore
   public async startRun(config: StartRunConfig): Promise<void> {
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
+
+    // Auto-abort in-flight client-side tool executions when a run reloads;
+    // any results that land afterward would target a turn that no longer
+    // exists. See `append` above for full rationale.
+    await this._toolInvocations?.abort();
 
     await this._store.onReload(config.parentId, config);
   }
@@ -324,12 +459,25 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onLoadExternalState)
       throw new Error("Runtime does not support importing external states.");
 
+    // Re-arm the tracker so the next adapter snapshot (containing the
+    // imported state) is treated as historical — no streamCall/execute
+    // fires for the loaded tool calls. The adapter is expected to update
+    // its messages in response to onLoadExternalState; that update flows
+    // back here via __internal_setAdapter.
+    this._toolInvocations?.reset();
+    this._toolStatuses = new Map();
+
     this._store.onLoadExternalState(state);
   }
 
   public cancelRun(): void {
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");
+
+    // Abort any in-flight client-side tool executions. Fire-and-forget —
+    // the abort resolves once executions settle, but we don't gate the
+    // cancel on it.
+    void this._toolInvocations?.abort();
 
     this._store.onCancel();
 
@@ -368,9 +516,15 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public resumeToolCall(options: ResumeToolCallOptions) {
-    if (!this._store.onResumeToolCall)
-      throw new Error("Runtime does not support resuming tool calls.");
-    this._store.onResumeToolCall(options);
+    // Tracker owns its own human-input handlers — let it resume in-process
+    // tool calls without round-tripping through the adapter. Falls back to
+    // the adapter's onResumeToolCall (if any) for tool calls the tracker
+    // doesn't know about.
+    this._toolInvocations?.resume(options.toolCallId, options.payload);
+
+    if (this._store.onResumeToolCall) {
+      this._store.onResumeToolCall(options);
+    }
   }
 
   public respondToToolApproval(options: RespondToToolApprovalOptions) {

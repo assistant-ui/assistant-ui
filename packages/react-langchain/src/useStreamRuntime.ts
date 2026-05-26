@@ -1,20 +1,26 @@
+/// <reference types="@assistant-ui/core/store" />
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type {
   AppendMessage,
   AttachmentAdapter,
   FeedbackAdapter,
   RemoteThreadListAdapter,
   SpeechSynthesisAdapter,
+  ToolExecutionStatus,
 } from "@assistant-ui/core";
 import {
   useCloudThreadListAdapter,
   useExternalStoreRuntime,
   useExternalMessageConverter,
   useRemoteThreadListRuntime,
-  useToolInvocations,
-  type ToolExecutionStatus,
 } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
@@ -199,43 +205,8 @@ const useStreamThreadRuntime = (
   });
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const [runtimeRef] = useState(() => ({
-    get current() {
-      return runtime;
-    },
-  }));
-
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const streamRef = useRef(stream);
   streamRef.current = stream;
-
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const toolInvocations = useToolInvocations({
-    state: {
-      messages: threadMessages,
-      isRunning: effectiveIsRunning,
-    },
-    getTools: () => runtimeRef.current.thread.getModelContext().tools,
-    onResult: (command) => {
-      if (command.type === "add-tool-result") {
-        void streamRef.current.submit(
-          {
-            [messagesKey]: [
-              {
-                type: "tool",
-                name: command.toolName,
-                tool_call_id: command.toolCallId,
-                content: JSON.stringify(command.result),
-                status: command.isError ? "error" : "success",
-              },
-            ],
-          },
-          {},
-        );
-      }
-    },
-    setToolStatuses,
-  });
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const extras = useMemo(
@@ -262,8 +233,8 @@ const useStreamThreadRuntime = (
     messages: threadMessages,
     adapters,
     extras,
+    unstable_enableToolInvocations: true,
     onNew: async (msg) => {
-      await toolInvocations.abort();
       const content = getMessageContent(msg);
       const cancellations =
         autoCancelPendingToolCalls !== false
@@ -304,11 +275,46 @@ const useStreamThreadRuntime = (
     onCancel:
       unstable_allowCancellation !== false
         ? async () => {
+            // The embedded tracker's abort() runs before this callback via
+            // the runtime's cancelRun.
             await stream.stop();
-            await toolInvocations.abort();
           }
         : undefined,
   });
+
+  // Mirror the embedded tracker's tool-status map into local React state so
+  // `hasExecutingTools` (which gates `effectiveIsRunning`) sees status
+  // changes. The tracker keeps the same Map reference between status
+  // changes, so the reference check makes unrelated updates a no-op.
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const lastStatusesRef = useRef<ReadonlyMap<string, ToolExecutionStatus>>(
+    new Map(),
+  );
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const subscribeThread = useCallback(
+    (cb: () => void) => runtime.thread.subscribe(cb),
+    [runtime],
+  );
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const getStatusesMap = useCallback(
+    () => runtime.thread.getToolStatuses(),
+    [runtime],
+  );
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const toolStatusesMap = useSyncExternalStore(
+    subscribeThread,
+    getStatusesMap,
+    getStatusesMap,
+  );
+  if (toolStatusesMap !== lastStatusesRef.current) {
+    lastStatusesRef.current = toolStatusesMap;
+    setToolStatuses(
+      Object.fromEntries(toolStatusesMap) as Record<
+        string,
+        ToolExecutionStatus
+      >,
+    );
+  }
 
   return runtime;
 };
