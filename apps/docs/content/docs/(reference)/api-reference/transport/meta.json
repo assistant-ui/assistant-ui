@@ -1,5 +1,9 @@
 {
   "title": "Transport",
   "description": "Transport commands, frame messages, and protocol types for synchronizing assistant-ui runtimes across process or iframe boundaries.",
-  "pages": ["index", "assistant-transport", "frame"]
+  "pages": [
+    "index",
+    "assistant-transport",
+    "frame"
+  ]
 }
