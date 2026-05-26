@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildGroupTree, type GroupNode } from "../react/utils/groupParts";
+import type { PartState } from "../store/scopes/part";
+import {
+  buildGroupTree,
+  GROUPBY_MEMO_KEY,
+  groupPartByType,
+  type GroupNode,
+} from "../react/utils/groupParts";
 
 const asPaths = (keys: readonly (readonly string[])[]) => keys;
 
@@ -81,5 +87,114 @@ describe("buildGroupTree", () => {
     expect(before[0]!.nodeKey).toBe(after[0]!.nodeKey);
     expect(before[1]!.nodeKey).toBe(after[1]!.nodeKey);
     expect(after[2]!.nodeKey).toBe("2");
+  });
+});
+
+const part = (overrides: Partial<PartState>): PartState =>
+  ({
+    type: "text",
+    text: "",
+    status: { type: "complete" },
+    ...overrides,
+  }) as PartState;
+
+describe("groupPartByType", () => {
+  it("maps part.type to the configured path", () => {
+    const fn = groupPartByType({
+      reasoning: ["group-thought", "group-reasoning"],
+      "tool-call": ["group-thought", "group-tool"],
+    });
+    expect(fn(part({ type: "reasoning" }))).toEqual([
+      "group-thought",
+      "group-reasoning",
+    ]);
+    expect(fn(part({ type: "tool-call" }))).toEqual([
+      "group-thought",
+      "group-tool",
+    ]);
+  });
+
+  it("returns [] for part types not in the map", () => {
+    const fn = groupPartByType({ reasoning: ["group-r"] });
+    expect(fn(part({ type: "text" }))).toEqual([]);
+  });
+
+  it("routes MCP-app tool calls through the 'mcp-app' entry when present", () => {
+    const fn = groupPartByType({
+      "tool-call": ["group-tool"],
+      "mcp-app": [],
+    });
+    const mcpApp = part({
+      type: "tool-call",
+      toolName: "render",
+      mcp: { app: { resourceUri: "ui://my-app" } },
+    } as Partial<PartState>);
+    const regular = part({
+      type: "tool-call",
+      toolName: "search",
+    } as Partial<PartState>);
+    expect(fn(mcpApp)).toEqual([]);
+    expect(fn(regular)).toEqual(["group-tool"]);
+  });
+
+  it("falls back to 'tool-call' for MCP-app parts when 'mcp-app' is absent", () => {
+    const fn = groupPartByType({ "tool-call": ["group-tool"] });
+    const mcpApp = part({
+      type: "tool-call",
+      toolName: "render",
+      mcp: { app: { resourceUri: "ui://x" } },
+    } as Partial<PartState>);
+    expect(fn(mcpApp)).toEqual(["group-tool"]);
+  });
+
+  it("does not route non-`ui://` tool calls through 'mcp-app'", () => {
+    const fn = groupPartByType({
+      "tool-call": ["group-tool"],
+      "mcp-app": ["group-mcp"],
+    });
+    const notMcp = part({
+      type: "tool-call",
+      toolName: "x",
+      mcp: { app: { resourceUri: "http://example.com" } },
+    } as Partial<PartState>);
+    expect(fn(notMcp)).toEqual(["group-tool"]);
+  });
+
+  it("tags the function with a GROUPBY_MEMO_KEY fingerprint", () => {
+    const fn = groupPartByType({ reasoning: ["group-r"] });
+    const memoKey = (fn as unknown as { [GROUPBY_MEMO_KEY]: string })[
+      GROUPBY_MEMO_KEY
+    ];
+    expect(memoKey).toMatch(/^groupPartByType:/);
+  });
+
+  it("produces the same fingerprint regardless of map key order", () => {
+    const a = groupPartByType({
+      reasoning: ["group-r"],
+      "tool-call": ["group-t"],
+    });
+    const b = groupPartByType({
+      "tool-call": ["group-t"],
+      reasoning: ["group-r"],
+    });
+    const keyA = (a as unknown as { [GROUPBY_MEMO_KEY]: string })[
+      GROUPBY_MEMO_KEY
+    ];
+    const keyB = (b as unknown as { [GROUPBY_MEMO_KEY]: string })[
+      GROUPBY_MEMO_KEY
+    ];
+    expect(keyA).toBe(keyB);
+  });
+
+  it("produces different fingerprints for different configs", () => {
+    const a = groupPartByType({ reasoning: ["group-r"] });
+    const b = groupPartByType({ reasoning: ["group-r2"] });
+    const keyA = (a as unknown as { [GROUPBY_MEMO_KEY]: string })[
+      GROUPBY_MEMO_KEY
+    ];
+    const keyB = (b as unknown as { [GROUPBY_MEMO_KEY]: string })[
+      GROUPBY_MEMO_KEY
+    ];
+    expect(keyA).not.toBe(keyB);
   });
 });

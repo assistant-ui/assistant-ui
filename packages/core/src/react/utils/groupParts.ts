@@ -71,7 +71,12 @@ export const groupPartByType = <TKey extends `group-${string}`>(
   }) as ((part: PartState) => readonly TKey[]) & {
     [GROUPBY_MEMO_KEY]?: string;
   };
-  fn[GROUPBY_MEMO_KEY] = `groupPartByType:${JSON.stringify(map)}`;
+  // Sort keys so the fingerprint is insensitive to map insertion order —
+  // two maps with the same key/value pairs but different declaration order
+  // would otherwise hash differently and invalidate the memo unnecessarily.
+  const sortedKeys = Object.keys(map).sort();
+  const sortedEntries = sortedKeys.map((k) => [k, map[k as keyof typeof map]]);
+  fn[GROUPBY_MEMO_KEY] = `groupPartByType:${JSON.stringify(sortedEntries)}`;
   return fn;
 };
 
