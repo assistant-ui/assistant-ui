@@ -68,4 +68,37 @@ describe("AssistantStreamController withParentId", () => {
     expect(ungrouped?.parentId).toBeUndefined();
     expect(grouped?.parentId).toBe("group-1");
   });
+
+  it("opens a new text part when withParentId switches between ids", async () => {
+    const response = createAssistantStreamResponse((controller) => {
+      controller.withParentId("group-1").appendText("first");
+      controller.withParentId("group-2").appendText("second");
+    });
+
+    const message = await accumulate(response);
+    const first = message.parts.find(
+      (p) => p.type === "text" && p.text === "first",
+    );
+    const second = message.parts.find(
+      (p) => p.type === "text" && p.text === "second",
+    );
+
+    expect(first?.parentId).toBe("group-1");
+    expect(second?.parentId).toBe("group-2");
+  });
+
+  it("attaches parentId on addTextPart called directly inside a withParentId scope", async () => {
+    const response = createAssistantStreamResponse((controller) => {
+      const part = controller.withParentId("group-1").addTextPart();
+      part.append("explicit");
+      part.close();
+    });
+
+    const message = await accumulate(response);
+    const text = message.parts.find(
+      (p) => p.type === "text" && p.text === "explicit",
+    );
+
+    expect(text?.parentId).toBe("group-1");
+  });
 });
