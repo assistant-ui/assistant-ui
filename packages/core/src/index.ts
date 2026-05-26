@@ -1,7 +1,10 @@
 // @assistant-ui/core - Framework-agnostic core runtime (public API)
 
 import { checkDuplicateCore } from "./internal/duplicate-detection";
-checkDuplicateCore();
+
+if (process.env.NODE_ENV !== "production") {
+  checkDuplicateCore();
+}
 
 export type {
   // Message parts

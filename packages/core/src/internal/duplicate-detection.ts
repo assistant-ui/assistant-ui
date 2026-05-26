@@ -4,12 +4,13 @@
 // the active runtime, context lookups resolve to the wrong provider,
 // `instanceof` checks fail (see issue #4101). The actual version diagnosis
 // lives in `npx assistant-ui doctor`.
+//
+// The caller is responsible for gating on `process.env.NODE_ENV` so this
+// module tree-shakes out of production bundles.
 
 const KEY = Symbol.for("@assistant-ui/core.loaded");
 
 export function checkDuplicateCore(): void {
-  if (process.env.NODE_ENV === "production") return;
-
   const g = globalThis as unknown as Record<symbol, boolean | undefined>;
   if (g[KEY]) {
     // eslint-disable-next-line no-console
