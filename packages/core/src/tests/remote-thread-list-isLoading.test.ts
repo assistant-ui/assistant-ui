@@ -26,6 +26,8 @@ type ListResult = {
 
 const INITIAL_STATE: RemoteThreadState = {
   isLoading: true,
+  isLoadingMore: false,
+  cursor: undefined,
   newThreadId: undefined,
   threadIds: [],
   archivedThreadIds: [],

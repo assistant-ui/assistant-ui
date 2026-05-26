@@ -71,7 +71,7 @@ const RuntimeProvider: FC<
 
 const renderThread = (MessageComponent: FC, messages?: ThreadMessageLike[]) => {
   render(
-    <RuntimeProvider messages={messages}>
+    <RuntimeProvider messages={messages!}>
       <ThreadPrimitive.Messages components={{ Message: MessageComponent }} />
     </RuntimeProvider>,
   );

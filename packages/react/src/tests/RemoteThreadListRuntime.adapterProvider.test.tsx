@@ -7,15 +7,13 @@ import {
   RuntimeAdapterProvider,
   useRemoteThreadListRuntime,
   useRuntimeAdapters,
+  type RuntimeAdapters as RuntimeAdaptersShape,
 } from "@assistant-ui/core/react";
 import { makeAdapter } from "./remote-thread-list-test-helpers";
 import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
 import { AssistantRuntimeProvider } from "../context";
 import type { ChatModelAdapter, RemoteThreadListAdapter } from "../index";
-import type {
-  RuntimeAdapters as RuntimeAdaptersShape,
-  ThreadHistoryAdapter,
-} from "@assistant-ui/core";
+import type { ThreadHistoryAdapter } from "@assistant-ui/core";
 
 type CapturedAdapters = RuntimeAdaptersShape | null;
 

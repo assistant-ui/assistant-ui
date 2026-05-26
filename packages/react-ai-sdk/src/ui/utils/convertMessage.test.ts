@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
-import { AISDKMessageConverter } from "./convertMessage";
+import {
+  AISDKMessageConverter,
+  type AISDKMessageConverterMetadata,
+} from "./convertMessage";
 
 describe("AISDKMessageConverter", () => {
   it("converts user files into attachments and keeps text content", () => {
@@ -338,7 +341,7 @@ describe("AISDKMessageConverter", () => {
   });
 
   it("keeps observed key order from streaming snapshots for final tool args", () => {
-    const metadata = {
+    const metadata: AISDKMessageConverterMetadata = {
       toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
     };
 
@@ -410,7 +413,7 @@ describe("AISDKMessageConverter", () => {
   });
 
   it("merges duplicate toolCallId across assistant snapshots", () => {
-    const metadata = {
+    const metadata: AISDKMessageConverterMetadata = {
       toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
     };
 
@@ -463,7 +466,7 @@ describe("AISDKMessageConverter", () => {
   });
 
   it("preserves last good input when AI SDK briefly emits null input", () => {
-    const metadata = {
+    const metadata: AISDKMessageConverterMetadata = {
       toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
       toolLastInputCache: new Map<string, ReadonlyJSONObject>(),
     };
@@ -506,7 +509,7 @@ describe("AISDKMessageConverter", () => {
   });
 
   it("preserves last good input across terminal state transitions", () => {
-    const metadata = {
+    const metadata: AISDKMessageConverterMetadata = {
       toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
       toolLastInputCache: new Map<string, ReadonlyJSONObject>(),
     };
@@ -690,7 +693,7 @@ describe("AISDKMessageConverter", () => {
   });
 
   it("memoizes MCP app metadata across conversions by resourceUri", () => {
-    const metadata = {
+    const metadata: AISDKMessageConverterMetadata = {
       mcpAppMetadataCache: new Map(),
     };
 

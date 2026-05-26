@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, fireEvent, waitFor } from "@testing-library/react";
-import { StrictMode, useState, useEffect } from "react";
+import { StrictMode, useState, useEffect, useLayoutEffect } from "react";
 
 describe("React Strict Mode - Rerender Sources", () => {
   describe("Source 1: Initial render", () => {
@@ -366,7 +366,6 @@ describe("React Strict Mode - Rerender Sources", () => {
   describe("Source 8: setState in useLayoutEffect", () => {
     it("should double-render after setState in useLayoutEffect", () => {
       const events: string[] = [];
-      const { useLayoutEffect } = require("react");
 
       function TestComponent() {
         const [count, setCount] = useState(0);

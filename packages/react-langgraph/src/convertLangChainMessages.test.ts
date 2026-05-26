@@ -1,6 +1,26 @@
 import { describe, it, expect } from "vitest";
-import { convertLangChainMessages } from "./convertLangChainMessages";
+import { convertLangChainMessages as convertLangChainMessagesImpl } from "./convertLangChainMessages";
 import type { LangChainMessage, UIMessage } from "./types";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ConvertResult = {
+  role: string;
+  id?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  content: ReadonlyArray<any>;
+  metadata?: { custom?: Record<string, unknown> };
+};
+
+const convertLangChainMessages = (
+  message: LangChainMessage,
+  metadata: Record<string, unknown> = {},
+): ConvertResult =>
+  (
+    convertLangChainMessagesImpl as unknown as (
+      message: LangChainMessage,
+      metadata: Record<string, unknown>,
+    ) => ConvertResult
+  )(message, metadata);
 
 describe("convertLangChainMessages metadata", () => {
   it("passes additional_kwargs.metadata to system message", () => {

@@ -24,6 +24,8 @@ const createThreadState = (
   const mappingId = createThreadMappingId(threadId);
   return {
     isLoading: false,
+    isLoadingMore: false,
+    cursor: undefined,
     newThreadId: undefined,
     threadIds: status === "regular" ? [threadId] : [],
     archivedThreadIds: status === "archived" ? [threadId] : [],

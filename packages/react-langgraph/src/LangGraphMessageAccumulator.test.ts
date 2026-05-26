@@ -256,7 +256,14 @@ describe("LangGraphMessageAccumulator reconcileMessages", () => {
     acc.addMessages([
       { id: "user-1", type: "human", content: "hi" },
       { id: "ai-1", type: "ai", content: "partial" },
-      { id: "tool-1", type: "tool", content: "result", tool_call_id: "tc-1" },
+      {
+        id: "tool-1",
+        type: "tool",
+        content: "result",
+        tool_call_id: "tc-1",
+        name: "tool-1",
+        status: "success",
+      },
     ]);
     const result = acc.reconcileMessages([
       { id: "user-1", type: "human", content: "hi" },

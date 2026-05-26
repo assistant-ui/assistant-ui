@@ -8,7 +8,7 @@ import { ComposerPrimitiveAttachmentDropzone } from "./ComposerAttachmentDropzon
 
 const addAttachment = vi.fn<(file: File) => Promise<void>>();
 
-globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();

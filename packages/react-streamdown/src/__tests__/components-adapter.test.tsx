@@ -61,7 +61,7 @@ describe("useAdaptedComponents", () => {
       );
       const { result } = renderHook(() =>
         useAdaptedComponents({
-          components: { SyntaxHighlighter: MockSyntax },
+          components: { SyntaxHighlighter: MockSyntax } as never,
         }),
       );
       const CodeComponent = result.current?.code;

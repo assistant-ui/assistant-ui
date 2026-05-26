@@ -68,7 +68,9 @@ describe("StreamdownTextPrimitive", () => {
           <div data-testid="highlighter">{`${language}:${code}`}</div>
         ),
       );
-      const components: StreamdownTextComponents = { SyntaxHighlighter };
+      const components = {
+        SyntaxHighlighter,
+      } as unknown as StreamdownTextComponents;
 
       expect(() =>
         render(
@@ -88,7 +90,7 @@ describe("StreamdownTextPrimitive", () => {
       const CodeHeader = vi.fn(({ language }: CodeHeaderProps) => (
         <div data-testid="header">{language}</div>
       ));
-      const components: StreamdownTextComponents = { CodeHeader };
+      const components = { CodeHeader } as unknown as StreamdownTextComponents;
 
       const { container } = render(
         <TextMessagePartProvider text={fencedMarkdown} isRunning={false}>

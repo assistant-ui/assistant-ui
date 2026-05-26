@@ -574,7 +574,9 @@ describe("useLangGraphRuntime", () => {
         signal: expect.any(AbortSignal),
       }),
     );
-    const signal = load.mock.calls[0]?.[1]?.signal;
+    const signal = (
+      load.mock.calls[0] as unknown as [string, { signal: AbortSignal }]
+    )?.[1]?.signal;
     expect(signal?.aborted).toBe(false);
 
     unmount();

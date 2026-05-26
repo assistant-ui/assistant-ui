@@ -15,7 +15,8 @@
     "format": "pnpm exec oxfmt --check",
     "format:fix": "pnpm exec oxfmt",
     "sync-templates": "bash scripts/sync-templates.sh",
-    "test": "turbo test",
+    "test": "turbo test && pnpm test:types",
+    "test:types": "pnpm -r --parallel exec sh -c '! test -f tsconfig.json || tsc --noEmit'",
     "prepare": "husky",
     "deps:check": "npx taze major -f -r",
     "deps:update": "npx taze major -f -w -r && cd examples/with-expo && npx expo install --fix && cd ../.. && find . -name node_modules -prune -exec rm -rf {} + && rm -f pnpm-lock.yaml && pnpm install && pnpm dedupe && bash scripts/generate-deps-changeset.sh"

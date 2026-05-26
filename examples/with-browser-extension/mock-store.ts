@@ -59,5 +59,11 @@ export function useMockStore() {
     }
   }, []);
 
-  return { messages, setMessages, isRunning, onNew };
+  return {
+    messages,
+    setMessages,
+    isRunning,
+    onNew,
+    convertMessage: (m: ThreadMessageLike) => m,
+  };
 }

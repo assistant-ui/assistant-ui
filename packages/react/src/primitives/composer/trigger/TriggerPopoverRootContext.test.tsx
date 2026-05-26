@@ -11,7 +11,7 @@ import {
   useTriggerPopoverAriaPublish,
 } from "./TriggerPopoverRootContext";
 
-globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 type PublishHandle = ReturnType<typeof useTriggerPopoverAriaPublish>;
 
