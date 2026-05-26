@@ -24,7 +24,7 @@
     "react/forward-ref-uses-ref": "off",
     "react/no-array-index-key": "off",
     "react/react-in-jsx-scope": "off",
-    "react/exhaustive-deps": "warn",
+    "react/exhaustive-deps": "off",
     "react/rules-of-hooks": "warn",
     "tap-hooks/exhaustive-deps": [
       "warn",
