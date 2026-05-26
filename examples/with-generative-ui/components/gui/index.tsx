@@ -7,6 +7,16 @@ import type { ComponentType, PropsWithChildren } from "react";
  * The agent's JSON spec can reference any of these by name.
  */
 
+export const UnknownComponentFallback = ({
+  component,
+}: {
+  component: string;
+}) => (
+  <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+    unknown component: {component}
+  </span>
+);
+
 const Card: ComponentType<
   PropsWithChildren<{ title?: string; description?: string }>
 > = ({ title, description, children }) => (

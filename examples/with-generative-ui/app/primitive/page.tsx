@@ -1,13 +1,11 @@
 "use client";
 
 import { GenerativeUIRender, type GenerativeUISpec } from "@assistant-ui/react";
-import { componentsAllowlist } from "@/components/gui";
-
-const UnknownComponentFallback = ({ component }: { component: string }) => (
-  <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
-    unknown component: {component}
-  </span>
-);
+import {
+  UnknownComponentFallback,
+  componentsAllowlist,
+} from "@/components/gui";
+import { ExampleNav } from "@/components/example-nav";
 
 /**
  * Self-contained demo of the GenerativeUI primitive.
@@ -73,22 +71,25 @@ const exampleSpec: GenerativeUISpec = {
 
 export default function GenerativeUIPrimitivePage() {
   return (
-    <main className="mx-auto flex h-full max-w-2xl flex-col gap-6 p-8">
-      <header>
-        <h1 className="font-bold text-2xl">MessagePrimitive.GenerativeUI</h1>
-        <p className="mt-1 text-muted-foreground text-sm">
-          Agent-described React UI rendered from a JSON spec via a
-          consumer-provided component allowlist.
-        </p>
-      </header>
+    <div className="flex h-full flex-col">
+      <ExampleNav />
+      <main className="mx-auto flex h-full max-w-2xl flex-col gap-6 overflow-y-auto p-8">
+        <header>
+          <h1 className="font-bold text-2xl">MessagePrimitive.GenerativeUI</h1>
+          <p className="mt-1 text-muted-foreground text-sm">
+            Agent-described React UI rendered from a JSON spec via a
+            consumer-provided component allowlist.
+          </p>
+        </header>
 
-      <section className="flex flex-col gap-4">
-        <GenerativeUIRender
-          spec={exampleSpec}
-          components={componentsAllowlist}
-          Fallback={UnknownComponentFallback}
-        />
-      </section>
-    </main>
+        <section className="flex flex-col gap-4">
+          <GenerativeUIRender
+            spec={exampleSpec}
+            components={componentsAllowlist}
+            Fallback={UnknownComponentFallback}
+          />
+        </section>
+      </main>
+    </div>
   );
 }
