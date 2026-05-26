@@ -3,7 +3,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Chain of Thought Example",
-  description: "Example using MessagePrimitive.GroupedParts with AI SDK",
+  description:
+    "Reasoning, tool calls, and source citations rendered as grouped message parts.",
 };
 
 export default function RootLayout({

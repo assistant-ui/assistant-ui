@@ -2,6 +2,7 @@
 
 import { type FC, type PropsWithChildren, useState } from "react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { Sources } from "@/components/assistant-ui/sources";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,7 +63,9 @@ const ThreadWelcome: FC = () => {
   return (
     <div className="mx-auto flex w-full max-w-(--thread-max-width) grow flex-col justify-center gap-6">
       <div>
-        <h1 className="font-semibold text-2xl">What should we calculate?</h1>
+        <h1 className="font-semibold text-2xl">
+          What should we think through?
+        </h1>
       </div>
       <div className="flex flex-wrap gap-2">
         <ThreadPrimitive.Suggestions>
@@ -115,6 +118,8 @@ const AssistantMessage: FC = () => {
               return ["group-chainOfThought", "group-reasoning"];
             if (part.type === "tool-call")
               return ["group-chainOfThought", "group-tool"];
+            if (part.type === "source")
+              return ["group-chainOfThought", "group-sources"];
             return null;
           }}
         >
@@ -128,12 +133,16 @@ const AssistantMessage: FC = () => {
                 return (
                   <PartLayout label="Taking action">{children}</PartLayout>
                 );
+              case "group-sources":
+                return <SourcesLayout>{children}</SourcesLayout>;
               case "text":
                 return <MarkdownText />;
               case "reasoning":
                 return <Reasoning {...part} />;
               case "tool-call":
                 return <ToolCall {...part} />;
+              case "source":
+                return <Sources {...part} />;
               default:
                 return null;
             }
@@ -162,6 +171,15 @@ const ChainOfThoughtGroup: FC<PropsWithChildren> = ({ children }) => {
         Thinking
       </button>
       {open && children}
+    </div>
+  );
+};
+
+const SourcesLayout: FC<PropsWithChildren> = ({ children }) => {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 border-t px-4 py-2">
+      <span className="mr-1 text-muted-foreground text-xs">Sources</span>
+      {children}
     </div>
   );
 };

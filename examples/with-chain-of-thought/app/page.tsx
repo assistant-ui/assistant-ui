@@ -52,13 +52,15 @@ function MyThreadWithSuggestions() {
     suggestions: Suggestions([
       {
         title: "Calculate Fibonacci(20)",
-        label: "step by step with code",
-        prompt: "Calculate the 20th Fibonacci number using JavaScript.",
+        label: "with chain of thought",
+        prompt:
+          "Calculate the 20th Fibonacci number using JavaScript and show your reasoning.",
       },
       {
-        title: "What is 2^16?",
-        label: "show your reasoning",
-        prompt: "What is 2 to the power of 16? Show your work step by step.",
+        title: "Research with citations",
+        label: "show sources",
+        prompt:
+          "Research recent developments in renewable energy and cite your sources.",
       },
     ]),
   });
