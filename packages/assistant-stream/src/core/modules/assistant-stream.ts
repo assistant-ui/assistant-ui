@@ -96,6 +96,7 @@ type AssistantStreamControllerState = {
     | {
         controller: TextStreamController;
         kind: "text" | "reasoning";
+        parentId: string | undefined;
       }
     | undefined;
   contentCounter: Counter;
@@ -150,9 +151,13 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   appendText(textDelta: string) {
-    if (this._state.append?.kind !== "text") {
+    if (
+      this._state.append?.kind !== "text" ||
+      this._state.append.parentId !== this._parentId
+    ) {
       this._state.append = {
         kind: "text",
+        parentId: this._parentId,
         controller: this.addTextPart(),
       };
     }
@@ -160,9 +165,13 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   appendReasoning(textDelta: string) {
-    if (this._state.append?.kind !== "reasoning") {
+    if (
+      this._state.append?.kind !== "reasoning" ||
+      this._state.append.parentId !== this._parentId
+    ) {
       this._state.append = {
         kind: "reasoning",
+        parentId: this._parentId,
         controller: this.addReasoningPart(),
       };
     }
@@ -171,13 +180,13 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
 
   addTextPart() {
     const [stream, controller] = createTextStreamController();
-    this._addPart({ type: "text" }, stream);
+    this._addPart(this._withParentIdOption({ type: "text" }), stream);
     return controller;
   }
 
   addReasoningPart() {
     const [stream, controller] = createTextStreamController();
-    this._addPart({ type: "reasoning" }, stream);
+    this._addPart(this._withParentIdOption({ type: "reasoning" }), stream);
     return controller;
   }
 
