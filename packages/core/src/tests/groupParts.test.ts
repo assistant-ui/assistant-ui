@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildGroupTree,
-  type GroupNode,
-} from "../react/utils/groupParts";
+import { buildGroupTree, type GroupNode } from "../react/utils/groupParts";
 
 const asPaths = (keys: readonly (readonly string[])[]) => keys;
 
