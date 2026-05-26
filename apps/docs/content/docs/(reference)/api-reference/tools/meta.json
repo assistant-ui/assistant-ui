@@ -1,11 +1,5 @@
 {
   "title": "Tools",
   "description": "Tool definitions, React renderers, status helpers, and toolkits for exposing callable app capabilities to assistant-ui chat models.",
-  "pages": [
-    "index",
-    "toolkits",
-    "component-tools",
-    "rendering",
-    "status"
-  ]
+  "pages": ["index", "toolkits", "component-tools", "rendering", "status"]
 }

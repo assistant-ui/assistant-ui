@@ -1,9 +1,5 @@
 {
   "title": "Integrations",
   "description": "Package-level APIs for connecting assistant-ui React to the Vercel AI SDK, Assistant Cloud, and adjacent chat ecosystem hooks and runtimes.",
-  "pages": [
-    "index",
-    "react-ai-sdk",
-    "cloud-ai-sdk"
-  ]
+  "pages": ["index", "react-ai-sdk", "cloud-ai-sdk"]
 }

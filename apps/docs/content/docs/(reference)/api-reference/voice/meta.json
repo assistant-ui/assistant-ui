@@ -1,9 +1,5 @@
 {
   "title": "Voice",
   "description": "Realtime voice, speech synthesis, and dictation contracts for wiring spoken assistant flows into React chat UIs.",
-  "pages": [
-    "index",
-    "session",
-    "speech-dictation"
-  ]
+  "pages": ["index", "session", "speech-dictation"]
 }
