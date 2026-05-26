@@ -164,6 +164,13 @@ export const ArtifactPrimitivePreview = forwardRef<
             return;
           }
 
+          // renderRaw (HTML/SVG/etc.) has no aui:artifact:status protocol —
+          // a successful SCF mount is the terminal signal for tool completion.
+          if (!renderToHtml) {
+            reportFromMessage(true);
+            return;
+          }
+
           window.addEventListener("message", onMessage);
           messageListenerAdded = true;
 

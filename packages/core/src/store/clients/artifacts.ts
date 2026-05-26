@@ -284,12 +284,18 @@ const PENDING_STATUS: ArtifactOperationStatus = Object.freeze({
   status: "pending",
 });
 
-const collectArtifacts = (
+/** @internal Exported for unit tests — pure fold of messages into artifact state. */
+export const collectArtifacts = (
   messages: readonly { content: readonly any[] }[],
   byToolName: Map<string, ResolvedSpec>,
-  statusByToolCallId: Map<string, ArtifactOperationStatus>,
-): readonly Artifact[] => {
+  statusByToolCallId: ReadonlyMap<string, ArtifactOperationStatus>,
+): {
+  artifacts: readonly Artifact[];
+  /** Terminal statuses produced by folding (e.g. unknown-id patches), without mutating the input map. */
+  foldStatuses: ReadonlyMap<string, ArtifactOperationStatus>;
+} => {
   const working = new Map<string, WorkingArtifact>();
+  const foldStatuses = new Map<string, ArtifactOperationStatus>();
   // Preserve creation order for stable enumeration.
   const order: string[] = [];
 
@@ -372,7 +378,7 @@ const collectArtifacts = (
             status: "error",
             error: { message: error },
           };
-          statusByToolCallId.set(tc.toolCallId, failedStatus);
+          foldStatuses.set(tc.toolCallId, failedStatus);
           continue;
         }
         const result = patch.apply(
@@ -392,7 +398,6 @@ const collectArtifacts = (
             result: failedStatus,
           };
           target.operations.push(op);
-          statusByToolCallId.set(tc.toolCallId, failedStatus);
         } else {
           const op: ArtifactOperation = {
             op: patch.kind,
@@ -408,23 +413,26 @@ const collectArtifacts = (
     }
   }
 
-  return order.map<Artifact>((id) => {
-    const w = working.get(id)!;
-    const spec = w.spec;
-    return {
-      id: w.id,
-      toolCallId: w.toolCallId,
-      toolName: w.toolName,
-      mimeType: spec.mimeType,
-      content: w.content,
-      contentHash: cheapHash(`${spec.mimeType}\0${w.content}`),
-      ...(spec.language !== undefined && { language: spec.language }),
-      ...(spec.renderToHtml !== undefined && {
-        renderToHtml: spec.renderToHtml,
-      }),
-      operations: w.operations,
-    };
-  });
+  return {
+    artifacts: order.map<Artifact>((id) => {
+      const w = working.get(id)!;
+      const spec = w.spec;
+      return {
+        id: w.id,
+        toolCallId: w.toolCallId,
+        toolName: w.toolName,
+        mimeType: spec.mimeType,
+        content: w.content,
+        contentHash: cheapHash(`${spec.mimeType}\0${w.content}`),
+        ...(spec.language !== undefined && { language: spec.language }),
+        ...(spec.renderToHtml !== undefined && {
+          renderToHtml: spec.renderToHtml,
+        }),
+        operations: w.operations,
+      };
+    }),
+    foldStatuses,
+  };
 };
 
 /** Pure selection derivation shared by computeState and unit tests. */
@@ -607,6 +615,7 @@ const ArtifactsResource = resource(
       statusVersion: number;
       selectedId: string | null;
       artifacts: readonly Artifact[];
+      foldStatuses: ReadonlyMap<string, ArtifactOperationStatus>;
       state: ArtifactsState;
     };
     const cacheRef = tapRef<CacheEntry | null>(null);
@@ -635,9 +644,12 @@ const ArtifactsResource = resource(
 
       const artifactsRecomputed =
         !cache || messagesChanged || toolsChanged || statusChanged;
-      const artifacts: readonly Artifact[] = artifactsRecomputed
+      const collected = artifactsRecomputed
         ? collectArtifacts(messages, byToolName, statusMapRef.current)
-        : cache.artifacts;
+        : null;
+      const artifacts = collected?.artifacts ?? cache?.artifacts ?? [];
+      const foldStatuses =
+        collected?.foldStatuses ?? cache?.foldStatuses ?? new Map();
 
       // Whenever artifacts (and thus their operation statuses) were
       // recomputed, scan for terminal statuses and resolve the corresponding
@@ -654,6 +666,11 @@ const ArtifactsResource = resource(
             if (op.result.status !== "pending") {
               resolveToolCall(op.toolCallId, op.result);
             }
+          }
+        }
+        for (const [toolCallId, status] of foldStatuses) {
+          if (status.status !== "pending") {
+            resolveToolCall(toolCallId, status);
           }
         }
         for (const [toolCallId, status] of statusMapRef.current) {
@@ -685,6 +702,7 @@ const ArtifactsResource = resource(
         statusVersion,
         selectedId,
         artifacts,
+        foldStatuses,
         state,
       };
       return state;
@@ -741,10 +759,12 @@ const ArtifactsResource = resource(
       (toolCallId: string): ArtifactOperationStatus | null => {
         const status = statusMapRef.current.get(toolCallId);
         if (status) return status;
+        const cache = cacheRef.current;
+        const foldStatus = cache?.foldStatuses.get(toolCallId);
+        if (foldStatus) return foldStatus;
         // Fall back to scanning artifact operations — covers the case where
         // the fold itself produced the status (e.g. a failed `update_artifact`
         // with no iframe round trip).
-        const cache = cacheRef.current;
         if (cache) {
           for (const a of cache.artifacts) {
             for (const op of a.operations) {

@@ -2,8 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   htmlArtifactType,
   defaultArtifactTypes,
+  collectArtifacts,
   deriveArtifactsListState,
   toolResultFromStatus,
+  updateArtifactPatch,
   type ArtifactSpec,
 } from "../artifacts";
 
@@ -85,6 +87,52 @@ describe("ArtifactSpec shape", () => {
     };
     expect(customSpec.getContent({ svg: "<svg />" })).toBe("<svg />");
     expect(customSpec.mimeType).toBe("image/svg+xml");
+  });
+});
+
+describe("collectArtifacts", () => {
+  it("records unknown-id patch errors in foldStatuses without mutating the status input map", () => {
+    const byToolName = new Map([
+      ["render_html", { kind: "create" as const, spec: htmlArtifactType }],
+      [
+        "update_artifact",
+        { kind: "patch" as const, spec: updateArtifactPatch },
+      ],
+    ]);
+    const statusInput = new Map<string, { status: "pending" }>();
+    const messages = [
+      {
+        content: [
+          {
+            type: "tool-call",
+            toolName: "update_artifact",
+            toolCallId: "patch-1",
+            argsText: JSON.stringify({
+              artifactId: "missing",
+              find: "x",
+              replace: "y",
+            }),
+            args: { artifactId: "missing", find: "x", replace: "y" },
+          },
+        ],
+      },
+    ] as const;
+
+    const { artifacts, foldStatuses } = collectArtifacts(
+      messages,
+      byToolName,
+      statusInput,
+    );
+
+    expect(artifacts).toHaveLength(0);
+    expect(statusInput.size).toBe(0);
+    expect(foldStatuses.get("patch-1")?.status).toBe("error");
+    expect(foldStatuses.get("patch-1")).toMatchObject({
+      status: "error",
+      error: {
+        message: expect.stringContaining('no artifact with id "missing"'),
+      },
+    });
   });
 });
 
