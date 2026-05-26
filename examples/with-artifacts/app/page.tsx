@@ -41,10 +41,6 @@ import {
 } from "react";
 import { z } from "zod";
 
-// ---------------------------------------------------------------------------
-// Side panel state (open/close + selection)
-// ---------------------------------------------------------------------------
-
 type PanelCtx = {
   isOpen: boolean;
   open: (id?: string) => void;
@@ -84,10 +80,6 @@ const PanelProvider: FC<{ children: ReactNode }> = ({ children }) => {
     <PanelContext.Provider value={value}>{children}</PanelContext.Provider>
   );
 };
-
-// ---------------------------------------------------------------------------
-// Inline artifact card (replaces the tool-call pill)
-// ---------------------------------------------------------------------------
 
 const cardMeta = {
   render_html: { verb: "Created", lang: "HTML", icon: FileCodeIcon },
@@ -139,11 +131,6 @@ const ArtifactCard: FC<ArtifactCardProps> = ({
   const selectedId = useAuiState((s) => s.artifacts.selectedId);
   const isSelected = !!artifactId && selectedId === artifactId && isOpen;
 
-  // The card is a read-only status indicator. Tool-call completion (the
-  // addResult that drives the model's auto-continue loop) is owned by the
-  // Artifacts resource, which submits the result once an operation reaches a
-  // terminal status — independent of whether this card is mounted.
-
   const meta = cardMeta[toolName];
   const Icon = meta.icon;
   const statusIcon =
@@ -187,24 +174,15 @@ const ArtifactCard: FC<ArtifactCardProps> = ({
   );
 };
 
-// ---------------------------------------------------------------------------
-// Toolkit (render-only entries; tool-call completion is owned by the
-// Artifacts resource, not these cards)
-// ---------------------------------------------------------------------------
-
-const cardRender = (toolName: CardToolName) =>
-  function CardRender(props: {
-    toolCallId: string;
-    args: { artifactId?: string };
-  }) {
-    return (
-      <ArtifactCard
-        toolCallId={props.toolCallId}
-        toolName={toolName}
-        args={props.args}
-      />
-    );
-  };
+const cardRender =
+  (toolName: CardToolName) =>
+  (props: { toolCallId: string; args: { artifactId?: string } }) => (
+    <ArtifactCard
+      toolCallId={props.toolCallId}
+      toolName={toolName}
+      args={props.args}
+    />
+  );
 
 const artifactsToolkit = {
   render_html: {
@@ -214,7 +192,7 @@ const artifactsToolkit = {
       artifactId: z.string(),
       code: z.string(),
     }),
-    render: cardRender("render_html") as any,
+    render: cardRender("render_html"),
   },
   render_react: {
     type: "human" as const,
@@ -223,7 +201,7 @@ const artifactsToolkit = {
       artifactId: z.string(),
       code: z.string(),
     }),
-    render: cardRender("render_react") as any,
+    render: cardRender("render_react"),
   },
   update_artifact: {
     type: "human" as const,
@@ -234,7 +212,7 @@ const artifactsToolkit = {
       find: z.string(),
       replace: z.string(),
     }),
-    render: cardRender("update_artifact") as any,
+    render: cardRender("update_artifact"),
   },
   rewrite_artifact: {
     type: "human" as const,
@@ -243,7 +221,7 @@ const artifactsToolkit = {
       artifactId: z.string(),
       code: z.string(),
     }),
-    render: cardRender("rewrite_artifact") as any,
+    render: cardRender("rewrite_artifact"),
   },
 };
 
@@ -252,9 +230,12 @@ const artifactTypes = [
   reactArtifactType({ importMap: claudeParityImportMap }),
 ];
 
-// ---------------------------------------------------------------------------
-// Side panel (collapsible, multi-artifact selector, source/preview tabs)
-// ---------------------------------------------------------------------------
+const panelTabClass = (active: boolean) =>
+  `inline-flex flex-1 items-center justify-center gap-2 px-4 py-2 font-medium text-sm transition-colors ${
+    active
+      ? "bg-background text-foreground"
+      : "text-muted-foreground hover:text-foreground"
+  }`;
 
 const ArtifactsPanel: FC = () => {
   const { isOpen, close } = usePanel();
@@ -262,16 +243,12 @@ const ArtifactsPanel: FC = () => {
   const artifacts = useAuiState((s) => s.artifacts.artifacts);
   const selectedId = useAuiState((s) => s.artifacts.selectedId);
   const [tab, setTab] = useState<"source" | "preview">("preview");
-
-  // Draggable width. The handle sits on the LEFT edge of the panel; dragging
-  // it left grows the panel, dragging right shrinks it.
   const [width, setWidth] = useState(640);
   const draggingRef = useRef(false);
   const onResizePointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     draggingRef.current = true;
-    // Disable text selection + iframe pointer-events globally while dragging.
     document.body.style.userSelect = "none";
   };
   const onResizePointerMove = (e: React.PointerEvent) => {
@@ -345,11 +322,7 @@ const ArtifactsPanel: FC = () => {
           <button
             type="button"
             onClick={() => setTab("source")}
-            className={`inline-flex flex-1 items-center justify-center gap-2 px-4 py-2 font-medium text-sm transition-colors ${
-              tab === "source"
-                ? "bg-background text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+            className={panelTabClass(tab === "source")}
           >
             <CodeIcon className="size-4" />
             Source Code
@@ -357,25 +330,13 @@ const ArtifactsPanel: FC = () => {
           <button
             type="button"
             onClick={() => setTab("preview")}
-            className={`inline-flex flex-1 items-center justify-center gap-2 px-4 py-2 font-medium text-sm transition-colors ${
-              tab === "preview"
-                ? "bg-background text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+            className={panelTabClass(tab === "preview")}
           >
             <EyeIcon className="size-4" />
             Preview
           </button>
         </div>
-        {/*
-          Always mount BOTH Source and Preview, toggle via CSS only. The
-          iframe must be live the moment an artifact is folded in so it can
-          report mount status back over `aui:artifact:status` — without that,
-          the tool result never lands, the card never flips out of pending,
-          and the model thinks the artifact is still generating. CSS-hiding
-          the inactive tab keeps the iframe alive while presenting the
-          tabbed UX.
-        */}
+        {/* Keep Preview mounted (CSS-hidden) so iframe status can complete tool calls. */}
         <div className="relative min-h-0 flex-1">
           <ArtifactPrimitive.Source
             className={`absolute inset-0 overflow-y-auto whitespace-pre break-words px-4 py-2 font-mono text-sm ${
@@ -393,8 +354,6 @@ const ArtifactsPanel: FC = () => {
   );
 };
 
-// Floating pill: shown when the panel is closed but artifacts exist, so the
-// user can reopen the panel.
 const OpenPanelPill: FC = () => {
   const { isOpen, open } = usePanel();
   const count = useAuiState((s) => s.artifacts.count);
@@ -410,10 +369,6 @@ const OpenPanelPill: FC = () => {
     </button>
   );
 };
-
-// ---------------------------------------------------------------------------
-// App composition
-// ---------------------------------------------------------------------------
 
 function App() {
   const aui = useAui({

@@ -106,28 +106,43 @@ export const ArtifactPrimitivePreview = forwardRef<
       let iframeWindow: Window | null = null;
       let iframeOrigin: string | null = null;
       let helloTimer: ReturnType<typeof setInterval> | null = null;
+      const reportFromMessage = (
+        ok: boolean,
+        error?: ArtifactPrimitivePreview.StatusError,
+      ) => {
+        if (reported) return;
+        reported = true;
+        if (toolCallId) {
+          aui
+            .artifacts()
+            .reportOperationStatus(
+              toolCallId,
+              ok
+                ? { ok: true }
+                : { ok: false, error: error ?? { message: "Unknown error" } },
+            );
+        }
+        if (ok) {
+          onReadyRef.current?.(artifactId);
+        } else {
+          onErrorRef.current?.(
+            artifactId,
+            error ?? { message: "Unknown error" },
+          );
+        }
+      };
       const onMessage = (e: MessageEvent) => {
         if (reported) return;
         if (!e.data || e.data.type !== "aui:artifact:status") return;
         if (iframeWindow && e.source !== iframeWindow) return;
         if (iframeOrigin && e.origin !== iframeOrigin) return;
-        reported = true;
         if (e.data.ok) {
-          if (toolCallId) {
-            aui.artifacts().reportOperationStatus(toolCallId, { ok: true });
-          }
-          onReadyRef.current?.(artifactId);
+          reportFromMessage(true);
         } else {
-          const err = (e.data.error as
-            | ArtifactPrimitivePreview.StatusError
-            | undefined) ?? { message: "Unknown error" };
-          if (toolCallId) {
-            aui.artifacts().reportOperationStatus(toolCallId, {
-              ok: false,
-              error: err,
-            });
-          }
-          onErrorRef.current?.(artifactId, err);
+          reportFromMessage(
+            false,
+            e.data.error as ArtifactPrimitivePreview.StatusError | undefined,
+          );
         }
       };
       window.addEventListener("message", onMessage);

@@ -427,6 +427,29 @@ const collectArtifacts = (
   });
 };
 
+/** Pure selection derivation shared by computeState and unit tests. */
+export const deriveArtifactsListState = (
+  artifacts: readonly Artifact[],
+  selectedId: string | null,
+): Pick<
+  ArtifactsState,
+  "selected" | "selectedId" | "selectedIndex" | "count" | "isFirst" | "isLast"
+> => {
+  const fallbackId = artifacts.at(-1)?.id ?? null;
+  const effectiveId = selectedId ?? fallbackId;
+  const idx = artifacts.findIndex((a) => a.id === effectiveId);
+  const selected = idx >= 0 ? (artifacts[idx] ?? null) : null;
+  const count = artifacts.length;
+  return {
+    selected,
+    selectedId: effectiveId,
+    selectedIndex: idx,
+    count,
+    isFirst: idx <= 0,
+    isLast: idx === -1 || idx === count - 1,
+  };
+};
+
 // ---------------------------------------------------------------------------
 // Resource
 // ---------------------------------------------------------------------------
@@ -651,19 +674,9 @@ const ArtifactsResource = resource(
         return cache.state;
       }
 
-      const fallbackId = artifacts.at(-1)?.id ?? null;
-      const effectiveId = selectedId ?? fallbackId;
-      const idx = artifacts.findIndex((a) => a.id === effectiveId);
-      const selected = idx >= 0 ? (artifacts[idx] ?? null) : null;
-      const count = artifacts.length;
       const state: ArtifactsState = {
         artifacts,
-        selected,
-        selectedId: effectiveId,
-        selectedIndex: idx,
-        count,
-        isFirst: idx <= 0,
-        isLast: idx === -1 || idx === count - 1,
+        ...deriveArtifactsListState(artifacts, selectedId),
       };
 
       cacheRef.current = {
@@ -683,14 +696,11 @@ const ArtifactsResource = resource(
       artifacts: readonly Artifact[];
       effectiveIndex: number;
     } => {
-      // Reading from the cache is safe: every React render (which is what
-      // drives reactivity) walks computeState first.
-      const cache = cacheRef.current;
-      const artifacts = cache?.artifacts ?? [];
-      const fallbackId = artifacts.at(-1)?.id ?? null;
-      const effectiveId = prev ?? fallbackId;
-      const effectiveIndex = artifacts.findIndex((a) => a.id === effectiveId);
-      return { artifacts, effectiveIndex };
+      const artifacts = cacheRef.current?.artifacts ?? [];
+      return {
+        artifacts,
+        effectiveIndex: deriveArtifactsListState(artifacts, prev).selectedIndex,
+      };
     };
 
     const select = tapCallback((id: string | null) => {
