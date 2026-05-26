@@ -2,7 +2,7 @@ import { FlatList, View, StyleSheet, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAui, useAuiState } from "@assistant-ui/react-native";
 import { ThreadListItem } from "./ThreadListItem";
-import type { DrawerContentComponentProps } from "@react-navigation/drawer";
+import type { DrawerContentComponentProps } from "expo-router/build/react-navigation/drawer/types";
 
 export function ThreadListDrawer({ navigation }: DrawerContentComponentProps) {
   const aui = useAui();
