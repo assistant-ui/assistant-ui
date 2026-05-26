@@ -106,7 +106,7 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     );
 
     if (Math.abs(viewport.scrollTop - targetScrollTop) > 1) {
-      viewport.scrollTo({ top: targetScrollTop, behavior: "smooth" });
+      viewport.scrollTo({ top: targetScrollTop, behavior: "instant" });
     }
 
     if (anchorId !== undefined) lastScrolledAnchorId = anchorId;
