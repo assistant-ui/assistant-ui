@@ -118,8 +118,7 @@ const AssistantMessage: FC = () => {
               return ["group-chainOfThought", "group-reasoning"];
             if (part.type === "tool-call")
               return ["group-chainOfThought", "group-tool"];
-            if (part.type === "source")
-              return ["group-chainOfThought", "group-sources"];
+            if (part.type === "source") return ["group-sources"];
             return null;
           }}
         >
@@ -177,7 +176,7 @@ const ChainOfThoughtGroup: FC<PropsWithChildren> = ({ children }) => {
 
 const SourcesLayout: FC<PropsWithChildren> = ({ children }) => {
   return (
-    <div className="flex flex-wrap items-center gap-1.5 border-t px-4 py-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       <span className="mr-1 text-muted-foreground text-xs">Sources</span>
       {children}
     </div>

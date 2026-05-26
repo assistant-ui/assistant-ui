@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
 import {
   streamText,
   convertToModelMessages,
@@ -100,6 +100,12 @@ async function streamModel(
   frontendToolDefs: Record<string, any>,
 ) {
   const toolNameByCall = new Map<string, string>();
+  const openai = createOpenAI({
+    apiKey: process.env.OPENAI_API_KEY!,
+    ...(process.env.OPENAI_BASE_URL && {
+      baseURL: process.env.OPENAI_BASE_URL,
+    }),
+  });
 
   const result = streamText({
     // Reasoning model so the chain-of-thought group has real content.
@@ -146,7 +152,7 @@ async function streamModel(
       for (const source of output.sources ?? []) {
         writer.write({
           type: "source-url",
-          sourceId: source.id,
+          sourceId: `${source.id}-${crypto.randomUUID()}`,
           url: source.url,
           title: source.title,
         });
@@ -181,8 +187,7 @@ async function streamFallback(
     "A real run emits the same chunk shapes from the model: a reasoning step, " +
     "a search_web tool call, source-url parts derived from the tool output, " +
     "and a final answer that summarises the sources.";
-  for (const word of reasoning.split(/(\s+)/)) {
-    if (!word) continue;
+  for (const word of reasoning.match(/\S+\s*|\s+/g) ?? [reasoning]) {
     writer.write({ type: "reasoning-delta", id: reasoningId, delta: word });
     await sleep(15);
   }
@@ -204,7 +209,7 @@ async function streamFallback(
   for (const source of sources) {
     writer.write({
       type: "source-url",
-      sourceId: source.id,
+      sourceId: `${source.id}-${crypto.randomUUID()}`,
       url: source.url,
       title: source.title,
     });
@@ -216,8 +221,7 @@ async function streamFallback(
     "The badges above are structured `source` message parts emitted as " +
     "`source-url` chunks, not URLs scraped from text. Set `OPENAI_API_KEY` " +
     "to switch to a real model run.";
-  for (const word of answer.split(/(\s+)/)) {
-    if (!word) continue;
+  for (const word of answer.match(/\S+\s*|\s+/g) ?? [answer]) {
     writer.write({ type: "text-delta", id: textId, delta: word });
     await sleep(15);
   }
