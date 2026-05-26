@@ -454,9 +454,13 @@ export class ExternalStoreThreadRuntimeCore
     // imported state) is treated as historical — no streamCall/execute
     // fires for the loaded tool calls. The adapter is expected to update
     // its messages in response to onLoadExternalState; that update flows
-    // back here via __internal_setAdapter.
-    this._toolInvocations?.reset();
-    this._store.setToolStatuses?.({});
+    // back here via __internal_setAdapter. We only clear adapter-side
+    // tool statuses when the tracker is the source of truth — otherwise
+    // we'd wipe statuses the adapter is managing on its own.
+    if (this._toolInvocations) {
+      this._toolInvocations.reset();
+      this._store.setToolStatuses?.({});
+    }
 
     this._store.onLoadExternalState(state);
   }
