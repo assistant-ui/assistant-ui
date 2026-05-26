@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.94
+
+### Patch Changes
+
+- [#4115](https://github.com/assistant-ui/assistant-ui/pull/4115) [`107d6bd`](https://github.com/assistant-ui/assistant-ui/commit/107d6bd855bcb59f62c814c1a7e1ef634fafcb42) - chore(cli): drop `with-parent-id-grouping` from the `--example` list. the example demonstrated `MessagePrimitive.Unstable_PartsGroupedByParentId`, which is deprecated; its grouping pattern is now better demonstrated by `with-chain-of-thought` using `MessagePrimitive.GroupedParts`, and the sources gap is closed by emitting `source-url` parts from a `search_web` tool in the same example. `npx assistant-ui create -e with-parent-id-grouping` will no longer resolve. ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.93
 
 ### Patch Changes

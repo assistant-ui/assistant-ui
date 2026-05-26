@@ -1,5 +1,13 @@
 # assistant-stream
 
+## 0.3.17
+
+### Patch Changes
+
+- [#4116](https://github.com/assistant-ui/assistant-ui/pull/4116) [`d4f1db4`](https://github.com/assistant-ui/assistant-ui/commit/d4f1db428b1a1fe5c122150e1e366a377e9adb5f) - fix: preserve parentId on streamed text and reasoning parts ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+  `AssistantStreamController` dropped `parentId` for text/reasoning parts written through a `withParentId(...)` controller: `addTextPart`/`addReasoningPart` never attached it, and `appendText`/`appendReasoning` reused the open append part across a `parentId` change. This silently merged parts and broke the `AuiTextDelta`/`AuiReasoningDelta` data-stream round trip (including the decoder's own `withParentId(...).appendText(...)` path).
+
 ## 0.3.16
 
 ### Patch Changes
