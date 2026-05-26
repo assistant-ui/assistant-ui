@@ -593,7 +593,7 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/directive-text.tsx",
       },
     ],
-    dependencies: ["@assistant-ui/react", "@assistant-ui/core", "lucide-react"],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: ["https://r.assistant-ui.com/badge.json"],
   },
 ];

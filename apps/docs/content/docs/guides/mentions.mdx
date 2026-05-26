@@ -144,7 +144,7 @@ Pass the adapter to `TriggerPopover` and declare a `Directive` sub-primitive to 
 
 ```tsx
 import { ComposerPrimitive } from "@assistant-ui/react";
-import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+import { unstable_defaultDirectiveFormatter } from "@assistant-ui/react";
 
 <ComposerPrimitive.Unstable_TriggerPopoverRoot>
   <ComposerPrimitive.Root>
@@ -302,7 +302,7 @@ When `id` equals `label`, the `{name=…}` attribute is omitted for brevity:
 Implement `Unstable_DirectiveFormatter` to use a different format:
 
 ```ts
-import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
+import type { Unstable_DirectiveFormatter } from "@assistant-ui/react";
 
 const slashFormatter: Unstable_DirectiveFormatter = {
   serialize(item) {

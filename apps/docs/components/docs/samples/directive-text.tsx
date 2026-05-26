@@ -1,7 +1,7 @@
 "use client";
 
 import { WrenchIcon } from "lucide-react";
-import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
+import { unstable_defaultDirectiveFormatter } from "@assistant-ui/react";
 import { createDirectiveText } from "@/components/assistant-ui/directive-text";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
