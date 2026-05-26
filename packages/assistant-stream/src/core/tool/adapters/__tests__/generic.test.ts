@@ -62,7 +62,7 @@ describe("genericFallbackAdapter", () => {
       expect(result.tools).not.toHaveProperty("deferredTool");
     });
 
-    it("handles undefined deferred tools", () => {
+    it("omits wrappers when there are no deferred tools", () => {
       const adapter = genericFallbackAdapter({
         adapterId: "test-undef-deferred",
       });
@@ -72,15 +72,15 @@ describe("genericFallbackAdapter", () => {
       });
 
       expect(result.tools).toHaveProperty("coreTool");
-      expect(result.tools).toHaveProperty("aui_discover_tools");
-      expect(result.tools).toHaveProperty("aui_run_dynamic_tool");
+      expect(result.tools).not.toHaveProperty("aui_discover_tools");
+      expect(result.tools).not.toHaveProperty("aui_run_dynamic_tool");
     });
 
     it("wrapper tools have the expected schema shape", () => {
       const adapter = genericFallbackAdapter({ adapterId: "test-schema" });
       const result = adapter.format({
         tools: undefined,
-        deferredTools: undefined,
+        deferredTools: { deferredTool: stubTool() },
       });
 
       const discover = result.tools["aui_discover_tools"] as {

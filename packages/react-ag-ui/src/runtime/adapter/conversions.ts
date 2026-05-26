@@ -1,7 +1,6 @@
 "use client";
 
 import type { InputContent } from "@ag-ui/client";
-import { type Tool, toToolsJSONSchema } from "assistant-stream";
 
 export type { InputContent };
 
@@ -562,23 +561,4 @@ export function toAgUiMessages(
   }
 
   return converted;
-}
-
-type AgUiTool = {
-  name: string;
-  description: string | undefined;
-  parameters: unknown;
-};
-
-export function toAgUiTools(
-  tools: Record<string, Tool> | undefined,
-): AgUiTool[] {
-  if (!tools) return [];
-
-  const toolsSchema = toToolsJSONSchema(tools);
-  return Object.entries(toolsSchema).map(([name, tool]) => ({
-    name,
-    description: tool.description,
-    parameters: tool.parameters,
-  }));
 }

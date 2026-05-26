@@ -21,12 +21,28 @@ const RUN_NAME = "aui_run_dynamic_tool";
  *
  * This is the cache-safe fallback for providers without native deferred
  * loading (data-stream, ag-ui): the cacheable prefix stays stable regardless
- * of how many deferred tools exist.
+ * of how many deferred tools exist. When there are no deferred tools the
+ * wrappers are omitted entirely, so existing tool-only consumers are
+ * unaffected.
  */
 export function injectDiscoveryWrappers(
   options: DiscoveryWrapperOptions,
 ): Record<string, ToolJSONSchema> {
   const core = toToolsJSONSchema(options.tools ?? {});
+
+  const hasDeferred =
+    !!options.deferredTools && Object.keys(options.deferredTools).length > 0;
+  if (!hasDeferred) return core;
+
+  for (const reserved of [DISCOVER_NAME, RUN_NAME]) {
+    if (reserved in core) {
+      throw new Error(
+        `Tool name '${reserved}' is reserved for progressive tool disclosure; ` +
+          `rename the conflicting tool.`,
+      );
+    }
+  }
+
   return {
     ...core,
     [DISCOVER_NAME]: {

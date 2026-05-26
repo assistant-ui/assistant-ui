@@ -1,12 +1,10 @@
 "use client";
 
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
 import { UserMessageSchema } from "@ag-ui/client";
 import {
   fromAgUiMessages,
   toAgUiMessages,
-  toAgUiTools,
 } from "../src/runtime/adapter/conversions";
 
 describe("adapter conversions", () => {
@@ -173,43 +171,6 @@ describe("adapter conversions", () => {
     });
   });
 
-  it("filters disabled/back-end tools", () => {
-    const tools = toAgUiTools({
-      search: { description: "Search", parameters: { type: "object" } },
-      disabled: { disabled: true },
-      backend: { type: "backend" },
-    });
-
-    expect(tools).toHaveLength(1);
-    expect(tools[0]).toMatchObject({ name: "search" });
-  });
-
-  it("prefers available schema conversion helpers for tools", () => {
-    const tools = toAgUiTools({
-      jsonTool: { parameters: { toJSON: () => ({ type: "object" }) } },
-      schemaTool: { parameters: { toJSONSchema: () => ({ type: "string" }) } },
-      plain: { parameters: { type: "boolean" } },
-    });
-
-    expect(tools).toEqual([
-      {
-        name: "jsonTool",
-        description: undefined,
-        parameters: { type: "object" },
-      },
-      {
-        name: "schemaTool",
-        description: undefined,
-        parameters: { type: "string" },
-      },
-      {
-        name: "plain",
-        description: undefined,
-        parameters: { type: "boolean" },
-      },
-    ]);
-  });
-
   it("preserves tool message ID through round-trip conversion", () => {
     const agUiMessages = [
       {
@@ -246,39 +207,6 @@ describe("adapter conversions", () => {
     const toolMessage = roundTripped.find((m) => m.role === "tool");
     expect(toolMessage).toBeDefined();
     expect(toolMessage!.id).toBe("tool-msg-original-id");
-  });
-
-  it("converts Zod schemas to JSON Schema format", () => {
-    const zodSchema = z.object({
-      message: z.string().describe("Text to log to the console."),
-    });
-
-    const tools = toAgUiTools({
-      console_log: {
-        description: "Log a message to the console.",
-        parameters: zodSchema,
-      },
-    });
-
-    expect(tools).toHaveLength(1);
-    expect(tools[0]).toMatchObject({
-      name: "console_log",
-      description: "Log a message to the console.",
-    });
-    // Verify parameters is a plain JSON Schema object, not a Zod instance
-    expect(tools[0]!.parameters).toMatchObject({
-      type: "object",
-      properties: {
-        message: {
-          type: "string",
-          description: "Text to log to the console.",
-        },
-      },
-      required: ["message"],
-    });
-    // Ensure it's not a Zod instance (no Zod methods)
-    expect(tools[0]!.parameters).not.toHaveProperty("parse");
-    expect(tools[0]!.parameters).not.toHaveProperty("_def");
   });
 
   it("returns plain string content when user message has no attachments", () => {

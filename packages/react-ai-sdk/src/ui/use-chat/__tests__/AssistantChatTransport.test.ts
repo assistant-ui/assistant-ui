@@ -527,4 +527,27 @@ describe("AssistantChatTransport — provider auto-detection (Phase 3)", () => {
     expect(capturedOptions.body.tools.tool_search).toBeDefined();
     expect(capturedOptions.headers?.["anthropic-beta"]).toBeUndefined();
   });
+
+  it("unrecognized modelName falls back to the generic discovery wrappers", async () => {
+    let capturedOptions: any;
+    const transport = new AssistantChatTransport({
+      prepareSendMessagesRequest: (async (opts: any) => {
+        capturedOptions = opts;
+        return undefined;
+      }) as any,
+    });
+
+    await callPrepareWithTransport(
+      transport,
+      makeRuntimeWithModel("gemini-2.0-flash", { deferredTool: stubTool() }),
+    );
+
+    // No provider-specific wire fields leak to an unknown provider.
+    expect(capturedOptions.body.tools).toHaveProperty("aui_discover_tools");
+    expect(capturedOptions.body.tools).toHaveProperty("aui_run_dynamic_tool");
+    expect(capturedOptions.body.tools).not.toHaveProperty("deferredTool");
+    expect(capturedOptions.body.tools.tool_search).toBeUndefined();
+    expect(capturedOptions.body.tools.tool_search_tool_bm25).toBeUndefined();
+    expect(capturedOptions.headers?.["anthropic-beta"]).toBeUndefined();
+  });
 });

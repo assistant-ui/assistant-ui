@@ -192,7 +192,11 @@ function detectWireFormat(
   if (/^(claude|anthropic)/i.test(modelName))
     return anthropicToolSearchAdapter({ variant });
   if (/^(gpt|o[0-9]|openai)/i.test(modelName)) return openaiToolSearchAdapter();
-  return anthropicToolSearchAdapter({ variant });
+  // Unrecognized provider: avoid emitting Anthropic-specific wire fields
+  // (defer_loading, beta header) that other providers reject. The generic
+  // fallback keeps deferred tools off the wire behind stable discovery
+  // wrappers instead.
+  return genericFallbackAdapter({ adapterId: "react-ai-sdk" });
 }
 
 function wrapFetchWithResumable(
