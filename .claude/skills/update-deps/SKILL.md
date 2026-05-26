@@ -1,11 +1,11 @@
 ---
 name: update-deps
-description: Update dependencies across the assistant-ui monorepo (npm via pnpm + taze, Expo SDK-pinned packages, and Python packages via uv). Use when the user asks to bump, upgrade, or update dependencies (root, packages, examples, templates, python/*), refresh the pnpm lockfile or uv.lock files, or run the dependency-update workflow before a release.
+description: Update dependencies across the assistant-ui monorepo (npm via pnpm + taze, Expo SDK-pinned packages, Python packages via uv, and GitHub Actions). Use when the user asks to bump, upgrade, or update dependencies (root, packages, examples, templates, python/*, .github/workflows/*), refresh the pnpm lockfile or uv.lock files, repin GitHub Actions, or run the dependency-update workflow before a release.
 ---
 
 # update-deps
 
-Update every package's dependencies across the monorepo (packages, apps, examples, templates, and `python/*`), regenerate lockfiles, and create a `chore: update dependencies` changeset for the JS side.
+Update every package's dependencies across the monorepo (packages, apps, examples, templates, `python/*`, and `.github/workflows/*`), regenerate lockfiles, and create a `chore: update dependencies` changeset for the JS side.
 
 ## JS / TS (pnpm workspaces)
 
@@ -88,3 +88,34 @@ Notes:
 - Python bumps do **not** require a changeset — Python packages are versioned manually in their `pyproject.toml` and published via `.github/workflows/pypi-publish.yaml`, independent of the JS changesets pipeline.
 - Bumping a published Python package's own version (e.g. `assistant-stream`) is a separate release decision; `uv lock --upgrade` only touches transitive deps.
 - Commit Python and JS dep updates separately if the diff is large, or as one `chore: update dependencies` commit if both are clean.
+
+## GitHub Actions
+
+Workflows under `.github/workflows/*.{yml,yaml}` use a mix of styles:
+
+- **SHA-pinned** (preferred for security — supply-chain hardening):
+  `uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6`
+- **Tag-pinned** (still in some files):
+  `uses: actions/checkout@v6`
+
+There is **no Dependabot config** (`.github/dependabot.yml` does not exist), so these don't update themselves. `pnpm deps:update` does not touch them either.
+
+To refresh both styles in one shot, use [`ratchet`](https://github.com/sethvargo/ratchet) (or `pinact`):
+
+```bash
+# pin any remaining tag refs to SHAs (one-time per file)
+ratchet pin .github/workflows/*.yml .github/workflows/*.yaml
+
+# bump every SHA-pinned action to the latest release SHA for its major
+ratchet update .github/workflows/*.yml .github/workflows/*.yaml
+```
+
+Both leave the `# v6`-style comment intact so reviewers can read the human version. If `ratchet` isn't available, fall back to manually checking each `uses:` against the action's releases page and updating the SHA + comment together.
+
+After updating, sanity-check on a branch by pushing and watching the affected workflows actually run (most are PR-triggered: `code-quality`, `autofix`, `changeset`, `changeset-semver-check`, `expo`, `devtools-frame`, `registry`). Release workflows (`npm-publish`, `pypi-publish`, `traction`) can't be tested without a release tag — eyeball those diffs extra carefully.
+
+Notes:
+
+- GH Actions updates do not need a changeset (they don't ship in any npm package).
+- Commit as `chore: update github actions` (or roll into `chore: update dependencies` if landing alongside the JS/Python bumps).
+- If a major bump changes inputs/outputs, check the action's release notes — `ratchet` will happily move you from `v4` to `v6` without warning about breaking changes.
