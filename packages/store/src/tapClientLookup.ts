@@ -36,7 +36,7 @@ export function tapClientLookup<TMethods extends ClientMethods>(
 } {
   const resources = tapResources(
     () => getElements().map((el) => ClientResourceWithKey(el)),
-    // biome-ignore lint/correctness/useExhaustiveDependencies: getElementsDeps is passed through from caller
+    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- caller-supplied deps array
     getElementsDeps,
   );
 

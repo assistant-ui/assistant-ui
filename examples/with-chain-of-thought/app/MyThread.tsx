@@ -64,7 +64,7 @@ const ThreadWelcome: FC = () => {
   return (
     <div className="mx-auto flex w-full max-w-(--thread-max-width) grow flex-col justify-center gap-6">
       <div>
-        <h1 className="font-semibold text-2xl">
+        <h1 className="text-2xl font-semibold">
           What should we think through?
         </h1>
       </div>
@@ -175,7 +175,7 @@ const ChainOfThoughtGroup: FC<PropsWithChildren> = ({ children }) => {
 const SourcesLayout: FC<PropsWithChildren> = ({ children }) => {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 text-muted-foreground text-xs">Sources</span>
+      <span className="text-muted-foreground mr-1 text-xs">Sources</span>
       {children}
     </div>
   );

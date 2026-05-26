@@ -84,8 +84,8 @@ describe("createAdkSessionAdapter - list", () => {
     });
     await adapter.list();
 
-    const init = mockFetch.mock.calls[0]![1];
-    expect((init?.headers as Record<string, string>).Authorization).toBe(
+    const init = mockFetch.mock.calls[0]![1]!;
+    expect((init.headers as Record<string, string>).Authorization).toBe(
       "Bearer tok",
     );
   });
@@ -101,8 +101,8 @@ describe("createAdkSessionAdapter - list", () => {
     });
     await adapter.list();
 
-    const init = mockFetch.mock.calls[0]![1];
-    expect((init?.headers as Record<string, string>)["X-Dynamic"]).toBe("val");
+    const init = mockFetch.mock.calls[0]![1]!;
+    expect((init.headers as Record<string, string>)["X-Dynamic"]).toBe("val");
   });
 });
 
@@ -332,8 +332,8 @@ describe("createAdkSessionAdapter - load", () => {
     });
     await load("s1");
 
-    const init = mockFetch.mock.calls[0]![1];
-    expect((init?.headers as Record<string, string>).Authorization).toBe(
+    const init = mockFetch.mock.calls[0]![1]!;
+    expect((init.headers as Record<string, string>).Authorization).toBe(
       "Bearer tok",
     );
   });

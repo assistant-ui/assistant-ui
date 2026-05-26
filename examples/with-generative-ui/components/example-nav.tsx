@@ -8,13 +8,13 @@ const links = [
 
 export function ExampleNav() {
   return (
-    <nav className="flex flex-wrap items-center gap-2 border-b bg-background px-4 py-2 text-sm">
-      <span className="font-medium text-muted-foreground">Examples:</span>
+    <nav className="bg-background flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm">
+      <span className="text-muted-foreground font-medium">Examples:</span>
       {links.map(({ href, label }) => (
         <Link
           key={href}
           href={href}
-          className="rounded-md px-2 py-1 text-foreground hover:bg-muted"
+          className="text-foreground hover:bg-muted rounded-md px-2 py-1"
         >
           {label}
         </Link>

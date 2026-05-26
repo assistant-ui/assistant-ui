@@ -75,8 +75,8 @@ export default function GenerativeUIPrimitivePage() {
       <ExampleNav />
       <main className="mx-auto flex h-full max-w-2xl flex-col gap-6 overflow-y-auto p-8">
         <header>
-          <h1 className="font-bold text-2xl">MessagePrimitive.GenerativeUI</h1>
-          <p className="mt-1 text-muted-foreground text-sm">
+          <h1 className="text-2xl font-bold">MessagePrimitive.GenerativeUI</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
             Agent-described React UI rendered from a JSON spec via a
             consumer-provided component allowlist.
           </p>

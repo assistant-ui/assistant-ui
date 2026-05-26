@@ -4,6 +4,6 @@ export const tapCallback = <T extends (...args: any[]) => any>(
   fn: T,
   deps: readonly unknown[],
 ): T => {
-  // biome-ignore lint/correctness/useExhaustiveDependencies: user provided deps instead of callback identity
+  // oxlint-disable-next-line tap-hooks/exhaustive-deps -- user-provided dep array forwarded verbatim
   return tapMemo(() => fn, deps);
 };

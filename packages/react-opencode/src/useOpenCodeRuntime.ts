@@ -385,7 +385,7 @@ export const useOpenCodeRuntime = (
     allowNesting: true,
     adapter,
     initialThreadId: options.initialSessionId,
-    // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook callback is invoked by useRemoteThreadListRuntime at the appropriate hook position
     runtimeHook: () => useRuntimeHook(client, registry, options),
   });
 };

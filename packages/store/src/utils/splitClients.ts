@@ -65,7 +65,7 @@ function splitClients(clients: useAui.Props, baseClient: AssistantClient) {
 }
 
 const tapShallowMemoObject = <T extends object>(object: T) => {
-  // biome-ignore lint/correctness/useExhaustiveDependencies: shallow memo
+  // oxlint-disable-next-line tap-hooks/exhaustive-deps -- shallow memo over the object's flattened entries
   return tapMemo(() => object, [...Object.entries(object).flat()]);
 };
 

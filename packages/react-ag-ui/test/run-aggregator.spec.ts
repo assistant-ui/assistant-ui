@@ -307,7 +307,7 @@ describe("RunAggregator", () => {
     const types = (last?.content ?? []).map((part) => part.type);
     expect(types[0]).toBe("reasoning");
     expect(types[1]).toBe("text");
-    expect((last?.content?.[0] as any).text).toBe("Reasoning first");
+    expect((last!.content![0] as any).text).toBe("Reasoning first");
   });
 
   it("marks run errors with reason and message", () => {

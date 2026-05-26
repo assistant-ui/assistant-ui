@@ -113,11 +113,11 @@ export const AssistantMessageGui: FC<AssistantMessageGuiProps> = ({
     <MessagePrimitive.Root
       data-slot="aui_assistant-message-root"
       data-role="assistant"
-      className="fade-in slide-in-from-bottom-1 relative animate-in duration-150 [contain-intrinsic-size:auto_300px] [content-visibility:auto]"
+      className="fade-in slide-in-from-bottom-1 animate-in relative duration-150 [contain-intrinsic-size:auto_300px] [content-visibility:auto]"
     >
       <div
         data-slot="aui_assistant-message-content"
-        className="wrap-break-word px-2 text-foreground leading-relaxed"
+        className="text-foreground px-2 leading-relaxed wrap-break-word"
       >
         <MessagePrimitive.GroupedParts
           groupBy={(part) => {
@@ -183,7 +183,7 @@ export const AssistantMessageGui: FC<AssistantMessageGuiProps> = ({
           }}
         </MessagePrimitive.GroupedParts>
         <MessagePrimitive.Error>
-          <ErrorPrimitive.Root className="aui-message-error-root mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-destructive text-sm dark:bg-destructive/5 dark:text-red-200">
+          <ErrorPrimitive.Root className="aui-message-error-root border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-3 text-sm dark:text-red-200">
             <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
           </ErrorPrimitive.Root>
         </MessagePrimitive.Error>
@@ -195,7 +195,7 @@ export const AssistantMessageGui: FC<AssistantMessageGuiProps> = ({
       >
         <BranchPickerPrimitive.Root
           hideWhenSingleBranch
-          className="aui-branch-picker-root -ms-2 me-2 inline-flex items-center text-muted-foreground text-xs"
+          className="aui-branch-picker-root text-muted-foreground -ms-2 me-2 inline-flex items-center text-xs"
         >
           <BranchPickerPrimitive.Previous asChild>
             <TooltipIconButton tooltip="Previous">
@@ -214,7 +214,7 @@ export const AssistantMessageGui: FC<AssistantMessageGuiProps> = ({
         <ActionBarPrimitive.Root
           hideWhenRunning
           autohide="not-last"
-          className="aui-assistant-action-bar-root -ms-1 flex gap-1 text-muted-foreground"
+          className="aui-assistant-action-bar-root text-muted-foreground -ms-1 flex gap-1"
         >
           <ActionBarPrimitive.Copy asChild>
             <TooltipIconButton tooltip="Copy">

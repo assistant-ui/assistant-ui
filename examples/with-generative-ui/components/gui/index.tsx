@@ -12,7 +12,7 @@ export const UnknownComponentFallback = ({
 }: {
   component: string;
 }) => (
-  <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+  <span className="bg-muted rounded px-1.5 py-0.5 font-mono text-xs">
     unknown component: {component}
   </span>
 );

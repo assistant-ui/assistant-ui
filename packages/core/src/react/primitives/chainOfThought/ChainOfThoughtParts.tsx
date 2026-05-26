@@ -86,8 +86,7 @@ export const ChainOfThoughtPrimitiveParts: FC<
     );
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  // oxlint-disable-next-line react-hooks/rules-of-hooks -- intentional conditional hook below the early return above
   const messageComponents = useMemo(
     () => ({
       Reasoning: components?.Reasoning,

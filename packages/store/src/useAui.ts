@@ -45,7 +45,7 @@ import {
 } from "./utils/proxied-assistant-state";
 
 const tapShallowMemoArray = <T>(array: readonly T[]) => {
-  // biome-ignore lint/correctness/useExhaustiveDependencies: shallow memo
+  // oxlint-disable-next-line tap-hooks/exhaustive-deps -- shallow memo over the array itself
   return tapMemo(() => array, array);
 };
 

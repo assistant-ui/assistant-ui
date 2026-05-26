@@ -182,9 +182,9 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
     GROUPBY_MEMO_KEY
   ];
   const memoDep = memoKey ?? groupBy;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: groupBy is captured via memoDep — either as its identity (no memoKey) or as the helper's memoKey fingerprint. Listing groupBy directly would defeat the helper-tagged memo path.
   const tree = useMemo(
     () => buildGroupTree(parts.map((part) => groupBy(part) ?? [])),
+    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- groupBy is captured via memoDep (either its identity or the helper's memoKey fingerprint); listing it directly would defeat the helper-tagged memo path
     [parts, memoDep],
   );
 

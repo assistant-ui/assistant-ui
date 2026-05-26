@@ -32,9 +32,9 @@ export function tapResource<E extends ResourceElement<any, any>>(
   }, [element.type, element.key, parentFiber]);
 
   const result = propsDeps
-    ? // biome-ignore lint/correctness/useExhaustiveDependencies: user provided deps instead of prop identity
-      tapMemo(
+    ? tapMemo(
         () => renderResourceFiber(fiber, element.props),
+        // oxlint-disable-next-line tap-hooks/exhaustive-deps -- props identity replaced by user-provided deps
         [fiber, ...propsDeps, versionRef.current],
       )
     : renderResourceFiber(fiber, element.props);

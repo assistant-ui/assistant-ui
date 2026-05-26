@@ -61,7 +61,6 @@ export function useShikiHighlighter(
 
   const shikiRef = useRef<{ dispose: () => void } | null>(null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: langsKey stabilizes langs array by value
   useEffect(() => {
     let cancelled = false;
     setHighlighter(undefined);
@@ -116,6 +115,7 @@ export function useShikiHighlighter(
       shikiRef.current?.dispose();
       shikiRef.current = null;
     };
+    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- langsKey stabilizes langs by value
   }, [theme, langsKey]);
 
   return highlighter;
