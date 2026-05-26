@@ -14,6 +14,15 @@ import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, ExportedMessageRep
 
 ## API Reference
 
+### Artifacts
+
+```ts
+const Artifacts: {
+  (): ResourceElement<ArtifactsMethods, undefined>;
+  (config: ArtifactsConfig): ResourceElement<ArtifactsMethods, ArtifactsConfig>;
+};
+```
+
 ### AssistantCloud
 
 <ParametersTable {...AssistantCloud} />
@@ -21,6 +30,12 @@ import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, ExportedMessageRep
 ### ChainOfThoughtClient
 
 <ParametersTable {...ChainOfThoughtClient} />
+
+### defaultArtifactTypes
+
+```ts
+const defaultArtifactTypes: readonly ArtifactSpec[];
+```
 
 ### DevToolsHooks
 
@@ -57,6 +72,12 @@ does not reference an assistant-ui MCP app resource.
 
 <ParametersTable {...getMcpAppFromToolPart} />
 
+### htmlArtifactType
+
+```ts
+const htmlArtifactType: ArtifactSpec<{ code: string }>;
+```
+
 ### InMemoryThreadList
 
 <ParametersTable {...InMemoryThreadList} />
@@ -71,6 +92,12 @@ const Interactables: () => ResourceElement<ClientOutput<"interactables">, undefi
 
 ```ts
 const makeAssistantVisible: <T extends ComponentType<any>>(Component: T, config?: { clickable?: boolean | undefined; editable?: boolean | undefined; }) => T;
+```
+
+### markdownArtifactType
+
+```ts
+const markdownArtifactType: ArtifactSpec<{ markdown: string }>;
 ```
 
 ### McpAppRenderer
@@ -93,6 +120,12 @@ params }`, using the method names expected by the assistant-ui MCP Apps
 guide.
 
 <ParametersTable {...McpAppsRemoteHost} />
+
+### mermaidArtifactType
+
+```ts
+const mermaidArtifactType: ArtifactSpec<{ code: string }>;
+```
 
 ### SingleThreadList
 
@@ -127,5 +160,11 @@ When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
 
 ```ts
 const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
+```
+
+### svgArtifactType
+
+```ts
+const svgArtifactType: ArtifactSpec<{ code: string }>;
 ```
 {/* api-reference:end */}

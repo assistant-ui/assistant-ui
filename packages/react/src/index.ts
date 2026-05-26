@@ -208,6 +208,28 @@ export type { Tool } from "assistant-stream";
 export { tool } from "@assistant-ui/core";
 
 export { Suggestions, type SuggestionConfig } from "@assistant-ui/core/store";
+export {
+  Artifacts,
+  htmlArtifactType,
+  defaultArtifactTypes,
+  svgArtifactType,
+  markdownArtifactType,
+  mermaidArtifactType,
+  updateArtifactPatch,
+  rewriteArtifactPatch,
+  defaultArtifactPatches,
+} from "@assistant-ui/core/react";
+export type {
+  Artifact,
+  ArtifactOperation,
+  ArtifactOperationStatus,
+  ArtifactStatusError,
+  ArtifactSpec,
+  ArtifactPatchSpec,
+  ArtifactsConfig,
+  ArtifactsState,
+  ArtifactsMethods,
+} from "@assistant-ui/core/react";
 export type {
   QueueItemState,
   QueueItemMethods,
@@ -253,6 +275,7 @@ export * as ThreadListPrimitive from "./primitives/threadList";
 export * as ThreadListItemPrimitive from "./primitives/threadListItem";
 export * as ThreadListItemMorePrimitive from "./primitives/threadListItemMore";
 export * as SelectionToolbarPrimitive from "./primitives/selectionToolbar";
+export * as ArtifactPrimitive from "./primitives/artifact";
 
 export { useMessagePartText } from "./primitives/messagePart/useMessagePartText";
 export { useMessagePartReasoning } from "./primitives/messagePart/useMessagePartReasoning";

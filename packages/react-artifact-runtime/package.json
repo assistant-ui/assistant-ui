@@ -1,0 +1,56 @@
+{
+  "name": "@assistant-ui/react-artifact-runtime",
+  "version": "0.0.1",
+  "description": "React runtime for assistant-ui artifacts — renders a single-file JSX/TSX component inside the SafeContentFrame iframe via Babel standalone + an import map.",
+  "keywords": [
+    "assistant-ui",
+    "artifacts",
+    "react",
+    "iframe",
+    "sandbox",
+    "babel"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "@assistant-ui/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@assistant-ui/core": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "vitest": "^4.1.5"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/docs/guides/artifacts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-artifact-runtime"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}

@@ -1,0 +1,229 @@
+---
+title: Artifacts
+description: Render model-generated HTML, SVG, Markdown, and Mermaid diagrams in sandboxed iframes with origin-isolated execution via SafeContentFrame.
+platforms: ["react"]
+---
+
+Artifacts give your assistant the ability to produce rich, renderable content — HTML pages, SVG graphics, Markdown documents, Mermaid diagrams — and display them in a side-panel preview that is fully isolated from your host application. Each artifact preview runs in a cross-origin `SafeContentFrame` subdomain, so model-authored JavaScript cannot reach your app's cookies, `localStorage`, or DOM.
+
+## What you get
+
+- **`ArtifactPrimitive` namespace** — composable React primitives for `Root`, `Source`, `Preview`, `If`, and `VersionPicker.*`.
+- **`Artifacts` resource** — a `useAui` resource that derives artifacts from completed tool calls on the active branch, exposes selection state, and manages version navigation.
+- **Iframe isolation** — each preview renders via [`SafeContentFrame`](/safe-content-frame) on a content-hashed `*.scf.auiusercontent.com` subdomain. The domain is registered in the Public Suffix List, so every unique content hash is treated as a separate origin — no shared cookies, no shared `localStorage`.
+
+## Quick start
+
+### 1. Install the shadcn component
+
+```bash
+npx shadcn add https://r.assistant-ui.com/artifact-view.json
+```
+
+This copies `components/assistant-ui/artifact-view.tsx` into your project.
+
+### 2. Wire the `Artifacts` resource
+
+```tsx
+import {
+  useAui,
+  AuiProvider,
+  Artifacts,
+} from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { z } from "zod";
+
+const artifactsToolkit = {
+  render_html: {
+    description:
+      "Whenever the user asks for HTML code, call this function. The user will see the HTML code rendered in their browser.",
+    parameters: z.object({ code: z.string() }),
+    execute: async () => ({}),
+  },
+};
+
+function App({ children }: { children: React.ReactNode }) {
+  const aui = useAui({
+    artifacts: Artifacts({ toolkit: artifactsToolkit }),
+  });
+
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
+}
+```
+
+### 3. Add `<ArtifactView />` next to your `<Thread />`
+
+```tsx
+import { Thread } from "@/components/assistant-ui/thread";
+import { ArtifactView } from "@/components/assistant-ui/artifact-view";
+
+export default function Page() {
+  const runtime = useChatRuntime();
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <App>
+        <main className="flex h-full">
+          <div className="flex-grow">
+            <Thread />
+          </div>
+          <ArtifactView />
+        </main>
+      </App>
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+`ArtifactView` wraps `ArtifactPrimitive.If`, so it renders nothing when no artifact has been produced yet.
+
+## Version scrubbing
+
+When the model produces multiple artifacts in one conversation, `VersionPicker` lets users step through them without scrolling the message list.
+
+```tsx
+import { ArtifactPrimitive } from "@assistant-ui/react";
+
+function ArtifactHeader() {
+  return (
+    <div className="flex items-center gap-2 border-b px-4 py-2 text-sm">
+      <ArtifactPrimitive.VersionPicker.Previous>‹</ArtifactPrimitive.VersionPicker.Previous>
+      <span>
+        <ArtifactPrimitive.VersionPicker.Number /> /{" "}
+        <ArtifactPrimitive.VersionPicker.Count />
+      </span>
+      <ArtifactPrimitive.VersionPicker.Next>›</ArtifactPrimitive.VersionPicker.Next>
+    </div>
+  );
+}
+```
+
+Selection follows the tail by default (newest artifact is always shown). Once the user clicks Previous, selection is pinned to that artifact; new artifacts generated after that point do not steal focus.
+
+| Sub-component | Description |
+|---|---|
+| `VersionPicker.Previous` | Button; disabled at the first artifact. |
+| `VersionPicker.Next` | Button; disabled at the last artifact. |
+| `VersionPicker.Number` | 1-based index of the currently selected artifact. |
+| `VersionPicker.Count` | Total number of artifacts on the active branch. |
+
+## Isolation boundary
+
+### What `SafeContentFrame` gives you
+
+Each call to `ArtifactPrimitive.Preview` constructs a `SafeContentFrame` with `enableBrowserCaching: true`. The frame's origin is derived from a content hash, giving every unique `(mimeType, content)` pair its own subdomain on `*.scf.auiusercontent.com`. Because the domain is on the Public Suffix List, the browser treats each subdomain as a distinct origin:
+
+- `document.cookie` inside the frame is empty and cannot read or write the parent's cookies.
+- `localStorage` inside the frame is isolated from the parent's storage.
+- `window.parent` / `window.top` DOM access is blocked by the sandbox.
+
+Default sandbox flags are `allow-same-origin allow-scripts`. You can override them via the `sandbox` prop on `ArtifactPrimitive.Preview`:
+
+```tsx
+<ArtifactPrimitive.Preview
+  sandbox={["allow-scripts", "allow-forms", "allow-popups"]}
+  className="h-full w-full"
+/>
+```
+
+### What it does not give you
+
+- The isolation is **structural** (cross-origin iframes), not a virtualized JS runtime. Model-authored code still runs in a real browser context — just a different origin.
+- There is **no auth handoff** between the parent app and the iframe. If the widget needs to call your API, you must proxy the request server-side.
+- There is **no DOM access** from the frame to the parent (blocked by `sandbox`).
+
+## Opt-in artifact types
+
+`htmlArtifactType` is registered by default. Additional types ship as named exports you can pass to the `types` option:
+
+```tsx
+import {
+  Artifacts,
+  htmlArtifactType,
+  svgArtifactType,
+  markdownArtifactType,
+  mermaidArtifactType,
+} from "@assistant-ui/react";
+
+const aui = useAui({
+  artifacts: Artifacts({
+    toolkit: {
+      render_html: { /* ... */ },
+      render_svg: {
+        description: "Render an SVG diagram.",
+        parameters: z.object({ code: z.string() }),
+        execute: async () => ({}),
+      },
+    },
+    types: [htmlArtifactType, svgArtifactType],
+  }),
+});
+```
+
+| Export | Tool name | MIME type | Notes |
+|---|---|---|---|
+| `htmlArtifactType` | `render_html` | `text/html` | Default. Rendered natively by the browser. |
+| `svgArtifactType` | `render_svg` | `image/svg+xml` | Requires the shim to handle `image/svg+xml`. |
+| `markdownArtifactType` | `render_markdown` | `text/markdown` | Requires the shim to render Markdown. |
+| `mermaidArtifactType` | `render_mermaid` | `text/vnd.mermaid` | Requires the shim to load Mermaid.js. |
+
+**v1 note on Mermaid**: the default `SafeContentFrame` shim renders raw content via `renderRaw(content, mimeType, container)`. Whether a given MIME type is rendered visually depends on what the shim supports. For `text/vnd.mermaid`, the source is shown as plain text unless you configure a shim that loads Mermaid.js. `text/html` is rendered natively in all cases.
+
+## Tool authoring
+
+The `Artifacts` resource only materialises an artifact after the tool result has arrived (`part.result !== undefined`). This matches the streaming gate used by the built-in example — streaming tool input (partial `args`) does not trigger a preview.
+
+Each entry in `toolkit` follows the same shape as the `Tools` resource toolkit:
+
+```ts
+const myToolkit = {
+  render_html: {
+    description: "...",
+    parameters: z.object({ code: z.string() }),
+    execute: async (_args, _ctx) => {
+      // Return value becomes part.result. Empty object is fine.
+      return {};
+    },
+    // Optional: inline tool-call pill in the chat thread.
+    render: () => <div>Generating HTML…</div>,
+  },
+};
+```
+
+`getContent` on the `ArtifactSpec` receives the tool's `args` object and returns the string to preview. For `htmlArtifactType` that is `args.code`; for `markdownArtifactType` it is `args.markdown`.
+
+## Building custom layouts
+
+You can compose the primitives directly rather than using the shadcn `ArtifactView`:
+
+```tsx
+import { ArtifactPrimitive } from "@assistant-ui/react";
+
+function MyArtifactPanel() {
+  return (
+    <ArtifactPrimitive.If fallback={<EmptyState />}>
+      <ArtifactPrimitive.Root className="flex flex-col h-full">
+        {/* Show the raw source text */}
+        <ArtifactPrimitive.Source className="font-mono text-sm" />
+
+        {/* Sandboxed preview iframe */}
+        <ArtifactPrimitive.Preview className="h-full w-full" />
+      </ArtifactPrimitive.Root>
+    </ArtifactPrimitive.If>
+  );
+}
+```
+
+`ArtifactPrimitive.If` accepts an optional `predicate` prop for conditional rendering beyond "artifact is selected":
+
+```tsx
+<ArtifactPrimitive.If predicate={(s) => s.selected?.mimeType === "text/html"}>
+  {/* only shown when an HTML artifact is selected */}
+</ArtifactPrimitive.If>
+```
+
+## Related
+
+- [MCP Apps](/docs/guides/mcp-apps) — render MCP App UI widgets in sandboxed iframes using the same `SafeContentFrame` isolation
+- [Tools guide](/docs/guides/tools) — configure tool definitions and rendering
+- [Tool UI guide](/docs/guides/tool-ui) — customise the inline tool-call display
