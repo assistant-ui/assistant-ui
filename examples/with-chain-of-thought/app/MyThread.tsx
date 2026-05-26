@@ -7,6 +7,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { Button } from "@/components/ui/button";
 import {
   ComposerPrimitive,
+  groupPartByType,
   MessagePrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
@@ -113,14 +114,11 @@ const AssistantMessage: FC = () => {
     <MessagePrimitive.Root className="mx-auto w-full max-w-(--thread-max-width) py-3">
       <div className="flex flex-col gap-2 px-2 leading-relaxed">
         <MessagePrimitive.GroupedParts
-          groupBy={(part) => {
-            if (part.type === "reasoning")
-              return ["group-chainOfThought", "group-reasoning"];
-            if (part.type === "tool-call")
-              return ["group-chainOfThought", "group-tool"];
-            if (part.type === "source") return ["group-sources"];
-            return null;
-          }}
+          groupBy={groupPartByType({
+            reasoning: ["group-chainOfThought", "group-reasoning"],
+            "tool-call": ["group-chainOfThought", "group-tool"],
+            source: ["group-sources"],
+          })}
         >
           {({ part, children }) => {
             switch (part.type) {

@@ -26,6 +26,7 @@ Return the same top-level group for reasoning and tool calls, with nested groups
 ```tsx
 import {
   MessagePrimitive,
+  groupPartByType,
 } from "@assistant-ui/react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
@@ -47,13 +48,10 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root>
       <MessagePrimitive.GroupedParts
-        groupBy={(part) => {
-          if (part.type === "reasoning")
-            return ["group-chainOfThought", "group-reasoning"];
-          if (part.type === "tool-call")
-            return ["group-chainOfThought", "group-tool"];
-          return null;
-        }}
+        groupBy={groupPartByType({
+          reasoning: ["group-chainOfThought", "group-reasoning"],
+          "tool-call": ["group-chainOfThought", "group-tool"],
+        })}
       >
         {({ part, children }) => {
           switch (part.type) {

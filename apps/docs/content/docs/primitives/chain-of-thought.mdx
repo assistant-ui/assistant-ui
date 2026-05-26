@@ -22,19 +22,16 @@ For new grouped reasoning/tool-call UI, use `MessagePrimitive.GroupedParts`. `Ch
   </Tab>
   <Tab>
 ```tsx
-import { MessagePrimitive } from "@assistant-ui/react";
+import { MessagePrimitive, groupPartByType } from "@assistant-ui/react";
 
 function AssistantMessage() {
   return (
     <MessagePrimitive.Root>
       <MessagePrimitive.GroupedParts
-        groupBy={(part) => {
-          if (part.type === "reasoning")
-            return ["group-chainOfThought", "group-reasoning"];
-          if (part.type === "tool-call")
-            return ["group-chainOfThought", "group-tool"];
-          return null;
-        }}
+        groupBy={groupPartByType({
+          reasoning: ["group-chainOfThought", "group-reasoning"],
+          "tool-call": ["group-chainOfThought", "group-tool"],
+        })}
       >
         {({ part, children }) => {
           switch (part.type) {
@@ -67,17 +64,14 @@ function AssistantMessage() {
 Group reasoning and tool-call parts directly in your assistant message:
 
 ```tsx
-import { MessagePrimitive } from "@assistant-ui/react";
+import { MessagePrimitive, groupPartByType } from "@assistant-ui/react";
 
 <MessagePrimitive.Root>
   <MessagePrimitive.GroupedParts
-    groupBy={(part) => {
-      if (part.type === "reasoning")
-        return ["group-chainOfThought", "group-reasoning"];
-      if (part.type === "tool-call")
-        return ["group-chainOfThought", "group-tool"];
-      return null;
-    }}
+    groupBy={groupPartByType({
+      reasoning: ["group-chainOfThought", "group-reasoning"],
+      "tool-call": ["group-chainOfThought", "group-tool"],
+    })}
   >
     {({ part, children }) => {
       switch (part.type) {

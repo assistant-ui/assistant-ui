@@ -250,17 +250,16 @@ Renders each content part with type-based component resolution.
 
 ### GroupedParts
 
-Groups adjacent message parts into a nested tree. Use `groupBy` to return group keys for parts that should be grouped, then switch on `part.type` in the render function. Group cases render `children`; leaf cases render their own UI.
+Groups adjacent message parts into a nested tree. Use `groupBy` to map each part to a group-key path, then switch on `part.type` in the render function. Group cases render `children`; leaf cases render their own UI. Prefer the `groupPartByType` helper for the common `part.type → path` case.
 
 ```tsx
+import { MessagePrimitive, groupPartByType } from "@assistant-ui/react";
+
 <MessagePrimitive.GroupedParts
-  groupBy={(part) => {
-    if (part.type === "reasoning")
-      return ["group-chainOfThought", "group-reasoning"];
-    if (part.type === "tool-call")
-      return ["group-chainOfThought", "group-tool"];
-    return null;
-  }}
+  groupBy={groupPartByType({
+    reasoning: ["group-chainOfThought", "group-reasoning"],
+    "tool-call": ["group-chainOfThought", "group-tool"],
+  })}
 >
   {({ part, children }) => {
     switch (part.type) {

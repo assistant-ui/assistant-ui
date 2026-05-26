@@ -31,7 +31,7 @@ Render reasoning parts through `MessagePrimitive.GroupedParts`. Group consecutiv
 While reasoning is streaming, `part.status.type === "running"`. Pass that to `defaultOpen` so the accordion auto-opens during streaming and lets the user collapse it once the model moves on.
 
 ```tsx title="/app/components/assistant-ui/thread.tsx"
-import { MessagePrimitive } from "@assistant-ui/react";
+import { MessagePrimitive, groupPartByType } from "@assistant-ui/react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import {
@@ -47,10 +47,9 @@ const AssistantMessage: FC = () => {
     <MessagePrimitive.Root className="...">
       <div className="...">
         <MessagePrimitive.GroupedParts // [!code ++]
-          groupBy={(part) => { // [!code ++]
-            if (part.type === "reasoning") return ["group-reasoning"]; // [!code ++]
-            return null; // [!code ++]
-          }} // [!code ++]
+          groupBy={groupPartByType({ // [!code ++]
+            reasoning: ["group-reasoning"], // [!code ++]
+          })} // [!code ++]
         > // [!code ++]
           {({ part, children }) => { // [!code ++]
             switch (part.type) { // [!code ++]

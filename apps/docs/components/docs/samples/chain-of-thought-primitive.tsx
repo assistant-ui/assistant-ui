@@ -2,6 +2,7 @@
 
 import { Collapsible } from "radix-ui";
 import {
+  groupPartByType,
   MessagePrimitive,
   MessagePartPrimitive,
   ThreadPrimitive,
@@ -157,13 +158,10 @@ function AssistantMessage() {
       <div className="min-w-0 flex-1">
         <div className="space-y-2">
           <MessagePrimitive.GroupedParts
-            groupBy={(part) => {
-              if (part.type === "reasoning")
-                return ["group-chainOfThought", "group-reasoning"];
-              if (part.type === "tool-call")
-                return ["group-chainOfThought", "group-tool"];
-              return null;
-            }}
+            groupBy={groupPartByType({
+              reasoning: ["group-chainOfThought", "group-reasoning"],
+              "tool-call": ["group-chainOfThought", "group-tool"],
+            })}
           >
             {({ part, children }) => {
               switch (part.type) {

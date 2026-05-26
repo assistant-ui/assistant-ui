@@ -125,11 +125,11 @@ export const AssistantMessageGui: FC<AssistantMessageGuiProps> = ({
               return ["group-chainOfThought", "group-reasoning"];
             }
             if (part.type === "tool-call") {
-              if (getMcpAppFromToolPart(part)) return null;
-              if (part.toolName === RENDER_GUI_TOOL_NAME) return null;
+              if (getMcpAppFromToolPart(part)) return [];
+              if (part.toolName === RENDER_GUI_TOOL_NAME) return [];
               return ["group-chainOfThought", "group-tool"];
             }
-            return null;
+            return [];
           }}
         >
           {({ part, children }) => {
