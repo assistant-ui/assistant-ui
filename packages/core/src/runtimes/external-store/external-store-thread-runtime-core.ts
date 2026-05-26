@@ -356,27 +356,35 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   /**
-   * Walk the current message list (and nested sub-tool messages) looking for
-   * a tool-call part with the given id. Returns the id of the assistant
-   * message that owns it, or `undefined` if no such part exists in the
-   * current snapshot.
+   * Lookup table from `toolCallId` to the owning assistant message's `id`,
+   * rebuilt lazily when `_messages` changes (see `_messagesForToolCallIndex`).
+   */
+  private _toolCallToMessageId = new Map<string, string>();
+  private _messagesForToolCallIndex: readonly ThreadMessage[] | null = null;
+
+  /**
+   * Look up the assistant message that owns a tool-call part. Lazily builds
+   * (and caches) a `toolCallId → messageId` map keyed off the current
+   * `_messages` reference, so onResult dispatches stay O(1) instead of
+   * walking the full thread on every result.
    */
   private _findMessageIdForToolCall(toolCallId: string): string | undefined {
-    const search = (messages: readonly ThreadMessage[]): string | undefined => {
-      for (const message of messages) {
-        if (!Array.isArray(message.content)) continue;
-        for (const part of message.content) {
-          if (!part || part.type !== "tool-call") continue;
-          if (part.toolCallId === toolCallId) return message.id;
-          if (part.messages) {
-            const nestedId = search(part.messages);
-            if (nestedId !== undefined) return nestedId;
+    if (this._messagesForToolCallIndex !== this._messages) {
+      this._toolCallToMessageId.clear();
+      const visit = (messages: readonly ThreadMessage[]): void => {
+        for (const message of messages) {
+          if (!Array.isArray(message.content)) continue;
+          for (const part of message.content) {
+            if (!part || part.type !== "tool-call") continue;
+            this._toolCallToMessageId.set(part.toolCallId, message.id);
+            if (part.messages) visit(part.messages);
           }
         }
-      }
-      return undefined;
-    };
-    return search(this._messages);
+      };
+      visit(this._messages);
+      this._messagesForToolCallIndex = this._messages;
+    }
+    return this._toolCallToMessageId.get(toolCallId);
   }
 
   public override switchToBranch(branchId: string): void {
@@ -503,11 +511,19 @@ export class ExternalStoreThreadRuntimeCore
     // tool calls without round-tripping through the adapter. Falls back to
     // the adapter's onResumeToolCall (if any) for tool calls the tracker
     // doesn't know about.
-    this._toolInvocations?.resume(options.toolCallId, options.payload);
+    const handled =
+      this._toolInvocations?.resume(options.toolCallId, options.payload) ??
+      false;
+    if (handled) return;
 
     if (this._store.onResumeToolCall) {
       this._store.onResumeToolCall(options);
+      return;
     }
+
+    throw new Error(
+      `Tool call ${options.toolCallId} is not waiting for resume.`,
+    );
   }
 
   public respondToToolApproval(options: RespondToToolApprovalOptions) {

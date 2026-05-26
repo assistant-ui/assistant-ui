@@ -154,7 +154,6 @@ export class ToolInvocationTracker {
   private _statuses = new Map<string, ToolExecutionStatus>();
 
   private _ac: AbortController = new AbortController();
-  private _executingCount = 0;
   private _pendingRestore = true;
 
   /** Cached last snapshot, used to skip processing on identical re-renders. */
@@ -251,7 +250,6 @@ export class ToolInvocationTracker {
         this._pipelineDead = false;
         this._demoteEntriesToRestored();
         this._executing.clear();
-        this._executingCount = 0;
         this._ac = new AbortController();
         this._initPipeline();
         // Fall through and process the snapshot against the fresh pipeline.
@@ -337,7 +335,7 @@ export class ToolInvocationTracker {
       this._ac.abort();
       this._ac = new AbortController();
 
-      if (this._executingCount === 0) {
+      if (this._executing.size === 0) {
         return Promise.resolve();
       }
       return new Promise<void>((resolve) => {
@@ -350,18 +348,22 @@ export class ToolInvocationTracker {
   }
 
   /**
-   * Resolve a pending human-input request for the given tool call. Silently
-   * no-ops if no request is outstanding for that id.
+   * Resolve a pending human-input request for the given tool call. Returns
+   * `true` if a pending request was resumed, `false` if the tracker has no
+   * outstanding request for that id (the caller should fall back to its own
+   * dispatch path).
    */
-  public resume(toolCallId: string, payload: unknown): void {
+  public resume(toolCallId: string, payload: unknown): boolean {
     try {
       const handlers = this._humanInput.get(toolCallId);
-      if (!handlers) return;
+      if (!handlers) return false;
       this._humanInput.delete(toolCallId);
       this._setStatus(toolCallId, { type: "executing" });
       handlers.resolve(payload);
+      return true;
     } catch (err) {
       console.error("[ToolInvocationTracker] resume failed", err);
+      return false;
     }
   }
 
@@ -384,34 +386,21 @@ export class ToolInvocationTracker {
     return Object.fromEntries(
       Object.entries(tools).map(([name, tool]) => {
         const execute = tool.execute;
-        const streamCall = tool.streamCall;
-        const toModelOutput = tool.toModelOutput;
+        if (execute === undefined) return [name, tool];
 
         const wrappedTool = {
           ...tool,
-          ...(execute !== undefined && {
-            execute: (
-              ...[args, context]: Parameters<NonNullable<typeof execute>>
-            ) => {
-              if (this._skipExecuteStreamIds.has(context.toolCallId)) {
-                // Pre-resolved tool call: never invoke the host's execute.
-                // Returning a never-settling Promise keeps the executor's
-                // pending entry alive but enqueues nothing.
-                return new Promise(() => {}) as never;
-              }
-              return execute(args, context);
-            },
-          }),
-          ...(streamCall !== undefined && {
-            streamCall: (
-              ...[reader, context]: Parameters<NonNullable<typeof streamCall>>
-            ) => streamCall(reader, context),
-          }),
-          ...(toModelOutput !== undefined && {
-            toModelOutput: (
-              options: Parameters<NonNullable<typeof toModelOutput>>[0],
-            ) => toModelOutput(options),
-          }),
+          execute: (
+            ...[args, context]: Parameters<NonNullable<typeof execute>>
+          ) => {
+            if (this._skipExecuteStreamIds.has(context.toolCallId)) {
+              // Pre-resolved tool call: never invoke the host's execute.
+              // Returning a never-settling Promise keeps the executor's
+              // pending entry alive but enqueues nothing.
+              return new Promise(() => {}) as never;
+            }
+            return execute(args, context);
+          },
         } as Tool;
         return [name, wrappedTool];
       }),
@@ -447,17 +436,15 @@ export class ToolInvocationTracker {
     if (this._skipExecuteStreamIds.has(toolCallId)) return;
 
     this._executing.add(toolCallId);
-    this._executingCount++;
     this._setStatus(toolCallId, { type: "executing" });
   }
 
   private _onExecutionEnd(toolCallId: string): void {
     if (!this._executing.delete(toolCallId)) return;
 
-    this._executingCount--;
     this._deleteStatus(toolCallId);
 
-    if (this._executingCount === 0) {
+    if (this._executing.size === 0) {
       const resolvers = this._settledResolvers.splice(0);
       // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       resolvers.forEach((resolve) => {
