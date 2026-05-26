@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useExternalStoreRuntime,
   useRuntimeAdapters,
@@ -124,6 +117,7 @@ export function useAgUiRuntime(
         state: core.getState(),
         isRunning: core.isRunning() || hasExecutingTools,
         unstable_enableToolInvocations: true,
+        setToolStatuses,
         onNew: (message: AppendMessage) => core.append(message),
         onEdit: (message: AppendMessage) => core.edit(message),
         onReload: (parentId: string | null, config: { runConfig?: any }) =>
@@ -172,34 +166,6 @@ export function useAgUiRuntime(
   useEffect(() => {
     core.__internal_load();
   }, [core]);
-
-  // Mirror the embedded tracker's tool-status map into local React state so
-  // `hasExecutingTools` sees status changes.
-  const lastStatusesRef = useRef<ReadonlyMap<string, ToolExecutionStatus>>(
-    new Map(),
-  );
-  const subscribeThread = useCallback(
-    (cb: () => void) => runtime.thread.subscribe(cb),
-    [runtime],
-  );
-  const getStatusesMap = useCallback(
-    () => runtime.thread.getToolStatuses(),
-    [runtime],
-  );
-  const toolStatusesMap = useSyncExternalStore(
-    subscribeThread,
-    getStatusesMap,
-    getStatusesMap,
-  );
-  if (toolStatusesMap !== lastStatusesRef.current) {
-    lastStatusesRef.current = toolStatusesMap;
-    setToolStatuses(
-      Object.fromEntries(toolStatusesMap) as Record<
-        string,
-        ToolExecutionStatus
-      >,
-    );
-  }
 
   return runtime;
 }

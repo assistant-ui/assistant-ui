@@ -16,6 +16,7 @@ import type {
 } from "../../runtime/interfaces/thread-runtime-core";
 import type { ExportedMessageRepository } from "../../runtime/utils/message-repository";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import type { ToolExecutionStatus } from "../tool-invocations/ToolInvocationTracker";
 
 export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
   status: TState;
@@ -151,6 +152,18 @@ type ExternalStoreAdapterBase<T> = {
    * `modelContent` populated when present.
    */
   unstable_enableToolInvocations?: boolean | undefined;
+  /**
+   * Receives the current per-tool-call execution status map whenever it
+   * changes. Only invoked when `unstable_enableToolInvocations` is `true`
+   * — the runtime maintains the map via the embedded tracker.
+   *
+   * Wire this into local React state and feed it into the converter's
+   * `metadata.toolStatuses` so the UI can render `executing` spinners
+   * and human-input prompts.
+   */
+  setToolStatuses?:
+    | ((statuses: Record<string, ToolExecutionStatus>) => void)
+    | undefined;
 };
 
 export type ExternalStoreAdapter<T = ThreadMessage> =

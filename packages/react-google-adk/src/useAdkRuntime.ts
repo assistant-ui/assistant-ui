@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   getExternalStoreMessages,
   type AttachmentAdapter,
@@ -244,6 +238,7 @@ const useAdkRuntimeImpl = ({
     isRunning: effectiveIsRunning,
     messages: threadMessages,
     unstable_enableToolInvocations: true,
+    setToolStatuses,
     adapters: { attachments, dictation, feedback, speech },
     extras: {
       [symbolAdkRuntimeExtras]: true,
@@ -376,39 +371,6 @@ const useAdkRuntimeImpl = ({
         },
       );
     }, [aui, replaceMessages]);
-  }
-
-  // Mirror the embedded tracker's tool-status map into local React state so
-  // `hasExecutingTools` (which gates `effectiveIsRunning`) sees status
-  // changes.
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const lastStatusesRef = useRef<ReadonlyMap<string, ToolExecutionStatus>>(
-    new Map(),
-  );
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const subscribeThread = useCallback(
-    (cb: () => void) => runtime.thread.subscribe(cb),
-    [runtime],
-  );
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const getStatusesMap = useCallback(
-    () => runtime.thread.getToolStatuses(),
-    [runtime],
-  );
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const toolStatusesMap = useSyncExternalStore(
-    subscribeThread,
-    getStatusesMap,
-    getStatusesMap,
-  );
-  if (toolStatusesMap !== lastStatusesRef.current) {
-    lastStatusesRef.current = toolStatusesMap;
-    setToolStatuses(
-      Object.fromEntries(toolStatusesMap) as Record<
-        string,
-        ToolExecutionStatus
-      >,
-    );
   }
 
   return runtime;

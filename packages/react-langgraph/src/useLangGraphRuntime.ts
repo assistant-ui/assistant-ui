@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   LangChainMessage,
   LangChainToolCall,
@@ -514,6 +507,7 @@ const useLangGraphRuntimeImpl = ({
     isLoading: isLoadingThread,
     messages: threadMessages,
     unstable_enableToolInvocations: true,
+    setToolStatuses,
     adapters: {
       attachments,
       feedback,
@@ -631,41 +625,6 @@ const useLangGraphRuntimeImpl = ({
         }
       : undefined,
   });
-
-  // Mirror the embedded tracker's tool-status map into local React state so
-  // `hasExecutingTools` (which gates the converter cache + `isRunning`) sees
-  // status changes. The tracker keeps the same Map reference between status
-  // changes, so the reference-equality check makes unrelated thread updates
-  // a no-op.
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const lastStatusesRef = useRef<ReadonlyMap<string, ToolExecutionStatus>>(
-    new Map(),
-  );
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const subscribeThread = useCallback(
-    (cb: () => void) => runtime.thread.subscribe(cb),
-    [runtime],
-  );
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const getStatusesMap = useCallback(
-    () => runtime.thread.getToolStatuses(),
-    [runtime],
-  );
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const toolStatusesMap = useSyncExternalStore(
-    subscribeThread,
-    getStatusesMap,
-    getStatusesMap,
-  );
-  if (toolStatusesMap !== lastStatusesRef.current) {
-    lastStatusesRef.current = toolStatusesMap;
-    setToolStatuses(
-      Object.fromEntries(toolStatusesMap) as Record<
-        string,
-        ToolExecutionStatus
-      >,
-    );
-  }
 
   {
     // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage

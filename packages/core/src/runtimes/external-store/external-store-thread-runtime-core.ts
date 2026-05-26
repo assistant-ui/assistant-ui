@@ -30,10 +30,7 @@ import {
   ExportedMessageRepository,
   MessageRepository,
 } from "../../runtime/utils/message-repository";
-import {
-  ToolInvocationTracker,
-  type ToolExecutionStatus,
-} from "../tool-invocations/ToolInvocationTracker";
+import { ToolInvocationTracker } from "../tool-invocations/ToolInvocationTracker";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
@@ -114,17 +111,6 @@ export class ExternalStoreThreadRuntimeCore
    * snapshot — only when `adapter.unstable_enableToolInvocations === true`.
    */
   private _toolInvocations: ToolInvocationTracker | null = null;
-  private _toolStatuses: ReadonlyMap<string, ToolExecutionStatus> = new Map();
-
-  /**
-   * @internal Read the current per-tool-call execution status map. Empty
-   * when no tracker is active (the adapter did not opt in via
-   * `unstable_enableToolInvocations: true`, or no tool calls have surfaced
-   * yet).
-   */
-  public override getToolStatuses(): ReadonlyMap<string, ToolExecutionStatus> {
-    return this._toolStatuses;
-  }
 
   public override beginEdit(messageId: string) {
     if (!this._store.onEdit)
@@ -314,9 +300,7 @@ export class ExternalStoreThreadRuntimeCore
       if (this._toolInvocations) {
         this._toolInvocations.reset();
         this._toolInvocations = null;
-        if (this._toolStatuses.size > 0) {
-          this._toolStatuses = new Map();
-        }
+        this._store.setToolStatuses?.({});
       }
       return;
     }
@@ -356,8 +340,7 @@ export class ExternalStoreThreadRuntimeCore
             }
           },
           onStatusesChange: (statuses) => {
-            this._toolStatuses = statuses;
-            this._notifySubscribers();
+            this._store.setToolStatuses?.(Object.fromEntries(statuses));
           },
         },
       );
@@ -465,7 +448,7 @@ export class ExternalStoreThreadRuntimeCore
     // its messages in response to onLoadExternalState; that update flows
     // back here via __internal_setAdapter.
     this._toolInvocations?.reset();
-    this._toolStatuses = new Map();
+    this._store.setToolStatuses?.({});
 
     this._store.onLoadExternalState(state);
   }

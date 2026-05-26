@@ -79,10 +79,6 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     return {};
   },
 
-  getToolStatuses() {
-    return new Map();
-  },
-
   exportExternalState() {
     throw EMPTY_THREAD_ERROR;
   },

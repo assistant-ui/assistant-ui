@@ -9,13 +9,7 @@ import {
 import { useExternalStoreRuntime } from "../external-store/useExternalStoreRuntime";
 import type { AssistantRuntime } from "../../runtime/AssistantRuntime";
 import type { AddToolResultOptions } from "@assistant-ui/core";
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   AssistantMessageAccumulator,
   DataStreamDecoder,
@@ -312,6 +306,7 @@ const useAssistantTransportThreadRuntime = <T>(
     // and their results flow back via `onAddToolResult` below, which
     // forwards them to the backend as `add-tool-result` commands.
     unstable_enableToolInvocations: true,
+    setToolStatuses,
     extras: {
       [symbolAssistantTransportExtras]: true,
       sendCommand: (command: AssistantTransportCommand) => {
@@ -369,41 +364,6 @@ const useAssistantTransportThreadRuntime = <T>(
       rerender((prev) => prev + 1);
     },
   });
-
-  // Mirror the embedded tracker's tool-status map into the React state
-  // that drives `useConvertedState`. The tracker keeps the same Map
-  // reference until a status changes, so the cheap reference check at
-  // the top of the updater dedupes redundant subscribe firings (most
-  // notifySubscribers calls are for message updates, not status changes).
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const lastStatusesRef = useRef<ReadonlyMap<string, ToolExecutionStatus>>(
-    new Map(),
-  );
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const subscribeThread = useCallback(
-    (cb: () => void) => runtime.thread.subscribe(cb),
-    [runtime],
-  );
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const getStatusesMap = useCallback(
-    () => runtime.thread.getToolStatuses(),
-    [runtime],
-  );
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const toolStatusesMap = useSyncExternalStore(
-    subscribeThread,
-    getStatusesMap,
-    getStatusesMap,
-  );
-  if (toolStatusesMap !== lastStatusesRef.current) {
-    lastStatusesRef.current = toolStatusesMap;
-    setToolStatuses(
-      Object.fromEntries(toolStatusesMap) as Record<
-        string,
-        ToolExecutionStatus
-      >,
-    );
-  }
 
   return runtime;
 };

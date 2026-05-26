@@ -1,7 +1,6 @@
 import type { ToolModelContentPart } from "assistant-stream";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ModelContext } from "../../model-context/types";
-import type { ToolExecutionStatus } from "../../runtimes/tool-invocations/ToolInvocationTracker";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { RunConfig } from "../../types/message";
@@ -165,8 +164,6 @@ export type ThreadRuntimeCore = Readonly<{
   submitFeedback: (feedback: SubmitFeedbackOptions) => void;
 
   getModelContext: () => ModelContext;
-
-  getToolStatuses: () => ReadonlyMap<string, ToolExecutionStatus>;
 
   composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;

@@ -1,13 +1,7 @@
 /// <reference types="@assistant-ui/core/store" />
 "use client";
 
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useMemo, useRef, useState } from "react";
 import type {
   AppendMessage,
   AttachmentAdapter,
@@ -234,6 +228,7 @@ const useStreamThreadRuntime = (
     adapters,
     extras,
     unstable_enableToolInvocations: true,
+    setToolStatuses,
     onNew: async (msg) => {
       const content = getMessageContent(msg);
       const cancellations =
@@ -281,40 +276,6 @@ const useStreamThreadRuntime = (
           }
         : undefined,
   });
-
-  // Mirror the embedded tracker's tool-status map into local React state so
-  // `hasExecutingTools` (which gates `effectiveIsRunning`) sees status
-  // changes. The tracker keeps the same Map reference between status
-  // changes, so the reference check makes unrelated updates a no-op.
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const lastStatusesRef = useRef<ReadonlyMap<string, ToolExecutionStatus>>(
-    new Map(),
-  );
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const subscribeThread = useCallback(
-    (cb: () => void) => runtime.thread.subscribe(cb),
-    [runtime],
-  );
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const getStatusesMap = useCallback(
-    () => runtime.thread.getToolStatuses(),
-    [runtime],
-  );
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const toolStatusesMap = useSyncExternalStore(
-    subscribeThread,
-    getStatusesMap,
-    getStatusesMap,
-  );
-  if (toolStatusesMap !== lastStatusesRef.current) {
-    lastStatusesRef.current = toolStatusesMap;
-    setToolStatuses(
-      Object.fromEntries(toolStatusesMap) as Record<
-        string,
-        ToolExecutionStatus
-      >,
-    );
-  }
 
   return runtime;
 };

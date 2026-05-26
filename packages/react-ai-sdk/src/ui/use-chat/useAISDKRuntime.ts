@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useMemo, useRef, useState } from "react";
 import type { UIMessage, useChat, CreateUIMessage } from "@ai-sdk/react";
 import { isToolUIPart, generateId } from "ai";
 import {
@@ -199,6 +193,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     isRunning,
     messages,
     unstable_enableToolInvocations: true,
+    setToolStatuses,
     setMessages: (messages) =>
       chatHelpers.setMessages(
         messages
@@ -363,36 +358,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     isLoading,
   });
-
-  // Mirror the embedded tracker's tool-status map into local React state
-  // so the AI-SDK message converter (which reads metadata.toolStatuses)
-  // sees status changes. The tracker keeps the same Map reference until a
-  // status actually changes, so this is a no-op for unrelated thread updates.
-  const lastStatusesRef = useRef<ReadonlyMap<string, ToolExecutionStatus>>(
-    new Map(),
-  );
-  const subscribeThread = useCallback(
-    (cb: () => void) => runtime.thread.subscribe(cb),
-    [runtime],
-  );
-  const getStatusesMap = useCallback(
-    () => runtime.thread.getToolStatuses(),
-    [runtime],
-  );
-  const toolStatusesMap = useSyncExternalStore(
-    subscribeThread,
-    getStatusesMap,
-    getStatusesMap,
-  );
-  if (toolStatusesMap !== lastStatusesRef.current) {
-    lastStatusesRef.current = toolStatusesMap;
-    setToolStatuses(
-      Object.fromEntries(toolStatusesMap) as Record<
-        string,
-        ToolExecutionStatus
-      >,
-    );
-  }
 
   return runtime;
 };
