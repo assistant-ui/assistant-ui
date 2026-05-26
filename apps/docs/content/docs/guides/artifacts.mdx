@@ -217,7 +217,7 @@ function MyArtifactPanel() {
 `ArtifactPrimitive.If` accepts an optional `predicate` prop for conditional rendering beyond "artifact is selected":
 
 ```tsx
-<ArtifactPrimitive.If predicate={(s) => s.artifacts.selected?.mimeType === "text/html"}>
+<ArtifactPrimitive.If predicate={(s) => s.selected?.mimeType === "text/html"}>
   {/* only shown when an HTML artifact is selected */}
 </ArtifactPrimitive.If>
 ```

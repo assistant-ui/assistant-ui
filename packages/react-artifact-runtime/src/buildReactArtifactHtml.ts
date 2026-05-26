@@ -65,8 +65,9 @@ export function buildReactArtifactHtml(
 
   // The user source lives inside a <script type="text/plain"> block whose
   // textContent we read from the bootstrap. The block ends at the first
-  // literal `</script>` in the page parser, so we must escape that sequence.
-  const userSource = source.replace(/<\/script>/gi, "<\\/script>");
+  // literal `</script` token in the HTML parser (whitespace after `script`
+  // still closes the element), so escape that prefix.
+  const userSource = source.replace(/<\/script/gi, "<\\/script");
   const importMapJson = JSON.stringify({ imports: importMap });
 
   return `<!doctype html>

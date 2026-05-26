@@ -28,6 +28,20 @@ describe("buildReactArtifactHtml — origin recovery", () => {
   });
 });
 
+describe("buildReactArtifactHtml — script container escaping", () => {
+  it("escapes </script> in user source", () => {
+    const html = buildReactArtifactHtml('const x = "</script>";');
+    expect(html).toContain('const x = "<\\/script>";');
+    expect(html).not.toContain('const x = "</script>";');
+  });
+
+  it("escapes </script with trailing whitespace in user source", () => {
+    const html = buildReactArtifactHtml('const x = "</script >";');
+    expect(html).toContain('const x = "<\\/script >";');
+    expect(html).not.toContain('const x = "</script >";');
+  });
+});
+
 describe("buildReactArtifactHtml — handshake", () => {
   const html = buildReactArtifactHtml("export default () => null");
   it("registers a listener for the host origin handshake", () => {

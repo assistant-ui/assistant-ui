@@ -98,14 +98,13 @@ export const ArtifactPrimitivePreview = forwardRef<
           )
         : scf.renderRaw(content, mimeType, container);
 
-      // Wire up postMessage listener for `aui:artifact:status` events emitted
-      // by the iframe runtime (e.g. @assistant-ui/react-artifact-runtime).
-      // We resolve the iframe origin from the RenderedFrame and only accept
-      // messages whose source matches the iframe.contentWindow.
+      // Accept `aui:artifact:status` only after the RenderedFrame resolves
+      // iframe window + origin, so stale messages cannot complete the wrong op.
       let reported = false;
       let iframeWindow: Window | null = null;
       let iframeOrigin: string | null = null;
       let helloTimer: ReturnType<typeof setInterval> | null = null;
+      let messageListenerAdded = false;
       const reportFromMessage = (
         ok: boolean,
         error?: ArtifactPrimitivePreview.StatusError,
@@ -134,8 +133,9 @@ export const ArtifactPrimitivePreview = forwardRef<
       const onMessage = (e: MessageEvent) => {
         if (reported) return;
         if (!e.data || e.data.type !== "aui:artifact:status") return;
-        if (iframeWindow && e.source !== iframeWindow) return;
-        if (iframeOrigin && e.origin !== iframeOrigin) return;
+        if (!iframeWindow || !iframeOrigin) return;
+        if (e.source !== iframeWindow) return;
+        if (e.origin !== iframeOrigin) return;
         if (e.data.ok) {
           reportFromMessage(true);
         } else {
@@ -145,24 +145,30 @@ export const ArtifactPrimitivePreview = forwardRef<
           );
         }
       };
-      window.addEventListener("message", onMessage);
 
-      renderPromise.then((f) => {
-        if (disposed) {
-          f.dispose();
-          return;
-        }
-        if (f.iframe) iframeWindow = f.iframe.contentWindow;
-        if (f.origin) iframeOrigin = f.origin;
-        // Forward the host origin into the iframe so the runtime can target its
-        // status postMessage even when the content document (blob:) lost the
-        // ?origin= query string and ancestorOrigins is unavailable. Retry,
-        // because renderPromise resolves on shim load — the content document's
-        // listener may not be live yet. Never uses "*": targetOrigin is the
-        // known iframe origin.
-        const win = iframeWindow;
-        const target = iframeOrigin;
-        if (win && target) {
+      renderPromise
+        .then((f) => {
+          if (disposed) {
+            f.dispose();
+            return;
+          }
+          iframeWindow = f.iframe?.contentWindow ?? null;
+          iframeOrigin = f.origin ?? null;
+
+          if (!iframeWindow || !iframeOrigin) {
+            f.dispose();
+            reportFromMessage(false, {
+              message:
+                "Failed to resolve iframe window or origin for artifact preview",
+            });
+            return;
+          }
+
+          window.addEventListener("message", onMessage);
+          messageListenerAdded = true;
+
+          const win = iframeWindow;
+          const target = iframeOrigin;
           let attempts = 0;
           const sendHello = () => {
             if (disposed || reported) {
@@ -180,12 +186,20 @@ export const ArtifactPrimitivePreview = forwardRef<
           };
           sendHello();
           helloTimer = setInterval(sendHello, 100);
-        }
-      });
+        })
+        .catch((err: unknown) => {
+          if (disposed) return;
+          reportFromMessage(false, {
+            message: err instanceof Error ? err.message : String(err),
+            stack: err instanceof Error ? err.stack : undefined,
+          });
+        });
 
       return () => {
         disposed = true;
-        window.removeEventListener("message", onMessage);
+        if (messageListenerAdded) {
+          window.removeEventListener("message", onMessage);
+        }
         if (helloTimer) clearInterval(helloTimer);
         renderPromise.then((f) => {
           if (disposed) f.dispose();
