@@ -209,28 +209,51 @@ describe("A2AClient", () => {
       }
     });
 
-    it("keeps request method and headers controlled internally", async () => {
+    it("strips internally-managed fields even when smuggled via cast", async () => {
+      const smuggledSignal = new AbortController().signal;
       const fetchOptionsClient = new A2AClient({
         baseUrl: "https://agent.test",
         fetchOptions: {
           method: "GET",
           headers: { "X-Injected": "1" },
-          signal: new AbortController().signal,
+          body: "smuggled",
+          signal: smuggledSignal,
         } as RequestInit,
       });
 
-      fetchMock.mockResolvedValue(
-        mockFetchResponse({
-          task: { id: "t1", status: { state: "completed" } },
-        }),
-      );
+      fetchMock
+        .mockResolvedValueOnce(
+          mockFetchResponse({
+            task: { id: "t1", status: { state: "completed" } },
+          }),
+        )
+        .mockResolvedValueOnce(
+          mockFetchResponse({
+            name: "Test",
+            description: "desc",
+            version: "1.0",
+            supportedInterfaces: [],
+            capabilities: {},
+            defaultInputModes: [],
+            defaultOutputModes: [],
+            skills: [],
+          }),
+        );
 
       await fetchOptionsClient.sendMessage(userMessage);
+      await fetchOptionsClient.getAgentCard();
 
-      const [, init] = fetchMock.mock.calls[0]!;
-      expect(init.method).toBe("POST");
-      expect(init.headers["Content-Type"]).toBe("application/a2a+json");
-      expect(init.headers["X-Injected"]).toBeUndefined();
+      for (const [, init] of fetchMock.mock.calls) {
+        expect(init.headers["X-Injected"]).toBeUndefined();
+        expect(init.body).not.toBe("smuggled");
+        expect(init.signal).not.toBe(smuggledSignal);
+      }
+
+      expect(fetchMock.mock.calls[0]![1].method).toBe("POST");
+      expect(fetchMock.mock.calls[0]![1].headers["Content-Type"]).toBe(
+        "application/a2a+json",
+      );
+      expect(fetchMock.mock.calls[1]![1].method).toBeUndefined();
     });
   });
 

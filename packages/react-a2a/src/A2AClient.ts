@@ -177,7 +177,14 @@ export class A2AClient {
       : "";
     this.tenant = options.tenant;
     this.extensionUris = options.extensions;
-    this.fetchOptions = options.fetchOptions ?? {};
+    const {
+      headers: _h,
+      body: _b,
+      method: _m,
+      signal: _s,
+      ...safeFetchOptions
+    } = (options.fetchOptions ?? {}) as RequestInit;
+    this.fetchOptions = safeFetchOptions;
     this.headersFn = options.headers ?? {};
   }
 
