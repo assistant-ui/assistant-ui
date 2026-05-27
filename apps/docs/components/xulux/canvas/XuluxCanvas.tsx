@@ -96,9 +96,9 @@ export function XuluxCanvas({
   }, [sessionId]);
 
   return (
-    <div className="relative h-full overflow-hidden bg-muted/20">
+    <div className="bg-muted/20 relative h-full overflow-hidden">
       {resolvedPreviewUrl && (
-        <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-md border bg-background/90 p-1 shadow-sm backdrop-blur">
+        <div className="bg-background/90 absolute top-3 right-3 z-10 flex items-center gap-1.5 rounded-md border p-1 shadow-sm backdrop-blur">
           <Button
             type="button"
             variant="ghost"
@@ -163,7 +163,7 @@ export function XuluxCanvas({
       )}
 
       {downloadError && (
-        <div className="absolute top-14 right-3 left-3 z-10 rounded-md border border-destructive/30 bg-background px-3 py-2 text-destructive text-xs shadow-sm">
+        <div className="border-destructive/30 bg-background text-destructive absolute top-14 right-3 left-3 z-10 rounded-md border px-3 py-2 text-xs shadow-sm">
           {downloadError}
         </div>
       )}
@@ -171,8 +171,8 @@ export function XuluxCanvas({
       {resolvedPreviewUrl ? (
         <>
           {isPreviewLoading && (
-            <div className="absolute inset-0 z-5 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-              <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-muted-foreground text-sm shadow-sm">
+            <div className="bg-background/80 absolute inset-0 z-5 flex items-center justify-center backdrop-blur-sm">
+              <div className="bg-background text-muted-foreground flex items-center gap-2 rounded-md border px-3 py-2 text-sm shadow-sm">
                 <Loader2 className="size-4 animate-spin" />
                 <span>Loading preview...</span>
               </div>
@@ -189,12 +189,12 @@ export function XuluxCanvas({
       ) : (
         <div className="flex h-full items-center justify-center p-6 text-center">
           <div className="max-w-md">
-            <p className="font-medium text-sm">
+            <p className="text-sm font-medium">
               {status === "error"
                 ? "Preview unavailable"
                 : "Waiting for preview"}
             </p>
-            <p className="mt-2 text-muted-foreground text-sm">
+            <p className="text-muted-foreground mt-2 text-sm">
               {error ??
                 "The preview will appear after the agent finishes preparing the app."}
             </p>

@@ -21,7 +21,7 @@ type PreviewData = {
 
 export function ExamplePreview({ preview }: { preview: PreviewData }) {
   return (
-    <main className="h-screen w-screen overflow-hidden bg-background text-foreground">
+    <main className="bg-background text-foreground h-screen w-screen overflow-hidden">
       {renderPreview(preview)}
     </main>
   );
@@ -86,17 +86,17 @@ function renderPreview(preview: PreviewData) {
 
 function ScreenshotPreview({ preview }: { preview: PreviewData }) {
   return (
-    <div className="flex h-full w-full flex-col bg-muted/30">
-      <div className="flex h-10 shrink-0 items-center justify-between border-b bg-background px-4">
+    <div className="bg-muted/30 flex h-full w-full flex-col">
+      <div className="bg-background flex h-10 shrink-0 items-center justify-between border-b px-4">
         <div className="min-w-0">
-          <p className="truncate font-medium text-sm">{preview.title}</p>
-          <p className="truncate text-[11px] text-muted-foreground">
+          <p className="truncate text-sm font-medium">{preview.title}</p>
+          <p className="text-muted-foreground truncate text-[11px]">
             Screenshot preview
           </p>
         </div>
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center p-6">
-        <div className="relative aspect-video w-full max-w-5xl overflow-hidden rounded-lg border bg-background shadow-sm">
+        <div className="bg-background relative aspect-video w-full max-w-5xl overflow-hidden rounded-lg border shadow-sm">
           <Image
             src={preview.screenshotUrl}
             alt={preview.title}

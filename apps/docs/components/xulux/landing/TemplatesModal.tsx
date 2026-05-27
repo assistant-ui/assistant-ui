@@ -66,7 +66,7 @@ export function TemplatesModal({
           </DialogHeader>
           <div className="px-6 pb-3">
             <div className="relative">
-              <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
               <Input
                 autoFocus
                 value={query}
@@ -93,22 +93,22 @@ export function TemplatesModal({
               </CategoryChip>
             ))}
           </div>
-          <div className="scrollbar-thin max-h-[60vh] overflow-y-auto px-6 pb-6">
+          <div className="max-h-[60vh] scrollbar-thin overflow-y-auto px-6 pb-6">
             {isLoading ? (
-              <div className="py-10 text-center text-muted-foreground text-sm">
+              <div className="text-muted-foreground py-10 text-center text-sm">
                 Loading templates...
               </div>
             ) : error ? (
               <div className="mx-auto max-w-md py-10 text-center">
-                <div className="font-medium text-foreground text-sm">
+                <div className="text-foreground text-sm font-medium">
                   Catalog unavailable
                 </div>
-                <div className="mt-2 text-muted-foreground text-sm">
+                <div className="text-muted-foreground mt-2 text-sm">
                   {error}
                 </div>
               </div>
             ) : filtered.length === 0 ? (
-              <div className="py-10 text-center text-muted-foreground text-sm">
+              <div className="text-muted-foreground py-10 text-center text-sm">
                 {query
                   ? `No templates match "${query}".`
                   : "No templates available."}
@@ -120,7 +120,7 @@ export function TemplatesModal({
                     key={template.id}
                     type="button"
                     onClick={() => setDetailTemplate(template)}
-                    className="group flex flex-col gap-2 rounded-lg border border-border bg-card/40 p-2 text-left transition-colors hover:border-border/80 hover:bg-card/60"
+                    className="group border-border bg-card/40 hover:border-border/80 hover:bg-card/60 flex flex-col gap-2 rounded-lg border p-2 text-left transition-colors"
                   >
                     <Thumbnail
                       gradient={template.gradient}
@@ -129,10 +129,10 @@ export function TemplatesModal({
                       className="aspect-video w-full"
                     />
                     <div className="px-1 pb-1">
-                      <div className="min-w-0 flex-1 truncate font-medium text-sm">
+                      <div className="min-w-0 flex-1 truncate text-sm font-medium">
                         {template.title}
                       </div>
-                      <div className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">
+                      <div className="text-muted-foreground mt-0.5 line-clamp-2 text-xs">
                         {template.description}
                       </div>
                     </div>
@@ -175,7 +175,7 @@ function CategoryChip({
         "rounded-md border px-3 py-1 text-xs transition-colors",
         active
           ? "border-foreground/40 bg-foreground/10 text-foreground"
-          : "border-border bg-transparent text-muted-foreground hover:border-border/80 hover:text-foreground",
+          : "border-border text-muted-foreground hover:border-border/80 hover:text-foreground bg-transparent",
       )}
     >
       {children}

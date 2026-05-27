@@ -41,7 +41,7 @@ export function PromptInput({
   };
 
   return (
-    <div className="w-full rounded-2xl border border-border bg-card/40 p-3 backdrop-blur transition-colors focus-within:border-border/80">
+    <div className="border-border bg-card/40 focus-within:border-border/80 w-full rounded-2xl border p-3 backdrop-blur transition-colors">
       <textarea
         ref={textareaRef}
         value={value}
@@ -55,14 +55,14 @@ export function PromptInput({
         }}
         placeholder={placeholder}
         rows={1}
-        className="w-full resize-none bg-transparent px-2 py-2 text-base text-foreground placeholder:text-muted-foreground focus:outline-none"
+        className="text-foreground placeholder:text-muted-foreground w-full resize-none bg-transparent px-2 py-2 text-base focus:outline-none"
       />
       <div className="flex items-center justify-between pt-2">
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
-          className="rounded-lg text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground rounded-lg"
           aria-label="Attach file"
         >
           <Plus className="size-4" />

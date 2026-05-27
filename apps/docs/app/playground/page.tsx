@@ -371,7 +371,7 @@ export default function PlaygroundPage() {
   return (
     <>
       <HeaderPortal>
-        <div className="grid grid-cols-2 rounded-md border bg-muted/40 p-0.5 text-xs">
+        <div className="bg-muted/40 grid grid-cols-2 rounded-md border p-0.5 text-xs">
           <button
             type="button"
             onClick={() => setMode("agent")}

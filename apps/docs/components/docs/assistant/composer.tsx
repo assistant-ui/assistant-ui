@@ -137,7 +137,7 @@ export function AssistantComposer({
         <ComposerPrimitive.Input asChild>
           <textarea
             placeholder={placeholder}
-            className="field-sizing-content max-h-32 w-full resize-none bg-transparent px-3 pt-2.5 pb-2 text-sm leading-5 placeholder:text-muted-foreground focus:outline-none"
+            className="placeholder:text-muted-foreground field-sizing-content max-h-32 w-full resize-none bg-transparent px-3 pt-2.5 pb-2 text-sm leading-5 focus:outline-none"
             rows={1}
           />
         </ComposerPrimitive.Input>

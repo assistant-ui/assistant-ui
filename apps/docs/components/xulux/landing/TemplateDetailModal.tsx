@@ -83,7 +83,7 @@ export function TemplateDetailModal({
                     />
                     <div className="relative flex flex-col items-center gap-2 rounded-md bg-black/40 px-4 py-2 text-white/90 backdrop-blur-sm">
                       <Loader2 className="size-6 animate-spin" />
-                      <span className="text-xs uppercase tracking-wider">
+                      <span className="text-xs tracking-wider uppercase">
                         Loading preview...
                       </span>
                     </div>
@@ -105,7 +105,7 @@ export function TemplateDetailModal({
                   href={current.previewUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="absolute top-3 right-3 z-20 flex items-center gap-1.5 rounded-md bg-black/60 px-2.5 py-1.5 text-white/80 text-xs backdrop-blur-sm transition-colors hover:text-white"
+                  className="absolute top-3 right-3 z-20 flex items-center gap-1.5 rounded-md bg-black/60 px-2.5 py-1.5 text-xs text-white/80 backdrop-blur-sm transition-colors hover:text-white"
                 >
                   <ExternalLink className="size-3" />
                   Open in new tab
@@ -121,12 +121,12 @@ export function TemplateDetailModal({
             )}
           </div>
 
-          <div className="flex flex-col justify-between border-border border-l p-7 sm:w-[35%]">
+          <div className="border-border flex flex-col justify-between border-l p-7 sm:w-[35%]">
             <div>
-              <h2 className="font-semibold text-lg tracking-tight">
+              <h2 className="text-lg font-semibold tracking-tight">
                 {current.title}
               </h2>
-              <p className="mt-3 text-muted-foreground text-sm leading-relaxed">
+              <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
                 {current.description}
               </p>
 
@@ -135,7 +135,7 @@ export function TemplateDetailModal({
                   {current.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="rounded-md bg-muted px-2.5 py-0.5 text-muted-foreground text-xs"
+                      className="bg-muted text-muted-foreground rounded-md px-2.5 py-0.5 text-xs"
                     >
                       {tag}
                     </span>
@@ -143,7 +143,7 @@ export function TemplateDetailModal({
                 </div>
               )}
 
-              <div className="mt-5 space-y-3 rounded-md border border-border bg-muted/25 p-3">
+              <div className="border-border bg-muted/25 mt-5 space-y-3 rounded-md border p-3">
                 <div className="flex flex-wrap gap-1.5">
                   <InfoPill>
                     {current.kind === "template"
@@ -153,7 +153,7 @@ export function TemplateDetailModal({
                   <InfoPill>{previewLabel}</InfoPill>
                   <InfoPill>{current.tech.framework}</InfoPill>
                 </div>
-                <div className="flex items-start gap-2 text-muted-foreground text-xs">
+                <div className="text-muted-foreground flex items-start gap-2 text-xs">
                   <Code2 className="mt-0.5 size-3.5 shrink-0" />
                   <span>
                     Runtime: {current.tech.runtime}; pattern:{" "}
@@ -162,7 +162,7 @@ export function TemplateDetailModal({
                 </div>
                 {requiredEnv.length > 0 ? (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 font-medium text-foreground text-xs">
+                    <div className="text-foreground flex items-center gap-2 text-xs font-medium">
                       <KeyRound className="size-3.5" />
                       Required environment
                     </div>
@@ -170,7 +170,7 @@ export function TemplateDetailModal({
                       {requiredEnv.map((item) => (
                         <span
                           key={item.name}
-                          className="rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground"
+                          className="border-border bg-background text-muted-foreground rounded-md border px-2 py-1 text-[11px]"
                           title={item.description}
                         >
                           {item.name}
@@ -181,7 +181,7 @@ export function TemplateDetailModal({
                   </div>
                 ) : null}
                 {!current.canStart ? (
-                  <div className="flex items-start gap-2 text-amber-600 text-xs dark:text-amber-400">
+                  <div className="flex items-start gap-2 text-xs text-amber-600 dark:text-amber-400">
                     <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
                     <span>
                       This item does not have a scaffold source in the catalog
@@ -196,7 +196,7 @@ export function TemplateDetailModal({
               type="button"
               onClick={() => current.canStart && onSelect(current)}
               disabled={!current.canStart}
-              className="mt-6 w-full rounded-lg bg-foreground px-5 py-2.5 font-medium text-background text-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+              className="bg-foreground text-background mt-6 w-full rounded-lg px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
             >
               {startLabel}
             </button>
@@ -208,7 +208,7 @@ export function TemplateDetailModal({
             ref={scrollRef}
             className="scrollbar-thin overflow-y-auto border-t px-6 py-5"
           >
-            <h3 className="mb-3 font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+            <h3 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
               More templates
             </h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -217,7 +217,7 @@ export function TemplateDetailModal({
                   key={other.id}
                   type="button"
                   onClick={() => handleOther(other)}
-                  className="flex flex-col gap-2 rounded-lg border border-border bg-card/40 p-2 text-left transition-colors hover:border-border/80 hover:bg-card/60"
+                  className="border-border bg-card/40 hover:border-border/80 hover:bg-card/60 flex flex-col gap-2 rounded-lg border p-2 text-left transition-colors"
                 >
                   <Thumbnail
                     gradient={other.gradient}
@@ -226,7 +226,7 @@ export function TemplateDetailModal({
                     className="aspect-video w-full"
                   />
                   <div className="px-1 pb-0.5">
-                    <div className="truncate font-medium text-xs">
+                    <div className="truncate text-xs font-medium">
                       {other.title}
                     </div>
                   </div>
@@ -242,7 +242,7 @@ export function TemplateDetailModal({
 
 function InfoPill({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-md bg-background px-2.5 py-1 font-medium text-[11px] text-muted-foreground">
+    <span className="bg-background text-muted-foreground rounded-md px-2.5 py-1 text-[11px] font-medium">
       {children}
     </span>
   );

@@ -53,9 +53,9 @@ export function CategoryGrid({ onBrowseAll, onSelectTemplate }: Props) {
 
   if (error) {
     return (
-      <section className="w-full rounded-lg border border-border bg-card/40 px-4 py-3">
-        <div className="font-medium text-sm">Catalog unavailable</div>
-        <div className="mt-1 text-muted-foreground text-sm">{error}</div>
+      <section className="border-border bg-card/40 w-full rounded-lg border px-4 py-3">
+        <div className="text-sm font-medium">Catalog unavailable</div>
+        <div className="text-muted-foreground mt-1 text-sm">{error}</div>
       </section>
     );
   }
@@ -66,11 +66,11 @@ export function CategoryGrid({ onBrowseAll, onSelectTemplate }: Props) {
     <>
       <section className="w-full">
         <div className="mb-4 flex items-baseline justify-between">
-          <h2 className="font-semibold text-lg tracking-tight">Templates</h2>
+          <h2 className="text-lg font-semibold tracking-tight">Templates</h2>
           <button
             type="button"
             onClick={onBrowseAll}
-            className="flex items-center gap-1 text-muted-foreground text-sm transition-colors hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm transition-colors"
           >
             Browse All
             <ChevronRight className="size-4" />
@@ -85,7 +85,7 @@ export function CategoryGrid({ onBrowseAll, onSelectTemplate }: Props) {
             className={cn(
               "absolute top-1/2 -left-4 z-10 -translate-y-1/2",
               "flex size-8 items-center justify-center rounded-full",
-              "border border-border bg-background shadow-md",
+              "border-border bg-background border shadow-md",
               "transition-opacity duration-150",
               canScrollLeft ? "opacity-100" : "pointer-events-none opacity-0",
             )}
@@ -108,7 +108,7 @@ export function CategoryGrid({ onBrowseAll, onSelectTemplate }: Props) {
                   flexShrink: 0,
                   width: "calc(25% - 12px)",
                 }}
-                className="flex min-w-[190px] flex-col gap-2 rounded-xl border border-border bg-card/40 p-2 text-left transition-colors hover:border-border/80 hover:bg-card/60"
+                className="border-border bg-card/40 hover:border-border/80 hover:bg-card/60 flex min-w-[190px] flex-col gap-2 rounded-xl border p-2 text-left transition-colors"
               >
                 <Thumbnail
                   gradient={template.gradient}
@@ -117,10 +117,10 @@ export function CategoryGrid({ onBrowseAll, onSelectTemplate }: Props) {
                   className="aspect-video w-full"
                 />
                 <div className="px-1 pb-1">
-                  <div className="min-w-0 flex-1 truncate font-medium text-sm">
+                  <div className="min-w-0 flex-1 truncate text-sm font-medium">
                     {template.title}
                   </div>
-                  <div className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">
+                  <div className="text-muted-foreground mt-0.5 line-clamp-2 text-xs">
                     {template.description}
                   </div>
                 </div>
@@ -135,7 +135,7 @@ export function CategoryGrid({ onBrowseAll, onSelectTemplate }: Props) {
             className={cn(
               "absolute top-1/2 -right-4 z-10 -translate-y-1/2",
               "flex size-8 items-center justify-center rounded-full",
-              "border border-border bg-background shadow-md",
+              "border-border bg-background border shadow-md",
               "transition-opacity duration-150",
               canScrollRight ? "opacity-100" : "pointer-events-none opacity-0",
             )}

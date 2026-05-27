@@ -4,7 +4,7 @@ export function XuluxPoweredBy({ className }: { className?: string }) {
   return (
     <p
       className={cn(
-        "text-center text-[11px] text-muted-foreground/60 leading-4",
+        "text-muted-foreground/60 text-center text-[11px] leading-4",
         className,
       )}
     >
@@ -13,7 +13,7 @@ export function XuluxPoweredBy({ className }: { className?: string }) {
         href="https://xulux.ai"
         target="_blank"
         rel="noopener noreferrer"
-        className="font-medium text-muted-foreground/75 transition-colors hover:text-foreground"
+        className="text-muted-foreground/75 hover:text-foreground font-medium transition-colors"
       >
         xulux.ai
       </a>

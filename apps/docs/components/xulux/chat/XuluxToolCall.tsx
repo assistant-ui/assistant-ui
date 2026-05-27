@@ -113,10 +113,10 @@ function ToolPayload({
 }): ReactNode {
   return (
     <div>
-      <p className="mb-1 font-medium text-[10px] text-muted-foreground/60 uppercase tracking-wide">
+      <p className="text-muted-foreground/60 mb-1 text-[10px] font-medium tracking-wide uppercase">
         {label}
       </p>
-      <pre className="overflow-x-auto whitespace-pre-wrap break-all text-muted-foreground">
+      <pre className="text-muted-foreground overflow-x-auto break-all whitespace-pre-wrap">
         {formatPayload(value)}
       </pre>
     </div>
@@ -144,12 +144,12 @@ export function XuluxToolCall({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="my-1.5 rounded-lg border border-border/60 bg-muted/30 text-xs">
+    <div className="border-border/60 bg-muted/30 my-1.5 rounded-lg border text-xs">
       <button
         type="button"
         onClick={() => setExpanded((value) => !value)}
         className={cn(
-          "flex w-full items-center gap-2 px-2.5 py-1.5 text-muted-foreground",
+          "text-muted-foreground flex w-full items-center gap-2 px-2.5 py-1.5",
           isRunning && "animate-pulse",
         )}
       >
@@ -163,14 +163,14 @@ export function XuluxToolCall({
           </span>
         )}
         {expanded ? (
-          <ChevronUpIcon className="size-3 text-muted-foreground/50" />
+          <ChevronUpIcon className="text-muted-foreground/50 size-3" />
         ) : (
-          <ChevronDownIcon className="size-3 text-muted-foreground/50" />
+          <ChevronDownIcon className="text-muted-foreground/50 size-3" />
         )}
       </button>
 
       {expanded && (
-        <div className="space-y-2 border-border/60 border-t px-2.5 py-2">
+        <div className="border-border/60 space-y-2 border-t px-2.5 py-2">
           <ToolPayload label="Input" value={args} />
           {result !== undefined && (
             <ToolPayload label="Output" value={result} />

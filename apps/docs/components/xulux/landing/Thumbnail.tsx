@@ -37,7 +37,7 @@ export function Thumbnail({ gradient, label, className, src }: Props) {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_90%,rgba(0,0,0,0.25),transparent_60%)]" />
           {label ? (
             <div className="absolute inset-0 flex items-end p-2">
-              <span className="font-medium text-[10px] text-white/70 uppercase tracking-wider">
+              <span className="text-[10px] font-medium tracking-wider text-white/70 uppercase">
                 {label}
               </span>
             </div>
