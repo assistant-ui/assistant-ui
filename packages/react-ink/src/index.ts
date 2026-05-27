@@ -120,6 +120,14 @@ export {
   createSimpleTitleAdapter,
   type TitleGenerationAdapter,
 } from "@assistant-ui/core/react";
+export {
+  useNotification,
+  type NotificationConfig,
+  type NotificationHandler,
+  type NotificationEvent,
+  type OSCVariant,
+} from "./hooks/useNotification";
+export { ringBell, sendOSCNotification } from "./hooks/notification-channels";
 
 // Primitives
 export * as ThreadPrimitive from "./primitives/thread";
