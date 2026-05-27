@@ -59,9 +59,11 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   }
 
   const lastScrollTop = useRef<number>(0);
+  const lastScrollHeight = useRef<number>(0);
 
   // Pending bottom-scroll intent. Planted by initialize/run-start/switch/button
-  // triggers, cleared only when handleScroll confirms we reached bottom.
+  // triggers, cleared when handleScroll confirms we reached bottom, or when the
+  // user actively scrolls up while content size is stable.
   const scrollingToBottomBehaviorRef = useRef<ScrollBehavior | null>(null);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
@@ -109,8 +111,13 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     if (!div) return;
 
     const isAtBottom = threadViewportStore.getState().isAtBottom;
+    // `<= 1` (not `< 1`) tolerates browsers that clip scrollTop one pixel short
+    // of `scrollHeight - clientHeight` on high-DPR displays (observed on Chrome
+    // macOS with devicePixelRatio = 2). With `< 1` the check never matches and
+    // `isAtBottom` is permanently stuck false, hiding the disabled state of
+    // `ScrollToBottom`.
     const newIsAtBottom =
-      Math.abs(div.scrollHeight - div.scrollTop - div.clientHeight) < 1 ||
+      Math.abs(div.scrollHeight - div.scrollTop - div.clientHeight) <= 1 ||
       div.scrollHeight <= div.clientHeight;
 
     const isInFlightDownwardScroll =
@@ -126,6 +133,17 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         if (viewportOverflows) {
           scrollingToBottomBehaviorRef.current = null;
         }
+      } else if (
+        lastScrollTop.current > div.scrollTop &&
+        lastScrollHeight.current === div.scrollHeight
+      ) {
+        // User scrolled UP and content size did not change — release the
+        // auto-stick intent so subsequent subtree mutations (markdown
+        // re-render, image load, animation end) don't pull the viewport
+        // back to bottom via the resize observer. The `scrollHeight`
+        // equality guard rules out content-driven adjustments (shrink/grow
+        // that shifts scrollTop downward) being misread as a user scroll.
+        scrollingToBottomBehaviorRef.current = null;
       }
 
       const shouldUpdate =
@@ -139,6 +157,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     }
 
     lastScrollTop.current = div.scrollTop;
+    lastScrollHeight.current = div.scrollHeight;
   };
 
   const resizeRef = useOnResizeContent(() => {
