@@ -20,7 +20,7 @@ export const ChecklistProgress = ({
   return (
     <Box {...boxProps}>
       <Text dimColor>
-        {done}/{total} complete
+        {done}/{total} done
       </Text>
     </Box>
   );

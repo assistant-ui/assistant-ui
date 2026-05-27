@@ -24,7 +24,7 @@ export const ChecklistPrimitiveProgress = forwardRef<
 
   return (
     <Primitive.div data-done={done} data-total={total} {...props} ref={ref}>
-      {done}/{total} complete
+      {done}/{total} done
     </Primitive.div>
   );
 });

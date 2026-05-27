@@ -47,7 +47,7 @@ describe("LiveChecklist", () => {
     const frame = await renderFrame(
       <LiveChecklist items={items} showProgress />,
     );
-    expect(frame).toContain("1/2 complete");
+    expect(frame).toContain("1/2 done");
   });
 
   it("renders nothing for empty items array", async () => {

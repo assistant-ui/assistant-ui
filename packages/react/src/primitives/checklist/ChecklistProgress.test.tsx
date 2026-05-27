@@ -16,7 +16,7 @@ describe("ChecklistPrimitiveProgress", () => {
       { id: "5", text: "E", status: "complete" },
     ];
     const html = renderProgress(items);
-    expect(html).toContain("3/5 complete");
+    expect(html).toContain("3/5 done");
     expect(html).toContain('data-done="3"');
     expect(html).toContain('data-total="5"');
   });
@@ -35,11 +35,11 @@ describe("ChecklistPrimitiveProgress", () => {
       { id: "2", text: "Other", status: "complete" },
     ];
     const html = renderProgress(items);
-    expect(html).toContain("2/4 complete");
+    expect(html).toContain("2/4 done");
   });
 
   it("renders 0/0 for empty items", () => {
     const html = renderProgress([]);
-    expect(html).toContain("0/0 complete");
+    expect(html).toContain("0/0 done");
   });
 });

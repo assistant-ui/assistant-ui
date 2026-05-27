@@ -24,7 +24,7 @@ describe("ChecklistProgress", () => {
       { id: "5", text: "E", status: "complete" },
     ];
     const frame = await renderFrame(<ChecklistProgress items={items} />);
-    expect(frame).toContain("3/5 complete");
+    expect(frame).toContain("3/5 done");
   });
 
   it("flattens nested children into count", async () => {
@@ -41,11 +41,11 @@ describe("ChecklistProgress", () => {
       { id: "2", text: "Other", status: "complete" },
     ];
     const frame = await renderFrame(<ChecklistProgress items={items} />);
-    expect(frame).toContain("2/4 complete");
+    expect(frame).toContain("2/4 done");
   });
 
-  it("renders 0/0 complete for empty items", async () => {
+  it("renders 0/0 done for empty items", async () => {
     const frame = await renderFrame(<ChecklistProgress items={[]} />);
-    expect(frame).toContain("0/0 complete");
+    expect(frame).toContain("0/0 done");
   });
 });
