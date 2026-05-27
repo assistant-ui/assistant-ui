@@ -1,9 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
-import { Text } from "ink";
 import type { ChecklistItemData } from "@assistant-ui/core";
-import { ChecklistRoot } from "./ChecklistRoot";
-import { ChecklistItem } from "./ChecklistItem";
-import { ChecklistProgress } from "./ChecklistProgress";
+import { ChecklistView } from "./ChecklistView";
 import { ToolActivityChecklist } from "./ToolActivityChecklist";
 import type { Box } from "ink";
 
@@ -38,21 +35,15 @@ export const LiveChecklist = ({
     );
   }
 
-  if (items.length === 0) return null;
-
   return (
-    <ChecklistRoot {...boxProps}>
-      {title ? <Text bold>{title}</Text> : null}
-      {items.map((item) => (
-        <ChecklistItem
-          key={item.id}
-          item={item}
-          {...(maxDepth !== undefined ? { maxDepth } : undefined)}
-          {...(renderItem ? { renderItem } : undefined)}
-        />
-      ))}
-      {showProgress ? <ChecklistProgress items={items} /> : null}
-    </ChecklistRoot>
+    <ChecklistView
+      items={items}
+      {...(title ? { title } : undefined)}
+      {...(showProgress ? { showProgress } : undefined)}
+      {...(maxDepth !== undefined ? { maxDepth } : undefined)}
+      {...(renderItem ? { renderItem } : undefined)}
+      {...boxProps}
+    />
   );
 };
 

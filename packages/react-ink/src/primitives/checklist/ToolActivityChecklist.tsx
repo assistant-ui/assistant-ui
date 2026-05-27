@@ -1,10 +1,8 @@
 import type { ComponentProps, ReactNode } from "react";
-import { Box, Text } from "ink";
+import { Box } from "ink";
 import { useToolActivityChecklist } from "@assistant-ui/core/react";
 import type { ChecklistItemData } from "@assistant-ui/core";
-import { ChecklistRoot } from "./ChecklistRoot";
-import { ChecklistItem } from "./ChecklistItem";
-import { ChecklistProgress } from "./ChecklistProgress";
+import { ChecklistView } from "./ChecklistView";
 
 export type ToolActivityChecklistProps = ComponentProps<typeof Box> & {
   title?: string;
@@ -24,21 +22,15 @@ export const ToolActivityChecklist = ({
 }: ToolActivityChecklistProps) => {
   const items = useToolActivityChecklist({ formatToolName });
 
-  if (items.length === 0) return null;
-
   return (
-    <ChecklistRoot {...boxProps}>
-      {title ? <Text bold>{title}</Text> : null}
-      {items.map((item) => (
-        <ChecklistItem
-          key={item.id}
-          item={item}
-          {...(maxDepth !== undefined ? { maxDepth } : undefined)}
-          {...(renderItem ? { renderItem } : undefined)}
-        />
-      ))}
-      {showProgress ? <ChecklistProgress items={items} /> : null}
-    </ChecklistRoot>
+    <ChecklistView
+      items={items}
+      {...(title ? { title } : undefined)}
+      {...(showProgress ? { showProgress } : undefined)}
+      {...(maxDepth !== undefined ? { maxDepth } : undefined)}
+      {...(renderItem ? { renderItem } : undefined)}
+      {...boxProps}
+    />
   );
 };
 
