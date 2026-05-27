@@ -2,9 +2,10 @@
 
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import type { AssistantCloud } from "assistant-cloud";
-import type {
-  AssistantRuntime,
-  ExternalStoreSharedOptions,
+import {
+  pickExternalStoreSharedOptions,
+  type AssistantRuntime,
+  type ExternalStoreSharedOptions,
 } from "@assistant-ui/core";
 import {
   useCloudThreadListAdapter,
@@ -71,14 +72,19 @@ const getResumableAdapter = <UI_MESSAGE extends UIMessage>(
 const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   options?: UseChatRuntimeOptions<UI_MESSAGE>,
 ): AssistantRuntime => {
+  // The `_`-prefixed bindings exist only to peel the shared options off
+  // `...chatOptions` so they don't leak into `useChat`. Their values are
+  // re-extracted from the full options object via the helper below, which
+  // keeps the forward set in sync with `ExternalStoreSharedOptions` even
+  // when new fields are added.
   const {
     adapters,
     transport: transportOptions,
     toCreateMessage,
-    isDisabled,
-    isSendDisabled,
-    unstable_capabilities,
-    suggestions,
+    isDisabled: _isDisabled,
+    isSendDisabled: _isSendDisabled,
+    unstable_capabilities: _unstable_capabilities,
+    suggestions: _suggestions,
     onResume,
     ...chatOptions
   } = options ?? {};
@@ -102,10 +108,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runtime = useAISDKRuntime(chat, {
     adapters,
-    isDisabled,
-    isSendDisabled,
-    unstable_capabilities,
-    suggestions,
+    ...pickExternalStoreSharedOptions(options ?? {}),
     ...(toCreateMessage && { toCreateMessage }),
     ...(onResume && { onResume }),
   });
