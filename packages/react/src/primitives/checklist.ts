@@ -1,14 +1,5 @@
-export {
-  ChecklistPrimitiveRoot as Root,
-  type ChecklistPrimitiveRoot as RootPrimitive,
-} from "./checklist/ChecklistRoot";
+export { ChecklistPrimitiveRoot as Root } from "./checklist/ChecklistRoot";
 
-export {
-  ChecklistPrimitiveItem as Item,
-  type ChecklistPrimitiveItem as ItemPrimitive,
-} from "./checklist/ChecklistItem";
+export { ChecklistPrimitiveItem as Item } from "./checklist/ChecklistItem";
 
-export {
-  ChecklistPrimitiveProgress as Progress,
-  type ChecklistPrimitiveProgress as ProgressPrimitive,
-} from "./checklist/ChecklistProgress";
+export { ChecklistPrimitiveProgress as Progress } from "./checklist/ChecklistProgress";
