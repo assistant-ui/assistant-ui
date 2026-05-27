@@ -37,6 +37,7 @@ const runtime = useA2ARuntime({ client });
 | `headers` | `Record<string, string>` or `() => Record<string, string>` | Static or dynamic headers (e.g. for auth tokens). |
 | `tenant` | `string` | Tenant ID for multi-tenant servers (prepended to URL paths). |
 | `extensions` | `string[]` | Extension URIs to negotiate via `A2A-Extensions` header. |
+| `fetchOptions` | `RequestInit` (partial) | Extra fetch options applied to every request (e.g. `{ credentials: "include" }`). `headers`, `body`, `method`, and `signal` are managed internally. |
 
 ### Client methods
 
@@ -67,6 +68,7 @@ Pass either a pre-built `client` or a `baseUrl` (the runtime creates a client fo
 | `tenant` | `string` | Tenant ID for multi-tenant servers. Only used with `baseUrl`. |
 | `headers` | `Record<string, string>` or `() => Record<string, string>` | Headers for the auto-created client. |
 | `extensions` | `string[]` | Extension URIs to negotiate. Only used with `baseUrl`. |
+| `fetchOptions` | `RequestInit` (partial) | Extra fetch options for the auto-created client. Only used with `baseUrl`. |
 | `contextId` | `string` | Initial context ID for the conversation. |
 | `configuration` | `A2ASendMessageConfiguration` | Default send message configuration. |
 | `onError` | `(error: Error) => void` | Error callback. |
