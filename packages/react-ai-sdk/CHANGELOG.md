@@ -1,5 +1,11 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.30
+
+### Patch Changes
+
+- [#4125](https://github.com/assistant-ui/assistant-ui/pull/4125) [`e639a11`](https://github.com/assistant-ui/assistant-ui/commit/e639a11838642aa111644077ba51acf6277051f2) - chore: drop tracker-behaviour explainer comments left behind in satellite runtimes ([@Yonom](https://github.com/Yonom))
+
 ## 1.3.29
 
 ### Patch Changes
