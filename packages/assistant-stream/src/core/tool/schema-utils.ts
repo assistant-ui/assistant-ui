@@ -153,7 +153,7 @@ export function toToolsJSONSchema(
   return Object.fromEntries(
     Object.entries(tools)
       .filter(([name, tool]) => filter(name, tool) && tool.parameters)
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([name, tool]) => [
         name,
         {

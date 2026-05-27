@@ -169,10 +169,16 @@ type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
 >;
 
 /**
- * Per-provider metadata attached to a tool and forwarded into the wire
- * request body verbatim. The outer key is the provider name (`anthropic`,
- * `openai`, ...); the inner object is whatever shape that provider's SDK
- * expects under `tool.providerOptions[providerName]`.
+ * Per-provider metadata forwarded into the wire request body verbatim.
+ * assistant-ui does not interpret these values; downstream adapters (AI SDK,
+ * custom routes) pass them to the model provider as-is.
+ *
+ * The outer key is the provider name (`anthropic`, `openai`, ...); the inner
+ * object is whatever shape that provider's SDK expects under
+ * `tool.providerOptions[providerName]`. Use this to enable provider-specific
+ * tool behaviors such as Anthropic's `defer_loading`
+ * (`{ anthropic: { deferLoading: true } }`) without adding provider-aware
+ * code in assistant-ui.
  */
 export type ProviderOptions = Record<string, Record<string, unknown>>;
 
@@ -184,20 +190,6 @@ type ToolBase<
    * @deprecated Experimental, API may change.
    */
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
-};
-
-/**
- * Per-provider metadata forwarded into the wire request body. assistant-ui
- * does not interpret these values; it serializes them under each tool so
- * downstream adapters (AI SDK, custom routes) can pass them to the model
- * provider verbatim.
- *
- * Use this to enable provider-specific tool behaviors such as Anthropic's
- * `defer_loading` (set `{ anthropic: { deferLoading: true } }`) without
- * adding provider-aware code in assistant-ui.
- */
-type WireTool = {
-  providerOptions?: ProviderOptions;
 };
 
 type BackendTool<
@@ -219,43 +211,43 @@ type BackendTool<
 type FrontendTool<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
-> = ToolBase<TArgs, TResult> &
-  WireTool & {
-    /** Tool that is executed in the frontend runtime. */
-    type: "frontend";
+> = ToolBase<TArgs, TResult> & {
+  /** Tool that is executed in the frontend runtime. */
+  type: "frontend";
 
-    /** Natural-language description shown to the model when selecting tools. */
-    description?: string | undefined;
-    /** Schema for the arguments the model must provide when calling the tool. */
-    parameters: StandardSchemaV1<TArgs> | JSONSchema7;
-    /** Prevents the tool from being exposed to the model while true. */
-    disabled?: boolean;
-    /** Executes the tool after the model provides valid arguments. */
-    execute: ToolExecuteFunction<TArgs, TResult>;
-    /** Converts the execution result into model-visible output. */
-    toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
-    /** Handles invalid tool arguments when schema validation fails. */
-    experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
-  };
+  /** Natural-language description shown to the model when selecting tools. */
+  description?: string | undefined;
+  /** Schema for the arguments the model must provide when calling the tool. */
+  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
+  /** Prevents the tool from being exposed to the model while true. */
+  disabled?: boolean;
+  /** Executes the tool after the model provides valid arguments. */
+  execute: ToolExecuteFunction<TArgs, TResult>;
+  /** Converts the execution result into model-visible output. */
+  toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
+  /** Handles invalid tool arguments when schema validation fails. */
+  experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
+  providerOptions?: ProviderOptions;
+};
 
 type HumanTool<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
-> = ToolBase<TArgs, TResult> &
-  WireTool & {
-    /** Tool that pauses the run until a user or UI supplies a result. */
-    type: "human";
+> = ToolBase<TArgs, TResult> & {
+  /** Tool that pauses the run until a user or UI supplies a result. */
+  type: "human";
 
-    /** Natural-language description shown to the model when selecting tools. */
-    description?: string | undefined;
-    /** Schema for the arguments the model must provide when requesting input. */
-    parameters: StandardSchemaV1<TArgs> | JSONSchema7;
-    /** Prevents the tool from being exposed to the model while true. */
-    disabled?: boolean;
-    execute?: undefined;
-    toModelOutput?: undefined;
-    experimental_onSchemaValidationError?: undefined;
-  };
+  /** Natural-language description shown to the model when selecting tools. */
+  description?: string | undefined;
+  /** Schema for the arguments the model must provide when requesting input. */
+  parameters: StandardSchemaV1<TArgs> | JSONSchema7;
+  /** Prevents the tool from being exposed to the model while true. */
+  disabled?: boolean;
+  execute?: undefined;
+  toModelOutput?: undefined;
+  experimental_onSchemaValidationError?: undefined;
+  providerOptions?: ProviderOptions;
+};
 
 /**
  * Definition for a tool that can be exposed to the assistant model.
