@@ -10,12 +10,13 @@
 
 align the runtime wrapper hooks so every distribution forwards the same set of optional adapter-level fields to `useExternalStoreRuntime`. closes #4134.
 
-new options on `useChatRuntime`, `useAISDKRuntime`, `useLangGraphRuntime`, `useA2ARuntime`, `useAgUiRuntime`, `useAdkRuntime`, `useStreamRuntime`, `useOpenCodeRuntime`:
+`useChatRuntime` and `useAISDKRuntime` (which already accepted `suggestions`) gain three new options:
 
-- `isDisabled` — disables the composer input entirely.
-- `isSendDisabled` — keeps the input usable but makes `send()` a no-op (paired with `composer.canSend`).
-- `unstable_capabilities` — per-thread capability overrides (currently `{ copy?: boolean }`).
-- `suggestions` — follow-up suggestions list, flows into `thread.suggestions`.
+- `isDisabled`, disables the composer input entirely.
+- `isSendDisabled`, keeps the input usable but makes `send()` a no-op (paired with `composer.canSend`).
+- `unstable_capabilities`, per-thread capability overrides (currently `{ copy?: boolean }`).
+
+`useLangGraphRuntime`, `useA2ARuntime`, `useAgUiRuntime`, `useAdkRuntime`, `useStreamRuntime`, `useOpenCodeRuntime` gain all four (the three above plus `suggestions`).
 
 adapter-level additions, where missing:
 
