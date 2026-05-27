@@ -92,6 +92,8 @@ export type UseA2ARuntimeOptions = ExternalStoreSharedOptions & {
   headers?: A2AClientOptions["headers"];
   /** A2A extension URIs to negotiate. Only used with baseUrl. */
   extensions?: string[];
+  /** Extra fetch options (e.g. `{ credentials: 'include' }`). Only used with `baseUrl`. */
+  fetchOptions?: A2AClientOptions["fetchOptions"];
 
   /** Initial context ID for the conversation. */
   contextId?: string;
@@ -137,6 +139,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
         tenant: options.tenant,
         headers: options.headers,
         extensions: options.extensions,
+        fetchOptions: options.fetchOptions,
       });
     } else {
       throw new Error("useA2ARuntime requires either `client` or `baseUrl`");

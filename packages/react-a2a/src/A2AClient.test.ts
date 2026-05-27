@@ -148,6 +148,92 @@ describe("A2AClient", () => {
     });
   });
 
+  describe("fetchOptions", () => {
+    it("applies fetchOptions to all request types", async () => {
+      const fetchOptionsClient = new A2AClient({
+        baseUrl: "https://agent.test",
+        fetchOptions: { credentials: "include" },
+      });
+
+      fetchMock
+        .mockResolvedValueOnce(
+          mockFetchResponse({
+            task: { id: "t1", status: { state: "completed" } },
+          }),
+        )
+        .mockResolvedValueOnce(
+          mockFetchResponse({
+            name: "Test Agent",
+            description: "A test",
+            version: "1.0",
+            supportedInterfaces: [],
+            capabilities: {},
+            defaultInputModes: [],
+            defaultOutputModes: [],
+            skills: [],
+          }),
+        )
+        .mockResolvedValueOnce(
+          mockSSEResponse([
+            `data: ${JSON.stringify({ status_update: { task_id: "t1", context_id: "ctx-1", status: { state: "TASK_STATE_WORKING" } } })}`,
+            "",
+            "",
+          ]),
+        )
+        .mockResolvedValueOnce(
+          mockSSEResponse([
+            `data: ${JSON.stringify({ status_update: { task_id: "t1", context_id: "ctx-1", status: { state: "TASK_STATE_WORKING" } } })}`,
+            "",
+            "",
+          ]),
+        )
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 204,
+          statusText: "No Content",
+          headers: new Headers(),
+        });
+
+      await fetchOptionsClient.sendMessage(userMessage);
+      await fetchOptionsClient.getAgentCard();
+      for await (const _ of fetchOptionsClient.streamMessage(userMessage)) {
+        void _;
+      }
+      for await (const _ of fetchOptionsClient.subscribeToTask("t1")) {
+        void _;
+      }
+      await fetchOptionsClient.deleteTaskPushNotificationConfig("t1", "pnc-1");
+
+      for (const [, init] of fetchMock.mock.calls) {
+        expect(init.credentials).toBe("include");
+      }
+    });
+
+    it("keeps request method and headers controlled internally", async () => {
+      const fetchOptionsClient = new A2AClient({
+        baseUrl: "https://agent.test",
+        fetchOptions: {
+          method: "GET",
+          headers: { "X-Injected": "1" },
+          signal: new AbortController().signal,
+        } as RequestInit,
+      });
+
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          task: { id: "t1", status: { state: "completed" } },
+        }),
+      );
+
+      await fetchOptionsClient.sendMessage(userMessage);
+
+      const [, init] = fetchMock.mock.calls[0]!;
+      expect(init.method).toBe("POST");
+      expect(init.headers["Content-Type"]).toBe("application/a2a+json");
+      expect(init.headers["X-Injected"]).toBeUndefined();
+    });
+  });
+
   // --- Tenant ---
 
   describe("tenant", () => {

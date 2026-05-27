@@ -26,6 +26,10 @@ export type A2AClientOptions = {
     | undefined;
   /** A2A extension URIs to negotiate. Sent as A2A-Extensions header. */
   extensions?: string[] | undefined;
+  /** Extra fetch options applied to every request. */
+  fetchOptions?:
+    | Omit<RequestInit, "headers" | "body" | "method" | "signal">
+    | undefined;
 };
 
 export class A2AError extends Error {
@@ -158,6 +162,10 @@ export class A2AClient {
   private basePath: string;
   private tenant: string | undefined;
   private extensionUris: string[] | undefined;
+  private fetchOptions: Omit<
+    RequestInit,
+    "headers" | "body" | "method" | "signal"
+  >;
   private headersFn:
     | Record<string, string>
     | (() => Record<string, string> | Promise<Record<string, string>>);
@@ -169,6 +177,7 @@ export class A2AClient {
       : "";
     this.tenant = options.tenant;
     this.extensionUris = options.extensions;
+    this.fetchOptions = options.fetchOptions ?? {};
     this.headersFn = options.headers ?? {};
   }
 
@@ -229,6 +238,7 @@ export class A2AClient {
     const isGet = !options.method || options.method.toUpperCase() === "GET";
     const headers = await this.getHeaders(!isGet);
     const response = await fetch(`${this.baseUrl}${path}`, {
+      ...this.fetchOptions,
       ...options,
       headers: {
         ...headers,
@@ -247,7 +257,11 @@ export class A2AClient {
   async getAgentCard(signal?: AbortSignal): Promise<A2AAgentCard> {
     const headers = await this.getHeaders(false); // GET: no Content-Type
     const url = `${this.baseUrl}/.well-known/agent-card.json`;
-    const response = await fetch(url, { headers, ...signalInit(signal) });
+    const response = await fetch(url, {
+      ...this.fetchOptions,
+      headers,
+      ...signalInit(signal),
+    });
     if (!response.ok) {
       await this.throwResponseError(response);
     }
@@ -310,6 +324,7 @@ export class A2AClient {
     const response = await fetch(
       `${this.baseUrl}${this.getBasePath()}/message:stream`,
       {
+        ...this.fetchOptions,
         method: "POST",
         headers,
         body: JSON.stringify(body),
@@ -390,7 +405,11 @@ export class A2AClient {
 
     const response = await fetch(
       `${this.baseUrl}${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}:subscribe`,
-      { headers, ...signalInit(signal) },
+      {
+        ...this.fetchOptions,
+        headers,
+        ...signalInit(signal),
+      },
     );
     if (!response.ok) {
       await this.throwResponseError(response);
@@ -453,7 +472,12 @@ export class A2AClient {
     const headers = await this.getHeaders(!isGet);
     const response = await fetch(
       `${this.baseUrl}${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}/pushNotificationConfigs/${encodeURIComponent(configId)}`,
-      { method: "DELETE", headers, ...signalInit(signal) },
+      {
+        ...this.fetchOptions,
+        method: "DELETE",
+        headers,
+        ...signalInit(signal),
+      },
     );
     if (!response.ok) {
       await this.throwResponseError(response);
