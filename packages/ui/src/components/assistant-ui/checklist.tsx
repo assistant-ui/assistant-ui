@@ -11,7 +11,7 @@ const checklistVariants = cva("aui-checklist-root", {
     variant: {
       outline: "rounded-lg border px-3 py-2",
       ghost: "",
-      muted: "rounded-lg bg-muted/50 px-3 py-2",
+      muted: "bg-muted/50 rounded-lg px-3 py-2",
     },
   },
   defaultVariants: {
@@ -25,11 +25,19 @@ type ChecklistProps = Omit<
 > &
   VariantProps<typeof checklistVariants>;
 
+const STATUS_INDICATORS: Record<ChecklistItemData["status"], string> = {
+  pending: "\u25A1",
+  running: "\u25A1",
+  complete: "\u25A0",
+  error: "\u2715",
+};
+
 const ChecklistItem: FC<{ item: ChecklistItemData; depth: number }> = ({
   item,
   depth,
 }) => {
   const isRunning = item.status === "running";
+  const isError = item.status === "error";
 
   return (
     <div
@@ -42,9 +50,12 @@ const ChecklistItem: FC<{ item: ChecklistItemData; depth: number }> = ({
     >
       <span
         data-slot="checklist-item-indicator"
-        className="aui-checklist-item-indicator text-foreground"
+        className={cn(
+          "aui-checklist-item-indicator",
+          isError ? "text-destructive" : "text-foreground",
+        )}
       >
-        {item.status === "complete" ? "\u25A0" : "\u25A1"}
+        {STATUS_INDICATORS[item.status]}
       </span>
       <span
         data-slot="checklist-item-text"
@@ -87,7 +98,7 @@ const LiveChecklist: FC<ChecklistProps> = ({
     <LiveChecklistPrimitive
       data-slot="checklist-root"
       className={cn(
-        "flex flex-col gap-1.5 text-sm *:data-done:text-muted-foreground *:data-done:text-xs",
+        "*:data-done:text-muted-foreground flex flex-col gap-1.5 text-sm *:data-done:text-xs",
         checklistVariants({ variant, className }),
       )}
       showProgress={showProgress}

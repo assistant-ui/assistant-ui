@@ -30,6 +30,7 @@ export const LiveChecklist = ({
       <ToolActivityChecklist
         {...(title ? { title } : undefined)}
         {...(showProgress ? { showProgress } : undefined)}
+        {...(maxDepth !== undefined ? { maxDepth } : undefined)}
         {...(renderItem ? { renderItem } : undefined)}
         {...(formatToolName ? { formatToolName } : undefined)}
         {...boxProps}

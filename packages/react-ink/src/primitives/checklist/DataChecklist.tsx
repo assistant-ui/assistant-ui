@@ -7,7 +7,7 @@ import { ChecklistItem } from "./ChecklistItem";
 import { ChecklistProgress } from "./ChecklistProgress";
 
 export const DataChecklist = (props: DataMessagePartProps<ChecklistData>) => {
-  const { items, title } = props.data;
+  const { items, title, showProgress } = props.data;
 
   if (!items || items.length === 0) return null;
 
@@ -17,7 +17,7 @@ export const DataChecklist = (props: DataMessagePartProps<ChecklistData>) => {
       {items.map((item: ChecklistItemData) => (
         <ChecklistItem key={item.id} item={item} />
       ))}
-      <ChecklistProgress items={items} />
+      {showProgress ? <ChecklistProgress items={items} /> : null}
     </ChecklistRoot>
   );
 };

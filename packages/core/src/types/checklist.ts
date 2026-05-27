@@ -11,6 +11,7 @@ export interface ChecklistItemData {
 export type ChecklistData = {
   items: ChecklistItemData[];
   title?: string;
+  showProgress?: boolean;
 };
 
 export const flattenChecklistItems = (

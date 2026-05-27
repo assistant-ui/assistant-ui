@@ -8,7 +8,7 @@ import { ChecklistPrimitiveItem } from "./ChecklistItem";
 import { ChecklistPrimitiveProgress } from "./ChecklistProgress";
 
 export const DataChecklist = (props: DataMessagePartProps<ChecklistData>) => {
-  const { items, title } = props.data;
+  const { items, title, showProgress } = props.data;
 
   if (!items || items.length === 0) return null;
 
@@ -18,7 +18,7 @@ export const DataChecklist = (props: DataMessagePartProps<ChecklistData>) => {
       {items.map((item: ChecklistItemData) => (
         <ChecklistPrimitiveItem key={item.id} item={item} />
       ))}
-      <ChecklistPrimitiveProgress items={items} />
+      {showProgress ? <ChecklistPrimitiveProgress items={items} /> : null}
     </ChecklistPrimitiveRoot>
   );
 };

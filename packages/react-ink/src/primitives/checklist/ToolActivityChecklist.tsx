@@ -9,6 +9,7 @@ import { ChecklistProgress } from "./ChecklistProgress";
 export type ToolActivityChecklistProps = ComponentProps<typeof Box> & {
   title?: string;
   showProgress?: boolean;
+  maxDepth?: number;
   renderItem?: (props: { item: ChecklistItemData; depth: number }) => ReactNode;
   formatToolName?: (toolName: string) => string;
 };
@@ -16,6 +17,7 @@ export type ToolActivityChecklistProps = ComponentProps<typeof Box> & {
 export const ToolActivityChecklist = ({
   title,
   showProgress,
+  maxDepth,
   renderItem,
   formatToolName,
   ...boxProps
@@ -31,6 +33,7 @@ export const ToolActivityChecklist = ({
         <ChecklistItem
           key={item.id}
           item={item}
+          {...(maxDepth !== undefined ? { maxDepth } : undefined)}
           {...(renderItem ? { renderItem } : undefined)}
         />
       ))}
