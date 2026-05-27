@@ -1,5 +1,13 @@
 # @assistant-ui/react-o11y
 
+## 0.0.16
+
+### Patch Changes
+
+- Updated dependencies [[`cabfc71`](https://github.com/assistant-ui/assistant-ui/commit/cabfc715e99f23a55dc1276a6028792d7ecad822)]:
+  - @assistant-ui/tap@0.5.13
+  - @assistant-ui/store@0.2.12
+
 ## 0.0.15
 
 ### Patch Changes

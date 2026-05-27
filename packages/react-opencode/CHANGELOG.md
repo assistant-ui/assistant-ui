@@ -1,5 +1,14 @@
 # @assistant-ui/react-opencode
 
+## 0.2.3
+
+### Patch Changes
+
+- [#4123](https://github.com/assistant-ui/assistant-ui/pull/4123) [`4b95d4c`](https://github.com/assistant-ui/assistant-ui/commit/4b95d4c9510febbd5175f30884a87afa69f5adf8) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`a6e0653`](https://github.com/assistant-ui/assistant-ui/commit/a6e0653bad29fb93627646a77c3383000c57ee33)]:
+  - @assistant-ui/react@0.14.10
+
 ## 0.2.2
 
 ### Patch Changes

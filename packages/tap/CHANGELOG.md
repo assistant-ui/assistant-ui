@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.5.13
+
+### Patch Changes
+
+- [#4103](https://github.com/assistant-ui/assistant-ui/pull/4103) [`cabfc71`](https://github.com/assistant-ui/assistant-ui/commit/cabfc715e99f23a55dc1276a6028792d7ecad822) - test: stabilize flaky StrictMode setTimeout rerender test on slow CI ([@Yonom](https://github.com/Yonom))
+
 ## 0.5.12
 
 ### Patch Changes
