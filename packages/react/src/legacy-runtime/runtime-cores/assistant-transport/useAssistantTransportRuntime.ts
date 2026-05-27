@@ -271,6 +271,7 @@ const useAssistantTransportThreadRuntime = <T>(
     },
     onFinish: options.onFinish,
     onCancel: () => {
+      setIsReplaying(false);
       const cmds = [
         ...commandQueue.state.inTransit,
         ...commandQueue.state.queued,
@@ -287,6 +288,7 @@ const useAssistantTransportThreadRuntime = <T>(
       });
     },
     onError: async (error) => {
+      setIsReplaying(false);
       const inTransitCmds = [...commandQueue.state.inTransit];
       const queuedCmds = [...commandQueue.state.queued];
 
