@@ -72,11 +72,6 @@ const getResumableAdapter = <UI_MESSAGE extends UIMessage>(
 const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   options?: UseChatRuntimeOptions<UI_MESSAGE>,
 ): AssistantRuntime => {
-  // The `_`-prefixed bindings exist only to peel the shared options off
-  // `...chatOptions` so they don't leak into `useChat`. Their values are
-  // re-extracted from the full options object via the helper below, which
-  // keeps the forward set in sync with `ExternalStoreSharedOptions` even
-  // when new fields are added.
   const {
     adapters,
     transport: transportOptions,
@@ -88,6 +83,11 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     onResume,
     ...chatOptions
   } = options ?? {};
+  // peel guard: any shared key left in `chatOptions` collapses this to `never`
+  true satisfies keyof typeof chatOptions &
+    keyof ExternalStoreSharedOptions extends never
+    ? true
+    : never;
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const transport = useDynamicChatTransport(
