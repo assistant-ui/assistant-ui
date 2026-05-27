@@ -1,13 +1,12 @@
 import type {
   AttachmentAdapter,
   DictationAdapter,
-  ExternalStoreAdapter,
+  ExternalStoreSharedOptions,
   FeedbackAdapter,
   RealtimeVoiceAdapter,
   SpeechSynthesisAdapter,
   ThreadHistoryAdapter,
   ThreadMessage,
-  ThreadSuggestion,
 } from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
 import type { Logger } from "./logger";
@@ -42,31 +41,13 @@ export type UseAgUiRuntimeAdapters = {
   threadList?: UseAgUiThreadListAdapter;
 };
 
-export type UseAgUiRuntimeOptions = {
+export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   agent: HttpAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
   onError?: (e: Error) => void;
   onCancel?: () => void;
   adapters?: UseAgUiRuntimeAdapters;
-  /**
-   * Whether the entire thread is disabled. When `true`, the composer's input
-   * is also disabled. For a narrower gate that keeps the input usable but
-   * blocks only sending, use `isSendDisabled`.
-   */
-  isDisabled?: boolean | undefined;
-  /**
-   * Whether sending new messages is currently disabled.
-   */
-  isSendDisabled?: boolean | undefined;
-  /**
-   * Optional thread capability overrides.
-   */
-  unstable_capabilities?: ExternalStoreAdapter["unstable_capabilities"];
-  /**
-   * Follow up suggestions to surface on the thread.
-   */
-  suggestions?: readonly ThreadSuggestion[] | undefined;
 };
 
 export type AgUiInterruptReason =

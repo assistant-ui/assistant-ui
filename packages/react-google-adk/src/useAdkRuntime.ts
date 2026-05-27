@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import {
   getExternalStoreMessages,
+  pickExternalStoreSharedOptions,
   type AttachmentAdapter,
   type DictationAdapter,
-  type ExternalStoreAdapter,
+  type ExternalStoreSharedOptions,
   type FeedbackAdapter,
   type RealtimeVoiceAdapter,
   type SpeechSynthesisAdapter,
   type AppendMessage,
   type ThreadMessage,
-  type ThreadSuggestion,
   type ToolExecutionStatus,
 } from "@assistant-ui/core";
 import {
@@ -138,7 +138,7 @@ const truncateAdkMessages = (
   return truncated;
 };
 
-export type UseAdkRuntimeOptions = {
+export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   stream: AdkStreamCallback;
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;
@@ -158,24 +158,6 @@ export type UseAdkRuntimeOptions = {
         feedback?: FeedbackAdapter;
       }
     | undefined;
-  /**
-   * Whether the entire thread is disabled. When `true`, the composer's input
-   * is also disabled. For a narrower gate that keeps the input usable but
-   * blocks only sending, use `isSendDisabled`.
-   */
-  isDisabled?: boolean | undefined;
-  /**
-   * Whether sending new messages is currently disabled.
-   */
-  isSendDisabled?: boolean | undefined;
-  /**
-   * Optional thread capability overrides.
-   */
-  unstable_capabilities?: ExternalStoreAdapter["unstable_capabilities"];
-  /**
-   * Follow up suggestions to surface on the thread.
-   */
-  suggestions?: readonly ThreadSuggestion[] | undefined;
   eventHandlers?:
     | {
         onError?: OnAdkErrorCallback;
@@ -191,19 +173,16 @@ export type UseAdkRuntimeOptions = {
   sessionAdapter?: RemoteThreadListAdapter | undefined;
 };
 
-const useAdkRuntimeImpl = ({
-  autoCancelPendingToolCalls,
-  adapters: { attachments, dictation, feedback, speech, voice } = {},
-  unstable_allowCancellation,
-  stream,
-  load,
-  getCheckpointId,
-  eventHandlers,
-  isDisabled,
-  isSendDisabled,
-  unstable_capabilities,
-  suggestions,
-}: UseAdkRuntimeOptions) => {
+const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
+  const {
+    autoCancelPendingToolCalls,
+    adapters: { attachments, dictation, feedback, speech, voice } = {},
+    unstable_allowCancellation,
+    stream,
+    load,
+    getCheckpointId,
+    eventHandlers,
+  } = options;
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const aui = useAui();
   const {
@@ -261,14 +240,11 @@ const useAdkRuntimeImpl = ({
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runtime = useExternalStoreRuntime({
+    ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
     messages: threadMessages,
     unstable_enableToolInvocations: true,
     setToolStatuses,
-    ...(isDisabled !== undefined && { isDisabled }),
-    ...(isSendDisabled !== undefined && { isSendDisabled }),
-    ...(unstable_capabilities && { unstable_capabilities }),
-    ...(suggestions && { suggestions }),
     adapters: { attachments, dictation, feedback, speech, voice },
     extras: {
       [symbolAdkRuntimeExtras]: true,

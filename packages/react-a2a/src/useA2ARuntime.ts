@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useExternalStoreRuntime,
+  useExternalStoreSharedOptions,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
 import type {
@@ -11,12 +12,12 @@ import type {
   AttachmentAdapter,
   DictationAdapter,
   ExternalStoreAdapter,
+  ExternalStoreSharedOptions,
   FeedbackAdapter,
   RealtimeVoiceAdapter,
   SpeechSynthesisAdapter,
   ThreadHistoryAdapter,
   ThreadMessage,
-  ThreadSuggestion,
 } from "@assistant-ui/core";
 import { useAuiState } from "@assistant-ui/store";
 import { A2AClient } from "./A2AClient";
@@ -78,7 +79,7 @@ export type UseA2AThreadListAdapter = {
 
 // --- Options ---
 
-export type UseA2ARuntimeOptions = {
+export type UseA2ARuntimeOptions = ExternalStoreSharedOptions & {
   /** Pre-built A2A client instance. Provide this OR baseUrl. */
   client?: A2AClient;
   /** Base URL of the A2A server. Used to create a client if `client` is not provided. */
@@ -113,25 +114,6 @@ export type UseA2ARuntimeOptions = {
     history?: ThreadHistoryAdapter;
     threadList?: UseA2AThreadListAdapter;
   };
-  /**
-   * Whether the entire thread is disabled. When `true`, the composer's input
-   * is also disabled. For a narrower gate that keeps the input usable but
-   * blocks only sending, use `isSendDisabled`.
-   */
-  isDisabled?: boolean | undefined;
-  /**
-   * Whether sending new messages is currently disabled. The input stays
-   * usable but `send()` becomes a no-op and `composer.canSend` is `false`.
-   */
-  isSendDisabled?: boolean | undefined;
-  /**
-   * Optional thread capability overrides.
-   */
-  unstable_capabilities?: ExternalStoreAdapter["unstable_capabilities"];
-  /**
-   * Follow up suggestions to surface on the thread.
-   */
-  suggestions?: readonly ThreadSuggestion[] | undefined;
 };
 
 // --- Main hook ---
@@ -230,21 +212,15 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
   );
 
   // Build store adapter
-  const isDisabled = options.isDisabled;
-  const isSendDisabled = options.isSendDisabled;
-  const unstable_capabilities = options.unstable_capabilities;
-  const suggestions = options.suggestions;
+  const shared = useExternalStoreSharedOptions(options);
   const store = useMemo(() => {
     void _version;
 
     return {
+      ...shared,
       isLoading: core.isLoading,
       messages: core.getMessages(),
       isRunning: core.isRunning(),
-      ...(isDisabled !== undefined && { isDisabled }),
-      ...(isSendDisabled !== undefined && { isSendDisabled }),
-      ...(unstable_capabilities && { unstable_capabilities }),
-      ...(suggestions && { suggestions }),
       extras: {
         [symbolA2AExtras]: true,
         task: core.getTask(),
@@ -261,15 +237,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
         core.applyExternalMessages(messages),
       adapters: adapterAdapters,
     } satisfies ExternalStoreAdapter<ThreadMessage>;
-  }, [
-    adapterAdapters,
-    core,
-    _version,
-    isDisabled,
-    isSendDisabled,
-    unstable_capabilities,
-    suggestions,
-  ]);
+  }, [adapterAdapters, core, _version, shared]);
 
   const runtime = useExternalStoreRuntime(store);
 

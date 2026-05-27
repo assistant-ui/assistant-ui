@@ -3,12 +3,11 @@ import type {
   AssistantRuntime,
   AttachmentAdapter,
   DictationAdapter,
-  ExternalStoreAdapter,
+  ExternalStoreSharedOptions,
   FeedbackAdapter,
   RealtimeVoiceAdapter,
   SpeechSynthesisAdapter,
   ThreadMessageLike,
-  ThreadSuggestion,
   ThreadUserMessagePart,
 } from "@assistant-ui/react";
 import type {
@@ -183,7 +182,7 @@ export type OpenCodeUserMessageOptions = {
   noReply?: boolean | undefined;
 };
 
-export type OpenCodeRuntimeOptions = {
+export type OpenCodeRuntimeOptions = ExternalStoreSharedOptions & {
   client?: OpencodeClient;
   baseUrl?: string | undefined;
   initialSessionId?: string | undefined;
@@ -204,24 +203,6 @@ export type OpenCodeRuntimeOptions = {
         feedback?: FeedbackAdapter;
       }
     | undefined;
-  /**
-   * Whether the entire thread is disabled. When `true`, the composer's input
-   * is also disabled. For a narrower gate that keeps the input usable but
-   * blocks only sending, use `isSendDisabled`.
-   */
-  isDisabled?: boolean | undefined;
-  /**
-   * Whether sending new messages is currently disabled.
-   */
-  isSendDisabled?: boolean | undefined;
-  /**
-   * Optional thread capability overrides.
-   */
-  unstable_capabilities?: ExternalStoreAdapter["unstable_capabilities"];
-  /**
-   * Follow up suggestions to surface on the thread.
-   */
-  suggestions?: readonly ThreadSuggestion[] | undefined;
 };
 
 export type OpenCodeRuntimeExtras = {

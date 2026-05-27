@@ -127,14 +127,17 @@ export type { ThreadMessageLike } from "@assistant-ui/core";
 export {
   getExternalStoreMessages,
   bindExternalStoreMessage,
+  pickExternalStoreSharedOptions,
 } from "@assistant-ui/core";
 export type {
   ExternalStoreAdapter,
   ExternalStoreMessageConverter,
+  ExternalStoreSharedOptions,
   ExternalStoreThreadListAdapter,
   ExternalStoreThreadData,
 } from "@assistant-ui/core";
 export { useExternalStoreRuntime } from "./legacy-runtime/runtime-cores/external-store/useExternalStoreRuntime";
+export { useExternalStoreSharedOptions } from "@assistant-ui/core/react";
 export {
   useExternalMessageConverter,
   convertExternalMessages as unstable_convertExternalMessages,

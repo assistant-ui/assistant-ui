@@ -10,10 +10,10 @@ import {
 import type { ToolExecutionStatus } from "@assistant-ui/core";
 import type {
   ExternalStoreAdapter,
+  ExternalStoreSharedOptions,
   ThreadHistoryAdapter,
   AssistantRuntime,
   ThreadMessage,
-  ThreadSuggestion,
   MessageFormatAdapter,
   MessageFormatItem,
   MessageFormatRepository,
@@ -21,7 +21,10 @@ import type {
   RunConfig,
   McpAppMetadata,
 } from "@assistant-ui/core";
-import { getExternalStoreMessages } from "@assistant-ui/core";
+import {
+  getExternalStoreMessages,
+  pickExternalStoreSharedOptions,
+} from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
@@ -55,7 +58,7 @@ const toUIMessage = <UI_MESSAGE extends UIMessage>(
     role: createMessage.role ?? fallbackRole,
   }) as UI_MESSAGE;
 
-export type AISDKRuntimeAdapter = {
+export type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
   adapters?:
     | (NonNullable<ExternalStoreAdapter["adapters"]> & {
         history?: ThreadHistoryAdapter | undefined;
@@ -72,24 +75,6 @@ export type AISDKRuntimeAdapter = {
    */
   cancelPendingToolCallsOnSend?: boolean | undefined;
   /**
-   * Whether the entire thread is disabled. When `true`, the composer's input
-   * is also disabled (the user cannot type, attach files, or submit). For a
-   * narrower gate that keeps the input usable but blocks only sending, use
-   * `isSendDisabled`.
-   */
-  isDisabled?: boolean | undefined;
-  /**
-   * Whether sending new messages is currently disabled. When `true`, the
-   * thread composer's input remains usable but `send()` becomes a no-op
-   * and the thread composer's `canSend` is `false`.
-   */
-  isSendDisabled?: boolean | undefined;
-  /**
-   * Optional thread capability overrides. Currently only `copy` is honored
-   * and controls whether the copy-message action is enabled.
-   */
-  unstable_capabilities?: ExternalStoreAdapter["unstable_capabilities"];
-  /**
    * Called when `runtime.thread.resumeRun(config)` is invoked.
    *
    * When omitted, `resumeRun` throws `"Runtime does not support resuming runs."`.
@@ -97,28 +82,18 @@ export type AISDKRuntimeAdapter = {
    * (for example, an SSE reconnect endpoint keyed by turn id).
    */
   onResume?: ExternalStoreAdapter["onResume"];
-  /**
-   * Follow up suggestions to surface on the thread. Use this to drive
-   * dynamic suggestions from application state, tool results, or backend
-   * responses; flows into `thread.suggestions` and is rendered by
-   * components that read it (such as the shadcn `ThreadFollowupSuggestions`).
-   */
-  suggestions?: readonly ThreadSuggestion[] | undefined;
 };
 
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>,
-  {
+  adapter: AISDKRuntimeAdapter = {},
+) => {
+  const {
     adapters,
     toCreateMessage: customToCreateMessage,
     cancelPendingToolCallsOnSend = true,
-    isDisabled,
-    isSendDisabled,
-    unstable_capabilities,
     onResume,
-    suggestions,
-  }: AISDKRuntimeAdapter = {},
-) => {
+  } = adapter;
   const contextAdapters = useRuntimeAdapters();
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
@@ -365,11 +340,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         options: { metadata: lastRunConfigRef.current },
       });
     },
+    ...pickExternalStoreSharedOptions(adapter),
     ...(onResume && { onResume }),
-    ...(suggestions && { suggestions }),
-    ...(isDisabled !== undefined && { isDisabled }),
-    ...(isSendDisabled !== undefined && { isSendDisabled }),
-    ...(unstable_capabilities && { unstable_capabilities }),
     adapters: {
       attachments: vercelAttachmentAdapter,
       ...contextAdapters,

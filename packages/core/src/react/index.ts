@@ -131,6 +131,7 @@ export {
   type RuntimeAdapters,
 } from "./runtimes/RuntimeAdapterProvider";
 export { useExternalStoreRuntime } from "./runtimes/useExternalStoreRuntime";
+export { useExternalStoreSharedOptions } from "./runtimes/useExternalStoreSharedOptions";
 export {
   useExternalMessageConverter,
   convertExternalMessages,

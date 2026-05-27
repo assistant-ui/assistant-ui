@@ -2,6 +2,7 @@
 
 import {
   ExportedMessageRepository,
+  pickExternalStoreSharedOptions,
   useAuiState,
   useExternalStoreRuntime,
   useRemoteThreadListRuntime,
@@ -204,18 +205,11 @@ const useOpenCodeThreadRuntime = (
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   return useExternalStoreRuntime<ThreadMessage>({
+    ...pickExternalStoreSharedOptions(options),
     isLoading: state.loadState.type === "loading",
     isRunning: isOpenCodeStateRunning(state),
     messageRepository,
     extras,
-    ...(options.isDisabled !== undefined && { isDisabled: options.isDisabled }),
-    ...(options.isSendDisabled !== undefined && {
-      isSendDisabled: options.isSendDisabled,
-    }),
-    ...(options.unstable_capabilities && {
-      unstable_capabilities: options.unstable_capabilities,
-    }),
-    ...(options.suggestions && { suggestions: options.suggestions }),
     ...(options.adapters && { adapters: options.adapters }),
     onNew: async (message: any) => {
       try {

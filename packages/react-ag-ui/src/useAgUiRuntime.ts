@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useExternalStoreRuntime,
+  useExternalStoreSharedOptions,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
 import type { ToolExecutionStatus } from "@assistant-ui/core";
@@ -108,23 +109,17 @@ export function useAgUiRuntime(
     [adapters, runtimeAdapters, threadList],
   );
 
-  const isDisabled = options.isDisabled;
-  const isSendDisabled = options.isSendDisabled;
-  const unstable_capabilities = options.unstable_capabilities;
-  const suggestions = options.suggestions;
+  const shared = useExternalStoreSharedOptions(options);
   const store = useMemo(
     () => {
       void _version; // rerender on version change
 
       return {
+        ...shared,
         isLoading: core.isLoading,
         messages: core.getMessages(),
         state: core.getState(),
         isRunning: core.isRunning() || hasExecutingTools,
-        ...(isDisabled !== undefined && { isDisabled }),
-        ...(isSendDisabled !== undefined && { isSendDisabled }),
-        ...(unstable_capabilities && { unstable_capabilities }),
-        ...(suggestions && { suggestions }),
         unstable_enableToolInvocations: true,
         setToolStatuses,
         onNew: (message: AppendMessage) => core.append(message),
@@ -147,16 +142,7 @@ export function useAgUiRuntime(
     },
     // _version is intentionally included to trigger re-computation when core state changes via notifyUpdate
     // toolInvocations intentionally excluded: abort/resume use refs internally and work with stale captures
-    [
-      adapterAdapters,
-      core,
-      _version,
-      hasExecutingTools,
-      isDisabled,
-      isSendDisabled,
-      unstable_capabilities,
-      suggestions,
-    ],
+    [adapterAdapters, core, _version, hasExecutingTools, shared],
   );
 
   const baseRuntime = useExternalStoreRuntime(store);

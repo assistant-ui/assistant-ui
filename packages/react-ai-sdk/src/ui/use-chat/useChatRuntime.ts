@@ -2,7 +2,10 @@
 
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import type { AssistantCloud } from "assistant-cloud";
-import type { AssistantRuntime } from "@assistant-ui/core";
+import type {
+  AssistantRuntime,
+  ExternalStoreSharedOptions,
+} from "@assistant-ui/core";
 import {
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
@@ -19,16 +22,13 @@ import type { AssistantChatResumableOptions } from "../resumable";
 import { useEffect, useMemo, useRef } from "react";
 
 export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
-  ChatInit<UI_MESSAGE> & {
-    cloud?: AssistantCloud | undefined;
-    adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
-    toCreateMessage?: CustomToCreateMessageFunction;
-    isDisabled?: AISDKRuntimeAdapter["isDisabled"];
-    isSendDisabled?: AISDKRuntimeAdapter["isSendDisabled"];
-    unstable_capabilities?: AISDKRuntimeAdapter["unstable_capabilities"];
-    onResume?: AISDKRuntimeAdapter["onResume"];
-    suggestions?: AISDKRuntimeAdapter["suggestions"];
-  };
+  ChatInit<UI_MESSAGE> &
+    ExternalStoreSharedOptions & {
+      cloud?: AssistantCloud | undefined;
+      adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
+      toCreateMessage?: CustomToCreateMessageFunction;
+      onResume?: AISDKRuntimeAdapter["onResume"];
+    };
 
 const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
   transport: ChatTransport<UI_MESSAGE>,
@@ -78,8 +78,8 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     isDisabled,
     isSendDisabled,
     unstable_capabilities,
-    onResume,
     suggestions,
+    onResume,
     ...chatOptions
   } = options ?? {};
 
@@ -102,12 +102,12 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runtime = useAISDKRuntime(chat, {
     adapters,
+    isDisabled,
+    isSendDisabled,
+    unstable_capabilities,
+    suggestions,
     ...(toCreateMessage && { toCreateMessage }),
     ...(onResume && { onResume }),
-    ...(suggestions && { suggestions }),
-    ...(isDisabled !== undefined && { isDisabled }),
-    ...(isSendDisabled !== undefined && { isSendDisabled }),
-    ...(unstable_capabilities && { unstable_capabilities }),
   });
 
   if (transport instanceof AssistantChatTransport) {
