@@ -157,6 +157,29 @@ export class ExternalStoreThreadRuntimeCore
     }
   }
 
+  private _moveBranchSiblingsToParent(
+    messageId: string,
+    parentId: string | null,
+  ) {
+    let existingParentId: string | null;
+    let branchIds: string[];
+    try {
+      existingParentId = this.repository.getMessage(messageId).parentId;
+      if (existingParentId === parentId) return;
+      branchIds = this.repository.getBranches(messageId);
+    } catch {
+      return;
+    }
+
+    if (branchIds.length <= 1) return;
+
+    for (const branchId of branchIds) {
+      const branch = this.repository.getMessage(branchId);
+      if (branch.parentId !== existingParentId) continue;
+      this.repository.addOrUpdateMessage(parentId, branch.message);
+    }
+  }
+
   /**
    * Client-side tool-invocations pipeline. Constructed lazily on first
    * snapshot — only when `adapter.unstable_enableToolInvocations === true`.
@@ -311,7 +334,9 @@ export class ExternalStoreThreadRuntimeCore
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
         const parent = messages[i - 1];
-        this.repository.addOrUpdateMessage(parent?.id ?? null, message);
+        const parentId = parent?.id ?? null;
+        this._moveBranchSiblingsToParent(message.id, parentId);
+        this.repository.addOrUpdateMessage(parentId, message);
       }
     } else {
       throw new Error(
