@@ -196,7 +196,6 @@ export {
   useToolArgsStatus,
   type ToolArgsStatus,
   useToolActivityChecklist,
-  mapToolCallToChecklistItem,
   type UseToolActivityChecklistOptions,
 } from "@assistant-ui/core/react";
 
@@ -272,18 +271,6 @@ export { useThreadViewportAutoScroll } from "./primitives/thread/useThreadViewpo
 export { useScrollLock } from "./primitives/reasoning/useScrollLock";
 export { useMessageQuote } from "./hooks/useMessageQuote";
 export { useMessageTiming } from "./hooks/useMessageTiming";
-export {
-  LiveChecklist,
-  type LiveChecklist as LiveChecklistPrimitive,
-} from "./primitives/checklist/LiveChecklist";
-export {
-  ToolActivityChecklist,
-  type ToolActivityChecklist as ToolActivityChecklistPrimitive,
-} from "./primitives/checklist/ToolActivityChecklist";
-export {
-  DataChecklist,
-  ChecklistDataUI,
-} from "./primitives/checklist/DataChecklist";
 
 // Re-export core types from @assistant-ui/core
 export type {

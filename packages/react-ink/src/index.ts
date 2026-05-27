@@ -169,10 +169,9 @@ export {
   SuggestionByIndexProvider,
 } from "@assistant-ui/core/react";
 
-// Checklist hook and utilities from core/react
+// Checklist hook from core/react
 export {
   useToolActivityChecklist,
-  mapToolCallToChecklistItem,
   type UseToolActivityChecklistOptions,
 } from "@assistant-ui/core/react";
 
