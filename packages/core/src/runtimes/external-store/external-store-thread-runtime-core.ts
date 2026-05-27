@@ -180,6 +180,42 @@ export class ExternalStoreThreadRuntimeCore
     }
   }
 
+  private _switchToBranchWithActiveContinuation(branchId: string) {
+    const previousMessages = this.repository.getMessages();
+
+    this.repository.switchToBranch(branchId);
+
+    const switchedMessages = this.repository.getMessages();
+    const branchIndex = switchedMessages.findIndex(
+      (message) => message.id === branchId,
+    );
+    if (branchIndex === -1) return switchedMessages;
+
+    // Keep a target branch's own selected child chain. If it has none, carry
+    // over the active descendant continuation from the branch being left.
+    let continuationIndex = branchIndex + 1;
+    while (
+      continuationIndex < switchedMessages.length &&
+      continuationIndex < previousMessages.length &&
+      switchedMessages[continuationIndex]?.id ===
+        previousMessages[continuationIndex]?.id
+    ) {
+      continuationIndex++;
+    }
+
+    if (continuationIndex < switchedMessages.length) return switchedMessages;
+
+    let parentId = switchedMessages.at(-1)?.id ?? branchId;
+    for (const message of previousMessages.slice(continuationIndex)) {
+      this._moveBranchSiblingsToParent(message.id, parentId);
+      this.repository.addOrUpdateMessage(parentId, message);
+      this.repository.switchToBranch(message.id);
+      parentId = message.id;
+    }
+
+    return this.repository.getMessages();
+  }
+
   /**
    * Client-side tool-invocations pipeline. Constructed lazily on first
    * snapshot — only when `adapter.unstable_enableToolInvocations === true`.
@@ -491,9 +527,9 @@ export class ExternalStoreThreadRuntimeCore
       return;
     }
 
-    this.repository.switchToBranch(branchId);
+    const messages = this._switchToBranchWithActiveContinuation(branchId);
     this._preserveBranchSiblings(branchId);
-    this.updateMessages(this.repository.getMessages());
+    this.updateMessages(messages);
   }
 
   public async append(message: AppendMessage): Promise<void> {
