@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
+import type { PartState } from "../store/scopes/part";
 import {
   buildGroupTree,
-  normalizeGroupKey,
+  GROUPBY_MEMO_KEY,
+  groupPartByType,
   type GroupNode,
 } from "../react/utils/groupParts";
 
-const asPaths = (keys: readonly (string | readonly string[] | null)[]) =>
-  keys.map((k) => normalizeGroupKey(k));
+const asPaths = (keys: readonly (readonly string[])[]) => keys;
 
 // Compact tree dump: "G:key#nodeKey[i,j]{...}" | "P:#nodeKey(i)"
 const dump = (nodes: readonly GroupNode[]): string =>
@@ -20,39 +21,23 @@ const dump = (nodes: readonly GroupNode[]): string =>
     })
     .join(",");
 
-describe("normalizeGroupKey", () => {
-  it("maps null/undefined/[] to []", () => {
-    expect(normalizeGroupKey(null)).toEqual([]);
-    expect(normalizeGroupKey(undefined)).toEqual([]);
-    expect(normalizeGroupKey([])).toEqual([]);
-  });
-
-  it("wraps a string into a single-element array", () => {
-    expect(normalizeGroupKey("foo")).toEqual(["foo"]);
-  });
-
-  it("passes arrays through", () => {
-    expect(normalizeGroupKey(["a", "b"])).toEqual(["a", "b"]);
-  });
-});
-
 describe("buildGroupTree", () => {
   it("returns an empty list for no parts", () => {
     expect(buildGroupTree([])).toEqual([]);
   });
 
   it("emits one part leaf per ungrouped part (no coalescing)", () => {
-    const tree = buildGroupTree(asPaths([null, null, null]));
+    const tree = buildGroupTree(asPaths([[], [], []]));
     expect(dump(tree)).toBe("P:#0(0),P:#1(1),P:#2(2)");
   });
 
   it("wraps adjacent same-key parts in one group with one part child each", () => {
-    const tree = buildGroupTree(asPaths(["a", "a", "a"]));
+    const tree = buildGroupTree(asPaths([["a"], ["a"], ["a"]]));
     expect(dump(tree)).toBe("G:a#0[0,1,2]{P:#0.0(0),P:#0.1(1),P:#0.2(2)}");
   });
 
   it("splits non-adjacent runs of the same key into separate groups", () => {
-    const tree = buildGroupTree(asPaths(["a", null, "a"]));
+    const tree = buildGroupTree(asPaths([["a"], [], ["a"]]));
     expect(dump(tree)).toBe("G:a#0[0]{P:#0.0(0)},P:#1(1),G:a#2[2]{P:#2.0(2)}");
   });
 
@@ -95,20 +80,121 @@ describe("buildGroupTree", () => {
     );
   });
 
-  it("accepts strings and arrays interchangeably via normalizeGroupKey", () => {
-    const tree = buildGroupTree([
-      normalizeGroupKey("A"),
-      normalizeGroupKey(["A"]),
-    ]);
-    expect(dump(tree)).toBe("G:A#0[0,1]{P:#0.0(0),P:#0.1(1)}");
-  });
-
   it("assigns stable nodeKeys under append (existing keys do not shift)", () => {
-    const before = buildGroupTree(asPaths([["A"], null]));
-    const after = buildGroupTree(asPaths([["A"], null, ["B"]]));
+    const before = buildGroupTree(asPaths([["A"], []]));
+    const after = buildGroupTree(asPaths([["A"], [], ["B"]]));
 
     expect(before[0]!.nodeKey).toBe(after[0]!.nodeKey);
     expect(before[1]!.nodeKey).toBe(after[1]!.nodeKey);
     expect(after[2]!.nodeKey).toBe("2");
+  });
+});
+
+const part = (overrides: Partial<PartState>): PartState =>
+  ({
+    type: "text",
+    text: "",
+    status: { type: "complete" },
+    ...overrides,
+  }) as PartState;
+
+describe("groupPartByType", () => {
+  it("maps part.type to the configured path", () => {
+    const fn = groupPartByType({
+      reasoning: ["group-thought", "group-reasoning"],
+      "tool-call": ["group-thought", "group-tool"],
+    });
+    expect(fn(part({ type: "reasoning" }))).toEqual([
+      "group-thought",
+      "group-reasoning",
+    ]);
+    expect(fn(part({ type: "tool-call" }))).toEqual([
+      "group-thought",
+      "group-tool",
+    ]);
+  });
+
+  it("returns [] for part types not in the map", () => {
+    const fn = groupPartByType({ reasoning: ["group-r"] });
+    expect(fn(part({ type: "text" }))).toEqual([]);
+  });
+
+  it("routes MCP-app tool calls through the 'mcp-app' entry when present", () => {
+    const fn = groupPartByType({
+      "tool-call": ["group-tool"],
+      "mcp-app": [],
+    });
+    const mcpApp = part({
+      type: "tool-call",
+      toolName: "render",
+      mcp: { app: { resourceUri: "ui://my-app" } },
+    } as Partial<PartState>);
+    const regular = part({
+      type: "tool-call",
+      toolName: "search",
+    } as Partial<PartState>);
+    expect(fn(mcpApp)).toEqual([]);
+    expect(fn(regular)).toEqual(["group-tool"]);
+  });
+
+  it("falls back to 'tool-call' for MCP-app parts when 'mcp-app' is absent", () => {
+    const fn = groupPartByType({ "tool-call": ["group-tool"] });
+    const mcpApp = part({
+      type: "tool-call",
+      toolName: "render",
+      mcp: { app: { resourceUri: "ui://x" } },
+    } as Partial<PartState>);
+    expect(fn(mcpApp)).toEqual(["group-tool"]);
+  });
+
+  it("does not route non-`ui://` tool calls through 'mcp-app'", () => {
+    const fn = groupPartByType({
+      "tool-call": ["group-tool"],
+      "mcp-app": ["group-mcp"],
+    });
+    const notMcp = part({
+      type: "tool-call",
+      toolName: "x",
+      mcp: { app: { resourceUri: "http://example.com" } },
+    } as Partial<PartState>);
+    expect(fn(notMcp)).toEqual(["group-tool"]);
+  });
+
+  it("tags the function with a GROUPBY_MEMO_KEY fingerprint", () => {
+    const fn = groupPartByType({ reasoning: ["group-r"] });
+    const memoKey = (fn as unknown as { [GROUPBY_MEMO_KEY]: string })[
+      GROUPBY_MEMO_KEY
+    ];
+    expect(memoKey).toMatch(/^groupPartByType:/);
+  });
+
+  it("produces the same fingerprint regardless of map key order", () => {
+    const a = groupPartByType({
+      reasoning: ["group-r"],
+      "tool-call": ["group-t"],
+    });
+    const b = groupPartByType({
+      "tool-call": ["group-t"],
+      reasoning: ["group-r"],
+    });
+    const keyA = (a as unknown as { [GROUPBY_MEMO_KEY]: string })[
+      GROUPBY_MEMO_KEY
+    ];
+    const keyB = (b as unknown as { [GROUPBY_MEMO_KEY]: string })[
+      GROUPBY_MEMO_KEY
+    ];
+    expect(keyA).toBe(keyB);
+  });
+
+  it("produces different fingerprints for different configs", () => {
+    const a = groupPartByType({ reasoning: ["group-r"] });
+    const b = groupPartByType({ reasoning: ["group-r2"] });
+    const keyA = (a as unknown as { [GROUPBY_MEMO_KEY]: string })[
+      GROUPBY_MEMO_KEY
+    ];
+    const keyB = (b as unknown as { [GROUPBY_MEMO_KEY]: string })[
+      GROUPBY_MEMO_KEY
+    ];
+    expect(keyA).not.toBe(keyB);
   });
 });

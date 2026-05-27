@@ -12,8 +12,8 @@ type ThreadProps = {
 function ThreadWelcome() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center text-center">
-      <h2 className="font-semibold text-lg">How can I help you today?</h2>
-      <p className="mt-1 text-muted-foreground text-sm">
+      <h2 className="text-lg font-semibold">How can I help you today?</h2>
+      <p className="text-muted-foreground mt-1 text-sm">
         Send a message to start a conversation.
       </p>
     </div>
@@ -23,9 +23,9 @@ function ThreadWelcome() {
 function LoadingIndicator() {
   return (
     <div className="flex items-center gap-1.5 py-2">
-      <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.3s]" />
-      <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.15s]" />
-      <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60" />
+      <span className="bg-muted-foreground/60 size-1.5 animate-bounce rounded-full [animation-delay:-0.3s]" />
+      <span className="bg-muted-foreground/60 size-1.5 animate-bounce rounded-full [animation-delay:-0.15s]" />
+      <span className="bg-muted-foreground/60 size-1.5 animate-bounce rounded-full" />
     </div>
   );
 }

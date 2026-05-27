@@ -26,6 +26,7 @@
   "dependencies": {
     "@tsconfig/strictest": "^2.0.8",
     "jiti": "^2.7.0",
+    "rolldown": "1.0.2",
     "tsdown": "^0.22.0",
     "typescript": "^6.0.3"
   },

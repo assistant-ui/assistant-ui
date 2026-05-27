@@ -27,7 +27,7 @@ export function VoiceSample() {
   return (
     <SampleFrame className="flex h-auto flex-col items-center gap-6 bg-black/[0.03] py-12 dark:bg-white/[0.03]">
       <VoiceOrb state={state} variant="blue" className="size-32" />
-      <span className="font-medium text-muted-foreground text-sm capitalize">
+      <span className="text-muted-foreground text-sm font-medium capitalize">
         {state}
       </span>
     </SampleFrame>
@@ -40,7 +40,7 @@ export function VoiceVariantsSample() {
       {(["default", "blue", "violet", "emerald"] as const).map((variant) => (
         <div key={variant} className="flex flex-col items-center gap-4">
           <VoiceOrb state="speaking" variant={variant} className="size-24" />
-          <span className="font-medium text-muted-foreground text-xs capitalize">
+          <span className="text-muted-foreground text-xs font-medium capitalize">
             {variant}
           </span>
         </div>
@@ -55,7 +55,7 @@ export function VoiceStatesSample() {
       {CYCLE_STATES.map((state) => (
         <div key={state} className="flex flex-col items-center gap-4">
           <VoiceOrb state={state} variant="blue" className="size-20" />
-          <span className="font-medium text-muted-foreground text-xs capitalize">
+          <span className="text-muted-foreground text-xs font-medium capitalize">
             {state}
           </span>
         </div>

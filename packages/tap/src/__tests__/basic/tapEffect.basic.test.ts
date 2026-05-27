@@ -91,15 +91,18 @@ describe("tapEffect - Basic Functionality", () => {
   describe("Multiple Effects", () => {
     it("should execute multiple effects in registration order", () => {
       const executionOrder: string[] = [];
-      const effects = [
+      const effects: tapEffect.EffectCallback[] = [
         () => {
           executionOrder.push("effect1");
+          return undefined;
         },
         () => {
           executionOrder.push("effect2");
+          return undefined;
         },
         () => {
           executionOrder.push("effect3");
+          return undefined;
         },
       ];
 

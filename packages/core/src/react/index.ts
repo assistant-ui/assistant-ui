@@ -1,3 +1,4 @@
+/// <reference path="../store/scope-registration.ts" />
 /// <reference path="./types/store-augmentation.ts" />
 
 // model-context
@@ -129,13 +130,8 @@ export {
   useRuntimeAdapters,
   type RuntimeAdapters,
 } from "./runtimes/RuntimeAdapterProvider";
-export {
-  useToolInvocations,
-  type ToolExecutionStatus,
-  type AssistantTransportState,
-  type AddToolResultCommand,
-} from "./runtimes/useToolInvocations";
 export { useExternalStoreRuntime } from "./runtimes/useExternalStoreRuntime";
+export { useExternalStoreSharedOptions } from "./runtimes/useExternalStoreSharedOptions";
 export {
   useExternalMessageConverter,
   convertExternalMessages,
@@ -178,6 +174,7 @@ export {
   type PartState,
 } from "./primitives/message/MessageParts";
 export { MessagePrimitiveGroupedParts } from "./primitives/message/MessageGroupedParts";
+export { groupPartByType } from "./utils/groupParts";
 export {
   MessagePrimitiveGenerativeUI,
   GenerativeUIRender,

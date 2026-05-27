@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
@@ -9,7 +10,12 @@
     "skipLibCheck": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "types": ["chrome", "node"]
+    "types": ["chrome", "node"],
+    "paths": {
+      "@/components/*": ["../../packages/ui/src/components/*"],
+      "@/lib/*": ["../../packages/ui/src/lib/*"],
+      "@/hooks/*": ["../../packages/ui/src/hooks/*"]
+    }
   },
   "include": ["*.ts", "*.tsx", "scripts/*.mts"]
 }

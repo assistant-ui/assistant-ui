@@ -1,3 +1,4 @@
+import { describe, it, expect, vi } from "vitest";
 import { OpenCodeEventSource } from "./OpenCodeEventSource";
 
 const waitFor = async (assertion: () => void) => {

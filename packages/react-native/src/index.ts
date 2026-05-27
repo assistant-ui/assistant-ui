@@ -125,6 +125,8 @@ export * as ChainOfThoughtPrimitive from "./primitives/chainOfThought";
 export * as SuggestionPrimitive from "./primitives/suggestion";
 export * as ErrorPrimitive from "./primitives/error";
 
+export { groupPartByType } from "@assistant-ui/core/react";
+
 // Re-export shared providers from core/react
 export {
   ThreadListItemByIndexProvider,

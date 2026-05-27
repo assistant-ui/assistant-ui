@@ -43,7 +43,7 @@ export function tapResources<E extends ResourceElement<any, any>>(
   const fibers = tapConst(() => new Map<string | number, FiberState>(), []);
 
   const getElementsMemo = getElementsDeps
-    ? // biome-ignore lint/correctness/useExhaustiveDependencies: library code
+    ? // oxlint-disable-next-line tap-hooks/exhaustive-deps -- deps forwarded by caller
       tapCallback(getElements, getElementsDeps)
     : getElements;
 

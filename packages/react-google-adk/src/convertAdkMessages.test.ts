@@ -5,7 +5,7 @@ import type { AdkMessage } from "./types";
 describe("convertAdkMessage - human messages", () => {
   it("converts a human message with string content to user role", () => {
     const msg: AdkMessage = { id: "m1", type: "human", content: "Hello" };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       role: "user",
       id: "m1",
@@ -19,7 +19,7 @@ describe("convertAdkMessage - human messages", () => {
       type: "human",
       content: [{ type: "text", text: "Hello" }],
     };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       role: "user",
       content: [{ type: "text", text: "Hello" }],
@@ -34,7 +34,7 @@ describe("convertAdkMessage - ai messages", () => {
       type: "ai",
       content: [{ type: "text", text: "Hi there" }],
     };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       role: "assistant",
       id: "m1",
@@ -48,7 +48,7 @@ describe("convertAdkMessage - ai messages", () => {
       type: "ai",
       content: [{ type: "reasoning", text: "Let me think..." }],
     };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       content: [{ type: "reasoning", text: "Let me think..." }],
     });
@@ -60,7 +60,7 @@ describe("convertAdkMessage - ai messages", () => {
       type: "ai",
       content: [{ type: "image", mimeType: "image/png", data: "abc123" }],
     };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       content: [{ type: "image", image: "data:image/png;base64,abc123" }],
     });
@@ -72,7 +72,7 @@ describe("convertAdkMessage - ai messages", () => {
       type: "ai",
       content: [{ type: "image_url", url: "https://example.com/img.png" }],
     };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       content: [{ type: "image", image: "https://example.com/img.png" }],
     });
@@ -91,7 +91,7 @@ describe("convertAdkMessage - ai messages", () => {
         },
       ],
     };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       content: [
         {
@@ -116,7 +116,7 @@ describe("convertAdkMessage - ai messages", () => {
         },
       ],
     };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       content: [
         {
@@ -137,7 +137,7 @@ describe("convertAdkMessage - ai messages", () => {
       type: "ai",
       content: [{ type: "code", code: "print(1)", language: "python" }],
     };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       content: [
         {
@@ -155,7 +155,7 @@ describe("convertAdkMessage - ai messages", () => {
       type: "ai",
       content: [{ type: "code_result", output: "1", outcome: "OUTCOME_OK" }],
     };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       content: [
         {
@@ -174,7 +174,7 @@ describe("convertAdkMessage - ai messages", () => {
       content: [],
       tool_calls: [{ id: "tc-1", name: "search", args: { q: "test" } }],
     };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       content: [
         {
@@ -194,7 +194,7 @@ describe("convertAdkMessage - ai messages", () => {
       content: [{ type: "text", text: "done" }],
       status: { type: "complete", reason: "stop" },
     };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       status: { type: "complete", reason: "stop" },
     });
@@ -208,7 +208,7 @@ describe("convertAdkMessage - ai messages", () => {
       author: "search_agent",
       branch: "root.search_agent",
     };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       metadata: {
         custom: { author: "search_agent", branch: "root.search_agent" },
@@ -222,7 +222,7 @@ describe("convertAdkMessage - ai messages", () => {
       type: "ai",
       content: [{ type: "text", text: "hi" }],
     };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).not.toHaveProperty("metadata");
   });
 });
@@ -237,7 +237,7 @@ describe("convertAdkMessage - tool messages", () => {
       content: '{"results":[]}',
       status: "success",
     };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       role: "tool",
       toolCallId: "tc-1",
@@ -256,7 +256,7 @@ describe("convertAdkMessage - tool messages", () => {
       content: "Failed",
       status: "error",
     };
-    const result = convertAdkMessage(msg);
+    const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({ isError: true });
   });
 });

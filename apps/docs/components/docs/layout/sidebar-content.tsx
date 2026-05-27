@@ -41,7 +41,7 @@ function SectionItem({
 
   if (item.type === "separator") {
     return (
-      <p className="mt-4 mb-1 px-2 font-medium text-[10px] text-muted-foreground/60 uppercase tracking-wider first:mt-1">
+      <p className="text-muted-foreground/60 mt-4 mb-1 px-2 text-[10px] font-medium tracking-wider uppercase first:mt-1">
         {item.name}
       </p>
     );
@@ -69,7 +69,7 @@ function SectionItem({
             className={cn(
               "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors duration-150",
               isActive
-                ? "bg-accent/20 font-medium text-foreground dark:bg-accent/50"
+                ? "bg-accent/20 text-foreground dark:bg-accent/50 font-medium"
                 : "text-muted-foreground hover:bg-accent/30 hover:text-foreground/90 dark:hover:bg-accent/40",
             )}
           >
@@ -77,13 +77,13 @@ function SectionItem({
             <span className="truncate">{item.name}</span>
           </Link>
         ) : (
-          <p className="mt-3 mb-1 flex items-center gap-2 px-2 font-medium text-[11px] text-muted-foreground/70 uppercase tracking-wider first:mt-1">
+          <p className="text-muted-foreground/70 mt-3 mb-1 flex items-center gap-2 px-2 text-[11px] font-medium tracking-wider uppercase first:mt-1">
             {item.icon}
             {item.name}
           </p>
         )}
         {hasChildren && (containsActive || !item.index) && (
-          <div className="ml-2 flex flex-col gap-0.5 border-border/50 border-l pl-2">
+          <div className="border-border/50 ml-2 flex flex-col gap-0.5 border-l pl-2">
             {item.children.map((child) => (
               <SectionItem
                 key={child.$id}
@@ -111,7 +111,7 @@ function SectionItem({
       className={cn(
         "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors duration-150",
         isActive
-          ? "bg-accent/20 font-medium text-foreground dark:bg-accent/50"
+          ? "bg-accent/20 text-foreground dark:bg-accent/50 font-medium"
           : "text-muted-foreground hover:bg-accent/30 hover:text-foreground/90 dark:hover:bg-accent/40",
       )}
     >
@@ -144,19 +144,19 @@ function SidebarSection({
         onClick={onToggle}
         aria-expanded={isOpen}
         className={cn(
-          "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[13px] transition-colors duration-150 hover:bg-accent/30 dark:hover:bg-accent/40",
+          "hover:bg-accent/30 dark:hover:bg-accent/40 flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[13px] transition-colors duration-150",
           isActive || isOpen
-            ? "font-medium text-foreground"
+            ? "text-foreground font-medium"
             : "text-muted-foreground/90",
         )}
       >
-        <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground">
+        <span className="text-muted-foreground flex size-4 shrink-0 items-center justify-center">
           {folder.icon}
         </span>
         <span className="flex-1 truncate">{folder.name}</span>
         <ChevronDown
           className={cn(
-            "size-3.5 shrink-0 text-muted-foreground/60 transition-transform duration-200",
+            "text-muted-foreground/60 size-3.5 shrink-0 transition-transform duration-200",
             !isOpen && "-rotate-90",
           )}
         />
@@ -170,7 +170,7 @@ function SidebarSection({
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <div className="mt-0.5 mb-1 ml-3 flex flex-col gap-0.5 border-border/50 border-l pl-2">
+            <div className="border-border/50 mt-0.5 mb-1 ml-3 flex flex-col gap-0.5 border-l pl-2">
               {folder.children.map((child) => (
                 <SectionItem
                   key={child.$id}
@@ -293,12 +293,12 @@ export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
           />
         ))}
       </nav>
-      <div className="flex shrink-0 items-center gap-1 border-border/50 border-t px-3 py-2">
+      <div className="border-border/50 flex shrink-0 items-center gap-1 border-t px-3 py-2">
         <a
           href="https://github.com/assistant-ui/assistant-ui"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/30 hover:text-foreground dark:hover:bg-accent/40"
+          className="text-muted-foreground hover:bg-accent/30 hover:text-foreground dark:hover:bg-accent/40 flex size-8 items-center justify-center rounded-md transition-colors"
           aria-label="GitHub"
         >
           <GitHubIcon className="size-4" />
@@ -307,7 +307,7 @@ export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
           href="https://discord.gg/S9dwgCNEFs"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/30 hover:text-foreground dark:hover:bg-accent/40"
+          className="text-muted-foreground hover:bg-accent/30 hover:text-foreground dark:hover:bg-accent/40 flex size-8 items-center justify-center rounded-md transition-colors"
           aria-label="Discord"
         >
           <DiscordIcon className="size-4" />

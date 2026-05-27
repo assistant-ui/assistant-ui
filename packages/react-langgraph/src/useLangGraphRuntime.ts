@@ -1,5 +1,4 @@
-/// <reference types="@assistant-ui/core/store" />
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   LangChainMessage,
   LangChainToolCall,
@@ -18,20 +17,23 @@ import type {
 } from "./types";
 import {
   getExternalStoreMessages,
+  pickExternalStoreSharedOptions,
   type ThreadMessage,
   type AttachmentAdapter,
   type AppendMessage,
+  type DictationAdapter,
+  type ExternalStoreSharedOptions,
   type FeedbackAdapter,
+  type RealtimeVoiceAdapter,
   type SpeechSynthesisAdapter,
 } from "@assistant-ui/core";
+import type { ToolExecutionStatus } from "@assistant-ui/core";
 import {
-  type ToolExecutionStatus,
   type DataMessagePartComponent,
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
   useExternalMessageConverter,
   useExternalStoreRuntime,
-  useToolInvocations,
 } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
@@ -187,7 +189,7 @@ export const useLangGraphUIMessages = () => {
   });
 };
 
-export type UseLangGraphRuntimeOptions = {
+export type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
   autoCancelPendingToolCalls?: boolean | undefined;
   /**
    * When true, renders the Cancel button in the composer and aborts the
@@ -232,6 +234,8 @@ export type UseLangGraphRuntimeOptions = {
     | {
         attachments?: AttachmentAdapter;
         speech?: SpeechSynthesisAdapter;
+        dictation?: DictationAdapter;
+        voice?: RealtimeVoiceAdapter;
         feedback?: FeedbackAdapter;
       }
     | undefined;
@@ -337,17 +341,18 @@ const filterUIMessagesBySurvivingIds = (
   });
 };
 
-const useLangGraphRuntimeImpl = ({
-  autoCancelPendingToolCalls,
-  adapters: { attachments, feedback, speech } = {},
-  unstable_allowCancellation,
-  stream,
-  load,
-  getCheckpointId,
-  eventHandlers,
-  uiStateKey,
-  uiComponents,
-}: UseLangGraphRuntimeOptions) => {
+const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
+  const {
+    autoCancelPendingToolCalls,
+    adapters: { attachments, dictation, feedback, speech, voice } = {},
+    unstable_allowCancellation,
+    stream,
+    load,
+    getCheckpointId,
+    eventHandlers,
+    uiStateKey,
+    uiComponents,
+  } = options;
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const aui = useAui();
 
@@ -504,48 +509,19 @@ const useLangGraphRuntimeImpl = ({
   uiMessagesRef.current = uiMessages;
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const [runtimeRef] = useState(() => ({
-    get current() {
-      return runtime;
-    },
-  }));
-
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const toolInvocations = useToolInvocations({
-    state: {
-      messages: threadMessages,
-      isRunning: effectiveIsRunning,
-    },
-    getTools: () => runtimeRef.current.thread.getModelContext().tools,
-    onResult: (command) => {
-      if (command.type === "add-tool-result") {
-        void handleSendMessage(
-          [
-            {
-              type: "tool",
-              name: command.toolName,
-              tool_call_id: command.toolCallId,
-              content: JSON.stringify(command.result),
-              artifact: command.artifact,
-              status: command.isError ? "error" : "success",
-            },
-          ],
-          {},
-        );
-      }
-    },
-    setToolStatuses,
-  });
-
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runtime = useExternalStoreRuntime({
+    ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
     isLoading: isLoadingThread,
     messages: threadMessages,
+    unstable_enableToolInvocations: true,
+    setToolStatuses,
     adapters: {
       attachments,
+      dictation,
       feedback,
       speech,
+      voice,
     },
     extras: {
       [symbolLangGraphRuntimeExtras]: true,
@@ -555,8 +531,6 @@ const useLangGraphRuntimeImpl = ({
       send: handleSendMessage,
     } satisfies LangGraphRuntimeExtras,
     onNew: async (msg) => {
-      await toolInvocations.abort();
-
       const cancellations =
         autoCancelPendingToolCalls !== false
           ? getPendingToolCalls(messages).map(
@@ -609,7 +583,6 @@ const useLangGraphRuntimeImpl = ({
     },
     onEdit: getCheckpointId
       ? async (msg) => {
-          await toolInvocations.abort();
           const truncated = truncateLangChainMessages(
             threadMessagesRef.current,
             msg.parentId,
@@ -634,7 +607,6 @@ const useLangGraphRuntimeImpl = ({
       : undefined,
     onReload: getCheckpointId
       ? async (parentId, config) => {
-          await toolInvocations.abort();
           const truncated = truncateLangChainMessages(
             threadMessagesRef.current,
             parentId,
@@ -657,7 +629,6 @@ const useLangGraphRuntimeImpl = ({
     onCancel: unstable_allowCancellation
       ? async () => {
           cancel();
-          await toolInvocations.abort();
         }
       : undefined,
   });

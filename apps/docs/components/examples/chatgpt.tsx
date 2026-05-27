@@ -69,7 +69,7 @@ export const ChatGPT: FC = () => {
           <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-3xl flex-col gap-2 overflow-visible rounded-t-3xl bg-white pb-2 dark:bg-[#212121]">
             <ThreadScrollToBottom />
             <Composer placeholder="Ask anything" />
-            <p className="text-center text-[#5d5d5d] text-xs dark:text-[#a8a8a8]">
+            <p className="text-center text-xs text-[#5d5d5d] dark:text-[#a8a8a8]">
               ChatGPT can make mistakes. Check important info.
             </p>
           </ThreadPrimitive.ViewportFooter>
@@ -83,7 +83,7 @@ const EmptyState: FC = () => {
   return (
     <div className="flex grow flex-col items-center justify-center px-4">
       <div className="mx-auto flex w-full max-w-3xl flex-col items-stretch gap-6">
-        <h1 className="text-center font-medium text-2xl text-[#0d0d0d] sm:text-3xl dark:text-[#ececec]">
+        <h1 className="text-center text-2xl font-medium text-[#0d0d0d] sm:text-3xl dark:text-[#ececec]">
           Where should we begin?
         </h1>
         <Composer placeholder="Ask anything" />
@@ -106,7 +106,7 @@ const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
       <ComposerPrimitive.Input
         placeholder={placeholder}
         rows={1}
-        className="min-h-9 w-full resize-none bg-transparent px-3 pt-2 text-[#0d0d0d] text-base outline-none placeholder:text-[#8e8e8e] dark:text-[#ececec] dark:placeholder:text-[#8e8e8e]"
+        className="min-h-9 w-full resize-none bg-transparent px-3 pt-2 text-base text-[#0d0d0d] outline-none placeholder:text-[#8e8e8e] dark:text-[#ececec] dark:placeholder:text-[#8e8e8e]"
       />
 
       <div className="flex items-center justify-between gap-2 px-1 pt-1">
@@ -142,7 +142,7 @@ const CHATGPT_TOOLS = [
 const ChatGPTToolsMenu: FC = () => {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="hidden h-9 items-center gap-1.5 rounded-full px-3 text-[#5d5d5d] text-sm transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] sm:flex dark:text-[#cdcdcd] dark:hover:bg-white/10 dark:hover:text-white">
+      <DropdownMenuTrigger className="hidden h-9 items-center gap-1.5 rounded-full px-3 text-sm text-[#5d5d5d] transition-colors hover:bg-[#0d0d0d]/5 hover:text-[#0d0d0d] sm:flex dark:text-[#cdcdcd] dark:hover:bg-white/10 dark:hover:text-white">
         <SlidersHorizontal className="size-4" />
         <span>Tools</span>
         <ChevronDownIcon className="size-3.5 opacity-70" />
@@ -226,7 +226,7 @@ const ThreadScrollToBottom: FC = () => {
     <ThreadPrimitive.ScrollToBottom asChild>
       <TooltipIconButton
         tooltip="Scroll to bottom"
-        className="absolute -top-10 z-10 self-center rounded-full border bg-background p-2 shadow-sm disabled:invisible dark:border-white/15 dark:bg-[#2a2a2a]"
+        className="bg-background absolute -top-10 z-10 self-center rounded-full border p-2 shadow-sm disabled:invisible dark:border-white/15 dark:bg-[#2a2a2a]"
       >
         <ChevronDownIcon />
       </TooltipIconButton>
@@ -257,7 +257,7 @@ const UserMessage: FC = () => {
           </ActionBarPrimitive.Edit>
         </ActionBarPrimitive.Root>
 
-        <div className="rounded-3xl bg-secondary px-5 py-2 text-foreground dark:bg-white/5 dark:text-[#eee]">
+        <div className="bg-secondary text-foreground rounded-3xl px-5 py-2 dark:bg-white/5 dark:text-[#eee]">
           <MessagePrimitive.Parts />
         </div>
       </div>
@@ -269,14 +269,14 @@ const UserMessage: FC = () => {
 
 const EditComposer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="mx-auto flex w-full max-w-3xl flex-col justify-end gap-1 rounded-3xl bg-secondary dark:bg-white/15">
-      <ComposerPrimitive.Input className="flex h-8 w-full resize-none bg-transparent p-5 pb-0 text-foreground outline-none dark:text-white" />
+    <ComposerPrimitive.Root className="bg-secondary mx-auto flex w-full max-w-3xl flex-col justify-end gap-1 rounded-3xl dark:bg-white/15">
+      <ComposerPrimitive.Input className="text-foreground flex h-8 w-full resize-none bg-transparent p-5 pb-0 outline-none dark:text-white" />
 
       <div className="m-3 mt-2 flex items-center justify-center gap-2 self-end">
-        <ComposerPrimitive.Cancel className="rounded-full bg-background px-3 py-2 font-semibold text-foreground text-sm hover:bg-muted dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800">
+        <ComposerPrimitive.Cancel className="bg-background text-foreground hover:bg-muted rounded-full px-3 py-2 text-sm font-semibold dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800">
           Cancel
         </ComposerPrimitive.Cancel>
-        <ComposerPrimitive.Send className="rounded-full bg-primary px-3 py-2 font-semibold text-primary-foreground text-sm hover:bg-primary/90 dark:bg-white dark:text-black dark:hover:bg-white/90">
+        <ComposerPrimitive.Send className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-3 py-2 text-sm font-semibold dark:bg-white dark:text-black dark:hover:bg-white/90">
           Send
         </ComposerPrimitive.Send>
       </div>
@@ -341,7 +341,7 @@ const BranchPicker: FC<{ className?: string }> = ({ className }) => {
     <BranchPickerPrimitive.Root
       hideWhenSingleBranch
       className={cn(
-        "inline-flex items-center font-semibold text-muted-foreground text-sm dark:text-[#b4b4b4]",
+        "text-muted-foreground inline-flex items-center text-sm font-semibold dark:text-[#b4b4b4]",
         className,
       )}
     >
@@ -402,7 +402,7 @@ const ChatGPTAttachmentUI: FC = () => {
 
   return (
     <AttachmentPrimitive.Root className="group/attachment relative">
-      <div className="flex items-center gap-2 overflow-hidden rounded-2xl border bg-secondary dark:bg-white/5">
+      <div className="bg-secondary flex items-center gap-2 overflow-hidden rounded-2xl border dark:bg-white/5">
         <AuiIf condition={(s) => s.attachment.type === "image"}>
           {src ? (
             // biome-ignore lint/performance/noImgElement: example component
@@ -418,7 +418,7 @@ const ChatGPTAttachmentUI: FC = () => {
           )}
         </AuiIf>
         <AuiIf condition={(s) => s.attachment.type !== "image"}>
-          <div className="flex h-full w-12 items-center justify-center rounded-[9px] bg-background text-[#6b6b6b] dark:bg-[#3a3a3a] dark:text-[#9a9a9a]">
+          <div className="bg-background flex h-full w-12 items-center justify-center rounded-[9px] text-[#6b6b6b] dark:bg-[#3a3a3a] dark:text-[#9a9a9a]">
             <AttachmentPrimitive.unstable_Thumb className="text-xs" />
           </div>
         </AuiIf>

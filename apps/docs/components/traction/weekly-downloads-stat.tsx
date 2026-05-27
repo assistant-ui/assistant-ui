@@ -16,9 +16,9 @@ export function WeeklyDownloadsStat({
   const [showTotal, setShowTotal] = useState(false);
   const current = showTotal ? total : flagship;
   return (
-    <div className="flex flex-col gap-3 bg-background p-6">
-      <ArrowUpRight className="size-4 text-muted-foreground" />
-      <div className="font-medium text-3xl tabular-nums tracking-tight md:text-4xl">
+    <div className="bg-background flex flex-col gap-3 p-6">
+      <ArrowUpRight className="text-muted-foreground size-4" />
+      <div className="text-3xl font-medium tracking-tight tabular-nums md:text-4xl">
         {current.value > 0 ? formatCompact(current.value) : "—"}
       </div>
       <div className="flex flex-col gap-0.5">
@@ -26,7 +26,7 @@ export function WeeklyDownloadsStat({
         <button
           type="button"
           onClick={() => setShowTotal((v) => !v)}
-          className="flex w-fit cursor-pointer items-center gap-1 rounded-sm text-left text-muted-foreground text-xs outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex w-fit cursor-pointer items-center gap-1 rounded-sm text-left text-xs transition-colors outline-none focus-visible:ring-2"
           aria-label="Toggle between flagship package and ecosystem total"
         >
           <span>{current.caption}</span>

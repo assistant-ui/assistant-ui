@@ -35,7 +35,7 @@ export function GlassDemo({
   return (
     <div className={cn("flex min-h-44 items-center justify-center", className)}>
       {label && (
-        <code className="flex items-center justify-center font-mono text-primary text-shadow-sm text-xl">
+        <code className="text-primary flex items-center justify-center font-mono text-xl text-shadow-sm">
           {label}
         </code>
       )}

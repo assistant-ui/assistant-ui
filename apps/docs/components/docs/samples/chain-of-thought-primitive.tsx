@@ -2,6 +2,7 @@
 
 import { Collapsible } from "radix-ui";
 import {
+  groupPartByType,
   MessagePrimitive,
   MessagePartPrimitive,
   ThreadPrimitive,
@@ -49,10 +50,10 @@ const sampleMessages: ThreadMessageLike[] = [
 function ReasoningBlock({ text }: { text: string }) {
   return (
     <div className="flex gap-3 px-4 py-2">
-      <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted">
-        <BrainIcon className="size-3 text-muted-foreground" />
+      <div className="bg-muted flex size-5 shrink-0 items-center justify-center rounded-full">
+        <BrainIcon className="text-muted-foreground size-3" />
       </div>
-      <p className="text-muted-foreground text-sm italic leading-relaxed">
+      <p className="text-muted-foreground text-sm leading-relaxed italic">
         {text}
       </p>
     </div>
@@ -75,14 +76,14 @@ function ToolCallBlock({
       </div>
       <Collapsible.Root className="min-w-0 flex-1">
         <Collapsible.Trigger className="group flex w-full items-center gap-1.5 text-start text-sm">
-          <WrenchIcon className="size-3 text-muted-foreground" />
+          <WrenchIcon className="text-muted-foreground size-3" />
           <span className="font-medium">{toolName}</span>
-          <ChevronRightIcon className="ms-auto size-3.5 text-muted-foreground transition-transform duration-150 group-data-[state=open]:rotate-90 rtl:group-data-[state=closed]:rotate-180" />
+          <ChevronRightIcon className="text-muted-foreground ms-auto size-3.5 transition-transform duration-150 group-data-[state=open]:rotate-90 rtl:group-data-[state=closed]:rotate-180" />
         </Collapsible.Trigger>
         <Collapsible.Content>
-          <div className="mt-2 overflow-hidden rounded-md border bg-muted/40">
+          <div className="bg-muted/40 mt-2 overflow-hidden rounded-md border">
             <div className="px-3 py-2">
-              <p className="mb-1 font-medium text-[10px] text-muted-foreground uppercase tracking-wider">
+              <p className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wider uppercase">
                 Args
               </p>
               <pre className="font-mono text-xs leading-relaxed">
@@ -91,7 +92,7 @@ function ToolCallBlock({
             </div>
             {result !== undefined && (
               <div className="border-t px-3 py-2">
-                <p className="mb-1 font-medium text-[10px] text-muted-foreground uppercase tracking-wider">
+                <p className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wider uppercase">
                   Result
                 </p>
                 <pre className="font-mono text-xs leading-relaxed">
@@ -110,10 +111,10 @@ function AssistantChainOfThought({ children }: PropsWithChildren) {
   const [open, setOpen] = useState(true);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/80 bg-background/90 shadow-sm">
+    <div className="border-border/80 bg-background/90 overflow-hidden rounded-xl border shadow-sm">
       <button
         type="button"
-        className="flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 font-medium text-sm transition-colors hover:bg-muted/50"
+        className="hover:bg-muted/50 flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors"
         onClick={() => setOpen((value) => !value)}
       >
         {open ? (
@@ -130,7 +131,7 @@ function AssistantChainOfThought({ children }: PropsWithChildren) {
 
 function AssistantMessageText() {
   return (
-    <div className="max-w-[80%] rounded-2xl bg-muted px-4 py-2.5 text-sm">
+    <div className="bg-muted max-w-[80%] rounded-2xl px-4 py-2.5 text-sm">
       <p>
         <MessagePartPrimitive.Text />
       </p>
@@ -141,7 +142,7 @@ function AssistantMessageText() {
 function UserMessage() {
   return (
     <MessagePrimitive.Root className="flex justify-end">
-      <div className="max-w-[80%] rounded-2xl bg-primary px-4 py-2.5 text-primary-foreground text-sm">
+      <div className="bg-primary text-primary-foreground max-w-[80%] rounded-2xl px-4 py-2.5 text-sm">
         <MessagePrimitive.Parts />
       </div>
     </MessagePrimitive.Root>
@@ -151,19 +152,16 @@ function UserMessage() {
 function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="flex justify-start gap-3">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-medium text-primary text-xs">
+      <div className="bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-medium">
         AI
       </div>
       <div className="min-w-0 flex-1">
         <div className="space-y-2">
           <MessagePrimitive.GroupedParts
-            groupBy={(part) => {
-              if (part.type === "reasoning")
-                return ["group-chainOfThought", "group-reasoning"];
-              if (part.type === "tool-call")
-                return ["group-chainOfThought", "group-tool"];
-              return null;
-            }}
+            groupBy={groupPartByType({
+              reasoning: ["group-chainOfThought", "group-reasoning"],
+              "tool-call": ["group-chainOfThought", "group-tool"],
+            })}
           >
             {({ part, children }) => {
               switch (part.type) {
@@ -201,7 +199,7 @@ function AssistantMessage() {
 
 export function ChainOfThoughtPrimitiveSample() {
   return (
-    <div className="not-prose flex items-center rounded-xl border border-border/50 bg-muted/40 p-8">
+    <div className="not-prose border-border/50 bg-muted/40 flex items-center rounded-xl border p-8">
       <div className="mx-auto w-full max-w-lg">
         <SampleRuntimeProvider messages={sampleMessages}>
           <ThreadPrimitive.Messages

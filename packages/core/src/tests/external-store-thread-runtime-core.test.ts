@@ -8,12 +8,13 @@ const mockContextProvider: ModelContextProvider = {
 };
 
 const makeStore = (
-  overrides?: Partial<ExternalStoreAdapter>,
-): ExternalStoreAdapter => ({
-  messages: [],
-  onNew: vi.fn(),
-  ...overrides,
-});
+  overrides?: Partial<ExternalStoreAdapter> | Record<string, unknown>,
+): ExternalStoreAdapter =>
+  ({
+    messages: [],
+    onNew: vi.fn(),
+    ...overrides,
+  }) as ExternalStoreAdapter;
 
 describe("ExternalStoreThreadRuntimeCore - state reference stability", () => {
   describe("capabilities", () => {

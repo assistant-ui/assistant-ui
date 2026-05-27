@@ -27,7 +27,7 @@ function QuoteBlockIcon({
     <QuoteIcon
       data-slot="quote-block-icon"
       className={cn(
-        "mt-0.5 size-3 shrink-0 text-muted-foreground/60",
+        "text-muted-foreground/60 mt-0.5 size-3 shrink-0",
         className,
       )}
       {...props}
@@ -40,7 +40,7 @@ function QuoteBlockText({ className, ...props }: ComponentProps<"p">) {
     <p
       data-slot="quote-block-text"
       className={cn(
-        "line-clamp-2 min-w-0 text-muted-foreground/80 text-sm italic",
+        "text-muted-foreground/80 line-clamp-2 min-w-0 text-sm italic",
         className,
       )}
       {...props}
@@ -90,7 +90,7 @@ function SelectionToolbarRoot({
     <SelectionToolbarPrimitive.Root
       data-slot="selection-toolbar"
       className={cn(
-        "flex items-center gap-1 rounded-lg border bg-popover px-1 py-1 shadow-md",
+        "bg-popover flex items-center gap-1 rounded-lg border px-1 py-1 shadow-md",
         className,
       )}
       {...props}
@@ -107,7 +107,7 @@ function SelectionToolbarQuote({
     <SelectionToolbarPrimitive.Quote
       data-slot="selection-toolbar-quote"
       className={cn(
-        "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-popover-foreground text-sm transition-colors hover:bg-accent",
+        "text-popover-foreground hover:bg-accent flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors",
         className,
       )}
       {...props}
@@ -165,7 +165,7 @@ function ComposerQuotePreviewRoot({
     <ComposerPrimitive.Quote
       data-slot="composer-quote"
       className={cn(
-        "mx-3 mt-2 flex items-start gap-2 rounded-lg bg-muted/60 px-3 py-2",
+        "bg-muted/60 mx-3 mt-2 flex items-start gap-2 rounded-lg px-3 py-2",
         className,
       )}
       {...props}
@@ -181,7 +181,7 @@ function ComposerQuotePreviewIcon({
     <QuoteIcon
       data-slot="composer-quote-icon"
       className={cn(
-        "mt-0.5 size-3.5 shrink-0 text-muted-foreground/70",
+        "text-muted-foreground/70 mt-0.5 size-3.5 shrink-0",
         className,
       )}
       {...props}
@@ -197,7 +197,7 @@ function ComposerQuotePreviewText({
     <ComposerPrimitive.QuoteText
       data-slot="composer-quote-text"
       className={cn(
-        "line-clamp-2 min-w-0 flex-1 text-muted-foreground text-sm",
+        "text-muted-foreground line-clamp-2 min-w-0 flex-1 text-sm",
         className,
       )}
       {...props}

@@ -26,7 +26,7 @@ export const DatePickerToolUI = makeAssistantToolUI<
       return (
         <div className="my-2 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3">
           <CheckCircle2Icon className="size-4 text-green-600" />
-          <span className="text-green-800 text-sm">
+          <span className="text-sm text-green-800">
             Selected: {new Date(result.date).toLocaleDateString()}
           </span>
         </div>
@@ -36,8 +36,8 @@ export const DatePickerToolUI = makeAssistantToolUI<
     return (
       <div className="my-2 rounded-lg border p-4">
         <div className="mb-3 flex items-center gap-2">
-          <CalendarIcon className="size-4 text-muted-foreground" />
-          <span className="font-medium text-sm">{args.prompt}</span>
+          <CalendarIcon className="text-muted-foreground size-4" />
+          <span className="text-sm font-medium">{args.prompt}</span>
         </div>
         <div className="flex items-center gap-2">
           <input
@@ -46,13 +46,13 @@ export const DatePickerToolUI = makeAssistantToolUI<
             min={args.minDate}
             max={args.maxDate}
             onChange={(e) => setValue(e.target.value)}
-            className="rounded-md border bg-background px-3 py-2 text-sm"
+            className="bg-background rounded-md border px-3 py-2 text-sm"
           />
           <button
             type="button"
             disabled={!value}
             onClick={() => addResult({ date: new Date(value).toISOString() })}
-            className="rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground text-sm disabled:opacity-50"
+            className="bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
           >
             Confirm
           </button>

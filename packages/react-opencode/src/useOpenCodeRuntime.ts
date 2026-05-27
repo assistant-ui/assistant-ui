@@ -2,6 +2,7 @@
 
 import {
   ExportedMessageRepository,
+  pickExternalStoreSharedOptions,
   useAuiState,
   useExternalStoreRuntime,
   useRemoteThreadListRuntime,
@@ -204,10 +205,12 @@ const useOpenCodeThreadRuntime = (
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   return useExternalStoreRuntime<ThreadMessage>({
+    ...pickExternalStoreSharedOptions(options),
     isLoading: state.loadState.type === "loading",
     isRunning: isOpenCodeStateRunning(state),
     messageRepository,
     extras,
+    ...(options.adapters && { adapters: options.adapters }),
     onNew: async (message: any) => {
       try {
         const sendOptions = {
@@ -385,7 +388,7 @@ export const useOpenCodeRuntime = (
     allowNesting: true,
     adapter,
     initialThreadId: options.initialSessionId,
-    // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook callback is invoked by useRemoteThreadListRuntime at the appropriate hook position
     runtimeHook: () => useRuntimeHook(client, registry, options),
   });
 };

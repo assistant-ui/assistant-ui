@@ -27,7 +27,7 @@ const COMMON_PARAMS: Record<string, Partial<PropDef>> = {
         Change the default rendered element for the one passed as a child,
         merging their props and behavior.{" "}
         <Link
-          className="font-medium text-fd-primary underline underline-offset-2"
+          className="text-fd-primary font-medium underline underline-offset-2"
           href="/docs/api-reference/primitives/composition"
         >
           Composition guide

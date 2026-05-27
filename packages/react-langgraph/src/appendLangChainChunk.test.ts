@@ -2,6 +2,13 @@ import { describe, it, expect } from "vitest";
 import { appendLangChainChunk } from "./appendLangChainChunk";
 import type { LangChainMessage, LangChainMessageChunk } from "./types";
 
+type AiMessage = Extract<LangChainMessage, { type: "ai" }>;
+
+const append = appendLangChainChunk as unknown as (
+  prev: AiMessage | undefined,
+  curr: LangChainMessageChunk,
+) => AiMessage;
+
 const aiChunk = (
   toolCallChunks: LangChainMessageChunk["tool_call_chunks"],
 ): LangChainMessageChunk => ({
@@ -13,12 +20,12 @@ const aiChunk = (
 
 describe("appendLangChainChunk tool_call id merging (regression #3526)", () => {
   it("merges chunk arriving with real id into entry that started with empty id", () => {
-    let acc: LangChainMessage | undefined;
-    acc = appendLangChainChunk(
+    let acc: AiMessage | undefined;
+    acc = append(
       acc,
       aiChunk([{ id: "", index: 0, name: "weather", args_json: '{"city":' }]),
     );
-    acc = appendLangChainChunk(
+    acc = append(
       acc,
       aiChunk([
         {
@@ -40,14 +47,14 @@ describe("appendLangChainChunk tool_call id merging (regression #3526)", () => {
   });
 
   it("merges chunk arriving with empty id into entry that started with real id", () => {
-    let acc: LangChainMessage | undefined;
-    acc = appendLangChainChunk(
+    let acc: AiMessage | undefined;
+    acc = append(
       acc,
       aiChunk([
         { id: "real-abc", index: 0, name: "weather", args_json: '{"city":' },
       ]),
     );
-    acc = appendLangChainChunk(
+    acc = append(
       acc,
       aiChunk([{ id: "", index: 0, name: "weather", args_json: '"Tokyo"}' }]),
     );
@@ -60,12 +67,12 @@ describe("appendLangChainChunk tool_call id merging (regression #3526)", () => {
   });
 
   it("merges two empty-id chunks at the same index", () => {
-    let acc: LangChainMessage | undefined;
-    acc = appendLangChainChunk(
+    let acc: AiMessage | undefined;
+    acc = append(
       acc,
       aiChunk([{ id: "", index: 0, name: "weather", args_json: '{"a":' }]),
     );
-    acc = appendLangChainChunk(
+    acc = append(
       acc,
       aiChunk([{ id: "", index: 0, name: "weather", args_json: "1}" }]),
     );
@@ -78,12 +85,12 @@ describe("appendLangChainChunk tool_call id merging (regression #3526)", () => {
   });
 
   it("does not merge chunks with different real ids at the same index", () => {
-    let acc: LangChainMessage | undefined;
-    acc = appendLangChainChunk(
+    let acc: AiMessage | undefined;
+    acc = append(
       acc,
       aiChunk([{ id: "id-1", index: 0, name: "a", args_json: "{}" }]),
     );
-    acc = appendLangChainChunk(
+    acc = append(
       acc,
       aiChunk([{ id: "id-2", index: 0, name: "b", args_json: "{}" }]),
     );
@@ -93,7 +100,7 @@ describe("appendLangChainChunk tool_call id merging (regression #3526)", () => {
   });
 
   it("keeps chunks at different indices as separate entries", () => {
-    const acc = appendLangChainChunk(
+    const acc = append(
       undefined,
       aiChunk([
         { id: "", index: 0, name: "a", args_json: "{}" },

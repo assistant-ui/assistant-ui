@@ -6,13 +6,13 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "biome check .",
-    "format": "biome format .",
-    "format:fix": "biome format --write .",
-    "lint:fix": "biome check --write ."
+    "lint": "oxlint && oxfmt --check",
+    "format": "oxfmt --check",
+    "format:fix": "oxfmt",
+    "lint:fix": "oxlint --fix && oxfmt"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.64",
+    "@ai-sdk/openai": "^3.0.65",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
@@ -22,7 +22,7 @@
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "ai": "^6.0.188",
+    "ai": "^6.0.191",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.16.0",
@@ -37,11 +37,12 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.15",
     "@tailwindcss/postcss": "^4.3.0",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
+    "oxfmt": "^0.51.0",
+    "oxlint": "^1.66.0",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3"
   }

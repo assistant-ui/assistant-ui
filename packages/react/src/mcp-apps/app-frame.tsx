@@ -21,7 +21,6 @@ function useBridgeNotify<T>(
   lastSentRef: MutableRefObject<T | undefined>,
   notify: (bridge: McpAppBridge, v: T) => void,
 ) {
-  // biome-ignore lint/correctness/useExhaustiveDependencies: refs and notify are stable; we re-run only when value changes.
   useEffect(() => {
     if (!bridgeRef.current) return;
     if (value === undefined) return;
@@ -32,6 +31,7 @@ function useBridgeNotify<T>(
     }
     notify(bridgeRef.current, value);
     lastSentRef.current = value;
+    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- refs are stable; notify is assumed stable; re-run only when value changes
   }, [value]);
 }
 
@@ -131,7 +131,6 @@ export function McpAppFrame({
 
   const resourceUri = resource.uri;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-mounts only on resource URI; live values flow through liveRef
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -255,6 +254,7 @@ export function McpAppFrame({
       pendingHostContextRef.current = undefined;
       setContentHeight(undefined);
     };
+    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- re-mount only on resource URI change; live values flow through liveRef
   }, [resourceUri]);
 
   useBridgeNotify(

@@ -10,18 +10,19 @@ import { PartGroupingSample } from "@/components/docs/samples/part-grouping";
 
 ## Basic Usage
 
-For adjacent grouping, use `MessagePrimitive.GroupedParts`. Return a group-key path for each part; adjacent parts that share a group key are coalesced and rendered through the group case.
+For adjacent grouping, use `MessagePrimitive.GroupedParts`. For the common case — grouping by `part.type` — pass `groupPartByType` to map each part type to a group-key path. Adjacent parts that share a group key are coalesced and rendered through the group case.
 
 ```tsx title="/components/assistant-ui/thread.tsx"
+import { MessagePrimitive, groupPartByType } from "@assistant-ui/react";
+
 const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="...">
       <div className="...">
         <MessagePrimitive.GroupedParts
-          groupBy={(part) => {
-            if (part.type === "tool-call") return ["group-tool"];
-            return null;
-          }}
+          groupBy={groupPartByType({
+            "tool-call": ["group-tool"],
+          })}
         >
           {({ part, children }) => {
             switch (part.type) {
@@ -41,6 +42,8 @@ const AssistantMessage: FC = () => {
   );
 };
 ```
+
+Reach for an inline `groupBy={(part) => …}` only when the helper isn't expressive enough — e.g. you need to branch on `part.toolName`, `part.parentId`, or part metadata.
 
 ## How Adjacent Grouping Works
 
@@ -89,7 +92,7 @@ function ParentGroup({
 
 <MessagePrimitive.GroupedParts
   groupBy={(part) => {
-    if (!part.parentId) return null;
+    if (!part.parentId) return [];
     return [`group-parent-${part.parentId}`];
   }}
 >
@@ -117,7 +120,7 @@ Organize adjacent tool calls by tool name:
 ```tsx
 <MessagePrimitive.GroupedParts
   groupBy={(part) => {
-    if (part.type !== "tool-call") return null;
+    if (part.type !== "tool-call") return [];
     return [`group-tool-${part.toolName}`];
   }}
 >
@@ -147,10 +150,9 @@ Combine multiple text parts into cohesive blocks:
 
 ```tsx
 <MessagePrimitive.GroupedParts
-  groupBy={(part) => {
-    if (part.type === "text") return ["group-text-block"];
-    return null;
-  }}
+  groupBy={groupPartByType({
+    text: ["group-text-block"],
+  })}
 >
   {({ part, children }) => {
     switch (part.type) {
@@ -177,12 +179,11 @@ Separate different types of content for distinct visual treatment:
 
 ```tsx
 <MessagePrimitive.GroupedParts
-  groupBy={(part) => {
-    if (part.type === "text") return ["group-content-text"];
-    if (part.type === "tool-call") return ["group-content-tools"];
-    if (part.type === "reasoning") return ["group-content-reasoning"];
-    return null;
-  }}
+  groupBy={groupPartByType({
+    text: ["group-content-text"],
+    "tool-call": ["group-content-tools"],
+    reasoning: ["group-content-reasoning"],
+  })}
 >
   {({ part, children }) => {
     switch (part.type) {
@@ -219,7 +220,7 @@ const priorityStyles = {
 <MessagePrimitive.GroupedParts
   groupBy={(part) => {
     const priority = part.metadata?.priority;
-    if (!priority) return null;
+    if (!priority) return [];
     return [`group-priority-${priority}`];
   }}
 >
@@ -300,9 +301,9 @@ const stream = createAssistantStream(async (controller) => {
   parameters={[
     {
       name: "groupBy",
-      type: "(part: PartState, index: number, parts: readonly PartState[]) => GroupKey",
+      type: "(part: PartState) => readonly `group-${string}`[]",
       description:
-        "Maps a part to a group-key path. Return null, undefined, or [] to leave the part ungrouped. Group keys must start with group-.",
+        "Maps a part to a group-key path. Return `[]` to leave the part ungrouped. Group keys must start with `group-`. Prefer `groupPartByType` for the common `part.type → path` case.",
       required: true,
     },
     {
@@ -314,6 +315,19 @@ const stream = createAssistantStream(async (controller) => {
     },
   ]}
 />
+
+### groupPartByType helper
+
+`groupPartByType` builds a `groupBy` from a `part.type → group-key path` map. Part types missing from the map are left ungrouped. The returned function carries an internal memo fingerprint so the tree survives unrelated re-renders.
+
+```typescript
+import { groupPartByType } from "@assistant-ui/react";
+
+groupPartByType({
+  reasoning: ["group-thought", "group-reasoning"],
+  "tool-call": ["group-thought", "group-tool"],
+});
+```
 
 ### GroupPart Type
 
@@ -331,33 +345,8 @@ type GroupPart<TKey extends `group-${string}` = `group-${string}`> = {
 2. **Handle ungrouped parts**: Always include leaf cases for the part types your message can render.
 3. **Only render `children` for groups**: Leaf parts receive a sentinel `children` value that throws if rendered accidentally.
 4. **Use `group-` prefixes**: Synthetic group keys must start with `group-` so they cannot collide with real part types.
-5. **Keep `groupBy` stable**: Prefer a module-level function or `useCallback` for frequently re-rendering message trees.
 
 ## Common Patterns
-
-### Conditional Grouping
-
-Only group when certain conditions are met:
-
-```tsx
-<MessagePrimitive.GroupedParts
-  groupBy={(part, index, parts) => {
-    const hasManyParts = parts.length >= 5;
-    if (!hasManyParts) return null;
-    if (part.type === "tool-call") return ["group-tools"];
-    return null;
-  }}
->
-  {({ part, children }) => {
-    if (part.type === "group-tools") {
-      return <div className="rounded-lg border p-3">{children}</div>;
-    }
-    if (part.type === "tool-call") return part.toolUI ?? <ToolFallback {...part} />;
-    if (part.type === "text") return <MarkdownText />;
-    return null;
-  }}
-</MessagePrimitive.GroupedParts>
-```
 
 ### Nested Grouping
 
@@ -370,7 +359,7 @@ Create hierarchical adjacent groups by returning multiple keys:
       return ["group-chainOfThought", "group-reasoning"];
     if (part.type === "tool-call")
       return ["group-chainOfThought", `group-tool-${part.toolName}`];
-    return null;
+    return [];
   }}
 >
   {({ part, children }) => {
@@ -391,10 +380,9 @@ Adjust group appearance based on the group node's status or indices:
 
 ```tsx
 <MessagePrimitive.GroupedParts
-  groupBy={(part) => {
-    if (part.type === "tool-call") return ["group-tools"];
-    return null;
-  }}
+  groupBy={groupPartByType({
+    "tool-call": ["group-tools"],
+  })}
 >
   {({ part, children }) => {
     if (part.type === "group-tools") {

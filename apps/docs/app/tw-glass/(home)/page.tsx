@@ -37,7 +37,7 @@ export default function TwGlassPage() {
     <>
       {/* Fixed full-viewport background with selected pattern + sine-eased vignette */}
       <div
-        className="pointer-events-none fixed inset-0 z-0 bg-center bg-cover bg-fixed transition-[background-image] duration-500"
+        className="pointer-events-none fixed inset-0 z-0 bg-cover bg-fixed bg-center transition-[background-image] duration-500"
         style={{
           backgroundImage: unsplash(bg),
           opacity: 0.1,
@@ -45,7 +45,7 @@ export default function TwGlassPage() {
           WebkitMaskImage: SINE_VIGNETTE,
         }}
       />
-      <div className="container relative z-10 mx-auto max-w-7xl space-y-16 px-4 pt-12 pb-28">
+      <div className="relative z-10 container mx-auto max-w-7xl space-y-16 px-4 pt-12 pb-28">
         <Leva collapsed={false} titleBar={{ title: "Glass Text Effect" }} />
         <HighlightStyles />
         <PatternPicker active={patternIndex} onChange={setPatternIndex} />
@@ -60,7 +60,7 @@ export default function TwGlassPage() {
           <div className="flex flex-col gap-5">
             <GlassTextHero bg={bg} />
 
-            <p className="text-balance font-light text-lg text-muted-foreground">
+            <p className="text-muted-foreground text-lg font-light text-balance">
               Realistic glass refraction for Tailwind. Pure CSS, no JavaScript.
             </p>
           </div>
@@ -106,7 +106,7 @@ export default function TwGlassPage() {
         {/* Base Glass */}
         <div className="space-y-8">
           <div className="text-center">
-            <h2 className="mb-2 font-medium text-3xl">Glass Refraction</h2>
+            <h2 className="mb-2 text-3xl font-medium">Glass Refraction</h2>
             <p className="text-muted-foreground text-xl">
               Composable utilities for glass-like displacement effects.
             </p>
@@ -154,7 +154,7 @@ export default function TwGlassPage() {
         {/* Strength */}
         <div className="space-y-8">
           <div className="text-center">
-            <h2 className="mb-2 font-medium text-3xl">Displacement Strength</h2>
+            <h2 className="mb-2 text-3xl font-medium">Displacement Strength</h2>
             <p className="text-muted-foreground text-xl">
               Control how much the background is distorted.
             </p>
@@ -188,7 +188,7 @@ export default function TwGlassPage() {
         {/* Chromatic */}
         <div className="space-y-8">
           <div className="text-center">
-            <h2 className="mb-2 font-medium text-3xl">Chromatic Aberration</h2>
+            <h2 className="mb-2 text-3xl font-medium">Chromatic Aberration</h2>
             <p className="text-muted-foreground text-xl">
               Simulates light dispersion through a prism using RGB channel
               splitting.
@@ -223,7 +223,7 @@ export default function TwGlassPage() {
         {/* Continuous Modifiers */}
         <div className="space-y-8">
           <div className="text-center">
-            <h2 className="mb-2 font-medium text-3xl">Modifiers</h2>
+            <h2 className="mb-2 text-3xl font-medium">Modifiers</h2>
             <p className="text-muted-foreground text-xl">
               Fine-tune blur, saturation, and brightness with any numeric value.
             </p>
@@ -313,7 +313,7 @@ export default function TwGlassPage() {
         {/* Composition */}
         <div className="space-y-8">
           <div className="text-center">
-            <h2 className="mb-2 font-medium text-3xl">Composition</h2>
+            <h2 className="mb-2 text-3xl font-medium">Composition</h2>
             <p className="text-muted-foreground text-xl">
               Combine any modifiers with the base glass class.
             </p>

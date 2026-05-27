@@ -37,13 +37,13 @@ export function Composer({
 
   return (
     <form onSubmit={handleSubmit} className="p-4 pt-2">
-      <div className="flex items-end gap-2 rounded-2xl border bg-background px-3 py-2 shadow-sm">
+      <div className="bg-background flex items-end gap-2 rounded-2xl border px-3 py-2 shadow-sm">
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Send a message..."
-          className="max-h-32 min-h-8 flex-1 resize-none bg-transparent py-1 text-sm leading-normal outline-none placeholder:text-muted-foreground"
+          className="placeholder:text-muted-foreground max-h-32 min-h-8 flex-1 resize-none bg-transparent py-1 text-sm leading-normal outline-none"
           rows={1}
           // biome-ignore lint/a11y/noAutofocus: chat input should autofocus
           autoFocus
@@ -52,7 +52,7 @@ export function Composer({
           <button
             type="button"
             onClick={onCancel}
-            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-destructive text-destructive-foreground transition-colors hover:bg-destructive/90"
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex size-8 shrink-0 items-center justify-center rounded-full transition-colors"
             aria-label="Stop generating"
           >
             <Square className="size-3 fill-current" />

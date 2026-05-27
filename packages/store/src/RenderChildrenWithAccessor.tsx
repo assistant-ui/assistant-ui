@@ -69,7 +69,7 @@ const useMemoizedProplessComponent = (node: ReactNode) => {
       : el?.props;
 
   return (
-    // biome-ignore lint/correctness/useExhaustiveDependencies: optimization
+    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- memo over decomposed fields so we don't bust on a fresh `el` object each render
     useMemo(() => el, [resultType, resultKey, resultProps]) ?? node
   );
 };

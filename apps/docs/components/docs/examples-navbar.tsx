@@ -14,7 +14,7 @@ export function ExamplesNavbar() {
     <nav>
       <Link
         href="/examples"
-        className="inline-flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
       >
         <ArrowLeft className="size-4" />
         Back to Examples

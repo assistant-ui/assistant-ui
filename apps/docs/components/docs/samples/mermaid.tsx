@@ -46,7 +46,7 @@ function MermaidDiagramStatic() {
 
 export function MermaidSample() {
   return (
-    <SampleFrame className="h-100 overflow-hidden bg-muted/40">
+    <SampleFrame className="bg-muted/40 h-100 overflow-hidden">
       <MermaidDiagramStatic />
     </SampleFrame>
   );

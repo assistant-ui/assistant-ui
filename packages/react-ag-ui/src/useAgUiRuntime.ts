@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useExternalStoreRuntime,
+  useExternalStoreSharedOptions,
   useRuntimeAdapters,
-  useToolInvocations,
 } from "@assistant-ui/core/react";
-import type { ToolExecutionStatus } from "@assistant-ui/core/react";
+import type { ToolExecutionStatus } from "@assistant-ui/core";
 import type {
   AssistantRuntime,
   AppendMessage,
@@ -71,18 +71,6 @@ export function useAgUiRuntime(
     (s) => s?.type === "executing",
   );
 
-  const [runtimeRef] = useState(() => ({
-    get current(): AssistantRuntime {
-      return runtime;
-    },
-  }));
-
-  const toolInvocationsRef = useRef({
-    reset: () => {},
-    abort: (): Promise<void> => Promise.resolve(),
-    resume: (_toolCallId: string, _payload: unknown) => {},
-  });
-
   const threadList = useMemo(() => {
     if (!threadListAdapter) return undefined;
 
@@ -92,14 +80,12 @@ export function useAgUiRuntime(
       threadId: threadListAdapter.threadId,
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
-            toolInvocationsRef.current.reset();
             await onSwitchToNewThread();
             core.applyExternalMessages([]);
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
-            toolInvocationsRef.current.reset();
             const result = await onSwitchToThread(threadId);
             core.applyExternalMessages(result.messages);
             if (result.state) {
@@ -116,61 +102,35 @@ export function useAgUiRuntime(
       attachments: adapters?.attachments ?? runtimeAdapters?.attachments,
       speech: adapters?.speech,
       dictation: adapters?.dictation,
+      voice: adapters?.voice,
       feedback: adapters?.feedback,
       threadList,
     }),
     [adapters, runtimeAdapters, threadList],
   );
 
-  const toolInvocations = useToolInvocations({
-    state: {
-      messages: core.getMessages(),
-      isRunning: core.isRunning() || hasExecutingTools,
-    },
-    getTools: () => runtimeRef.current.thread.getModelContext().tools,
-    onResult: (command) => {
-      if (command.type === "add-tool-result") {
-        const messageId = core.findMessageIdForToolCall(command.toolCallId);
-        if (messageId) {
-          core.addToolResult({
-            messageId,
-            toolCallId: command.toolCallId,
-            toolName: command.toolName,
-            result: command.result,
-            isError: command.isError,
-            ...(command.artifact && { artifact: command.artifact }),
-          });
-        }
-      }
-    },
-    setToolStatuses,
-  });
-  toolInvocationsRef.current = toolInvocations;
-
+  const shared = useExternalStoreSharedOptions(options);
   const store = useMemo(
     () => {
       void _version; // rerender on version change
 
       return {
+        ...shared,
         isLoading: core.isLoading,
         messages: core.getMessages(),
         state: core.getState(),
         isRunning: core.isRunning() || hasExecutingTools,
+        unstable_enableToolInvocations: true,
+        setToolStatuses,
         onNew: (message: AppendMessage) => core.append(message),
         onEdit: (message: AppendMessage) => core.edit(message),
         onReload: (parentId: string | null, config: { runConfig?: any }) =>
           core.reload(parentId, config),
         onCancel: async () => {
           core.cancel();
-          await toolInvocationsRef.current.abort();
         },
         onAddToolResult: (options) => core.addToolResult(options),
         onResume: (config) => core.resume(config),
-        onResumeToolCall: (options) =>
-          toolInvocationsRef.current.resume(
-            options.toolCallId,
-            options.payload,
-          ),
         setMessages: (messages: readonly ThreadMessage[]) =>
           core.applyExternalMessages(messages),
         onImport: (messages: readonly ThreadMessage[]) =>
@@ -182,7 +142,7 @@ export function useAgUiRuntime(
     },
     // _version is intentionally included to trigger re-computation when core state changes via notifyUpdate
     // toolInvocations intentionally excluded: abort/resume use refs internally and work with stale captures
-    [adapterAdapters, core, _version, hasExecutingTools],
+    [adapterAdapters, core, _version, hasExecutingTools, shared],
   );
 
   const baseRuntime = useExternalStoreRuntime(store);

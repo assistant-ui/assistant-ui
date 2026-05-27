@@ -47,7 +47,7 @@ export const Assistant = () => {
               <SidebarTrigger />
               <Separator
                 orientation="vertical"
-                className="mr-2 h-4 border-border"
+                className="border-border mr-2 h-4"
               />
               <Breadcrumb>
                 <BreadcrumbList>

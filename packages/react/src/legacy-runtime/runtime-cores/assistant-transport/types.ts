@@ -1,3 +1,4 @@
+import type { ToolModelContentPart } from "assistant-stream";
 import type { ThreadMessage } from "@assistant-ui/core";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type {
@@ -7,7 +8,7 @@ import type {
   LanguageModelConfig,
 } from "@assistant-ui/core";
 import type { UserCommands } from "../../../augmentations";
-import type { ToolExecutionStatus } from "./useToolInvocations";
+import type { ToolExecutionStatus } from "@assistant-ui/core";
 
 // Message part types
 export type TextPart = {
@@ -47,6 +48,7 @@ export type AddToolResultCommand = {
   readonly result: ReadonlyJSONValue;
   readonly isError: boolean;
   readonly artifact?: ReadonlyJSONValue;
+  readonly modelContent?: readonly ToolModelContentPart[];
 };
 
 export type AssistantTransportCommand =

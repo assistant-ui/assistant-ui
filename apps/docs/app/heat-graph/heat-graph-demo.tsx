@@ -375,7 +375,7 @@ function GraphShell({
 
         <HeatGraph.Tooltip
           className={cn(
-            "pointer-events-none whitespace-nowrap rounded-md px-3 py-1.5 text-xs shadow-lg ring-1",
+            "pointer-events-none rounded-md px-3 py-1.5 text-xs whitespace-nowrap shadow-lg ring-1",
             tooltipClassName,
           )}
         >
@@ -398,7 +398,7 @@ function ContributionsGraph({ data }: { data: HeatGraph.DataPoint[] }) {
       cellClassName="rounded-[2px]"
       legend={
         <div
-          className="flex items-center text-[#8b949e] text-[12px]"
+          className="flex items-center text-[12px] text-[#8b949e]"
           style={{ gap: 4 }}
         >
           <span style={{ marginRight: 2 }}>Less</span>
@@ -485,12 +485,12 @@ function GymGraph({ data }: { data: HeatGraph.DataPoint[] }) {
           style={{ gap: 4 }}
         >
           <div
-            className="size-2.5 rotate-45 scale-[0.72]"
+            className="size-2.5 scale-[0.72] rotate-45"
             style={{ backgroundColor: "#292017" }}
           />
           <span>Rest</span>
           <div
-            className="size-2.5 rotate-45 scale-[0.72]"
+            className="size-2.5 scale-[0.72] rotate-45"
             style={{ backgroundColor: "#f59e0b" }}
           />
           <span>Gym</span>
@@ -627,7 +627,7 @@ export function HeatGraphDemo() {
     <div className="flex flex-col gap-4">
       <div className="mx-auto flex w-fit flex-col gap-4">
         {/* Theme tabs */}
-        <div className="flex gap-1 rounded-lg bg-muted/50 p-1">
+        <div className="bg-muted/50 flex gap-1 rounded-lg p-1">
           {THEME_NAMES.map((name) => {
             const shapes = SWATCH_STYLES[name];
             const colors = THEME_SWATCHES[name];
@@ -639,7 +639,7 @@ export function HeatGraphDemo() {
                 className={cn(
                   "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-xs transition-colors",
                   activeTheme === name
-                    ? "bg-background font-medium text-foreground shadow-sm"
+                    ? "bg-background text-foreground font-medium shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -672,12 +672,12 @@ export function HeatGraphDemo() {
         </div>
 
         {/* Code */}
-        <div className="overflow-hidden rounded-xl border border-border/50">
+        <div className="border-border/50 overflow-hidden rounded-xl border">
           <SyntaxHighlighter
             language="tsx"
             code={CODE_SNIPPETS[activeTheme]}
             addDefaultStyles={false}
-            className="[&_pre]:m-0 [&_pre]:rounded-none [&_pre]:bg-muted/30! [&_pre]:p-4"
+            className="[&_pre]:bg-muted/30! [&_pre]:m-0 [&_pre]:rounded-none [&_pre]:p-4"
           />
         </div>
       </div>

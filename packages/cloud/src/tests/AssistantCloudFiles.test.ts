@@ -440,9 +440,8 @@ describe("AssistantCloudFiles", () => {
         vi.resetModules();
 
         // Import real modules
-        const { AssistantCloud: RealAssistantCloud } = await import(
-          "../AssistantCloud"
-        );
+        const { AssistantCloud: RealAssistantCloud } =
+          await import("../AssistantCloud");
 
         const realCloud = new RealAssistantCloud({
           apiKey: process.env.AUI_API_KEY!,
@@ -507,9 +506,8 @@ describe("AssistantCloudFiles", () => {
         vi.resetModules();
 
         // Import real modules
-        const { AssistantCloud: RealAssistantCloud } = await import(
-          "../AssistantCloud"
-        );
+        const { AssistantCloud: RealAssistantCloud } =
+          await import("../AssistantCloud");
 
         const realCloud = new RealAssistantCloud({
           apiKey: process.env.AUI_API_KEY!,

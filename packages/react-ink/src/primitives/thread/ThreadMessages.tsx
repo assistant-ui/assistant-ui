@@ -181,7 +181,6 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({
   const AssistantMessage = components?.AssistantMessage;
   const SystemMessage = components?.SystemMessage;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `components` excluded so inline literals do not bust the memo; per-field deps cover real changes.
   const stableComponents = useMemo<MessageComponents | undefined>(() => {
     if (!components) return undefined;
     return {
@@ -194,6 +193,7 @@ export const ThreadMessages: FC<ThreadMessagesProps> = ({
       AssistantMessage,
       SystemMessage,
     } as MessageComponents;
+    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- per-field deps cover real changes; including `components` would bust the memo on inline literal props
   }, [
     Message,
     EditComposer,

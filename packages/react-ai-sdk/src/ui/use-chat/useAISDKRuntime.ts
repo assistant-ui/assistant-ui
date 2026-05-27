@@ -1,20 +1,19 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { UIMessage, useChat, CreateUIMessage } from "@ai-sdk/react";
 import { isToolUIPart, generateId } from "ai";
 import {
   useExternalStoreRuntime,
   useRuntimeAdapters,
-  useToolInvocations,
-  type ToolExecutionStatus,
 } from "@assistant-ui/core/react";
+import type { ToolExecutionStatus } from "@assistant-ui/core";
 import type {
   ExternalStoreAdapter,
+  ExternalStoreSharedOptions,
   ThreadHistoryAdapter,
   AssistantRuntime,
   ThreadMessage,
-  ThreadSuggestion,
   MessageFormatAdapter,
   MessageFormatItem,
   MessageFormatRepository,
@@ -22,7 +21,10 @@ import type {
   RunConfig,
   McpAppMetadata,
 } from "@assistant-ui/core";
-import { getExternalStoreMessages } from "@assistant-ui/core";
+import {
+  getExternalStoreMessages,
+  pickExternalStoreSharedOptions,
+} from "@assistant-ui/core";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../utils/toCreateMessage";
@@ -56,7 +58,7 @@ const toUIMessage = <UI_MESSAGE extends UIMessage>(
     role: createMessage.role ?? fallbackRole,
   }) as UI_MESSAGE;
 
-export type AISDKRuntimeAdapter = {
+export type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
   adapters?:
     | (NonNullable<ExternalStoreAdapter["adapters"]> & {
         history?: ThreadHistoryAdapter | undefined;
@@ -80,25 +82,18 @@ export type AISDKRuntimeAdapter = {
    * (for example, an SSE reconnect endpoint keyed by turn id).
    */
   onResume?: ExternalStoreAdapter["onResume"];
-  /**
-   * Follow up suggestions to surface on the thread. Use this to drive
-   * dynamic suggestions from application state, tool results, or backend
-   * responses; flows into `thread.suggestions` and is rendered by
-   * components that read it (such as the shadcn `ThreadFollowupSuggestions`).
-   */
-  suggestions?: readonly ThreadSuggestion[] | undefined;
 };
 
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>,
-  {
+  adapter: AISDKRuntimeAdapter = {},
+) => {
+  const {
     adapters,
     toCreateMessage: customToCreateMessage,
     cancelPendingToolCallsOnSend = true,
     onResume,
-    suggestions,
-  }: AISDKRuntimeAdapter = {},
-) => {
+  } = adapter;
   const contextAdapters = useRuntimeAdapters();
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
@@ -144,29 +139,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
   }));
 
-  const toolInvocations = useToolInvocations({
-    state: {
-      messages,
-      isRunning,
-    },
-    getTools: () => runtimeRef.current.thread.getModelContext().tools,
-    onResult: (command) => {
-      if (command.type === "add-tool-result") {
-        const output =
-          command.modelContent !== undefined
-            ? wrapModelContentEnvelope(command.result, command.modelContent)
-            : command.result;
-        chatHelpers.addToolResult({
-          tool: command.toolName,
-          toolCallId: command.toolCallId,
-          output,
-          options: { metadata: lastRunConfigRef.current },
-        });
-      }
-    },
-    setToolStatuses,
-  });
-
   const isLoading = useExternalHistory(
     runtimeRef,
     adapters?.history ?? contextAdapters?.history,
@@ -185,7 +157,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const completePendingToolCalls = async () => {
     if (!cancelPendingToolCallsOnSend) return;
 
-    await toolInvocations.abort();
+    // The runtime auto-aborts in-flight tool invocations when a new run
+    // is dispatched (append() / startRun()). All we need to do here is
+    // mark any tool without a result as cancelled in the UI message list.
 
     // Mark any tool without a result as cancelled (uses setMessages to avoid triggering sendAutomaticallyWhen)
     chatHelpers.setMessages((messages) => {
@@ -214,6 +188,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const runtime = useExternalStoreRuntime({
     isRunning,
     messages,
+    unstable_enableToolInvocations: true,
+    setToolStatuses,
     setMessages: (messages) =>
       chatHelpers.setMessages(
         messages
@@ -278,7 +254,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     onCancel: async () => {
       chatHelpers.stop();
-      await toolInvocations.abort();
     },
     onNew: async (message) => {
       const createMessage = (
@@ -327,29 +302,36 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
       await chatHelpers.regenerate({ metadata: config.runConfig });
     },
-    onAddToolResult: ({ toolCallId, result, isError }) => {
+    onAddToolResult: ({
+      toolCallId,
+      toolName,
+      result,
+      isError,
+      modelContent,
+    }) => {
       const options = { metadata: lastRunConfigRef.current };
       if (isError) {
         chatHelpers.addToolOutput({
           state: "output-error",
-          tool: toolCallId,
+          tool: toolName ?? toolCallId,
           toolCallId,
           errorText:
             typeof result === "string" ? result : JSON.stringify(result),
           options,
         });
       } else {
-        chatHelpers.addToolOutput({
-          state: "output-available",
-          tool: toolCallId,
+        const output =
+          modelContent !== undefined
+            ? wrapModelContentEnvelope(result, modelContent)
+            : result;
+        chatHelpers.addToolResult({
+          tool: toolName,
           toolCallId,
-          output: result,
+          output,
           options,
         });
       }
     },
-    onResumeToolCall: (options) =>
-      toolInvocations.resume(options.toolCallId, options.payload),
     onRespondToToolApproval: ({ approvalId, approved, reason }) => {
       void chatHelpers.addToolApprovalResponse({
         id: approvalId,
@@ -358,8 +340,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         options: { metadata: lastRunConfigRef.current },
       });
     },
+    ...pickExternalStoreSharedOptions(adapter),
     ...(onResume && { onResume }),
-    ...(suggestions && { suggestions }),
     adapters: {
       attachments: vercelAttachmentAdapter,
       ...contextAdapters,

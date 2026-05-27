@@ -175,7 +175,7 @@ export function AssistantActionBar(): ReactNode {
       <ActionBarPrimitive.Copy
         aria-label="Copy response"
         className={cn(
-          "rounded p-1 text-muted-foreground transition-colors",
+          "text-muted-foreground rounded p-1 transition-colors",
           "hover:bg-muted hover:text-foreground",
         )}
       >
@@ -196,7 +196,7 @@ export function AssistantActionBar(): ReactNode {
             : "Good response"
         }
         className={cn(
-          "rounded p-1 text-muted-foreground transition-colors",
+          "text-muted-foreground rounded p-1 transition-colors",
           "hover:bg-muted hover:text-foreground",
           "disabled:cursor-not-allowed disabled:opacity-50",
           submittedFeedback === "positive" &&
@@ -221,7 +221,7 @@ export function AssistantActionBar(): ReactNode {
               : "Report issue with response"
           }
           className={cn(
-            "rounded p-1 text-muted-foreground transition-colors",
+            "text-muted-foreground rounded p-1 transition-colors",
             "hover:bg-muted hover:text-foreground",
             "disabled:cursor-not-allowed disabled:opacity-50",
             submittedFeedback === "negative" &&

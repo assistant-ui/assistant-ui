@@ -25,7 +25,7 @@ const components = {
   h2: ({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
     <h2
       className={cn(
-        "aui-md-h2 mt-8 mb-4 scroll-m-20 font-semibold text-2xl tracking-tight first:mt-0 last:mb-0",
+        "aui-md-h2 mt-8 mb-4 scroll-m-20 text-2xl font-semibold tracking-tight first:mt-0 last:mb-0",
         className,
       )}
       {...props}
@@ -46,7 +46,7 @@ const components = {
   }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
     <a
       className={cn(
-        "aui-md-a font-medium text-primary underline underline-offset-4",
+        "aui-md-a text-primary font-medium underline underline-offset-4",
         className,
       )}
       {...props}
@@ -113,7 +113,7 @@ const components = {
 
 export const MarkdownSample = () => {
   return (
-    <SampleFrame className="h-auto bg-background p-4">
+    <SampleFrame className="bg-background h-auto p-4">
       <div className="aui-md">
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
           {sampleMarkdown}

@@ -20,7 +20,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
 
   it("initial list response with nextCursor sets hasMore=true", async () => {
     const adapter = makeAdapter({
-      list: vi.fn(async () => ({
+      list: vi.fn<ListFn>(async () => ({
         threads: [
           {
             status: "regular",
@@ -41,7 +41,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
 
   it("absent nextCursor leaves hasMore=false", async () => {
     const adapter = makeAdapter({
-      list: vi.fn(async () => ({
+      list: vi.fn<ListFn>(async () => ({
         threads: [
           {
             status: "regular",
@@ -243,7 +243,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
 
   it("__internal_setOptions clears cursor and dedup handles on adapter swap, then refetches via the new adapter", async () => {
     const firstAdapter = makeAdapter({
-      list: vi.fn(async () => ({
+      list: vi.fn<ListFn>(async () => ({
         threads: [{ status: "regular", remoteId: "old", externalId: "old" }],
         nextCursor: "old-cursor",
       })),
@@ -253,7 +253,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     expect(core.threadIds).toEqual(["old"]);
     expect(core.hasMore).toBe(true);
 
-    const secondList = vi.fn(async () => ({
+    const secondList = vi.fn<ListFn>(async () => ({
       threads: [{ status: "regular", remoteId: "new", externalId: "new" }],
     }));
     const secondAdapter = makeAdapter({ list: secondList });
@@ -290,7 +290,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const stale = core.loadMore();
 
     const secondAdapter = makeAdapter({
-      list: vi.fn(async () => ({
+      list: vi.fn<ListFn>(async () => ({
         threads: [{ status: "regular", remoteId: "ignored", externalId: "x" }],
       })),
     });

@@ -12,7 +12,7 @@ export default function Home() {
     <main className="flex min-h-dvh flex-col">
       <header className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+          <div className="bg-sidebar-primary text-sidebar-primary-foreground flex size-8 items-center justify-center rounded-lg">
             <MessagesSquare className="size-4" />
           </div>
           <span className="font-semibold">assistant-ui</span>
@@ -40,11 +40,11 @@ export default function Home() {
 
       <section className="flex flex-1 items-center justify-center px-6">
         <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 text-center">
-          <h1 className="font-semibold text-3xl tracking-tight">
+          <h1 className="text-3xl font-semibold tracking-tight">
             Assistant UI + Clerk Starter
           </h1>
 
-          <p className="max-w-prose text-muted-foreground">
+          <p className="text-muted-foreground max-w-prose">
             A starter template for assistant-ui + assistant-cloud with Clerk for
             auth.
           </p>

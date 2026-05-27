@@ -29,7 +29,7 @@ function TabButton({ label, value, currentTab, onSelect }: TabButtonProps) {
       className={cn(
         "rounded-md px-2.5 py-1 text-xs transition-colors",
         isActive
-          ? "bg-muted font-medium text-foreground"
+          ? "bg-muted text-foreground font-medium"
           : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
       )}
     >
@@ -72,7 +72,7 @@ export function PreviewCodeClient({
       {tab === "preview" ? (
         <div
           className={cn(
-            "preview-code-preview flex items-center justify-center rounded-xl border border-border/50 p-6",
+            "preview-code-preview border-border/50 flex items-center justify-center rounded-xl border p-6",
             className,
           )}
         >
@@ -83,7 +83,7 @@ export function PreviewCodeClient({
           <button
             type="button"
             onClick={handleCopy}
-            className="absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-md text-muted-foreground opacity-50 transition-all hover:bg-background hover:text-foreground hover:opacity-100"
+            className="text-muted-foreground hover:bg-background hover:text-foreground absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-md opacity-50 transition-all hover:opacity-100"
             aria-label={copied ? "Copied" : "Copy code"}
           >
             {copied ? (
@@ -92,7 +92,7 @@ export function PreviewCodeClient({
               <CopyIcon className="size-3.5" />
             )}
           </button>
-          <div className="scrollbar-none max-h-96 overflow-auto py-3.5 text-[0.8125rem] leading-[1.65]">
+          <div className="max-h-96 scrollbar-none overflow-auto py-3.5 text-[0.8125rem] leading-[1.65]">
             <ShikiHighlighter
               language="tsx"
               theme={{ dark: "catppuccin-mocha", light: "catppuccin-latte" }}

@@ -1,6 +1,5 @@
 import { jsonSchema, type ToolSet } from "ai";
-import type { JSONSchema7 } from "json-schema";
-import type { ToolModelContentPart } from "assistant-stream";
+import type { ToolJSONSchema, ToolModelContentPart } from "assistant-stream";
 import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
 
 const toAISDKContent = (parts: readonly ToolModelContentPart[]) => ({
@@ -35,9 +34,7 @@ const defaultToModelOutput = ({ output }: { output: unknown }) => {
     : { type: "json" as const, value: (output ?? null) as any };
 };
 
-export const frontendTools = (
-  tools: Record<string, { description?: string; parameters: JSONSchema7 }>,
-): ToolSet =>
+export const frontendTools = (tools: Record<string, ToolJSONSchema>): ToolSet =>
   Object.fromEntries(
     Object.entries(tools).map(([name, t]) => [
       name,
@@ -45,6 +42,7 @@ export const frontendTools = (
         ...(t.description !== undefined && { description: t.description }),
         inputSchema: jsonSchema(t.parameters),
         toModelOutput: defaultToModelOutput,
+        ...(t.providerOptions && { providerOptions: t.providerOptions }),
       },
     ]),
   ) as ToolSet;

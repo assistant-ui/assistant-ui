@@ -76,7 +76,7 @@ function AssistantFooterContent({
             aui.threads().switchToNewThread();
           }
         }}
-        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
+        className="text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors"
       >
         <PlusIcon className="size-3.5" />
         <span>New thread</span>

@@ -97,7 +97,7 @@ describe("PreOverride component", () => {
       const props = useStreamdownPreProps();
       return (
         <span data-testid="result">
-          {`${props?.className}:${props?.["data-testid"]}`}
+          {`${props?.className}:${(props as Record<string, unknown> | undefined)?.["data-testid"]}`}
         </span>
       );
     }

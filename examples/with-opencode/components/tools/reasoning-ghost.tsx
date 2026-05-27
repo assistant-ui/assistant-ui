@@ -40,7 +40,7 @@ const ReasoningGroupImpl: FC<
     <div
       data-slot="reasoning-group"
       className={cn(
-        "mt-4 mb-2 flex items-start gap-2 text-muted-foreground text-sm leading-relaxed first:mt-0",
+        "text-muted-foreground mt-4 mb-2 flex items-start gap-2 text-sm leading-relaxed first:mt-0",
         isMultiLine && "mt-6 mb-4",
         textAfter && "mb-4",
       )}

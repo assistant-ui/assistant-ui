@@ -12,7 +12,7 @@ import {
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
 import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
-import type { ToolExecutionStatus } from "./useToolInvocations";
+import type { ToolExecutionStatus } from "../../runtimes/tool-invocations/ToolInvocationTracker";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { generateErrorMessageId } from "../../utils/id";
 import type {

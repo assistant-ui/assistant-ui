@@ -33,7 +33,7 @@ function AskAIButton() {
     <button
       type="button"
       onClick={toggle}
-      className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-muted/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      className="border-border/50 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-lg border transition-colors"
       aria-label="Ask AI"
     >
       <SparklesIcon className="size-3.5" />
@@ -51,7 +51,7 @@ function HeaderSearch() {
         analytics.search.opened("header");
         setOpenSearch(true);
       }}
-      className="flex h-8 w-full max-w-96 items-center gap-2 rounded-lg border border-border/50 bg-muted/50 px-3 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
+      className="border-border/50 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground flex h-8 w-full max-w-96 items-center gap-2 rounded-lg border px-3 text-sm transition-colors"
     >
       <Search className="size-3.5 shrink-0" />
       <span className="flex-1 text-left">Search...</span>
@@ -59,7 +59,7 @@ function HeaderSearch() {
         {hotKey.map((k, i) => (
           <kbd
             key={i}
-            className="rounded bg-background px-1.5 py-0.5 font-medium text-[10px] text-muted-foreground"
+            className="bg-background text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-medium"
           >
             {k.display}
           </kbd>
@@ -103,7 +103,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 w-full">
-      <div className="mask-[linear-gradient(to_bottom,black_75%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b from-background to-transparent backdrop-blur-xl" />
+      <div className="from-background pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b to-transparent mask-[linear-gradient(to_bottom,black_75%,transparent)] backdrop-blur-xl" />
       <div className="relative flex h-12 w-full items-center px-4">
         <div className="flex shrink-0 items-center">
           <Link href="/" className="flex shrink-0 items-center gap-2">
@@ -118,10 +118,10 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
               assistant-ui
             </span>
           </Link>
-          <span className="mx-3 text-muted-foreground/40">/</span>
+          <span className="text-muted-foreground/40 mx-3">/</span>
           <Link
             href={sectionHref}
-            className="font-medium text-foreground text-sm transition-colors hover:text-foreground/80"
+            className="text-foreground hover:text-foreground/80 text-sm font-medium transition-colors"
           >
             {section}
           </Link>
@@ -135,7 +135,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
               analytics.search.opened("header");
               setOpenSearch(true);
             }}
-            className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
             aria-label="Search"
           >
             <Search className="size-4" />
@@ -145,7 +145,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
           <button
             type="button"
             onClick={handleNavMenuToggle}
-            className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
             aria-label="Site navigation"
           >
             {navMenuOpen ? (
@@ -157,7 +157,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
           <button
             type="button"
             onClick={handleSidebarToggle}
-            className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
             aria-label="Toggle sidebar"
           >
             {sidebarOpen ? (
@@ -176,7 +176,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
               analytics.search.opened("header");
               setOpenSearch(true);
             }}
-            className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
             aria-label="Search"
           >
             <Search className="size-4" />
@@ -203,7 +203,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
       {/* Mobile nav menu */}
       <div
         className={cn(
-          "fixed inset-x-0 top-12 bottom-0 z-40 bg-background transition-opacity duration-200 md:hidden",
+          "bg-background fixed inset-x-0 top-12 bottom-0 z-40 transition-opacity duration-200 md:hidden",
           navMenuOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >
@@ -217,7 +217,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setNavMenuOpen(false)}
-                  className="py-3 text-foreground text-lg transition-colors"
+                  className="text-foreground py-3 text-lg transition-colors"
                 >
                   {item.label}
                 </a>
@@ -226,14 +226,14 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
                   key={item.href}
                   href={item.href}
                   onClick={() => setNavMenuOpen(false)}
-                  className="py-3 text-foreground text-lg transition-colors"
+                  className="text-foreground py-3 text-lg transition-colors"
                 >
                   {item.label}
                 </Link>
               )
             ) : (
               <div key={item.label} className="flex flex-col">
-                <span className="py-3 text-muted-foreground text-sm">
+                <span className="text-muted-foreground py-3 text-sm">
                   {item.label}
                 </span>
                 {item.items.map((link) =>
@@ -244,7 +244,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={() => setNavMenuOpen(false)}
-                      className="flex items-center gap-1.5 py-2 pl-4 text-foreground text-lg transition-colors"
+                      className="text-foreground flex items-center gap-1.5 py-2 pl-4 text-lg transition-colors"
                     >
                       {link.label}
                       <ArrowUpRight className="size-3.5 opacity-40" />
@@ -254,7 +254,7 @@ export function DocsHeader({ section, sectionHref }: DocsHeaderProps) {
                       key={link.href}
                       href={link.href}
                       onClick={() => setNavMenuOpen(false)}
-                      className="py-2 pl-4 text-foreground text-lg transition-colors"
+                      className="text-foreground py-2 pl-4 text-lg transition-colors"
                     >
                       {link.label}
                     </Link>

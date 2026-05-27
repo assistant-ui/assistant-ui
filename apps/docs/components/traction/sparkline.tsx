@@ -30,7 +30,7 @@ export function Sparkline({
     .map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`)
     .join(" ");
 
-  const areaPath = `${linePath} L${(width).toFixed(2)} ${height} L0 ${height} Z`;
+  const areaPath = `${linePath} L${width.toFixed(2)} ${height} L0 ${height} Z`;
 
   return (
     <svg

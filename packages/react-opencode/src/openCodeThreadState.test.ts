@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import {
   createOpenCodeThreadState,
   reduceOpenCodeThreadState,
@@ -36,7 +37,7 @@ describe("reduceOpenCodeThreadState", () => {
             time: { created: 1000 },
           },
           parts: [],
-        } as MessageWithParts,
+        } as unknown as MessageWithParts,
       ],
     });
 

@@ -102,10 +102,14 @@ describe("BaseComposerRuntimeCore.send", () => {
 describe("DefaultEditComposerRuntimeCore.canSend", () => {
   it("ignores runtime.isSendDisabled (thread-scoped flag does not block edits)", () => {
     const stub = makeRuntimeStub({ isSendDisabled: true });
-    const composer = new DefaultEditComposerRuntimeCore(stub, () => {}, {
-      parentId: null,
-      message: makeUserMessage("seed"),
-    });
+    const composer = new DefaultEditComposerRuntimeCore(
+      stub as unknown as ThreadRuntimeCore,
+      () => {},
+      {
+        parentId: null,
+        message: makeUserMessage("seed"),
+      },
+    );
 
     expect(composer.canSend).toBe(true);
   });

@@ -12,10 +12,10 @@ export class ObjectStreamEncoder extends PipeableTransformStream<
       readable
         .pipeThrough(
           (() => {
-            class ObjectStreamTransformer
-              implements
-                Transformer<ObjectStreamChunk, readonly ObjectStreamOperation[]>
-            {
+            class ObjectStreamTransformer implements Transformer<
+              ObjectStreamChunk,
+              readonly ObjectStreamOperation[]
+            > {
               #isFirstChunk = true;
 
               start() {

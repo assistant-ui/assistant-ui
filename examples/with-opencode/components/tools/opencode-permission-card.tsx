@@ -102,7 +102,7 @@ export const OpenCodePermissionCard = ({
             </div>
           ) : null}
           {request.toolInput !== undefined ? (
-            <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">
+            <pre className="bg-muted overflow-x-auto rounded-md p-3 text-xs">
               {JSON.stringify(request.toolInput, null, 2)}
             </pre>
           ) : null}
@@ -144,7 +144,7 @@ export const OpenCodePermissionCard = ({
             Reject
           </Button>
           {error ? (
-            <p className="w-full text-destructive text-xs">{error}</p>
+            <p className="text-destructive w-full text-xs">{error}</p>
           ) : null}
         </CardFooter>
       ) : null}

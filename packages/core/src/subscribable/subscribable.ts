@@ -207,9 +207,9 @@ export class LazyMemoizeSubject<TState extends object, TPath>
 }
 
 export class NestedSubscriptionSubject<
-    TState extends Subscribable | undefined,
-    TPath,
-  >
+  TState extends Subscribable | undefined,
+  TPath,
+>
   extends BaseSubject
   implements
     SubscribableWithState<TState, TPath>,

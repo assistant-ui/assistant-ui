@@ -127,14 +127,17 @@ export type { ThreadMessageLike } from "@assistant-ui/core";
 export {
   getExternalStoreMessages,
   bindExternalStoreMessage,
+  pickExternalStoreSharedOptions,
 } from "@assistant-ui/core";
 export type {
   ExternalStoreAdapter,
   ExternalStoreMessageConverter,
+  ExternalStoreSharedOptions,
   ExternalStoreThreadListAdapter,
   ExternalStoreThreadData,
 } from "@assistant-ui/core";
 export { useExternalStoreRuntime } from "./legacy-runtime/runtime-cores/external-store/useExternalStoreRuntime";
+export { useExternalStoreSharedOptions } from "@assistant-ui/core/react";
 export {
   useExternalMessageConverter,
   convertExternalMessages as unstable_convertExternalMessages,
@@ -254,6 +257,7 @@ export * as ThreadListItemPrimitive from "./primitives/threadListItem";
 export * as ThreadListItemMorePrimitive from "./primitives/threadListItemMore";
 export * as SelectionToolbarPrimitive from "./primitives/selectionToolbar";
 
+export { groupPartByType } from "@assistant-ui/core/react";
 export { useMessagePartText } from "./primitives/messagePart/useMessagePartText";
 export { useMessagePartReasoning } from "./primitives/messagePart/useMessagePartReasoning";
 export { useMessagePartSource } from "./primitives/messagePart/useMessagePartSource";

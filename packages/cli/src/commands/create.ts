@@ -118,7 +118,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
   {
     name: "with-chain-of-thought",
     label: "Chain of Thought",
-    description: "Chain-of-thought rendering",
+    description: "Chain-of-thought, tool calls, and source citations",
     category: "example",
     path: "examples/with-chain-of-thought",
     hasLocalComponents: false,
@@ -201,14 +201,6 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "LangGraph integration",
     category: "example",
     path: "examples/with-langgraph",
-    hasLocalComponents: false,
-  },
-  {
-    name: "with-parent-id-grouping",
-    label: "Parent ID Grouping",
-    description: "Message grouping strategy",
-    category: "example",
-    path: "examples/with-parent-id-grouping",
     hasLocalComponents: false,
   },
   {

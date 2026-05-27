@@ -66,7 +66,7 @@ export function AssistantThread({
   AssistantMessageComponent = AssistantMessage,
 }: AssistantThreadProps = {}): ReactNode {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col bg-background">
+    <ThreadPrimitive.Root className="bg-background flex h-full flex-col">
       <PendingMessageHandler />
       <ThreadPrimitive.Viewport className="scrollbar-none flex flex-1 flex-col overflow-y-auto px-3 pt-3">
         <AuiIf condition={(s) => s.thread.isEmpty}>{welcome}</AuiIf>

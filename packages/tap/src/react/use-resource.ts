@@ -20,10 +20,10 @@ import {
 const useDevStrictMode = () => {
   if (!isDevelopment) return null;
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  // oxlint-disable-next-line react-hooks/rules-of-hooks -- isDevelopment is a build-time constant, so this branch is stable per build
   const count = useRef(0);
   const isFirstRender = count.current === 0;
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  // oxlint-disable-next-line react-hooks/rules-of-hooks -- isDevelopment is a build-time constant, so this branch is stable per build
   useState(() => count.current++);
   if (count.current !== 2) return null;
   return isFirstRender ? ("child" as const) : ("root" as const);

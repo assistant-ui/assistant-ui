@@ -9,7 +9,7 @@ import {
 import { useExternalStoreRuntime } from "../external-store/useExternalStoreRuntime";
 import type { AssistantRuntime } from "../../runtime/AssistantRuntime";
 import type { AddToolResultOptions } from "@assistant-ui/core";
-import { useState, useRef, useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   AssistantMessageAccumulator,
   DataStreamDecoder,
@@ -29,10 +29,7 @@ import type {
 import { useCommandQueue } from "./commandQueue";
 import { useRunManager } from "./runManager";
 import { useConvertedState } from "./useConvertedState";
-import {
-  type ToolExecutionStatus,
-  useToolInvocations,
-} from "./useToolInvocations";
+import type { ToolExecutionStatus } from "@assistant-ui/core";
 import { createRequestHeaders } from "@assistant-ui/core";
 import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
 import { InMemoryThreadListAdapter } from "@assistant-ui/core";
@@ -303,6 +300,8 @@ const useAssistantTransportThreadRuntime = <T>(
     state: converted.state,
     isRunning: converted.isRunning,
     adapters: options.adapters,
+    unstable_enableToolInvocations: true,
+    setToolStatuses,
     extras: {
       [symbolAssistantTransportExtras]: true,
       sendCommand: (command: AssistantTransportCommand) => {
@@ -324,7 +323,6 @@ const useAssistantTransportThreadRuntime = <T>(
     }),
     onCancel: async () => {
       runManager.cancel();
-      await toolInvocations.abort();
     },
     onResume: async () => {
       if (!options.resumeApi)
@@ -343,23 +341,17 @@ const useAssistantTransportThreadRuntime = <T>(
         toolName: toolOptions.toolName,
         isError: toolOptions.isError,
         ...(toolOptions.artifact && { artifact: toolOptions.artifact }),
+        ...(toolOptions.modelContent !== undefined && {
+          modelContent: toolOptions.modelContent,
+        }),
       };
 
       commandQueue.enqueue(command);
     },
     onLoadExternalState: async (state) => {
       agentStateRef.current = state as T;
-      toolInvocations.reset();
       rerender((prev) => prev + 1);
     },
-  });
-
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const toolInvocations = useToolInvocations({
-    state: converted,
-    getTools: () => runtime.thread.getModelContext().tools,
-    onResult: commandQueue.enqueue,
-    setToolStatuses,
   });
 
   return runtime;

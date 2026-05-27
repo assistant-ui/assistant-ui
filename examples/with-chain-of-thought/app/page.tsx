@@ -28,17 +28,17 @@ const ExecuteJsTool = makeAssistantTool({
     }
   },
   render: ({ args, result, status }) => (
-    <div className="my-2 rounded-lg border bg-muted/30 p-4 text-sm">
+    <div className="bg-muted/30 my-2 rounded-lg border p-4 text-sm">
       <p className="mb-1 font-semibold">execute_js</p>
-      <pre className="whitespace-pre-wrap rounded bg-background p-2 font-mono text-xs">
+      <pre className="bg-background rounded p-2 font-mono text-xs whitespace-pre-wrap">
         {args.code}
       </pre>
       {status.type !== "running" && result && (
         <div className="mt-2 border-t pt-2">
-          <p className="font-semibold text-muted-foreground">
+          <p className="text-muted-foreground font-semibold">
             {result.success ? "Result:" : "Error:"}
           </p>
-          <pre className="whitespace-pre-wrap font-mono text-xs">
+          <pre className="font-mono text-xs whitespace-pre-wrap">
             {result.success ? result.result : result.error}
           </pre>
         </div>
@@ -52,13 +52,15 @@ function MyThreadWithSuggestions() {
     suggestions: Suggestions([
       {
         title: "Calculate Fibonacci(20)",
-        label: "step by step with code",
-        prompt: "Calculate the 20th Fibonacci number using JavaScript.",
+        label: "with chain of thought",
+        prompt:
+          "Calculate the 20th Fibonacci number using JavaScript and show your reasoning.",
       },
       {
-        title: "What is 2^16?",
-        label: "show your reasoning",
-        prompt: "What is 2 to the power of 16? Show your work step by step.",
+        title: "Research with citations",
+        label: "show sources",
+        prompt:
+          "Research recent developments in renewable energy and cite your sources.",
       },
     ]),
   });

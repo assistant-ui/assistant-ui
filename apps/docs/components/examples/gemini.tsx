@@ -52,13 +52,13 @@ export const Gemini: FC = () => {
               className="pointer-events-none absolute top-1/2 left-1/2 h-[330px] w-[720px] max-w-[96%] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(closest-side,#a9d1fb,transparent)] opacity-70 blur-[55px] dark:bg-[radial-gradient(closest-side,#1d4068,transparent)] dark:opacity-65"
             />
             <div className="relative z-10 flex w-full max-w-3xl flex-col">
-              <h1 className="mb-6 text-center font-normal text-4xl text-[#1f1f1f] dark:text-[#e3e3e3]">
+              <h1 className="mb-6 text-center text-4xl font-normal text-[#1f1f1f] dark:text-[#e3e3e3]">
                 How can I help you today?
               </h1>
               <Composer />
             </div>
           </div>
-          <p className="pb-3 text-center text-[#5e6063] text-xs dark:text-[#9aa0a6]">
+          <p className="pb-3 text-center text-xs text-[#5e6063] dark:text-[#9aa0a6]">
             Gemini can make mistakes, so double-check it.
           </p>
         </div>
@@ -69,7 +69,7 @@ export const Gemini: FC = () => {
           <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
           <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto flex w-full flex-col items-center gap-1.5 bg-[#fdfcfc] px-4 pb-3 dark:bg-[#131314]">
             <Composer />
-            <p className="text-center text-[#5e6063] text-xs dark:text-[#9aa0a6]">
+            <p className="text-center text-xs text-[#5e6063] dark:text-[#9aa0a6]">
               Gemini can make mistakes, so double-check it.
             </p>
           </ThreadPrimitive.ViewportFooter>
@@ -98,7 +98,7 @@ const Composer: FC = () => {
         <ComposerPrimitive.Input
           rows={1}
           placeholder="Ask Gemini"
-          className="max-h-40 flex-1 resize-none bg-transparent px-2 py-1.5 text-[#1f1f1f] text-[17px] leading-6 outline-none placeholder:text-[#575b5f] dark:text-[#e3e3e3] dark:placeholder:text-[#9aa0a6]"
+          className="max-h-40 flex-1 resize-none bg-transparent px-2 py-1.5 text-[17px] leading-6 text-[#1f1f1f] outline-none placeholder:text-[#575b5f] dark:text-[#e3e3e3] dark:placeholder:text-[#9aa0a6]"
         />
         <GeminiModelPicker />
         <button
@@ -165,7 +165,7 @@ const GeminiModelPicker: FC = () => {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="h-9 shrink-0 gap-0.5 whitespace-nowrap rounded-full pr-1.5 pl-3 text-[#444746] text-sm transition-colors hover:bg-[#444746]/8 hover:text-[#1f1f1f] dark:text-[#c4c7c5] dark:hover:bg-[#c4c7c5]/10 dark:hover:text-[#e3e3e3]">
+      <DropdownMenuTrigger className="h-9 shrink-0 gap-0.5 rounded-full pr-1.5 pl-3 text-sm whitespace-nowrap text-[#444746] transition-colors hover:bg-[#444746]/8 hover:text-[#1f1f1f] dark:text-[#c4c7c5] dark:hover:bg-[#c4c7c5]/10 dark:hover:text-[#e3e3e3]">
         <span>{current?.name}</span>
         <ChevronDownIcon width={16} height={16} className="opacity-70" />
       </DropdownMenuTrigger>
@@ -234,7 +234,7 @@ const ChatMessage: FC = () => {
               <Pencil1Icon width={16} height={16} />
             </ActionBarPrimitive.Edit>
           </ActionBarPrimitive.Root>
-          <div className="wrap-break-word max-w-[75%] rounded-3xl bg-[#f2f0f0] px-5 py-3 text-[#1f1f1f] dark:bg-[#333537] dark:text-[#e3e3e3]">
+          <div className="max-w-[75%] rounded-3xl bg-[#f2f0f0] px-5 py-3 wrap-break-word text-[#1f1f1f] dark:bg-[#333537] dark:text-[#e3e3e3]">
             <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
           </div>
         </div>
@@ -325,7 +325,7 @@ const GeminiAttachment: FC = () => {
         )}
       </div>
       <AttachmentPrimitive.Remove
-        className="absolute -top-1.5 -right-1.5 flex size-6 items-center justify-center rounded-full border border-[#dadce0] bg-white text-[#5e6063] opacity-0 transition-all hover:bg-[#f1f3f4] hover:text-[#1f1f1f] group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 dark:border-[#3c4043] dark:bg-[#1e1f20] dark:text-[#9aa0a6] dark:hover:bg-[#2b2c2f] dark:hover:text-[#e3e3e3]"
+        className="absolute -top-1.5 -right-1.5 flex size-6 items-center justify-center rounded-full border border-[#dadce0] bg-white text-[#5e6063] opacity-0 transition-all group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 hover:bg-[#f1f3f4] hover:text-[#1f1f1f] dark:border-[#3c4043] dark:bg-[#1e1f20] dark:text-[#9aa0a6] dark:hover:bg-[#2b2c2f] dark:hover:text-[#e3e3e3]"
         aria-label="Remove attachment"
       >
         <Cross2Icon width={14} height={14} />

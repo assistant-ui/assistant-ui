@@ -10,9 +10,8 @@ import type { AssistantRuntimeCore } from "../runtime/interfaces/assistant-runti
 import { RuntimeAdapter } from "./RuntimeAdapter";
 
 export const getRenderComponent = (runtime: AssistantRuntime) => {
-  return (runtime as { _core?: AssistantRuntimeCore })._core?.RenderComponent as
-    | ComponentType
-    | undefined;
+  return (runtime as { _core?: AssistantRuntimeCore })._core
+    ?.RenderComponent as ComponentType | undefined;
 };
 
 export type AssistantProviderBaseProps = PropsWithChildren<{

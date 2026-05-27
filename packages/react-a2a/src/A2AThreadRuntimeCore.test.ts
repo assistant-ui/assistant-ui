@@ -37,7 +37,7 @@ function createUserAppendMessage(text: string): AppendMessage {
     parentId: null,
     role: "user",
     content: [{ type: "text", text }],
-  };
+  } as unknown as AppendMessage;
 }
 
 function statusUpdateEvent(state: string, text?: string): A2AStreamEvent {
@@ -90,7 +90,7 @@ describe("A2AThreadRuntimeCore", () => {
   ) {
     return new A2AThreadRuntimeCore({
       client: createMockClient(clientOverrides),
-      notifyUpdate,
+      notifyUpdate: notifyUpdate as unknown as () => void,
       ...coreOverrides,
     });
   }
@@ -369,7 +369,7 @@ describe("A2AThreadRuntimeCore", () => {
           }),
         }),
         onArtifactComplete,
-        notifyUpdate,
+        notifyUpdate: notifyUpdate as unknown as () => void,
       });
 
       await core.append(createUserAppendMessage("Go"));
@@ -588,7 +588,7 @@ describe("A2AThreadRuntimeCore", () => {
           })),
         }),
         onError,
-        notifyUpdate,
+        notifyUpdate: notifyUpdate as unknown as () => void,
       });
 
       await expect(core.append(createUserAppendMessage("Go"))).rejects.toThrow(
@@ -680,7 +680,7 @@ describe("A2AThreadRuntimeCore", () => {
           createdAt: new Date(),
           content: [{ type: "text", text: "External" }],
           status: { type: "complete", reason: "stop" },
-        } as ThreadMessage,
+        } as unknown as ThreadMessage,
       ];
 
       core.applyExternalMessages(msgs);

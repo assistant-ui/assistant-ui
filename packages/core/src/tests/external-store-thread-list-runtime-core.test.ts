@@ -184,7 +184,7 @@ describe("ExternalStoreThreadListRuntimeCore - isMain via ThreadListRuntimeImpl"
     const core = new ExternalStoreThreadListRuntimeCore(adapter, makeFactory());
     return new ThreadListRuntimeImpl(
       core,
-      NoopThreadRuntime as unknown as Parameters<
+      NoopThreadRuntime as unknown as ConstructorParameters<
         typeof ThreadListRuntimeImpl
       >[1],
     );

@@ -37,15 +37,15 @@ function Tabs({
 }
 
 const tabsListVariants = cva(
-  "group/tabs-list relative inline-flex w-fit items-center justify-center text-muted-foreground",
+  "group/tabs-list text-muted-foreground relative inline-flex w-fit items-center justify-center",
   {
     variants: {
       variant: {
-        default: "gap-1 rounded-lg bg-muted p-1",
-        line: "gap-1 border-border border-b bg-transparent pb-2",
+        default: "bg-muted gap-1 rounded-lg p-1",
+        line: "border-border gap-1 border-b bg-transparent pb-2",
         ghost: "gap-1.5 bg-transparent",
         pills: "gap-2 bg-transparent",
-        outline: "gap-1 rounded-lg border border-border p-1",
+        outline: "border-border gap-1 rounded-lg border p-1",
       },
       size: {
         sm: "h-8",
@@ -66,11 +66,11 @@ const tabsActiveIndicatorVariants = cva(
     variants: {
       variant: {
         default:
-          "inset-y-1 rounded-md bg-background shadow-sm dark:border dark:border-input dark:bg-input/30",
-        line: "bottom-0 h-0.5 bg-foreground",
-        ghost: "inset-y-1 rounded-md bg-foreground/8",
-        pills: "inset-y-0 rounded-full bg-primary",
-        outline: "inset-y-1 rounded-md border border-border bg-background",
+          "bg-background dark:border-input dark:bg-input/30 inset-y-1 rounded-md shadow-sm dark:border",
+        line: "bg-foreground bottom-0 h-0.5",
+        ghost: "bg-foreground/8 inset-y-1 rounded-md",
+        pills: "bg-primary inset-y-0 rounded-full",
+        outline: "border-border bg-background inset-y-1 rounded-md border",
       },
     },
     defaultVariants: {
@@ -176,7 +176,7 @@ function TabsList({
           hoverStyle.width !== "0px" && (
             <div
               data-slot="tabs-hover-indicator"
-              className="pointer-events-none absolute inset-y-1 rounded-md bg-foreground/8 transition-all duration-300 ease-out"
+              className="bg-foreground/8 pointer-events-none absolute inset-y-1 rounded-md transition-all duration-300 ease-out"
               style={hoverStyle}
             />
           )}
@@ -230,11 +230,11 @@ function TabsTrigger({
       data-slot="tabs-trigger"
       data-value={value}
       className={cn(
-        "relative z-10 inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap font-medium text-foreground/60 transition-[color] duration-300 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:font-medium data-[state=active]:text-foreground dark:text-muted-foreground dark:hover:text-foreground [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        "text-foreground/60 hover:text-foreground focus-visible:ring-ring/50 data-[state=active]:text-foreground dark:text-muted-foreground dark:hover:text-foreground relative z-10 inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 font-medium whitespace-nowrap transition-[color] duration-300 focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:font-medium [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         "group-data-[variant=default]/tabs-list:rounded-md",
         "group-data-[variant=line]/tabs-list:rounded-md group-data-[variant=line]/tabs-list:bg-transparent",
         "group-data-[variant=ghost]/tabs-list:rounded-md group-data-[variant=ghost]/tabs-list:bg-transparent",
-        "group-data-[variant=pills]/tabs-list:rounded-full group-data-[variant=pills]/tabs-list:data-[state=active]:text-primary-foreground dark:group-data-[variant=pills]/tabs-list:data-[state=active]:text-primary-foreground",
+        "group-data-[variant=pills]/tabs-list:data-[state=active]:text-primary-foreground dark:group-data-[variant=pills]/tabs-list:data-[state=active]:text-primary-foreground group-data-[variant=pills]/tabs-list:rounded-full",
         "group-data-[variant=outline]/tabs-list:rounded-md",
         "group-data-[size=sm]/tabs-list:h-[calc(100%-8px)] group-data-[size=sm]/tabs-list:px-2 group-data-[size=sm]/tabs-list:py-0.5 group-data-[size=sm]/tabs-list:text-xs",
         "group-data-[size=default]/tabs-list:h-[calc(100%-8px)] group-data-[size=default]/tabs-list:px-3 group-data-[size=default]/tabs-list:py-1 group-data-[size=default]/tabs-list:text-sm",

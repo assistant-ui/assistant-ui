@@ -127,9 +127,9 @@ export function BoxTitle({
   description: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2 bg-background/40 p-6">
+    <div className="bg-background/40 space-y-2 p-6">
       <h3 className="font-mono text-lg">{title}</h3>
-      <p className="max-w-[70ch] text-pretty text-muted-foreground text-sm">
+      <p className="text-muted-foreground max-w-[70ch] text-sm text-pretty">
         {description}
       </p>
     </div>
@@ -142,8 +142,8 @@ export function BoxContent({ children }: { children: React.ReactNode }) {
 
 export function BoxCodeHeader({ fileName }: { fileName: string }) {
   return (
-    <div className="flex items-center gap-2 px-6 py-4 font-mono font-semibold text-sm">
-      <FileCode className="size-4 text-muted-foreground" />
+    <div className="flex items-center gap-2 px-6 py-4 font-mono text-sm font-semibold">
+      <FileCode className="text-muted-foreground size-4" />
       {fileName}
     </div>
   );

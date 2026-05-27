@@ -36,9 +36,8 @@ async function createStore(): Promise<ResumableStreamStore> {
   }
 
   const { createClient } = await import("redis");
-  const { createRedisResumableStreamStore } = await import(
-    "assistant-stream/resumable/redis"
-  );
+  const { createRedisResumableStreamStore } =
+    await import("assistant-stream/resumable/redis");
 
   const client = createClient({ url });
   client.on("error", (err) => {

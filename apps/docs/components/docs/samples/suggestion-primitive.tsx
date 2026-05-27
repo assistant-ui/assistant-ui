@@ -14,7 +14,7 @@ function SuggestionItemStatic({
   return (
     <button
       type="button"
-      className="flex h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border border-border bg-background px-4 py-3 text-start text-sm transition-colors hover:bg-muted"
+      className="border-border bg-background hover:bg-muted flex h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-4 py-3 text-start text-sm transition-colors"
     >
       <span className="font-medium">{title}</span>
       <span className="text-muted-foreground">{description}</span>
@@ -24,9 +24,9 @@ function SuggestionItemStatic({
 
 export function SuggestionPrimitiveSample() {
   return (
-    <SampleFrame className="flex h-auto items-center justify-center bg-background p-8">
+    <SampleFrame className="bg-background flex h-auto items-center justify-center p-8">
       <div className="w-full max-w-xl">
-        <div className="mb-4 text-center font-semibold text-lg">
+        <div className="mb-4 text-center text-lg font-semibold">
           How can I help you?
         </div>
         <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">

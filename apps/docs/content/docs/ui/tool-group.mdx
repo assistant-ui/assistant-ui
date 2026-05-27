@@ -29,10 +29,10 @@ This adds `/components/assistant-ui/tool-group.tsx` and `/components/assistant-u
 
 ### Use it in your application
 
-Use `MessagePrimitive.GroupedParts` and return `"group-tool"` for tool-call parts. The group case wraps `children`; the tool-call leaf renders the resolved tool UI or your fallback.
+Use `MessagePrimitive.GroupedParts` with `groupPartByType` to map tool-call parts to `"group-tool"`. The group case wraps `children`; the tool-call leaf renders the resolved tool UI or your fallback.
 
 ```tsx title="/components/assistant-ui/thread.tsx"
-import { MessagePrimitive } from "@assistant-ui/react";
+import { MessagePrimitive, groupPartByType } from "@assistant-ui/react";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import {
   ToolGroupContent,
@@ -44,10 +44,9 @@ const AssistantMessage = () => {
   return (
     <MessagePrimitive.Root>
       <MessagePrimitive.GroupedParts
-        groupBy={(part) => {
-          if (part.type === "tool-call") return ["group-tool"];
-          return null;
-        }}
+        groupBy={groupPartByType({
+          "tool-call": ["group-tool"],
+        })}
       >
         {({ part, children }) => {
           switch (part.type) {

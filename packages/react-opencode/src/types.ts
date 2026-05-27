@@ -1,6 +1,12 @@
 import type {
   AppendMessage,
   AssistantRuntime,
+  AttachmentAdapter,
+  DictationAdapter,
+  ExternalStoreSharedOptions,
+  FeedbackAdapter,
+  RealtimeVoiceAdapter,
+  SpeechSynthesisAdapter,
   ThreadMessageLike,
   ThreadUserMessagePart,
 } from "@assistant-ui/react";
@@ -176,7 +182,7 @@ export type OpenCodeUserMessageOptions = {
   noReply?: boolean | undefined;
 };
 
-export type OpenCodeRuntimeOptions = {
+export type OpenCodeRuntimeOptions = ExternalStoreSharedOptions & {
   client?: OpencodeClient;
   baseUrl?: string | undefined;
   initialSessionId?: string | undefined;
@@ -188,6 +194,15 @@ export type OpenCodeRuntimeOptions = {
     | undefined;
   defaultAgent?: string | undefined;
   onError?: (error: unknown) => void;
+  adapters?:
+    | {
+        attachments?: AttachmentAdapter;
+        speech?: SpeechSynthesisAdapter;
+        dictation?: DictationAdapter;
+        voice?: RealtimeVoiceAdapter;
+        feedback?: FeedbackAdapter;
+      }
+    | undefined;
 };
 
 export type OpenCodeRuntimeExtras = {

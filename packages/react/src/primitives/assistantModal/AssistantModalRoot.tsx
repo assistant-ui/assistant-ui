@@ -28,7 +28,7 @@ const useAssistantModalOpenState = ({
     return aui.on("thread.runStart", () => {
       setOpen(true);
     });
-  }, [unstable_openOnRunStart, aui]);
+  }, [unstable_openOnRunStart, aui, setOpen]);
 
   return state;
 };

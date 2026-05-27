@@ -222,7 +222,7 @@ export function TerminalDemo() {
       <div className="terminal-mockup-frame">
         <div className="terminal-mockup-border" />
         {/* Titlebar */}
-        <div className="flex items-center gap-2 border-white/[0.06] border-b bg-[#2a2a2a] px-4 py-3">
+        <div className="flex items-center gap-2 border-b border-white/[0.06] bg-[#2a2a2a] px-4 py-3">
           <div className="flex gap-1.5">
             <div className="size-3 rounded-full bg-[#ff5f57]" />
             <div className="size-3 rounded-full bg-[#febc2e]" />
@@ -236,7 +236,7 @@ export function TerminalDemo() {
         {/* Screen */}
         <div
           ref={containerRef}
-          className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10 h-[380px] overflow-y-auto p-4 font-mono text-[#e0e0e0] text-sm leading-relaxed"
+          className="h-[380px] scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent overflow-y-auto p-4 font-mono text-sm leading-relaxed text-[#e0e0e0]"
         >
           {/* Static header */}
           {STATIC_HEADER.map((line, i) => (

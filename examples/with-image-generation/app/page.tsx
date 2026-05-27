@@ -54,7 +54,7 @@ export default function Home() {
   return (
     <main className="mx-auto flex h-full max-w-xl flex-col gap-4 p-6">
       <header>
-        <h1 className="font-semibold text-xl">Image Generation</h1>
+        <h1 className="text-xl font-semibold">Image Generation</h1>
         <p className="text-muted-foreground text-sm">
           Calls a server route that runs <code>ai.generateImage</code> and
           renders the result with the <code>@assistant-ui/ui</code> Image
@@ -78,7 +78,7 @@ export default function Home() {
         <button
           type="submit"
           disabled={isGenerating || !prompt.trim()}
-          className="rounded bg-primary px-3 py-2 text-primary-foreground disabled:opacity-50"
+          className="bg-primary text-primary-foreground rounded px-3 py-2 disabled:opacity-50"
         >
           {isGenerating ? "Generating…" : "Generate"}
         </button>

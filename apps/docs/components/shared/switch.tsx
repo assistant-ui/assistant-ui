@@ -34,8 +34,8 @@ export function Switch({
         className={cn(
           "pointer-events-none block size-3 rounded-full transition-all duration-300",
           checked
-            ? "translate-x-5 bg-background shadow-[0_1px_3px_rgba(0,0,0,0.3),0_0_1px_rgba(0,0,0,0.1)] dark:bg-zinc-800 dark:shadow-[0_1px_2px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.1)]"
-            : "translate-x-1 bg-background shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.1)] dark:bg-zinc-500 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_1px_2px_rgba(0,0,0,0.3)]",
+            ? "bg-background translate-x-5 shadow-[0_1px_3px_rgba(0,0,0,0.3),0_0_1px_rgba(0,0,0,0.1)] dark:bg-zinc-800 dark:shadow-[0_1px_2px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.1)]"
+            : "bg-background translate-x-1 shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.1)] dark:bg-zinc-500 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.1),0_1px_2px_rgba(0,0,0,0.3)]",
         )}
       />
     </SwitchPrimitive.Root>

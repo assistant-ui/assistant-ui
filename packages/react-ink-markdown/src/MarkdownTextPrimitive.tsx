@@ -1,4 +1,3 @@
-import "@assistant-ui/core/store"; // scope-registration side-effect (part scope)
 import type {
   MessagePartState,
   TextMessagePart,

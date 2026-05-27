@@ -5,7 +5,7 @@ import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
 export const ThreadSample = () => {
   return (
-    <SampleFrame className="overflow-hidden bg-muted/40">
+    <SampleFrame className="bg-muted/40 overflow-hidden">
       <Thread />
     </SampleFrame>
   );

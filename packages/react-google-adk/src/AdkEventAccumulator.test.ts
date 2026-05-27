@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
-import type { AdkEvent, AdkMessage } from "./types";
+import type { AdkEvent, AdkMessage, AdkMessageContentPart } from "./types";
 
 const makeEvent = (overrides: Partial<AdkEvent> = {}): AdkEvent => ({
   id: "evt-1",
@@ -568,10 +568,9 @@ describe("AdkEventAccumulator - HITL requires-action", () => {
     );
     expect(aiMsg).toBeDefined();
     expect(aiMsg!.tool_calls).toHaveLength(1);
+    const parts = aiMsg!.content as AdkMessageContentPart[];
     expect(
-      aiMsg!.content.some(
-        (c) => c.type === "text" && c.text.includes("Let me ask"),
-      ),
+      parts.some((c) => c.type === "text" && c.text.includes("Let me ask")),
     ).toBe(true);
     expect(aiMsg!.status).toBeUndefined();
   });
@@ -599,7 +598,8 @@ describe("AdkEventAccumulator - HITL requires-action", () => {
     );
 
     const aiMsg = msgs[0] as AdkMessage & { type: "ai" };
-    expect(aiMsg.content.some((c) => c.type === "text")).toBe(true);
+    const parts = aiMsg.content as AdkMessageContentPart[];
+    expect(parts.some((c) => c.type === "text")).toBe(true);
     expect(aiMsg.tool_calls).toHaveLength(1);
     expect(aiMsg.tool_calls![0]!.id).toBe("mixed-tc-1");
     expect(aiMsg.status).toBeUndefined();

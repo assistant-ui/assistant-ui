@@ -227,7 +227,7 @@ Transforms apply iteratively; new root scopes trigger their own transforms. One 
 - **Naming a resource factory `tapFoo`** — signals "hook", is wrong.
 - **`setState` in `tapState` initializer or during render** — throws.
 - **Forgetting `withKey`** in `tapResources` / `tapClientLookup` / `tapClientList` — throws.
-- **Function calls in dep arrays** (`[a.getState()]`). Biome lints; extract first.
+- **Function calls in dep arrays** (`[a.getState()]`). Extract first. Linted by the `tap-hooks/exhaustive-deps` rule (custom plugin at `scripts/oxlint-plugins/tap-hooks.mjs`, wrapping `eslint-plugin-react-hooks`).
 - **Wide `useAuiState` selectors** (`(s) => s.foo`) — re-renders on every field change.
 - **Reading `tapAssistantClientRef().current` during render** — null until siblings mount. Use in effects only.
 - **Forgetting `tapMemo` on the `getState` object** — every consumer re-renders every emit.

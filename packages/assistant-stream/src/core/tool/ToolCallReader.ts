@@ -232,9 +232,9 @@ class ForEachHandle<T> implements Handle {
 }
 
 // Implementation of ToolCallReader that uses stream of partial JSON
-export class ToolCallArgsReaderImpl<T extends ReadonlyJSONObject>
-  implements ToolCallArgsReader<T>
-{
+export class ToolCallArgsReaderImpl<
+  T extends ReadonlyJSONObject,
+> implements ToolCallArgsReader<T> {
   private argTextDeltas: ReadableStream<string>;
   private handles: Set<Handle> = new Set();
   private args: unknown = parsePartialJsonObject("");
@@ -334,7 +334,7 @@ export class ToolCallArgsReaderImpl<T extends ReadonlyJSONObject>
 
   streamText<PathT extends TypePath<T>>(
     ...fieldPath: PathT
-  ): TypeAtPath<T, PathT> extends string & infer U
+  ): TypeAtPath<T, PathT> extends string & (infer U)
     ? AsyncIterableStream<U>
     : never {
     // Use a type assertion to convert the complex TypePath to a simple array
@@ -395,9 +395,9 @@ export class ToolCallArgsReaderImpl<T extends ReadonlyJSONObject>
   }
 }
 
-export class ToolCallResponseReaderImpl<TResult extends ReadonlyJSONValue>
-  implements ToolCallResponseReader<TResult>
-{
+export class ToolCallResponseReaderImpl<
+  TResult extends ReadonlyJSONValue,
+> implements ToolCallResponseReader<TResult> {
   constructor(private readonly promise: Promise<ToolResponse<TResult>>) {}
 
   public get() {
@@ -408,8 +408,7 @@ export class ToolCallResponseReaderImpl<TResult extends ReadonlyJSONValue>
 export class ToolCallReaderImpl<
   TArgs extends ReadonlyJSONObject,
   TResult extends ReadonlyJSONValue,
-> implements ToolCallReader<TArgs, TResult>
-{
+> implements ToolCallReader<TArgs, TResult> {
   public readonly args: ToolCallArgsReaderImpl<TArgs>;
   public readonly response: ToolCallResponseReaderImpl<TResult>;
   private readonly writable: WritableStream<string>;

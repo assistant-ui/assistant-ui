@@ -113,7 +113,6 @@ function InlineRenderer({
   const [loadedResource, setLoadedResource] = useState<LoadedResourceState>();
 
   const resourceUri = appForRender?.resourceUri;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-fetches only when URI changes; mcp.app object identity is unstable across renders
   useEffect(() => {
     if (appForRender == null || resourceUri == null) return;
     let cancelled = false;
@@ -137,6 +136,7 @@ function InlineRenderer({
     return () => {
       cancelled = true;
     };
+    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- re-fetch only when URI changes; appForRender identity is unstable and internalsRef is a stable ref
   }, [resourceUri]);
 
   const bridgeHandlers = useMemo<McpAppBridgeHandlers>(

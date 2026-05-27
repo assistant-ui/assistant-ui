@@ -7,7 +7,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-white p-8">
       <div className="mx-auto max-w-4xl">
-        <h1 className="mb-6 font-bold text-3xl text-gray-900">
+        <h1 className="mb-6 text-3xl font-bold text-gray-900">
           Activity Graph
         </h1>
         <div className="rounded-xl border border-gray-200 bg-white p-6">

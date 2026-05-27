@@ -1,16 +1,28 @@
 ---
-title: Generative UI Example
-description: Live generative UI demo — AI tool calls render as interactive charts, date pickers, contact forms, and maps in React, all powered by assistant-ui.
+title: Generative UI Example (Tool UI)
+description: Live demo of makeAssistantToolUI patterns — charts, date pickers, contact forms, and maps. For the GenerativeUI JSON-spec primitive, see /gui-chat and /primitive in the same example app.
 ---
 
 ## Overview
 
-This example demonstrates four common generative UI patterns using `makeAssistantToolUI`:
+The main route (`examples/with-generative-ui`) demonstrates **Tool UI**
+patterns using `makeAssistantToolUI` — not the `MessagePrimitive.GenerativeUI`
+JSON-spec primitive.
 
 - **Chart Generation** — AI returns structured data, rendered as bar/line/pie charts via Recharts
 - **Date Picker** — AI requests a date selection, user picks via native input, result sent back with `addResult`
 - **Contact Form** — AI collects name, email, and phone through an interactive form tool
 - **Location Map** — AI shows a place on an embedded OpenStreetMap
+
+### Related routes in the same example app
+
+| Route | What it demonstrates |
+|-------|---------------------|
+| `/` | Tool UI (`makeAssistantToolUI`) — interactive widgets |
+| `/primitive` | Static `GenerativeUIRender` with a hand-written spec |
+| `/gui-chat` | End-to-end chat with `render_gui` tool → `MessagePrimitive.GenerativeUI` bridge |
+
+See the [Generative UI primitive guide](/docs/guides/generative-ui) for opt-in wiring and pattern comparison.
 
 ## Patterns Demonstrated
 

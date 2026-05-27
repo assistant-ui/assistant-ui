@@ -10,7 +10,7 @@ export function MessageTimingSample() {
         <span className="text-muted-foreground text-xs">Badge</span>
         <button
           type="button"
-          className="flex items-center rounded-md p-1 font-mono text-muted-foreground text-xs tabular-nums transition-colors hover:bg-accent hover:text-accent-foreground"
+          className="text-muted-foreground hover:bg-accent hover:text-accent-foreground flex items-center rounded-md p-1 font-mono text-xs tabular-nums transition-colors"
         >
           1.23s
         </button>
@@ -19,7 +19,7 @@ export function MessageTimingSample() {
       {/* Tooltip content as it appears on hover */}
       <div className="flex flex-col items-center gap-3">
         <span className="text-muted-foreground text-xs">On hover</span>
-        <div className="grid min-w-35 gap-1.5 rounded-lg border bg-popover px-3 py-2 text-popover-foreground text-xs shadow-md">
+        <div className="bg-popover text-popover-foreground grid min-w-35 gap-1.5 rounded-lg border px-3 py-2 text-xs shadow-md">
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">First token</span>
             <span className="font-mono tabular-nums">312ms</span>

@@ -29,7 +29,7 @@ export function FeatureHighlights() {
   return (
     <section className="flex flex-col gap-8">
       <div className="flex flex-col items-center gap-2 text-center">
-        <h2 className="font-medium text-3xl tracking-tight">
+        <h2 className="text-3xl font-medium tracking-tight">
           Everything you need to ship AI chat
         </h2>
         <p className="text-muted-foreground">
@@ -42,7 +42,7 @@ export function FeatureHighlights() {
           const Icon = feature.icon;
           return (
             <div key={feature.title} className="flex flex-col gap-3">
-              <Icon className="size-5 text-muted-foreground" />
+              <Icon className="text-muted-foreground size-5" />
               <div className="flex flex-col gap-1">
                 <h3 className="font-medium">{feature.title}</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">

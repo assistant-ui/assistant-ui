@@ -82,7 +82,7 @@ export const MermaidDiagram: FC<MermaidDiagramProps> = ({
     <pre
       ref={ref}
       className={cn(
-        "aui-mermaid-diagram rounded-b-lg bg-muted p-2 text-center [&_svg]:mx-auto",
+        "aui-mermaid-diagram bg-muted rounded-b-lg p-2 text-center [&_svg]:mx-auto",
         className,
       )}
     >

@@ -62,10 +62,10 @@ export default function HeatGraphPage() {
       {/* Hero */}
       <div className="flex flex-col items-center gap-6 text-center">
         <div className="flex flex-col gap-3">
-          <h1 className="mx-auto max-w-2xl font-medium text-3xl tracking-tight md:text-5xl">
+          <h1 className="mx-auto max-w-2xl text-3xl font-medium tracking-tight md:text-5xl">
             GitHub-style activity heatmaps for React
           </h1>
-          <p className="mx-auto max-w-xl text-lg text-muted-foreground">
+          <p className="text-muted-foreground mx-auto max-w-xl text-lg">
             Headless, Radix-style primitives for building activity heatmap
             graphs. Composable, unstyled, and fully customizable.
           </p>
@@ -76,10 +76,10 @@ export default function HeatGraphPage() {
           analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
         />
 
-        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[13px] text-muted-foreground">
+        <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[13px]">
           <Link
             href="/docs/utilities/heat-graph"
-            className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+            className="text-foreground/60 hover:text-foreground font-medium transition-colors"
           >
             Documentation →
           </Link>
@@ -94,10 +94,10 @@ export default function HeatGraphPage() {
       {/* Features */}
       <div className="flex flex-col gap-8">
         <div className="flex flex-col items-center gap-2 text-center">
-          <h2 className="font-medium text-3xl tracking-tight">
+          <h2 className="text-3xl font-medium tracking-tight">
             Why Heat Graph?
           </h2>
-          <p className="max-w-xl text-muted-foreground">
+          <p className="text-muted-foreground max-w-xl">
             Everything you need to build activity heatmaps — without fighting
             your styling framework or losing control.
           </p>
@@ -109,7 +109,7 @@ export default function HeatGraphPage() {
             return (
               <div
                 key={feature.title}
-                className="flex flex-col gap-2 rounded-xl border border-border/50 bg-muted/30 p-4 transition-colors hover:border-border/80"
+                className="border-border/50 bg-muted/30 hover:border-border/80 flex flex-col gap-2 rounded-xl border p-4 transition-colors"
               >
                 <span className="flex items-center gap-2 font-medium">
                   <Icon className={cn("size-4", feature.iconColor)} />
@@ -126,7 +126,7 @@ export default function HeatGraphPage() {
 
       {/* CTA */}
       <div className="flex flex-col items-center gap-6 py-16 text-center">
-        <p className="font-medium text-2xl tracking-tight">
+        <p className="text-2xl font-medium tracking-tight">
           Start building today
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">

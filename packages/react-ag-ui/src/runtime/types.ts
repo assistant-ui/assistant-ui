@@ -1,7 +1,9 @@
 import type {
   AttachmentAdapter,
   DictationAdapter,
+  ExternalStoreSharedOptions,
   FeedbackAdapter,
+  RealtimeVoiceAdapter,
   SpeechSynthesisAdapter,
   ThreadHistoryAdapter,
   ThreadMessage,
@@ -30,6 +32,7 @@ export type UseAgUiRuntimeAdapters = {
   attachments?: AttachmentAdapter;
   speech?: SpeechSynthesisAdapter;
   dictation?: DictationAdapter;
+  voice?: RealtimeVoiceAdapter;
   feedback?: FeedbackAdapter;
   history?: ThreadHistoryAdapter;
   /**
@@ -38,7 +41,7 @@ export type UseAgUiRuntimeAdapters = {
   threadList?: UseAgUiThreadListAdapter;
 };
 
-export type UseAgUiRuntimeOptions = {
+export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   agent: HttpAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;

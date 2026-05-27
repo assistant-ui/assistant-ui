@@ -3,7 +3,7 @@ import { render } from "ink-testing-library";
 import type { Mock } from "vitest";
 
 export type UseAuiStateSelector = Parameters<
-  typeof import("@assistant-ui/store")["useAuiState"]
+  (typeof import("@assistant-ui/store"))["useAuiState"]
 >[0];
 
 export const partContext = {

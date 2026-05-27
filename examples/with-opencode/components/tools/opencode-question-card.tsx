@@ -189,7 +189,7 @@ export const OpenCodeQuestionCard = ({
           return (
             <section key={`${request.id}-${index}`} className="space-y-3">
               <div className="space-y-1">
-                <p className="font-medium text-sm">{question.header}</p>
+                <p className="text-sm font-medium">{question.header}</p>
                 <p className="text-muted-foreground text-xs">
                   {question.question}
                 </p>
@@ -229,7 +229,7 @@ export const OpenCodeQuestionCard = ({
                               <div className="space-y-1">
                                 <Label
                                   htmlFor={optionId}
-                                  className="font-medium text-sm"
+                                  className="text-sm font-medium"
                                 >
                                   {option.label}
                                 </Label>
@@ -337,7 +337,7 @@ export const OpenCodeQuestionCard = ({
             Dismiss
           </Button>
           {error ? (
-            <div className="flex w-full items-center gap-2 text-destructive text-xs">
+            <div className="text-destructive flex w-full items-center gap-2 text-xs">
               <AlertCircleIcon className="size-3.5" />
               <span>{error}</span>
             </div>

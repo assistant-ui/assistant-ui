@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/core",
-  "version": "0.2.5",
+  "version": "0.2.7",
   "description": "Framework-agnostic core runtime for assistant-ui",
   "keywords": [
     "assistant",
@@ -64,12 +64,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.16",
+    "assistant-stream": "^0.3.17",
     "nanoid": "^5.1.11"
   },
   "peerDependencies": {
     "@assistant-ui/store": "^0.2.12",
-    "@assistant-ui/tap": "^0.5.12",
+    "@assistant-ui/tap": "^0.5.13",
     "@types/react": "*",
     "react": "^18 || ^19",
     "assistant-cloud": "^0.1.29",

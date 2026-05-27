@@ -4,7 +4,7 @@ import { MessagePrimitiveAttachments } from "./MessageAttachments";
 
 const mockUseAuiState = vi.fn();
 type UseAuiStateSelector = Parameters<
-  typeof import("@assistant-ui/store")["useAuiState"]
+  (typeof import("@assistant-ui/store"))["useAuiState"]
 >[0];
 type AttachmentsElement = ReactElement<{ children: () => null }>;
 

@@ -34,9 +34,7 @@ const getJwtExpiry = (jwt: string): number => {
   }
 };
 
-export class AssistantCloudJWTAuthStrategy
-  implements AssistantCloudAuthStrategy
-{
+export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy {
   public readonly strategy = "jwt";
 
   private cachedToken: string | null = null;
@@ -83,9 +81,7 @@ export class AssistantCloudJWTAuthStrategy
   }
 }
 
-export class AssistantCloudAPIKeyAuthStrategy
-  implements AssistantCloudAuthStrategy
-{
+export class AssistantCloudAPIKeyAuthStrategy implements AssistantCloudAuthStrategy {
   public readonly strategy = "api-key";
 
   #apiKey: string;
@@ -113,9 +109,7 @@ export class AssistantCloudAPIKeyAuthStrategy
 
 const AUI_REFRESH_TOKEN_NAME = "aui:refresh_token";
 
-export class AssistantCloudAnonymousAuthStrategy
-  implements AssistantCloudAuthStrategy
-{
+export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthStrategy {
   public readonly strategy = "anon";
 
   private baseUrl: string;

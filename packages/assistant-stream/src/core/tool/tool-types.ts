@@ -98,7 +98,7 @@ export interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
    */
   streamText<PathT extends TypePath<TArgs>>(
     ...fieldPath: PathT
-  ): TypeAtPath<TArgs, PathT> extends string & infer U
+  ): TypeAtPath<TArgs, PathT> extends string & (infer U)
     ? AsyncIterableStream<U>
     : never;
 
@@ -168,6 +168,20 @@ type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
   TResult
 >;
 
+/**
+ * Per-provider metadata forwarded into the wire request body verbatim.
+ * assistant-ui does not interpret these values; downstream adapters (AI SDK,
+ * custom routes) pass them to the model provider as-is.
+ *
+ * The outer key is the provider name (`anthropic`, `openai`, ...); the inner
+ * object is whatever shape that provider's SDK expects under
+ * `tool.providerOptions[providerName]`. Use this to enable provider-specific
+ * tool behaviors such as Anthropic's `defer_loading`
+ * (`{ anthropic: { deferLoading: true } }`) without adding provider-aware
+ * code in assistant-ui.
+ */
+export type ProviderOptions = Record<string, Record<string, unknown>>;
+
 type ToolBase<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
@@ -191,6 +205,7 @@ type BackendTool<
   execute?: undefined;
   toModelOutput?: undefined;
   experimental_onSchemaValidationError?: undefined;
+  providerOptions?: undefined;
 };
 
 type FrontendTool<
@@ -212,6 +227,7 @@ type FrontendTool<
   toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
   /** Handles invalid tool arguments when schema validation fails. */
   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
+  providerOptions?: ProviderOptions;
 };
 
 type HumanTool<
@@ -230,6 +246,7 @@ type HumanTool<
   execute?: undefined;
   toModelOutput?: undefined;
   experimental_onSchemaValidationError?: undefined;
+  providerOptions?: ProviderOptions;
 };
 
 /**

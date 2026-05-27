@@ -599,6 +599,32 @@ export async function POST(req: Request) {
 }
 ```
 
+### Per-tool Provider Options
+
+Every tool definition accepts an optional `providerOptions` field. assistant-ui does not interpret the value; it serializes it under the tool entry verbatim, the AI SDK route handler forwards it via `frontendTools(...)`, and the provider SDK reads the keys it cares about. This is how you opt into provider-specific tool behaviors (such as Anthropic's `defer_loading` for progressive tool disclosure on large catalogs) without adding any provider-aware code to assistant-ui itself.
+
+```tsx
+// Frontend: declare provider-specific metadata next to the tool.
+useAssistantTool({
+  toolName: "searchDocs",
+  description: "Search the documentation index.",
+  parameters: z.object({ query: z.string() }),
+  providerOptions: {
+    anthropic: { deferLoading: true },
+  },
+  execute: async ({ query }) => searchIndex(query),
+});
+```
+
+The same field is available on toolkit entries used with `Tools({ toolkit })` and on `makeAssistantTool`. The outer key is the provider name (`anthropic`, `openai`, ...); the inner object is whatever the provider's AI SDK package expects under `tool.providerOptions[<provider>]`. Refer to the provider's package docs for the exact shape and for any companion entries you may need in your route handler (for example, Anthropic exposes Tool Search Tool factories on the `anthropic.tools` namespace; see the [`@ai-sdk/anthropic` documentation](https://ai-sdk.dev/providers/ai-sdk-providers/anthropic) for the current API).
+
+<Callout type="info">
+  `toToolsJSONSchema` emits tool entries in alphabetical order by name. Two
+  renders that register the same tool set in different orders produce
+  byte-identical request bodies, which keeps provider prompt caches stable
+  across renders.
+</Callout>
+
 ### MCP (Model Context Protocol) Tools
 
 Integration with MCP servers using AI SDK's experimental MCP support:

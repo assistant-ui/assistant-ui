@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { fromThreadMessageLike } from "../runtime/utils/thread-message-like";
 
 const fallbackId = "test-id";
-const fallbackStatus = { type: "complete" as const };
+const fallbackStatus = {
+  type: "complete" as const,
+  reason: "stop" as const,
+};
 
 describe("fromThreadMessageLike", () => {
   describe("data-* prefixed types", () => {

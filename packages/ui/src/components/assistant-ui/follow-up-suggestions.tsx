@@ -11,7 +11,7 @@ export const ThreadFollowupSuggestions: FC = () => {
         {suggestions?.map((suggestion, idx) => (
           <ThreadPrimitive.Suggestion
             key={idx}
-            className="aui-thread-followup-suggestion rounded-full border bg-background px-3 py-1 text-sm transition-colors ease-in hover:bg-muted/80"
+            className="aui-thread-followup-suggestion bg-background hover:bg-muted/80 rounded-full border px-3 py-1 text-sm transition-colors ease-in"
             prompt={suggestion.prompt}
             method="replace"
             autoSend

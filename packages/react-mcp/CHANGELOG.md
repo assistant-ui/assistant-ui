@@ -1,5 +1,22 @@
 # @assistant-ui/react-mcp
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [[`7395092`](https://github.com/assistant-ui/assistant-ui/commit/73950929dbebadb275e3bdee23331f65f2635a33), [`a6e0653`](https://github.com/assistant-ui/assistant-ui/commit/a6e0653bad29fb93627646a77c3383000c57ee33), [`cabfc71`](https://github.com/assistant-ui/assistant-ui/commit/cabfc715e99f23a55dc1276a6028792d7ecad822)]:
+  - @assistant-ui/core@0.2.7
+  - @assistant-ui/tap@0.5.13
+  - @assistant-ui/store@0.2.12
+
+## 0.0.2
+
+### Patch Changes
+
+- Updated dependencies [[`372d4f0`](https://github.com/assistant-ui/assistant-ui/commit/372d4f0c538a766fd9a849fef74e413dde86d74a), [`d4f1db4`](https://github.com/assistant-ui/assistant-ui/commit/d4f1db428b1a1fe5c122150e1e366a377e9adb5f), [`32ae846`](https://github.com/assistant-ui/assistant-ui/commit/32ae846a91b61eccd01330693868a48f2f3bb0c4)]:
+  - @assistant-ui/core@0.2.6
+  - assistant-stream@0.3.17
+
 ## 0.0.1
 
 ### Patch Changes

@@ -30,7 +30,7 @@ export default function Home() {
               <SidebarTrigger />
               <Separator orientation="vertical" className="mr-2 h-4" />
               <div className="min-w-0">
-                <div className="font-medium text-sm">OpenCode</div>
+                <div className="text-sm font-medium">OpenCode</div>
                 <SelectedSessionTitle />
               </div>
             </header>
@@ -51,7 +51,7 @@ function SelectedSessionTitle() {
   if (!title) return null;
 
   return (
-    <div className="truncate text-muted-foreground text-xs leading-tight">
+    <div className="text-muted-foreground truncate text-xs leading-tight">
       {title}
     </div>
   );

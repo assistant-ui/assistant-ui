@@ -6,10 +6,7 @@ export type {
   ResumableStreamAcquireOptions,
 } from "./types";
 
-export {
-  ResumableStreamError,
-  type ResumableStreamErrorCode,
-} from "./errors";
+export { ResumableStreamError, type ResumableStreamErrorCode } from "./errors";
 
 export {
   createResumableStreamContext,

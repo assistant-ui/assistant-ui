@@ -202,7 +202,7 @@ export function AccordionFAQSample() {
       <div className="w-[500px]">
         <div className="mb-4 flex items-center gap-2">
           <HelpCircle className="size-5" />
-          <h3 className="font-semibold text-lg">Frequently Asked Questions</h3>
+          <h3 className="text-lg font-semibold">Frequently Asked Questions</h3>
         </div>
         <Accordion type="single" collapsible>
           <AccordionItem value="faq-1">

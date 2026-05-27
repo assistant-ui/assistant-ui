@@ -377,12 +377,12 @@ function hasGeneratedEntryContent(
 ): boolean {
   return Boolean(
     item.jsDoc ||
-      item.jsDocExamples?.length ||
-      item.deprecated ||
-      typeDocNames.has(item.name) ||
-      item.signature ||
-      slots.namedManual.has(item.name) ||
-      slots.examples.has(item.name),
+    item.jsDocExamples?.length ||
+    item.deprecated ||
+    typeDocNames.has(item.name) ||
+    item.signature ||
+    slots.namedManual.has(item.name) ||
+    slots.examples.has(item.name),
   );
 }
 

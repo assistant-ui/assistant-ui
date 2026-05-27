@@ -161,7 +161,7 @@ const ToolCardIcon = ({
 }) => (
   <div
     className={cn(
-      "flex size-8 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground shadow-sm",
+      "bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md shadow-sm",
       loading && "animate-pulse",
     )}
   >
@@ -174,9 +174,9 @@ const ToolCardContent = ({ children }: { children: React.ReactNode }) => (
 );
 
 const ToolCardTitle = ({ children }: { children: React.ReactNode }) => (
-  <span className="truncate font-medium text-sm">{children}</span>
+  <span className="truncate text-sm font-medium">{children}</span>
 );
 
 const ToolCardDescription = ({ children }: { children: React.ReactNode }) => (
-  <span className="truncate text-muted-foreground text-xs">{children}</span>
+  <span className="text-muted-foreground truncate text-xs">{children}</span>
 );

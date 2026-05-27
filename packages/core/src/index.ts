@@ -1,5 +1,13 @@
 // @assistant-ui/core - Framework-agnostic core runtime (public API)
 
+/// <reference path="./store/scope-registration.ts" />
+
+import { checkDuplicateCore } from "./internal/duplicate-detection";
+
+if (process.env.NODE_ENV !== "production") {
+  checkDuplicateCore();
+}
+
 export type {
   // Message parts
   TextMessagePart,
@@ -79,6 +87,8 @@ export type {
 export { mergeModelContexts } from "./model-context/types";
 
 export { tool } from "./model-context/tool";
+
+export type { ToolExecutionStatus } from "./runtimes/tool-invocations/ToolInvocationTracker";
 
 export { ModelContextRegistry } from "./model-context/registry";
 export type {
@@ -272,6 +282,8 @@ export type {
   ExternalStoreThreadListAdapter,
   ExternalStoreThreadData,
 } from "./runtimes/external-store/external-store-adapter";
+export type { ExternalStoreSharedOptions } from "./runtimes/external-store/external-store-shared-options";
+export { pickExternalStoreSharedOptions } from "./runtimes/external-store/external-store-shared-options";
 
 // Remote Thread List (user-facing)
 export type {

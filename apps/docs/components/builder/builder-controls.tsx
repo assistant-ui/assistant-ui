@@ -105,10 +105,10 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
   const { components, styles } = config;
 
   return (
-    <div className="scrollbar-none h-full overflow-y-auto">
+    <div className="h-full scrollbar-none overflow-y-auto">
       <div className="space-y-5">
-        <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-1">
-          <span className="font-medium text-sm">Preset</span>
+        <div className="bg-muted/30 flex items-center justify-between rounded-lg border px-3 py-1">
+          <span className="text-sm font-medium">Preset</span>
           <PresetSelect config={config} onChange={onChange} />
         </div>
 
@@ -455,7 +455,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                     onChange={(e) =>
                       updateComponents({ loadingText: e.target.value })
                     }
-                    className="h-7 w-32 rounded-md border bg-background px-2 text-sm"
+                    className="bg-background h-7 w-32 rounded-md border px-2 text-sm"
                     placeholder="Thinking..."
                   />
                 }
@@ -642,11 +642,11 @@ function Section({
   return (
     <div
       className={
-        withDivider ? "space-y-2 border-border/50 border-t pt-4" : "space-y-2"
+        withDivider ? "border-border/50 space-y-2 border-t pt-4" : "space-y-2"
       }
     >
       <div className="flex items-center justify-between">
-        <span className="font-medium text-muted-foreground text-xs">
+        <span className="text-muted-foreground text-xs font-medium">
           {title}
         </span>
         {headerRight}
@@ -670,9 +670,9 @@ function SectionWithToggle({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2 border-border/50 border-t pt-4">
+    <div className="border-border/50 space-y-2 border-t pt-4">
       <div className="flex items-center justify-between">
-        <span className="font-medium text-muted-foreground text-xs">
+        <span className="text-muted-foreground text-xs font-medium">
           {title}
         </span>
         <div className="flex items-center gap-2">
@@ -691,10 +691,10 @@ function ColorModeHeader() {
       <TooltipTrigger asChild>
         <div className="flex gap-1">
           <div className="flex size-5 items-center justify-center">
-            <SunIcon className="size-3.5 text-muted-foreground" />
+            <SunIcon className="text-muted-foreground size-3.5" />
           </div>
           <div className="flex size-5 items-center justify-center">
-            <MoonIcon className="size-3.5 text-muted-foreground" />
+            <MoonIcon className="text-muted-foreground size-3.5" />
           </div>
         </div>
       </TooltipTrigger>
@@ -721,7 +721,7 @@ function Row({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="flex items-center text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground flex items-center"
               >
                 <CircleAlertIcon className="size-3" />
               </button>
@@ -745,7 +745,7 @@ function IndentedRow({
   info?: React.ReactNode;
 }) {
   return (
-    <div className="ml-4 border-border border-l pl-3">
+    <div className="border-border ml-4 border-l pl-3">
       <Row label={label} control={control} info={info} />
     </div>
   );

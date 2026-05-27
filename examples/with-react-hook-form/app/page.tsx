@@ -18,7 +18,7 @@ import {
 
 const SetFormFieldTool = () => {
   return (
-    <p className="text-center font-bold font-mono text-blue-500 text-sm">
+    <p className="text-center font-mono text-sm font-bold text-blue-500">
       set_form_field(...)
     </p>
   );
@@ -26,7 +26,7 @@ const SetFormFieldTool = () => {
 
 const SubmitFormTool = () => {
   return (
-    <p className="text-center font-bold font-mono text-blue-500 text-sm">
+    <p className="text-center font-mono text-sm font-bold text-blue-500">
       submit_form(...)
     </p>
   );
@@ -77,13 +77,13 @@ export default function Home() {
     <AuiProvider value={aui}>
       <ResizablePanelGroup orientation="horizontal">
         <ResizablePanel defaultSize={60} minSize={40} style={panelStyle}>
-          <div className="h-full overflow-y-auto bg-muted/30">
+          <div className="bg-muted/30 h-full overflow-y-auto">
             <main className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 sm:py-12">
               <header className="mb-8 space-y-2">
-                <p className="font-medium text-muted-foreground text-sm uppercase tracking-wide">
+                <p className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
                   Simon&apos;s Hackathon
                 </p>
-                <h1 className="font-semibold text-3xl tracking-tight">
+                <h1 className="text-3xl font-semibold tracking-tight">
                   Apply to join
                 </h1>
                 <p className="text-muted-foreground">

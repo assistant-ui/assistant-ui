@@ -70,12 +70,12 @@ export default function CloudAiSdkPage() {
       {/* Hero */}
       <div className="flex flex-col items-center gap-6 text-center">
         <div className="flex flex-col gap-3">
-          <h1 className="mx-auto max-w-3xl font-medium text-3xl tracking-tight md:text-5xl">
+          <h1 className="mx-auto max-w-3xl text-3xl font-medium tracking-tight md:text-5xl">
             <span className="font-mono">useChat</span>
-            <span className="mx-3 text-muted-foreground/40">{"\u2192"}</span>
+            <span className="text-muted-foreground/40 mx-3">{"\u2192"}</span>
             <span className="font-mono">useCloudChat</span>
           </h1>
-          <p className="mx-auto max-w-xl text-lg text-muted-foreground">
+          <p className="text-muted-foreground mx-auto max-w-xl text-lg">
             Cloud persistence and thread management for any Vercel AI SDK app.
             One import change. Zero config.
           </p>
@@ -86,17 +86,17 @@ export default function CloudAiSdkPage() {
           analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
         />
 
-        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[13px] text-muted-foreground">
+        <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[13px]">
           <Link
             href="/docs/cloud/ai-sdk"
-            className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+            className="text-foreground/60 hover:text-foreground font-medium transition-colors"
           >
             Getting Started {"\u2192"}
           </Link>
-          <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
+          <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
           <Link
             href="/docs/cloud/ai-sdk#api-reference"
-            className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+            className="text-foreground/60 hover:text-foreground font-medium transition-colors"
           >
             API Reference {"\u2192"}
           </Link>
@@ -138,10 +138,10 @@ const { messages, sendMessage, threads } = useCloudChat()`}
       {/* Features */}
       <div className="flex flex-col gap-8">
         <div className="flex flex-col items-center gap-2 text-center">
-          <h2 className="font-medium text-3xl tracking-tight">
+          <h2 className="text-3xl font-medium tracking-tight">
             Everything you need, nothing you don't
           </h2>
-          <p className="max-w-xl text-muted-foreground">
+          <p className="text-muted-foreground max-w-xl">
             Two hooks. Four types. Full cloud persistence and thread management
             for any AI SDK app.
           </p>
@@ -153,7 +153,7 @@ const { messages, sendMessage, threads } = useCloudChat()`}
             return (
               <div
                 key={feature.title}
-                className="flex flex-col gap-2 rounded-xl border border-border/50 bg-muted/30 p-4 transition-colors hover:border-border/80"
+                className="border-border/50 bg-muted/30 hover:border-border/80 flex flex-col gap-2 rounded-xl border p-4 transition-colors"
               >
                 <span className="flex items-center gap-2 font-medium">
                   <Icon className={cn("size-4", feature.iconColor)} />
@@ -171,24 +171,24 @@ const { messages, sendMessage, threads } = useCloudChat()`}
       {/* Dashboard */}
       <div className="flex flex-col gap-8">
         <div className="flex flex-col items-center gap-2 text-center">
-          <h2 className="font-medium text-3xl tracking-tight">
+          <h2 className="text-3xl font-medium tracking-tight">
             Manage everything from the dashboard
           </h2>
-          <p className="max-w-xl text-muted-foreground">
+          <p className="text-muted-foreground max-w-xl">
             Analytics, thread browser, run tracking, user insights, auth rules —
             all from{" "}
             <a
               href="https://cloud.assistant-ui.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-foreground/80 underline underline-offset-4 transition-colors hover:text-foreground"
+              className="text-foreground/80 hover:text-foreground underline underline-offset-4 transition-colors"
             >
               cloud.assistant-ui.com
             </a>
           </p>
         </div>
 
-        <div className="mx-auto w-full max-w-4xl overflow-hidden rounded-xl border border-border/50 shadow-lg">
+        <div className="border-border/50 mx-auto w-full max-w-4xl overflow-hidden rounded-xl border shadow-lg">
           <Image
             src="/images/cloud-dashboard.png"
             alt="Assistant Cloud dashboard showing analytics, threads, and run tracking"
@@ -209,7 +209,7 @@ const { messages, sendMessage, threads } = useCloudChat()`}
           ].map((item) => (
             <div
               key={item}
-              className="flex items-center gap-2 text-muted-foreground"
+              className="text-muted-foreground flex items-center gap-2"
             >
               <span className="size-1 shrink-0 rounded-full bg-blue-400" />
               {item}
@@ -219,12 +219,12 @@ const { messages, sendMessage, threads } = useCloudChat()`}
       </div>
 
       {/* Callout */}
-      <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 rounded-xl border border-border/50 bg-muted/30 p-8 text-center">
+      <div className="border-border/50 bg-muted/30 mx-auto flex max-w-3xl flex-col items-center gap-4 rounded-xl border p-8 text-center">
         <Cloud className="size-8 text-blue-400" />
-        <h3 className="font-medium text-xl tracking-tight">
+        <h3 className="text-xl font-medium tracking-tight">
           Already using AI SDK?
         </h3>
-        <p className="max-w-lg text-muted-foreground">
+        <p className="text-muted-foreground max-w-lg">
           If you're using <code className="text-foreground/80">useChat</code>{" "}
           from <code className="text-foreground/80">@ai-sdk/react</code> today,
           switching is a one-line change. Your components, your route handlers,
@@ -239,7 +239,7 @@ const { messages, sendMessage, threads } = useCloudChat()`}
 
       {/* CTA */}
       <div className="flex flex-col items-center gap-6 py-16 text-center">
-        <p className="font-medium text-2xl tracking-tight">
+        <p className="text-2xl font-medium tracking-tight">
           Start building today
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">

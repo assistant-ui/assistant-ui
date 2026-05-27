@@ -21,7 +21,7 @@ export const LocationToolUI = makeAssistantToolUI<LocationArgs, LocationResult>(
       if (status.type === "running" && !args.lat) {
         return (
           <div className="flex items-center gap-2 rounded-lg border p-4">
-            <Loader2Icon className="size-4 animate-spin text-muted-foreground" />
+            <Loader2Icon className="text-muted-foreground size-4 animate-spin" />
             <span className="text-muted-foreground text-sm">
               Loading location...
             </span>
@@ -37,9 +37,9 @@ export const LocationToolUI = makeAssistantToolUI<LocationArgs, LocationResult>(
       return (
         <div className="my-2 overflow-hidden rounded-lg border">
           <div className="flex items-center gap-2 border-b px-3 py-2">
-            <MapPinIcon className="size-4 text-muted-foreground" />
+            <MapPinIcon className="text-muted-foreground size-4" />
             <div>
-              <p className="font-medium text-sm">{name}</p>
+              <p className="text-sm font-medium">{name}</p>
               {address && (
                 <p className="text-muted-foreground text-xs">{address}</p>
               )}

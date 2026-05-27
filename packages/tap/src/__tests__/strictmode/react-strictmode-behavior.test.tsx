@@ -2,6 +2,7 @@
  * Tests to verify React's strict mode behavior
  * These tests verify React's own behavior, not tap's implementation
  */
+/* oxlint-disable tap-hooks/exhaustive-deps -- intentional missing-dep patterns for strict-mode tests */
 
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";

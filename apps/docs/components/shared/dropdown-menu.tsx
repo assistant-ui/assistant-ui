@@ -17,9 +17,9 @@ function DropdownMenuTrigger({
   return (
     <DropdownMenuPrimitive.Trigger
       className={cn(
-        "flex items-center justify-center rounded-md outline-none transition-colors",
+        "flex items-center justify-center rounded-md transition-colors outline-none",
         "text-muted-foreground hover:bg-muted hover:text-foreground",
-        "focus-visible:ring-2 focus-visible:ring-ring/50",
+        "focus-visible:ring-ring/50 focus-visible:ring-2",
         className,
       )}
       {...props}
@@ -39,7 +39,7 @@ function DropdownMenuContent({
         sideOffset={sideOffset}
         align={align}
         className={cn(
-          "z-50 min-w-40 overflow-hidden rounded-xl border bg-popover/95 p-1.5 text-popover-foreground shadow-lg backdrop-blur-sm focus-visible:shadow-lg",
+          "bg-popover/95 text-popover-foreground z-50 min-w-40 overflow-hidden rounded-xl border p-1.5 shadow-lg backdrop-blur-sm focus-visible:shadow-lg",
           "data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in",
           "data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out",
           "data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2",
@@ -51,8 +51,9 @@ function DropdownMenuContent({
   );
 }
 
-interface DropdownMenuItemProps
-  extends ComponentProps<typeof DropdownMenuPrimitive.Item> {
+interface DropdownMenuItemProps extends ComponentProps<
+  typeof DropdownMenuPrimitive.Item
+> {
   icon?: ReactNode;
 }
 
@@ -97,7 +98,7 @@ function DropdownMenuSeparator({
 }: ComponentProps<typeof DropdownMenuPrimitive.Separator>) {
   return (
     <DropdownMenuPrimitive.Separator
-      className={cn("my-1 h-px bg-border", className)}
+      className={cn("bg-border my-1 h-px", className)}
       {...props}
     />
   );

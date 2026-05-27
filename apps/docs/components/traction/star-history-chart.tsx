@@ -100,7 +100,7 @@ export function StarHistoryChart({ data }: { data: Point[] }) {
 
   if (data.length < 2) {
     return (
-      <div className="flex h-[260px] items-center justify-center rounded-lg border border-border border-dashed text-muted-foreground text-sm md:h-[360px]">
+      <div className="border-border text-muted-foreground flex h-[260px] items-center justify-center rounded-lg border border-dashed text-sm md:h-[360px]">
         Star history is currently unavailable.
       </div>
     );

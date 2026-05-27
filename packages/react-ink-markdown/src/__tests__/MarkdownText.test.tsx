@@ -50,7 +50,7 @@ describe("MarkdownText", () => {
 
   it("accepts markdansi options", () => {
     const { lastFrame } = render(
-      <MarkdownText text="- item" listIndent={4} theme="monochrome" />,
+      <MarkdownText text="- item" listIndent={4} theme="dim" />,
     );
     expect(lastFrame()).toContain("item");
   });

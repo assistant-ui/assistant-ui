@@ -1,3 +1,4 @@
+import { describe, it, expect, vi } from "vitest";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import type { OpenCodeServerEvent } from "./types";
 

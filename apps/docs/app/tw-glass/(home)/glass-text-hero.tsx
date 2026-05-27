@@ -235,7 +235,7 @@ export function GlassTextHero({ bg }: { bg: string }) {
   });
 
   return (
-    <div className="pointer-events-none relative select-none font-bold text-5xl tracking-tight lg:text-7xl">
+    <div className="pointer-events-none relative text-5xl font-bold tracking-tight select-none lg:text-7xl">
       {/* SVG lighting filter — outputs only diffuse + specular (no SourceGraphic) */}
       <svg
         aria-hidden="true"

@@ -3,9 +3,9 @@
  * for different sources of setState calls
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, fireEvent, waitFor } from "@testing-library/react";
-import { StrictMode, useState, useEffect } from "react";
+import { StrictMode, useState, useEffect, useLayoutEffect } from "react";
 
 describe("React Strict Mode - Rerender Sources", () => {
   describe("Source 1: Initial render", () => {
@@ -190,7 +190,17 @@ describe("React Strict Mode - Rerender Sources", () => {
   });
 
   describe("Source 5: setState in setTimeout", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it("should double-render AND double-call setTimeout callback (React 19)", async () => {
+      // Use fake timers so both strict-mode setTimeout callbacks fire
+      // synchronously before React gets a chance to flush a re-render
+      // between them. Without this, slow CI can process the first
+      // setTimeout, run its renders, and only then fire the second.
+      vi.useFakeTimers();
+
       const events: string[] = [];
 
       function TestComponent() {
@@ -215,9 +225,12 @@ describe("React Strict Mode - Rerender Sources", () => {
         </StrictMode>,
       );
 
-      // Wait for setTimeout
+      // Fire both setTimeout callbacks synchronously via fake timers
+      vi.advanceTimersByTime(10);
+      // Restore real timers and wait for React's scheduler (MessageChannel) to flush
+      vi.useRealTimers();
       await waitFor(() => {
-        expect(events).toContain("setTimeout");
+        expect(events).toHaveLength(6);
       });
 
       // ACTUAL: setTimeout callback runs TWICE and renders are DOUBLED
@@ -353,7 +366,6 @@ describe("React Strict Mode - Rerender Sources", () => {
   describe("Source 8: setState in useLayoutEffect", () => {
     it("should double-render after setState in useLayoutEffect", () => {
       const events: string[] = [];
-      const { useLayoutEffect } = require("react");
 
       function TestComponent() {
         const [count, setCount] = useState(0);

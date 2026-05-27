@@ -41,7 +41,7 @@ export const OpenCodeDataPart: FC<OpenCodeDataPartProps> = ({ name, data }) => {
   const summary = getSummary(name, data);
 
   return (
-    <div className="my-3 flex w-min items-center gap-2 text-nowrap rounded-full border bg-muted/30 px-2 py-1 text-muted-foreground text-xs">
+    <div className="bg-muted/30 text-muted-foreground my-3 flex w-min items-center gap-2 rounded-full border px-2 py-1 text-xs text-nowrap">
       <WrenchIcon className="size-3" />
       {summary}
     </div>

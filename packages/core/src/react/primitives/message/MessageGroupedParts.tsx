@@ -10,9 +10,8 @@ import type {
 } from "../../../types/message";
 import {
   buildGroupTree,
-  type GroupKey,
+  GROUPBY_MEMO_KEY,
   type GroupNode,
-  normalizeGroupKey,
 } from "../../utils/groupParts";
 import { MessagePartChildren, type EnrichedPartState } from "./MessageParts";
 
@@ -47,30 +46,32 @@ export namespace MessagePrimitiveGroupedParts {
 
   export type Props<TKey extends `group-${string}` = `group-${string}`> = {
     /**
-     * Maps each part to its group key path. Adjacent parts that share a
-     * prefix coalesce up to that prefix. Return `null`, `undefined`, or
-     * `[]` to leave a part ungrouped — it will be rendered as a leaf
-     * through `children` with `part` set to its {@link EnrichedPartState}.
+     * Maps each part to a group-key path. Adjacent parts that share a
+     * prefix coalesce into the same group. Return `[]` (or `null`) to
+     * leave a part ungrouped.
      *
-     * Keys must start with `"group-"` so the renderer's
-     * `switch (part.type)` can distinguish groups from real part types.
+     * Group keys must start with `"group-"` so the renderer's
+     * `switch (part.type)` can tell groups apart from real part types.
      *
-     * For best performance, pass a stable reference (module-level
-     * constant or `useCallback`).
+     * **Prefer {@link groupPartByType}** for the common case of mapping by
+     * `part.type` — it ships a stable memo fingerprint so the tree
+     * survives unrelated re-renders. Use an inline function only when
+     * the helper isn't expressive enough (e.g. branching on
+     * `part.toolName` or part metadata).
      *
      * @example
-     * ```ts
-     * const groupBy = (part) =>
-     *   part.type === "reasoning" ? ["group-thought", "group-reasoning"] :
-     *   part.type === "tool-call" ? ["group-thought", "group-tool"] :
-     *   null;
+     * ```tsx
+     * import { groupPartByType } from "@assistant-ui/react";
+     *
+     * <MessagePrimitive.GroupedParts
+     *   groupBy={groupPartByType({
+     *     reasoning: ["group-thought", "group-reasoning"],
+     *     "tool-call": ["group-thought", "group-tool"],
+     *   })}
+     * >
      * ```
      */
-    readonly groupBy: (
-      part: PartState,
-      index: number,
-      parts: readonly PartState[],
-    ) => GroupKey<TKey>;
+    readonly groupBy: (part: PartState) => readonly TKey[] | null;
 
     /**
      * Render function called once per group node and once per leaf part.
@@ -148,11 +149,10 @@ const renderNode = <TKey extends `group-${string}`>(
  * @example
  * ```tsx
  * <MessagePrimitive.GroupedParts
- *   groupBy={(part) =>
- *     part.type === "reasoning" ? ["group-thought", "group-reasoning"] :
- *     part.type === "tool-call" ? ["group-thought", "group-tool"] :
- *     null
- *   }
+ *   groupBy={groupPartByType({
+ *     reasoning: ["group-thought", "group-reasoning"],
+ *     "tool-call": ["group-thought", "group-tool"],
+ *   })}
  * >
  *   {({ part, children }) => {
  *     switch (part.type) {
@@ -173,12 +173,19 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
 }: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode => {
   const parts = useAuiState(useShallow((s) => s.message.parts));
 
+  // Helpers like `groupPartByType` tag the function with `GROUPBY_MEMO_KEY`
+  // (a stable string fingerprint of the helper config). When present,
+  // memo on `[parts, memoKey]` so the tree survives unrelated renders.
+  // For inline `groupBy`, fall back to recomputing each render — O(n)
+  // and cheap.
+  const memoKey = (groupBy as { [GROUPBY_MEMO_KEY]?: string })[
+    GROUPBY_MEMO_KEY
+  ];
+  const memoDep = memoKey ?? groupBy;
   const tree = useMemo(
-    () =>
-      buildGroupTree(
-        parts.map((part, i) => normalizeGroupKey(groupBy(part, i, parts))),
-      ),
-    [parts, groupBy],
+    () => buildGroupTree(parts.map((part) => groupBy(part) ?? [])),
+    // oxlint-disable-next-line tap-hooks/exhaustive-deps -- groupBy is captured via memoDep (either its identity or the helper's memoKey fingerprint); listing it directly would defeat the helper-tagged memo path
+    [parts, memoDep],
   );
 
   return <>{tree.map((node) => renderNode(node, parts, children))}</>;

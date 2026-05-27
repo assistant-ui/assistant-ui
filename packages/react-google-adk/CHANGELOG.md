@@ -1,5 +1,11 @@
 # @assistant-ui/react-google-adk
 
+## 0.0.12
+
+### Patch Changes
+
+- [#4125](https://github.com/assistant-ui/assistant-ui/pull/4125) [`e639a11`](https://github.com/assistant-ui/assistant-ui/commit/e639a11838642aa111644077ba51acf6277051f2) - chore: drop tracker-behaviour explainer comments left behind in satellite runtimes ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.11
 
 ### Patch Changes

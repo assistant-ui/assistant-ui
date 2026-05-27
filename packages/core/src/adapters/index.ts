@@ -8,10 +8,7 @@ export {
 
 // Speech adapters
 export type { SpeechSynthesisAdapter, DictationAdapter } from "./speech";
-export {
-  WebSpeechSynthesisAdapter,
-  WebSpeechDictationAdapter,
-} from "./speech";
+export { WebSpeechSynthesisAdapter, WebSpeechDictationAdapter } from "./speech";
 
 // Voice adapter
 export type { RealtimeVoiceAdapter } from "./voice";

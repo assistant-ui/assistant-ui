@@ -6,18 +6,18 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center justify-center gap-1 rounded-md font-medium text-xs transition-colors [&_svg]:size-3 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-1 rounded-md text-xs font-medium transition-colors [&_svg]:size-3 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         outline:
-          "border border-input bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          "border-input text-muted-foreground hover:bg-accent hover:text-accent-foreground border bg-transparent",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         muted:
           "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
         ghost:
-          "bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          "text-muted-foreground hover:bg-accent hover:text-accent-foreground bg-transparent",
         info: "bg-blue-100 text-blue-700 hover:bg-blue-100/80 dark:bg-blue-900/50 dark:text-blue-300",
         warning:
           "bg-amber-100 text-amber-700 hover:bg-amber-100/80 dark:bg-amber-900/50 dark:text-amber-300",

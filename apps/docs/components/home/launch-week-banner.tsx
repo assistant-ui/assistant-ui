@@ -32,7 +32,7 @@ const DAYS = [
 export function LaunchWeekBanner() {
   return (
     <div className="hidden shrink-0 md:flex md:flex-col md:items-end md:gap-4">
-      <p className="shimmer font-medium text-muted-foreground text-xs uppercase tracking-widest">
+      <p className="shimmer text-muted-foreground text-xs font-medium tracking-widest uppercase">
         Launch Week
       </p>
 
@@ -41,17 +41,17 @@ export function LaunchWeekBanner() {
           <Link
             key={day.day}
             href={day.href}
-            className="group flex items-center gap-3 rounded-lg border border-border/60 bg-background/80 py-2 pr-4 pl-3 backdrop-blur-sm transition-colors hover:border-border"
+            className="group border-border/60 bg-background/80 hover:border-border flex items-center gap-3 rounded-lg border py-2 pr-4 pl-3 backdrop-blur-sm transition-colors"
           >
-            <day.icon className="size-4 text-muted-foreground transition-colors group-hover:text-foreground" />
-            <span className="font-medium text-sm">{day.title}</span>
+            <day.icon className="text-muted-foreground group-hover:text-foreground size-4 transition-colors" />
+            <span className="text-sm font-medium">{day.title}</span>
           </Link>
         ))}
       </div>
 
       <Link
         href="/blog/2026-03-launch-week"
-        className="text-muted-foreground text-xs transition-colors hover:text-foreground"
+        className="text-muted-foreground hover:text-foreground text-xs transition-colors"
       >
         Read the blog →
       </Link>

@@ -57,7 +57,7 @@ export const StreamdownSample = () => {
   };
 
   return (
-    <SampleFrame className="h-auto bg-background p-4">
+    <SampleFrame className="bg-background h-auto p-4">
       <div className="mb-4 flex items-center gap-2">
         <Button
           size="sm"

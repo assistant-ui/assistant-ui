@@ -1,3 +1,6 @@
+import { isMcpAppUri } from "../../types/message";
+import type { PartState } from "../../store/scopes/part";
+
 /**
  * Hierarchical adjacent-coalescing grouping for message parts.
  *
@@ -11,16 +14,71 @@
  */
 
 /**
- * Public group key type. Group keys must be prefixed with `group-` so
- * that a unified `switch (part.type)` in the renderer can distinguish
- * a group key (e.g. `"group-thought"`) from a real part type
- * (`"text"`, `"tool-call"`).
+ * Symbol attached to memoizable `groupBy` functions (e.g. those returned
+ * by {@link groupPartByType}). Carries a string fingerprint of the config
+ * so `MessagePrimitive.GroupedParts` can memo the tree on
+ * `[parts, memoKey]` across renders — even when the helper call site
+ * reconstructs the function each render.
  */
-export type GroupKey<TKey extends `group-${string}` = `group-${string}`> =
-  | TKey
-  | readonly TKey[]
-  | null
-  | undefined;
+export const GROUPBY_MEMO_KEY: unique symbol = Symbol.for(
+  "@assistant-ui/groupBy.memoKey",
+);
+
+/**
+ * Synthetic part-type key recognized by {@link groupPartByType}: a
+ * tool-call whose `mcp.app.resourceUri` points at an assistant-ui MCP
+ * app. Map this key to control how MCP-app tool calls are grouped —
+ * separately from regular `"tool-call"` parts.
+ */
+type GroupPartType = PartState["type"] | "mcp-app";
+
+/**
+ * Build a `groupBy` from a `part.type → group-key path` lookup.
+ * Parts whose type isn't in the map are left ungrouped. The returned
+ * function carries a stable {@link GROUPBY_MEMO_KEY} fingerprint so
+ * `<MessagePrimitive.GroupedParts>` can memoize its tree across renders.
+ *
+ * Special key `"mcp-app"` matches tool-call parts that point at an
+ * assistant-ui MCP app resource (`ui://...`) and takes precedence over
+ * the `"tool-call"` entry for those parts.
+ *
+ * @example
+ * ```tsx
+ * <MessagePrimitive.GroupedParts
+ *   groupBy={groupPartByType({
+ *     reasoning: ["group-thought", "group-reasoning"],
+ *     "tool-call": ["group-thought", "group-tool"],
+ *     "mcp-app": [],
+ *   })}
+ * >
+ *   {({ part, children }) => { ... }}
+ * </MessagePrimitive.GroupedParts>
+ * ```
+ */
+export const groupPartByType = <TKey extends `group-${string}`>(
+  map: Partial<Readonly<Record<GroupPartType, readonly TKey[]>>>,
+): ((part: PartState) => readonly TKey[]) => {
+  const lookup = map as Readonly<Record<string, readonly TKey[] | undefined>>;
+  const fn = ((part) => {
+    if (
+      part.type === "tool-call" &&
+      lookup["mcp-app"] !== undefined &&
+      isMcpAppUri(part.mcp?.app?.resourceUri)
+    ) {
+      return lookup["mcp-app"]!;
+    }
+    return lookup[part.type] ?? [];
+  }) as ((part: PartState) => readonly TKey[]) & {
+    [GROUPBY_MEMO_KEY]?: string;
+  };
+  // Sort keys so the fingerprint is insensitive to map insertion order —
+  // two maps with the same key/value pairs but different declaration order
+  // would otherwise hash differently and invalidate the memo unnecessarily.
+  const sortedKeys = Object.keys(map).sort();
+  const sortedEntries = sortedKeys.map((k) => [k, map[k as keyof typeof map]]);
+  fn[GROUPBY_MEMO_KEY] = `groupPartByType:${JSON.stringify(sortedEntries)}`;
+  return fn;
+};
 
 export type GroupNode = GroupNodeGroup | GroupNodePart;
 
@@ -42,19 +100,6 @@ export interface GroupNodePart {
   /** Structural React key: sibling-index path within parent. */
   readonly nodeKey: string;
 }
-
-const EMPTY_PATH: readonly string[] = Object.freeze([]);
-
-/**
- * Normalize a `groupBy` return value to a path array.
- * `null`/`undefined`/`[]` → `[]` (ungrouped).
- * `"foo"` → `["foo"]`. Arrays pass through.
- */
-export const normalizeGroupKey = (key: GroupKey): readonly string[] => {
-  if (key == null) return EMPTY_PATH;
-  if (typeof key === "string") return [key];
-  return key;
-};
 
 interface BuildFrame {
   key: string;

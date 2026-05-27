@@ -36,25 +36,25 @@ export function PricingPlanCard({ plan }: { plan: PricingPlan }) {
       )}
     >
       <div className="mb-6">
-        <h3 className="font-medium text-sm">{plan.name}</h3>
+        <h3 className="text-sm font-medium">{plan.name}</h3>
         <div className="mt-2 flex items-baseline gap-1">
-          <span className="font-medium text-2xl tracking-tight">
+          <span className="text-2xl font-medium tracking-tight">
             {plan.price}
           </span>
           {plan.period && (
             <span className="text-muted-foreground text-sm">{plan.period}</span>
           )}
         </div>
-        <p className="mt-1 text-muted-foreground text-sm">{plan.description}</p>
+        <p className="text-muted-foreground mt-1 text-sm">{plan.description}</p>
       </div>
 
       <ul className="mb-6 flex-1 space-y-2.5">
         {plan.features.map((feature) => (
           <li
             key={feature}
-            className="flex items-start gap-2 text-muted-foreground text-sm"
+            className="text-muted-foreground flex items-start gap-2 text-sm"
           >
-            <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-foreground/60" />
+            <Check className="text-foreground/60 mt-0.5 h-4 w-4 flex-shrink-0" />
             <span>{feature}</span>
           </li>
         ))}
@@ -64,10 +64,10 @@ export function PricingPlanCard({ plan }: { plan: PricingPlan }) {
         href={plan.href}
         onClick={handleClick}
         className={cn(
-          "block rounded-md py-2 text-center font-medium text-sm transition-colors",
+          "block rounded-md py-2 text-center text-sm font-medium transition-colors",
           plan.highlighted
             ? "bg-foreground text-background hover:bg-foreground/90"
-            : "border border-border hover:bg-muted",
+            : "border-border hover:bg-muted border",
         )}
       >
         {plan.cta}

@@ -13,6 +13,29 @@ a tree of components by name. assistant-ui resolves each name against a
 > not in it throws a typed `GenerativeUIRenderError` (no implicit fallback). It
 > does not constrain the props passed to those components; see [Security](#security).
 
+> **Opt-in feature:** The default shadcn `Thread` does **not** render
+> `generative-ui` parts. You must wire the primitive explicitly — see
+> [Opt-in wiring](#opt-in-wiring).
+
+## Which generative UI pattern?
+
+assistant-ui uses "generative UI" in three different places. Pick the one that
+matches your integration:
+
+| Pattern | API | Best for | Streaming |
+|---------|-----|----------|-----------|
+| **Generative UI primitive** | `MessagePrimitive.GenerativeUI` + allowlist | Composing dashboards, cards, and layouts from a component vocabulary you ship | Native `generative-ui` parts update progressively when the part spec changes incrementally |
+| **Tool UI** | `makeAssistantToolUI` | Interactive widgets tied to a known tool (forms, pickers, charts) | Tool **args** stream while the model fills them in |
+| **LangGraph data UI** | `makeAssistantDataUI` + `ui_message` | LangGraph agents emitting UI via the LangGraph stream | UI messages arrive on the LangGraph custom channel |
+
+See also: [Tool UI guide](/docs/guides/tool-ui), [LangGraph generative UI](/docs/runtimes/langgraph/generative-ui).
+
+## When not to use the primitive
+
+- **User input and two-way interaction** → [Tool UI](/docs/guides/tool-ui) or [Interactables](/docs/guides/interactables)
+- **LangGraph `push_ui_message`** → [LangGraph data UI](/docs/runtimes/langgraph/generative-ui)
+- **Untrusted HTML or arbitrary code** → [Artifacts](/docs/guides/artifacts) with sandboxed frames
+
 ## Quick start
 
 ### 1. Define your component allowlist
@@ -36,30 +59,11 @@ export const componentsAllowlist = { Card, Button };
 
 ### 2. Wire the primitive into your message renderer
 
-```tsx title="components/assistant-message.tsx"
-import { MessagePrimitive } from "@assistant-ui/react";
-import { componentsAllowlist } from "./gui";
+See [Opt-in wiring](#opt-in-wiring) for all three integration patterns.
 
-export function AssistantMessage() {
-  return (
-    <MessagePrimitive.Parts
-      components={{
-        generativeUI: { components: componentsAllowlist },
-      }}
-    />
-  );
-}
-```
+### 3. Have the agent emit UI
 
-You can also use the standalone primitive form:
-
-```tsx
-<MessagePrimitive.GenerativeUI components={componentsAllowlist} />
-```
-
-### 3. Have the agent emit a `generative-ui` part
-
-A `GenerativeUIMessagePart` carries a JSON spec:
+**ExternalStore / manual messages** attach a native part:
 
 ```ts
 {
@@ -75,6 +79,70 @@ A `GenerativeUIMessagePart` carries a JSON spec:
   },
 }
 ```
+
+**AI SDK (`useChatRuntime`)** — the adapter maps tool results to `tool-call`
+parts, not `generative-ui` parts. Use the [AI SDK interim bridge](#pattern-3--ai-sdk-interim-bridge) until a native emission helper ships.
+
+Live examples in [`examples/with-generative-ui`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-generative-ui): Tool UI demo (`/`), static primitive (`/primitive`), GUI chat (`/gui-chat`).
+
+## Opt-in wiring
+
+The stock `@assistant-ui/ui` `Thread` switch returns `null` for unknown part
+types — including `generative-ui`. Add one of these patterns in **your**
+assistant message renderer (~15 lines).
+
+### Pattern 1 — `MessagePrimitive.Parts`
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    generativeUI: {
+      components: componentsAllowlist,
+      Fallback: UnknownComponentFallback,
+    },
+  }}
+/>
+```
+
+### Pattern 2 — `GroupedParts` case (shadcn Thread fork)
+
+```tsx
+case "generative-ui":
+  return (
+    <MessagePrimitive.GenerativeUI
+      components={componentsAllowlist}
+      Fallback={UnknownComponentFallback}
+    />
+  );
+```
+
+Also exclude `render_gui` from tool-group chrome in `groupBy` if you use the
+AI SDK bridge (return `null` for that tool name).
+
+### Pattern 3 — AI SDK interim bridge
+
+When using `useChatRuntime`, map a dedicated tool result to the renderer:
+
+```tsx
+case "tool-call":
+  if (part.toolName === "render_gui") {
+    const spec = parseRenderGuiResult(part.result);
+    if (spec) {
+      return (
+        <MessagePrimitive.GenerativeUI
+          spec={spec}
+          components={componentsAllowlist}
+          Fallback={UnknownComponentFallback}
+        />
+      );
+    }
+  }
+  return part.toolUI ?? <ToolFallback {...part} />;
+```
+
+The message store still holds a `tool-call` on this path — not a
+`generative-ui` part. See `examples/with-generative-ui/app/gui-chat` for a
+working reference.
 
 Bare strings act as inline text leaves.
 
@@ -100,9 +168,13 @@ on the server before delivery.
 
 ## Streaming
 
-The primitive is stream-friendly: any partial spec renders progressively. As
-new nodes arrive (filling in `children`, refining `props`), the rendered tree
-updates without reflows or lost local state for already-mounted children.
+When a message contains native `generative-ui` parts whose `spec` updates
+incrementally (for example via ExternalStore), the primitive renders
+progressively as nodes and props arrive.
+
+The AI SDK `render_gui` tool path returns the full spec at **tool completion**
+— not incrementally during the tool execute step. For args streaming during
+generation, use [Tool UI](/docs/guides/tool-ui) instead.
 
 ## Security
 
@@ -138,5 +210,5 @@ reasoning in the same message.
 
 Tool-call UI is great when the agent already invoked a known tool. Generative
 UI flips it: the agent _composes_ UI from a vocabulary you ship. Useful for
-forms, dashboards, status panels, multi-step flows, and anywhere the
-component library you want is broader than a single tool's render surface.
+dashboards, status panels, and structured layouts — not for collecting user
+input (use Tool UI for that).

@@ -30,6 +30,7 @@ import {
   ExportedMessageRepository,
   MessageRepository,
 } from "../../runtime/utils/message-repository";
+import { ToolInvocationTracker } from "../tool-invocations/ToolInvocationTracker";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
@@ -104,6 +105,12 @@ export class ExternalStoreThreadRuntimeCore
   private _converter = new ThreadMessageConverter();
 
   private _store!: ExternalStoreAdapter<any>;
+
+  /**
+   * Client-side tool-invocations pipeline. Constructed lazily on first
+   * snapshot — only when `adapter.unstable_enableToolInvocations === true`.
+   */
+  private _toolInvocations: ToolInvocationTracker | null = null;
 
   public override beginEdit(messageId: string) {
     if (!this._store.onEdit)
@@ -273,7 +280,111 @@ export class ExternalStoreThreadRuntimeCore
     );
 
     this._messages = this.repository.getMessages();
+
+    this._driveToolInvocations();
+
     this._notifySubscribers();
+  }
+
+  /**
+   * Feed the current message snapshot into the tool-invocations tracker.
+   * Opt-in via `adapter.unstable_enableToolInvocations: true`. The tracker
+   * itself is fail-silent — see ToolInvocationTracker for the
+   * state-transition contract.
+   */
+  private _driveToolInvocations(): void {
+    if (!this._store.unstable_enableToolInvocations) {
+      // Adapter did not opt in (default). If a tracker was previously
+      // constructed (e.g. the adapter just toggled the flag off via a
+      // dynamic swap), drop it so subsequent snapshots are no-ops.
+      if (this._toolInvocations) {
+        this._toolInvocations.reset();
+        this._toolInvocations = null;
+        this._store.setToolStatuses?.({});
+      }
+      return;
+    }
+
+    if (!this._toolInvocations) {
+      this._toolInvocations = new ToolInvocationTracker(
+        () => this.getModelContext().tools,
+        {
+          onResult: (command) => {
+            try {
+              const messageId = this._findMessageIdForToolCall(
+                command.toolCallId,
+              );
+              if (messageId === undefined) {
+                // The tool call no longer exists in the snapshot (e.g.
+                // rolled back). Drop the result.
+                return;
+              }
+              this._store.onAddToolResult?.({
+                messageId,
+                toolCallId: command.toolCallId,
+                toolName: command.toolName,
+                result: command.result,
+                isError: command.isError,
+                ...(command.artifact !== undefined && {
+                  artifact: command.artifact,
+                }),
+                ...(command.modelContent !== undefined && {
+                  modelContent: command.modelContent,
+                }),
+              });
+            } catch (err) {
+              console.error(
+                "[ExternalStoreThreadRuntimeCore] onAddToolResult dispatch failed",
+                err,
+              );
+            }
+          },
+          onStatusesChange: (statuses) => {
+            this._store.setToolStatuses?.(Object.fromEntries(statuses));
+          },
+        },
+      );
+    }
+
+    this._toolInvocations.setState({
+      messages: this._messages,
+      isRunning: this._store.isRunning ?? false,
+      ...(this._store.isLoading !== undefined && {
+        isLoading: this._store.isLoading,
+      }),
+    });
+  }
+
+  /**
+   * Lookup table from `toolCallId` to the owning assistant message's `id`,
+   * rebuilt lazily when `_messages` changes (see `_messagesForToolCallIndex`).
+   */
+  private _toolCallToMessageId = new Map<string, string>();
+  private _messagesForToolCallIndex: readonly ThreadMessage[] | null = null;
+
+  /**
+   * Look up the assistant message that owns a tool-call part. Lazily builds
+   * (and caches) a `toolCallId → messageId` map keyed off the current
+   * `_messages` reference, so onResult dispatches stay O(1) instead of
+   * walking the full thread on every result.
+   */
+  private _findMessageIdForToolCall(toolCallId: string): string | undefined {
+    if (this._messagesForToolCallIndex !== this._messages) {
+      this._toolCallToMessageId.clear();
+      const visit = (messages: readonly ThreadMessage[]): void => {
+        for (const message of messages) {
+          if (!Array.isArray(message.content)) continue;
+          for (const part of message.content) {
+            if (!part || part.type !== "tool-call") continue;
+            this._toolCallToMessageId.set(part.toolCallId, message.id);
+            if (part.messages) visit(part.messages);
+          }
+        }
+      };
+      visit(this._messages);
+      this._messagesForToolCallIndex = this._messages;
+    }
+    return this._toolCallToMessageId.get(toolCallId);
   }
 
   public override switchToBranch(branchId: string): void {
@@ -290,6 +401,16 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(message: AppendMessage): Promise<void> {
+    // Auto-abort in-flight client-side tool executions when a new run is
+    // about to start. Without this, a tool that finishes after the new turn
+    // begins would feed a stale result into `onAddToolResult`, racing with
+    // the new turn the user just initiated. `startRun` defaults to true for
+    // user messages — matches the satellites' historical opt-in cancel
+    // behavior, which is now built in.
+    if (message.startRun ?? message.role === "user") {
+      await this._toolInvocations?.abort();
+    }
+
     if (message.parentId !== (this.messages.at(-1)?.id ?? null)) {
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
@@ -302,6 +423,11 @@ export class ExternalStoreThreadRuntimeCore
   public async startRun(config: StartRunConfig): Promise<void> {
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
+
+    // Auto-abort in-flight client-side tool executions when a run reloads;
+    // any results that land afterward would target a turn that no longer
+    // exists. See `append` above for full rationale.
+    await this._toolInvocations?.abort();
 
     await this._store.onReload(config.parentId, config);
   }
@@ -324,12 +450,29 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onLoadExternalState)
       throw new Error("Runtime does not support importing external states.");
 
+    // Re-arm the tracker so the next adapter snapshot (containing the
+    // imported state) is treated as historical — no streamCall/execute
+    // fires for the loaded tool calls. The adapter is expected to update
+    // its messages in response to onLoadExternalState; that update flows
+    // back here via __internal_setAdapter. We only clear adapter-side
+    // tool statuses when the tracker is the source of truth — otherwise
+    // we'd wipe statuses the adapter is managing on its own.
+    if (this._toolInvocations) {
+      this._toolInvocations.reset();
+      this._store.setToolStatuses?.({});
+    }
+
     this._store.onLoadExternalState(state);
   }
 
   public cancelRun(): void {
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");
+
+    // Abort any in-flight client-side tool executions. Fire-and-forget —
+    // the abort resolves once executions settle, but we don't gate the
+    // cancel on it.
+    void this._toolInvocations?.abort();
 
     this._store.onCancel();
 
@@ -362,15 +505,29 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public addToolResult(options: AddToolResultOptions) {
-    if (!this._store.onAddToolResult && !this._store.onAddToolResult)
+    if (!this._store.onAddToolResult)
       throw new Error("Runtime does not support tool results.");
     this._store.onAddToolResult?.(options);
   }
 
   public resumeToolCall(options: ResumeToolCallOptions) {
-    if (!this._store.onResumeToolCall)
-      throw new Error("Runtime does not support resuming tool calls.");
-    this._store.onResumeToolCall(options);
+    // Tracker owns its own human-input handlers — let it resume in-process
+    // tool calls without round-tripping through the adapter. Falls back to
+    // the adapter's onResumeToolCall (if any) for tool calls the tracker
+    // doesn't know about.
+    const handled =
+      this._toolInvocations?.resume(options.toolCallId, options.payload) ??
+      false;
+    if (handled) return;
+
+    if (this._store.onResumeToolCall) {
+      this._store.onResumeToolCall(options);
+      return;
+    }
+
+    throw new Error(
+      `Tool call ${options.toolCallId} is not waiting for resume.`,
+    );
   }
 
   public respondToToolApproval(options: RespondToToolApprovalOptions) {

@@ -43,9 +43,9 @@ export function CreateDialog({
     <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
       <DialogPrimitive.Trigger asChild>{children}</DialogPrimitive.Trigger>
       <DialogPrimitive.Portal container={container?.current}>
-        <DialogPrimitive.Overlay className="data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 absolute inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=open]:animate-in" />
-        <DialogPrimitive.Content className="data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 absolute top-1/2 left-1/2 z-50 grid max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-lg border bg-background p-6 shadow-lg duration-200 data-[state=closed]:animate-out data-[state=open]:animate-in">
-          <DialogPrimitive.Title className="font-semibold text-lg leading-none">
+        <DialogPrimitive.Overlay className="data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=open]:animate-in absolute inset-0 z-50 bg-black/50" />
+        <DialogPrimitive.Content className="data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 bg-background data-[state=closed]:animate-out data-[state=open]:animate-in absolute top-1/2 left-1/2 z-50 grid max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-lg border p-6 shadow-lg duration-200">
+          <DialogPrimitive.Title className="text-lg leading-none font-semibold">
             Create your assistant
           </DialogPrimitive.Title>
           <div className="space-y-4 overflow-y-auto text-sm">
@@ -69,7 +69,7 @@ export function CreateDialog({
             />
 
             <div className="border-t pt-4">
-              <p className="mb-3 text-muted-foreground">Or set up manually:</p>
+              <p className="text-muted-foreground mb-3">Or set up manually:</p>
               <div className="space-y-3">
                 {commands.manual.slice(0, 2).map((cmd, index) => (
                   <CommandBlock
@@ -81,7 +81,7 @@ export function CreateDialog({
                   />
                 ))}
                 <div>
-                  <div className="mb-1 font-medium text-foreground">
+                  <div className="text-foreground mb-1 font-medium">
                     3. Copy code
                   </div>
                   <p className="text-muted-foreground">
@@ -89,7 +89,7 @@ export function CreateDialog({
                     <button
                       type="button"
                       onClick={handleOpenCodeView}
-                      className="text-foreground underline underline-offset-2 hover:text-foreground/80"
+                      className="text-foreground hover:text-foreground/80 underline underline-offset-2"
                     >
                       Code view
                     </button>{" "}
@@ -100,15 +100,15 @@ export function CreateDialog({
             </div>
 
             <div className="border-t pt-4">
-              <p className="mb-2 font-medium text-foreground">Configuration</p>
-              <div className="space-y-1 text-muted-foreground">
+              <p className="text-foreground mb-2 font-medium">Configuration</p>
+              <div className="text-muted-foreground space-y-1">
                 {commands.summary.map((item, index) => (
                   <div key={index}>{item}</div>
                 ))}
               </div>
             </div>
           </div>
-          <DialogPrimitive.Close className="absolute top-4 right-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+          <DialogPrimitive.Close className="ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none">
             <XIcon className="size-4" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
@@ -143,21 +143,21 @@ function CommandBlock({
 
   return (
     <div>
-      <div className="mb-1 font-medium text-foreground">{label}</div>
+      <div className="text-foreground mb-1 font-medium">{label}</div>
       {description && (
-        <p className="mb-1.5 text-muted-foreground">{description}</p>
+        <p className="text-muted-foreground mb-1.5">{description}</p>
       )}
       {command && (
         <div className="group relative">
-          <pre className="scrollbar-none overflow-x-auto rounded-md bg-muted p-2 font-mono text-xs">
+          <pre className="bg-muted scrollbar-none overflow-x-auto rounded-md p-2 font-mono text-xs">
             {command}
           </pre>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center rounded-r-md bg-muted px-1">
-            <div className="pointer-events-none absolute inset-y-0 -left-3 w-3 bg-gradient-to-r from-transparent to-muted" />
+          <div className="bg-muted pointer-events-none absolute inset-y-0 right-0 flex items-center rounded-r-md px-1">
+            <div className="to-muted pointer-events-none absolute inset-y-0 -left-3 w-3 bg-gradient-to-r from-transparent" />
             <button
               type="button"
               onClick={handleCopy}
-              className="pointer-events-auto rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/10 hover:text-foreground group-hover:opacity-100"
+              className="text-muted-foreground hover:bg-foreground/10 hover:text-foreground pointer-events-auto rounded p-1 opacity-0 transition-opacity group-hover:opacity-100"
               title="Copy command"
             >
               {copied ? (

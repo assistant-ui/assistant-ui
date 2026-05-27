@@ -1,6 +1,7 @@
 import type { ReadonlyJSONValue } from "../../utils/json/json-value";
 import type {
   ToolModelContentPart,
+  // oxlint-disable-next-line no-unused-vars -- referenced from JSDoc {@link} below
   ToolModelOutputFunction,
 } from "./tool-types";
 

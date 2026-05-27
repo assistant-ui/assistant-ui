@@ -354,4 +354,40 @@ describe("useAISDKRuntime", () => {
       metadata: { custom: { maxTokens: 100 } },
     });
   });
+
+  it("forwards isDisabled to thread state", () => {
+    const chat = createChatHelpers();
+    const { result } = renderHook(() =>
+      useAISDKRuntime(chat, { isDisabled: true }),
+    );
+    expect(result.current.thread.getState().isDisabled).toBe(true);
+  });
+
+  it("forwards isSendDisabled to the composer canSend gate", () => {
+    const chat = createChatHelpers();
+    const { result } = renderHook(() =>
+      useAISDKRuntime(chat, { isSendDisabled: true }),
+    );
+    act(() => {
+      result.current.thread.composer.setText("hello");
+    });
+    expect(result.current.thread.composer.getState().canSend).toBe(false);
+  });
+
+  it("forwards unstable_capabilities to thread capabilities", () => {
+    const chat = createChatHelpers();
+    const { result } = renderHook(() =>
+      useAISDKRuntime(chat, { unstable_capabilities: { copy: false } }),
+    );
+    expect(result.current.thread.getState().capabilities.unstable_copy).toBe(
+      false,
+    );
+  });
+
+  it("forwards suggestions to thread state", () => {
+    const chat = createChatHelpers();
+    const suggestions = [{ prompt: "tell me a joke" }];
+    const { result } = renderHook(() => useAISDKRuntime(chat, { suggestions }));
+    expect(result.current.thread.getState().suggestions).toEqual(suggestions);
+  });
 });

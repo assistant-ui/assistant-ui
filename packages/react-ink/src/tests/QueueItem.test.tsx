@@ -19,7 +19,7 @@ const mockUseAui = vi.fn(() => ({
 const mockUseAuiState = vi.fn();
 
 type UseAuiStateSelector = Parameters<
-  typeof import("@assistant-ui/store")["useAuiState"]
+  (typeof import("@assistant-ui/store"))["useAuiState"]
 >[0];
 
 type InputHandler = (
@@ -161,9 +161,11 @@ describe("ComposerPrimitive.Queue", () => {
 
     expect(renderItem).toHaveBeenCalledTimes(3);
     for (let index = 0; index < 3; index++) {
-      const arg = renderItem.mock.calls[index]![0] as {
-        queueItem: { id: string; prompt: string };
-      };
+      const arg = (
+        renderItem.mock.calls[index] as unknown as [
+          { queueItem: { id: string; prompt: string } },
+        ]
+      )[0]!;
       expect(arg.queueItem).toEqual({
         id: `queue-item-${index}`,
         prompt: `prompt ${index}`,

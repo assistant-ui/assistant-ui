@@ -13,7 +13,7 @@ export function NavItems({ items }: { items: NavItem[] }) {
       <Link
         key={item.href}
         href={item.href}
-        className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+        className="text-muted-foreground hover:text-foreground px-3 py-1.5 text-sm transition-colors"
       >
         {item.label}
       </Link>
@@ -22,7 +22,7 @@ export function NavItems({ items }: { items: NavItem[] }) {
         <HoverCardTrigger asChild>
           <button
             type="button"
-            className="px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground px-3 py-1.5 text-sm transition-colors"
           >
             {item.label}
           </button>
@@ -36,7 +36,7 @@ export function NavItems({ items }: { items: NavItem[] }) {
                   href={link.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex flex-col rounded-md px-2 py-1.5 transition-colors hover:bg-muted"
+                  className="hover:bg-muted flex flex-col rounded-md px-2 py-1.5 transition-colors"
                 >
                   <span className="flex items-center gap-1.5 text-sm">
                     {link.label}
@@ -50,7 +50,7 @@ export function NavItems({ items }: { items: NavItem[] }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="flex flex-col rounded-md px-2 py-1.5 transition-colors hover:bg-muted"
+                  className="hover:bg-muted flex flex-col rounded-md px-2 py-1.5 transition-colors"
                 >
                   <span className="text-sm">{link.label}</span>
                   <span className="text-muted-foreground text-xs">

@@ -36,7 +36,7 @@ function SourceIcon({
       <span
         data-slot="source-icon-fallback"
         className={cn(
-          "flex size-3 shrink-0 items-center justify-center rounded-sm bg-muted font-medium text-[10px]",
+          "bg-muted flex size-3 shrink-0 items-center justify-center rounded-sm text-[10px] font-medium",
           className,
         )}
         {...props}
@@ -73,7 +73,7 @@ function DocumentSourceIcon({ className, ...props }: ComponentProps<"span">) {
     <span
       data-slot="source-document-icon"
       className={cn(
-        "flex size-3 shrink-0 items-center justify-center text-muted-foreground",
+        "text-muted-foreground flex size-3 shrink-0 items-center justify-center",
         className,
       )}
       {...props}
@@ -103,7 +103,7 @@ function Source({
       variant={variant}
       size={size}
       className={cn(
-        "cursor-pointer outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        "focus-visible:border-ring focus-visible:ring-ring/50 cursor-pointer outline-none focus-visible:ring-[3px]",
         className,
       )}
     >
@@ -134,7 +134,7 @@ const SourcesImpl: SourceMessagePartComponent = (part) => {
     return (
       <Badge
         variant="secondary"
-        className="outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        className="focus-visible:border-ring focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]"
       >
         <span data-slot="source" className="inline-flex items-center gap-1.5">
           <DocumentSourceIcon />

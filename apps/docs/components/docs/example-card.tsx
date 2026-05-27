@@ -13,7 +13,7 @@ export function ExampleCard({
   return (
     <Link
       href={link}
-      className="not-prose group block overflow-hidden rounded-lg border bg-card transition-colors hover:border-foreground/20"
+      className="not-prose group bg-card hover:border-foreground/20 block overflow-hidden rounded-lg border transition-colors"
       {...(external && { target: "_blank", rel: "noopener noreferrer" })}
     >
       <div className="overflow-hidden">
@@ -29,7 +29,7 @@ export function ExampleCard({
         <div className="flex items-center justify-between">
           <h3 className="font-medium">{title}</h3>
           {external && (
-            <ArrowUpRight className="size-4 text-muted-foreground" />
+            <ArrowUpRight className="text-muted-foreground size-4" />
           )}
         </div>
         {description && (

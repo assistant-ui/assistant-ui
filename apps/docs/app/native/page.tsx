@@ -71,10 +71,10 @@ export default function NativePage() {
       {/* Hero */}
       <div className="flex flex-col items-center gap-6 text-center">
         <div className="flex flex-col gap-3">
-          <h1 className="mx-auto max-w-2xl font-medium text-3xl tracking-tight md:text-5xl">
+          <h1 className="mx-auto max-w-2xl text-3xl font-medium tracking-tight md:text-5xl">
             Get the UX of ChatGPT in your own mobile app
           </h1>
-          <p className="mx-auto max-w-xl text-lg text-muted-foreground">
+          <p className="text-muted-foreground mx-auto max-w-xl text-lg">
             Beautiful, production-ready AI chat for React Native. Powered by the
             same runtime as assistant-ui, with full Expo support and
             cross-platform code sharing.
@@ -86,17 +86,17 @@ export default function NativePage() {
           analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
         />
 
-        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[13px] text-muted-foreground">
+        <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[13px]">
           <Link
             href="/docs/react-native"
-            className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+            className="text-foreground/60 hover:text-foreground font-medium transition-colors"
           >
             Getting Started →
           </Link>
-          <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
+          <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
           <Link
             href="/docs/react-native/migration"
-            className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+            className="text-foreground/60 hover:text-foreground font-medium transition-colors"
           >
             Migration from Web →
           </Link>
@@ -122,10 +122,10 @@ export default function NativePage() {
       {/* Features */}
       <div className="flex flex-col gap-8">
         <div className="flex flex-col items-center gap-2 text-center">
-          <h2 className="font-medium text-3xl tracking-tight">
+          <h2 className="text-3xl font-medium tracking-tight">
             Why assistant-ui for React Native?
           </h2>
-          <p className="max-w-xl text-muted-foreground">
+          <p className="text-muted-foreground max-w-xl">
             Everything you need to build a world-class AI chat experience on
             mobile — without starting from scratch.
           </p>
@@ -137,7 +137,7 @@ export default function NativePage() {
             return (
               <div
                 key={feature.title}
-                className="flex flex-col gap-2 rounded-xl border border-border/50 bg-muted/30 p-4 transition-colors hover:border-border/80"
+                className="border-border/50 bg-muted/30 hover:border-border/80 flex flex-col gap-2 rounded-xl border p-4 transition-colors"
               >
                 <span className="flex items-center gap-2 font-medium">
                   <Icon className={cn("size-4", feature.iconColor)} />
@@ -153,12 +153,12 @@ export default function NativePage() {
       </div>
 
       {/* Code sharing callout */}
-      <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 rounded-xl border border-border/50 bg-muted/30 p-8 text-center">
+      <div className="border-border/50 bg-muted/30 mx-auto flex max-w-3xl flex-col items-center gap-4 rounded-xl border p-8 text-center">
         <Code2 className="size-8 text-violet-400" />
-        <h3 className="font-medium text-xl tracking-tight">
+        <h3 className="text-xl font-medium tracking-tight">
           Already using assistant-ui?
         </h3>
-        <p className="max-w-lg text-muted-foreground">
+        <p className="text-muted-foreground max-w-lg">
           Your existing runtime setup, tool definitions, and model adapters work
           with the React Native package. Share the same code between your web
           and mobile apps — only the UI layer changes.
@@ -172,7 +172,7 @@ export default function NativePage() {
 
       {/* CTA */}
       <div className="flex flex-col items-center gap-6 py-16 text-center">
-        <p className="font-medium text-2xl tracking-tight">
+        <p className="text-2xl font-medium tracking-tight">
           Start building today
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">

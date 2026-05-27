@@ -212,7 +212,10 @@ html:has(#nd-docs-layout) {
     margin-bottom: 0.25rem !important;
   }
 
-  & :where(code):not(:where(pre code)):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  &
+    :where(code):not(:where(pre code)):not(
+      :where([class~="not-prose"], [class~="not-prose"] *)
+    ) {
     font-size: 0.8125rem !important;
     padding: 0.125rem 0.375rem !important;
     border-radius: 0.375rem !important;
@@ -236,7 +239,10 @@ html:has(#nd-docs-layout) {
     border-radius: 0.5rem !important;
   }
 
-  & :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  &
+    :where(blockquote):not(
+      :where([class~="not-prose"], [class~="not-prose"] *)
+    ) {
     font-style: normal !important;
     font-weight: 400 !important;
     color: var(--muted-foreground) !important;
@@ -247,7 +253,10 @@ html:has(#nd-docs-layout) {
     border-left-color: var(--border) !important;
   }
 
-  & :where(a):not(:where([class~="not-prose"], [class~="not-prose"] *)):not([data-card]) {
+  &
+    :where(a):not(:where([class~="not-prose"], [class~="not-prose"] *)):not(
+      [data-card]
+    ) {
     text-decoration: underline !important;
     text-underline-offset: 2px !important;
     text-decoration-color: var(--fd-muted-foreground) !important;
@@ -322,7 +331,10 @@ html:has(#nd-docs-layout) {
     border-color: var(--border) !important;
   }
 
-  & :where(h2 + p, h3 + p, h4 + p):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  &
+    :where(h2 + p, h3 + p, h4 + p):not(
+      :where([class~="not-prose"], [class~="not-prose"] *)
+    ) {
     margin-top: 0 !important;
   }
 
@@ -532,7 +544,6 @@ figure.shiki {
     line-height: inherit !important;
     user-select: none !important;
   }
-
 }
 
 /* Override fumadocs line numbers to be right-aligned */

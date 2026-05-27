@@ -67,7 +67,7 @@ export function SubProjectLayout({
         className={cn("z-50 w-full shrink-0", !fullHeight && "sticky top-0")}
       >
         {!fullHeight && (
-          <div className="mask-[linear-gradient(to_bottom,black_75%,transparent)] pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b from-background to-transparent backdrop-blur-xl" />
+          <div className="from-background pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b to-transparent mask-[linear-gradient(to_bottom,black_75%,transparent)] backdrop-blur-xl" />
         )}
         <div
           className={cn(
@@ -88,7 +88,7 @@ export function SubProjectLayout({
                 assistant-ui
               </span>
             </Link>
-            <span className="ml-3 text-muted-foreground/40">/</span>
+            <span className="text-muted-foreground/40 ml-3">/</span>
             <Select
               value={name}
               onValueChange={(value) => router.push(`/${value}`)}
@@ -108,11 +108,11 @@ export function SubProjectLayout({
             <span className="hidden sm:contents">
               {breadcrumbs?.map((item, index) => (
                 <span key={item.href} className="contents">
-                  <span className="mr-3 ml-1 text-muted-foreground/40">/</span>
+                  <span className="text-muted-foreground/40 mr-3 ml-1">/</span>
                   <Link
                     href={item.href}
                     className={cn(
-                      "mr-2 text-sm transition-colors hover:text-foreground",
+                      "hover:text-foreground mr-2 text-sm transition-colors",
                       index === breadcrumbs.length - 1
                         ? "text-foreground"
                         : "text-muted-foreground",
@@ -135,7 +135,7 @@ export function SubProjectLayout({
               href={githubPath}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex size-8 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground flex size-8 items-center justify-center transition-colors"
               aria-label="View on GitHub"
             >
               <GitHubIcon className="size-4" />
@@ -151,12 +151,12 @@ export function SubProjectLayout({
 
       {!hideFooter && (
         <footer className="relative px-4 py-8">
-          <div className="mx-auto flex max-w-7xl items-center justify-between text-muted-foreground text-sm">
+          <div className="text-muted-foreground mx-auto flex max-w-7xl items-center justify-between text-sm">
             <p>
               By{" "}
               <Link
                 href="/"
-                className="transition-colors hover:text-foreground"
+                className="hover:text-foreground transition-colors"
               >
                 assistant-ui
               </Link>
@@ -165,7 +165,7 @@ export function SubProjectLayout({
               href="https://agentbase.dev"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-foreground/30 text-xs transition-colors hover:text-foreground"
+              className="text-foreground/30 hover:text-foreground text-xs transition-colors"
             >
               &copy; {new Date().getFullYear()} AgentbaseAI Inc.
             </a>

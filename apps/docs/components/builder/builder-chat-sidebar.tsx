@@ -160,11 +160,11 @@ export function PlaygroundChatThread({
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
       {onRunningChange && <RunningObserver onRunningChange={onRunningChange} />}
       <ThreadPrimitive.Root className="flex flex-1 flex-col overflow-hidden">
-        <ThreadPrimitive.Viewport className="scrollbar-none flex flex-1 flex-col gap-3 overflow-y-auto px-3 pt-3">
+        <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col gap-3 overflow-y-auto px-3 pt-3">
           <ThreadPrimitive.Empty>
             <div className="flex flex-1 flex-col items-center justify-center gap-4 py-8 text-center">
               <div>
-                <p className="font-medium text-sm">
+                <p className="text-sm font-medium">
                   Describe how you want your chat to look
                 </p>
                 <p className="text-muted-foreground text-xs">
@@ -178,7 +178,7 @@ export function PlaygroundChatThread({
                     key={s.prompt}
                     prompt={s.prompt}
                     send
-                    className="rounded-lg border px-3 py-2 text-left text-xs transition-colors hover:bg-muted"
+                    className="hover:bg-muted rounded-lg border px-3 py-2 text-left text-xs transition-colors"
                   >
                     <span className="font-medium">{s.title}</span>{" "}
                     <span className="text-muted-foreground">{s.label}</span>
@@ -192,7 +192,7 @@ export function PlaygroundChatThread({
             components={{ UserMessage, AssistantMessage }}
           />
 
-          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-background">
+          <ThreadPrimitive.ViewportFooter className="bg-background sticky bottom-0 mt-auto">
             <Composer />
           </ThreadPrimitive.ViewportFooter>
         </ThreadPrimitive.Viewport>
@@ -218,22 +218,22 @@ function RunningObserver({
 function Composer() {
   return (
     <ComposerPrimitive.Root className="py-2">
-      <div className="rounded-lg border border-border bg-background focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/20">
+      <div className="border-border bg-background focus-within:border-ring/50 focus-within:ring-ring/20 rounded-lg border focus-within:ring-1">
         <ComposerPrimitive.Input asChild>
           <textarea
             placeholder="Describe a change..."
-            className="field-sizing-content max-h-32 w-full resize-none bg-transparent px-3 pt-2.5 pb-2 text-sm leading-5 placeholder:text-muted-foreground focus:outline-none"
+            className="placeholder:text-muted-foreground field-sizing-content max-h-32 w-full resize-none bg-transparent px-3 pt-2.5 pb-2 text-sm leading-5 focus:outline-none"
             rows={1}
           />
         </ComposerPrimitive.Input>
         <div className="flex items-center justify-end px-1.5 pb-1.5">
           <AuiIf condition={(s) => !s.thread.isRunning}>
-            <ComposerPrimitive.Send className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30">
+            <ComposerPrimitive.Send className="text-muted-foreground hover:text-foreground rounded-md p-1 transition-colors disabled:opacity-30">
               <SendHorizontal className="size-4" />
             </ComposerPrimitive.Send>
           </AuiIf>
           <AuiIf condition={(s) => s.thread.isRunning}>
-            <ComposerPrimitive.Cancel className="rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground">
+            <ComposerPrimitive.Cancel className="text-muted-foreground hover:text-foreground rounded-md p-1 transition-colors">
               <SquareIcon className="size-3.5 fill-current" />
             </ComposerPrimitive.Cancel>
           </AuiIf>
@@ -246,7 +246,7 @@ function Composer() {
 function UserMessage() {
   return (
     <MessagePrimitive.Root className="flex justify-end">
-      <div className="max-w-[85%] rounded-lg bg-foreground/5 px-3 py-2 text-sm">
+      <div className="bg-foreground/5 max-w-[85%] rounded-lg px-3 py-2 text-sm">
         <MessagePrimitive.Content />
       </div>
     </MessagePrimitive.Root>
@@ -258,7 +258,7 @@ function AssistantMessage() {
     <MessagePrimitive.Root className="px-3 py-2 text-sm">
       <MessagePrimitive.Content />
       <MessagePrimitive.Error>
-        <ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive bg-destructive/10 p-2 text-destructive text-xs dark:bg-destructive/5 dark:text-red-200">
+        <ErrorPrimitive.Root className="border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-2 text-xs dark:text-red-200">
           <ErrorPrimitive.Message className="line-clamp-2" />
         </ErrorPrimitive.Root>
       </MessagePrimitive.Error>

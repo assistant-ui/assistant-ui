@@ -66,7 +66,7 @@ function StateBadge({ state }: { state: A2ATaskState }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-medium text-xs ${config.color} ${config.bg}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${config.color} ${config.bg}`}
     >
       {isActive ? (
         <span className="relative flex size-1.5">
@@ -95,7 +95,7 @@ function TaskStatusBar() {
       <StateBadge state={state} />
       <span className="text-muted-foreground">Task {task.id.slice(0, 8)}</span>
       {errorText && (
-        <span className="ml-auto text-red-600 text-xs">{errorText}</span>
+        <span className="ml-auto text-xs text-red-600">{errorText}</span>
       )}
     </div>
   );
@@ -104,18 +104,18 @@ function TaskStatusBar() {
 function ArtifactPartView({ part }: { part: A2APart }) {
   if (part.text !== undefined) {
     return (
-      <pre className="overflow-x-auto whitespace-pre-wrap rounded border bg-background p-2 font-mono text-xs">
+      <pre className="bg-background overflow-x-auto rounded border p-2 font-mono text-xs whitespace-pre-wrap">
         {part.text}
       </pre>
     );
   }
   if (part.data !== undefined) {
     return (
-      <div className="rounded border bg-background p-2">
-        <div className="mb-1 font-medium text-muted-foreground text-xs">
+      <div className="bg-background rounded border p-2">
+        <div className="text-muted-foreground mb-1 text-xs font-medium">
           Data
         </div>
-        <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs">
+        <pre className="overflow-x-auto font-mono text-xs whitespace-pre-wrap">
           {JSON.stringify(part.data, null, 2)}
         </pre>
       </div>
@@ -138,7 +138,7 @@ function ArtifactPartView({ part }: { part: A2APart }) {
         href={part.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 rounded border bg-background p-2 text-sm hover:bg-muted"
+        className="bg-background hover:bg-muted inline-flex items-center gap-2 rounded border p-2 text-sm"
       >
         <span>📄</span>
         <span>{part.filename ?? "Download"}</span>
@@ -167,7 +167,7 @@ function ArtifactPartView({ part }: { part: A2APart }) {
       <a
         href={dataUri}
         download={part.filename ?? "download"}
-        className="inline-flex items-center gap-2 rounded border bg-background p-2 text-sm hover:bg-muted"
+        className="bg-background hover:bg-muted inline-flex items-center gap-2 rounded border p-2 text-sm"
       >
         <span>📎</span>
         <span>{part.filename ?? "File"}</span>
@@ -189,17 +189,17 @@ function ArtifactPanel() {
 
   return (
     <div className="max-h-80 overflow-y-auto border-t px-4 py-3">
-      <h3 className="mb-2 font-medium text-muted-foreground text-xs">
+      <h3 className="text-muted-foreground mb-2 text-xs font-medium">
         Artifacts ({artifacts.length})
       </h3>
       <div className="space-y-2">
         {artifacts.map((artifact) => (
           <div
             key={artifact.artifactId}
-            className="overflow-hidden rounded-md border bg-muted/30"
+            className="bg-muted/30 overflow-hidden rounded-md border"
           >
-            <div className="flex items-center gap-2 border-b bg-muted/50 px-3 py-1.5">
-              <span className="font-medium text-xs">
+            <div className="bg-muted/50 flex items-center gap-2 border-b px-3 py-1.5">
+              <span className="text-xs font-medium">
                 {artifact.name ?? artifact.artifactId}
               </span>
               {artifact.description && (
@@ -226,16 +226,16 @@ function AgentCardBanner() {
   if (!card) return null;
 
   return (
-    <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-2">
+    <div className="bg-muted/30 flex items-center gap-3 border-b px-4 py-2">
       <div className="flex-1">
-        <div className="font-medium text-sm">{card.name}</div>
+        <div className="text-sm font-medium">{card.name}</div>
         <div className="text-muted-foreground text-xs">{card.description}</div>
       </div>
       <div className="flex flex-wrap gap-1">
         {card.skills.map((skill) => (
           <span
             key={skill.id}
-            className="rounded-md bg-muted px-2 py-0.5 text-xs"
+            className="bg-muted rounded-md px-2 py-0.5 text-xs"
             title={skill.description}
           >
             {skill.name}

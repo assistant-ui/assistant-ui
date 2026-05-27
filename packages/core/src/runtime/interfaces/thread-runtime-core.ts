@@ -1,3 +1,4 @@
+import type { ToolModelContentPart } from "assistant-stream";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ModelContext } from "../../model-context/types";
 import type { Unsubscribe } from "../../types/unsubscribe";
@@ -38,6 +39,13 @@ export type AddToolResultOptions = {
   result: ReadonlyJSONValue;
   isError: boolean;
   artifact?: ReadonlyJSONValue | undefined;
+  /**
+   * Optional model-content payload produced by the tool. Populated when a
+   * client-side `execute()` or `streamCall` returns a `ToolResponse` with
+   * `modelContent`. Forwarded through `adapter.onAddToolResult` so the
+   * adapter can include it when sending the result back to its backend.
+   */
+  modelContent?: readonly ToolModelContentPart[] | undefined;
 };
 
 export type ResumeToolCallOptions = {

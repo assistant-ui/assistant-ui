@@ -1,21 +1,22 @@
-/// <reference types="@assistant-ui/core/store" />
 import { useEffect, useRef, useState } from "react";
 import {
   getExternalStoreMessages,
+  pickExternalStoreSharedOptions,
   type AttachmentAdapter,
   type DictationAdapter,
+  type ExternalStoreSharedOptions,
   type FeedbackAdapter,
+  type RealtimeVoiceAdapter,
   type SpeechSynthesisAdapter,
   type AppendMessage,
   type ThreadMessage,
+  type ToolExecutionStatus,
 } from "@assistant-ui/core";
 import {
-  type ToolExecutionStatus,
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
   useExternalMessageConverter,
   useExternalStoreRuntime,
-  useToolInvocations,
 } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
 import type { AssistantCloud } from "assistant-cloud";
@@ -137,7 +138,7 @@ const truncateAdkMessages = (
   return truncated;
 };
 
-export type UseAdkRuntimeOptions = {
+export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   stream: AdkStreamCallback;
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;
@@ -153,6 +154,7 @@ export type UseAdkRuntimeOptions = {
         attachments?: AttachmentAdapter;
         speech?: SpeechSynthesisAdapter;
         dictation?: DictationAdapter;
+        voice?: RealtimeVoiceAdapter;
         feedback?: FeedbackAdapter;
       }
     | undefined;
@@ -171,15 +173,16 @@ export type UseAdkRuntimeOptions = {
   sessionAdapter?: RemoteThreadListAdapter | undefined;
 };
 
-const useAdkRuntimeImpl = ({
-  autoCancelPendingToolCalls,
-  adapters: { attachments, dictation, feedback, speech } = {},
-  unstable_allowCancellation,
-  stream,
-  load,
-  getCheckpointId,
-  eventHandlers,
-}: UseAdkRuntimeOptions) => {
+const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
+  const {
+    autoCancelPendingToolCalls,
+    adapters: { attachments, dictation, feedback, speech, voice } = {},
+    unstable_allowCancellation,
+    stream,
+    load,
+    getCheckpointId,
+    eventHandlers,
+  } = options;
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const aui = useAui();
   const {
@@ -236,41 +239,13 @@ const useAdkRuntimeImpl = ({
   threadMessagesRef.current = threadMessages;
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const [runtimeRef] = useState(() => ({
-    get current() {
-      return runtime;
-    },
-  }));
-
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
-  const toolInvocations = useToolInvocations({
-    state: { messages: threadMessages, isRunning: effectiveIsRunning },
-    getTools: () => runtimeRef.current.thread.getModelContext().tools,
-    onResult: (command) => {
-      if (command.type === "add-tool-result") {
-        void handleSendMessage(
-          [
-            {
-              id: uuidv4(),
-              type: "tool",
-              name: command.toolName,
-              tool_call_id: command.toolCallId,
-              content: JSON.stringify(command.result),
-              status: command.isError ? "error" : "success",
-            },
-          ],
-          {},
-        );
-      }
-    },
-    setToolStatuses,
-  });
-
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runtime = useExternalStoreRuntime({
+    ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
     messages: threadMessages,
-    adapters: { attachments, dictation, feedback, speech },
+    unstable_enableToolInvocations: true,
+    setToolStatuses,
+    adapters: { attachments, dictation, feedback, speech, voice },
     extras: {
       [symbolAdkRuntimeExtras]: true,
       agentInfo,
@@ -284,8 +259,6 @@ const useAdkRuntimeImpl = ({
       send: handleSendMessage,
     } satisfies AdkRuntimeExtras,
     onNew: async (msg) => {
-      await toolInvocations.abort();
-
       const cancellations =
         autoCancelPendingToolCalls !== false
           ? getPendingCancellations(messages, longRunningToolIds)
@@ -305,7 +278,6 @@ const useAdkRuntimeImpl = ({
     },
     onEdit: getCheckpointId
       ? async (msg) => {
-          await toolInvocations.abort();
           const truncated = truncateAdkMessages(
             threadMessagesRef.current,
             msg.parentId,
@@ -332,7 +304,6 @@ const useAdkRuntimeImpl = ({
       : undefined,
     onReload: getCheckpointId
       ? async (parentId, config) => {
-          await toolInvocations.abort();
           const truncated = truncateAdkMessages(
             threadMessagesRef.current,
             parentId,
@@ -370,12 +341,9 @@ const useAdkRuntimeImpl = ({
         {},
       );
     },
-    onResumeToolCall: (options) =>
-      toolInvocations.resume(options.toolCallId, options.payload),
     onCancel: unstable_allowCancellation
       ? async () => {
           cancel();
-          await toolInvocations.abort();
         }
       : undefined,
   });

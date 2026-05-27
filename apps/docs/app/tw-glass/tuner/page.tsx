@@ -201,11 +201,11 @@ export default function GlassTunerPage() {
   const bgUrl = unsplash(PATTERNS[bgIndex]!.id);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background min-h-screen">
       <div className="mx-auto max-w-7xl px-4 py-12">
         <header className="mb-8 flex items-center justify-between">
           <div className="space-y-2">
-            <h1 className="font-bold text-3xl">Glass Tuner</h1>
+            <h1 className="text-3xl font-bold">Glass Tuner</h1>
             <p className="text-muted-foreground text-sm">
               Tweak every glass parameter live, then copy the compiled CSS.
             </p>
@@ -213,7 +213,7 @@ export default function GlassTunerPage() {
           <button
             type="button"
             onClick={handleReset}
-            className="rounded-lg border px-3 py-1.5 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg border px-3 py-1.5 text-sm transition-colors"
           >
             Reset
           </button>
@@ -470,15 +470,15 @@ export default function GlassTunerPage() {
 
         {/* Compiled CSS Output */}
         <div className="mt-8">
-          <div className="relative overflow-hidden rounded-xl border bg-muted/50">
+          <div className="bg-muted/50 relative overflow-hidden rounded-xl border">
             <div className="flex items-center justify-between border-b px-4 py-2">
-              <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+              <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                 Compiled CSS
               </span>
               <button
                 type="button"
                 onClick={handleCopy}
-                className="rounded-md bg-foreground/10 px-3 py-1 text-sm transition-colors hover:bg-foreground/20"
+                className="bg-foreground/10 hover:bg-foreground/20 rounded-md px-3 py-1 text-sm transition-colors"
               >
                 {copied ? "Copied!" : "Copy"}
               </button>
@@ -691,7 +691,7 @@ function ControlGroup({
 }) {
   return (
     <div className="space-y-3 rounded-xl border p-4">
-      <h3 className="font-semibold text-muted-foreground text-xs uppercase tracking-wide">
+      <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
         {title}
       </h3>
       <div className="space-y-3">{children}</div>
@@ -720,7 +720,7 @@ function Slider({
     <div className="space-y-1">
       <div className="flex items-center justify-between text-sm">
         <span>{label}</span>
-        <span className="font-mono text-muted-foreground">{display}</span>
+        <span className="text-muted-foreground font-mono">{display}</span>
       </div>
       <input
         type="range"
@@ -777,7 +777,7 @@ function BlendSelect({
     <div className="space-y-1">
       <div className="flex items-center justify-between text-sm">
         <span>Highlight blend</span>
-        <span className="font-mono text-muted-foreground">{value}</span>
+        <span className="text-muted-foreground font-mono">{value}</span>
       </div>
       <div className="flex flex-wrap gap-1.5">
         {BLEND_MODES.map((mode) => (

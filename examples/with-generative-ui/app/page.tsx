@@ -14,6 +14,7 @@ import { ChartToolUI } from "@/components/chart-tool-ui";
 import { DatePickerToolUI } from "@/components/date-picker-tool-ui";
 import { ContactFormToolUI } from "@/components/contact-form-tool-ui";
 import { LocationToolUI } from "@/components/location-tool-ui";
+import { ExampleNav } from "@/components/example-nav";
 
 // Register frontend tool schemas (no execute — resolved via addResult in the UI)
 function FrontendTools() {
@@ -84,9 +85,12 @@ export default function Home() {
       <LocationToolUI />
       <DatePickerToolUI />
       <ContactFormToolUI />
-      <main className="h-full">
-        <Thread />
-      </main>
+      <div className="flex h-full flex-col">
+        <ExampleNav />
+        <main className="min-h-0 flex-1">
+          <Thread />
+        </main>
+      </div>
     </AssistantRuntimeProvider>
   );
 }

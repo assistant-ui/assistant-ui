@@ -1,4 +1,3 @@
-/// <reference types="@assistant-ui/core/store" />
 import { useState, useCallback, useRef, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useAui } from "@assistant-ui/store";

@@ -2,10 +2,12 @@
 
 import { type FC, type PropsWithChildren, useState } from "react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { Sources } from "@/components/assistant-ui/sources";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import {
   ComposerPrimitive,
+  groupPartByType,
   MessagePrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
@@ -22,7 +24,7 @@ import {
 export const MyThread: FC = () => {
   return (
     <ThreadPrimitive.Root
-      className="flex h-full flex-col bg-background"
+      className="bg-background flex h-full flex-col"
       style={{ ["--thread-max-width" as string]: "44rem" }}
     >
       <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-scroll scroll-smooth px-4 pt-8">
@@ -62,7 +64,9 @@ const ThreadWelcome: FC = () => {
   return (
     <div className="mx-auto flex w-full max-w-(--thread-max-width) grow flex-col justify-center gap-6">
       <div>
-        <h1 className="font-semibold text-2xl">What should we calculate?</h1>
+        <h1 className="text-2xl font-semibold">
+          What should we think through?
+        </h1>
       </div>
       <div className="flex flex-wrap gap-2">
         <ThreadPrimitive.Suggestions>
@@ -79,7 +83,7 @@ const ThreadSuggestionItem: FC = () => {
       <Button
         type="button"
         variant="ghost"
-        className="h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border bg-background px-4 py-3 text-start text-sm hover:bg-muted sm:w-[calc(50%-0.25rem)]"
+        className="bg-background hover:bg-muted h-auto w-full flex-col items-start justify-start gap-1 rounded-2xl border px-4 py-3 text-start text-sm sm:w-[calc(50%-0.25rem)]"
       >
         <SuggestionPrimitive.Title className="font-medium" />
         <SuggestionPrimitive.Description className="text-muted-foreground empty:hidden" />
@@ -92,7 +96,7 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="mx-auto w-full max-w-(--thread-max-width) py-3">
       <div className="flex justify-end">
-        <div className="max-w-[80%] rounded-2xl bg-primary px-4 py-2 text-primary-foreground">
+        <div className="bg-primary text-primary-foreground max-w-[80%] rounded-2xl px-4 py-2">
           <MessagePrimitive.Parts>
             {({ part }) => {
               if (part.type === "text") return <Text {...part} />;
@@ -110,13 +114,11 @@ const AssistantMessage: FC = () => {
     <MessagePrimitive.Root className="mx-auto w-full max-w-(--thread-max-width) py-3">
       <div className="flex flex-col gap-2 px-2 leading-relaxed">
         <MessagePrimitive.GroupedParts
-          groupBy={(part) => {
-            if (part.type === "reasoning")
-              return ["group-chainOfThought", "group-reasoning"];
-            if (part.type === "tool-call")
-              return ["group-chainOfThought", "group-tool"];
-            return null;
-          }}
+          groupBy={groupPartByType({
+            reasoning: ["group-chainOfThought", "group-reasoning"],
+            "tool-call": ["group-chainOfThought", "group-tool"],
+            source: ["group-sources"],
+          })}
         >
           {({ part, children }) => {
             switch (part.type) {
@@ -128,12 +130,16 @@ const AssistantMessage: FC = () => {
                 return (
                   <PartLayout label="Taking action">{children}</PartLayout>
                 );
+              case "group-sources":
+                return <SourcesLayout>{children}</SourcesLayout>;
               case "text":
                 return <MarkdownText />;
               case "reasoning":
                 return <Reasoning {...part} />;
               case "tool-call":
                 return <ToolCall {...part} />;
+              case "source":
+                return <Sources {...part} />;
               default:
                 return null;
             }
@@ -151,7 +157,7 @@ const ChainOfThoughtGroup: FC<PropsWithChildren> = ({ children }) => {
     <div className="my-2 rounded-lg border">
       <button
         type="button"
-        className="flex w-full cursor-pointer items-center gap-2 px-4 py-2 font-medium text-sm hover:bg-muted/50"
+        className="hover:bg-muted/50 flex w-full cursor-pointer items-center gap-2 px-4 py-2 text-sm font-medium"
         onClick={() => setOpen((o) => !o)}
       >
         {open ? (
@@ -166,6 +172,15 @@ const ChainOfThoughtGroup: FC<PropsWithChildren> = ({ children }) => {
   );
 };
 
+const SourcesLayout: FC<PropsWithChildren> = ({ children }) => {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-muted-foreground mr-1 text-xs">Sources</span>
+      {children}
+    </div>
+  );
+};
+
 const PartLayout: FC<PropsWithChildren<{ label: string }>> = ({
   children,
   label,
@@ -176,7 +191,7 @@ const PartLayout: FC<PropsWithChildren<{ label: string }>> = ({
     <div className="border-t">
       <button
         type="button"
-        className="flex w-full cursor-pointer items-center gap-2 px-4 py-1.5 text-muted-foreground text-xs hover:bg-muted/50"
+        className="text-muted-foreground hover:bg-muted/50 flex w-full cursor-pointer items-center gap-2 px-4 py-1.5 text-xs"
         onClick={() => setOpen((o) => !o)}
       >
         {open ? (
@@ -193,7 +208,7 @@ const PartLayout: FC<PropsWithChildren<{ label: string }>> = ({
 
 const Reasoning: FC<{ text: string }> = ({ text }) => {
   return (
-    <p className="whitespace-pre-wrap px-4 py-2 text-muted-foreground text-sm italic">
+    <p className="text-muted-foreground px-4 py-2 text-sm whitespace-pre-wrap italic">
       {text}
     </p>
   );
@@ -220,10 +235,10 @@ const Composer: FC = () => {
   const isRunning = useThread((state) => state.isRunning);
 
   return (
-    <ComposerPrimitive.Root className="flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20">
+    <ComposerPrimitive.Root className="border-input bg-background has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-ring/20 flex w-full flex-col rounded-2xl border px-1 pt-2 transition-shadow outline-none has-[textarea:focus-visible]:ring-2">
       <ComposerPrimitive.Input
         placeholder="Send a message..."
-        className="mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground"
+        className="placeholder:text-muted-foreground mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none"
         rows={1}
         autoFocus
       />

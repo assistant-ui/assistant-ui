@@ -74,7 +74,7 @@ export function TrustedBy() {
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
-              className="flex shrink-0 animate-marquee items-center justify-around gap-(--gap)"
+              className="animate-marquee flex shrink-0 items-center justify-around gap-(--gap)"
             >
               <LogoList />
             </div>

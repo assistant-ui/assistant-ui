@@ -319,17 +319,17 @@ export default function McpAppStudioPage() {
       <div className="mx-auto w-full max-w-7xl space-y-10 px-4 pt-14 pb-8 md:space-y-20">
         <div className="flex flex-col gap-6">
           <div className="rainbow-border relative inline-flex w-fit rounded-full p-px text-sm after:absolute after:inset-0 after:-z-10 after:block after:rounded-full">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-background px-4 py-1.5">
+            <span className="bg-background inline-flex items-center gap-1.5 rounded-full px-4 py-1.5">
               <Plug className="size-3.5 text-violet-500" />
-              <span className="font-medium text-foreground/80">MCP Apps</span>
+              <span className="text-foreground/80 font-medium">MCP Apps</span>
             </span>
           </div>
 
           <div className="flex flex-col gap-2">
-            <h1 className="max-w-xl font-medium text-3xl tracking-tight">
+            <h1 className="max-w-xl text-3xl font-medium tracking-tight">
               Build MCP apps once, run them anywhere
             </h1>
-            <p className="max-w-xl text-lg text-muted-foreground">
+            <p className="text-muted-foreground max-w-xl text-lg">
               MCP apps let you put real UI inside AI conversations — not just
               text, but things people can actually interact with. Build and
               preview locally with hot reload, then export once for any host.
@@ -341,17 +341,17 @@ export default function McpAppStudioPage() {
             analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
           />
 
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-[13px] text-muted-foreground">
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-5 gap-y-3 text-[13px]">
             <Link
               href={OUTBOUND_LINKS.hero.mcpAppsDocs.href}
               onClick={() =>
                 trackOutboundLinkClick("hero", OUTBOUND_LINKS.hero.mcpAppsDocs)
               }
-              className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+              className="text-foreground/60 hover:text-foreground font-medium transition-colors"
             >
               MCP Apps Docs →
             </Link>
-            <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
+            <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
             <Link
               href={OUTBOUND_LINKS.hero.openaiAppsSdk.href}
               onClick={() =>
@@ -360,11 +360,11 @@ export default function McpAppStudioPage() {
                   OUTBOUND_LINKS.hero.openaiAppsSdk,
                 )
               }
-              className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+              className="text-foreground/60 hover:text-foreground font-medium transition-colors"
             >
               OpenAI Apps SDK →
             </Link>
-            <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
+            <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
             <Link
               href={OUTBOUND_LINKS.hero.claudeSubmissionGuide.href}
               onClick={() =>
@@ -373,21 +373,21 @@ export default function McpAppStudioPage() {
                   OUTBOUND_LINKS.hero.claudeSubmissionGuide,
                 )
               }
-              className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+              className="text-foreground/60 hover:text-foreground font-medium transition-colors"
             >
               Claude MCP Submission Guide →
             </Link>
-            <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
+            <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
             <Link
               href={OUTBOUND_LINKS.hero.cliSource.href}
               onClick={() =>
                 trackOutboundLinkClick("hero", OUTBOUND_LINKS.hero.cliSource)
               }
-              className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+              className="text-foreground/60 hover:text-foreground font-medium transition-colors"
             >
               CLI source →
             </Link>
-            <span className="hidden size-1 rounded-full bg-muted-foreground/20 sm:block" />
+            <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
             <Link
               href={OUTBOUND_LINKS.hero.workbenchTemplate.href}
               onClick={() =>
@@ -396,7 +396,7 @@ export default function McpAppStudioPage() {
                   OUTBOUND_LINKS.hero.workbenchTemplate,
                 )
               }
-              className="font-medium text-foreground/60 transition-colors hover:text-foreground"
+              className="text-foreground/60 hover:text-foreground font-medium transition-colors"
             >
               Workbench template →
             </Link>
@@ -405,7 +405,7 @@ export default function McpAppStudioPage() {
 
         <section ref={workbenchSectionRef} className="space-y-4">
           <div className="space-y-1">
-            <h2 className="font-medium text-2xl tracking-tight">
+            <h2 className="text-2xl font-medium tracking-tight">
               Try the workbench
             </h2>
             <p className="text-muted-foreground">
@@ -429,7 +429,7 @@ export default function McpAppStudioPage() {
 
         <div className="flex flex-col gap-8">
           <div className="flex flex-col items-center gap-2 text-center">
-            <h2 className="font-medium text-3xl tracking-tight">
+            <h2 className="text-3xl font-medium tracking-tight">
               Everything you need to ship MCP apps
             </h2>
             <p className="text-muted-foreground">
@@ -444,7 +444,7 @@ export default function McpAppStudioPage() {
               return (
                 <div
                   key={feature.title}
-                  className="flex flex-col gap-2 rounded-xl border border-border/50 bg-muted/30 p-4 transition-colors hover:border-border/80"
+                  className="border-border/50 bg-muted/30 hover:border-border/80 flex flex-col gap-2 rounded-xl border p-4 transition-colors"
                 >
                   <span className="flex items-center gap-2 font-medium">
                     <Icon className={cn("size-4", feature.iconColor)} />
@@ -461,7 +461,7 @@ export default function McpAppStudioPage() {
 
         <div ref={capabilitiesSectionRef} className="flex flex-col gap-8">
           <div className="flex flex-col items-center gap-2 text-center">
-            <h2 className="font-medium text-3xl tracking-tight">
+            <h2 className="text-3xl font-medium tracking-tight">
               Know what works where
             </h2>
             <p className="text-muted-foreground">
@@ -473,20 +473,20 @@ export default function McpAppStudioPage() {
 
           <div className="mx-auto grid w-full max-w-6xl gap-4 lg:grid-cols-2 lg:items-center">
             <div className="min-w-0">
-              <div className="grid grid-cols-[1fr_88px_88px] items-center gap-3 border-border/50 border-b px-4 py-2 text-muted-foreground text-xs">
+              <div className="border-border/50 text-muted-foreground grid grid-cols-[1fr_88px_88px] items-center gap-3 border-b px-4 py-2 text-xs">
                 <div>Capability</div>
                 <div className="text-center">ChatGPT ext.</div>
                 <div className="text-center">MCP host</div>
               </div>
-              <div className="divide-y divide-border/50">
+              <div className="divide-border/50 divide-y">
                 {PLATFORM_CAPABILITIES.map((row) => (
                   <div
                     key={row.feature}
                     className="grid grid-cols-[1fr_88px_88px] items-center gap-3 px-4 py-3"
                   >
                     <div className="min-w-0">
-                      <div className="font-medium text-sm">{row.feature}</div>
-                      <div className="mt-0.5 text-muted-foreground text-xs">
+                      <div className="text-sm font-medium">{row.feature}</div>
+                      <div className="text-muted-foreground mt-0.5 text-xs">
                         {row.description}
                       </div>
                     </div>
@@ -509,7 +509,7 @@ export default function McpAppStudioPage() {
               </div>
             </div>
 
-            <div className="min-w-0 overflow-hidden rounded-xl border border-border/50 bg-muted/30">
+            <div className="border-border/50 bg-muted/30 min-w-0 overflow-hidden rounded-xl border">
               <CodeBlock language="tsx" code={FEATURE_GATE_SNIPPET} />
             </div>
           </div>
@@ -517,7 +517,7 @@ export default function McpAppStudioPage() {
 
         <div ref={exportSectionRef} className="flex flex-col gap-8">
           <div className="flex flex-col items-center gap-2 text-center">
-            <h2 className="font-medium text-3xl tracking-tight">
+            <h2 className="text-3xl font-medium tracking-tight">
               Export and ship
             </h2>
             <p className="text-muted-foreground">
@@ -526,14 +526,14 @@ export default function McpAppStudioPage() {
             </p>
           </div>
 
-          <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-xl border border-border/50 bg-muted/30">
-            <div className="border-border/50 border-b bg-background/40 px-4 py-2 font-mono text-muted-foreground text-xs">
+          <div className="border-border/50 bg-muted/30 mx-auto w-full max-w-3xl overflow-hidden rounded-xl border">
+            <div className="border-border/50 bg-background/40 text-muted-foreground border-b px-4 py-2 font-mono text-xs">
               export/
             </div>
             <CodeBlock language="text" code={EXPORT_TREE_SNIPPET} />
           </div>
 
-          <p className="mx-auto max-w-2xl text-center text-muted-foreground text-sm">
+          <p className="text-muted-foreground mx-auto max-w-2xl text-center text-sm">
             Deploy <code>export/widget/</code> to any static host, then point{" "}
             <code>export/manifest.json</code> at the hosted URL and register
             with your target host. The same bundle runs on MCP hosts like Claude
@@ -545,7 +545,7 @@ export default function McpAppStudioPage() {
         </div>
 
         <div className="flex flex-col items-center gap-6 py-16 text-center">
-          <p className="font-medium text-2xl tracking-tight">
+          <p className="text-2xl font-medium tracking-tight">
             Start building today
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3">
@@ -625,7 +625,7 @@ export default function McpAppStudioPage() {
           )}
         >
           <div className="relative h-[95vh] w-[95vw] overflow-hidden rounded-xl bg-zinc-950 shadow-2xl">
-            <div className="flex h-12 items-center justify-between border-zinc-800 border-b bg-zinc-900 px-4">
+            <div className="flex h-12 items-center justify-between border-b border-zinc-800 bg-zinc-900 px-4">
               <div className="flex items-center gap-3">
                 <div className="flex gap-1.5">
                   <div className="size-3 rounded-full bg-red-500/80" />
@@ -693,7 +693,7 @@ function HeroShowcase({
           <div className="hero-showcase-border" />
 
           <div className="relative overflow-hidden rounded-xl bg-zinc-950">
-            <div className="flex h-10 items-center gap-2 border-zinc-800 border-b bg-zinc-900/80 px-4">
+            <div className="flex h-10 items-center gap-2 border-b border-zinc-800 bg-zinc-900/80 px-4">
               <div className="flex gap-1.5">
                 <div className="size-3 rounded-full bg-red-500/80" />
                 <div className="size-3 rounded-full bg-yellow-500/80" />
@@ -818,7 +818,7 @@ function CodeBlock({
       showLanguage={false}
       defaultColor={false}
       className={cn(
-        "[&_pre]:scrollbar-none [&_.line:last-child:empty]:hidden [&_pre]:overflow-x-auto [&_pre]:bg-transparent! [&_pre]:p-4 [&_pre]:font-mono [&_pre]:text-[12px] [&_pre]:leading-relaxed",
+        "[&_.line:last-child:empty]:hidden [&_pre]:scrollbar-none [&_pre]:overflow-x-auto [&_pre]:bg-transparent! [&_pre]:p-4 [&_pre]:font-mono [&_pre]:text-[12px] [&_pre]:leading-relaxed",
         className,
       )}
     >

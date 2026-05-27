@@ -9,7 +9,7 @@ describe("auiV0Encode", () => {
       role: "assistant",
       status: { type: "complete", reason: "stop" },
       metadata: {
-        unstable_state: undefined,
+        unstable_state: null,
         unstable_annotations: [],
         unstable_data: [],
         steps: [],

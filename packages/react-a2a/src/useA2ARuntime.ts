@@ -1,17 +1,20 @@
-/// <reference types="@assistant-ui/core/store" />
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useExternalStoreRuntime,
+  useExternalStoreSharedOptions,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
 import type {
   AssistantRuntime,
   AppendMessage,
   AttachmentAdapter,
+  DictationAdapter,
   ExternalStoreAdapter,
+  ExternalStoreSharedOptions,
   FeedbackAdapter,
+  RealtimeVoiceAdapter,
   SpeechSynthesisAdapter,
   ThreadHistoryAdapter,
   ThreadMessage,
@@ -76,7 +79,7 @@ export type UseA2AThreadListAdapter = {
 
 // --- Options ---
 
-export type UseA2ARuntimeOptions = {
+export type UseA2ARuntimeOptions = ExternalStoreSharedOptions & {
   /** Pre-built A2A client instance. Provide this OR baseUrl. */
   client?: A2AClient;
   /** Base URL of the A2A server. Used to create a client if `client` is not provided. */
@@ -105,6 +108,8 @@ export type UseA2ARuntimeOptions = {
   adapters?: {
     attachments?: AttachmentAdapter;
     speech?: SpeechSynthesisAdapter;
+    dictation?: DictationAdapter;
+    voice?: RealtimeVoiceAdapter;
     feedback?: FeedbackAdapter;
     history?: ThreadHistoryAdapter;
     threadList?: UseA2AThreadListAdapter;
@@ -198,6 +203,8 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
     () => ({
       attachments: adapters?.attachments ?? runtimeAdapters?.attachments,
       speech: adapters?.speech,
+      dictation: adapters?.dictation,
+      voice: adapters?.voice,
       feedback: adapters?.feedback,
       threadList,
     }),
@@ -205,10 +212,12 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
   );
 
   // Build store adapter
+  const shared = useExternalStoreSharedOptions(options);
   const store = useMemo(() => {
     void _version;
 
     return {
+      ...shared,
       isLoading: core.isLoading,
       messages: core.getMessages(),
       isRunning: core.isRunning(),
@@ -228,7 +237,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
         core.applyExternalMessages(messages),
       adapters: adapterAdapters,
     } satisfies ExternalStoreAdapter<ThreadMessage>;
-  }, [adapterAdapters, core, _version]);
+  }, [adapterAdapters, core, _version, shared]);
 
   const runtime = useExternalStoreRuntime(store);
 

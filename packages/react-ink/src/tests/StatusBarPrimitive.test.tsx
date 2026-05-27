@@ -5,7 +5,7 @@ import { Text } from "ink";
 const mockUseAuiState = vi.fn();
 
 type UseAuiStateSelector = Parameters<
-  typeof import("@assistant-ui/store")["useAuiState"]
+  (typeof import("@assistant-ui/store"))["useAuiState"]
 >[0];
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
