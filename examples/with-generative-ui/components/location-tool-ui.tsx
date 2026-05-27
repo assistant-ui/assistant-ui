@@ -1,14 +1,10 @@
 "use client";
 
+import type { ShowLocationArgs } from "@/lib/inline-tool-schemas";
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { MapPinIcon, Loader2Icon } from "lucide-react";
 
-type LocationArgs = {
-  name: string;
-  address?: string;
-  lat: number;
-  lng: number;
-};
+type LocationArgs = ShowLocationArgs;
 
 type LocationResult = {
   success: boolean;

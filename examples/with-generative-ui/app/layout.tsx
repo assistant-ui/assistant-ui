@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import "@openuidev/react-ui/defaults.css";
+import "@openuidev/react-ui/components.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

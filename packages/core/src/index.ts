@@ -18,8 +18,6 @@ export type {
   FileMessagePart,
   DataMessagePart,
   GenerativeUIMessagePart,
-  GenerativeUINode,
-  GenerativeUISpec,
   Unstable_AudioMessagePart,
   ToolCallMessagePart,
   ToolCallMessagePartMcpMetadata,

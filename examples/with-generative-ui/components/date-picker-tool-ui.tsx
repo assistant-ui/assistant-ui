@@ -1,14 +1,11 @@
 "use client";
 
+import type { SelectDateArgs } from "@/lib/inline-tool-schemas";
 import { useState } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { CalendarIcon, CheckCircle2Icon } from "lucide-react";
 
-type DatePickerArgs = {
-  prompt: string;
-  minDate?: string;
-  maxDate?: string;
-};
+type DatePickerArgs = SelectDateArgs;
 
 type DatePickerResult = {
   date: string;

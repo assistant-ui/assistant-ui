@@ -25,15 +25,15 @@ import {
   SquareIcon,
 } from "lucide-react";
 import type { FC } from "react";
-import { AssistantMessageGui } from "@/components/assistant-message-gui";
+import { AssistantMessageTool } from "@/components/assistant-message-tool";
 
-/** Thread fork: swaps the assistant message renderer for the generative-ui bridge. */
-export const GuiThread: FC = () => {
+/** Tool UI demo thread — inline tool components, no collapsible tool-call chrome. */
+export const ToolThread: FC = () => {
   return (
     <ThreadPrimitive.Root
       className="aui-root aui-thread-root bg-background @container flex h-full flex-col"
       style={{
-        ["--thread-max-width" as string]: "56rem",
+        ["--thread-max-width" as string]: "44rem",
         ["--composer-radius" as string]: "24px",
         ["--composer-padding" as string]: "10px",
       }}
@@ -73,7 +73,7 @@ const ThreadMessage: FC = () => {
 
   if (isEditing) return <EditComposer />;
   if (role === "user") return <UserMessage />;
-  return <AssistantMessageGui />;
+  return <AssistantMessageTool />;
 };
 
 const ThreadScrollToBottom: FC = () => {
@@ -96,11 +96,11 @@ const ThreadWelcome: FC = () => {
       <div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
         <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-4">
           <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-semibold duration-200">
-            Compose UI from a spec
+            Tool UI demo
           </h1>
           <p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-muted-foreground text-xl delay-75 duration-200">
-            Compose UI with OpenUI Lang — charts, forms, tables, tabs, and
-            dashboards.
+            Charts, date pickers, contact forms, and maps — rendered inline in
+            chat.
           </p>
         </div>
       </div>

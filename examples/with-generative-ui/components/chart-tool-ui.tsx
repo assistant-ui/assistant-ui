@@ -1,5 +1,6 @@
 "use client";
 
+import type { GenerateChartArgs } from "@/lib/inline-tool-schemas";
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import {
   BarChart,
@@ -18,13 +19,7 @@ import {
 } from "recharts";
 import { Loader2Icon } from "lucide-react";
 
-type ChartArgs = {
-  title: string;
-  type: "bar" | "line" | "pie";
-  data: Array<Record<string, string | number>>;
-  xKey: string;
-  dataKeys: string[];
-};
+type ChartArgs = GenerateChartArgs;
 
 type ChartResult = {
   success: boolean;

@@ -72,10 +72,8 @@ export type {
   ReasoningGroupComponent,
   QuoteMessagePartComponent,
   QuoteMessagePartProps,
-  GenerativeUIComponentRegistry,
   GenerativeUIMessagePartComponent,
   GenerativeUIMessagePartProps,
-  GenerativeUIRenderProps,
 } from "./types/MessagePartComponentTypes";
 export type {
   ToolsState,
@@ -175,11 +173,6 @@ export {
 } from "./primitives/message/MessageParts";
 export { MessagePrimitiveGroupedParts } from "./primitives/message/MessageGroupedParts";
 export { groupPartByType } from "./utils/groupParts";
-export {
-  MessagePrimitiveGenerativeUI,
-  GenerativeUIRender,
-  GenerativeUIRenderError,
-} from "./primitives/generativeUI/GenerativeUI";
 export { MessagePrimitiveQuote } from "./primitives/message/MessageQuote";
 export {
   MessagePrimitiveAttachments,

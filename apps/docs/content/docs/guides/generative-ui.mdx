@@ -1,32 +1,28 @@
 ---
 title: Generative UI
-description: Render agent-described React UI from a JSON spec with a consumer-provided component allowlist.
+description: Render agent-described React UI from OpenUI Lang with a consumer-defined component library.
 ---
 
-`MessagePrimitive.GenerativeUI` is a first-class primitive for rendering UI
-described by the agent at runtime as a JSON spec. Instead of hard-coding a
-component per tool, the agent emits a `generative-ui` message part containing
-a tree of components by name. assistant-ui resolves each name against a
-**consumer-provided allowlist** and renders the result.
-
-> The allowlist controls **which** components the agent may render: any name
-> not in it throws a typed `GenerativeUIRenderError` (no implicit fallback). It
-> does not constrain the props passed to those components; see [Security](#security).
+`MessagePrimitive.GenerativeUI` renders UI described by the agent at runtime
+using [OpenUI Lang](https://www.openui.com/docs/openui-lang). The agent emits
+a `generative-ui` message part with a `source` string (OpenUI Lang). On web,
+`@assistant-ui/react` wraps `@openuidev/react-lang` `Renderer` and your
+**consumer-defined library** (Zod schemas are the security boundary).
 
 > **Opt-in feature:** The default shadcn `Thread` does **not** render
-> `generative-ui` parts. You must wire the primitive explicitly — see
+> `generative-ui` parts. Wire the primitive explicitly — see
 > [Opt-in wiring](#opt-in-wiring).
+
+> **Web only:** OpenUI rendering lives in `@assistant-ui/react`. React Native
+> and Ink re-export core types only.
 
 ## Which generative UI pattern?
 
-assistant-ui uses "generative UI" in three different places. Pick the one that
-matches your integration:
-
 | Pattern | API | Best for | Streaming |
 |---------|-----|----------|-----------|
-| **Generative UI primitive** | `MessagePrimitive.GenerativeUI` + allowlist | Composing dashboards, cards, and layouts from a component vocabulary you ship | Native `generative-ui` parts update progressively when the part spec changes incrementally |
-| **Tool UI** | `makeAssistantToolUI` | Interactive widgets tied to a known tool (forms, pickers, charts) | Tool **args** stream while the model fills them in |
-| **LangGraph data UI** | `makeAssistantDataUI` + `ui_message` | LangGraph agents emitting UI via the LangGraph stream | UI messages arrive on the LangGraph custom channel |
+| **Generative UI primitive** | `MessagePrimitive.GenerativeUI` + OpenUI library | Dashboards, cards, layouts from your component vocabulary | Append `source` incrementally; `isStreaming` enables progressive parse |
+| **Tool UI** | `makeAssistantToolUI` | Interactive widgets tied to a known tool | Tool **args** stream |
+| **LangGraph data UI** | `makeAssistantDataUI` + `ui_message` | LangGraph agents emitting UI on the custom channel | UI messages on LangGraph stream |
 
 See also: [Tool UI guide](/docs/guides/tool-ui), [LangGraph generative UI](/docs/runtimes/langgraph/generative-ui).
 
@@ -38,177 +34,143 @@ See also: [Tool UI guide](/docs/guides/tool-ui), [LangGraph generative UI](/docs
 
 ## Quick start
 
-### 1. Define your component allowlist
+### 1. Define an OpenUI library
 
-```tsx title="components/gui.tsx"
-const Card = ({ title, children }) => (
-  <div className="rounded-xl border bg-card p-4 shadow-sm">
-    <div className="text-base font-semibold">{title}</div>
-    <div className="mt-2">{children}</div>
-  </div>
-);
+```tsx title="components/gui/library.tsx"
+import { defineComponent, createLibrary } from "@assistant-ui/react";
+import { z } from "zod/v4";
 
-const Button = ({ label }) => (
-  <button className="rounded-md bg-primary px-3 py-1.5 text-primary-foreground">
-    {label}
-  </button>
-);
+const Card = defineComponent({
+  name: "Card",
+  description: "Display card",
+  props: z.object({ title: z.string().optional() }),
+  component: ({ props, renderNode, children }) => (
+    <div className="rounded-xl border p-4">
+      <div className="font-semibold">{props.title}</div>
+      {children?.map((c, i) => <span key={i}>{renderNode(c)}</span>)}
+    </div>
+  ),
+});
 
-export const componentsAllowlist = { Card, Button };
+export const myLibrary = createLibrary({
+  root: "Card",
+  components: [Card /* Button, Stack, ... */],
+});
 ```
 
-### 2. Wire the primitive into your message renderer
+Use `myLibrary.prompt()` in your system prompt so the model knows how to emit OpenUI Lang.
 
-See [Opt-in wiring](#opt-in-wiring) for all three integration patterns.
+### 2. Wire the primitive
+
+```tsx
+<MessagePrimitive.GenerativeUI library={myLibrary} />
+```
+
+Or pass `library` to `MessagePrimitive.Parts` for a default slot:
+
+```tsx
+<MessagePrimitive.Parts library={myLibrary} />
+```
 
 ### 3. Have the agent emit UI
 
-**ExternalStore / manual messages** attach a native part:
+**ExternalStore / manual messages:**
 
 ```ts
-{
-  type: "generative-ui",
-  spec: {
-    root: {
-      component: "Card",
-      props: { title: "Welcome" },
-      children: [
-        { component: "Button", props: { label: "Get started" } },
-      ],
-    },
-  },
-}
+{ type: "generative-ui", source: 'root = Card([], "Hello")' }
 ```
 
-**AI SDK (`useChatRuntime`)** — the adapter maps tool results to `tool-call`
-parts, not `generative-ui` parts. Use the [AI SDK interim bridge](#pattern-3--ai-sdk-interim-bridge) until a native emission helper ships.
+**AI SDK (`useChatRuntime`)** — stream OpenUI Lang in assistant text and split at render time with `extractOpenUILangFromText` from `@assistant-ui/react-ai-sdk`, or append native `generative-ui` parts from your adapter.
 
-Live examples in [`examples/with-generative-ui`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-generative-ui): Tool UI demo (`/`), static primitive (`/primitive`), GUI chat (`/gui-chat`).
+Live examples: [`examples/with-generative-ui`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-generative-ui) — Tool UI (`/`), static OpenUI Lang (`/primitive`), streaming GUI chat (`/gui-chat`).
 
 ## Opt-in wiring
 
-The stock `@assistant-ui/ui` `Thread` switch returns `null` for unknown part
-types — including `generative-ui`. Add one of these patterns in **your**
-assistant message renderer (~15 lines).
-
-### Pattern 1 — `MessagePrimitive.Parts`
+### Pattern 1 — `MessagePrimitive.Parts` slot
 
 ```tsx
 <MessagePrimitive.Parts
   components={{
-    generativeUI: {
-      components: componentsAllowlist,
-      Fallback: UnknownComponentFallback,
-    },
+    generativeUI: () => (
+      <MessagePrimitive.GenerativeUI library={myLibrary} />
+    ),
   }}
 />
 ```
 
-### Pattern 2 — `GroupedParts` case (shadcn Thread fork)
+### Pattern 2 — `GroupedParts` case
 
 ```tsx
 case "generative-ui":
-  return (
-    <MessagePrimitive.GenerativeUI
-      components={componentsAllowlist}
-      Fallback={UnknownComponentFallback}
-    />
-  );
-```
-
-Also exclude `render_gui` from tool-group chrome in `groupBy` if you use the
-AI SDK bridge (return `null` for that tool name).
-
-### Pattern 3 — AI SDK interim bridge
-
-When using `useChatRuntime`, map a dedicated tool result to the renderer:
-
-```tsx
-case "tool-call":
-  if (part.toolName === "render_gui") {
-    const spec = parseRenderGuiResult(part.result);
-    if (spec) {
-      return (
+  return <MessagePrimitive.GenerativeUI library={myLibrary} />;
+case "text": {
+  const extracted = extractOpenUILangFromText(part.text);
+  if (extracted) {
+    return (
+      <>
+        {extracted.remainder ? <MarkdownText /> : null}
         <MessagePrimitive.GenerativeUI
-          spec={spec}
-          components={componentsAllowlist}
-          Fallback={UnknownComponentFallback}
+          library={myLibrary}
+          source={extracted.source}
         />
-      );
-    }
+      </>
+    );
   }
-  return part.toolUI ?? <ToolFallback {...part} />;
+  return <MarkdownText />;
+}
 ```
 
-The message store still holds a `tool-call` on this path — not a
-`generative-ui` part. See `examples/with-generative-ui/app/gui-chat` for a
-working reference.
+Exclude `render_gui` from tool-group `groupBy` if you keep the legacy JSON bridge.
 
-Bare strings act as inline text leaves.
-
-## Spec shape
+## Message part shape
 
 ```ts
-type GenerativeUINode =
-  | string
-  | {
-      component: string;             // resolved against the allowlist
-      props?: Record<string, unknown>;
-      children?: GenerativeUINode[];
-      key?: string;                   // optional stable React key
-    };
-
-type GenerativeUISpec = {
-  root: GenerativeUINode | GenerativeUINode[];
+type GenerativeUIMessagePart = {
+  type: "generative-ui";
+  source: string; // raw OpenUI Lang — append/stream incrementally
+  id?: string;
 };
 ```
 
-The spec is plain JSON — easy for any agent to emit, and easy to validate
-on the server before delivery.
-
 ## Streaming
 
-When a message contains native `generative-ui` parts whose `spec` updates
-incrementally (for example via ExternalStore), the primitive renders
-progressively as nodes and props arrive.
+Append to `source` as tokens arrive. Pass `isStreaming` (defaults from message
+status) so the OpenUI parser handles partial definitions gracefully.
 
-The AI SDK `render_gui` tool path returns the full spec at **tool completion**
-— not incrementally during the tool execute step. For args streaming during
-generation, use [Tool UI](/docs/guides/tool-ui) instead.
+With AI SDK, include `library.prompt()` in the system prompt and stream OpenUI
+Lang as assistant content. Use `extractOpenUILangFromText` to split text parts
+at render time.
 
 ## Security
 
-The allowlist is the boundary on **which** components render: a spec can only instantiate components you put in the registry, with no `eval` and no dynamic import (names are looked up in the registry and nothing else). An unknown name throws `GenerativeUIRenderError` or invokes your `Fallback`.
+Your OpenUI library Zod schemas define which components exist and which props
+are valid. Untrusted agent output is parsed against those schemas — do not
+register components that execute arbitrary props (e.g. `dangerouslySetInnerHTML`).
 
-It does **not** constrain the `props` the agent supplies. Spec props are spread directly onto your allowlisted components, so treat every allowlisted component as receiving untrusted input: never forward agent-supplied props into `dangerouslySetInnerHTML`, validate or reject `href` / `src` values (for example block `javascript:` URLs), and avoid passing spec props anywhere they become executable. The safest allowlisted components accept only primitive, display-oriented props.
+## Limitations
 
-## Error handling
+- **Assistant Cloud / `aui/v0`:** `generative-ui` encode not supported this release
+- **LangChain `useStreamRuntime`:** append throws for `generative-ui` — use ExternalStore or manual parts
+- **React Native / Ink:** types only; use web renderer or a custom slot
 
-Unknown component names throw `GenerativeUIRenderError` with a typed
-`componentName` field. Catch it with a React error boundary, or pass a
-`Fallback` component to opt into a soft-fail UX:
+## Migration from JSON spec (0.2.x)
+
+Removed exports: `GenerativeUISpec`, `GenerativeUINode`, `GenerativeUIRender`,
+`GenerativeUIComponentRegistry`, `GenerativeUIRenderError`.
+
+`MessagePrimitive.Parts` config changed:
 
 ```tsx
-<MessagePrimitive.GenerativeUI
-  components={componentsAllowlist}
-  Fallback={({ component }) => (
-    <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
-      unknown component: {component}
-    </span>
-  )}
-/>
+// Before
+components={{ generativeUI: { components: { Card }, Fallback } }}
+
+// After
+components={{ generativeUI: () => <MessagePrimitive.GenerativeUI library={lib} /> }}
 ```
+
+Replace JSON `spec` parts with OpenUI Lang `source` strings.
 
 ## Composing with other primitives
 
-`generative-ui` is a regular `MessagePart` type, so it composes cleanly with
-`MessagePrimitive.Parts`, `MessagePrimitive.PartByIndex`, and
-`MessagePrimitive.GroupedParts`. Render it alongside text, tool calls, and
-reasoning in the same message.
-
-## Why a primitive (not just a tool)
-
-Tool-call UI is great when the agent already invoked a known tool. Generative
-UI flips it: the agent _composes_ UI from a vocabulary you ship. Useful for
-dashboards, status panels, and structured layouts — not for collecting user
-input (use Tool UI for that).
+`generative-ui` is a regular message part type — compose with text, tools, and
+reasoning in the same message via `MessagePrimitive.Parts` or `GroupedParts`.

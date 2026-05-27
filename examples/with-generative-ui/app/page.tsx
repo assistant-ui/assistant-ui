@@ -1,15 +1,19 @@
 "use client";
 
-import { Thread } from "@/components/assistant-ui/thread";
+import { ToolThread } from "@/components/tool-thread";
 import {
   AssistantRuntimeProvider,
   Suggestions,
   useAui,
+  useAssistantInstructions,
   useAssistantTool,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { z } from "zod";
+import {
+  collectContactArgsSchema,
+  selectDateArgsSchema,
+} from "@/lib/inline-tool-schemas";
 import { ChartToolUI } from "@/components/chart-tool-ui";
 import { DatePickerToolUI } from "@/components/date-picker-tool-ui";
 import { ContactFormToolUI } from "@/components/contact-form-tool-ui";
@@ -22,25 +26,26 @@ function FrontendTools() {
     toolName: "select_date",
     description:
       "Ask the user to select a date. Use this when you need to collect a date (e.g. for scheduling, booking, deadlines).",
-    parameters: z.object({
-      prompt: z.string().describe("Message to display to the user"),
-      minDate: z.string().optional().describe("Minimum date (ISO string)"),
-      maxDate: z.string().optional().describe("Maximum date (ISO string)"),
-    }),
+    parameters: selectDateArgsSchema,
   });
 
   useAssistantTool({
     toolName: "collect_contact",
     description:
       "Collect contact information from the user. Use this when you need the user's name, email, or phone number.",
-    parameters: z.object({
-      prompt: z.string().describe("Message to display to the user"),
-      fields: z
-        .array(z.enum(["name", "email", "phone"]))
-        .describe("Which fields to collect"),
-    }),
+    parameters: collectContactArgsSchema,
   });
 
+  return null;
+}
+
+const TOOL_UI_SYSTEM =
+  "When you call a tool, never paste tool arguments or JSON in your text reply. " +
+  "The client renders charts, maps, forms, and pickers from tool output automatically. " +
+  "Keep any text reply brief or omit it when the UI alone answers the request.";
+
+function ToolChatInstructions() {
+  useAssistantInstructions(TOOL_UI_SYSTEM);
   return null;
 }
 
@@ -80,6 +85,7 @@ export default function Home() {
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
       {/* Frontend tools: register schemas, resolved via addResult in UI */}
       <FrontendTools />
+      <ToolChatInstructions />
       {/* Tool UIs: render components for each tool call */}
       <ChartToolUI />
       <LocationToolUI />
@@ -88,7 +94,7 @@ export default function Home() {
       <div className="flex h-full flex-col">
         <ExampleNav />
         <main className="min-h-0 flex-1">
-          <Thread />
+          <ToolThread />
         </main>
       </div>
     </AssistantRuntimeProvider>
