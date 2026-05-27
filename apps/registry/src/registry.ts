@@ -137,6 +137,27 @@ export const registry: RegistryItem[] = [
     },
   },
   {
+    name: "checklist",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/checklist.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/checklist.tsx",
+      },
+    ],
+    registryDependencies: [],
+    dependencies: [
+      "@assistant-ui/react",
+      "class-variance-authority",
+      "tw-shimmer",
+    ],
+    css: {
+      '@import "tw-shimmer"': {},
+    },
+  },
+  {
     name: "message-timing",
     type: "registry:component",
     files: [
