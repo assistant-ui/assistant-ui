@@ -57,6 +57,33 @@ does not reference an assistant-ui MCP app resource.
 
 <ParametersTable {...getMcpAppFromToolPart} />
 
+### groupPartByType
+
+Build a `groupBy` from a `part.type → group-key path` lookup.
+Parts whose type isn't in the map are left ungrouped. The returned
+function carries a stable GROUPBY_MEMO_KEY fingerprint so
+`<MessagePrimitive.GroupedParts>` can memoize its tree across renders.
+
+Special key `"mcp-app"` matches tool-call parts that point at an
+assistant-ui MCP app resource (`ui://...`) and takes precedence over
+the `"tool-call"` entry for those parts.
+
+```tsx
+<MessagePrimitive.GroupedParts
+  groupBy={groupPartByType({
+    reasoning: ["group-thought", "group-reasoning"],
+    "tool-call": ["group-thought", "group-tool"],
+    "mcp-app": [],
+  })}
+>
+  {({ part, children }) => { ... }}
+</MessagePrimitive.GroupedParts>
+```
+
+```ts
+const groupPartByType: <TKey extends `group-${string}`>(map: Partial<Readonly<Record<GroupPartType, readonly TKey[]>>>) => ((part: PartState) => readonly TKey[]);
+```
+
 ### InMemoryThreadList
 
 <ParametersTable {...InMemoryThreadList} />
