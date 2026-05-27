@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/external-store-thread-runtime-core";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
 import type { ModelContextProvider } from "../model-context/types";
+import { ExportedMessageRepository } from "../runtime/utils/message-repository";
 
 const mockContextProvider: ModelContextProvider = {
   getModelContext: () => ({}),
@@ -515,6 +516,60 @@ describe("ExternalStoreThreadRuntimeCore - messages reconciliation", () => {
     expect(runtime.getBranches("a2")).toEqual(["a1", "a2", "a3"]);
     expect(runtime.getBranches("u2")).toEqual(["u1", "u2"]);
     expect(runtime.getBranches("b2")).toEqual(["b1", "b2"]);
+  });
+
+  it("keeps nested branch continuation in outgoing messages when switching an ancestor branch", () => {
+    type TestMessage = {
+      id: string;
+      role: "user" | "assistant";
+      content: [];
+    };
+    const u0 = { id: "u0", role: "user" as const, content: [] };
+    const a1 = { id: "a1", role: "assistant" as const, content: [] };
+    const a2 = { id: "a2", role: "assistant" as const, content: [] };
+    const a3 = { id: "a3", role: "assistant" as const, content: [] };
+    const u1 = { id: "u1", role: "user" as const, content: [] };
+    const u2 = { id: "u2", role: "user" as const, content: [] };
+    const b1 = { id: "b1", role: "assistant" as const, content: [] };
+    const b2 = { id: "b2", role: "assistant" as const, content: [] };
+    const setMessages = vi.fn();
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [u0, a1, u2, b2],
+        setMessages,
+      }),
+    );
+
+    runtime.import(
+      ExportedMessageRepository.fromBranchableArray(
+        [
+          { parentId: null, message: u0 },
+          { parentId: "u0", message: a1 },
+          { parentId: "u0", message: a2 },
+          { parentId: "u0", message: a3 },
+          { parentId: "a1", message: u1 },
+          { parentId: "a1", message: u2 },
+          { parentId: "u2", message: b1 },
+          { parentId: "u2", message: b2 },
+        ],
+        { headId: "b2" },
+      ),
+    );
+    setMessages.mockClear();
+
+    runtime.switchToBranch("a2");
+
+    const switchedMessages = setMessages.mock.calls.at(-1)?.[0] as
+      | TestMessage[]
+      | undefined;
+    expect(switchedMessages?.map((message) => message.id)).toEqual([
+      "u0",
+      "a2",
+      "u2",
+      "b2",
+    ]);
   });
 
   it("does not clear pending branch preservation on a pre-truncation sync", async () => {
