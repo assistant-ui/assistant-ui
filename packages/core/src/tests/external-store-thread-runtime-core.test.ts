@@ -600,6 +600,166 @@ describe("ExternalStoreThreadRuntimeCore - messages reconciliation", () => {
     expect(runtime.getBranches("a2")).toEqual(["a1", "a2"]);
   });
 
+  it("carries inactive branch siblings under the new active parent on switch", () => {
+    const u0 = { id: "u0", role: "user" as const, content: [] };
+    const a1 = { id: "a1", role: "assistant" as const, content: [] };
+    const a2 = { id: "a2", role: "assistant" as const, content: [] };
+    const u1 = { id: "u1", role: "user" as const, content: [] };
+    const u1_edited = { id: "u1_edited", role: "user" as const, content: [] };
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [u0, a1, u1], setMessages: vi.fn() }),
+    );
+
+    runtime.import(
+      ExportedMessageRepository.fromBranchableArray(
+        [
+          { parentId: null, message: u0 },
+          { parentId: "u0", message: a1 },
+          { parentId: "u0", message: a2 },
+          { parentId: "a1", message: u1 },
+          { parentId: "a1", message: u1_edited },
+        ],
+        { headId: "u1" },
+      ),
+    );
+
+    expect(runtime.getBranches("u1")).toEqual(["u1", "u1_edited"]);
+
+    runtime.switchToBranch("a2");
+
+    const afterSwitch = runtime.export().messages;
+    expect(afterSwitch.find((m) => m.message.id === "u1")?.parentId).toBe("a2");
+    expect(
+      afterSwitch.find((m) => m.message.id === "u1_edited")?.parentId,
+    ).toBe("a2");
+
+    runtime.switchToBranch("a1");
+
+    const afterSwitchBack = runtime.export().messages;
+    expect(afterSwitchBack.find((m) => m.message.id === "u1")?.parentId).toBe(
+      "a1",
+    );
+    expect(
+      afterSwitchBack.find((m) => m.message.id === "u1_edited")?.parentId,
+    ).toBe("a1");
+  });
+
+  it("carries a multi-level descendant chain across branch switches", () => {
+    const u0 = { id: "u0", role: "user" as const, content: [] };
+    const a1 = { id: "a1", role: "assistant" as const, content: [] };
+    const a2 = { id: "a2", role: "assistant" as const, content: [] };
+    const u1 = { id: "u1", role: "user" as const, content: [] };
+    const b1 = { id: "b1", role: "assistant" as const, content: [] };
+    const u2 = { id: "u2", role: "user" as const, content: [] };
+    const c1 = { id: "c1", role: "assistant" as const, content: [] };
+    const setMessages = vi.fn();
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [u0, a1, u1, b1, u2, c1], setMessages }),
+    );
+
+    runtime.import(
+      ExportedMessageRepository.fromBranchableArray(
+        [
+          { parentId: null, message: u0 },
+          { parentId: "u0", message: a1 },
+          { parentId: "u0", message: a2 },
+          { parentId: "a1", message: u1 },
+          { parentId: "u1", message: b1 },
+          { parentId: "b1", message: u2 },
+          { parentId: "u2", message: c1 },
+        ],
+        { headId: "c1" },
+      ),
+    );
+    setMessages.mockClear();
+
+    runtime.switchToBranch("a2");
+
+    const switchedAway = setMessages.mock.calls.at(-1)?.[0] as
+      | { id: string }[]
+      | undefined;
+    expect(switchedAway?.map((m) => m.id)).toEqual([
+      "u0",
+      "a2",
+      "u1",
+      "b1",
+      "u2",
+      "c1",
+    ]);
+
+    runtime.switchToBranch("a1");
+
+    const switchedBack = setMessages.mock.calls.at(-1)?.[0] as
+      | { id: string }[]
+      | undefined;
+    expect(switchedBack?.map((m) => m.id)).toEqual([
+      "u0",
+      "a1",
+      "u1",
+      "b1",
+      "u2",
+      "c1",
+    ]);
+  });
+
+  it("retains switch sibling preservation across a no-prune sync", async () => {
+    const a1 = { id: "a1", role: "assistant" as const, content: [] };
+    const a2 = { id: "a2", role: "assistant" as const, content: [] };
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [user, a1],
+        onReload: vi.fn(),
+        setMessages: vi.fn(),
+      }),
+    );
+
+    await runtime.startRun({ parentId: "u", sourceId: "a1", runConfig: {} });
+    runtime.__internal_setAdapter(
+      makeStore({ messages: [user, a2], setMessages: vi.fn() }),
+    );
+
+    runtime.switchToBranch("a1");
+
+    runtime.__internal_setAdapter(
+      makeStore({ messages: [user, a2], setMessages: vi.fn() }),
+    );
+    runtime.__internal_setAdapter(
+      makeStore({ messages: [user, a1], setMessages: vi.fn() }),
+    );
+
+    expect(runtime.getBranches("a1")).toEqual(["a1", "a2"]);
+  });
+
+  it("preserves a phantom branch when reload returns the same id (known limitation)", async () => {
+    const a1 = { id: "a1", role: "assistant" as const, content: [] };
+    const b1 = { id: "b1", role: "assistant" as const, content: [] };
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [user, a1],
+        onReload: vi.fn(),
+        setMessages: vi.fn(),
+      }),
+    );
+
+    await runtime.startRun({ parentId: "u", sourceId: "a1", runConfig: {} });
+    runtime.__internal_setAdapter(
+      makeStore({ messages: [user, a1], setMessages: vi.fn() }),
+    );
+    runtime.__internal_setAdapter(
+      makeStore({ messages: [user, b1], setMessages: vi.fn() }),
+    );
+
+    expect(runtime.getBranches("b1")).toEqual(["a1", "b1"]);
+  });
+
   it("does not crash on the next sync after cancelRun removes a leaf user", () => {
     const userWithText = {
       id: "u",

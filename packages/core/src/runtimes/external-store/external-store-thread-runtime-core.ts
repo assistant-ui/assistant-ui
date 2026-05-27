@@ -115,17 +115,12 @@ export class ExternalStoreThreadRuntimeCore
     )
       return undefined;
 
-    const exportedMessages = this.repository.export().messages;
-    const parentById = new Map(
-      exportedMessages.map(({ message, parentId }) => [message.id, parentId]),
-    );
     const preservedIds = new Set<string>();
 
     const shouldPreserve = (messageId: string): boolean => {
       const chain: string[] = [];
-      const visited = new Set<string>();
-      let currentId: string | null | undefined = messageId;
-      while (currentId != null && !visited.has(currentId)) {
+      let currentId: string | null = messageId;
+      while (currentId != null) {
         if (
           preservedIds.has(currentId) ||
           this._pendingEditOrReloadSources.has(currentId) ||
@@ -136,15 +131,18 @@ export class ExternalStoreThreadRuntimeCore
           return true;
         }
 
-        visited.add(currentId);
         chain.push(currentId);
-        currentId = parentById.get(currentId);
+        try {
+          currentId = this.repository.getMessage(currentId).parentId;
+        } catch {
+          return false;
+        }
       }
 
       return false;
     };
 
-    for (const { message } of exportedMessages) {
+    for (const { message } of this.repository.export().messages) {
       shouldPreserve(message.id);
     }
 
@@ -205,7 +203,7 @@ export class ExternalStoreThreadRuntimeCore
 
     if (continuationIndex < switchedMessages.length) return switchedMessages;
 
-    let parentId = switchedMessages.at(-1)?.id ?? branchId;
+    let parentId = switchedMessages.at(-1)!.id;
     for (const message of previousMessages.slice(continuationIndex)) {
       this._moveBranchSiblingsToParent(message.id, parentId);
       this.repository.addOrUpdateMessage(parentId, message);
