@@ -135,9 +135,9 @@ describe("frontendTools", () => {
       },
     });
 
-    expect(
-      (tools.getWeather as { providerOptions?: unknown })?.providerOptions,
-    ).toEqual({ anthropic: { deferLoading: true } });
+    expect(tools.getWeather?.providerOptions).toEqual({
+      anthropic: { deferLoading: true },
+    });
   });
 
   it("omits providerOptions when absent", () => {
