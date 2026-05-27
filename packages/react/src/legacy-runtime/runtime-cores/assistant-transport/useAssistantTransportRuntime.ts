@@ -68,31 +68,34 @@ const convertAppendMessageToCommand = (
 
 /**
  * Read `Aui-Replay-Content-Length` off the resume response and wrap
- * `response.body` in a byte-counting passthrough that flips `replayingRef`
- * to `false` once the consumed byte count crosses the boundary. The
- * paired sync server (assistant-ui-sync-server) emits the header.
+ * `response.body` in a byte-counting passthrough that flips
+ * `setReplaying` to `false` once the consumed byte count crosses the
+ * boundary. The paired sync server (assistant-ui-sync-server) emits the
+ * header.
  *
- * Responses without the header short-circuit — no extra pipeline node,
- * `replayingRef` stays `false`.
+ * Responses without (or with a malformed) header short-circuit — no
+ * extra pipeline node, replay state stays `false`.
  */
 const wrapReplayCounting = (
   response: Response,
-  replayingRef: { current: boolean },
+  setReplaying: (v: boolean) => void,
 ): ReadableStream<Uint8Array> => {
-  const boundary = parseInt(
-    response.headers.get("Aui-Replay-Content-Length") ?? "0",
-    10,
-  );
-  if (boundary <= 0) return response.body as ReadableStream<Uint8Array>;
+  const raw = response.headers.get("Aui-Replay-Content-Length");
+  const boundary = raw != null ? Number.parseInt(raw, 10) : 0;
+  if (!Number.isFinite(boundary) || boundary <= 0) {
+    return response.body as ReadableStream<Uint8Array>;
+  }
 
-  replayingRef.current = true;
+  setReplaying(true);
   let bytesConsumed = 0;
+  let flipped = false;
   return response.body!.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
       transform(chunk, controller) {
         bytesConsumed += chunk.byteLength;
-        if (replayingRef.current && bytesConsumed > boundary) {
-          replayingRef.current = false;
+        if (!flipped && bytesConsumed > boundary) {
+          flipped = true;
+          setReplaying(false);
         }
         controller.enqueue(chunk);
       },
@@ -150,7 +153,8 @@ const useAssistantTransportThreadRuntime = <T>(
   const agentStateRef = useRef(options.initialState);
   const [, rerender] = useState(0);
   const resumeFlagRef = useRef(false);
-  const replayingRef = useRef(false);
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const [isReplaying, setIsReplaying] = useState(false);
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const parentIdRef = useRef<string | null | undefined>(undefined);
   const commandQueue = useCommandQueue({
@@ -163,7 +167,7 @@ const useAssistantTransportThreadRuntime = <T>(
     onRun: async (signal: AbortSignal) => {
       const isResume = resumeFlagRef.current;
       resumeFlagRef.current = false;
-      replayingRef.current = false;
+      setIsReplaying(false);
       const commands: QueuedCommand[] = isResume ? [] : commandQueue.flush();
       if (commands.length === 0 && !isResume)
         throw new Error("No commands to send");
@@ -224,7 +228,7 @@ const useAssistantTransportThreadRuntime = <T>(
       // Surfaced to the embedded tool-invocations tracker via `isLoading`
       // (set on the inner adapter store below), which gates streamCall /
       // execute side effects.
-      const body = wrapReplayCounting(response, replayingRef);
+      const body = wrapReplayCounting(response, setIsReplaying);
 
       // Select decoder based on protocol option
       const protocol = options.protocol ?? "data-stream";
@@ -332,7 +336,7 @@ const useAssistantTransportThreadRuntime = <T>(
     messages: converted.messages,
     state: converted.state,
     isRunning: converted.isRunning,
-    isLoading: replayingRef.current,
+    isLoading: isReplaying,
     adapters: options.adapters,
     unstable_enableToolInvocations: true,
     setToolStatuses,
