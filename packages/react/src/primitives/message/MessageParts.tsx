@@ -1,6 +1,7 @@
 "use client";
 
 import type { FC } from "react";
+import type { Library } from "@openuidev/react-lang";
 import {
   MessagePrimitiveParts as MessagePrimitivePartsBase,
   MessagePartComponent as MessagePartComponentBase,
@@ -10,6 +11,7 @@ import {
 import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
+import { MessagePrimitiveGenerativeUI } from "../generativeUI/GenerativeUI";
 
 const webDefaultComponents = {
   ...messagePartsDefaultComponents,
@@ -22,10 +24,13 @@ const webDefaultComponents = {
     </p>
   ),
   Image: () => <MessagePartPrimitiveImage />,
-} satisfies MessagePrimitiveParts.Props["components"];
+} satisfies MessagePrimitivePartsBase.Props["components"];
 
 export namespace MessagePrimitiveParts {
-  export type Props = MessagePrimitivePartsBase.Props;
+  export type Props = MessagePrimitivePartsBase.Props & {
+    /** When set, merges a default OpenUI generative-ui slot. */
+    library?: Library;
+  };
 }
 
 /**
@@ -40,7 +45,11 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
     );
   }
 
-  const { components, ...rest } = props;
+  const { components, library, ...rest } = props;
+  const defaultGenerativeUI = library
+    ? () => <MessagePrimitiveGenerativeUI library={library} />
+    : undefined;
+
   const merged = components
     ? {
         Text: components.Text ?? webDefaultComponents.Text,
@@ -65,9 +74,11 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
             }),
         Empty: components.Empty,
         Quote: components.Quote,
-        generativeUI: components.generativeUI,
+        generativeUI: components.generativeUI ?? defaultGenerativeUI,
       }
-    : webDefaultComponents;
+    : library
+      ? { ...webDefaultComponents, generativeUI: defaultGenerativeUI }
+      : webDefaultComponents;
 
   return <MessagePrimitivePartsBase components={merged as any} {...rest} />;
 };

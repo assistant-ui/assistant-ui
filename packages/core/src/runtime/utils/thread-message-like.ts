@@ -161,6 +161,12 @@ export const fromThreadMessageLike = (
                 return part;
 
               case "generative-ui":
+                if (typeof part.source !== "string") {
+                  console.warn(
+                    "[generative-ui] Expected source to be a string, skipping part.",
+                  );
+                  return null;
+                }
                 return part;
 
               case "tool-call": {

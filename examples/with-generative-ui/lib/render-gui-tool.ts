@@ -1,7 +1,21 @@
 import { z } from "zod";
-import type { GenerativeUISpec } from "@assistant-ui/react";
+import { stripMarkdownJsonFence } from "./strip-markdown-fence";
 
 export const RENDER_GUI_TOOL_NAME = "render_gui" as const;
+
+/** Legacy JSON spec shape — bridge only until Phase 3b. */
+export type GenerativeUINode =
+  | string
+  | {
+      readonly component: string;
+      readonly props?: Record<string, unknown>;
+      readonly children?: readonly GenerativeUINode[];
+      readonly key?: string;
+    };
+
+export type GenerativeUISpec = {
+  readonly root: GenerativeUINode | readonly GenerativeUINode[];
+};
 
 const generativeUINodeSchema: z.ZodType<unknown> = z.lazy(() =>
   z.union([
@@ -38,17 +52,6 @@ export const parseRenderGuiResult = (
 export const renderGuiToolDescription =
   "Compose inline UI from the allowlisted component library (Card, Text, Button, Stack, Stat, Heading). " +
   "Pass a JSON spec with a root node tree. Use for dashboards, status panels, and structured layouts — not for user input forms (use interactive tool UI instead).";
-
-export const renderGuiChatInstructions =
-  "When the user asks for UI, call render_gui with the spec. " +
-  "Do not paste JSON, code blocks, or the tool result in your text reply — the client renders the UI from the tool output automatically. " +
-  "Keep any text reply brief or omit it when the UI alone answers the request.";
-
-const stripMarkdownJsonFence = (text: string): string => {
-  const trimmed = text.trim();
-  const match = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/i);
-  return match ? match[1]!.trim() : trimmed;
-};
 
 /** Text echo of a render_gui tool result/spec — hide when the bridge already rendered it. */
 export const isLeakedRenderGuiText = (text: string): boolean => {

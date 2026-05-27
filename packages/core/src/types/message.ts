@@ -73,49 +73,10 @@ export type DataMessagePart<T = any> = {
   readonly data: T;
 };
 
-/**
- * A JSON spec describing a tree of UI components to render.
- *
- * The agent emits a {@link GenerativeUIMessagePart} containing this spec, and
- * the consumer-provided component allowlist is used to resolve `component`
- * names. Any component referenced that is not present in the allowlist is
- * rejected with a typed error — the allowlist is the security boundary in the
- * default same-realm rendering path.
- */
-export type GenerativeUINode =
-  | string
-  | {
-      /** Allowlisted component name (resolved against the consumer registry). */
-      readonly component: string;
-      /** Props passed to the resolved component (must be JSON-serializable). */
-      readonly props?: Record<string, unknown>;
-      /** Optional children — strings render as text, objects recurse. */
-      readonly children?: readonly GenerativeUINode[];
-      /** Optional stable key for React reconciliation. */
-      readonly key?: string;
-    };
-
-/**
- * The root spec for a generative UI tree.
- */
-export type GenerativeUISpec = {
-  /** Root node(s) to render. */
-  readonly root: GenerativeUINode | readonly GenerativeUINode[];
-};
-
-/**
- * A message part that carries a JSON spec describing UI to render.
- *
- * Render with `<MessagePrimitive.GenerativeUI components={...} />`. The
- * primitive resolves component names against the consumer-provided allowlist
- * — any unknown name throws a typed error rather than rendering. Stream-
- * friendly: a partially-streamed spec renders progressively.
- */
+/** OpenUI Lang source for generative UI rendering. */
 export type GenerativeUIMessagePart = {
   readonly type: "generative-ui";
-  /** The JSON spec describing the UI tree. */
-  readonly spec: GenerativeUISpec;
-  /** Optional id (useful for replays / stable keys). */
+  readonly source: string;
   readonly id?: string;
   readonly parentId?: string;
 };

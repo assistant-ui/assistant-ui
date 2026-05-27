@@ -9,10 +9,6 @@ import {
 } from "ai";
 import type { UIMessage } from "ai";
 import { z } from "zod";
-import {
-  renderGuiToolDescription,
-  renderGuiToolInputSchema,
-} from "../../../lib/render-gui-tool";
 
 export const maxDuration = 30;
 
@@ -29,7 +25,6 @@ export async function POST(req: Request) {
     tools?: Record<string, ToolDef>;
   } = await req.json();
 
-  // Convert client-defined frontend tools to AI SDK format
   const frontendToolDefs = clientTools
     ? Object.fromEntries(
         Object.entries(clientTools).map(([name, def]) => [
@@ -46,17 +41,11 @@ export async function POST(req: Request) {
     model: openai("gpt-5.4-nano"),
     messages: await convertToModelMessages(messages),
     stopWhen: stepCountIs(10),
-    ...(system ? { system } : {}),
+    system:
+      system ??
+      "You are a helpful assistant that composes UI using OpenUI Lang when asked.",
     tools: {
       ...frontendToolDefs,
-
-      render_gui: tool({
-        description: renderGuiToolDescription,
-        inputSchema: zodSchema(renderGuiToolInputSchema),
-        execute: async (input) => ({
-          spec: input.spec,
-        }),
-      }),
 
       // Backend tool: generate chart data
       generate_chart: tool({

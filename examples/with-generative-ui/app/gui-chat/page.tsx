@@ -2,39 +2,53 @@
 
 import { ExampleNav } from "@/components/example-nav";
 import { GuiThread } from "@/components/gui-thread";
+import { openuiChatSystemPrompt } from "@/lib/openui-chat";
 import {
   AssistantRuntimeProvider,
   Suggestions,
   useAssistantInstructions,
   useAui,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
-import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { renderGuiChatInstructions } from "@/lib/render-gui-tool";
+import {
+  AssistantChatTransport,
+  useChatRuntime,
+} from "@assistant-ui/react-ai-sdk";
 
 const GuiChatInstructions = () => {
-  useAssistantInstructions(renderGuiChatInstructions);
+  useAssistantInstructions(openuiChatSystemPrompt);
   return null;
 };
 
 export default function GuiChatPage() {
   const runtime = useChatRuntime({
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    transport: new AssistantChatTransport({ api: "/api/gui-chat" }),
   });
 
   const aui = useAui({
     suggestions: Suggestions([
       {
-        title: "Welcome card",
-        label: "with a Get started button",
+        title: "Q4 revenue chart",
+        label: "grouped bar chart",
         prompt:
-          "Show me a welcome card with a Get started button using render_gui.",
+          "Show a grouped bar chart of Q4 revenue: Product A [120, 150, 180] and Product B [90, 110, 140] for Oct, Nov, Dec.",
       },
       {
-        title: "Stats dashboard",
-        label: "revenue and users",
+        title: "Contact form",
+        label: "name, email, message",
         prompt:
-          "Use render_gui to show a stats card with Revenue $124k and Active Users 8.2k.",
+          "Build a contact form with name, email, country select, and message fields plus Submit and Cancel buttons.",
+      },
+      {
+        title: "React vs Vue",
+        label: "tabs with callouts",
+        prompt:
+          "Create a tabbed comparison of React vs Vue with an info callout in each tab.",
+      },
+      {
+        title: "AI market report",
+        label: "KPIs, table, chart",
+        prompt:
+          "Generate an AI market report as OpenUI Lang only: CardHeader, a row of three KPI Cards, a funding Table by segment, and a grouped BarChart. No markdown lists or SectionBlock.",
       },
     ]),
   });

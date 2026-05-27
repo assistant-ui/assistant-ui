@@ -1,10 +1,11 @@
 "use client";
 
-import { Thread } from "@/components/assistant-ui/thread";
+import { ToolThread } from "@/components/tool-thread";
 import {
   AssistantRuntimeProvider,
   Suggestions,
   useAui,
+  useAssistantInstructions,
   useAssistantTool,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
@@ -44,6 +45,16 @@ function FrontendTools() {
   return null;
 }
 
+const TOOL_UI_SYSTEM =
+  "When you call a tool, never paste tool arguments or JSON in your text reply. " +
+  "The client renders charts, maps, forms, and pickers from tool output automatically. " +
+  "Keep any text reply brief or omit it when the UI alone answers the request.";
+
+function ToolChatInstructions() {
+  useAssistantInstructions(TOOL_UI_SYSTEM);
+  return null;
+}
+
 export default function Home() {
   const runtime = useChatRuntime({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
@@ -80,6 +91,7 @@ export default function Home() {
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
       {/* Frontend tools: register schemas, resolved via addResult in UI */}
       <FrontendTools />
+      <ToolChatInstructions />
       {/* Tool UIs: render components for each tool call */}
       <ChartToolUI />
       <LocationToolUI />
@@ -88,7 +100,7 @@ export default function Home() {
       <div className="flex h-full flex-col">
         <ExampleNav />
         <main className="min-h-0 flex-1">
-          <Thread />
+          <ToolThread />
         </main>
       </div>
     </AssistantRuntimeProvider>

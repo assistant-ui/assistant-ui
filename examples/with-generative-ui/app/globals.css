@@ -120,3 +120,25 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Let OpenUI components use their own typography inside generative UI messages.
+   Force light tokens so headers/cards aren't white-on-white when OS is in dark mode. */
+.openui-generative-ui {
+  color-scheme: light;
+  --openui-background: oklch(0.97 0 89.876 / 1);
+  --openui-foreground: oklch(0.994 0 89.876 / 1);
+  --openui-popover-background: oklch(0.994 0 89.876 / 1);
+  --openui-sunk-light: oklch(0.097 0 0 / 0.02);
+  --openui-sunk: oklch(0.097 0 0 / 0.04);
+  --openui-sunk-deep: oklch(0.097 0 0 / 0.08);
+  --openui-elevated-light: oklch(0.097 0 0 / 0.04);
+  --openui-elevated: oklch(0.097 0 0 / 0.08);
+  --openui-text-neutral-primary: oklch(0.097 0 0 / 1);
+  --openui-text-neutral-secondary: oklch(0.097 0 0 / 0.5);
+  --openui-text-neutral-tertiary: oklch(0.097 0 0 / 0.2);
+  --openui-border-default: oklch(0.097 0 0 / 0.06);
+  --openui-border-interactive: oklch(0.097 0 0 / 0.12);
+  color: var(--openui-text-neutral-primary);
+  font: var(--openui-text-body-default);
+  letter-spacing: var(--openui-text-body-default-letter-spacing);
+}

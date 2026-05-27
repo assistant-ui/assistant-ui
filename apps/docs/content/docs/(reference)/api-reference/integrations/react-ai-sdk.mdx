@@ -24,6 +24,15 @@ import { reactAiSdk_AssistantChatTransport, reactAiSdk_createResumableSessionSto
 
 <ParametersTable {...reactAiSdk_createResumableSessionStorage} />
 
+### extractOpenUILangFromText
+
+Split assistant text into an OpenUI Lang `source` and optional markdown remainder.
+Returns null when no OpenUI Lang is detected.
+
+```ts
+const extractOpenUILangFromText: (text: string) => { source: string; remainder: string; } | null;
+```
+
 ### frontendTools
 
 ```ts
@@ -56,6 +65,20 @@ export async function POST(req: Request) {
 ```
 
 <ParametersTable {...reactAiSdk_injectQuoteContext} />
+
+### isLeakedOpenUILangText
+
+Text echo of OpenUI Lang — hide when a renderer already consumed it.
+
+```ts
+const isLeakedOpenUILangText: (text: string) => boolean;
+```
+
+### isOpenUILangText
+
+```ts
+const isOpenUILangText: (text: string) => boolean;
+```
 
 ### RESUMABLE_STREAM_ID_HEADER
 

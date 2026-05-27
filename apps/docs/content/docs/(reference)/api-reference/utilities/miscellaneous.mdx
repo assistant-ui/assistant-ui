@@ -3,7 +3,7 @@ title: Utilities
 description: Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.
 ---
 
-import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, ExportedMessageRepository, GenerativeUIRender, GenerativeUIRenderError, InMemoryThreadList, McpAppRenderer, McpAppsRemoteHost, SingleThreadList, getMcpAppFromToolPart } from "@/generated/typeDocs";
+import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, ExportedMessageRepository, InMemoryThreadList, McpAppRenderer, McpAppsRemoteHost, MessagePrimitiveGenerativeUI, SingleThreadList, createLibrary, defineComponent, getMcpAppFromToolPart } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -22,6 +22,14 @@ import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, ExportedMessageRep
 
 <ParametersTable {...ChainOfThoughtClient} />
 
+### createLibrary
+
+<ParametersTable {...createLibrary} />
+
+### defineComponent
+
+<ParametersTable {...defineComponent} />
+
 ### DevToolsHooks
 
 <ParametersTable {...DevToolsHooks} />
@@ -29,23 +37,6 @@ import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, ExportedMessageRep
 ### ExportedMessageRepository
 
 <ParametersTable {...ExportedMessageRepository} />
-
-### GenerativeUIRender
-
-Internal renderer. Resolves a GenerativeUISpec against the consumer
-allowlist. Used by `MessagePrimitive.GenerativeUI` and by
-`MessagePrimitive.Parts` when handling a `generative-ui` part.
-
-<ParametersTable {...GenerativeUIRender} />
-
-### GenerativeUIRenderError
-
-Thrown when a generative-ui spec references a component name that is not
-present in the consumer-provided allowlist. The allowlist is the security
-boundary in the same-realm rendering path — there is no fallback by
-default. Pass `Fallback` to opt into a soft-fail UX.
-
-<ParametersTable {...GenerativeUIRenderError} />
 
 ### getMcpAppFromToolPart
 
@@ -93,6 +84,17 @@ params }`, using the method names expected by the assistant-ui MCP Apps
 guide.
 
 <ParametersTable {...McpAppsRemoteHost} />
+
+### MessagePrimitiveGenerativeUI
+
+Renders a generative-ui message part using OpenUI Lang and
+`@openuidev/react-lang` Renderer.
+
+```tsx
+<MessagePrimitive.GenerativeUI library={myLibrary} />
+```
+
+<ParametersTable {...MessagePrimitiveGenerativeUI} />
 
 ### SingleThreadList
 

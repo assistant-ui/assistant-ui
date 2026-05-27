@@ -1,55 +1,48 @@
 // @vitest-environment jsdom
 
+import { defineComponent, createLibrary } from "@openuidev/react-lang";
 import { render, screen, waitFor } from "@testing-library/react";
 import type { FC, PropsWithChildren } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { z } from "zod/v4";
 import { AssistantRuntimeProvider } from "../context";
 import * as MessagePrimitive from "../primitives/message";
 import * as ThreadPrimitive from "../primitives/thread";
 import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
-import type {
-  ChatModelAdapter,
-  GenerativeUISpec,
-  ThreadMessageLike,
-} from "../index";
+import type { ChatModelAdapter, ThreadMessageLike } from "../index";
+
+vi.mock("@openuidev/react-lang", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@openuidev/react-lang")>();
+  return {
+    ...actual,
+    Renderer: ({ response }: { response: string | null }) => (
+      <div data-testid="openui-renderer">{response}</div>
+    ),
+  };
+});
+
+const Card = defineComponent({
+  name: "Card",
+  description: "Card",
+  props: z.object({ title: z.string().optional() }),
+  component: ({ props }) => <div data-component="Card">{props.title}</div>,
+});
+
+const testLibrary = createLibrary({
+  root: "Card",
+  components: [Card],
+});
+
+const sampleSource = `root = Card([], "Hello")`;
 
 const noOpAdapter: ChatModelAdapter = {
   async *run() {},
 };
 
-const Card = ({ title, children }: any) => (
-  <div data-component="Card">
-    <h3 data-testid="card-title">{title}</h3>
-    {children}
-  </div>
-);
-
-const Button = ({ label }: any) => (
-  <button type="button" data-component="Button">
-    {label}
-  </button>
-);
-
-const Fallback = ({ component }: { component: string; props?: unknown }) => (
-  <span data-fallback={component}>missing</span>
-);
-
-const spec: GenerativeUISpec = {
-  root: {
-    component: "Card",
-    props: { title: "Hello" },
-    children: [{ component: "Button", props: { label: "Click me" } }],
-  },
-};
-
-const unknownSpec: GenerativeUISpec = {
-  root: { component: "NotAllowed", props: { foo: 1 } },
-};
-
-const generativeMessages = (s: GenerativeUISpec): ThreadMessageLike[] => [
+const generativeMessages = (source: string): ThreadMessageLike[] => [
   {
     role: "assistant",
-    content: [{ type: "generative-ui", spec: s }],
+    content: [{ type: "generative-ui", source }],
     status: { type: "complete", reason: "stop" },
   },
 ];
@@ -75,25 +68,24 @@ const renderThread = (MessageComponent: FC, messages: ThreadMessageLike[]) => {
   );
 };
 
-describe("MessagePrimitive.Parts generative-ui (store-backed)", () => {
-  it("renders a generative-ui part via the components.generativeUI allowlist", async () => {
-    const Message: FC = () => (
-      <MessagePrimitive.Parts
-        components={{ generativeUI: { components: { Card, Button } } }}
-      />
+describe("MessagePrimitive.Parts generative-ui slot", () => {
+  it("renders a generative-ui part via components.generativeUI slot", async () => {
+    const Slot: FC = () => (
+      <MessagePrimitive.GenerativeUI library={testLibrary} />
     );
 
-    renderThread(Message, generativeMessages(spec));
+    const Message: FC = () => (
+      <MessagePrimitive.Parts components={{ generativeUI: Slot }} />
+    );
+
+    renderThread(Message, generativeMessages(sampleSource));
 
     await waitFor(() => {
-      expect(screen.getByTestId("card-title").textContent).toBe("Hello");
+      expect(screen.getByTestId("openui-renderer")).toBeTruthy();
     });
-    expect(screen.getByText("Click me")).toBeTruthy();
-    expect(document.querySelector('[data-component="Card"]')).not.toBeNull();
-    expect(document.querySelector('[data-component="Button"]')).not.toBeNull();
   });
 
-  it("renders nothing for a generative-ui part when no allowlist is provided and warns in dev", async () => {
+  it("warns when generative-ui part has no slot", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const Message: FC = () => (
@@ -102,60 +94,39 @@ describe("MessagePrimitive.Parts generative-ui (store-backed)", () => {
       </div>
     );
 
-    renderThread(Message, generativeMessages(spec));
+    renderThread(Message, generativeMessages(sampleSource));
 
     await waitFor(() => {
       expect(screen.getByTestId("parts-host")).toBeTruthy();
     });
 
-    expect(document.querySelector('[data-component="Card"]')).toBeNull();
-    expect(document.querySelector('[data-component="Button"]')).toBeNull();
-    expect(screen.getByTestId("parts-host").textContent).toBe("");
     expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining("`components.generativeUI.components` allowlist"),
+      expect.stringContaining("`components.generativeUI` slot"),
     );
 
     warn.mockRestore();
   });
-
-  it("renders the Fallback for an unknown component name instead of throwing", async () => {
-    const Message: FC = () => (
-      <MessagePrimitive.Parts
-        components={{ generativeUI: { components: { Card }, Fallback } }}
-      />
-    );
-
-    renderThread(Message, generativeMessages(unknownSpec));
-
-    await waitFor(() => {
-      expect(
-        document.querySelector('[data-fallback="NotAllowed"]'),
-      ).not.toBeNull();
-    });
-    expect(screen.getByText("missing")).toBeTruthy();
-  });
 });
 
-describe("MessagePrimitive.GenerativeUI (store-backed, reads part from scope)", () => {
-  it("renders the spec read from the surrounding part scope when no spec prop is passed", async () => {
+describe("MessagePrimitive.GenerativeUI (store-backed)", () => {
+  it("reads source from part scope when no source prop is passed", async () => {
     const Message: FC = () => (
       <MessagePrimitive.Parts>
         {({ part }) => {
           if (part.type === "generative-ui") {
-            return (
-              <MessagePrimitive.GenerativeUI components={{ Card, Button }} />
-            );
+            return <MessagePrimitive.GenerativeUI library={testLibrary} />;
           }
           return null;
         }}
       </MessagePrimitive.Parts>
     );
 
-    renderThread(Message, generativeMessages(spec));
+    renderThread(Message, generativeMessages(sampleSource));
 
     await waitFor(() => {
-      expect(screen.getByTestId("card-title").textContent).toBe("Hello");
+      expect(screen.getByTestId("openui-renderer").textContent).toBe(
+        sampleSource,
+      );
     });
-    expect(screen.getByText("Click me")).toBeTruthy();
   });
 });
