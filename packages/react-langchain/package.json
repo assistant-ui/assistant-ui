@@ -37,7 +37,7 @@
     "@assistant-ui/core": "^0.2.7",
     "@assistant-ui/store": "^0.2.12",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.16"
+    "assistant-stream": "^0.3.17"
   },
   "peerDependencies": {
     "@langchain/react": "^1.0.2",

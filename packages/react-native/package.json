@@ -36,9 +36,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.2.6",
+    "@assistant-ui/core": "^0.2.7",
     "@assistant-ui/store": "^0.2.12",
-    "@assistant-ui/tap": "^0.5.12",
+    "@assistant-ui/tap": "^0.5.13",
     "assistant-stream": "^0.3.17",
     "zustand": "^5.0.13"
   },

@@ -40,11 +40,11 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.0",
-    "oxfmt": "^0.51.0",
-    "oxlint": "^1.66.0",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
+    "oxfmt": "^0.51.0",
+    "oxlint": "^1.66.0",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3"
   }

@@ -35,8 +35,8 @@
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.53",
-    "@assistant-ui/core": "^0.2.5",
-    "assistant-stream": "^0.3.16"
+    "@assistant-ui/core": "^0.2.7",
+    "assistant-stream": "^0.3.17"
   },
   "peerDependencies": {
     "@types/react": "*",
