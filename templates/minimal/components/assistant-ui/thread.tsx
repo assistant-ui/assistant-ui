@@ -218,11 +218,12 @@ const AssistantMessage: FC = () => {
     <MessagePrimitive.Root
       data-slot="aui_assistant-message-root"
       data-role="assistant"
-      className="fade-in slide-in-from-bottom-1 animate-in relative duration-150 [contain-intrinsic-size:auto_300px] [content-visibility:auto]"
+      className="fade-in slide-in-from-bottom-1 animate-in relative duration-150"
     >
       <div
         data-slot="aui_assistant-message-content"
-        className="text-foreground px-2 leading-relaxed wrap-break-word"
+        // [contain-intrinsic-size:auto_24px] fixes issue #4104, don't change without checking for regressions
+        className="text-foreground px-2 leading-relaxed wrap-break-word [contain-intrinsic-size:auto_24px] [content-visibility:auto]"
       >
         <MessagePrimitive.Parts>
           {({ part }) => {
