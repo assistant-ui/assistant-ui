@@ -24,6 +24,7 @@ import {
   ErrorPrimitive,
   getMcpAppFromToolPart,
   MessagePrimitive,
+  TextMessagePartProvider,
 } from "@assistant-ui/react";
 import type { FC } from "react";
 
@@ -87,9 +88,11 @@ export const AssistantMessageGui: FC = () => (
                 return (
                   <>
                     {extracted.remainder ? (
-                      <p className="mb-2 text-sm whitespace-pre-wrap">
-                        {extracted.remainder}
-                      </p>
+                      <TextMessagePartProvider text={extracted.remainder}>
+                        <div className="mb-2">
+                          <MarkdownText />
+                        </div>
+                      </TextMessagePartProvider>
                     ) : null}
                     <OpenUIGenerativeUI source={extracted.source} />
                   </>

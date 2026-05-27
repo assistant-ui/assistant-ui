@@ -1,7 +1,7 @@
 "use client";
 
 import { defineComponent, createLibrary } from "@openuidev/react-lang";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { z } from "zod/v4";
 
 export const UnknownComponentFallback = ({
@@ -20,7 +20,7 @@ const renderItems = (
 ) => {
   if (items == null) return null;
   const list = Array.isArray(items) ? items : [items];
-  return list.map((item, i) => <span key={i}>{renderNode(item)}</span>);
+  return list.map((item, i) => <Fragment key={i}>{renderNode(item)}</Fragment>);
 };
 
 const Card = defineComponent({

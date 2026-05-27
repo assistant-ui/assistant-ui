@@ -1,5 +1,6 @@
-/** Detects whether text looks like OpenUI Lang (starts with `root =`). */
-const ROOT_ASSIGNMENT = /^\s*root\s*=/m;
+/** OpenUI Lang must begin at the start of the program (first binding is `root =`). */
+const ROOT_AT_START = /^\s*root\s*=/;
+const ROOT_LINE = /^\s*root\s*=/m;
 
 const stripMarkdownFence = (text: string): string => {
   const trimmed = text.trim();
@@ -9,8 +10,21 @@ const stripMarkdownFence = (text: string): string => {
   return match ? match[1]!.trim() : trimmed;
 };
 
+const splitAtRootAssignment = (
+  text: string,
+): { source: string; remainder: string } | null => {
+  const match = text.match(ROOT_LINE);
+  if (!match || match.index == null) return null;
+
+  const remainder = text.slice(0, match.index).trim();
+  const source = text.slice(match.index).trim();
+  if (!ROOT_AT_START.test(source)) return null;
+
+  return { source, remainder };
+};
+
 export const isOpenUILangText = (text: string): boolean =>
-  ROOT_ASSIGNMENT.test(stripMarkdownFence(text));
+  ROOT_AT_START.test(stripMarkdownFence(text));
 
 /** Text echo of OpenUI Lang — hide when a renderer already consumed it. */
 export const isLeakedOpenUILangText = isOpenUILangText;
@@ -31,15 +45,12 @@ export const extractOpenUILangFromText = (
   if (fenced) {
     const [, before, lang, after] = fenced;
     const source = lang!.trim();
-    if (!ROOT_ASSIGNMENT.test(source)) return null;
+    if (!ROOT_AT_START.test(source)) return null;
     const remainder = [before!.trim(), after!.trim()]
       .filter(Boolean)
       .join("\n\n");
     return { source, remainder };
   }
 
-  const source = stripMarkdownFence(trimmed);
-  if (!ROOT_ASSIGNMENT.test(source)) return null;
-
-  return { source, remainder: "" };
+  return splitAtRootAssignment(stripMarkdownFence(trimmed));
 };

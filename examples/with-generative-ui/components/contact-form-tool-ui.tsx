@@ -1,13 +1,11 @@
 "use client";
 
+import type { CollectContactArgs } from "@/lib/inline-tool-schemas";
 import { useState } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { UserIcon, CheckCircle2Icon } from "lucide-react";
 
-type ContactFormArgs = {
-  prompt: string;
-  fields: Array<"name" | "email" | "phone">;
-};
+type ContactFormArgs = CollectContactArgs;
 
 type ContactFormResult = {
   name?: string;

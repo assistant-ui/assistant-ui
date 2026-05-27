@@ -10,7 +10,10 @@ import {
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { z } from "zod";
+import {
+  collectContactArgsSchema,
+  selectDateArgsSchema,
+} from "@/lib/inline-tool-schemas";
 import { ChartToolUI } from "@/components/chart-tool-ui";
 import { DatePickerToolUI } from "@/components/date-picker-tool-ui";
 import { ContactFormToolUI } from "@/components/contact-form-tool-ui";
@@ -23,23 +26,14 @@ function FrontendTools() {
     toolName: "select_date",
     description:
       "Ask the user to select a date. Use this when you need to collect a date (e.g. for scheduling, booking, deadlines).",
-    parameters: z.object({
-      prompt: z.string().describe("Message to display to the user"),
-      minDate: z.string().optional().describe("Minimum date (ISO string)"),
-      maxDate: z.string().optional().describe("Maximum date (ISO string)"),
-    }),
+    parameters: selectDateArgsSchema,
   });
 
   useAssistantTool({
     toolName: "collect_contact",
     description:
       "Collect contact information from the user. Use this when you need the user's name, email, or phone number.",
-    parameters: z.object({
-      prompt: z.string().describe("Message to display to the user"),
-      fields: z
-        .array(z.enum(["name", "email", "phone"]))
-        .describe("Which fields to collect"),
-    }),
+    parameters: collectContactArgsSchema,
   });
 
   return null;
