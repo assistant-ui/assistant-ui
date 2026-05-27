@@ -1,6 +1,10 @@
 import { useAuiState } from "@assistant-ui/store";
 import type { MessagePartState } from "../../runtime/api/message-part-runtime";
 import type {
+  MessagePartStatus,
+  ToolCallMessagePartStatus,
+} from "../../types/message";
+import type {
   ChecklistItemData,
   ChecklistItemStatus,
 } from "../../types/checklist";
@@ -11,7 +15,7 @@ const resolveChecklistStatus = (
     result?: unknown;
     interrupt?: unknown;
   },
-  status?: { type: string },
+  status?: MessagePartStatus | ToolCallMessagePartStatus,
 ): ChecklistItemStatus => {
   if (status?.type === "requires-action") return "running";
   if (status?.type === "incomplete") return "error";

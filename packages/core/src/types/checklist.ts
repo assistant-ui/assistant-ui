@@ -19,8 +19,8 @@ export const flattenChecklistItems = (
 ): ChecklistItemData[] => {
   const result: ChecklistItemData[] = [];
   const queue = [...items];
-  while (queue.length > 0) {
-    const item = queue.shift()!;
+  for (let i = 0; i < queue.length; i++) {
+    const item = queue[i]!;
     result.push(item);
     if (item.children) {
       queue.push(...item.children);

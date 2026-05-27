@@ -1,7 +1,10 @@
 import type { ComponentProps, ReactNode } from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
-import type { ChecklistItemData } from "@assistant-ui/core";
+import type {
+  ChecklistItemData,
+  ChecklistItemStatus,
+} from "@assistant-ui/core";
 
 export type ChecklistItemProps = ComponentProps<typeof Box> & {
   item: ChecklistItemData;
@@ -10,13 +13,14 @@ export type ChecklistItemProps = ComponentProps<typeof Box> & {
   renderItem?: (props: { item: ChecklistItemData; depth: number }) => ReactNode;
 };
 
-const STATUS_INDICATORS: Record<string, string> = {
+const STATUS_INDICATORS: Record<ChecklistItemStatus, string> = {
   pending: "□",
+  running: "□",
   complete: "■",
   error: "x",
 };
 
-const STATUS_COLORS: Record<string, string | undefined> = {
+const STATUS_COLORS: Record<ChecklistItemStatus, string | undefined> = {
   pending: undefined,
   running: "yellow",
   complete: "green",
