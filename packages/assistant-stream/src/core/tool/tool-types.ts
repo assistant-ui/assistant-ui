@@ -168,6 +168,14 @@ type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
   TResult
 >;
 
+/**
+ * Per-provider metadata attached to a tool and forwarded into the wire
+ * request body verbatim. The outer key is the provider name (`anthropic`,
+ * `openai`, ...); the inner object is whatever shape that provider's SDK
+ * expects under `tool.providerOptions[providerName]`.
+ */
+export type ProviderOptions = Record<string, Record<string, unknown>>;
+
 type ToolBase<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
@@ -186,7 +194,7 @@ type ToolBase<
    * `defer_loading` (set `{ anthropic: { deferLoading: true } }`) without
    * adding provider-aware code in assistant-ui.
    */
-  providerOptions?: Record<string, Record<string, unknown>>;
+  providerOptions?: ProviderOptions;
 };
 
 type BackendTool<

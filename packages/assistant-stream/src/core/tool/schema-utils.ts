@@ -1,6 +1,6 @@
 import type { JSONSchema7 } from "json-schema";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import type { Tool } from "./tool-types";
+import type { ProviderOptions, Tool } from "./tool-types";
 
 /**
  * Type for a tool definition with JSON Schema parameters.
@@ -8,7 +8,7 @@ import type { Tool } from "./tool-types";
 export type ToolJSONSchema = {
   description?: string;
   parameters: JSONSchema7;
-  providerOptions?: Record<string, Record<string, unknown>>;
+  providerOptions?: ProviderOptions;
 };
 
 export type ToToolsJSONSchemaOptions = {
@@ -153,7 +153,7 @@ export function toToolsJSONSchema(
   return Object.fromEntries(
     Object.entries(tools)
       .filter(([name, tool]) => filter(name, tool) && tool.parameters)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .sort(([a], [b]) => a.localeCompare(b))
       .map(([name, tool]) => [
         name,
         {
