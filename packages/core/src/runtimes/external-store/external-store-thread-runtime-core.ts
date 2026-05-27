@@ -56,8 +56,8 @@ export class ExternalStoreThreadRuntimeCore
 {
   private _assistantOptimisticId: string | null = null;
   private _lastSyncedMessageIds = new Set<string>();
-  private _branchPreservationSourceIds = new Set<string>();
-  private _branchSwitchPreservationIds = new Set<string>();
+  private _pendingEditOrReloadSources = new Set<string>();
+  private _pendingSwitchSiblings = new Set<string>();
 
   private _capabilities: RuntimeCapabilities = {
     switchToBranch: false,
@@ -110,8 +110,8 @@ export class ExternalStoreThreadRuntimeCore
 
   private _getBranchPreservationIds() {
     if (
-      this._branchPreservationSourceIds.size === 0 &&
-      this._branchSwitchPreservationIds.size === 0
+      this._pendingEditOrReloadSources.size === 0 &&
+      this._pendingSwitchSiblings.size === 0
     )
       return undefined;
 
@@ -122,20 +122,22 @@ export class ExternalStoreThreadRuntimeCore
     const preservedIds = new Set<string>();
 
     const shouldPreserve = (messageId: string): boolean => {
-      if (preservedIds.has(messageId)) return true;
-
+      const chain: string[] = [];
       const visited = new Set<string>();
       let currentId: string | null | undefined = messageId;
       while (currentId != null && !visited.has(currentId)) {
         if (
-          this._branchPreservationSourceIds.has(currentId) ||
-          this._branchSwitchPreservationIds.has(currentId)
+          preservedIds.has(currentId) ||
+          this._pendingEditOrReloadSources.has(currentId) ||
+          this._pendingSwitchSiblings.has(currentId)
         ) {
-          preservedIds.add(messageId);
+          preservedIds.add(currentId);
+          for (const id of chain) preservedIds.add(id);
           return true;
         }
 
         visited.add(currentId);
+        chain.push(currentId);
         currentId = parentById.get(currentId);
       }
 
@@ -151,7 +153,7 @@ export class ExternalStoreThreadRuntimeCore
 
   private _preserveBranchSiblings(messageId: string) {
     for (const branchId of this.repository.getBranches(messageId)) {
-      this._branchSwitchPreservationIds.add(branchId);
+      this._pendingSwitchSiblings.add(branchId);
     }
   }
 
@@ -229,8 +231,8 @@ export class ExternalStoreThreadRuntimeCore
       this.repository.clear();
       this._assistantOptimisticId = null;
       this._lastSyncedMessageIds = new Set();
-      this._branchPreservationSourceIds.clear();
-      this._branchSwitchPreservationIds.clear();
+      this._pendingEditOrReloadSources.clear();
+      this._pendingSwitchSiblings.clear();
       this.repository.import(store.messageRepository);
 
       messages = this.repository.getMessages();
@@ -284,18 +286,24 @@ export class ExternalStoreThreadRuntimeCore
           });
 
       const nextIds = new Set(messages.map((m) => m.id));
-      const preservedBranchIds = this._getBranchPreservationIds();
+      let preservedBranchIds: Set<string> | undefined;
+      let computedPreservation = false;
       for (const prevId of this._lastSyncedMessageIds) {
-        if (!nextIds.has(prevId) && !preservedBranchIds?.has(prevId)) {
+        if (nextIds.has(prevId)) continue;
+        if (!computedPreservation) {
+          preservedBranchIds = this._getBranchPreservationIds();
+          computedPreservation = true;
+        }
+        if (!preservedBranchIds?.has(prevId)) {
           this.repository.deleteMessage(prevId);
         }
       }
-      for (const sourceId of this._branchPreservationSourceIds) {
-        if (!nextIds.has(sourceId)) {
-          this._branchPreservationSourceIds.delete(sourceId);
-        }
-      }
-      this._branchSwitchPreservationIds.clear();
+      this._pendingEditOrReloadSources = new Set(
+        [...this._pendingEditOrReloadSources].filter((sourceId) =>
+          nextIds.has(sourceId),
+        ),
+      );
+      this._pendingSwitchSiblings.clear();
       this._lastSyncedMessageIds = nextIds;
 
       for (let i = 0; i < messages.length; i++) {
@@ -476,7 +484,7 @@ export class ExternalStoreThreadRuntimeCore
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
       if (message.sourceId)
-        this._branchPreservationSourceIds.add(message.sourceId);
+        this._pendingEditOrReloadSources.add(message.sourceId);
       await this._store.onEdit(message);
     } else {
       await this._store.onNew(message);
@@ -492,7 +500,7 @@ export class ExternalStoreThreadRuntimeCore
     // exists. See `append` above for full rationale.
     await this._toolInvocations?.abort();
 
-    if (config.sourceId) this._branchPreservationSourceIds.add(config.sourceId);
+    if (config.sourceId) this._pendingEditOrReloadSources.add(config.sourceId);
     await this._store.onReload(config.parentId, config);
   }
 
@@ -602,8 +610,8 @@ export class ExternalStoreThreadRuntimeCore
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {
     this._lastSyncedMessageIds = new Set();
-    this._branchPreservationSourceIds.clear();
-    this._branchSwitchPreservationIds.clear();
+    this._pendingEditOrReloadSources.clear();
+    this._pendingSwitchSiblings.clear();
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
     this.updateMessages(repo.getMessages());
@@ -612,8 +620,8 @@ export class ExternalStoreThreadRuntimeCore
   public override import(data: ExportedMessageRepository) {
     this._assistantOptimisticId = null;
     this._lastSyncedMessageIds = new Set();
-    this._branchPreservationSourceIds.clear();
-    this._branchSwitchPreservationIds.clear();
+    this._pendingEditOrReloadSources.clear();
+    this._pendingSwitchSiblings.clear();
 
     super.import(data);
 
