@@ -291,7 +291,12 @@ const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="relative mx-auto flex w-full max-w-3xl flex-col">
       <div className="text-[#0d0d0d] dark:text-[#ececec]">
-        <MessagePrimitive.Parts />
+        <MessagePrimitive.Parts
+          components={{
+            Text: MarkdownText,
+            ToolFallback: ToolFallback,
+          }}
+        />
       </div>
 
       <div className="-ml-2 flex items-center pt-1">
