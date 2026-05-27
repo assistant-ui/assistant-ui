@@ -116,6 +116,8 @@ const useAssistantTransportThreadRuntime = <T>(
   const agentStateRef = useRef(options.initialState);
   const [, rerender] = useState(0);
   const resumeFlagRef = useRef(false);
+  const replayingRef = useRef(false);
+  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const parentIdRef = useRef<string | null | undefined>(undefined);
   const commandQueue = useCommandQueue({
     onQueue: () => runManager.schedule(),
@@ -127,6 +129,7 @@ const useAssistantTransportThreadRuntime = <T>(
     onRun: async (signal: AbortSignal) => {
       const isResume = resumeFlagRef.current;
       resumeFlagRef.current = false;
+      replayingRef.current = false;
       const commands: QueuedCommand[] = isResume ? [] : commandQueue.flush();
       if (commands.length === 0 && !isResume)
         throw new Error("No commands to send");
@@ -182,6 +185,28 @@ const useAssistantTransportThreadRuntime = <T>(
         throw new Error("Response body is null");
       }
 
+      // Sync-server replay header: the first N body bytes were buffered
+      // before this resume started (historical), everything after is live.
+      // Surfaced to the embedded tool-invocations tracker via `isLoading`,
+      // which gates streamCall / execute side effects.
+      const replayContentLength = parseInt(
+        response.headers.get("Aui-Replay-Content-Length") ?? "0",
+        10,
+      );
+      replayingRef.current = replayContentLength > 0;
+      if (replayingRef.current) rerender((prev) => prev + 1);
+
+      let bytesConsumed = 0;
+      const replayCounter = new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+          bytesConsumed += chunk.byteLength;
+          if (replayingRef.current && bytesConsumed > replayContentLength) {
+            replayingRef.current = false;
+          }
+          controller.enqueue(chunk);
+        },
+      });
+
       // Select decoder based on protocol option
       const protocol = options.protocol ?? "data-stream";
       const decoder =
@@ -190,18 +215,21 @@ const useAssistantTransportThreadRuntime = <T>(
           : new DataStreamDecoder();
 
       let err: string | undefined;
-      const stream = response.body.pipeThrough(decoder).pipeThrough(
-        new AssistantMessageAccumulator({
-          initialMessage: createInitialMessage({
-            unstable_state:
-              (agentStateRef.current as ReadonlyJSONValue) ?? null,
+      const stream = response.body
+        .pipeThrough(replayCounter)
+        .pipeThrough(decoder)
+        .pipeThrough(
+          new AssistantMessageAccumulator({
+            initialMessage: createInitialMessage({
+              unstable_state:
+                (agentStateRef.current as ReadonlyJSONValue) ?? null,
+            }),
+            throttle: isResume,
+            onError: (error) => {
+              err = error;
+            },
           }),
-          throttle: isResume,
-          onError: (error) => {
-            err = error;
-          },
-        }),
-      );
+        );
 
       let markedDelivered = false;
 
@@ -288,6 +316,7 @@ const useAssistantTransportThreadRuntime = <T>(
     messages: converted.messages,
     state: converted.state,
     isRunning: converted.isRunning,
+    isLoading: replayingRef.current,
     adapters: options.adapters,
     unstable_enableToolInvocations: true,
     setToolStatuses,
