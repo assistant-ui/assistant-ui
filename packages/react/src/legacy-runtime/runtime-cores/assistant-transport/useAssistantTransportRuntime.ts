@@ -89,15 +89,24 @@ const wrapReplayCounting = (
   setReplaying(true);
   let bytesConsumed = 0;
   let flipped = false;
+  const clearReplaying = () => {
+    if (flipped) return;
+    flipped = true;
+    setReplaying(false);
+  };
   return response.body!.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
       transform(chunk, controller) {
         bytesConsumed += chunk.byteLength;
-        if (!flipped && bytesConsumed > boundary) {
-          flipped = true;
-          setReplaying(false);
-        }
+        if (bytesConsumed > boundary) clearReplaying();
         controller.enqueue(chunk);
+      },
+      // If the stream ends without crossing the boundary (server sent
+      // fewer bytes than advertised, body was exactly the replay length,
+      // etc.), still clear the flag so the next snapshot processed
+      // outside the run isn't suppressed.
+      flush() {
+        clearReplaying();
       },
     }),
   );
