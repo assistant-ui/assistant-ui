@@ -5,9 +5,13 @@ import { useMemo, useRef, useState } from "react";
 import type {
   AppendMessage,
   AttachmentAdapter,
+  DictationAdapter,
+  ExternalStoreAdapter,
   FeedbackAdapter,
+  RealtimeVoiceAdapter,
   RemoteThreadListAdapter,
   SpeechSynthesisAdapter,
+  ThreadSuggestion,
   ToolExecutionStatus,
 } from "@assistant-ui/core";
 import {
@@ -54,6 +58,8 @@ type LangChainRuntimeExtraOptions = {
     | {
         attachments?: AttachmentAdapter | undefined;
         speech?: SpeechSynthesisAdapter | undefined;
+        dictation?: DictationAdapter | undefined;
+        voice?: RealtimeVoiceAdapter | undefined;
         feedback?: FeedbackAdapter | undefined;
       }
     | undefined;
@@ -78,6 +84,24 @@ type LangChainRuntimeExtraOptions = {
   create?: (() => Promise<{ externalId: string | undefined }>) | undefined;
   /** Custom thread-deletion hook, forwarded to the cloud adapter. */
   delete?: ((threadId: string) => Promise<void>) | undefined;
+  /**
+   * Whether the entire thread is disabled. When `true`, the composer's input
+   * is also disabled. For a narrower gate that keeps the input usable but
+   * blocks only sending, use `isSendDisabled`.
+   */
+  isDisabled?: boolean | undefined;
+  /**
+   * Whether sending new messages is currently disabled.
+   */
+  isSendDisabled?: boolean | undefined;
+  /**
+   * Optional thread capability overrides.
+   */
+  unstable_capabilities?: ExternalStoreAdapter["unstable_capabilities"];
+  /**
+   * Follow up suggestions to surface on the thread.
+   */
+  suggestions?: readonly ThreadSuggestion[] | undefined;
 };
 
 const getPendingToolCalls = (
@@ -166,8 +190,15 @@ const useStreamThreadRuntime = (
     "cloud" | "unstable_threadListAdapter" | "create" | "delete"
   >,
 ) => {
-  const { adapters, autoCancelPendingToolCalls, unstable_allowCancellation } =
-    options;
+  const {
+    adapters,
+    autoCancelPendingToolCalls,
+    unstable_allowCancellation,
+    isDisabled,
+    isSendDisabled,
+    unstable_capabilities,
+    suggestions,
+  } = options;
   const messagesKey = options.messagesKey ?? "messages";
 
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
@@ -229,6 +260,10 @@ const useStreamThreadRuntime = (
     extras,
     unstable_enableToolInvocations: true,
     setToolStatuses,
+    ...(isDisabled !== undefined && { isDisabled }),
+    ...(isSendDisabled !== undefined && { isSendDisabled }),
+    ...(unstable_capabilities && { unstable_capabilities }),
+    ...(suggestions && { suggestions }),
     onNew: async (msg) => {
       const content = getMessageContent(msg);
       const cancellations =

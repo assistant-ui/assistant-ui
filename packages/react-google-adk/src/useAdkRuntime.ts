@@ -3,10 +3,13 @@ import {
   getExternalStoreMessages,
   type AttachmentAdapter,
   type DictationAdapter,
+  type ExternalStoreAdapter,
   type FeedbackAdapter,
+  type RealtimeVoiceAdapter,
   type SpeechSynthesisAdapter,
   type AppendMessage,
   type ThreadMessage,
+  type ThreadSuggestion,
   type ToolExecutionStatus,
 } from "@assistant-ui/core";
 import {
@@ -151,9 +154,28 @@ export type UseAdkRuntimeOptions = {
         attachments?: AttachmentAdapter;
         speech?: SpeechSynthesisAdapter;
         dictation?: DictationAdapter;
+        voice?: RealtimeVoiceAdapter;
         feedback?: FeedbackAdapter;
       }
     | undefined;
+  /**
+   * Whether the entire thread is disabled. When `true`, the composer's input
+   * is also disabled. For a narrower gate that keeps the input usable but
+   * blocks only sending, use `isSendDisabled`.
+   */
+  isDisabled?: boolean | undefined;
+  /**
+   * Whether sending new messages is currently disabled.
+   */
+  isSendDisabled?: boolean | undefined;
+  /**
+   * Optional thread capability overrides.
+   */
+  unstable_capabilities?: ExternalStoreAdapter["unstable_capabilities"];
+  /**
+   * Follow up suggestions to surface on the thread.
+   */
+  suggestions?: readonly ThreadSuggestion[] | undefined;
   eventHandlers?:
     | {
         onError?: OnAdkErrorCallback;
@@ -171,12 +193,16 @@ export type UseAdkRuntimeOptions = {
 
 const useAdkRuntimeImpl = ({
   autoCancelPendingToolCalls,
-  adapters: { attachments, dictation, feedback, speech } = {},
+  adapters: { attachments, dictation, feedback, speech, voice } = {},
   unstable_allowCancellation,
   stream,
   load,
   getCheckpointId,
   eventHandlers,
+  isDisabled,
+  isSendDisabled,
+  unstable_capabilities,
+  suggestions,
 }: UseAdkRuntimeOptions) => {
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const aui = useAui();
@@ -239,7 +265,11 @@ const useAdkRuntimeImpl = ({
     messages: threadMessages,
     unstable_enableToolInvocations: true,
     setToolStatuses,
-    adapters: { attachments, dictation, feedback, speech },
+    ...(isDisabled !== undefined && { isDisabled }),
+    ...(isSendDisabled !== undefined && { isSendDisabled }),
+    ...(unstable_capabilities && { unstable_capabilities }),
+    ...(suggestions && { suggestions }),
+    adapters: { attachments, dictation, feedback, speech, voice },
     extras: {
       [symbolAdkRuntimeExtras]: true,
       agentInfo,

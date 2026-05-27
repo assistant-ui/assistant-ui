@@ -208,6 +208,15 @@ const useOpenCodeThreadRuntime = (
     isRunning: isOpenCodeStateRunning(state),
     messageRepository,
     extras,
+    ...(options.isDisabled !== undefined && { isDisabled: options.isDisabled }),
+    ...(options.isSendDisabled !== undefined && {
+      isSendDisabled: options.isSendDisabled,
+    }),
+    ...(options.unstable_capabilities && {
+      unstable_capabilities: options.unstable_capabilities,
+    }),
+    ...(options.suggestions && { suggestions: options.suggestions }),
+    ...(options.adapters && { adapters: options.adapters }),
     onNew: async (message: any) => {
       try {
         const sendOptions = {

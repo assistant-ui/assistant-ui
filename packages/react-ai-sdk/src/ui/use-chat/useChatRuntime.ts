@@ -23,6 +23,9 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
     cloud?: AssistantCloud | undefined;
     adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
     toCreateMessage?: CustomToCreateMessageFunction;
+    isDisabled?: AISDKRuntimeAdapter["isDisabled"];
+    isSendDisabled?: AISDKRuntimeAdapter["isSendDisabled"];
+    unstable_capabilities?: AISDKRuntimeAdapter["unstable_capabilities"];
     onResume?: AISDKRuntimeAdapter["onResume"];
     suggestions?: AISDKRuntimeAdapter["suggestions"];
   };
@@ -72,6 +75,9 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     adapters,
     transport: transportOptions,
     toCreateMessage,
+    isDisabled,
+    isSendDisabled,
+    unstable_capabilities,
     onResume,
     suggestions,
     ...chatOptions
@@ -99,6 +105,9 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(toCreateMessage && { toCreateMessage }),
     ...(onResume && { onResume }),
     ...(suggestions && { suggestions }),
+    ...(isDisabled !== undefined && { isDisabled }),
+    ...(isSendDisabled !== undefined && { isSendDisabled }),
+    ...(unstable_capabilities && { unstable_capabilities }),
   });
 
   if (transport instanceof AssistantChatTransport) {

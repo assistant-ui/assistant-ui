@@ -72,6 +72,24 @@ export type AISDKRuntimeAdapter = {
    */
   cancelPendingToolCallsOnSend?: boolean | undefined;
   /**
+   * Whether the entire thread is disabled. When `true`, the composer's input
+   * is also disabled (the user cannot type, attach files, or submit). For a
+   * narrower gate that keeps the input usable but blocks only sending, use
+   * `isSendDisabled`.
+   */
+  isDisabled?: boolean | undefined;
+  /**
+   * Whether sending new messages is currently disabled. When `true`, the
+   * thread composer's input remains usable but `send()` becomes a no-op
+   * and the thread composer's `canSend` is `false`.
+   */
+  isSendDisabled?: boolean | undefined;
+  /**
+   * Optional thread capability overrides. Currently only `copy` is honored
+   * and controls whether the copy-message action is enabled.
+   */
+  unstable_capabilities?: ExternalStoreAdapter["unstable_capabilities"];
+  /**
    * Called when `runtime.thread.resumeRun(config)` is invoked.
    *
    * When omitted, `resumeRun` throws `"Runtime does not support resuming runs."`.
@@ -94,6 +112,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     adapters,
     toCreateMessage: customToCreateMessage,
     cancelPendingToolCallsOnSend = true,
+    isDisabled,
+    isSendDisabled,
+    unstable_capabilities,
     onResume,
     suggestions,
   }: AISDKRuntimeAdapter = {},
@@ -346,6 +367,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
     ...(onResume && { onResume }),
     ...(suggestions && { suggestions }),
+    ...(isDisabled !== undefined && { isDisabled }),
+    ...(isSendDisabled !== undefined && { isSendDisabled }),
+    ...(unstable_capabilities && { unstable_capabilities }),
     adapters: {
       attachments: vercelAttachmentAdapter,
       ...contextAdapters,

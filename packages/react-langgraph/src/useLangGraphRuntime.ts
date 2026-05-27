@@ -20,8 +20,12 @@ import {
   type ThreadMessage,
   type AttachmentAdapter,
   type AppendMessage,
+  type DictationAdapter,
+  type ExternalStoreAdapter,
   type FeedbackAdapter,
+  type RealtimeVoiceAdapter,
   type SpeechSynthesisAdapter,
+  type ThreadSuggestion,
 } from "@assistant-ui/core";
 import type { ToolExecutionStatus } from "@assistant-ui/core";
 import {
@@ -230,9 +234,33 @@ export type UseLangGraphRuntimeOptions = {
     | {
         attachments?: AttachmentAdapter;
         speech?: SpeechSynthesisAdapter;
+        dictation?: DictationAdapter;
+        voice?: RealtimeVoiceAdapter;
         feedback?: FeedbackAdapter;
       }
     | undefined;
+  /**
+   * Whether the entire thread is disabled. When `true`, the composer's input
+   * is also disabled (the user cannot type, attach files, or submit). For a
+   * narrower gate that keeps the input usable but blocks only sending, use
+   * `isSendDisabled`.
+   */
+  isDisabled?: boolean | undefined;
+  /**
+   * Whether sending new messages is currently disabled. When `true`, the
+   * thread composer's input remains usable but `send()` becomes a no-op
+   * and the thread composer's `canSend` is `false`.
+   */
+  isSendDisabled?: boolean | undefined;
+  /**
+   * Optional thread capability overrides (e.g. `{ copy: false }` to disable
+   * the copy-message action).
+   */
+  unstable_capabilities?: ExternalStoreAdapter["unstable_capabilities"];
+  /**
+   * Follow up suggestions to surface on the thread.
+   */
+  suggestions?: readonly ThreadSuggestion[] | undefined;
   eventHandlers?:
     | {
         /**
@@ -337,7 +365,7 @@ const filterUIMessagesBySurvivingIds = (
 
 const useLangGraphRuntimeImpl = ({
   autoCancelPendingToolCalls,
-  adapters: { attachments, feedback, speech } = {},
+  adapters: { attachments, dictation, feedback, speech, voice } = {},
   unstable_allowCancellation,
   stream,
   load,
@@ -345,6 +373,10 @@ const useLangGraphRuntimeImpl = ({
   eventHandlers,
   uiStateKey,
   uiComponents,
+  isDisabled,
+  isSendDisabled,
+  unstable_capabilities,
+  suggestions,
 }: UseLangGraphRuntimeOptions) => {
   // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const aui = useAui();
@@ -508,10 +540,16 @@ const useLangGraphRuntimeImpl = ({
     messages: threadMessages,
     unstable_enableToolInvocations: true,
     setToolStatuses,
+    ...(isDisabled !== undefined && { isDisabled }),
+    ...(isSendDisabled !== undefined && { isSendDisabled }),
+    ...(unstable_capabilities && { unstable_capabilities }),
+    ...(suggestions && { suggestions }),
     adapters: {
       attachments,
+      dictation,
       feedback,
       speech,
+      voice,
     },
     extras: {
       [symbolLangGraphRuntimeExtras]: true,

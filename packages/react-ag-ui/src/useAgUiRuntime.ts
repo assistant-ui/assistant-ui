@@ -101,12 +101,17 @@ export function useAgUiRuntime(
       attachments: adapters?.attachments ?? runtimeAdapters?.attachments,
       speech: adapters?.speech,
       dictation: adapters?.dictation,
+      voice: adapters?.voice,
       feedback: adapters?.feedback,
       threadList,
     }),
     [adapters, runtimeAdapters, threadList],
   );
 
+  const isDisabled = options.isDisabled;
+  const isSendDisabled = options.isSendDisabled;
+  const unstable_capabilities = options.unstable_capabilities;
+  const suggestions = options.suggestions;
   const store = useMemo(
     () => {
       void _version; // rerender on version change
@@ -116,6 +121,10 @@ export function useAgUiRuntime(
         messages: core.getMessages(),
         state: core.getState(),
         isRunning: core.isRunning() || hasExecutingTools,
+        ...(isDisabled !== undefined && { isDisabled }),
+        ...(isSendDisabled !== undefined && { isSendDisabled }),
+        ...(unstable_capabilities && { unstable_capabilities }),
+        ...(suggestions && { suggestions }),
         unstable_enableToolInvocations: true,
         setToolStatuses,
         onNew: (message: AppendMessage) => core.append(message),
@@ -138,7 +147,16 @@ export function useAgUiRuntime(
     },
     // _version is intentionally included to trigger re-computation when core state changes via notifyUpdate
     // toolInvocations intentionally excluded: abort/resume use refs internally and work with stale captures
-    [adapterAdapters, core, _version, hasExecutingTools],
+    [
+      adapterAdapters,
+      core,
+      _version,
+      hasExecutingTools,
+      isDisabled,
+      isSendDisabled,
+      unstable_capabilities,
+      suggestions,
+    ],
   );
 
   const baseRuntime = useExternalStoreRuntime(store);
