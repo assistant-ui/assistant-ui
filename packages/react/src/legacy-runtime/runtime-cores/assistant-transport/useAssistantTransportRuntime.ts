@@ -66,6 +66,40 @@ const convertAppendMessageToCommand = (
   };
 };
 
+/**
+ * Read `Aui-Replay-Content-Length` off the resume response and wrap
+ * `response.body` in a byte-counting passthrough that flips `replayingRef`
+ * to `false` once the consumed byte count crosses the boundary. The
+ * paired sync server (assistant-ui-sync-server) emits the header.
+ *
+ * Responses without the header short-circuit — no extra pipeline node,
+ * `replayingRef` stays `false`.
+ */
+const wrapReplayCounting = (
+  response: Response,
+  replayingRef: { current: boolean },
+): ReadableStream<Uint8Array> => {
+  const boundary = parseInt(
+    response.headers.get("Aui-Replay-Content-Length") ?? "0",
+    10,
+  );
+  if (boundary <= 0) return response.body as ReadableStream<Uint8Array>;
+
+  replayingRef.current = true;
+  let bytesConsumed = 0;
+  return response.body!.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        bytesConsumed += chunk.byteLength;
+        if (replayingRef.current && bytesConsumed > boundary) {
+          replayingRef.current = false;
+        }
+        controller.enqueue(chunk);
+      },
+    }),
+  );
+};
+
 const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
 type AssistantTransportExtras = {
   [symbolAssistantTransportExtras]: true;
@@ -187,25 +221,10 @@ const useAssistantTransportThreadRuntime = <T>(
 
       // Sync-server replay header: the first N body bytes were buffered
       // before this resume started (historical), everything after is live.
-      // Surfaced to the embedded tool-invocations tracker via `isLoading`,
-      // which gates streamCall / execute side effects.
-      const replayContentLength = parseInt(
-        response.headers.get("Aui-Replay-Content-Length") ?? "0",
-        10,
-      );
-      replayingRef.current = replayContentLength > 0;
-      if (replayingRef.current) rerender((prev) => prev + 1);
-
-      let bytesConsumed = 0;
-      const replayCounter = new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          bytesConsumed += chunk.byteLength;
-          if (replayingRef.current && bytesConsumed > replayContentLength) {
-            replayingRef.current = false;
-          }
-          controller.enqueue(chunk);
-        },
-      });
+      // Surfaced to the embedded tool-invocations tracker via `isLoading`
+      // (set on the inner adapter store below), which gates streamCall /
+      // execute side effects.
+      const body = wrapReplayCounting(response, replayingRef);
 
       // Select decoder based on protocol option
       const protocol = options.protocol ?? "data-stream";
@@ -215,21 +234,18 @@ const useAssistantTransportThreadRuntime = <T>(
           : new DataStreamDecoder();
 
       let err: string | undefined;
-      const stream = response.body
-        .pipeThrough(replayCounter)
-        .pipeThrough(decoder)
-        .pipeThrough(
-          new AssistantMessageAccumulator({
-            initialMessage: createInitialMessage({
-              unstable_state:
-                (agentStateRef.current as ReadonlyJSONValue) ?? null,
-            }),
-            throttle: isResume,
-            onError: (error) => {
-              err = error;
-            },
+      const stream = body.pipeThrough(decoder).pipeThrough(
+        new AssistantMessageAccumulator({
+          initialMessage: createInitialMessage({
+            unstable_state:
+              (agentStateRef.current as ReadonlyJSONValue) ?? null,
           }),
-        );
+          throttle: isResume,
+          onError: (error) => {
+            err = error;
+          },
+        }),
+      );
 
       let markedDelivered = false;
 
