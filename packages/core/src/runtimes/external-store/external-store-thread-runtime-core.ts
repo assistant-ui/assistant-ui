@@ -303,7 +303,9 @@ export class ExternalStoreThreadRuntimeCore
           nextIds.has(sourceId),
         ),
       );
-      this._pendingSwitchSiblings.clear();
+      if (computedPreservation) {
+        this._pendingSwitchSiblings.clear();
+      }
       this._lastSyncedMessageIds = nextIds;
 
       for (let i = 0; i < messages.length; i++) {
