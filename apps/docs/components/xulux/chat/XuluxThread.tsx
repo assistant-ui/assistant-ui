@@ -12,7 +12,7 @@ import { XuluxPoweredBy } from "../XuluxPoweredBy";
 import { XuluxToolCall } from "./XuluxToolCall";
 
 const XULUX_CONTEXT_WINDOW = 400_000;
-const XULUX_DEFAULT_MODEL_ID = "gpt-5.4-mini";
+const XULUX_DEFAULT_MODEL_ID = "gpt-5.4-low";
 
 const XULUX_MODELS = [
   {

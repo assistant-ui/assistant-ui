@@ -54,8 +54,10 @@ function resolveXuluxModel(config: XuluxRequestConfig | undefined) {
   }
 
   return {
-    model: getModel(modelName || "gpt-5.4-mini"),
-    providerOptions: undefined,
+    model: modelName ? getModel(modelName) : openai.responses("gpt-5.4"),
+    providerOptions: modelName
+      ? undefined
+      : { openai: { reasoningEffort: "low" } },
   };
 }
 
