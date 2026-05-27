@@ -176,6 +176,17 @@ type ToolBase<
    * @deprecated Experimental, API may change.
    */
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
+  /**
+   * Per-provider metadata forwarded into the wire request body. assistant-ui
+   * does not interpret these values; it serializes them under each tool so
+   * downstream adapters (AI SDK, custom routes) can pass them to the model
+   * provider verbatim.
+   *
+   * Use this to enable provider-specific tool behaviors such as Anthropic's
+   * `defer_loading` (set `{ anthropic: { deferLoading: true } }`) without
+   * adding provider-aware code in assistant-ui.
+   */
+  providerOptions?: Record<string, Record<string, unknown>>;
 };
 
 type BackendTool<

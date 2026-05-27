@@ -125,4 +125,28 @@ describe("frontendTools", () => {
 
     expect(output).toEqual({ type: "text", value: "hello" });
   });
+
+  it("forwards providerOptions verbatim when present", () => {
+    const tools = frontendTools({
+      getWeather: {
+        description: "Get the weather",
+        parameters: { type: "object", properties: {} },
+        providerOptions: { anthropic: { deferLoading: true } },
+      },
+    });
+
+    expect(
+      (tools.getWeather as { providerOptions?: unknown })?.providerOptions,
+    ).toEqual({ anthropic: { deferLoading: true } });
+  });
+
+  it("omits providerOptions when absent", () => {
+    const tools = frontendTools({
+      getWeather: {
+        parameters: { type: "object", properties: {} },
+      },
+    });
+
+    expect(tools.getWeather).not.toHaveProperty("providerOptions");
+  });
 });

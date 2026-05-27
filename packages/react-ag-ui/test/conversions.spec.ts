@@ -191,23 +191,26 @@ describe("adapter conversions", () => {
       plain: { parameters: { type: "boolean" } },
     });
 
-    expect(tools).toEqual([
-      {
-        name: "jsonTool",
-        description: undefined,
-        parameters: { type: "object" },
-      },
-      {
-        name: "schemaTool",
-        description: undefined,
-        parameters: { type: "string" },
-      },
-      {
-        name: "plain",
-        description: undefined,
-        parameters: { type: "boolean" },
-      },
-    ]);
+    expect(tools).toHaveLength(3);
+    expect(tools).toEqual(
+      expect.arrayContaining([
+        {
+          name: "jsonTool",
+          description: undefined,
+          parameters: { type: "object" },
+        },
+        {
+          name: "schemaTool",
+          description: undefined,
+          parameters: { type: "string" },
+        },
+        {
+          name: "plain",
+          description: undefined,
+          parameters: { type: "boolean" },
+        },
+      ]),
+    );
   });
 
   it("preserves tool message ID through round-trip conversion", () => {

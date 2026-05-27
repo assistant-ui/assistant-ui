@@ -430,6 +430,62 @@ describe("toToolsJSONSchema", () => {
         properties: { converted: { type: "boolean" } },
       });
     });
+
+    it("forwards providerOptions verbatim when present", () => {
+      const tools: Record<string, Tool> = {
+        myTool: {
+          description: "Test",
+          parameters: { type: "object", properties: {} },
+          providerOptions: { anthropic: { deferLoading: true } },
+        },
+      };
+
+      const result = toToolsJSONSchema(tools);
+      expect(result.myTool).toEqual({
+        description: "Test",
+        parameters: { type: "object", properties: {} },
+        providerOptions: { anthropic: { deferLoading: true } },
+      });
+    });
+
+    it("omits providerOptions when absent", () => {
+      const tools: Record<string, Tool> = {
+        myTool: {
+          parameters: { type: "object", properties: {} },
+        },
+      };
+
+      const result = toToolsJSONSchema(tools);
+      expect(result.myTool).not.toHaveProperty("providerOptions");
+    });
+  });
+
+  describe("stable ordering", () => {
+    it("emits tool names in alphabetical order", () => {
+      const tools: Record<string, Tool> = {
+        zebra: { parameters: { type: "object", properties: {} } },
+        apple: { parameters: { type: "object", properties: {} } },
+        mango: { parameters: { type: "object", properties: {} } },
+      };
+
+      const result = toToolsJSONSchema(tools);
+      expect(Object.keys(result)).toEqual(["apple", "mango", "zebra"]);
+    });
+
+    it("produces byte-identical output regardless of insertion order", () => {
+      const a: Record<string, Tool> = {
+        zebra: { parameters: { type: "object", properties: {} } },
+        apple: { parameters: { type: "object", properties: {} } },
+      };
+      const b: Record<string, Tool> = {
+        apple: { parameters: { type: "object", properties: {} } },
+        zebra: { parameters: { type: "object", properties: {} } },
+      };
+
+      expect(JSON.stringify(toToolsJSONSchema(a))).toBe(
+        JSON.stringify(toToolsJSONSchema(b)),
+      );
+    });
   });
 
   describe("edge cases", () => {

@@ -8,6 +8,7 @@ import type { Tool } from "./tool-types";
 export type ToolJSONSchema = {
   description?: string;
   parameters: JSONSchema7;
+  providerOptions?: Record<string, Record<string, unknown>>;
 };
 
 export type ToToolsJSONSchemaOptions = {
@@ -135,6 +136,11 @@ function defaultToolFilter(_name: string, tool: Tool): boolean {
 /**
  * Converts a record of tools to a record of tool definitions with JSON Schema parameters.
  * By default, filters out disabled tools and backend tools.
+ *
+ * Entries are emitted in alphabetical order so the resulting request body is
+ * byte-identical regardless of the order in which tools were registered. This
+ * keeps provider prompt caches stable across renders that mount tools in
+ * different orders.
  */
 export function toToolsJSONSchema(
   tools: Record<string, Tool> | undefined,
@@ -147,11 +153,15 @@ export function toToolsJSONSchema(
   return Object.fromEntries(
     Object.entries(tools)
       .filter(([name, tool]) => filter(name, tool) && tool.parameters)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([name, tool]) => [
         name,
         {
           ...(tool.description && { description: tool.description }),
           parameters: toJSONSchema(tool.parameters!),
+          ...(tool.providerOptions && {
+            providerOptions: tool.providerOptions,
+          }),
         },
       ]),
   );

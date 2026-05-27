@@ -36,7 +36,14 @@ const defaultToModelOutput = ({ output }: { output: unknown }) => {
 };
 
 export const frontendTools = (
-  tools: Record<string, { description?: string; parameters: JSONSchema7 }>,
+  tools: Record<
+    string,
+    {
+      description?: string;
+      parameters: JSONSchema7;
+      providerOptions?: Record<string, Record<string, unknown>>;
+    }
+  >,
 ): ToolSet =>
   Object.fromEntries(
     Object.entries(tools).map(([name, t]) => [
@@ -45,6 +52,7 @@ export const frontendTools = (
         ...(t.description !== undefined && { description: t.description }),
         inputSchema: jsonSchema(t.parameters),
         toModelOutput: defaultToModelOutput,
+        ...(t.providerOptions && { providerOptions: t.providerOptions }),
       },
     ]),
   ) as ToolSet;
