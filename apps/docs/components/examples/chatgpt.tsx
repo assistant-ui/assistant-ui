@@ -48,6 +48,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/shared/dropdown-menu";
+import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 
 export const ChatGPT: FC = () => {
   return (
