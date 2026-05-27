@@ -60,6 +60,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
 
   const lastScrollTop = useRef<number>(0);
   const lastScrollHeight = useRef<number>(0);
+  const lastObservedScrollHeight = useRef<number>(0);
+  const lastObservedClientHeight = useRef<number>(0);
 
   // Pending bottom-scroll intent. Planted by initialize/run-start/switch/button
   // triggers, cleared when handleScroll confirms we reached bottom, or when the
@@ -111,11 +113,6 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     if (!div) return;
 
     const isAtBottom = threadViewportStore.getState().isAtBottom;
-    // `<= 1` (not `< 1`) tolerates browsers that clip scrollTop one pixel short
-    // of `scrollHeight - clientHeight` on high-DPR displays (observed on Chrome
-    // macOS with devicePixelRatio = 2). With `< 1` the check never matches and
-    // `isAtBottom` is permanently stuck false, hiding the disabled state of
-    // `ScrollToBottom`.
     const newIsAtBottom =
       Math.abs(div.scrollHeight - div.scrollTop - div.clientHeight) <= 1 ||
       div.scrollHeight <= div.clientHeight;
@@ -137,12 +134,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         lastScrollTop.current > div.scrollTop &&
         lastScrollHeight.current === div.scrollHeight
       ) {
-        // User scrolled UP and content size did not change — release the
-        // auto-stick intent so subsequent subtree mutations (markdown
-        // re-render, image load, animation end) don't pull the viewport
-        // back to bottom via the resize observer. The `scrollHeight`
-        // equality guard rules out content-driven adjustments (shrink/grow
-        // that shifts scrollTop downward) being misread as a user scroll.
+        // scrollHeight equality rules out content-driven shifts being misread as user scroll-up
         scrollingToBottomBehaviorRef.current = null;
       }
 
@@ -161,6 +153,19 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   };
 
   const resizeRef = useOnResizeContent(() => {
+    const div = divRef.current;
+    if (!div) return;
+
+    const { scrollHeight, clientHeight } = div;
+    if (
+      scrollHeight === lastObservedScrollHeight.current &&
+      clientHeight === lastObservedClientHeight.current
+    ) {
+      return;
+    }
+    lastObservedScrollHeight.current = scrollHeight;
+    lastObservedClientHeight.current = clientHeight;
+
     const scrollBehavior = scrollingToBottomBehaviorRef.current;
     if (scrollBehavior && hasActiveTopAnchor()) {
       // Let the top-anchor reserve own scrolling while a run starts to avoid a bottom-scroll race.
