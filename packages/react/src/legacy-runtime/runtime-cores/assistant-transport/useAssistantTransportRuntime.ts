@@ -300,11 +300,6 @@ const useAssistantTransportThreadRuntime = <T>(
     state: converted.state,
     isRunning: converted.isRunning,
     adapters: options.adapters,
-    // Opt the embedded tool-invocations tracker in. The transport runtime
-    // is the canonical client-side tool-execution surface: tool callbacks
-    // (streamCall/execute) fire on tool-call parts in the converted state,
-    // and their results flow back via `onAddToolResult` below, which
-    // forwards them to the backend as `add-tool-result` commands.
     unstable_enableToolInvocations: true,
     setToolStatuses,
     extras: {
@@ -327,9 +322,6 @@ const useAssistantTransportThreadRuntime = <T>(
       },
     }),
     onCancel: async () => {
-      // The embedded tracker's `abort()` is invoked by the runtime's
-      // `cancelRun` before this adapter callback runs, so no need to call
-      // it again here.
       runManager.cancel();
     },
     onResume: async () => {
@@ -357,9 +349,6 @@ const useAssistantTransportThreadRuntime = <T>(
       commandQueue.enqueue(command);
     },
     onLoadExternalState: async (state) => {
-      // The runtime's `importExternalState` already calls
-      // `tracker.reset()` before invoking this callback, so no need to
-      // reset here.
       agentStateRef.current = state as T;
       rerender((prev) => prev + 1);
     },

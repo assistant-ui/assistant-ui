@@ -257,8 +257,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       runtimeRef.current.thread.import(exportedRepo);
     },
     onCancel: async () => {
-      // The embedded tracker's abort() is invoked by the runtime's
-      // cancelRun before this callback runs.
       chatHelpers.stop();
     },
     onNew: async (message) => {
@@ -338,9 +336,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         });
       }
     },
-    // onResumeToolCall: the runtime calls the embedded tracker's resume()
-    // automatically before invoking this callback, so no adapter-level
-    // handler is needed.
     onRespondToToolApproval: ({ approvalId, approved, reason }) => {
       void chatHelpers.addToolApprovalResponse({
         id: approvalId,

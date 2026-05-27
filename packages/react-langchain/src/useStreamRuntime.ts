@@ -270,8 +270,6 @@ const useStreamThreadRuntime = (
     onCancel:
       unstable_allowCancellation !== false
         ? async () => {
-            // The embedded tracker's abort() runs before this callback via
-            // the runtime's cancelRun.
             await stream.stop();
           }
         : undefined,

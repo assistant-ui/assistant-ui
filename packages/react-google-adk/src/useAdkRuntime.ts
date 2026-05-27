@@ -335,12 +335,8 @@ const useAdkRuntimeImpl = ({
         {},
       );
     },
-    // onResumeToolCall: the runtime calls the embedded tracker's
-    // resume() automatically.
     onCancel: unstable_allowCancellation
       ? async () => {
-          // The embedded tracker's abort() runs before this callback via
-          // the runtime's cancelRun.
           cancel();
         }
       : undefined,

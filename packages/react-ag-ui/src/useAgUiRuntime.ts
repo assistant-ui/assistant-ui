@@ -123,14 +123,10 @@ export function useAgUiRuntime(
         onReload: (parentId: string | null, config: { runConfig?: any }) =>
           core.reload(parentId, config),
         onCancel: async () => {
-          // The embedded tracker's abort() runs before this callback via
-          // the runtime's cancelRun.
           core.cancel();
         },
         onAddToolResult: (options) => core.addToolResult(options),
         onResume: (config) => core.resume(config),
-        // onResumeToolCall: the runtime calls the embedded tracker's
-        // resume() automatically.
         setMessages: (messages: readonly ThreadMessage[]) =>
           core.applyExternalMessages(messages),
         onImport: (messages: readonly ThreadMessage[]) =>

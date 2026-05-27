@@ -618,9 +618,6 @@ const useLangGraphRuntimeImpl = ({
       : undefined,
     onCancel: unstable_allowCancellation
       ? async () => {
-          // The embedded tracker's abort() runs before this callback via
-          // the runtime's cancelRun; no need to call abortToolInvocations
-          // here as well.
           cancel();
         }
       : undefined,
