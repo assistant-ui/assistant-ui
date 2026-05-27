@@ -449,6 +449,74 @@ describe("ExternalStoreThreadRuntimeCore - messages reconciliation", () => {
     expect(runtime.getBranches("b1")).toEqual(["b1", "b2"]);
   });
 
+  it("keeps three assistant branches when switching away from a branch with nested branches", async () => {
+    type TestMessage = {
+      id: string;
+      role: "user" | "assistant";
+      content: [];
+    };
+    const u0 = { id: "u0", role: "user" as const, content: [] };
+    const a1 = { id: "a1", role: "assistant" as const, content: [] };
+    const a2 = { id: "a2", role: "assistant" as const, content: [] };
+    const a3 = { id: "a3", role: "assistant" as const, content: [] };
+    const u1 = { id: "u1", role: "user" as const, content: [] };
+    const u1a = { id: "u1a", role: "assistant" as const, content: [] };
+    const u2 = { id: "u2", role: "user" as const, content: [] };
+    const b1 = { id: "b1", role: "assistant" as const, content: [] };
+    const b2 = { id: "b2", role: "assistant" as const, content: [] };
+
+    let runtime!: ExternalStoreThreadRuntimeCore;
+    const makeBranchingStore = (
+      messages: readonly TestMessage[],
+    ): ExternalStoreAdapter =>
+      makeStore({
+        messages,
+        onEdit: vi.fn(),
+        onReload: vi.fn(),
+        setMessages: vi.fn(),
+      });
+    const syncMessages = (messages: readonly TestMessage[]) => {
+      runtime.__internal_setAdapter(makeBranchingStore(messages));
+    };
+
+    runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeBranchingStore([u0, a1]),
+    );
+
+    await runtime.startRun({ parentId: "u0", sourceId: "a1", runConfig: {} });
+    syncMessages([u0, a2]);
+
+    await runtime.startRun({ parentId: "u0", sourceId: "a2", runConfig: {} });
+    syncMessages([u0, a3]);
+
+    runtime.switchToBranch("a1");
+    syncMessages([u0, a1, u1, u1a]);
+
+    await runtime.append({
+      role: "user",
+      content: [],
+      parentId: "a1",
+      sourceId: "u1",
+      runConfig: {},
+    });
+    syncMessages([u0, a1, u2, b1]);
+
+    await runtime.startRun({ parentId: "u2", sourceId: "b1", runConfig: {} });
+    syncMessages([u0, a1, u2, b2]);
+
+    expect(runtime.getBranches("a1")).toEqual(["a1", "a2", "a3"]);
+    expect(runtime.getBranches("u2")).toEqual(["u1", "u2"]);
+    expect(runtime.getBranches("b2")).toEqual(["b1", "b2"]);
+
+    runtime.switchToBranch("a2");
+    syncMessages([u0, a2, u2, b2]);
+
+    expect(runtime.getBranches("a2")).toEqual(["a1", "a2", "a3"]);
+    expect(runtime.getBranches("u2")).toEqual(["u1", "u2"]);
+    expect(runtime.getBranches("b2")).toEqual(["b1", "b2"]);
+  });
+
   it("does not clear pending branch preservation on a pre-truncation sync", async () => {
     const a1 = { id: "a1", role: "assistant" as const, content: [] };
     const a2 = { id: "a2", role: "assistant" as const, content: [] };
