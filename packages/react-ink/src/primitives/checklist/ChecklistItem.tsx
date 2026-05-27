@@ -13,9 +13,8 @@ export type ChecklistItemProps = ComponentProps<typeof Box> & {
   renderItem?: (props: { item: ChecklistItemData; depth: number }) => ReactNode;
 };
 
-const STATUS_INDICATORS: Record<ChecklistItemStatus, string> = {
+const STATUS_INDICATORS: Partial<Record<ChecklistItemStatus, string>> = {
   pending: "□",
-  running: "□",
   complete: "■",
   error: "x",
 };
