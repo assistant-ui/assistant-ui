@@ -81,8 +81,12 @@ function titleCaseSlug(slug: string): string {
     .join(" ");
 }
 
+const SECTION_TITLE_OVERRIDES: Partial<Record<ApiSection, string>> = {
+  "generative-ui": "Generative UI",
+};
+
 function sectionTitle(section: ApiSection): string {
-  return titleCaseSlug(section);
+  return SECTION_TITLE_OVERRIDES[section] ?? titleCaseSlug(section);
 }
 
 function mdxEscape(value: string): string {
@@ -399,6 +403,7 @@ function isRenderedApiEntry(
 
 function generatePrimitivePage(
   item: ExportInfo,
+  companions: ExportInfo[],
   typeDocNames: Set<string>,
   slots: PageSlots,
   title: string,
@@ -415,15 +420,21 @@ function generatePrimitivePage(
   return generateApiPage({
     title,
     description,
-    imports: generatedImportsForPage([item], typeDocNames),
+    imports: generatedImportsForPage([item, ...companions], typeDocNames),
     guideLine,
     slots,
-    reference: generatePrimitiveReferenceRegion(item, typeDocNames, slots),
+    reference: generatePrimitiveReferenceRegion(
+      item,
+      companions,
+      typeDocNames,
+      slots,
+    ),
   });
 }
 
 function generatePrimitiveReferenceRegion(
   item: ExportInfo,
+  companions: ExportInfo[],
   typeDocNames: Set<string>,
   slots: PageSlots,
 ): string {
@@ -451,6 +462,14 @@ function generatePrimitiveReferenceRegion(
     );
     const manual = slots.namedManual.get(item.name);
     if (manual) lines.push(manual, "");
+  }
+  // Helpers bound to a specific primitive part (e.g. groupPartByType for
+  // <MessagePrimitive.GroupedParts>) render after the primitive's own parts so
+  // they live beside the part they configure instead of in a fallback drawer.
+  for (const companion of sortExportsForPage(companions).filter((entry) =>
+    isRenderedApiEntry(entry, typeDocNames, slots),
+  )) {
+    lines.push(...exportSection(companion, typeDocNames, slots, 3));
   }
   return lines.join("\n").trimEnd();
 }
@@ -603,6 +622,7 @@ function generatedImports({
 
 const PAGE_ORDER_BY_SECTION: Partial<Record<ApiSection, readonly string[]>> = {
   tools: ["toolkits", "component-tools", "rendering", "status"],
+  "generative-ui": ["spec", "rendering"],
 };
 
 function comparePageSlugs(section: ApiSection, a: string, b: string): number {
@@ -839,23 +859,32 @@ export function writeApiReferencePages(
       }
 
       const slots = authored?.slots ?? emptyPageSlots();
-      const isSinglePrimitive = section === "primitives" && items.length === 1;
-      const body =
-        isSinglePrimitive && items[0]
-          ? generatePrimitivePage(
-              items[0],
-              typeDocNames,
-              slots,
-              title,
-              description,
-            )
-          : generateApiPage({
-              title,
-              description,
-              imports: generatedImportsForPage(items, typeDocNames),
-              slots,
-              reference: generateReferenceRegion(items, typeDocNames, slots),
-            });
+      // A primitive page is anchored by exactly one primary primitive; any
+      // other exports on the page (related helpers, supporting types) render
+      // as companions after the primitive's parts. This keeps the parts-table
+      // layout while letting a part-bound helper share the page.
+      const primitivePrimaries =
+        section === "primitives"
+          ? items.filter((item) => item.pageRole === "primary")
+          : [];
+      const primitivePrimary =
+        primitivePrimaries.length === 1 ? primitivePrimaries[0] : undefined;
+      const body = primitivePrimary
+        ? generatePrimitivePage(
+            primitivePrimary,
+            items.filter((item) => item !== primitivePrimary),
+            typeDocNames,
+            slots,
+            title,
+            description,
+          )
+        : generateApiPage({
+            title,
+            description,
+            imports: generatedImportsForPage(items, typeDocNames),
+            slots,
+            reference: generateReferenceRegion(items, typeDocNames, slots),
+          });
 
       assertPreservedSlots(filePath, slots, body);
       fs.writeFileSync(filePath, body);
@@ -947,21 +976,40 @@ function writeIntegrationPages(
   );
 }
 
-export function printClassificationDiagnostics(exports: ExportInfo[]): void {
+function hasRenderableContent(
+  item: ExportInfo,
+  typeDocNames: Set<string>,
+): boolean {
+  return Boolean(
+    item.jsDoc ||
+    item.jsDocExamples?.length ||
+    item.deprecated ||
+    item.signature ||
+    typeDocNames.has(item.name),
+  );
+}
+
+export function printClassificationDiagnostics(
+  exports: ExportInfo[],
+  typeDocs: Map<string, TypeDoc>,
+): void {
+  const typeDocNames = new Set(typeDocs.keys());
   const ruleCounts = new Map<string, number>();
-  const fallbackExports: string[] = [];
-  const fallbackSupportingTypes: string[] = [];
+  const renderedFallbacks: ExportInfo[] = [];
+  let hiddenFallbackCount = 0;
+  let fallbackSupportingTypeCount = 0;
   for (const item of exports) {
     ruleCounts.set(
       item.classificationRule,
       (ruleCounts.get(item.classificationRule) ?? 0) + 1,
     );
-    if (item.classificationConfidence === "fallback") {
-      if (item.pageRole === "supporting-type") {
-        fallbackSupportingTypes.push(item.name);
-      } else {
-        fallbackExports.push(item.name);
-      }
+    if (item.classificationConfidence !== "fallback") continue;
+    if (item.pageRole === "supporting-type") {
+      fallbackSupportingTypeCount += 1;
+    } else if (hasRenderableContent(item, typeDocNames)) {
+      renderedFallbacks.push(item);
+    } else {
+      hiddenFallbackCount += 1;
     }
   }
   console.log("API reference classification rules:");
@@ -970,14 +1018,25 @@ export function printClassificationDiagnostics(exports: ExportInfo[]): void {
   )) {
     console.log(`  ${rule}: ${count}`);
   }
-  if (fallbackExports.length > 0) {
+  // Only rendered fallbacks are actionable (they show up in the junk drawer and
+  // want a real home); list them with source paths. Hidden fallbacks (no
+  // rendered content) and supporting types are collapsed to a count.
+  if (renderedFallbacks.length > 0) {
+    console.log("Fallback-classified exports needing a home:");
+    for (const item of renderedFallbacks.sort((a, b) =>
+      a.name.localeCompare(b.name),
+    )) {
+      console.log(`  ${item.name} (${item.sourcePath ?? "unknown source"})`);
+    }
+  }
+  if (hiddenFallbackCount > 0) {
     console.log(
-      `Fallback-classified exports: ${fallbackExports.sort().join(", ")}`,
+      `Fallback-classified exports with no rendered content: ${hiddenFallbackCount}`,
     );
   }
-  if (fallbackSupportingTypes.length > 0) {
+  if (fallbackSupportingTypeCount > 0) {
     console.log(
-      `Fallback-classified supporting types: ${fallbackSupportingTypes.length}`,
+      `Fallback-classified supporting types: ${fallbackSupportingTypeCount}`,
     );
   }
   if (process.env.API_REFERENCE_CLASSIFICATION_VERBOSE === "1") {

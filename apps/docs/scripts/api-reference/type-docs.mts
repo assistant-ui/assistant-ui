@@ -175,9 +175,7 @@ export function buildTypeDocs(exports: ExportInfo[]): {
     if (item.section === "primitives") {
       for (const part of extractPrimitivePartsFor(
         item.name,
-        item.jsDocLinkResolver
-          ? { linkResolver: item.jsDocLinkResolver }
-          : undefined,
+        item.jsDocRenderOptions,
       )) {
         // Skip lowercase `unstable_*` parts in api-ref typeDocs to match
         // legacy api-surface (which only matched capital `Unstable_`).
@@ -208,9 +206,7 @@ export function buildTypeDocs(exports: ExportInfo[]): {
       if (!fs.existsSync(filePath)) continue;
       for (const [name, supportingShape] of extractSupportingTypeShapes(
         filePath,
-        item.jsDocLinkResolver
-          ? { linkResolver: item.jsDocLinkResolver }
-          : undefined,
+        item.jsDocRenderOptions,
       )) {
         if (typeDocs.has(name)) continue;
         const supportingTd = shapeToTypeDoc(supportingShape);

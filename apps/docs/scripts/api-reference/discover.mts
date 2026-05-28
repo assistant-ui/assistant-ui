@@ -11,8 +11,10 @@ import {
   chooseDeclaration,
   extractJsDoc,
   extractSignature,
+  getAllExportedNames,
   getProject,
   renderJsDocLinks,
+  type JsDocRenderOptions,
 } from "./extract.mts";
 
 export type ApiSection =
@@ -21,6 +23,7 @@ export type ApiSection =
   | "transport"
   | "external-store"
   | "voice"
+  | "generative-ui"
   | "primitives"
   | "hooks"
   | "adapters"
@@ -52,7 +55,7 @@ export type ExportInfo = {
   classificationRule: string;
   classificationConfidence: "strong" | "medium" | "fallback";
   classificationReason: string;
-  jsDocLinkResolver?: (target: string) => string | undefined;
+  jsDocRenderOptions?: JsDocRenderOptions;
 };
 
 export const SECTION_ORDER = [
@@ -61,6 +64,7 @@ export const SECTION_ORDER = [
   "transport",
   "external-store",
   "voice",
+  "generative-ui",
   "primitives",
   "hooks",
   "adapters",
@@ -236,6 +240,23 @@ function createApiReferenceLinkResolver(items: ApiReferenceLinkItem[]) {
   };
 }
 
+/** Predicate over every discovered export name — including supporting types
+ *  that get no standalone anchor. Lets the JSDoc renderer tell a legitimately
+ *  anchorless reference apart from a broken link (see JsDocRenderOptions). */
+function createKnownExportPredicate(
+  names: Iterable<string>,
+): (target: string) => boolean {
+  const known = new Set(names);
+  return (target: string): boolean => known.has(cleanLinkTarget(target));
+}
+
+function reactApiRenderOptions(): JsDocRenderOptions {
+  return {
+    linkResolver: createApiReferenceLinkResolver(getReactApiLinkItems()),
+    isKnownExport: createKnownExportPredicate(getAllExportedNames()),
+  };
+}
+
 function classifyExportInputs(
   inputs: DiscoveredExportInput[],
 ): ClassifiedExportInput[] {
@@ -281,7 +302,7 @@ function buildExportInfo(
     kind,
     placement,
   }: ClassifiedExportInput,
-  linkResolver: (target: string) => string | undefined,
+  renderOptions: JsDocRenderOptions,
   overrides: Partial<
     Pick<
       ExportInfo,
@@ -294,12 +315,10 @@ function buildExportInfo(
     >
   > = {},
 ): ExportInfo {
-  const docs = extractJsDoc(resolved, { linkResolver });
+  const docs = extractJsDoc(resolved, renderOptions);
   const signature = extractSignature(resolved, name);
   const resolvedDeprecated = deprecated
-    ? renderJsDocLinks(deprecated, `${name} export @deprecated`, {
-        linkResolver,
-      })
+    ? renderJsDocLinks(deprecated, `${name} export @deprecated`, renderOptions)
     : docs.deprecated;
   return {
     name,
@@ -316,14 +335,21 @@ function buildExportInfo(
     classificationConfidence:
       overrides.classificationConfidence ?? placement.confidence,
     classificationReason: overrides.classificationReason ?? placement.reason,
-    jsDocLinkResolver: linkResolver,
+    jsDocRenderOptions: renderOptions,
   };
+}
+
+/** Bundled JSDoc render options (link resolver + known-export predicate) for
+ *  the react public API. Reused by the primitive-docs generator so primitive
+ *  prop JSDoc links resolve the same way the api-reference pass resolves them. */
+export function getReactApiRenderOptions(): JsDocRenderOptions {
+  return reactApiRenderOptions();
 }
 
 export function discoverExports(): ExportInfo[] {
   const inputs = getReactApiInputs();
-  const linkResolver = createApiReferenceLinkResolver(getReactApiLinkItems());
-  return inputs.map((input) => buildExportInfo(input, linkResolver));
+  const renderOptions = reactApiRenderOptions();
+  return inputs.map((input) => buildExportInfo(input, renderOptions));
 }
 
 export function discoverIntegrationExports(
@@ -333,13 +359,16 @@ export function discoverIntegrationExports(
   const inputs = classifyExportInputs(collectExportInputs(entryPath)).filter(
     ({ kind }) => kind !== "interface" && kind !== "type",
   );
-  const linkResolver = createApiReferenceLinkResolver([
-    ...getReactApiLinkItems(),
-    ...linkItemsFor(inputs),
-  ]);
+  const renderOptions: JsDocRenderOptions = {
+    linkResolver: createApiReferenceLinkResolver([
+      ...getReactApiLinkItems(),
+      ...linkItemsFor(inputs),
+    ]),
+    isKnownExport: createKnownExportPredicate(getAllExportedNames()),
+  };
 
   return inputs.map((input) =>
-    buildExportInfo(input, linkResolver, {
+    buildExportInfo(input, renderOptions, {
       section: "integrations",
       page,
       pageRole: "primary",
