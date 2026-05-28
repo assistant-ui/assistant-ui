@@ -117,6 +117,9 @@ export class ToolExecutionStream extends PipeableTransformStream<
               if (!streamController)
                 throw new Error("No controller found for tool call");
 
+              // Args fully streamed: close the reader so awaited absent fields resolve.
+              streamController.finishArgsText();
+
               let isExecuting = false;
               const promise = withPromiseOrValue(
                 () => {
