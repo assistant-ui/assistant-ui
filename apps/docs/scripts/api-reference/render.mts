@@ -68,6 +68,37 @@ function yamlScalar(value: string): string {
     : JSON.stringify(value);
 }
 
+const META_PRINT_WIDTH = 80;
+
+/** Serialize a meta.json object the way oxfmt would: scalars stay on one line
+ *  and an array collapses onto a single line when it fits within the print
+ *  width, breaking to one element per line only when it doesn't. Matching the
+ *  formatter here keeps generated meta.json byte-identical across runs —
+ *  `JSON.stringify(value, null, 2)` always explodes arrays multi-line, so the
+ *  files would otherwise re-collapse on the next `oxfmt` pass and churn. */
+function formatMetaJson(
+  meta: Record<string, string | readonly string[]>,
+): string {
+  const indent = "  ";
+  const entries = Object.entries(meta);
+  const lines = entries.map(([key, value], index) => {
+    const tail = index < entries.length - 1 ? "," : "";
+    const prefix = `${indent}${JSON.stringify(key)}: `;
+    if (!Array.isArray(value)) {
+      return `${prefix}${JSON.stringify(value)}${tail}`;
+    }
+    const inline = `[${value.map((item) => JSON.stringify(item)).join(", ")}]`;
+    if (prefix.length + inline.length + tail.length <= META_PRINT_WIDTH) {
+      return `${prefix}${inline}${tail}`;
+    }
+    const items = value
+      .map((item) => `${indent}${indent}${JSON.stringify(item)}`)
+      .join(",\n");
+    return `${prefix}[\n${items}\n${indent}]${tail}`;
+  });
+  return `{\n${lines.join("\n")}\n}\n`;
+}
+
 function titleForPage(page: string, exports: ExportInfo[]): string {
   const primary = exports.filter((item) => item.pageRole === "primary");
   if (primary.length === 1) return primary[0]!.name;
@@ -690,15 +721,11 @@ function writeSectionIndex(
 ): void {
   fs.writeFileSync(
     path.join(API_REFERENCE_DIR, section, "meta.json"),
-    `${JSON.stringify(
-      {
-        title: sectionTitle(section),
-        description,
-        pages: ["index", ...pages.map((page) => page.slug)],
-      },
-      null,
-      2,
-    )}\n`,
+    formatMetaJson({
+      title: sectionTitle(section),
+      description,
+      pages: ["index", ...pages.map((page) => page.slug)],
+    }),
   );
 }
 
@@ -734,14 +761,10 @@ function writeApiReferenceRoot(): void {
   fs.mkdirSync(API_REFERENCE_DIR, { recursive: true });
   fs.writeFileSync(
     path.join(API_REFERENCE_DIR, "meta.json"),
-    `${JSON.stringify(
-      {
-        title: "API Reference",
-        pages: ["overview", ...SECTION_ORDER],
-      },
-      null,
-      2,
-    )}\n`,
+    formatMetaJson({
+      title: "API Reference",
+      pages: ["overview", ...SECTION_ORDER],
+    }),
   );
 }
 
