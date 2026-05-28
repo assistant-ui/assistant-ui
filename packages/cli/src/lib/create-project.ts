@@ -197,7 +197,12 @@ export async function transformProject(
   transformPackageJson(projectDir);
 
   logger.step("Installing assistant-ui agent skill...");
-  installGeneratedAppAgentSkill(projectDir);
+  try {
+    installGeneratedAppAgentSkill(projectDir);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn(`Could not install assistant-ui agent skill: ${message}`);
+  }
 
   let assistantUI: string[] | undefined;
   let shadcnUI: string[] | undefined;

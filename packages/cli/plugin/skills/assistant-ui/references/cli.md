@@ -1,11 +1,11 @@
 <!-- Generated from apps/docs content. Do not edit directly. -->
 <!-- Source: apps/docs/content/docs/(docs)/cli.mdx -->
 
----
-title: CLI
-description: Scaffold projects, add components, and manage updates from the command line.
-platforms: ["react"]
----
+# CLI
+
+URL: /docs/cli
+
+Scaffold projects, add components, and manage updates from the command line.
 
 Use the `assistant-ui` CLI to quickly set up new projects and add components to existing ones.
 
@@ -518,3 +518,4 @@ The CLI respects your project's configuration:
 - **TypeScript**: Works with your `tsconfig.json` paths
 - **Tailwind**: Uses your `tailwind.config.js` settings
 - **Import Aliases**: Respects `components.json` or `assistant-ui.json` configuration
+

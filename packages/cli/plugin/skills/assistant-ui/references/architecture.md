@@ -1,30 +1,16 @@
 <!-- Generated from apps/docs content. Do not edit directly. -->
 <!-- Source: apps/docs/content/docs/(docs)/architecture.mdx -->
 
----
-title: "Architecture"
-description: How components, runtimes, and cloud services fit together.
----
+# Architecture
 
-import { Sparkles, PanelsTopLeft, Database, Terminal } from "lucide-react";
+URL: /docs/architecture
+
+How components, runtimes, and cloud services fit together.
 
 ## assistant-ui is built on these main pillars:
-
-<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <Card title='1. Frontend components'>
-        Shadcn UI chat components with built-in state management
-    </Card>
-
-    <Card title='2. Runtime'>
-        State management layer connecting UI to LLMs and backend services
-    </Card>
-
-    <Card title='3. Assistant Cloud'>
-        Hosted service for thread persistence, history, and user management
-    </Card>
-</div>
-
-
+- **1. Frontend components**: Shadcn UI chat components with built-in state management
+- **2. Runtime**: State management layer connecting UI to LLMs and backend services
+- **3. Assistant Cloud**: Hosted service for thread persistence, history, and user management
 
 ### 1. Frontend components
 Stylized and functional chat components built on top of Shadcn components that have context state management provided by the assistantUI runtime provider. These pre-built React components come with intelligent state management. [View our components](/docs/ui/thread)
@@ -34,7 +20,6 @@ A React state management context for assistant chat. The runtime handles data co
 
 ### 3. Assistant Cloud
 A hosted service that enhances your assistant experience with comprehensive thread management and message history. Assistant Cloud stores complete message history, automatically persists threads, supports human-in-the-loop workflows, and integrates with common auth providers to seamlessly allow users to resume conversations at any point. [Cloud Docs](/docs/cloud)
-
 
 ## What each layer owns
 
@@ -117,21 +102,7 @@ graph TD
 ## Going deeper
 
 These pages go one level deeper on runtime internals, adapters, and persistence.
+- [Runtime architecture](/docs/runtimes/concepts/architecture): Core runtimes, protocol layers, and framework adapters — what each layer owns.
+- [Adapters](/docs/runtimes/concepts/adapters): Attachments, speech, feedback, history, suggestions across runtimes.
+- [Threads](/docs/runtimes/concepts/threads): Multi-thread support: cloud, custom database, ExternalStore.
 
-<Cards>
-  <Card
-    title="Runtime architecture"
-    description="Core runtimes, protocol layers, and framework adapters — what each layer owns."
-    href="/docs/runtimes/concepts/architecture"
-  />
-  <Card
-    title="Adapters"
-    description="Attachments, speech, feedback, history, suggestions across runtimes."
-    href="/docs/runtimes/concepts/adapters"
-  />
-  <Card
-    title="Threads"
-    description="Multi-thread support: cloud, custom database, ExternalStore."
-    href="/docs/runtimes/concepts/threads"
-  />
-</Cards>
