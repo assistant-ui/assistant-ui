@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { StrictMode, createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock only the sibling module that requires AUI store context (not available
@@ -409,7 +410,6 @@ describe("useAISDKRuntime", () => {
         expect(result.current.thread.getState().messages.length).toBe(2);
       });
 
-      // Swap: server `start` event replaces the client placeholder id
       chat.messages = [
         { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
         {
@@ -431,6 +431,46 @@ describe("useAISDKRuntime", () => {
       expect(userChildren).toEqual(["server_abc"]);
     });
 
+    it("keeps prior assistant as branch sibling when reload batches straight into streaming", async () => {
+      const chat = createChatHelpers([
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [{ type: "text", text: "first" }],
+        },
+      ]);
+
+      const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+      await waitFor(() => {
+        expect(result.current.thread.getState().messages.length).toBe(2);
+      });
+
+      chat.messages = [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        {
+          id: "a2_placeholder",
+          role: "assistant",
+          parts: [{ type: "text", text: "" }],
+        },
+      ];
+      chat.status = "streaming";
+
+      act(() => {
+        rerender();
+      });
+
+      const userChildren = result.current.thread
+        .export()
+        .messages.filter((m) => m.parentId === "u1")
+        .map((m) => m.message.id)
+        .sort();
+
+      expect(userChildren).toContain("a1");
+      expect(userChildren).toContain("a2_placeholder");
+    });
+
     it("keeps prior assistant as branch sibling when ids change outside of streaming (user reload)", async () => {
       const chat = createChatHelpers([
         { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
@@ -447,9 +487,6 @@ describe("useAISDKRuntime", () => {
         expect(result.current.thread.getState().messages.length).toBe(2);
       });
 
-      // simulate a reload that lands as a single batched sync at status=submitted
-      // (status flips before the first stream chunk; AI SDK has swapped the leaf id
-      // for the new run, but we should not treat that as a phantom)
       chat.messages = [
         { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
         {
@@ -472,6 +509,218 @@ describe("useAISDKRuntime", () => {
 
       expect(userChildren).toContain("a1");
       expect(userChildren).toContain("a2");
+    });
+
+    it("drops the placeholder when the swap lands on the streaming → ready boundary", async () => {
+      const chat = createChatHelpers([
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        {
+          id: "client_xyz",
+          role: "assistant",
+          parts: [{ type: "text", text: "" }],
+        },
+      ]);
+      chat.status = "streaming";
+
+      const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+      await waitFor(() => {
+        expect(result.current.thread.getState().messages.length).toBe(2);
+      });
+
+      chat.messages = [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        {
+          id: "server_abc",
+          role: "assistant",
+          parts: [{ type: "text", text: "done" }],
+        },
+      ];
+      chat.status = "ready";
+
+      act(() => {
+        rerender();
+      });
+
+      const userChildren = result.current.thread
+        .export()
+        .messages.filter((m) => m.parentId === "u1")
+        .map((m) => m.message.id);
+      expect(userChildren).toEqual(["server_abc"]);
+    });
+
+    it("drops only the final id across multiple consecutive id swaps in one stream", async () => {
+      const chat = createChatHelpers([
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        {
+          id: "p1",
+          role: "assistant",
+          parts: [{ type: "text", text: "" }],
+        },
+      ]);
+      chat.status = "streaming";
+
+      const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+      await waitFor(() => {
+        expect(result.current.thread.getState().messages.length).toBe(2);
+      });
+
+      chat.messages = [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        { id: "p2", role: "assistant", parts: [{ type: "text", text: "a" }] },
+      ];
+      act(() => {
+        rerender();
+      });
+
+      chat.messages = [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        { id: "p3", role: "assistant", parts: [{ type: "text", text: "ab" }] },
+      ];
+      act(() => {
+        rerender();
+      });
+
+      const userChildren = result.current.thread
+        .export()
+        .messages.filter((m) => m.parentId === "u1")
+        .map((m) => m.message.id);
+      expect(userChildren).toEqual(["p3"]);
+    });
+
+    it("preserves middle id as branch sibling when array shrinks (not a swap)", async () => {
+      const chat = createChatHelpers([
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [{ type: "text", text: "first" }],
+        },
+        { id: "u2", role: "user", parts: [{ type: "text", text: "more" }] },
+        {
+          id: "a2",
+          role: "assistant",
+          parts: [{ type: "text", text: "second" }],
+        },
+      ]);
+      chat.status = "streaming";
+
+      const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+      await waitFor(() => {
+        expect(result.current.thread.getState().messages.length).toBe(4);
+      });
+
+      chat.messages = [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        { id: "u2", role: "user", parts: [{ type: "text", text: "more" }] },
+        {
+          id: "a2",
+          role: "assistant",
+          parts: [{ type: "text", text: "second" }],
+        },
+      ];
+
+      act(() => {
+        rerender();
+      });
+
+      const u1Children = result.current.thread
+        .export()
+        .messages.filter((m) => m.parentId === "u1")
+        .map((m) => m.message.id)
+        .sort();
+      expect(u1Children).toContain("a1");
+      expect(u1Children).toContain("u2");
+    });
+
+    it("preserves the prior assistant when a reload's new run starts mid prior stream (#4131 R1)", async () => {
+      const chat = createChatHelpers([
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [{ type: "text", text: "first" }],
+        },
+      ]);
+      chat.status = "streaming";
+
+      const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+      await waitFor(() => {
+        expect(result.current.thread.getState().messages.length).toBe(2);
+      });
+
+      await act(async () => {
+        await result.current.thread.startRun({
+          parentId: "u1",
+          sourceId: null,
+          runConfig: {},
+        });
+      });
+
+      chat.messages = [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        {
+          id: "a2_placeholder",
+          role: "assistant",
+          parts: [{ type: "text", text: "" }],
+        },
+      ];
+      chat.status = "streaming";
+
+      act(() => {
+        rerender();
+      });
+
+      const userChildren = result.current.thread
+        .export()
+        .messages.filter((m) => m.parentId === "u1")
+        .map((m) => m.message.id)
+        .sort();
+      expect(userChildren).toContain("a1");
+      expect(userChildren).toContain("a2_placeholder");
+    });
+
+    it("survives React StrictMode double invocation", async () => {
+      const chat = createChatHelpers([
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        {
+          id: "client_xyz",
+          role: "assistant",
+          parts: [{ type: "text", text: "" }],
+        },
+      ]);
+      chat.status = "streaming";
+
+      const { result, rerender } = renderHook(() => useAISDKRuntime(chat), {
+        wrapper: ({ children }: { children: ReactNode }) =>
+          createElement(StrictMode, null, children),
+      });
+
+      await waitFor(() => {
+        expect(result.current.thread.getState().messages.length).toBe(2);
+      });
+
+      chat.messages = [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        {
+          id: "server_abc",
+          role: "assistant",
+          parts: [{ type: "text", text: "hello" }],
+        },
+      ];
+
+      act(() => {
+        rerender();
+      });
+
+      const userChildren = result.current.thread
+        .export()
+        .messages.filter((m) => m.parentId === "u1")
+        .map((m) => m.message.id);
+      expect(userChildren).toEqual(["server_abc"]);
     });
   });
 });

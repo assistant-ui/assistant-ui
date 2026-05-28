@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { UIMessage, useChat, CreateUIMessage } from "@ai-sdk/react";
 import { isToolUIPart, generateId } from "ai";
 import {
@@ -115,32 +115,38 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     chatHelpers.status === "streaming" ||
     hasExecutingTools;
 
-  // AI SDK v6's `useChat` first inserts an assistant placeholder with a
-  // client-generated id and then, on the server's `start` event, swaps the
-  // same slot for a new object carrying the server-provided id. Without a
-  // signal, the runtime treats the new id as a sibling branch and inflates
-  // `BranchPicker` to `2/2` on turns the user never branched. Detect the
-  // swap by comparing the previous render's ids per position, and flag the
-  // disappearing id as temporary so the runtime drops it from the repo.
-  // Gated on `status === "streaming"` so user-initiated edits/reloads
-  // (which also change ids) keep their branch siblings.
-  const prevMessageIdsRef = useRef<string[]>([]);
+  // Detects AI SDK v6's mid-stream id swap; see `unstable_temporaryMessageIds`.
+  const prevRenderRef = useRef<{ ids: string[]; status: string | undefined }>({
+    ids: [],
+    status: undefined,
+  });
+  const resetSwapBaseline = () => {
+    prevRenderRef.current = { ids: [], status: undefined };
+  };
   const temporaryMessageIds = useMemo(() => {
+    if (prevRenderRef.current.status !== "streaming") return undefined;
+
     const currentIds = chatHelpers.messages.map((m) => m.id);
-    const prevIds = prevMessageIdsRef.current;
-    prevMessageIdsRef.current = currentIds;
+    const prevIds = prevRenderRef.current.ids;
+    if (prevIds.length !== currentIds.length) return undefined;
 
-    if (chatHelpers.status !== "streaming") return undefined;
-
-    let result: Set<string> | undefined;
+    let phantom: string | undefined;
+    const currentIdSet = new Set(currentIds);
     for (let i = 0; i < currentIds.length; i++) {
       const prev = prevIds[i];
       const curr = currentIds[i]!;
-      if (prev && prev !== curr && !currentIds.includes(prev)) {
-        (result ??= new Set<string>()).add(prev);
-      }
+      if (!prev || prev === curr) continue;
+      if (phantom !== undefined) return undefined;
+      if (!currentIdSet.has(prev)) phantom = prev;
     }
-    return result;
+    return phantom === undefined ? undefined : new Set([phantom]);
+  }, [chatHelpers.messages, chatHelpers.status]);
+
+  useLayoutEffect(() => {
+    prevRenderRef.current = {
+      ids: chatHelpers.messages.map((m) => m.id),
+      status: chatHelpers.status,
+    };
   }, [chatHelpers.messages, chatHelpers.status]);
 
   const messageTiming = useStreamingTiming(chatHelpers.messages, isRunning);
@@ -299,6 +305,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         return;
       }
 
+      resetSwapBaseline();
       lastRunConfigRef.current = message.runConfig;
       await completePendingToolCalls();
       await chatHelpers.sendMessage(createMessage, {
@@ -318,6 +325,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         return;
       }
 
+      resetSwapBaseline();
       lastRunConfigRef.current = message.runConfig;
       chatHelpers.setMessages((current) =>
         sliceMessagesUntil(current, message.parentId),
@@ -327,6 +335,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       });
     },
     onReload: async (parentId: string | null, config) => {
+      resetSwapBaseline();
       lastRunConfigRef.current = config.runConfig;
       const newMessages = sliceMessagesUntil(chatHelpers.messages, parentId);
       chatHelpers.setMessages(newMessages);

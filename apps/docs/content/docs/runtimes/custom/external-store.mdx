@@ -268,6 +268,43 @@ runtime.thread.import(repo);
 
 Each message must have an explicit `id` and `parentId`; messages with the same `parentId` create branches. Parents must appear before children in the array.
 
+### Transient placeholder ids
+
+If your provider assigns a provisional id to a message and later swaps it for a different id (for example `@ai-sdk/react`'s `useChat` inserts a client placeholder, then replaces it with the server-provided id on the first stream chunk), the additive sync path treats the new id as a new sibling. `BranchPicker` then shows a duplicate branch (`1/2`, `2/2`) on every streamed turn even though the user never branched.
+
+To opt those ids out of branch tracking, list them in `unstable_temporaryMessageIds` on the adapter. The runtime removes any listed id from the repository before linking the next `messages` snapshot. Default behavior is additive: ids that disappear remain as branch siblings unless you flag them here.
+
+```tsx
+const prevIdsRef = useRef<string[]>([]);
+const temporaryMessageIds = useMemo(() => {
+  const currentIds = chatHelpers.messages.map((m) => m.id);
+  const prev = prevIdsRef.current;
+  prevIdsRef.current = currentIds;
+
+  if (chatHelpers.status !== "streaming" || prev.length !== currentIds.length)
+    return undefined;
+
+  let phantom: string | undefined;
+  const set = new Set(currentIds);
+  for (let i = 0; i < currentIds.length; i++) {
+    const p = prev[i];
+    const c = currentIds[i]!;
+    if (!p || p === c) continue;
+    if (phantom !== undefined) return undefined;
+    if (!set.has(p)) phantom = p;
+  }
+  return phantom ? new Set([phantom]) : undefined;
+}, [chatHelpers.messages, chatHelpers.status]);
+
+const runtime = useExternalStoreRuntime({
+  messages,
+  ...(temporaryMessageIds && { unstable_temporaryMessageIds: temporaryMessageIds }),
+  // ...
+});
+```
+
+`useAISDKRuntime` does this automatically for `@ai-sdk/react`. The field is ignored when the adapter uses `messageRepository` instead of `messages` (that path replaces the full graph on each sync).
+
 ## Tool calling
 
 Handle tool results by updating the matching tool-call entry:
@@ -697,6 +734,12 @@ useExternalStoreRuntime({
       type: "ExportedMessageRepository",
       description:
         "Pre-built message repository with branching history. Use instead of messages when you need to restore branch state.",
+    },
+    {
+      name: "unstable_temporaryMessageIds",
+      type: "ReadonlySet<string>",
+      description:
+        "Ids removed from the repository before linking the next messages snapshot. Use to drop transient placeholder ids (e.g. AI SDK v6 client→server id swap) so they do not become branch siblings. See 'Transient placeholder ids' under Branching.",
     },
     {
       name: "state",
