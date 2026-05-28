@@ -28,17 +28,16 @@ import type { ExportInfo } from "./discover.mts";
 // from paths.mts so adding/removing a package is a single edit there. Limited
 // to the packages whose public API we render — anything else can be lazy
 // loaded by ts-morph via addSourceFileAtPath if a type reference reaches it.
-const GENERATOR_SOURCE_GLOBS = [
-  CORE_PKG,
-  REACT_PKG,
-  ...INTEGRATION_PACKAGES.map((p) => path.dirname(p.entry)),
-].flatMap((dir) => [path.join(dir, "**/*.ts"), path.join(dir, "**/*.tsx")]);
-
 const PACKAGE_SOURCE_ROOTS = [
   CORE_PKG,
   REACT_PKG,
   ...INTEGRATION_PACKAGES.map((p) => path.dirname(p.entry)),
 ];
+
+const GENERATOR_SOURCE_GLOBS = PACKAGE_SOURCE_ROOTS.flatMap((dir) => [
+  path.join(dir, "**/*.ts"),
+  path.join(dir, "**/*.tsx"),
+]);
 
 let _project: Project | undefined;
 let _allExportedNames: Set<string> | undefined;

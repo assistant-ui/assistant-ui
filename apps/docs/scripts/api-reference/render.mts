@@ -999,24 +999,14 @@ function writeIntegrationPages(
   );
 }
 
-function hasRenderableContent(
-  item: ExportInfo,
-  typeDocNames: Set<string>,
-): boolean {
-  return Boolean(
-    item.jsDoc ||
-    item.jsDocExamples?.length ||
-    item.deprecated ||
-    item.signature ||
-    typeDocNames.has(item.name),
-  );
-}
-
 export function printClassificationDiagnostics(
   exports: ExportInfo[],
   typeDocs: Map<string, TypeDoc>,
 ): void {
   const typeDocNames = new Set(typeDocs.keys());
+  // No authored slots here — "rendered" means the export carries generated
+  // content (jsDoc, examples, signature, or a typeDoc table) on its own.
+  const noSlots = emptyPageSlots();
   const ruleCounts = new Map<string, number>();
   const renderedFallbacks: ExportInfo[] = [];
   let hiddenFallbackCount = 0;
@@ -1029,7 +1019,7 @@ export function printClassificationDiagnostics(
     if (item.classificationConfidence !== "fallback") continue;
     if (item.pageRole === "supporting-type") {
       fallbackSupportingTypeCount += 1;
-    } else if (hasRenderableContent(item, typeDocNames)) {
+    } else if (hasGeneratedEntryContent(item, typeDocNames, noSlots)) {
       renderedFallbacks.push(item);
     } else {
       hiddenFallbackCount += 1;

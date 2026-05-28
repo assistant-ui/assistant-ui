@@ -242,19 +242,12 @@ function createApiReferenceLinkResolver(items: ApiReferenceLinkItem[]) {
 
 /** Predicate over every discovered export name — including supporting types
  *  that get no standalone anchor. Lets the JSDoc renderer tell a legitimately
- *  anchorless reference apart from a broken link (see JsDocRenderOptions). */
+ *  anchorless reference apart from a broken link (see JsDocRenderOptions).
+ *  Closes over the caller's (already cached) set rather than copying it. */
 function createKnownExportPredicate(
-  names: Iterable<string>,
+  known: ReadonlySet<string>,
 ): (target: string) => boolean {
-  const known = new Set(names);
   return (target: string): boolean => known.has(cleanLinkTarget(target));
-}
-
-function reactApiRenderOptions(): JsDocRenderOptions {
-  return {
-    linkResolver: createApiReferenceLinkResolver(getReactApiLinkItems()),
-    isKnownExport: createKnownExportPredicate(getAllExportedNames()),
-  };
 }
 
 function classifyExportInputs(
@@ -282,6 +275,7 @@ function linkItemsFor(inputs: ClassifiedExportInput[]): ApiReferenceLinkItem[] {
 
 let reactApiInputs: ClassifiedExportInput[] | undefined;
 let reactApiLinkItems: ApiReferenceLinkItem[] | undefined;
+let reactApiRenderOptions: JsDocRenderOptions | undefined;
 
 function getReactApiInputs(): ClassifiedExportInput[] {
   reactApiInputs ??= classifyExportInputs(collectExportInputs(REACT_INDEX));
@@ -291,6 +285,18 @@ function getReactApiInputs(): ClassifiedExportInput[] {
 function getReactApiLinkItems(): ApiReferenceLinkItem[] {
   reactApiLinkItems ??= linkItemsFor(getReactApiInputs());
   return reactApiLinkItems;
+}
+
+/** Bundled JSDoc render options (link resolver + known-export predicate) for
+ *  the react public API, lazily built once. Reused by the primitive-docs
+ *  generator so primitive prop JSDoc links resolve the same way the
+ *  api-reference pass resolves them. */
+export function getReactApiRenderOptions(): JsDocRenderOptions {
+  reactApiRenderOptions ??= {
+    linkResolver: createApiReferenceLinkResolver(getReactApiLinkItems()),
+    isKnownExport: createKnownExportPredicate(getAllExportedNames()),
+  };
+  return reactApiRenderOptions;
 }
 
 function buildExportInfo(
@@ -339,16 +345,9 @@ function buildExportInfo(
   };
 }
 
-/** Bundled JSDoc render options (link resolver + known-export predicate) for
- *  the react public API. Reused by the primitive-docs generator so primitive
- *  prop JSDoc links resolve the same way the api-reference pass resolves them. */
-export function getReactApiRenderOptions(): JsDocRenderOptions {
-  return reactApiRenderOptions();
-}
-
 export function discoverExports(): ExportInfo[] {
   const inputs = getReactApiInputs();
-  const renderOptions = reactApiRenderOptions();
+  const renderOptions = getReactApiRenderOptions();
   return inputs.map((input) => buildExportInfo(input, renderOptions));
 }
 
