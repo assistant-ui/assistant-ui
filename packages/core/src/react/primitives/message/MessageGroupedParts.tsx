@@ -136,7 +136,7 @@ const RUNNING_STATUS: MessagePartStatus = Object.freeze({ type: "running" });
  * `tool-calls` incomplete reason collapses to `"other"`.
  */
 const toIndicatorStatus = (
-  status: MessageStatus | undefined,
+  status: MessageStatus | null | undefined,
 ): MessagePartStatus => {
   switch (status?.type) {
     case "running":
@@ -259,7 +259,12 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
   children,
 }: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode => {
   const parts = useAuiState(useShallow((s) => s.message.parts));
-  const messageStatus = useAuiState((s) => s.message.status);
+  // Skip subscribing to status when the indicator is disabled — otherwise
+  // every streaming status transition re-renders the whole grouped tree
+  // for nothing.
+  const messageStatus = useAuiState((s) =>
+    indicator === "never" ? null : s.message.status,
+  );
 
   // Helpers like `groupPartByType` tag the function with `GROUPBY_MEMO_KEY`
   // (a stable string fingerprint of the helper config). When present,
