@@ -91,10 +91,10 @@ function normalizeKeys(obj: unknown, opaque = false): unknown {
       ) {
         result[camelKey] = value.slice(5).toLowerCase();
       } else if (camelKey === "content" && Array.isArray(value)) {
-        // v1.0 proto uses "content" for message/artifact parts; map to internal "parts"
+        // v0.3 servers used "content" for message/artifact parts; normalize to "parts" for backward compat
         result.parts = normalizeKeys(value, false);
       } else if (camelKey !== "parts" || !("parts" in result)) {
-        // skip "parts" if "content" already mapped it (prefer content over parts)
+        // dedup: "content" was already mapped to parts above; don't overwrite
         result[camelKey] = isOpaqueChild ? value : normalizeKeys(value, false);
       }
     }

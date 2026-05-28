@@ -429,7 +429,7 @@ describe("A2AClient", () => {
       expect((result as any).role).toBe("agent");
     });
 
-    it("normalizes 'content' array from v1.0 server response to internal 'parts'", async () => {
+    it("normalizes 'content' array from v0.3 server response to internal 'parts'", async () => {
       fetchMock.mockResolvedValue(
         mockFetchResponse({
           message: {
@@ -887,7 +887,7 @@ describe("A2AClient", () => {
       expect(events).toHaveLength(2);
     });
 
-    it("normalizes v1.0 'content' to 'parts' in SSE artifact update events", async () => {
+    it("normalizes 'content' array from v0.3 server response to 'parts' in SSE artifact update events", async () => {
       const sseData = JSON.stringify({
         artifact_update: {
           task_id: "t1",
@@ -919,7 +919,7 @@ describe("A2AClient", () => {
       expect((evt.event.artifact as any).content).toBeUndefined();
     });
 
-    it("normalizes v1.0 'content' to 'parts' in SSE status update messages", async () => {
+    it("normalizes 'content' array from v0.3 server response to 'parts' in SSE status update messages", async () => {
       const sseData = JSON.stringify({
         status_update: {
           task_id: "t1",
