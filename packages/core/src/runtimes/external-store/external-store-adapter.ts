@@ -89,6 +89,21 @@ type ExternalStoreAdapterBase<T> = {
   isLoading?: boolean | undefined;
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
+  /**
+   * IDs of messages that were present in a previous `messages` snapshot but
+   * have been transient placeholders (e.g. an AI SDK `useChat` client-side
+   * id that was replaced mid-stream by a server-provided id). On the next
+   * sync, the runtime drops these ids from the in-memory message repository
+   * instead of keeping them as sibling branches, so `BranchPicker` does not
+   * inflate to `2/2` on turns the user never branched.
+   *
+   * Default sync behavior is additive: ids that disappear from `messages`
+   * remain in the repository as branch siblings. Provide this set to opt
+   * specific ids out of branch tracking. The set is consumed and not
+   * persisted, so the adapter is responsible for re-emitting until the id
+   * is no longer in the repository.
+   */
+  unstable_temporaryMessageIds?: ReadonlySet<string> | undefined;
   suggestions?: readonly ThreadSuggestion[] | undefined;
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;

@@ -115,6 +115,34 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     chatHelpers.status === "streaming" ||
     hasExecutingTools;
 
+  // AI SDK v6's `useChat` first inserts an assistant placeholder with a
+  // client-generated id and then, on the server's `start` event, swaps the
+  // same slot for a new object carrying the server-provided id. Without a
+  // signal, the runtime treats the new id as a sibling branch and inflates
+  // `BranchPicker` to `2/2` on turns the user never branched. Detect the
+  // swap by comparing the previous render's ids per position, and flag the
+  // disappearing id as temporary so the runtime drops it from the repo.
+  // Gated on `status === "streaming"` so user-initiated edits/reloads
+  // (which also change ids) keep their branch siblings.
+  const prevMessageIdsRef = useRef<string[]>([]);
+  const temporaryMessageIds = useMemo(() => {
+    const currentIds = chatHelpers.messages.map((m) => m.id);
+    const prevIds = prevMessageIdsRef.current;
+    prevMessageIdsRef.current = currentIds;
+
+    if (chatHelpers.status !== "streaming") return undefined;
+
+    let result: Set<string> | undefined;
+    for (let i = 0; i < currentIds.length; i++) {
+      const prev = prevIds[i];
+      const curr = currentIds[i]!;
+      if (prev && prev !== curr && !currentIds.includes(prev)) {
+        (result ??= new Set<string>()).add(prev);
+      }
+    }
+    return result;
+  }, [chatHelpers.messages, chatHelpers.status]);
+
   const messageTiming = useStreamingTiming(chatHelpers.messages, isRunning);
 
   const messages = AISDKMessageConverter.useThreadMessages({
@@ -188,6 +216,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const runtime = useExternalStoreRuntime({
     isRunning,
     messages,
+    ...(temporaryMessageIds && {
+      unstable_temporaryMessageIds: temporaryMessageIds,
+    }),
     unstable_enableToolInvocations: true,
     setToolStatuses,
     setMessages: (messages) =>

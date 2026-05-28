@@ -151,6 +151,71 @@ describe("ExternalStoreThreadRuntimeCore - state reference stability", () => {
     expect(runtime.capabilities).toBe(capsBefore);
   });
 });
+
+describe("ExternalStoreThreadRuntimeCore - unstable_temporaryMessageIds", () => {
+  const user = { id: "u", role: "user" as const, content: [] };
+
+  it("drops repo entries listed in unstable_temporaryMessageIds", () => {
+    const a1 = { id: "a1", role: "assistant" as const, content: [] };
+    const a2 = { id: "a2", role: "assistant" as const, content: [] };
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [user, a1] }),
+    );
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [user, a2],
+        unstable_temporaryMessageIds: new Set(["a1"]),
+      }),
+    );
+
+    const userChildren = runtime
+      .export()
+      .messages.filter((m) => m.parentId === "u")
+      .map((m) => m.message.id);
+    expect(userChildren).toEqual(["a2"]);
+  });
+
+  it("defaults to additive when unstable_temporaryMessageIds is absent (preserves branches)", () => {
+    const a1 = { id: "a1", role: "assistant" as const, content: [] };
+    const a2 = { id: "a2", role: "assistant" as const, content: [] };
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [user, a1] }),
+    );
+
+    runtime.__internal_setAdapter(makeStore({ messages: [user, a2] }));
+
+    const userChildren = runtime
+      .export()
+      .messages.filter((m) => m.parentId === "u")
+      .map((m) => m.message.id)
+      .sort();
+    expect(userChildren).toEqual(["a1", "a2"]);
+  });
+
+  it("ignores ids in the set that are not in the repo", () => {
+    const a = { id: "a", role: "assistant" as const, content: [] };
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [user, a] }),
+    );
+
+    expect(() =>
+      runtime.__internal_setAdapter(
+        makeStore({
+          messages: [user, a],
+          unstable_temporaryMessageIds: new Set(["never-existed"]),
+        }),
+      ),
+    ).not.toThrow();
+  });
+});
+
 describe("ExternalStoreThreadRuntimeCore - initialize event replay", () => {
   const message = { id: "m", role: "assistant" as const, content: [] };
   const flushMicrotasks = () => Promise.resolve();

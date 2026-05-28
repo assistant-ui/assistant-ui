@@ -230,6 +230,12 @@ export class ExternalStoreThreadRuntimeCore
             return newMessage;
           });
 
+      if (store.unstable_temporaryMessageIds) {
+        for (const id of store.unstable_temporaryMessageIds) {
+          if (this.repository.hasMessage(id)) this.repository.deleteMessage(id);
+        }
+      }
+
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
         const parent = messages[i - 1];

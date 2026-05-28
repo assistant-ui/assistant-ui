@@ -259,6 +259,10 @@ export class MessageRepository {
     };
   }
 
+  hasMessage(messageId: string): boolean {
+    return this.messages.has(messageId);
+  }
+
   appendOptimisticMessage(parentId: string | null, message: ThreadMessageLike) {
     let optimisticId: string;
     do {

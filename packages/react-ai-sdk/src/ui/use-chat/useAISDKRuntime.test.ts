@@ -390,4 +390,88 @@ describe("useAISDKRuntime", () => {
     const { result } = renderHook(() => useAISDKRuntime(chat, { suggestions }));
     expect(result.current.thread.getState().suggestions).toEqual(suggestions);
   });
+
+  describe("phantom assistant sibling on mid-stream id swap (#4037)", () => {
+    it("drops the placeholder id when AI SDK v6 swaps it for the server id mid-stream", async () => {
+      const chat = createChatHelpers([
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        {
+          id: "client_xyz",
+          role: "assistant",
+          parts: [{ type: "text", text: "" }],
+        },
+      ]);
+      chat.status = "streaming";
+
+      const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+      await waitFor(() => {
+        expect(result.current.thread.getState().messages.length).toBe(2);
+      });
+
+      // Swap: server `start` event replaces the client placeholder id
+      chat.messages = [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        {
+          id: "server_abc",
+          role: "assistant",
+          parts: [{ type: "text", text: "hello" }],
+        },
+      ];
+
+      act(() => {
+        rerender();
+      });
+
+      const exported = result.current.thread.export();
+      const userChildren = exported.messages
+        .filter((m) => m.parentId === "u1")
+        .map((m) => m.message.id);
+
+      expect(userChildren).toEqual(["server_abc"]);
+    });
+
+    it("keeps prior assistant as branch sibling when ids change outside of streaming (user reload)", async () => {
+      const chat = createChatHelpers([
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [{ type: "text", text: "first" }],
+        },
+      ]);
+
+      const { result, rerender } = renderHook(() => useAISDKRuntime(chat));
+
+      await waitFor(() => {
+        expect(result.current.thread.getState().messages.length).toBe(2);
+      });
+
+      // simulate a reload that lands as a single batched sync at status=submitted
+      // (status flips before the first stream chunk; AI SDK has swapped the leaf id
+      // for the new run, but we should not treat that as a phantom)
+      chat.messages = [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        {
+          id: "a2",
+          role: "assistant",
+          parts: [{ type: "text", text: "second" }],
+        },
+      ];
+      chat.status = "submitted";
+
+      act(() => {
+        rerender();
+      });
+
+      const userChildren = result.current.thread
+        .export()
+        .messages.filter((m) => m.parentId === "u1")
+        .map((m) => m.message.id)
+        .sort();
+
+      expect(userChildren).toContain("a1");
+      expect(userChildren).toContain("a2");
+    });
+  });
 });
