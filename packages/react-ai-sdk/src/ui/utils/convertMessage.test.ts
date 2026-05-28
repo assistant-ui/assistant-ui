@@ -7,13 +7,16 @@ import {
 
 describe("AISDKMessageConverter", () => {
   it("flags the streaming assistant message as optimistic", () => {
+    const metadata: AISDKMessageConverterMetadata = {
+      optimisticMessageId: "a1",
+    };
     const converted = AISDKMessageConverter.toThreadMessages(
       [
         { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
         { id: "a1", role: "assistant", parts: [{ type: "text", text: "yo" }] },
       ] as any,
       true,
-      { optimisticMessageId: "a1" } satisfies AISDKMessageConverterMetadata,
+      metadata,
     );
 
     expect(converted[0]?.metadata.isOptimistic).toBeFalsy();

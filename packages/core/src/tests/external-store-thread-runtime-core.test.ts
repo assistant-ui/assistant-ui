@@ -238,6 +238,34 @@ describe("ExternalStoreThreadRuntimeCore - optimistic message reconciliation", (
     expect(childrenOf(runtime, "u")).toEqual(["a"]);
   });
 
+  it("removes the runtime placeholder once the store provides the assistant message", () => {
+    const u: Raw = { id: "u", role: "user", text: "hi" };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [u], convertMessage, isRunning: true }),
+    );
+
+    // Running with a trailing user message: a placeholder is appended.
+    let ids = runtime.export().messages.map((m) => m.message.id);
+    expect(ids).toHaveLength(2);
+    expect(ids[1]).toMatch(/^__optimistic__/);
+
+    // The store now yields the real assistant message; the placeholder (whose
+    // synthetic id never appears in the snapshot) must be gone, leaving a
+    // single child under the user message.
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [u, { id: "a", role: "assistant", text: "done" }],
+        convertMessage,
+        isRunning: false,
+      }),
+    );
+
+    ids = runtime.export().messages.map((m) => m.message.id);
+    expect(ids).toEqual(["u", "a"]);
+    expect(childrenOf(runtime, "u")).toEqual(["a"]);
+  });
+
   it("keeps real sibling branches that were never flagged optimistic", () => {
     const u: Raw = { id: "u", role: "user", text: "hi" };
     const runtime = new ExternalStoreThreadRuntimeCore(

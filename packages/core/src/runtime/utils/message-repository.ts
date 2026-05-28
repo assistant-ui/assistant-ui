@@ -267,7 +267,11 @@ export class MessageRepository {
 
     this.addOrUpdateMessage(
       parentId,
-      fromThreadMessageLike(message, optimisticId, { type: "running" }),
+      fromThreadMessageLike(
+        { ...message, metadata: { ...message.metadata, isOptimistic: true } },
+        optimisticId,
+        { type: "running" },
+      ),
     );
 
     return optimisticId;

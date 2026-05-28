@@ -30,6 +30,7 @@ import {
   ExportedMessageRepository,
   MessageRepository,
 } from "../../runtime/utils/message-repository";
+import { isOptimisticId } from "../../utils/id";
 import { ToolInvocationTracker } from "../tool-invocations/ToolInvocationTracker";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
@@ -54,8 +55,6 @@ export class ExternalStoreThreadRuntimeCore
   extends BaseThreadRuntimeCore
   implements ThreadRuntimeCore
 {
-  private _assistantOptimisticId: string | null = null;
-
   private _capabilities: RuntimeCapabilities = {
     switchToBranch: false,
     switchBranchDuringRun: false,
@@ -175,9 +174,9 @@ export class ExternalStoreThreadRuntimeCore
         return;
       }
 
-      // Clear and import the message repository
+      // Clear and import the message repository. clear() also discards any
+      // optimistic placeholder appended on a previous sync.
       this.repository.clear();
-      this._assistantOptimisticId = null;
       this.repository.import(store.messageRepository);
 
       messages = this.repository.getMessages();
@@ -236,10 +235,12 @@ export class ExternalStoreThreadRuntimeCore
         this.repository.addOrUpdateMessage(parent?.id ?? null, message);
       }
 
-      // Drop stale optimistic placeholders whose id vanished from the snapshot
-      // (e.g. AI SDK v6 swapping a client-generated id for a server id
-      // mid-run). Scoped to messages explicitly flagged optimistic so real
-      // sibling branches from edits/reloads/branch switches survive.
+      // Drop optimistic messages whose id is absent from the new snapshot:
+      // the placeholder appended on the previous sync (its synthetic id is
+      // never in the store) and store-provided ids that were swapped out
+      // mid-run (e.g. AI SDK v6 replacing a client-generated id with a server
+      // id). Scoped to messages explicitly flagged optimistic, so real sibling
+      // branches from edits/reloads/branch switches survive.
       this.repository.deleteOptimisticMessages(
         new Set(messages.map((m) => m.id)),
       );
@@ -260,13 +261,13 @@ export class ExternalStoreThreadRuntimeCore
       }
     }
 
-    if (this._assistantOptimisticId) {
-      this.repository.deleteMessage(this._assistantOptimisticId);
-      this._assistantOptimisticId = null;
-    }
-
+    // Append an optimistic placeholder when the store is running but hasn't
+    // produced a trailing assistant message yet. The previous sync's
+    // placeholder was already removed above (messages path) or by clear()
+    // (messageRepository path), so there's no manual id to track between syncs.
+    let optimisticId: string | null = null;
     if (hasUpcomingMessage(isRunning, messages)) {
-      this._assistantOptimisticId = this.repository.appendOptimisticMessage(
+      optimisticId = this.repository.appendOptimisticMessage(
         messages.at(-1)?.id ?? null,
         {
           role: "assistant",
@@ -275,9 +276,7 @@ export class ExternalStoreThreadRuntimeCore
       );
     }
 
-    this.repository.resetHead(
-      this._assistantOptimisticId ?? messages.at(-1)?.id ?? null,
-    );
+    this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
 
     this._messages = this.repository.getMessages();
 
@@ -476,9 +475,13 @@ export class ExternalStoreThreadRuntimeCore
 
     this._store.onCancel();
 
-    if (this._assistantOptimisticId) {
-      this.repository.deleteMessage(this._assistantOptimisticId);
-      this._assistantOptimisticId = null;
+    // Remove the runtime-appended placeholder if it's the current head. It's
+    // identified by its synthetic optimistic id, which distinguishes it from
+    // store-provided optimistic messages (those carry real ids and partial
+    // content that should survive a cancel).
+    const head = this.repository.getMessages().at(-1);
+    if (head && isOptimisticId(head.id)) {
+      this.repository.deleteMessage(head.id);
     }
 
     let messages = this.repository.getMessages();
@@ -542,8 +545,6 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public override import(data: ExportedMessageRepository) {
-    this._assistantOptimisticId = null;
-
     super.import(data);
 
     if (this._store.onImport) {
