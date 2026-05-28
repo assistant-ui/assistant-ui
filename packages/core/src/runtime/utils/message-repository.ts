@@ -189,10 +189,6 @@ export class MessageRepository {
     return this.head?.current.id ?? null;
   }
 
-  hasMessage(messageId: string) {
-    return this.messages.has(messageId);
-  }
-
   getMessages(headId?: string) {
     if (headId === undefined || headId === this.head?.current.id) {
       return this._messages.value;
