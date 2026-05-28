@@ -314,6 +314,13 @@ export type ThreadAssistantMessage = MessageCommonProps & {
     readonly steps: readonly ThreadStep[];
     readonly submittedFeedback?: { readonly type: "positive" | "negative" };
     readonly timing?: MessageTiming;
+    /**
+     * Marks the message as a client-side optimistic placeholder. The external
+     * store sync drops optimistic messages whose id is no longer present in the
+     * latest snapshot (e.g. when AI SDK v6 swaps a client-generated id for a
+     * server-provided one mid-run), without touching real sibling branches.
+     */
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -327,6 +334,7 @@ type BaseThreadMessage = {
     readonly steps?: readonly ThreadStep[];
     readonly submittedFeedback?: { readonly type: "positive" | "negative" };
     readonly timing?: MessageTiming;
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
   readonly attachments?: ThreadUserMessage["attachments"];

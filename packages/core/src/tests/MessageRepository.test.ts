@@ -347,6 +347,55 @@ describe("MessageRepository", () => {
     });
   });
 
+  describe("deleteOptimisticMessages", () => {
+    const optimistic = (overrides = {}) =>
+      createTestMessage({
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+          isOptimistic: true,
+        },
+        ...overrides,
+      });
+
+    it("removes flagged messages whose id is absent from keepIds", () => {
+      const parent = createTestMessage({ id: "u" });
+      repository.addOrUpdateMessage(null, parent);
+      repository.addOrUpdateMessage("u", optimistic({ id: "client_id" }));
+      repository.addOrUpdateMessage("u", optimistic({ id: "server_id" }));
+
+      repository.deleteOptimisticMessages(new Set(["u", "server_id"]));
+
+      expect(() => repository.getMessage("client_id")).toThrow();
+      expect(repository.getMessage("server_id").message.id).toBe("server_id");
+    });
+
+    it("keeps flagged messages that are still present in keepIds", () => {
+      const parent = createTestMessage({ id: "u" });
+      repository.addOrUpdateMessage(null, parent);
+      repository.addOrUpdateMessage("u", optimistic({ id: "a" }));
+
+      repository.deleteOptimisticMessages(new Set(["u", "a"]));
+
+      expect(repository.getMessage("a").message.id).toBe("a");
+    });
+
+    it("never touches messages that are not flagged optimistic", () => {
+      const parent = createTestMessage({ id: "u" });
+      repository.addOrUpdateMessage(null, parent);
+      repository.addOrUpdateMessage("u", createTestMessage({ id: "a1" }));
+      repository.addOrUpdateMessage("u", createTestMessage({ id: "a2" }));
+
+      // Neither a1 nor a2 is in keepIds, but both are real branches.
+      repository.deleteOptimisticMessages(new Set(["u"]));
+
+      expect(repository.getBranches("a1")).toEqual(["a1", "a2"]);
+    });
+  });
+
   describe("Export and import", () => {
     it("should export the repository state", () => {
       const parent = createTestMessage({ id: "parent-id" });

@@ -24,6 +24,12 @@ export type AISDKMessageConverterMetadata =
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
     toolLastInputCache?: Map<string, ReadonlyJSONObject>;
     mcpAppMetadataCache?: Map<string, McpAppMetadata>;
+    /**
+     * Id of the message AI SDK is currently streaming into. Its client-generated
+     * id may be swapped for a server-provided one mid-run, so it's flagged
+     * optimistic to let the message repository drop the stale placeholder.
+     */
+    optimisticMessageId?: string | undefined;
   };
 
 function stripClosingDelimiters(json: string): string {
@@ -393,6 +399,7 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
       case "system":
       case "assistant": {
         const timing = metadata.messageTiming?.[message.id];
+        const isOptimistic = message.id === metadata.optimisticMessageId;
         return {
           role: message.role,
           id: message.id,
@@ -401,6 +408,7 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           metadata: {
             ...(message.metadata as MessageMetadata),
             ...(timing && { timing }),
+            ...(isOptimistic && { isOptimistic: true }),
           },
         };
       }

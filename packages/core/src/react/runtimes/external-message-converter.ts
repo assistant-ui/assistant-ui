@@ -198,6 +198,10 @@ const joinExternalMessages = (
                 assistantMessage.metadata.submittedFeedback =
                   output.metadata.submittedFeedback;
               }
+
+              if (output.metadata.isOptimistic) {
+                assistantMessage.metadata.isOptimistic = true;
+              }
             }
             // TODO keep this in sync
           }

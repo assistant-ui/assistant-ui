@@ -235,6 +235,14 @@ export class ExternalStoreThreadRuntimeCore
         const parent = messages[i - 1];
         this.repository.addOrUpdateMessage(parent?.id ?? null, message);
       }
+
+      // Drop stale optimistic placeholders whose id vanished from the snapshot
+      // (e.g. AI SDK v6 swapping a client-generated id for a server id
+      // mid-run). Scoped to messages explicitly flagged optimistic so real
+      // sibling branches from edits/reloads/branch switches survive.
+      this.repository.deleteOptimisticMessages(
+        new Set(messages.map((m) => m.id)),
+      );
     } else {
       throw new Error(
         "ExternalStoreAdapter must provide either 'messages' or 'messageRepository'",

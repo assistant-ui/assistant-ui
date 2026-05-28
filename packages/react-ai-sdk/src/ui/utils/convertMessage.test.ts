@@ -6,6 +6,28 @@ import {
 } from "./convertMessage";
 
 describe("AISDKMessageConverter", () => {
+  it("flags the streaming assistant message as optimistic", () => {
+    const converted = AISDKMessageConverter.toThreadMessages(
+      [
+        { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+        { id: "a1", role: "assistant", parts: [{ type: "text", text: "yo" }] },
+      ] as any,
+      true,
+      { optimisticMessageId: "a1" } satisfies AISDKMessageConverterMetadata,
+    );
+
+    expect(converted[0]?.metadata.isOptimistic).toBeFalsy();
+    expect(converted[1]?.metadata.isOptimistic).toBe(true);
+  });
+
+  it("does not flag messages when no optimistic id is provided", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      { id: "a1", role: "assistant", parts: [{ type: "text", text: "yo" }] },
+    ] as any);
+
+    expect(converted[0]?.metadata.isOptimistic).toBeFalsy();
+  });
+
   it("converts user files into attachments and keeps text content", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {

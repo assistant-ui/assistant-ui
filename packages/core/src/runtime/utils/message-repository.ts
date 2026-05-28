@@ -273,6 +273,30 @@ export class MessageRepository {
     return optimisticId;
   }
 
+  /**
+   * Removes messages flagged as optimistic (`metadata.isOptimistic`) whose id
+   * is not present in `keepIds`. This is used by the external-store sync to
+   * drop stale client-side placeholders — e.g. when AI SDK v6 swaps a
+   * client-generated message id for a server-provided one mid-run, leaving the
+   * old id orphaned as a phantom sibling. Unlike a blanket "delete every id
+   * that disappeared" diff, this only touches messages that were explicitly
+   * marked optimistic, so legitimate sibling branches created by
+   * `onEdit` / `onReload` / `switchToBranch` are left intact.
+   */
+  deleteOptimisticMessages(keepIds: ReadonlySet<string>) {
+    const staleIds: string[] = [];
+    for (const [id, message] of this.messages) {
+      if (message.current.metadata?.isOptimistic && !keepIds.has(id)) {
+        staleIds.push(id);
+      }
+    }
+
+    for (const id of staleIds) {
+      // A prior deletion may have already re-parented/removed this node.
+      if (this.messages.has(id)) this.deleteMessage(id);
+    }
+  }
+
   deleteMessage(messageId: string, replacementId?: string | null | undefined) {
     const message = this.messages.get(messageId);
 
