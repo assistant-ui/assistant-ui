@@ -146,21 +146,21 @@ export class ExternalStoreThreadRuntimeCore
     parentId: string | null,
   ) {
     let existingParentId: string | null;
-    let branchIds: string[];
+    let siblingIds: string[];
     try {
       existingParentId = this.repository.getMessage(messageId).parentId;
       if (existingParentId === parentId) return;
-      branchIds = this.repository.getBranches(messageId);
+      siblingIds = this.repository.getBranches(messageId);
     } catch {
       return;
     }
 
-    if (branchIds.length <= 1) return;
+    if (siblingIds.length <= 1) return;
 
-    for (const branchId of branchIds) {
-      const branch = this.repository.getMessage(branchId);
-      if (branch.parentId !== existingParentId) continue;
-      this.repository.addOrUpdateMessage(parentId, branch.message);
+    for (const siblingId of siblingIds) {
+      const sibling = this.repository.getMessage(siblingId);
+      if (sibling.parentId !== existingParentId) continue;
+      this.repository.addOrUpdateMessage(parentId, sibling.message);
     }
   }
 
@@ -347,6 +347,7 @@ export class ExternalStoreThreadRuntimeCore
         this.repository.deleteMessage(prevId);
       }
 
+      // Keep edit/reload sources armed until the source id leaves the host snapshot.
       for (const sourceId of this._pendingEditOrReloadSources) {
         if (!nextIds.has(sourceId)) {
           this._pendingEditOrReloadSources.delete(sourceId);
