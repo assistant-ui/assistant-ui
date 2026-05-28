@@ -207,8 +207,10 @@ describe("ExternalStoreThreadRuntimeCore - optimistic message reconciliation", (
       }),
     );
 
-    // No phantom sibling: the user message has a single child.
-    expect(childrenOf(runtime, "u")).toEqual(["server_id"]);
+    // No phantom sibling in the live tree (what BranchPicker reads): the user
+    // message has a single child. export() omits the still-optimistic
+    // streaming message, so assert against the live getBranches instead.
+    expect(runtime.getBranches("server_id")).toEqual(["server_id"]);
   });
 
   it("clears the optimistic flag once the run settles", () => {
@@ -245,10 +247,12 @@ describe("ExternalStoreThreadRuntimeCore - optimistic message reconciliation", (
       makeStore({ messages: [u], convertMessage, isRunning: true }),
     );
 
-    // Running with a trailing user message: a placeholder is appended.
-    let ids = runtime.export().messages.map((m) => m.message.id);
-    expect(ids).toHaveLength(2);
-    expect(ids[1]).toMatch(/^__optimistic__/);
+    // Running with a trailing user message: a placeholder is appended to the
+    // live tree. export() omits optimistic messages, so inspect the live
+    // messages (which include the placeholder on the head path).
+    const liveIds = runtime.messages.map((m) => m.id);
+    expect(liveIds).toHaveLength(2);
+    expect(liveIds[1]).toMatch(/^__optimistic__/);
 
     // The store now yields the real assistant message; the placeholder (whose
     // synthetic id never appears in the snapshot) must be gone, leaving a
@@ -261,9 +265,11 @@ describe("ExternalStoreThreadRuntimeCore - optimistic message reconciliation", (
       }),
     );
 
-    ids = runtime.export().messages.map((m) => m.message.id);
-    expect(ids).toEqual(["u", "a"]);
-    expect(childrenOf(runtime, "u")).toEqual(["a"]);
+    expect(runtime.export().messages.map((m) => m.message.id)).toEqual([
+      "u",
+      "a",
+    ]);
+    expect(runtime.getBranches("a")).toEqual(["a"]);
   });
 
   it("keeps real sibling branches that were never flagged optimistic", () => {

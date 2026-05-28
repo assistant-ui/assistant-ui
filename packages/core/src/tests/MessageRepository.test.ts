@@ -394,6 +394,41 @@ describe("MessageRepository", () => {
 
       expect(repository.getBranches("a1")).toEqual(["a1", "a2"]);
     });
+
+    it("excludes optimistic messages from export()", () => {
+      const parent = createTestMessage({ id: "u" });
+      repository.addOrUpdateMessage(null, parent);
+      repository.addOrUpdateMessage(
+        "u",
+        optimistic({ id: "__optimistic__placeholder" }),
+      );
+
+      const exported = repository.export();
+
+      expect(exported.messages.map((m) => m.message.id)).toEqual(["u"]);
+      // head was the optimistic placeholder; the exported head must fall back
+      // to the nearest persisted ancestor so it always resolves on import.
+      expect(exported.headId).toBe("u");
+    });
+
+    it("round-trips through export/import without resurrecting the placeholder", () => {
+      const parent = createTestMessage({ id: "u" });
+      const real = createTestMessage({ id: "a" });
+      repository.addOrUpdateMessage(null, parent);
+      repository.addOrUpdateMessage("u", real);
+      repository.addOrUpdateMessage(
+        "u",
+        optimistic({ id: "__optimistic__placeholder" }),
+      );
+
+      const restored = new MessageRepository();
+      restored.import(repository.export());
+
+      expect(restored.export().messages.map((m) => m.message.id)).toEqual([
+        "u",
+        "a",
+      ]);
+    });
   });
 
   describe("Export and import", () => {

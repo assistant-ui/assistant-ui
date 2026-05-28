@@ -278,12 +278,15 @@ export class MessageRepository {
   }
 
   /**
-   * Removes messages flagged as optimistic (`metadata.isOptimistic`) whose id
-   * is not present in `keepIds`. This is used by the external-store sync to
-   * drop stale client-side placeholders — e.g. when AI SDK v6 swaps a
-   * client-generated message id for a server-provided one mid-run, leaving the
-   * old id orphaned as a phantom sibling. Unlike a blanket "delete every id
-   * that disappeared" diff, this only touches messages that were explicitly
+   * @internal Counterpart to {@link appendOptimisticMessage}, used only by the
+   * external-store sync. Removes messages flagged optimistic
+   * (`metadata.isOptimistic`) whose id is not present in `keepIds`, dropping
+   * stale client-side placeholders from the live tree — e.g. when AI SDK v6
+   * swaps a client-generated message id for a server-provided one mid-run,
+   * leaving the old id orphaned as a phantom sibling that would otherwise
+   * inflate the live `BranchPicker` count. (Persistence is handled separately:
+   * {@link export} never emits optimistic messages.) Unlike a blanket "delete
+   * every id that disappeared" diff, this only touches messages explicitly
    * marked optimistic, so legitimate sibling branches created by
    * `onEdit` / `onReload` / `switchToBranch` are left intact.
    */
@@ -422,15 +425,27 @@ export class MessageRepository {
   export(): ExportedMessageRepository {
     const exportItems: ExportedMessageRepository["messages"] = [];
 
+    // Optimistic messages (running placeholders, mid-run streaming messages
+    // whose id may still be swapped) are ephemeral and must never be persisted
+    // as part of thread switching. They are always leaf nodes, so skipping them
+    // can't orphan a persisted child.
     for (const [, message] of this.messages) {
+      if (message.current.metadata?.isOptimistic) continue;
       exportItems.push({
         message: message.current,
         parentId: message.prev?.current.id ?? null,
       });
     }
 
+    // The head may itself be optimistic (e.g. the running placeholder); walk up
+    // to the nearest persisted ancestor so the exported headId always resolves.
+    let head = this.head;
+    while (head?.current.metadata?.isOptimistic) {
+      head = head.prev;
+    }
+
     return {
-      headId: this.head?.current.id ?? null,
+      headId: head?.current.id ?? null,
       messages: exportItems,
     };
   }
