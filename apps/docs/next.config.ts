@@ -65,6 +65,10 @@ const config: NextConfig = {
         destination: "/llms.mdx/:path*",
       },
       {
+        source: "/examples.mdx",
+        destination: "/llms.mdx/examples",
+      },
+      {
         source: "/examples/:path*.mdx",
         destination: "/llms.mdx/examples/:path*",
       },
