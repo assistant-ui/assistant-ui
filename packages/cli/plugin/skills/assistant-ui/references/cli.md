@@ -1,0 +1,520 @@
+<!-- Generated from apps/docs content. Do not edit directly. -->
+<!-- Source: apps/docs/content/docs/(docs)/cli.mdx -->
+
+---
+title: CLI
+description: Scaffold projects, add components, and manage updates from the command line.
+platforms: ["react"]
+---
+
+Use the `assistant-ui` CLI to quickly set up new projects and add components to existing ones.
+
+## init
+
+Use the `init` command to initialize configuration and dependencies for a new project.
+
+The `init` command installs dependencies, adds components, and configures your project for assistant-ui.
+
+```bash
+npx assistant-ui@latest init
+```
+
+This will:
+- Detect if you have an existing project with a `package.json`
+- Use `shadcn add` to install the assistant-ui quick-start component
+- Add the default assistant-ui components (thread, composer, etc.) to your project
+- Configure TypeScript paths and imports
+
+**When to use:**
+- Adding assistant-ui to an **existing** Next.js project
+- First-time setup in a project with `package.json`
+
+**Options**
+
+```bash
+Usage: assistant-ui init [options]
+
+initialize assistant-ui in a new or existing project
+
+Options:
+  -c, --cwd <cwd>  the working directory. defaults to the current directory.
+  -h, --help       display help for command
+```
+
+## create
+
+Use the `create` command to scaffold a new Next.js project with assistant-ui pre-configured.
+
+```bash
+npx assistant-ui@latest create [project-directory]
+```
+
+This command scaffolds a project from assistant-ui starter templates or examples.
+
+**Available Templates**
+
+| Template | Description | Command |
+|----------|-------------|---------|
+| `default` | Default template with Vercel AI SDK | `npx assistant-ui create` |
+| `minimal` | Bare-bones starting point | `npx assistant-ui create -t minimal` |
+| `cloud` | Cloud-backed persistence starter | `npx assistant-ui create -t cloud` |
+| `cloud-clerk` | Cloud-backed starter with Clerk auth | `npx assistant-ui create -t cloud-clerk` |
+| `langgraph` | LangGraph starter template | `npx assistant-ui create -t langgraph` |
+| `mcp` | MCP starter template | `npx assistant-ui create -t mcp` |
+
+**Available Examples**
+
+Use `--example` to create a project from one of the monorepo examples with full feature demonstrations:
+
+| Example | Description | Command |
+|---------|-------------|---------|
+| `with-ai-sdk-v6` | Vercel AI SDK v6 integration | `npx assistant-ui create my-app -e with-ai-sdk-v6` |
+| `with-artifacts` | HTML artifact rendering with live preview | `npx assistant-ui create my-app -e with-artifacts` |
+| `with-langgraph` | LangGraph agent with custom tools | `npx assistant-ui create my-app -e with-langgraph` |
+| `with-cloud` | Assistant Cloud persistence | `npx assistant-ui create my-app -e with-cloud` |
+| `with-ag-ui` | [AG-UI protocol](/docs/runtimes/ag-ui) integration | `npx assistant-ui create my-app -e with-ag-ui` |
+| `with-assistant-transport` | Custom backend via Assistant Transport | `npx assistant-ui create my-app -e with-assistant-transport` |
+| `with-resumable-stream` | Resumable LLM stream that survives reload mid-response | `npx assistant-ui create my-app -e with-resumable-stream` |
+| `with-chain-of-thought` | Chain-of-thought reasoning, tool calls, and source citations | `npx assistant-ui create my-app -e with-chain-of-thought` |
+| `with-external-store` | External message store | `npx assistant-ui create my-app -e with-external-store` |
+| `with-custom-thread-list` | Custom thread list UI | `npx assistant-ui create my-app -e with-custom-thread-list` |
+| `with-react-hook-form` | React Hook Form integration | `npx assistant-ui create my-app -e with-react-hook-form` |
+| `with-ffmpeg` | FFmpeg video processing tool | `npx assistant-ui create my-app -e with-ffmpeg` |
+| `with-elevenlabs-scribe` | ElevenLabs voice transcription | `npx assistant-ui create my-app -e with-elevenlabs-scribe` |
+| `with-expo` | Expo / React Native | `npx assistant-ui create my-app -e with-expo` |
+| `with-react-ink` | Terminal UI chat | `npx assistant-ui create my-app -e with-react-ink` |
+| `with-react-router` | React Router v7 integration | `npx assistant-ui create my-app -e with-react-router` |
+| `with-tanstack` | TanStack Start integration | `npx assistant-ui create my-app -e with-tanstack` |
+
+**Examples**
+
+```bash
+# Create with default template
+npx assistant-ui@latest create my-app
+
+# Create with cloud template
+npx assistant-ui@latest create my-app -t cloud
+
+# Create with cloud + clerk template
+npx assistant-ui@latest create my-app -t cloud-clerk
+
+# Create from an example
+npx assistant-ui@latest create my-app --example with-langgraph
+
+# Create with specific package manager
+npx assistant-ui@latest create my-app --use-pnpm
+
+# Skip package installation
+npx assistant-ui@latest create my-app --skip-install
+```
+
+**Options**
+
+```bash
+Usage: assistant-ui create [project-directory] [options]
+
+create a new project
+
+Arguments:
+  project-directory         name of the project directory
+
+Options:
+  -t, --template <template>      template to use (default, minimal, cloud, cloud-clerk, langgraph, mcp)
+  -e, --example <example>        create from an example (e.g., with-langgraph)
+  -p, --preset <name-or-url>     preset name or URL (e.g., chatgpt)
+  --native                       create an Expo / React Native project
+  --ink                          create a React Ink terminal project
+  --use-npm                      explicitly use npm
+  --use-pnpm                     explicitly use pnpm
+  --use-yarn                     explicitly use yarn
+  --use-bun                      explicitly use bun
+  --skip-install                 skip installing packages
+  -h, --help                     display help for command
+```
+
+## add
+
+Use the `add` command to add individual components to your project.
+
+```bash
+npx assistant-ui@latest add [component]
+```
+
+The `add` command fetches components from the assistant-ui registry and adds them to your project. It automatically:
+- Installs required dependencies
+- Adds TypeScript types
+- Configures imports
+
+**Popular Components**
+
+```bash
+# Add the basic thread component
+npx assistant-ui add thread
+
+# Add thread list for multi-conversation support
+npx assistant-ui add thread-list
+
+# Add assistant modal
+npx assistant-ui add assistant-modal
+
+# Add multiple components at once
+npx assistant-ui add thread thread-list assistant-sidebar
+```
+
+**Options**
+
+```bash
+Usage: assistant-ui add [options] <components...>
+
+add a component to your project
+
+Arguments:
+  components             the components to add
+
+Options:
+  -y, --yes              skip confirmation prompt. (default: true)
+  -o, --overwrite        overwrite existing files. (default: false)
+  -c, --cwd <cwd>        the working directory. defaults to the current directory.
+  -p, --path <path>      the path to add the component to.
+  -h, --help             display help for command
+```
+
+## update
+
+Use the `update` command to update all `@assistant-ui/*` packages to their latest versions.
+
+```bash
+npx assistant-ui@latest update
+```
+
+This command:
+- Scans your `package.json` for assistant-ui packages
+- Updates them to the latest versions using your package manager
+- Preserves other dependencies
+
+**Examples**
+
+```bash
+# Update all assistant-ui packages
+npx assistant-ui update
+
+# Dry run to see what would be updated
+npx assistant-ui update --dry
+```
+
+**Options**
+
+```bash
+Usage: assistant-ui update [options]
+
+update all '@assistant-ui/*' packages to latest versions
+
+Options:
+  --dry          print the command instead of running it
+  -c, --cwd <cwd>  the working directory. defaults to the current directory.
+  -h, --help       display help for command
+```
+
+## upgrade
+
+Use the `upgrade` command to automatically migrate your codebase when there are breaking changes.
+
+```bash
+npx assistant-ui@latest upgrade
+```
+
+This command:
+- Runs codemods to transform your code
+- Updates import paths and API usage
+- Detects required dependency changes
+- Prompts to install new packages
+
+**What it does:**
+- Applies all available codemods sequentially
+- Shows progress bar with file count
+- Reports any transformation errors
+- Automatically detects and offers to install new dependencies
+
+**Example output:**
+
+```bash
+Starting upgrade...
+Found 24 files to process.
+Progress |████████████████████| 100% | ETA: 0s || Running v0-11/content-part-to-message-part...
+Checking for package dependencies...
+✅ Upgrade complete!
+```
+
+**Options**
+
+```bash
+Usage: assistant-ui upgrade [options]
+
+upgrade and apply codemods for breaking changes
+
+Options:
+  -d, --dry              dry run (no changes are made to files)
+  -p, --print            print transformed files to stdout
+  --verbose              show more information about the transform process
+  -j, --jscodeshift <options>  pass options directly to jscodeshift
+  -h, --help             display help for command
+```
+
+## codemod
+
+Use the `codemod` command to run a specific codemod transformation.
+
+```bash
+npx assistant-ui@latest codemod <codemod> <source>
+```
+
+This is useful when you want to run a specific migration rather than all available upgrades.
+
+**Examples**
+
+```bash
+# Run specific codemod on a directory
+npx assistant-ui codemod v0-11/content-part-to-message-part ./src
+
+# Run with dry run to preview changes
+npx assistant-ui codemod v0-11/content-part-to-message-part ./src --dry
+
+# Print transformed output
+npx assistant-ui codemod v0-11/content-part-to-message-part ./src --print
+```
+
+**Options**
+
+```bash
+Usage: assistant-ui codemod [options] <codemod> <source>
+
+run a specific codemod transformation
+
+Arguments:
+  codemod                codemod to run
+  source                 path to source files or directory to transform
+
+Options:
+  -d, --dry              dry run (no changes are made to files)
+  -p, --print            print transformed files to stdout
+  --verbose              show more information about the transform process
+  -j, --jscodeshift <options>  pass options directly to jscodeshift
+  -h, --help             display help for command
+```
+
+## mcp
+
+Use the `mcp` command to install the assistant-ui MCP docs server for your IDE.
+
+```bash
+npx assistant-ui@latest mcp
+```
+
+This command configures the [Model Context Protocol](/docs/llm#mcp) server, giving your AI assistant direct access to assistant-ui documentation.
+
+**Examples**
+
+```bash
+# Interactive - prompts to select IDE
+npx assistant-ui mcp
+
+# Install for specific IDE
+npx assistant-ui mcp --cursor
+npx assistant-ui mcp --windsurf
+npx assistant-ui mcp --vscode
+npx assistant-ui mcp --zed
+npx assistant-ui mcp --claude-code
+npx assistant-ui mcp --claude-desktop
+```
+
+**Options**
+
+```bash
+Usage: assistant-ui mcp [options]
+
+install assistant-ui MCP docs server for your IDE
+
+Options:
+  --cursor          install for Cursor
+  --windsurf        install for Windsurf
+  --vscode          install for VSCode
+  --zed             install for Zed
+  --claude-code     install for Claude Code
+  --claude-desktop  install for Claude Desktop
+  -h, --help        display help for command
+```
+
+## info
+
+Use the `info` command to print your environment and package versions for bug reports.
+
+```bash
+npx assistant-ui@latest info
+```
+
+This command collects and prints:
+- OS, Node.js version, package manager, and framework
+- All installed `@assistant-ui/*` and `assistant-*` package versions
+- Key ecosystem dependency versions (React, Next.js, AI SDK, etc.)
+- Peer dependency warnings if any mismatches are detected
+
+**Example output:**
+
+```
+Environment:
+  OS:               macOS 15.3 (arm64)
+  Node.js:          v22.14.0
+  Package Manager:  pnpm 10.32.1
+  Framework:        Next.js 15.3.1
+
+Packages:
+  @assistant-ui/react            0.12.15
+  @assistant-ui/react-ai-sdk     1.3.12
+  @assistant-ui/react-markdown   0.3.8
+  assistant-stream                0.2.14
+
+Ecosystem:
+  react      19.1.0
+  react-dom  19.1.0
+  next       15.3.1
+  ai         6.0.120
+```
+
+The output includes a copy-pasteable markdown block that you can paste directly into a [bug report](https://github.com/assistant-ui/assistant-ui/issues/new?template=bug_report.yml).
+
+**Options**
+
+```bash
+Usage: assistant-ui info [options]
+
+Print environment and package information for bug reports.
+
+Options:
+  -c, --cwd <cwd>  the working directory. defaults to the current directory.
+  -h, --help       display help for command
+```
+
+## Common Workflows
+
+### Starting a new project
+
+```bash
+# Create a new project with the default template
+npx assistant-ui@latest create my-chatbot
+
+# Navigate into the directory
+cd my-chatbot
+
+# Start development
+npm run dev
+```
+
+### Adding to existing project
+
+```bash
+# Initialize assistant-ui
+npx assistant-ui@latest init
+
+# Add additional components
+npx assistant-ui@latest add thread-list assistant-modal
+
+# Start development
+npm run dev
+```
+
+### Keeping up to date
+
+```bash
+# Check for updates (dry run)
+npx assistant-ui@latest update --dry
+
+# Update all packages
+npx assistant-ui@latest update
+
+# Run upgrade codemods if needed
+npx assistant-ui@latest upgrade
+```
+
+### Migrating versions
+
+```bash
+# Run automated migration
+npx assistant-ui@latest upgrade
+
+# Or run specific codemod
+npx assistant-ui@latest codemod v0-11/content-part-to-message-part ./src
+
+# Update packages after migration
+npx assistant-ui@latest update
+```
+
+## Component Registry
+
+The CLI pulls components from our public registry at [r.assistant-ui.com](https://r.assistant-ui.com).
+
+Each component includes:
+- Full TypeScript source code
+- All required dependencies
+- Tailwind CSS configuration
+- Usage examples
+
+Components are added directly to your project's source code, giving you full control to customize them.
+
+## Troubleshooting
+
+### Command not found
+
+If you get a "command not found" error, make sure you're using `npx`:
+
+```bash
+npx assistant-ui@latest init
+```
+
+### Permission errors
+
+On Linux/macOS, if you encounter permission errors:
+
+```bash
+sudo npx assistant-ui@latest init
+```
+
+Or fix npm permissions: https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally
+
+### Diagnosing issues
+
+When filing a bug report, run `npx assistant-ui info` to collect environment details:
+
+```bash
+npx assistant-ui info
+```
+
+Paste the output into the "Environment info" field of the [bug report template](https://github.com/assistant-ui/assistant-ui/issues/new?template=bug_report.yml).
+
+### Conflicting dependencies
+
+If you see dependency conflicts:
+
+```bash
+# Try with --force flag
+npm install --force
+
+# Or use legacy peer deps
+npm install --legacy-peer-deps
+```
+
+### Component already exists
+
+Use the `--overwrite` flag to replace existing components:
+
+```bash
+npx assistant-ui@latest add thread --overwrite
+```
+
+## Configuration
+
+The CLI respects your project's configuration:
+
+- **Package Manager**: Automatically detects npm, pnpm, yarn, or bun
+- **TypeScript**: Works with your `tsconfig.json` paths
+- **Tailwind**: Uses your `tailwind.config.js` settings
+- **Import Aliases**: Respects `components.json` or `assistant-ui.json` configuration

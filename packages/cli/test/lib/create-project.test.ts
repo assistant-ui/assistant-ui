@@ -213,6 +213,45 @@ describe("transformProject — hasLocalComponents: true", () => {
     expect(pkg.devDependencies["@assistant-ui/x-buildutils"]).toBeUndefined();
     expect(pkg.devDependencies.typescript).toBe("^5.0.0");
     expect(pkg.name).toBe(path.basename(testDir));
+    expect(
+      fs.existsSync(
+        path.join(testDir, ".agents", "skills", "assistant-ui", "SKILL.md"),
+      ),
+    ).toBe(true);
+    expect(fs.existsSync(path.join(testDir, ".agents", "README.md"))).toBe(
+      true,
+    );
+    expect(fs.existsSync(path.join(testDir, ".agents", "AGENTS.md"))).toBe(
+      true,
+    );
+    expect(fs.existsSync(path.join(testDir, ".agents", "CLAUDE.md"))).toBe(
+      true,
+    );
+    expect(readFile("README.md")).toContain(
+      "This project includes assistant-ui guidance for AI coding assistants at `.agents/skills/assistant-ui`.",
+    );
+  });
+
+  it("does not duplicate the README assistant guidance section", async () => {
+    writeJSON("package.json", {
+      name: "old-name",
+      dependencies: {
+        "@assistant-ui/react": "workspace:*",
+      },
+    });
+    writeFile(
+      "README.md",
+      "# Test\n\n<!-- assistant-ui-agent-skill:start -->\nExisting section\n<!-- assistant-ui-agent-skill:end -->\n",
+    );
+
+    await transformProject(testDir, {
+      ...defaultOpts,
+      hasLocalComponents: true,
+    });
+
+    const readme = readFile("README.md");
+    expect(readme.match(/assistant-ui-agent-skill:start/g)).toHaveLength(1);
+    expect(readme).toContain("Existing section");
   });
 });
 

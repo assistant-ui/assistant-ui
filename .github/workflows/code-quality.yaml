@@ -68,6 +68,31 @@ jobs:
       - name: Verify templates match packages/ui source
         run: bash scripts/sync-templates.sh
 
+  skills-docs-sync:
+    name: Skill Docs Sync
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify skill docs references are up to date
+        run: pnpm skills:check-docs
+
   build:
     name: Build Changed Packages
     runs-on: blacksmith-4vcpu-ubuntu-2404

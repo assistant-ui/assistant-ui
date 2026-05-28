@@ -1,167 +1,77 @@
 ---
 name: assistant-ui
-description: Add, configure, and integrate assistant-ui components in React apps. Use when developers ask to add a chat thread, set up a runtime, integrate with AI SDK, configure tools, or build AI chat interfaces with assistant-ui.
+description: Comprehensive assistant-ui framework guide for creating or modifying AI chat interfaces in React. Use for project setup, chat UI, runtimes, tools, tool UI, generative UI, CLI commands, docs lookup, migrations, and common architecture pitfalls.
+license: MIT
+metadata:
+  author: assistant-ui
+  version: "1.0.0"
+  repository: https://github.com/assistant-ui/assistant-ui
 ---
 
-# assistant-ui
+# assistant-ui Framework Guide
 
-Use this skill to help users build AI chat interfaces with assistant-ui.
+assistant-ui is a React library for building AI chat interfaces. It provides composable UI primitives and shadcn-based components, runtime adapters for AI backends, and optional Assistant Cloud persistence.
 
-## Step 1: Check Project Setup
+This skill teaches you how to find current assistant-ui documentation and create or modify assistant-ui applications: chat threads, composers, messages, runtimes, backend tools, visible tool UI, generative UI, thread lists, migrations, and CLI-based setup.
 
-Check if the project has `components.json` (shadcn config) and `@assistant-ui/react` installed.
+## Critical: Do not trust internal knowledge
 
-If assistant-ui is not yet set up, run:
+assistant-ui APIs, CLI commands, runtime adapters, and generated components can change between versions. Do not rely only on memory.
 
-```bash
-npx assistant-ui init --yes
-```
+If installed package APIs conflict with remote docs, trust the installed package version for implementation details.
 
-This initializes shadcn and installs the default assistant-ui chat components.
+## Prerequisites
 
-## Step 2: Add Components
-
-Install components via the shadcn registry:
+Before writing any assistant-ui code, check if packages are installed:
 
 ```bash
-npx shadcn@latest add "https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json"
+ls node_modules/@assistant-ui/
 ```
 
-Available component presets:
+- If assistant-ui packages are installed: use hosted docs and local modules to get info.
+- If packages are not installed: use the local references and remote docs to set up assistant-ui.
 
-| Preset | Registry URL |
-|--------|-------------|
-| AI SDK Quick Start | `https://r.assistant-ui.com/chat/b/ai-sdk-quick-start/json` |
+## Resources
 
-You can also add individual assistant-ui shadcn components:
+### References
 
-```bash
-npx shadcn@latest add assistant-ui/thread
-npx shadcn@latest add assistant-ui/markdown-text
-```
+| User Question | First Check | How To |
+| --- | --- | --- |
+| Create/install new project or add components, run commands | [`references/cli.md`](references/cli.md) | CLI commands and flags for init, create, add, update, upgrade, mcp, info |
+| How do I do X? | [`references/remote-docs.md`](references/remote-docs.md) | Fetch from `https://www.assistant-ui.com/llms.txt` to know more about assistant-ui |
+| Need the architecture mental model | [`references/architecture.md`](references/architecture.md) | Frontend components -> runtime -> backend/agent flow |
+| Upgrade or breaking-change guidance | [`references/migrations.md`](references/migrations.md) | Version upgrade workflows |
+| I am getting an error? | [`references/common-pitfalls.md`](references/common-pitfalls.md) | Known errors and solutions from evals |
 
-## Step 3: Runtime Setup
+## Core concepts
 
-assistant-ui requires a runtime. The most common setup uses AI SDK:
+Start with [`references/cli.md`](references/cli.md) for project setup, adding components, and running assistant-ui commands. Use  [`references/architecture.md`](references/architecture.md) for the mental model of how assistant-ui works on high level, concepts like runtimes, components, and backends connect. Use [`references/remote-docs.md`](references/remote-docs.md) to drill into specifics: runtimes, tools, generative UI, thread lists, and migration guides.
 
-### AI SDK Runtime (recommended)
 
-Install the integration package:
-```bash
-npm install @assistant-ui/react-ai-sdk
-```
+## When you see errors
 
-Create a chat API route (Next.js App Router):
+Type errors often mean your knowledge is outdated.
 
-```ts
-// app/api/chat/route.ts
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
+Common signs:
 
-export const maxDuration = 30;
+- `Property X does not exist on type Y`
+- `Cannot find module`
+- `Type mismatch` errors
+- Constructor parameter errors
 
-export async function POST(req: Request) {
-  const { messages, config } = await req.json();
+What to do:
 
-  const result = streamText({
-    model: openai("gpt-5.4-nano"),
-    messages,
-    ...config,
-  });
+1. Check [`references/common-pitfalls.md`](references/common-pitfalls.md)
+2. Verify current API in installed package files or hosted docs
+3. Don't assume the error is a user mistake - it might be your outdated knowledge
 
-  return result.toDataStreamResponse();
-}
-```
+## Development workflow
 
-Create the assistant component:
+Always verify before writing code:
 
-```tsx
-"use client";
-
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
-import { Thread } from "@/components/assistant-ui/thread";
-
-export const Assistant = () => {
-  const runtime = useChatRuntime({
-    api: "/api/chat",
-  });
-
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <Thread />
-    </AssistantRuntimeProvider>
-  );
-};
-```
-
-## Step 4: Tools (optional)
-
-To add tool calling support, define tools on the backend and render them on the frontend:
-
-### Backend tool (AI SDK):
-
-```ts
-import { streamText, tool } from "ai";
-import { z } from "zod";
-
-const result = streamText({
-  model: openai("gpt-5.4-nano"),
-  messages,
-  tools: {
-    get_weather: tool({
-      description: "Get weather for a location",
-      parameters: z.object({
-        location: z.string(),
-      }),
-      execute: async ({ location }) => {
-        return { temperature: 72, condition: "sunny", location };
-      },
-    }),
-  },
-});
-```
-
-### Frontend tool UI:
-
-```tsx
-"use client";
-
-import { makeAssistantToolUI } from "@assistant-ui/react";
-
-export const WeatherToolUI = makeAssistantToolUI({
-  toolName: "get_weather",
-  render: ({ args, result }) => {
-    return (
-      <div>
-        <p>Weather for {args?.location}</p>
-        {result && <p>{result.temperature}F, {result.condition}</p>}
-      </div>
-    );
-  },
-});
-```
-
-Register the tool UI in your assistant component:
-
-```tsx
-<AssistantRuntimeProvider runtime={runtime}>
-  <WeatherToolUI />
-  <Thread />
-</AssistantRuntimeProvider>
-```
-
-## Key Packages
-
-| Package | Purpose |
-|---------|---------|
-| `@assistant-ui/react` | Core React components and primitives |
-| `@assistant-ui/react-ai-sdk` | Vercel AI SDK integration |
-| `@assistant-ui/react-markdown` | Markdown rendering |
-| `@assistant-ui/react-syntax-highlighter` | Code highlighting |
-| `@assistant-ui/ui` | Pre-built shadcn/ui component set |
-| `@assistant-ui/styles` | Pre-built CSS for non-Tailwind users |
-
-## Environment Variables
-
-For OpenAI-based setups, ensure `OPENAI_API_KEY` is set in `.env.local`.
+1. Check whether assistant-ui packages are installed
+2. Look up the current API
+   - If installed: understand architecture [`references/architecture.md`](references/architecture.md), remote docs [`references/remote-docs.md`](references/remote-docs.md), and then inspect local package source and types in `node_modules/@assistant-ui/`
+   - If not installed: understand architecture [`references/architecture.md`](references/architecture.md), use remote docs [`references/remote-docs.md`](references/remote-docs.md)
+3. Use CLI commands from [`references/cli.md`](references/cli.md); never guess flags
+4. Write code based on current docs, preserving existing runtime and component architecture

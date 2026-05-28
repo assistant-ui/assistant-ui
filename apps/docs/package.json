@@ -9,6 +9,8 @@
     "generate:reference-docs": "tsx ./scripts/generate-reference-docs.mts",
     "generate:source-snapshot": "tsx ./scripts/generate-source-snapshot.mts",
     "generate:all": "pnpm generate:reference-docs && pnpm generate:source-snapshot",
+    "skills:sync-docs": "tsx ./scripts/sync-skills-docs.mts",
+    "skills:check-docs": "tsx ./scripts/sync-skills-docs.mts --check",
     "start": "next start",
     "postinstall": "fumadocs-mdx"
   },

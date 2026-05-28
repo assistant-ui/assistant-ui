@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { downloadTemplate } from "giget";
 import { sync as globSync } from "glob";
 import { detect } from "detect-package-manager";
+import { installGeneratedAppAgentSkill } from "./agent-skill";
 import { logger } from "./utils/logger";
 import { runSpawn, SpawnExitError } from "./run-spawn";
 
@@ -194,6 +195,9 @@ export async function transformProject(
 ): Promise<void> {
   logger.step("Transforming package.json...");
   transformPackageJson(projectDir);
+
+  logger.step("Installing assistant-ui agent skill...");
+  installGeneratedAppAgentSkill(projectDir);
 
   let assistantUI: string[] | undefined;
   let shadcnUI: string[] | undefined;
