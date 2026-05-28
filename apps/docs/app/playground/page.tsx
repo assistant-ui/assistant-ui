@@ -274,7 +274,6 @@ export default function PlaygroundPage() {
           >
             <div className="flex h-full items-stretch justify-center p-2 md:p-4">
               {viewportWidth !== "100%" && (
-                // biome-ignore lint/a11y/noStaticElementInteractions: resize drag handle
                 <div
                   onMouseDown={(e) => handleResizeStart(e, "left")}
                   className="group hidden w-4 shrink-0 cursor-ew-resize items-center justify-center md:flex"
@@ -311,7 +310,6 @@ export default function PlaygroundPage() {
               </div>
 
               {viewportWidth !== "100%" && (
-                // biome-ignore lint/a11y/noStaticElementInteractions: resize drag handle
                 <div
                   onMouseDown={(e) => handleResizeStart(e, "right")}
                   className="group hidden w-4 shrink-0 cursor-ew-resize items-center justify-center md:flex"

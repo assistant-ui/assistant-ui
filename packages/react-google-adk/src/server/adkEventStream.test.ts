@@ -50,7 +50,6 @@ describe("adkEventStream", () => {
   });
 
   it("emits an error event when the generator throws", async () => {
-    // biome-ignore lint/correctness/useYield: intentionally throws before yielding
     async function* throwingGen() {
       throw new Error("Test error");
     }
@@ -67,7 +66,6 @@ describe("adkEventStream", () => {
 
   it("calls onError callback when the generator throws", async () => {
     const onError = vi.fn();
-    // biome-ignore lint/correctness/useYield: intentionally throws before yielding
     async function* throwingGen() {
       throw new Error("Test error");
     }

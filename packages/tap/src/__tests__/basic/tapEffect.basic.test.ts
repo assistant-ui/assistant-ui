@@ -107,7 +107,6 @@ describe("tapEffect - Basic Functionality", () => {
       ];
 
       const testFiber = createTestResource(() => {
-        // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
         effects.forEach((fn) => tapEffect(fn));
         return null;
       });
@@ -135,7 +134,6 @@ describe("tapEffect - Basic Functionality", () => {
         }, []);
 
         // Effect with deps - runs when deps change
-        // biome-ignore lint/correctness/useExhaustiveDependencies: test
         tapEffect(() => {
           effectCalls.conditional++;
         }, [props.value]);

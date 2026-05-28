@@ -367,7 +367,6 @@ const ClaudeAttachment: FC = () => {
         style={{ width: "80px", height: "80px" }}
       >
         {isImage && src ? (
-          // biome-ignore lint/performance/noImgElement: example component
           <img
             className="h-full w-full object-cover"
             alt="Attachment"

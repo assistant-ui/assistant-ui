@@ -45,7 +45,6 @@ export function Composer({
           placeholder="Send a message..."
           className="placeholder:text-muted-foreground max-h-32 min-h-8 flex-1 resize-none bg-transparent py-1 text-sm leading-normal outline-none"
           rows={1}
-          // biome-ignore lint/a11y/noAutofocus: chat input should autofocus
           autoFocus
         />
         {isRunning ? (

@@ -590,20 +590,17 @@ describe("useLangGraphRuntime", () => {
     let initResult:
       | { remoteId: string; externalId: string | undefined }
       | undefined;
-    const streamMock = vi.fn().mockImplementation(
-      // biome-ignore lint/correctness/useYield: empty stream — only used to await initialize
-      async function* (
-        _messages: LangChainMessage[],
-        config: {
-          initialize: () => Promise<{
-            remoteId: string;
-            externalId: string | undefined;
-          }>;
-        },
-      ) {
-        initResult = await config.initialize();
+    const streamMock = vi.fn().mockImplementation(async function* (
+      _messages: LangChainMessage[],
+      config: {
+        initialize: () => Promise<{
+          remoteId: string;
+          externalId: string | undefined;
+        }>;
       },
-    );
+    ) {
+      initResult = await config.initialize();
+    });
 
     const { result: runtimeResult } = renderHook(() =>
       useLangGraphRuntime({

@@ -316,7 +316,6 @@ const GeminiAttachment: FC = () => {
     <AttachmentPrimitive.Root className="group/thumbnail relative">
       <div className="size-[72px] overflow-hidden rounded-xl border border-[#dadce0] bg-[#f1f3f4] dark:border-[#3c4043] dark:bg-[#282a2c]">
         {isImage && src ? (
-          // biome-ignore lint/performance/noImgElement: example component
           <img className="size-full object-cover" alt="Attachment" src={src} />
         ) : (
           <div className="flex size-full items-center justify-center text-[#5e6063] dark:text-[#9aa0a6]">

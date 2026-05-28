@@ -49,7 +49,6 @@ export const setRootVersion = (
         root.changelog.pop();
       }
 
-      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       root.changelog.forEach((apply) => apply());
       commitRoot(root);
     }

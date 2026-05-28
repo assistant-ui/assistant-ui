@@ -86,7 +86,6 @@ describe("RemoteThreadList isLoading lifecycle", () => {
     state.optimisticUpdate({
       execute: () => d.promise,
       loading: (s) => ({ ...s, isLoading: true }),
-      // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
       then: applyListResult,
     });
 
@@ -100,7 +99,6 @@ describe("RemoteThreadList isLoading lifecycle", () => {
     const promise = state.optimisticUpdate({
       execute: () => d.promise,
       loading: (s) => ({ ...s, isLoading: true }),
-      // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
       then: applyListResult,
     });
 
@@ -117,7 +115,6 @@ describe("RemoteThreadList isLoading lifecycle", () => {
     const promise = state.optimisticUpdate({
       execute: () => d.promise,
       loading: (s) => ({ ...s, isLoading: true }),
-      // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
       then: applyListResult,
     });
 
@@ -142,7 +139,6 @@ describe("RemoteThreadList isLoading lifecycle", () => {
     const promise = state.optimisticUpdate({
       execute: () => d.promise,
       loading: (s) => ({ ...s, isLoading: true }),
-      // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
       then: applyListResult,
     });
 
@@ -166,7 +162,6 @@ describe("RemoteThreadList isLoading error path", () => {
       .optimisticUpdate({
         execute: () => d.promise,
         loading: (s) => ({ ...s, isLoading: true }),
-        // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
         then: applyListResult,
       })
       .catch(() => {

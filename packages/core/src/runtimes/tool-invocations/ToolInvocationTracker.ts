@@ -446,7 +446,6 @@ export class ToolInvocationTracker {
 
     if (this._executing.size === 0) {
       const resolvers = this._settledResolvers.splice(0);
-      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       resolvers.forEach((resolve) => {
         try {
           resolve();

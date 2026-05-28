@@ -551,7 +551,6 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         const [count, setCount] = tapState(0);
         events.push(`render count=${count}`);
 
-        // biome-ignore lint/correctness/useExhaustiveDependencies: testing strict mode behavior with intentionally incomplete deps
         tapEffect(() => {
           effectRunCount++;
           events.push(`effect mount #${effectRunCount} count=${count}`);
@@ -598,7 +597,6 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         const [count, setCount] = tapState(0);
         events.push(`render count=${count}`);
 
-        // biome-ignore lint/correctness/useExhaustiveDependencies: testing strict mode behavior with intentionally incomplete deps
         tapEffect(() => {
           effectRunCount++;
           events.push(`effect mount #${effectRunCount} count=${count}`);
@@ -644,7 +642,6 @@ describe("Tap Strict Mode - Rerender Sources", () => {
         const [count, setCount] = tapState(0);
         events.push(`render count=${count}`);
 
-        // biome-ignore lint/correctness/useExhaustiveDependencies: testing strict mode behavior with intentionally incomplete deps
         tapEffect(() => {
           effectRunCount++;
           events.push(`effect mount #${effectRunCount} count=${count}`);

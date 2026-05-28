@@ -39,7 +39,6 @@ const createTestAuiClient = () => {
     update: (next: Partial<typeof itemState>) => {
       itemState = { ...itemState, ...next };
       proxiedState.item = itemState;
-      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       listeners.forEach((listener) => listener());
     },
   };

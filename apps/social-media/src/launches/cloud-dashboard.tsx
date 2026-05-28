@@ -60,7 +60,6 @@ export default function CloudDashboardLaunch() {
           top: "220px",
         }}
       >
-        {/* biome-ignore lint/performance/noImgElement: next/image not applicable here */}
         <img
           alt=""
           src={screenshotBase64}
