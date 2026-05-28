@@ -84,7 +84,7 @@ This is the same model as React's `key` prop on list elements.
 
 ## tapResourceRoot
 
-`tapResourceRoot` returns a stable `{ getValue, subscribe }` handle instead of the child's value directly. The parent doesn't re-render when the child updates — consumers subscribe to changes instead. See [Trees & Re-renders](/tap/docs/trees-and-rerenders) for why this matters.
+`tapResourceRoot` returns a stable `{ getValue, subscribe }` handle instead of the child's value directly. The parent doesn't re-render when the child updates — consumers subscribe to changes instead. See [Trees & Re-renders](/tap/docs/tap/trees-and-rerenders) for why this matters.
 
 ```ts
 const counter = tapResourceRoot(Counter());
