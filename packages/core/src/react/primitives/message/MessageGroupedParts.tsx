@@ -6,6 +6,7 @@ import { useShallow } from "zustand/shallow";
 import type { PartState } from "../../../store/scopes/part";
 import type {
   MessagePartStatus,
+  MessageStatus,
   ToolCallMessagePartStatus,
 } from "../../../types/message";
 import {
@@ -28,13 +29,40 @@ export namespace MessagePrimitiveGroupedParts {
     readonly indices: readonly number[];
   };
 
+  /**
+   * Synthetic trailing slot for status/loading UI (a "thinking…"
+   * indicator, an empty-message placeholder, etc.). Surfaced through the
+   * same `{ part }` channel as groups and leaf parts so a single
+   * `switch (part.type)` renders it via `case "indicator"`.
+   *
+   * Unlike a real part it has no underlying {@link PartState}; only
+   * `status`, which mirrors the message's running/complete/incomplete
+   * state. Emission is controlled by the `indicator` prop.
+   */
+  export type IndicatorPart = {
+    readonly type: "indicator";
+    readonly status: MessagePartStatus;
+  };
+
+  /**
+   * When to emit the synthetic {@link IndicatorPart}:
+   * - `"never"` — never.
+   * - `"empty"` — only when the message has no parts.
+   * - `"no-text"` (default) — when the message has parts but the last one
+   *   isn't `text`/`reasoning` (e.g. it ended on a tool call, so the
+   *   assistant likely isn't done). Does **not** fire on empty messages.
+   * - `"always"` — after every render, regardless of parts.
+   */
+  export type IndicatorMode = "never" | "empty" | "no-text" | "always";
+
   export type RenderInfo<TKey extends `group-${string}` = `group-${string}`> = {
     /**
      * Either a coalesced group ({@link GroupPart}, identified by a
-     * `group-…` `type`) or a single enriched part. Use one switch over
-     * `part.type` to handle both.
+     * `group-…` `type`), a single enriched leaf part, or the synthetic
+     * {@link IndicatorPart} (`type: "indicator"`). Use one switch over
+     * `part.type` to handle all three.
      */
-    readonly part: GroupPart<TKey> | EnrichedPartState;
+    readonly part: GroupPart<TKey> | EnrichedPartState | IndicatorPart;
     /**
      * For group nodes: the recursively-rendered subtree (subgroups +
      * leaf parts). For leaf parts: a sentinel that throws when rendered
@@ -74,9 +102,21 @@ export namespace MessagePrimitiveGroupedParts {
     readonly groupBy: (part: PartState) => readonly TKey[] | null;
 
     /**
-     * Render function called once per group node and once per leaf part.
-     * Switch on `part.type`: `"group-…"` cases wrap `children`; real
-     * part types (`"text"`, `"tool-call"`, …) render the part directly.
+     * Controls emission of the synthetic {@link IndicatorPart} — a
+     * trailing `{ part: { type: "indicator", status } }` render call you
+     * handle with `case "indicator"` to show loading/status UI.
+     *
+     * @default "no-text"
+     * @see IndicatorMode
+     */
+    readonly indicator?: IndicatorMode;
+
+    /**
+     * Render function called once per group node, once per leaf part, and
+     * (when the `indicator` condition is met) once for the trailing
+     * {@link IndicatorPart}. Switch on `part.type`: `"group-…"` cases wrap
+     * `children`; real part types (`"text"`, `"tool-call"`, …) render the
+     * part directly; `"indicator"` renders status/loading UI.
      *
      * Leaf parts receive the same {@link EnrichedPartState} that
      * `<MessagePrimitive.Parts>` would produce (`toolUI`, `addResult`,
@@ -87,6 +127,51 @@ export namespace MessagePrimitiveGroupedParts {
 }
 
 const COMPLETE_STATUS: MessagePartStatus = Object.freeze({ type: "complete" });
+const RUNNING_STATUS: MessagePartStatus = Object.freeze({ type: "running" });
+
+/**
+ * Project the message-level {@link MessageStatus} onto the part-level
+ * {@link MessagePartStatus} carried by the indicator. `requires-action`
+ * (waiting on a tool/human) reads as still-running; the message-only
+ * `tool-calls` incomplete reason collapses to `"other"`.
+ */
+const toIndicatorStatus = (
+  status: MessageStatus | undefined,
+): MessagePartStatus => {
+  switch (status?.type) {
+    case "running":
+    case "requires-action":
+      return RUNNING_STATUS;
+    case "incomplete":
+      return {
+        type: "incomplete",
+        reason: status.reason === "tool-calls" ? "other" : status.reason,
+        error: status.error,
+      };
+    default:
+      return COMPLETE_STATUS;
+  }
+};
+
+const shouldShowIndicator = (
+  mode: MessagePrimitiveGroupedParts.IndicatorMode,
+  parts: readonly PartState[],
+): boolean => {
+  switch (mode) {
+    case "never":
+      return false;
+    case "always":
+      return true;
+    case "empty":
+      return parts.length === 0;
+    case "no-text": {
+      const last = parts[parts.length - 1];
+      return (
+        last !== undefined && last.type !== "text" && last.type !== "reasoning"
+      );
+    }
+  }
+};
 
 /**
  * `children` placeholder passed for leaf-part renders. Leaf parts have no
@@ -161,6 +246,7 @@ const renderNode = <TKey extends `group-${string}`>(
  *       case "group-tool":      return <ToolStack>{children}</ToolStack>;
  *       case "text":            return <MarkdownText />;
  *       case "tool-call":       return part.toolUI ?? <ToolFallback {...part} />;
+ *       case "indicator":       return part.status.type === "running" ? <LoadingDots /> : null;
  *       default:                return null;
  *     }
  *   }}
@@ -169,9 +255,11 @@ const renderNode = <TKey extends `group-${string}`>(
  */
 export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
   groupBy,
+  indicator = "no-text",
   children,
 }: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode => {
   const parts = useAuiState(useShallow((s) => s.message.parts));
+  const messageStatus = useAuiState((s) => s.message.status);
 
   // Helpers like `groupPartByType` tag the function with `GROUPBY_MEMO_KEY`
   // (a stable string fingerprint of the helper config). When present,
@@ -188,7 +276,22 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
     [parts, memoDep],
   );
 
-  return <>{tree.map((node) => renderNode(node, parts, children))}</>;
+  return (
+    <>
+      {tree.map((node) => renderNode(node, parts, children))}
+      {shouldShowIndicator(indicator, parts) && (
+        <Fragment key="indicator">
+          {children({
+            part: {
+              type: "indicator",
+              status: toIndicatorStatus(messageStatus),
+            },
+            children: <PartChildrenSentinel />,
+          })}
+        </Fragment>
+      )}
+    </>
+  );
 };
 
 MessagePrimitiveGroupedParts.displayName = "MessagePrimitive.GroupedParts";
