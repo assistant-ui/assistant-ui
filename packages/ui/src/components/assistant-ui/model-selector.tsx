@@ -4,6 +4,7 @@ import {
   memo,
   useState,
   useEffect,
+  useMemo,
   createContext,
   useContext,
   type ComponentPropsWithoutRef,
@@ -68,8 +69,9 @@ function ModelSelectorRoot({
   ...selectProps
 }: ModelSelectorRootProps) {
   const defaultValue = defaultValueProp ?? models[0]?.id;
+  const contextValue = useMemo(() => ({ models, value }), [models, value]);
   return (
-    <ModelSelectorContext.Provider value={{ models, value }}>
+    <ModelSelectorContext.Provider value={contextValue}>
       <SelectRoot
         {...(defaultValue !== undefined ? { defaultValue } : undefined)}
         {...(value !== undefined ? { value } : undefined)}

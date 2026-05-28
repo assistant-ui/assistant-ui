@@ -13,6 +13,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type FC,
   type ReactNode,
@@ -125,15 +126,18 @@ function ContextDisplayRootBase({
   const totalTokens = tokenState.totalTokens;
   const percent = getUsagePercent(totalTokens, modelContextWindow);
 
+  const contextValue = useMemo(
+    () => ({
+      usage: tokenState.usage,
+      totalTokens,
+      percent,
+      modelContextWindow,
+    }),
+    [tokenState.usage, totalTokens, percent, modelContextWindow],
+  );
+
   return (
-    <ContextDisplayContext.Provider
-      value={{
-        usage: tokenState.usage,
-        totalTokens,
-        percent,
-        modelContextWindow,
-      }}
-    >
+    <ContextDisplayContext.Provider value={contextValue}>
       <Tooltip>{children}</Tooltip>
     </ContextDisplayContext.Provider>
   );
