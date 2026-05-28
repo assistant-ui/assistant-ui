@@ -10,7 +10,7 @@ import type {
 export type A2uiContextValue = {
   surfaceManager: SurfaceManager;
   dataStore: SurfaceDataStore;
-  components: Record<string, A2uiComponentRenderer>;
+  getComponent: (type: string) => A2uiComponentRenderer | undefined;
   onAction: (action: A2uiAction) => void;
   processMessage: (msg: A2uiServerMessage) => void;
 };

@@ -17,10 +17,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    },
-    "./ag-ui": {
-      "types": "./dist/bridge/ag-ui-bridge.d.ts",
-      "default": "./dist/bridge/ag-ui-bridge.js"
     }
   },
   "main": "./dist/index.js",
@@ -35,9 +31,6 @@
     "build": "aui-build",
     "test": "vitest run",
     "test:watch": "vitest"
-  },
-  "dependencies": {
-    "@assistant-ui/core": "^0.1.13"
   },
   "peerDependencies": {
     "@types/react": "*",

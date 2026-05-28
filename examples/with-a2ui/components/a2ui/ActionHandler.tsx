@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { useA2ui } from "@assistant-ui/react-a2ui";
+import { useA2uiRuntime } from "@assistant-ui/react-a2ui";
 import type { A2uiAction, A2uiServerMessage } from "@assistant-ui/react-a2ui";
 
 function handleRestaurantAction(
@@ -145,7 +145,7 @@ function handleTaskAction(
 }
 
 export function useActionHandler() {
-  const { processMessage } = useA2ui();
+  const { processMessage } = useA2uiRuntime();
 
   return useCallback(
     (action: A2uiAction) => {

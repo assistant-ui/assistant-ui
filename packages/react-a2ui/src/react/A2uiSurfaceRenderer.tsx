@@ -36,10 +36,7 @@ const SingleSurface = ({
   if (!surface) return null;
 
   return (
-    <div
-      data-a2ui-surface={surfaceId}
-      {...(className !== undefined ? { className } : {})}
-    >
+    <div data-a2ui-surface={surfaceId} className={className}>
       {roots.map((def) => (
         <A2uiComponent
           key={def.id}
@@ -60,7 +57,7 @@ const AllSurfaces = ({ className }: { className?: string }) => {
         <SingleSurface
           key={surface.surfaceId}
           surfaceId={surface.surfaceId}
-          {...(className !== undefined ? { className } : {})}
+          className={className}
         />
       ))}
     </>
@@ -71,13 +68,8 @@ export const A2uiSurfaceRenderer = ({
   surfaceId,
   className,
 }: A2uiSurfaceRendererProps) => {
-  if (surfaceId) {
-    return (
-      <SingleSurface
-        surfaceId={surfaceId}
-        {...(className !== undefined ? { className } : {})}
-      />
-    );
+  if (surfaceId !== undefined) {
+    return <SingleSurface surfaceId={surfaceId} className={className} />;
   }
-  return <AllSurfaces {...(className !== undefined ? { className } : {})} />;
+  return <AllSurfaces className={className} />;
 };

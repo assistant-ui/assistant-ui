@@ -94,11 +94,26 @@ describe("SurfaceDataStore", () => {
     expect(store.getData("s1", "/name")).toBeUndefined();
   });
 
-  it("should not notify listeners for a deleted surface", () => {
+  it("should notify listeners when a surface is deleted", () => {
+    const store = new SurfaceDataStore();
+    store.setData("s1", "/name", "Tokyo");
+    const nameListener = vi.fn();
+    const rootListener = vi.fn();
+    store.subscribe("s1", "/name", nameListener);
+    store.subscribe("s1", "/", rootListener);
+
+    store.deleteSurface("s1");
+    expect(nameListener).toHaveBeenCalledTimes(1);
+    expect(rootListener).toHaveBeenCalledTimes(1);
+    expect(store.getData("s1", "/name")).toBeUndefined();
+  });
+
+  it("should not notify dropped listeners on writes after deletion", () => {
     const store = new SurfaceDataStore();
     const listener = vi.fn();
     store.subscribe("s1", "/name", listener);
     store.deleteSurface("s1");
+    listener.mockClear();
 
     store.setData("s1", "/name", "new");
     expect(listener).toHaveBeenCalledTimes(0);

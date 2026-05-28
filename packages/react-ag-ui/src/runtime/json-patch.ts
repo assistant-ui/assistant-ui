@@ -14,6 +14,13 @@ function parsePath(path: string): string[] {
     .map((s) => s.replace(/~1/g, "/").replace(/~0/g, "~"));
 }
 
+function requireFrom(patch: JsonPatchOp): string {
+  if (typeof patch.from !== "string") {
+    throw new Error(`'${patch.op}' op requires a 'from' string pointer`);
+  }
+  return patch.from;
+}
+
 function getParentAndKey(
   doc: any,
   segments: string[],
@@ -39,10 +46,20 @@ function getValue(doc: any, segments: string[]): unknown {
   return current;
 }
 
+function addAt(parent: any, key: string, value: unknown): void {
+  if (Array.isArray(parent)) {
+    if (key === "-") parent.push(value);
+    else parent.splice(Number(key), 0, value);
+  } else {
+    parent[key] = value;
+  }
+}
+
 export function applyJsonPatch(
   doc: unknown,
   patches: readonly JsonPatchOp[],
 ): unknown {
+  if (patches.length === 0) return doc;
   let result = structuredClone(doc);
 
   for (const patch of patches) {
@@ -54,13 +71,7 @@ export function applyJsonPatch(
           result = patch.value;
         } else {
           const { parent, key } = getParentAndKey(result, segments);
-          if (Array.isArray(parent) && key === "-") {
-            parent.push(patch.value);
-          } else if (Array.isArray(parent)) {
-            parent.splice(Number(key), 0, patch.value);
-          } else {
-            parent[key] = patch.value;
-          }
+          addAt(parent, key, patch.value);
         }
         break;
       }
@@ -87,12 +98,12 @@ export function applyJsonPatch(
         break;
       }
       case "move": {
-        const fromSegments = parsePath(patch.from!);
-        const value = getValue(result, fromSegments);
+        const fromSegments = parsePath(requireFrom(patch));
         const { parent: fromParent, key: fromKey } = getParentAndKey(
           result,
           fromSegments,
         );
+        const value = fromParent[fromKey];
         if (Array.isArray(fromParent)) {
           fromParent.splice(Number(fromKey), 1);
         } else {
@@ -102,18 +113,18 @@ export function applyJsonPatch(
           result = value;
         } else {
           const { parent, key } = getParentAndKey(result, segments);
-          parent[key] = value;
+          addAt(parent, key, value);
         }
         break;
       }
       case "copy": {
-        const fromSegments = parsePath(patch.from!);
+        const fromSegments = parsePath(requireFrom(patch));
         const value = structuredClone(getValue(result, fromSegments));
         if (segments.length === 0) {
           result = value;
         } else {
           const { parent, key } = getParentAndKey(result, segments);
-          parent[key] = value;
+          addAt(parent, key, value);
         }
         break;
       }

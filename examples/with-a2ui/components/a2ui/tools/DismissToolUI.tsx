@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { useA2ui } from "@assistant-ui/react-a2ui";
+import { useA2uiRuntime } from "@assistant-ui/react-a2ui";
 
 type DismissResult = { dismissed: string };
 
@@ -12,7 +12,7 @@ export const DismissToolUI = makeAssistantToolUI<
 >({
   toolName: "dismiss_surface",
   render: ({ result }) => {
-    const { processMessage } = useA2ui();
+    const { processMessage } = useA2uiRuntime();
     const dismissed = useRef(false);
 
     useEffect(() => {

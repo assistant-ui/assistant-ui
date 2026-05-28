@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { useA2ui } from "@assistant-ui/react-a2ui";
+import { useA2uiRuntime } from "@assistant-ui/react-a2ui";
 import { dismissOtherSurfaces } from "./surface-utils";
 
 type QuizResult = {
@@ -16,17 +16,16 @@ type QuizResult = {
 export const QuizToolUI = makeAssistantToolUI<{ topic: string }, QuizResult>({
   toolName: "start_quiz",
   render: ({ result }) => {
-    const { processMessage } = useA2ui();
+    const { processMessage } = useA2uiRuntime();
     const created = useRef(false);
 
     useEffect(() => {
       if (!result || created.current) return;
+      const q = result.questions[0];
+      if (!q) return;
       created.current = true;
 
       dismissOtherSurfaces(processMessage, "quiz");
-      const q = result.questions[0];
-      if (!q) return;
-
       processMessage({ type: "createSurface", surfaceId: "quiz" });
       processMessage({
         type: "updateComponents",

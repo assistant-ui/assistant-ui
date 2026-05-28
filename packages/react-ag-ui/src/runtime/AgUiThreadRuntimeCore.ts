@@ -738,11 +738,15 @@ export class AgUiThreadRuntimeCore {
         return;
       }
       case "STATE_DELTA": {
-        this.stateSnapshot = applyJsonPatch(
-          this.stateSnapshot,
-          event.delta,
-        ) as ReadonlyJSONValue;
-        this.notifyUpdate();
+        try {
+          this.stateSnapshot = applyJsonPatch(
+            this.stateSnapshot,
+            event.delta,
+          ) as ReadonlyJSONValue;
+          this.notifyUpdate();
+        } catch (error) {
+          this.logger.error?.("[agui] failed to apply state delta", error);
+        }
         return;
       }
       case "MESSAGES_SNAPSHOT": {

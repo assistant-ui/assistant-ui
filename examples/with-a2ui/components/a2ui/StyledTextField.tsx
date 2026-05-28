@@ -29,7 +29,7 @@ export const StyledTextField = ({
   );
 
   useEffect(() => {
-    if (boundValue != null) setLocalValue(String(boundValue));
+    setLocalValue(boundValue != null ? String(boundValue) : "");
   }, [boundValue]);
 
   const inputId = `textfield-${def.id}`;
@@ -38,7 +38,7 @@ export const StyledTextField = ({
       {label && (
         <label
           htmlFor={inputId}
-          className="mb-1.5 block font-medium text-foreground text-sm"
+          className="text-foreground mb-1.5 block text-sm font-medium"
         >
           {label}
         </label>
@@ -47,7 +47,7 @@ export const StyledTextField = ({
         id={inputId}
         type="text"
         placeholder={placeholder}
-        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground text-sm transition-colors placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
+        className="border-input bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring/20 w-full rounded-lg border px-3 py-2 text-sm transition-colors focus:ring-2 focus:outline-none"
         value={localValue}
         onChange={(e) => {
           setLocalValue(e.target.value);

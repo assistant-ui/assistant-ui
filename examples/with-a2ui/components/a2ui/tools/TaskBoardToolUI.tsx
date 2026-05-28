@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { useA2ui } from "@assistant-ui/react-a2ui";
+import { useA2uiRuntime } from "@assistant-ui/react-a2ui";
 import { dismissOtherSurfaces } from "./surface-utils";
 
 type TaskItem = {
@@ -24,7 +24,7 @@ export const TaskBoardToolUI = makeAssistantToolUI<
 >({
   toolName: "create_task_board",
   render: ({ result }) => {
-    const { processMessage } = useA2ui();
+    const { processMessage } = useA2uiRuntime();
     const created = useRef(false);
 
     useEffect(() => {

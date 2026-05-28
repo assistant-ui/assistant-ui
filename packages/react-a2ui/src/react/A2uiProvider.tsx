@@ -31,11 +31,17 @@ export const A2uiProvider = ({
   }
   const dataStore = dataStoreRef.current;
 
-  const handleAction = useCallback(
-    (action: A2uiAction) => {
-      onAction?.(action);
-    },
-    [onAction],
+  const onActionRef = useRef(onAction);
+  onActionRef.current = onAction;
+  const handleAction = useCallback((action: A2uiAction) => {
+    onActionRef.current?.(action);
+  }, []);
+
+  const componentsRef = useRef(userComponents);
+  componentsRef.current = userComponents;
+  const getComponent = useCallback(
+    (type: string) => componentsRef.current[type],
+    [],
   );
 
   const processMessage = useCallback(
@@ -63,11 +69,11 @@ export const A2uiProvider = ({
     () => ({
       surfaceManager,
       dataStore,
-      components: userComponents,
+      getComponent,
       onAction: handleAction,
       processMessage,
     }),
-    [surfaceManager, dataStore, userComponents, handleAction, processMessage],
+    [surfaceManager, dataStore, getComponent, handleAction, processMessage],
   );
 
   return (

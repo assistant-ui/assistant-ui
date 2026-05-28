@@ -79,16 +79,16 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
 <Step>
 ### Connect your transport
 
-Use `useA2ui()` to get `processMessage` and feed A2UI events from any source.
+Use `useA2uiRuntime()` to get `processMessage` and feed A2UI events from any source.
 
 ```tsx title="app/AgentUI.tsx"
 "use client";
 
 import { useEffect } from "react";
-import { useA2ui } from "@assistant-ui/react-a2ui";
+import { useA2uiRuntime } from "@assistant-ui/react-a2ui";
 
 export function AgentUI() {
-  const { processMessage } = useA2ui();
+  const { processMessage } = useA2uiRuntime();
 
   useEffect(() => {
     const ws = new WebSocket("/agent");
@@ -140,8 +140,11 @@ Follow the [UI Setup](/docs/ui) guide to setup the UI components.
 import { useEffect, type ReactNode } from "react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
-import { A2uiProvider, useA2ui } from "@assistant-ui/react-a2ui";
-import { useA2uiAgUiBridge } from "@assistant-ui/react-a2ui/ag-ui";
+import {
+  A2uiProvider,
+  useA2uiRuntime,
+  useA2uiAgUiBridge,
+} from "@assistant-ui/react-a2ui";
 
 export function MyRuntimeProvider({ children }: { children: ReactNode }) {
   const bridge = useA2uiAgUiBridge();
@@ -153,7 +156,7 @@ export function MyRuntimeProvider({ children }: { children: ReactNode }) {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <A2uiProvider onAction={handleAction}>
+      <A2uiProvider components={{}} onAction={handleAction}>
         <A2uiBridgeConnector bridge={bridge} />
         {children}
       </A2uiProvider>
@@ -166,7 +169,7 @@ function A2uiBridgeConnector({
 }: {
   bridge: ReturnType<typeof useA2uiAgUiBridge>;
 }) {
-  const { processMessage } = useA2ui();
+  const { processMessage } = useA2uiRuntime();
   useEffect(() => {
     bridge.connect(processMessage);
   }, [bridge, processMessage]);
@@ -230,20 +233,27 @@ Follow the [UI Setup](/docs/ui) guide to setup the UI components.
 | Prop | Type | Description |
 | --- | --- | --- |
 | `children` | `ReactNode` | Child components |
-| `components` | `Record<string, A2uiComponentRenderer>` | **Required.** Map of component type names to React components that render them |
+| `components` | `Record<string, A2uiComponentRenderer>` | **Required.** Map of component type names to React components that render them. Pass a stable reference (defined outside render or memoized) — a new object identity on every render rebuilds the context and re-renders every `useA2ui*` consumer. |
 | `onAction` | `(action: A2uiAction) => void` | Callback when a user interacts with a surface component |
 
 ## Hooks
 
-### useA2ui
+### useA2uiRuntime
 
-Access `processMessage` to feed A2UI server messages into the system.
+The primary hook. Returns a stable client with the imperative entry points: `processMessage` to feed server events into the system, and `dispatch` to send user actions back to the agent.
+
+```ts
+type A2uiRuntime = {
+  processMessage: (msg: A2uiServerMessage) => void;
+  dispatch: (action: A2uiAction) => void;
+};
+```
 
 ```tsx
-import { useA2ui } from "@assistant-ui/react-a2ui";
+import { useA2uiRuntime } from "@assistant-ui/react-a2ui";
 
 function MyTransport() {
-  const { processMessage } = useA2ui();
+  const { processMessage } = useA2uiRuntime();
 
   useEffect(() => {
     const ws = new WebSocket("/agent");
@@ -254,6 +264,8 @@ function MyTransport() {
   return null;
 }
 ```
+
+Reactive state lives in the granular hooks below — `useA2uiRuntime` itself does not subscribe to surface or data changes, so callers do not re-render on every update.
 
 ### useA2uiSurfaces
 
@@ -292,33 +304,6 @@ import { useA2uiData } from "@assistant-ui/react-a2ui";
 function Destination({ surfaceId }: { surfaceId: string }) {
   const destination = useA2uiData(surfaceId, "/booking/destination");
   return <span>{String(destination ?? "—")}</span>;
-}
-```
-
-### useA2uiActions
-
-Dispatch actions back to the agent.
-
-```tsx
-import { useA2uiActions } from "@assistant-ui/react-a2ui";
-
-function SubmitButton({ surfaceId }: { surfaceId: string }) {
-  const { dispatch } = useA2uiActions();
-  return (
-    <button
-      onClick={() =>
-        dispatch({
-          name: "click",
-          surfaceId,
-          sourceComponentId: "submit-btn",
-          timestamp: new Date().toISOString(),
-          context: {},
-        })
-      }
-    >
-      Submit
-    </button>
-  );
 }
 ```
 
@@ -430,7 +415,7 @@ const handler = createA2uiMessageHandler(processMessage);
 React hook for the bridge connector pattern. `handleEvent` is stable and safe to pass to `useAgUiRuntime` at mount time. Call `connect(processMessage)` from inside the `A2uiProvider` tree to wire up the bridge.
 
 ```tsx
-import { useA2uiAgUiBridge } from "@assistant-ui/react-a2ui/ag-ui";
+import { useA2uiAgUiBridge } from "@assistant-ui/react-a2ui";
 
 const bridge = useA2uiAgUiBridge();
 
@@ -442,7 +427,7 @@ const runtime = useAgUiRuntime({
 
 // Wire processMessage inside the A2uiProvider tree
 function A2uiBridgeConnector({ bridge }) {
-  const { processMessage } = useA2ui();
+  const { processMessage } = useA2uiRuntime();
   useEffect(() => {
     bridge.connect(processMessage);
   }, [bridge, processMessage]);
@@ -493,7 +478,7 @@ type A2uiAction = {
 
 ## Data Binding
 
-Components reference data using JSON pointer paths. When an agent calls `updateDataModel`, the `SurfaceDataStore` notifies only the hooks subscribed to that path (or its descendants).
+Components reference data using JSON pointer paths. When an agent calls `updateDataModel`, the `SurfaceDataStore` notifies only the hooks subscribed to that exact path (plus any subscriber on the root path `/`).
 
 ```typescript
 // Agent sends:
@@ -508,7 +493,7 @@ import { resolveValue } from "@assistant-ui/react-a2ui";
 const value = resolveValue(def.props?.value, getData); // → "Tokyo"
 ```
 
-**Subtree invalidation:** Updating `/booking` notifies all subscribers under `/booking/*`. Updating `/booking/destination` does not notify `/booking` subscribers — parent paths are unaffected by descendant updates.
+**Notification contract:** subscribers are notified only when an `updateDataModel` writes to their exact path. Subscribing to `/` is a special case that receives every update for the surface. Parent ↔ descendant paths do not cross-notify (e.g. writing `/booking` does not notify `/booking/destination`, and vice versa).
 
 ## Features
 
@@ -517,8 +502,8 @@ const value = resolveValue(def.props?.value, getData); // → "Tokyo"
 | Surface creation / deletion | Yes |
 | Component rendering | Yes |
 | Data binding (JSON pointer paths) | Yes |
-| Subtree invalidation | Yes |
 | Granular re-renders per path | Yes |
+| Root-path (`/`) catch-all subscription | Yes |
 | User-defined components | Yes |
 | AG-UI transport | Yes |
 | Standalone transport (WebSocket, HTTP, etc.) | Yes |

@@ -80,6 +80,34 @@ describe("applyJsonPatch", () => {
   it("should return original document if patch is empty", () => {
     const doc = { a: 1 };
     const result = applyJsonPatch(doc, []);
-    expect(result).toEqual({ a: 1 });
+    expect(result).toBe(doc);
+  });
+
+  it("should splice-insert (not overwrite) when 'move' targets an array index", () => {
+    const doc = { src: "x", items: ["a", "b", "c"] };
+    const result = applyJsonPatch(doc, [
+      { op: "move", from: "/src", path: "/items/1" },
+    ]);
+    expect(result).toEqual({ items: ["a", "x", "b", "c"] });
+  });
+
+  it("should splice-insert (not overwrite) when 'copy' targets an array index", () => {
+    const doc = { src: "x", items: ["a", "b", "c"] };
+    const result = applyJsonPatch(doc, [
+      { op: "copy", from: "/src", path: "/items/1" },
+    ]);
+    expect(result).toEqual({ src: "x", items: ["a", "x", "b", "c"] });
+  });
+
+  it("should throw a descriptive error when 'move' lacks 'from'", () => {
+    expect(() =>
+      applyJsonPatch({ a: 1 }, [{ op: "move", path: "/b" } as any]),
+    ).toThrow(/'move' op requires a 'from'/);
+  });
+
+  it("should throw a descriptive error when 'copy' lacks 'from'", () => {
+    expect(() =>
+      applyJsonPatch({ a: 1 }, [{ op: "copy", path: "/b" } as any]),
+    ).toThrow(/'copy' op requires a 'from'/);
   });
 });

@@ -21,6 +21,7 @@ export const StyledButton = ({
 
   return (
     <button
+      type="button"
       className={`${baseClasses} ${variantClasses}`}
       onClick={() => {
         onAction({

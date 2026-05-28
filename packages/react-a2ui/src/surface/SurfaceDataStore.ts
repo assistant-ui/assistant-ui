@@ -37,8 +37,11 @@ export class SurfaceDataStore {
 
   deleteSurface(surfaceId: string): void {
     this.data.delete(surfaceId);
-    for (const key of this.listeners.keys()) {
+    for (const [key, listeners] of this.listeners) {
       if (key.startsWith(`${surfaceId}:`)) {
+        for (const listener of listeners) {
+          listener();
+        }
         this.listeners.delete(key);
       }
     }
@@ -46,13 +49,9 @@ export class SurfaceDataStore {
 
   private notifyPath(surfaceId: string, updatedPath: string): void {
     const exactKey = `${surfaceId}:${updatedPath}`;
-    const rootKey = `${surfaceId}:/`;
-    for (const [key, listeners] of this.listeners) {
-      if (key === exactKey || key === rootKey) {
-        for (const listener of listeners) {
-          listener();
-        }
-      }
+    this.listeners.get(exactKey)?.forEach((l) => l());
+    if (updatedPath !== "/") {
+      this.listeners.get(`${surfaceId}:/`)?.forEach((l) => l());
     }
   }
 }

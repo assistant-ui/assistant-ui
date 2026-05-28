@@ -26,13 +26,13 @@ export const StyledRow = ({ def, surfaceId, onAction }: A2uiComponentProps) => {
       }}
     >
       <div>
-        <div className="font-medium text-foreground">{label}</div>
-        <div className="mt-0.5 text-muted-foreground text-xs">{detail}</div>
+        <div className="text-foreground font-medium">{label}</div>
+        <div className="text-muted-foreground mt-0.5 text-xs">{detail}</div>
       </div>
       <div className="text-right">
-        <div className="font-semibold text-foreground">{price}</div>
+        <div className="text-foreground font-semibold">{price}</div>
         {highlight && (
-          <span className="mt-0.5 inline-block rounded-full bg-primary/10 px-2 py-0.5 font-medium text-[10px] text-primary">
+          <span className="bg-primary/10 text-primary mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium">
             Best Value
           </span>
         )}

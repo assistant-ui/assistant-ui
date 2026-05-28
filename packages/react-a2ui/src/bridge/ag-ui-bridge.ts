@@ -2,18 +2,25 @@ import { useCallback, useRef } from "react";
 import { parseA2uiMessage } from "../protocol/parser";
 import type { A2uiServerMessage } from "../types";
 
+function parseAgUiEvent(event: {
+  name: string;
+  value: unknown;
+}): A2uiServerMessage | null {
+  if (!event.name.startsWith("a2ui:")) return null;
+  const type = event.name.slice("a2ui:".length);
+  const payload =
+    event.value && typeof event.value === "object" ? event.value : {};
+  return parseA2uiMessage({
+    ...(payload as Record<string, unknown>),
+    type,
+  });
+}
+
 export function createA2uiMessageHandler(
   processMessage: (msg: A2uiServerMessage) => void,
 ): (event: { name: string; value: unknown }) => void {
   return (event) => {
-    if (!event.name.startsWith("a2ui:")) return;
-    const type = event.name.slice("a2ui:".length);
-    const payload =
-      event.value && typeof event.value === "object" ? event.value : {};
-    const parsed = parseA2uiMessage({
-      type,
-      ...(payload as Record<string, unknown>),
-    });
+    const parsed = parseAgUiEvent(event);
     if (parsed) processMessage(parsed);
   };
 }
@@ -28,7 +35,8 @@ export function useA2uiAgUiBridge(): {
 
   const handleEvent = useCallback((event: { name: string; value: unknown }) => {
     if (!processMessageRef.current) return;
-    createA2uiMessageHandler(processMessageRef.current)(event);
+    const parsed = parseAgUiEvent(event);
+    if (parsed) processMessageRef.current(parsed);
   }, []);
 
   const connect = useCallback(

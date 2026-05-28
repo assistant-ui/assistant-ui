@@ -1,7 +1,8 @@
-import { useCallback } from "react";
-import { useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { useA2uiContext } from "../react/A2uiContext";
 import type { A2uiSurface } from "../types";
+
+const getServerSnapshot = (): A2uiSurface | undefined => undefined;
 
 export function useA2uiSurface(surfaceId: string): A2uiSurface | undefined {
   const { surfaceManager } = useA2uiContext();
@@ -11,5 +12,6 @@ export function useA2uiSurface(surfaceId: string): A2uiSurface | undefined {
       () => surfaceManager.getSurface(surfaceId),
       [surfaceManager, surfaceId],
     ),
+    getServerSnapshot,
   );
 }

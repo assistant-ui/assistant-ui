@@ -9,14 +9,14 @@ export const StyledCard = ({ def }: A2uiComponentProps) => {
     typeof def.props?.subtitle === "string" ? def.props.subtitle : undefined;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-lg">
+    <div className="border-border/60 bg-card overflow-hidden rounded-xl border shadow-lg">
       {(title || subtitle) && (
-        <div className="border-border/40 border-b bg-muted/30 px-5 py-4">
+        <div className="border-border/40 bg-muted/30 border-b px-5 py-4">
           {title && (
-            <h3 className="font-semibold text-base text-foreground">{title}</h3>
+            <h3 className="text-foreground text-base font-semibold">{title}</h3>
           )}
           {subtitle && (
-            <p className="mt-0.5 text-muted-foreground text-sm">{subtitle}</p>
+            <p className="text-muted-foreground mt-0.5 text-sm">{subtitle}</p>
           )}
         </div>
       )}

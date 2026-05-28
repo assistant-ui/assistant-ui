@@ -629,7 +629,7 @@ importers:
     dependencies:
       '@ai-sdk/openai':
         specifier: ^3.0.51
-        version: 3.0.51(zod@4.3.6)
+        version: 3.0.65(zod@4.4.3)
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -647,7 +647,7 @@ importers:
         version: link:../../packages/ui
       ai:
         specifier: ^6.0.148
-        version: 6.0.148(zod@4.3.6)
+        version: 6.0.191(zod@4.4.3)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -656,44 +656,44 @@ importers:
         version: 2.1.1
       lucide-react:
         specifier: ^1.7.0
-        version: 1.7.0(react@19.2.4)
+        version: 1.16.0(react@19.2.6)
       next:
         specifier: ^16.2.2
-        version: 16.2.2(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 16.2.6(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       react:
         specifier: ^19.2.4
-        version: 19.2.4
+        version: 19.2.6
       react-dom:
         specifier: ^19.2.4
-        version: 19.2.4(react@19.2.4)
+        version: 19.2.6(react@19.2.6)
       tailwind-merge:
         specifier: ^3.5.0
-        version: 3.5.0
+        version: 3.6.0
       zod:
         specifier: ^4.3.6
-        version: 4.3.6
+        version: 4.4.3
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
       '@tailwindcss/postcss':
         specifier: ^4.2.2
-        version: 4.2.2
+        version: 4.3.0
       '@types/node':
         specifier: ^25.5.2
-        version: 25.5.2
+        version: 25.9.1
       '@types/react':
         specifier: ^19.2.14
-        version: 19.2.14
+        version: 19.2.15
       '@types/react-dom':
         specifier: ^19.2.3
-        version: 19.2.3(@types/react@19.2.14)
+        version: 19.2.3(@types/react@19.2.15)
       postcss:
         specifier: ^8.5.8
-        version: 8.5.8
+        version: 8.5.15
       tailwindcss:
         specifier: ^4.2.2
-        version: 4.2.2
+        version: 4.3.0
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
@@ -3316,23 +3316,19 @@ importers:
         version: 4.1.7(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(@vitest/ui@4.1.7)(jsdom@29.1.1)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.3)(yaml@2.9.0))
 
   packages/react-a2ui:
-    dependencies:
-      '@assistant-ui/core':
-        specifier: ^0.1.13
-        version: link:../core
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
       '@types/react':
         specifier: ^19.2.14
-        version: 19.2.14
+        version: 19.2.15
       react:
         specifier: ^19.2.4
-        version: 19.2.4
+        version: 19.2.6
       vitest:
         specifier: ^4.1.2
-        version: 4.1.2(@opentelemetry/api@1.9.1)(@types/node@25.5.2)(@vitest/ui@4.1.2)(jsdom@29.0.1)(vite@8.0.5(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@25.5.2)(esbuild@0.28.0)(jiti@2.6.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+        version: 4.1.7(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(@vitest/ui@4.1.7)(jsdom@29.1.1)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.3)(yaml@2.9.0))
 
   packages/react-ag-ui:
     dependencies:
