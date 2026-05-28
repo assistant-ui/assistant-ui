@@ -6,7 +6,6 @@ import { useShallow } from "zustand/shallow";
 import type { PartState } from "../../../store/scopes/part";
 import type {
   MessagePartStatus,
-  MessageStatus,
   ToolCallMessagePartStatus,
 } from "../../../types/message";
 import {
@@ -30,28 +29,28 @@ export namespace MessagePrimitiveGroupedParts {
   };
 
   /**
-   * Synthetic trailing slot for status/loading UI (a "thinking…"
-   * indicator, an empty-message placeholder, etc.). Surfaced through the
-   * same `{ part }` channel as groups and leaf parts so a single
-   * `switch (part.type)` renders it via `case "indicator"`.
+   * Synthetic trailing slot for a streaming/loading affordance (a
+   * "thinking…" dot, etc.). Surfaced through the same `{ part }` channel
+   * as groups and leaf parts so a single `switch (part.type)` renders it
+   * via `case "indicator"`.
    *
-   * Unlike a real part it has no underlying {@link PartState}; only
-   * `status`, which mirrors the message's running/complete/incomplete
-   * state. Emission is controlled by the `indicator` prop.
+   * It is only ever emitted while the message is running, so its presence
+   * alone means "render your loading UI here" — there's no `status` to
+   * branch on.
    */
   export type IndicatorPart = {
     readonly type: "indicator";
-    readonly status: MessagePartStatus;
   };
 
   /**
-   * When to emit the synthetic {@link IndicatorPart}:
+   * When to emit the synthetic {@link IndicatorPart}. It is **only** emitted
+   * while the message is running (streaming); the mode further restricts
+   * which running states qualify:
    * - `"never"` — never.
-   * - `"empty"` — only when the message has no parts.
-   * - `"no-text"` (default) — when the message has parts but the last one
-   *   isn't `text`/`reasoning` (e.g. it ended on a tool call, so the
-   *   assistant likely isn't done). Does **not** fire on empty messages.
-   * - `"always"` — after every render, regardless of parts.
+   * - `"empty"` — only when the message has no parts yet.
+   * - `"no-text"` (default) — when the last part isn't `text`/`reasoning`
+   *   (e.g. it ended on a tool call, so the assistant likely isn't done).
+   * - `"always"` — whenever the message is running, regardless of parts.
    */
   export type IndicatorMode = "never" | "empty" | "no-text" | "always";
 
@@ -127,36 +126,16 @@ export namespace MessagePrimitiveGroupedParts {
 }
 
 const COMPLETE_STATUS: MessagePartStatus = Object.freeze({ type: "complete" });
-const RUNNING_STATUS: MessagePartStatus = Object.freeze({ type: "running" });
-
-/**
- * Project the message-level {@link MessageStatus} onto the part-level
- * {@link MessagePartStatus} carried by the indicator. `requires-action`
- * (waiting on a tool/human) reads as still-running; the message-only
- * `tool-calls` incomplete reason collapses to `"other"`.
- */
-const toIndicatorStatus = (
-  status: MessageStatus | null | undefined,
-): MessagePartStatus => {
-  switch (status?.type) {
-    case "running":
-    case "requires-action":
-      return RUNNING_STATUS;
-    case "incomplete":
-      return {
-        type: "incomplete",
-        reason: status.reason === "tool-calls" ? "other" : status.reason,
-        error: status.error,
-      };
-    default:
-      return COMPLETE_STATUS;
-  }
-};
 
 const shouldShowIndicator = (
   mode: MessagePrimitiveGroupedParts.IndicatorMode,
   parts: readonly PartState[],
+  isRunning: boolean,
 ): boolean => {
+  // The indicator is a streaming affordance — never show it on a settled
+  // message, whatever the mode.
+  if (!isRunning) return false;
+
   switch (mode) {
     case "never":
       return false;
@@ -246,7 +225,7 @@ const renderNode = <TKey extends `group-${string}`>(
  *       case "group-tool":      return <ToolStack>{children}</ToolStack>;
  *       case "text":            return <MarkdownText />;
  *       case "tool-call":       return part.toolUI ?? <ToolFallback {...part} />;
- *       case "indicator":       return part.status.type === "running" ? <LoadingDots /> : null;
+ *       case "indicator":       return <LoadingDots />;
  *       default:                return null;
  *     }
  *   }}
@@ -259,11 +238,10 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
   children,
 }: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode => {
   const parts = useAuiState(useShallow((s) => s.message.parts));
-  // Skip subscribing to status when the indicator is disabled — otherwise
-  // every streaming status transition re-renders the whole grouped tree
-  // for nothing.
-  const messageStatus = useAuiState((s) =>
-    indicator === "never" ? null : s.message.status,
+  // Subscribe to a boolean, not the status object: the tree only needs to
+  // re-render when running-ness flips, and `"never"` opts out entirely.
+  const isRunning = useAuiState((s) =>
+    indicator === "never" ? false : s.message.status?.type === "running",
   );
 
   // Helpers like `groupPartByType` tag the function with `GROUPBY_MEMO_KEY`
@@ -284,17 +262,11 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
   return (
     <>
       {tree.map((node) => renderNode(node, parts, children))}
-      {shouldShowIndicator(indicator, parts) && (
-        <Fragment key="indicator">
-          {children({
-            part: {
-              type: "indicator",
-              status: toIndicatorStatus(messageStatus),
-            },
-            children: <PartChildrenSentinel />,
-          })}
-        </Fragment>
-      )}
+      {shouldShowIndicator(indicator, parts, isRunning) &&
+        children({
+          part: { type: "indicator" },
+          children: <PartChildrenSentinel />,
+        })}
     </>
   );
 };

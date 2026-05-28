@@ -279,17 +279,15 @@ const AssistantMessage: FC = () => {
               case "tool-call":
                 return part.toolUI ?? <ToolFallback {...part} />;
               case "indicator":
-                return part.status.type === "running" ? (
-                  <div
+                return (
+                  <span
                     data-slot="aui_assistant-message-indicator"
-                    className="flex items-center gap-1 py-1"
+                    className="animate-pulse font-sans"
                     aria-label="Assistant is working"
                   >
-                    <span className="bg-muted-foreground/50 size-1.5 animate-bounce rounded-full [animation-delay:-0.3s]" />
-                    <span className="bg-muted-foreground/50 size-1.5 animate-bounce rounded-full [animation-delay:-0.15s]" />
-                    <span className="bg-muted-foreground/50 size-1.5 animate-bounce rounded-full" />
-                  </div>
-                ) : null;
+                    {"●"}
+                  </span>
+                );
               default:
                 return null;
             }
