@@ -14,7 +14,6 @@ When asking an assistant to build or modify this app, have it read that skill fi
 <!-- assistant-ui-agent-skill:end -->`;
 
 export function installGeneratedAppAgentSkill(projectDir: string): void {
-  copyAgentBundleFiles(projectDir);
   fs.cpSync(
     resolveSkillSourceDir(),
     path.join(projectDir, ".agents", "skills", "assistant-ui"),
@@ -24,32 +23,6 @@ export function installGeneratedAppAgentSkill(projectDir: string): void {
     },
   );
   appendReadmeSection(projectDir);
-}
-
-function copyAgentBundleFiles(projectDir: string): void {
-  const sourceDir = resolvePluginSourceDir();
-  const targetDir = path.join(projectDir, ".agents");
-
-  fs.mkdirSync(targetDir, { recursive: true });
-
-  for (const file of ["README.md", "AGENTS.md", "CLAUDE.md"]) {
-    fs.copyFileSync(path.join(sourceDir, file), path.join(targetDir, file));
-  }
-}
-
-function resolvePluginSourceDir(): string {
-  const candidates = [
-    path.resolve(__dirname, "..", "..", "plugin"),
-    path.resolve(__dirname, "..", "plugin"),
-  ];
-
-  for (const candidate of candidates) {
-    if (fs.existsSync(path.join(candidate, "AGENTS.md"))) return candidate;
-  }
-
-  throw new Error(
-    `Could not locate assistant-ui agent bundle. Checked:\n${candidates.map((candidate) => `  ${candidate}`).join("\n")}`,
-  );
 }
 
 function resolveSkillSourceDir(): string {

@@ -219,13 +219,13 @@ describe("transformProject — hasLocalComponents: true", () => {
       ),
     ).toBe(true);
     expect(fs.existsSync(path.join(testDir, ".agents", "README.md"))).toBe(
-      true,
+      false,
     );
     expect(fs.existsSync(path.join(testDir, ".agents", "AGENTS.md"))).toBe(
-      true,
+      false,
     );
     expect(fs.existsSync(path.join(testDir, ".agents", "CLAUDE.md"))).toBe(
-      true,
+      false,
     );
     expect(readFile("README.md")).toContain(
       "This project includes assistant-ui guidance for AI coding assistants at `.agents/skills/assistant-ui`.",
