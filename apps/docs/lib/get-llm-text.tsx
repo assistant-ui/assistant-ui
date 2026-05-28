@@ -11,7 +11,7 @@ import remarkGfm from "remark-gfm";
 import remarkStringify from "remark-stringify";
 import { unified } from "unified";
 import { getMDXComponents } from "@/mdx-components";
-import type { source } from "@/lib/source";
+import type { examples, source } from "@/lib/source";
 import type { InferPageType } from "fumadocs-core/source";
 
 const processor = unified()
@@ -270,7 +270,9 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
   return renderClientFallback(props, resolvedChildren);
 }
 
-export async function getLLMText(page: InferPageType<typeof source>) {
+type LLMPage = InferPageType<typeof source> | InferPageType<typeof examples>;
+
+export async function getLLMText(page: LLMPage) {
   const Body = page.data.body;
 
   // TODO: Platform-scoped MDX currently renders with the server default
