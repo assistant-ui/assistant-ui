@@ -27,7 +27,6 @@ export const McpServerPrimitiveIcon = forwardRef<
   const effective = src ?? iconUrl;
   if (!effective) return null;
   return (
-    // biome-ignore lint/performance/noImgElement: unstyled primitive — consumers can swap via asChild
     <Primitive.img {...props} ref={ref} src={effective} alt={alt ?? name} />
   );
 });

@@ -176,7 +176,6 @@ const useStreamThreadRuntime = (
     options;
   const messagesKey = options.messagesKey ?? "messages";
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const externalId = useAuiState((s) => s.threadListItem.externalId) as
     | string
     | null;
@@ -185,10 +184,8 @@ const useStreamThreadRuntime = (
   // literal merges both arms' transport types, breaking arm assignment.
   options.threadId = externalId;
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const stream = useStream(options);
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
@@ -197,18 +194,15 @@ const useStreamThreadRuntime = (
   );
   const effectiveIsRunning = stream.isLoading || hasExecutingTools;
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const threadMessages = useExternalMessageConverter({
     callback: convertLangChainBaseMessage,
     messages: stream.messages as LangChainBaseMessage[],
     isRunning: effectiveIsRunning,
   });
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const streamRef = useRef(stream);
   streamRef.current = stream;
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const extras = useMemo(
     (): LangChainRuntimeExtras => ({
       [symbolLangChainRuntimeExtras]: true,
@@ -227,7 +221,6 @@ const useStreamThreadRuntime = (
     ],
   );
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
@@ -330,7 +323,6 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
 
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
-      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       return useStreamThreadRuntime(optionsRef.current);
     },
     adapter,

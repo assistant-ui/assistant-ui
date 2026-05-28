@@ -89,14 +89,12 @@ export function CodeBlock({
         transformerMetaWordHighlight(),
       ]}
       components={{
-        // biome-ignore lint/correctness/noNestedComponentDefinitions: false positive
         Pre: ({
           className,
           ...props
         }: React.HTMLAttributes<HTMLPreElement>) => (
           <pre className={className} {...props} />
         ),
-        // biome-ignore lint/correctness/noNestedComponentDefinitions: false positive
         Code: ({ className, ...props }: React.HTMLAttributes<HTMLElement>) => (
           <code className={className} {...props} />
         ),

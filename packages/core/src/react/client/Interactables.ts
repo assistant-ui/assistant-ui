@@ -253,7 +253,6 @@ export const Interactables = resource((): ClientOutput<"interactables"> => {
     [setDefState],
   );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: state dep triggers notification
   tapEffect(() => {
     for (const cb of subscribersRef.current) cb();
   }, [state]);

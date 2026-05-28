@@ -115,7 +115,6 @@ export function WaterfallTimeline() {
   ) as SpanState["timeRange"];
 
   // Measure outer container width — re-attach when scroll container mounts
-  // biome-ignore lint/correctness/useExhaustiveDependencies: hasSpans triggers re-attach when scroll container mounts
   useEffect(() => {
     const el = outerRef.current;
     if (!el) return;
@@ -134,7 +133,6 @@ export function WaterfallTimeline() {
   }, [hasSpans]);
 
   // Cmd + scroll wheel zoom — re-attach when scroll container mounts
-  // biome-ignore lint/correctness/useExhaustiveDependencies: hasSpans triggers re-attach when scroll container mounts
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -230,8 +228,6 @@ export function WaterfallTimeline() {
 
         {/* Span rows */}
         <WaterfallLayoutContext.Provider value={layoutValue}>
-          {/* biome-ignore lint/a11y/useKeyWithClickEvents: event delegation on span rows */}
-          {/* biome-ignore lint/a11y/noStaticElementInteractions: event delegation on span rows */}
           <div
             style={{ width: contentWidth }}
             onClick={(e) => {

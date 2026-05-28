@@ -60,7 +60,6 @@ export type ClientSchema<
  * }
  * ```
  */
-// biome-ignore lint/suspicious/noEmptyInterface: declaration merging
 export interface ScopeRegistry {}
 
 type ClientEventsType<K extends ClientNames> = Record<

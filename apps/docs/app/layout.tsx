@@ -72,10 +72,8 @@ export default function Layout({ children }: { children: ReactNode }) {
           data-website-id="6f07c001-46a2-411f-9241-4f7f5afb60ee"
           data-domains="www.assistant-ui.com"
         ></script>
-        {/* biome-ignore lint/correctness/useUniqueElementIds: static page with unique context */}
         <Script
           id="vector-script"
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: analytics script injection
           dangerouslySetInnerHTML={{
             __html: `
         !function(e,r){try{if(e.vector)return void console.log("Vector snippet included more than once.");var t={};t.q=t.q||[];for(var o=["load","identify","on"],n=function(e){return function(){var r=Array.prototype.slice.call(arguments);t.q.push([e,r])}},c=0;c<o.length;c++){var a=o[c];t[a]=n(a)}if(e.vector=t,!t.loaded){var i=r.createElement("script");i.type="text/javascript",i.async=!0,i.src="https://cdn.vector.co/pixel.js";var l=r.getElementsByTagName("script")[0];l.parentNode.insertBefore(i,l),t.loaded=!0}}catch(e){console.error("Error loading Vector:",e)}}(window,document);

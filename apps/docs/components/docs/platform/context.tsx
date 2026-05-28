@@ -219,7 +219,6 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     platformStore.getServerSnapshot,
   );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the route-change trigger
   useEffect(() => {
     platformStore.syncUrlAndStore();
   }, [pathname]);

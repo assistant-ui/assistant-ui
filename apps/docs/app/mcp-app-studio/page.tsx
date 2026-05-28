@@ -632,7 +632,6 @@ export default function McpAppStudioPage() {
                   <div className="size-3 rounded-full bg-yellow-500/80" />
                   <div className="size-3 rounded-full bg-green-500/80" />
                 </div>
-                {/* biome-ignore lint/correctness/useUniqueElementIds: static page with unique context */}
                 <span
                   id="workbench-fullscreen-title"
                   className="font-mono text-sm text-zinc-400"

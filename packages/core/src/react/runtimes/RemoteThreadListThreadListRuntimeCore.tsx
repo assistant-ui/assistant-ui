@@ -62,7 +62,6 @@ export class RemoteThreadListThreadListRuntimeCore
               isLoading: true,
             };
           },
-          // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
           then: (state, l) => {
             if (generation !== this._loadGeneration) return state;
             const fresh = classifyThreads(l.threads, {
@@ -120,7 +119,6 @@ export class RemoteThreadListThreadListRuntimeCore
       .optimisticUpdate({
         execute: () => adapter.list({ after: cursor }),
         loading: (state) => ({ ...state, isLoadingMore: true }),
-        // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
         then: (state, l) => {
           if (generation !== this._loadGeneration) return state;
           if (adapter !== this._options.adapter) return state;
@@ -423,7 +421,6 @@ export class RemoteThreadListThreadListRuntimeCore
           },
         };
       },
-      // biome-ignore lint/suspicious/noThenProperty: OptimisticState reducer pattern
       then: (state, { remoteId, externalId }) => {
         const data = getThreadData(state, threadId);
         if (!data) return state;

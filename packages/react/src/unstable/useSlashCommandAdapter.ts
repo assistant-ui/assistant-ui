@@ -60,11 +60,9 @@ export function unstable_useSlashCommandAdapter(
 } {
   const { commands, removeOnExecute } = options;
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: `unstable_` prefix not recognized as hook
   const commandsRef = useRef(commands);
   commandsRef.current = commands;
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: `unstable_` prefix not recognized as hook
   return useMemo(() => {
     const adapter: Unstable_TriggerAdapter = {
       categories: () => [],

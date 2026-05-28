@@ -64,12 +64,10 @@ export const TriggerKeyboardResource = resource(
   }): TriggerKeyboardResourceOutput => {
     const [highlightedIndex, setHighlightedIndex] = tapState(0);
 
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset on list change
     tapEffect(() => {
       setHighlightedIndex(0);
     }, [navigableList]);
 
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset
     tapEffect(() => {
       setHighlightedIndex(0);
     }, [isSearchMode, activeCategoryId]);

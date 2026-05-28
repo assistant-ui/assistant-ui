@@ -14,7 +14,6 @@ function AttachmentTileStatic({ name, isImage }: AttachmentTileStaticProps) {
 
   return (
     <div className="aui-attachment-root relative">
-      {/* biome-ignore lint/a11y/useSemanticElements: styled div with role */}
       <div
         className="aui-attachment-tile aui-attachment-tile-composer border-foreground/20 bg-muted size-14 cursor-pointer overflow-hidden rounded-[14px] border transition-opacity hover:opacity-75"
         role="button"

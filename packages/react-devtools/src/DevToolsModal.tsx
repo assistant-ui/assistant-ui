@@ -117,8 +117,6 @@ const DevToolsModalImpl = () => {
 
       {isOpen && (
         <>
-          {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop click is a convenience; keyboard users use the close button */}
-          {/* biome-ignore lint/a11y/noStaticElementInteractions: backdrop overlay */}
           <div style={styles.backdrop} onClick={() => setIsOpen(false)} />
 
           <div style={styles.modal} data-devtools-modal>

@@ -164,7 +164,6 @@ export function TableOfContents({
   if (items.length === 0) return null;
 
   return (
-    // biome-ignore lint/correctness/useUniqueElementIds: framework-specific toc anchor
     <div id="nd-toc" className="w-56 [grid-area:toc] max-xl:hidden">
       <div className="sticky top-14 flex max-h-[calc(100vh-3.5rem)] flex-col pe-4 pb-2">
         <p className="text-muted-foreground/70 mb-3 shrink-0 text-xs">

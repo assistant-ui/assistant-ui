@@ -22,10 +22,8 @@
  * ```
  */
 export namespace Assistant {
-  // biome-ignore lint/suspicious/noEmptyInterface: declaration merging
   export interface Commands {}
 
-  // biome-ignore lint/suspicious/noEmptyInterface: declaration merging
   export interface ExternalState {}
 }
 

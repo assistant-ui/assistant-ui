@@ -353,25 +353,19 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     uiStateKey,
     uiComponents,
   } = options;
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const aui = useAui();
 
   // Ref-based reconcile so inline `uiComponents` objects don't re-register
   // every render via `useEffect` dependency identity.
   const uiFallback = uiComponents?.fallback;
   const uiRenderers = uiComponents?.renderers;
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const registeredRenderersRef = useRef<Map<string, DataMessagePartComponent>>(
     new Map(),
   );
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const rendererCleanupsRef = useRef<Map<string, () => void>>(new Map());
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const fallbackRef = useRef<DataMessagePartComponent | undefined>(undefined);
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const fallbackCleanupRef = useRef<(() => void) | undefined>(undefined);
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   useEffect(() => {
     const registered = registeredRenderersRef.current;
     const cleanups = rendererCleanupsRef.current;
@@ -401,7 +395,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     }
   });
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   useEffect(() => {
     const cleanups = rendererCleanupsRef.current;
     const registered = registeredRenderersRef.current;
@@ -424,7 +417,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     cancel,
     setMessages,
     setUIMessages,
-    // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   } = useLangGraphMessages({
     appendMessage: appendLangChainChunk,
     stream,
@@ -432,15 +424,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     ...(uiStateKey !== undefined && { uiStateKey }),
   });
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [isRunning, setIsRunning] = useState(false);
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [isLoadingThread, setIsLoadingThread] = useState(false);
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
@@ -449,13 +437,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   );
   const effectiveIsRunning = isRunning || hasExecutingTools;
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const messageTiming = useLangGraphStreamingTiming(
     messages,
     effectiveIsRunning,
   );
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const uiMessagesByParent = useMemo(() => {
     const map = new Map<string, UIMessage[]>();
     for (const ui of uiMessages) {
@@ -472,7 +458,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   }, [uiMessages]);
 
   // fresh metadata identity invalidates the converter cache; each UI event re-converts all messages
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const converterMetadata = useMemo(
     () =>
       ({
@@ -492,7 +477,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     return sendMessage(messages, config, () => setIsRunning(false));
   };
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const threadMessages = useExternalMessageConverter({
     callback: convertLangChainMessages,
     messages,
@@ -500,15 +484,12 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     metadata: converterMetadata,
   });
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const threadMessagesRef = useRef(threadMessages);
   threadMessagesRef.current = threadMessages;
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const uiMessagesRef = useRef(uiMessages);
   uiMessagesRef.current = uiMessages;
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
@@ -634,14 +615,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   });
 
   {
-    // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
     const loadRef = useRef(load);
-    // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
     useEffect(() => {
       loadRef.current = load;
     });
 
-    // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
     useEffect(() => {
       const load = loadRef.current;
       if (!load) return;
@@ -706,7 +684,6 @@ export const useLangGraphRuntime = ({
 
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
-      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       return useLangGraphRuntimeImpl(options);
     },
     adapter,

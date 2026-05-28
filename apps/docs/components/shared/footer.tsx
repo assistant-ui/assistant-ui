@@ -92,7 +92,6 @@ export function Footer(): React.ReactElement {
           </Link>
 
           <div className="flex gap-3">
-            {/* biome-ignore lint/a11y/useAnchorContent: icon-only link with aria-label */}
             <a
               href="https://x.com/assistantui"
               target="_blank"

@@ -34,13 +34,10 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
 const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
   transport: ChatTransport<UI_MESSAGE>,
 ): ChatTransport<UI_MESSAGE> => {
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const transportRef = useRef<ChatTransport<UI_MESSAGE>>(transport);
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   useEffect(() => {
     transportRef.current = transport;
   });
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const dynamicTransport = useMemo(
     () =>
       new Proxy(transportRef.current, {
@@ -89,23 +86,18 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     ? true
     : never;
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const transport = useDynamicChatTransport(
     transportOptions ?? new AssistantChatTransport(),
   );
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const id = useAuiState((s) => s.threadListItem.id);
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const aui = useAui();
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const chat = useChat({
     ...chatOptions,
     id,
     transport,
   });
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runtime = useAISDKRuntime(chat, {
     adapters,
     ...pickExternalStoreSharedOptions(options ?? {}),
@@ -120,9 +112,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     );
   }
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const resumeFiredRef = useRef(false);
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   useEffect(() => {
     if (resumeFiredRef.current) return;
     const adapter = getResumableAdapter(transport);
@@ -149,7 +139,6 @@ export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
   const cloudAdapter = useCloudThreadListAdapter({ cloud });
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
-      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       return useChatThreadRuntime(options);
     },
     adapter: cloudAdapter,

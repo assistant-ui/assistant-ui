@@ -112,7 +112,6 @@ export const Tools = resource(
       );
 
       return () => {
-        // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
         unsubscribes.forEach((fn) => fn());
       };
     }, [toolkit, setToolUI, clientRef]);

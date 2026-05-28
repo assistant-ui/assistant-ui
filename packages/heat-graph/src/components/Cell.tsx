@@ -29,7 +29,6 @@ export const Cell = forwardRef<HTMLDivElement, CellProps>(
     );
 
     return (
-      // biome-ignore lint/a11y/noStaticElementInteractions: hover interaction for tooltip
       <div
         ref={ref}
         style={mergedStyle}

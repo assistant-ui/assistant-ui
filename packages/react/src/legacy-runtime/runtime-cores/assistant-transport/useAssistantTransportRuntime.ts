@@ -113,23 +113,16 @@ export function useAssistantTransportState<T>(
 const useAssistantTransportThreadRuntime = <T>(
   options: AssistantTransportOptions<T>,
 ): AssistantRuntime => {
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const agentStateRef = useRef(options.initialState);
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [, rerender] = useState(0);
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const resumeFlagRef = useRef(false);
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const parentIdRef = useRef<string | null | undefined>(undefined);
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const commandQueue = useCommandQueue({
     onQueue: () => runManager.schedule(),
   });
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const threadId = useAuiState((s) => s.threadListItem.remoteId);
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runManager = useRunManager({
     onRun: async (signal: AbortSignal) => {
       const isResume = resumeFlagRef.current;
@@ -273,18 +266,15 @@ const useAssistantTransportThreadRuntime = <T>(
   });
 
   // Tool execution status state
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
 
   // Reactive conversion of agent state + connection metadata → UI state
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const pendingCommands = useMemo(
     () => [...commandQueue.state.inTransit, ...commandQueue.state.queued],
     [commandQueue.state],
   );
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const converted = useConvertedState(
     options.converter,
     agentStateRef.current,
@@ -294,7 +284,6 @@ const useAssistantTransportThreadRuntime = <T>(
   );
 
   // Create runtime
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const runtime = useExternalStoreRuntime({
     messages: converted.messages,
     state: converted.state,
@@ -365,7 +354,6 @@ export const useAssistantTransportRuntime = <T>(
 ): AssistantRuntime => {
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
-      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       return useAssistantTransportThreadRuntime(options);
     },
     adapter: new InMemoryThreadListAdapter(),

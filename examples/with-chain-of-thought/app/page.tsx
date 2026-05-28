@@ -20,7 +20,6 @@ const ExecuteJsTool = makeAssistantTool({
   }),
   execute: async ({ code }) => {
     try {
-      // biome-ignore lint/security/noGlobalEval: example code
       const result = eval(code);
       return { success: true, result: String(result) };
     } catch (e) {
