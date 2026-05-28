@@ -384,7 +384,7 @@ describe("A2AClient", () => {
       expect(body.message.messageId).toBe("msg-1");
     });
 
-    it("sends 'content' not 'parts' per A2A v1.0 proto spec", async () => {
+    it("sends 'parts' per A2A v1.0 spec (gRPC + JSON-RPC unified in a2aproject/A2A#1100)", async () => {
       fetchMock.mockResolvedValue(
         mockFetchResponse({
           task: { id: "t1", status: { state: "completed" } },
@@ -394,8 +394,8 @@ describe("A2AClient", () => {
       await client.sendMessage(userMessage);
 
       const body = JSON.parse(fetchMock.mock.calls[0]![1].body);
-      expect(body.message.content).toEqual([{ text: "Hello" }]);
-      expect(body.message.parts).toBeUndefined();
+      expect(body.message.parts).toEqual([{ text: "Hello" }]);
+      expect(body.message.content).toBeUndefined();
     });
 
     it("unwraps task from SendMessageResponse", async () => {

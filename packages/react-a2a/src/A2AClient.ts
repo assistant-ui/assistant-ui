@@ -115,8 +115,7 @@ function toWireTaskState(state: A2ATaskState): string {
 }
 
 function toWireMessage(msg: A2AMessage): unknown {
-  const { parts, ...rest } = msg;
-  return { ...rest, role: toWireRole(msg.role), content: parts };
+  return { ...msg, role: toWireRole(msg.role) };
 }
 
 function discriminateStreamResponse(
