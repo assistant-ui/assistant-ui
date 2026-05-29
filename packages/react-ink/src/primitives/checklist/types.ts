@@ -7,9 +7,3 @@ export type ChecklistItemData = {
   detail?: string;
   children?: ChecklistItemData[];
 };
-
-export type ChecklistData = {
-  items: ChecklistItemData[];
-  title?: string;
-  showProgress?: boolean;
-};

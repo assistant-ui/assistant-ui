@@ -145,14 +145,9 @@ export {
   LiveChecklist,
   type LiveChecklistProps,
 } from "./primitives/checklist/LiveChecklist";
-export {
-  DataChecklist,
-  ChecklistDataUI,
-} from "./primitives/checklist/DataChecklist";
 export type {
   ChecklistItemData,
   ChecklistItemStatus,
-  ChecklistData,
 } from "./primitives/checklist/types";
 export {
   useToolCallChecklist,
