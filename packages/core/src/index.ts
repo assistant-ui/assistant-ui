@@ -65,7 +65,6 @@ export type {
   ChecklistItemStatus,
   ChecklistData,
 } from "./types/checklist";
-export { flattenChecklistItems } from "./types/checklist";
 
 export type {
   Unstable_DirectiveSegment,

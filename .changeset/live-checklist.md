@@ -4,4 +4,4 @@
 "@assistant-ui/react-ink": patch
 ---
 
-feat: add shared ChecklistPrimitive — types and useToolActivityChecklist hook in core, unstyled web primitives in react, react-ink refactored to use core
+feat: add shared checklist primitive. types and the useToolActivityChecklist hook live in core, unstyled web primitives in react, and react-ink reuses the core logic

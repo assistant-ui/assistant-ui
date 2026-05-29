@@ -56,4 +56,3 @@ export type {
   ChecklistItemStatus,
   ChecklistData,
 } from "./checklist";
-export { flattenChecklistItems } from "./checklist";

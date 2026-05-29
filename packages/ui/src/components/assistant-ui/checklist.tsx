@@ -1,6 +1,11 @@
 "use client";
 
-import { type ComponentPropsWithoutRef, type FC, type ReactNode } from "react";
+import {
+  type ComponentPropsWithoutRef,
+  type FC,
+  type ReactNode,
+  Fragment,
+} from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import {
   ChecklistPrimitive,
@@ -43,9 +48,9 @@ const ChecklistItem: FC<{ item: ChecklistItemData; depth: number }> = ({
   const isError = item.status === "error";
 
   return (
-    <div
+    <ChecklistPrimitive.Item
+      item={item}
       data-slot="checklist-item"
-      data-status={item.status}
       className={cn(
         "aui-checklist-item flex items-center gap-2 text-sm",
         depth > 0 && "ml-4",
@@ -74,17 +79,30 @@ const ChecklistItem: FC<{ item: ChecklistItemData; depth: number }> = ({
           {item.detail}
         </span>
       ) : null}
-    </div>
+    </ChecklistPrimitive.Item>
   );
 };
 
-const renderChecklistItem = ({
-  item,
-  depth,
-}: {
-  item: ChecklistItemData;
+const ChecklistItems: FC<{
+  items: ChecklistItemData[];
   depth: number;
-}): ReactNode => <ChecklistItem item={item} depth={depth} />;
+  maxDepth: number;
+}> = ({ items, depth, maxDepth }) => (
+  <>
+    {items.map((item) => (
+      <Fragment key={item.id}>
+        <ChecklistItem item={item} depth={depth} />
+        {item.children && depth < maxDepth ? (
+          <ChecklistItems
+            items={item.children}
+            depth={depth + 1}
+            maxDepth={maxDepth}
+          />
+        ) : null}
+      </Fragment>
+    ))}
+  </>
+);
 
 type ChecklistViewProps = Omit<
   ComponentPropsWithoutRef<typeof ChecklistPrimitive.Root>,
@@ -101,7 +119,7 @@ const ChecklistView: FC<ChecklistViewProps> = ({
   items,
   title,
   showProgress,
-  maxDepth,
+  maxDepth = 2,
   className,
   variant,
   ...props
@@ -122,14 +140,7 @@ const ChecklistView: FC<ChecklistViewProps> = ({
           {title}
         </span>
       ) : null}
-      {items.map((item) => (
-        <ChecklistPrimitive.Item
-          key={item.id}
-          item={item}
-          maxDepth={maxDepth}
-          renderItem={renderChecklistItem}
-        />
-      ))}
+      <ChecklistItems items={items} depth={0} maxDepth={maxDepth} />
       {showProgress ? (
         <ChecklistPrimitive.Progress
           data-slot="checklist-progress"

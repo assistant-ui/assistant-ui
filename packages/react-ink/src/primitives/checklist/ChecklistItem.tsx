@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps } from "react";
 import { Box, Text } from "ink";
 import Spinner from "ink-spinner";
 import type {
@@ -8,29 +8,43 @@ import type {
 
 export type ChecklistItemProps = ComponentProps<typeof Box> & {
   item: ChecklistItemData;
-  depth?: number;
-  maxDepth?: number;
-  renderItem?: (props: { item: ChecklistItemData; depth: number }) => ReactNode;
+  depth?: number | undefined;
+  maxDepth?: number | undefined;
 };
 
-const STATUS_INDICATORS: Partial<Record<ChecklistItemStatus, string>> = {
+const STATUS_INDICATORS: Record<
+  Exclude<ChecklistItemStatus, "running">,
+  string
+> = {
   pending: "□",
   complete: "■",
   error: "x",
 };
 
-const STATUS_COLORS: Record<ChecklistItemStatus, string | undefined> = {
-  pending: undefined,
+const STATUS_COLORS: Record<Exclude<ChecklistItemStatus, "pending">, string> = {
   running: "yellow",
   complete: "green",
   error: "red",
+};
+
+const ChecklistIndicator = ({ status }: { status: ChecklistItemStatus }) => {
+  if (status === "running") {
+    return (
+      <Text color={STATUS_COLORS.running}>
+        <Spinner type="line" />
+      </Text>
+    );
+  }
+  if (status === "pending") {
+    return <Text dimColor>{STATUS_INDICATORS.pending}</Text>;
+  }
+  return <Text color={STATUS_COLORS[status]}>{STATUS_INDICATORS[status]}</Text>;
 };
 
 export const ChecklistItem = ({
   item,
   depth = 0,
   maxDepth = 2,
-  renderItem,
   ...boxProps
 }: ChecklistItemProps) => {
   const children =
@@ -41,43 +55,24 @@ export const ChecklistItem = ({
             item={child}
             depth={depth + 1}
             maxDepth={maxDepth}
-            {...(renderItem ? { renderItem } : undefined)}
           />
         ))
       : null;
 
-  if (renderItem) {
-    return (
-      <>
-        {renderItem({ item, depth })}
-        {children}
-      </>
-    );
-  }
-
-  const color = STATUS_COLORS[item.status];
-  const isRunning = item.status === "running";
-  const isPending = item.status === "pending";
-
   return (
     <Box flexDirection="column" {...boxProps}>
       <Box marginLeft={depth * 2} gap={1}>
-        {isRunning ? (
-          <Text {...(color ? { color } : undefined)}>
-            <Spinner type="line" />
-          </Text>
+        <ChecklistIndicator status={item.status} />
+        {item.status === "pending" ? (
+          <Text dimColor>{item.text}</Text>
         ) : (
-          <Text {...(color ? { color } : undefined)} dimColor={isPending}>
-            {STATUS_INDICATORS[item.status]}
+          <Text
+            bold={item.status === "running"}
+            color={STATUS_COLORS[item.status]}
+          >
+            {item.text}
           </Text>
         )}
-        <Text
-          bold={isRunning}
-          dimColor={isPending}
-          {...(color ? { color } : undefined)}
-        >
-          {item.text}
-        </Text>
         {item.detail ? <Text dimColor>({item.detail})</Text> : null}
       </Box>
       {children}

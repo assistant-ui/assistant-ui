@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps } from "react";
 import { Box, Text } from "ink";
 import type { ChecklistItemData } from "@assistant-ui/core";
 import { ChecklistRoot } from "./ChecklistRoot";
@@ -7,10 +7,9 @@ import { ChecklistProgress } from "./ChecklistProgress";
 
 export type ChecklistViewProps = ComponentProps<typeof Box> & {
   items: ChecklistItemData[];
-  title?: string;
-  showProgress?: boolean;
-  maxDepth?: number;
-  renderItem?: (props: { item: ChecklistItemData; depth: number }) => ReactNode;
+  title?: string | undefined;
+  showProgress?: boolean | undefined;
+  maxDepth?: number | undefined;
 };
 
 export const ChecklistView = ({
@@ -18,7 +17,6 @@ export const ChecklistView = ({
   title,
   showProgress,
   maxDepth,
-  renderItem,
   ...boxProps
 }: ChecklistViewProps) => {
   if (items.length === 0) return null;
@@ -27,12 +25,7 @@ export const ChecklistView = ({
     <ChecklistRoot {...boxProps}>
       {title ? <Text bold>{title}</Text> : null}
       {items.map((item) => (
-        <ChecklistItem
-          key={item.id}
-          item={item}
-          {...(maxDepth !== undefined ? { maxDepth } : undefined)}
-          {...(renderItem ? { renderItem } : undefined)}
-        />
+        <ChecklistItem key={item.id} item={item} maxDepth={maxDepth} />
       ))}
       {showProgress ? <ChecklistProgress items={items} /> : null}
     </ChecklistRoot>

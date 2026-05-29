@@ -6,14 +6,10 @@ import { ChecklistView } from "./ChecklistView";
 export const DataChecklist = (props: DataMessagePartProps<ChecklistData>) => {
   const { items, title, showProgress } = props.data;
 
-  if (!items) return null;
+  if (!items || items.length === 0) return null;
 
   return (
-    <ChecklistView
-      items={items}
-      {...(title ? { title } : undefined)}
-      {...(showProgress ? { showProgress } : undefined)}
-    />
+    <ChecklistView items={items} title={title} showProgress={showProgress} />
   );
 };
 

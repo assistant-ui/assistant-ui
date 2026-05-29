@@ -150,10 +150,6 @@ export {
   type LiveChecklistProps,
 } from "./primitives/checklist/LiveChecklist";
 export {
-  ToolActivityChecklist,
-  type ToolActivityChecklistProps,
-} from "./primitives/checklist/ToolActivityChecklist";
-export {
   DataChecklist,
   ChecklistDataUI,
 } from "./primitives/checklist/DataChecklist";

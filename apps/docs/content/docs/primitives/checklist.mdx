@@ -1,11 +1,12 @@
 ---
 title: Checklist
 description: Live checklist that tracks tool-call progress across messages.
+platforms: ["react"]
 ---
 
 The Checklist displays a live-updating list of tool calls with their current status (pending, running, complete, error). It automatically derives items from the message's tool-call parts, showing users what the assistant is working on.
 
-`@assistant-ui/react` ships the unstyled building blocks — `ChecklistPrimitive` and the `useToolActivityChecklist` hook. The ready-to-use, styled `LiveChecklist` lives in `@assistant-ui/ui` (the shadcn component package), composed from those primitives.
+`@assistant-ui/react` ships the unstyled building blocks: `ChecklistPrimitive` and the `useToolActivityChecklist` hook. The ready-to-use, styled `LiveChecklist` lives in `@assistant-ui/ui` (the shadcn component package), composed from those primitives.
 
 ## Quick Start
 
@@ -43,7 +44,7 @@ When used without an `items` prop, `LiveChecklist` reads tool-call parts from th
 - Tool calls with a result are **complete**
 - Tool calls with errors are marked as **error**
 
-Only the first incomplete tool call is shown as "running" — the rest are "pending". This creates the sequential progress effect.
+Only the first incomplete tool call is shown as "running"; the rest are "pending". This creates the sequential progress effect.
 
 ### Standalone Mode
 
@@ -107,7 +108,7 @@ import { ChecklistPrimitive } from "@assistant-ui/react";
 
 ### ChecklistPrimitive.Item
 
-Renders a single checklist item. Renders a `<div>` with a `data-status` attribute.
+Renders a single checklist item as a `<div>` with a `data-status` attribute. By default it renders the item's text (plus a `data-detail` span when `detail` is set); pass `children` to fully control the row's content.
 
 ```tsx
 <ChecklistPrimitive.Item
@@ -118,21 +119,15 @@ Renders a single checklist item. Renders a `<div>` with a `data-status` attribut
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `item` | `ChecklistItemData` | required | The checklist item data |
-| `depth` | `number` | `0` | Current nesting depth |
-| `maxDepth` | `number` | `2` | Maximum nesting depth for children |
-| `renderItem` | `(props: { item, depth }) => ReactNode` | — | Custom render function for each row |
+| `children` | `ReactNode` | — | Custom row content (replaces the default text markup) |
 
-Use `renderItem` for full control over how each row renders (children are still rendered beneath it):
+The primitive renders one row. Walk the tree yourself to render nested `children` (the styled `LiveChecklist` does this up to `maxDepth`):
 
 ```tsx
-<ChecklistPrimitive.Item
-  item={item}
-  renderItem={({ item }) => (
-    <div data-status={item.status}>
-      {item.status === "complete" ? "■" : "□"} {item.text}
-    </div>
-  )}
-/>
+<ChecklistPrimitive.Item item={item}>
+  <StatusIcon status={item.status} />
+  <span>{item.text}</span>
+</ChecklistPrimitive.Item>
 ```
 
 ### ChecklistPrimitive.Progress

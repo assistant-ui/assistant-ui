@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { mapToolCallToChecklistItem } from "../react/primitive-hooks/useToolActivityChecklist";
-import { flattenChecklistItems } from "../types/checklist";
-import type { ChecklistItemData } from "../types/checklist";
 
 describe("mapToolCallToChecklistItem", () => {
   const makePart = (overrides: Record<string, unknown> = {}) =>
@@ -86,46 +84,5 @@ describe("mapToolCallToChecklistItem", () => {
       makePart({ argsText: "{}", status: { type: "running" } }),
     );
     expect(item.detail).toBeUndefined();
-  });
-});
-
-describe("flattenChecklistItems", () => {
-  const item = (
-    id: string,
-    children?: ChecklistItemData[],
-  ): ChecklistItemData => ({
-    id,
-    text: id,
-    status: "pending",
-    ...(children ? { children } : undefined),
-  });
-
-  it("preserves top-level order", () => {
-    const flat = flattenChecklistItems([item("a"), item("b"), item("c")]);
-    expect(flat.map((i) => i.id)).toEqual(["a", "b", "c"]);
-  });
-
-  it("appends children after their siblings in breadth-first order", () => {
-    const flat = flattenChecklistItems([
-      item("parent", [item("child-a"), item("child-b")]),
-      item("other"),
-    ]);
-    expect(flat.map((i) => i.id)).toEqual([
-      "parent",
-      "other",
-      "child-a",
-      "child-b",
-    ]);
-  });
-
-  it("flattens deeply nested items", () => {
-    const flat = flattenChecklistItems([
-      item("root", [item("mid", [item("leaf")])]),
-    ]);
-    expect(flat.map((i) => i.id)).toEqual(["root", "mid", "leaf"]);
-  });
-
-  it("returns an empty array for no items", () => {
-    expect(flattenChecklistItems([])).toEqual([]);
   });
 });
