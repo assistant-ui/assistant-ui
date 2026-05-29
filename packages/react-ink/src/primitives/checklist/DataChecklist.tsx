@@ -1,6 +1,6 @@
 import { makeAssistantDataUI } from "@assistant-ui/core/react";
 import type { DataMessagePartProps } from "@assistant-ui/core/react";
-import type { ChecklistData } from "@assistant-ui/core";
+import type { ChecklistData } from "./types";
 import { ChecklistView } from "./ChecklistView";
 
 export const DataChecklist = (props: DataMessagePartProps<ChecklistData>) => {

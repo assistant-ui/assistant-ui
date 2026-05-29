@@ -195,8 +195,6 @@ export {
   useInteractableState,
   useToolArgsStatus,
   type ToolArgsStatus,
-  useToolActivityChecklist,
-  type UseToolActivityChecklistOptions,
 } from "@assistant-ui/core/react";
 
 export type {
@@ -258,7 +256,6 @@ export * as ThreadListPrimitive from "./primitives/threadList";
 export * as ThreadListItemPrimitive from "./primitives/threadListItem";
 export * as ThreadListItemMorePrimitive from "./primitives/threadListItemMore";
 export * as SelectionToolbarPrimitive from "./primitives/selectionToolbar";
-export * as ChecklistPrimitive from "./primitives/checklist";
 
 export { groupPartByType } from "@assistant-ui/core/react";
 export { useMessagePartText } from "./primitives/messagePart/useMessagePartText";
@@ -305,12 +302,6 @@ export type {
   Unsubscribe,
   QuoteInfo,
   CreateAttachment,
-} from "@assistant-ui/core";
-
-export type {
-  ChecklistItemData,
-  ChecklistItemStatus,
-  ChecklistData,
 } from "@assistant-ui/core";
 
 // React component types (from core/react)

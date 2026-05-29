@@ -17,7 +17,6 @@
     "suggestion",
     "selection-toolbar",
     "error",
-    "chain-of-thought",
-    "checklist"
+    "chain-of-thought"
   ]
 }

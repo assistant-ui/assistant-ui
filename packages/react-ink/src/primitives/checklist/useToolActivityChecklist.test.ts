@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapToolCallToChecklistItem } from "../react/primitive-hooks/useToolActivityChecklist";
+import { mapToolCallToChecklistItem } from "./useToolActivityChecklist";
 
 describe("mapToolCallToChecklistItem", () => {
   const makePart = (overrides: Record<string, unknown> = {}) =>

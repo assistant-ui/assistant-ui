@@ -50,9 +50,3 @@ export type {
 } from "./directive";
 
 export type { Unstable_TriggerItem, Unstable_TriggerCategory } from "./trigger";
-
-export type {
-  ChecklistItemData,
-  ChecklistItemStatus,
-  ChecklistData,
-} from "./checklist";

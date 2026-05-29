@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render } from "ink-testing-library";
 import { ChecklistProgress } from "./ChecklistProgress";
-import type { ChecklistItemData } from "@assistant-ui/core";
+import type { ChecklistItemData } from "./types";
 
 const renderFrame = async (node: ReactElement) => {
   const instance = render(node);

@@ -52,10 +52,6 @@ export type {
   VoiceSessionControls,
   VoiceSessionHelpers,
   SuggestionAdapter,
-  // Checklist types
-  ChecklistItemData,
-  ChecklistItemStatus,
-  ChecklistData,
   // Other
   Unsubscribe,
 } from "@assistant-ui/core";
@@ -153,6 +149,15 @@ export {
   DataChecklist,
   ChecklistDataUI,
 } from "./primitives/checklist/DataChecklist";
+export type {
+  ChecklistItemData,
+  ChecklistItemStatus,
+  ChecklistData,
+} from "./primitives/checklist/types";
+export {
+  useToolActivityChecklist,
+  type UseToolActivityChecklistOptions,
+} from "./primitives/checklist/useToolActivityChecklist";
 
 // Re-export shared providers from core/react
 export {
@@ -163,12 +168,6 @@ export {
   TextMessagePartProvider,
   ChainOfThoughtPartByIndexProvider,
   SuggestionByIndexProvider,
-} from "@assistant-ui/core/react";
-
-// Checklist hook from core/react
-export {
-  useToolActivityChecklist,
-  type UseToolActivityChecklistOptions,
 } from "@assistant-ui/core/react";
 
 // Model context, tools & clients

@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import { Box, Text } from "ink";
-import type { ChecklistItemData } from "@assistant-ui/core";
+import type { ChecklistItemData } from "./types";
 
 export type ChecklistProgressProps = ComponentProps<typeof Box> & {
   items: ChecklistItemData[];

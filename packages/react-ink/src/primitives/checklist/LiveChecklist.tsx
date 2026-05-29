@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
-import { useToolActivityChecklist } from "@assistant-ui/core/react";
-import type { ChecklistItemData } from "@assistant-ui/core";
+import { useToolActivityChecklist } from "./useToolActivityChecklist";
+import type { ChecklistItemData } from "./types";
 import { ChecklistView } from "./ChecklistView";
 import type { Box } from "ink";
 
