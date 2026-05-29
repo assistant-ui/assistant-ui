@@ -3,7 +3,7 @@ title: External Store Runtime
 description: Runtime components, options, and adapters for using assistant-ui with externally owned chat state.
 ---
 
-import { ExternalStoreAdapter, ExternalThread, ExternalThreadProps, ExternalThreadQueueAdapter, useExternalStoreRuntime } from "@/generated/typeDocs";
+import { ExternalStoreAdapter, ExternalThread, ExternalThreadProps, ExternalThreadQueueAdapter, useExternalStoreRuntime, useExternalStoreSharedOptions } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -30,7 +30,17 @@ import { ExternalStoreAdapter, ExternalThread, ExternalThreadProps, ExternalThre
 
 <ParametersTable {...ExternalThreadQueueAdapter} />
 
+### pickExternalStoreSharedOptions
+
+```ts
+const pickExternalStoreSharedOptions: (options: ExternalStoreSharedOptions) => ExternalStoreSharedOptions;
+```
+
 ### useExternalStoreRuntime
 
 <ParametersTable {...useExternalStoreRuntime} />
+
+### useExternalStoreSharedOptions
+
+<ParametersTable {...useExternalStoreSharedOptions} />
 {/* api-reference:end */}

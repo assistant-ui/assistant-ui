@@ -13,19 +13,71 @@ import {
 } from "ts-morph";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { DOCS_ROOT, REPO_ROOT } from "./paths.mts";
+import {
+  CORE_PKG,
+  DOCS_ROOT,
+  INTEGRATION_PACKAGES,
+  REACT_PKG,
+  REPO_ROOT,
+} from "./paths.mts";
 import type { ExportInfo } from "./discover.mts";
 
 // ── Project (per-process shared instance) ──────────────────────────────────
 
+// Source trees the api-reference + primitive generators read from. Derived
+// from paths.mts so adding/removing a package is a single edit there. Limited
+// to the packages whose public API we render — anything else can be lazy
+// loaded by ts-morph via addSourceFileAtPath if a type reference reaches it.
+const PACKAGE_SOURCE_ROOTS = [
+  CORE_PKG,
+  REACT_PKG,
+  ...INTEGRATION_PACKAGES.map((p) => path.dirname(p.entry)),
+];
+
+const GENERATOR_SOURCE_GLOBS = PACKAGE_SOURCE_ROOTS.flatMap((dir) => [
+  path.join(dir, "**/*.ts"),
+  path.join(dir, "**/*.tsx"),
+]);
+
 let _project: Project | undefined;
+let _allExportedNames: Set<string> | undefined;
+
+/** Every symbol name exported from the generator's package source trees —
+ *  including internal exports that never reach the public api-reference (e.g.
+ *  `GROUPBY_MEMO_KEY`). Lets the JSDoc renderer treat a `{@link}` to a real
+ *  but unanchored symbol as a graceful no-op instead of a broken-link warning,
+ *  reserving the warning for targets that name nothing that actually exists. */
+export function getAllExportedNames(): Set<string> {
+  if (_allExportedNames) return _allExportedNames;
+  const project = getProject();
+  const names = new Set<string>();
+  for (const sourceFile of project.getSourceFiles()) {
+    const filePath = sourceFile.getFilePath();
+    if (!PACKAGE_SOURCE_ROOTS.some((root) => filePath.startsWith(root))) {
+      continue;
+    }
+    for (const symbol of sourceFile.getExportSymbols()) {
+      names.add(symbol.getName());
+    }
+  }
+  _allExportedNames = names;
+  return names;
+}
 
 export function getProject(): Project {
   if (_project) return _project;
   _project = new Project({
     tsConfigFilePath: path.join(DOCS_ROOT, "tsconfig.json"),
-    skipAddingFilesFromTsConfig: false,
+    // The docs tsconfig `include`s the entire Next.js app + `.next/types/**`
+    // + every workspace package reachable through path mappings, which costs
+    // ~3.4 s of project bootstrap and loads ~1,100 source files we never look
+    // at. Skip the tsconfig auto-add and explicitly preload the package
+    // source trees this generator analyzes (see GENERATOR_SOURCE_GLOBS).
+    skipAddingFilesFromTsConfig: true,
   });
+  for (const glob of GENERATOR_SOURCE_GLOBS) {
+    _project.addSourceFilesAtPaths(glob);
+  }
   // Note: do NOT eagerly add primitive source globs here. Doing so changes
   // ts-morph's intersection property iteration order (legacy api-surface
   // loaded files lazily via addSourceFileAtPath). Primitive sources get
@@ -203,6 +255,11 @@ type JsDocLinkResolver = (target: string) => string | undefined;
 
 export type JsDocRenderOptions = {
   linkResolver?: JsDocLinkResolver;
+  /** Returns true when `target` names a discovered public export, even one
+   *  that has no standalone anchor (e.g. a supporting type rendered inline).
+   *  Lets the renderer distinguish a legitimately anchorless reference from a
+   *  genuinely broken/typo'd link, so only the latter warns. */
+  isKnownExport?: (target: string) => boolean;
 };
 
 function isExternalLinkTarget(target: string): boolean {
@@ -237,13 +294,19 @@ function warnUnresolvedJsDocLink(target: string, source: string): void {
 function renderJsDocLinkTag(
   content: string,
   source: string,
-  { linkResolver }: JsDocRenderOptions = {},
+  { linkResolver, isKnownExport }: JsDocRenderOptions = {},
 ): string {
   const { target, label } = parseJsDocLinkContent(content);
   const isExternal = isExternalLinkTarget(target);
   const href = isExternal ? target : linkResolver?.(target);
   if (!href) {
-    if (!isExternal) warnUnresolvedJsDocLink(target, source);
+    // Only warn for genuinely unknown targets (typos or non-public symbols).
+    // A known export that simply has no standalone anchor — a supporting type
+    // rendered inline in a parameters table — degrades to its label silently,
+    // so the warning channel means exactly "this link target does not exist".
+    if (!isExternal && !isKnownExport?.(target)) {
+      warnUnresolvedJsDocLink(target, source);
+    }
     return label;
   }
   const labelText = label.replaceAll("[", "\\[").replaceAll("]", "\\]");
@@ -1052,9 +1115,7 @@ export function extractExportShape(
     declaration,
     item.name,
     item.kind,
-    item.jsDocLinkResolver
-      ? { linkResolver: item.jsDocLinkResolver }
-      : undefined,
+    item.jsDocRenderOptions,
   );
 }
 

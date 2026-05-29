@@ -712,7 +712,6 @@ describe("React Strict Mode Behavior Verification", () => {
         const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
-        // biome-ignore lint/correctness/useExhaustiveDependencies: testing strict mode behavior with intentionally incomplete deps
         useEffect(() => {
           effectRunCount++;
           events.push(`effect mount #${effectRunCount} count=${count}`);
@@ -763,7 +762,6 @@ describe("React Strict Mode Behavior Verification", () => {
         const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
-        // biome-ignore lint/correctness/useExhaustiveDependencies: testing strict mode behavior with intentionally incomplete deps
         useEffect(() => {
           effectRunCount++;
           events.push(`effect mount #${effectRunCount} count=${count}`);
@@ -814,7 +812,6 @@ describe("React Strict Mode Behavior Verification", () => {
         const [count, setCount] = useState(0);
         events.push(`render count=${count}`);
 
-        // biome-ignore lint/correctness/useExhaustiveDependencies: testing strict mode behavior with intentionally incomplete deps
         useEffect(() => {
           effectRunCount++;
           events.push(`effect mount #${effectRunCount} count=${count}`);

@@ -92,7 +92,6 @@ export function unstable_useMentionAdapter(
   iconMap?: Record<string, Unstable_IconComponent>;
   fallbackIcon?: Unstable_IconComponent;
 } {
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const aui = useAui();
 
   const items = options?.items;
@@ -105,7 +104,6 @@ export function unstable_useMentionAdapter(
   const formatter = options?.formatter;
   const onInserted = options?.onInserted;
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const adapter = useMemo<Unstable_TriggerAdapter>(() => {
     const getModelContextTools = (): Unstable_TriggerItem[] => {
       if (!wantsTools) return [];
@@ -182,7 +180,6 @@ export function unstable_useMentionAdapter(
     };
   }, [aui, items, categories, wantsTools, toolsConfig]);
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: `unstable_` prefix not recognized as hook
   const directive = useMemo<Unstable_MentionDirective>(
     () => ({
       formatter: formatter ?? unstable_defaultDirectiveFormatter,

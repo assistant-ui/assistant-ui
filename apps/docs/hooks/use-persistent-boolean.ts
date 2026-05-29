@@ -28,7 +28,6 @@ class PersistentBooleanStore {
   };
 
   private notifyListeners = () => {
-    // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
     this.listeners.forEach((listener) => listener());
   };
 

@@ -419,7 +419,6 @@ export class DataStreamDecoder extends PipeableTransformStream<
         flush() {
           activeToolCallArgsText?.close();
           activeToolCallArgsText = undefined;
-          // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
           toolCallControllers.forEach((controller) => controller.close());
           toolCallControllers.clear();
         },

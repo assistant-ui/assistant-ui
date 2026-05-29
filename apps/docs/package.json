@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm generate:docs && next build",
-    "generate:docs": "tsx ./scripts/generate-reference-docs.mts && tsx ./scripts/generate-source-snapshot.mts",
-    "dev": "pnpm generate:docs && next dev",
+    "dev": "pnpm generate:all && next dev",
+    "build": "pnpm generate:all && next build",
+    "generate:reference-docs": "tsx ./scripts/generate-reference-docs.mts",
+    "generate:source-snapshot": "tsx ./scripts/generate-source-snapshot.mts",
+    "generate:all": "pnpm generate:reference-docs && pnpm generate:source-snapshot",
     "start": "next start",
     "postinstall": "fumadocs-mdx"
   },

@@ -27,7 +27,7 @@ import { reactAiSdk_AssistantChatTransport, reactAiSdk_createResumableSessionSto
 ### frontendTools
 
 ```ts
-const frontendTools: (tools: Record<string, { description?: string; parameters: JSONSchema7; }>) => ToolSet;
+const frontendTools: (tools: Record<string, ToolJSONSchema>) => ToolSet;
 ```
 
 ### getThreadMessageTokenUsage

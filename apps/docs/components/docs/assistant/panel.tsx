@@ -39,7 +39,6 @@ function ResizeHandle() {
   );
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: resize drag handle
     <div
       onMouseDown={handleMouseDown}
       className={cn(

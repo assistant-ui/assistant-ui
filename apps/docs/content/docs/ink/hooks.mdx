@@ -60,6 +60,51 @@ useAuiEvent("thread.runStart", (payload) => {
 });
 ```
 
+### useNotification
+
+Ring the terminal bell and emit an OSC desktop notification when the assistant finishes a run, stops with an error, or pauses for human approval.
+
+```tsx
+import { useNotification } from "@assistant-ui/react-ink";
+
+useNotification();
+```
+
+Defaults:
+
+- `task-complete`: bell + OSC 9
+- `task-incomplete`: bell
+- `needs-input` (assistant message in `requires-action` with `reason: "interrupt"`): bell
+
+Pass `false` to suppress one trigger, or a `NotificationHandler` to override it:
+
+```tsx
+useNotification({
+  onTaskComplete: { osc: "osc99" },
+  onTaskIncomplete: false,
+  onNeedsInput: {
+    custom: (event) => myLogger.log(event),
+  },
+});
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `enabled` | `boolean` | Master switch. Defaults to `true`. |
+| `onTaskComplete` | `NotificationHandler<"task-complete"> \| false` | Fired when the latest assistant message status flips to `complete` after a run was observed. |
+| `onTaskIncomplete` | `NotificationHandler<"task-incomplete"> \| false` | Fired when the latest assistant message status flips to `incomplete` after a run was observed. |
+| `onNeedsInput` | `NotificationHandler<"needs-input"> \| false` | Fired when the latest assistant message enters `requires-action` with `reason: "interrupt"`. Tool-call pauses are skipped. |
+
+`NotificationHandler<T>` fields (all optional, any combination):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `bell` | `boolean` | Ring the terminal bell (`\x07`). |
+| `osc` | `boolean \| "osc9" \| "osc99" \| "osc777"` | Send an OSC notification. `true` is equivalent to `"osc9"`. |
+| `custom` | `(event: Extract<NotificationEvent, { type: T }>) => void` | User callback invoked with the event payload narrowed to this handler's type. |
+
+Notifications are deduplicated per `thread:message:status:reason` tuple, so passing an inline config object does not produce duplicate fires. `ringBell` and `sendOSCNotification(title, body?, variant?)` are also exported for imperative use. OSC support depends on the terminal emulator.
+
 ## Runtime Hooks
 
 ### useLocalRuntime

@@ -148,6 +148,115 @@ describe("A2AClient", () => {
     });
   });
 
+  describe("fetchOptions", () => {
+    it("applies fetchOptions to all request types", async () => {
+      const fetchOptionsClient = new A2AClient({
+        baseUrl: "https://agent.test",
+        fetchOptions: { credentials: "include" },
+      });
+
+      fetchMock
+        .mockResolvedValueOnce(
+          mockFetchResponse({
+            task: { id: "t1", status: { state: "completed" } },
+          }),
+        )
+        .mockResolvedValueOnce(
+          mockFetchResponse({
+            name: "Test Agent",
+            description: "A test",
+            version: "1.0",
+            supportedInterfaces: [],
+            capabilities: {},
+            defaultInputModes: [],
+            defaultOutputModes: [],
+            skills: [],
+          }),
+        )
+        .mockResolvedValueOnce(
+          mockSSEResponse([
+            `data: ${JSON.stringify({ status_update: { task_id: "t1", context_id: "ctx-1", status: { state: "TASK_STATE_WORKING" } } })}`,
+            "",
+            "",
+          ]),
+        )
+        .mockResolvedValueOnce(
+          mockSSEResponse([
+            `data: ${JSON.stringify({ status_update: { task_id: "t1", context_id: "ctx-1", status: { state: "TASK_STATE_WORKING" } } })}`,
+            "",
+            "",
+          ]),
+        )
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 204,
+          statusText: "No Content",
+          headers: new Headers(),
+        });
+
+      await fetchOptionsClient.sendMessage(userMessage);
+      await fetchOptionsClient.getAgentCard();
+      for await (const _ of fetchOptionsClient.streamMessage(userMessage)) {
+        void _;
+      }
+      for await (const _ of fetchOptionsClient.subscribeToTask("t1")) {
+        void _;
+      }
+      await fetchOptionsClient.deleteTaskPushNotificationConfig("t1", "pnc-1");
+
+      for (const [, init] of fetchMock.mock.calls) {
+        expect(init.credentials).toBe("include");
+      }
+    });
+
+    it("strips internally-managed fields even when smuggled via cast", async () => {
+      const smuggledSignal = new AbortController().signal;
+      const fetchOptionsClient = new A2AClient({
+        baseUrl: "https://agent.test",
+        fetchOptions: {
+          method: "GET",
+          headers: { "X-Injected": "1" },
+          body: "smuggled",
+          signal: smuggledSignal,
+        } as RequestInit,
+      });
+
+      fetchMock
+        .mockResolvedValueOnce(
+          mockFetchResponse({
+            task: { id: "t1", status: { state: "completed" } },
+          }),
+        )
+        .mockResolvedValueOnce(
+          mockFetchResponse({
+            name: "Test",
+            description: "desc",
+            version: "1.0",
+            supportedInterfaces: [],
+            capabilities: {},
+            defaultInputModes: [],
+            defaultOutputModes: [],
+            skills: [],
+          }),
+        );
+
+      await fetchOptionsClient.sendMessage(userMessage);
+      await fetchOptionsClient.getAgentCard();
+
+      for (const [, init] of fetchMock.mock.calls) {
+        expect(init.headers["X-Injected"]).toBeUndefined();
+        expect(init.body).not.toBe("smuggled");
+        expect(init.signal).not.toBe(smuggledSignal);
+      }
+
+      expect(fetchMock.mock.calls[0]![1].method).toBe("POST");
+      expect(fetchMock.mock.calls[0]![1].headers["Content-Type"]).toBe(
+        "application/a2a+json",
+      );
+      expect(fetchMock.mock.calls[1]![1].method).toBeUndefined();
+    });
+  });
+
   // --- Tenant ---
 
   describe("tenant", () => {
@@ -275,7 +384,7 @@ describe("A2AClient", () => {
       expect(body.message.messageId).toBe("msg-1");
     });
 
-    it("sends 'content' not 'parts' per A2A v1.0 proto spec", async () => {
+    it("sends 'parts' per A2A v1.0 spec (gRPC + JSON-RPC unified in a2aproject/A2A#1100)", async () => {
       fetchMock.mockResolvedValue(
         mockFetchResponse({
           task: { id: "t1", status: { state: "completed" } },
@@ -285,8 +394,8 @@ describe("A2AClient", () => {
       await client.sendMessage(userMessage);
 
       const body = JSON.parse(fetchMock.mock.calls[0]![1].body);
-      expect(body.message.content).toEqual([{ text: "Hello" }]);
-      expect(body.message.parts).toBeUndefined();
+      expect(body.message.parts).toEqual([{ text: "Hello" }]);
+      expect(body.message.content).toBeUndefined();
     });
 
     it("unwraps task from SendMessageResponse", async () => {
@@ -320,7 +429,7 @@ describe("A2AClient", () => {
       expect((result as any).role).toBe("agent");
     });
 
-    it("normalizes 'content' array from v1.0 server response to internal 'parts'", async () => {
+    it("normalizes 'content' array from v0.3 server response to internal 'parts'", async () => {
       fetchMock.mockResolvedValue(
         mockFetchResponse({
           message: {
@@ -778,7 +887,7 @@ describe("A2AClient", () => {
       expect(events).toHaveLength(2);
     });
 
-    it("normalizes v1.0 'content' to 'parts' in SSE artifact update events", async () => {
+    it("normalizes 'content' array from v0.3 server response to 'parts' in SSE artifact update events", async () => {
       const sseData = JSON.stringify({
         artifact_update: {
           task_id: "t1",
@@ -810,7 +919,7 @@ describe("A2AClient", () => {
       expect((evt.event.artifact as any).content).toBeUndefined();
     });
 
-    it("normalizes v1.0 'content' to 'parts' in SSE status update messages", async () => {
+    it("normalizes 'content' array from v0.3 server response to 'parts' in SSE status update messages", async () => {
       const sseData = JSON.stringify({
         status_update: {
           task_id: "t1",

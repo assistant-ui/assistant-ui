@@ -13,7 +13,6 @@ describe("Lifecycle - Mount/Unmount", () => {
     const effects = [vi.fn(), vi.fn(), vi.fn()];
 
     const resource = createTestResource(() => {
-      // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
       effects.forEach((fn) => tapEffect(fn));
       return null;
     });
@@ -36,11 +35,9 @@ describe("Lifecycle - Mount/Unmount", () => {
     });
 
     renderTest(resource, undefined);
-    // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
     cleanups.forEach((fn) => expect(fn).not.toHaveBeenCalled());
 
     unmountResource(resource);
-    // biome-ignore lint/suspicious/useIterableCallbackReturn: forEach callback intentionally has no return
     cleanups.forEach((fn) => expect(fn).toHaveBeenCalledTimes(1));
   });
 

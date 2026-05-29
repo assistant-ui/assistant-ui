@@ -363,7 +363,12 @@ export async function POST(req: Request): Promise<Response> {
                     (node): node is PageTree.Folder => node.type === "folder",
                   ),
                 ),
-                { type: "folder", name: "examples", url: "/examples" },
+                {
+                  type: "folder",
+                  name: "examples",
+                  description:
+                    "Examples of app types users can build with assistant-ui, showing instructions, recommended patterns, and UI structure.",
+                },
               ];
             }
 

@@ -469,11 +469,15 @@ export function extractPrimitivePartsFor(
 }
 
 /** Extract every primitive part across every primitive. Used by
- *  generate-primitive-docs.mts. */
-export function extractPrimitiveParts(): PrimitivePartModel[] {
+ *  generate-primitive-docs.mts. Pass the react api render options so {@link}
+ *  references in primitive prop JSDoc resolve to anchors (and only genuinely
+ *  broken links warn), matching the api-reference pass. */
+export function extractPrimitiveParts(
+  options?: JsDocRenderOptions,
+): PrimitivePartModel[] {
   const result: PrimitivePartModel[] = [];
   for (const primitiveName of discoverPrimitiveBarrelExports().keys()) {
-    result.push(...extractPrimitivePartsFor(primitiveName));
+    result.push(...extractPrimitivePartsFor(primitiveName, options));
   }
   return result;
 }

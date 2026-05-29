@@ -12,13 +12,13 @@ import {
 console.log("Discovering @assistant-ui/react exports...");
 const exports = discoverExports();
 
-printClassificationDiagnostics(exports);
-
 // Primitive parts are extracted lazily inside buildTypeDocs (interleaved with
 // per-export shape extraction) so ts-morph resolves intersection property
 // iteration in the same order as legacy api-surface.
 const { typeDocs, integrationTypeDocs, integrationsByPackage } =
   buildTypeDocs(exports);
+
+printClassificationDiagnostics(exports, typeDocs);
 
 writeTypeDocs(typeDocs);
 writeIntegrationTypeDocs(integrationTypeDocs);

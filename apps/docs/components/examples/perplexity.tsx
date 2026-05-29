@@ -444,7 +444,6 @@ const AttachmentPreview: FC<{ removable: boolean }> = ({ removable }) => {
       <div className="flex max-w-65 items-center gap-3 rounded-2xl border border-[#e3dbcf] bg-[#f5f1eb] py-2 pr-3 pl-2 transition-colors hover:bg-[#efe8de] dark:border-[#3a342f] dark:bg-[#2a2724] dark:hover:bg-[#302c29]">
         <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#fffdfa] text-[#6f675d] dark:bg-[#201d1b] dark:text-[#a59f96]">
           {src ? (
-            // biome-ignore lint/performance/noImgElement: example component
             <img
               src={src}
               alt="Attachment"

@@ -248,6 +248,32 @@ function voiceRule(input: ClassificationInput): Classification | undefined {
   }
 }
 
+const GENERATIVE_UI_SPEC_TYPES = new Set([
+  "GenerativeUISpec",
+  "GenerativeUINode",
+  "GenerativeUIMessagePart",
+]);
+
+function generativeUIRule(
+  input: ClassificationInput,
+): Classification | undefined {
+  const { name, kind } = input;
+  if (!name.startsWith("GenerativeUI")) return undefined;
+  // The spec format types are the cross-reference targets
+  // ({@link GenerativeUISpec}, {@link GenerativeUIMessagePart}); they must be
+  // primary to earn an anchor. The renderer, error, and registry/prop helpers
+  // live on the rendering page.
+  const isSpecType = GENERATIVE_UI_SPEC_TYPES.has(name);
+  return classification(
+    "generative-ui",
+    isSpecType ? "spec" : "rendering",
+    isSpecType ? "primary" : supportingTypeRole(kind),
+    "feature:generative-ui",
+    "strong",
+    "generative UI spec, renderer, or component registry export",
+  );
+}
+
 function kindRule(input: ClassificationInput): Classification | undefined {
   const { name, sourcePath } = input;
   let section: ApiSection | undefined;
@@ -310,10 +336,58 @@ const CLASSIFICATION_RULES: ClassificationRule[] = [
   externalStoreRule,
   modelContextRule,
   voiceRule,
+  generativeUIRule,
   kindRule,
 ];
 
+/** Exact-name overrides consulted before any heuristic. The escape hatch for
+ *  exports the rules can't place from name/source shape alone (mirrors
+ *  MANUAL_API_REFERENCE_LINKS in discover.mts): pinning one is a single entry
+ *  here instead of contorting a regex rule. */
+const MANUAL_CLASSIFICATIONS = new Map<
+  string,
+  { section: ApiSection; page: string; role: ExportInfo["pageRole"] }
+>([
+  // Constructor for the `groupBy` prop of <MessagePrimitive.GroupedParts>; its
+  // home is the message primitive page, beside the part it configures.
+  [
+    "groupPartByType",
+    { section: "primitives", page: "message", role: "related" },
+  ],
+  // MCP app embedding/rendering surface.
+  ["McpAppRenderer", { section: "tools", page: "rendering", role: "primary" }],
+  [
+    "McpAppsRemoteHost",
+    { section: "tools", page: "rendering", role: "primary" },
+  ],
+  [
+    "getMcpAppFromToolPart",
+    { section: "tools", page: "rendering", role: "primary" },
+  ],
+  // Marks a component subtree visible to the assistant's model context.
+  [
+    "makeAssistantVisible",
+    { section: "model-context", page: "context", role: "primary" },
+  ],
+  // Serializable thread/message snapshot used for persistence.
+  [
+    "ExportedMessageRepository",
+    { section: "adapters", page: "persistence", role: "primary" },
+  ],
+]);
+
 export function classifyExport(input: ClassificationInput): Classification {
+  const manual = MANUAL_CLASSIFICATIONS.get(input.name);
+  if (manual) {
+    return classification(
+      manual.section,
+      manual.page,
+      manual.role,
+      "manual",
+      "strong",
+      "manually pinned classification",
+    );
+  }
   for (const rule of CLASSIFICATION_RULES) {
     const result = rule(input);
     if (result) return result;

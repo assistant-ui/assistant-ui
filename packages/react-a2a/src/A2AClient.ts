@@ -26,6 +26,10 @@ export type A2AClientOptions = {
     | undefined;
   /** A2A extension URIs to negotiate. Sent as A2A-Extensions header. */
   extensions?: string[] | undefined;
+  /** Extra fetch options applied to every request. */
+  fetchOptions?:
+    | Omit<RequestInit, "headers" | "body" | "method" | "signal">
+    | undefined;
 };
 
 export class A2AError extends Error {
@@ -87,10 +91,10 @@ function normalizeKeys(obj: unknown, opaque = false): unknown {
       ) {
         result[camelKey] = value.slice(5).toLowerCase();
       } else if (camelKey === "content" && Array.isArray(value)) {
-        // v1.0 proto uses "content" for message/artifact parts; map to internal "parts"
+        // v0.3 servers used "content" for message/artifact parts; normalize to "parts" for backward compat
         result.parts = normalizeKeys(value, false);
       } else if (camelKey !== "parts" || !("parts" in result)) {
-        // skip "parts" if "content" already mapped it (prefer content over parts)
+        // dedup: "content" was already mapped to parts above; don't overwrite
         result[camelKey] = isOpaqueChild ? value : normalizeKeys(value, false);
       }
     }
@@ -111,8 +115,7 @@ function toWireTaskState(state: A2ATaskState): string {
 }
 
 function toWireMessage(msg: A2AMessage): unknown {
-  const { parts, ...rest } = msg;
-  return { ...rest, role: toWireRole(msg.role), content: parts };
+  return { ...msg, role: toWireRole(msg.role) };
 }
 
 function discriminateStreamResponse(
@@ -158,6 +161,10 @@ export class A2AClient {
   private basePath: string;
   private tenant: string | undefined;
   private extensionUris: string[] | undefined;
+  private fetchOptions: Omit<
+    RequestInit,
+    "headers" | "body" | "method" | "signal"
+  >;
   private headersFn:
     | Record<string, string>
     | (() => Record<string, string> | Promise<Record<string, string>>);
@@ -169,6 +176,14 @@ export class A2AClient {
       : "";
     this.tenant = options.tenant;
     this.extensionUris = options.extensions;
+    const {
+      headers: _h,
+      body: _b,
+      method: _m,
+      signal: _s,
+      ...safeFetchOptions
+    } = (options.fetchOptions ?? {}) as RequestInit;
+    this.fetchOptions = safeFetchOptions;
     this.headersFn = options.headers ?? {};
   }
 
@@ -229,6 +244,7 @@ export class A2AClient {
     const isGet = !options.method || options.method.toUpperCase() === "GET";
     const headers = await this.getHeaders(!isGet);
     const response = await fetch(`${this.baseUrl}${path}`, {
+      ...this.fetchOptions,
       ...options,
       headers: {
         ...headers,
@@ -247,7 +263,11 @@ export class A2AClient {
   async getAgentCard(signal?: AbortSignal): Promise<A2AAgentCard> {
     const headers = await this.getHeaders(false); // GET: no Content-Type
     const url = `${this.baseUrl}/.well-known/agent-card.json`;
-    const response = await fetch(url, { headers, ...signalInit(signal) });
+    const response = await fetch(url, {
+      ...this.fetchOptions,
+      headers,
+      ...signalInit(signal),
+    });
     if (!response.ok) {
       await this.throwResponseError(response);
     }
@@ -310,6 +330,7 @@ export class A2AClient {
     const response = await fetch(
       `${this.baseUrl}${this.getBasePath()}/message:stream`,
       {
+        ...this.fetchOptions,
         method: "POST",
         headers,
         body: JSON.stringify(body),
@@ -390,7 +411,11 @@ export class A2AClient {
 
     const response = await fetch(
       `${this.baseUrl}${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}:subscribe`,
-      { headers, ...signalInit(signal) },
+      {
+        ...this.fetchOptions,
+        headers,
+        ...signalInit(signal),
+      },
     );
     if (!response.ok) {
       await this.throwResponseError(response);
@@ -453,7 +478,12 @@ export class A2AClient {
     const headers = await this.getHeaders(!isGet);
     const response = await fetch(
       `${this.baseUrl}${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}/pushNotificationConfigs/${encodeURIComponent(configId)}`,
-      { method: "DELETE", headers, ...signalInit(signal) },
+      {
+        ...this.fetchOptions,
+        method: "DELETE",
+        headers,
+        ...signalInit(signal),
+      },
     );
     if (!response.ok) {
       await this.throwResponseError(response);

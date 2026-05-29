@@ -246,12 +246,10 @@ export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
     activeSectionId,
   );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the change trigger
   useEffect(() => {
     if (activeSectionId) setOpenSectionId(activeSectionId);
   }, [activeSectionId, pathname]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: deps are change triggers
   useEffect(() => {
     if (openSectionId !== activeSectionId) return;
     const timer = setTimeout(() => {

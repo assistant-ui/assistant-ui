@@ -1,6 +1,6 @@
 ---
 title: AssistantRuntimeProvider
-description: ""
+description: Root React provider that connects an assistant-ui runtime to primitives, hooks, threads, and composer state.
 ---
 
 import { AssistantRuntimeProvider, AuiProvider } from "@/generated/typeDocs";
@@ -15,6 +15,27 @@ import { AssistantRuntimeProvider, AuiProvider } from "@/generated/typeDocs";
 ## API Reference
 
 ### AssistantRuntimeProvider
+
+{/* api-example:AssistantRuntimeProvider:start */}
+```tsx {1, 8, 10}
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+
+const MyApp = () => {
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({
+      api: "/api/chat",
+    }),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {/* your app */}
+    </AssistantRuntimeProvider>
+  );
+};
+```
+{/* api-example:AssistantRuntimeProvider:end */}
 
 <ParametersTable {...AssistantRuntimeProvider} />
 

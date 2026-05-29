@@ -132,7 +132,6 @@ const NOOP_ON_NEW = () =>
 const useOpenCodeControllerState = (
   controller: OpenCodeThreadControllerLike,
 ): OpenCodeThreadState => {
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   return useSyncExternalStore(
     (listener) => controller.subscribe(listener),
     () => controller.getState(),
@@ -151,14 +150,11 @@ const useOpenCodeThreadRuntime = (
   controller: OpenCodeThreadControllerLike,
   options: OpenCodeRuntimeOptions,
 ): AssistantRuntime => {
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const state = useOpenCodeControllerState(controller);
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const onLoadError = useEffectEvent((error: unknown) => {
     options.onError?.(error);
   });
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   useEffect(() => {
     if (controller === NOOP_CONTROLLER) return;
     void controller.load().catch(onLoadError);
@@ -166,16 +162,13 @@ const useOpenCodeThreadRuntime = (
 
   const isRunning = isOpenCodeStateRunning(state);
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const messageTiming = useOpenCodeStreamingTiming(state, isRunning);
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const messageRepository = useMemo(
     () => projectOpenCodeThreadRepository(state, messageTiming),
     [state, messageTiming],
   );
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const extras = useMemo(
     () =>
       ({
@@ -203,7 +196,6 @@ const useOpenCodeThreadRuntime = (
     [controller, state],
   );
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   return useExternalStoreRuntime<ThreadMessage>({
     ...pickExternalStoreSharedOptions(options),
     isLoading: state.loadState.type === "loading",
@@ -248,7 +240,6 @@ const useRuntimeHook = (
   registry: OpenCodeControllerRegistry,
   options: OpenCodeRuntimeOptions,
 ) => {
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const sessionId = useAuiState(
     (state: any) =>
       state.threadListItem.externalId ?? state.threadListItem.remoteId,
@@ -258,10 +249,8 @@ const useRuntimeHook = (
     ? getController(registry, client, sessionId)
     : NOOP_CONTROLLER;
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const threadRuntime = useOpenCodeThreadRuntime(controller, options);
 
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
   const fallbackRuntime = useExternalStoreRuntime<ThreadMessage>({
     isDisabled: true,
     isLoading: true,

@@ -1,4 +1,10 @@
-import { createContext, type FC, type ReactNode, useContext } from "react";
+import {
+  createContext,
+  type FC,
+  type ReactNode,
+  useContext,
+  useMemo,
+} from "react";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { ModelContextProvider } from "../../model-context/types";
@@ -23,13 +29,12 @@ export const RuntimeAdapterProvider: FC<RuntimeAdapterProvider.Props> = ({
   children,
 }) => {
   const context = useContext(RuntimeAdaptersContext);
+  const value = useMemo(
+    () => ({ ...context, ...adapters }),
+    [context, adapters],
+  );
   return (
-    <RuntimeAdaptersContext.Provider
-      value={{
-        ...context,
-        ...adapters,
-      }}
-    >
+    <RuntimeAdaptersContext.Provider value={value}>
       {children}
     </RuntimeAdaptersContext.Provider>
   );

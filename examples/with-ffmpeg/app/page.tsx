@@ -224,10 +224,8 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
       args: { fileName, mimeType },
       result,
     }) {
-      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
-      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       const readFile = useCallback(async () => {
         const ffmpeg = ffmpegRef.current;
         const data = (await ffmpeg.readFile(
@@ -236,7 +234,6 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
         return URL.createObjectURL(new Blob([data.buffer], { type: mimeType }));
       }, [fileName, mimeType]);
 
-      // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
       useEffect(() => {
         if (!result?.success) return;
         let revoked = false;
@@ -288,25 +285,16 @@ const FfmpegTool: FC<{ file: File }> = ({ file }) => {
 
       return (
         <div className="mb-2 flex flex-col gap-3 rounded-lg border px-5 py-4">
-          {blobUrl &&
-            isImage && (
-              // biome-ignore lint/performance/noImgElement: blob URL display
-              <img
-                src={blobUrl}
-                alt={fileName}
-                className="max-h-64 w-fit rounded"
-              />
-            )}
-          {blobUrl &&
-            isVideo && (
-              // biome-ignore lint/a11y/useMediaCaption: generated output
-              <video
-                src={blobUrl}
-                controls
-                className="max-h-64 w-fit rounded"
-              />
-            )}
-          {/* biome-ignore lint/a11y/useMediaCaption: generated output */}
+          {blobUrl && isImage && (
+            <img
+              src={blobUrl}
+              alt={fileName}
+              className="max-h-64 w-fit rounded"
+            />
+          )}
+          {blobUrl && isVideo && (
+            <video src={blobUrl} controls className="max-h-64 w-fit rounded" />
+          )}
           {blobUrl && isAudio && <audio src={blobUrl} controls />}
           {blobUrl && !isImage && !isVideo && !isAudio && (
             <div className="text-muted-foreground flex items-center gap-2">

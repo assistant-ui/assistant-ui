@@ -1,0 +1,5 @@
+{
+  "title": "Generative UI",
+  "description": "Spec-driven generative UI for assistant-ui. The data format an assistant streams, the component registry that resolves it, and the renderer that turns it into React elements.",
+  "pages": ["index", "spec", "rendering"]
+}

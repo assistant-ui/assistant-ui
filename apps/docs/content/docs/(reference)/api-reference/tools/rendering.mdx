@@ -3,7 +3,7 @@ title: Tool Rendering
 description: Register React renderers for assistant-ui tool calls, tool results, and model data parts.
 ---
 
-import { useAssistantDataUI, useAssistantToolUI } from "@/generated/typeDocs";
+import { McpAppRenderer, McpAppsRemoteHost, getMcpAppFromToolPart, useAssistantDataUI, useAssistantToolUI } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -25,6 +25,16 @@ directly for a renderer scope, or prefer [useAssistantDataUI](/docs/api-referenc
 ```ts
 const DataRenderers: () => ResourceElement<ClientOutput<"dataRenderers">, undefined>;
 ```
+
+### getMcpAppFromToolPart
+
+Returns MCP app metadata for a tool-call part that points at a `ui://`
+resource.
+
+Returns `undefined` when the part has no MCP app metadata or the metadata
+does not reference an assistant-ui MCP app resource.
+
+<ParametersTable {...getMcpAppFromToolPart} />
 
 ### makeAssistantDataUI
 
@@ -59,6 +69,27 @@ type AssistantToolUIProps = {
 
 const makeAssistantToolUI: <TArgs, TResult>(tool: AssistantToolUIProps<TArgs, TResult>) => AssistantToolUI;
 ```
+
+### McpAppRenderer
+
+Creates a tool-call renderer for MCP Apps embedded in assistant messages.
+
+Compose this into the `Tools` resource through its `mcpApp` option. When a
+tool-call part carries `mcp.app` metadata for a `ui://` resource, the
+renderer loads that resource from the configured host and displays it in a
+sandboxed frame.
+
+<ParametersTable {...McpAppRenderer} />
+
+### McpAppsRemoteHost
+
+Creates the default HTTP host for MCP App widgets.
+
+The host POSTs widget requests to the configured route as `{ method,
+params }`, using the method names expected by the assistant-ui MCP Apps
+guide.
+
+<ParametersTable {...McpAppsRemoteHost} />
 
 ### useAssistantDataUI
 

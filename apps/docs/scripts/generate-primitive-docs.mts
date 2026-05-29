@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { PRIMITIVE_DOCS_OUTPUT } from "./api-reference/paths.mts";
+import { getReactApiRenderOptions } from "./api-reference/discover.mts";
 import {
   extractPrimitiveParts,
   type InheritedFrom,
@@ -189,7 +190,7 @@ function serialize(grouped: GroupedPrimitives): string {
 // ── Main ───────────────────────────────────────────────────────────────────
 
 console.log("Generating primitive docs...");
-const parts = extractPrimitiveParts();
+const parts = extractPrimitiveParts(getReactApiRenderOptions());
 const grouped = projectToPrimitiveDocs(parts);
 const output = serialize(grouped);
 
