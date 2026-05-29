@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { useToolActivityChecklist } from "./useToolActivityChecklist";
+import { useToolCallChecklist } from "./useToolCallChecklist";
 import type { ChecklistItemData } from "./types";
 import { ChecklistView } from "./ChecklistView";
 import type { Box } from "ink";
@@ -16,7 +16,7 @@ const AutoChecklist = ({
   formatToolName,
   ...props
 }: Omit<LiveChecklistProps, "items">) => {
-  const items = useToolActivityChecklist({ formatToolName });
+  const items = useToolCallChecklist({ formatToolName });
   return <ChecklistView items={items} {...props} />;
 };
 

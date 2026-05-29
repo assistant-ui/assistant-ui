@@ -53,12 +53,12 @@ export const mapToolCallToChecklistItem = (
   };
 };
 
-export type UseToolActivityChecklistOptions = {
+export type UseToolCallChecklistOptions = {
   formatToolName?: ((toolName: string) => string) | undefined;
 };
 
-export const useToolActivityChecklist = (
-  options?: UseToolActivityChecklistOptions,
+export const useToolCallChecklist = (
+  options?: UseToolCallChecklistOptions,
 ): ChecklistItemData[] => {
   const parts = useAuiState((s) => s.message.parts);
 

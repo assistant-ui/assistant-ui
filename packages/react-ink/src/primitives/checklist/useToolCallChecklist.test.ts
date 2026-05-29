@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapToolCallToChecklistItem } from "./useToolActivityChecklist";
+import { mapToolCallToChecklistItem } from "./useToolCallChecklist";
 
 describe("mapToolCallToChecklistItem", () => {
   const makePart = (overrides: Record<string, unknown> = {}) =>

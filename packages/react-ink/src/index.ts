@@ -155,9 +155,9 @@ export type {
   ChecklistData,
 } from "./primitives/checklist/types";
 export {
-  useToolActivityChecklist,
-  type UseToolActivityChecklistOptions,
-} from "./primitives/checklist/useToolActivityChecklist";
+  useToolCallChecklist,
+  type UseToolCallChecklistOptions,
+} from "./primitives/checklist/useToolCallChecklist";
 
 // Re-export shared providers from core/react
 export {
