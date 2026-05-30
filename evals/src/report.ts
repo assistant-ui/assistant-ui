@@ -25,7 +25,7 @@ export function renderReport(results: CaseResult[]): string {
   lines.push("## Reproduced failure (baseline)");
   for (const r of results) {
     const base = r.variants.find((v) => v.candidate.label === "baseline");
-    const fail = base?.trials.find((t) => !t.verdict.pass);
+    const fail = base?.trials.find((t) => !t.error && !t.verdict.pass);
     if (fail) {
       lines.push(`- ${r.case.id}: ${fail.verdict.reason}`);
     }
