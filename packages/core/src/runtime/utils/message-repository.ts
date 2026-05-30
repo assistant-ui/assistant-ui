@@ -366,17 +366,6 @@ export class MessageRepository {
         "MessageRepository(resetHead): Branch not found. This is likely an internal bug in assistant-ui.",
       );
 
-    // If the target itself is optimistic, evict it and fall back to the message
-    // right before it. This lets a caller collapse an empty optimistic head
-    // (e.g. cancelRun dropping the running placeholder) without tracking the
-    // placeholder's id separately.
-    if (message.current.metadata?.isOptimistic) {
-      const parentId = message.prev?.current.id ?? null;
-      this.deleteMessage(messageId);
-      this.resetHead(parentId);
-      return;
-    }
-
     if (message.children.length > 0) {
       const deleteDescendants = (msg: RepositoryMessage) => {
         for (const childId of msg.children) {
