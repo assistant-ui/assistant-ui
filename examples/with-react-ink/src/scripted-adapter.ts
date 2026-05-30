@@ -18,7 +18,7 @@ const RETRY_PATCH = `--- a/src/retry.ts
 +
 +export async function retry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
 +  let lastError: unknown;
-+  for (let i = 0; i < attempts; i++) {
++  for (let i = 0; i <= attempts; i++) {
 +    try {
 +      return await fn();
 +    } catch (err) {
@@ -34,20 +34,20 @@ const RETRY_PATCH_FIX = `--- a/src/retry.ts
 +++ b/src/retry.ts
 @@ -6,7 +6,7 @@ export async function retry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
    let lastError: unknown;
--  for (let i = 0; i < attempts; i++) {
-+  for (let i = 0; i <= attempts; i++) {
+-  for (let i = 0; i <= attempts; i++) {
++  for (let i = 0; i < attempts; i++) {
      try {
        return await fn();
      } catch (err) {
 `;
 
 const isTaskRequest = (text: string) =>
-  /fetch|retry|resilient|flaky|backoff|fail|robust|network|\byes\b|sure|ok\b|go ahead|do it|please/i.test(
+  /fetch|retry|resilient|flaky|backoff|robust|network|\byes\b|sure|\bok\b|go ahead|do it|please/i.test(
     text,
   );
 
 const lastUserText = (
-  messages: { role: string; content: readonly { type: string }[] }[],
+  messages: readonly { role: string; content: readonly { type: string }[] }[],
 ) => {
   const last = messages.filter((m) => m.role === "user").at(-1);
   return (
@@ -58,127 +58,108 @@ const lastUserText = (
   );
 };
 
+async function* streamText(
+  parts: ThreadAssistantMessagePart[],
+  index: number,
+  text: string,
+  delay: number,
+): AsyncGenerator<{ content: ThreadAssistantMessagePart[] }> {
+  for (const word of text.split(" ")) {
+    const p = parts[index] as Extract<
+      ThreadAssistantMessagePart,
+      { type: "text" | "reasoning" }
+    >;
+    parts[index] = { ...p, text: p.text ? `${p.text} ${word}` : word };
+    yield { content: [...parts] };
+    await sleep(delay);
+  }
+}
+
 async function* runAgentScript(): AsyncGenerator<{
   content: ThreadAssistantMessagePart[];
 }> {
   const parts: ThreadAssistantMessagePart[] = [];
   const emit = () => ({ content: [...parts] });
+  const setResult = (result: unknown, isError = false) => {
+    parts[parts.length - 1] = {
+      ...parts[parts.length - 1],
+      result,
+      ...(isError ? { isError: true } : {}),
+    } as ThreadAssistantMessagePart;
+  };
+  const pushToolCall = (
+    toolCallId: string,
+    toolName: string,
+    args: Record<string, string>,
+  ) =>
+    parts.push({
+      type: "tool-call",
+      toolCallId,
+      toolName,
+      args,
+      argsText: JSON.stringify(args),
+    });
 
-  const reasoning =
-    "Let me look at how fetchUser is implemented, wrap it in retry-with-backoff, and run the tests to make sure it holds up.";
-  parts.push({ type: "reasoning", text: "" });
-  for (const word of reasoning.split(" ")) {
-    const p = parts[0] as Extract<
-      ThreadAssistantMessagePart,
-      { type: "reasoning" }
-    >;
-    parts[0] = { ...p, text: (p.text ? p.text + " " : "") + word };
-    yield emit();
-    await sleep(20);
-  }
+  const reasoningIdx = parts.push({ type: "reasoning", text: "" }) - 1;
+  yield* streamText(
+    parts,
+    reasoningIdx,
+    "Let me look at how fetchUser is implemented, wrap it in retry-with-backoff, and run the tests to make sure it holds up.",
+    20,
+  );
 
-  const readArgs = { path: "src/retry.ts" };
-  parts.push({
-    type: "tool-call",
-    toolCallId: "read-1",
-    toolName: "read_file",
-    args: readArgs,
-    argsText: JSON.stringify(readArgs),
-  });
+  pushToolCall("read-1", "read_file", { path: "src/retry.ts" });
   yield emit();
   await sleep(500);
-  parts[parts.length - 1] = {
-    ...parts[parts.length - 1],
-    result: "12 lines read",
-  } as ThreadAssistantMessagePart;
+  setResult("12 lines read");
   yield emit();
   await sleep(300);
 
-  const patchArgs = { path: "src/retry.ts", patch: RETRY_PATCH };
-  parts.push({
-    type: "tool-call",
-    toolCallId: "patch-1",
-    toolName: "apply_patch",
-    args: patchArgs,
-    argsText: JSON.stringify(patchArgs),
+  pushToolCall("patch-1", "apply_patch", {
+    path: "src/retry.ts",
+    patch: RETRY_PATCH,
   });
   yield emit();
   await sleep(600);
-  parts[parts.length - 1] = {
-    ...parts[parts.length - 1],
-    result: { applied: true },
-  } as ThreadAssistantMessagePart;
+  setResult({ applied: true });
   yield emit();
   await sleep(300);
 
-  const testArgs = { command: "pnpm test retry" };
-  parts.push({
-    type: "tool-call",
-    toolCallId: "test-1",
-    toolName: "run_tests",
-    args: testArgs,
-    argsText: JSON.stringify(testArgs),
-  });
+  pushToolCall("test-1", "run_tests", { command: "pnpm test retry" });
   yield emit();
   await sleep(700);
-  parts[parts.length - 1] = {
-    ...parts[parts.length - 1],
-    isError: true,
-    result:
-      "FAIL src/retry.test.ts - retry() ran 4 times, expected 3 (off-by-one in loop bound)",
-  } as ThreadAssistantMessagePart;
+  setResult(
+    "FAIL src/retry.test.ts - retry() ran 4 times, expected 3 (off-by-one in loop bound)",
+    true,
+  );
   yield emit();
   await sleep(400);
 
-  const noteIndex = parts.length;
-  parts.push({ type: "text", text: "" });
-  const note = "The loop bound was off by one. Tightening it and re-running.";
-  for (const word of note.split(" ")) {
-    const p = parts[noteIndex] as Extract<
-      ThreadAssistantMessagePart,
-      { type: "text" }
-    >;
-    parts[noteIndex] = { ...p, text: (p.text ? p.text + " " : "") + word };
-    yield emit();
-    await sleep(20);
-  }
+  const noteIdx = parts.push({ type: "text", text: "" }) - 1;
+  yield* streamText(
+    parts,
+    noteIdx,
+    "The loop bound was off by one. Tightening it and re-running.",
+    20,
+  );
 
-  const fixArgs = { path: "src/retry.ts", patch: RETRY_PATCH_FIX };
-  parts.push({
-    type: "tool-call",
-    toolCallId: "patch-2",
-    toolName: "apply_patch",
-    args: fixArgs,
-    argsText: JSON.stringify(fixArgs),
+  pushToolCall("patch-2", "apply_patch", {
+    path: "src/retry.ts",
+    patch: RETRY_PATCH_FIX,
   });
   yield emit();
   await sleep(500);
-  parts[parts.length - 1] = {
-    ...parts[parts.length - 1],
-    result: { applied: true },
-  } as ThreadAssistantMessagePart;
+  setResult({ applied: true });
   yield emit();
   await sleep(300);
 
-  const runArgs = { command: "pnpm test retry" };
-  parts.push({
-    type: "tool-call",
-    toolCallId: "test-2",
-    toolName: "run_tests",
-    args: runArgs,
-    argsText: JSON.stringify(runArgs),
-  });
+  pushToolCall("test-2", "run_tests", { command: "pnpm test retry" });
   yield emit();
   await sleep(600);
-  parts[parts.length - 1] = {
-    ...parts[parts.length - 1],
-    result: "PASS src/retry.test.ts (3 passed)",
-  } as ThreadAssistantMessagePart;
+  setResult("PASS src/retry.test.ts (3 passed)");
   yield emit();
   await sleep(300);
 
-  const summaryIndex = parts.length;
-  parts.push({ type: "text", text: "" });
   const summary = `### Done
 
 Added a \`retry()\` helper and routed \`fetchUser\` through it:
@@ -188,15 +169,8 @@ Added a \`retry()\` helper and routed \`fetchUser\` through it:
 - fixed an off-by-one that ran one extra attempt
 
 Tests are green.`;
-  for (const word of summary.split(" ")) {
-    const p = parts[summaryIndex] as Extract<
-      ThreadAssistantMessagePart,
-      { type: "text" }
-    >;
-    parts[summaryIndex] = { ...p, text: (p.text ? p.text + " " : "") + word };
-    yield emit();
-    await sleep(15);
-  }
+  const summaryIdx = parts.push({ type: "text", text: "" }) - 1;
+  yield* streamText(parts, summaryIdx, summary, 15);
 }
 
 async function* runProposalReply(): AsyncGenerator<{
@@ -215,7 +189,8 @@ Want me to wrap it in retry-with-backoff? Just say *make fetchUser retry on fail
 
 export const createScriptedAdapter = (): ChatModelAdapter => ({
   run({ messages }) {
-    const text = lastUserText(messages as never);
-    return isTaskRequest(text) ? runAgentScript() : runProposalReply();
+    return isTaskRequest(lastUserText(messages))
+      ? runAgentScript()
+      : runProposalReply();
   },
 });

@@ -37,11 +37,9 @@ const AssistantMessage = () => (
         )}
       />
       <LiveChecklist title="Plan" showProgress marginTop={1} />
-      <MessagePrimitive.Error>
-        <ErrorPrimitive.Root>
-          <ErrorPrimitive.Message />
-        </ErrorPrimitive.Root>
-      </MessagePrimitive.Error>
+      <ErrorPrimitive.Root>
+        <ErrorPrimitive.Message />
+      </ErrorPrimitive.Root>
     </Box>
   </MessagePrimitive.Root>
 );
