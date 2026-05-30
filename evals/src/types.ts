@@ -33,6 +33,8 @@ export interface Verdict {
 export interface TrialResult {
   verdict: Verdict;
   artifact: string;
+  /** True when the agent/judge call threw — excluded from the pass rate. */
+  error?: boolean;
 }
 
 export interface VariantResult {
