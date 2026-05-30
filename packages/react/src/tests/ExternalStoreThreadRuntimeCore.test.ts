@@ -255,6 +255,43 @@ describe("ExternalStoreThreadRuntimeCore", () => {
         "Runtime does not support cancelling runs.",
       );
     });
+
+    it("does not delete a store-provided empty optimistic message on cancel", async () => {
+      // A store-provided assistant message that is flagged optimistic and is
+      // momentarily empty (e.g. AI SDK v6 just before the first token). Cancel
+      // must not remove it — only the runtime's own placeholder is removed.
+      // The runtime never appended a placeholder here (the trailing message is
+      // already an assistant), so nothing should be deleted on cancel.
+      const optimisticAssistant = {
+        ...createAssistantMessage("server-msg", ""),
+        content: [],
+        status: { type: "running" as const },
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+          isOptimistic: true,
+        },
+      } as ThreadMessage;
+      const setMessages = vi.fn();
+      const adapter = createBaseAdapter({
+        messages: [createUserMessage("u1"), optimisticAssistant],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages,
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+
+      // cancelRun resyncs the (post-cancel) repository to the store via a
+      // setTimeout(0); inspect what it pushed back.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
+      expect(lastCall.map((m) => m.id)).toContain("server-msg");
+    });
   });
 
   describe("optimistic assistant message", () => {

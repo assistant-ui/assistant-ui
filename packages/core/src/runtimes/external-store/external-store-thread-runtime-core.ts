@@ -55,6 +55,17 @@ export class ExternalStoreThreadRuntimeCore
   extends BaseThreadRuntimeCore
   implements ThreadRuntimeCore
 {
+  /**
+   * Id of the empty assistant placeholder this runtime appended on the latest
+   * sync (or null when none was appended). Used solely so {@link cancelRun} can
+   * remove its own placeholder without touching store-provided optimistic
+   * messages that may also be momentarily empty. This is not cross-sync
+   * bookkeeping — eviction of stale optimistic messages is handled by the
+   * repository's head-branch invariant; this just remembers "the bubble I just
+   * created" for the duration until the next sync.
+   */
+  private _placeholderMessageId: string | null = null;
+
   private _capabilities: RuntimeCapabilities = {
     switchToBranch: false,
     switchBranchDuringRun: false,
@@ -270,6 +281,7 @@ export class ExternalStoreThreadRuntimeCore
         ),
       );
     }
+    this._placeholderMessageId = optimisticId;
 
     this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
 
@@ -470,13 +482,18 @@ export class ExternalStoreThreadRuntimeCore
 
     this._store.onCancel();
 
-    // Remove the runtime-appended placeholder if it's the current head. It's
-    // the only optimistic message we add and is always empty, which
-    // distinguishes it from store-provided optimistic messages (those carry
-    // partial streamed content that should survive a cancel).
+    // Remove the runtime-appended placeholder if it's still the current head.
+    // Targets exactly the bubble this runtime created (by id) so store-provided
+    // optimistic messages — which may also be momentarily empty mid-stream —
+    // are never deleted by a cancel.
     const head = this.repository.getMessages().at(-1);
-    if (head && head.metadata.isOptimistic && head.content.length === 0) {
+    if (
+      head &&
+      this._placeholderMessageId !== null &&
+      head.id === this._placeholderMessageId
+    ) {
       this.repository.deleteMessage(head.id);
+      this._placeholderMessageId = null;
     }
 
     let messages = this.repository.getMessages();
@@ -540,6 +557,8 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public override import(data: ExportedMessageRepository) {
+    // The repository is rebuilt; any placeholder we tracked no longer exists.
+    this._placeholderMessageId = null;
     super.import(data);
 
     if (this._store.onImport) {
