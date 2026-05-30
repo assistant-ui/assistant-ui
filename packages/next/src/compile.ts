@@ -58,8 +58,7 @@ export function isGenerativeModule(code: string): boolean {
     }
   }
   return (
-    code.startsWith('"use generative"', i) ||
-    code.startsWith("'use generative'", i)
+    code.startsWith(`"${DIRECTIVE}"`, i) || code.startsWith(`'${DIRECTIVE}'`, i)
   );
 }
 
@@ -356,10 +355,14 @@ function pruneUnused(ast: t.File): void {
           }
           if (t.isVariableDeclaration(stmt)) {
             stmt.declarations = stmt.declarations.filter((decl) => {
+              // Handles destructuring too: drop the declarator only when *every*
+              // bound name is unused (else a `const { a } = server` survives and
+              // keeps a server import in the client graph).
+              const names = Object.keys(t.getBindingIdentifiers(decl.id));
               if (
-                t.isIdentifier(decl.id) &&
+                names.length > 0 &&
                 isRemovableInit(decl.init) &&
-                isUnused(decl.id.name)
+                names.every(isUnused)
               ) {
                 removedSomething = true;
                 return false;

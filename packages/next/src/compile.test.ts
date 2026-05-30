@@ -139,6 +139,25 @@ export default defineToolkit({
     expect(code).toContain("@/lib/utils");
     expect(code).not.toContain("@/db");
   });
+
+  it("prunes an unused destructured server binding from the client", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/next";
+import { db } from "@/db";
+const { getWeather } = db;
+export default defineToolkit({
+  weather: {
+    execute: async ({ city }) => getWeather(city),
+    render: () => null,
+  },
+});`;
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client).not.toContain("getWeather");
+    expect(client).not.toContain("@/db");
+    expect(compileGenerative(src, { target: "server" }).code).toContain(
+      "getWeather",
+    );
+  });
 });
 
 describe("compileGenerative — diagnostics", () => {
