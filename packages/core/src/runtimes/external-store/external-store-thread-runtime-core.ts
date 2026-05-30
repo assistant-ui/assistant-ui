@@ -174,8 +174,6 @@ export class ExternalStoreThreadRuntimeCore
         return;
       }
 
-      // Clear and import the message repository. clear() also discards any
-      // optimistic placeholder appended on a previous sync.
       this.repository.clear();
       this.repository.import(store.messageRepository);
 
@@ -251,13 +249,9 @@ export class ExternalStoreThreadRuntimeCore
       }
     }
 
-    // Append an optimistic placeholder when the store is running but hasn't
-    // produced a trailing assistant message yet. It's a plain message flagged
-    // optimistic (via metadata) with a runtime-generated id. resetHead below
-    // evicts any optimistic message no longer on the head branch — the prior
-    // sync's placeholder, and store-provided messages whose id was swapped
-    // mid-run (e.g. AI SDK v6 client→server) and now dangle as siblings — while
-    // export() omits optimistic messages from persistence entirely.
+    // Append an optimistic placeholder while running but before a trailing
+    // assistant message exists. resetHead evicts off-branch optimistic messages
+    // (prior placeholders, mid-run id-swap siblings); export() never persists them.
     let optimisticId: string | null = null;
     if (hasUpcomingMessage(isRunning, messages)) {
       optimisticId = generateId();
@@ -470,12 +464,8 @@ export class ExternalStoreThreadRuntimeCore
 
     this._store.onCancel();
 
-    // Evict an empty optimistic head: the runtime's own placeholder, or a
-    // store-provided optimistic message that hasn't streamed any content yet.
-    // deleteMessage falls back to the message right before it and preserves
-    // sibling branches. A partially-streamed optimistic message (content
-    // present) is left untouched so a mid-stream cancel keeps what arrived; the
-    // store re-supplies it (now settled) on the next sync.
+    // Drop an empty optimistic head (placeholder or pre-stream message); a
+    // partially-streamed one is kept and re-supplied by the store on resync.
     const head = this.repository.getMessages().at(-1);
     if (head && head.metadata.isOptimistic && head.content.length === 0) {
       this.repository.deleteMessage(head.id);

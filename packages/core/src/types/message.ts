@@ -315,10 +315,8 @@ export type ThreadAssistantMessage = MessageCommonProps & {
     readonly submittedFeedback?: { readonly type: "positive" | "negative" };
     readonly timing?: MessageTiming;
     /**
-     * Marks the message as a client-side optimistic placeholder. The external
-     * store sync drops optimistic messages whose id is no longer present in the
-     * latest snapshot (e.g. when AI SDK v6 swaps a client-generated id for a
-     * server-provided one mid-run), without touching real sibling branches.
+     * Marks a client-side optimistic placeholder. Such messages are evicted
+     * once off the head branch and are never persisted.
      */
     readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;

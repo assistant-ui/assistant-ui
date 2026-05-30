@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  generateId,
-  generateOptimisticId,
-  isOptimisticId,
-  fromThreadMessageLike,
-} from "@assistant-ui/core/internal";
+import { generateId, fromThreadMessageLike } from "@assistant-ui/core/internal";
 import type {
   AddToolResultOptions,
   AppendMessage,
@@ -31,6 +26,10 @@ import {
   toAgUiTools,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
+
+const optimisticPrefix = "__optimistic__";
+const generateOptimisticId = () => `${optimisticPrefix}${generateId()}`;
+const isOptimisticId = (id: string) => id.startsWith(optimisticPrefix);
 
 const symbolResumeShim = Symbol("agui-resume-shim");
 

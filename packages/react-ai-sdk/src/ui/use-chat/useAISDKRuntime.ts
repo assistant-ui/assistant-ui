@@ -117,10 +117,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
   const messageTiming = useStreamingTiming(chatHelpers.messages, isRunning);
 
-  // While running, the trailing assistant message is the one AI SDK is
-  // streaming into. Its client-generated id can be swapped for a server id
-  // mid-run, so flag it optimistic — the repository then drops the orphaned
-  // pre-swap placeholder instead of leaving it as a phantom sibling (#4037).
+  // Flag the streaming message optimistic: its id can be swapped for a server
+  // id mid-run, and the repository then drops the orphaned pre-swap id (#4037).
   const lastMessage = chatHelpers.messages.at(-1);
   const optimisticMessageId =
     isRunning && lastMessage?.role === "assistant" ? lastMessage.id : undefined;

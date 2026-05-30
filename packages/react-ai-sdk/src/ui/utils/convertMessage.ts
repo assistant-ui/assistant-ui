@@ -24,11 +24,7 @@ export type AISDKMessageConverterMetadata =
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
     toolLastInputCache?: Map<string, ReadonlyJSONObject>;
     mcpAppMetadataCache?: Map<string, McpAppMetadata>;
-    /**
-     * Id of the message AI SDK is currently streaming into. Its client-generated
-     * id may be swapped for a server-provided one mid-run, so it's flagged
-     * optimistic to let the message repository drop the stale placeholder.
-     */
+    /** Id of the currently-streaming message, flagged optimistic (#4037). */
     optimisticMessageId?: string | undefined;
   };
 

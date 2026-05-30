@@ -257,10 +257,7 @@ describe("ExternalStoreThreadRuntimeCore", () => {
     });
 
     it("keeps a partially-streamed optimistic message on cancel", async () => {
-      // A store-provided optimistic assistant message that has already streamed
-      // some content. Cancel must not discard it — only empty optimistic heads
-      // are evicted (those carry nothing to lose and the store re-supplies them
-      // on the next sync).
+      // Only empty optimistic heads are evicted; one with content survives.
       const optimisticAssistant = {
         ...createAssistantMessage("server-msg", "partial answer"),
         status: { type: "running" as const },
@@ -284,17 +281,14 @@ describe("ExternalStoreThreadRuntimeCore", () => {
 
       core.cancelRun();
 
-      // cancelRun resyncs the (post-cancel) repository to the store via a
-      // setTimeout(0); inspect what it pushed back.
+      // cancelRun resyncs to the store via setTimeout(0); inspect the push.
       await new Promise((resolve) => setTimeout(resolve, 0));
       const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
       expect(lastCall.map((m) => m.id)).toContain("server-msg");
     });
 
     it("evicts an empty optimistic head on cancel", async () => {
-      // An empty optimistic assistant head (runtime placeholder or a
-      // store-provided message before the first token) is removed on cancel,
-      // falling back to the prior message. The store re-supplies it on resync.
+      // An empty optimistic head is dropped on cancel, falling back to its prev.
       const optimisticAssistant = {
         ...createAssistantMessage("server-msg", ""),
         content: [],

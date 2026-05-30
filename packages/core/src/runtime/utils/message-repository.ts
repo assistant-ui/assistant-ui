@@ -309,12 +309,9 @@ export class MessageRepository {
   }
 
   /**
-   * Enforces the invariant that optimistic messages (`metadata.isOptimistic`)
-   * only ever live on the current head branch. Any optimistic message not on
-   * the path from root to head is evicted. This is what keeps a client→server
-   * id swap from leaving a phantom sibling, and what evicts ephemeral
-   * placeholders/streaming messages from off-screen branches when the head
-   * moves — without the repository exposing any optimistic-specific API.
+   * Optimistic messages (`metadata.isOptimistic`) only ever live on the current
+   * head branch; any off the root→head path is evicted. Keeps a client→server
+   * id swap from leaving a phantom sibling, and drops off-branch placeholders.
    */
   private evictOffBranchOptimisticMessages() {
     const onHeadBranch = new Set<string>();
@@ -330,9 +327,7 @@ export class MessageRepository {
     }
 
     for (const id of stale) {
-      // A prior deletion may have already re-parented/removed this node. The
-      // head is on its own branch, so it's never in `stale` — eviction can't
-      // delete the current head.
+      // A prior deletion may have already removed this node.
       if (this.messages.has(id)) this.deleteMessage(id);
     }
   }
@@ -413,10 +408,8 @@ export class MessageRepository {
   export(): ExportedMessageRepository {
     const exportItems: ExportedMessageRepository["messages"] = [];
 
-    // Optimistic messages (running placeholders, mid-run streaming messages
-    // whose id may still be swapped) are ephemeral and must never be persisted
-    // as part of thread switching. They are always leaf nodes, so skipping them
-    // can't orphan a persisted child.
+    // Optimistic messages are ephemeral and never persisted. They're always
+    // leaf nodes, so skipping them can't orphan a persisted child.
     for (const [, message] of this.messages) {
       if (message.current.metadata?.isOptimistic) continue;
       exportItems.push({
@@ -425,8 +418,7 @@ export class MessageRepository {
       });
     }
 
-    // The head may itself be optimistic (e.g. the running placeholder); walk up
-    // to the nearest persisted ancestor so the exported headId always resolves.
+    // The head may itself be optimistic; walk up to the nearest persisted ancestor.
     let head = this.head;
     while (head?.current.metadata?.isOptimistic) {
       head = head.prev;
