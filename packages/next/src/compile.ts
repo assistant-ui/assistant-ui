@@ -39,9 +39,27 @@ export class GenerativeCompileError extends Error {
 
 /** Whether a source string opts into generative compilation via the directive. */
 export function isGenerativeModule(code: string): boolean {
-  // The directive must be a leading statement (before any import/expression).
-  return /^﻿?\s*(?:\/\/[^\n]*\n|\/\*[\s\S]*?\*\/\s*)*["']use generative["']/.test(
-    code,
+  // The directive must be a leading statement, preceded only by an optional BOM,
+  // whitespace, and line/block comments. Scanned linearly — a regex over the
+  // comment prefix is prone to catastrophic backtracking on crafted input.
+  let i = code.charCodeAt(0) === 0xfeff ? 1 : 0;
+  for (;;) {
+    while (i < code.length && /\s/.test(code[i]!)) i++;
+    if (code.startsWith("//", i)) {
+      const nl = code.indexOf("\n", i);
+      if (nl === -1) return false;
+      i = nl + 1;
+    } else if (code.startsWith("/*", i)) {
+      const end = code.indexOf("*/", i + 2);
+      if (end === -1) return false;
+      i = end + 2;
+    } else {
+      break;
+    }
+  }
+  return (
+    code.startsWith('"use generative"', i) ||
+    code.startsWith("'use generative'", i)
   );
 }
 
