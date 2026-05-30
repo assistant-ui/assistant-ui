@@ -85,10 +85,11 @@ export const groupPartByType = <TKey extends `group-${string}`>(
   const fn = ((part, context) => {
     if (part.type === "tool-call") {
       const isMcpApp = isMcpAppUri(part.mcp?.app?.resourceUri);
+      // Read the first registration's flag — the same one `resolveToolRender`
+      // renders — so grouping and rendering never disagree for a tool name.
       const isStandalone =
         isMcpApp ||
-        (context?.toolUIs?.[part.toolName]?.some((ui) => ui.standalone) ??
-          false);
+        (context?.toolUIs?.[part.toolName]?.[0]?.standalone ?? false);
       if (isStandalone && lookup["standalone-tool-call"] !== undefined) {
         return lookup["standalone-tool-call"]!;
       }

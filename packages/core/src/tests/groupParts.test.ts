@@ -183,6 +183,11 @@ describe("groupPartByType", () => {
     expect(fn(regular, standaloneContext("ask_user"))).toEqual(["group-tool"]);
     // No context → not standalone, falls through to "tool-call".
     expect(fn(standalone)).toEqual(["group-tool"]);
+    // Registered but not standalone → also falls through to "tool-call".
+    const inlineCtx = {
+      toolUIs: { ask_user: [{ render: () => null, standalone: false }] },
+    };
+    expect(fn(standalone, inlineCtx)).toEqual(["group-tool"]);
   });
 
   it("routes MCP-app parts through 'standalone-tool-call' from the part alone", () => {
