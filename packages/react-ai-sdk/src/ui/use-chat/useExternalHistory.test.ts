@@ -16,6 +16,7 @@ vi.mock("@assistant-ui/store", () => ({
   }),
 }));
 
+import { MessageRepository } from "@assistant-ui/core/internal";
 import {
   toExportedMessageRepository,
   useExternalHistory,
@@ -111,22 +112,39 @@ describe("useExternalHistory withFormat contract", () => {
 });
 
 describe("toExportedMessageRepository", () => {
-  it("skips rows that fail to convert instead of emitting an undefined message", () => {
-    const repo: MessageFormatRepository<{ kind: string }> = {
-      headId: "good",
+  const convert = (items: { id: string; ok: boolean }[]): ThreadMessage[] =>
+    items[0]!.ok ? [{ id: items[0]!.id } as ThreadMessage] : [];
+
+  it("drops a malformed row together with its now-orphaned descendants", () => {
+    const repo: MessageFormatRepository<{ id: string; ok: boolean }> = {
+      headId: "c",
       messages: [
-        { parentId: null, message: { kind: "bad" } },
-        { parentId: "good", message: { kind: "good" } },
+        { parentId: null, message: { id: "a", ok: true } },
+        { parentId: "a", message: { id: "b", ok: false } },
+        { parentId: "b", message: { id: "c", ok: true } },
       ],
     };
 
-    const convert = (items: { kind: string }[]): ThreadMessage[] =>
-      items[0]!.kind === "good" ? [{ id: "good" } as ThreadMessage] : [];
+    const result = toExportedMessageRepository(convert, repo);
+
+    expect(result.messages.map((m) => m.message.id)).toEqual(["a"]);
+    expect(result.headId).toBeNull();
+    expect(() => new MessageRepository().import(result)).not.toThrow();
+  });
+
+  it("drops a headId that points at a filtered row", () => {
+    const repo: MessageFormatRepository<{ id: string; ok: boolean }> = {
+      headId: "b",
+      messages: [
+        { parentId: null, message: { id: "a", ok: true } },
+        { parentId: "a", message: { id: "b", ok: false } },
+      ],
+    };
 
     const result = toExportedMessageRepository(convert, repo);
 
-    expect(result.messages).toHaveLength(1);
-    expect(result.messages[0]!.message).toEqual({ id: "good" });
-    expect(result.messages.every((m) => m.message !== undefined)).toBe(true);
+    expect(result.messages.map((m) => m.message.id)).toEqual(["a"]);
+    expect(result.headId).toBeNull();
+    expect(() => new MessageRepository().import(result)).not.toThrow();
   });
 });

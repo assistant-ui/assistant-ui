@@ -24,13 +24,23 @@ export const toExportedMessageRepository = <TMessage>(
   toThreadMessages: (messages: TMessage[]) => ThreadMessage[],
   messages: MessageFormatRepository<TMessage>,
 ): ExportedMessageRepository => {
+  const survivingIds = new Set<string>();
+  const survivors = messages.messages.flatMap((m) => {
+    const message = toThreadMessages([m.message])[0];
+    if (!message || (m.parentId && !survivingIds.has(m.parentId))) {
+      console.warn("Skipping a stored message that could not be loaded.");
+      return [];
+    }
+    survivingIds.add(message.id);
+    return [{ ...m, message }];
+  });
+
   return {
-    headId: messages.headId!,
-    messages: messages.messages.flatMap((m) => {
-      const message = toThreadMessages([m.message])[0];
-      if (!message) return [];
-      return [{ ...m, message }];
-    }),
+    headId:
+      messages.headId && survivingIds.has(messages.headId)
+        ? messages.headId
+        : null,
+    messages: survivors,
   };
 };
 
