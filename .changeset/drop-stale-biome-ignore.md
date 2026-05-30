@@ -2,7 +2,6 @@
 "assistant-stream": patch
 "@assistant-ui/core": patch
 "heat-graph": patch
-"mcp-app-studio": patch
 "@assistant-ui/react": patch
 "@assistant-ui/react-ai-sdk": patch
 "@assistant-ui/react-devtools": patch

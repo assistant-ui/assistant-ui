@@ -8,6 +8,12 @@ export type AssistantToolUIProps<TArgs, TResult> = {
   toolName: string;
   /** Component rendered for matching tool-call message parts. */
   render: ToolCallMessagePartComponent<TArgs, TResult>;
+  /**
+   * How the UI is presented relative to the chain-of-thought trace. Set
+   * `"standalone"` to surface it on its own (e.g. human-in-the-loop or
+   * generative UI for a backend/MCP tool). Defaults to `"inline"`.
+   */
+  display?: "standalone" | "inline";
 };
 
 /**
@@ -23,8 +29,9 @@ export const useAssistantToolUI = (
   tool: AssistantToolUIProps<any, any> | null,
 ) => {
   const aui = useAui();
+  const standalone = tool?.display === "standalone";
   useEffect(() => {
     if (!tool?.toolName || !tool?.render) return undefined;
-    return aui.tools().setToolUI(tool.toolName, tool.render);
-  }, [aui, tool?.toolName, tool?.render]);
+    return aui.tools().setToolUI(tool.toolName, tool.render, { standalone });
+  }, [aui, tool?.toolName, tool?.render, standalone]);
 };

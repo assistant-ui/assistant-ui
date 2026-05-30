@@ -258,16 +258,19 @@ Parts whose type isn't in the map are left ungrouped. The returned
 function carries a stable GROUPBY_MEMO_KEY fingerprint so
 `<MessagePrimitive.GroupedParts>` can memoize its tree across renders.
 
-Special key `"mcp-app"` matches tool-call parts that point at an
-assistant-ui MCP app resource (`ui://...`) and takes precedence over
-the `"tool-call"` entry for those parts.
+The synthetic `"standalone-tool-call"` key matches tool calls that should
+render outside the chain-of-thought grouping. MCP-app calls are detected from
+the part alone; the registry-driven cases (human tools, the generative-UI
+tool, `display: "standalone"` opt-ins) are resolved from the
+GroupByContext that `<MessagePrimitive.GroupedParts>` passes to the
+`groupBy` function — the helper needs nothing threaded into it.
 
 ```tsx
 <MessagePrimitive.GroupedParts
   groupBy={groupPartByType({
     reasoning: ["group-thought", "group-reasoning"],
     "tool-call": ["group-thought", "group-tool"],
-    "mcp-app": [],
+    "standalone-tool-call": [],
   })}
 >
   {({ part, children }) => { ... }}
@@ -275,6 +278,6 @@ the `"tool-call"` entry for those parts.
 ```
 
 ```ts
-const groupPartByType: <TKey extends `group-${string}`>(map: Partial<Readonly<Record<GroupPartType, readonly TKey[]>>>) => ((part: PartState) => readonly TKey[]);
+const groupPartByType: <TKey extends `group-${string}`>(map: Partial<Readonly<Record<GroupPartType, readonly TKey[]>>>) => ((part: PartState, context?: GroupByContext) => readonly TKey[]);
 ```
 {/* api-reference:end */}

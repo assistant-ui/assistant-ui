@@ -5,6 +5,7 @@ import {
   type InterfaceDeclaration,
   type JSDoc,
   type JSDocableNode,
+  type ModuleDeclaration,
   type Node as TsNode,
   type SourceFile,
   type Symbol as TsMorphSymbol,
@@ -44,9 +45,11 @@ let _allExportedNames: Set<string> | undefined;
 
 /** Every symbol name exported from the generator's package source trees —
  *  including internal exports that never reach the public api-reference (e.g.
- *  `GROUPBY_MEMO_KEY`). Lets the JSDoc renderer treat a `{@link}` to a real
- *  but unanchored symbol as a graceful no-op instead of a broken-link warning,
- *  reserving the warning for targets that name nothing that actually exists. */
+ *  `GROUPBY_MEMO_KEY`) and members nested inside an exported namespace (e.g.
+ *  `IndicatorPart` under `MessagePrimitive.GroupedParts`). Lets the JSDoc
+ *  renderer treat a `{@link}` to a real but unanchored symbol as a graceful
+ *  no-op instead of a broken-link warning, reserving the warning for targets
+ *  that name nothing that actually exists. */
 export function getAllExportedNames(): Set<string> {
   if (_allExportedNames) return _allExportedNames;
   const project = getProject();
@@ -56,12 +59,29 @@ export function getAllExportedNames(): Set<string> {
     if (!PACKAGE_SOURCE_ROOTS.some((root) => filePath.startsWith(root))) {
       continue;
     }
-    for (const symbol of sourceFile.getExportSymbols()) {
-      names.add(symbol.getName());
-    }
+    collectExportedNames(sourceFile, names);
   }
   _allExportedNames = names;
   return names;
+}
+
+/** Collects export names from a source file or namespace, recursing through
+ *  nested namespace declarations. Namespace-merged primitives (e.g.
+ *  `MessagePrimitive.GroupedParts`) keep their public types one level down, so
+ *  a `{@link IndicatorPart}` references the unqualified member name; without
+ *  the recursion those reads as broken links. */
+function collectExportedNames(
+  container: SourceFile | ModuleDeclaration,
+  names: Set<string>,
+): void {
+  for (const symbol of container.getExportSymbols()) {
+    names.add(symbol.getName());
+    for (const decl of symbol.getDeclarations()) {
+      if (Node.isModuleDeclaration(decl)) {
+        collectExportedNames(decl, names);
+      }
+    }
+  }
 }
 
 export function getProject(): Project {

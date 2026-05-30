@@ -65,6 +65,12 @@ type AssistantToolUIProps = {
   toolName: string;
   /** Component rendered for matching tool-call message parts. */
   render: ToolCallMessagePartComponent<TArgs, TResult>;
+  /**
+   * How the UI is presented relative to the chain-of-thought trace. Set
+   * `"standalone"` to surface it on its own (e.g. human-in-the-loop or
+   * generative UI for a backend/MCP tool). Defaults to `"inline"`.
+   */
+  display?: "standalone" | "inline";
 };
 
 const makeAssistantToolUI: <TArgs, TResult>(tool: AssistantToolUIProps<TArgs, TResult>) => AssistantToolUI;

@@ -21,7 +21,6 @@ minimumReleaseAgeExclude:
   - assistant-ui
   - create-assistant-ui
   - heat-graph
-  - mcp-app-studio
   - safe-content-frame
   - tw-glass
   - tw-shimmer

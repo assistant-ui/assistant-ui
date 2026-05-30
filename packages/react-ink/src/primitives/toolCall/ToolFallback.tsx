@@ -90,7 +90,7 @@ const resolveStatus = (
 ): ToolCallStatus => {
   if (status?.type === "requires-action") return "requires-action";
   if (status?.type === "incomplete") return "error";
-  if (status?.type === "complete") return "complete";
+  if (status?.type === "complete") return part.isError ? "error" : "complete";
   if (part.isError) return "error";
   if (part.result !== undefined) return "complete";
   if (part.interrupt) return "requires-action";

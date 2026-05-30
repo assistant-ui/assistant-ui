@@ -160,6 +160,76 @@ describe("groupPartByType", () => {
     expect(fn(notMcp)).toEqual(["group-tool"]);
   });
 
+  const standaloneContext = (...names: string[]) => ({
+    toolUIs: Object.fromEntries(
+      names.map((name) => [name, [{ render: () => null, standalone: true }]]),
+    ),
+  });
+
+  it("routes context-standalone tool calls through the 'standalone-tool-call' entry", () => {
+    const fn = groupPartByType({
+      "tool-call": ["group-tool"],
+      "standalone-tool-call": [],
+    });
+    const standalone = part({
+      type: "tool-call",
+      toolName: "ask_user",
+    } as Partial<PartState>);
+    const regular = part({
+      type: "tool-call",
+      toolName: "search",
+    } as Partial<PartState>);
+    expect(fn(standalone, standaloneContext("ask_user"))).toEqual([]);
+    expect(fn(regular, standaloneContext("ask_user"))).toEqual(["group-tool"]);
+    // No context → not standalone, falls through to "tool-call".
+    expect(fn(standalone)).toEqual(["group-tool"]);
+    // Registered but not standalone → also falls through to "tool-call".
+    const inlineCtx = {
+      toolUIs: { ask_user: [{ render: () => null, standalone: false }] },
+    };
+    expect(fn(standalone, inlineCtx)).toEqual(["group-tool"]);
+  });
+
+  it("routes MCP-app parts through 'standalone-tool-call' from the part alone", () => {
+    const fn = groupPartByType({
+      "tool-call": ["group-tool"],
+      "standalone-tool-call": [],
+    });
+    const mcpApp = part({
+      type: "tool-call",
+      toolName: "render",
+      mcp: { app: { resourceUri: "ui://my-app" } },
+    } as Partial<PartState>);
+    expect(fn(mcpApp)).toEqual([]);
+  });
+
+  it("routes MCP-app parts through the deprecated 'mcp-app' entry", () => {
+    const fn = groupPartByType({
+      "tool-call": ["group-tool"],
+      "mcp-app": ["group-mcp"],
+    });
+    const mcpApp = part({
+      type: "tool-call",
+      toolName: "render",
+      mcp: { app: { resourceUri: "ui://my-app" } },
+    } as Partial<PartState>);
+    expect(fn(mcpApp)).toEqual(["group-mcp"]);
+  });
+
+  it("prefers 'standalone-tool-call' over the deprecated 'mcp-app' entry", () => {
+    const fn = groupPartByType({
+      "tool-call": ["group-tool"],
+      "standalone-tool-call": ["group-standalone"],
+      "mcp-app": ["group-mcp"],
+    });
+    const mcpApp = part({
+      type: "tool-call",
+      toolName: "render",
+      mcp: { app: { resourceUri: "ui://x" } },
+    } as Partial<PartState>);
+    expect(fn(mcpApp)).toEqual(["group-standalone"]);
+  });
+
   it("tags the function with a GROUPBY_MEMO_KEY fingerprint", () => {
     const fn = groupPartByType({ reasoning: ["group-r"] });
     const memoKey = (fn as unknown as { [GROUPBY_MEMO_KEY]: string })[

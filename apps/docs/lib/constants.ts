@@ -31,13 +31,6 @@ export const PRODUCTS: Product[] = [
     external: false,
   },
   {
-    slug: "mcp-app-studio",
-    label: "MCP App Studio",
-    href: "/mcp-app-studio",
-    description: "Build apps for AI assistants",
-    external: false,
-  },
-  {
     slug: "native",
     label: "React Native",
     href: "/native",

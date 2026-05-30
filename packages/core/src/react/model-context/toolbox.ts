@@ -1,6 +1,22 @@
 import type { Tool } from "assistant-stream";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 
+/**
+ * Resolves whether a tool's UI should be presented standalone (outside the
+ * chain-of-thought grouping), applying the type-based defaults.
+ *
+ * An explicit `display` wins. Otherwise `human` tools default to standalone
+ * (they prompt the user), and every other tool defaults to inline (a trace of
+ * what the model is doing). MCP-app tool calls are detected separately from
+ * the part itself and are not resolved here.
+ */
+export const isStandaloneToolDisplay = (
+  tool: Pick<Tool<any, any>, "type" | "display">,
+): boolean => {
+  if (tool.display !== undefined) return tool.display === "standalone";
+  return tool.type === "human";
+};
+
 type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
   type: "frontend" | "human";
 }

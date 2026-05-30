@@ -174,7 +174,7 @@ export {
   type PartState,
 } from "./primitives/message/MessageParts";
 export { MessagePrimitiveGroupedParts } from "./primitives/message/MessageGroupedParts";
-export { groupPartByType } from "./utils/groupParts";
+export { groupPartByType, type GroupByContext } from "./utils/groupParts";
 export {
   MessagePrimitiveGenerativeUI,
   GenerativeUIRender,

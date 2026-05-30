@@ -15,7 +15,10 @@ import {
 } from "@assistant-ui/store";
 import type { McpAppResourceOutput, ToolsState } from "../types/scopes/tools";
 import type { Tool } from "assistant-stream";
-import type { Toolkit } from "../model-context/toolbox";
+import {
+  isStandaloneToolDisplay,
+  type Toolkit,
+} from "../model-context/toolbox";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import { ModelContext } from "../../store";
 
@@ -45,36 +48,53 @@ export const Tools = resource(
     );
     const mcpAppOutput = mcpAppOutputs[0];
 
-    const [toolsState, setToolsState] = tapState<{
-      tools: ToolsState["tools"];
-    }>(() => ({
-      tools: {},
-    }));
+    const [toolUIs, setToolUIs] = tapState<ToolsState["toolUIs"]>(() => ({}));
 
     const state = tapMemo(
-      (): ToolsState => ({ tools: toolsState.tools, mcpApp: mcpAppOutput }),
-      [toolsState, mcpAppOutput],
+      (): ToolsState => ({
+        toolUIs,
+        mcpApp: mcpAppOutput,
+        // Deprecated component-only view, derived from `toolUIs`. Removed in v0.15.
+        tools: Object.fromEntries(
+          Object.entries(toolUIs).map(([name, regs]) => [
+            name,
+            regs.map((r) => r.render),
+          ]),
+        ),
+      }),
+      [toolUIs, mcpAppOutput],
     );
 
     const clientRef = tapAssistantClientRef();
 
     const setToolUI = tapCallback(
-      (toolName: string, render: ToolCallMessagePartComponent) => {
-        setToolsState((prev) => ({
-          tools: {
-            ...prev.tools,
-            [toolName]: [...(prev.tools[toolName] ?? []), render],
-          },
+      (
+        toolName: string,
+        render: ToolCallMessagePartComponent,
+        options?: { standalone?: boolean },
+      ) => {
+        // One registration object per call; identity is the removal key, so
+        // the per-name list stays correctly ref-counted across re-registers.
+        const registration = {
+          render,
+          standalone: options?.standalone ?? false,
+        };
+
+        setToolUIs((prev) => ({
+          ...prev,
+          [toolName]: [...(prev[toolName] ?? []), registration],
         }));
 
         return () => {
-          setToolsState((prev) => ({
-            tools: {
-              ...prev.tools,
-              [toolName]:
-                prev.tools[toolName]?.filter((r) => r !== render) ?? [],
-            },
-          }));
+          setToolUIs((prev) => {
+            const next =
+              prev[toolName]?.filter((r) => r !== registration) ?? [];
+            if (next.length > 0) return { ...prev, [toolName]: next };
+            // Drop the key entirely so repeatedly mounted/unmounted tools
+            // don't leave empty arrays accumulating across a long session.
+            const { [toolName]: _removed, ...rest } = prev;
+            return rest;
+          });
         };
       },
       [],
@@ -87,14 +107,20 @@ export const Tools = resource(
       // Register tool UIs (exclude symbols)
       for (const [toolName, tool] of Object.entries(toolkit)) {
         if (tool.render) {
-          unsubscribes.push(setToolUI(toolName, tool.render));
+          unsubscribes.push(
+            setToolUI(toolName, tool.render, {
+              standalone: isStandaloneToolDisplay(tool),
+            }),
+          );
         }
       }
 
-      // Register tools with model context (exclude symbols)
+      // Register tools with model context (exclude symbols). `render` and
+      // `display` are client-only presentation concerns and never reach the
+      // model.
       const toolsWithoutRender = Object.entries(toolkit).reduce(
         (acc, [name, tool]) => {
-          const { render, ...rest } = tool;
+          const { render, display, ...rest } = tool;
           acc[name] = rest;
           return acc;
         },

@@ -245,7 +245,7 @@ const AssistantMessage: FC = () => {
           groupBy={groupPartByType({
             reasoning: ["group-chainOfThought", "group-reasoning"],
             "tool-call": ["group-chainOfThought", "group-tool"],
-            "mcp-app": [],
+            "standalone-tool-call": [],
           })}
         >
           {({ part, children }) => {
