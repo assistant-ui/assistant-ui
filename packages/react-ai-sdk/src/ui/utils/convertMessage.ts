@@ -395,7 +395,9 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
       case "system":
       case "assistant": {
         const timing = metadata.messageTiming?.[message.id];
-        const isOptimistic = message.id === metadata.optimisticMessageId;
+        const isOptimistic =
+          message.role === "assistant" &&
+          message.id === metadata.optimisticMessageId;
         return {
           role: message.role,
           id: message.id,

@@ -1,6 +1,7 @@
 ---
 "@assistant-ui/react": patch
 "@assistant-ui/react-ai-sdk": patch
+"@assistant-ui/core": patch
 ---
 
 fix: drop phantom sibling messages when an external store swaps an optimistic message id mid-run (#4037).
