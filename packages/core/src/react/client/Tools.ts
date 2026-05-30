@@ -86,10 +86,15 @@ export const Tools = resource(
         }));
 
         return () => {
-          setToolUIs((prev) => ({
-            ...prev,
-            [toolName]: prev[toolName]?.filter((r) => r !== registration) ?? [],
-          }));
+          setToolUIs((prev) => {
+            const next =
+              prev[toolName]?.filter((r) => r !== registration) ?? [];
+            if (next.length > 0) return { ...prev, [toolName]: next };
+            // Drop the key entirely so repeatedly mounted/unmounted tools
+            // don't leave empty arrays accumulating across a long session.
+            const { [toolName]: _removed, ...rest } = prev;
+            return rest;
+          });
         };
       },
       [],
