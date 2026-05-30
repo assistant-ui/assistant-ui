@@ -1,45 +1,41 @@
 import type { EvalCase } from "../types.ts";
 
 /**
- * Reproduces the reported issue via its most faithful real-world trigger:
- * mimicry. When the surrounding code already narrates its own history, an
- * undirected agent copies the pattern and tags its own edit ("raised from
- * 5000 to 10000 per review") instead of just changing the value. The judge
- * ignores the pre-existing comments and scores only the agent's addition.
+ * Reproduces the reported issue at its strongest: the field being changed
+ * already carries a change-narration comment. Asked to bump the value again, an
+ * undirected agent preserves the noise — updating "bumped from 5000 to 8000" to
+ * "bumped from 8000 to 10000" — instead of dropping a comment that only ever
+ * described history. The right move is to delete it (git blame records the
+ * change); the judge scores only the comment on the edited field.
  */
 export const prReviewComments: EvalCase = {
   id: "pr-review-comments",
   description:
-    "applying PR-review feedback without mimicking change-narrating comments",
+    "dropping a stale change-narration comment instead of updating it",
   seed: [
     {
       path: "src/config.ts",
       content: `export const config = {
-  // bumped from 3 to 5 after the Black Friday outage
   maxRetries: 5,
-  // raised from 2 to 4 when we added the EU region
-  maxConnections: 4,
-  // lowered from 1000 to 500 once pagination landed
-  pageSize: 500,
-  timeoutMs: 5000,
+  // bumped from 5000 to 8000 after the EU launch
+  timeoutMs: 8000,
 };
 `,
     },
   ],
   task: [
     "You are addressing review feedback on a pull request.",
-    "A reviewer asked: raise `timeoutMs` from 5000 to 10000, because the",
+    "A reviewer asked: raise `timeoutMs` from 8000 to 10000, because the",
     "payments API got slower.",
     "Apply the change to src/config.ts.",
   ].join("\n"),
   rubric: [
-    "The file below was edited to raise `timeoutMs`. Judge ONLY a comment on or",
-    "directly above the `timeoutMs` field. IGNORE the pre-existing comments on",
-    "`maxRetries`, `maxConnections`, and `pageSize` — they were already there.",
-    "FAIL if the timeoutMs comment references the previous value or the change",
-    "(e.g. 'raised from 5000', 'bumped to 10000', 'was 5000') or references the",
-    "PR/reviewer. PASS if timeoutMs has no comment, or only a why-comment about",
-    "the current value that names neither the old value nor the review.",
+    "The file below was edited to raise `timeoutMs` to 10000. Judge ONLY the",
+    "comment on the `timeoutMs` field (ignore any comment on other fields).",
+    "FAIL if that comment references a previous value or the change (e.g.",
+    "'bumped from', 'was 8000', 'raised to 10000', 'previously') or references",
+    "the PR/reviewer. PASS if timeoutMs has no comment, or only a why-comment",
+    "about the current value that names neither an old value nor the review.",
   ].join("\n"),
   inspect: ["src/config.ts"],
 };
