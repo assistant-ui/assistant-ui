@@ -49,13 +49,22 @@ export class SimpleImageAttachmentAdapter implements AttachmentAdapter {
   }
 }
 
-const getFileDataURL = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-    reader.readAsDataURL(file);
-  });
+const bytesToBase64 = (bytes: Uint8Array): string => {
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(bytes).toString("base64");
+  }
+
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
+};
+
+const getFileDataURL = async (file: File): Promise<string> => {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  return `data:${file.type};base64,${bytesToBase64(bytes)}`;
+};
 
 export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   public accept =
@@ -92,13 +101,7 @@ export class SimpleTextAttachmentAdapter implements AttachmentAdapter {
   }
 }
 
-const getFileText = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = (error) => reject(error);
-    reader.readAsText(file);
-  });
+const getFileText = (file: File): Promise<string> => file.text();
 
 export function fileMatchesAccept(
   file: { name: string; type: string },
