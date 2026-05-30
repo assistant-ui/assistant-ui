@@ -6,7 +6,7 @@ A tool has three regions of code with three different deployment targets:
 
 | region                      | server (registration + agent loop) | client (browser) |
 | --------------------------- | ---------------------------------- | ---------------- |
-| `description` / `properties`| needed (→ LLM, parse)              | needed (→ parse) |
+| `description` / `parameters`| needed (→ LLM, parse)              | needed (→ parse) |
 | `render`                    | **must not load** (React/CSS/DOM)  | needed           |
 | `execute`                   | depends on kind (see routing)      | depends on kind  |
 
@@ -16,7 +16,7 @@ client deps out of the server bundle and — more importantly — keep a backend
 bundle. The second direction is a *security* boundary, not just bundle hygiene.
 
 `"use client"` cannot express this: it is whole-module, so a `"use client"`
-generative module would also turn `properties` into a client reference on the server,
+generative module would also turn `parameters` into a client reference on the server,
 making the zod schema unreadable server-side. We need **sub-module, per-property**
 routing. That is what the `"use generative"` directive provides.
 
@@ -35,7 +35,7 @@ import { Chart } from "@/ui/chart"; // client-only dependency
 export default defineToolkit({
   weather: {
     description: "Show the weather for a city.",
-    properties: z.object({ city: z.string() }),
+    parameters: z.object({ city: z.string() }),
     execute: async ({ city }) => db.weather.get(city), // backend (server-only)
     render: (props) => <Chart data={props} />, // client-only
   },
@@ -77,13 +77,13 @@ the imports that became unused, so a dropped region's dependencies disappear.
 
 ### `client` target
 
-- Keep `description`, `properties`, `render`, and `execute` of `frontend` tools.
+- Keep `description`, `parameters`, `render`, and `execute` of `frontend` tools.
 - Drop `execute` of `backend` tools (and its now-unused imports).
 - Prepend `"use client"` when any `render` remains.
 
 ### `server` target
 
-- Keep `description`, `properties`, and `execute` of `backend` tools.
+- Keep `description`, `parameters`, and `execute` of `backend` tools.
 - Drop every `render` (and its now-unused imports).
 - Drop `execute` of `frontend` tools.
 - Prepend `import "server-only"` when any backend `execute` remains.
@@ -97,41 +97,36 @@ Wrap the Next config with `withAui` from `@assistant-ui/next`
 and the loader passes non-generative files through untouched). It applies `./loader`,
 a webpack/Turbopack loader.
 
-The loader chooses the target from an explicit `?generative-env=client|server` resource
-query, defaulting to **`client`**:
+The loader rewrites a **bare** generative import into a facade that delegates the
+build choice to a `react-server`-conditioned package subpath, so a single import
+resolves to the right build per layer — no query, no per-app config (see
+DESIGN.md for the mechanism):
 
-- **bare import** (`import x from "./x.generative"`) → client build; safe in any
-  layer (it has no `server-only` code).
-- **`?generative-env=server`** (`import x from "./x.generative?generative-env=server"`) → server
-  build; use in route handlers / server modules.
+- route handler / RSC (`react-server` ON) → **server build** (schema + `execute`,
+  guarded by `server-only`)
+- client component, SSR + browser (`react-server` OFF) → **client build**
+  (schema + `render`)
 
-Why not infer the target from the build **layer**? Turbopack compiles one output
-per resource path and does not give a loader a per-layer module instance, so a
-layer-based default leaks a `server-only` module into client graphs the moment
-any server module imports the bare path. Defaulting to the safe client build and
-opting into the server build through its own resource query keeps the two builds
-as distinct modules. (Clear `.next` after changing the loader — Turbopack caches
-loader output aggressively.)
+The concrete compile is keyed off an **internal** `?generative-env=server|client`
+query the facade generates — it is never authored by consumers, so no ambient
+module declaration is needed. (Clear `.next` after changing the loader —
+Turbopack caches loader output aggressively.)
 
-For TypeScript, declare the query specifier once so the import resolves:
+Why not infer the target from the build **layer** inside the loader? Turbopack
+compiles one output per resource path and does not give a loader a per-layer
+module instance — so the split must happen at resolve time (the `react-server`
+export condition), which is exactly what the facade routes through.
 
-```ts
-declare module "*?generative-env=server" {
-  const toolkit: import("@assistant-ui/react").Toolkit;
-  export default toolkit;
-}
-```
+## Consumption
 
-## Consumption (the `present()` split)
+Both sides import the module **bare**; the facade resolves each to the right build:
 
-The two sides are consumed at the two sites that already differ:
-
-- **server:** import `./x.generative?generative-env=server` (schema + `execute`) and hand
-  it to the model. With the AI SDK, `generativeTools({ toolkit, frontendTools })`
-  from `@assistant-ui/react-ai-sdk` converts it into a `ToolSet` whose `execute`
-  runs in the route, and merges in the frontend-uploaded tools.
-- **client:** import the bare `./x.generative` (schema + `render`) and register its
-  tool UI.
+- **server:** import `./x.generative` in a route handler — it resolves to the
+  server build (schema + `execute`). With the AI SDK, `generativeTools({ toolkit,
+  frontendTools })` from `@assistant-ui/react-ai-sdk` converts it into a `ToolSet`
+  whose `execute` runs in the route, merging in the frontend-uploaded tools.
+- **client:** import `./x.generative` in a client component — it resolves to the
+  client build (schema + `render`) — and register its tool UI.
 
 Neither side ships the other's code, and the schema is never re-uploaded from
 the client per request — the server owns it.

@@ -15,13 +15,13 @@ import { defineToolkit } from "@assistant-ui/next";
 export default defineToolkit({
   weather: {
     description: "Show the weather.",
-    properties: z.object({ city: z.string() }),
+    parameters: z.object({ city: z.string() }),
     execute: async ({ city }) => db.weather.get(city),
     render: (props) => <Chart data={props} />,
   },
   toast: {
     description: "Show a toast.",
-    properties: z.object({ msg: z.string() }),
+    parameters: z.object({ msg: z.string() }),
     execute: async ({ msg }) => {
       "use client";
       return track(msg);
@@ -117,7 +117,7 @@ import { defineToolkit } from "@assistant-ui/next";
 export default defineToolkit({
   weather: {
     description: "weather",
-    properties: z.object({ city: z.string() }),
+    parameters: z.object({ city: z.string() }),
     execute: async ({ city }) => db.weather.get(city),
     render: (props) => <Badge label={props.city} />,
   },
@@ -157,7 +157,7 @@ import { db } from "@/db";
 import { defineToolkit } from "@assistant-ui/next";
 export default defineToolkit({
   weather: {
-    properties: z.object({ city: z.string() }),
+    parameters: z.object({ city: z.string() }),
     execute: async ({ city }) => db.get(city),
     render: (props) => <span>{props.city}</span>,
   },

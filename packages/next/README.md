@@ -40,16 +40,16 @@ import { Chart } from "@/ui/chart"; // client-only
 export default defineToolkit({
   weather: {
     description: "Show the weather for a city.",
-    properties: z.object({ city: z.string() }),
+    parameters: z.object({ city: z.string() }),
     execute: async ({ city }) => db.weather.get(city), // backend → stays on the server
     render: (props) => <Chart data={props} />, // stays on the client
   },
 });
 ```
 
-The server build keeps `properties` + `execute` (guarded by `import
+The server build keeps `parameters` + `execute` (guarded by `import
 "server-only"`, tagged `type: "backend"`) and drops `render` and `@/ui/chart`.
-The client build keeps `properties` + `render` (under `"use client"`) and drops
+The client build keeps `parameters` + `render` (under `"use client"`) and drops
 `execute` and `@/db`. A `frontend` tool marks its `execute` with `"use client"`:
 
 ```tsx

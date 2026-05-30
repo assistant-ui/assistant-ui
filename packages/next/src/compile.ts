@@ -421,7 +421,8 @@ function isRemovableInit(node: t.Expression | null | undefined): boolean {
     t.isFunctionExpression(node) ||
     t.isClassExpression(node) ||
     t.isIdentifier(node) ||
-    t.isMemberExpression(node) ||
+    // non-computed only — `obj[fn()]` could hide a side-effectful key
+    (t.isMemberExpression(node) && !node.computed) ||
     t.isJSXElement(node) ||
     t.isJSXFragment(node) ||
     t.isLiteral(node)
