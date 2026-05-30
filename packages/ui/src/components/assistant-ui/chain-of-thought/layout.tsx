@@ -1,15 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Children, useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { CONTAINER_ENTER_ANIM, CONTAINER_EXIT_ANIM } from "./styles";
 import { JumpToLatestButton, useAutoScroll } from "./scroll";
+import { useChainOfThoughtStrings } from "./strings";
 
+/** Props for a scrollable free-form reasoning text container. */
 export type ChainOfThoughtTextProps = React.ComponentProps<"div"> & {
-  autoScroll?: boolean;
-  showCursor?: boolean;
+  autoScroll?: boolean | undefined;
+  showCursor?: boolean | undefined;
 };
 
+/** Scrollable text body for custom ChainOfThought compositions. */
 export function ChainOfThoughtText({
   className,
   autoScroll = false,
@@ -18,11 +21,12 @@ export function ChainOfThoughtText({
   ...props
 }: ChainOfThoughtTextProps) {
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  const { isScrolledUp, scrollToBottom } = useAutoScroll(
-    scrollEl,
-    children,
-    autoScroll,
-  );
+  const setScrollRef = useCallback((el: HTMLDivElement | null) => {
+    setScrollEl((current) => (current === el ? current : el));
+  }, []);
+  const { isScrolledUp, scrollToBottom } = useAutoScroll(scrollEl, children, {
+    autoPin: autoScroll,
+  });
 
   const [cursorMounted, setCursorMounted] = useState(showCursor);
 
@@ -41,7 +45,7 @@ export function ChainOfThoughtText({
   return (
     <div className="aui-chain-of-thought-text-wrapper relative">
       <div
-        ref={(el) => setScrollEl(el)}
+        ref={setScrollRef}
         data-slot="chain-of-thought-text"
         className={cn(
           "aui-chain-of-thought-text",
@@ -61,6 +65,7 @@ export function ChainOfThoughtText({
             className={cn(
               "aui-chain-of-thought-cursor ml-1 inline-block size-2 rounded-full bg-foreground/70 align-middle",
               "transition-opacity duration-300 ease-out",
+              "motion-reduce:animate-none motion-reduce:transition-none",
               showCursor ? "animate-pulse opacity-100" : "opacity-0",
             )}
           />
@@ -73,33 +78,43 @@ export function ChainOfThoughtText({
   );
 }
 
+/** Empty-state body used when the current chain contains no visible parts. */
 export function ChainOfThoughtPlaceholder({
   className,
-  children = "Reasoning hidden.",
+  children,
   ...props
 }: React.ComponentProps<"div">) {
+  const strings = useChainOfThoughtStrings();
   return (
     <div
       data-slot="chain-of-thought-placeholder"
       className={cn(
         "aui-chain-of-thought-placeholder",
-        "py-2 pl-9 text-muted-foreground/70 italic",
+        "py-2 pl-9 text-muted-foreground italic",
         className,
       )}
       {...props}
     >
-      {children}
+      {children ?? strings.reasoningHidden}
     </div>
   );
 }
 
+/** Props for the vertical ChainOfThought timeline primitive. */
 export type ChainOfThoughtTimelineProps = React.ComponentProps<"ul"> & {
-  autoScroll?: boolean;
+  autoScroll?: boolean | undefined;
+  /**
+   * Primitive key that changes when new content should trigger an auto-scroll.
+   * Provide a stable value (e.g. a part count). When omitted it falls back to
+   * `Children.count(children)` so the pin fires when children are added/removed
+   * rather than on every parent render (pass `autoScrollKey` for finer control).
+   */
   autoScrollKey?: unknown;
-  autoScrollBehavior?: ScrollBehavior;
-  constrainHeight?: boolean;
+  autoScrollBehavior?: ScrollBehavior | undefined;
+  constrainHeight?: boolean | undefined;
 };
 
+/** Vertical list that handles constrained height and auto-scroll behavior. */
 export function ChainOfThoughtTimeline({
   className,
   autoScroll = true,
@@ -110,11 +125,17 @@ export function ChainOfThoughtTimeline({
   ...props
 }: ChainOfThoughtTimelineProps) {
   const [scrollEl, setScrollEl] = useState<HTMLUListElement | null>(null);
+  // Auto-pin only while streaming, but keep tracking scroll position (so the
+  // jump affordance survives) whenever the panel is height-constrained.
+  const trackScroll = autoScroll || constrainHeight;
   const { isScrolledUp, scrollToBottom } = useAutoScroll(
     scrollEl,
-    autoScrollKey ?? children,
-    autoScroll,
-    autoScrollBehavior,
+    autoScrollKey ?? Children.count(children),
+    {
+      autoPin: autoScroll,
+      track: trackScroll,
+      behavior: autoScrollBehavior,
+    },
   );
 
   const setScrollRef = useCallback((el: HTMLUListElement | null) => {
@@ -139,16 +160,19 @@ export function ChainOfThoughtTimeline({
 
   return (
     <div className="aui-chain-of-thought-timeline-wrapper motion-reduce:![animation:none] motion-reduce:![transition:none] relative">
+      {/* Explicit role survives Tailwind Preflight's `list-style:none`, which
+          otherwise makes WebKit/VoiceOver drop the implicit list semantics. */}
       <ul
         ref={setScrollRef}
         data-slot="chain-of-thought-timeline"
+        role="list"
         className={listClassName}
         style={listStyle}
         {...listProps}
       >
         {children}
       </ul>
-      {autoScroll && (
+      {trackScroll && (
         <JumpToLatestButton onClick={scrollToBottom} visible={isScrolledUp} />
       )}
     </div>

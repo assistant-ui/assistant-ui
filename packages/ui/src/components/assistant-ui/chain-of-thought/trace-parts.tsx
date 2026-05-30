@@ -10,6 +10,7 @@ import {
   type ChainOfThoughtTracePartsProps,
 } from "./trace-shared";
 
+/** Derives and renders a trace from the active message's parts. */
 export function ChainOfThoughtTraceParts({
   trace: _trace,
   groupingFunction = groupMessagePartsByParentId,

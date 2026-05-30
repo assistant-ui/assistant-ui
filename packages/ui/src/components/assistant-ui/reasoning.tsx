@@ -101,7 +101,7 @@ function ReasoningFade({ className, ...props }: React.ComponentProps<"div">) {
       className={cn(
         "aui-reasoning-fade pointer-events-none absolute inset-x-0 bottom-0 z-10 h-8",
         "bg-[linear-gradient(to_top,var(--color-background),transparent)]",
-        "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_top,hsl(var(--muted)/0.5),transparent)]",
+        "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_top,color-mix(in_oklab,var(--color-muted)_50%,transparent),transparent)]",
         "fade-in-0 animate-in",
         "group-data-[state=open]/collapsible-content:animate-out",
         "group-data-[state=open]/collapsible-content:fade-out-0",

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+/** Captures the final streaming duration for trace summaries. */
 export function useTraceDuration(isStreaming: boolean) {
   const [durationSec, setDurationSec] = useState<number | undefined>(undefined);
   const startRef = useRef<number | null>(null);
@@ -9,7 +10,7 @@ export function useTraceDuration(isStreaming: boolean) {
 
   useEffect(() => {
     if (isStreaming) {
-      if (!wasStreamingRef.current) {
+      if (!wasStreamingRef.current || startRef.current == null) {
         startRef.current = Date.now();
         setDurationSec(undefined);
       }
@@ -25,6 +26,7 @@ export function useTraceDuration(isStreaming: boolean) {
   return durationSec;
 }
 
+/** Returns elapsed seconds while an activity is active, then keeps the final value. */
 export function useElapsedSeconds(isActive: boolean) {
   const [elapsedSeconds, setElapsedSeconds] = useState<number | undefined>(
     undefined,
@@ -45,7 +47,7 @@ export function useElapsedSeconds(isActive: boolean) {
       };
 
       updateElapsed();
-      const intervalId = window.setInterval(updateElapsed, 250);
+      const intervalId = window.setInterval(updateElapsed, 1000);
       wasActiveRef.current = isActive;
       return () => window.clearInterval(intervalId);
     }

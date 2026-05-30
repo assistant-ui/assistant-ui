@@ -1,12 +1,31 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useScrollLock } from "@assistant-ui/react";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
+/** Default duration shared by ChainOfThought disclosure animations. */
 export const DISCLOSURE_ANIMATION_DURATION = 200;
 
+const DisclosureOpenStateContext = createContext<boolean | undefined>(
+  undefined,
+);
+
+/** Reads the resolved open state from the nearest ChainOfThought disclosure. */
+export function useDisclosureOpenState() {
+  return useContext(DisclosureOpenStateContext);
+}
+
+/** Props for the shared controlled/uncontrolled disclosure root helper. */
 export type DisclosureRootProps = Omit<
   React.ComponentProps<typeof Collapsible>,
   "open" | "onOpenChange"
@@ -19,6 +38,7 @@ export type DisclosureRootProps = Omit<
   lockOnProgrammaticClose?: boolean | undefined;
 };
 
+/** Shared Collapsible root with scroll locking and resolved open-state context. */
 export function DisclosureRoot({
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
@@ -26,6 +46,7 @@ export function DisclosureRoot({
   animationDuration = DISCLOSURE_ANIMATION_DURATION,
   lockOnClose = true,
   lockOnProgrammaticClose = false,
+  children,
   style,
   ...props
 }: DisclosureRootProps) {
@@ -36,11 +57,16 @@ export function DisclosureRoot({
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
   const previousOpenRef = useRef(isOpen);
+  // Set when `handleOpenChange` already locked for this close, so the
+  // programmatic-close effect below doesn't lock a second time when the
+  // controlled `open` prop subsequently flips to false.
+  const closedViaHandlerRef = useRef(false);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
       if (!open && lockOnClose) {
         lockScroll();
+        closedViaHandlerRef.current = true;
       }
       if (!isControlled) {
         setUncontrolledOpen(open);
@@ -52,7 +78,11 @@ export function DisclosureRoot({
 
   useLayoutEffect(() => {
     if (lockOnProgrammaticClose && previousOpenRef.current && !isOpen) {
-      lockScroll();
+      if (closedViaHandlerRef.current) {
+        closedViaHandlerRef.current = false;
+      } else {
+        lockScroll();
+      }
     }
     previousOpenRef.current = isOpen;
   }, [isOpen, lockOnProgrammaticClose, lockScroll]);
@@ -67,13 +97,17 @@ export function DisclosureRoot({
   );
 
   return (
-    <Collapsible
-      ref={collapsibleRef}
-      open={isOpen}
-      onOpenChange={handleOpenChange}
-      style={mergedStyle}
-      {...props}
-    />
+    <DisclosureOpenStateContext.Provider value={isOpen}>
+      <Collapsible
+        ref={collapsibleRef}
+        open={isOpen}
+        onOpenChange={handleOpenChange}
+        style={mergedStyle}
+        {...props}
+      >
+        {children}
+      </Collapsible>
+    </DisclosureOpenStateContext.Provider>
   );
 }
 
@@ -86,8 +120,10 @@ const DISCLOSURE_CONTENT_CLASSNAME = cn(
   "data-[state=closed]:pointer-events-none",
   "data-[state=open]:duration-(--animation-duration)",
   "data-[state=closed]:duration-(--animation-duration)",
+  "motion-reduce:animate-none motion-reduce:transition-none",
 );
 
+/** Shared animated content wrapper for simple disclosure compositions. */
 export function DisclosureContent({
   className,
   ...props

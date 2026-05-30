@@ -137,6 +137,145 @@ export const registry: RegistryItem[] = [
     },
   },
   {
+    name: "chain-of-thought",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/crossfade.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/crossfade.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/disclosure-base.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/disclosure-base.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/disclosure.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/disclosure.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/layout.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/layout.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/model.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/model.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/runtime-activity.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/runtime-activity.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/runtime-part-layout.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/runtime-part-layout.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/runtime-root.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/runtime-root.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/runtime-tool.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/runtime-tool.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/scroll.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/scroll.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/step.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/step.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/strings.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/strings.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/styles.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/styles.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/trace-disclosure.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace-disclosure.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/trace-nodes.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace-nodes.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/trace-parts.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace-parts.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/trace-shared.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace-shared.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/trace-time.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace-time.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/trace.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace.tsx",
+      },
+    ],
+    registryDependencies: [
+      "collapsible",
+      "https://r.assistant-ui.com/markdown-text.json",
+    ],
+    dependencies: [
+      "@assistant-ui/react",
+      "lucide-react",
+      "class-variance-authority",
+      "tw-shimmer",
+    ],
+    css: {
+      '@import "tw-shimmer"': {},
+    },
+  },
+  {
     name: "message-timing",
     type: "registry:component",
     files: [

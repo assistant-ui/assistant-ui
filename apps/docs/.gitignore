@@ -3,3 +3,6 @@
 .next
 .turbo
 dist
+
+# Local-only ChainOfThought QA inspection surface (not for production docs)
+/app/chain-of-thought-qa/

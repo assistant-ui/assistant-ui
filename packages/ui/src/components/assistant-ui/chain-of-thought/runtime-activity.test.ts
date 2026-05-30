@@ -6,6 +6,7 @@ import {
   getActivityFromPart,
   inferStepTypeFromTool,
   inferToolActivityStatusType,
+  isCollapsedActivityReasoning,
   isMessageStatusStreaming,
   mapPartStatusToStepStatus,
   partStatusOrFallback,
@@ -42,6 +43,14 @@ describe("runtime-activity", () => {
       "requires-action",
     );
     expect(partStatusOrFallback(undefined, "complete", "complete")).toBe(
+      "complete",
+    );
+    // Deliberate: a tool normalized to `complete` keeps its success status even
+    // when the surrounding run is incomplete. The latest tool genuinely
+    // succeeded; folding `incomplete` in here would mislabel *every* completed
+    // tool row as an error. Run-level interruption is surfaced by the
+    // "Stopped after N steps" summary + the `stopped` live region instead.
+    expect(partStatusOrFallback("complete", "complete", "incomplete")).toBe(
       "complete",
     );
   });
@@ -119,6 +128,22 @@ describe("runtime-activity", () => {
       toolActivityLabels: undefined,
     });
     expect(completed).toBe("Searched web");
+
+    // The reasoningActivity seam threads through to the reasoning snippet.
+    const localizedReasoning = deriveCollapsedActivity({
+      parts: [
+        {
+          type: "reasoning",
+          text: "weighing options",
+          status: { type: "complete" },
+        },
+      ],
+      chainStatusType: "running",
+      messageStatusType: "running",
+      toolActivityLabels: undefined,
+      reasoningActivity: (snippet) => `Custom: ${snippet}`,
+    });
+    expect(localizedReasoning).toBe("Custom: weighing options");
   });
 
   it("parses search result metadata and source labels", () => {
@@ -137,5 +162,171 @@ describe("runtime-activity", () => {
       "example.com/path",
     );
     expect(formatSearchSourceLabel("plain-source")).toBe("plain-source");
+  });
+
+  it("keeps non-web schemes intact instead of stripping them", () => {
+    expect(formatSearchSourceLabel("mailto:foo@bar.com")).toBe(
+      "mailto:foo@bar.com",
+    );
+    expect(formatSearchSourceLabel("javascript:alert(1)")).toBe(
+      "javascript:alert(1)",
+    );
+  });
+
+  it("guards untrusted hit counts before rendering a summary", () => {
+    // Non-integer / negative hit counts must not produce "Found 1.5 results."
+    expect(extractSearchResults("search_web", { hits: 1.5 })).toBeNull();
+    expect(extractSearchResults("search_web", { hits: -1 })).toBeNull();
+    // A genuine zero still renders.
+    expect(extractSearchResults("search_web", { hits: 0 })).toEqual({
+      summary: "Found 0 results.",
+      sources: [],
+    });
+  });
+
+  it("prefixes reasoning with 'Thinking:' from streaming state, not the pinned part status", () => {
+    // The runtime pins reasoning parts to `complete` even mid-stream, so the
+    // prefix must follow the chain/message streaming state to match the shimmer.
+    const streaming = getActivityFromPart(
+      {
+        type: "reasoning",
+        text: "weighing options",
+        status: { type: "complete" },
+      },
+      "complete",
+      undefined,
+      "running",
+      "running",
+    );
+    expect(streaming).toBe("Thinking: weighing options");
+
+    const done = getActivityFromPart(
+      {
+        type: "reasoning",
+        text: "weighing options",
+        status: { type: "complete" },
+      },
+      "complete",
+      undefined,
+      "complete",
+      "complete",
+    );
+    expect(done).toBe("weighing options");
+  });
+
+  it("localizes the streaming reasoning prefix via the reasoningActivity seam", () => {
+    const localized = getActivityFromPart(
+      { type: "reasoning", text: "weighing options" },
+      "running",
+      undefined,
+      "running",
+      "running",
+      (snippet) => `Pensando: ${snippet}`,
+    );
+    expect(localized).toBe("Pensando: weighing options");
+
+    // The seam only affects the streaming prefix, not the settled bare text.
+    const settled = getActivityFromPart(
+      { type: "reasoning", text: "weighing options" },
+      "complete",
+      undefined,
+      "complete",
+      "complete",
+      (snippet) => `Pensando: ${snippet}`,
+    );
+    expect(settled).toBe("weighing options");
+  });
+
+  it("reports whether a reasoning part drives the collapsed activity", () => {
+    // The active part wins: a running tool overrides an earlier settled reasoning.
+    expect(
+      isCollapsedActivityReasoning([
+        { type: "reasoning", text: "x", status: { type: "complete" } },
+        {
+          type: "tool-call",
+          toolName: "search_web",
+          status: { type: "running" },
+        },
+      ]),
+    ).toBe(false);
+
+    // A single active reasoning part drives the activity.
+    expect(
+      isCollapsedActivityReasoning([
+        {
+          type: "reasoning",
+          text: "still thinking",
+          status: { type: "running" },
+        },
+      ]),
+    ).toBe(true);
+
+    // No active part → the latest reasoning/tool part wins (here, reasoning).
+    expect(
+      isCollapsedActivityReasoning([
+        {
+          type: "tool-call",
+          toolName: "search_web",
+          status: { type: "complete" },
+        },
+        { type: "reasoning", text: "wrap up", status: { type: "complete" } },
+      ]),
+    ).toBe(true);
+
+    expect(isCollapsedActivityReasoning([])).toBe(false);
+  });
+
+  it("recognizes alternative search result shapes (results/items/documents)", () => {
+    // Object-shaped hit lists still report a count derived from array length.
+    expect(
+      extractSearchResults("web_search", { results: [{}, {}, {}] }),
+    ).toEqual({ summary: "Found 3 results.", sources: [] });
+    expect(
+      extractSearchResults("doc_search", {
+        items: ["https://a.com", "https://b.com"],
+      }),
+    ).toEqual({
+      summary: "Found 2 results.",
+      sources: ["https://a.com", "https://b.com"],
+    });
+    // Singular pluralization via Intl.PluralRules.
+    expect(extractSearchResults("search_docs", { documents: [{}] })).toEqual({
+      summary: "Found 1 result.",
+      sources: [],
+    });
+    // An explicit, valid `hits` count still wins over the array length.
+    expect(
+      extractSearchResults("search_web", { hits: 5, results: [{}, {}] }),
+    ).toEqual({ summary: "Found 5 results.", sources: [] });
+    // An empty hit list with no count stays null (no "Found 0 results." noise).
+    expect(extractSearchResults("search_web", { results: [] })).toBeNull();
+  });
+
+  it("truncates long reasoning on a code-point boundary (no lone surrogate)", () => {
+    const text = `${"a".repeat(70)}😀${"b".repeat(5)}`;
+    const label = getActivityFromPart(
+      { type: "reasoning", text },
+      "complete",
+      undefined,
+      "complete",
+      "complete",
+    );
+    expect(label).toBeDefined();
+    expect(label?.endsWith("…")).toBe(true);
+    // A naive UTF-16 slice would leave a dangling high surrogate here.
+    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(label as string)).toBe(
+      false,
+    );
+  });
+
+  it("supports a '*' catch-all tool activity resolver", () => {
+    const label = getActivityFromPart(
+      { type: "tool-call", toolName: "unknown_tool" },
+      "running",
+      { "*": ({ fallbackLabel }) => `localized:${fallbackLabel}` },
+      "running",
+      "running",
+    );
+    expect(label).toBe("localized:unknown tool");
   });
 });

@@ -43,6 +43,9 @@ const DefaultTraceGroupSummary: ComponentType<
   ChainOfThoughtTraceGroupSummaryProps
 > = ({ group, latestStep, isOpen, canExpand, onToggle }) => {
   const toolName = group.summary?.toolName ?? latestStep?.toolName;
+  const latestLabel =
+    group.summary?.latestLabel ??
+    (latestStep ? getTraceStepLabel(latestStep) : undefined);
   const badgeStatus = mapTraceStatusToToolBadge(
     latestStep?.status ?? group.status,
   );
@@ -59,10 +62,17 @@ const DefaultTraceGroupSummary: ComponentType<
         "rounded-md px-0 py-0 transition-colors",
         "disabled:cursor-default",
       )}
-      aria-expanded={isOpen}
+      aria-expanded={canExpand ? isOpen : undefined}
     >
-      <div className="flex items-center gap-2 text-sm">
-        <span className="font-medium text-foreground">{group.label}</span>
+      <div className="flex min-w-0 items-center gap-2 text-sm">
+        <span className="shrink-0 font-medium text-foreground">
+          {group.label}
+        </span>
+        {latestLabel != null ? (
+          <span className="min-w-0 truncate text-muted-foreground">
+            {latestLabel}
+          </span>
+        ) : null}
         {toolName ? (
           <span className="inline-flex h-5 shrink-0 items-center">
             <ChainOfThoughtToolBadge
@@ -80,6 +90,10 @@ const DefaultTraceGroupSummary: ComponentType<
 const DefaultTraceStepBody: NonNullable<
   ChainOfThoughtTraceNodeComponents["StepBody"]
 > = ({ step }) => {
+  const isStreamingOutput =
+    isRecord(step.output) &&
+    "content" in step.output &&
+    step.output.status === "streaming";
   const output = (() => {
     if (step.output == null) return null;
     if (isRecord(step.output) && "content" in step.output) {
@@ -93,7 +107,12 @@ const DefaultTraceStepBody: NonNullable<
   return (
     <ChainOfThoughtStepBody className="space-y-1">
       {output != null ? (
-        <div className="text-muted-foreground/80 text-sm">{output}</div>
+        <div
+          className="text-muted-foreground text-sm"
+          {...(isStreamingOutput ? { "aria-busy": true } : {})}
+        >
+          {output}
+        </div>
       ) : null}
       {step.detail != null ? <div>{step.detail}</div> : null}
     </ChainOfThoughtStepBody>
@@ -118,6 +137,7 @@ function resolveGroupIcon({
         className={cn(
           STEP_ICON_CLASS,
           "text-muted-foreground transition-transform duration-150 ease-out",
+          "motion-reduce:transition-none",
           isOpen ? "rotate-0" : "-rotate-90",
         )}
       />
@@ -165,6 +185,8 @@ function TraceStepNode({
       status={status}
       active={isActive}
       type={isMonologue ? "default" : type}
+      {...(step.stepLabel !== undefined ? { stepLabel: step.stepLabel } : {})}
+      {...(step.icon !== undefined ? { icon: step.icon } : {})}
       style={style}
     >
       {showHeader ? (
@@ -239,8 +261,13 @@ function TraceGroupNode({
             setIsOpen((prev) => !prev);
           }}
         />
-        <Collapsible open={isOpen && canExpand} onOpenChange={setIsOpen}>
-          <ChainOfThoughtContent className="mt-1">
+        <Collapsible
+          open={isOpen && canExpand}
+          onOpenChange={(next) => {
+            if (canExpand) setIsOpen(next);
+          }}
+        >
+          <ChainOfThoughtContent className="mt-1" showFade={false}>
             <ChainOfThoughtTimeline autoScroll={false} constrainHeight={false}>
               {group.children.map((node, i) => renderNode(node, i, depth + 1))}
             </ChainOfThoughtTimeline>
@@ -251,6 +278,7 @@ function TraceGroupNode({
   );
 }
 
+/** Renders a structured trace tree as a ChainOfThought timeline. */
 export function ChainOfThoughtTraceNodes({
   className,
   trace,

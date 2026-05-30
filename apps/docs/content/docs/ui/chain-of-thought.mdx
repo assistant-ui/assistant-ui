@@ -24,7 +24,8 @@ import { ChainOfThoughtSample } from "@/components/docs/samples/chain-of-thought
 
 <InstallCommand shadcn={["chain-of-thought"]} />
 
-This adds `/components/assistant-ui/chain-of-thought.tsx` (plus an internal `/components/assistant-ui/chain-of-thought/` module) to your project.
+This adds `/components/assistant-ui/chain-of-thought.tsx` and the internal
+`/components/assistant-ui/chain-of-thought/` module to your project.
 
   </Step>
   <Step>
@@ -54,7 +55,7 @@ const AssistantMessage: FC = () => {
 };
 ```
 
-The trigger shows a live activity label (e.g. "Searching web", "Reading sources") and an elapsed-time counter while streaming. Once the chain finishes, the panel auto-collapses to a one-line summary like "Researched 3 sources (12s)".
+The trigger shows a live activity label (e.g. "Searching web", "Reading sources") and an elapsed-time counter while streaming. Once the chain finishes, the default runtime panel auto-collapses back to its compact "Reasoning" trigger; `TraceDisclosure` can show richer structured summaries such as "Researched 3 sources (12s)".
 
   </Step>
 </Steps>
@@ -75,6 +76,59 @@ Pass `toolActivityLabels` to override the label shown for a specific tool. The r
 ```
 
 If a tool has no entry, the component falls back to a humanized version of the tool name with verb inflection (e.g. `search_web` → "Searching web" / "Searched web").
+
+Use the `"*"` catch-all key to localize or rewrite **every** tool's default label from a single resolver:
+
+```tsx
+<ChainOfThought
+  toolActivityLabels={{
+    "*": ({ fallbackLabel, statusType }) => translate(fallbackLabel, statusType),
+  }}
+/>
+```
+
+## Localization
+
+Override the panel's built-in strings (trigger labels, placeholder, terminal text, jump-to-latest) with the `strings` prop. Duration-dependent labels are functions so each locale controls its own grammar:
+
+```tsx
+<ChainOfThought
+  strings={{
+    reasoning: "Razonamiento",
+    thinking: "Pensando...",
+    reasoningHidden: "Razonamiento oculto.",
+    jumpToLatest: "Más reciente",
+    working: "Trabajando...",
+    reasoningActivity: (snippet) => `Pensando: ${snippet}`,
+    done: (s) => (s != null ? `Listo en ${s}s` : "Listo"),
+    stopped: (s) => (s != null ? `Detenido tras ${s}s` : "Detenido"),
+  }}
+/>
+```
+
+Count-dependent labels route through the seam too. The collapsed trace summary
+("Researched 3 sources", "Ran 2 tools", "Stopped after 4 steps") is built by
+`traceSummary`, whose default pluralizes via `Intl.PluralRules`. Override it to
+control the grammar for locales with non-binary plural categories:
+
+```tsx
+const fr = new Intl.PluralRules("fr-FR");
+
+<ChainOfThought
+  strings={{
+    traceSummary: ({ searchSteps, toolSteps, incomplete, durationSec }) => {
+      const base = incomplete
+        ? `Arrêté après ${toolSteps} ${fr.select(toolSteps) === "one" ? "étape" : "étapes"}`
+        : `Consulté ${searchSteps} ${fr.select(searchSteps) === "one" ? "source" : "sources"}`;
+      return durationSec != null ? `${base} (${durationSec}s)` : base;
+    },
+  }}
+/>;
+```
+
+Tool activity verbs are localized separately via the `toolActivityLabels` `"*"` resolver shown above. (`ChainOfThought.TraceDisclosure` also accepts a per-instance `summary` formatter that takes precedence over `traceSummary`.)
+
+The panel is RTL-aware: the disclosure chevrons and the jump-to-latest button mirror automatically under `dir="rtl"`.
 
 ## Custom trigger
 
@@ -158,9 +212,10 @@ Pass `variant` on `ChainOfThought` (or `ChainOfThought.Root`) to change the visu
 | ------------------------- | -------------------------------------------------------------------------- |
 | `constrainHeight`         | Cap the timeline height and add a fade gradient for overflow. Default `false`. |
 | `autoCollapseOnComplete`  | Collapse the panel automatically once streaming completes. Default `true`. |
-| `toolActivityLabels`      | Per-tool label resolver overrides.                                         |
+| `toolActivityLabels`      | Per-tool label resolver overrides (use the `"*"` key for a catch-all).      |
 | `renderTriggerContent`    | Render a custom trigger body.                                              |
 | `variant`                 | Visual style. `"ghost" \| "outline" \| "muted"`.                         |
+| `strings`                 | Override built-in strings for localization. See [Localization](#localization). |
 
 ### Composable API
 

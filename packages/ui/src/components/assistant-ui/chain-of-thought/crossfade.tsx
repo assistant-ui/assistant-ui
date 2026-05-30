@@ -3,15 +3,17 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
+/** Props for the small value crossfade used by live trigger labels. */
 export type CrossfadeProps<T> = {
   value: T;
   children: (value: T) => ReactNode;
-  enterDuration?: number;
-  exitDuration?: number;
-  enterDelay?: number;
-  className?: string;
+  enterDuration?: number | undefined;
+  exitDuration?: number | undefined;
+  enterDelay?: number | undefined;
+  className?: string | undefined;
 };
 
+/** Crossfades between rendered values without remounting the surrounding label. */
 export function Crossfade<T>({
   value,
   children,
@@ -21,33 +23,46 @@ export function Crossfade<T>({
   className,
 }: CrossfadeProps<T>) {
   const [currentValue, setCurrentValue] = useState(value);
-  const [previousValue, setPreviousValue] = useState<T | null>(null);
+  // Wrapped in an object (not `T | null`) so a legitimately null/falsy previous
+  // value still drives a crossfade instead of being read as "not transitioning".
+  const [previousEntry, setPreviousEntry] = useState<{ value: T } | null>(null);
   const [generation, setGeneration] = useState(0);
   const valueRef = useRef(value);
   const cleanupRef = useRef<number | null>(null);
+  // Read durations via a ref so they are NOT effect deps. Otherwise a duration
+  // prop change mid-fade re-runs the effect, whose cleanup clears the pending
+  // reset timer, but the `Object.is` guard then bails before rescheduling it —
+  // leaving the exit layer mounted forever.
+  const durationsRef = useRef({ enterDuration, exitDuration, enterDelay });
+  durationsRef.current = { enterDuration, exitDuration, enterDelay };
 
   useEffect(() => {
     if (Object.is(valueRef.current, value)) return;
 
-    setPreviousValue(valueRef.current);
+    setPreviousEntry({ value: valueRef.current });
     setCurrentValue(value);
     setGeneration((g) => g + 1);
     valueRef.current = value;
 
-    if (cleanupRef.current) window.clearTimeout(cleanupRef.current);
+    if (cleanupRef.current !== null) window.clearTimeout(cleanupRef.current);
 
-    const totalMs = Math.max(exitDuration, enterDelay + enterDuration);
+    const {
+      enterDuration: enter,
+      exitDuration: exit,
+      enterDelay: delay,
+    } = durationsRef.current;
+    const totalMs = Math.max(exit, delay + enter);
     cleanupRef.current = window.setTimeout(() => {
-      setPreviousValue(null);
+      setPreviousEntry(null);
       cleanupRef.current = null;
     }, totalMs);
 
     return () => {
-      if (cleanupRef.current) window.clearTimeout(cleanupRef.current);
+      if (cleanupRef.current !== null) window.clearTimeout(cleanupRef.current);
     };
-  }, [value, enterDuration, exitDuration, enterDelay]);
+  }, [value]);
 
-  const isTransitioning = previousValue != null;
+  const isTransitioning = previousEntry !== null;
 
   return (
     <div
@@ -70,9 +85,10 @@ export function Crossfade<T>({
           className={cn(
             "aui-chain-of-thought-crossfade-exit",
             "fade-out-0 pointer-events-none absolute inset-0 w-full min-w-0 animate-out fill-mode-both duration-[var(--crossfade-exit-duration)]",
+            "motion-reduce:animate-none motion-reduce:transition-none",
           )}
         >
-          {children(previousValue as T)}
+          {children(previousEntry.value)}
         </div>
       )}
       <div
@@ -80,7 +96,7 @@ export function Crossfade<T>({
         className={cn(
           "aui-chain-of-thought-crossfade-enter w-fit min-w-0",
           isTransitioning &&
-            "fade-in-0 animate-in fill-mode-both delay-[var(--crossfade-enter-delay)] duration-[var(--crossfade-enter-duration)]",
+            "fade-in-0 animate-in fill-mode-both delay-[var(--crossfade-enter-delay)] duration-[var(--crossfade-enter-duration)] motion-reduce:animate-none motion-reduce:transition-none",
         )}
       >
         {children(currentValue)}

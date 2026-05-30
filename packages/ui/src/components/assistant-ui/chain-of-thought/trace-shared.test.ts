@@ -29,11 +29,13 @@ describe("trace-shared", () => {
   });
 
   it("maps trace statuses to step/tool badge statuses", () => {
+    expect(mapTraceStatusToStepStatus("pending")).toBe("pending");
     expect(mapTraceStatusToStepStatus("running")).toBe("active");
     expect(mapTraceStatusToStepStatus("incomplete")).toBe("error");
     expect(mapTraceStatusToStepStatus("complete")).toBe("complete");
     expect(mapTraceStatusToStepStatus(undefined)).toBe("complete");
 
+    expect(mapTraceStatusToToolBadge("pending")).toBe("pending");
     expect(mapTraceStatusToToolBadge("running")).toBe("running");
     expect(mapTraceStatusToToolBadge("incomplete")).toBe("error");
     expect(mapTraceStatusToToolBadge("complete")).toBe("complete");
@@ -45,6 +47,7 @@ describe("trace-shared", () => {
       {
         type: "tool-call",
         toolName: "search_web",
+        status: { type: "running" },
       },
     ]);
 
@@ -53,23 +56,39 @@ describe("trace-shared", () => {
       kind: "step",
       type: "search",
       toolName: "search_web",
-      id: "step-0",
+      id: "__step_0",
       label: "Tool: search_web",
+      status: "running",
+    });
+  });
+
+  it("marks default-inferred incomplete message part groups as incomplete", () => {
+    const trace = traceFromMessageParts([
+      {
+        type: "tool-call",
+        toolName: "search_web",
+        status: { type: "incomplete", reason: "error" },
+      },
+    ]);
+
+    expect(trace[0]).toMatchObject({
+      kind: "step",
+      status: "incomplete",
     });
   });
 
   it("supports custom grouping and inferStep mapping", () => {
     const trace = traceFromMessageParts(
       [
-        { type: "text", text: "A" },
+        { type: "text", text: "A", status: { type: "running" } },
         { type: "text", text: "B" },
       ],
       {
         groupingFunction: () => [{ groupKey: "group-1", indices: [0, 1] }],
-        inferStep: () => ({
+        inferStep: ({ isActive }) => ({
           label: "Custom",
           type: "code",
-          status: "active",
+          status: isActive ? "active" : "complete",
         }),
       },
     );
@@ -81,6 +100,28 @@ describe("trace-shared", () => {
         label: "Custom",
         type: "code",
         status: "running",
+      },
+    ]);
+  });
+
+  it("preserves custom inferStep pending status and visual metadata", () => {
+    const trace = traceFromMessageParts([{ type: "text", text: "A" }], {
+      inferStep: () => ({
+        label: "Queued",
+        status: "pending",
+        stepLabel: 2,
+        icon: "custom-icon",
+      }),
+    });
+
+    expect(trace).toEqual([
+      {
+        kind: "step",
+        id: "__step_0",
+        label: "Queued",
+        status: "pending",
+        stepLabel: 2,
+        icon: "custom-icon",
       },
     ]);
   });
@@ -130,5 +171,13 @@ describe("trace-shared", () => {
         isActive: false,
       }),
     ).toEqual({ type: "default" });
+    expect(
+      defaultInferStep({
+        groupKey: undefined,
+        indices: [0],
+        parts: [{ type: "text", text: "hello", status: { type: "running" } }],
+        isActive: true,
+      }),
+    ).toEqual({ type: "default", status: "active" });
   });
 });

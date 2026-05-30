@@ -16,13 +16,13 @@ import {
 } from "./disclosure";
 import {
   collectTraceStats,
-  summarizeTraceStats,
+  traceHasIncomplete,
   traceHasRunning,
   type ChainOfThoughtPhase,
   type TraceSummaryStats,
 } from "./model";
 import { ChainOfThoughtTraceNodes } from "./trace-nodes";
-import { ChainOfThoughtTraceParts } from "./trace-parts";
+import { useChainOfThoughtStrings } from "./strings";
 import {
   defaultInferStep,
   groupMessagePartsByParentId,
@@ -65,10 +65,12 @@ function useTraceDisclosureState({
   return { open, handleOpenChange };
 }
 
+/** Shared root shell used by both static traces and message-derived traces. */
 function ChainOfThoughtTraceDisclosureRoot({
   isStreaming,
+  hasIncomplete,
   stats,
-  label = "Working...",
+  label,
   summary,
   autoCollapseOnComplete = true,
   rootProps,
@@ -77,10 +79,17 @@ function ChainOfThoughtTraceDisclosureRoot({
   children,
 }: ChainOfThoughtTraceDisclosureSharedProps & {
   isStreaming: boolean;
+  hasIncomplete: boolean;
   stats: TraceSummaryStats;
   children: ReactNode;
 }) {
+  const strings = useChainOfThoughtStrings();
   const durationSec = useTraceDuration(isStreaming);
+  const phase: ChainOfThoughtPhase = isStreaming
+    ? "running"
+    : hasIncomplete
+      ? "incomplete"
+      : "complete";
   const summaryLabel = useMemo(() => {
     if (typeof summary === "string") return summary;
     if (typeof summary === "function") {
@@ -89,9 +98,13 @@ function ChainOfThoughtTraceDisclosureRoot({
         ...(durationSec != null ? { durationSec } : {}),
       });
     }
-    return summarizeTraceStats(stats, durationSec);
-  }, [durationSec, stats, summary]);
-  const phase: ChainOfThoughtPhase = isStreaming ? "running" : "complete";
+    return strings.traceSummary({
+      ...stats,
+      incomplete: phase === "incomplete",
+      ...(durationSec != null ? { durationSec } : {}),
+    });
+  }, [durationSec, phase, stats, summary, strings]);
+  const resolvedLabel = label ?? strings.working;
   const elapsedSeconds = useElapsedSeconds(isStreaming);
 
   const { open, handleOpenChange } = useTraceDisclosureState({
@@ -108,7 +121,8 @@ function ChainOfThoughtTraceDisclosureRoot({
       <ChainOfThoughtTrigger
         phase={phase}
         isOpen={open}
-        reasoningLabel={isStreaming ? label : summaryLabel}
+        reasoningLabel={strings.reasoning}
+        activityLabel={isStreaming ? resolvedLabel : summaryLabel}
         {...(elapsedSeconds !== undefined ? { elapsedSeconds } : {})}
         {...triggerProps}
       />
@@ -122,6 +136,7 @@ function ChainOfThoughtTraceDisclosureRoot({
 function ChainOfThoughtTraceDisclosureNodes({
   trace,
   disableGroupExpansionWhileStreaming = true,
+  allowGroupExpand: requestedAllowGroupExpand = true,
   label,
   summary,
   autoCollapseOnComplete,
@@ -131,12 +146,16 @@ function ChainOfThoughtTraceDisclosureNodes({
   ...timelineProps
 }: ChainOfThoughtTraceNodesProps & ChainOfThoughtTraceDisclosureSharedProps) {
   const isStreaming = useMemo(() => traceHasRunning(trace), [trace]);
+  const hasIncomplete = useMemo(() => traceHasIncomplete(trace), [trace]);
   const stats = useMemo(() => collectTraceStats(trace), [trace]);
-  const allowGroupExpand = !disableGroupExpansionWhileStreaming || !isStreaming;
+  const allowGroupExpand =
+    requestedAllowGroupExpand &&
+    (!disableGroupExpansionWhileStreaming || !isStreaming);
 
   return (
     <ChainOfThoughtTraceDisclosureRoot
       isStreaming={isStreaming}
+      hasIncomplete={hasIncomplete}
       stats={stats}
       label={label}
       summary={summary}
@@ -159,6 +178,7 @@ function ChainOfThoughtTraceDisclosureParts({
   summary,
   autoCollapseOnComplete,
   disableGroupExpansionWhileStreaming = true,
+  allowGroupExpand: requestedAllowGroupExpand = true,
   rootProps,
   triggerProps,
   contentProps,
@@ -171,22 +191,33 @@ function ChainOfThoughtTraceDisclosureParts({
     return type === "running" || type === "requires-action";
   });
   const messageParts = useAuiState(({ message }) => message.parts);
+  const allowGroupExpand =
+    requestedAllowGroupExpand &&
+    (!disableGroupExpansionWhileStreaming || !isStreaming);
 
-  const stats = useMemo(() => {
-    if (messageParts.length === 0) {
-      return { totalSteps: 0, searchSteps: 0, toolSteps: 0 };
-    }
-    const inferredTrace = traceFromMessageParts(messageParts, {
-      groupingFunction,
-      inferStep,
-    });
-    return collectTraceStats(inferredTrace);
-  }, [groupingFunction, inferStep, messageParts]);
+  // Derive the trace ONCE and reuse it for both the summary stats and the
+  // rendered nodes, instead of recomputing `traceFromMessageParts` twice
+  // (here for stats + again inside `ChainOfThoughtTraceParts`) every render.
+  const trace = useMemo(
+    () =>
+      messageParts.length === 0
+        ? []
+        : traceFromMessageParts(messageParts, { groupingFunction, inferStep }),
+    [groupingFunction, inferStep, messageParts],
+  );
+  const traceSummary = useMemo(
+    () => ({
+      stats: collectTraceStats(trace),
+      hasIncomplete: traceHasIncomplete(trace),
+    }),
+    [trace],
+  );
 
   return (
     <ChainOfThoughtTraceDisclosureRoot
       isStreaming={isStreaming}
-      stats={stats}
+      hasIncomplete={traceSummary.hasIncomplete}
+      stats={traceSummary.stats}
       label={label}
       summary={summary}
       autoCollapseOnComplete={autoCollapseOnComplete}
@@ -194,15 +225,16 @@ function ChainOfThoughtTraceDisclosureParts({
       triggerProps={triggerProps}
       contentProps={contentProps}
     >
-      <ChainOfThoughtTraceParts
-        groupingFunction={groupingFunction}
-        inferStep={inferStep}
+      <ChainOfThoughtTraceNodes
+        trace={trace}
+        allowGroupExpand={allowGroupExpand}
         {...timelineProps}
       />
     </ChainOfThoughtTraceDisclosureRoot>
   );
 }
 
+/** Renders a trace inside the ChainOfThought collapsible shell. */
 export function ChainOfThoughtTraceDisclosure(
   props: ChainOfThoughtTraceDisclosureProps,
 ) {

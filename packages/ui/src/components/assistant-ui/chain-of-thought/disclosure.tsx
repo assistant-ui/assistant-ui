@@ -7,8 +7,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { DisclosureRoot, type DisclosureRootProps } from "./disclosure-base";
+import {
+  DisclosureRoot,
+  type DisclosureRootProps,
+  useDisclosureOpenState,
+} from "./disclosure-base";
 import { cn } from "@/lib/utils";
+import { useChainOfThoughtStrings } from "./strings";
 import type { ChainOfThoughtPhase } from "./model";
 import {
   ANIMATION_DURATION,
@@ -19,9 +24,11 @@ import {
 } from "./styles";
 import { Crossfade } from "./crossfade";
 
+/** Props for the ChainOfThought collapsible root primitive. */
 export type ChainOfThoughtRootProps = DisclosureRootProps &
   VariantProps<typeof chainOfThoughtVariants>;
 
+/** Collapsible container that applies ChainOfThought variants and motion tokens. */
 function ChainOfThoughtRoot({
   className,
   variant,
@@ -54,6 +61,7 @@ function ChainOfThoughtRoot({
   );
 }
 
+/** Props for the ChainOfThought trigger primitive. */
 export type ChainOfThoughtTriggerProps = React.ComponentProps<
   typeof CollapsibleTrigger
 > & {
@@ -62,9 +70,16 @@ export type ChainOfThoughtTriggerProps = React.ComponentProps<
   activityLabel?: string | undefined;
   elapsedSeconds?: number | undefined;
   reasoningLabel?: string | undefined;
+  /** Fallback label shown while streaming with no resolved activity. */
+  streamingLabel?: string | undefined;
   /**
    * Render a custom trigger body. Receives the resolved trigger state so the
    * caller can build their own label/affordance composition.
+   *
+   * Accessibility: this replaces the entire default trigger body (including the
+   * chevron). Make sure your content includes a visible text label or pass an
+   * `aria-label` so the toggle button keeps an accessible name; consider
+   * re-including a disclosure indicator for sighted users.
    */
   renderTriggerContent?:
     | ((args: {
@@ -77,27 +92,33 @@ export type ChainOfThoughtTriggerProps = React.ComponentProps<
     | undefined;
 };
 
+/** Trigger button with phase-aware labels, shimmer, and custom render support. */
 function ChainOfThoughtTrigger({
   phase = "idle",
   isOpen,
   activityLabel,
   renderTriggerContent,
   elapsedSeconds,
-  reasoningLabel = "Reasoning",
+  reasoningLabel,
+  streamingLabel,
   className,
   ...props
 }: ChainOfThoughtTriggerProps) {
+  // Fall back to the strings seam (defaults to English) so the standalone
+  // primitive localizes via context without every caller threading the props.
+  const strings = useChainOfThoughtStrings();
+  const resolvedReasoningLabel = reasoningLabel ?? strings.reasoning;
+  const resolvedStreamingLabel = streamingLabel ?? strings.thinking;
+  const resolvedIsOpen = useDisclosureOpenState() ?? isOpen ?? false;
   const isActivePhase = phase === "running" || phase === "requires-action";
   const displayLabel = elapsedSeconds
-    ? `${reasoningLabel} (${elapsedSeconds}s)`
-    : reasoningLabel;
-  const fallbackLabel =
-    reasoningLabel !== "Reasoning" ? reasoningLabel : "Thinking...";
-  const primaryLabel = activityLabel ?? fallbackLabel;
+    ? `${resolvedReasoningLabel} (${elapsedSeconds}s)`
+    : resolvedReasoningLabel;
+  const primaryLabel = activityLabel ?? resolvedStreamingLabel;
   const customTriggerContent = renderTriggerContent?.({
     phase,
-    isOpen: !!isOpen,
-    reasoningLabel,
+    isOpen: resolvedIsOpen,
+    reasoningLabel: resolvedReasoningLabel,
     activityLabel,
     elapsedSeconds,
   });
@@ -127,7 +148,11 @@ function ChainOfThoughtTrigger({
               className={cn(
                 "aui-chain-of-thought-trigger-chevron inline-block size-4 shrink-0",
                 "transition-transform duration-(--animation-duration) ease-(--spring-easing)",
+                "motion-reduce:transition-none",
                 "group-data-[state=closed]/trigger:-rotate-90",
+                // Mirror the collapsed rotation for RTL so the chevron still
+                // points toward the disclosure's reading direction.
+                "rtl:group-data-[state=closed]/trigger:rotate-90",
                 "group-data-[state=open]/trigger:rotate-0",
               )}
             />
@@ -176,6 +201,7 @@ function ChainOfThoughtTrigger({
   );
 }
 
+/** Bottom fade used when ChainOfThought content is scroll constrained. */
 function ChainOfThoughtFade({
   className,
   ...props
@@ -187,14 +213,15 @@ function ChainOfThoughtFade({
         "aui-chain-of-thought-fade",
         "pointer-events-none absolute inset-x-0 bottom-0 z-10 h-8",
         "bg-[linear-gradient(to_top,var(--color-background),transparent)]",
-        "group-data-[variant=muted]/chain-of-thought-root:bg-[linear-gradient(to_top,hsl(var(--muted)),transparent)]",
-        "dark:group-data-[variant=muted]/chain-of-thought-root:bg-[linear-gradient(to_top,hsl(var(--card)),transparent)]",
+        "group-data-[variant=muted]/chain-of-thought-root:bg-[linear-gradient(to_top,var(--color-muted),transparent)]",
+        "dark:group-data-[variant=muted]/chain-of-thought-root:bg-[linear-gradient(to_top,var(--color-card),transparent)]",
         "fade-in-0 animate-in duration-(--animation-duration)",
         "group-data-[state=open]/collapsible-content:animate-out",
         "group-data-[state=open]/collapsible-content:fade-out-0",
         "group-data-[state=open]/collapsible-content:delay-[calc(var(--animation-duration)*0.75)]",
         "group-data-[state=open]/collapsible-content:fill-mode-forwards",
         "group-data-[state=open]/collapsible-content:duration-(--animation-duration)",
+        "motion-reduce:animate-none motion-reduce:transition-none",
         className,
       )}
       {...props}
@@ -202,6 +229,7 @@ function ChainOfThoughtFade({
   );
 }
 
+/** Animated disclosure body for ChainOfThought timelines and free-form content. */
 function ChainOfThoughtContent({
   className,
   children,
@@ -209,7 +237,7 @@ function ChainOfThoughtContent({
   showFade = true,
   ...props
 }: React.ComponentProps<typeof CollapsibleContent> & {
-  showFade?: boolean;
+  showFade?: boolean | undefined;
 }) {
   return (
     <CollapsibleContent
@@ -228,6 +256,7 @@ function ChainOfThoughtContent({
         "data-[state=closed]:ease-(--ease-out-expo)",
         "data-[state=closed]:fill-mode-both",
         "data-[state=closed]:pointer-events-none",
+        "motion-reduce:animate-none motion-reduce:transition-none",
         className,
       )}
       {...props}

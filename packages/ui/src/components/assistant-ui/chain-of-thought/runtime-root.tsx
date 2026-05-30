@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChainOfThoughtPrimitive,
   useAui,
@@ -15,11 +15,12 @@ import {
   type ChainOfThoughtTriggerProps,
 } from "./disclosure";
 import { ChainOfThoughtPlaceholder, ChainOfThoughtTimeline } from "./layout";
-import { derivePhase } from "./model";
+import { derivePhase, type ChainOfThoughtPhase } from "./model";
 import {
   deriveCollapsedActivity,
   findLastReasoningOrToolPart,
   inferToolActivityStatusType,
+  isCollapsedActivityReasoning,
   isMessageStatusStreaming,
   partStatusOrFallback,
   type ToolActivity,
@@ -33,23 +34,96 @@ import {
   ToolActivityLabelsContext,
 } from "./runtime-tool";
 import { useElapsedSeconds } from "./trace-time";
+import {
+  ChainOfThoughtStringsContext,
+  mergeChainOfThoughtStrings,
+  type ChainOfThoughtStrings,
+} from "./strings";
 
-export type ChainOfThoughtProps = {
-  constrainHeight?: boolean;
-  toolActivityLabels?: Record<string, ToolActivity>;
-  renderTriggerContent?: ChainOfThoughtTriggerProps["renderTriggerContent"];
-  autoCollapseOnComplete?: boolean;
-  variant?: ChainOfThoughtRootProps["variant"];
+const chainOfThoughtPartComponents = {
+  Reasoning: MarkdownText,
+  tools: { Fallback: ChainOfThoughtPrimitiveToolWithLabels },
+  Layout: ChainOfThoughtPrimitivePartLayout,
 };
 
+type ChainOfThoughtRuntimeTimelineProps = {
+  partsLength: number;
+  isChainStreaming: boolean;
+  constrainHeight: boolean;
+  phase: ChainOfThoughtPhase;
+  terminalElapsedSeconds?: number | undefined;
+  toolActivityLabels?: Record<string, ToolActivity> | undefined;
+};
+
+const ChainOfThoughtRuntimeTimeline = memo(
+  function ChainOfThoughtRuntimeTimeline({
+    partsLength,
+    isChainStreaming,
+    constrainHeight,
+    phase,
+    terminalElapsedSeconds,
+    toolActivityLabels,
+  }: ChainOfThoughtRuntimeTimelineProps) {
+    if (partsLength === 0) {
+      return <ChainOfThoughtPlaceholder />;
+    }
+
+    return (
+      <ChainOfThoughtTimeline
+        autoScroll={isChainStreaming}
+        autoScrollKey={partsLength}
+        autoScrollBehavior="smooth"
+        constrainHeight={constrainHeight}
+      >
+        <ToolActivityLabelsContext.Provider value={toolActivityLabels}>
+          <ChainOfThoughtPrimitive.Parts
+            components={chainOfThoughtPartComponents}
+          />
+          {(phase === "complete" || phase === "incomplete") && (
+            <ChainOfThoughtTerminalStep
+              phase={phase}
+              {...(terminalElapsedSeconds !== undefined
+                ? { elapsedSeconds: terminalElapsedSeconds }
+                : {})}
+            />
+          )}
+        </ToolActivityLabelsContext.Provider>
+      </ChainOfThoughtTimeline>
+    );
+  },
+);
+
+/** Props for the runtime-backed ChainOfThought component. */
+export type ChainOfThoughtProps = {
+  /** Caps the timeline height and shows a jump-to-latest affordance when needed. */
+  constrainHeight?: boolean | undefined;
+  /** Optional per-tool label resolvers for the collapsed activity line. */
+  toolActivityLabels?: Record<string, ToolActivity> | undefined;
+  /** Custom trigger body renderer for host-specific layouts. */
+  renderTriggerContent?: ChainOfThoughtTriggerProps["renderTriggerContent"];
+  /** Collapses the panel when a streaming chain reaches a terminal state. */
+  autoCollapseOnComplete?: boolean | undefined;
+  /** Visual chrome variant shared with `ChainOfThought.Root`. */
+  variant?: ChainOfThoughtRootProps["variant"] | undefined;
+  /** Overrides for the panel's user-facing strings (labels, terminal text). */
+  strings?: Partial<ChainOfThoughtStrings> | undefined;
+};
+
+/** Runtime ChainOfThought implementation used by the compound export. */
 export const ChainOfThoughtImpl = ({
   constrainHeight = false,
   toolActivityLabels,
   renderTriggerContent,
   autoCollapseOnComplete = true,
   variant = "ghost",
+  strings: stringsProp,
 }: ChainOfThoughtProps = {}) => {
   const aui = useAui();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const strings = useMemo(
+    () => mergeChainOfThoughtStrings(stringsProp),
+    [stringsProp],
+  );
   const collapsed = useAuiState((s) => s.chainOfThought.collapsed);
   const partsLength = useAuiState((s) => s.chainOfThought.parts.length);
 
@@ -59,19 +133,28 @@ export const ChainOfThoughtImpl = ({
       chainStatusType: s.chainOfThought.status.type,
       messageStatusType: s.message.status?.type,
       toolActivityLabels,
+      reasoningActivity: strings.reasoningActivity,
     }),
+  );
+  // Resolved as a primitive so the live region can announce a stable label for
+  // reasoning without sniffing the localized prefix out of `collapsedActivity`.
+  const collapsedActivityIsReasoning = useAuiState((s) =>
+    isCollapsedActivityReasoning(s.chainOfThought.parts),
   );
 
   const isChainStreaming = useAuiState((s) => {
     const chainStatusType = s.chainOfThought.status.type;
     if (isMessageStatusStreaming(chainStatusType)) return true;
     const messageStatusType = s.message.status?.type;
+    // A terminal message can't be streaming — guard before trusting per-part
+    // status, so a stale `running` part on a finished run can't pin the chain
+    // open with a perpetual shimmer.
+    if (!isMessageStatusStreaming(messageStatusType)) return false;
 
     const parts = s.chainOfThought.parts;
     if (parts.some((part) => isMessageStatusStreaming(part.status?.type))) {
       return true;
     }
-    if (!isMessageStatusStreaming(messageStatusType)) return false;
 
     const lastPart = findLastReasoningOrToolPart(parts);
     if (!lastPart) return false;
@@ -116,8 +199,10 @@ export const ChainOfThoughtImpl = ({
   });
   const isActivePhase = phase === "running" || phase === "requires-action";
   const elapsedSeconds = useElapsedSeconds(isActivePhase);
+  const terminalElapsedSeconds =
+    phase === "complete" || phase === "incomplete" ? elapsedSeconds : undefined;
   // Seed from the initial streaming snapshot so a mid-stream mount renders
-  // expanded on the first paint instead of flickering closed → open.
+  // expanded on the first paint instead of flickering closed to open.
   const [streamingOpenOverride, setStreamingOpenOverride] =
     useState(isChainStreaming);
   const wasStreamingRef = useRef(isChainStreaming);
@@ -130,6 +215,21 @@ export const ChainOfThoughtImpl = ({
         wasStreamingRef.current = isChainStreaming;
         return;
       }
+      // Auto-collapse unmounts the content. If the user had moved focus into
+      // it (a tool-detail toggle, a Retry button), move focus to the trigger
+      // first so it doesn't fall back to <body> and strand keyboard/AT users.
+      const root = rootRef.current;
+      const active = root?.ownerDocument.activeElement;
+      if (root && active && active !== root.ownerDocument.body) {
+        const content = root.querySelector<HTMLElement>(
+          "[data-slot=chain-of-thought-content]",
+        );
+        if (content?.contains(active)) {
+          root
+            .querySelector<HTMLElement>("[data-slot=chain-of-thought-trigger]")
+            ?.focus();
+        }
+      }
       setStreamingOpenOverride(false);
     }
 
@@ -137,6 +237,21 @@ export const ChainOfThoughtImpl = ({
   }, [autoCollapseOnComplete, isChainStreaming]);
 
   const open = !collapsed || streamingOpenOverride;
+
+  // Single polite live region mirroring the visible (aria-hidden) activity, so
+  // screen-reader users get passive feedback. Per-token reasoning updates are
+  // collapsed to a stable "Thinking…" string so the value only changes on a
+  // meaningful transition (new tool / done / stopped) instead of every tick.
+  const liveStatus =
+    phase === "complete"
+      ? strings.done(terminalElapsedSeconds)
+      : phase === "incomplete"
+        ? strings.stopped(terminalElapsedSeconds)
+        : isActivePhase
+          ? collapsedActivity && !collapsedActivityIsReasoning
+            ? collapsedActivity
+            : strings.thinking
+          : "";
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -149,46 +264,47 @@ export const ChainOfThoughtImpl = ({
   );
 
   return (
-    <ChainOfThoughtRoot
-      open={open}
-      onOpenChange={handleOpenChange}
-      {...(variant ? { variant } : {})}
-    >
-      <ChainOfThoughtTrigger
-        phase={phase}
-        isOpen={open}
-        {...(collapsedActivity ? { activityLabel: collapsedActivity } : {})}
-        {...(elapsedSeconds !== undefined ? { elapsedSeconds } : {})}
-        {...(renderTriggerContent ? { renderTriggerContent } : {})}
-      />
-      <ChainOfThoughtContent aria-busy={isChainStreaming}>
-        {partsLength > 0 ? (
-          <ChainOfThoughtTimeline
-            autoScroll={isChainStreaming}
-            autoScrollKey={partsLength}
-            autoScrollBehavior="smooth"
-            constrainHeight={constrainHeight}
-          >
-            <ToolActivityLabelsContext.Provider value={toolActivityLabels}>
-              <ChainOfThoughtPrimitive.Parts
-                components={{
-                  Reasoning: MarkdownText,
-                  tools: { Fallback: ChainOfThoughtPrimitiveToolWithLabels },
-                  Layout: ChainOfThoughtPrimitivePartLayout,
-                }}
-              />
-              {(phase === "complete" || phase === "incomplete") && (
-                <ChainOfThoughtTerminalStep
-                  phase={phase}
-                  {...(elapsedSeconds !== undefined ? { elapsedSeconds } : {})}
-                />
-              )}
-            </ToolActivityLabelsContext.Provider>
-          </ChainOfThoughtTimeline>
-        ) : (
-          <ChainOfThoughtPlaceholder />
-        )}
-      </ChainOfThoughtContent>
-    </ChainOfThoughtRoot>
+    <ChainOfThoughtStringsContext.Provider value={strings}>
+      <div ref={rootRef} className="contents">
+        <span
+          role="status"
+          aria-live="polite"
+          aria-atomic
+          data-slot="chain-of-thought-live-status"
+          className="sr-only"
+        >
+          {liveStatus}
+        </span>
+        <ChainOfThoughtRoot
+          open={open}
+          onOpenChange={handleOpenChange}
+          {...(variant ? { variant } : {})}
+        >
+          <ChainOfThoughtTrigger
+            phase={phase}
+            isOpen={open}
+            reasoningLabel={strings.reasoning}
+            streamingLabel={strings.thinking}
+            {...(collapsedActivity ? { activityLabel: collapsedActivity } : {})}
+            {...(elapsedSeconds !== undefined ? { elapsedSeconds } : {})}
+            {...(renderTriggerContent ? { renderTriggerContent } : {})}
+          />
+          <ChainOfThoughtContent aria-busy={isChainStreaming}>
+            <ChainOfThoughtRuntimeTimeline
+              partsLength={partsLength}
+              isChainStreaming={isChainStreaming}
+              constrainHeight={constrainHeight}
+              phase={phase}
+              {...(terminalElapsedSeconds !== undefined
+                ? { terminalElapsedSeconds }
+                : {})}
+              {...(toolActivityLabels !== undefined
+                ? { toolActivityLabels }
+                : {})}
+            />
+          </ChainOfThoughtContent>
+        </ChainOfThoughtRoot>
+      </div>
+    </ChainOfThoughtStringsContext.Provider>
   );
 };

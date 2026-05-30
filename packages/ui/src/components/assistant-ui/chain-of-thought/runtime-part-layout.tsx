@@ -13,17 +13,16 @@ import {
   ChainOfThoughtStepBody,
   ChainOfThoughtStepHeader,
 } from "./step";
+import { useChainOfThoughtStrings } from "./strings";
 
-export const ChainOfThoughtPrimitivePartLayout: FC<
-  PropsWithChildren<{ partIndex?: number }>
-> = ({ children, partIndex }) => {
+/** Layout wrapper used by `ChainOfThoughtPrimitive.Parts` for each runtime part. */
+export const ChainOfThoughtPrimitivePartLayout: FC<PropsWithChildren> = ({
+  children,
+}) => {
   const part = useAuiState((s) => s.part);
   const messageStatusType = useAuiState((s) => s.message.status?.type);
   const isLastPartInGroup = useAuiState((s) => {
     const parts = s.chainOfThought.parts;
-    if (partIndex != null) {
-      return partIndex === parts.length - 1;
-    }
     const lastPart = parts[parts.length - 1];
     return Object.is(s.part, lastPart);
   });
@@ -55,21 +54,19 @@ export const ChainOfThoughtPrimitivePartLayout: FC<
   );
 };
 
+/** Terminal step appended after a runtime chain finishes or stops. */
 export function ChainOfThoughtTerminalStep({
   phase,
   elapsedSeconds,
 }: {
   phase: ChainOfThoughtPhase;
-  elapsedSeconds?: number;
+  elapsedSeconds?: number | undefined;
 }) {
+  const strings = useChainOfThoughtStrings();
   const isIncomplete = phase === "incomplete";
   const label = isIncomplete
-    ? elapsedSeconds
-      ? `Stopped after ${elapsedSeconds}s`
-      : "Stopped"
-    : elapsedSeconds
-      ? `Done in ${elapsedSeconds}s`
-      : "Done";
+    ? strings.stopped(elapsedSeconds)
+    : strings.done(elapsedSeconds);
 
   return (
     <ChainOfThoughtStep

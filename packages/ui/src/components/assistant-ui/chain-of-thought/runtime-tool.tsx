@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { ChevronDownIcon } from "lucide-react";
 import {
   useAuiState,
   type ToolCallMessagePartComponent,
@@ -21,10 +22,12 @@ import {
   type ToolActivity,
 } from "./runtime-activity";
 
+/** Context carrying host-provided tool activity label resolvers to tool rows. */
 export const ToolActivityLabelsContext = createContext<
   Record<string, ToolActivity> | undefined
 >(undefined);
 
+/** Tool fallback wrapper that reads activity label resolvers from context. */
 export const ChainOfThoughtPrimitiveToolWithLabels: ToolCallMessagePartComponent =
   (props) => {
     const toolActivityLabels = useContext(ToolActivityLabelsContext);
@@ -36,11 +39,13 @@ export const ChainOfThoughtPrimitiveToolWithLabels: ToolCallMessagePartComponent
     );
   };
 
+/** Props for the default tool-call row rendered inside a ChainOfThought step. */
 export type ChainOfThoughtPrimitiveToolProps =
   React.ComponentProps<ToolCallMessagePartComponent> & {
-    toolActivityLabels?: Record<string, ToolActivity>;
+    toolActivityLabels?: Record<string, ToolActivity> | undefined;
   };
 
+/** Default tool-call renderer with compact labels and optional expandable details. */
 export function ChainOfThoughtPrimitiveTool({
   toolName,
   argsText,
@@ -48,6 +53,11 @@ export function ChainOfThoughtPrimitiveTool({
   status,
   toolActivityLabels,
 }: ChainOfThoughtPrimitiveToolProps) {
+  // Each row reads its own part plus the chain/message status. The latter two
+  // are chain-wide, but selectors return primitives so they never trigger an
+  // extra render — only a cheap selector eval. Reading them directly (rather
+  // than threading a shared context) keeps the row self-contained and works
+  // both inside the runtime timeline and when composed standalone.
   const currentPart = useAuiState((s) => s.part);
   const toolPart = currentPart.type === "tool-call" ? currentPart : undefined;
   const chainStatusType = useAuiState((s) => s.chainOfThought.status.type);
@@ -108,16 +118,17 @@ export function ChainOfThoughtPrimitiveTool({
       data-slot="chain-of-thought-tool-activity"
       open={open}
       onOpenChange={setOpen}
-      className="space-y-1.5"
+      className="aui-chain-of-thought-tool-activity space-y-1.5"
     >
       <CollapsibleTrigger
         data-slot="chain-of-thought-tool-activity-trigger"
         disabled={!hasDetails}
+        aria-label={hasDetails ? `${toolName} details` : undefined}
         className={cn(
-          "group/tool-activity-trigger -mt-0.5 flex w-full min-w-0 items-center gap-1.5 text-left text-sm leading-relaxed",
+          "aui-chain-of-thought-tool-activity-trigger group/tool-activity-trigger -mt-0.5 flex w-full min-w-0 items-center gap-1.5 text-left text-sm leading-relaxed",
           hasDetails
             ? "text-muted-foreground transition-colors hover:text-foreground"
-            : "cursor-default text-muted-foreground/80",
+            : "cursor-default text-muted-foreground",
         )}
       >
         {activityLabel ? (
@@ -137,12 +148,26 @@ export function ChainOfThoughtPrimitiveTool({
           showIcon={false}
           className="shrink-0 text-[13px]"
         />
+        {hasDetails ? (
+          <ChevronDownIcon
+            aria-hidden
+            data-slot="chain-of-thought-tool-activity-chevron"
+            className={cn(
+              "aui-chain-of-thought-tool-activity-chevron size-3 shrink-0",
+              "transition-transform duration-(--animation-duration) ease-(--spring-easing)",
+              "group-data-[state=closed]/tool-activity-trigger:-rotate-90",
+              "rtl:group-data-[state=closed]/tool-activity-trigger:rotate-90",
+              "group-data-[state=open]/tool-activity-trigger:rotate-0",
+              "motion-reduce:transition-none",
+            )}
+          />
+        ) : null}
       </CollapsibleTrigger>
       {hasDetails ? (
         <CollapsibleContent
           data-slot="chain-of-thought-tool-activity-content-wrapper"
           className={cn(
-            "overflow-hidden outline-none",
+            "aui-chain-of-thought-tool-activity-content-wrapper overflow-hidden outline-none",
             "data-[state=open]:animate-collapsible-down",
             "data-[state=open]:duration-(--animation-duration)",
             "data-[state=open]:ease-(--spring-easing)",
@@ -151,32 +176,33 @@ export function ChainOfThoughtPrimitiveTool({
             "data-[state=closed]:ease-(--ease-out-expo)",
             "data-[state=closed]:fill-mode-forwards",
             "data-[state=closed]:pointer-events-none",
+            "motion-reduce:animate-none motion-reduce:transition-none",
           )}
         >
           <div
             data-slot="chain-of-thought-tool-activity-content"
-            className="space-y-1.5 pt-0.5 pl-[22px]"
+            className="aui-chain-of-thought-tool-activity-content space-y-1.5 pt-0.5 pl-[22px]"
           >
             {argsText ? (
-              <pre className="whitespace-pre-wrap rounded-md bg-muted/40 px-2 py-1 text-muted-foreground/80 text-xs">
+              <pre className="whitespace-pre-wrap rounded-md bg-muted/40 px-2 py-1 text-muted-foreground text-xs">
                 {argsText}
               </pre>
             ) : null}
             {hasSearchResults && searchResults ? (
               <div
                 data-slot="chain-of-thought-search-results"
-                className="space-y-2 rounded-md bg-muted/40 px-2 py-2"
+                className="aui-chain-of-thought-search-results space-y-2 rounded-md bg-muted/40 px-2 py-2"
               >
                 {searchResults.summary ? (
-                  <p className="text-muted-foreground/90 text-xs">
+                  <p className="text-muted-foreground text-xs">
                     {searchResults.summary}
                   </p>
                 ) : null}
                 {searchResults.sources.length > 0 ? (
                   <ul className="space-y-1 text-xs">
-                    {searchResults.sources.map((source) => (
-                      <li key={source}>
-                        <span className="text-muted-foreground/80">
+                    {searchResults.sources.map((source, index) => (
+                      <li key={`${index}-${source}`}>
+                        <span className="text-muted-foreground">
                           {formatSearchSourceLabel(source)}
                         </span>
                       </li>
@@ -185,7 +211,7 @@ export function ChainOfThoughtPrimitiveTool({
                 ) : null}
               </div>
             ) : toolResult !== undefined ? (
-              <pre className="whitespace-pre-wrap rounded-md bg-muted/40 px-2 py-1 text-muted-foreground/80 text-xs">
+              <pre className="whitespace-pre-wrap rounded-md bg-muted/40 px-2 py-1 text-muted-foreground text-xs">
                 {typeof toolResult === "string"
                   ? toolResult
                   : JSON.stringify(toolResult, null, 2)}

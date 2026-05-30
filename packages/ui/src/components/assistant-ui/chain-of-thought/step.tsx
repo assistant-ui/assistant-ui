@@ -18,7 +18,8 @@ import {
   STEP_ICON_CLASS,
 } from "./styles";
 
-export function BulletDot({ className }: { className?: string }) {
+/** Small fallback dot used when a step has no specific icon. */
+export function BulletDot({ className }: { className?: string | undefined }) {
   return (
     <span
       aria-hidden
@@ -30,15 +31,16 @@ export function BulletDot({ className }: { className?: string }) {
   );
 }
 
+/** Props for an individual timeline step. */
 export type ChainOfThoughtStepProps = React.ComponentProps<"li"> & {
-  status?: StepStatus;
-  active?: boolean;
-  stepLabel?: string | number;
-  type?: StepType;
-  icon?: LucideIcon | ReactNode;
-  error?: string;
-  onRetry?: () => void;
-  iconPulse?: boolean;
+  status?: StepStatus | undefined;
+  active?: boolean | undefined;
+  stepLabel?: string | number | undefined;
+  type?: StepType | undefined;
+  icon?: LucideIcon | ReactNode | undefined;
+  error?: string | undefined;
+  onRetry?: (() => void) | undefined;
+  iconPulse?: boolean | undefined;
 };
 
 function resolveStepIcon(
@@ -88,6 +90,7 @@ function resolveStepIcon(
   return <TypeIcon className={STEP_ICON_CLASS} />;
 }
 
+/** Timeline row with connector, status icon, optional error, and retry action. */
 export function ChainOfThoughtStep({
   className,
   status,
@@ -158,7 +161,7 @@ export function ChainOfThoughtStep({
           hasBorder && "border",
           hasBorder &&
             isActive &&
-            "border-primary bg-primary/10 shadow-[0_0_0_4px_hsl(var(--primary)/0.1)]",
+            "border-primary bg-primary/10 ring-4 ring-primary/10",
           hasBorder &&
             effectiveStatus === "complete" &&
             "border-muted-foreground/40",
@@ -167,10 +170,10 @@ export function ChainOfThoughtStep({
             "border-muted-foreground/20",
           hasBorder &&
             isError &&
-            "border-destructive bg-destructive/10 shadow-[0_0_0_4px_hsl(var(--destructive)/0.1)]",
+            "border-destructive bg-destructive/10 ring-4 ring-destructive/10",
           !hasBorder &&
             "data-[status=active]:text-primary data-[status=complete]:text-muted-foreground data-[status=error]:text-destructive data-[status=pending]:text-muted-foreground/50",
-          "fade-in-0 zoom-in-85 animate-in overflow-visible fill-mode-both blur-in-[3px] delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing) will-change-[transform,opacity,filter] motion-reduce:animate-none",
+          "fade-in-0 zoom-in-85 animate-in overflow-visible fill-mode-both blur-in-[3px] delay-[var(--step-delay)] duration-[var(--animation-duration,200ms)] ease-[var(--spring-easing,cubic-bezier(0.22,0.61,0.36,1))] will-change-[transform,opacity,filter] motion-reduce:animate-none",
           STEP_EXIT_ANIM,
         )}
       >
@@ -194,7 +197,7 @@ export function ChainOfThoughtStep({
           "min-w-0 flex-1 text-muted-foreground leading-relaxed",
           "break-words [overflow-wrap:anywhere]",
           "transition-colors duration-200",
-          "fade-in-0 slide-in-from-top-[8px] animate-in fill-mode-both delay-[var(--step-delay)] duration-(--animation-duration) ease-(--spring-easing)",
+          "fade-in-0 slide-in-from-top-[8px] animate-in fill-mode-both delay-[var(--step-delay)] duration-[var(--animation-duration,200ms)] ease-[var(--spring-easing,cubic-bezier(0.22,0.61,0.36,1))]",
           STEP_EXIT_ANIM,
           isActive && "text-foreground",
           isError && "text-destructive",
@@ -215,8 +218,9 @@ export function ChainOfThoughtStep({
                   "aui-chain-of-thought-step-retry inline-flex items-center gap-1 rounded-md px-2 py-0.5",
                   "bg-destructive/10 text-destructive text-xs",
                   "transition-colors hover:bg-destructive/20",
-                  "focus:outline-none focus:ring-2 focus:ring-destructive/50",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive",
                   "[&_svg]:size-3",
+                  "motion-reduce:transition-none",
                 )}
               >
                 <RotateCcwIcon aria-hidden />
@@ -230,7 +234,9 @@ export function ChainOfThoughtStep({
             aria-hidden
             data-slot="chain-of-thought-step-shimmer"
             className={cn(
-              "aui-chain-of-thought-step-shimmer shimmer pointer-events-none absolute inset-0",
+              // `shimmer-bg` makes the sheen paint over the box; plain `.shimmer`
+              // clips to text and would render nothing on this empty overlay.
+              "aui-chain-of-thought-step-shimmer shimmer shimmer-bg pointer-events-none absolute inset-0 rounded-md",
               "motion-reduce:animate-none",
             )}
           />
@@ -240,6 +246,7 @@ export function ChainOfThoughtStep({
   );
 }
 
+/** Header slot for a step label or compact summary line. */
 export function ChainOfThoughtStepHeader({
   className,
   ...props
@@ -256,6 +263,7 @@ export function ChainOfThoughtStepHeader({
   );
 }
 
+/** Body slot for step detail content. */
 export function ChainOfThoughtStepBody({
   className,
   ...props
@@ -273,12 +281,14 @@ export function ChainOfThoughtStepBody({
   );
 }
 
+/** Props for the small tool-name badge used in runtime and trace rows. */
 export type ChainOfThoughtToolBadgeProps = React.ComponentProps<"span"> & {
   toolName: string;
-  status?: "running" | "complete" | "error";
-  showIcon?: boolean;
+  status?: "pending" | "running" | "complete" | "error" | undefined;
+  showIcon?: boolean | undefined;
 };
 
+/** Compact badge for a tool call inside a ChainOfThought row. */
 export function ChainOfThoughtToolBadge({
   toolName,
   status = "complete",
@@ -286,6 +296,7 @@ export function ChainOfThoughtToolBadge({
   className,
   ...props
 }: ChainOfThoughtToolBadgeProps) {
+  const isPending = status === "pending";
   const isRunning = status === "running";
   const isError = status === "error";
 
@@ -297,9 +308,9 @@ export function ChainOfThoughtToolBadge({
         "aui-chain-of-thought-tool-badge",
         "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5",
         "text-xs",
-        isError
-          ? "border-destructive/30 text-destructive"
-          : "border-border text-muted-foreground",
+        isError && "border-destructive/30 text-destructive",
+        isPending && "border-border text-muted-foreground/70",
+        !isError && !isPending && "border-border text-muted-foreground",
         className,
       )}
       {...props}
@@ -307,7 +318,7 @@ export function ChainOfThoughtToolBadge({
       {showIcon && isRunning && (
         <span
           aria-hidden
-          className="aui-chain-of-thought-tool-badge-spinner size-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+          className="aui-chain-of-thought-tool-badge-spinner size-3 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none"
         />
       )}
       {showIcon && isError && (
