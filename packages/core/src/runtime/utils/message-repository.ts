@@ -333,9 +333,11 @@ export class MessageRepository {
       current;
       current = current.prev
     ) {
-      const id = current.current.id;
-      if (current.current.metadata?.isOptimistic && !onHeadBranch.has(id)) {
-        stale.push(id);
+      // Stop at the first node shared with the current head branch: every
+      // ancestor above it is shared too, so nothing further can be off-branch.
+      if (onHeadBranch.has(current.current.id)) break;
+      if (current.current.metadata?.isOptimistic) {
+        stale.push(current.current.id);
       }
     }
 
