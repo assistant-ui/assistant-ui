@@ -358,7 +358,7 @@ export class ToolCallArgsReaderImpl<
         // Check current args immediately
         handle.update(this.args);
 
-        if (this.finished) handle.end(this.args);
+        if (this.finished) handle.end();
       },
       cancel: () => {
         // Dispose this stream's own handle (captured above) — scanning for the
@@ -389,7 +389,7 @@ export class ToolCallArgsReaderImpl<
         // Check current args immediately
         handle.update(this.args);
 
-        if (this.finished) handle.end(this.args);
+        if (this.finished) handle.end();
       },
       cancel: () => {
         // Find and dispose the corresponding handle
@@ -422,7 +422,7 @@ export class ToolCallArgsReaderImpl<
         // Check current args immediately
         handle.update(this.args);
 
-        if (this.finished) handle.end(this.args);
+        if (this.finished) handle.end();
       },
       cancel: () => {
         // Find and dispose the corresponding handle
