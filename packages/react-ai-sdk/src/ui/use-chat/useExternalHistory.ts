@@ -27,10 +27,11 @@ export const toExportedMessageRepository = <TMessage>(
   const survivingIds = new Set<string>();
   const survivors = messages.messages.flatMap((m) => {
     const message = toThreadMessages([m.message])[0];
-    if (!message || (m.parentId && !survivingIds.has(m.parentId))) {
+    if (!message) {
       console.warn("Skipping a stored message that could not be loaded.");
       return [];
     }
+    if (m.parentId && !survivingIds.has(m.parentId)) return [];
     survivingIds.add(message.id);
     return [{ ...m, message }];
   });

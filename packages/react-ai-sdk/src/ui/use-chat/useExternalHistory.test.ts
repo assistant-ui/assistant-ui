@@ -147,4 +147,20 @@ describe("toExportedMessageRepository", () => {
     expect(result.headId).toBeNull();
     expect(() => new MessageRepository().import(result)).not.toThrow();
   });
+
+  it("drops a malformed root and its entire subtree", () => {
+    const repo: MessageFormatRepository<{ id: string; ok: boolean }> = {
+      headId: "b",
+      messages: [
+        { parentId: null, message: { id: "a", ok: false } },
+        { parentId: "a", message: { id: "b", ok: true } },
+      ],
+    };
+
+    const result = toExportedMessageRepository(convert, repo);
+
+    expect(result.messages).toHaveLength(0);
+    expect(result.headId).toBeNull();
+    expect(() => new MessageRepository().import(result)).not.toThrow();
+  });
 });
