@@ -8,6 +8,11 @@ import { renderReport } from "./report.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const trials = Number(process.env.TRIALS ?? 3);
+if (!Number.isInteger(trials) || trials < 1) {
+  throw new Error(
+    `TRIALS must be a positive integer, got ${process.env.TRIALS}`,
+  );
+}
 
 // Optional filters: `node src/cli.ts <caseId>` and CANDIDATES=baseline,describe-now
 const caseFilter = process.argv[2];

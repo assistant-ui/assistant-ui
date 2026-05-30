@@ -38,6 +38,11 @@ export function runAgent(c: EvalCase, guidance: string): string {
       timeout: 180_000,
     });
     if (res.error) throw res.error;
+    if (res.status !== 0) {
+      throw new Error(
+        `agent exited with status ${res.status}: ${res.stderr?.trim() ?? ""}`,
+      );
+    }
 
     return c.inspect
       .map((rel) => {

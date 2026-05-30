@@ -33,7 +33,9 @@ export function runCase(
         );
       }
     }
-    const passRate = ts.filter((t) => t.verdict.pass).length / ts.length;
+    const passRate = ts.length
+      ? ts.filter((t) => t.verdict.pass).length / ts.length
+      : 0;
     process.stdout.write(`  ${Math.round(passRate * 100)}%\n`);
     variants.push({ candidate, trials: ts, passRate });
   }

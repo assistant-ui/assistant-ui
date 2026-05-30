@@ -45,6 +45,11 @@ export function runJudge(rubric: string, artifact: string): Verdict {
       },
     );
     if (res.error) throw res.error;
+    if (res.status !== 0) {
+      throw new Error(
+        `judge exited with status ${res.status}: ${res.stderr?.trim() ?? ""}`,
+      );
+    }
     return parseVerdict(res.stdout);
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -60,7 +65,7 @@ function parseVerdict(out: string): Verdict {
     };
   try {
     const j = JSON.parse(m[0]);
-    return { pass: Boolean(j.pass), reason: String(j.reason ?? "") };
+    return { pass: j.pass === true, reason: String(j.reason ?? "") };
   } catch {
     return { pass: false, reason: `invalid judge JSON: ${m[0].slice(0, 120)}` };
   }

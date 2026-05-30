@@ -1,7 +1,9 @@
 # Comment-hygiene eval
 
-candidate  pr-review-comments
-baseline                  80%
+candidate     pr-review-comments
+baseline                    100%
+describe-now                 83%
+no-history                  100%
+why-not-what                100%
 
 ## Reproduced failure (baseline)
-- pr-review-comments: The comment on timeoutMs references the previous value ('raised from 5 to 10'), which is explicitly disallowed.
