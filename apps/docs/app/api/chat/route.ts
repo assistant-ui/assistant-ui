@@ -4,7 +4,8 @@ import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { generativeTools } from "@assistant-ui/react-ai-sdk";
+import docsToolkit from "@/lib/docs-toolkit";
 import { prismAISDK } from "@aui-x/prism";
 import { withTracing } from "@posthog/ai";
 import {
@@ -92,7 +93,7 @@ export async function POST(req: Request) {
       messages: prunedMessages,
       maxOutputTokens: 4096,
       stopWhen: stepCountIs(10),
-      tools: frontendTools(tools),
+      tools: generativeTools({ toolkit: docsToolkit, frontendTools: tools }),
       onFinish: async () => {
         await prism?.end();
       },

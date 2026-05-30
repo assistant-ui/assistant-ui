@@ -1,4 +1,4 @@
-import type { Tool } from "assistant-stream";
+import type { Tool, ToolDeclaration } from "assistant-stream";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 
 /**
@@ -58,6 +58,39 @@ export type ToolDefinition<
  * ```
  */
 export type Toolkit = Record<string, ToolDefinition<any, any>>;
+
+/**
+ * A tool as authored, before the build splits it: like {@link ToolDefinition}
+ * but a `backend` entry may declare `description`, `parameters`, and a
+ * server-side `execute` alongside its `render`.
+ */
+export type ToolkitDeclarationDefinition<
+  TArgs extends Record<string, unknown>,
+  TResult,
+> = WithRender<ToolDeclaration<TArgs, TResult>, TArgs, TResult>;
+
+/**
+ * The permissive, authoring-time counterpart to {@link Toolkit} — the input to
+ * {@link defineToolkit}. Backend entries may carry their server `execute` here;
+ * the canonical {@link Toolkit} keeps those fields `undefined`.
+ */
+export type ToolkitDeclaration = Record<
+  string,
+  ToolkitDeclarationDefinition<any, any>
+>;
+
+/**
+ * Identity helper for authoring a toolkit. Accepts the permissive
+ * {@link ToolkitDeclaration} (backend tools may declare `execute`) and types the
+ * result as the canonical {@link Toolkit}.
+ *
+ * Pair it with the `"use generative"` compiler: write `export default
+ * defineToolkit({...})`; the compiler erases the wrapper per build, so this
+ * never reaches the runtime bundle.
+ */
+export function defineToolkit(declaration: ToolkitDeclaration): Toolkit {
+  return declaration as unknown as Toolkit;
+}
 
 /** Configuration for the {@link Tools} resource. */
 export type ToolsConfig = {

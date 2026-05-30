@@ -1,5 +1,5 @@
-"use client";
-import type { Toolkit } from "@assistant-ui/react";
+"use generative";
+
 import { cn } from "@/lib/utils";
 import { WeatherWidget } from "@/components/tool-ui/weather-widget/runtime";
 import {
@@ -8,129 +8,130 @@ import {
 } from "@/lib/open-meteo-weather-adapter";
 import { MapPin, CloudSun, AlertCircle } from "lucide-react";
 import { z } from "zod";
+import { defineToolkit } from "@assistant-ui/react";
 
-// Weather data powered by Open-Meteo (https://open-meteo.com/)
-const geocodeLocationTool = {
-  description: "Geocode a location using Open-Meteo's geocoding API",
-  parameters: z.object({
-    query: z.string(),
-  }),
-  execute: async (args: { query: string }) =>
-    geocodeLocationWithOpenMeteo(args.query),
-  render: ({ result }: any) => {
-    if (result?.error) {
-      return (
-        <ToolCard variant="error">
-          <ToolCardIcon>
-            <AlertCircle className="size-4" />
-          </ToolCardIcon>
-          <ToolCardContent>
-            <ToolCardTitle>Geocoding failed</ToolCardTitle>
-            <ToolCardDescription>
-              {result?.error || "Unknown error"}
-            </ToolCardDescription>
-          </ToolCardContent>
-        </ToolCard>
-      );
-    }
-    if (!result?.result) {
+export default defineToolkit({
+  // Weather data powered by Open-Meteo (https://open-meteo.com/)
+  geocode_location: {
+    type: "backend",
+    description: "Geocode a location using Open-Meteo's geocoding API",
+    parameters: z.object({
+      query: z.string(),
+    }),
+    execute: async (args: { query: string }) =>
+      geocodeLocationWithOpenMeteo(args.query),
+
+    render: ({ result }: any) => {
+      if (result?.error) {
+        return (
+          <ToolCard variant="error">
+            <ToolCardIcon>
+              <AlertCircle className="size-4" />
+            </ToolCardIcon>
+            <ToolCardContent>
+              <ToolCardTitle>Geocoding failed</ToolCardTitle>
+              <ToolCardDescription>
+                {result?.error || "Unknown error"}
+              </ToolCardDescription>
+            </ToolCardContent>
+          </ToolCard>
+        );
+      }
+      if (!result?.result) {
+        return (
+          <ToolCard>
+            <ToolCardIcon loading>
+              <MapPin className="size-4" />
+            </ToolCardIcon>
+            <ToolCardContent>
+              <ToolCardTitle>Finding location...</ToolCardTitle>
+            </ToolCardContent>
+          </ToolCard>
+        );
+      }
+
+      const { name, latitude, longitude } = result.result;
       return (
         <ToolCard>
-          <ToolCardIcon loading>
+          <ToolCardIcon>
             <MapPin className="size-4" />
           </ToolCardIcon>
           <ToolCardContent>
-            <ToolCardTitle>Finding location...</ToolCardTitle>
-          </ToolCardContent>
-        </ToolCard>
-      );
-    }
-
-    const { name, latitude, longitude } = result.result;
-    return (
-      <ToolCard>
-        <ToolCardIcon>
-          <MapPin className="size-4" />
-        </ToolCardIcon>
-        <ToolCardContent>
-          <ToolCardTitle>{name}</ToolCardTitle>
-          <ToolCardDescription>
-            {Math.abs(latitude).toFixed(2)}°{latitude >= 0 ? "N" : "S"},{" "}
-            {Math.abs(longitude).toFixed(2)}°{longitude >= 0 ? "E" : "W"}
-          </ToolCardDescription>
-        </ToolCardContent>
-      </ToolCard>
-    );
-  },
-};
-
-const weatherSearchTool = {
-  description: "Find the weather in a location given a longitude and latitude",
-  parameters: z.object({
-    query: z.string(),
-    longitude: z.number(),
-    latitude: z.number(),
-  }),
-  execute: async (args: {
-    query: string;
-    longitude: number;
-    latitude: number;
-  }) => fetchWeatherWidgetFromOpenMeteo(args),
-  render: ({ args, result }: any) => {
-    const isLoading = !result;
-    const error = result?.success === false ? result.error : null;
-
-    if (error) {
-      return (
-        <ToolCard variant="error">
-          <ToolCardIcon>
-            <AlertCircle className="size-4" />
-          </ToolCardIcon>
-          <ToolCardContent>
-            <ToolCardTitle>Weather unavailable</ToolCardTitle>
-            <ToolCardDescription>{error}</ToolCardDescription>
-          </ToolCardContent>
-        </ToolCard>
-      );
-    }
-
-    if (isLoading) {
-      return (
-        <ToolCard>
-          <ToolCardIcon loading>
-            <CloudSun className="size-4" />
-          </ToolCardIcon>
-          <ToolCardContent>
-            <ToolCardTitle>Fetching weather...</ToolCardTitle>
-          </ToolCardContent>
-        </ToolCard>
-      );
-    }
-
-    if (!result?.widget) {
-      return (
-        <ToolCard variant="error">
-          <ToolCardIcon>
-            <AlertCircle className="size-4" />
-          </ToolCardIcon>
-          <ToolCardContent>
-            <ToolCardTitle>Weather unavailable</ToolCardTitle>
+            <ToolCardTitle>{name}</ToolCardTitle>
             <ToolCardDescription>
-              Missing weather widget payload for {args?.query}
+              {Math.abs(latitude).toFixed(2)}°{latitude >= 0 ? "N" : "S"},{" "}
+              {Math.abs(longitude).toFixed(2)}°{longitude >= 0 ? "E" : "W"}
             </ToolCardDescription>
           </ToolCardContent>
         </ToolCard>
       );
-    }
-
-    return <WeatherWidget {...result.widget} className="my-2" />;
+    },
   },
-};
+  weather_search: {
+    type: "backend",
+    description:
+      "Find the weather in a location given a longitude and latitude",
+    parameters: z.object({
+      query: z.string(),
+      longitude: z.number(),
+      latitude: z.number(),
+    }),
+    execute: async (args: {
+      query: string;
+      longitude: number;
+      latitude: number;
+    }) => fetchWeatherWidgetFromOpenMeteo(args),
+    render: ({ args, result }: any) => {
+      const isLoading = !result;
+      const error = result?.success === false ? result.error : null;
 
-export const docsToolkit: Toolkit = {
-  geocode_location: geocodeLocationTool,
-  weather_search: weatherSearchTool,
-};
+      if (error) {
+        return (
+          <ToolCard variant="error">
+            <ToolCardIcon>
+              <AlertCircle className="size-4" />
+            </ToolCardIcon>
+            <ToolCardContent>
+              <ToolCardTitle>Weather unavailable</ToolCardTitle>
+              <ToolCardDescription>{error}</ToolCardDescription>
+            </ToolCardContent>
+          </ToolCard>
+        );
+      }
+
+      if (isLoading) {
+        return (
+          <ToolCard>
+            <ToolCardIcon loading>
+              <CloudSun className="size-4" />
+            </ToolCardIcon>
+            <ToolCardContent>
+              <ToolCardTitle>Fetching weather...</ToolCardTitle>
+            </ToolCardContent>
+          </ToolCard>
+        );
+      }
+
+      if (!result?.widget) {
+        return (
+          <ToolCard variant="error">
+            <ToolCardIcon>
+              <AlertCircle className="size-4" />
+            </ToolCardIcon>
+            <ToolCardContent>
+              <ToolCardTitle>Weather unavailable</ToolCardTitle>
+              <ToolCardDescription>
+                Missing weather widget payload for {args?.query}
+              </ToolCardDescription>
+            </ToolCardContent>
+          </ToolCard>
+        );
+      }
+
+      return <WeatherWidget {...result.widget} className="my-2" />;
+    },
+  },
+});
 
 // Shared Tool Card Components
 const ToolCard = ({

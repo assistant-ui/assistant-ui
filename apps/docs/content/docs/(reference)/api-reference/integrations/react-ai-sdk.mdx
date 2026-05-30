@@ -30,6 +30,31 @@ import { reactAiSdk_AssistantChatTransport, reactAiSdk_createResumableSessionSto
 const frontendTools: (tools: Record<string, ToolJSONSchema>) => ToolSet;
 ```
 
+### generativeTools
+
+Builds an AI SDK `ToolSet` for server-side use with `streamText` /
+`generateText` from a generative `toolkit` and the frontend-uploaded tools.
+
+Each toolkit tool's `execute` runs on the server. Pair this with the
+`"use generative"` compiler: import the toolkit in a server route (where it
+resolves to the server build — schema + `execute`, with `render` stripped) and
+pass it here. Tools without an `execute` are still exposed to the model but
+left for the client to fulfill. `frontendTools` lets the client contribute
+tools that aren't in the static toolkit.
+
+```ts
+const { tools } = await req.json();
+streamText({
+  model,
+  messages,
+  tools: generativeTools({ toolkit: docsToolkit, frontendTools: tools }),
+});
+```
+
+```ts
+const generativeTools: (options: GenerativeToolsOptions) => ToolSet;
+```
+
 ### getThreadMessageTokenUsage
 
 <ParametersTable {...reactAiSdk_getThreadMessageTokenUsage} />

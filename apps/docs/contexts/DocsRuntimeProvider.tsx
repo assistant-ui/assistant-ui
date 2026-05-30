@@ -15,7 +15,7 @@ import {
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { docsToolkit } from "@/lib/docs-toolkit";
+import docsToolkit from "@/lib/docs-toolkit";
 
 // Stateless adapter - safe to share across instances
 const feedbackAdapter: FeedbackAdapter = {
