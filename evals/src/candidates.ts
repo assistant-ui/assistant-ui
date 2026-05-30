@@ -22,4 +22,16 @@ export const candidates: Candidate[] = [
     prompt:
       "Comments explain why the code is the way it is; they never narrate what changed.",
   },
+  // Targeted at the reproduced behavior: deleting an existing history comment,
+  // not just declining to write a new one.
+  {
+    label: "delete-stale",
+    prompt:
+      "When you change code, delete any comment that only records its history.",
+  },
+  {
+    label: "drop-tombstones",
+    prompt:
+      "Code comments describe the current code, never its history. When you edit a line, remove any nearby comment that just narrates a past change.",
+  },
 ];
