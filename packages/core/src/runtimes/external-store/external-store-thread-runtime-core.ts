@@ -30,7 +30,7 @@ import {
   ExportedMessageRepository,
   MessageRepository,
 } from "../../runtime/utils/message-repository";
-import { isOptimisticId } from "../../utils/id";
+import { generateId } from "../../utils/id";
 import { ToolInvocationTracker } from "../tool-invocations/ToolInvocationTracker";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
@@ -234,16 +234,6 @@ export class ExternalStoreThreadRuntimeCore
         const parent = messages[i - 1];
         this.repository.addOrUpdateMessage(parent?.id ?? null, message);
       }
-
-      // Drop optimistic messages whose id is absent from the new snapshot:
-      // the placeholder appended on the previous sync (its synthetic id is
-      // never in the store) and store-provided ids that were swapped out
-      // mid-run (e.g. AI SDK v6 replacing a client-generated id with a server
-      // id). Scoped to messages explicitly flagged optimistic, so real sibling
-      // branches from edits/reloads/branch switches survive.
-      this.repository.deleteOptimisticMessages(
-        new Set(messages.map((m) => m.id)),
-      );
     } else {
       throw new Error(
         "ExternalStoreAdapter must provide either 'messages' or 'messageRepository'",
@@ -262,17 +252,22 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     // Append an optimistic placeholder when the store is running but hasn't
-    // produced a trailing assistant message yet. The previous sync's
-    // placeholder was already removed above (messages path) or by clear()
-    // (messageRepository path), so there's no manual id to track between syncs.
+    // produced a trailing assistant message yet. It's a plain message flagged
+    // optimistic (via metadata) with a runtime-generated id. resetHead below
+    // evicts any optimistic message no longer on the head branch — the prior
+    // sync's placeholder, and store-provided messages whose id was swapped
+    // mid-run (e.g. AI SDK v6 client→server) and now dangle as siblings — while
+    // export() omits optimistic messages from persistence entirely.
     let optimisticId: string | null = null;
     if (hasUpcomingMessage(isRunning, messages)) {
-      optimisticId = this.repository.appendOptimisticMessage(
+      optimisticId = generateId();
+      this.repository.addOrUpdateMessage(
         messages.at(-1)?.id ?? null,
-        {
-          role: "assistant",
-          content: [],
-        },
+        fromThreadMessageLike(
+          { role: "assistant", content: [], metadata: { isOptimistic: true } },
+          optimisticId,
+          { type: "running" },
+        ),
       );
     }
 
@@ -476,11 +471,11 @@ export class ExternalStoreThreadRuntimeCore
     this._store.onCancel();
 
     // Remove the runtime-appended placeholder if it's the current head. It's
-    // identified by its synthetic optimistic id, which distinguishes it from
-    // store-provided optimistic messages (those carry real ids and partial
-    // content that should survive a cancel).
+    // the only optimistic message we add and is always empty, which
+    // distinguishes it from store-provided optimistic messages (those carry
+    // partial streamed content that should survive a cancel).
     const head = this.repository.getMessages().at(-1);
-    if (head && isOptimisticId(head.id)) {
+    if (head && head.metadata.isOptimistic && head.content.length === 0) {
       this.repository.deleteMessage(head.id);
     }
 

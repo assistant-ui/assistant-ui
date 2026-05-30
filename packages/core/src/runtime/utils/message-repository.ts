@@ -1,6 +1,6 @@
 import type { ThreadMessage } from "../../types/message";
 import type { RunConfig } from "../../types/message";
-import { generateId, generateOptimisticId } from "../../utils/id";
+import { generateId } from "../../utils/id";
 import type { ThreadMessageLike } from "./thread-message-like";
 import { getAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./thread-message-like";
@@ -259,51 +259,6 @@ export class MessageRepository {
     };
   }
 
-  appendOptimisticMessage(parentId: string | null, message: ThreadMessageLike) {
-    let optimisticId: string;
-    do {
-      optimisticId = generateOptimisticId();
-    } while (this.messages.has(optimisticId));
-
-    this.addOrUpdateMessage(
-      parentId,
-      fromThreadMessageLike(
-        { ...message, metadata: { ...message.metadata, isOptimistic: true } },
-        optimisticId,
-        { type: "running" },
-      ),
-    );
-
-    return optimisticId;
-  }
-
-  /**
-   * @internal Counterpart to {@link appendOptimisticMessage}, used only by the
-   * external-store sync. Removes messages flagged optimistic
-   * (`metadata.isOptimistic`) whose id is not present in `keepIds`, dropping
-   * stale client-side placeholders from the live tree — e.g. when AI SDK v6
-   * swaps a client-generated message id for a server-provided one mid-run,
-   * leaving the old id orphaned as a phantom sibling that would otherwise
-   * inflate the live `BranchPicker` count. (Persistence is handled separately:
-   * {@link export} never emits optimistic messages.) Unlike a blanket "delete
-   * every id that disappeared" diff, this only touches messages explicitly
-   * marked optimistic, so legitimate sibling branches created by
-   * `onEdit` / `onReload` / `switchToBranch` are left intact.
-   */
-  deleteOptimisticMessages(keepIds: ReadonlySet<string>) {
-    const staleIds: string[] = [];
-    for (const [id, message] of this.messages) {
-      if (message.current.metadata?.isOptimistic && !keepIds.has(id)) {
-        staleIds.push(id);
-      }
-    }
-
-    for (const id of staleIds) {
-      // A prior deletion may have already re-parented/removed this node.
-      if (this.messages.has(id)) this.deleteMessage(id);
-    }
-  }
-
   deleteMessage(messageId: string, replacementId?: string | null | undefined) {
     const message = this.messages.get(messageId);
 
@@ -353,6 +308,35 @@ export class MessageRepository {
     return children;
   }
 
+  /**
+   * Enforces the invariant that optimistic messages (`metadata.isOptimistic`)
+   * only ever live on the current head branch. Any optimistic message not on
+   * the path from root to head is evicted. This is what keeps a client→server
+   * id swap from leaving a phantom sibling, and what evicts ephemeral
+   * placeholders/streaming messages from off-screen branches when the head
+   * moves — without the repository exposing any optimistic-specific API.
+   */
+  private evictOffBranchOptimisticMessages() {
+    const onHeadBranch = new Set<string>();
+    for (let current = this.head; current; current = current.prev) {
+      onHeadBranch.add(current.current.id);
+    }
+
+    const stale: string[] = [];
+    for (const [id, message] of this.messages) {
+      if (message.current.metadata?.isOptimistic && !onHeadBranch.has(id)) {
+        stale.push(id);
+      }
+    }
+
+    for (const id of stale) {
+      // A prior deletion may have already re-parented/removed this node. The
+      // head is on its own branch, so it's never in `stale` — eviction can't
+      // delete the current head.
+      if (this.messages.has(id)) this.deleteMessage(id);
+    }
+  }
+
   switchToBranch(messageId: string) {
     const message = this.messages.get(messageId);
     if (!message)
@@ -364,6 +348,8 @@ export class MessageRepository {
     prevOrRoot.next = message;
 
     this.head = findHead(message);
+
+    this.evictOffBranchOptimisticMessages();
 
     this._messages.dirty();
   }
@@ -408,6 +394,8 @@ export class MessageRepository {
         this.root.next = current;
       }
     }
+
+    this.evictOffBranchOptimisticMessages();
 
     this._messages.dirty();
   }

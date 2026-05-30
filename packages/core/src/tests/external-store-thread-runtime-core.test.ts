@@ -249,10 +249,12 @@ describe("ExternalStoreThreadRuntimeCore - optimistic message reconciliation", (
 
     // Running with a trailing user message: a placeholder is appended to the
     // live tree. export() omits optimistic messages, so inspect the live
-    // messages (which include the placeholder on the head path).
-    const liveIds = runtime.messages.map((m) => m.id);
-    expect(liveIds).toHaveLength(2);
-    expect(liveIds[1]).toMatch(/^__optimistic__/);
+    // messages (which include the placeholder on the head path). It's a plain
+    // assistant message flagged optimistic (no special id scheme).
+    const live = runtime.messages;
+    expect(live).toHaveLength(2);
+    expect(live[1]!.role).toBe("assistant");
+    expect(live[1]!.metadata.isOptimistic).toBe(true);
 
     // The store now yields the real assistant message; the placeholder (whose
     // synthetic id never appears in the snapshot) must be gone, leaving a
