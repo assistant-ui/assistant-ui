@@ -2,9 +2,8 @@ const LOADER = "@assistant-ui/next/loader";
 
 export interface WithAuiOptions {
   /**
-   * Turbopack glob(s) whose files are scanned for the `"use generative"`
-   * directive. Defaults to all TS/TSX. Narrow it (e.g. `["*.generative.tsx"]`) to
-   * limit how many files pass through the loader.
+   * Globs scanned for the `"use generative"` directive (default: all TS/TSX).
+   * Narrow it (e.g. `["*.generative.tsx"]`) to limit what passes through the loader.
    */
   rules?: string[];
 }
@@ -16,12 +15,8 @@ type NextConfigLike = {
 };
 
 /**
- * Wraps a Next.js config so `"use generative"` modules are compiled per build:
- * the bare import yields the client build (schema + `render`), and
- * `?generative=server` yields the server build (schema + `execute`).
- *
- * Detection is by directive, not filename — files without `"use generative"` pass
- * through untouched.
+ * Wraps a Next.js config so `"use generative"` modules are compiled per build
+ * target. Detection is by directive, not filename. See DESIGN.md.
  *
  * @example
  * ```ts
@@ -35,12 +30,7 @@ export function withAui<T extends NextConfigLike>(
   options: WithAuiOptions = {},
 ): T {
   const globs = options.rules ?? ["*.ts", "*.tsx"];
-  // A single rule per glob. The loader turns a bare generative import into a
-  // facade that delegates build selection to the package's
-  // `react-server`-conditioned `/generative` subpath — so no `browser` rule
-  // condition is needed here. One bare import resolves to the server build in
-  // react-server layers (RSC + route handlers) and the client build everywhere
-  // else, with no `?generative=server` query and no package.json `imports` entry.
+  // One loader rule per glob; the loader handles the rest (see DESIGN.md).
   const generativeRules = Object.fromEntries(
     globs.map((glob) => [glob, { loaders: [LOADER] }]),
   );
@@ -54,9 +44,8 @@ export function withAui<T extends NextConfigLike>(
       rules: { ...nextConfig.turbopack?.rules, ...generativeRules },
     },
     webpack(config: any, context: any) {
-      // Note: the facade uses Turbopack import attributes (`turbopackLoader`),
-      // so the bare-import path is Turbopack-only. Under webpack, import the
-      // concrete builds explicitly with `?generative=server` / `=client`.
+      // Turbopack-only facade; under webpack, import concrete builds explicitly
+      // with `?generative=server` / `=client`.
       config.module.rules.push({
         test: /\.[jt]sx?$/,
         exclude: /node_modules/,

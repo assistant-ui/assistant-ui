@@ -88,16 +88,7 @@ With the AI SDK, convert the server build to a `ToolSet` (see
 > **Validated on Next 16.2.6 (Turbopack).** Turbopack honors the loader-emitted
 > `"use client"`, but compiles one output per resource path — so the server build
 > is selected by its own `?generative=server` query rather than by build layer.
-> Clear `.next` after changing the loader (Turbopack caches loader output). The
-> compiler (`compileGenerative`) is bundler-agnostic and fully tested.
-
-## Programmatic API
-
-```ts
-import { compileGenerative, resolveTarget } from "@assistant-ui/next";
-
-const { code } = compileGenerative(source, { target: "server" }); // or "client"
-```
+> Clear `.next` after changing the loader (Turbopack caches loader output).
 
 ## License
 

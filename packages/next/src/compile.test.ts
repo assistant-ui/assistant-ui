@@ -4,7 +4,6 @@ import {
   isGenerativeModule,
   GenerativeCompileError,
 } from "./compile";
-import { resolveTarget } from "./loader";
 
 const source = `"use generative";
 import { z } from "zod";
@@ -190,24 +189,3 @@ export default defineToolkit({
     expect(isGenerativeModule(`export default {};`)).toBe(false);
   });
 });
-
-describe("resolveTarget", () => {
-  it("honors an explicit ?generative query", () => {
-    expect(
-      resolveTarget({ resourceQuery: "?generative=client", async: noop }),
-    ).toBe("client");
-    expect(
-      resolveTarget({ resourceQuery: "?generative=server", async: noop }),
-    ).toBe("server");
-  });
-
-  it("defaults to the client build when no target is forced", () => {
-    expect(resolveTarget({ async: noop })).toBe("client");
-    expect(resolveTarget({ resourceQuery: "", async: noop })).toBe("client");
-    expect(resolveTarget({ resourceQuery: "?other=1", async: noop })).toBe(
-      "client",
-    );
-  });
-});
-
-const noop = () => () => {};

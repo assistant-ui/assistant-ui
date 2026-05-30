@@ -39,13 +39,13 @@ package specifier; `with {}` can):
 
 ```js
 // facade — emitted in place of a bare import of the generative module
-import toolkit from "@assistant-ui/next/generative"
+import toolkit from "@assistant-ui/next/bundler-redirect"
   with { turbopackLoader: "@assistant-ui/next/loader",
          turbopackLoaderOptions: "{\"path\":\"/abs/docs-toolkit.tsx\"}" };
 export default toolkit;
 ```
 
-`@assistant-ui/next/generative` resolves by condition to one of two
+`@assistant-ui/next/bundler-redirect` resolves by condition to one of two
 indirection modules, which the loader (applied via the attribute) replaces with a
 re-export of the concrete build — using a **relative** specifier computed from the
 indirection's own path to the originating module (Turbopack won't resolve an
@@ -53,9 +53,9 @@ absolute specifier; a relative one is correct for both workspace symlinks and
 installed packages):
 
 ```js
-// react-server → generative-server.js  ⇒  emitted:
+// react-server → bundler-redirect.server.js  ⇒  emitted:
 export { default } from "../../../app/lib/docs-toolkit.tsx?generative=server";
-// default       → generative-client.js  ⇒  emitted:
+// default       → bundler-redirect.client.js  ⇒  emitted:
 export { default } from "../../../app/lib/docs-toolkit.tsx?generative=client";
 ```
 
@@ -92,7 +92,7 @@ concrete build. Net resolution from one bare import:
   `server-only`'s build-time check follows the dynamic `import()` into the
   client/SSR graph and errors.
 - **`?path=` query on the package specifier**: Turbopack can't resolve a query on
-  a package import (`Can't resolve '@pkg/generative'`); hence the `with {}` attribute.
+  a package import (`Can't resolve '@pkg/bundler-redirect'`); hence the `with {}` attribute.
 - **package.json `imports` field**: works (resolve-time `react-server`), but
   requires a per-app entry; the facade removes that.
 
@@ -100,9 +100,3 @@ concrete build. Net resolution from one bare import:
 
 Turbopack only — the facade uses Turbopack import attributes (`turbopackLoader`).
 Under webpack, import the concrete builds explicitly (`?generative=server|client`).
-
-## Notes
-
-- `@assistant-ui/next/env` exports `isServer` (react-server-conditioned).
-  It is **not used** by the facade above; it remains as a runtime guard primitive
-  (e.g. `if (!isServer) throw` inside an `execute`).

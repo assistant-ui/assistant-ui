@@ -141,9 +141,8 @@ function findDefaultExportObject(
     if (!t.isExportDefaultDeclaration(stmt)) continue;
     sawDefault = true;
     object = unwrapToObject(stmt.declaration);
-    // Strip authoring wrappers (`satisfies Toolkit`, `defineToolkit(...)`) so
-    // they — and the now-unused imports they pulled — never reach the build.
-    // The bare object literal is emitted instead.
+    // Emit the bare object literal, dropping authoring wrappers
+    // (`satisfies Toolkit`, `defineToolkit(...)`) and the imports they pulled.
     if (object) stmt.declaration = object;
   }
 
@@ -161,9 +160,8 @@ function findDefaultExportObject(
 }
 
 /**
- * Drills through `satisfies`/`as`, parentheses, and a wrapping helper call
- * (e.g. `defineToolkit({...})`) to the underlying object literal. Mutating it
- * in place preserves the wrapper in the emitted code.
+ * Drills through `satisfies`/`as`, parens, and a wrapping helper call
+ * (e.g. `defineToolkit({...})`) to the underlying object literal.
  */
 function unwrapToObject(node: t.Node): t.ObjectExpression | null {
   if (t.isTSSatisfiesExpression(node) || t.isTSAsExpression(node)) {
@@ -239,12 +237,9 @@ function memberName(
 }
 
 /**
- * Removes code left unreferenced after region removal: unused top-level
- * declarations (e.g. local helper components a dropped `render` used), then
- * unused import specifiers. Runs to a fixpoint so a removed helper frees the
- * imports and other helpers it referenced. Exported declarations, bare
- * side-effect imports, and declarations with potentially side-effectful
- * initializers are kept.
+ * Removes declarations and import specifiers left unreferenced after region
+ * removal, to a fixpoint (a dropped helper frees what it used). Keeps exports,
+ * side-effect imports, and possibly-side-effectful initializers.
  */
 function pruneUnused(ast: t.File): void {
   const hadSpecifiers = new WeakSet<t.ImportDeclaration>();

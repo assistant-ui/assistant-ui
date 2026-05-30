@@ -25,19 +25,9 @@
       "types": "./dist/loader.d.ts",
       "default": "./dist/loader.js"
     },
-    "./env": {
-      "react-server": {
-        "types": "./dist/env.server.d.ts",
-        "default": "./dist/env.server.js"
-      },
-      "default": {
-        "types": "./dist/env.client.d.ts",
-        "default": "./dist/env.client.js"
-      }
-    },
-    "./generative": {
-      "react-server": "./dist/generative-server.js",
-      "default": "./dist/generative-client.js"
+    "./bundler-redirect": {
+      "react-server": "./dist/bundler-redirect.server.js",
+      "default": "./dist/bundler-redirect.client.js"
     }
   },
   "main": "./dist/index.js",

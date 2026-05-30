@@ -6,11 +6,11 @@ import type { Target } from "./constants";
 const PKG = "@assistant-ui/next";
 
 /** Basenames of the react-server-conditioned indirection modules (see with-aui.ts). */
-const SERVER_INDIRECTION = "generative-server";
-const CLIENT_INDIRECTION = "generative-client";
+const SERVER_INDIRECTION = "bundler-redirect.server";
+const CLIENT_INDIRECTION = "bundler-redirect.client";
 
 /** The subset of the webpack/Turbopack loader context this loader reads. */
-export interface GenerativeLoaderContext {
+interface GenerativeLoaderContext {
   resourcePath?: string;
   resourceQuery?: string;
   sourceMap?: boolean;
@@ -38,43 +38,29 @@ function queryTarget(resourceQuery: string | undefined): Target | null {
   return g === "server" || g === "client" ? g : null;
 }
 
-/** Back-compat: the concrete build target a `?generative=*` query selects. */
-export function resolveTarget(context: GenerativeLoaderContext): Target {
-  return queryTarget(context.resourceQuery) ?? "client";
-}
-
 /**
- * The facade emitted for a *bare* import of a generative module. It delegates
- * build selection to the package's `react-server`-conditioned `/generative`
- * subpath, passing this module's path through a Turbopack import attribute (a
- * `?path=` query can't ride a package specifier, but `with {}` can). The
- * `react-server` condition then resolves it to the server build in react-server
- * layers (RSC + route handlers) and the client build everywhere else (SSR +
- * browser) — one bare import, no query, no `imports` field, and `server-only`
- * stays confined to react-server layers (never the client/SSR graph).
+ * Facade for a bare generative import: delegates build selection to the
+ * `react-server`-conditioned `/bundler-redirect` subpath, passing the module's
+ * path via a Turbopack import attribute. See DESIGN.md.
  */
-export function buildFacade(resourcePath: string): string {
+function buildFacade(resourcePath: string): string {
   const options = JSON.stringify(JSON.stringify({ path: resourcePath }));
   const attr =
     `with { turbopackLoader: "${PKG}/loader", ` +
     `turbopackLoaderOptions: ${options} }`;
   return [
-    `import toolkit from "${PKG}/generative" ${attr};`,
+    `import toolkit from "${PKG}/bundler-redirect" ${attr};`,
     `export default toolkit;`,
     ``,
   ].join("\n");
 }
 
 /**
- * Emitted in place of an indirection module: re-exports the concrete build of
- * the originating generative module. The `react-server` condition already chose
- * this variant; `fromPath` is the indirection module's own path and `toPath` the
- * originating module's, so the specifier is made **relative** between them —
- * Turbopack won't resolve an absolute import specifier, and a relative one is
- * correct whether the package is a workspace symlink or installed in
- * node_modules.
+ * Replaces an indirection module with a re-export of the chosen concrete build,
+ * via a relative specifier (Turbopack won't resolve an absolute one). See
+ * DESIGN.md.
  */
-export function buildIndirection(
+function buildIndirection(
   variant: Target,
   fromPath: string,
   toPath: string,
@@ -87,13 +73,7 @@ export function buildIndirection(
   return `export { default } from ${spec};\n`;
 }
 
-/**
- * Webpack/Turbopack loader for `"use generative"` modules. Dispatch:
- *  - the package indirection modules → re-export the chosen concrete build;
- *  - a `?generative=client|server` query → compile that build;
- *  - a bare generative module → the facade;
- *  - anything else → passthrough untouched.
- */
+/** Webpack/Turbopack loader for `"use generative"` modules. See DESIGN.md. */
 export default function generativeLoader(
   this: GenerativeLoaderContext,
   source: string,
@@ -101,8 +81,7 @@ export default function generativeLoader(
   const callback = this.async();
   const resourcePath = this.resourcePath ?? "";
 
-  // 1) Package indirection, resolved via the `react-server` condition. The
-  //    facade applied this loader (with `path`) through an import attribute.
+  // 1) Package indirection (resolved via the `react-server` condition).
   const variant = indirectionVariant(resourcePath);
   if (variant) {
     const path = this.getOptions?.()?.path;
