@@ -3423,6 +3423,27 @@ importers:
         specifier: ^19.2.6
         version: 19.2.6(react@19.2.6)
 
+  packages/react-generative-ui:
+    devDependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../react
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../x-buildutils
+      '@types/react':
+        specifier: ^19.2.15
+        version: 19.2.15
+      react:
+        specifier: ^19.2.6
+        version: 19.2.6
+      react-dom:
+        specifier: ^19.2.6
+        version: 19.2.6(react@19.2.6)
+      vitest:
+        specifier: ^4.1.7
+        version: 4.1.7(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(@vitest/ui@4.1.7)(jsdom@29.1.1)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.3)(yaml@2.9.0))
+
   packages/react-google-adk:
     dependencies:
       '@assistant-ui/core':

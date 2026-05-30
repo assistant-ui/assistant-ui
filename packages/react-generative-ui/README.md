@@ -1,6 +1,6 @@
 # @assistant-ui/react-generative-ui
 
-Generative UI components for assistant-ui.
+Generative UI tools for assistant-ui.
 
 ## Installation
 
@@ -11,7 +11,27 @@ npm install @assistant-ui/react-generative-ui
 ## Usage
 
 ```tsx
-import { GenerativeUI } from "@assistant-ui/react-generative-ui";
+import { jsonGenerativeUITools } from "@assistant-ui/react-generative-ui";
+import { Tools } from "@assistant-ui/react";
+
+const library = {
+  components: {
+    Card: CardComponent,
+    Button: ButtonComponent,
+  },
+};
+
+const toolkit = jsonGenerativeUITools({ library });
+
+function App() {
+  return (
+    <Thread>
+      <Tools toolkit={toolkit} />
+      <MessageList />
+      <Composer />
+    </Thread>
+  );
+}
 ```
 
 ## License
