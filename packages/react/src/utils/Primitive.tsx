@@ -24,7 +24,8 @@ import { Slot } from "radix-ui";
  * by Radix's battle-tested Slot implementation — we add zero custom logic for that.
  */
 
-// Match @radix-ui/react-primitive's full element set
+// Radix's element set plus extra intrinsics (e.g. "video") that fall back to a
+// local asChild-aware wrapper when @radix-ui/react-primitive has no entry.
 const NODES = [
   "a",
   "button",

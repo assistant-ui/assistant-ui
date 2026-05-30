@@ -28,7 +28,7 @@ function VariantRow({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <span className="font-medium text-muted-foreground text-xs">{label}</span>
+      <span className="text-muted-foreground text-xs font-medium">{label}</span>
       <div className="flex flex-wrap items-start gap-4">
         <VideoRoot variant={variant} size="sm">
           <VideoZoom

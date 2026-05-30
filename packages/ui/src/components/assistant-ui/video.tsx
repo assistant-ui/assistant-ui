@@ -23,7 +23,7 @@ const videoVariants = cva(
   {
     variants: {
       variant: {
-        outline: "border border-border",
+        outline: "border-border border",
         ghost: "",
         muted: "bg-muted/50",
       },
@@ -84,7 +84,7 @@ function VideoPlayer({
     <div
       data-slot="video-player-container"
       className={cn(
-        "relative aspect-video w-full bg-muted/50",
+        "bg-muted/50 relative aspect-video w-full",
         containerClassName,
       )}
     >
@@ -93,7 +93,7 @@ function VideoPlayer({
           data-slot="video-player-error"
           className="flex min-h-32 items-center justify-center p-4"
         >
-          <VideoOffIcon className="size-8 text-muted-foreground" />
+          <VideoOffIcon className="text-muted-foreground size-8" />
         </div>
       ) : (
         <video
@@ -128,9 +128,9 @@ function VideoPoster({
     return (
       <div
         data-slot="video-poster-placeholder"
-        className="flex aspect-video w-full items-center justify-center bg-muted/50"
+        className="bg-muted/50 flex aspect-video w-full items-center justify-center"
       >
-        <PlayIcon className="size-8 text-muted-foreground" />
+        <PlayIcon className="text-muted-foreground size-8" />
       </div>
     );
   }
@@ -157,7 +157,7 @@ function VideoFilename({
     <span
       data-slot="video-filename"
       className={cn(
-        "block truncate px-2 py-1.5 text-muted-foreground text-xs",
+        "text-muted-foreground block truncate px-2 py-1.5 text-xs",
         className,
       )}
       {...props}
@@ -187,7 +187,7 @@ function VideoDownload({
       href={url}
       download={filename ?? "video"}
       className={cn(
-        "absolute end-2 top-2 inline-flex size-8 items-center justify-center rounded-md bg-background/80 text-foreground shadow-sm backdrop-blur hover:bg-background",
+        "bg-background/80 text-foreground hover:bg-background absolute end-2 top-2 inline-flex size-8 items-center justify-center rounded-md shadow-sm backdrop-blur",
         className,
       )}
       aria-label="Download video"
@@ -204,7 +204,7 @@ function VideoOverlay({ children }: PropsWithChildren) {
   return (
     <div
       data-slot="video-overlay"
-      className="pointer-events-none absolute start-2 top-2 max-w-[calc(100%-6rem)] rounded-md bg-background/80 px-2 py-1 text-foreground shadow-sm backdrop-blur"
+      className="bg-background/80 text-foreground pointer-events-none absolute start-2 top-2 max-w-[calc(100%-6rem)] rounded-md px-2 py-1 shadow-sm backdrop-blur"
     >
       {children}
     </div>
@@ -232,7 +232,7 @@ function VideoZoom({
         <button
           type="button"
           data-slot="video-zoom-trigger"
-          className="absolute end-12 top-2 inline-flex size-8 items-center justify-center rounded-md bg-background/80 text-foreground shadow-sm backdrop-blur hover:bg-background"
+          className="bg-background/80 text-foreground hover:bg-background absolute end-12 top-2 inline-flex size-8 items-center justify-center rounded-md shadow-sm backdrop-blur"
           aria-label="Expand video"
         >
           <Maximize2Icon className="size-4" />
@@ -241,7 +241,7 @@ function VideoZoom({
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay
           data-slot="video-zoom-overlay"
-          className="aui-video-zoom-overlay data-[state=closed]:fade-out data-[state=open]:fade-in fixed inset-0 z-50 bg-black/80 duration-200 data-[state=closed]:animate-out data-[state=open]:animate-in"
+          className="aui-video-zoom-overlay data-[state=closed]:fade-out data-[state=open]:fade-in data-[state=closed]:animate-out data-[state=open]:animate-in fixed inset-0 z-50 bg-black/80 duration-200"
         />
         <DialogPrimitive.Content
           data-slot="video-zoom-content-wrapper"
@@ -253,7 +253,7 @@ function VideoZoom({
           </DialogPrimitive.Title>
           <DialogPrimitive.Close
             data-slot="video-zoom-close"
-            className="absolute top-4 right-4 inline-flex size-9 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm backdrop-blur hover:bg-background"
+            className="bg-background/80 text-foreground hover:bg-background absolute top-4 right-4 inline-flex size-9 items-center justify-center rounded-full shadow-sm backdrop-blur"
             aria-label="Close expanded video"
           >
             <XIcon className="size-4" />
@@ -265,7 +265,7 @@ function VideoZoom({
             poster={poster}
             controls
             autoPlay
-            className="aui-video-zoom-content data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=open]:fade-in data-[state=open]:zoom-in-95 max-h-[90vh] max-w-[90vw] bg-black object-contain duration-200 data-[state=closed]:animate-out data-[state=open]:animate-in"
+            className="aui-video-zoom-content data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 data-[state=open]:fade-in data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=open]:animate-in max-h-[90vh] max-w-[90vw] bg-black object-contain duration-200"
           >
             {sources?.map((source) => (
               <source key={source.src} src={source.src} type={source.type} />

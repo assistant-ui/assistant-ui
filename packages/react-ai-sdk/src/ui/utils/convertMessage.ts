@@ -376,24 +376,22 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           content,
           attachments: message.parts
             ?.filter((p) => p.type === "file")
-            .map((part, idx) => ({
-              id: idx.toString(),
-              type: part.mediaType.startsWith("image/")
+            .map((part, idx) => {
+              const kind = part.mediaType.startsWith("image/")
                 ? "image"
                 : part.mediaType.startsWith("video/")
                   ? "video"
-                  : "file",
-              name: part.filename ?? "file",
-              content: [
-                part.mediaType.startsWith("image/")
+                  : "file";
+              const content =
+                kind === "image"
                   ? {
-                      type: "image",
+                      type: "image" as const,
                       image: part.url,
                       filename: part.filename!,
                     }
-                  : part.mediaType.startsWith("video/")
+                  : kind === "video"
                     ? {
-                        type: "video",
+                        type: "video" as const,
                         url: part.url,
                         mimeType: part.mediaType,
                         ...(part.filename != null && {
@@ -401,15 +399,20 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
                         }),
                       }
                     : {
-                        type: "file",
+                        type: "file" as const,
                         filename: part.filename!,
                         data: part.url,
                         mimeType: part.mediaType,
-                      },
-              ],
-              contentType: part.mediaType ?? "unknown/unknown",
-              status: { type: "complete" as const },
-            })),
+                      };
+              return {
+                id: idx.toString(),
+                type: kind,
+                name: part.filename ?? kind,
+                content: [content],
+                contentType: part.mediaType ?? "unknown/unknown",
+                status: { type: "complete" as const },
+              };
+            }),
           metadata: message.metadata as MessageMetadata,
         };
 
