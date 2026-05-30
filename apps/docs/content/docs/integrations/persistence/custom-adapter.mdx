@@ -65,7 +65,22 @@ export const messages = pgTable(
 );
 ```
 
-The four message columns (`id`, `parent_id`, `format`, `content`) are the contract `withFormat` writes against. `format` lets multiple runtimes coexist on one row (e.g., `"aisdk-v6"` from `useChatRuntime`, a different value from another runtime).
+The four message columns (`id`, `parent_id`, `format`, `content`) are the contract `withFormat` writes against. `format` records which adapter encoded the row so multiple runtimes can coexist on one table; `useChatRuntime` sets it from `fmt.format`.
+
+<Callout type="warn">
+  `content` is not arbitrary JSON. It must be the payload the active format adapter produced via `fmt.encode(item)`, and it is read back through `fmt.decode`; the route handlers below are a pass-through that never inspects it. For `useChatRuntime` (AI SDK v6) a valid stored row looks like:
+
+  ```json
+  {
+    "id": "msg_abc",
+    "parent_id": null,
+    "format": "ai-sdk/v6",
+    "content": { "role": "user", "parts": [{ "type": "text", "text": "hello" }] }
+  }
+  ```
+
+  A row that satisfies the column types but carries a different shape (e.g. `{ "foo": "bar" }`) is accepted on write, then fails history reload. Seed test data through the adapter, not by hand-crafting `content`.
+</Callout>
 
 ## Setup
 
@@ -678,7 +693,7 @@ Send a message in a fresh thread. Check the database:
 
 - The `threads` table has a new row with the current `userId`.
 - The `messages` table has at least two rows (user + assistant) for that thread.
-- `format` is `"aisdk-v6"` (or whatever AI SDK's current format string is).
+- `format` matches what `fmt.format` wrote (`"ai-sdk/v6"` for AI SDK v6) and `content` is the encoded `UIMessage` (a `role` plus `parts`), not a placeholder blob.
 - Reload the page; the thread list and the messages survive.
 
 </Step>
