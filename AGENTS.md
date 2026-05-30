@@ -27,30 +27,6 @@ Lint with `pnpm lint`, autofix with `pnpm lint:fix`. Backed by `.oxlintrc.json` 
 
 Tap hook dep tracking (`tapEffect` / `tapMemo` / `tapCallback` / `tapResources`) is enforced via a small custom JS plugin at `scripts/oxlint-plugins/tap-hooks.mjs`. It wraps `eslint-plugin-react-hooks`'s `exhaustive-deps` rule and post-filters warnings whose missing dep originates from a tap stable-result hook (`tapRef`, `tapConst`, `tapEffectEvent`, or the setter half of `tapState`'s tuple), matching what Biome's `useExhaustiveDependencies` `stableResult` config used to do.
 
-## Code comments
-
-Comment to explain what isn't obvious from the code — a non-trivial invariant, a
-"why", a gotcha. Don't narrate what the code already says, and prefer making the
-code clear enough not to need the comment at all.
-
-Never write comments that describe a change relative to a previous version of the
-code. Comments describe the code as it is now, for someone reading it fresh. The
-history of how it got there lives in git blame.
-
-```ts
-// bad — addresses a PR/review or describes a diff
-// renamed from `getUser` per review feedback
-// now uses a Map instead of an object
-// removed the old fallback
-
-// bad — restates the code
-// increment the counter
-counter += 1;
-
-// good — explains a non-obvious why
-// Radix focus-traps on mount; defer so the trigger keeps focus.
-```
-
 ## Package boundaries
 
 `@assistant-ui/core` contains shared code. It has a `./react` sub-path that both `@assistant-ui/react` and `@assistant-ui/react-native` re-export from. Customers never install core directly — they use one of the three distribution packages (react, react-native, react-ink).

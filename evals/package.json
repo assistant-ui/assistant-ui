@@ -1,0 +1,10 @@
+{
+  "name": "@assistant-ui/x-prompt-evals",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A/B harness for deciding which guidance sentences earn a place in AGENTS.md / skills",
+  "scripts": {
+    "eval": "node src/cli.ts"
+  }
+}
