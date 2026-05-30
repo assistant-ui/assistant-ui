@@ -218,6 +218,15 @@ export default defineToolkit({
     ).toThrow(/inline object literal/);
   });
 
+  it("requires a render for human/frontend tools", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit, hitl } from "@assistant-ui/next";\nexport default defineToolkit({ ask: { execute: hitl() } });`,
+        { target: "client" },
+      ),
+    ).toThrow(/must declare a `render`/);
+  });
+
   it("requires every tool to declare an execute", () => {
     expect(() =>
       compileGenerative(

@@ -107,6 +107,13 @@ export function compileGenerative(
     const hasRender = !!findMember(value, "render");
     const execute = findMember(value, "execute");
 
+    if ((type === "frontend" || type === "human") && !hasRender) {
+      throw new GenerativeCompileError(
+        `a ${type} tool must declare a \`render\` (it has no server execute to show otherwise)`,
+        filename,
+      );
+    }
+
     if (target === "client") {
       // A frontend execute stays (its `"use client"` marker is no longer needed
       // once the module is client); a backend execute and a human `hitl()`
@@ -357,10 +364,12 @@ function pruneUnused(ast: t.File): void {
             stmt.declarations = stmt.declarations.filter((decl) => {
               // Handles destructuring too: drop the declarator only when *every*
               // bound name is unused (else a `const { a } = server` survives and
-              // keeps a server import in the client graph).
+              // keeps a server import in the client graph). Restricted to plain
+              // patterns so a default/computed-key side effect isn't dropped.
               const names = Object.keys(t.getBindingIdentifiers(decl.id));
               if (
                 names.length > 0 &&
+                isPlainPattern(decl.id) &&
                 isRemovableInit(decl.init) &&
                 names.every(isUnused)
               ) {
@@ -399,6 +408,27 @@ function pruneUnused(ast: t.File): void {
       path.stop();
     },
   });
+}
+
+/**
+ * Whether a binding pattern is side-effect-free to drop: a plain identifier, or
+ * an object/array pattern of plain bindings — no default values
+ * (`{ a = expr }`) or computed keys (`{ [expr]: a }`), which would evaluate (and
+ * thus could have side effects) at destructuring time.
+ */
+function isPlainPattern(node: t.Node): boolean {
+  if (t.isIdentifier(node)) return true;
+  if (t.isObjectPattern(node)) {
+    return node.properties.every((p) =>
+      t.isRestElement(p)
+        ? isPlainPattern(p.argument)
+        : !p.computed && isPlainPattern(p.value),
+    );
+  }
+  if (t.isArrayPattern(node)) {
+    return node.elements.every((el) => el == null || isPlainPattern(el));
+  }
+  return false; // AssignmentPattern (default), member expr, etc.
 }
 
 /** Whether a variable initializer is safe to drop (no observable side effects). */
