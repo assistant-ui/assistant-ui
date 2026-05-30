@@ -14,4 +14,4 @@ export {
   buildIndirection,
   type GenerativeLoaderContext,
 } from "./loader";
-export { withGenerative, type WithGenerativeOptions } from "./next";
+export { withAui, type WithAuiOptions } from "./with-aui";

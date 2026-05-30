@@ -1,6 +1,6 @@
-const LOADER = "@assistant-ui/use-generative/loader";
+const LOADER = "@assistant-ui/next/loader";
 
-export interface WithGenerativeOptions {
+export interface WithAuiOptions {
   /**
    * Turbopack glob(s) whose files are scanned for the `"use generative"`
    * directive. Defaults to all TS/TSX. Narrow it (e.g. `["*.generative.tsx"]`) to
@@ -26,13 +26,13 @@ type NextConfigLike = {
  * @example
  * ```ts
  * // next.config.ts
- * import { withGenerative } from "@assistant-ui/use-generative/next";
- * export default withGenerative({ ...yourConfig });
+ * import { withAui } from "@assistant-ui/next";
+ * export default withAui({ ...yourConfig });
  * ```
  */
-export function withGenerative<T extends NextConfigLike>(
+export function withAui<T extends NextConfigLike>(
   nextConfig: T = {} as T,
-  options: WithGenerativeOptions = {},
+  options: WithAuiOptions = {},
 ): T {
   const globs = options.rules ?? ["*.ts", "*.tsx"];
   // A single rule per glob. The loader turns a bare generative import into a

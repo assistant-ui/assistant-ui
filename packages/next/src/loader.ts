@@ -3,9 +3,9 @@ import { compileGenerative, isGenerativeModule } from "./compile";
 import type { Target } from "./constants";
 
 /** This package's name, used in the facade's re-export specifier. */
-const PKG = "@assistant-ui/use-generative";
+const PKG = "@assistant-ui/next";
 
-/** Basenames of the react-server-conditioned indirection modules (see next.ts). */
+/** Basenames of the react-server-conditioned indirection modules (see with-aui.ts). */
 const SERVER_INDIRECTION = "generative-server";
 const CLIENT_INDIRECTION = "generative-client";
 
@@ -109,7 +109,7 @@ export default function generativeLoader(
     if (!path) {
       callback(
         new Error(
-          "[use-generative] indirection module loaded without a `path` " +
+          "[assistant-ui/next] indirection module loaded without a `path` " +
             "option; it must be imported via the generated facade.",
         ),
       );

@@ -1,6 +1,7 @@
-# @assistant-ui/use-generative
+# @assistant-ui/next
 
-Compiler for the `"use generative"` directive. Colocate a tool's **schema**,
+Next.js integration for assistant-ui: the `withAui()` config wrapper and the
+compiler for the `"use generative"` directive. Colocate a tool's **schema**,
 **server-only `execute`**, and **client-only `render`** in one file; the compiler
 emits a different module per build target so each side only loads what it needs.
 
@@ -50,15 +51,15 @@ filename convention**; modules without the directive pass through untouched.
 
 ```ts
 // next.config.ts
-import { withGenerative } from "@assistant-ui/use-generative/next";
+import { withAui } from "@assistant-ui/next";
 
-export default withGenerative({
+export default withAui({
   /* your Next config */
 });
 ```
 
-`withGenerative` applies the loader to your TS/TSX. To limit how many files it
-scans, narrow the globs: `withGenerative(config, { rules: ["*.generative.tsx"] })`.
+`withAui` applies the loader to your TS/TSX. To limit how many files it
+scans, narrow the globs: `withAui(config, { rules: ["*.generative.tsx"] })`.
 
 Import the **bare** path in client code (it gets the client build — render),
 and add **`?generative=server`** in server code (it gets the server build —
@@ -93,7 +94,7 @@ With the AI SDK, convert the server build to a `ToolSet` (see
 ## Programmatic API
 
 ```ts
-import { compileGenerative, resolveTarget } from "@assistant-ui/use-generative";
+import { compileGenerative, resolveTarget } from "@assistant-ui/next";
 
 const { code } = compileGenerative(source, { target: "server" }); // or "client"
 ```

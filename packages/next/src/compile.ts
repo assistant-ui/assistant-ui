@@ -32,7 +32,7 @@ export interface CompileResult {
 /** Thrown when a `"use generative"` file violates an authoring constraint. */
 export class GenerativeCompileError extends Error {
   constructor(message: string, filename?: string) {
-    super(`[use-generative]${filename ? ` ${filename}:` : ""} ${message}`);
+    super(`[assistant-ui/next]${filename ? ` ${filename}:` : ""} ${message}`);
     this.name = "GenerativeCompileError";
   }
 }

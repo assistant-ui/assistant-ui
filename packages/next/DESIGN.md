@@ -39,13 +39,13 @@ package specifier; `with {}` can):
 
 ```js
 // facade — emitted in place of a bare import of the generative module
-import toolkit from "@assistant-ui/use-generative/generative"
-  with { turbopackLoader: "@assistant-ui/use-generative/loader",
+import toolkit from "@assistant-ui/next/generative"
+  with { turbopackLoader: "@assistant-ui/next/loader",
          turbopackLoaderOptions: "{\"path\":\"/abs/docs-toolkit.tsx\"}" };
 export default toolkit;
 ```
 
-`@assistant-ui/use-generative/generative` resolves by condition to one of two
+`@assistant-ui/next/generative` resolves by condition to one of two
 indirection modules, which the loader (applied via the attribute) replaces with a
 re-export of the concrete build — using a **relative** specifier computed from the
 indirection's own path to the originating module (Turbopack won't resolve an
@@ -103,6 +103,6 @@ Under webpack, import the concrete builds explicitly (`?generative=server|client
 
 ## Notes
 
-- `@assistant-ui/use-generative/env` exports `isServer` (react-server-conditioned).
+- `@assistant-ui/next/env` exports `isServer` (react-server-conditioned).
   It is **not used** by the facade above; it remains as a runtime guard primitive
   (e.g. `if (!isServer) throw` inside an `execute`).

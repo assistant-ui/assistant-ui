@@ -90,7 +90,7 @@ The `"use generative"` directive is stripped from both outputs.
 
 ## Bundler integration
 
-Wrap the Next config with `withGenerative` from `@assistant-ui/use-generative/next`
+Wrap the Next config with `withAui` from `@assistant-ui/next`
 (no filename convention — modules are matched by the `"use generative"` directive,
 and the loader passes non-generative files through untouched). It applies `./loader`,
 a webpack/Turbopack loader.
