@@ -32,10 +32,14 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "dependencies": {
+    "assistant-stream": "^0.3.17"
+  },
   "peerDependencies": {
     "@assistant-ui/react": "^0.14.11",
     "@types/react": "*",
-    "react": "^18 || ^19"
+    "react": "^18 || ^19",
+    "zod": "^3.0.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -45,10 +49,12 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/json-schema": "^7.0.15",
     "@types/react": "^19.2.15",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.7",
+    "zod": "^4.4.3"
   },
   "publishConfig": {
     "access": "public",
