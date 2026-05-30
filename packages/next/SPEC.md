@@ -95,12 +95,12 @@ Wrap the Next config with `withAui` from `@assistant-ui/next`
 and the loader passes non-generative files through untouched). It applies `./loader`,
 a webpack/Turbopack loader.
 
-The loader chooses the target from an explicit `?generative=client|server` resource
+The loader chooses the target from an explicit `?generative-env=client|server` resource
 query, defaulting to **`client`**:
 
 - **bare import** (`import x from "./x.generative"`) → client build; safe in any
   layer (it has no `server-only` code).
-- **`?generative=server`** (`import x from "./x.generative?generative=server"`) → server
+- **`?generative-env=server`** (`import x from "./x.generative?generative-env=server"`) → server
   build; use in route handlers / server modules.
 
 Why not infer the target from the build **layer**? Turbopack compiles one output
@@ -114,7 +114,7 @@ loader output aggressively.)
 For TypeScript, declare the query specifier once so the import resolves:
 
 ```ts
-declare module "*?generative=server" {
+declare module "*?generative-env=server" {
   const toolkit: import("@assistant-ui/react").Toolkit;
   export default toolkit;
 }
@@ -124,7 +124,7 @@ declare module "*?generative=server" {
 
 The two sides are consumed at the two sites that already differ:
 
-- **server:** import `./x.generative?generative=server` (schema + `execute`) and hand
+- **server:** import `./x.generative?generative-env=server` (schema + `execute`) and hand
   it to the model. With the AI SDK, `generativeTools({ toolkit, frontendTools })`
   from `@assistant-ui/react-ai-sdk` converts it into a `ToolSet` whose `execute`
   runs in the route, and merges in the frontend-uploaded tools.
@@ -152,5 +152,5 @@ the client per request — the server owns it.
   (the default in Next).
 - Turbopack honors a loader-emitted `"use client"` directive (validated on Next
   16.2.6), but does not give a loader per-layer module instances — hence the
-  `?generative=server` query rather than layer inference. Clear `.next` after
+  `?generative-env=server` query rather than layer inference. Clear `.next` after
   changing the loader.

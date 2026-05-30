@@ -54,12 +54,12 @@ installed packages):
 
 ```js
 // react-server → bundler-redirect.server.js  ⇒  emitted:
-export { default } from "../../../app/lib/docs-toolkit.tsx?generative=server";
+export { default } from "../../../app/lib/docs-toolkit.tsx?generative-env=server";
 // default       → bundler-redirect.client.js  ⇒  emitted:
-export { default } from "../../../app/lib/docs-toolkit.tsx?generative=client";
+export { default } from "../../../app/lib/docs-toolkit.tsx?generative-env=client";
 ```
 
-The `?generative=server|client` query then hits the loader again and compiles the
+The `?generative-env=server|client` query then hits the loader again and compiles the
 concrete build. Net resolution from one bare import:
 
 - route handler / RSC (`react-server` ON) → **server build** (execute + `server-only`);
@@ -78,7 +78,7 @@ concrete build. Net resolution from one bare import:
 
 1. resolution is a package **indirection** module → re-export the chosen concrete
    build (path from loader options, made relative);
-2. `?generative=client|server` query → compile that build;
+2. `?generative-env=client|server` query → compile that build;
 3. bare generative module → emit the facade;
 4. anything else → passthrough.
 
@@ -99,4 +99,4 @@ concrete build. Net resolution from one bare import:
 ## Bundler support
 
 Turbopack only — the facade uses Turbopack import attributes (`turbopackLoader`).
-Under webpack, import the concrete builds explicitly (`?generative=server|client`).
+Under webpack, import the concrete builds explicitly (`?generative-env=server|client`).

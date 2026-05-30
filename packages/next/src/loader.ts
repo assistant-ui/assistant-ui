@@ -29,11 +29,11 @@ function indirectionVariant(resourcePath: string): Target | null {
   return null;
 }
 
-/** The concrete build forced by a `?generative=client|server` resource query. */
+/** The concrete build forced by a `?generative-env=client|server` resource query. */
 function queryTarget(resourceQuery: string | undefined): Target | null {
   if (!resourceQuery) return null;
   const g = new URLSearchParams(resourceQuery.replace(/^\?/, "")).get(
-    "generative",
+    "generative-env",
   );
   return g === "server" || g === "client" ? g : null;
 }
@@ -69,7 +69,7 @@ function buildIndirection(
     .relative(nodePath.dirname(fromPath), toPath)
     .replace(/\\/g, "/");
   if (!rel.startsWith(".")) rel = `./${rel}`;
-  const spec = JSON.stringify(`${rel}?generative=${variant}`);
+  const spec = JSON.stringify(`${rel}?generative-env=${variant}`);
   return `export { default } from ${spec};\n`;
 }
 

@@ -45,7 +45,7 @@ export function withAui<T extends NextConfigLike>(
     },
     webpack(config: any, context: any) {
       // Turbopack-only facade; under webpack, import concrete builds explicitly
-      // with `?generative=server` / `=client`.
+      // with `?generative-env=server` / `=client`.
       config.module.rules.push({
         test: /\.[jt]sx?$/,
         exclude: /node_modules/,

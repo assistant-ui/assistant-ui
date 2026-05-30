@@ -62,7 +62,7 @@ export default withAui({
 scans, narrow the globs: `withAui(config, { rules: ["*.generative.tsx"] })`.
 
 Import the **bare** path in client code (it gets the client build — render),
-and add **`?generative=server`** in server code (it gets the server build —
+and add **`?generative-env=server`** in server code (it gets the server build —
 `execute`):
 
 ```tsx
@@ -70,13 +70,13 @@ and add **`?generative=server`** in server code (it gets the server build —
 import toolkit from "@/lib/chat.generative";
 
 // a route handler — schema + execute
-import toolkit from "@/lib/chat.generative?generative=server";
+import toolkit from "@/lib/chat.generative?generative-env=server";
 ```
 
 Declare the query specifier for TypeScript (once):
 
 ```ts
-declare module "*?generative=server" {
+declare module "*?generative-env=server" {
   const toolkit: import("@assistant-ui/react").Toolkit;
   export default toolkit;
 }
@@ -87,7 +87,7 @@ With the AI SDK, convert the server build to a `ToolSet` (see
 
 > **Validated on Next 16.2.6 (Turbopack).** Turbopack honors the loader-emitted
 > `"use client"`, but compiles one output per resource path — so the server build
-> is selected by its own `?generative=server` query rather than by build layer.
+> is selected by its own `?generative-env=server` query rather than by build layer.
 > Clear `.next` after changing the loader (Turbopack caches loader output).
 
 ## License
