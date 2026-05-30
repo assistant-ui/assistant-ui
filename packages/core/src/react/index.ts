@@ -37,7 +37,6 @@ export {
   type ToolDefinition,
   type ToolkitDeclaration,
   type ToolkitDeclarationDefinition,
-  defineToolkit,
 } from "./model-context/toolbox";
 export {
   useAssistantInteractable,

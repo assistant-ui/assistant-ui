@@ -189,7 +189,6 @@ export {
   type ToolDefinition,
   type ToolkitDeclaration,
   type ToolkitDeclarationDefinition,
-  defineToolkit,
   Tools,
   DataRenderers,
   Interactables,

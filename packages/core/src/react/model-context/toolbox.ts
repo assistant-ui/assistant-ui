@@ -79,19 +79,6 @@ export type ToolkitDeclaration = Record<
   ToolkitDeclarationDefinition<any, any>
 >;
 
-/**
- * Identity helper for authoring a toolkit. Accepts the permissive
- * {@link ToolkitDeclaration} (backend tools may declare `execute`) and types the
- * result as the canonical {@link Toolkit}.
- *
- * Pair it with the `"use generative"` compiler: write `export default
- * defineToolkit({...})`; the compiler erases the wrapper per build, so this
- * never reaches the runtime bundle.
- */
-export function defineToolkit(declaration: ToolkitDeclaration): Toolkit {
-  return declaration as unknown as Toolkit;
-}
-
 /** Configuration for the {@link Tools} resource. */
 export type ToolsConfig = {
   /** Tools to register with model context and, when provided, message renderers. */

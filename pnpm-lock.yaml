@@ -3101,6 +3101,9 @@ importers:
         specifier: ^7.28.4
         version: 7.29.7
     devDependencies:
+      '@assistant-ui/core':
+        specifier: workspace:*
+        version: link:../core
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils

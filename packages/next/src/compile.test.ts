@@ -141,7 +141,7 @@ describe("compileGenerative — diagnostics", () => {
     const wrapped = `"use generative";
 import { z } from "zod";
 import { db } from "@/db";
-import { defineToolkit } from "@assistant-ui/react";
+import { defineToolkit } from "@assistant-ui/next";
 export default defineToolkit({
   weather: {
     type: "backend",
@@ -153,13 +153,13 @@ export default defineToolkit({
     const serverCode = compileGenerative(wrapped, { target: "server" }).code;
     // wrapper + its import gone; bare object with execute remains.
     expect(serverCode).not.toContain("defineToolkit");
-    expect(serverCode).not.toContain("@assistant-ui/react");
+    expect(serverCode).not.toContain("@assistant-ui/next");
     expect(serverCode).toContain("db.get");
     expect(serverCode).not.toContain("<span");
 
     const clientCode = compileGenerative(wrapped, { target: "client" }).code;
     expect(clientCode).not.toContain("defineToolkit");
-    expect(clientCode).not.toContain("@assistant-ui/react");
+    expect(clientCode).not.toContain("@assistant-ui/next");
     expect(clientCode).toContain("<span");
     expect(clientCode).not.toContain("@/db");
   });

@@ -8,7 +8,7 @@ import {
 } from "@/lib/open-meteo-weather-adapter";
 import { MapPin, CloudSun, AlertCircle } from "lucide-react";
 import { z } from "zod";
-import { defineToolkit } from "@assistant-ui/react";
+import { defineToolkit } from "@assistant-ui/next";
 
 export default defineToolkit({
   // Weather data powered by Open-Meteo (https://open-meteo.com/)

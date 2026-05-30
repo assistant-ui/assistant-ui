@@ -50,7 +50,11 @@
     "@babel/traverse": "^7.28.4",
     "@babel/types": "^7.28.4"
   },
+  "peerDependencies": {
+    "@assistant-ui/core": "^0.2.7"
+  },
   "devDependencies": {
+    "@assistant-ui/core": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/babel__generator": "^7.27.0",
     "@types/babel__traverse": "^7.28.0",
