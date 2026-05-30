@@ -309,19 +309,32 @@ export class MessageRepository {
   }
 
   /**
-   * Optimistic messages (`metadata.isOptimistic`) only ever live on the current
-   * head branch; any off the root→head path is evicted. Keeps a client→server
-   * id swap from leaving a phantom sibling, and drops off-branch placeholders.
+   * Evicts optimistic messages (`metadata.isOptimistic`) the head just moved
+   * away from. Since eviction runs on every head move, the only optimistic
+   * messages in the repository live on the branch the head previously pointed
+   * at — so we walk just that branch rather than the whole repository. Keeps a
+   * client→server id swap from leaving a phantom sibling, and drops off-branch
+   * placeholders.
    */
-  private evictOffBranchOptimisticMessages() {
+  private evictOffBranchOptimisticMessages(
+    previousHead: RepositoryMessage | null,
+    currentHead: RepositoryMessage | null,
+  ) {
+    if (!previousHead) return;
+
     const onHeadBranch = new Set<string>();
-    for (let current = this.head; current; current = current.prev) {
+    for (let current = currentHead; current; current = current.prev) {
       onHeadBranch.add(current.current.id);
     }
 
     const stale: string[] = [];
-    for (const [id, message] of this.messages) {
-      if (message.current.metadata?.isOptimistic && !onHeadBranch.has(id)) {
+    for (
+      let current: RepositoryMessage | null = previousHead;
+      current;
+      current = current.prev
+    ) {
+      const id = current.current.id;
+      if (current.current.metadata?.isOptimistic && !onHeadBranch.has(id)) {
         stale.push(id);
       }
     }
@@ -339,12 +352,13 @@ export class MessageRepository {
         "MessageRepository(switchToBranch): Branch not found. This is likely an internal bug in assistant-ui.",
       );
 
+    const previousHead = this.head;
     const prevOrRoot = message.prev ?? this.root;
     prevOrRoot.next = message;
 
     this.head = findHead(message);
 
-    this.evictOffBranchOptimisticMessages();
+    this.evictOffBranchOptimisticMessages(previousHead, this.head);
 
     this._messages.dirty();
   }
@@ -360,6 +374,8 @@ export class MessageRepository {
       throw new Error(
         "MessageRepository(resetHead): Branch not found. This is likely an internal bug in assistant-ui.",
       );
+
+    const previousHead = this.head;
 
     if (message.children.length > 0) {
       const deleteDescendants = (msg: RepositoryMessage) => {
@@ -390,7 +406,7 @@ export class MessageRepository {
       }
     }
 
-    this.evictOffBranchOptimisticMessages();
+    this.evictOffBranchOptimisticMessages(previousHead, this.head);
 
     this._messages.dirty();
   }
