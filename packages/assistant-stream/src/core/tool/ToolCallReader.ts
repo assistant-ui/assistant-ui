@@ -349,9 +349,10 @@ export class ToolCallArgsReaderImpl<
     // Use a type assertion to convert the complex TypePath to a simple array
     const simplePath = fieldPath as unknown as (string | number)[];
 
+    let handle: StreamValuesHandle<T> | undefined;
     const stream = new ReadableStream<DeepPartial<TypeAtPath<T, PathT>>>({
       start: (controller) => {
-        const handle = new StreamValuesHandle<T>(controller, simplePath);
+        handle = new StreamValuesHandle<T>(controller, simplePath);
         if (!this.finished) this.handles.add(handle);
 
         // Check current args immediately
@@ -360,13 +361,11 @@ export class ToolCallArgsReaderImpl<
         if (this.finished) handle.end(this.args);
       },
       cancel: () => {
-        // Find and dispose the corresponding handle
-        for (const handle of this.handles) {
-          if (handle instanceof StreamValuesHandle) {
-            handle.dispose();
-            this.handles.delete(handle);
-            break;
-          }
+        // Dispose this stream's own handle (captured above) — scanning for the
+        // first match would dispose a concurrent streamValues()'s handle.
+        if (handle) {
+          handle.dispose();
+          this.handles.delete(handle);
         }
       },
     });
@@ -491,6 +490,8 @@ export class ToolCallReaderImpl<
       await writer.close();
     } catch (err) {
       console.warn(err);
+    } finally {
+      writer.releaseLock();
     }
   }
 
