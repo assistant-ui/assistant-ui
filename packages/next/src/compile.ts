@@ -92,7 +92,15 @@ export function compileGenerative(
 
   for (const entry of object.properties) {
     const value = entryValue(entry);
-    if (!value) continue;
+    if (!value) {
+      // A non-inline tool (spread, method, or a call like `makeTool()`) can't be
+      // analyzed, so its `execute` would pass through to the client unstripped.
+      throw new GenerativeCompileError(
+        "each tool must be an inline object literal (`name: { ... }`) so its " +
+          "`execute` can be routed",
+        filename,
+      );
+    }
 
     // Nature is inferred from `execute` (see inferToolType), not an authored
     // `type`. The resolved type is written back below so the runtime keeps it.
@@ -297,7 +305,8 @@ function inferToolType(
 /** Writes the resolved `type` back onto the tool object (replacing any author's). */
 function setToolType(object: t.ObjectExpression, type: ToolType): void {
   removeMember(object, "type");
-  object.properties.unshift(
+  // Append (not prepend) so the inferred type wins over any earlier spread.
+  object.properties.push(
     t.objectProperty(t.identifier("type"), t.stringLiteral(type)),
   );
 }

@@ -71,7 +71,7 @@ const toServerToolSet = (toolkit: ToolkitDeclaration): ToolSet =>
             inputSchema: jsonSchema(
               t.parameters ? toJSONSchema(t.parameters) : EMPTY_SCHEMA,
             ),
-            toModelOutput: defaultToModelOutput,
+            toModelOutput: t.toModelOutput ?? defaultToModelOutput,
             ...(t.providerOptions && { providerOptions: t.providerOptions }),
             ...(execute && {
               execute: (

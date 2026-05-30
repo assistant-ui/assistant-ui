@@ -190,6 +190,15 @@ export default defineToolkit({
     ).toThrow(/defineToolkit/);
   });
 
+  it("rejects a tool that isn't an inline object literal", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit } from "@assistant-ui/next";\nexport default defineToolkit({ weather: makeTool() });`,
+        { target: "server" },
+      ),
+    ).toThrow(/inline object literal/);
+  });
+
   it("requires every tool to declare an execute", () => {
     expect(() =>
       compileGenerative(

@@ -76,25 +76,15 @@ export default withAui({
 `withAui` applies the loader to your TS/TSX. To limit how many files it
 scans, narrow the globs: `withAui(config, { rules: ["*.generative.tsx"] })`.
 
-Import the **bare** path in client code (it gets the client build — render),
-and add **`?generative-env=server`** in server code (it gets the server build —
-`execute`):
+Import the module **bare** from both sides — the loader rewrites it into a facade
+that resolves to the right build per layer (no query, no per-file config):
 
 ```tsx
-// a client component — render only
+// a client component → resolves to the client build (schema + render)
 import toolkit from "@/lib/chat.generative";
 
-// a route handler — schema + execute
-import toolkit from "@/lib/chat.generative?generative-env=server";
-```
-
-Declare the query specifier for TypeScript (once):
-
-```ts
-declare module "*?generative-env=server" {
-  const toolkit: import("@assistant-ui/react").Toolkit;
-  export default toolkit;
-}
+// a route handler (react-server layer) → resolves to the server build (schema + execute)
+import toolkit from "@/lib/chat.generative";
 ```
 
 With the AI SDK, convert the server build to a `ToolSet` (see
