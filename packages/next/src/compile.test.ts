@@ -181,6 +181,15 @@ export default defineToolkit({
     ).toThrow(/static `type`/);
   });
 
+  it("rejects an unknown `type` value (would otherwise leak execute)", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nexport default { a: { type: "Backend", execute: async () => 1, render: () => null } };`,
+        { target: "client" },
+      ),
+    ).toThrow(/"frontend" \| "backend" \| "human"/);
+  });
+
   it("detects generative modules by directive", () => {
     expect(isGenerativeModule(`"use generative";\nexport default {};`)).toBe(
       true,

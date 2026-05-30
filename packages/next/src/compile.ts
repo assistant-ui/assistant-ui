@@ -241,7 +241,16 @@ function readToolType(
       filename,
     );
   }
-  return member.value.value as ToolType;
+  const value = member.value.value;
+  if (value !== "frontend" && value !== "backend" && value !== "human") {
+    // A typo here would otherwise route as non-backend and keep `execute` in
+    // the client build — leaking server code. Reject unknown values.
+    throw new GenerativeCompileError(
+      `\`type\` must be "frontend" | "backend" | "human", got ${JSON.stringify(value)}`,
+      filename,
+    );
+  }
+  return value;
 }
 
 function memberName(
@@ -337,15 +346,33 @@ function isRemovableInit(node: t.Expression | null | undefined): boolean {
   if (t.isTSAsExpression(node) || t.isTSSatisfiesExpression(node)) {
     return isRemovableInit(node.expression);
   }
+  // Containers are removable only if every element is — a nested call (e.g.
+  // `[track()]`) has an observable side effect that dropping would lose.
+  if (t.isArrayExpression(node)) {
+    return node.elements.every(
+      (el) => el == null || (t.isExpression(el) && isRemovableInit(el)),
+    );
+  }
+  if (t.isObjectExpression(node)) {
+    return node.properties.every(
+      (p) =>
+        t.isObjectProperty(p) &&
+        !p.computed &&
+        t.isExpression(p.value) &&
+        isRemovableInit(p.value),
+    );
+  }
+  if (t.isTemplateLiteral(node)) {
+    return node.expressions.every(
+      (e) => t.isExpression(e) && isRemovableInit(e),
+    );
+  }
   return (
     t.isArrowFunctionExpression(node) ||
     t.isFunctionExpression(node) ||
     t.isClassExpression(node) ||
-    t.isObjectExpression(node) ||
-    t.isArrayExpression(node) ||
     t.isIdentifier(node) ||
     t.isMemberExpression(node) ||
-    t.isTemplateLiteral(node) ||
     t.isJSXElement(node) ||
     t.isJSXFragment(node) ||
     t.isLiteral(node)

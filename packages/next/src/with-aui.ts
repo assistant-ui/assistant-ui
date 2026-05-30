@@ -30,10 +30,22 @@ export function withAui<T extends NextConfigLike>(
   options: WithAuiOptions = {},
 ): T {
   const globs = options.rules ?? ["*.ts", "*.tsx"];
-  // One loader rule per glob; the loader handles the rest (see DESIGN.md).
-  const generativeRules = Object.fromEntries(
-    globs.map((glob) => [glob, { loaders: [LOADER] }]),
-  );
+  // Merge into the user's rules: if a glob already has a `{ loaders }` rule,
+  // append ours rather than clobbering it (see DESIGN.md).
+  const rules: Record<string, unknown> = { ...nextConfig.turbopack?.rules };
+  for (const glob of globs) {
+    const existing = rules[glob];
+    const existingLoaders =
+      existing &&
+      typeof existing === "object" &&
+      Array.isArray((existing as { loaders?: unknown }).loaders)
+        ? (existing as { loaders: unknown[] }).loaders
+        : [];
+    rules[glob] = {
+      ...(existing as object),
+      loaders: [...existingLoaders, LOADER],
+    };
+  }
 
   const userWebpack = nextConfig.webpack;
 
@@ -41,7 +53,7 @@ export function withAui<T extends NextConfigLike>(
     ...nextConfig,
     turbopack: {
       ...nextConfig.turbopack,
-      rules: { ...nextConfig.turbopack?.rules, ...generativeRules },
+      rules,
     },
     webpack(config: any, context: any) {
       // Turbopack-only facade; under webpack, import concrete builds explicitly

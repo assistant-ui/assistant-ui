@@ -25,10 +25,11 @@ holds secrets (DB handles, API keys) that must never reach the browser bundle.
 ```tsx
 "use generative";
 import { z } from "zod";
+import { defineToolkit } from "@assistant-ui/next";
 import { db } from "@/db"; // server-only
 import { Chart } from "@/ui/chart"; // client-only
 
-export default {
+export default defineToolkit({
   weather: {
     type: "backend",
     description: "Show the weather for a city.",
@@ -36,7 +37,7 @@ export default {
     execute: async ({ city }) => db.weather.get(city), // stays on the server
     render: (props) => <Chart data={props} />, // stays on the client
   },
-} satisfies Toolkit;
+});
 ```
 
 The server build of this file keeps `properties` + `execute` (guarded by

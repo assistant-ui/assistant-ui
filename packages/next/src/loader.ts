@@ -18,12 +18,9 @@ interface GenerativeLoaderContext {
   async(): (err: unknown, code?: string, map?: object | null) => void;
 }
 
-const basename = (resourcePath: string): string =>
-  resourcePath.split(/[\\/]/).pop() ?? resourcePath;
-
 /** Whether this resolution is one of the package's indirection modules. */
 function indirectionVariant(resourcePath: string): Target | null {
-  const base = basename(resourcePath);
+  const base = nodePath.basename(resourcePath);
   if (base.startsWith(SERVER_INDIRECTION)) return "server";
   if (base.startsWith(CLIENT_INDIRECTION)) return "client";
   return null;
