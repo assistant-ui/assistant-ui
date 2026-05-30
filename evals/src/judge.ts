@@ -29,8 +29,20 @@ export function runJudge(rubric: string, artifact: string): Verdict {
   try {
     const res = spawnSync(
       "claude",
-      ["-p", prompt, "--model", JUDGE_MODEL, "--append-system-prompt", JUDGE_SYSTEM],
-      { cwd: dir, encoding: "utf8", maxBuffer: 16 * 1024 * 1024, timeout: 120_000 },
+      [
+        "-p",
+        prompt,
+        "--model",
+        JUDGE_MODEL,
+        "--append-system-prompt",
+        JUDGE_SYSTEM,
+      ],
+      {
+        cwd: dir,
+        encoding: "utf8",
+        maxBuffer: 16 * 1024 * 1024,
+        timeout: 120_000,
+      },
     );
     if (res.error) throw res.error;
     return parseVerdict(res.stdout);
@@ -41,7 +53,11 @@ export function runJudge(rubric: string, artifact: string): Verdict {
 
 function parseVerdict(out: string): Verdict {
   const m = out.match(/\{[\s\S]*\}/);
-  if (!m) return { pass: false, reason: `unparseable judge output: ${out.slice(0, 120)}` };
+  if (!m)
+    return {
+      pass: false,
+      reason: `unparseable judge output: ${out.slice(0, 120)}`,
+    };
   try {
     const j = JSON.parse(m[0]);
     return { pass: Boolean(j.pass), reason: String(j.reason ?? "") };

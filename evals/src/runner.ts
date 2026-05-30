@@ -28,7 +28,9 @@ export function runCase(
       ts.push({ verdict, artifact });
       process.stdout.write(verdict.pass ? "." : "x");
       if (process.env.DUMP) {
-        process.stdout.write(`\n--- ${candidate.label} trial ${i + 1} (${verdict.pass ? "PASS" : "FAIL"}: ${verdict.reason}) ---\n${artifact}\n`);
+        process.stdout.write(
+          `\n--- ${candidate.label} trial ${i + 1} (${verdict.pass ? "PASS" : "FAIL"}: ${verdict.reason}) ---\n${artifact}\n`,
+        );
       }
     }
     const passRate = ts.filter((t) => t.verdict.pass).length / ts.length;

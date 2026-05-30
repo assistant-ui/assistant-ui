@@ -9,7 +9,8 @@ import type { EvalCase } from "../types.ts";
  */
 export const prReviewComments: EvalCase = {
   id: "pr-review-comments",
-  description: "applying PR-review feedback without mimicking change-narrating comments",
+  description:
+    "applying PR-review feedback without mimicking change-narrating comments",
   seed: [
     {
       path: "src/config.ts",
