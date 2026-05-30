@@ -256,15 +256,13 @@ describe("ExternalStoreThreadRuntimeCore", () => {
       );
     });
 
-    it("does not delete a store-provided empty optimistic message on cancel", async () => {
-      // A store-provided assistant message that is flagged optimistic and is
-      // momentarily empty (e.g. AI SDK v6 just before the first token). Cancel
-      // must not remove it — only the runtime's own placeholder is removed.
-      // The runtime never appended a placeholder here (the trailing message is
-      // already an assistant), so nothing should be deleted on cancel.
+    it("keeps a partially-streamed optimistic message on cancel", async () => {
+      // A store-provided optimistic assistant message that has already streamed
+      // some content. Cancel must not discard it — only empty optimistic heads
+      // are evicted (those carry nothing to lose and the store re-supplies them
+      // on the next sync).
       const optimisticAssistant = {
-        ...createAssistantMessage("server-msg", ""),
-        content: [],
+        ...createAssistantMessage("server-msg", "partial answer"),
         status: { type: "running" as const },
         metadata: {
           unstable_state: null,
@@ -291,6 +289,39 @@ describe("ExternalStoreThreadRuntimeCore", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
       expect(lastCall.map((m) => m.id)).toContain("server-msg");
+    });
+
+    it("evicts an empty optimistic head on cancel", async () => {
+      // An empty optimistic assistant head (runtime placeholder or a
+      // store-provided message before the first token) is removed on cancel,
+      // falling back to the prior message. The store re-supplies it on resync.
+      const optimisticAssistant = {
+        ...createAssistantMessage("server-msg", ""),
+        content: [],
+        status: { type: "running" as const },
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+          isOptimistic: true,
+        },
+      } as ThreadMessage;
+      const setMessages = vi.fn();
+      const adapter = createBaseAdapter({
+        messages: [createUserMessage("u1"), optimisticAssistant],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages,
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
+      expect(lastCall.map((m) => m.id)).not.toContain("server-msg");
     });
   });
 
