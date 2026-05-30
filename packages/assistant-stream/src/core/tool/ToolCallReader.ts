@@ -381,9 +381,10 @@ export class ToolCallArgsReaderImpl<
     // Use a type assertion to convert the complex TypePath to a simple array
     const simplePath = fieldPath as unknown as (string | number)[];
 
+    let handle: StreamTextHandle<T> | undefined;
     const stream = new ReadableStream<unknown>({
       start: (controller) => {
-        const handle = new StreamTextHandle<T>(controller, simplePath);
+        handle = new StreamTextHandle<T>(controller, simplePath);
         if (!this.finished) this.handles.add(handle);
 
         // Check current args immediately
@@ -392,13 +393,11 @@ export class ToolCallArgsReaderImpl<
         if (this.finished) handle.end();
       },
       cancel: () => {
-        // Find and dispose the corresponding handle
-        for (const handle of this.handles) {
-          if (handle instanceof StreamTextHandle) {
-            handle.dispose();
-            this.handles.delete(handle);
-            break;
-          }
+        // Dispose this stream's own handle (captured above) — scanning for the
+        // first match would dispose a concurrent streamText()'s handle.
+        if (handle) {
+          handle.dispose();
+          this.handles.delete(handle);
         }
       },
     });
@@ -414,9 +413,10 @@ export class ToolCallArgsReaderImpl<
     // Use a type assertion to convert the complex TypePath to a simple array
     const simplePath = fieldPath as unknown as (string | number)[];
 
+    let handle: ForEachHandle<T> | undefined;
     const stream = new ReadableStream<unknown>({
       start: (controller) => {
-        const handle = new ForEachHandle<T>(controller, simplePath);
+        handle = new ForEachHandle<T>(controller, simplePath);
         if (!this.finished) this.handles.add(handle);
 
         // Check current args immediately
@@ -425,13 +425,11 @@ export class ToolCallArgsReaderImpl<
         if (this.finished) handle.end();
       },
       cancel: () => {
-        // Find and dispose the corresponding handle
-        for (const handle of this.handles) {
-          if (handle instanceof ForEachHandle) {
-            handle.dispose();
-            this.handles.delete(handle);
-            break;
-          }
+        // Dispose this stream's own handle (captured above) — scanning for the
+        // first match would dispose a concurrent forEach()'s handle.
+        if (handle) {
+          handle.dispose();
+          this.handles.delete(handle);
         }
       },
     });
