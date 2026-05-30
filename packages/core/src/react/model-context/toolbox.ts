@@ -61,13 +61,22 @@ export type Toolkit = Record<string, ToolDefinition<any, any>>;
 
 /**
  * A tool as authored, before the build splits it: like {@link ToolDefinition}
- * but a `backend` entry may declare `description`, `parameters`, and a
- * server-side `execute` alongside its `render`.
+ * but it may declare `description`, `parameters`, and a server-side `execute`
+ * alongside its `render`. The `type` field is **not** authored — the
+ * `"use generative"` compiler infers it (`execute: hitl()` → human; `execute`
+ * with a `"use client"` directive → frontend; otherwise backend) and writes it
+ * back — so declaring it here is a type error.
  */
 export type ToolkitDeclarationDefinition<
   TArgs extends Record<string, unknown>,
   TResult,
-> = WithRender<ToolDeclaration<TArgs, TResult>, TArgs, TResult>;
+> = WithRender<
+  Omit<ToolDeclaration<TArgs, TResult>, "type">,
+  TArgs,
+  TResult
+> & {
+  type?: never;
+};
 
 /**
  * The permissive, authoring-time counterpart to {@link Toolkit} — the input to
