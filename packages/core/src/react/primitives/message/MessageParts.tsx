@@ -308,11 +308,9 @@ const ToolUIDisplay = ({
 }: {
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
-  const Render = useAuiState((s) => {
-    const Render = s.tools.tools[props.toolName] ?? Fallback;
-    if (Array.isArray(Render)) return Render[0] ?? Fallback;
-    return Render;
-  });
+  const Render = useAuiState(
+    (s) => s.tools.toolUIs[props.toolName]?.[0]?.render ?? Fallback,
+  );
   if (!Render) return null;
   return <Render {...props} />;
 };
@@ -574,8 +572,7 @@ function resolveToolRender(
   toolsState: ToolsState,
   part: Extract<PartState, { type: "tool-call" }>,
 ): ToolCallMessagePartComponent | null {
-  const entry = toolsState.tools[part.toolName];
-  const named = Array.isArray(entry) ? (entry[0] ?? null) : (entry ?? null);
+  const named = toolsState.toolUIs[part.toolName]?.[0]?.render ?? null;
   if (named) return named;
   if (isMcpAppUri(part.mcp?.app?.resourceUri) && toolsState.mcpApp) {
     return toolsState.mcpApp.render;

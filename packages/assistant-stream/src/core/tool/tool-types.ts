@@ -182,6 +182,21 @@ type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<
  */
 export type ProviderOptions = Record<string, Record<string, unknown>>;
 
+/**
+ * Controls how a tool call's UI is presented relative to the assistant's
+ * chain-of-thought trace.
+ *
+ * - `"inline"` — the tool call is part of the reasoning trace and is folded
+ *   into the chain-of-thought grouping alongside other routine tool calls.
+ * - `"standalone"` — the tool call is surfaced on its own, outside the
+ *   chain-of-thought grouping (e.g. a human-in-the-loop prompt, a generative
+ *   UI surface, or an important action UI worth showing prominently).
+ *
+ * This is a client-side presentation hint only; it does not affect how the
+ * tool is exposed to or executed by the model.
+ */
+type ToolDisplay = "standalone" | "inline";
+
 type ToolBase<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
@@ -190,6 +205,17 @@ type ToolBase<
    * @deprecated Experimental, API may change.
    */
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
+
+  /**
+   * How this tool's UI is presented relative to the chain-of-thought trace.
+   *
+   * Defaults to `"inline"` (folded into the chain-of-thought grouping).
+   * Set `"standalone"` to surface the tool call on its own. `human` tools are
+   * always `"standalone"` and cannot opt out.
+   *
+   * @see ToolDisplay
+   */
+  display?: ToolDisplay;
 };
 
 type BackendTool<
@@ -243,6 +269,8 @@ type HumanTool<
   parameters: StandardSchemaV1<TArgs> | JSONSchema7;
   /** Prevents the tool from being exposed to the model while true. */
   disabled?: boolean;
+  /** Human tools are always surfaced standalone and cannot opt out. */
+  display?: "standalone";
   execute?: undefined;
   toModelOutput?: undefined;
   experimental_onSchemaValidationError?: undefined;

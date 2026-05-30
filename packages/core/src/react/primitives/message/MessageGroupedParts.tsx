@@ -11,6 +11,7 @@ import type {
 import {
   buildGroupTree,
   GROUPBY_MEMO_KEY,
+  type GroupByContext,
   type GroupNode,
 } from "../../utils/groupParts";
 import { MessagePartChildren, type EnrichedPartState } from "./MessageParts";
@@ -86,6 +87,9 @@ export namespace MessagePrimitiveGroupedParts {
      * the helper isn't expressive enough (e.g. branching on
      * `part.toolName` or part metadata).
      *
+     * The second argument is a {@link GroupByContext} carrying the tool-UI
+     * registry, for grouping that depends on it (e.g. standalone tool calls).
+     *
      * @example
      * ```tsx
      * import { groupPartByType } from "@assistant-ui/react";
@@ -98,7 +102,10 @@ export namespace MessagePrimitiveGroupedParts {
      * >
      * ```
      */
-    readonly groupBy: (part: PartState) => readonly TKey[] | null;
+    readonly groupBy: (
+      part: PartState,
+      context: GroupByContext,
+    ) => readonly TKey[] | null;
 
     /**
      * Controls emission of the synthetic {@link IndicatorPart} — a
@@ -238,6 +245,8 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
   children,
 }: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode => {
   const parts = useAuiState(useShallow((s) => s.message.parts));
+  // Handed to `groupBy` as its `context` argument (see GroupByContext).
+  const toolUIs = useAuiState((s) => s.tools.toolUIs);
   // Subscribe to a boolean, not the status object: the tree only needs to
   // re-render when running-ness flips, and `"never"` opts out entirely.
   const isRunning = useAuiState((s) =>
@@ -253,11 +262,11 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
     GROUPBY_MEMO_KEY
   ];
   const memoDep = memoKey ?? groupBy;
-  const tree = useMemo(
-    () => buildGroupTree(parts.map((part) => groupBy(part) ?? [])),
+  const tree = useMemo(() => {
+    const context: GroupByContext = { toolUIs };
+    return buildGroupTree(parts.map((part) => groupBy(part, context) ?? []));
     // oxlint-disable-next-line tap-hooks/exhaustive-deps -- groupBy is captured via memoDep (either its identity or the helper's memoKey fingerprint); listing it directly would defeat the helper-tagged memo path
-    [parts, memoDep],
-  );
+  }, [parts, memoDep, toolUIs]);
 
   return (
     <>

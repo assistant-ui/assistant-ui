@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import type { AssistantToolProps as CoreAssistantToolProps } from "../..";
+import { isStandaloneToolDisplay } from "./toolbox";
 
 /**
  * Props used to register a tool from React.
@@ -52,13 +53,17 @@ export const useAssistantTool = <
 ) => {
   const aui = useAui();
 
-  useEffect(() => {
-    if (!tool.render) return undefined;
-    return aui.tools().setToolUI(tool.toolName, tool.render);
-  }, [aui, tool.toolName, tool.render]);
+  const standalone = isStandaloneToolDisplay(tool);
 
   useEffect(() => {
-    const { toolName, render, ...rest } = tool;
+    if (!tool.render) return undefined;
+    return aui.tools().setToolUI(tool.toolName, tool.render, { standalone });
+  }, [aui, tool.toolName, tool.render, standalone]);
+
+  useEffect(() => {
+    // `render` and `display` are client-only presentation concerns and never
+    // reach the model.
+    const { toolName, render, display, ...rest } = tool;
     const context = {
       tools: {
         [toolName]: rest,

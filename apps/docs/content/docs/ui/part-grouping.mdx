@@ -206,6 +206,52 @@ Separate different types of content for distinct visual treatment:
 </MessagePrimitive.GroupedParts>
 ```
 
+### Keep Standalone Tool UIs Out of the Trace
+
+Tool UIs fall into three buckets: prompting the user (human-in-the-loop), informing the user (generative UI), and traces of what the model is doing (routine tool calls). The first two should be surfaced on their own, while the last belongs folded into a collapsible chain-of-thought group.
+
+Mark a tool with `display: "standalone"` to keep its UI out of the grouped trace. `human` tools and MCP apps are standalone automatically; every other tool defaults to `"inline"` and opts in explicitly:
+
+```tsx
+const toolkit = {
+  ask_user: { type: "human", render: AskUI }, // standalone (forced)
+  search_web: { type: "frontend", render: SearchUI }, // inline trace (default)
+  checkout: {
+    type: "frontend",
+    render: CheckoutUI,
+    display: "standalone", // opt in
+  },
+} satisfies Toolkit;
+```
+
+The synthetic `"standalone-tool-call"` key on `groupPartByType` matches all of these. `MessagePrimitive.GroupedParts` passes the live tool-UI registry to `groupBy` as a second `context` argument, and the helper reads it to resolve the registry-driven cases — MCP-app calls are detected from the part alone, so nothing is threaded in:
+
+```tsx
+<MessagePrimitive.GroupedParts
+  groupBy={groupPartByType({
+    reasoning: ["group-chainOfThought", "group-reasoning"],
+    "tool-call": ["group-chainOfThought", "group-tool"],
+    "standalone-tool-call": [], // ungrouped — rendered on its own
+  })}
+>
+  {({ part, children }) => {
+    switch (part.type) {
+      case "group-chainOfThought":
+        return <div className="chain-of-thought">{children}</div>;
+      case "tool-call":
+        return part.toolUI ?? <ToolFallback {...part} />;
+      // ...
+      default:
+        return null;
+    }
+  }}
+</MessagePrimitive.GroupedParts>;
+```
+
+<Callout type="info">
+  The `"mcp-app"` key is deprecated in favor of `"standalone-tool-call"`, which is a superset (it also matches MCP-app tool calls). Existing `"mcp-app"` usage keeps working.
+</Callout>
+
 ### Group by Custom Metadata
 
 Use any custom metadata in your parts for grouping:

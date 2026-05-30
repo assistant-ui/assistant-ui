@@ -1,5 +1,17 @@
 import { isMcpAppUri } from "../../types/message";
 import type { PartState } from "../../store/scopes/part";
+import type { ToolsState } from "../types/scopes/tools";
+
+/**
+ * Registry context passed to a `groupBy` function as its second argument by
+ * `<MessagePrimitive.GroupedParts>`. Carries the live tool-UI registry so a
+ * `groupBy` can resolve registry-driven grouping (e.g. standalone tool calls)
+ * without the part itself having to carry that information.
+ */
+export type GroupByContext = {
+  /** Tool UIs registered in the tool-UI registry, keyed by tool name. */
+  readonly toolUIs?: ToolsState["toolUIs"];
+};
 
 /**
  * Hierarchical adjacent-coalescing grouping for message parts.
@@ -25,12 +37,20 @@ export const GROUPBY_MEMO_KEY: unique symbol = Symbol.for(
 );
 
 /**
- * Synthetic part-type key recognized by {@link groupPartByType}: a
- * tool-call whose `mcp.app.resourceUri` points at an assistant-ui MCP
- * app. Map this key to control how MCP-app tool calls are grouped —
- * separately from regular `"tool-call"` parts.
+ * Synthetic part-type keys recognized by {@link groupPartByType}, in
+ * addition to real {@link PartState} types:
+ *
+ * - `"standalone-tool-call"` — a tool-call whose UI should be presented on its
+ *   own, outside the chain-of-thought grouping. Matches MCP-app tool calls plus
+ *   any tool-call whose registered UI opts into standalone display (human
+ *   tools, the built-in generative-UI tool, and tools that set
+ *   `display: "standalone"`). Resolving the registry-driven cases reads the
+ *   {@link GroupByContext} passed to the `groupBy` function. Takes precedence
+ *   over the `"tool-call"` entry.
+ * - `"mcp-app"` — **deprecated**, kept for back-compat. Matches only MCP-app
+ *   tool calls. Prefer `"standalone-tool-call"`, which is a superset.
  */
-type GroupPartType = PartState["type"] | "mcp-app";
+type GroupPartType = PartState["type"] | "standalone-tool-call" | "mcp-app";
 
 /**
  * Build a `groupBy` from a `part.type → group-key path` lookup.
@@ -38,9 +58,12 @@ type GroupPartType = PartState["type"] | "mcp-app";
  * function carries a stable {@link GROUPBY_MEMO_KEY} fingerprint so
  * `<MessagePrimitive.GroupedParts>` can memoize its tree across renders.
  *
- * Special key `"mcp-app"` matches tool-call parts that point at an
- * assistant-ui MCP app resource (`ui://...`) and takes precedence over
- * the `"tool-call"` entry for those parts.
+ * The synthetic `"standalone-tool-call"` key matches tool calls that should
+ * render outside the chain-of-thought grouping. MCP-app calls are detected from
+ * the part alone; the registry-driven cases (human tools, the generative-UI
+ * tool, `display: "standalone"` opt-ins) are resolved from the
+ * {@link GroupByContext} that `<MessagePrimitive.GroupedParts>` passes to the
+ * `groupBy` function — the helper needs nothing threaded into it.
  *
  * @example
  * ```tsx
@@ -48,7 +71,7 @@ type GroupPartType = PartState["type"] | "mcp-app";
  *   groupBy={groupPartByType({
  *     reasoning: ["group-thought", "group-reasoning"],
  *     "tool-call": ["group-thought", "group-tool"],
- *     "mcp-app": [],
+ *     "standalone-tool-call": [],
  *   })}
  * >
  *   {({ part, children }) => { ... }}
@@ -57,18 +80,25 @@ type GroupPartType = PartState["type"] | "mcp-app";
  */
 export const groupPartByType = <TKey extends `group-${string}`>(
   map: Partial<Readonly<Record<GroupPartType, readonly TKey[]>>>,
-): ((part: PartState) => readonly TKey[]) => {
+): ((part: PartState, context?: GroupByContext) => readonly TKey[]) => {
   const lookup = map as Readonly<Record<string, readonly TKey[] | undefined>>;
-  const fn = ((part) => {
-    if (
-      part.type === "tool-call" &&
-      lookup["mcp-app"] !== undefined &&
-      isMcpAppUri(part.mcp?.app?.resourceUri)
-    ) {
-      return lookup["mcp-app"]!;
+  const fn = ((part, context) => {
+    if (part.type === "tool-call") {
+      const isMcpApp = isMcpAppUri(part.mcp?.app?.resourceUri);
+      const isStandalone =
+        isMcpApp ||
+        (context?.toolUIs?.[part.toolName]?.some((ui) => ui.standalone) ??
+          false);
+      if (isStandalone && lookup["standalone-tool-call"] !== undefined) {
+        return lookup["standalone-tool-call"]!;
+      }
+      // TODO(v0.15): drop the deprecated "mcp-app" key (superseded by "standalone-tool-call").
+      if (isMcpApp && lookup["mcp-app"] !== undefined) {
+        return lookup["mcp-app"]!;
+      }
     }
     return lookup[part.type] ?? [];
-  }) as ((part: PartState) => readonly TKey[]) & {
+  }) as ((part: PartState, context?: GroupByContext) => readonly TKey[]) & {
     [GROUPBY_MEMO_KEY]?: string;
   };
   // Sort keys so the fingerprint is insensitive to map insertion order —
