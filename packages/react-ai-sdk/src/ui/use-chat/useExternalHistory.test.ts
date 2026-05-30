@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type {
   AssistantRuntime,
   MessageFormatAdapter,
+  MessageFormatRepository,
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
@@ -15,7 +16,10 @@ vi.mock("@assistant-ui/store", () => ({
   }),
 }));
 
-import { useExternalHistory } from "./useExternalHistory";
+import {
+  toExportedMessageRepository,
+  useExternalHistory,
+} from "./useExternalHistory";
 
 const noopThread = {
   subscribe: () => () => {},
@@ -103,5 +107,26 @@ describe("useExternalHistory withFormat contract", () => {
     ).not.toThrow();
 
     expect(adapter.withFormat).toHaveBeenCalledWith(storageFormat);
+  });
+});
+
+describe("toExportedMessageRepository", () => {
+  it("skips rows that fail to convert instead of emitting an undefined message", () => {
+    const repo: MessageFormatRepository<{ kind: string }> = {
+      headId: "good",
+      messages: [
+        { parentId: null, message: { kind: "bad" } },
+        { parentId: "good", message: { kind: "good" } },
+      ],
+    };
+
+    const convert = (items: { kind: string }[]): ThreadMessage[] =>
+      items[0]!.kind === "good" ? [{ id: "good" } as ThreadMessage] : [];
+
+    const result = toExportedMessageRepository(convert, repo);
+
+    expect(result.messages).toHaveLength(1);
+    expect(result.messages[0]!.message).toEqual({ id: "good" });
+    expect(result.messages.every((m) => m.message !== undefined)).toBe(true);
   });
 });

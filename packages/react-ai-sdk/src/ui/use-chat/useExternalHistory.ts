@@ -26,12 +26,10 @@ export const toExportedMessageRepository = <TMessage>(
 ): ExportedMessageRepository => {
   return {
     headId: messages.headId!,
-    messages: messages.messages.map((m) => {
-      const message = toThreadMessages([m.message])[0]!;
-      return {
-        ...m,
-        message,
-      };
+    messages: messages.messages.flatMap((m) => {
+      const message = toThreadMessages([m.message])[0];
+      if (!message) return [];
+      return [{ ...m, message }];
     }),
   };
 };
