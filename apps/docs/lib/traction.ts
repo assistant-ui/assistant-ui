@@ -228,11 +228,6 @@ export const PACKAGES: PackageInfo[] = [
     category: "effects",
   },
   {
-    name: "mcp-app-studio",
-    description: "Build interactive apps for MCP hosts.",
-    category: "mcp",
-  },
-  {
     name: "@assistant-ui/mcp-docs-server",
     description: "MCP server exposing assistant-ui docs.",
     category: "mcp",

@@ -65,7 +65,6 @@
     "**/.tanstack/**",
     "**/.output/**",
     "**/routeTree.gen.ts",
-    "**/packages/mcp-app-studio/templates/**",
     "**/*.html",
     "**/build/**",
     "**/.turbo/**",

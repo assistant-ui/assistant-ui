@@ -148,32 +148,6 @@ export const analytics = {
       trackEvent("package_manager_selected", { package_manager: pm }),
   },
 
-  mcpAppStudio: {
-    sectionViewed: (section: string) =>
-      trackEvent("mcp_app_studio_section_viewed", { section }),
-
-    workbenchFullscreenToggled: (open: boolean) =>
-      trackEvent("mcp_app_studio_workbench_fullscreen_toggled", { open }),
-
-    workbenchIframeLoaded: (
-      variant: "inline" | "fullscreen",
-      elapsedMs?: number,
-    ) =>
-      trackEvent("mcp_app_studio_workbench_iframe_loaded", {
-        variant,
-        ...(elapsedMs === undefined ? {} : { elapsed_ms: elapsedMs }),
-      }),
-
-    workbenchIframeFailed: (
-      variant: "inline" | "fullscreen",
-      elapsedMs?: number,
-    ) =>
-      trackEvent("mcp_app_studio_workbench_iframe_failed", {
-        variant,
-        ...(elapsedMs === undefined ? {} : { elapsed_ms: elapsedMs }),
-      }),
-  },
-
   assistant: {
     feedbackShown: (props: {
       threadId: string;

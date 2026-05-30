@@ -32,7 +32,6 @@
     "**/coverage/**",
     "**/CHANGELOG.md",
     "**/pnpm-lock.yaml",
-    "packages/mcp-app-studio/templates/**",
     "**/*.html",
     "**/*.md",
     "**/*.mdx",
