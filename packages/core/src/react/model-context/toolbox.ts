@@ -13,7 +13,7 @@ import type { ToolCallMessagePartComponent } from "../types/MessagePartComponent
 export const isStandaloneToolDisplay = (
   tool: Pick<Tool<any, any>, "type" | "display">,
 ): boolean => {
-  if (tool.display) return tool.display === "standalone";
+  if (tool.display !== undefined) return tool.display === "standalone";
   return tool.type === "human";
 };
 
