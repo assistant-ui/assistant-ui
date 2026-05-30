@@ -29,9 +29,8 @@ function indirectionVariant(resourcePath: string): Target | null {
 /** The concrete build forced by a `?generative-env=client|server` resource query. */
 function queryTarget(resourceQuery: string | undefined): Target | null {
   if (!resourceQuery) return null;
-  const g = new URLSearchParams(resourceQuery.replace(/^\?/, "")).get(
-    "generative-env",
-  );
+  // URLSearchParams strips a leading "?" per spec.
+  const g = new URLSearchParams(resourceQuery).get("generative-env");
   return g === "server" || g === "client" ? g : null;
 }
 
