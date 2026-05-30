@@ -12,13 +12,21 @@ See [SPEC.md](./SPEC.md) for the full design.
 `"use client"` is whole-module, so it can't keep a tool's zod schema readable on
 the server while keeping its `render` on the client. And a backend `execute`
 holds secrets (DB handles, API keys) that must never reach the browser bundle.
-`"use generative"` routes each property to the right place:
+`"use generative"` routes each property to the right place.
 
-| `type`     | `description`/`properties` | `render` | `execute`                       |
-| ---------- | -------------------------- | -------- | ------------------------------- |
-| `frontend` | both                       | client   | client                          |
-| `backend`  | both                       | client   | server (`server-only` guard)    |
-| `human`    | both                       | client   | —                               |
+Every tool **must** declare an `execute`, and you wrap the default export in
+`defineToolkit({ ... })` (both are enforced — the compiler errors otherwise). You
+don't declare a tool's kind: the compiler **infers** it from the `execute` and
+writes a `type` field back into the output.
+
+| how you author the `execute`              | kind       | where it runs                |
+| ----------------------------------------- | ---------- | ---------------------------- |
+| `execute` with a `"use client"` directive | `frontend` | client                       |
+| `execute` (plain)                         | `backend`  | server (`server-only` guard) |
+| `execute: hitl()`                         | `human`    | — (the UI supplies a result) |
+
+A plain `execute` is server-only by default — you can only run one in the browser
+by opting in with `"use client"`, so secrets can't leak by omission.
 
 ## Authoring
 
@@ -31,19 +39,25 @@ import { Chart } from "@/ui/chart"; // client-only
 
 export default defineToolkit({
   weather: {
-    type: "backend",
     description: "Show the weather for a city.",
     properties: z.object({ city: z.string() }),
-    execute: async ({ city }) => db.weather.get(city), // stays on the server
+    execute: async ({ city }) => db.weather.get(city), // backend → stays on the server
     render: (props) => <Chart data={props} />, // stays on the client
   },
 });
 ```
 
-The server build of this file keeps `properties` + `execute` (guarded by
-`import "server-only"`) and drops `render` and `@/ui/chart`. The client build
-keeps `properties` + `render` (under `"use client"`) and drops `execute` and
-`@/db`.
+The server build keeps `properties` + `execute` (guarded by `import
+"server-only"`, tagged `type: "backend"`) and drops `render` and `@/ui/chart`.
+The client build keeps `properties` + `render` (under `"use client"`) and drops
+`execute` and `@/db`. A `frontend` tool marks its `execute` with `"use client"`:
+
+```tsx
+execute: async ({ city }) => {
+  "use client";
+  return navigator.geolocation /* … runs in the browser, kept client-side */;
+},
+```
 
 ## Wiring into Next.js
 

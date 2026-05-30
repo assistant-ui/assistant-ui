@@ -13,7 +13,6 @@ import { defineToolkit } from "@assistant-ui/next";
 export default defineToolkit({
   // Weather data powered by Open-Meteo (https://open-meteo.com/)
   geocode_location: {
-    type: "backend",
     description: "Geocode a location using Open-Meteo's geocoding API",
     parameters: z.object({
       query: z.string(),
@@ -68,7 +67,6 @@ export default defineToolkit({
     },
   },
   weather_search: {
-    type: "backend",
     description:
       "Find the weather in a location given a longitude and latitude",
     parameters: z.object({

@@ -10,24 +10,25 @@ import { z } from "zod";
 import { db } from "@/db";
 import { track } from "@/analytics";
 import { Chart } from "@/ui/chart";
-import type { Toolkit } from "@assistant-ui/react";
+import { defineToolkit } from "@assistant-ui/next";
 
-export default {
+export default defineToolkit({
   weather: {
-    type: "backend",
     description: "Show the weather.",
     properties: z.object({ city: z.string() }),
     execute: async ({ city }) => db.weather.get(city),
     render: (props) => <Chart data={props} />,
   },
   toast: {
-    type: "frontend",
     description: "Show a toast.",
     properties: z.object({ msg: z.string() }),
-    execute: async ({ msg }) => track(msg),
+    execute: async ({ msg }) => {
+      "use client";
+      return track(msg);
+    },
     render: (props) => <div>{props.msg}</div>,
   },
-} satisfies Toolkit;
+});
 `;
 
 const server = () => compileGenerative(source, { target: "server" }).code;
@@ -46,6 +47,11 @@ describe("compileGenerative — server target", () => {
     expect(code).toContain('import "server-only"');
     expect(code).toContain("db.weather.get");
     expect(code).toContain('import { db } from "@/db"');
+  });
+
+  it("writes the inferred type back onto each tool", () => {
+    expect(code).toContain('type: "backend"'); // weather: execute, no "use client"
+    expect(code).toContain('type: "frontend"'); // toast: execute + "use client"
   });
 
   it("drops all render and its client imports", () => {
@@ -80,9 +86,16 @@ describe("compileGenerative — client target", () => {
     expect(code).toContain("z.object");
   });
 
-  it("keeps a frontend execute and its client imports", () => {
+  it("keeps a frontend execute (and drops its `use client` marker)", () => {
     expect(code).toContain("track(msg)");
     expect(code).toContain("@/analytics");
+    // exactly one "use client" — the module directive, not the execute body's
+    expect(code.match(/use client/g)?.length).toBe(1);
+  });
+
+  it("writes the inferred type back onto each tool", () => {
+    expect(code).toContain('type: "backend"'); // weather (schema-only on client)
+    expect(code).toContain('type: "frontend"'); // toast
   });
 
   it("drops a backend execute and its server-only imports", () => {
@@ -99,16 +112,16 @@ import { cn } from "@/lib/utils";
 import { db } from "@/db";
 
 const Badge = ({ label }) => <span className={cn("badge")}>{label}</span>;
+import { defineToolkit } from "@assistant-ui/next";
 
-export default {
+export default defineToolkit({
   weather: {
-    type: "backend",
     description: "weather",
     properties: z.object({ city: z.string() }),
     execute: async ({ city }) => db.weather.get(city),
     render: (props) => <Badge label={props.city} />,
   },
-} satisfies Toolkit;
+});
 `;
 
   it("strips a local helper component (and its imports) from the server", () => {
@@ -144,7 +157,6 @@ import { db } from "@/db";
 import { defineToolkit } from "@assistant-ui/next";
 export default defineToolkit({
   weather: {
-    type: "backend",
     properties: z.object({ city: z.string() }),
     execute: async ({ city }) => db.get(city),
     render: (props) => <span>{props.city}</span>,
@@ -164,30 +176,48 @@ export default defineToolkit({
     expect(clientCode).not.toContain("@/db");
   });
 
-  it("rejects a non-literal default export", () => {
-    expect(() =>
-      compileGenerative(`"use generative";\nexport default makeToolkit();`, {
-        target: "server",
-      }),
-    ).toThrow(/object literal/);
-  });
-
-  it("rejects an execute without a static type", () => {
+  it("requires the defineToolkit() wrapper", () => {
     expect(() =>
       compileGenerative(
         `"use generative";\nexport default { a: { execute: async () => 1 } };`,
         { target: "server" },
       ),
-    ).toThrow(/static `type`/);
+    ).toThrow(/defineToolkit/);
+    expect(() =>
+      compileGenerative(`"use generative";\nexport default makeToolkit();`, {
+        target: "server",
+      }),
+    ).toThrow(/defineToolkit/);
   });
 
-  it("rejects an unknown `type` value (would otherwise leak execute)", () => {
+  it("requires every tool to declare an execute", () => {
     expect(() =>
       compileGenerative(
-        `"use generative";\nexport default { a: { type: "Backend", execute: async () => 1, render: () => null } };`,
+        `"use generative";\nimport { defineToolkit } from "@assistant-ui/next";\nexport default defineToolkit({ ask: { render: () => null } });`,
         { target: "client" },
       ),
-    ).toThrow(/"frontend" \| "backend" \| "human"/);
+    ).toThrow(/must declare an `execute`/);
+  });
+
+  it("infers `human` from execute: hitl() and drops it on both builds", () => {
+    const src = `"use generative";\nimport { defineToolkit, hitl } from "@assistant-ui/next";\nexport default defineToolkit({ ask: { execute: hitl(), render: () => null } });`;
+    const server = compileGenerative(src, { target: "server" }).code;
+    expect(server).toContain('type: "human"');
+    expect(server).not.toContain("hitl"); // sentinel + its import pruned
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client).toContain('type: "human"');
+    expect(client).not.toContain("hitl");
+    expect(client).toContain("render");
+  });
+
+  it("infers `frontend` from a `use client` execute and keeps it client-side", () => {
+    const src = `"use generative";\nimport { defineToolkit } from "@assistant-ui/next";\nimport { track } from "@/a";\nexport default defineToolkit({ t: { execute: async () => { "use client"; return track(); }, render: () => null } });`;
+    const server = compileGenerative(src, { target: "server" }).code;
+    expect(server).toContain('type: "frontend"');
+    expect(server).not.toContain("track"); // frontend execute dropped on server
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client).toContain('type: "frontend"');
+    expect(client).toContain("track()");
   });
 
   it("detects generative modules by directive", () => {

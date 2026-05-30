@@ -94,28 +94,27 @@ export function compileGenerative(
     const value = entryValue(entry);
     if (!value) continue;
 
-    const type = readToolType(value, filename);
+    // Nature is inferred from `execute` (see inferToolType), not an authored
+    // `type`. The resolved type is written back below so the runtime keeps it.
+    const type = inferToolType(value, filename);
     const hasRender = !!findMember(value, "render");
-    const hasExecute = !!findMember(value, "execute");
-
-    if (hasExecute && !type) {
-      throw new GenerativeCompileError(
-        `tool "${entryName(entry) ?? "?"}" has an \`execute\` but no static \`type\`; ` +
-          `add type: "frontend" | "backend" | "human"`,
-        filename,
-      );
-    }
+    const execute = findMember(value, "execute");
 
     if (target === "client") {
-      // Drop a backend tool's execute; frontend execute stays with render.
-      if (hasExecute && type === "backend") removeMember(value, "execute");
+      // A frontend execute stays (its `"use client"` marker is no longer needed
+      // once the module is client); a backend execute and a human `hitl()`
+      // sentinel are both dropped.
+      if (execute && type === "frontend") stripUseClient(execute);
+      else if (execute) removeMember(value, "execute");
       if (hasRender) keptRender = true;
     } else {
       // server: render is never needed; only a backend execute survives.
       if (hasRender) removeMember(value, "render");
-      if (hasExecute && type !== "backend") removeMember(value, "execute");
-      if (hasExecute && type === "backend") keptBackendExecute = true;
+      if (execute && type !== "backend") removeMember(value, "execute");
+      if (execute && type === "backend") keptBackendExecute = true;
     }
+
+    setToolType(value, type);
   }
 
   pruneUnused(ast);
@@ -158,9 +157,9 @@ function findDefaultExportObject(
   for (const stmt of ast.program.body) {
     if (!t.isExportDefaultDeclaration(stmt)) continue;
     sawDefault = true;
-    object = unwrapToObject(stmt.declaration);
-    // Emit the bare object literal, dropping authoring wrappers
-    // (`satisfies Toolkit`, `defineToolkit(...)`) and the imports they pulled.
+    object = unwrapDefineToolkit(stmt.declaration);
+    // Emit the bare object literal, dropping the `defineToolkit(...)` wrapper
+    // (and the import it pulled).
     if (object) stmt.declaration = object;
   }
 
@@ -169,8 +168,9 @@ function findDefaultExportObject(
   }
   if (!object) {
     throw new GenerativeCompileError(
-      "the default export must be an object literal " +
-        "(optionally wrapped in `satisfies`/`as` or a `define`-style helper call)",
+      "the default export must be `defineToolkit({ ... })` (imported from " +
+        '"@assistant-ui/next"); wrapping is required so a backend `execute` ' +
+        "can't be authored in a way that reaches the client",
       filename,
     );
   }
@@ -178,17 +178,24 @@ function findDefaultExportObject(
 }
 
 /**
- * Drills through `satisfies`/`as`, parens, and a wrapping helper call
- * (e.g. `defineToolkit({...})`) to the underlying object literal.
+ * Unwraps the required `defineToolkit({ ... })` wrapper (through `satisfies`/`as`
+ * and parens) to the underlying object literal. Anything else — a bare object, a
+ * `satisfies Toolkit` without the wrapper, some other call — yields `null` so the
+ * caller errors.
  */
-function unwrapToObject(node: t.Node): t.ObjectExpression | null {
+function unwrapDefineToolkit(node: t.Node): t.ObjectExpression | null {
   if (t.isTSSatisfiesExpression(node) || t.isTSAsExpression(node)) {
-    return unwrapToObject(node.expression);
+    return unwrapDefineToolkit(node.expression);
   }
-  if (t.isParenthesizedExpression(node)) return unwrapToObject(node.expression);
-  if (t.isObjectExpression(node)) return node;
-  if (t.isCallExpression(node) && node.arguments.length > 0) {
-    return unwrapToObject(node.arguments[0]!);
+  if (t.isParenthesizedExpression(node)) {
+    return unwrapDefineToolkit(node.expression);
+  }
+  if (
+    t.isCallExpression(node) &&
+    t.isIdentifier(node.callee, { name: "defineToolkit" }) &&
+    t.isObjectExpression(node.arguments[0])
+  ) {
+    return node.arguments[0];
   }
   return null;
 }
@@ -200,11 +207,6 @@ function entryValue(entry: Entry): t.ObjectExpression | null {
     return entry.value;
   }
   return null;
-}
-
-function entryName(entry: Entry): string | undefined {
-  if (t.isObjectProperty(entry)) return memberName(entry.key, entry.computed);
-  return undefined;
 }
 
 /** A member of an entry object: `render`/`execute`/`type`, as property or method. */
@@ -229,28 +231,75 @@ function removeMember(object: t.ObjectExpression, name: string): void {
   );
 }
 
-function readToolType(
+/** The `BlockStatement` body of an `execute` member, if it has one. */
+function executeBody(
+  member: t.ObjectProperty | t.ObjectMethod,
+): t.BlockStatement | undefined {
+  if (t.isObjectMethod(member)) return member.body;
+  const value = member.value;
+  if (
+    (t.isArrowFunctionExpression(value) || t.isFunctionExpression(value)) &&
+    t.isBlockStatement(value.body)
+  ) {
+    return value.body;
+  }
+  return undefined;
+}
+
+/** Whether an `execute` opts into the client via a leading `"use client"`. */
+function executeIsClient(member: t.ObjectProperty | t.ObjectMethod): boolean {
+  return !!executeBody(member)?.directives.some(
+    (d) => d.value.value === "use client",
+  );
+}
+
+/** Whether an `execute` is the `hitl()` human-in-the-loop sentinel. */
+function executeIsHitl(member: t.ObjectProperty | t.ObjectMethod): boolean {
+  return (
+    t.isObjectProperty(member) &&
+    t.isCallExpression(member.value) &&
+    t.isIdentifier(member.value.callee, { name: "hitl" })
+  );
+}
+
+/** Drops the `"use client"` directive from an `execute` body (kept frontend). */
+function stripUseClient(member: t.ObjectProperty | t.ObjectMethod): void {
+  const body = executeBody(member);
+  if (body) {
+    body.directives = body.directives.filter(
+      (d) => d.value.value !== "use client",
+    );
+  }
+}
+
+/**
+ * The tool's nature, inferred from its (mandatory) `execute` rather than an
+ * authored `type`: `hitl()` → `human`; `"use client"` → `frontend`; otherwise
+ * `backend`. The loader writes the result back as a `type` field (see
+ * {@link setToolType}) so the runtime keeps it.
+ */
+function inferToolType(
   object: t.ObjectExpression,
   filename: string | undefined,
-): ToolType | undefined {
-  const member = findMember(object, "type");
-  if (!member || !t.isObjectProperty(member)) return undefined;
-  if (!t.isStringLiteral(member.value)) {
+): ToolType {
+  const execute = findMember(object, "execute");
+  if (!execute) {
     throw new GenerativeCompileError(
-      "`type` must be a static string literal so it can route `execute`",
+      "every tool must declare an `execute`; use `hitl()` for a " +
+        "human-in-the-loop tool",
       filename,
     );
   }
-  const value = member.value.value;
-  if (value !== "frontend" && value !== "backend" && value !== "human") {
-    // A typo here would otherwise route as non-backend and keep `execute` in
-    // the client build — leaking server code. Reject unknown values.
-    throw new GenerativeCompileError(
-      `\`type\` must be "frontend" | "backend" | "human", got ${JSON.stringify(value)}`,
-      filename,
-    );
-  }
-  return value;
+  if (executeIsHitl(execute)) return "human";
+  return executeIsClient(execute) ? "frontend" : "backend";
+}
+
+/** Writes the resolved `type` back onto the tool object (replacing any author's). */
+function setToolType(object: t.ObjectExpression, type: ToolType): void {
+  removeMember(object, "type");
+  object.properties.unshift(
+    t.objectProperty(t.identifier("type"), t.stringLiteral(type)),
+  );
 }
 
 function memberName(

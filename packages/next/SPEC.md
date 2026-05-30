@@ -8,7 +8,7 @@ A tool has three regions of code with three different deployment targets:
 | --------------------------- | ---------------------------------- | ---------------- |
 | `description` / `properties`| needed (→ LLM, parse)              | needed (→ parse) |
 | `render`                    | **must not load** (React/CSS/DOM)  | needed           |
-| `execute`                   | depends on `type` (see routing)    | depends on `type`|
+| `execute`                   | depends on kind (see routing)      | depends on kind  |
 
 We want to **colocate all three in one source file** for DX, but keep `render`'s
 client deps out of the server bundle and — more importantly — keep a backend
@@ -22,50 +22,52 @@ routing. That is what the `"use generative"` directive provides.
 
 ## The directive
 
-A module opts in with a leading directive and a single default export:
+A module opts in with a leading directive and a single default export wrapped in
+`defineToolkit`:
 
 ```tsx
 "use generative";
 import { z } from "zod";
+import { defineToolkit } from "@assistant-ui/next";
 import { db } from "@/db"; // server-only dependency
 import { Chart } from "@/ui/chart"; // client-only dependency
 
-export default {
+export default defineToolkit({
   weather: {
-    type: "backend",
     description: "Show the weather for a city.",
     properties: z.object({ city: z.string() }),
-    execute: async ({ city }) => db.weather.get(city), // server-only
+    execute: async ({ city }) => db.weather.get(city), // backend (server-only)
     render: (props) => <Chart data={props} />, // client-only
   },
-} satisfies Toolkit;
+});
 ```
 
 The file is imported from both server and client code; the compiler emits a
 different module per build target so each side only loads what it needs.
 
-## Routing (by `tool.type`)
+## Routing (by inferred kind)
 
-`type` is read as a static string literal from each entry. It decides where
-`execute` runs; `render` and the schema are routed the same way regardless.
+A tool's kind is **not authored** — declaring a `type` field is a type error. The
+compiler infers it from the `execute` and writes the resolved `type` back into
+each emitted tool object (so the runtime keeps it):
 
-| `type`     | `description`/`properties` | `render` | `execute`                       |
-| ---------- | -------------------------- | -------- | ------------------------------- |
-| `frontend` | both                       | client   | **client** (bundled with render)|
-| `backend`  | both                       | client   | **server** (`server-only` leaf) |
-| `human`    | both                       | client   | — (none)                        |
+| how it's authored                         | inferred kind | `render` | `execute`                        |
+| ----------------------------------------- | ------------- | -------- | -------------------------------- |
+| `execute` with a `"use client"` directive | `frontend`    | client   | **client** (bundled with render) |
+| `execute` (plain)                         | `backend`     | client   | **server** (`server-only` leaf)  |
+| `execute: hitl()`                         | `human`       | client   | — (dropped; the UI resolves it)  |
 
 Consequences:
 
 - For `frontend` entries the server keeps **schema only** — render *and* execute
   are client concerns.
-- `backend` is the only `type` that produces the server-only secrets boundary;
-  its `execute` leaf imports `server-only`, so any routing mistake that pulls it
-  into the client build fails the build instead of leaking secrets.
-
-> Future: a `"use server"` / `"use client"` header on an individual `execute`
-> could override the `type`-derived routing (e.g. a `frontend` tool whose
-> `execute` calls a server action). Out of scope for v1.
+- `backend` is the only kind that produces the server-only secrets boundary; its
+  `execute` leaf imports `server-only`, so any routing mistake that pulls it into
+  the client build fails the build instead of leaking secrets.
+- **Server-by-default is the safe default:** a plain `execute` stays server-only,
+  so a forgotten marker can't leak — you opt *into* the client with `"use client"`.
+  A frontend `execute`'s `"use client"` is stripped from the output (the module
+  already carries it).
 
 ## Compile targets
 
@@ -137,10 +139,11 @@ the client per request — the server owns it.
 ## Authoring constraints (enforced, with errors)
 
 1. A leading `"use generative"` directive.
-2. A single `export default` that is an object literal (optionally wrapped in
-   `satisfies` / `as`). No other exports.
-3. Each entry's `type` (when `execute` is present) must be a static string
-   literal — it is the router.
+2. A single `export default defineToolkit({ ... })` (the wrapper is required;
+   optionally inside `satisfies` / `as`). No other exports.
+3. Every tool must declare an `execute`. Its form determines the kind: `hitl()`
+   → human; a leading `"use client"` directive → frontend (needs a block body,
+   not an expression body); otherwise backend. `type` is never authored.
 4. `render` / `execute` must be inline functions that close over **module
    imports only**, so they can be routed/pruned without dragging local scope.
 
