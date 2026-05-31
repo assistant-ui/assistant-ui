@@ -193,6 +193,8 @@ export {
   useInlineRender,
   type Toolkit,
   type ToolDefinition,
+  defineToolkit,
+  hitl,
   Tools,
   DataRenderers,
   Interactables,

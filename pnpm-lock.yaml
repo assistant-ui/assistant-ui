@@ -539,6 +539,9 @@ importers:
         specifier: ^19.2.6
         version: 19.2.6(react@19.2.6)
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -600,6 +603,9 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -667,6 +673,9 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -740,6 +749,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -813,6 +825,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -880,6 +895,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -1014,6 +1032,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -1084,6 +1105,9 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -1145,6 +1169,9 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -1221,6 +1248,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -1312,6 +1342,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -1394,6 +1427,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -1543,6 +1579,9 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -1622,6 +1661,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -1695,6 +1737,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -1768,6 +1813,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -1811,6 +1859,9 @@ importers:
         specifier: ^19.2.6
         version: 19.2.6(react@19.2.6)
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -1872,6 +1923,9 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -1942,6 +1996,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -2012,6 +2069,9 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -2079,6 +2139,9 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -2173,6 +2236,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -2340,6 +2406,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -2416,6 +2485,9 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -2611,6 +2683,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -2657,6 +2732,9 @@ importers:
         specifier: ^19.2.6
         version: 19.2.6(react@19.2.6)
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -2791,6 +2869,9 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
@@ -3088,31 +3169,13 @@ importers:
 
   packages/next:
     dependencies:
-      '@babel/generator':
-        specifier: ^7.29.7
-        version: 7.29.7
-      '@babel/parser':
-        specifier: ^7.29.7
-        version: 7.29.7
-      '@babel/traverse':
-        specifier: ^7.29.7
-        version: 7.29.7
-      '@babel/types':
-        specifier: ^7.29.7
-        version: 7.29.7
+      '@assistant-ui/x-generative-compiler':
+        specifier: workspace:^
+        version: link:../x-generative-compiler
     devDependencies:
-      '@assistant-ui/core':
-        specifier: workspace:*
-        version: link:../core
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
-      '@types/babel__generator':
-        specifier: ^7.27.0
-        version: 7.27.0
-      '@types/babel__traverse':
-        specifier: ^7.28.0
-        version: 7.28.0
       '@types/node':
         specifier: ^25.9.1
         version: 25.9.1
@@ -4077,6 +4140,25 @@ importers:
         specifier: ^19.2.6
         version: 19.2.6(react@19.2.6)
 
+  packages/vite:
+    dependencies:
+      '@assistant-ui/x-generative-compiler':
+        specifier: workspace:^
+        version: link:../x-generative-compiler
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../x-buildutils
+      '@types/node':
+        specifier: ^25.9.1
+        version: 25.9.1
+      vite:
+        specifier: ^8.0.14
+        version: 8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.3)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.1.7
+        version: 4.1.7(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(@vitest/ui@4.1.7)(jsdom@29.1.1)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.3)(yaml@2.9.0))
+
   packages/x-buildutils:
     dependencies:
       '@tsconfig/strictest':
@@ -4104,6 +4186,37 @@ importers:
       '@changesets/get-github-info':
         specifier: ^0.8.0
         version: 0.8.0(encoding@0.1.13)
+
+  packages/x-generative-compiler:
+    dependencies:
+      '@babel/generator':
+        specifier: ^7.28.3
+        version: 7.29.7
+      '@babel/parser':
+        specifier: ^7.28.4
+        version: 7.29.7
+      '@babel/traverse':
+        specifier: ^7.28.4
+        version: 7.29.7
+      '@babel/types':
+        specifier: ^7.28.4
+        version: 7.29.7
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../x-buildutils
+      '@types/babel__generator':
+        specifier: ^7.27.0
+        version: 7.27.0
+      '@types/babel__traverse':
+        specifier: ^7.28.0
+        version: 7.28.0
+      '@types/node':
+        specifier: ^25.9.1
+        version: 25.9.1
+      vitest:
+        specifier: ^4.1.7
+        version: 4.1.7(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(@vitest/coverage-v8@4.1.7)(@vitest/ui@4.1.7)(jsdom@29.1.1)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.3)(yaml@2.9.0))
 
   templates/cloud:
     dependencies:
@@ -4177,6 +4290,9 @@ importers:
         specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.15)(immer@11.1.8)(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@tailwindcss/postcss':
         specifier: ^4.3.0
         version: 4.3.0
@@ -4280,6 +4396,9 @@ importers:
         specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.15)(immer@11.1.8)(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@tailwindcss/postcss':
         specifier: ^4.3.0
         version: 4.3.0
@@ -4377,6 +4496,9 @@ importers:
         specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.15)(immer@11.1.8)(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@tailwindcss/postcss':
         specifier: ^4.3.0
         version: 4.3.0
@@ -4477,6 +4599,9 @@ importers:
         specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.15)(immer@11.1.8)(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@langchain/core':
         specifier: ^1.1.48
         version: 1.1.48(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.7.1(@opentelemetry/api@1.9.1))(openai@6.39.1(ws@8.21.0)(zod@4.4.3))(ws@8.21.0)
@@ -4586,6 +4711,9 @@ importers:
         specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.15)(immer@11.1.8)(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@tailwindcss/postcss':
         specifier: ^4.3.0
         version: 4.3.0
@@ -4680,6 +4808,9 @@ importers:
         specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.15)(immer@11.1.8)(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
     devDependencies:
+      '@assistant-ui/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@tailwindcss/postcss':
         specifier: ^4.3.0
         version: 4.3.0

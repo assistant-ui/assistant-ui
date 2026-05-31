@@ -40,6 +40,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@assistant-ui/next": "workspace:*",
     "@langchain/core": "^1.1.48",
     "@langchain/langgraph-cli": "^1.2.3",
     "@tailwindcss/postcss": "^4.3.0",

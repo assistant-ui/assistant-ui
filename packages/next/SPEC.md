@@ -28,7 +28,7 @@ A module opts in with a leading directive and a single default export wrapped in
 ```tsx
 "use generative";
 import { z } from "zod";
-import { defineToolkit } from "@assistant-ui/next";
+import { defineToolkit } from "@assistant-ui/react";
 import { db } from "@/db"; // server-only dependency
 import { Chart } from "@/ui/chart"; // client-only dependency
 

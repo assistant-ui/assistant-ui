@@ -33,7 +33,7 @@ by opting in with `"use client"`, so secrets can't leak by omission.
 ```tsx
 "use generative";
 import { z } from "zod";
-import { defineToolkit } from "@assistant-ui/next";
+import { defineToolkit } from "@assistant-ui/react";
 import { db } from "@/db"; // server-only
 import { Chart } from "@/ui/chart"; // client-only
 

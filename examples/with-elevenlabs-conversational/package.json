@@ -26,6 +26,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@assistant-ui/next": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",

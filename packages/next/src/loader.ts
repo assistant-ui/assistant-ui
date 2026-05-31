@@ -1,6 +1,9 @@
 import * as nodePath from "node:path";
-import { compileGenerative, isGenerativeModule } from "./compile";
-import type { Target } from "./constants";
+import {
+  compileGenerative,
+  isGenerativeModule,
+  type Target,
+} from "@assistant-ui/x-generative-compiler";
 
 /** This package's name, used in the facade's re-export specifier. */
 const PKG = "@assistant-ui/next";

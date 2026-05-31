@@ -10,7 +10,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { track } from "@/analytics";
 import { Chart } from "@/ui/chart";
-import { defineToolkit } from "@assistant-ui/next";
+import { defineToolkit } from "@assistant-ui/react";
 
 export default defineToolkit({
   weather: {
@@ -112,7 +112,7 @@ import { cn } from "@/lib/utils";
 import { db } from "@/db";
 
 const Badge = ({ label }) => <span className={cn("badge")}>{label}</span>;
-import { defineToolkit } from "@assistant-ui/next";
+import { defineToolkit } from "@assistant-ui/react";
 
 export default defineToolkit({
   weather: {
@@ -142,7 +142,7 @@ export default defineToolkit({
 
   it("prunes an unused destructured server binding from the client", () => {
     const src = `"use generative";
-import { defineToolkit } from "@assistant-ui/next";
+import { defineToolkit } from "@assistant-ui/react";
 import { db } from "@/db";
 const { getWeather } = db;
 export default defineToolkit({
@@ -173,7 +173,7 @@ describe("compileGenerative — diagnostics", () => {
     const wrapped = `"use generative";
 import { z } from "zod";
 import { db } from "@/db";
-import { defineToolkit } from "@assistant-ui/next";
+import { defineToolkit } from "@assistant-ui/react";
 export default defineToolkit({
   weather: {
     parameters: z.object({ city: z.string() }),
@@ -184,13 +184,13 @@ export default defineToolkit({
     const serverCode = compileGenerative(wrapped, { target: "server" }).code;
     // wrapper + its import gone; bare object with execute remains.
     expect(serverCode).not.toContain("defineToolkit");
-    expect(serverCode).not.toContain("@assistant-ui/next");
+    expect(serverCode).not.toContain("@assistant-ui/react");
     expect(serverCode).toContain("db.get");
     expect(serverCode).not.toContain("<span");
 
     const clientCode = compileGenerative(wrapped, { target: "client" }).code;
     expect(clientCode).not.toContain("defineToolkit");
-    expect(clientCode).not.toContain("@assistant-ui/next");
+    expect(clientCode).not.toContain("@assistant-ui/react");
     expect(clientCode).toContain("<span");
     expect(clientCode).not.toContain("@/db");
   });
@@ -212,7 +212,7 @@ export default defineToolkit({
   it("rejects a tool that isn't an inline object literal", () => {
     expect(() =>
       compileGenerative(
-        `"use generative";\nimport { defineToolkit } from "@assistant-ui/next";\nexport default defineToolkit({ weather: makeTool() });`,
+        `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nexport default defineToolkit({ weather: makeTool() });`,
         { target: "server" },
       ),
     ).toThrow(/inline object literal/);
@@ -221,7 +221,7 @@ export default defineToolkit({
   it("requires a render for human/frontend tools", () => {
     expect(() =>
       compileGenerative(
-        `"use generative";\nimport { defineToolkit, hitl } from "@assistant-ui/next";\nexport default defineToolkit({ ask: { execute: hitl() } });`,
+        `"use generative";\nimport { defineToolkit, hitl } from "@assistant-ui/react";\nexport default defineToolkit({ ask: { execute: hitl() } });`,
         { target: "client" },
       ),
     ).toThrow(/must declare a `render`/);
@@ -230,14 +230,14 @@ export default defineToolkit({
   it("requires every tool to declare an execute", () => {
     expect(() =>
       compileGenerative(
-        `"use generative";\nimport { defineToolkit } from "@assistant-ui/next";\nexport default defineToolkit({ ask: { render: () => null } });`,
+        `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nexport default defineToolkit({ ask: { render: () => null } });`,
         { target: "client" },
       ),
     ).toThrow(/must declare an `execute`/);
   });
 
   it("infers `human` from execute: hitl() and drops it on both builds", () => {
-    const src = `"use generative";\nimport { defineToolkit, hitl } from "@assistant-ui/next";\nexport default defineToolkit({ ask: { execute: hitl(), render: () => null } });`;
+    const src = `"use generative";\nimport { defineToolkit, hitl } from "@assistant-ui/react";\nexport default defineToolkit({ ask: { execute: hitl(), render: () => null } });`;
     const server = compileGenerative(src, { target: "server" }).code;
     expect(server).toContain('type: "human"');
     expect(server).not.toContain("hitl"); // sentinel + its import pruned
@@ -248,7 +248,7 @@ export default defineToolkit({
   });
 
   it("infers `frontend` from a `use client` execute and keeps it client-side", () => {
-    const src = `"use generative";\nimport { defineToolkit } from "@assistant-ui/next";\nimport { track } from "@/a";\nexport default defineToolkit({ t: { execute: async () => { "use client"; return track(); }, render: () => null } });`;
+    const src = `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nimport { track } from "@/a";\nexport default defineToolkit({ t: { execute: async () => { "use client"; return track(); }, render: () => null } });`;
     const server = compileGenerative(src, { target: "server" }).code;
     expect(server).toContain('type: "frontend"');
     expect(server).not.toContain("track"); // frontend execute dropped on server

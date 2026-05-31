@@ -22,6 +22,15 @@ export interface CompileOptions {
   filename?: string;
   /** Emit a source map alongside the code. */
   sourceMaps?: boolean;
+  /**
+   * Whether the `server` target prepends `import "server-only"` when it keeps a
+   * backend `execute`. Defaults to `true` (the Next.js/RSC convention, where the
+   * guard fires via the `react-server` condition). Set `false` for bundlers
+   * without a `react-server` layer (e.g. a Vite/TanStack Start `ssr` build),
+   * where the split is already structural and importing `server-only` would
+   * throw — see the Vite integration.
+   */
+  injectServerOnly?: boolean;
 }
 
 export interface CompileResult {
@@ -142,7 +151,11 @@ export function compileGenerative(
       t.directive(t.directiveLiteral("use client")),
     );
   }
-  if (target === "server" && keptBackendExecute) {
+  if (
+    target === "server" &&
+    keptBackendExecute &&
+    (options.injectServerOnly ?? true)
+  ) {
     ast.program.body.unshift(
       t.importDeclaration([], t.stringLiteral("server-only")),
     );
@@ -183,7 +196,7 @@ function findDefaultExportObject(
   if (!object) {
     throw new GenerativeCompileError(
       "the default export must be `defineToolkit({ ... })` (imported from " +
-        '"@assistant-ui/next"); wrapping is required so a backend `execute` ' +
+        '"@assistant-ui/react"); wrapping is required so a backend `execute` ' +
         "can't be authored in a way that reaches the client",
       filename,
     );

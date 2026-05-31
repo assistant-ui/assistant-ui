@@ -38,6 +38,8 @@ export {
   type ToolkitDeclaration,
   type ToolkitDeclarationDefinition,
 } from "./model-context/toolbox";
+export { defineToolkit } from "./model-context/define-toolkit";
+export { hitl } from "./model-context/hitl";
 export {
   useAssistantInteractable,
   type AssistantInteractableProps,
