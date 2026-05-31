@@ -65,8 +65,7 @@ export function ChainOfThoughtTimeline({
 
   return (
     <div className="aui-chain-of-thought-timeline-wrapper motion-reduce:![animation:none] motion-reduce:![transition:none] relative">
-      {/* Explicit role survives Tailwind Preflight's `list-style:none`, which
-          otherwise makes WebKit/VoiceOver drop the implicit list semantics. */}
+      {/* Keep a real list element so timeline steps retain list semantics. */}
       <ul
         ref={setScrollRef}
         data-slot="chain-of-thought-timeline"

@@ -121,6 +121,12 @@ export const registry: RegistryItem[] = [
         sourcePath:
           "../../packages/ui/src/components/assistant-ui/reasoning.tsx",
       },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/reasoning-variants.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/reasoning-variants.ts",
+      },
     ],
     registryDependencies: [
       "collapsible",
@@ -160,6 +166,24 @@ export const registry: RegistryItem[] = [
       },
       {
         type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/disclosure-content.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/disclosure-content.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/disclosure-root.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/disclosure-root.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/disclosure-trigger.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/disclosure-trigger.tsx",
+      },
+      {
+        type: "registry:component",
         path: "components/assistant-ui/chain-of-thought/disclosure.tsx",
         sourcePath:
           "../../packages/ui/src/components/assistant-ui/chain-of-thought/disclosure.tsx",
@@ -178,6 +202,12 @@ export const registry: RegistryItem[] = [
       },
       {
         type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/placeholder.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/placeholder.tsx",
+      },
+      {
+        type: "registry:component",
         path: "components/assistant-ui/chain-of-thought/runtime-activity.ts",
         sourcePath:
           "../../packages/ui/src/components/assistant-ui/chain-of-thought/runtime-activity.ts",
@@ -193,6 +223,12 @@ export const registry: RegistryItem[] = [
         path: "components/assistant-ui/chain-of-thought/runtime-root.tsx",
         sourcePath:
           "../../packages/ui/src/components/assistant-ui/chain-of-thought/runtime-root.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/runtime-tool-context.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/runtime-tool-context.ts",
       },
       {
         type: "registry:component",
@@ -223,6 +259,18 @@ export const registry: RegistryItem[] = [
         path: "components/assistant-ui/chain-of-thought/styles.ts",
         sourcePath:
           "../../packages/ui/src/components/assistant-ui/chain-of-thought/styles.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/text.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/text.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/timeline.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/timeline.tsx",
       },
       {
         type: "registry:component",
