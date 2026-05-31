@@ -4,15 +4,23 @@ description: Collapsible thinking panel that groups consecutive reasoning and to
 platforms: ["react"]
 ---
 
-import { ChainOfThoughtSample } from "@/components/docs/samples/chain-of-thought";
+import {
+  ChainOfThoughtSample,
+  ChainOfThoughtVariantsSample,
+  ChainOfThoughtStructuredSample,
+  ChainOfThoughtLocalizationSample,
+  ChainOfThoughtTerminalStatesSample,
+} from "@/components/docs/samples/chain-of-thought";
 
 <ChainOfThoughtSample />
 
+Press **Start** to stream a mock chain of thought, then use the controls to switch the `variant`, cap the height, auto-collapse on completion, or change the replay speed. Each control maps to a real prop — the wiring is in **View Code**.
+
 <Callout type="info">
-  `ChainOfThought` is built on `ChainOfThoughtPrimitive`, the legacy accordion
-  API. If you need fine-grained control over what gets grouped, compose
-  [`MessagePrimitive.GroupedParts`](/docs/guides/chain-of-thought) directly.
-  This component is the batteries-included default.
+  `ChainOfThought` is built on `ChainOfThoughtPrimitive`, which the docs treat as
+  the legacy accordion API. If you need fine-grained control over what gets
+  grouped, compose [`MessagePrimitive.GroupedParts`](/docs/ui/part-grouping)
+  directly. This component is the batteries-included default.
 </Callout>
 
 ## Getting Started
@@ -55,7 +63,7 @@ const AssistantMessage: FC = () => {
 };
 ```
 
-The trigger shows a live activity label (e.g. "Searching web", "Reading sources") and an elapsed-time counter while streaming. Once the chain finishes, the default runtime panel auto-collapses back to its compact "Reasoning" trigger; `TraceDisclosure` can show richer structured summaries such as "Researched 3 sources (12s)".
+The trigger shows a live activity label (e.g. "Searching web", "Reading sources") and an elapsed-time counter while streaming. Once the chain finishes, the panel auto-collapses back to a compact summary such as "Researched 3 sources (12s)".
 
   </Step>
 </Steps>
@@ -87,9 +95,23 @@ Use the `"*"` catch-all key to localize or rewrite **every** tool's default labe
 />
 ```
 
+Each resolver receives the full `ToolActivityContext`:
+
+| Field                                                  | Description                                                                  |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `toolName`                                             | The tool's name (empty string for non-tool parts).                           |
+| `statusType`                                           | Effective status: `"running"`, `"requires-action"`, `"complete"`, or `"incomplete"`. |
+| `fallbackLabel`                                        | The humanized default label this resolver is overriding.                     |
+| `partStatusType` / `chainStatusType` / `messageStatusType` | The granular underlying statuses, if you need them.                      |
+| `part`                                                | The message part itself — compute a label from its arguments or result.      |
+
 ## Localization
 
-Override the panel's built-in strings (trigger labels, placeholder, terminal text, jump-to-latest) with the `strings` prop. Duration-dependent labels are functions so each locale controls its own grammar:
+Every user-facing string flows through a single `strings` seam (`ChainOfThoughtStrings`). The runtime `<ChainOfThought>` takes a `strings` prop; the composable `Trace` / `TraceDisclosure` read the same strings from `ChainOfThoughtStringsContext`. Switch languages below to see the panel update live:
+
+<ChainOfThoughtLocalizationSample />
+
+Override any subset — unspecified keys fall back to English. Duration- and count-dependent labels are functions so each locale controls its own grammar:
 
 ```tsx
 <ChainOfThought
@@ -97,19 +119,17 @@ Override the panel's built-in strings (trigger labels, placeholder, terminal tex
     reasoning: "Razonamiento",
     thinking: "Pensando...",
     reasoningHidden: "Razonamiento oculto.",
-    jumpToLatest: "Más reciente",
-    working: "Trabajando...",
     reasoningActivity: (snippet) => `Pensando: ${snippet}`,
+    jumpToLatest: "Más reciente",
+    jumpToLatestLabel: "Ir a la última actualización",
+    working: "Trabajando...",
     done: (s) => (s != null ? `Listo en ${s}s` : "Listo"),
     stopped: (s) => (s != null ? `Detenido tras ${s}s` : "Detenido"),
   }}
 />
 ```
 
-Count-dependent labels route through the seam too. The collapsed trace summary
-("Researched 3 sources", "Ran 2 tools", "Stopped after 4 steps") is built by
-`traceSummary`, whose default pluralizes via `Intl.PluralRules`. Override it to
-control the grammar for locales with non-binary plural categories:
+The collapsed trace summary ("Researched 3 sources", "Ran 2 tools", "Stopped after 4 steps") is built by `traceSummary`, whose default pluralizes via `Intl.PluralRules`. Override it to control the grammar for locales with non-binary plural categories:
 
 ```tsx
 const fr = new Intl.PluralRules("fr-FR");
@@ -126,19 +146,58 @@ const fr = new Intl.PluralRules("fr-FR");
 />;
 ```
 
+<Callout type="info">
+  In the `traceSummary` stats, `searchSteps` and `toolSteps` are **disjoint** — a
+  search counts only toward `searchSteps`, so `toolSteps` means "non-search tool
+  calls". `totalSteps` counts leaf steps only; group nodes are not counted.
+</Callout>
+
+For the composable `Trace` / `TraceDisclosure` (which have no `strings` prop), provide the seam through context instead:
+
+```tsx
+import {
+  ChainOfThought,
+} from "@/components/assistant-ui/chain-of-thought";
+import {
+  ChainOfThoughtStringsContext,
+  mergeChainOfThoughtStrings,
+} from "@/components/assistant-ui/chain-of-thought/strings";
+
+const es = mergeChainOfThoughtStrings({ reasoning: "Razonamiento" });
+
+<ChainOfThoughtStringsContext.Provider value={es}>
+  <ChainOfThought.TraceDisclosure trace={trace} />
+</ChainOfThoughtStringsContext.Provider>;
+```
+
+<Callout type="info">
+  `reasoning`, `working`, `traceSummary`, `done`, and `stopped` are rendered by
+  the **trigger**, so they localize through `TraceDisclosure` (or your own
+  `ChainOfThought.Trigger`). A bare `ChainOfThought.Trace` only renders your
+  trace data plus the jump-to-latest control — both already read the same
+  context, so wrapping any composition in the provider localizes every piece
+  that consumes the seam.
+</Callout>
+
 Tool activity verbs are localized separately via the `toolActivityLabels` `"*"` resolver shown above. (`ChainOfThought.TraceDisclosure` also accepts a per-instance `summary` formatter that takes precedence over `traceSummary`.)
 
 The panel is RTL-aware: the disclosure chevrons and the jump-to-latest button mirror automatically under `dir="rtl"`.
 
 ## Custom trigger
 
-Render your own trigger body via `renderTriggerContent`:
+Render your own trigger body via `renderTriggerContent`. The resolver receives the resolved trigger state, including the localized `reasoningLabel` (so you don't have to hardcode English):
 
 ```tsx
 <ChainOfThought
-  renderTriggerContent={({ phase, isOpen, activityLabel, elapsedSeconds }) => (
+  renderTriggerContent={({
+    phase,
+    isOpen,
+    reasoningLabel,
+    activityLabel,
+    elapsedSeconds,
+  }) => (
     <span>
-      {phase === "running" ? "Thinking" : "Thought"}
+      {phase === "running" ? reasoningLabel : "Thought"}
       {elapsedSeconds ? ` for ${elapsedSeconds}s` : null}
       {activityLabel ? ` — ${activityLabel}` : null}
     </span>
@@ -146,15 +205,21 @@ Render your own trigger body via `renderTriggerContent`:
 />
 ```
 
+<Callout type="warn">
+  A custom trigger body fully replaces the default — including the chevron.
+  Include a visible text label (or an `aria-label`) so the toggle keeps an
+  accessible name.
+</Callout>
+
 ## Composing your own layout
 
-`ChainOfThought.Root`, `.Trigger`, `.Content`, `.Timeline`, and `.Step*` primitives are exported for custom compositions:
+`ChainOfThought.Root`, `.Trigger`, `.Content`, `.Timeline`, and `.Step*` primitives are exported for custom compositions. The `Root` owns the open state — pass `defaultOpen` (uncontrolled) or `open`/`onOpenChange` (controlled):
 
 ```tsx
 import { ChainOfThought } from "@/components/assistant-ui/chain-of-thought";
 
-<ChainOfThought.Root variant="muted">
-  <ChainOfThought.Trigger phase="running" isOpen={true} />
+<ChainOfThought.Root variant="muted" defaultOpen>
+  <ChainOfThought.Trigger phase="complete" activityLabel="Researched 3 sources" />
   <ChainOfThought.Content>
     <ChainOfThought.Timeline>
       <ChainOfThought.Step status="complete" type="search">
@@ -166,9 +231,17 @@ import { ChainOfThought } from "@/components/assistant-ui/chain-of-thought";
 </ChainOfThought.Root>;
 ```
 
+<Callout type="info">
+  The `Trigger`'s `isOpen` prop is only a fallback used when it renders outside a
+  `Root`. Inside a `Root`, the resolved open state comes from the Root's
+  disclosure context, so set the state on the `Root`.
+</Callout>
+
 ## Rendering a pre-shaped trace
 
-For agents that produce a structured trace server-side, render it without the runtime via `ChainOfThought.Trace` or `ChainOfThought.TraceDisclosure`:
+For agents that produce a structured trace server-side, render it without the runtime via `ChainOfThought.Trace` (an always-visible timeline you can embed anywhere) or `ChainOfThought.TraceDisclosure` (that timeline wrapped in the collapsible trigger shell). A trace is a `TraceNode[]` of steps and groups — groups can nest, carry a `variant: "subagent"`, and expand on click:
+
+<ChainOfThoughtStructuredSample />
 
 ```tsx
 import {
@@ -183,7 +256,14 @@ const trace: TraceNode[] = [
     label: "Research",
     status: "complete",
     children: [
-      { kind: "step", id: "s1", label: "Searched docs", status: "complete" },
+      {
+        kind: "step",
+        id: "s1",
+        label: "Searched docs",
+        type: "search",
+        toolName: "search_web",
+        status: "complete",
+      },
       { kind: "step", id: "s2", label: "Fetched 2 sources", status: "complete" },
     ],
   },
@@ -192,11 +272,37 @@ const trace: TraceNode[] = [
 <ChainOfThought.TraceDisclosure trace={trace} />;
 ```
 
-`TraceDisclosure` wraps `Trace` in a collapsible shell with a trigger; use `Trace` directly when you want to embed the timeline elsewhere.
+### Deriving a trace from message parts
+
+Omit `trace` and `Trace` / `TraceDisclosure` derive the timeline from the active message's parts. Control how parts become steps with two overrides:
+
+- **`groupingFunction`** — how parts are grouped into rows. The default groups consecutive parts by their `parentId`.
+- **`inferStep`** — maps each group to a step's visual metadata (`{ label, type, status, stepLabel, icon }`).
+
+```tsx
+<ChainOfThought.TraceDisclosure
+  inferStep={({ parts, isActive }) => {
+    const tool = parts.find((p) => p.type === "tool-call");
+    return {
+      label: tool ? `Running ${tool.toolName}` : "Thinking",
+      type: tool ? "tool" : "text",
+      status: isActive ? "active" : "complete",
+    };
+  }}
+/>
+```
+
+### Terminal states
+
+A step or group with `status: "incomplete"` renders the error indicator, and the collapsed summary switches to "Stopped after N steps". Toggle between a completed and a stopped run:
+
+<ChainOfThoughtTerminalStatesSample />
 
 ## Variants
 
-Pass `variant` on `ChainOfThought` (or `ChainOfThought.Root`) to change the visual chrome:
+Pass `variant` on `ChainOfThought` (or via `rootProps={{ variant }}` on `Trace` / `TraceDisclosure`) to change the visual chrome:
+
+<ChainOfThoughtVariantsSample />
 
 | Variant   | Description                            |
 | --------- | -------------------------------------- |
@@ -208,29 +314,95 @@ Pass `variant` on `ChainOfThought` (or `ChainOfThought.Root`) to change the visu
 
 ### `ChainOfThought` props
 
-| Prop                      | Description                                                                |
-| ------------------------- | -------------------------------------------------------------------------- |
-| `constrainHeight`         | Cap the timeline height and add a fade gradient for overflow. Default `false`. |
-| `autoCollapseOnComplete`  | Collapse the panel automatically once streaming completes. Default `true`. |
-| `toolActivityLabels`      | Per-tool label resolver overrides (use the `"*"` key for a catch-all).      |
-| `renderTriggerContent`    | Render a custom trigger body.                                              |
-| `variant`                 | Visual style. `"ghost" \| "outline" \| "muted"`.                         |
-| `strings`                 | Override built-in strings for localization. See [Localization](#localization). |
+| Prop                     | Type                                       | Default     | Description                                                                                              |
+| ------------------------ | ------------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------- |
+| `constrainHeight`        | `boolean`                                  | `false`     | Caps the timeline height (scrollable) and shows a jump-to-latest affordance when scrolled up. The bottom fade gradient is always present. |
+| `autoCollapseOnComplete` | `boolean`                                  | `true`      | Collapse the panel automatically once streaming completes.                                              |
+| `toolActivityLabels`     | `Record<string, ToolActivity>`             | –           | Per-tool label resolver overrides (use the `"*"` key for a catch-all).                                  |
+| `renderTriggerContent`   | `(state) => ReactNode`                     | –           | Render a custom trigger body. Receives `{ phase, isOpen, reasoningLabel, activityLabel, elapsedSeconds }`. |
+| `variant`                | `"ghost" \| "outline" \| "muted"`          | `"ghost"`   | Visual chrome.                                                                                           |
+| `strings`                | `Partial<ChainOfThoughtStrings>`           | –           | Override built-in strings for localization. See [Localization](#localization).                          |
+
+### `ChainOfThought.Trace` / `.TraceDisclosure` props
+
+Both accept a pre-shaped `trace` **or** derive one from message parts when `trace` is omitted.
+
+| Prop                | Type                              | Default               | Description                                                              |
+| ------------------- | --------------------------------- | --------------------- | ------------------------------------------------------------------------ |
+| `trace`             | `TraceNode[]`                     | –                     | Pre-shaped trace. Omit to derive from the active message's parts.        |
+| `maxDepth`          | `number`                          | `2`                   | How deep nested groups can expand.                                       |
+| `allowGroupExpand`  | `boolean`                         | `true`                | Whether group rows are expandable.                                       |
+| `nodeComponents`    | `{ GroupSummary?, StepBody? }`    | –                     | Override slots for the group summary and step body renderers.            |
+| `constrainHeight`   | `boolean`                         | `true`                | Cap the timeline height and scroll. (Note: the runtime `ChainOfThought` defaults this to `false`.) |
+| `groupingFunction`  | `(parts) => Group[]`              | groups by `parentId`  | _Parts-derived only._ How message parts are grouped into steps.          |
+| `inferStep`         | `(args) => TraceStepMeta`         | `defaultInferStep`    | _Parts-derived only._ Maps each group to `{ label, type, status, stepLabel, icon }`. |
+
+`TraceDisclosure` adds the collapsible shell props:
+
+| Prop                                   | Type                              | Default            | Description                                                       |
+| -------------------------------------- | --------------------------------- | ------------------ | ----------------------------------------------------------------- |
+| `label`                                | `string`                          | `strings.working`  | Trigger label shown while the chain is streaming.                 |
+| `summary`                              | `string \| TraceSummaryFormatter` | `strings.traceSummary` | Collapsed summary; takes precedence over the `traceSummary` string. |
+| `autoCollapseOnComplete`               | `boolean`                         | `true`             | Collapse when streaming ends.                                     |
+| `disableGroupExpansionWhileStreaming`  | `boolean`                         | `true`             | Lock group expansion until streaming finishes.                   |
+| `rootProps` / `triggerProps` / `contentProps` | `object`                   | –                  | Escape hatches forwarded to the underlying Root / Trigger / Content (e.g. `rootProps={{ variant }}`). |
 
 ### Composable API
 
-| Component                       | Description                                              |
-| ------------------------------- | -------------------------------------------------------- |
-| `ChainOfThought.Root`           | Collapsible container with scroll lock                   |
-| `ChainOfThought.Trigger`        | Button with phase-aware label, activity, and chevron     |
-| `ChainOfThought.Content`        | Animated collapsible content wrapper                     |
-| `ChainOfThought.Placeholder`    | Empty-state placeholder                                  |
-| `ChainOfThought.Timeline`       | Vertical timeline with auto-scroll                       |
-| `ChainOfThought.Step`           | A single step (uses status/active/type)                  |
-| `ChainOfThought.StepHeader`     | Label slot                                               |
-| `ChainOfThought.StepBody`       | Body slot                                                |
-| `ChainOfThought.Trace`          | Render a `TraceNode[]` or derive from message parts      |
-| `ChainOfThought.TraceDisclosure`| `Trace` wrapped in a `Root`/`Trigger`/`Content` shell    |
+| Component                        | Description                                                                                                                   |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `ChainOfThought.Root`            | Collapsible container with scroll lock. Props: `variant`, `defaultOpen`, `open`, `onOpenChange`.                            |
+| `ChainOfThought.Trigger`         | Button with phase-aware label, activity, and chevron. Props: `phase`, `isOpen`, `activityLabel`, `elapsedSeconds`, `reasoningLabel`, `streamingLabel`, `renderTriggerContent`. |
+| `ChainOfThought.Content`         | Animated collapsible content wrapper.                                                                                        |
+| `ChainOfThought.Placeholder`     | Empty-state placeholder (defaults to `strings.reasoningHidden`).                                                            |
+| `ChainOfThought.Timeline`        | Vertical timeline with auto-scroll. Props: `autoScroll`, `autoScrollKey`, `autoScrollBehavior`, `constrainHeight`.          |
+| `ChainOfThought.Step`            | A single step. Props: `status` (`pending`/`active`/`complete`/`error`), `active`, `type`, `stepLabel`, `icon`, `error` + `onRetry` (renders an inline error row with a Retry button), `iconPulse`. |
+| `ChainOfThought.StepHeader`      | Label slot.                                                                                                                  |
+| `ChainOfThought.StepBody`        | Body slot.                                                                                                                   |
+| `ChainOfThought.Trace`           | Render a `TraceNode[]` or derive one from message parts.                                                                     |
+| `ChainOfThought.TraceDisclosure` | `Trace` wrapped in a `Root`/`Trigger`/`Content` shell.                                                                       |
+
+### `ChainOfThoughtStrings`
+
+The full localization seam. Override any subset via the `strings` prop (runtime) or `ChainOfThoughtStringsContext` (composable).
+
+| Key                 | Type                            | Default                                            |
+| ------------------- | ------------------------------- | -------------------------------------------------- |
+| `reasoning`         | `string`                        | `"Reasoning"`                                      |
+| `thinking`          | `string`                        | `"Thinking..."`                                    |
+| `reasoningHidden`   | `string`                        | `"Reasoning hidden."`                              |
+| `reasoningActivity` | `(snippet: string) => string`   | `` snippet => `Thinking: ${snippet}` ``            |
+| `jumpToLatest`      | `string`                        | `"Latest"`                                         |
+| `jumpToLatestLabel` | `string`                        | `"Jump to latest chain-of-thought update"` (`aria-label`) |
+| `working`           | `string`                        | `"Working..."`                                     |
+| `done`              | `(seconds?: number) => string`  | `` s => s != null ? `Done in ${s}s` : "Done" ``    |
+| `stopped`           | `(seconds?: number) => string`  | `` s => s != null ? `Stopped after ${s}s` : "Stopped" `` |
+| `traceSummary`      | `(stats) => string`             | Pluralized via `Intl.PluralRules`                  |
+
+`traceSummary` receives `{ totalSteps, searchSteps, toolSteps, incomplete, durationSec? }`.
+
+### `TraceNode` model
+
+A `TraceNode` is either a `TraceStep` (leaf) or a `TraceGroup` (nested).
+
+**`TraceStep`** — `{ kind: "step", id, label?, stepLabel?, type?, icon?, status?, toolName?, detail?, output?, meta? }`. `status` is a `TraceStatus`: `"pending" | "running" | "complete" | "incomplete"`.
+
+**`TraceGroup`** — `{ kind: "group", id, label, status?, summary?, children, variant?, meta? }`. Set `variant: "subagent"` for the bot-styled subagent chrome.
+
+The `type` field selects the step icon (`StepType`):
+
+| `StepType`              | Icon          |
+| ----------------------- | ------------- |
+| `search`                | Magnifier     |
+| `web_search`            | Globe         |
+| `image`                 | Image         |
+| `text` / `write`        | File          |
+| `code` / `javascript`   | Terminal      |
+| `merge`                 | Git merge     |
+| `tool`                  | Wrench        |
+| `complete`              | Check circle  |
+| `error`                 | Alert circle  |
+| `default`               | Bullet dot    |
 
 ## Related Components
 

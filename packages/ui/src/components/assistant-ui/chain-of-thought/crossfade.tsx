@@ -22,45 +22,53 @@ export function Crossfade<T>({
   enterDelay = 0,
   className,
 }: CrossfadeProps<T>) {
-  const [currentValue, setCurrentValue] = useState(value);
+  const currentValueRef = useRef(value);
+  const generationRef = useRef(0);
   // Wrapped in an object (not `T | null`) so a legitimately null/falsy previous
   // value still drives a crossfade instead of being read as "not transitioning".
-  const [previousEntry, setPreviousEntry] = useState<{ value: T } | null>(null);
-  const [generation, setGeneration] = useState(0);
-  const valueRef = useRef(value);
-  const cleanupRef = useRef<number | null>(null);
-  // Read durations via a ref so they are NOT effect deps. Otherwise a duration
-  // prop change mid-fade re-runs the effect, whose cleanup clears the pending
-  // reset timer, but the `Object.is` guard then bails before rescheduling it —
-  // leaving the exit layer mounted forever.
+  const previousEntryRef = useRef<{ value: T; generation: number } | null>(
+    null,
+  );
+  const [settledGeneration, setSettledGeneration] = useState(0);
   const durationsRef = useRef({ enterDuration, exitDuration, enterDelay });
   durationsRef.current = { enterDuration, exitDuration, enterDelay };
 
+  if (!Object.is(currentValueRef.current, value)) {
+    generationRef.current += 1;
+    previousEntryRef.current = {
+      value: currentValueRef.current,
+      generation: generationRef.current,
+    };
+    currentValueRef.current = value;
+  }
+
+  const previousEntry =
+    previousEntryRef.current &&
+    previousEntryRef.current.generation > settledGeneration
+      ? previousEntryRef.current
+      : null;
+  const generation = generationRef.current;
+
   useEffect(() => {
-    if (Object.is(valueRef.current, value)) return;
-
-    setPreviousEntry({ value: valueRef.current });
-    setCurrentValue(value);
-    setGeneration((g) => g + 1);
-    valueRef.current = value;
-
-    if (cleanupRef.current !== null) window.clearTimeout(cleanupRef.current);
-
+    if (!previousEntry) return undefined;
     const {
       enterDuration: enter,
       exitDuration: exit,
       enterDelay: delay,
     } = durationsRef.current;
     const totalMs = Math.max(exit, delay + enter);
-    cleanupRef.current = window.setTimeout(() => {
-      setPreviousEntry(null);
-      cleanupRef.current = null;
+    const timeout = window.setTimeout(() => {
+      setSettledGeneration((current) =>
+        current >= previousEntry.generation
+          ? current
+          : previousEntry.generation,
+      );
     }, totalMs);
 
     return () => {
-      if (cleanupRef.current !== null) window.clearTimeout(cleanupRef.current);
+      window.clearTimeout(timeout);
     };
-  }, [value]);
+  }, [previousEntry]);
 
   const isTransitioning = previousEntry !== null;
 
@@ -99,7 +107,7 @@ export function Crossfade<T>({
             "fade-in-0 animate-in fill-mode-both delay-[var(--crossfade-enter-delay)] duration-[var(--crossfade-enter-duration)] motion-reduce:animate-none motion-reduce:transition-none",
         )}
       >
-        {children(currentValue)}
+        {children(value)}
       </div>
     </div>
   );

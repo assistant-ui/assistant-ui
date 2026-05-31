@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { useAuiState } from "@assistant-ui/react";
 import {
   ChainOfThoughtContent,
@@ -41,23 +34,24 @@ function useTraceDisclosureState({
   isStreaming: boolean;
   autoCollapseOnComplete: boolean;
 }) {
-  const [open, setOpen] = useState(isStreaming);
-  const wasStreamingRef = useRef(isStreaming);
-
-  useEffect(() => {
-    if (isStreaming) {
-      setOpen(true);
-    } else if (wasStreamingRef.current && autoCollapseOnComplete) {
-      setOpen(false);
-    }
-
-    wasStreamingRef.current = isStreaming;
-  }, [autoCollapseOnComplete, isStreaming]);
+  const [userOpen, setUserOpen] = useState(false);
+  const holdOpenAfterStreamingRef = useRef(
+    isStreaming && !autoCollapseOnComplete,
+  );
+  if (autoCollapseOnComplete) {
+    holdOpenAfterStreamingRef.current = false;
+  } else if (isStreaming) {
+    holdOpenAfterStreamingRef.current = true;
+  }
+  const open = isStreaming || userOpen || holdOpenAfterStreamingRef.current;
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       if (isStreaming) return;
-      setOpen(nextOpen);
+      if (!nextOpen) {
+        holdOpenAfterStreamingRef.current = false;
+      }
+      setUserOpen(nextOpen);
     },
     [isStreaming],
   );
@@ -165,9 +159,9 @@ function ChainOfThoughtTraceDisclosureNodes({
       contentProps={contentProps}
     >
       <ChainOfThoughtTraceNodes
+        {...timelineProps}
         trace={trace}
         allowGroupExpand={allowGroupExpand}
-        {...timelineProps}
       />
     </ChainOfThoughtTraceDisclosureRoot>
   );
@@ -226,9 +220,9 @@ function ChainOfThoughtTraceDisclosureParts({
       contentProps={contentProps}
     >
       <ChainOfThoughtTraceNodes
+        {...timelineProps}
         trace={trace}
         allowGroupExpand={allowGroupExpand}
-        {...timelineProps}
       />
     </ChainOfThoughtTraceDisclosureRoot>
   );

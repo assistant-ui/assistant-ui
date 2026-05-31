@@ -5,7 +5,6 @@ import {
   type CSSProperties,
   type ComponentType,
   type ReactNode,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -217,14 +216,11 @@ function TraceGroupNode({
   renderNode: (node: TraceNode, index: number, depth: number) => ReactNode;
   style?: CSSProperties | undefined;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  useEffect(() => {
-    if (!allowGroupExpand) setIsOpen(false);
-  }, [allowGroupExpand]);
-
   const latestStep = useMemo(() => getLatestTraceStep(group), [group]);
   const canExpand =
     allowGroupExpand && depth < maxDepth && group.children.length > 0;
+  const [requestedOpen, setRequestedOpen] = useState(false);
+  const isOpen = canExpand && requestedOpen;
   const GroupSummary = nodeComponents?.GroupSummary ?? DefaultTraceGroupSummary;
   const isSubagent = group.variant === "subagent";
   const groupStatus = group.status ?? latestStep?.status;
@@ -258,13 +254,13 @@ function TraceGroupNode({
           depth={depth}
           onToggle={() => {
             if (!canExpand) return;
-            setIsOpen((prev) => !prev);
+            setRequestedOpen((prev) => !prev);
           }}
         />
         <Collapsible
-          open={isOpen && canExpand}
+          open={isOpen}
           onOpenChange={(next) => {
-            if (canExpand) setIsOpen(next);
+            if (canExpand) setRequestedOpen(next);
           }}
         >
           <ChainOfThoughtContent className="mt-1" showFade={false}>

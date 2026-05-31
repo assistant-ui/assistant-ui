@@ -677,7 +677,7 @@ describe("ChainOfThought accessibility & i18n", () => {
     const live = view.container.querySelector(
       "[data-slot=chain-of-thought-live-status]",
     ) as HTMLElement | null;
-    expect(live?.getAttribute("role")).toBe("status");
+    expect(live?.tagName).toBe("OUTPUT");
     expect(live?.getAttribute("aria-live")).toBe("polite");
     expect(live?.textContent).toContain("Searching");
 
@@ -721,7 +721,7 @@ describe("ChainOfThought accessibility & i18n", () => {
     view.unmount();
   });
 
-  it("marks the timeline with role=list so list semantics survive Preflight", () => {
+  it("renders the timeline as a native list", () => {
     const running = createToolMessage({
       messageStatus: { type: "running" },
       toolStatus: { type: "running" },
@@ -731,7 +731,7 @@ describe("ChainOfThought accessibility & i18n", () => {
     const list = view.container.querySelector(
       "[data-slot=chain-of-thought-timeline]",
     ) as HTMLElement | null;
-    expect(list?.getAttribute("role")).toBe("list");
+    expect(list?.tagName).toBe("UL");
 
     view.unmount();
   });

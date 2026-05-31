@@ -97,10 +97,6 @@ ChainOfThought.displayName = "ChainOfThought";
 
 export { ChainOfThought };
 
-export {
-  defaultChainOfThoughtStrings,
-  useChainOfThoughtStrings,
-} from "./chain-of-thought/strings";
 export type { ChainOfThoughtStrings } from "./chain-of-thought/strings";
 
 export type {

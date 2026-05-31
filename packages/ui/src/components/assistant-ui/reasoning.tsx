@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useRef, useState } from "react";
-import { cva, type VariantProps } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import {
   useScrollLock,
@@ -16,21 +16,9 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { reasoningVariants } from "./reasoning-variants";
 
 const ANIMATION_DURATION = 200;
-
-const reasoningVariants = cva("aui-reasoning-root mb-4 w-full", {
-  variants: {
-    variant: {
-      outline: "rounded-lg border px-3 py-2",
-      ghost: "",
-      muted: "bg-muted/50 rounded-lg px-3 py-2",
-    },
-  },
-  defaultVariants: {
-    variant: "outline",
-  },
-});
 
 export type ReasoningRootProps = Omit<
   React.ComponentProps<typeof Collapsible>,
@@ -278,5 +266,4 @@ export {
   ReasoningContent,
   ReasoningText,
   ReasoningFade,
-  reasoningVariants,
 };

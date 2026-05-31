@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
 import {
   useAuiState,
@@ -21,11 +21,7 @@ import {
   partStatusOrFallback,
   type ToolActivity,
 } from "./runtime-activity";
-
-/** Context carrying host-provided tool activity label resolvers to tool rows. */
-export const ToolActivityLabelsContext = createContext<
-  Record<string, ToolActivity> | undefined
->(undefined);
+import { ToolActivityLabelsContext } from "./runtime-tool-context";
 
 /** Tool fallback wrapper that reads activity label resolvers from context. */
 export const ChainOfThoughtPrimitiveToolWithLabels: ToolCallMessagePartComponent =
@@ -106,18 +102,16 @@ export function ChainOfThoughtPrimitiveTool({
     (Boolean(searchResults.summary) || searchResults.sources.length > 0);
   const hasDetails = hasArgs || hasSearchResults || toolResult !== undefined;
 
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!hasDetails) {
-      setOpen(false);
-    }
-  }, [hasDetails]);
+  const [requestedOpen, setRequestedOpen] = useState(false);
+  const open = hasDetails && requestedOpen;
 
   return (
     <Collapsible
       data-slot="chain-of-thought-tool-activity"
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={(nextOpen) => {
+        if (hasDetails) setRequestedOpen(nextOpen);
+      }}
       className="aui-chain-of-thought-tool-activity space-y-1.5"
     >
       <CollapsibleTrigger
@@ -191,7 +185,7 @@ export function ChainOfThoughtPrimitiveTool({
             {hasSearchResults && searchResults ? (
               <div
                 data-slot="chain-of-thought-search-results"
-                className="aui-chain-of-thought-search-results space-y-2 rounded-md bg-muted/40 px-2 py-2"
+                className="aui-chain-of-thought-search-results space-y-2 rounded-md bg-muted/40 p-2"
               >
                 {searchResults.summary ? (
                   <p className="text-muted-foreground text-xs">

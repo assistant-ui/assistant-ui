@@ -6,6 +6,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { ArrowDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,43 +17,38 @@ const getPrefersReducedMotion = () =>
   typeof window.matchMedia === "function" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const usePrefersReducedMotion = () => {
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
-    getPrefersReducedMotion,
-  );
+const subscribeToReducedMotion = (onStoreChange: () => void) => {
+  if (
+    typeof window === "undefined" ||
+    typeof window.matchMedia !== "function"
+  ) {
+    return () => {};
+  }
 
-  useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      typeof window.matchMedia !== "function"
-    ) {
-      return undefined;
-    }
+  const mediaQueryList = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const handleChange = () => {
+    onStoreChange();
+  };
 
-    const mediaQueryList = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    );
-    setPrefersReducedMotion(mediaQueryList.matches);
+  if (typeof mediaQueryList.addEventListener === "function") {
+    mediaQueryList.addEventListener("change", handleChange);
+    return () => mediaQueryList.removeEventListener("change", handleChange);
+  }
 
-    const handleChange = (event: MediaQueryListEvent) => {
-      setPrefersReducedMotion(event.matches);
-    };
+  if (typeof mediaQueryList.addListener === "function") {
+    mediaQueryList.addListener(handleChange);
+    return () => mediaQueryList.removeListener(handleChange);
+  }
 
-    if (typeof mediaQueryList.addEventListener === "function") {
-      mediaQueryList.addEventListener("change", handleChange);
-      return () => mediaQueryList.removeEventListener("change", handleChange);
-    }
-
-    if (typeof mediaQueryList.addListener === "function") {
-      mediaQueryList.addListener(handleChange);
-      return () => mediaQueryList.removeListener(handleChange);
-    }
-
-    return undefined;
-  }, []);
-
-  return prefersReducedMotion;
+  return () => {};
 };
+
+const usePrefersReducedMotion = () =>
+  useSyncExternalStore(
+    subscribeToReducedMotion,
+    getPrefersReducedMotion,
+    () => false,
+  );
 
 /** Options for {@link useAutoScroll}. */
 export type UseAutoScrollOptions = {
@@ -101,10 +97,6 @@ export function useAutoScroll(
     [],
   );
 
-  useEffect(() => {
-    if (!track) setIsScrolledUp(false);
-  }, [track, setIsScrolledUp]);
-
   // Pin to the latest content unless the user has scrolled away from the bottom.
   useLayoutEffect(() => {
     void contentKey;
@@ -148,7 +140,7 @@ export function useAutoScroll(
     setIsScrolledUp(false);
   }, [scrollEl, scrollToEnd, userScrollBehavior, setIsScrolledUp]);
 
-  return { isScrolledUp, scrollToBottom };
+  return { isScrolledUp: track && isScrolledUp, scrollToBottom };
 }
 
 /** Floating button shown when auto-scroll is paused above the latest item. */

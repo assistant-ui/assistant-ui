@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   ChainOfThoughtPrimitive,
   useAui,
@@ -29,10 +29,8 @@ import {
   ChainOfThoughtPrimitivePartLayout,
   ChainOfThoughtTerminalStep,
 } from "./runtime-part-layout";
-import {
-  ChainOfThoughtPrimitiveToolWithLabels,
-  ToolActivityLabelsContext,
-} from "./runtime-tool";
+import { ChainOfThoughtPrimitiveToolWithLabels } from "./runtime-tool";
+import { ToolActivityLabelsContext } from "./runtime-tool-context";
 import { useElapsedSeconds } from "./trace-time";
 import {
   ChainOfThoughtStringsContext,
@@ -201,20 +199,24 @@ export const ChainOfThoughtImpl = ({
   const elapsedSeconds = useElapsedSeconds(isActivePhase);
   const terminalElapsedSeconds =
     phase === "complete" || phase === "incomplete" ? elapsedSeconds : undefined;
-  // Seed from the initial streaming snapshot so a mid-stream mount renders
-  // expanded on the first paint instead of flickering closed to open.
-  const [streamingOpenOverride, setStreamingOpenOverride] =
-    useState(isChainStreaming);
+  // Keep an auto-opened stream expanded after completion only when requested,
+  // without mirroring the streaming prop through state.
+  const holdOpenAfterStreamingRef = useRef(
+    isChainStreaming && !autoCollapseOnComplete,
+  );
+  if (autoCollapseOnComplete) {
+    holdOpenAfterStreamingRef.current = false;
+  } else if (isChainStreaming) {
+    holdOpenAfterStreamingRef.current = true;
+  }
   const wasStreamingRef = useRef(isChainStreaming);
 
   useEffect(() => {
-    if (isChainStreaming) {
-      setStreamingOpenOverride(true);
-    } else if (!isChainStreaming && wasStreamingRef.current) {
-      if (!autoCollapseOnComplete) {
-        wasStreamingRef.current = isChainStreaming;
-        return;
-      }
+    if (
+      !isChainStreaming &&
+      wasStreamingRef.current &&
+      autoCollapseOnComplete
+    ) {
       // Auto-collapse unmounts the content. If the user had moved focus into
       // it (a tool-detail toggle, a Retry button), move focus to the trigger
       // first so it doesn't fall back to <body> and strand keyboard/AT users.
@@ -230,13 +232,13 @@ export const ChainOfThoughtImpl = ({
             ?.focus();
         }
       }
-      setStreamingOpenOverride(false);
     }
 
     wasStreamingRef.current = isChainStreaming;
   }, [autoCollapseOnComplete, isChainStreaming]);
 
-  const open = !collapsed || streamingOpenOverride;
+  const open =
+    isChainStreaming || !collapsed || holdOpenAfterStreamingRef.current;
 
   // Single polite live region mirroring the visible (aria-hidden) activity, so
   // screen-reader users get passive feedback. Per-token reasoning updates are
@@ -256,7 +258,7 @@ export const ChainOfThoughtImpl = ({
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       if (!nextOpen) {
-        setStreamingOpenOverride(false);
+        holdOpenAfterStreamingRef.current = false;
       }
       aui.chainOfThought().setCollapsed(!nextOpen);
     },
@@ -266,15 +268,14 @@ export const ChainOfThoughtImpl = ({
   return (
     <ChainOfThoughtStringsContext.Provider value={strings}>
       <div ref={rootRef} className="contents">
-        <span
-          role="status"
+        <output
           aria-live="polite"
           aria-atomic
           data-slot="chain-of-thought-live-status"
           className="sr-only"
         >
           {liveStatus}
-        </span>
+        </output>
         <ChainOfThoughtRoot
           open={open}
           onOpenChange={handleOpenChange}
