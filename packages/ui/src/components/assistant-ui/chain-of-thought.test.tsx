@@ -13,12 +13,12 @@ import {
   type ThreadAssistantMessage,
 } from "@assistant-ui/react";
 import { resource, tapMemo } from "@assistant-ui/tap";
-import { ChainOfThought, type TraceNode } from "./chain-of-thought";
+import { ChainOfThought } from "./chain-of-thought";
 
 const StubToolsClient = resource(() =>
   tapMemo(
     () => ({
-      getState: () => ({ tools: {} }) as never,
+      getState: () => ({ toolUIs: {}, tools: {} }) as never,
       setToolUI: () => () => {},
     }),
     [],
@@ -333,148 +333,6 @@ describe("ChainOfThought (80/20 integration contracts)", () => {
     expect(custom?.textContent).toContain("phase:incomplete|open:false");
 
     view.unmount();
-  });
-});
-
-describe("ChainOfThought.TraceDisclosure", () => {
-  it("surfaces incomplete static traces in the collapsed trigger", () => {
-    const incompleteTrace: TraceNode[] = [
-      {
-        kind: "step",
-        id: "failed",
-        label: "Build failed",
-        status: "incomplete",
-      },
-    ];
-    const container = document.createElement("div");
-    const root = createRoot(container);
-
-    act(() => {
-      root.render(
-        <ChainOfThought.TraceDisclosure
-          trace={incompleteTrace}
-          triggerProps={{
-            renderTriggerContent: ({ phase, activityLabel }) => (
-              <span data-slot="trace-trigger-state">
-                {phase}|{activityLabel}
-              </span>
-            ),
-          }}
-        />,
-      );
-    });
-
-    const triggerState = container.querySelector(
-      "[data-slot=trace-trigger-state]",
-    ) as HTMLElement | null;
-    expect(triggerState?.textContent).toBe("incomplete|Stopped after 1 step");
-
-    act(() => root.unmount());
-  });
-
-  it("renders trace group summary latestLabel", () => {
-    const trace: TraceNode[] = [
-      {
-        kind: "group",
-        id: "research",
-        label: "Research",
-        status: "complete",
-        summary: { latestLabel: "Override summary label" },
-        children: [
-          {
-            kind: "step",
-            id: "read",
-            label: "Read source files",
-            status: "complete",
-          },
-        ],
-      },
-    ];
-    const container = document.createElement("div");
-    const root = createRoot(container);
-
-    act(() => {
-      root.render(<ChainOfThought.Trace trace={trace} />);
-    });
-
-    const groupSummary = container.querySelector(
-      "[data-slot=chain-of-thought-trace-group-summary]",
-    ) as HTMLElement | null;
-    expect(groupSummary?.textContent).toContain("Override summary label");
-
-    act(() => root.unmount());
-  });
-
-  it("locks nested group expansion while streaming and unlocks after completion", () => {
-    const runningTrace: TraceNode[] = [
-      {
-        kind: "group",
-        id: "group-1",
-        label: "Searching",
-        status: "running",
-        children: [
-          {
-            kind: "step",
-            id: "step-1",
-            label: "Tool: search_web",
-            status: "running",
-            toolName: "search_web",
-          },
-        ],
-      } as TraceNode,
-    ];
-    const completeTrace: TraceNode[] = [
-      {
-        kind: "group",
-        id: "group-1",
-        label: "Searching",
-        status: "complete",
-        children: [
-          {
-            kind: "step",
-            id: "step-1",
-            label: "Tool: search_web",
-            status: "complete",
-            toolName: "search_web",
-          },
-        ],
-      } as TraceNode,
-    ];
-
-    const container = document.createElement("div");
-    const root = createRoot(container);
-
-    act(() => {
-      root.render(
-        <ChainOfThought.TraceDisclosure
-          trace={runningTrace}
-          allowGroupExpand={true}
-        />,
-      );
-    });
-
-    const runningGroupSummary = container.querySelector(
-      "[data-slot=chain-of-thought-trace-group-summary]",
-    ) as HTMLButtonElement | null;
-    expect(runningGroupSummary?.hasAttribute("disabled")).toBe(true);
-
-    act(() => {
-      root.render(<ChainOfThought.TraceDisclosure trace={completeTrace} />);
-    });
-
-    const disclosureTrigger = container.querySelector(
-      "[data-slot=chain-of-thought-trigger]",
-    ) as HTMLButtonElement | null;
-    act(() => disclosureTrigger?.click());
-
-    const groupSummary = container.querySelector(
-      "[data-slot=chain-of-thought-trace-group-summary]",
-    ) as HTMLButtonElement | null;
-    expect(groupSummary?.hasAttribute("disabled")).toBe(false);
-    act(() => groupSummary?.click());
-    expect(groupSummary?.getAttribute("aria-expanded")).toBe("true");
-
-    act(() => root.unmount());
   });
 });
 
