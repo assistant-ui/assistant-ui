@@ -21,12 +21,6 @@ import {
   ChainOfThoughtImpl,
   type ChainOfThoughtProps,
 } from "./chain-of-thought/runtime-root";
-import {
-  ChainOfThoughtTrace,
-  ChainOfThoughtTraceDisclosure,
-  type ChainOfThoughtTraceDisclosureProps,
-  type ChainOfThoughtTraceProps,
-} from "./chain-of-thought/trace";
 import type {
   ToolActivity,
   ToolActivityContext,
@@ -35,18 +29,7 @@ import type {
   ChainOfThoughtPhase,
   StepStatus,
   StepType,
-  TraceGroup,
-  TraceNode,
-  TraceStatus,
-  TraceStep,
-  TraceSummaryFormatter,
-  TraceSummaryStats,
 } from "./chain-of-thought/model";
-import type {
-  ChainOfThoughtTraceGroupSummaryProps,
-  ChainOfThoughtTraceNodeComponents,
-  ChainOfThoughtTraceStepMeta,
-} from "./chain-of-thought/trace-shared";
 
 // `memo` gates prop renders only; `useAuiState` still drives store updates.
 const ChainOfThought = Object.assign(memo(ChainOfThoughtImpl), {
@@ -58,8 +41,6 @@ const ChainOfThought = Object.assign(memo(ChainOfThoughtImpl), {
   Step: ChainOfThoughtStep,
   StepHeader: ChainOfThoughtStepHeader,
   StepBody: ChainOfThoughtStepBody,
-  Trace: ChainOfThoughtTrace,
-  TraceDisclosure: ChainOfThoughtTraceDisclosure,
 });
 
 ChainOfThought.displayName = "ChainOfThought";
@@ -72,20 +53,9 @@ export type {
   ChainOfThoughtPhase,
   ChainOfThoughtProps,
   ChainOfThoughtRootProps,
-  ChainOfThoughtTraceDisclosureProps,
-  ChainOfThoughtTraceGroupSummaryProps,
-  ChainOfThoughtTraceNodeComponents,
-  ChainOfThoughtTraceProps,
-  ChainOfThoughtTraceStepMeta,
   ChainOfThoughtTriggerProps,
   StepStatus,
   StepType,
   ToolActivity,
   ToolActivityContext,
-  TraceGroup,
-  TraceNode,
-  TraceStatus,
-  TraceStep,
-  TraceSummaryFormatter,
-  TraceSummaryStats,
 };

@@ -184,6 +184,12 @@ export const registry: RegistryItem[] = [
       },
       {
         type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/elapsed-time.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/elapsed-time.ts",
+      },
+      {
+        type: "registry:component",
         path: "components/assistant-ui/chain-of-thought/layout.tsx",
         sourcePath:
           "../../packages/ui/src/components/assistant-ui/chain-of-thought/layout.tsx",
@@ -199,12 +205,6 @@ export const registry: RegistryItem[] = [
         path: "components/assistant-ui/chain-of-thought/placeholder.tsx",
         sourcePath:
           "../../packages/ui/src/components/assistant-ui/chain-of-thought/placeholder.tsx",
-      },
-      {
-        type: "registry:component",
-        path: "components/assistant-ui/chain-of-thought/runtime-activity.ts",
-        sourcePath:
-          "../../packages/ui/src/components/assistant-ui/chain-of-thought/runtime-activity.ts",
       },
       {
         type: "registry:component",
@@ -268,39 +268,9 @@ export const registry: RegistryItem[] = [
       },
       {
         type: "registry:component",
-        path: "components/assistant-ui/chain-of-thought/trace-disclosure.tsx",
+        path: "components/assistant-ui/chain-of-thought/runtime-activity.ts",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace-disclosure.tsx",
-      },
-      {
-        type: "registry:component",
-        path: "components/assistant-ui/chain-of-thought/trace-nodes.tsx",
-        sourcePath:
-          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace-nodes.tsx",
-      },
-      {
-        type: "registry:component",
-        path: "components/assistant-ui/chain-of-thought/trace-parts.tsx",
-        sourcePath:
-          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace-parts.tsx",
-      },
-      {
-        type: "registry:component",
-        path: "components/assistant-ui/chain-of-thought/trace-shared.ts",
-        sourcePath:
-          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace-shared.ts",
-      },
-      {
-        type: "registry:component",
-        path: "components/assistant-ui/chain-of-thought/trace-time.ts",
-        sourcePath:
-          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace-time.ts",
-      },
-      {
-        type: "registry:component",
-        path: "components/assistant-ui/chain-of-thought/trace.tsx",
-        sourcePath:
-          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace.tsx",
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/runtime-activity.ts",
       },
     ],
     registryDependencies: [
@@ -316,6 +286,50 @@ export const registry: RegistryItem[] = [
     css: {
       '@import "tw-shimmer"': {},
     },
+  },
+  {
+    name: "agent-trace",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/agent-trace.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/agent-trace.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/agent-trace/disclosure.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/agent-trace/disclosure.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/agent-trace/model.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/agent-trace/model.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/agent-trace/nodes.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/agent-trace/nodes.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/agent-trace/shared.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/agent-trace/shared.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/agent-trace/time.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/agent-trace/time.ts",
+      },
+    ],
+    registryDependencies: ["https://r.assistant-ui.com/chain-of-thought.json"],
+    dependencies: ["lucide-react"],
   },
   {
     name: "message-timing",

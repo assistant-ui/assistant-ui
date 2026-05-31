@@ -1,0 +1,99 @@
+---
+title: Agent Trace
+description: Render a pre-shaped server trace in a timeline.
+platforms: ["react"]
+---
+
+import { AgentTraceSample, AgentTraceInlineSample } from "@/components/docs/samples/agent-trace";
+
+<AgentTraceSample />
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `agent-trace`
+
+<InstallCommand shadcn={["agent-trace"]} />
+
+This also installs `chain-of-thought`, which provides the shared timeline
+primitives.
+
+  </Step>
+  <Step>
+
+### Pass a pre-shaped trace
+
+`AgentTrace` does not inspect message parts. Shape the trace on your server or
+runtime adapter, then pass it directly to the component.
+
+```tsx
+import {
+  AgentTraceDisclosure,
+  type AgentTraceNode,
+} from "@/components/assistant-ui/agent-trace";
+
+const trace: AgentTraceNode[] = [
+  {
+    kind: "step",
+    id: "search",
+    label: "Searched docs",
+    type: "search",
+    toolName: "search_docs",
+    status: "complete",
+    output: "Found the grouped message-part guidance.",
+  },
+  {
+    kind: "step",
+    id: "answer",
+    label: "Drafted response",
+    type: "complete",
+    status: "complete",
+  },
+];
+
+<AgentTraceDisclosure trace={trace} />;
+```
+
+  </Step>
+</Steps>
+
+## Inline Timeline
+
+Use `AgentTrace` when another component already owns the surrounding disclosure
+or panel.
+
+<AgentTraceInlineSample />
+
+```tsx
+<AgentTrace trace={trace} />
+```
+
+## API Reference
+
+### `AgentTraceDisclosure` Props
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `trace` | `AgentTraceNode[]` | - | Pre-shaped trace nodes to render. |
+| `label` | `string` | `"Trace"` | Trigger label. |
+| `summary` | `string \| (stats) => string` | - | Collapsed summary override. |
+| `autoCollapseOnComplete` | `boolean` | `true` | Collapses after running trace steps complete. |
+| `maxDepth` | `number` | `2` | Maximum nested group depth to expand. |
+| `allowGroupExpand` | `boolean` | `true` | Enables nested group expansion. |
+
+### `AgentTrace` Props
+
+| Prop | Type | Default | Description |
+| ---- | ---- | ------- | ----------- |
+| `trace` | `AgentTraceNode[]` | - | Pre-shaped trace nodes to render. |
+| `maxDepth` | `number` | `2` | Maximum nested group depth to expand. |
+| `constrainHeight` | `boolean` | `true` | Caps timeline height and scrolls within the panel. |
+| `allowGroupExpand` | `boolean` | `true` | Enables nested group expansion. |
+| `nodeComponents` | `{ GroupSummary?, StepBody? }` | - | Replaces the default group summary or step body renderers. |
+
+## Related Components
+
+- [Chain of Thought](/docs/ui/chain-of-thought) - Message-scoped reasoning and
+  tool activity.

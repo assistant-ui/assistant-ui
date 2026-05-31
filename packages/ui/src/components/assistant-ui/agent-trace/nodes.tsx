@@ -1,6 +1,6 @@
 "use client";
 
-import { BotIcon, ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import {
   type CSSProperties,
   type ComponentType,
@@ -10,42 +10,44 @@ import {
 } from "react";
 import { Collapsible } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { ChainOfThoughtContent } from "./disclosure";
-import { ChainOfThoughtTimeline } from "./layout";
-import {
-  stepTypeIcons,
-  type TraceGroup,
-  type TraceNode,
-  type TraceStep,
-} from "./model";
-import { STEP_ICON_CLASS } from "./styles";
+import { ChainOfThoughtContent } from "../chain-of-thought/disclosure";
+import { ChainOfThoughtTimeline } from "../chain-of-thought/layout";
+import { stepTypeIcons } from "../chain-of-thought/model";
+import { STEP_ICON_CLASS } from "../chain-of-thought/styles";
 import {
   BulletDot,
   ChainOfThoughtStep,
   ChainOfThoughtStepBody,
   ChainOfThoughtStepHeader,
   ChainOfThoughtToolBadge,
-} from "./step";
-import { isRecord } from "./runtime-activity";
+} from "../chain-of-thought/step";
+import type { AgentTraceGroup, AgentTraceNode, AgentTraceStep } from "./model";
 import {
-  getLatestTraceStep,
-  getTraceStepLabel,
-  isTraceGroup,
-  mapTraceStatusToStepStatus,
-  mapTraceStatusToToolBadge,
-  type ChainOfThoughtTraceGroupSummaryProps,
-  type ChainOfThoughtTraceNodeComponents,
-  type ChainOfThoughtTraceNodesProps,
-} from "./trace-shared";
+  getAgentTraceStepLabel,
+  getLatestAgentTraceStep,
+  isAgentTraceGroup,
+  mapAgentTraceStatusToStepStatus,
+  mapAgentTraceStatusToToolBadge,
+  type AgentTraceGroupSummaryProps,
+  type AgentTraceNodeComponents,
+  type AgentTraceProps,
+} from "./shared";
 
-const DefaultTraceGroupSummary: ComponentType<
-  ChainOfThoughtTraceGroupSummaryProps
-> = ({ group, latestStep, isOpen, canExpand, onToggle }) => {
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const DefaultTraceGroupSummary: ComponentType<AgentTraceGroupSummaryProps> = ({
+  group,
+  latestStep,
+  isOpen,
+  canExpand,
+  onToggle,
+}) => {
   const toolName = group.summary?.toolName ?? latestStep?.toolName;
   const latestLabel =
     group.summary?.latestLabel ??
-    (latestStep ? getTraceStepLabel(latestStep) : undefined);
-  const badgeStatus = mapTraceStatusToToolBadge(
+    (latestStep ? getAgentTraceStepLabel(latestStep) : undefined);
+  const badgeStatus = mapAgentTraceStatusToToolBadge(
     latestStep?.status ?? group.status,
   );
 
@@ -54,10 +56,9 @@ const DefaultTraceGroupSummary: ComponentType<
       type="button"
       onClick={onToggle}
       disabled={!canExpand}
-      data-slot="chain-of-thought-trace-group-summary"
-      data-variant={group.variant ?? "default"}
+      data-slot="agent-trace-group-summary"
       className={cn(
-        "aui-chain-of-thought-trace-group-summary group/trace-summary w-full text-left",
+        "aui-agent-trace-group-summary group/trace-summary w-full text-left",
         "rounded-md px-0 py-0 transition-colors",
         "disabled:cursor-default",
       )}
@@ -87,7 +88,7 @@ const DefaultTraceGroupSummary: ComponentType<
 };
 
 const DefaultTraceStepBody: NonNullable<
-  ChainOfThoughtTraceNodeComponents["StepBody"]
+  AgentTraceNodeComponents["StepBody"]
 > = ({ step }) => {
   const isStreamingOutput =
     isRecord(step.output) &&
@@ -119,12 +120,10 @@ const DefaultTraceStepBody: NonNullable<
 };
 
 function resolveGroupIcon({
-  isSubagent,
   canExpand,
   isOpen,
   type,
 }: {
-  isSubagent: boolean;
   canExpand: boolean;
   isOpen: boolean;
   type: string;
@@ -143,7 +142,6 @@ function resolveGroupIcon({
     );
   }
 
-  if (isSubagent) return <BotIcon className={STEP_ICON_CLASS} />;
   const TypeIcon = stepTypeIcons[type as keyof typeof stepTypeIcons];
   if (TypeIcon === null || !TypeIcon) return <BulletDot />;
   return <TypeIcon className={STEP_ICON_CLASS} />;
@@ -154,23 +152,22 @@ function TraceStepNode({
   nodeComponents,
   style,
 }: {
-  step: TraceStep;
-  nodeComponents?: ChainOfThoughtTraceNodeComponents | undefined;
+  step: AgentTraceStep;
+  nodeComponents?: AgentTraceNodeComponents | undefined;
   style?: CSSProperties | undefined;
 }) {
   const StepBody = nodeComponents?.StepBody ?? DefaultTraceStepBody;
-  const label = getTraceStepLabel(step);
-  const status = mapTraceStatusToStepStatus(step.status);
+  const label = getAgentTraceStepLabel(step);
+  const status = mapAgentTraceStatusToStepStatus(step.status);
   const type = step.type ?? (step.toolName ? "tool" : "default");
   const isActive = step.status === "running";
-  const isTextType = type === "text";
-  const isMonologue = isTextType && !step.toolName;
+  const isMonologue = type === "text" && !step.toolName;
 
   const toolBadge = step.toolName ? (
     <span className="inline-flex h-5 shrink-0 items-center">
       <ChainOfThoughtToolBadge
         toolName={step.toolName}
-        status={mapTraceStatusToToolBadge(step.status)}
+        status={mapAgentTraceStatusToToolBadge(step.status)}
         showIcon={false}
         className="max-w-[7rem] min-w-0"
       />
@@ -180,7 +177,7 @@ function TraceStepNode({
 
   return (
     <ChainOfThoughtStep
-      data-role="trace-step"
+      data-role="agent-trace-step"
       status={status}
       active={isActive}
       type={isMonologue ? "default" : type}
@@ -208,41 +205,34 @@ function TraceGroupNode({
   renderNode,
   style,
 }: {
-  group: TraceGroup;
+  group: AgentTraceGroup;
   depth: number;
   maxDepth: number;
-  nodeComponents?: ChainOfThoughtTraceNodeComponents | undefined;
+  nodeComponents?: AgentTraceNodeComponents | undefined;
   allowGroupExpand: boolean;
-  renderNode: (node: TraceNode, index: number, depth: number) => ReactNode;
+  renderNode: (node: AgentTraceNode, index: number, depth: number) => ReactNode;
   style?: CSSProperties | undefined;
 }) {
-  const latestStep = useMemo(() => getLatestTraceStep(group), [group]);
+  const latestStep = useMemo(() => getLatestAgentTraceStep(group), [group]);
   const canExpand =
     allowGroupExpand && depth < maxDepth && group.children.length > 0;
   const [requestedOpen, setRequestedOpen] = useState(false);
   const isOpen = canExpand && requestedOpen;
   const GroupSummary = nodeComponents?.GroupSummary ?? DefaultTraceGroupSummary;
-  const isSubagent = group.variant === "subagent";
   const groupStatus = group.status ?? latestStep?.status;
-  const type =
-    group.summary?.latestType ??
-    latestStep?.type ??
-    (latestStep?.toolName ? "tool" : "default");
+  const type = latestStep?.type ?? (latestStep?.toolName ? "tool" : "default");
 
   return (
     <ChainOfThoughtStep
-      data-role="trace-group"
-      data-variant={group.variant ?? "default"}
-      status={mapTraceStatusToStepStatus(groupStatus)}
+      data-role="agent-trace-group"
+      status={mapAgentTraceStatusToStepStatus(groupStatus)}
       active={groupStatus === "running"}
-      type={isSubagent ? "default" : type}
+      type={type}
       icon={resolveGroupIcon({
-        isSubagent,
         canExpand,
         isOpen,
         type,
       })}
-      iconPulse={!(isSubagent && canExpand)}
       style={style}
     >
       <ChainOfThoughtStepBody>
@@ -274,7 +264,7 @@ function TraceGroupNode({
   );
 }
 
-export function ChainOfThoughtTraceNodes({
+export function AgentTraceNodes({
   className,
   trace,
   maxDepth = 2,
@@ -282,14 +272,14 @@ export function ChainOfThoughtTraceNodes({
   constrainHeight = true,
   allowGroupExpand = true,
   ...timelineProps
-}: ChainOfThoughtTraceNodesProps) {
+}: AgentTraceProps) {
   const renderNode = (
-    node: TraceNode,
+    node: AgentTraceNode,
     stepIndex: number,
     depth: number,
   ): ReactNode => {
     const style = { "--step-index": stepIndex } as CSSProperties;
-    if (isTraceGroup(node)) {
+    if (isAgentTraceGroup(node)) {
       return (
         <TraceGroupNode
           key={node.id}

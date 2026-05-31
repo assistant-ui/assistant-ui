@@ -10,6 +10,7 @@
     "assistant-modal",
     "assistant-sidebar",
     "---Add-ons---",
+    "agent-trace",
     "attachment",
     "chain-of-thought",
     "composer-trigger-popover",
