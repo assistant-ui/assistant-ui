@@ -1,5 +1,76 @@
 # @assistant-ui/react
 
+## 0.14.12
+
+### Patch Changes
+
+- [#4172](https://github.com/assistant-ui/assistant-ui/pull/4172) [`1315789`](https://github.com/assistant-ui/assistant-ui/commit/13157895e4d69ad4266d6ab278edfc2e3ea1de92) - feat: add the `ToolkitDeclaration` / `ToolkitDeclarationDefinition` types for authoring a toolkit permissively (a backend tool may declare `description`/`parameters`/`execute`); the canonical `Toolkit` keeps those fields erased. Author with `defineToolkit()` from `@assistant-ui/next`, which the `"use generative"` compiler strips per build. ([@Yonom](https://github.com/Yonom))
+
+- [#4151](https://github.com/assistant-ui/assistant-ui/pull/4151) [`299d448`](https://github.com/assistant-ui/assistant-ui/commit/299d4488c8a5bbec0679680866f5975055fe71b3) - chore: drop stale `biome-ignore` pragmas now that the repo lints with oxlint ([@okisdev](https://github.com/okisdev))
+
+- [#4136](https://github.com/assistant-ui/assistant-ui/pull/4136) [`4429aa3`](https://github.com/assistant-ui/assistant-ui/commit/4429aa32f6bd4fd50a7a8ddbad1e19f6ccad192b) - centralize thread-level shared options forwarding across runtime wrapper hooks. follow-up to [#4135](https://github.com/assistant-ui/assistant-ui/issues/4135). ([@okisdev](https://github.com/okisdev))
+
+  new public exports from `@assistant-ui/core` (re-exported from `@assistant-ui/react`):
+  - `ExternalStoreSharedOptions`, a typed `Pick` over `ExternalStoreAdapter` covering the four thread-level optional fields every wrapper forwards: `isDisabled`, `isSendDisabled`, `unstable_capabilities`, `suggestions`.
+  - `pickExternalStoreSharedOptions(options)`, plucks those four fields from a wider options object. the body uses `satisfies Required<...>` so adding a key to the type without copying it in the function is a compile error rather than a silent missing-field bug.
+  - `useExternalStoreSharedOptions(options)` (from `@assistant-ui/core/react`), a memoized variant for wrappers that wrap their store in `useMemo`. lets the wrapper list a single stable `shared` reference as a dep instead of enumerating the four fields. same `satisfies` guard internally so the destructure stays in sync with the type.
+
+  internal: every runtime wrapper hook (`useChatRuntime`, `useAISDKRuntime`, `useLangGraphRuntime`, `useA2ARuntime`, `useAgUiRuntime`, `useAdkRuntime`, `useStreamRuntime`, `useOpenCodeRuntime`) now uses these helpers instead of inlining the conditional spreads added in [#4135](https://github.com/assistant-ui/assistant-ui/issues/4135). each wrapper sheds 20 to 40 lines of duplicated declarations and conditional spreads; future additions to the shared option set propagate through a single edit in `pickExternalStoreSharedOptions` instead of touching every wrapper. no user-facing behavior change.
+
+- [#4141](https://github.com/assistant-ui/assistant-ui/pull/4141) [`0b99959`](https://github.com/assistant-ui/assistant-ui/commit/0b999594ff30ded9f804896093eab0478ac5ce46) - fix(react): stop subtree mutations from snapping a scrolled-up viewport back to bottom; loosen at-bottom threshold for high-DPR displays ([@vaniyokk](https://github.com/vaniyokk))
+
+  `useThreadViewportAutoScroll` had two related bugs surfaced on Chrome macOS at `devicePixelRatio: 2`:
+  1. subtree mutations snapped the viewport back to bottom after the user scrolled away. `scrollingToBottomBehaviorRef` was planted on `thread.runStart` / `useOnScrollToBottom` / initialize / thread switch and only cleared in `handleScroll` once `newIsAtBottom` became true. while the ref stayed set, every non-style subtree mutation (a Radix `data-state` flip, a markdown re-render, an image lazy-load, an attribute toggle on a child) re-entered `useOnResizeContent`'s callback and called `scrollToBottom(scrollBehavior)`, locking the viewport to the bottom until reload.
+  2. `isAtBottom` never registered as `true` on high-DPR displays. `Math.abs(scrollHeight - scrollTop - clientHeight) < 1` is strict-less-than, and Chrome macOS at `devicePixelRatio: 2` clips `scrollTop` one pixel short of `scrollHeight - clientHeight` (`Math.abs(1) < 1 === false`), so the store never updated and `ScrollToBottom` never moved into its disabled state.
+
+  the fix combines two layers. `handleScroll` now tracks `lastScrollHeight` alongside `lastScrollTop` and releases the auto-stick intent when the user scrolls up with content size unchanged, ruling out content-driven scrollTop shifts. the resize callback also bails when neither `scrollHeight` nor `clientHeight` has changed since the last fire, so mutations that don't move layout never re-enter the snap path. at-bottom auto-follow during streaming is preserved (verified by appending a synthetic 600px child while scrolled to bottom; viewport follows to new bottom). the threshold becomes `<= 1` to absorb the 1px sub-pixel clip.
+
+  closes [#4140](https://github.com/assistant-ui/assistant-ui/issues/4140).
+
+- [#4160](https://github.com/assistant-ui/assistant-ui/pull/4160) [`e76611f`](https://github.com/assistant-ui/assistant-ui/commit/e76611fcb80a39d7b6071d82bcfaf1bb7345110b) - feat: add `indicator` support to `MessagePrimitive.GroupedParts`. ([@Yonom](https://github.com/Yonom))
+
+  Restores loading-state handling that was dropped from the grouped renderer. `GroupedParts` now emits a synthetic `{ part: { type: "indicator" } }` render call you handle with `case "indicator"` in your `switch (part.type)` — render a "thinking…" dot or any loading affordance.
+  - The indicator is only ever emitted while the message is **running**, so its presence alone means "render loading UI here" — there's no `status` to branch on.
+  - New `indicator` prop restricts which running states qualify: `"never"`, `"empty"` (no parts yet), `"no-text"` (default — last part isn't `text`/`reasoning`, e.g. the model ended on a tool call), or `"always"` (any running state).
+
+- [#4162](https://github.com/assistant-ui/assistant-ui/pull/4162) [`eef724e`](https://github.com/assistant-ui/assistant-ui/commit/eef724efe4a9075337577c626d7ea7aead45cfbe) - fix: drop phantom sibling messages when an external store swaps an optimistic message id mid-run ([#4037](https://github.com/assistant-ui/assistant-ui/issues/4037)). ([@Yonom](https://github.com/Yonom))
+
+  Messages can now be flagged `metadata.isOptimistic`. Optimistic messages are treated as ephemeral: they only ever live on the current head branch (the repository evicts off-branch optimistic messages whenever the head moves) and they are never written to persisted state (`export()` omits them). The AI SDK v6 adapter flags the streaming assistant message as optimistic, so when its client-generated id is replaced by a server-provided one mid-run, the stale placeholder no longer lingers as a phantom branch (e.g. `BranchPicker` showing `2/2` on a turn the user never branched). Unlike the reverted blanket id-diff ([#4040](https://github.com/assistant-ui/assistant-ui/issues/4040)), only explicitly-optimistic messages are affected, so legitimate `onEdit` / `onReload` / `switchToBranch` branches are preserved.
+
+- [#4175](https://github.com/assistant-ui/assistant-ui/pull/4175) [`2dec3ae`](https://github.com/assistant-ui/assistant-ui/commit/2dec3aeba0431178f4ca26e470b304f5a89390ba) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4148](https://github.com/assistant-ui/assistant-ui/pull/4148) [`2d9595e`](https://github.com/assistant-ui/assistant-ui/commit/2d9595e04977ca16fb7edb1295309831945f4914) - revert: roll back [#4040](https://github.com/assistant-ui/assistant-ui/issues/4040) (drop phantom siblings on external-store id swap). the `_lastSyncedMessageIds` diff was deleting legitimate sibling branches created by `onEdit` / `onReload` / `switchToBranch`, causing `BranchPicker` to disappear on edits and reloads ([#4131](https://github.com/assistant-ui/assistant-ui/issues/4131)). this revert restores the additive sync behavior; the AI SDK v6 mid-stream id swap ([#4037](https://github.com/assistant-ui/assistant-ui/issues/4037)) regresses and will be addressed in the AI SDK adapter instead. ([@okisdev](https://github.com/okisdev))
+
+- [#4167](https://github.com/assistant-ui/assistant-ui/pull/4167) [`fcb6baf`](https://github.com/assistant-ui/assistant-ui/commit/fcb6baf161a9ee7dda65191e0b42de12b368724d) - feat: add a `display` presentation hint to tools and a `"standalone-tool-call"` key to `groupPartByType`. ([@Yonom](https://github.com/Yonom))
+
+  Tool UIs fall into three buckets: prompting the user (human-in-the-loop), informing the user (generative UI), and traces of what the model is doing (routine frontend/backend tool calls). The first two should be surfaced on their own; the last belongs folded into the chain-of-thought trace. The new `display` field on a tool lets you place a tool in the right bucket without overloading `type`:
+
+  ```ts
+  const toolkit = {
+    ask_user: { type: "human", render: AskUI }, // standalone (forced — can't opt out)
+    search_web: { type: "frontend", render: SearchUI }, // inline trace (default)
+    checkout: {
+      type: "frontend",
+      render: CheckoutUI,
+      display: "standalone", // opt in
+    },
+  } satisfies Toolkit;
+  ```
+
+  - `display?: "standalone" | "inline"` is a client-only presentation hint (it never reaches the model). Defaults to `"inline"`.
+  - `human` tools are always `"standalone"` and cannot opt out (the type only allows `"standalone"`). MCP-app tool calls and the built-in generative-UI tool are standalone too. Every other tool defaults to inline and opts in explicitly.
+  - `groupPartByType` gains a synthetic `"standalone-tool-call"` key that matches all of the above. `MessagePrimitive.GroupedParts` passes the live tool-UI registry to the `groupBy` function as a second `context` argument (`{ toolUIs }`), and the helper reads it to resolve the registry-driven cases; MCP-app calls are detected from the part alone.
+  - The `"mcp-app"` key on `groupPartByType` is **deprecated** in favor of `"standalone-tool-call"` (a superset). It still works for back-compat.
+
+  The shadcn `thread.tsx` template is updated to use `"standalone-tool-call": []` in place of `"mcp-app": []`.
+
+- Updated dependencies [[`1315789`](https://github.com/assistant-ui/assistant-ui/commit/13157895e4d69ad4266d6ab278edfc2e3ea1de92), [`299d448`](https://github.com/assistant-ui/assistant-ui/commit/299d4488c8a5bbec0679680866f5975055fe71b3), [`4429aa3`](https://github.com/assistant-ui/assistant-ui/commit/4429aa32f6bd4fd50a7a8ddbad1e19f6ccad192b), [`e76611f`](https://github.com/assistant-ui/assistant-ui/commit/e76611fcb80a39d7b6071d82bcfaf1bb7345110b), [`76f7d16`](https://github.com/assistant-ui/assistant-ui/commit/76f7d161c2d802b72e07a12f67595f94c9ad7e4d), [`eef724e`](https://github.com/assistant-ui/assistant-ui/commit/eef724efe4a9075337577c626d7ea7aead45cfbe), [`2dec3ae`](https://github.com/assistant-ui/assistant-ui/commit/2dec3aeba0431178f4ca26e470b304f5a89390ba), [`fcb6baf`](https://github.com/assistant-ui/assistant-ui/commit/fcb6baf161a9ee7dda65191e0b42de12b368724d), [`c4d3eea`](https://github.com/assistant-ui/assistant-ui/commit/c4d3eeac6907a2fc15718f3c710d73d24eaeb652), [`331f2f7`](https://github.com/assistant-ui/assistant-ui/commit/331f2f7f432285fd0cdc14e0862b550e5d15769e)]:
+  - assistant-stream@0.3.18
+  - @assistant-ui/core@0.2.8
+  - @assistant-ui/store@0.2.13
+  - @assistant-ui/tap@0.5.14
+  - assistant-cloud@0.1.30
+
 ## 0.14.11
 
 ### Patch Changes

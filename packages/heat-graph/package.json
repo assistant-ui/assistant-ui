@@ -1,6 +1,6 @@
 {
   "name": "heat-graph",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "description": "Headless, Radix-style React components for rendering activity heatmap graphs",
   "keywords": [
     "heatmap",

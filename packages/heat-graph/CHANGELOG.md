@@ -1,5 +1,11 @@
 # heat-graph
 
+## 0.0.10
+
+### Patch Changes
+
+- [#4151](https://github.com/assistant-ui/assistant-ui/pull/4151) [`299d448`](https://github.com/assistant-ui/assistant-ui/commit/299d4488c8a5bbec0679680866f5975055fe71b3) - chore: drop stale `biome-ignore` pragmas now that the repo lints with oxlint ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.9
 
 ### Patch Changes
