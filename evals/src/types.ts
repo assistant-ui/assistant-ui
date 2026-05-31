@@ -30,12 +30,14 @@ export interface Verdict {
   reason: string;
 }
 
-export interface TrialResult {
-  verdict: Verdict;
-  artifact: string;
-  /** True when the agent/judge call threw — excluded from the pass rate. */
-  error?: boolean;
-}
+/**
+ * A completed trial carries a judged verdict; an errored one (CLI timeout,
+ * non-zero exit) carries only a message. The union keeps `verdict` unreachable
+ * on the error branch, so consumers can't read a synthetic value by mistake.
+ */
+export type TrialResult =
+  | { error?: false; verdict: Verdict; artifact: string }
+  | { error: true; message: string; artifact: "" };
 
 export interface VariantResult {
   candidate: Candidate;

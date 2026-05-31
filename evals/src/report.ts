@@ -10,13 +10,13 @@ export function renderReport(results: CaseResult[]): string {
   const cell = (s: string) => s.padStart(colW);
   const lines: string[] = [];
 
-  lines.push("# Comment-hygiene eval");
+  lines.push("# Prompt eval results");
   lines.push("");
   lines.push(`${"candidate".padEnd(labelW)}  ${caseIds.map(cell).join("  ")}`);
   for (const label of labels) {
     const cells = results.map((r) => {
-      const v = r.variants.find((x) => x.candidate.label === label)!;
-      return cell(`${Math.round(v.passRate * 100)}%`);
+      const v = r.variants.find((x) => x.candidate.label === label);
+      return cell(`${Math.round((v?.passRate ?? 0) * 100)}%`);
     });
     lines.push(`${label.padEnd(labelW)}  ${cells.join("  ")}`);
   }
@@ -26,7 +26,7 @@ export function renderReport(results: CaseResult[]): string {
   for (const r of results) {
     const base = r.variants.find((v) => v.candidate.label === "baseline");
     const fail = base?.trials.find((t) => !t.error && !t.verdict.pass);
-    if (fail) {
+    if (fail && !fail.error) {
       lines.push(`- ${r.case.id}: ${fail.verdict.reason}`);
     }
   }

@@ -23,8 +23,9 @@ export function runCase(
   trials: number,
 ): CaseResult {
   const variants: VariantResult[] = [];
+  const labelW = Math.max(14, ...candidates.map((c) => c.label.length));
   for (const candidate of candidates) {
-    process.stdout.write(`  ${candidate.label.padEnd(14)} `);
+    process.stdout.write(`  ${candidate.label.padEnd(labelW)} `);
     const ts: TrialResult[] = [];
     for (let i = 0; i < trials; i++) {
       let trial: TrialResult;
@@ -32,31 +33,22 @@ export function runCase(
         const artifact = runAgent(c, candidate.prompt);
         trial = { verdict: runJudge(c.rubric, artifact), artifact };
       } catch (err) {
-        trial = {
-          verdict: {
-            pass: false,
-            reason: `trial error: ${(err as Error).message}`,
-          },
-          artifact: "",
-          error: true,
-        };
+        trial = { error: true, message: (err as Error).message, artifact: "" };
       }
       ts.push(trial);
       process.stdout.write(trial.error ? "E" : trial.verdict.pass ? "." : "x");
       if (process.env.DUMP) {
-        const tag = trial.error
-          ? "ERROR"
-          : trial.verdict.pass
-            ? "PASS"
-            : "FAIL";
+        const detail = trial.error
+          ? `ERROR: ${trial.message}`
+          : `${trial.verdict.pass ? "PASS" : "FAIL"}: ${trial.verdict.reason}`;
         process.stdout.write(
-          `\n--- ${candidate.label} trial ${i + 1} (${tag}: ${trial.verdict.reason}) ---\n${trial.artifact}\n`,
+          `\n--- ${candidate.label} trial ${i + 1} (${detail}) ---\n${trial.artifact}\n`,
         );
       }
     }
     const scored = ts.filter((t) => !t.error);
     const passRate = scored.length
-      ? scored.filter((t) => t.verdict.pass).length / scored.length
+      ? scored.filter((t) => !t.error && t.verdict.pass).length / scored.length
       : 0;
     process.stdout.write(`  ${Math.round(passRate * 100)}%\n`);
     variants.push({ candidate, trials: ts, passRate });
