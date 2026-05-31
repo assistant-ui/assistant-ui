@@ -91,23 +91,15 @@ const ChainOfThoughtRuntimeTimeline = memo(
   },
 );
 
-/** Props for the runtime-backed ChainOfThought component. */
 export type ChainOfThoughtProps = {
-  /** Caps the timeline height and shows a jump-to-latest affordance when needed. */
   constrainHeight?: boolean | undefined;
-  /** Optional per-tool label resolvers for the collapsed activity line. */
   toolActivityLabels?: Record<string, ToolActivity> | undefined;
-  /** Custom trigger body renderer for host-specific layouts. */
   renderTriggerContent?: ChainOfThoughtTriggerProps["renderTriggerContent"];
-  /** Collapses the panel when a streaming chain reaches a terminal state. */
   autoCollapseOnComplete?: boolean | undefined;
-  /** Visual chrome variant shared with `ChainOfThought.Root`. */
   variant?: ChainOfThoughtRootProps["variant"] | undefined;
-  /** Overrides for the panel's user-facing strings (labels, terminal text). */
   strings?: Partial<ChainOfThoughtStrings> | undefined;
 };
 
-/** Runtime ChainOfThought implementation used by the compound export. */
 export const ChainOfThoughtImpl = ({
   constrainHeight = false,
   toolActivityLabels,
@@ -134,8 +126,6 @@ export const ChainOfThoughtImpl = ({
       reasoningActivity: strings.reasoningActivity,
     }),
   );
-  // Resolved as a primitive so the live region can announce a stable label for
-  // reasoning without sniffing the localized prefix out of `collapsedActivity`.
   const collapsedActivityIsReasoning = useAuiState((s) =>
     isCollapsedActivityReasoning(s.chainOfThought.parts),
   );
@@ -144,9 +134,7 @@ export const ChainOfThoughtImpl = ({
     const chainStatusType = s.chainOfThought.status.type;
     if (isMessageStatusStreaming(chainStatusType)) return true;
     const messageStatusType = s.message.status?.type;
-    // A terminal message can't be streaming — guard before trusting per-part
-    // status, so a stale `running` part on a finished run can't pin the chain
-    // open with a perpetual shimmer.
+    // Finished messages override stale running part status.
     if (!isMessageStatusStreaming(messageStatusType)) return false;
 
     const parts = s.chainOfThought.parts;
@@ -199,8 +187,7 @@ export const ChainOfThoughtImpl = ({
   const elapsedSeconds = useElapsedSeconds(isActivePhase);
   const terminalElapsedSeconds =
     phase === "complete" || phase === "incomplete" ? elapsedSeconds : undefined;
-  // Keep an auto-opened stream expanded after completion only when requested,
-  // without mirroring the streaming prop through state.
+  // Preserve an auto-opened stream only when auto-collapse is disabled.
   const holdOpenAfterStreamingRef = useRef(
     isChainStreaming && !autoCollapseOnComplete,
   );
@@ -217,9 +204,7 @@ export const ChainOfThoughtImpl = ({
       wasStreamingRef.current &&
       autoCollapseOnComplete
     ) {
-      // Auto-collapse unmounts the content. If the user had moved focus into
-      // it (a tool-detail toggle, a Retry button), move focus to the trigger
-      // first so it doesn't fall back to <body> and strand keyboard/AT users.
+      // Move focus out of content before auto-collapse unmounts it.
       const root = rootRef.current;
       const active = root?.ownerDocument.activeElement;
       if (root && active && active !== root.ownerDocument.body) {
@@ -240,10 +225,7 @@ export const ChainOfThoughtImpl = ({
   const open =
     isChainStreaming || !collapsed || holdOpenAfterStreamingRef.current;
 
-  // Single polite live region mirroring the visible (aria-hidden) activity, so
-  // screen-reader users get passive feedback. Per-token reasoning updates are
-  // collapsed to a stable "Thinking…" string so the value only changes on a
-  // meaningful transition (new tool / done / stopped) instead of every tick.
+  // Keep reasoning announcements stable while tokens stream.
   const liveStatus =
     phase === "complete"
       ? strings.done(terminalElapsedSeconds)

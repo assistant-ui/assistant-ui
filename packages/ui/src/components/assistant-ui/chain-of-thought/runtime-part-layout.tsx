@@ -15,7 +15,6 @@ import {
 } from "./step";
 import { useChainOfThoughtStrings } from "./strings";
 
-/** Layout wrapper used by `ChainOfThoughtPrimitive.Parts` for each runtime part. */
 export const ChainOfThoughtPrimitivePartLayout: FC<PropsWithChildren> = ({
   children,
 }) => {
@@ -54,7 +53,6 @@ export const ChainOfThoughtPrimitivePartLayout: FC<PropsWithChildren> = ({
   );
 };
 
-/** Terminal step appended after a runtime chain finishes or stops. */
 export function ChainOfThoughtTerminalStep({
   phase,
   elapsedSeconds,

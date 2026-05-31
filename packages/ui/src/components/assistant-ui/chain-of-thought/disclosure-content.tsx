@@ -3,7 +3,6 @@
 import { CollapsibleContent } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
-/** Bottom fade used when ChainOfThought content is scroll constrained. */
 export function ChainOfThoughtFade({
   className,
   ...props
@@ -31,7 +30,6 @@ export function ChainOfThoughtFade({
   );
 }
 
-/** Animated disclosure body for ChainOfThought timelines and free-form content. */
 export function ChainOfThoughtContent({
   className,
   children,

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-/** Captures the final streaming duration for trace summaries. */
 export function useTraceDuration(isStreaming: boolean) {
   const [durationSec, setDurationSec] = useState<number | undefined>(undefined);
   const startRef = useRef<number | null>(null);
@@ -26,7 +25,6 @@ export function useTraceDuration(isStreaming: boolean) {
   return durationSec;
 }
 
-/** Returns elapsed seconds while an activity is active, then keeps the final value. */
 export function useElapsedSeconds(isActive: boolean) {
   const [elapsedSeconds, setElapsedSeconds] = useState<number | undefined>(
     undefined,

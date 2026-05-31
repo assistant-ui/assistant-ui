@@ -274,7 +274,6 @@ function TraceGroupNode({
   );
 }
 
-/** Renders a structured trace tree as a ChainOfThought timeline. */
 export function ChainOfThoughtTraceNodes({
   className,
   trace,

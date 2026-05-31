@@ -11,11 +11,9 @@ import {
   chainOfThoughtVariants,
 } from "./styles";
 
-/** Props for the ChainOfThought collapsible root primitive. */
 export type ChainOfThoughtRootProps = DisclosureRootProps &
   VariantProps<typeof chainOfThoughtVariants>;
 
-/** Collapsible container that applies ChainOfThought variants and motion tokens. */
 export function ChainOfThoughtRoot({
   className,
   variant,

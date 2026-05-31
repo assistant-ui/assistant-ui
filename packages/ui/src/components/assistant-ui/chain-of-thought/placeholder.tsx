@@ -3,7 +3,6 @@
 import { cn } from "@/lib/utils";
 import { useChainOfThoughtStrings } from "./strings";
 
-/** Empty-state body used when the current chain contains no visible parts. */
 export function ChainOfThoughtPlaceholder({
   className,
   children,

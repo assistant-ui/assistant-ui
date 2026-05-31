@@ -21,7 +21,6 @@ import type {
   TraceSummaryFormatter,
 } from "./model";
 
-/** Grouping function used to derive trace steps from message parts. */
 export type PartsGroupedGroupingFunction = ComponentProps<
   typeof MessagePrimitive.Unstable_PartsGrouped
 >["groupingFunction"];
@@ -39,13 +38,11 @@ const getParentId = (part: GroupingPart): string | undefined => {
   return typeof parentId === "string" ? parentId : undefined;
 };
 
-/** Groups message parts by `parentId` while preserving first-seen order. */
 export const groupMessagePartsByParentId: PartsGroupedGroupingFunction = (
   parts,
 ) => {
   const messageParts = parts as readonly TraceMessagePart[];
 
-  // Map maintains insertion order, so groups appear in order of first occurrence
   const groupMap = new Map<string, number[]>();
 
   for (let i = 0; i < messageParts.length; i++) {
@@ -65,14 +62,12 @@ export const groupMessagePartsByParentId: PartsGroupedGroupingFunction = (
   return groups;
 };
 
-/** Returns true for structured trace group nodes. */
 export const isTraceGroup = (node: TraceNode): node is TraceGroup =>
   node.kind === "group";
 
 const isTraceStep = (node: TraceNode): node is TraceStep =>
   node.kind === "step";
 
-/** Maps structured trace status values onto visual step states. */
 export const mapTraceStatusToStepStatus = (
   status?: TraceStatus,
 ): StepStatus => {
@@ -97,7 +92,6 @@ const stepStatusToTrace = (s: StepStatus): TraceStatus =>
         ? "incomplete"
         : "complete";
 
-/** Maps structured trace status values onto tool badge states. */
 export const mapTraceStatusToToolBadge = (
   status?: TraceStatus,
 ): "pending" | "running" | "complete" | "error" => {
@@ -113,7 +107,6 @@ export const mapTraceStatusToToolBadge = (
   }
 };
 
-/** Finds the newest leaf step in a trace tree. */
 export const getLatestTraceStep = (node: TraceNode): TraceStep | undefined => {
   if (isTraceStep(node)) return node;
   for (let i = node.children.length - 1; i >= 0; i--) {
@@ -124,14 +117,12 @@ export const getLatestTraceStep = (node: TraceNode): TraceStep | undefined => {
   return undefined;
 };
 
-/** Resolves the visible label for a trace step. */
 export const getTraceStepLabel = (step: TraceStep): ReactNode | undefined => {
   if (step.label !== undefined) return step.label;
   if (step.toolName) return `Tool: ${step.toolName}`;
   return undefined;
 };
 
-/** Metadata returned by custom message-part-to-trace inference. */
 export type ChainOfThoughtTraceStepMeta = {
   label?: ReactNode | undefined;
   type?: StepType | undefined;
@@ -140,7 +131,6 @@ export type ChainOfThoughtTraceStepMeta = {
   icon?: LucideIcon | ReactNode | undefined;
 };
 
-/** Props passed to the default or custom trace group summary component. */
 export type ChainOfThoughtTraceGroupSummaryProps = {
   group: TraceGroup;
   latestStep?: TraceStep | undefined;
@@ -150,7 +140,6 @@ export type ChainOfThoughtTraceGroupSummaryProps = {
   depth?: number | undefined;
 };
 
-/** Override slots for structured trace rendering. */
 export type ChainOfThoughtTraceNodeComponents = {
   GroupSummary?:
     | ComponentType<ChainOfThoughtTraceGroupSummaryProps>
@@ -158,7 +147,6 @@ export type ChainOfThoughtTraceNodeComponents = {
   StepBody?: ComponentType<{ step: TraceStep }> | undefined;
 };
 
-/** Props for rendering a pre-shaped `TraceNode[]` timeline. */
 export type ChainOfThoughtTraceNodesProps = Omit<
   ComponentProps<typeof ChainOfThoughtTimeline>,
   "children"
@@ -170,7 +158,6 @@ export type ChainOfThoughtTraceNodesProps = Omit<
   allowGroupExpand?: boolean | undefined;
 };
 
-/** Props for deriving a trace timeline from the active message parts. */
 export type ChainOfThoughtTracePartsProps = Omit<
   ChainOfThoughtTraceNodesProps,
   "trace"
@@ -187,12 +174,10 @@ export type ChainOfThoughtTracePartsProps = Omit<
     | undefined;
 };
 
-/** Props accepted by `ChainOfThought.Trace`. */
 export type ChainOfThoughtTraceProps =
   | ChainOfThoughtTraceNodesProps
   | ChainOfThoughtTracePartsProps;
 
-/** Shared props for the trace disclosure shell. */
 export type ChainOfThoughtTraceDisclosureSharedProps = {
   label?: string | undefined;
   summary?: string | TraceSummaryFormatter | undefined;
@@ -209,7 +194,6 @@ export type ChainOfThoughtTraceDisclosureSharedProps = {
     | undefined;
 };
 
-/** Props accepted by `ChainOfThought.TraceDisclosure`. */
 export type ChainOfThoughtTraceDisclosureProps =
   | (ChainOfThoughtTraceNodesProps & ChainOfThoughtTraceDisclosureSharedProps)
   | (ChainOfThoughtTracePartsProps & ChainOfThoughtTraceDisclosureSharedProps);
@@ -222,7 +206,6 @@ type ToolCallPartLike = {
 const isToolCallPart = (part: unknown): part is ToolCallPartLike =>
   isRecord(part) && part.type === "tool-call";
 
-/** Default inference used when deriving trace steps from message parts. */
 export const defaultInferStep: NonNullable<
   ChainOfThoughtTracePartsProps["inferStep"]
 > = ({ groupKey, parts, isActive }) => {
@@ -239,8 +222,6 @@ export const defaultInferStep: NonNullable<
       ? { status: "active" as const }
       : {};
 
-  // Reuse the runtime inference so both paths agree and tool names are matched
-  // case-insensitively (e.g. `WebSearch` → search, not the literal fallthrough).
   const type: StepType = toolName ? inferStepTypeFromTool(toolName) : "default";
 
   if (toolName) return { label: `Tool: ${toolName}`, type, ...inferredStatus };
@@ -248,13 +229,11 @@ export const defaultInferStep: NonNullable<
   return { label: "Step", type, ...inferredStatus };
 };
 
-/** Options for deriving a structured trace from message parts. */
 export type TraceFromMessagePartsOptions = {
   groupingFunction?: PartsGroupedGroupingFunction | undefined;
   inferStep?: ChainOfThoughtTracePartsProps["inferStep"] | undefined;
 };
 
-/** Converts message parts into a flat trace using the configured grouping rules. */
 export const traceFromMessageParts = (
   parts: GroupingParts,
   options: TraceFromMessagePartsOptions = {},
@@ -285,10 +264,7 @@ export const traceFromMessageParts = (
 
     return {
       kind: "step",
-      // Prefer the caller's stable groupKey. The fallback keys off the first
-      // part index (stable under append) and uses a reserved prefix so it can't
-      // collide with a user-supplied groupKey. Custom grouping functions that
-      // reorder groups should still return a stable `groupKey`.
+      // Fallback is stable under append and reserved away from user group keys.
       id: group.groupKey ?? `__step_${group.indices[0] ?? index}`,
       label: meta.label,
       ...(meta.type != null ? { type: meta.type } : {}),

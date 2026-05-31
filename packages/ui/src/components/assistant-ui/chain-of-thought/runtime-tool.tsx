@@ -23,7 +23,6 @@ import {
 } from "./runtime-activity";
 import { ToolActivityLabelsContext } from "./runtime-tool-context";
 
-/** Tool fallback wrapper that reads activity label resolvers from context. */
 export const ChainOfThoughtPrimitiveToolWithLabels: ToolCallMessagePartComponent =
   (props) => {
     const toolActivityLabels = useContext(ToolActivityLabelsContext);
@@ -35,13 +34,11 @@ export const ChainOfThoughtPrimitiveToolWithLabels: ToolCallMessagePartComponent
     );
   };
 
-/** Props for the default tool-call row rendered inside a ChainOfThought step. */
 export type ChainOfThoughtPrimitiveToolProps =
   React.ComponentProps<ToolCallMessagePartComponent> & {
     toolActivityLabels?: Record<string, ToolActivity> | undefined;
   };
 
-/** Default tool-call renderer with compact labels and optional expandable details. */
 export function ChainOfThoughtPrimitiveTool({
   toolName,
   argsText,
@@ -49,11 +46,6 @@ export function ChainOfThoughtPrimitiveTool({
   status,
   toolActivityLabels,
 }: ChainOfThoughtPrimitiveToolProps) {
-  // Each row reads its own part plus the chain/message status. The latter two
-  // are chain-wide, but selectors return primitives so they never trigger an
-  // extra render — only a cheap selector eval. Reading them directly (rather
-  // than threading a shared context) keeps the row self-contained and works
-  // both inside the runtime timeline and when composed standalone.
   const currentPart = useAuiState((s) => s.part);
   const toolPart = currentPart.type === "tool-call" ? currentPart : undefined;
   const chainStatusType = useAuiState((s) => s.chainOfThought.status.type);
@@ -84,10 +76,7 @@ export function ChainOfThoughtPrimitiveTool({
   const toolResult = result ?? toolPart?.result;
   const searchResults = extractSearchResults(toolName, toolResult);
 
-  // Read from the reactive part state first (matches `statusType` above);
-  // fall back to the prop for callers outside the message scope. Treat
-  // `requires-action` like `running` so the badge spinner aligns with
-  // the shimmering activity label above.
+  // Prefer live part status; standalone callers fall back to props.
   const badgeStatusType = toolPart?.status?.type ?? status?.type;
   const badgeStatus: "running" | "complete" | "error" =
     badgeStatusType === "running" || badgeStatusType === "requires-action"

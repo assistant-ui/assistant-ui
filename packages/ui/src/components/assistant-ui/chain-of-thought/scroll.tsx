@@ -50,20 +50,12 @@ const usePrefersReducedMotion = () =>
     () => false,
   );
 
-/** Options for {@link useAutoScroll}. */
 export type UseAutoScrollOptions = {
-  /** Pin the container to the bottom as new content arrives. */
   autoPin?: boolean | undefined;
-  /**
-   * Track scroll position so `isScrolledUp` / `scrollToBottom` (and the jump
-   * affordance) stay live even when not auto-pinning — e.g. a finished but
-   * still height-constrained panel. Defaults to `autoPin`.
-   */
   track?: boolean | undefined;
   behavior?: ScrollBehavior | undefined;
 };
 
-/** Tracks whether a scroll container should stay pinned to its latest content. */
 export function useAutoScroll(
   scrollEl: HTMLElement | null,
   contentKey: unknown,
@@ -74,8 +66,7 @@ export function useAutoScroll(
   const isScrolledUpRef = useRef(false);
   const lastTopRef = useRef(0);
   const prefersReducedMotion = usePrefersReducedMotion();
-  // `behavior` (smooth by default for the runtime) is reserved for the
-  // user-initiated jump; reduced-motion always forces an instant scroll.
+  // Reduced motion forces an instant user jump.
   const userScrollBehavior: ScrollBehavior = prefersReducedMotion
     ? "auto"
     : behavior;
@@ -97,20 +88,14 @@ export function useAutoScroll(
     [],
   );
 
-  // Pin to the latest content unless the user has scrolled away from the bottom.
   useLayoutEffect(() => {
     void contentKey;
     if (!autoPin || !scrollEl || isScrolledUpRef.current) return;
-    // Pin instantly: a smooth animation can't keep up with bursts of new parts
-    // landing within one frame, so it would visibly trail the latest content.
+    // Pin instantly so bursty streams do not trail the latest content.
     scrollToEnd(scrollEl, "auto");
   }, [contentKey, autoPin, scrollEl, scrollToEnd]);
 
-  // Detect intent by scroll *direction*, not absolute position. Programmatic
-  // pinning only ever scrolls down, so a decrease in scrollTop is an
-  // unambiguous user scroll-up (works for wheel, touch, keys, and scrollbar
-  // drags alike). This avoids the smooth-scroll race where an in-flight
-  // programmatic animation's events were misread as a user scroll-up.
+  // A downward programmatic scroll must not read as user intent to pause.
   useEffect(() => {
     if (!track || !scrollEl) return;
     lastTopRef.current = scrollEl.scrollTop;
@@ -133,9 +118,6 @@ export function useAutoScroll(
 
   const scrollToBottom = useCallback(() => {
     if (!scrollEl) return;
-    // The user jump honors the requested (smooth) behavior. The scroll listener
-    // detects intent by *direction*, so a downward smooth scroll is never
-    // misread as a user scroll-up — the animation can't re-pause itself.
     scrollToEnd(scrollEl, userScrollBehavior);
     setIsScrolledUp(false);
   }, [scrollEl, scrollToEnd, userScrollBehavior, setIsScrolledUp]);
@@ -143,7 +125,6 @@ export function useAutoScroll(
   return { isScrolledUp: track && isScrolledUp, scrollToBottom };
 }
 
-/** Floating button shown when auto-scroll is paused above the latest item. */
 export function JumpToLatestButton({
   onClick,
   visible,

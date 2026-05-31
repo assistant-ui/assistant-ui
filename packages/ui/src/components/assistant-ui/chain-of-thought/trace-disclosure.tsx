@@ -59,7 +59,6 @@ function useTraceDisclosureState({
   return { open, handleOpenChange };
 }
 
-/** Shared root shell used by both static traces and message-derived traces. */
 function ChainOfThoughtTraceDisclosureRoot({
   isStreaming,
   hasIncomplete,
@@ -189,9 +188,6 @@ function ChainOfThoughtTraceDisclosureParts({
     requestedAllowGroupExpand &&
     (!disableGroupExpansionWhileStreaming || !isStreaming);
 
-  // Derive the trace ONCE and reuse it for both the summary stats and the
-  // rendered nodes, instead of recomputing `traceFromMessageParts` twice
-  // (here for stats + again inside `ChainOfThoughtTraceParts`) every render.
   const trace = useMemo(
     () =>
       messageParts.length === 0
@@ -228,7 +224,6 @@ function ChainOfThoughtTraceDisclosureParts({
   );
 }
 
-/** Renders a trace inside the ChainOfThought collapsible shell. */
 export function ChainOfThoughtTraceDisclosure(
   props: ChainOfThoughtTraceDisclosureProps,
 ) {

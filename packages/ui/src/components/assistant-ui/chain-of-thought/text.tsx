@@ -5,13 +5,11 @@ import { cn } from "@/lib/utils";
 import { CONTAINER_ENTER_ANIM, CONTAINER_EXIT_ANIM } from "./styles";
 import { JumpToLatestButton, useAutoScroll } from "./scroll";
 
-/** Props for a scrollable free-form reasoning text container. */
 export type ChainOfThoughtTextProps = React.ComponentProps<"div"> & {
   autoScroll?: boolean | undefined;
   showCursor?: boolean | undefined;
 };
 
-/** Scrollable text body for custom ChainOfThought compositions. */
 export function ChainOfThoughtText({
   className,
   autoScroll = false,

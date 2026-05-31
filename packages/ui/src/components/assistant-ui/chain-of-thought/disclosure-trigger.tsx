@@ -9,7 +9,6 @@ import type { ChainOfThoughtPhase } from "./model";
 import { useDisclosureOpenState } from "./disclosure-base";
 import { Crossfade } from "./crossfade";
 
-/** Props for the ChainOfThought trigger primitive. */
 export type ChainOfThoughtTriggerProps = React.ComponentProps<
   typeof CollapsibleTrigger
 > & {
@@ -18,17 +17,7 @@ export type ChainOfThoughtTriggerProps = React.ComponentProps<
   activityLabel?: string | undefined;
   elapsedSeconds?: number | undefined;
   reasoningLabel?: string | undefined;
-  /** Fallback label shown while streaming with no resolved activity. */
   streamingLabel?: string | undefined;
-  /**
-   * Render a custom trigger body. Receives the resolved trigger state so the
-   * caller can build their own label/affordance composition.
-   *
-   * Accessibility: this replaces the entire default trigger body (including the
-   * chevron). Make sure your content includes a visible text label or pass an
-   * `aria-label` so the toggle button keeps an accessible name; consider
-   * re-including a disclosure indicator for sighted users.
-   */
   renderTriggerContent?:
     | ((args: {
         phase: ChainOfThoughtPhase;
@@ -40,7 +29,6 @@ export type ChainOfThoughtTriggerProps = React.ComponentProps<
     | undefined;
 };
 
-/** Trigger button with phase-aware labels, shimmer, and custom render support. */
 export function ChainOfThoughtTrigger({
   phase = "idle",
   isOpen,
@@ -52,8 +40,6 @@ export function ChainOfThoughtTrigger({
   className,
   ...props
 }: ChainOfThoughtTriggerProps) {
-  // Fall back to the strings seam (defaults to English) so the standalone
-  // primitive localizes via context without every caller threading the props.
   const strings = useChainOfThoughtStrings();
   const resolvedReasoningLabel = reasoningLabel ?? strings.reasoning;
   const resolvedStreamingLabel = streamingLabel ?? strings.thinking;
@@ -98,8 +84,6 @@ export function ChainOfThoughtTrigger({
                 "transition-transform duration-(--animation-duration) ease-(--spring-easing)",
                 "motion-reduce:transition-none",
                 "group-data-[state=closed]/trigger:-rotate-90",
-                // Mirror the collapsed rotation for RTL so the chevron still
-                // points toward the disclosure's reading direction.
                 "rtl:group-data-[state=closed]/trigger:rotate-90",
                 "group-data-[state=open]/trigger:rotate-0",
               )}

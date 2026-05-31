@@ -18,7 +18,6 @@ import {
   STEP_ICON_CLASS,
 } from "./styles";
 
-/** Small fallback dot used when a step has no specific icon. */
 export function BulletDot({ className }: { className?: string | undefined }) {
   return (
     <span
@@ -31,7 +30,6 @@ export function BulletDot({ className }: { className?: string | undefined }) {
   );
 }
 
-/** Props for an individual timeline step. */
 export type ChainOfThoughtStepProps = React.ComponentProps<"li"> & {
   status?: StepStatus | undefined;
   active?: boolean | undefined;
@@ -90,7 +88,6 @@ function resolveStepIcon(
   return <TypeIcon className={STEP_ICON_CLASS} />;
 }
 
-/** Timeline row with connector, status icon, optional error, and retry action. */
 export function ChainOfThoughtStep({
   className,
   status,
@@ -246,7 +243,6 @@ export function ChainOfThoughtStep({
   );
 }
 
-/** Header slot for a step label or compact summary line. */
 export function ChainOfThoughtStepHeader({
   className,
   ...props
@@ -263,7 +259,6 @@ export function ChainOfThoughtStepHeader({
   );
 }
 
-/** Body slot for step detail content. */
 export function ChainOfThoughtStepBody({
   className,
   ...props
@@ -281,14 +276,12 @@ export function ChainOfThoughtStepBody({
   );
 }
 
-/** Props for the small tool-name badge used in runtime and trace rows. */
 export type ChainOfThoughtToolBadgeProps = React.ComponentProps<"span"> & {
   toolName: string;
   status?: "pending" | "running" | "complete" | "error" | undefined;
   showIcon?: boolean | undefined;
 };
 
-/** Compact badge for a tool call inside a ChainOfThought row. */
 export function ChainOfThoughtToolBadge({
   toolName,
   status = "complete",

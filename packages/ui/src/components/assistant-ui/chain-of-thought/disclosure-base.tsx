@@ -13,19 +13,16 @@ import { useScrollLock } from "@assistant-ui/react";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
-/** Default duration shared by ChainOfThought disclosure animations. */
 export const DISCLOSURE_ANIMATION_DURATION = 200;
 
 const DisclosureOpenStateContext = createContext<boolean | undefined>(
   undefined,
 );
 
-/** Reads the resolved open state from the nearest ChainOfThought disclosure. */
 export function useDisclosureOpenState() {
   return useContext(DisclosureOpenStateContext);
 }
 
-/** Props for the shared controlled/uncontrolled disclosure root helper. */
 export type DisclosureRootProps = Omit<
   React.ComponentProps<typeof Collapsible>,
   "open" | "onOpenChange"
@@ -38,7 +35,6 @@ export type DisclosureRootProps = Omit<
   lockOnProgrammaticClose?: boolean | undefined;
 };
 
-/** Shared Collapsible root with scroll locking and resolved open-state context. */
 export function DisclosureRoot({
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
@@ -57,9 +53,7 @@ export function DisclosureRoot({
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
   const previousOpenRef = useRef(isOpen);
-  // Set when `handleOpenChange` already locked for this close, so the
-  // programmatic-close effect below doesn't lock a second time when the
-  // controlled `open` prop subsequently flips to false.
+  // Avoid double-locking a controlled close.
   const closedViaHandlerRef = useRef(false);
 
   const handleOpenChange = useCallback(
@@ -123,7 +117,6 @@ const DISCLOSURE_CONTENT_CLASSNAME = cn(
   "motion-reduce:animate-none motion-reduce:transition-none",
 );
 
-/** Shared animated content wrapper for simple disclosure compositions. */
 export function DisclosureContent({
   className,
   ...props

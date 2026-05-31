@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-/** Props for the small value crossfade used by live trigger labels. */
 export type CrossfadeProps<T> = {
   value: T;
   children: (value: T) => ReactNode;
@@ -13,7 +12,6 @@ export type CrossfadeProps<T> = {
   className?: string | undefined;
 };
 
-/** Crossfades between rendered values without remounting the surrounding label. */
 export function Crossfade<T>({
   value,
   children,
@@ -24,8 +22,7 @@ export function Crossfade<T>({
 }: CrossfadeProps<T>) {
   const currentValueRef = useRef(value);
   const generationRef = useRef(0);
-  // Wrapped in an object (not `T | null`) so a legitimately null/falsy previous
-  // value still drives a crossfade instead of being read as "not transitioning".
+  // Preserve null/falsy previous values during a transition.
   const previousEntryRef = useRef<{ value: T; generation: number } | null>(
     null,
   );
