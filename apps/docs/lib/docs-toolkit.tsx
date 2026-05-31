@@ -19,7 +19,6 @@ export default defineToolkit({
     }),
     execute: async (args: { query: string }) =>
       geocodeLocationWithOpenMeteo(args.query),
-    display: "standalone",
     render: ({ result }: any) => {
       if (result?.error) {
         return (
@@ -67,6 +66,7 @@ export default defineToolkit({
     },
   },
   weather_search: {
+    display: "standalone",
     description:
       "Find the weather in a location given a longitude and latitude",
     parameters: z.object({
