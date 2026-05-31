@@ -59,6 +59,18 @@ type AuiV0MessagePart =
       readonly image: string;
     }
   | {
+      readonly type: "video";
+      readonly url: string;
+      readonly mimeType?: string;
+      readonly filename?: string;
+      readonly posterUrl?: string;
+      readonly width?: number;
+      readonly height?: number;
+      readonly durationSeconds?: number;
+      readonly providerMetadata?: ReadonlyJSONObject;
+      readonly parentId?: string;
+    }
+  | {
       readonly type: "file";
       readonly data: string;
       readonly mimeType: string;
@@ -153,6 +165,26 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
 
         case "image":
           return { type: "image", image: part.image };
+
+        case "video":
+          return {
+            type: "video",
+            url: part.url,
+            ...(part.mimeType ? { mimeType: part.mimeType } : undefined),
+            ...(part.filename ? { filename: part.filename } : undefined),
+            ...(part.posterUrl ? { posterUrl: part.posterUrl } : undefined),
+            ...(part.width !== undefined ? { width: part.width } : undefined),
+            ...(part.height !== undefined
+              ? { height: part.height }
+              : undefined),
+            ...(part.durationSeconds !== undefined
+              ? { durationSeconds: part.durationSeconds }
+              : undefined),
+            ...(part.providerMetadata
+              ? { providerMetadata: part.providerMetadata }
+              : undefined),
+            ...(part.parentId ? { parentId: part.parentId } : undefined),
+          };
 
         case "file":
           return {

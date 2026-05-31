@@ -34,6 +34,13 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
           ...(part.filename && { filename: part.filename }),
           mediaType: "image/png",
         };
+      case "video":
+        return {
+          type: "file",
+          url: part.url,
+          mediaType: part.mimeType ?? "video/mp4",
+          ...(part.filename && { filename: part.filename }),
+        };
       case "file":
         return {
           type: "file",

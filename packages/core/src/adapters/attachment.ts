@@ -158,6 +158,17 @@ export function partToCompleteAttachment(
     };
   }
 
+  if (part.type === "video") {
+    return {
+      id,
+      type: "video",
+      name: part.filename ?? "video",
+      contentType: part.mimeType ?? "video/mp4",
+      content: [part],
+      status: { type: "complete" },
+    };
+  }
+
   if (part.type === "file") {
     return {
       id,

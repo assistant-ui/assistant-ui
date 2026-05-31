@@ -11,6 +11,7 @@ import type {
   AssistantMessagePart,
   ReasoningPart,
   FilePart,
+  VideoPart,
   DataPart,
 } from "../utils/types";
 import { ObjectStreamAccumulator } from "../object/ObjectStreamAccumulator";
@@ -127,6 +128,33 @@ const handlePartStart = (
     return {
       ...message,
       parts: [...message.parts, newFilePart],
+      get content() {
+        return this.parts;
+      },
+    };
+  } else if (partInit.type === "video") {
+    const newVideoPart: VideoPart = {
+      type: "video",
+      url: partInit.url,
+      status: { type: "running" },
+      ...(partInit.mimeType ? { mimeType: partInit.mimeType } : undefined),
+      ...(partInit.filename ? { filename: partInit.filename } : undefined),
+      ...(partInit.posterUrl ? { posterUrl: partInit.posterUrl } : undefined),
+      ...(partInit.width !== undefined ? { width: partInit.width } : undefined),
+      ...(partInit.height !== undefined
+        ? { height: partInit.height }
+        : undefined),
+      ...(partInit.durationSeconds !== undefined
+        ? { durationSeconds: partInit.durationSeconds }
+        : undefined),
+      ...(partInit.providerMetadata
+        ? { providerMetadata: partInit.providerMetadata }
+        : undefined),
+      ...(partInit.parentId && { parentId: partInit.parentId }),
+    };
+    return {
+      ...message,
+      parts: [...message.parts, newVideoPart],
       get content() {
         return this.parts;
       },

@@ -59,6 +59,17 @@ const getPromptParts = (message: AppendMessage) => {
         mime: part.mimeType,
         url: part.data,
       });
+      continue;
+    }
+
+    if (part.type === "video") {
+      promptParts.push({
+        type: "file",
+        filename: part.filename,
+        mime: part.mimeType ?? "video/mp4",
+        url: part.url,
+      });
+      continue;
     }
   }
 

@@ -99,6 +99,20 @@ export type FilePart = {
   parentId?: string;
 };
 
+export type VideoPart = {
+  type: "video";
+  url: string;
+  status: TextStatus;
+  mimeType?: string;
+  filename?: string;
+  posterUrl?: string;
+  width?: number;
+  height?: number;
+  durationSeconds?: number;
+  providerMetadata?: ReadonlyJSONObject;
+  parentId?: string;
+};
+
 export type DataPart = {
   type: "data";
   name: string;
@@ -112,6 +126,7 @@ export type AssistantMessagePart =
   | ToolCallPart
   | SourcePart
   | FilePart
+  | VideoPart
   | DataPart;
 
 type AssistantMessageStepUsage = {

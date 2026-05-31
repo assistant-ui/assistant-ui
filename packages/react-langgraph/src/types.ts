@@ -27,6 +27,16 @@ export type MessageContentImageUrl = {
   image_url: string | { url: string };
 };
 
+export type MessageContentVideo = {
+  type: "video";
+  source_type: "url";
+  url: string;
+  mime_type?: string;
+  metadata?: {
+    filename?: string;
+  };
+};
+
 export type MessageContentThinking = {
   type: "thinking";
   thinking: string;
@@ -104,10 +114,12 @@ export type MessageContentFile =
 type UserMessageContentComplex =
   | MessageContentText
   | MessageContentImageUrl
+  | MessageContentVideo
   | MessageContentFile;
 type AssistantMessageContentComplex =
   | MessageContentText
   | MessageContentImageUrl
+  | MessageContentVideo
   | MessageContentToolUse
   | MessageContentFile
   | MessageContentReasoning

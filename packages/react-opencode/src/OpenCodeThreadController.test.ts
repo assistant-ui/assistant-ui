@@ -114,6 +114,50 @@ describe("OpenCodeThreadController", () => {
     expect(eventSource.unsubscribe).toHaveBeenCalledTimes(1);
   });
 
+  it("sends video parts as file prompt parts", async () => {
+    const client = {
+      session: {
+        promptAsync: vi.fn().mockResolvedValue({}),
+      },
+    };
+
+    const controller = new OpenCodeThreadController(
+      client as never,
+      { subscribe: () => () => {} } as never,
+      "ses_1",
+    );
+
+    await controller.sendMessage({
+      role: "user",
+      parentId: null,
+      sourceId: null,
+      content: [
+        {
+          type: "video",
+          url: "https://cdn.example.com/video.mp4",
+          mimeType: "video/mp4",
+          filename: "video.mp4",
+        },
+      ],
+      metadata: { custom: {} },
+    });
+
+    expect(client.session.promptAsync).toHaveBeenCalledWith({
+      sessionID: "ses_1",
+      parts: [
+        {
+          type: "file",
+          filename: "video.mp4",
+          mime: "video/mp4",
+          url: "https://cdn.example.com/video.mp4",
+        },
+      ],
+    });
+    expect(
+      Object.values(controller.getState().pendingUserMessages)[0]?.contentText,
+    ).toBe("video.mp4");
+  });
+
   it("keeps forced reloads authoritative while earlier loads finish", async () => {
     const firstSession = createDeferred<{ data: unknown }>();
     const firstMessages = createDeferred<{ data: unknown[] }>();

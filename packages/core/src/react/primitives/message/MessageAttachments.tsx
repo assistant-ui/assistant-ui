@@ -11,6 +11,7 @@ import { MessageAttachmentByIndexProvider } from "../../providers/AttachmentByIn
 
 type MessageAttachmentsComponentConfig = {
   Image?: ComponentType | undefined;
+  Video?: ComponentType | undefined;
   Document?: ComponentType | undefined;
   File?: ComponentType | undefined;
   Attachment?: ComponentType | undefined;
@@ -38,6 +39,8 @@ const getComponent = (
   switch (type) {
     case "image":
       return components?.Image ?? components?.Attachment;
+    case "video":
+      return components?.Video ?? components?.Attachment;
     case "document":
       return components?.Document ?? components?.Attachment;
     case "file":
@@ -80,6 +83,7 @@ export const MessagePrimitiveAttachmentByIndex: FC<MessagePrimitiveAttachmentByI
     (prev, next) =>
       prev.index === next.index &&
       prev.components?.Image === next.components?.Image &&
+      prev.components?.Video === next.components?.Video &&
       prev.components?.Document === next.components?.Document &&
       prev.components?.File === next.components?.File &&
       prev.components?.Attachment === next.components?.Attachment,

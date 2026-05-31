@@ -131,6 +131,56 @@ describe("convertAdkMessage - ai messages", () => {
     });
   });
 
+  it("converts video file content parts to video message parts and preserves filename", () => {
+    const msg: AdkMessage = {
+      id: "m1",
+      type: "ai",
+      content: [
+        {
+          type: "file",
+          mimeType: "video/mp4",
+          data: "AAAAGGZ0eXBtcDQy",
+          filename: "clip.mp4",
+        },
+      ],
+    };
+    const result = convertAdkMessage(msg);
+    expect(result).toMatchObject({
+      content: [
+        {
+          type: "video",
+          url: "data:video/mp4;base64,AAAAGGZ0eXBtcDQy",
+          mimeType: "video/mp4",
+          filename: "clip.mp4",
+        },
+      ],
+    });
+  });
+
+  it("converts video file_url content parts to video message parts", () => {
+    const msg: AdkMessage = {
+      id: "m1",
+      type: "ai",
+      content: [
+        {
+          type: "file_url",
+          url: "gs://bucket/video.mp4",
+          mimeType: "video/mp4",
+        },
+      ],
+    };
+    const result = convertAdkMessage(msg);
+    expect(result).toMatchObject({
+      content: [
+        {
+          type: "video",
+          url: "gs://bucket/video.mp4",
+          mimeType: "video/mp4",
+        },
+      ],
+    });
+  });
+
   it("converts code content parts to data parts", () => {
     const msg: AdkMessage = {
       id: "m1",

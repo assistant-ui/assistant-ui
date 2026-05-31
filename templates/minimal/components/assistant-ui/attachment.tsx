@@ -133,6 +133,8 @@ const AttachmentUI: FC = () => {
     switch (type) {
       case "image":
         return "Image";
+      case "video":
+        return "Video";
       case "document":
         return "Document";
       case "file":

@@ -3,7 +3,7 @@ title: MessagePartPrimitive
 description: Message part primitives for rendering text, tool calls, data parts, reasoning, source content, and custom assistant output.
 ---
 
-import { MessagePartPrimitiveImageProps, MessagePartPrimitiveMessagesProps, MessagePartPrimitiveTextProps } from "@/generated/typeDocs";
+import { MessagePartPrimitiveImageProps, MessagePartPrimitiveMessagesProps, MessagePartPrimitiveTextProps, MessagePartPrimitiveVideoProps } from "@/generated/typeDocs";
 import { MessagePartPrimitive as MessagePartPrimitiveDocs } from "@/generated/primitiveDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
@@ -64,6 +64,22 @@ const TextMessagePart = () => {
 )}
 
 <ParametersTable {...MessagePartPrimitiveImageProps} />
+
+### Video
+
+{MessagePartPrimitiveDocs.Video?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {MessagePartPrimitiveDocs.Video.deprecated}
+  </Callout>
+)}
+
+{MessagePartPrimitiveDocs.Video?.description}
+
+{MessagePartPrimitiveDocs.Video?.element && (
+  <p>This primitive renders a <code>{`<${MessagePartPrimitiveDocs.Video?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+<ParametersTable {...MessagePartPrimitiveVideoProps} />
 
 ### InProgress
 

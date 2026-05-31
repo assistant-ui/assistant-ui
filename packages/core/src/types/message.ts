@@ -51,6 +51,19 @@ export type ImageMessagePart = {
   readonly filename?: string;
 };
 
+export type VideoMessagePart = {
+  readonly type: "video";
+  readonly url: string;
+  readonly mimeType?: string;
+  readonly filename?: string;
+  readonly posterUrl?: string;
+  readonly width?: number;
+  readonly height?: number;
+  readonly durationSeconds?: number;
+  readonly providerMetadata?: ReadonlyJSONObject;
+  readonly parentId?: string;
+};
+
 export type FileMessagePart = {
   readonly type: "file";
   readonly filename?: string;
@@ -184,6 +197,7 @@ export type ToolCallMessagePart<
 export type ThreadUserMessagePart =
   | TextMessagePart
   | ImageMessagePart
+  | VideoMessagePart
   | FileMessagePart
   | DataMessagePart
   | Unstable_AudioMessagePart;
@@ -195,6 +209,7 @@ export type ThreadAssistantMessagePart =
   | SourceMessagePart
   | FileMessagePart
   | ImageMessagePart
+  | VideoMessagePart
   | DataMessagePart
   | GenerativeUIMessagePart;
 

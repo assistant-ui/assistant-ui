@@ -6,6 +6,7 @@ import type {
   ThreadStep,
   MessageStatus,
   ImageMessagePart,
+  VideoMessagePart,
   ThreadMessage,
   ThreadAssistantMessagePart,
   ThreadAssistantMessage,
@@ -38,6 +39,7 @@ export type ThreadMessageLike = {
         | ReasoningMessagePart
         | SourceMessagePart
         | ImageMessagePart
+        | VideoMessagePart
         | FileMessagePart
         | DataMessagePart
         | GenerativeUIMessagePart
@@ -153,6 +155,7 @@ export const fromThreadMessageLike = (
 
               case "file":
               case "source":
+              case "video":
                 return part;
 
               case "image":
@@ -224,6 +227,7 @@ export const fromThreadMessageLike = (
           switch (type) {
             case "text":
             case "image":
+            case "video":
             case "audio":
             case "file":
             case "data":

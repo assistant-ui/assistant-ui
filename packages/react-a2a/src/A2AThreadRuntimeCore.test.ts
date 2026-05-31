@@ -40,6 +40,20 @@ function createUserAppendMessage(text: string): AppendMessage {
   } as unknown as AppendMessage;
 }
 
+function createUserVideoAppendMessage(): AppendMessage {
+  return {
+    parentId: null,
+    role: "user",
+    content: [
+      {
+        type: "video",
+        url: "https://cdn.example.com/video.mp4",
+        mimeType: "video/mp4",
+      },
+    ],
+  };
+}
+
 function statusUpdateEvent(state: string, text?: string): A2AStreamEvent {
   return {
     type: "statusUpdate",
@@ -164,6 +178,24 @@ describe("A2AThreadRuntimeCore", () => {
   // --- Streaming run ---
 
   describe("streaming run", () => {
+    it("sends user video parts to A2A as URL parts", async () => {
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed", "Done");
+      });
+      const core = createCore({ streamMessage });
+
+      await core.append(createUserVideoAppendMessage());
+
+      expect(streamMessage.mock.calls[0]?.[0]).toMatchObject({
+        parts: [
+          {
+            url: "https://cdn.example.com/video.mp4",
+            mediaType: "video/mp4",
+          },
+        ],
+      });
+    });
+
     it("processes status update events into messages", async () => {
       const events: A2AStreamEvent[] = [
         statusUpdateEvent("working", "Thinking..."),

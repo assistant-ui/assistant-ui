@@ -9,8 +9,9 @@ import type { AttachmentAdapter } from "../../../adapters/attachment";
 
 const guessAttachmentType = (
   contentType: string,
-): "image" | "document" | "file" => {
+): "image" | "video" | "document" | "file" => {
   if (contentType.startsWith("image/")) return "image";
+  if (contentType.startsWith("video/")) return "video";
   if (contentType.startsWith("text/")) return "document";
   return "file";
 };
@@ -81,6 +82,17 @@ export class CloudFileAttachmentAdapter implements AttachmentAdapter {
     let content: ThreadUserMessagePart[];
     if (attachment.type === "image") {
       content = [{ type: "image", image: url, filename: attachment.name }];
+    } else if (attachment.type === "video") {
+      content = [
+        {
+          type: "video",
+          url,
+          ...(attachment.contentType != null && {
+            mimeType: attachment.contentType,
+          }),
+          filename: attachment.name,
+        },
+      ];
     } else {
       content = [
         {

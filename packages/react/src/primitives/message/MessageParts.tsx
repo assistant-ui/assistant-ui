@@ -9,6 +9,7 @@ import {
 } from "@assistant-ui/core/react";
 import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
+import { MessagePartPrimitiveVideo } from "../messagePart/MessagePartVideo";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
 
 const webDefaultComponents = {
@@ -22,6 +23,7 @@ const webDefaultComponents = {
     </p>
   ),
   Image: () => <MessagePartPrimitiveImage />,
+  Video: () => <MessagePartPrimitiveVideo />,
 } satisfies MessagePrimitiveParts.Props["components"];
 
 export namespace MessagePrimitiveParts {
@@ -45,6 +47,7 @@ export const MessagePrimitiveParts: FC<MessagePrimitiveParts.Props> = (
     ? {
         Text: components.Text ?? webDefaultComponents.Text,
         Image: components.Image ?? webDefaultComponents.Image,
+        Video: components.Video ?? webDefaultComponents.Video,
         Reasoning:
           components.Reasoning ?? messagePartsDefaultComponents.Reasoning,
         Source: components.Source ?? messagePartsDefaultComponents.Source,

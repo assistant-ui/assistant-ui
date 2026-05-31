@@ -214,6 +214,67 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("converts assistant video file parts into video content", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "file",
+            mediaType: "video/mp4",
+            url: "https://cdn.example.com/video.mp4",
+            filename: "video.mp4",
+          },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content).toMatchObject([
+      {
+        type: "video",
+        url: "https://cdn.example.com/video.mp4",
+        mimeType: "video/mp4",
+        filename: "video.mp4",
+      },
+    ]);
+  });
+
+  it("converts user video file parts into video attachments", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "u1",
+        role: "user",
+        parts: [
+          {
+            type: "file",
+            mediaType: "video/mp4",
+            url: "https://cdn.example.com/video.mp4",
+            filename: "video.mp4",
+          },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.attachments).toEqual([
+      {
+        id: "0",
+        type: "video",
+        name: "video.mp4",
+        content: [
+          {
+            type: "video",
+            url: "https://cdn.example.com/video.mp4",
+            mimeType: "video/mp4",
+            filename: "video.mp4",
+          },
+        ],
+        contentType: "video/mp4",
+        status: { type: "complete" },
+      },
+    ]);
+  });
+
   it("deduplicates tool calls by toolCallId and surfaces approval / interrupt state", () => {
     const converted = AISDKMessageConverter.toThreadMessages(
       [

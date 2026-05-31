@@ -65,6 +65,8 @@ export type {
   SourceMessagePartProps,
   ImageMessagePartComponent,
   ImageMessagePartProps,
+  VideoMessagePartComponent,
+  VideoMessagePartProps,
   FileMessagePartComponent,
   FileMessagePartProps,
   Unstable_AudioMessagePartComponent,

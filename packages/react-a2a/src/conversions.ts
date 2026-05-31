@@ -7,6 +7,10 @@ function isImageMediaType(mediaType?: string): boolean {
   return !!mediaType && mediaType.startsWith("image/");
 }
 
+function isVideoMediaType(mediaType?: string): mediaType is string {
+  return !!mediaType && mediaType.startsWith("video/");
+}
+
 export function a2aPartToContent(
   part: A2APart,
 ): ThreadAssistantMessage["content"][number] {
@@ -16,6 +20,9 @@ export function a2aPartToContent(
   if (part.url !== undefined) {
     if (isImageMediaType(part.mediaType)) {
       return { type: "image", image: part.url };
+    }
+    if (isVideoMediaType(part.mediaType)) {
+      return { type: "video", url: part.url, mimeType: part.mediaType };
     }
     return {
       type: "text",
@@ -91,6 +98,8 @@ export function contentPartsToA2AParts(
     type: string;
     text?: string;
     image?: string;
+    url?: string;
+    mimeType?: string;
   }>,
 ): A2APart[] {
   return content
@@ -101,6 +110,9 @@ export function contentPartsToA2AParts(
         case "image":
           if (!part.image) return null;
           return { url: part.image, mediaType: "image/*" };
+        case "video":
+          if (!part.url) return null;
+          return { url: part.url, mediaType: part.mimeType ?? "video/mp4" };
         default:
           return null;
       }
