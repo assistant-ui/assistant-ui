@@ -19,7 +19,7 @@ export default defineToolkit({
     }),
     execute: async (args: { query: string }) =>
       geocodeLocationWithOpenMeteo(args.query),
-
+    display: "standalone",
     render: ({ result }: any) => {
       if (result?.error) {
         return (
