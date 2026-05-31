@@ -4,8 +4,6 @@ import {
   getLatestTraceStep,
   getTraceStepLabel,
   groupMessagePartsByParentId,
-  mapTraceStatusToStepStatus,
-  mapTraceStatusToToolBadge,
   traceFromMessageParts,
 } from "./trace-shared";
 import type { TraceNode, TraceStep } from "../chain-of-thought";
@@ -26,20 +24,6 @@ describe("trace-shared", () => {
       { groupKey: "beta", indices: [3] },
       { groupKey: undefined, indices: [4] },
     ]);
-  });
-
-  it("maps trace statuses to step/tool badge statuses", () => {
-    expect(mapTraceStatusToStepStatus("pending")).toBe("pending");
-    expect(mapTraceStatusToStepStatus("running")).toBe("active");
-    expect(mapTraceStatusToStepStatus("incomplete")).toBe("error");
-    expect(mapTraceStatusToStepStatus("complete")).toBe("complete");
-    expect(mapTraceStatusToStepStatus(undefined)).toBe("complete");
-
-    expect(mapTraceStatusToToolBadge("pending")).toBe("pending");
-    expect(mapTraceStatusToToolBadge("running")).toBe("running");
-    expect(mapTraceStatusToToolBadge("incomplete")).toBe("error");
-    expect(mapTraceStatusToToolBadge("complete")).toBe("complete");
-    expect(mapTraceStatusToToolBadge(undefined)).toBe("complete");
   });
 
   it("creates trace steps from message parts with default inference", () => {

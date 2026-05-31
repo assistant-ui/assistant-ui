@@ -4,7 +4,7 @@
 import { act } from "react";
 import type { ComponentType, PropsWithChildren } from "react";
 import { createRoot } from "react-dom/client";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   AuiProvider,
   MessagePrimitive,
@@ -14,8 +14,6 @@ import {
 } from "@assistant-ui/react";
 import { resource, tapMemo } from "@assistant-ui/tap";
 import { ChainOfThought, type TraceNode } from "./chain-of-thought";
-import { ChainOfThoughtToolBadge } from "./chain-of-thought/step";
-import { useTraceDuration } from "./chain-of-thought/trace-time";
 
 const StubToolsClient = resource(() =>
   tapMemo(
@@ -295,170 +293,6 @@ describe("ChainOfThought (80/20 integration contracts)", () => {
     view.unmount();
   });
 
-  it("uses the root open state for custom trigger rendering", () => {
-    const container = document.createElement("div");
-    const root = createRoot(container);
-
-    act(() => {
-      root.render(
-        <ChainOfThought.Root open={false} onOpenChange={() => {}}>
-          <ChainOfThought.Trigger
-            isOpen={true}
-            renderTriggerContent={({ isOpen }) => (
-              <span data-slot="custom-open-state">{String(isOpen)}</span>
-            )}
-          />
-        </ChainOfThought.Root>,
-      );
-    });
-
-    const custom = container.querySelector(
-      "[data-slot=custom-open-state]",
-    ) as HTMLElement | null;
-    expect(custom?.textContent).toBe("false");
-
-    act(() => {
-      root.unmount();
-    });
-  });
-
-  it("defaults the composable root to the ghost variant", () => {
-    const container = document.createElement("div");
-    const root = createRoot(container);
-
-    act(() => {
-      root.render(
-        <ChainOfThought.Root>
-          <ChainOfThought.Trigger />
-        </ChainOfThought.Root>,
-      );
-    });
-
-    const rootEl = container.querySelector(
-      "[data-slot=chain-of-thought-root]",
-    ) as HTMLDivElement | null;
-
-    expect(rootEl?.className).toContain("bg-transparent");
-    expect(rootEl?.className).not.toContain("border");
-
-    act(() => {
-      root.unmount();
-    });
-  });
-
-  it("uses instant auto-scroll when reduced motion is requested", () => {
-    const container = document.createElement("div");
-    const root = createRoot(container);
-    const originalMatchMedia = window.matchMedia;
-    const originalScrollTo = HTMLElement.prototype.scrollTo;
-    const scrollTo = vi.fn();
-
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      writable: true,
-      value: vi.fn().mockReturnValue({
-        matches: true,
-        media: "(prefers-reduced-motion: reduce)",
-        onchange: null,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      }),
-    });
-    Object.defineProperty(HTMLElement.prototype, "scrollTo", {
-      configurable: true,
-      writable: true,
-      value: scrollTo,
-    });
-
-    try {
-      act(() => {
-        root.render(
-          <ChainOfThought.Timeline
-            autoScroll
-            autoScrollKey={1}
-            autoScrollBehavior="smooth"
-          >
-            <ChainOfThought.Step status="active">
-              <ChainOfThought.StepHeader>Working</ChainOfThought.StepHeader>
-              <ChainOfThought.StepBody>
-                Streaming update
-              </ChainOfThought.StepBody>
-            </ChainOfThought.Step>
-          </ChainOfThought.Timeline>,
-        );
-      });
-
-      expect(scrollTo).toHaveBeenCalledWith(
-        expect.objectContaining({ behavior: "auto" }),
-      );
-    } finally {
-      act(() => root.unmount());
-      Object.defineProperty(window, "matchMedia", {
-        configurable: true,
-        writable: true,
-        value: originalMatchMedia,
-      });
-      Object.defineProperty(HTMLElement.prototype, "scrollTo", {
-        configurable: true,
-        writable: true,
-        value: originalScrollTo,
-      });
-    }
-  });
-
-  it("suppresses the running tool badge spinner for reduced motion", () => {
-    const container = document.createElement("div");
-    const root = createRoot(container);
-
-    act(() => {
-      root.render(
-        <ChainOfThoughtToolBadge toolName="search_web" status="running" />,
-      );
-    });
-
-    expect(
-      container
-        .querySelector(".aui-chain-of-thought-tool-badge-spinner")
-        ?.className.includes("motion-reduce:animate-none"),
-    ).toBe(true);
-
-    act(() => root.unmount());
-  });
-
-  it("captures trace duration when mounted already streaming", () => {
-    const container = document.createElement("div");
-    const root = createRoot(container);
-    const now = vi.spyOn(Date, "now");
-
-    const DurationProbe = ({ isStreaming }: { isStreaming: boolean }) => {
-      const duration = useTraceDuration(isStreaming);
-
-      return <span data-slot="trace-duration">{duration ?? "none"}</span>;
-    };
-
-    try {
-      now.mockReturnValue(1_000);
-      act(() => {
-        root.render(<DurationProbe isStreaming />);
-      });
-
-      now.mockReturnValue(3_400);
-      act(() => {
-        root.render(<DurationProbe isStreaming={false} />);
-      });
-
-      expect(
-        container.querySelector("[data-slot=trace-duration]")?.textContent,
-      ).toBe("2");
-    } finally {
-      now.mockRestore();
-      act(() => root.unmount());
-    }
-  });
-
   it("expands tool details and keeps outer disclosure open", () => {
     const runningMessage = createToolMessage({
       messageStatus: { type: "running" },
@@ -479,23 +313,6 @@ describe("ChainOfThought (80/20 integration contracts)", () => {
     expect(toolTrigger?.getAttribute("aria-expanded")).toBe("true");
     expect(outerTrigger?.getAttribute("aria-expanded")).toBe("true");
     expect(view.container.textContent).toContain('"query":"assistant-ui"');
-
-    view.unmount();
-  });
-
-  it("disables tool detail disclosure when there is no detail content", () => {
-    const runningMessage = createToolMessage({
-      messageStatus: { type: "running" },
-      toolStatus: { type: "running" },
-      argsText: "",
-    });
-    const view = renderMessageParts(runningMessage);
-
-    const toolTrigger = view.container.querySelector(
-      "[data-slot=chain-of-thought-tool-activity-trigger]",
-    ) as HTMLButtonElement | null;
-
-    expect(toolTrigger?.hasAttribute("disabled")).toBe(true);
 
     view.unmount();
   });

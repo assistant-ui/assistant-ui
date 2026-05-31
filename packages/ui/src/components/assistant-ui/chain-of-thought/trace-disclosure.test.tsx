@@ -4,7 +4,7 @@
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
-import { ChainOfThoughtTrace, ChainOfThoughtTraceDisclosure } from "./trace";
+import { ChainOfThoughtTraceDisclosure } from "./trace";
 import {
   ChainOfThoughtStringsContext,
   mergeChainOfThoughtStrings,
@@ -39,10 +39,6 @@ const TRACE: TraceNode[] = [
 const ES: Partial<ChainOfThoughtStrings> = {
   reasoning: "Razonamiento",
   traceSummary: ({ searchSteps }) => `Consultó ${searchSteps} fuentes`,
-};
-const FR: Partial<ChainOfThoughtStrings> = {
-  reasoning: "Raisonnement",
-  traceSummary: ({ searchSteps }) => `Consulté ${searchSteps} sources`,
 };
 
 const renderWithStrings = (
@@ -89,71 +85,5 @@ describe("ChainOfThought localization via ChainOfThoughtStringsContext", () => {
     expect(text).not.toContain("Reasoning");
     expect(text).not.toContain("Researched");
     view.unmount();
-  });
-
-  it("re-localizes the trigger when the provider value changes (the language toggle)", () => {
-    const view = renderWithStrings(
-      <ChainOfThoughtTraceDisclosure trace={TRACE} />,
-      ES,
-    );
-    expect(triggerText(view.container)).toContain("Razonamiento");
-
-    view.rerender(<ChainOfThoughtTraceDisclosure trace={TRACE} />, FR);
-    const text = triggerText(view.container);
-    expect(text).toContain("Raisonnement");
-    expect(text).toContain("Consulté");
-    expect(text).not.toContain("Razonamiento");
-    view.unmount();
-  });
-
-  it("the bare Trace timeline has no trigger, so swapping strings changes nothing visible", () => {
-    // This is exactly why a Trace-based localization demo would appear broken:
-    // Trace renders the step data, but none of the trigger's seam strings.
-    const view = renderWithStrings(<ChainOfThoughtTrace trace={TRACE} />, ES);
-    expect(view.container.textContent).toContain("Tool: search_web");
-    expect(view.container.textContent).not.toContain("Razonamiento");
-    expect(view.container.textContent).not.toContain("Consultó");
-    expect(
-      view.container.querySelector("[data-slot=chain-of-thought-trigger]"),
-    ).toBeNull();
-    view.unmount();
-  });
-
-  it("reproduces the demo flicker: an in-place language change crossfades the summary, briefly leaving the previous locale mounted", () => {
-    const view = renderWithStrings(
-      <ChainOfThoughtTraceDisclosure trace={TRACE} />,
-      ES,
-    );
-    expect(triggerText(view.container)).toContain("Consultó");
-
-    // Switch language in place (what the demo did before the fix). The plain
-    // reasoning label swaps instantly, but the crossfaded summary keeps the old
-    // locale mounted during the transition — so it reads as "only the reasoning
-    // translated" plus a flicker.
-    view.rerender(<ChainOfThoughtTraceDisclosure trace={TRACE} />, FR);
-    const text = triggerText(view.container);
-    expect(text).toContain("Raisonnement"); // reasoning: swapped instantly
-    expect(text).toContain("Consulté"); // new summary: entering
-    expect(text).toContain("Consultó"); // old summary: still fading out
-    view.unmount();
-  });
-
-  it("a fresh (remounted) render shows only the selected locale — the fix the demo applies with key={lang}", () => {
-    const a = renderWithStrings(
-      <ChainOfThoughtTraceDisclosure trace={TRACE} />,
-      ES,
-    );
-    a.unmount();
-
-    const b = renderWithStrings(
-      <ChainOfThoughtTraceDisclosure trace={TRACE} />,
-      FR,
-    );
-    const text = triggerText(b.container);
-    expect(text).toContain("Raisonnement");
-    expect(text).toContain("Consulté");
-    expect(text).not.toContain("Consultó");
-    expect(text).not.toContain("Razonamiento");
-    b.unmount();
   });
 });

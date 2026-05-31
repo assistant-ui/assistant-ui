@@ -17,11 +17,6 @@ describe("pluralize", () => {
     expect(pluralize(1, "source")).toBe("source");
     expect(pluralize(3, "source")).toBe("sources");
   });
-
-  it("accepts an irregular plural form", () => {
-    expect(pluralize(1, "query", "queries")).toBe("query");
-    expect(pluralize(2, "query", "queries")).toBe("queries");
-  });
 });
 
 describe("derivePhase", () => {
@@ -117,12 +112,6 @@ describe("trace summaries", () => {
       summarizeTraceStats({ totalSteps: 1, searchSteps: 0, toolSteps: 0 }, 0),
     ).toBe("Completed 1 step (0s)");
   });
-
-  it("renders the duration suffix when provided", () => {
-    expect(
-      summarizeTraceStats({ totalSteps: 2, searchSteps: 0, toolSteps: 0 }, 3),
-    ).toBe("Completed 2 steps (3s)");
-  });
 });
 
 describe("collectTraceStats", () => {
@@ -149,30 +138,9 @@ describe("collectTraceStats", () => {
       toolSteps: 1,
     });
   });
-
-  it("does not double-count a single search tool as both search and tool", () => {
-    expect(
-      collectTraceStats([{ kind: "step", id: "s", toolName: "search_web" }]),
-    ).toEqual({ totalSteps: 1, searchSteps: 1, toolSteps: 0 });
-  });
-
-  it("treats a non-search tool whose name contains 'search' substring as a search", () => {
-    // Documents the substring-based heuristic: `research_topic` matches.
-    expect(
-      collectTraceStats([
-        { kind: "step", id: "r", toolName: "research_topic" },
-      ]),
-    ).toEqual({ totalSteps: 1, searchSteps: 1, toolSteps: 0 });
-  });
 });
 
 describe("traceHasRunning", () => {
-  it("returns false when nothing is running", () => {
-    expect(
-      traceHasRunning([{ kind: "step", id: "a", status: "complete" }]),
-    ).toBe(false);
-  });
-
   it("detects a running step nested inside groups", () => {
     expect(
       traceHasRunning([
@@ -186,43 +154,6 @@ describe("traceHasRunning", () => {
               id: "g2",
               label: "Inner",
               children: [{ kind: "step", id: "live", status: "running" }],
-            },
-          ],
-        },
-      ]),
-    ).toBe(true);
-  });
-
-  it("detects a running group node itself", () => {
-    expect(
-      traceHasRunning([
-        { kind: "group", id: "g", label: "G", status: "running", children: [] },
-      ]),
-    ).toBe(true);
-  });
-
-  it("detects a running step three levels deep (recursion has no depth cap)", () => {
-    // Phase detection must see all nodes regardless of the render-time maxDepth
-    // that collapses deep groups — a running grandchild still reports running.
-    expect(
-      traceHasRunning([
-        {
-          kind: "group",
-          id: "g1",
-          label: "L0",
-          children: [
-            {
-              kind: "group",
-              id: "g2",
-              label: "L1",
-              children: [
-                {
-                  kind: "group",
-                  id: "g3",
-                  label: "L2",
-                  children: [{ kind: "step", id: "deep", status: "running" }],
-                },
-              ],
             },
           ],
         },

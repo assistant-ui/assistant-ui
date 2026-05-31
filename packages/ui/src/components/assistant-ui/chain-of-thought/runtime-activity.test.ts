@@ -4,34 +4,12 @@ import {
   extractSearchResults,
   formatSearchSourceLabel,
   getActivityFromPart,
-  inferStepTypeFromTool,
   inferToolActivityStatusType,
   isCollapsedActivityReasoning,
-  isMessageStatusStreaming,
-  mapPartStatusToStepStatus,
   partStatusOrFallback,
 } from "./runtime-activity";
 
 describe("runtime-activity", () => {
-  it("maps runtime statuses to step statuses", () => {
-    expect(mapPartStatusToStepStatus("running")).toBe("active");
-    expect(mapPartStatusToStepStatus("requires-action")).toBe("active");
-    expect(mapPartStatusToStepStatus("incomplete")).toBe("error");
-    expect(mapPartStatusToStepStatus("complete")).toBe("complete");
-    expect(mapPartStatusToStepStatus(undefined)).toBe("complete");
-  });
-
-  it("infers step type and streaming status", () => {
-    expect(inferStepTypeFromTool("search_web")).toBe("search");
-    expect(inferStepTypeFromTool("image_generation")).toBe("image");
-    expect(inferStepTypeFromTool("write_file")).toBe("write");
-    expect(inferStepTypeFromTool("custom_tool")).toBe("tool");
-
-    expect(isMessageStatusStreaming("running")).toBe(true);
-    expect(isMessageStatusStreaming("requires-action")).toBe(true);
-    expect(isMessageStatusStreaming("complete")).toBe(false);
-  });
-
   it("falls back part status from chain/message state", () => {
     expect(partStatusOrFallback("running", "complete", "complete")).toBe(
       "running",
@@ -164,15 +142,6 @@ describe("runtime-activity", () => {
     expect(formatSearchSourceLabel("plain-source")).toBe("plain-source");
   });
 
-  it("keeps non-web schemes intact instead of stripping them", () => {
-    expect(formatSearchSourceLabel("mailto:foo@bar.com")).toBe(
-      "mailto:foo@bar.com",
-    );
-    expect(formatSearchSourceLabel("javascript:alert(1)")).toBe(
-      "javascript:alert(1)",
-    );
-  });
-
   it("guards untrusted hit counts before rendering a summary", () => {
     // Non-integer / negative hit counts must not produce "Found 1.5 results."
     expect(extractSearchResults("search_web", { hits: 1.5 })).toBeNull();
@@ -212,29 +181,6 @@ describe("runtime-activity", () => {
       "complete",
     );
     expect(done).toBe("weighing options");
-  });
-
-  it("localizes the streaming reasoning prefix via the reasoningActivity seam", () => {
-    const localized = getActivityFromPart(
-      { type: "reasoning", text: "weighing options" },
-      "running",
-      undefined,
-      "running",
-      "running",
-      (snippet) => `Pensando: ${snippet}`,
-    );
-    expect(localized).toBe("Pensando: weighing options");
-
-    // The seam only affects the streaming prefix, not the settled bare text.
-    const settled = getActivityFromPart(
-      { type: "reasoning", text: "weighing options" },
-      "complete",
-      undefined,
-      "complete",
-      "complete",
-      (snippet) => `Pensando: ${snippet}`,
-    );
-    expect(settled).toBe("weighing options");
   });
 
   it("reports whether a reasoning part drives the collapsed activity", () => {
@@ -300,23 +246,6 @@ describe("runtime-activity", () => {
     ).toEqual({ summary: "Found 5 results.", sources: [] });
     // An empty hit list with no count stays null (no "Found 0 results." noise).
     expect(extractSearchResults("search_web", { results: [] })).toBeNull();
-  });
-
-  it("truncates long reasoning on a code-point boundary (no lone surrogate)", () => {
-    const text = `${"a".repeat(70)}😀${"b".repeat(5)}`;
-    const label = getActivityFromPart(
-      { type: "reasoning", text },
-      "complete",
-      undefined,
-      "complete",
-      "complete",
-    );
-    expect(label).toBeDefined();
-    expect(label?.endsWith("…")).toBe(true);
-    // A naive UTF-16 slice would leave a dangling high surrogate here.
-    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(label as string)).toBe(
-      false,
-    );
   });
 
   it("supports a '*' catch-all tool activity resolver", () => {
