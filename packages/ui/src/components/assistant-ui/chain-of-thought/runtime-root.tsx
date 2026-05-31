@@ -33,7 +33,7 @@ import {
 } from "./runtime-part-layout";
 import { ChainOfThoughtPrimitiveToolWithLabels } from "./runtime-tool";
 import { ToolActivityLabelsContext } from "./runtime-tool-context";
-import { useElapsedSeconds } from "./elapsed-time";
+import { useElapsedSeconds } from "./trace-time";
 import {
   ChainOfThoughtStringsContext,
   mergeChainOfThoughtStrings,

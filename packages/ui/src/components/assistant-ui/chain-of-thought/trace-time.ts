@@ -2,6 +2,29 @@
 
 import { useEffect, useRef, useState } from "react";
 
+export function useTraceDuration(isStreaming: boolean) {
+  const [durationSec, setDurationSec] = useState<number | undefined>(undefined);
+  const startRef = useRef<number | null>(null);
+  const wasStreamingRef = useRef(isStreaming);
+
+  useEffect(() => {
+    if (isStreaming) {
+      if (!wasStreamingRef.current || startRef.current == null) {
+        startRef.current = Date.now();
+        setDurationSec(undefined);
+      }
+    } else if (wasStreamingRef.current && startRef.current != null) {
+      const elapsedMs = Date.now() - startRef.current;
+      const elapsedSec = Math.max(1, Math.round(elapsedMs / 1000));
+      setDurationSec(elapsedSec);
+      startRef.current = null;
+    }
+    wasStreamingRef.current = isStreaming;
+  }, [isStreaming]);
+
+  return durationSec;
+}
+
 export function useElapsedSeconds(isActive: boolean) {
   const [elapsedSeconds, setElapsedSeconds] = useState<number | undefined>(
     undefined,

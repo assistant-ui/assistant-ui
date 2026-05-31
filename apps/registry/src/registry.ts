@@ -184,12 +184,6 @@ export const registry: RegistryItem[] = [
       },
       {
         type: "registry:component",
-        path: "components/assistant-ui/chain-of-thought/elapsed-time.ts",
-        sourcePath:
-          "../../packages/ui/src/components/assistant-ui/chain-of-thought/elapsed-time.ts",
-      },
-      {
-        type: "registry:component",
         path: "components/assistant-ui/chain-of-thought/layout.tsx",
         sourcePath:
           "../../packages/ui/src/components/assistant-ui/chain-of-thought/layout.tsx",
@@ -205,6 +199,12 @@ export const registry: RegistryItem[] = [
         path: "components/assistant-ui/chain-of-thought/placeholder.tsx",
         sourcePath:
           "../../packages/ui/src/components/assistant-ui/chain-of-thought/placeholder.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/runtime-activity.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/runtime-activity.ts",
       },
       {
         type: "registry:component",
@@ -268,9 +268,39 @@ export const registry: RegistryItem[] = [
       },
       {
         type: "registry:component",
-        path: "components/assistant-ui/chain-of-thought/runtime-activity.ts",
+        path: "components/assistant-ui/chain-of-thought/trace-disclosure.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/chain-of-thought/runtime-activity.ts",
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace-disclosure.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/trace-nodes.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace-nodes.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/trace-parts.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace-parts.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/trace-shared.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace-shared.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/trace-time.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace-time.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/chain-of-thought/trace.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/chain-of-thought/trace.tsx",
       },
     ],
     registryDependencies: [
