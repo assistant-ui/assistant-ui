@@ -19,7 +19,6 @@ export default defineToolkit({
     }),
     execute: async (args: { query: string }) =>
       geocodeLocationWithOpenMeteo(args.query),
-    display: "standalone",
     render: ({ result }: any) => {
       if (result?.error) {
         return (
@@ -79,6 +78,7 @@ export default defineToolkit({
       longitude: number;
       latitude: number;
     }) => fetchWeatherWidgetFromOpenMeteo(args),
+    display: "standalone",
     render: ({ args, result }: any) => {
       const isLoading = !result;
       const error = result?.success === false ? result.error : null;
