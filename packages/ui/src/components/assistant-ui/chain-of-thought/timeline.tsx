@@ -49,13 +49,13 @@ export function ChainOfThoughtTimeline({
     CONTAINER_EXIT_ANIM,
     "motion-reduce:![animation:none] motion-reduce:![transition:none]",
     constrainHeight
-      ? "max-h-64 overflow-y-auto overflow-x-hidden"
+      ? "max-h-64 overflow-x-hidden overflow-y-auto"
       : "overflow-visible",
     className,
   );
 
   return (
-    <div className="aui-chain-of-thought-timeline-wrapper motion-reduce:![animation:none] motion-reduce:![transition:none] relative">
+    <div className="aui-chain-of-thought-timeline-wrapper relative motion-reduce:![animation:none] motion-reduce:![transition:none]">
       {/* Keep a real list element so timeline steps retain list semantics. */}
       <ul
         ref={setScrollRef}

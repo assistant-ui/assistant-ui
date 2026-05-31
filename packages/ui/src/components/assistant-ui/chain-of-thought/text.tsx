@@ -46,8 +46,8 @@ export function ChainOfThoughtText({
         data-slot="chain-of-thought-text"
         className={cn(
           "aui-chain-of-thought-text",
-          "relative z-0 max-h-64 overflow-y-auto overflow-x-hidden pt-2 pb-2 pl-9 leading-relaxed",
-          "break-words [overflow-wrap:anywhere]",
+          "relative z-0 max-h-64 overflow-x-hidden overflow-y-auto pt-2 pb-2 pl-9 leading-relaxed",
+          "[overflow-wrap:anywhere] break-words",
           "transform-gpu",
           CONTAINER_ENTER_ANIM,
           CONTAINER_EXIT_ANIM,
@@ -60,7 +60,7 @@ export function ChainOfThoughtText({
           <span
             aria-hidden
             className={cn(
-              "aui-chain-of-thought-cursor ml-1 inline-block size-2 rounded-full bg-foreground/70 align-middle",
+              "aui-chain-of-thought-cursor bg-foreground/70 ml-1 inline-block size-2 rounded-full align-middle",
               "transition-opacity duration-300 ease-out",
               "motion-reduce:animate-none motion-reduce:transition-none",
               showCursor ? "animate-pulse opacity-100" : "opacity-0",

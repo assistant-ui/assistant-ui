@@ -64,7 +64,7 @@ export function ChainOfThoughtTrigger({
       className={cn(
         "aui-chain-of-thought-trigger",
         "group/trigger flex w-full items-start gap-3 py-1.5 text-left",
-        "text-muted-foreground text-sm transition-colors hover:text-foreground",
+        "text-muted-foreground hover:text-foreground text-sm transition-colors",
         className,
       )}
       {...props}
@@ -91,13 +91,13 @@ export function ChainOfThoughtTrigger({
             <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
               <div
                 data-slot="chain-of-thought-trigger-reasoning-label"
-                className="aui-chain-of-thought-trigger-reasoning-label max-w-[24ch] shrink-0 truncate font-medium text-foreground"
+                className="aui-chain-of-thought-trigger-reasoning-label text-foreground max-w-[24ch] shrink-0 truncate font-medium"
               >
                 {displayLabel}
               </div>
               <div
                 data-slot="chain-of-thought-trigger-activity"
-                className="aui-chain-of-thought-trigger-activity relative flex min-w-[12ch] flex-1 items-center font-medium text-foreground"
+                className="aui-chain-of-thought-trigger-activity text-foreground relative flex min-w-[12ch] flex-1 items-center font-medium"
               >
                 <Crossfade
                   value={primaryLabel}
@@ -114,7 +114,7 @@ export function ChainOfThoughtTrigger({
                           aria-hidden
                           data-slot="chain-of-thought-trigger-activity-shimmer"
                           className={cn(
-                            "aui-chain-of-thought-trigger-activity-shimmer shimmer pointer-events-none absolute inset-0 text-foreground/40",
+                            "aui-chain-of-thought-trigger-activity-shimmer shimmer text-foreground/40 pointer-events-none absolute inset-0",
                             "motion-reduce:animate-none",
                           )}
                         >

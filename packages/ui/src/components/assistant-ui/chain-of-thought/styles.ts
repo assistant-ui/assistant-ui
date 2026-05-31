@@ -61,9 +61,9 @@ export const chainOfThoughtVariants = cva(
   {
     variants: {
       variant: {
-        outline: "rounded-lg border bg-background px-3 py-2",
+        outline: "bg-background rounded-lg border px-3 py-2",
         ghost: "bg-transparent",
-        muted: "rounded-lg bg-muted px-3 py-2 dark:bg-card",
+        muted: "bg-muted dark:bg-card rounded-lg px-3 py-2",
       },
     },
     defaultVariants: {

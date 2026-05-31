@@ -147,7 +147,7 @@ export function JumpToLatestButton({
         "bg-primary text-primary-foreground text-xs shadow-md",
         "transition-all duration-200 ease-(--spring-easing)",
         "hover:bg-primary/90 hover:shadow-lg",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
         "[&_svg]:size-3",
         "fade-in-0 slide-in-from-bottom-2 animate-in",
         "motion-reduce:animate-none motion-reduce:transition-none",

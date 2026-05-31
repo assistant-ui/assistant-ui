@@ -110,15 +110,15 @@ export function ChainOfThoughtPrimitiveTool({
         className={cn(
           "aui-chain-of-thought-tool-activity-trigger group/tool-activity-trigger -mt-0.5 flex w-full min-w-0 items-center gap-1.5 text-left text-sm leading-relaxed",
           hasDetails
-            ? "text-muted-foreground transition-colors hover:text-foreground"
-            : "cursor-default text-muted-foreground",
+            ? "text-muted-foreground hover:text-foreground transition-colors"
+            : "text-muted-foreground cursor-default",
         )}
       >
         {activityLabel ? (
           <div
             data-slot="chain-of-thought-tool-activity-label"
             className={cn(
-              "min-w-0 max-w-[52ch] shrink truncate font-medium text-foreground leading-5",
+              "text-foreground max-w-[52ch] min-w-0 shrink truncate leading-5 font-medium",
               isActiveToolLabel && "shimmer motion-reduce:animate-none",
             )}
           >
@@ -167,14 +167,14 @@ export function ChainOfThoughtPrimitiveTool({
             className="aui-chain-of-thought-tool-activity-content space-y-1.5 pt-0.5 pl-[22px]"
           >
             {argsText ? (
-              <pre className="whitespace-pre-wrap rounded-md bg-muted/40 px-2 py-1 text-muted-foreground text-xs">
+              <pre className="bg-muted/40 text-muted-foreground rounded-md px-2 py-1 text-xs whitespace-pre-wrap">
                 {argsText}
               </pre>
             ) : null}
             {hasSearchResults && searchResults ? (
               <div
                 data-slot="chain-of-thought-search-results"
-                className="aui-chain-of-thought-search-results space-y-2 rounded-md bg-muted/40 p-2"
+                className="aui-chain-of-thought-search-results bg-muted/40 space-y-2 rounded-md p-2"
               >
                 {searchResults.summary ? (
                   <p className="text-muted-foreground text-xs">
@@ -194,7 +194,7 @@ export function ChainOfThoughtPrimitiveTool({
                 ) : null}
               </div>
             ) : toolResult !== undefined ? (
-              <pre className="whitespace-pre-wrap rounded-md bg-muted/40 px-2 py-1 text-muted-foreground text-xs">
+              <pre className="bg-muted/40 text-muted-foreground rounded-md px-2 py-1 text-xs whitespace-pre-wrap">
                 {typeof toolResult === "string"
                   ? toolResult
                   : JSON.stringify(toolResult, null, 2)}

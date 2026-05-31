@@ -44,7 +44,7 @@ export function ChainOfThoughtContent({
       data-slot="chain-of-thought-content"
       className={cn(
         "aui-chain-of-thought-content",
-        "relative overflow-hidden text-muted-foreground text-sm outline-none",
+        "text-muted-foreground relative overflow-hidden text-sm outline-none",
         "group/collapsible-content",
         "data-[state=open]:animate-collapsible-down",
         "data-[state=open]:fill-mode-backwards",

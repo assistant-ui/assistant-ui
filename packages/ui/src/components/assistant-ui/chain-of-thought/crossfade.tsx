@@ -89,7 +89,7 @@ export function Crossfade<T>({
           aria-hidden
           className={cn(
             "aui-chain-of-thought-crossfade-exit",
-            "fade-out-0 pointer-events-none absolute inset-0 w-full min-w-0 animate-out fill-mode-both duration-[var(--crossfade-exit-duration)]",
+            "fade-out-0 animate-out fill-mode-both pointer-events-none absolute inset-0 w-full min-w-0 duration-[var(--crossfade-exit-duration)]",
             "motion-reduce:animate-none motion-reduce:transition-none",
           )}
         >

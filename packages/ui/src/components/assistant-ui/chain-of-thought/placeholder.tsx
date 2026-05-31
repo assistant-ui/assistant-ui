@@ -14,7 +14,7 @@ export function ChainOfThoughtPlaceholder({
       data-slot="chain-of-thought-placeholder"
       className={cn(
         "aui-chain-of-thought-placeholder",
-        "py-2 pl-9 text-muted-foreground italic",
+        "text-muted-foreground py-2 pl-9 italic",
         className,
       )}
       {...props}
