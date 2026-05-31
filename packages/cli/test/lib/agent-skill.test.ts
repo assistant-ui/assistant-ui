@@ -41,6 +41,14 @@ describe("buildSkillsAddCommand", () => {
       "pnpm",
       ["dlx", "skills", "add", SKILLS_PACKAGE],
     ]);
+    expect(buildSkillsAddCommand("yarn", { stdinIsTTY: true })).toEqual([
+      "yarn",
+      ["dlx", "skills", "add", SKILLS_PACKAGE],
+    ]);
+    expect(buildSkillsAddCommand("bun", { stdinIsTTY: true })).toEqual([
+      "bunx",
+      ["skills", "add", SKILLS_PACKAGE],
+    ]);
     expect(buildSkillsAddCommand("npm", { stdinIsTTY: true })).toEqual([
       "npx",
       ["--yes", "skills", "add", SKILLS_PACKAGE],
@@ -52,9 +60,23 @@ describe("buildSkillsAddCommand", () => {
     expect(args).not.toContain("--yes");
   });
 
-  it("passes --yes to the skills CLI when there is no TTY to prompt on", () => {
-    const [, args] = buildSkillsAddCommand("pnpm", { stdinIsTTY: false });
-    expect(args).toContain("--yes");
-    expect(args.at(-1)).toBe("--yes");
+  it("appends the skills CLI's --yes for every package manager when non-TTY", () => {
+    expect(buildSkillsAddCommand("pnpm", { stdinIsTTY: false })).toEqual([
+      "pnpm",
+      ["dlx", "skills", "add", SKILLS_PACKAGE, "--yes"],
+    ]);
+    expect(buildSkillsAddCommand("yarn", { stdinIsTTY: false })).toEqual([
+      "yarn",
+      ["dlx", "skills", "add", SKILLS_PACKAGE, "--yes"],
+    ]);
+    expect(buildSkillsAddCommand("bun", { stdinIsTTY: false })).toEqual([
+      "bunx",
+      ["skills", "add", SKILLS_PACKAGE, "--yes"],
+    ]);
+    // npm carries npx's own --yes (auto-confirm the package download) plus the skills CLI's --yes
+    expect(buildSkillsAddCommand("npm", { stdinIsTTY: false })).toEqual([
+      "npx",
+      ["--yes", "skills", "add", SKILLS_PACKAGE, "--yes"],
+    ]);
   });
 });

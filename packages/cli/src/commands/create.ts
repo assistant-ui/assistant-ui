@@ -536,7 +536,11 @@ export const create = new Command()
       process.exit(0);
     }
 
-    let installSkills = resolveSkillsInstall({ skills: opts.skills });
+    const stdinIsTTY = process.stdin.isTTY;
+    let installSkills = resolveSkillsInstall({
+      skills: opts.skills,
+      stdinIsTTY,
+    });
     if (installSkills === undefined) {
       const result = await p.confirm({
         message: "Add assistant-ui agent skills for AI coding assistants?",
@@ -612,7 +616,9 @@ export const create = new Command()
 
         if (installSkills) {
           logger.step("Adding assistant-ui agent skills...");
-          const [skillsCmd, skillsArgs] = buildSkillsAddCommand(pm);
+          const [skillsCmd, skillsArgs] = buildSkillsAddCommand(pm, {
+            stdinIsTTY,
+          });
           try {
             await runSpawn(skillsCmd, skillsArgs, absoluteProjectDir);
           } catch {
