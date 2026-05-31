@@ -34,9 +34,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@lexical/react": "^0.44.0",
-    "@lexical/utils": "^0.44.0",
-    "lexical": "^0.44.0"
+    "@lexical/react": "^0.45.0",
+    "@lexical/utils": "^0.45.0",
+    "lexical": "^0.45.0"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.14.11",

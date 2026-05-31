@@ -9,14 +9,14 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ag-ui/client": "^0.0.53",
+    "@ag-ui/client": "^0.0.54",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ag-ui": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.16.0",
+    "lucide-react": "^1.17.0",
     "next": "^16.2.6",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",

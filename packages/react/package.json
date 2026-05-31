@@ -71,7 +71,7 @@
     "react-textarea-autosize": "^8.5.9",
     "safe-content-frame": "^0.0.20",
     "zod": "^4.4.3",
-    "zustand": "^5.0.13"
+    "zustand": "^5.0.14"
   },
   "peerDependencies": {
     "@types/react": "*",

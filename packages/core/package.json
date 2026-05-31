@@ -97,7 +97,7 @@
     "assistant-cloud": "workspace:*",
     "react": "^19.2.6",
     "vitest": "^4.1.7",
-    "zustand": "^5.0.13"
+    "zustand": "^5.0.14"
   },
   "publishConfig": {
     "access": "public",
