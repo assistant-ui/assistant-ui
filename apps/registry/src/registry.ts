@@ -121,12 +121,6 @@ export const registry: RegistryItem[] = [
         sourcePath:
           "../../packages/ui/src/components/assistant-ui/reasoning.tsx",
       },
-      {
-        type: "registry:component",
-        path: "components/assistant-ui/reasoning-variants.ts",
-        sourcePath:
-          "../../packages/ui/src/components/assistant-ui/reasoning-variants.ts",
-      },
     ],
     registryDependencies: [
       "collapsible",

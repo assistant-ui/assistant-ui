@@ -1,12 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import {
-  AlertCircleIcon,
-  RotateCcwIcon,
-  WrenchIcon,
-  type LucideIcon,
-} from "lucide-react";
+import { AlertCircleIcon, WrenchIcon, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { StepStatus, StepType } from "./model";
 import { stepTypeIcons } from "./model";
@@ -36,8 +31,6 @@ export type ChainOfThoughtStepProps = React.ComponentProps<"li"> & {
   stepLabel?: string | number | undefined;
   type?: StepType | undefined;
   icon?: LucideIcon | ReactNode | undefined;
-  error?: string | undefined;
-  onRetry?: (() => void) | undefined;
   iconPulse?: boolean | undefined;
 };
 
@@ -50,7 +43,7 @@ function resolveStepIcon(
   if (effectiveStatus === "error") {
     if (stepLabel !== undefined) {
       return (
-        <span className="aui-chain-of-thought-step-indicator-error-label font-medium text-[10px] text-destructive">
+        <span className="aui-chain-of-thought-step-indicator-error-label text-destructive text-[10px] font-medium">
           !
         </span>
       );
@@ -62,7 +55,7 @@ function resolveStepIcon(
     return (
       <span
         className={cn(
-          "aui-chain-of-thought-step-indicator-label font-medium text-[10px]",
+          "aui-chain-of-thought-step-indicator-label text-[10px] font-medium",
           effectiveStatus === "active"
             ? "text-primary"
             : "text-muted-foreground",
@@ -95,17 +88,13 @@ export function ChainOfThoughtStep({
   stepLabel,
   type = "default",
   icon,
-  error,
-  onRetry,
   iconPulse,
   children,
   ...props
 }: ChainOfThoughtStepProps) {
-  const effectiveStatus: StepStatus = error
-    ? "error"
-    : active
-      ? "active"
-      : (status ?? "complete");
+  const effectiveStatus: StepStatus = active
+    ? "active"
+    : (status ?? "complete");
 
   const isActive = effectiveStatus === "active";
   const isError = effectiveStatus === "error";
@@ -131,7 +120,7 @@ export function ChainOfThoughtStep({
         data-slot="chain-of-thought-step-connector-above"
         aria-hidden
         className={cn(
-          "absolute top-0 left-[9.5px] h-[7px] w-px bg-foreground/15",
+          "bg-foreground/15 absolute top-0 left-[9.5px] h-[7px] w-px",
           CONNECTOR_ENTER_ANIM,
           CONNECTOR_EXIT_ANIM,
         )}
@@ -140,7 +129,7 @@ export function ChainOfThoughtStep({
         data-slot="chain-of-thought-step-connector-below"
         aria-hidden
         className={cn(
-          "absolute top-[27px] bottom-0 left-[9.5px] w-px bg-foreground/15",
+          "bg-foreground/15 absolute top-[27px] bottom-0 left-[9.5px] w-px",
           CONNECTOR_ENTER_ANIM,
           CONNECTOR_EXIT_ANIM,
         )}
@@ -158,7 +147,7 @@ export function ChainOfThoughtStep({
           hasBorder && "border",
           hasBorder &&
             isActive &&
-            "border-primary bg-primary/10 ring-4 ring-primary/10",
+            "border-primary bg-primary/10 ring-primary/10 ring-4",
           hasBorder &&
             effectiveStatus === "complete" &&
             "border-muted-foreground/40",
@@ -167,10 +156,10 @@ export function ChainOfThoughtStep({
             "border-muted-foreground/20",
           hasBorder &&
             isError &&
-            "border-destructive bg-destructive/10 ring-4 ring-destructive/10",
+            "border-destructive bg-destructive/10 ring-destructive/10 ring-4",
           !hasBorder &&
             "data-[status=active]:text-primary data-[status=complete]:text-muted-foreground data-[status=error]:text-destructive data-[status=pending]:text-muted-foreground/50",
-          "fade-in-0 zoom-in-85 animate-in overflow-visible fill-mode-both blur-in-[3px] delay-[var(--step-delay)] duration-[var(--animation-duration,200ms)] ease-[var(--spring-easing,cubic-bezier(0.22,0.61,0.36,1))] will-change-[transform,opacity,filter] motion-reduce:animate-none",
+          "fade-in-0 zoom-in-85 animate-in fill-mode-both blur-in-[3px] overflow-visible delay-[var(--step-delay)] duration-[var(--animation-duration,200ms)] ease-[var(--spring-easing,cubic-bezier(0.22,0.61,0.36,1))] will-change-[transform,opacity,filter] motion-reduce:animate-none",
           STEP_EXIT_ANIM,
         )}
       >
@@ -191,8 +180,8 @@ export function ChainOfThoughtStep({
         data-slot="chain-of-thought-step-content"
         className={cn(
           "aui-chain-of-thought-step-content",
-          "min-w-0 flex-1 text-muted-foreground leading-relaxed",
-          "break-words [overflow-wrap:anywhere]",
+          "text-muted-foreground min-w-0 flex-1 leading-relaxed",
+          "[overflow-wrap:anywhere] break-words",
           "transition-colors duration-200",
           "fade-in-0 slide-in-from-top-[8px] animate-in fill-mode-both delay-[var(--step-delay)] duration-[var(--animation-duration,200ms)] ease-[var(--spring-easing,cubic-bezier(0.22,0.61,0.36,1))]",
           STEP_EXIT_ANIM,
@@ -202,30 +191,6 @@ export function ChainOfThoughtStep({
         )}
       >
         {children}
-        {error && (
-          <div className="aui-chain-of-thought-step-error-row mt-1.5 flex items-center gap-2">
-            <span className="aui-chain-of-thought-step-error-text text-destructive text-xs">
-              {error}
-            </span>
-            {onRetry && (
-              <button
-                type="button"
-                onClick={onRetry}
-                className={cn(
-                  "aui-chain-of-thought-step-retry inline-flex items-center gap-1 rounded-md px-2 py-0.5",
-                  "bg-destructive/10 text-destructive text-xs",
-                  "transition-colors hover:bg-destructive/20",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive",
-                  "[&_svg]:size-3",
-                  "motion-reduce:transition-none",
-                )}
-              >
-                <RotateCcwIcon aria-hidden />
-                Retry
-              </button>
-            )}
-          </div>
-        )}
         {active && (
           <span
             aria-hidden
@@ -251,7 +216,7 @@ export function ChainOfThoughtStepHeader({
     <div
       data-slot="chain-of-thought-step-header"
       className={cn(
-        "aui-chain-of-thought-step-header font-medium text-foreground",
+        "aui-chain-of-thought-step-header text-foreground font-medium",
         className,
       )}
       {...props}

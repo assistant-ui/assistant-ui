@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer } from "react";
+import { useEffect, useState } from "react";
 import type { VariantProps } from "class-variance-authority";
 import { PlayIcon } from "lucide-react";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
@@ -10,8 +10,8 @@ import {
   ReasoningTrigger,
   ReasoningContent,
   ReasoningText,
+  type reasoningVariants,
 } from "@/components/assistant-ui/reasoning";
-import type { reasoningVariants } from "@/components/assistant-ui/reasoning-variants";
 
 function ReasoningDemo({ variant }: VariantProps<typeof reasoningVariants>) {
   return (
@@ -19,7 +19,7 @@ function ReasoningDemo({ variant }: VariantProps<typeof reasoningVariants>) {
       <ReasoningTrigger />
       <ReasoningContent>
         <ReasoningText>
-          <p>Let me think about this step by step…</p>
+          <p>Let me think about this step by step...</p>
           <p>
             First, I need to consider the main factors involved in this problem.
           </p>
@@ -54,73 +54,35 @@ export function ReasoningSample() {
   );
 }
 
-const STREAMING_REASONING_TEXT =
-  "Let me think about this step by step…\n\nFirst, I need to analyze the problem carefully. The key factors to consider are the constraints and requirements.\n\nAfter evaluating all options, the best approach would be to implement a solution that balances performance and maintainability.";
-
-type ReasoningGroupState = {
-  isStreaming: boolean;
-  isOpen: boolean;
-  streamedText: string;
-  index: number;
-};
-
-type ReasoningGroupAction =
-  | { type: "start" }
-  | { type: "toggleOpen"; value: boolean }
-  | { type: "tick" };
-
-const initialReasoningGroupState: ReasoningGroupState = {
-  isStreaming: false,
-  isOpen: false,
-  streamedText: "",
-  index: 0,
-};
-
-function reasoningGroupReducer(
-  state: ReasoningGroupState,
-  action: ReasoningGroupAction,
-): ReasoningGroupState {
-  switch (action.type) {
-    case "start":
-      return {
-        isStreaming: true,
-        isOpen: true,
-        streamedText: "",
-        index: 0,
-      };
-    case "toggleOpen":
-      return { ...state, isOpen: action.value };
-    case "tick": {
-      const nextIndex = state.index + 1;
-      if (nextIndex > STREAMING_REASONING_TEXT.length) {
-        return { ...state, isStreaming: false };
-      }
-      return {
-        ...state,
-        index: nextIndex,
-        streamedText: STREAMING_REASONING_TEXT.slice(0, nextIndex),
-      };
-    }
-  }
-}
-
 function ReasoningGroupDemo() {
-  const [{ isStreaming, isOpen, streamedText }, dispatch] = useReducer(
-    reasoningGroupReducer,
-    initialReasoningGroupState,
-  );
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [streamedText, setStreamedText] = useState("");
+
+  const fullText =
+    "Let me think about this step by step...\n\nFirst, I need to analyze the problem carefully. The key factors to consider are the constraints and requirements.\n\nAfter evaluating all options, the best approach would be to implement a solution that balances performance and maintainability.";
 
   useEffect(() => {
     if (!isStreaming) return;
 
+    setIsOpen(true);
+    setStreamedText("");
+    let index = 0;
     const interval = setInterval(() => {
-      dispatch({ type: "tick" });
+      if (index < fullText.length) {
+        setStreamedText(fullText.slice(0, index + 1));
+        index++;
+      } else {
+        setIsStreaming(false);
+        clearInterval(interval);
+      }
     }, 20);
     return () => clearInterval(interval);
   }, [isStreaming]);
 
   const handleStart = () => {
-    dispatch({ type: "start" });
+    setStreamedText("");
+    setIsStreaming(true);
   };
 
   return (
@@ -134,13 +96,13 @@ function ReasoningGroupDemo() {
           className="gap-1.5"
         >
           <PlayIcon className="size-3" />
-          {isStreaming ? "Streaming…" : "Start Reasoning"}
+          {isStreaming ? "Streaming..." : "Start Reasoning"}
         </Button>
       </div>
       <ReasoningRoot
         variant="muted"
         open={isOpen}
-        onOpenChange={(value) => dispatch({ type: "toggleOpen", value })}
+        onOpenChange={setIsOpen}
         className="mb-0"
       >
         <ReasoningTrigger active={isStreaming} />

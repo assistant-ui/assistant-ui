@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useRef, useState } from "react";
-import type { VariantProps } from "class-variance-authority";
+import { cva, type VariantProps } from "class-variance-authority";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import {
   useScrollLock,
@@ -16,9 +16,21 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { reasoningVariants } from "./reasoning-variants";
 
 const ANIMATION_DURATION = 200;
+
+const reasoningVariants = cva("aui-reasoning-root mb-4 w-full", {
+  variants: {
+    variant: {
+      outline: "rounded-lg border px-3 py-2",
+      ghost: "",
+      muted: "bg-muted/50 rounded-lg px-3 py-2",
+    },
+  },
+  defaultVariants: {
+    variant: "outline",
+  },
+});
 
 export type ReasoningRootProps = Omit<
   React.ComponentProps<typeof Collapsible>,
@@ -89,7 +101,7 @@ function ReasoningFade({ className, ...props }: React.ComponentProps<"div">) {
       className={cn(
         "aui-reasoning-fade pointer-events-none absolute inset-x-0 bottom-0 z-10 h-8",
         "bg-[linear-gradient(to_top,var(--color-background),transparent)]",
-        "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_top,color-mix(in_oklab,var(--color-muted)_50%,transparent),transparent)]",
+        "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_top,hsl(var(--muted)/0.5),transparent)]",
         "fade-in-0 animate-in",
         "group-data-[state=open]/collapsible-content:animate-out",
         "group-data-[state=open]/collapsible-content:fade-out-0",
@@ -266,4 +278,5 @@ export {
   ReasoningContent,
   ReasoningText,
   ReasoningFade,
+  reasoningVariants,
 };

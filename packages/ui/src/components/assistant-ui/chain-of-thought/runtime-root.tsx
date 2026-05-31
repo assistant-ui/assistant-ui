@@ -5,6 +5,8 @@ import {
   ChainOfThoughtPrimitive,
   useAui,
   useAuiState,
+  type PartState,
+  type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
@@ -38,10 +40,45 @@ import {
   type ChainOfThoughtStrings,
 } from "./strings";
 
-const chainOfThoughtPartComponents = {
-  Reasoning: MarkdownText,
-  tools: { Fallback: ChainOfThoughtPrimitiveToolWithLabels },
-  Layout: ChainOfThoughtPrimitivePartLayout,
+const ChainOfThoughtRuntimePart = memo(function ChainOfThoughtRuntimePart({
+  part,
+}: {
+  part: PartState;
+}) {
+  const aui = useAui();
+  const Tool = useAuiState<ToolCallMessagePartComponent | null>((s) =>
+    part.type === "tool-call"
+      ? (s.tools.toolUIs[part.toolName]?.[0]?.render ??
+        ChainOfThoughtPrimitiveToolWithLabels)
+      : null,
+  );
+
+  if (part.type === "reasoning") {
+    return (
+      <ChainOfThoughtPrimitivePartLayout>
+        <MarkdownText />
+      </ChainOfThoughtPrimitivePartLayout>
+    );
+  }
+
+  if (part.type === "tool-call" && Tool) {
+    return (
+      <ChainOfThoughtPrimitivePartLayout>
+        <Tool
+          {...part}
+          addResult={aui.part().addToolResult}
+          resume={aui.part().resumeToolCall}
+          respondToApproval={aui.part().respondToToolApproval}
+        />
+      </ChainOfThoughtPrimitivePartLayout>
+    );
+  }
+
+  return null;
+});
+
+const renderChainOfThoughtRuntimePart = ({ part }: { part: PartState }) => {
+  return <ChainOfThoughtRuntimePart part={part} />;
 };
 
 type ChainOfThoughtRuntimeTimelineProps = {
@@ -74,9 +111,9 @@ const ChainOfThoughtRuntimeTimeline = memo(
         constrainHeight={constrainHeight}
       >
         <ToolActivityLabelsContext.Provider value={toolActivityLabels}>
-          <ChainOfThoughtPrimitive.Parts
-            components={chainOfThoughtPartComponents}
-          />
+          <ChainOfThoughtPrimitive.Parts>
+            {renderChainOfThoughtRuntimePart}
+          </ChainOfThoughtPrimitive.Parts>
           {(phase === "complete" || phase === "incomplete") && (
             <ChainOfThoughtTerminalStep
               phase={phase}
