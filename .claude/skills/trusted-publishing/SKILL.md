@@ -1,6 +1,6 @@
 ---
 name: trusted-publishing
-description: Configure npm trusted publishing (OIDC) and lock down publishing access for a newly added publishable package in the assistant-ui monorepo. Use whenever a new public package is created under packages/* (a new package.json with `"private": false` / a new name on npm), when a release fails with "not configured for npm trusted publishing", or when the user asks to set up OIDC / trusted publishing / disallow tokens for a package.
+description: Configure npm trusted publishing (OIDC) and lock down publishing access for a newly added publishable package in the assistant-ui monorepo. Use whenever a new public package is created under packages/* (a new package.json with `"private": false` / a new name on npm), when a release fails a package with an npm trusted-publishing / OIDC authorization error, or when the user asks to set up OIDC / trusted publishing / disallow tokens for a package.
 ---
 
 # trusted-publishing
