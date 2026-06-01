@@ -15,11 +15,12 @@ export type JSONGenerativeUIOptions = {
 /** Options for {@link JSONGenerativeUI.present}. */
 export type PresentToolOptions = {
   /**
-   * Whether the rendered UI is shown standalone (its own surface, outside the
-   * chain-of-thought trace) or inline. Defaults to the frontend-tool default
-   * (inline). Pass `"standalone"` for a full-bleed artifact like a card.
+   * Set `"standalone"` to render the component on its own surface (outside the
+   * chain-of-thought trace), e.g. a full-bleed artifact like a card. Omit it for
+   * the default inline rendering — there is no `"inline"` value because that is
+   * already the default.
    */
-  display?: "standalone" | "inline";
+  display?: "standalone";
 };
 
 /** The `present` tool, as the model sees it (no client `render`/`execute`). */

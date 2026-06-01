@@ -95,6 +95,14 @@ describe("renderGenerativeUI", () => {
     expect(html).toBe("");
   });
 
+  it("bounds deeply nested trees instead of overflowing the stack", () => {
+    let node: any = { $type: "Text", children: "deep" };
+    for (let i = 0; i < 5000; i++) node = { $type: "Card", children: node };
+    expect(() =>
+      renderToStaticMarkup(<>{renderGenerativeUI(node, library)}</>),
+    ).not.toThrow();
+  });
+
   it("passes the status to render and tolerates partial props while streaming", () => {
     const html = renderToStaticMarkup(
       <>

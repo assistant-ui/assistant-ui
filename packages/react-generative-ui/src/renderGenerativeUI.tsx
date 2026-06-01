@@ -26,11 +26,21 @@ export function renderGenerativeUI(
   return renderNode(normalizeNode(node), library, context);
 }
 
+/**
+ * The deepest tree we normalize. The input comes from the model, so a runaway
+ * or adversarial response could nest arbitrarily deep and overflow the stack;
+ * past this depth we stop (far beyond any real UI). Bounding normalization
+ * bounds rendering too, since it only walks the normalized tree.
+ */
+const MAX_DEPTH = 64;
+
 /** Converts the flat wire form into a normalized {@link GenerativeUINode}. */
-function normalizeNode(node: unknown): GenerativeUINode {
+function normalizeNode(node: unknown, depth = 0): GenerativeUINode {
+  if (depth > MAX_DEPTH) return null;
   if (node == null || typeof node === "boolean") return null;
   if (typeof node === "string" || typeof node === "number") return node;
-  if (Array.isArray(node)) return node.map(normalizeNode);
+  if (Array.isArray(node))
+    return node.map((child) => normalizeNode(child, depth + 1));
   if (typeof node !== "object") return null;
 
   const { [TYPE_KEY]: type, ...props } = node as Record<string, unknown>;
@@ -39,7 +49,7 @@ function normalizeNode(node: unknown): GenerativeUINode {
   if (typeof type !== "string") return null;
 
   if ("children" in props) {
-    props["children"] = normalizeNode(props["children"]);
+    props["children"] = normalizeNode(props["children"], depth + 1);
   }
   return { type, props } as GenerativeUIElement;
 }
