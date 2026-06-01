@@ -11,6 +11,7 @@ export type PackageInfo = {
   name: string;
   description: string;
   category: PackageCategory;
+  deprecated?: boolean;
 };
 
 export type PackageCategory =
@@ -23,7 +24,8 @@ export type PackageCategory =
   | "ui"
   | "effects"
   | "mcp"
-  | "observability";
+  | "observability"
+  | "deprecated";
 
 export const PACKAGE_CATEGORIES: Record<
   PackageCategory,
@@ -69,6 +71,10 @@ export const PACKAGE_CATEGORIES: Record<
     label: "Observability",
     description: "Trace, debug, and measure assistants.",
   },
+  deprecated: {
+    label: "Deprecated",
+    description: "No longer maintained. Kept on npm for existing installs.",
+  },
 };
 
 export const PACKAGES: PackageInfo[] = [
@@ -105,6 +111,21 @@ export const PACKAGES: PackageInfo[] = [
   {
     name: "@assistant-ui/x-buildutils",
     description: "Shared build utilities for the monorepo.",
+    category: "tooling",
+  },
+  {
+    name: "@assistant-ui/next",
+    description: "Next.js plugin for the generative UI compiler.",
+    category: "tooling",
+  },
+  {
+    name: "@assistant-ui/vite",
+    description: "Vite plugin for the generative UI compiler.",
+    category: "tooling",
+  },
+  {
+    name: "@assistant-ui/x-generative-compiler",
+    description: 'Framework-agnostic "use generative" compiler.',
     category: "tooling",
   },
   {
@@ -238,9 +259,38 @@ export const PACKAGES: PackageInfo[] = [
     category: "mcp",
   },
   {
+    name: "@assistant-ui/react-mcp",
+    description: "MCP server configuration and connection primitives.",
+    category: "mcp",
+  },
+  {
     name: "@assistant-ui/react-o11y",
     description: "Observability primitives for assistants.",
     category: "observability",
+  },
+  {
+    name: "@assistant-ui/react-edge",
+    description: "Legacy edge runtime, superseded by the AI SDK adapter.",
+    category: "deprecated",
+    deprecated: true,
+  },
+  {
+    name: "@assistant-ui/styles",
+    description: "Prebuilt styles for non-Tailwind users.",
+    category: "deprecated",
+    deprecated: true,
+  },
+  {
+    name: "@assistant-ui/react-trieve",
+    description: "Trieve search integration.",
+    category: "deprecated",
+    deprecated: true,
+  },
+  {
+    name: "@assistant-ui/react-playground",
+    description: "Standalone playground runtime.",
+    category: "deprecated",
+    deprecated: true,
   },
 ];
 
@@ -651,7 +701,7 @@ export const PROJECT_FACTS = {
   firstCommitDate: "2024-04-21",
   totalCommits: 3062,
   uniqueAuthors: 100,
-  publicPackages: PACKAGES.length,
+  publicPackages: PACKAGES.filter((pkg) => !pkg.deprecated).length,
   examples: 30,
   showcased: 8,
 } as const;

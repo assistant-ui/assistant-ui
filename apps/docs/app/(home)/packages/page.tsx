@@ -38,7 +38,7 @@ const HERO_STAT_ICONS = {
 export default async function PackagesPage() {
   const npm = await fetchNpmDownloads();
 
-  const topPackages = [...PACKAGES]
+  const topPackages = PACKAGES.filter((pkg) => !pkg.deprecated)
     .map((pkg) => ({
       name: pkg.name,
       weekly: npm.perPackage[pkg.name]?.weekly ?? 0,
@@ -52,6 +52,11 @@ export default async function PackagesPage() {
     Object.keys(PACKAGE_CATEGORIES) as PackageCategory[]
   ).filter((c) => (grouped[c]?.length ?? 0) > 0);
 
+  const activeCount = PACKAGES.filter((pkg) => !pkg.deprecated).length;
+  const surfaceCount = visibleCategories.filter(
+    (c) => c !== "deprecated",
+  ).length;
+
   const totalWeekly = Object.values(npm.perPackage).reduce(
     (sum, p) => sum + (p?.weekly ?? 0),
     0,
@@ -60,13 +65,13 @@ export default async function PackagesPage() {
   const heroStats = [
     {
       icon: HERO_STAT_ICONS.Package,
-      value: PACKAGES.length.toString(),
+      value: activeCount.toString(),
       label: "Packages",
       caption: "across the ecosystem",
     },
     {
       icon: HERO_STAT_ICONS.Layers,
-      value: visibleCategories.length.toString(),
+      value: surfaceCount.toString(),
       label: "Surfaces",
       caption: "categories shipped",
     },
@@ -92,8 +97,8 @@ export default async function PackagesPage() {
           Every distribution, in one place.
         </h1>
         <p className="text-muted-foreground mt-3 md:text-lg">
-          {PACKAGES.length} packages on npm, grouped by surface area. Pick the
-          one that fits your stack.
+          {activeCount} packages on npm, grouped by surface area. Pick the one
+          that fits your stack.
         </p>
       </header>
 
@@ -254,15 +259,22 @@ function PackageRow({
       className="group border-border hover:border-foreground/30 hover:bg-muted/40 flex flex-col gap-1.5 rounded-lg border p-4 transition-colors"
     >
       <div className="flex items-center justify-between gap-3">
-        <span className="truncate font-mono text-sm font-medium">
-          {pkg.name}
-        </span>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate font-mono text-sm font-medium">
+            {pkg.name}
+          </span>
+          {pkg.deprecated ? (
+            <span className="text-muted-foreground border-border flex-shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase">
+              Deprecated
+            </span>
+          ) : null}
+        </div>
         <ArrowUpRight className="text-muted-foreground size-3.5 flex-shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
       </div>
       <p className="text-muted-foreground text-sm leading-relaxed">
         {pkg.description}
       </p>
-      {weekly > 0 ? (
+      {weekly > 0 && !pkg.deprecated ? (
         <div className="mt-1 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs tabular-nums">
             <span className="text-muted-foreground">
