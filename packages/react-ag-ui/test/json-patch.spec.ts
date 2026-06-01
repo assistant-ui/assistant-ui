@@ -143,4 +143,40 @@ describe("applyJsonPatch", () => {
       ]),
     ).not.toThrow();
   });
+
+  it("should throw when 'remove' targets a non-existent key", () => {
+    expect(() =>
+      applyJsonPatch({ a: 1 }, [{ op: "remove", path: "/b" }]),
+    ).toThrow(/Path not found/);
+  });
+
+  it("should throw when 'remove' uses an out-of-range array index", () => {
+    expect(() =>
+      applyJsonPatch({ items: ["a"] }, [{ op: "remove", path: "/items/5" }]),
+    ).toThrow(/Path not found/);
+  });
+
+  it("should throw when 'add' uses a non-integer array index", () => {
+    expect(() =>
+      applyJsonPatch({ items: ["a"] }, [
+        { op: "add", path: "/items/x", value: "b" },
+      ]),
+    ).toThrow(/Invalid array index/);
+  });
+
+  it("should throw when 'add' index is past the end of the array", () => {
+    expect(() =>
+      applyJsonPatch({ items: ["a"] }, [
+        { op: "add", path: "/items/5", value: "b" },
+      ]),
+    ).toThrow(/Invalid array index/);
+  });
+
+  it("should include the failing path in 'test'/'copy' lookup errors", () => {
+    expect(() =>
+      applyJsonPatch({ a: { b: 1 } }, [
+        { op: "test", path: "/a/missing/leaf", value: 1 },
+      ]),
+    ).toThrow(/Path not found: a\/missing/);
+  });
 });

@@ -75,19 +75,26 @@ function deepEqual(a: unknown, b: unknown): boolean {
 
 function getValue(doc: any, segments: string[]): unknown {
   let current = doc;
-  for (const seg of segments) {
+  for (let i = 0; i < segments.length; i++) {
     if (current === undefined || current === null) {
-      throw new Error(`Path not found`);
+      throw new Error(`Path not found: ${segments.slice(0, i + 1).join("/")}`);
     }
-    current = current[seg];
+    current = current[segments[i]!];
   }
   return current;
 }
 
 function addAt(parent: any, key: string, value: unknown): void {
   if (Array.isArray(parent)) {
-    if (key === "-") parent.push(value);
-    else parent.splice(Number(key), 0, value);
+    if (key === "-") {
+      parent.push(value);
+      return;
+    }
+    const index = Number(key);
+    if (!Number.isInteger(index) || index < 0 || index > parent.length) {
+      throw new Error(`Invalid array index: ${key}`);
+    }
+    parent.splice(index, 0, value);
   } else {
     parent[key] = value;
   }
@@ -118,6 +125,7 @@ export function applyJsonPatch(
           result = undefined;
         } else {
           const { parent, key } = getParentAndKey(result, segments);
+          requireExists(parent, key, patch.path);
           if (Array.isArray(parent)) {
             parent.splice(Number(key), 1);
           } else {
