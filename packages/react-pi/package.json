@@ -1,0 +1,77 @@
+{
+  "name": "@assistant-ui/react-pi",
+  "version": "0.0.1",
+  "description": "Pi coding-agent runtime adapter for assistant-ui",
+  "keywords": [
+    "pi",
+    "pi-coding-agent",
+    "assistant-ui",
+    "react",
+    "ai",
+    "chat",
+    "agents",
+    "coding-agent"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/react-pi"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "default": "./dist/node.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "@assistant-ui/react": "^0.14.11",
+    "@earendil-works/pi-coding-agent": "^0.78.0",
+    "@types/react": "*",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@earendil-works/pi-coding-agent": "^0.78.0",
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.15",
+    "react": "^19.2.6",
+    "vitest": "^4.1.7"
+  }
+}
