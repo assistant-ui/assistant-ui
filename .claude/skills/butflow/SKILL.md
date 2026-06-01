@@ -17,7 +17,7 @@ Implement the change, open a PR through GitButler, monitor CI and reviews, addre
 6. Commit with `but commit <branch> --only -m "<message>"`.
 7. Push with `but push <branch>`.
 8. Open the PR with `gh pr create --title "<title>" --body "<body>"` or another non-interactive form such as `--fill`.
-9. Schedule a 2-minute recurring monitor using the environment's native automation mechanism.
+9. Schedule a 2-minute recurring monitor using the environment's native automation mechanism. In Claude Code, use the available `schedule` or `loop` skill.
 10. Monitor checks and review threads until the merge gate is satisfied, then merge with `gh pr merge <n> --squash --admin`.
 
 Add a patch changeset only if a published package changed. Private packages such as `@assistant-ui/docs` and `@assistant-ui/shadcn-registry` are exempt.
