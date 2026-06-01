@@ -11,6 +11,7 @@ export { TYPE_KEY } from "./constants";
 export type {
   JSONGenerativeUIOptions,
   PresentTool,
+  PresentToolOptions,
   PromptUserTool,
 } from "./JSONGenerativeUI.shared";
 export type {

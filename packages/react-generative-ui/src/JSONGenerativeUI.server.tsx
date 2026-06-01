@@ -3,6 +3,7 @@ import {
   promptUserToolBase,
   type JSONGenerativeUIOptions,
   type PresentTool,
+  type PresentToolOptions,
   type PromptUserTool,
 } from "./JSONGenerativeUI.shared";
 import type { GenerativeUILibrary } from "./types";
@@ -27,8 +28,8 @@ export class JSONGenerativeUI {
     this.library = options.library;
   }
 
-  present(): PresentTool {
-    return presentToolBase(this.library) as PresentTool;
+  present(options?: PresentToolOptions): PresentTool {
+    return presentToolBase(this.library, options) as PresentTool;
   }
 
   promptUser(): PromptUserTool {

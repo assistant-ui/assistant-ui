@@ -3,6 +3,7 @@ import {
   promptUserToolBase,
   type JSONGenerativeUIOptions,
   type PresentTool,
+  type PresentToolOptions,
   type PromptUserTool,
 } from "./JSONGenerativeUI.shared";
 import { renderGenerativeUI } from "./renderGenerativeUI";
@@ -29,10 +30,10 @@ export class JSONGenerativeUI {
     this.library = options.library;
   }
 
-  present(): PresentTool {
+  present(options?: PresentToolOptions): PresentTool {
     const library = this.library;
     return {
-      ...presentToolBase(library),
+      ...presentToolBase(library, options),
       execute: async () => ({}),
       render: ({ args, status }) =>
         renderGenerativeUI(args, library, { status: uiStatus(status) }),

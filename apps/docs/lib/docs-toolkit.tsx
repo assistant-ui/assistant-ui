@@ -9,6 +9,24 @@ import {
 import { MapPin, CloudSun, AlertCircle, ChevronRight } from "lucide-react";
 import { z } from "zod";
 import { defineToolkit, useAuiState } from "@assistant-ui/react";
+import {
+  JSONGenerativeUI,
+  defineGenerativeComponents,
+} from "@assistant-ui/react-generative-ui";
+
+// The user-facing component library the model renders through the `present`
+// tool. `Weather` shows the rich card for a `get_weather` result by `id`.
+const generative = new JSONGenerativeUI({
+  library: defineGenerativeComponents({
+    Weather: {
+      description:
+        "Show the user a rich weather card. Pass the `id` returned by " +
+        "`get_weather`; the card reads that result's payload.",
+      properties: z.object({ id: z.string() }),
+      render: (props: any) => <WeatherCard {...props} />,
+    },
+  }),
+});
 
 export default defineToolkit({
   // Weather data powered by Open-Meteo (https://open-meteo.com/)
@@ -53,7 +71,7 @@ export default defineToolkit({
   get_weather: {
     description:
       "Fetch the weather for coordinates from `geocode_location`. Returns an " +
-      "`id`; pass that `id` to `present_weather` to show the user a card.",
+      '`id`; call `present` with `{ $type: "Weather", id }` to show the user a card.',
     parameters: z.object({
       location: z.string(),
       latitude: z.number(),
@@ -117,21 +135,11 @@ export default defineToolkit({
       );
     },
   },
-  present_weather: {
-    display: "standalone",
-    description:
-      "Show the user a rich weather card. Pass the `id` returned by " +
-      "`get_weather`; the card reads that result's payload.",
-    parameters: z.object({
-      id: z.string(),
-    }),
-    execute: async ({ id }: { id: string }) => ({ id }),
-    render: (props: any) => <PresentWeatherCard {...props} />,
-  },
+  present: generative.present({ display: "standalone" }),
 });
 
-const PresentWeatherCard = ({ toolName, args }: any) => {
-  // The payload lives on the `get_weather` result; `present_weather` only
+const WeatherCard = ({ id }: any) => {
+  // The payload lives on the `get_weather` result; the `Weather` component only
   // carries the `id`. Scan the whole thread (the two calls usually land in
   // separate assistant messages) for the matching result.
   const source = useAuiState((s) => {
@@ -140,7 +148,7 @@ const PresentWeatherCard = ({ toolName, args }: any) => {
         if (
           part.type === "tool-call" &&
           part.toolName === "get_weather" &&
-          (part.result as any)?.id === args?.id
+          (part.result as any)?.id === id
         ) {
           return part.result as any;
         }
@@ -180,7 +188,7 @@ const PresentWeatherCard = ({ toolName, args }: any) => {
     <div className="mt-2 mb-4 flex flex-col items-center">
       <WeatherWidget {...source.widget} />
       <p className="text-muted-foreground/70 mt-1.5 text-center font-mono text-xs">
-        {formatToolCall(toolName, args)}
+        {formatToolCall("present", { $type: "Weather", id })}
       </p>
     </div>
   );

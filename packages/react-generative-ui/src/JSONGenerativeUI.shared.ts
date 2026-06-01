@@ -12,6 +12,16 @@ export type JSONGenerativeUIOptions = {
   library: GenerativeUILibrary;
 };
 
+/** Options for {@link JSONGenerativeUI.present}. */
+export type PresentToolOptions = {
+  /**
+   * Whether the rendered UI is shown standalone (its own surface, outside the
+   * chain-of-thought trace) or inline. Defaults to the frontend-tool default
+   * (inline). Pass `"standalone"` for a full-bleed artifact like a card.
+   */
+  display?: "standalone" | "inline";
+};
+
 /** The `present` tool, as the model sees it (no client `render`/`execute`). */
 export type PresentTool = ToolDefinition<
   Record<string, unknown>,
@@ -34,11 +44,15 @@ const PROMPT_USER_DESCRIPTION =
  * The schema-only half of the `present` tool, shared by both builds. The server
  * build returns exactly this; the client build adds `execute` and `render`.
  */
-export function presentToolBase(library: GenerativeUILibrary) {
+export function presentToolBase(
+  library: GenerativeUILibrary,
+  options?: PresentToolOptions,
+) {
   return {
     type: "frontend" as const,
     description: PRESENT_DESCRIPTION,
     parameters: buildPresentParameters(library),
+    ...(options?.display ? { display: options.display } : {}),
   };
 }
 
