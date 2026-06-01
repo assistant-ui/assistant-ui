@@ -11,7 +11,7 @@ Implement the change, open a PR through GitButler, monitor CI and reviews, addre
 
 1. Run `but pull`.
 2. Implement the requested change.
-3. Validate with the repo-appropriate lint/build/test commands. For assistant-ui, default to `pnpm lint`, `pnpm build`, and `pnpm test` unless the task clearly warrants narrower checks.
+3. Validate with the repo-appropriate lint/build/test commands. For assistant-ui, default to `pnpm lint` and `pnpm build` unless the task clearly warrants narrower checks.
 4. Create a GitButler branch with `but branch new <branch-name>`.
 5. Stage only the intended files into that branch with `but stage <file-or-hunk> <branch>`. If a stage id is ambiguous, run `but status -j` and use the longer id or file path.
 6. Commit with `but commit <branch> --only -m "<message>"`.
