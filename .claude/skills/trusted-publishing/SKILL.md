@@ -11,7 +11,7 @@ So: whenever you add a new publishable package (or notice one missing its config
 
 ## When this applies
 
-A package needs this setup if its `package.json` has `"private": false` (or no `private` field) and ships to npm. Skip private packages (`@assistant-ui/ui`, `@assistant-ui/x-changelog`, `@assistant-ui/docs`, `@assistant-ui/shadcn-registry`) — they never publish.
+A package needs this setup if its `package.json` has `"private": false` (or no `private` field) and ships to npm. The `private` field is the source of truth — skip any package marked `"private": true` (currently `@assistant-ui/ui`, `@assistant-ui/x-changelog`, `@assistant-ui/docs`, `@assistant-ui/shadcn-registry`); they never publish.
 
 ## The config values (identical for every package in this repo)
 
@@ -37,13 +37,17 @@ Replace `<PKG>` with the published name (e.g. `@assistant-ui/react`, or an unsco
 npm trust github <PKG> \
   --repository assistant-ui/assistant-ui \
   --file npm-publish.yaml \
-  --environment "npm Publish"
+  --environment "npm Publish" \
+  --allow-publish \
+  --allow-stage-publish
 
 # 2. Lock publishing access: require 2FA, disallow tokens (the "recommended" option)
 npm access set mfa=publish <PKG>
 ```
 
 `mfa=publish` is npm's "**Require two-factor authentication and disallow tokens (recommended)**" setting — it forbids token-based publishes while leaving OIDC trusted publishing working. (`mfa=automation` is the weaker "allow tokens with bypass 2FA" option; don't use it.)
+
+> **Brand-new package?** `npm access set mfa=publish` (and the website's Publishing-access toggle) only work once the package exists on the registry — for a name that has never published, run step 1 (`npm trust`) now and apply this mfa lockdown right after the first release. Step 1 works pre-publish; see [Brand-new package names](#brand-new-package-names-first-publish-chicken-and-egg) below.
 
 Verify afterward:
 
@@ -63,9 +67,11 @@ If the CLI path is blocked (older npm, auth issues), configure both in the npm U
 
 The npm **website** only lets you edit a package's settings once the package already exists on the registry — so for a brand-new name, configure with **`npm trust` first** (it can establish the trust relationship without publishing a placeholder version), and then let the `npm Publish` workflow ship the initial version via OIDC. If you hit trouble publishing the very first version through OIDC, the fallback is a one-time manual publish, then configure on the website, then all subsequent releases flow through the workflow. Don't introduce a long-lived `NPM_TOKEN` to work around it.
 
+Lock down publishing access (`npm access set mfa=publish`, or the website's Publishing-access toggle) **after** that first version exists — it can't be set on a name that hasn't published yet.
+
 ## Checklist for a new package
 
 1. `package.json` has `"private": false` and the correct public `name`.
 2. Run the two `npm trust` / `npm access` commands above (or the website equivalents).
 3. `npm trust list <PKG>` shows the GitHub Actions entry; `npm access get status` confirms mfa.
-4. Add a `patch` changeset (per `AGENTS.md`) so the package is included in the next release — changesets discovers it automatically; nothing else in the workflow needs editing.
+4. Add a `patch` changeset (per `AGENTS.md`) that **names the new package explicitly** in its frontmatter — changesets only releases packages listed in a changeset entry, so a brand-new package won't ship unless it's named. Nothing else in the workflow needs editing.
