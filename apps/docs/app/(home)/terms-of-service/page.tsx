@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { createOgMetadata } from "@/lib/og";
 
 const title = "Terms of Service — assistant-ui";
@@ -205,7 +206,10 @@ const sections = [
       "To resolve a complaint regarding the Services or to receive further information regarding use of the Services, contact AgentbaseAI Inc., 340 Fremont Street, Apt 2306, San Francisco, CA 94105, United States, or email contact@assistant-ui.com.",
     ],
   },
-];
+] satisfies {
+  title: string;
+  body: ReactNode[];
+}[];
 
 export default function TermsOfServicePage() {
   return (
