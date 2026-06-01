@@ -17,11 +17,8 @@ const LOADER = "@assistant-ui/next/loader";
 function compilerCacheToken(): string {
   try {
     const require = createRequire(import.meta.url);
-    const {
-      version,
-    } = require("@assistant-ui/x-generative-compiler/package.json");
     const entry = require.resolve("@assistant-ui/x-generative-compiler");
-    return `${version}:${statSync(entry).mtimeMs}`;
+    return `${entry}:${statSync(entry).mtimeMs}`;
   } catch {
     return "unknown";
   }
