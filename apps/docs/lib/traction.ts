@@ -323,8 +323,10 @@ export type ActivityPoint = {
   count: number;
 };
 
-export async function fetchCommitActivity(): Promise<ActivityPoint[]> {
-  const stats = await getCommitActivityStats();
+export async function fetchCommitActivity(
+  revalidate?: number,
+): Promise<ActivityPoint[]> {
+  const stats = await getCommitActivityStats(revalidate);
   if (stats && stats.length > 0) {
     const points: ActivityPoint[] = [];
     for (const week of stats) {
@@ -342,7 +344,11 @@ export async function fetchCommitActivity(): Promise<ActivityPoint[]> {
 
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - 365);
-  const items = await getCommitsSince(since.toISOString());
+  const items = await getCommitsSince(
+    since.toISOString(),
+    undefined,
+    revalidate,
+  );
 
   const counts = new Map<string, number>();
   for (const c of items) {
@@ -354,9 +360,11 @@ export async function fetchCommitActivity(): Promise<ActivityPoint[]> {
   return Array.from(counts.entries()).map(([date, count]) => ({ date, count }));
 }
 
-export async function fetchReleaseActivity(): Promise<ActivityPoint[]> {
+export async function fetchReleaseActivity(
+  revalidate?: number,
+): Promise<ActivityPoint[]> {
   const cutoff = Date.now() - 365 * 86_400_000;
-  const releases = await getReleases();
+  const releases = await getReleases(undefined, revalidate);
 
   const counts = new Map<string, number>();
   for (const r of releases) {
@@ -368,8 +376,10 @@ export async function fetchReleaseActivity(): Promise<ActivityPoint[]> {
   return Array.from(counts.entries()).map(([date, count]) => ({ date, count }));
 }
 
-export async function fetchContributors(): Promise<Contributor[]> {
-  const raw = await getContributors();
+export async function fetchContributors(
+  revalidate?: number,
+): Promise<Contributor[]> {
+  const raw = await getContributors(undefined, revalidate);
   return raw
     .filter((c) => c.type !== "Bot" && !/\[bot\]$/i.test(c.login))
     .map((c) => ({
@@ -391,6 +401,7 @@ const sum = (arr: number[]) => arr.reduce((acc, n) => acc + n, 0);
 
 async function fetchPackageDownloadRange(
   name: string,
+  revalidate?: number,
 ): Promise<PackageDownloads> {
   const today = new Date();
   const end = today.toISOString().slice(0, 10);
@@ -398,7 +409,7 @@ async function fetchPackageDownloadRange(
   start.setUTCDate(today.getUTCDate() - 60);
   const startStr = start.toISOString().slice(0, 10);
 
-  const downloads = await getDownloadsRange(name, startStr, end);
+  const downloads = await getDownloadsRange(name, startStr, end, revalidate);
   const all = downloads.map((d) => d.downloads);
   if (all.length === 0) return EMPTY_DOWNLOADS;
 
@@ -415,11 +426,16 @@ async function fetchPackageDownloadRange(
   };
 }
 
-export async function fetchNpmDownloads(): Promise<NpmDownloads> {
+export async function fetchNpmDownloads(
+  revalidate?: number,
+): Promise<NpmDownloads> {
   const entries = await Promise.all(
     PACKAGES.map(
       async (pkg) =>
-        [pkg.name, await fetchPackageDownloadRange(pkg.name)] as const,
+        [
+          pkg.name,
+          await fetchPackageDownloadRange(pkg.name, revalidate),
+        ] as const,
     ),
   );
   const perPackage: Record<string, PackageDownloads> = {};
@@ -456,6 +472,7 @@ export type TimelineSeries = {
 
 export async function fetchTimelineSeries(
   packages: readonly string[],
+  revalidate?: number,
 ): Promise<TimelineSeries> {
   const fetched = await Promise.all(
     packages.map(async (pkg, idx) => ({
@@ -463,7 +480,7 @@ export async function fetchTimelineSeries(
       pkg,
       label: pkg.replace(/^@assistant-ui\//, "").replace(/^assistant-/, ""),
       chartIndex: (idx % 5) + 1,
-      points: await fetchDownloadsTimeline(pkg),
+      points: await fetchDownloadsTimeline(pkg, revalidate),
     })),
   );
 
@@ -513,8 +530,9 @@ export async function fetchTimelineSeries(
 
 export async function fetchDownloadsTimeline(
   name: string,
+  revalidate?: number,
 ): Promise<TimelinePoint[]> {
-  const downloads = await getDownloadsLastYear(name);
+  const downloads = await getDownloadsLastYear(name, revalidate);
   if (!downloads.length) return [];
   const cutoff = currentMonthKey();
   type MonthBucket = {
@@ -597,9 +615,10 @@ function projectInflightMonth(
 
 export async function fetchStarHistory(
   totalStars: number,
+  revalidate?: number,
 ): Promise<TimelinePoint[]> {
   try {
-    const first = await getStargazersPage(1);
+    const first = await getStargazersPage(1, revalidate);
     if (first.data.length === 0) return [];
 
     const lastPage = first.lastPage ?? Math.max(1, Math.ceil(totalStars / 100));
@@ -619,7 +638,7 @@ export async function fetchStarHistory(
     const fetched = await Promise.all(
       pages.map(async (page) => {
         if (page === 1) return { page, data: first.data };
-        const result = await getStargazersPage(page);
+        const result = await getStargazersPage(page, revalidate);
         return { page, data: result.data };
       }),
     );

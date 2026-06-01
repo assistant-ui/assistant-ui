@@ -53,8 +53,15 @@ type HeroStat = {
 
 const FLAGSHIP_PACKAGE = "@assistant-ui/react";
 
-export default async function TractionPage() {
-  const repo = await getRepo();
+export default async function TractionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ refresh?: string }>;
+}) {
+  const forceFresh = (await searchParams).refresh === "true";
+  const revalidate = forceFresh ? 0 : undefined;
+
+  const repo = await getRepo(revalidate);
 
   const [
     npm,
@@ -65,13 +72,13 @@ export default async function TractionPage() {
     commitActivity,
     releaseActivity,
   ] = await Promise.all([
-    fetchNpmDownloads(),
-    fetchStarHistory(repo.stars),
-    fetchTimelineSeries(TIMELINE_PACKAGES),
-    fetchContributors(),
-    getDependents(),
-    fetchCommitActivity(),
-    fetchReleaseActivity(),
+    fetchNpmDownloads(revalidate),
+    fetchStarHistory(repo.stars, revalidate),
+    fetchTimelineSeries(TIMELINE_PACKAGES, revalidate),
+    fetchContributors(revalidate),
+    getDependents(revalidate),
+    fetchCommitActivity(revalidate),
+    fetchReleaseActivity(revalidate),
   ]);
 
   const days = daysSince(PROJECT_FACTS.firstCommitDate);
