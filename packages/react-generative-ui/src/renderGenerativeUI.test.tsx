@@ -159,4 +159,30 @@ describe("buildPresentParameters", () => {
       $ref: "#/$defs/node",
     });
   });
+
+  it("keeps the framework-reserved `$type` and `children` even if a component declares them", () => {
+    const schema = buildPresentParameters({
+      Reserved: {
+        description: "Declares reserved keys that must not leak through.",
+        properties: z.object({
+          $type: z.number(),
+          children: z.number(),
+          label: z.string(),
+        }),
+        render: () => null,
+      },
+    }) as any;
+
+    const branch = schema.oneOf[0];
+    // The discriminator wins over the author's `$type`, and the author's
+    // `children` is dropped (the root `children` $ref owns that slot).
+    expect(branch.properties.$type).toEqual({
+      const: "Reserved",
+      description: "Declares reserved keys that must not leak through.",
+    });
+    expect(branch.properties.children).toBeUndefined();
+    expect(branch.properties.label).toBeDefined();
+    expect(branch.required).not.toContain("children");
+    expect(branch.required).not.toContain("$type");
+  });
 });

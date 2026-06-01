@@ -21,20 +21,22 @@ import { Thread, Tools } from "@assistant-ui/react";
 import { z } from "zod";
 
 const generativeUI = new JSONGenerativeUI({
-  Card: {
-    description: "A card container with a title.",
-    properties: z.object({ title: z.string() }),
-    render: ({ title, children }) => (
-      <section className="card">
-        <h3>{title}</h3>
-        {children}
-      </section>
-    ),
-  },
-  Text: {
-    description: "A run of text.",
-    properties: z.object({ tone: z.enum(["muted", "normal"]).optional() }),
-    render: ({ tone, children }) => <p data-tone={tone}>{children}</p>,
+  library: {
+    Card: {
+      description: "A card container with a title.",
+      properties: z.object({ title: z.string() }),
+      render: ({ title, children }) => (
+        <section className="card">
+          <h3>{title}</h3>
+          {children}
+        </section>
+      ),
+    },
+    Text: {
+      description: "A run of text.",
+      properties: z.object({ tone: z.enum(["muted", "normal"]).optional() }),
+      render: ({ tone, children }) => <p data-tone={tone}>{children}</p>,
+    },
   },
 });
 
@@ -72,15 +74,17 @@ that discriminates the props: while `"streaming"` they are `Partial`, and once
 
 ```tsx
 const generativeUI = new JSONGenerativeUI({
-  Weather: {
-    description: "A live weather card.",
-    properties: z.object({ city: z.string(), temp: z.number() }),
-    streamProperties: true,
-    render: (props) => {
-      if (props.$status === "done") {
-        return <Card>{`${props.city}: ${props.temp}°`}</Card>; // complete props
-      }
-      return <Card>{props.city ?? "Loading…"}</Card>; // partial props
+  library: {
+    Weather: {
+      description: "A live weather card.",
+      properties: z.object({ city: z.string(), temp: z.number() }),
+      streamProperties: true,
+      render: (props) => {
+        if (props.$status === "done") {
+          return <Card>{`${props.city}: ${props.temp}°`}</Card>; // complete props
+        }
+        return <Card>{props.city ?? "Loading…"}</Card>; // partial props
+      },
     },
   },
 });

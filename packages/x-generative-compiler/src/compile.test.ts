@@ -305,6 +305,18 @@ export default defineToolkit({
     ).toThrow(/defineToolkit/);
   });
 
+  it("rejects a raw default export even when a defineToolkit exists elsewhere", () => {
+    // The default export is what the runtime registers, so it must itself be
+    // wrapped — an unrelated defineToolkit() must not let a bare object through.
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+const unused = defineToolkit({ x: { execute: async () => 1, render: () => null } });
+export default { weather: { execute: async () => 1, render: () => null } };`;
+    expect(() => compileGenerative(src, { target: "client" })).toThrow(
+      /default export must be defineToolkit/,
+    );
+  });
+
   it("rejects a tool that isn't an inline object literal", () => {
     expect(() =>
       compileGenerative(

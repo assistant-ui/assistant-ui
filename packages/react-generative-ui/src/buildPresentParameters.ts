@@ -21,12 +21,23 @@ export function buildPresentParameters(
   const branches: JSONSchema7[] = names.map((name) => {
     const { description, properties } = library[name]!;
     const propsSchema = toJSONSchema(properties);
+    // `$type` and `children` are framework-reserved (the discriminator and the
+    // recursive child slot). Drop any author-declared copies so a component's
+    // schema can't clobber them, then write the discriminator last.
+    const {
+      [TYPE_KEY]: _type,
+      children: _children,
+      ...props
+    } = propsSchema.properties ?? {};
+    const required = (propsSchema.required ?? []).filter(
+      (key) => key !== TYPE_KEY && key !== "children",
+    );
     return {
       properties: {
+        ...props,
         [TYPE_KEY]: { const: name, description },
-        ...propsSchema.properties,
       },
-      required: propsSchema.required ?? [],
+      required,
     };
   });
 

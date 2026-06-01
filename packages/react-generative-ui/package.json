@@ -49,7 +49,7 @@
     "@assistant-ui/react": "^0.14.11",
     "@types/react": "*",
     "react": "^18 || ^19",
-    "zod": "^3.0.0"
+    "zod": "^4.0.0"
   },
   "peerDependenciesMeta": {
     "@types/react": {

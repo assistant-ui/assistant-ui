@@ -206,11 +206,46 @@ export function compileGenerative(
   return { code: result.code, map: result.map };
 }
 
-/** Errors if the module has no default export (the toolkit the runtime imports). */
+/**
+ * Errors unless the module's default export is the toolkit — a `defineToolkit(...)`
+ * call (through `satisfies`/`as`/parens). This is the security boundary: the
+ * default export is what the runtime registers, so it must be wrapped (and thus
+ * split). A bare `export default { ... }` would ship a backend `execute` to the
+ * client even if some *other* `defineToolkit(...)` exists elsewhere in the file.
+ */
 function ensureDefaultExport(ast: t.File, filename: string | undefined): void {
-  if (!ast.program.body.some((stmt) => t.isExportDefaultDeclaration(stmt))) {
+  const def = ast.program.body.find(
+    (stmt): stmt is t.ExportDefaultDeclaration =>
+      t.isExportDefaultDeclaration(stmt),
+  );
+  if (!def) {
     throw new GenerativeCompileError("missing a default export", filename);
   }
+  if (!unwrapToCall(def.declaration, TOOLKIT_WRAPPER)) {
+    throw new GenerativeCompileError(
+      `the default export must be ${TOOLKIT_WRAPPER}({ ... }) (imported from ` +
+        '"@assistant-ui/react"); wrapping is required so a backend `execute` ' +
+        "can't be authored in a way that reaches the client",
+      filename,
+    );
+  }
+}
+
+/**
+ * Unwraps a node through `satisfies`/`as`/parens to a call of the named function,
+ * or returns `null`. Used to recognize `defineToolkit({...}) satisfies Toolkit`.
+ */
+function unwrapToCall(node: t.Node, name: string): t.CallExpression | null {
+  if (t.isTSSatisfiesExpression(node) || t.isTSAsExpression(node)) {
+    return unwrapToCall(node.expression, name);
+  }
+  if (t.isParenthesizedExpression(node)) {
+    return unwrapToCall(node.expression, name);
+  }
+  if (t.isCallExpression(node) && t.isIdentifier(node.callee, { name })) {
+    return node;
+  }
+  return null;
 }
 
 /**

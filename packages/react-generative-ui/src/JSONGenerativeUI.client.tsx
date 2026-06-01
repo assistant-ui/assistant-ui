@@ -9,9 +9,14 @@ import {
 import { renderGenerativeUI } from "./renderGenerativeUI";
 import type { GenerativeUILibrary, GenerativeUIStatus } from "./types";
 
-/** Maps a tool-call part status to the generative-UI streaming status. */
+/**
+ * Maps a tool-call part status to the generative-UI streaming status. Only a
+ * `complete` call has fully-arrived args; `running` and `incomplete`
+ * (aborted/errored, so args may be partial) both render as `"streaming"` so a
+ * non-streaming component is never handed partial props.
+ */
 function uiStatus(status: { type: string }): GenerativeUIStatus {
-  return status.type === "running" ? "streaming" : "done";
+  return status.type === "complete" ? "done" : "streaming";
 }
 
 /**
