@@ -53,7 +53,7 @@ Verify afterward:
 
 ```bash
 npm trust list <PKG>      # shows the GitHub Actions trust entry
-npm access get status <PKG>
+npm access get status <PKG>   # only works post-first-publish; skip for a brand-new name
 ```
 
 ## Or via the website
@@ -75,3 +75,4 @@ Lock down publishing access (`npm access set mfa=publish`, or the website's Publ
 2. Run the two `npm trust` / `npm access` commands above (or the website equivalents).
 3. `npm trust list <PKG>` shows the GitHub Actions entry; `npm access get status` confirms mfa.
 4. Add a `patch` changeset (per `AGENTS.md`) that **names the new package explicitly** in its frontmatter — changesets only releases packages listed in a changeset entry, so a brand-new package won't ship unless it's named. Nothing else in the workflow needs editing.
+5. Ship the first version as a **stable semver** (no `-` pre-release suffix like `0.1.0-alpha.0`). `npm-publish.yaml` calls `setFailed` on prerelease versions and fails the **entire** release run, not just that package.
