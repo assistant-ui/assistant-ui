@@ -45,6 +45,7 @@
       "dependsOn": ["build", "lint", "test"]
     },
     "dev": {
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     }
