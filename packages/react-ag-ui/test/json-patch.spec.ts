@@ -179,4 +179,18 @@ describe("applyJsonPatch", () => {
       ]),
     ).toThrow(/Path not found: a\/missing/);
   });
+
+  it("should throw when 'test' targets a non-existent path", () => {
+    expect(() =>
+      applyJsonPatch({ a: 1 }, [{ op: "test", path: "/missing", value: 1 }]),
+    ).toThrow(/Path not found/);
+  });
+
+  it("should throw when 'move' targets a descendant of its source", () => {
+    expect(() =>
+      applyJsonPatch({ a: { b: 1 } }, [
+        { op: "move", from: "/a", path: "/a/c" },
+      ]),
+    ).toThrow(/must not be a descendant/);
+  });
 });

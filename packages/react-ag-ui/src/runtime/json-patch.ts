@@ -28,6 +28,9 @@ function getParentAndKey(
   doc: any,
   segments: string[],
 ): { parent: any; key: string } {
+  if (segments.length === 0) {
+    throw new Error("Cannot resolve a parent for the document root");
+  }
   let current = doc;
   for (let i = 0; i < segments.length - 1; i++) {
     current = current[segments[i]!];
@@ -76,7 +79,11 @@ function deepEqual(a: unknown, b: unknown): boolean {
 function getValue(doc: any, segments: string[]): unknown {
   let current = doc;
   for (let i = 0; i < segments.length; i++) {
-    if (current === undefined || current === null) {
+    if (
+      current === null ||
+      typeof current !== "object" ||
+      !(segments[i]! in current)
+    ) {
       throw new Error(`Path not found: ${segments.slice(0, i + 1).join("/")}`);
     }
     current = current[segments[i]!];
@@ -97,6 +104,14 @@ function addAt(parent: any, key: string, value: unknown): void {
     parent.splice(index, 0, value);
   } else {
     parent[key] = value;
+  }
+}
+
+function removeAt(parent: any, key: string): void {
+  if (Array.isArray(parent)) {
+    parent.splice(Number(key), 1);
+  } else {
+    delete parent[key];
   }
 }
 
@@ -126,11 +141,7 @@ export function applyJsonPatch(
         } else {
           const { parent, key } = getParentAndKey(result, segments);
           requireExists(parent, key, patch.path);
-          if (Array.isArray(parent)) {
-            parent.splice(Number(key), 1);
-          } else {
-            delete parent[key];
-          }
+          removeAt(parent, key);
         }
         break;
       }
@@ -146,6 +157,11 @@ export function applyJsonPatch(
       }
       case "move": {
         const from = requireFrom(patch);
+        if (from !== "" && patch.path.startsWith(`${from}/`)) {
+          throw new Error(
+            `move 'path' (${patch.path}) must not be a descendant of 'from' (${from})`,
+          );
+        }
         const fromSegments = parsePath(from);
         const { parent: fromParent, key: fromKey } = getParentAndKey(
           result,
@@ -153,11 +169,7 @@ export function applyJsonPatch(
         );
         requireExists(fromParent, fromKey, from);
         const value = fromParent[fromKey];
-        if (Array.isArray(fromParent)) {
-          fromParent.splice(Number(fromKey), 1);
-        } else {
-          delete fromParent[fromKey];
-        }
+        removeAt(fromParent, fromKey);
         if (segments.length === 0) {
           result = value;
         } else {
@@ -167,12 +179,7 @@ export function applyJsonPatch(
         break;
       }
       case "copy": {
-        const from = requireFrom(patch);
-        const fromSegments = parsePath(from);
-        if (fromSegments.length > 0) {
-          const { parent, key } = getParentAndKey(result, fromSegments);
-          requireExists(parent, key, from);
-        }
+        const fromSegments = parsePath(requireFrom(patch));
         const value = structuredClone(getValue(result, fromSegments));
         if (segments.length === 0) {
           result = value;
