@@ -41,6 +41,11 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
           mediaType: part.mimeType,
           ...(part.filename && { filename: part.filename }),
         };
+      case "data":
+        return {
+          type: `data-${part.name}`,
+          data: part.data,
+        };
       default:
         throw new Error(`Unsupported part type: ${part.type}`);
     }
