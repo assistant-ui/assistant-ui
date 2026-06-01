@@ -122,7 +122,6 @@ export function compileGenerative(
   const generativeInstances = collectGenerativeInstances(ast);
 
   const flags: TargetFlags = { keptRender: false, keptBackendExecute: false };
-  let sawToolkit = false;
 
   traverse(ast, {
     CallExpression(path: NodePath<t.CallExpression>) {
@@ -153,22 +152,12 @@ export function compileGenerative(
             filename,
           );
         }
-        sawToolkit = true;
         compileToolkit(object, target, generativeInstances, flags, filename);
         path.replaceWith(object);
         path.skip();
       }
     },
   });
-
-  if (!sawToolkit) {
-    throw new GenerativeCompileError(
-      `the toolkit must be wrapped in ${TOOLKIT_WRAPPER}({ ... }) (imported ` +
-        'from "@assistant-ui/react"); wrapping is required so a backend ' +
-        "`execute` can't be authored in a way that reaches the client",
-      filename,
-    );
-  }
 
   const { keptRender, keptBackendExecute } = flags;
 
