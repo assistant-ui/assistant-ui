@@ -2,62 +2,68 @@ import { Box, Text } from "ink";
 import {
   ThreadPrimitive,
   ComposerPrimitive,
-  useAuiState,
+  MessagePrimitive,
+  ErrorPrimitive,
+  LoadingPrimitive,
+  LiveChecklist,
 } from "@assistant-ui/react-ink";
 import { MarkdownText } from "@assistant-ui/react-ink-markdown";
 
-const UserMessage = () => {
-  const text = useAuiState((s) =>
-    s.message.parts
-      .filter((p) => p.type === "text")
-      .map((p) => ("text" in p ? p.text : ""))
-      .join(""),
-  );
-
-  return (
+const UserMessage = () => (
+  <MessagePrimitive.Root>
     <Box marginBottom={1}>
       <Text bold color="green">
         You:{" "}
       </Text>
-      <Text wrap="wrap">{text}</Text>
+      <MessagePrimitive.Content
+        renderText={({ part }) => <Text wrap="wrap">{part.text}</Text>}
+      />
     </Box>
-  );
-};
+  </MessagePrimitive.Root>
+);
 
-const AssistantMessage = () => {
-  const text = useAuiState((s) =>
-    s.message.parts
-      .filter((p) => p.type === "text")
-      .map((p) => ("text" in p ? p.text : ""))
-      .join(""),
-  );
-
-  return (
+const AssistantMessage = () => (
+  <MessagePrimitive.Root>
     <Box flexDirection="column" marginBottom={1}>
       <Text bold color="blue">
         AI:
       </Text>
-      <MarkdownText text={text} />
+      <MessagePrimitive.Content
+        renderText={({ part }) => <MarkdownText text={part.text} />}
+        renderReasoning={({ part }) => (
+          <Text dimColor italic>
+            {part.text}
+          </Text>
+        )}
+      />
+      <LiveChecklist title="Plan" showProgress marginTop={1} />
+      <ErrorPrimitive.Root>
+        <ErrorPrimitive.Message />
+      </ErrorPrimitive.Root>
     </Box>
-  );
-};
+  </MessagePrimitive.Root>
+);
 
-const StatusIndicator = () => {
-  const isRunning = useAuiState((s) => s.thread.isRunning);
-  if (!isRunning) return null;
-  return (
-    <Box marginBottom={1}>
-      <Text color="yellow">Thinking...</Text>
-    </Box>
-  );
-};
+const Loading = () => (
+  <LoadingPrimitive.Root marginBottom={1}>
+    <LoadingPrimitive.Spinner />
+    <Text> </Text>
+    <LoadingPrimitive.Text>Working</LoadingPrimitive.Text>
+    <Text> </Text>
+    <LoadingPrimitive.ElapsedTime />
+  </LoadingPrimitive.Root>
+);
 
 export const Thread = () => {
   return (
     <ThreadPrimitive.Root>
       <ThreadPrimitive.Empty>
-        <Box marginBottom={1}>
-          <Text dimColor>No messages yet. Start typing below!</Text>
+        <Box flexDirection="column" marginBottom={1}>
+          <Text>
+            Working in this project. <Text color="yellow">fetchUser()</Text> is
+            flaky in prod and has no retry logic.
+          </Text>
+          <Text dimColor>{'  try: "make fetchUser retry on failure"'}</Text>
         </Box>
       </ThreadPrimitive.Empty>
 
@@ -67,13 +73,14 @@ export const Thread = () => {
         }
       </ThreadPrimitive.Messages>
 
-      <StatusIndicator />
+      <Loading />
 
       <Box borderStyle="round" borderColor="gray" paddingX={1}>
         <Text color="gray">{"> "}</Text>
         <ComposerPrimitive.Input
           submitOnEnter
-          placeholder="Type a message..."
+          multiLine
+          placeholder="Type a message... (Enter to send)"
           autoFocus
         />
       </Box>
