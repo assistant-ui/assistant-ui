@@ -1,5 +1,5 @@
 import type { ToolDefinition } from "@assistant-ui/react";
-import { buildPresentParameters } from "./buildPresentParameters";
+import type { JSONSchema7 } from "json-schema";
 import type { GenerativeUILibrary } from "./types";
 
 /** Options for {@link JSONGenerativeUI}. */
@@ -40,8 +40,8 @@ const PROMPT_USER_DESCRIPTION =
   "component with `$type` and provide its props inline; nest components with " +
   "`children`. The user interacts with it and the result is returned to you.";
 
-/** The tool `parameters` schema, built once per instance (see {@link buildPresentParameters}). */
-export type PresentParameters = ReturnType<typeof buildPresentParameters>;
+/** The tool `parameters` schema, built once per instance (see `buildPresentParameters`). */
+export type PresentParameters = JSONSchema7;
 
 /**
  * The schema-only half of the `present` tool, shared by both builds. The server
@@ -56,7 +56,7 @@ export function presentToolBase(
     type: "frontend" as const,
     description: PRESENT_DESCRIPTION,
     parameters,
-    ...(options?.display ? { display: options.display } : {}),
+    ...(options?.display !== undefined ? { display: options.display } : {}),
   };
 }
 
