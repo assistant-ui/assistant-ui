@@ -14,7 +14,7 @@ type Props = {
 };
 
 export function CategoryGrid({ onBrowseAll, onSelectTemplate }: Props) {
-  const { templates, error } = useXuluxTemplateCatalog();
+  const { templates, isLoading, error } = useXuluxTemplateCatalog();
   const [selected, setSelected] = useState<XuluxTemplate | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -40,6 +40,10 @@ export function CategoryGrid({ onBrowseAll, onSelectTemplate }: Props) {
       resizeObserver.disconnect();
     };
   }, [updateScrollState, templates]);
+
+  if (isLoading) {
+    return <TemplateGridSkeleton />;
+  }
 
   const scrollLeft = () => {
     const el = scrollRef.current;
@@ -155,5 +159,34 @@ export function CategoryGrid({ onBrowseAll, onSelectTemplate }: Props) {
         }}
       />
     </>
+  );
+}
+
+function TemplateGridSkeleton() {
+  return (
+    <section className="w-full">
+      <div className="mb-4 flex items-baseline justify-between">
+        <h2 className="text-lg font-semibold tracking-tight">Templates</h2>
+        <div className="bg-muted h-4 w-20 animate-pulse rounded" />
+      </div>
+
+      <div className="flex gap-4 overflow-hidden">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="border-border bg-card/40 flex min-w-[190px] flex-1 flex-col gap-2 rounded-xl border p-2"
+          >
+            <div className="bg-muted aspect-video w-full animate-pulse rounded-md" />
+            <div className="space-y-2 px-1 pb-1">
+              <div className="bg-muted h-4 w-3/4 animate-pulse rounded" />
+              <div className="space-y-1">
+                <div className="bg-muted h-3 w-full animate-pulse rounded" />
+                <div className="bg-muted h-3 w-2/3 animate-pulse rounded" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
