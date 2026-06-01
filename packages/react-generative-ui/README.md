@@ -93,6 +93,48 @@ const generativeUI = new JSONGenerativeUI({
 `render` is a function of `props`, not a React component — but it runs on its
 own fiber, so you can call hooks inside it as usual.
 
+## `"use generative"` authoring
+
+The examples above wire the library up by hand on the client. With the
+`"use generative"` compiler (`@assistant-ui/next` or `@assistant-ui/vite`) you
+can instead colocate a component's `properties` schema with its `render` and
+expose the library as tools, and the build splits each half to the right target:
+the schema goes to the server (so the model sees the tool), the `render` stays on
+the client.
+
+```tsx
+"use generative";
+
+import { z } from "zod";
+import { Weather } from "@/components/weather";
+import { defineToolkit } from "@assistant-ui/react";
+import {
+  JSONGenerativeUI,
+  defineGenerativeComponents,
+} from "@assistant-ui/react-generative-ui";
+
+const generative = new JSONGenerativeUI({
+  library: defineGenerativeComponents({
+    Weather: {
+      description: "Show a weather card.",
+      properties: z.object({ city: z.string() }),
+      render: (props) => <Weather {...props} />,
+    },
+  }),
+});
+
+export default defineToolkit({
+  // `present` displays a component; `prompt_user` is a human-in-the-loop prompt.
+  present: generative.present(),
+  prompt_user: generative.promptUser(),
+});
+```
+
+The model calls `present` with a node like `{ "$type": "Weather", "city": "SF" }`.
+Pass `present({ display: "standalone" })` to render the component on its own
+surface instead of inline. See the
+[`"use generative"` docs](https://www.assistant-ui.com/docs) for the build setup.
+
 ## License
 
 MIT

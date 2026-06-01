@@ -1,12 +1,13 @@
+import { buildPresentParameters } from "./buildPresentParameters";
 import {
   presentToolBase,
   promptUserToolBase,
   type JSONGenerativeUIOptions,
+  type PresentParameters,
   type PresentTool,
   type PresentToolOptions,
   type PromptUserTool,
 } from "./JSONGenerativeUI.shared";
-import type { GenerativeUILibrary } from "./types";
 
 /**
  * Server build of {@link JSONGenerativeUI}, resolved through the package's
@@ -22,17 +23,17 @@ import type { GenerativeUILibrary } from "./types";
  * tools; on the server it is structurally absent and never read.
  */
 export class JSONGenerativeUI {
-  private readonly library: GenerativeUILibrary;
+  private readonly parameters: PresentParameters;
 
   constructor(options: JSONGenerativeUIOptions) {
-    this.library = options.library;
+    this.parameters = buildPresentParameters(options.library);
   }
 
   present(options?: PresentToolOptions): PresentTool {
-    return presentToolBase(this.library, options) as PresentTool;
+    return presentToolBase(this.parameters, options) as PresentTool;
   }
 
   promptUser(): PromptUserTool {
-    return promptUserToolBase(this.library) as PromptUserTool;
+    return promptUserToolBase(this.parameters) as PromptUserTool;
   }
 }

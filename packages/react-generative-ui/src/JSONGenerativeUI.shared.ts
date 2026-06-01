@@ -40,18 +40,22 @@ const PROMPT_USER_DESCRIPTION =
   "component with `$type` and provide its props inline; nest components with " +
   "`children`. The user interacts with it and the result is returned to you.";
 
+/** The tool `parameters` schema, built once per instance (see {@link buildPresentParameters}). */
+export type PresentParameters = ReturnType<typeof buildPresentParameters>;
+
 /**
  * The schema-only half of the `present` tool, shared by both builds. The server
  * build returns exactly this; the client build adds `execute` and `render`.
+ * Takes the already-built `parameters` so it isn't recomputed per tool.
  */
 export function presentToolBase(
-  library: GenerativeUILibrary,
+  parameters: PresentParameters,
   options?: PresentToolOptions,
 ) {
   return {
     type: "frontend" as const,
     description: PRESENT_DESCRIPTION,
-    parameters: buildPresentParameters(library),
+    parameters,
     ...(options?.display ? { display: options.display } : {}),
   };
 }
@@ -60,10 +64,10 @@ export function presentToolBase(
  * The schema-only half of the `prompt_user` tool, shared by both builds. The
  * server build returns exactly this; the client build adds `render`.
  */
-export function promptUserToolBase(library: GenerativeUILibrary) {
+export function promptUserToolBase(parameters: PresentParameters) {
   return {
     type: "human" as const,
     description: PROMPT_USER_DESCRIPTION,
-    parameters: buildPresentParameters(library),
+    parameters,
   };
 }
