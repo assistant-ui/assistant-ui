@@ -12,6 +12,7 @@ case "$commit_ref" in
 esac
 
 case "$commit_message" in
+  # Keep in sync with `commit:` in .github/workflows/changeset.yaml.
   "chore: update versions"*)
     echo "Skipping Vercel build for Changesets version commit."
     exit 0
