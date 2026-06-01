@@ -430,7 +430,7 @@ export async function fetchNpmDownloads(
   revalidate?: number,
 ): Promise<NpmDownloads> {
   const entries = await Promise.all(
-    PACKAGES.map(
+    PACKAGES.filter((pkg) => !pkg.deprecated).map(
       async (pkg) =>
         [
           pkg.name,
