@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
+import { createOgMetadata } from "@/lib/og";
+
+const title = "Privacy Policy — assistant-ui";
+const description =
+  "Privacy Policy for AgentbaseAI Inc. and assistant-ui services.";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — assistant-ui",
-  description: "Privacy Policy for AgentbaseAI Inc. and assistant-ui services.",
+  title,
+  description,
+  ...createOgMetadata(title, description),
 };
 
 const sections = [
@@ -11,7 +18,20 @@ const sections = [
     body: [
       "We collect personal information that you voluntarily provide to us when you register on the Services, express an interest in obtaining information about us or our products and Services, participate in activities on the Services, or otherwise contact us.",
       "The personal information we collect depends on the context of your interactions with us and the Services, the choices you make, and the products and features you use. It may include names, email addresses, usernames, passwords, contact or authentication data, and billing addresses.",
-      "We do not process sensitive information. If you choose to make purchases, payment data is handled and stored by Stripe. You may find Stripe's privacy notice at https://stripe.com/privacy.",
+      <>
+        We do not process sensitive information. If you choose to make
+        purchases, payment data is handled and stored by Stripe. You may find
+        Stripe&apos;s privacy notice at{" "}
+        <a
+          href="https://stripe.com/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-foreground underline underline-offset-4"
+        >
+          https://stripe.com/privacy
+        </a>
+        .
+      </>,
       'If you choose to register or log in using a social media account, we will collect certain profile information from the social media provider as described in the section titled "How Do We Handle Your Social Logins?"',
     ],
   },
@@ -116,7 +136,10 @@ const sections = [
       "To request review, update, or deletion of your personal information, contact privacy@assistant-ui.com.",
     ],
   },
-];
+] satisfies {
+  title: string;
+  body: ReactNode[];
+}[];
 
 export default function PrivacyPolicyPage() {
   return (
@@ -151,9 +174,9 @@ export default function PrivacyPolicyPage() {
               {section.title}
             </h2>
             <div className="mt-4 space-y-4">
-              {section.body.map((paragraph) => (
+              {section.body.map((paragraph, index) => (
                 <p
-                  key={paragraph}
+                  key={index}
                   className="text-muted-foreground leading-relaxed"
                 >
                   {paragraph}
