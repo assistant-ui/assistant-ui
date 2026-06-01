@@ -355,7 +355,7 @@ function ThreadListItemMeta() {
 }
 ```
 
-`custom` is preserved across `rename`, `archive`, `unarchive`, and `generateTitle`. To mutate it, return updated values from a subsequent `fetch()` or call `runtime.threads.reload()`.
+`custom` is preserved across `rename`, `archive`, `unarchive`, and `generateTitle`. To change it, write the new values to your backend through your own code, then surface them locally by returning the updated values from a subsequent `fetch()` or by calling `aui.threads().reload()` to re-run `list()`. With the cloud adapter, persist via `cloud.threads.update(threadId, { metadata })`.
 
 ## ExternalStoreThreadListAdapter
 
