@@ -50,6 +50,12 @@ describe("generativeUIToJSX", () => {
     ).toBe('<Card title="Hi"><Text>a</Text><Text tone="muted">b</Text></Card>');
   });
 
+  it("bounds deeply nested trees instead of overflowing the stack", () => {
+    let node: any = { $type: "Text", children: "deep" };
+    for (let i = 0; i < 5000; i++) node = { $type: "Card", children: node };
+    expect(() => generativeUIToJSX(node)).not.toThrow();
+  });
+
   it("returns empty string for non-renderable nodes", () => {
     expect(generativeUIToJSX(null)).toBe("");
     expect(generativeUIToJSX(true)).toBe("");

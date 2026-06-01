@@ -39,7 +39,16 @@ export function buildPresentParameters(
     }
     for (const [key, schema] of Object.entries(propsSchema.properties ?? {})) {
       if (key === TYPE_KEY || key === "children") continue;
-      if (!(key in props)) props[key] = schema;
+      if (!(key in props)) {
+        props[key] = schema;
+      } else if (process.env["NODE_ENV"] !== "production") {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[@assistant-ui/react-generative-ui] Prop "${key}" is declared by more ` +
+            "than one component; the first component's schema is kept and the rest " +
+            "are ignored. Rename or align the type to avoid an ambiguous schema.",
+        );
+      }
     }
   }
 

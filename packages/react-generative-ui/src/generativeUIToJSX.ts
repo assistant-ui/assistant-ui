@@ -12,10 +12,23 @@ import { TYPE_KEY } from "./constants";
  * `null`, booleans).
  */
 export function generativeUIToJSX(node: unknown): string {
+  return toJSX(node, 0);
+}
+
+/**
+ * The deepest tree we serialize. Input is model-produced, so a runaway/
+ * adversarial response could nest arbitrarily deep and overflow the stack — past
+ * this depth (far beyond any real UI) we stop. Mirrors the renderer's bound.
+ */
+const MAX_DEPTH = 64;
+
+function toJSX(node: unknown, depth: number): string {
+  if (depth > MAX_DEPTH) return "";
   if (node == null || typeof node === "boolean") return "";
   if (typeof node === "string") return node;
   if (typeof node === "number") return String(node);
-  if (Array.isArray(node)) return node.map(generativeUIToJSX).join("");
+  if (Array.isArray(node))
+    return node.map((child) => toJSX(child, depth + 1)).join("");
   if (typeof node !== "object") return "";
 
   const {
@@ -28,7 +41,7 @@ export function generativeUIToJSX(node: unknown): string {
   const attrs = Object.entries(props)
     .map(([key, value]) => formatAttr(key, value))
     .join("");
-  const inner = children === undefined ? "" : generativeUIToJSX(children);
+  const inner = children === undefined ? "" : toJSX(children, depth + 1);
 
   return inner === ""
     ? `<${type}${attrs} />`
