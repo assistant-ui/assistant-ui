@@ -35,8 +35,8 @@ export { useInlineRender } from "./model-context/useInlineRender";
 export {
   type Toolkit,
   type ToolDefinition,
-  type ToolkitDeclaration,
-  type ToolkitDeclarationDefinition,
+  type ToolkitDefinition,
+  type ToolkitDefinitionEntry,
 } from "./model-context/toolbox";
 export { defineToolkit } from "./model-context/define-toolkit";
 export { hitl } from "./model-context/hitl";

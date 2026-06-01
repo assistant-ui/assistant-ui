@@ -17,6 +17,16 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./internal-json": {
+      "react-server": {
+        "types": "./dist/JSONGenerativeUI.server.d.ts",
+        "default": "./dist/JSONGenerativeUI.server.js"
+      },
+      "default": {
+        "types": "./dist/JSONGenerativeUI.client.d.ts",
+        "default": "./dist/JSONGenerativeUI.client.js"
+      }
     }
   },
   "main": "./dist/index.js",

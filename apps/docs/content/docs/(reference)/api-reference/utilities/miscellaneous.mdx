@@ -25,7 +25,7 @@ import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList
 ### defineToolkit
 
 Authoring helper for a `"use generative"` toolkit. Accepts the permissive
-ToolkitDeclaration (a `backend` tool may carry its server `execute`)
+ToolkitDefinition (a `backend` tool may carry its server `execute`)
 and types the result as the canonical [Toolkit](/docs/api-reference/tools/toolkits#toolkit).
 
 It has **no runtime implementation**. A `"use generative"` compiler (e.g.

@@ -15,6 +15,25 @@ const generate = (
 
 export type ToolType = "frontend" | "backend" | "human";
 
+/** The required wrapper around a toolkit's tools (stripped at build time). */
+const TOOLKIT_WRAPPER = "defineToolkit";
+/** The required wrapper around a generative-UI library (stripped at build time). */
+const COMPONENTS_WRAPPER = "defineGenerativeComponents";
+/**
+ * The class whose instances expose split-by-condition tools (`present()`,
+ * `promptUser()`). A toolkit entry that calls a method on one of these passes
+ * through untouched — the library, not this compiler, routes its halves.
+ */
+const GENERATIVE_FACTORY = "JSONGenerativeUI";
+
+/** Mutable per-build outcomes the toolkit pass reports back for directive/guard injection. */
+interface TargetFlags {
+  /** A `render` survived on a client build (→ emit `"use client"`). */
+  keptRender: boolean;
+  /** A backend `execute` survived on a server build (→ emit `import "server-only"`). */
+  keptBackendExecute: boolean;
+}
+
 export interface CompileOptions {
   /** Which build target to emit. */
   target: Target;
@@ -93,52 +112,65 @@ export function compileGenerative(
     );
   }
 
-  const object = findDefaultExportObject(ast, filename);
+  // A module may hold several `defineToolkit(...)` / `defineGenerativeComponents(...)`
+  // calls anywhere (e.g. a library built inside `new JSONGenerativeUI(...)` plus
+  // the toolkit that exposes it). Tools may reference a `JSONGenerativeUI`
+  // instance's `present()`/`promptUser()`, which the library — not this compiler —
+  // splits across builds via export conditions; collect those instance names so
+  // such entries pass through.
+  ensureDefaultExport(ast, filename);
+  const generativeInstances = collectGenerativeInstances(ast);
 
-  let keptRender = false;
-  let keptBackendExecute = false;
+  const flags: TargetFlags = { keptRender: false, keptBackendExecute: false };
+  let sawToolkit = false;
 
-  for (const entry of object.properties) {
-    const value = entryValue(entry);
-    if (!value) {
-      // A non-inline tool (spread, method, or a call like `makeTool()`) can't be
-      // analyzed, so its `execute` would pass through to the client unstripped.
-      throw new GenerativeCompileError(
-        "each tool must be an inline object literal (`name: { ... }`) so its " +
-          "`execute` can be routed",
-        filename,
-      );
-    }
+  traverse(ast, {
+    CallExpression(path: NodePath<t.CallExpression>) {
+      const callee = path.node.callee;
+      const object = t.isObjectExpression(path.node.arguments[0])
+        ? path.node.arguments[0]
+        : null;
 
-    // Nature is inferred from `execute` (see inferToolType), not an authored
-    // `type`. The resolved type is written back below so the runtime keeps it.
-    const type = inferToolType(value, filename);
-    const hasRender = !!findMember(value, "render");
-    const execute = findMember(value, "execute");
+      if (t.isIdentifier(callee, { name: COMPONENTS_WRAPPER })) {
+        if (!object) {
+          throw new GenerativeCompileError(
+            `${COMPONENTS_WRAPPER}() takes an inline object literal of components`,
+            filename,
+          );
+        }
+        compileComponents(object, target, flags, filename);
+        // Unwrap the marker (it has no runtime implementation) to the bare
+        // library object so its import can be pruned.
+        path.replaceWith(object);
+        path.skip();
+        return;
+      }
 
-    if ((type === "frontend" || type === "human") && !hasRender) {
-      throw new GenerativeCompileError(
-        `a ${type} tool must declare a \`render\` (it has no server execute to show otherwise)`,
-        filename,
-      );
-    }
+      if (t.isIdentifier(callee, { name: TOOLKIT_WRAPPER })) {
+        if (!object) {
+          throw new GenerativeCompileError(
+            `${TOOLKIT_WRAPPER}() takes an inline object literal of tools`,
+            filename,
+          );
+        }
+        sawToolkit = true;
+        compileToolkit(object, target, generativeInstances, flags, filename);
+        path.replaceWith(object);
+        path.skip();
+      }
+    },
+  });
 
-    if (target === "client") {
-      // A frontend execute stays (its `"use client"` marker is no longer needed
-      // once the module is client); a backend execute and a human `hitl()`
-      // sentinel are both dropped.
-      if (execute && type === "frontend") stripUseClient(execute);
-      else if (execute) removeMember(value, "execute");
-      if (hasRender) keptRender = true;
-    } else {
-      // server: render is never needed; only a backend execute survives.
-      if (hasRender) removeMember(value, "render");
-      if (execute && type !== "backend") removeMember(value, "execute");
-      if (execute && type === "backend") keptBackendExecute = true;
-    }
-
-    setToolType(value, type);
+  if (!sawToolkit) {
+    throw new GenerativeCompileError(
+      `the toolkit must be wrapped in ${TOOLKIT_WRAPPER}({ ... }) (imported ` +
+        'from "@assistant-ui/react"); wrapping is required so a backend ' +
+        "`execute` can't be authored in a way that reaches the client",
+      filename,
+    );
   }
+
+  const { keptRender, keptBackendExecute } = flags;
 
   pruneUnused(ast);
 
@@ -174,60 +206,149 @@ export function compileGenerative(
   return { code: result.code, map: result.map };
 }
 
-function findDefaultExportObject(
-  ast: t.File,
-  filename: string | undefined,
-): t.ObjectExpression {
-  let object: t.ObjectExpression | null = null;
-  let sawDefault = false;
-
-  for (const stmt of ast.program.body) {
-    if (!t.isExportDefaultDeclaration(stmt)) continue;
-    sawDefault = true;
-    object = unwrapDefineToolkit(stmt.declaration);
-    // Emit the bare object literal, dropping the `defineToolkit(...)` wrapper
-    // (and the import it pulled).
-    if (object) stmt.declaration = object;
-  }
-
-  if (!sawDefault) {
+/** Errors if the module has no default export (the toolkit the runtime imports). */
+function ensureDefaultExport(ast: t.File, filename: string | undefined): void {
+  if (!ast.program.body.some((stmt) => t.isExportDefaultDeclaration(stmt))) {
     throw new GenerativeCompileError("missing a default export", filename);
   }
-  if (!object) {
-    throw new GenerativeCompileError(
-      "the default export must be `defineToolkit({ ... })` (imported from " +
-        '"@assistant-ui/react"); wrapping is required so a backend `execute` ' +
-        "can't be authored in a way that reaches the client",
-      filename,
-    );
-  }
-  return object;
 }
 
 /**
- * Unwraps the required `defineToolkit({ ... })` wrapper (through `satisfies`/`as`
- * and parens) to the underlying object literal. Anything else — a bare object, a
- * `satisfies Toolkit` without the wrapper, some other call — yields `null` so the
- * caller errors.
+ * Collects the names bound to `new JSONGenerativeUI(...)` (e.g.
+ * `const generative = new JSONGenerativeUI({ library })`). A toolkit entry that
+ * calls a method on one of these is a generative tool whose halves the library
+ * routes by export condition, so it passes through the toolkit pass untouched.
  */
-function unwrapDefineToolkit(node: t.Node): t.ObjectExpression | null {
-  if (t.isTSSatisfiesExpression(node) || t.isTSAsExpression(node)) {
-    return unwrapDefineToolkit(node.expression);
+function collectGenerativeInstances(ast: t.File): Set<string> {
+  const names = new Set<string>();
+  traverse(ast, {
+    VariableDeclarator(path: NodePath<t.VariableDeclarator>) {
+      const { id, init } = path.node;
+      if (
+        t.isIdentifier(id) &&
+        t.isNewExpression(init) &&
+        t.isIdentifier(init.callee, { name: GENERATIVE_FACTORY })
+      ) {
+        names.add(id.name);
+      }
+    },
+  });
+  return names;
+}
+
+/**
+ * Whether a toolkit entry's value is a call to a method on a collected
+ * `JSONGenerativeUI` instance (`generative.present()`), which passes through.
+ */
+function isGenerativeToolEntry(value: t.Node, instances: Set<string>): boolean {
+  return (
+    t.isCallExpression(value) &&
+    t.isMemberExpression(value.callee) &&
+    !value.callee.computed &&
+    t.isIdentifier(value.callee.object) &&
+    instances.has(value.callee.object.name)
+  );
+}
+
+/**
+ * Splits a `defineGenerativeComponents({ ... })` library for a build target:
+ * a component's `render` (and the client imports it alone uses) is dropped on
+ * the server; `properties`/`description` stay on both, since they drive the tool
+ * schema either way. Mutates the object in place.
+ */
+function compileComponents(
+  object: t.ObjectExpression,
+  target: Target,
+  flags: TargetFlags,
+  filename: string | undefined,
+): void {
+  for (const entry of object.properties) {
+    const value = entryValue(entry);
+    if (!value) {
+      throw new GenerativeCompileError(
+        `each component in ${COMPONENTS_WRAPPER}() must be an inline object ` +
+          "literal (`name: { ... }`) so its `render` can be routed",
+        filename,
+      );
+    }
+    if (!findMember(value, "render")) continue;
+    // The client keeps `render` (and so needs the module marked `"use client"`);
+    // the server drops it, since only the schema reaches the model there.
+    if (target === "client") flags.keptRender = true;
+    else removeMember(value, "render");
   }
-  if (t.isParenthesizedExpression(node)) {
-    return unwrapDefineToolkit(node.expression);
+}
+
+/**
+ * Splits a `defineToolkit({ ... })` for a build target. Each inline tool is
+ * routed by inferred type (see the per-entry logic); a generative entry like
+ * `generative.present()` passes through, the library having already split it.
+ * Mutates the object in place and records outcomes in {@link TargetFlags}.
+ */
+function compileToolkit(
+  object: t.ObjectExpression,
+  target: Target,
+  instances: Set<string>,
+  flags: TargetFlags,
+  filename: string | undefined,
+): void {
+  for (const entry of object.properties) {
+    const value = entryValue(entry);
+    if (!value) {
+      // A generative tool (`generative.present()`) is split by the library's
+      // export conditions, so it is safe to keep verbatim. Anything else — a
+      // spread, method, or opaque call like `makeTool()` — can't be analyzed,
+      // so its `execute` could reach the client unstripped.
+      const raw = entryRawValue(entry);
+      if (raw && isGenerativeToolEntry(raw, instances)) continue;
+      throw new GenerativeCompileError(
+        "each tool must be an inline object literal (`name: { ... }`) or a " +
+          "generative tool (e.g. `generative.present()`) so its `execute` can " +
+          "be routed",
+        filename,
+      );
+    }
+
+    // Nature is inferred from `execute` (see inferToolType), not an authored
+    // `type`. The resolved type is written back below so the runtime keeps it.
+    const type = inferToolType(value, filename);
+    const hasRender = !!findMember(value, "render");
+    const execute = findMember(value, "execute");
+
+    if ((type === "frontend" || type === "human") && !hasRender) {
+      throw new GenerativeCompileError(
+        `a ${type} tool must declare a \`render\` (it has no server execute to show otherwise)`,
+        filename,
+      );
+    }
+
+    if (target === "client") {
+      // A frontend execute stays (its `"use client"` marker is no longer needed
+      // once the module is client); a backend execute and a human `hitl()`
+      // sentinel are both dropped.
+      if (execute && type === "frontend") stripUseClient(execute);
+      else if (execute) removeMember(value, "execute");
+      if (hasRender) flags.keptRender = true;
+    } else {
+      // server: render is never needed; only a backend execute survives.
+      if (hasRender) removeMember(value, "render");
+      if (execute && type !== "backend") removeMember(value, "execute");
+      if (execute && type === "backend") flags.keptBackendExecute = true;
+    }
+
+    setToolType(value, type);
   }
-  if (
-    t.isCallExpression(node) &&
-    t.isIdentifier(node.callee, { name: "defineToolkit" }) &&
-    t.isObjectExpression(node.arguments[0])
-  ) {
-    return node.arguments[0];
-  }
-  return null;
 }
 
 type Entry = t.ObjectExpression["properties"][number];
+
+/** The raw AST value of an entry (any expression), or null for spreads/methods. */
+function entryRawValue(entry: Entry): t.Expression | null {
+  if (t.isObjectProperty(entry) && t.isExpression(entry.value)) {
+    return entry.value;
+  }
+  return null;
+}
 
 function entryValue(entry: Entry): t.ObjectExpression | null {
   if (t.isObjectProperty(entry) && t.isObjectExpression(entry.value)) {

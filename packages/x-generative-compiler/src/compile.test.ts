@@ -105,6 +105,102 @@ describe("compileGenerative — client target", () => {
   });
 });
 
+describe("compileGenerative — generative UI library", () => {
+  const generative = `"use generative";
+import { z } from "zod";
+import { Chart } from "@/ui/chart";
+import { defineToolkit } from "@assistant-ui/react";
+import {
+  JSONGenerativeUI,
+  defineGenerativeComponents,
+} from "@assistant-ui/react-generative-ui";
+
+const generative = new JSONGenerativeUI({
+  library: defineGenerativeComponents({
+    Chart: {
+      description: "A chart.",
+      properties: z.object({ data: z.array(z.number()) }),
+      render: (props) => <Chart {...props} />,
+    },
+  }),
+});
+
+export default defineToolkit({
+  present: generative.present(),
+  prompt_user: generative.promptUser(),
+});
+`;
+
+  it("keeps the schema and the JSONGenerativeUI instance on the server, drops render", () => {
+    const code = compileGenerative(generative, { target: "server" }).code;
+    expect(code).toContain("new JSONGenerativeUI");
+    expect(code).toContain("generative.present()");
+    expect(code).toContain("generative.promptUser()");
+    expect(code).toContain("z.object");
+    expect(code).toContain('description: "A chart."');
+    // render and its client-only import are gone on the server
+    expect(code).not.toMatch(/render\s*:/);
+    expect(code).not.toContain("Chart }"); // the @/ui/chart import specifier
+    expect(code).not.toContain("@/ui/chart");
+    expect(code).not.toContain("<Chart");
+    // the markers themselves are unwrapped and their import pruned
+    expect(code).not.toContain("defineToolkit");
+    expect(code).not.toContain("defineGenerativeComponents");
+    // no backend execute anywhere → no server-only guard, no use client
+    expect(code).not.toContain("server-only");
+    expect(code).not.toContain("use client");
+  });
+
+  it("keeps render (and marks use client) on the client", () => {
+    const code = compileGenerative(generative, { target: "client" }).code;
+    expect(code.trimStart().startsWith('"use client"')).toBe(true);
+    expect(code).toContain("<Chart");
+    expect(code).toContain('import { Chart } from "@/ui/chart"');
+    expect(code).toContain("new JSONGenerativeUI");
+    expect(code).toContain("generative.present()");
+    // the JSONGenerativeUI import survives on both builds
+    expect(code).toContain("@assistant-ui/react-generative-ui");
+    expect(code).not.toContain("defineGenerativeComponents");
+  });
+
+  it("rejects a method call on an unknown (non-JSONGenerativeUI) object", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { other } from "@/other";
+export default defineToolkit({ present: other.present() });`;
+    expect(() => compileGenerative(src, { target: "server" })).toThrow(
+      /inline object literal/,
+    );
+  });
+
+  it("allows a generative tool alongside an inline tool", () => {
+    const src = `"use generative";
+import { z } from "zod";
+import { db } from "@/db";
+import { defineToolkit } from "@assistant-ui/react";
+import { JSONGenerativeUI, defineGenerativeComponents } from "@assistant-ui/react-generative-ui";
+const ui = new JSONGenerativeUI({ library: defineGenerativeComponents({ Box: { description: "b", properties: z.object({}), render: () => null } }) });
+export default defineToolkit({
+  present: ui.present(),
+  weather: {
+    description: "w",
+    parameters: z.object({ city: z.string() }),
+    execute: async ({ city }) => db.get(city),
+    render: () => null,
+  },
+});`;
+    const server = compileGenerative(src, { target: "server" }).code;
+    expect(server).toContain("ui.present()");
+    expect(server).toContain("db.get");
+    expect(server).toContain('type: "backend"');
+    expect(server).toContain("server-only");
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client).toContain("ui.present()");
+    expect(client).not.toContain("db.get");
+    expect(client.trimStart().startsWith('"use client"')).toBe(true);
+  });
+});
+
 describe("compileGenerative — local dead-code elimination", () => {
   const withHelpers = `"use generative";
 import { z } from "zod";

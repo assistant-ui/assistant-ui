@@ -1,6 +1,6 @@
 import { jsonSchema, type ToolSet } from "ai";
 import { toJSONSchema, type ToolJSONSchema } from "assistant-stream";
-import type { Toolkit, ToolkitDeclaration } from "@assistant-ui/core/react";
+import type { Toolkit, ToolkitDefinition } from "@assistant-ui/core/react";
 import { defaultToModelOutput, frontendTools } from "./frontendTools";
 
 const EMPTY_SCHEMA = { type: "object" as const, properties: {} };
@@ -18,7 +18,7 @@ export interface GenerativeToolsOptions {
   /**
    * The server build of a generative toolkit (schema + server `execute`). Typed
    * as the canonical {@link Toolkit} so callers don't need to cast; the server
-   * build carries `execute`, recovered internally as {@link ToolkitDeclaration}.
+   * build carries `execute`, recovered internally as {@link ToolkitDefinition}.
    */
   toolkit: Toolkit;
   /**
@@ -55,10 +55,10 @@ export const generativeTools = (options: GenerativeToolsOptions): ToolSet => ({
   // `toolkit` last so its server-side `execute` wins over an uploaded entry of
   // the same name. The cast recovers the declaration shape — the server build
   // carries `execute`, which the canonical `Toolkit` type erases.
-  ...toServerToolSet(options.toolkit as ToolkitDeclaration),
+  ...toServerToolSet(options.toolkit as ToolkitDefinition),
 });
 
-const toServerToolSet = (toolkit: ToolkitDeclaration): ToolSet =>
+const toServerToolSet = (toolkit: ToolkitDefinition): ToolSet =>
   Object.fromEntries(
     Object.entries(toolkit)
       .filter(([, t]) => !t.disabled)
