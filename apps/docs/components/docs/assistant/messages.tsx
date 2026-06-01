@@ -40,7 +40,8 @@ export function AssistantMessage(): ReactNode {
           {({ part }) => {
             if (part.type === "text") return <MarkdownText />;
             if (part.type === "reasoning") return <Reasoning {...part} />;
-            if (part.type === "tool-call") return <ToolCall {...part} />;
+            if (part.type === "tool-call")
+              return part.toolUI ?? <ToolCall {...part} />;
             return null;
           }}
         </MessagePrimitive.Parts>
