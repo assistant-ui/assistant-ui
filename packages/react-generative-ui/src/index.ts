@@ -5,6 +5,7 @@
 // both conditions — no per-build index barrel needed.
 export { JSONGenerativeUI } from "@assistant-ui/react-generative-ui/internal-json";
 export { renderGenerativeUI } from "./renderGenerativeUI";
+export { generativeUIToJSX } from "./generativeUIToJSX";
 export { buildPresentParameters } from "./buildPresentParameters";
 export { defineGenerativeComponents } from "./defineGenerativeComponents";
 export { TYPE_KEY } from "./constants";

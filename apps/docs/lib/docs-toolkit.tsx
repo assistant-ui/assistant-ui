@@ -12,6 +12,7 @@ import { defineToolkit, useAuiState } from "@assistant-ui/react";
 import {
   JSONGenerativeUI,
   defineGenerativeComponents,
+  generativeUIToJSX,
 } from "@assistant-ui/react-generative-ui";
 
 // The user-facing component library the model renders through the `present`
@@ -188,7 +189,7 @@ const WeatherCard = ({ id }: any) => {
     <div className="mt-2 mb-4 flex flex-col items-center">
       <WeatherWidget {...source.widget} />
       <p className="text-muted-foreground/70 mt-1.5 text-center font-mono text-xs">
-        {formatToolCall("present", { $type: "Weather", id })}
+        present({generativeUIToJSX({ $type: "Weather", id })})
       </p>
     </div>
   );
