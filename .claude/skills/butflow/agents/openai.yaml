@@ -1,0 +1,4 @@
+interface:
+  display_name: "Butflow"
+  short_description: "GitButler PR, CI, review, and merge flow"
+  default_prompt: "Use $butflow to implement this change, open a PR, monitor CI and reviews, and merge when ready."
