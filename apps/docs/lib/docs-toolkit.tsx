@@ -23,40 +23,26 @@ export default defineToolkit({
       geocodeLocationWithOpenMeteo(query),
     render: ({ toolName, args, result }: any) => {
       const signature = formatToolCall(toolName, args);
+      const icon = <MapPin className="size-4" />;
 
       if (result?.success === false) {
-        return (
-          <ToolCard variant="error">
-            <ToolCardIcon>
-              <AlertCircle className="size-4" />
-            </ToolCardIcon>
-            <ToolCardContent>
-              <ToolCardTitle mono>{signature}</ToolCardTitle>
-              <ToolCardDescription>
-                {result?.error || "Unknown error"}
-              </ToolCardDescription>
-            </ToolCardContent>
-          </ToolCard>
-        );
+        return <ToolErrorCard signature={signature} error={result.error} />;
       }
       if (!result) {
         return (
-          <ToolCard>
-            <ToolCardIcon loading>
-              <MapPin className="size-4" />
-            </ToolCardIcon>
-            <ToolCardContent>
-              <ToolCardTitle mono>{signature}</ToolCardTitle>
-              <ToolCardDescription>Finding location...</ToolCardDescription>
-            </ToolCardContent>
-          </ToolCard>
+          <ToolStatusCard
+            signature={signature}
+            icon={icon}
+            message="Finding location..."
+            loading
+          />
         );
       }
 
       const { name, latitude, longitude } = result.result;
       return (
         <ToolTraceCard
-          icon={<MapPin className="size-4" />}
+          icon={icon}
           signature={signature}
           description={`${name} · ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`}
           result={result}
@@ -100,40 +86,26 @@ export default defineToolkit({
     },
     render: ({ toolName, args, result }: any) => {
       const signature = formatToolCall(toolName, args);
+      const icon = <CloudSun className="size-4" />;
 
       if (result?.success === false) {
-        return (
-          <ToolCard variant="error">
-            <ToolCardIcon>
-              <AlertCircle className="size-4" />
-            </ToolCardIcon>
-            <ToolCardContent>
-              <ToolCardTitle mono>{signature}</ToolCardTitle>
-              <ToolCardDescription>
-                {result?.error || "Unknown error"}
-              </ToolCardDescription>
-            </ToolCardContent>
-          </ToolCard>
-        );
+        return <ToolErrorCard signature={signature} error={result.error} />;
       }
       if (!result) {
         return (
-          <ToolCard>
-            <ToolCardIcon loading>
-              <CloudSun className="size-4" />
-            </ToolCardIcon>
-            <ToolCardContent>
-              <ToolCardTitle mono>{signature}</ToolCardTitle>
-              <ToolCardDescription>Fetching weather...</ToolCardDescription>
-            </ToolCardContent>
-          </ToolCard>
+          <ToolStatusCard
+            signature={signature}
+            icon={icon}
+            message="Fetching weather..."
+            loading
+          />
         );
       }
 
       const current = result.widget?.current;
       return (
         <ToolTraceCard
-          icon={<CloudSun className="size-4" />}
+          icon={icon}
           signature={signature}
           description={
             current
@@ -262,6 +234,46 @@ const ToolTraceCard = ({
       {JSON.stringify(result, null, 2)}
     </pre>
   </details>
+);
+
+/** A backend tool's pending/loading trace: the call signature with a spinner icon. */
+const ToolStatusCard = ({
+  icon,
+  signature,
+  message,
+  loading = false,
+}: {
+  icon: React.ReactNode;
+  signature: string;
+  message: string;
+  loading?: boolean;
+}) => (
+  <ToolCard>
+    <ToolCardIcon loading={loading}>{icon}</ToolCardIcon>
+    <ToolCardContent>
+      <ToolCardTitle mono>{signature}</ToolCardTitle>
+      <ToolCardDescription>{message}</ToolCardDescription>
+    </ToolCardContent>
+  </ToolCard>
+);
+
+/** A backend tool's error trace: the call signature with the error message. */
+const ToolErrorCard = ({
+  signature,
+  error,
+}: {
+  signature: string;
+  error?: string;
+}) => (
+  <ToolCard variant="error">
+    <ToolCardIcon>
+      <AlertCircle className="size-4" />
+    </ToolCardIcon>
+    <ToolCardContent>
+      <ToolCardTitle mono>{signature}</ToolCardTitle>
+      <ToolCardDescription>{error || "Unknown error"}</ToolCardDescription>
+    </ToolCardContent>
+  </ToolCard>
 );
 
 const ToolCardIcon = ({
