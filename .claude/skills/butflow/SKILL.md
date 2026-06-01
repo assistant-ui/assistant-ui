@@ -16,8 +16,8 @@ Implement the change, open a PR through GitButler, monitor CI and reviews, addre
 5. Stage only the intended files into that branch with `but stage <file-or-hunk> <branch>`. If a stage id is ambiguous, run `but status -j` and use the longer id or file path.
 6. Commit with `but commit <branch> --only -m "<message>"`.
 7. Push with `but push <branch>`.
-8. Open the PR with `gh pr create`.
-9. Schedule a 2-minute monitor using the environment's native automation. In Codex, use a thread heartbeat via `automation_update`; in Claude, use the available scheduled-task/cron mechanism.
+8. Open the PR with `gh pr create --title "<title>" --body "<body>"` or another non-interactive form such as `--fill`.
+9. Schedule a 2-minute recurring monitor using the environment's native automation mechanism.
 10. Monitor checks and review threads until the merge gate is satisfied, then merge with `gh pr merge <n> --squash --admin`.
 
 Add a patch changeset only if a published package changed. Private packages such as `@assistant-ui/docs` and `@assistant-ui/shadcn-registry` are exempt.
