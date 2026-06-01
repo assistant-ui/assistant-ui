@@ -136,39 +136,40 @@ describe("renderGenerativeUI", () => {
 });
 
 describe("buildPresentParameters", () => {
-  it("produces an object-rooted discriminated union over the library", () => {
+  it("produces a flat object schema with no top-level oneOf/anyOf", () => {
     const schema = buildPresentParameters(library) as any;
 
     expect(schema.type).toBe("object");
-    expect(schema.required).toContain("$type");
+    expect(schema.required).toEqual(["$type"]);
+    // Tool/function-call schemas reject these at the top level.
+    expect(schema.oneOf).toBeUndefined();
+    expect(schema.anyOf).toBeUndefined();
+
     expect(schema.properties.$type.enum).toEqual([
       "Card",
       "Text",
       "Button",
       "Live",
     ]);
+    // each component's description rides along on the $type enum.
+    expect(schema.properties.$type.description).toContain("Card");
     expect(schema.properties.children.$ref).toBe("#/$defs/children");
 
-    // one branch per component, discriminated by a const `$type`.
-    const consts = schema.oneOf.map((b: any) => b.properties.$type.const);
-    expect(consts).toEqual(["Card", "Text", "Button", "Live"]);
-
-    const cardBranch = schema.oneOf[0];
-    expect(cardBranch.properties.title).toBeDefined();
-    expect(cardBranch.required).toContain("title");
-
-    // a component's own `type` prop lives in props, free of the discriminator.
-    const buttonBranch = schema.oneOf[2];
-    expect(buttonBranch.properties.type).toBeDefined();
-    expect(buttonBranch.properties.$type.const).toBe("Button");
+    // every component's props are merged into the one flat property bag.
+    expect(schema.properties.title).toBeDefined(); // Card
+    expect(schema.properties.tone).toBeDefined(); // Text
+    expect(schema.properties.type).toBeDefined(); // Button's own `type` prop
+    expect(schema.properties.label).toBeDefined(); // Live
 
     // children recurses back into a node.
     expect(schema.$defs.children.anyOf).toContainEqual({
       $ref: "#/$defs/node",
     });
+    expect(schema.$defs.node.type).toBe("object");
+    expect(schema.$defs.node.oneOf).toBeUndefined();
   });
 
-  it("keeps the framework-reserved `$type` and `children` even if a component declares them", () => {
+  it("drops author-declared `$type`/`children` and keeps the discriminator", () => {
     const schema = buildPresentParameters({
       Reserved: {
         description: "Declares reserved keys that must not leak through.",
@@ -181,18 +182,12 @@ describe("buildPresentParameters", () => {
       },
     }) as any;
 
-    const branch = schema.oneOf[0];
-    // The discriminator wins over the author's `$type`, and the author's
-    // `children` is dropped (the root `children` $ref owns that slot).
-    expect(branch.properties.$type).toEqual({
-      const: "Reserved",
-      description: "Declares reserved keys that must not leak through.",
-    });
-    expect(branch.properties.children).toBeUndefined();
-    expect(branch.properties.label).toBeDefined();
-    expect(branch.required).not.toContain("children");
-    // the framework discriminator is required for the branch (not the author's)
-    expect(branch.required).toContain("$type");
+    // The discriminator is the framework enum, not the author's `$type`; the
+    // author's `children` is dropped (the root `children` $ref owns that slot).
+    expect(schema.properties.$type.enum).toEqual(["Reserved"]);
+    expect(schema.properties.children.$ref).toBe("#/$defs/children");
+    expect(schema.properties.label).toBeDefined();
+    expect(schema.required).toEqual(["$type"]);
   });
 
   it("throws when a component's properties is not an object schema", () => {
