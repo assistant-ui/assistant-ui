@@ -183,7 +183,8 @@ describe("buildPresentParameters", () => {
     expect(branch.properties.children).toBeUndefined();
     expect(branch.properties.label).toBeDefined();
     expect(branch.required).not.toContain("children");
-    expect(branch.required).not.toContain("$type");
+    // the framework discriminator is required for the branch (not the author's)
+    expect(branch.required).toContain("$type");
   });
 
   it("throws when a component's properties is not an object schema", () => {

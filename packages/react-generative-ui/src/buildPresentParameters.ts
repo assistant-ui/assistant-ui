@@ -46,7 +46,10 @@ export function buildPresentParameters(
         ...props,
         [TYPE_KEY]: { const: name, description },
       },
-      required,
+      // The discriminator is required for the branch. Providers that read a
+      // branch's `required` (e.g. strict structured-output modes) otherwise
+      // treat `$type` as optional even though the root already requires it.
+      required: [TYPE_KEY, ...required],
     };
   });
 
