@@ -163,6 +163,17 @@ export default defineToolkit({
     expect(code).not.toContain("defineGenerativeComponents");
   });
 
+  it("rejects an unknown method on a JSONGenerativeUI instance", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { JSONGenerativeUI } from "@assistant-ui/react-generative-ui";
+const ui = new JSONGenerativeUI({ library: {} });
+export default defineToolkit({ present: ui.notARealMethod() });`;
+    expect(() => compileGenerative(src, { target: "server" })).toThrow(
+      /inline object literal/,
+    );
+  });
+
   it("rejects a method call on an unknown (non-JSONGenerativeUI) object", () => {
     const src = `"use generative";
 import { defineToolkit } from "@assistant-ui/react";

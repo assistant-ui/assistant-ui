@@ -185,4 +185,16 @@ describe("buildPresentParameters", () => {
     expect(branch.required).not.toContain("children");
     expect(branch.required).not.toContain("$type");
   });
+
+  it("throws when a component's properties is not an object schema", () => {
+    expect(() =>
+      buildPresentParameters({
+        Bad: {
+          description: "Non-object props.",
+          properties: z.string() as never,
+          render: () => null,
+        },
+      }),
+    ).toThrow(/must be an object schema/);
+  });
 });

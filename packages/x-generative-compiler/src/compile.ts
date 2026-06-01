@@ -271,9 +271,14 @@ function collectGenerativeInstances(ast: t.File): Set<string> {
   return names;
 }
 
+/** The `JSONGenerativeUI` methods that produce a split-by-condition tool. */
+const GENERATIVE_TOOL_METHODS = new Set(["present", "promptUser"]);
+
 /**
- * Whether a toolkit entry's value is a call to a method on a collected
- * `JSONGenerativeUI` instance (`generative.present()`), which passes through.
+ * Whether a toolkit entry's value is a call to a tool-producing method on a
+ * collected `JSONGenerativeUI` instance (`generative.present()`), which passes
+ * through. The method name is checked too, so a typo like `generative.presnt()`
+ * is a compile error here rather than a pass-through that fails at runtime.
  */
 function isGenerativeToolEntry(value: t.Node, instances: Set<string>): boolean {
   return (
@@ -281,7 +286,9 @@ function isGenerativeToolEntry(value: t.Node, instances: Set<string>): boolean {
     t.isMemberExpression(value.callee) &&
     !value.callee.computed &&
     t.isIdentifier(value.callee.object) &&
-    instances.has(value.callee.object.name)
+    instances.has(value.callee.object.name) &&
+    t.isIdentifier(value.callee.property) &&
+    GENERATIVE_TOOL_METHODS.has(value.callee.property.name)
   );
 }
 

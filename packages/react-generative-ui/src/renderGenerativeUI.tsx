@@ -52,8 +52,15 @@ function renderNode(
   if (node == null || typeof node === "boolean") return null;
   if (typeof node === "string" || typeof node === "number") return node;
   if (Array.isArray(node)) {
+    // The wire format has no per-node id, so the key is positional. Pairing the
+    // index with the node's kind means that when the model splices or reorders
+    // `children` and the kind at an index changes, the key changes and React
+    // remounts instead of handing a streaming node's hook state to a different
+    // component.
     return node.map((child, index) => (
-      <Fragment key={index}>{renderNode(child, library, context)}</Fragment>
+      <Fragment key={`${index}:${nodeKind(child)}`}>
+        {renderNode(child, library, context)}
+      </Fragment>
     ));
   }
   return renderElement(node, library, context);
@@ -96,6 +103,15 @@ function GenerativeUIComponentRenderer({
   props: Record<string, unknown>;
 }): ReactNode {
   return render(props);
+}
+
+/** A coarse kind tag for a child, used in its list key so a node changing kind
+ * at a given index forces a remount rather than a wrong-fiber reuse. */
+function nodeKind(node: GenerativeUINode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return "#text";
+  if (Array.isArray(node)) return "#array";
+  return node.type;
 }
 
 function reportUnknownComponent(type: string, available: string[]): void {

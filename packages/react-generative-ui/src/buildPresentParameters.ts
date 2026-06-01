@@ -21,6 +21,15 @@ export function buildPresentParameters(
   const branches: JSONSchema7[] = names.map((name) => {
     const { description, properties } = library[name]!;
     const propsSchema = toJSONSchema(properties);
+    // A component's props must be an object schema — anything else (e.g.
+    // `z.string()`) has no `properties` to spread and would silently yield a
+    // propless branch, so fail loudly instead.
+    if (propsSchema.type !== "object") {
+      throw new Error(
+        `[@assistant-ui/react-generative-ui] Component "${name}": ` +
+          "`properties` must be an object schema (e.g. `z.object({ ... })`).",
+      );
+    }
     // `$type` and `children` are framework-reserved (the discriminator and the
     // recursive child slot). Drop any author-declared copies so a component's
     // schema can't clobber them, then write the discriminator last.
