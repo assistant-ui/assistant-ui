@@ -1,3 +1,6 @@
+// Minimal RFC 6902 (JSON Patch) implementation scoped to the ops AG-UI agents
+// emit via STATE_DELTA. Not a general-purpose patch library: it validates the
+// ops it supports and throws on anything outside that subset.
 type JsonPatchOp = {
   op: "add" | "remove" | "replace" | "move" | "copy" | "test";
   path: string;
@@ -156,7 +159,12 @@ export function applyJsonPatch(
         break;
       }
       case "copy": {
-        const fromSegments = parsePath(requireFrom(patch));
+        const from = requireFrom(patch);
+        const fromSegments = parsePath(from);
+        if (fromSegments.length > 0) {
+          const { parent, key } = getParentAndKey(result, fromSegments);
+          requireExists(parent, key, from);
+        }
         const value = structuredClone(getValue(result, fromSegments));
         if (segments.length === 0) {
           result = value;

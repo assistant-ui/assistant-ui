@@ -123,6 +123,12 @@ describe("applyJsonPatch", () => {
     ).toThrow(/Path not found/);
   });
 
+  it("should throw when 'copy' source does not exist", () => {
+    expect(() =>
+      applyJsonPatch({ a: 1 }, [{ op: "copy", from: "/missing", path: "/b" }]),
+    ).toThrow(/Path not found/);
+  });
+
   it("should throw on an unknown op", () => {
     expect(() =>
       applyJsonPatch({ a: 1 }, [{ op: "increment", path: "/a" } as any]),
