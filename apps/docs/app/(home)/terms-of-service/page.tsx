@@ -203,7 +203,17 @@ const sections = [
   {
     title: "26. Contact Us",
     body: [
-      "To resolve a complaint regarding the Services or to receive further information regarding use of the Services, contact AgentbaseAI Inc., 340 Fremont Street, Apt 2306, San Francisco, CA 94105, United States, or email contact@assistant-ui.com.",
+      "To resolve a complaint regarding the Services or to receive further information regarding use of the Services, contact AgentbaseAI Inc., 340 Fremont Street, Apt 2306, San Francisco, CA 94105, United States.",
+      <>
+        You may also email us at{" "}
+        <a
+          href="mailto:contact@assistant-ui.com"
+          className="text-foreground underline underline-offset-4"
+        >
+          contact@assistant-ui.com
+        </a>
+        .
+      </>,
     ],
   },
 ] satisfies {
