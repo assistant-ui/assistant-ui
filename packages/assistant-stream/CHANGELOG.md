@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.19
+
+### Patch Changes
+
+- [#4176](https://github.com/assistant-ui/assistant-ui/pull/4176) [`27ae936`](https://github.com/assistant-ui/assistant-ui/commit/27ae936dec6dc5d05d21fd892af0a8e1db61928e) - feat: add the `ToolkitDeclaration` / `ToolkitDeclarationDefinition` types for authoring a toolkit permissively (a backend tool may declare `description`/`parameters`/`execute`); the canonical `Toolkit` keeps those fields erased. Author with `defineToolkit()` from `@assistant-ui/react`, which the `"use generative"` compiler strips per build. ([@Yonom](https://github.com/Yonom))
+
 ## 0.3.18
 
 ### Patch Changes

@@ -3064,7 +3064,7 @@ importers:
   packages/core:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../assistant-stream
       nanoid:
         specifier: ^5.1.11
@@ -3186,7 +3186,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.8
+        specifier: ^0.2.9
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.13
@@ -3216,7 +3216,7 @@ importers:
         specifier: ^0.1.30
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../assistant-stream
       nanoid:
         specifier: ^5.1.11
@@ -3324,7 +3324,7 @@ importers:
         specifier: ^3.0.195
         version: 3.0.195(react@19.2.6)(zod@4.4.3)
       '@assistant-ui/core':
-        specifier: ^0.2.8
+        specifier: ^0.2.9
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.13
@@ -3488,7 +3488,7 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.8
+        specifier: ^0.2.9
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.13
@@ -3497,7 +3497,7 @@ importers:
         specifier: ^0.5.14
         version: link:../tap
       assistant-stream:
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../assistant-stream
       diff:
         specifier: ^9.0.0
@@ -3540,7 +3540,7 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.8
+        specifier: ^0.2.9
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.13
@@ -3774,7 +3774,7 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.2.8
+        specifier: ^0.2.9
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.2.13
@@ -3783,7 +3783,7 @@ importers:
         specifier: ^0.5.14
         version: link:../tap
       assistant-stream:
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../assistant-stream
       zustand:
         specifier: ^5.0.14

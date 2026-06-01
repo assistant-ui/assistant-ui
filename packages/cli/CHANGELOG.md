@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.97
+
+### Patch Changes
+
+- [#4180](https://github.com/assistant-ui/assistant-ui/pull/4180) [`988f8dd`](https://github.com/assistant-ui/assistant-ui/commit/988f8dd1f9286d8b82a7dc48382f3ccf62866070) - feat: prompt to add assistant-ui agent skills when creating a project. `npx assistant-ui create` now asks whether to add the agent skills and, on yes, delegates to the `skills` CLI (`skills add assistant-ui/skills`) so it installs into your chosen agent platforms (Claude Code, Cursor, Zed, etc.). Use `--skills` / `--no-skills` to skip the prompt; non-interactive runs default to adding them. ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.96
 
 ### Patch Changes

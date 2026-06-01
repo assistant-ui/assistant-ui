@@ -1,5 +1,13 @@
 # @assistant-ui/react-ink-markdown
 
+## 0.0.21
+
+### Patch Changes
+
+- Updated dependencies [[`27ae936`](https://github.com/assistant-ui/assistant-ui/commit/27ae936dec6dc5d05d21fd892af0a8e1db61928e), [`27ae936`](https://github.com/assistant-ui/assistant-ui/commit/27ae936dec6dc5d05d21fd892af0a8e1db61928e)]:
+  - @assistant-ui/core@0.2.9
+  - @assistant-ui/react-ink@0.0.22
+
 ## 0.0.20
 
 ### Patch Changes
