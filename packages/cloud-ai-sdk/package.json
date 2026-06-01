@@ -54,7 +54,7 @@
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
     "ai": "^6.0.193",
-    "assistant-stream": "^0.3.18",
+    "assistant-stream": "^0.3.19",
     "jsdom": "^29.1.1",
     "react": "^19.2.6",
     "vitest": "^4.1.7"

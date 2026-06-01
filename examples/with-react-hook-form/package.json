@@ -22,7 +22,7 @@
     "next": "^16.2.6",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-hook-form": "^7.76.1",
+    "react-hook-form": "^7.77.0",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {

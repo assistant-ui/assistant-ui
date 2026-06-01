@@ -32,7 +32,7 @@
     "build": "aui-build"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.2.8",
+    "@assistant-ui/core": "^0.2.9",
     "@assistant-ui/store": "^0.2.13",
     "zod": "^4.4.3"
   },
@@ -50,7 +50,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.15",
     "react": "^19.2.6",
-    "react-hook-form": "^7.76.1"
+    "react-hook-form": "^7.77.0"
   },
   "publishConfig": {
     "access": "public",
