@@ -2,6 +2,7 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { validateUIMessages } from "ai";
 
 // Mock only the sibling module that requires AUI store context (not available
 // in isolation). Every other dependency — useExternalStoreRuntime,
@@ -138,6 +139,54 @@ describe("useAISDKRuntime", () => {
     );
     // Completed tool (tc-2) should remain unchanged
     expect(chat.messages[0].parts[1].state).toBe("output-available");
+  });
+
+  it("strips stale approval when cancelling a tool pending approval so history stays valid (#4195)", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            toolName: "mcp_search",
+            toolCallId: "tc-1",
+            state: "approval-requested",
+            input: { q: "hi" },
+            approval: { id: "appr-1" },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "what" }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(chat.sendMessage).toHaveBeenCalledTimes(1);
+    });
+
+    const part = chat.messages[0].parts[0];
+    expect(part.state).toBe("output-error");
+    // The pending-approval object must not survive into the terminal state,
+    // otherwise AI SDK's validateUIMessages rejects the next request.
+    expect(part.approval).toBeUndefined();
+
+    await expect(
+      validateUIMessages({ messages: chat.messages }),
+    ).resolves.toBeDefined();
   });
 
   it("appends a new user message without sending when startRun is false", async () => {

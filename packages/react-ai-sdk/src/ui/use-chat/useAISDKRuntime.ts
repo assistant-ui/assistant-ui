@@ -180,8 +180,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           return part;
 
         hasChanges = true;
+        const { approval: _approval, ...rest } = part;
         return {
-          ...part,
+          ...rest,
           state: "output-error" as const,
           errorText: "User cancelled tool call by sending a new message.",
         };
