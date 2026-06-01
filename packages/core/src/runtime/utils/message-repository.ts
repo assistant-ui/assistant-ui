@@ -1,6 +1,6 @@
 import type { ThreadMessage } from "../../types/message";
 import type { RunConfig } from "../../types/message";
-import { generateId, generateOptimisticId } from "../../utils/id";
+import { generateId } from "../../utils/id";
 import type { ThreadMessageLike } from "./thread-message-like";
 import { getAutoStatus } from "./auto-status";
 import { fromThreadMessageLike } from "./thread-message-like";
@@ -259,20 +259,6 @@ export class MessageRepository {
     };
   }
 
-  appendOptimisticMessage(parentId: string | null, message: ThreadMessageLike) {
-    let optimisticId: string;
-    do {
-      optimisticId = generateOptimisticId();
-    } while (this.messages.has(optimisticId));
-
-    this.addOrUpdateMessage(
-      parentId,
-      fromThreadMessageLike(message, optimisticId, { type: "running" }),
-    );
-
-    return optimisticId;
-  }
-
   deleteMessage(messageId: string, replacementId?: string | null | undefined) {
     const message = this.messages.get(messageId);
 
@@ -322,6 +308,45 @@ export class MessageRepository {
     return children;
   }
 
+  /**
+   * Evicts optimistic messages (`metadata.isOptimistic`) the head just moved
+   * away from. Since eviction runs on every head move, the only optimistic
+   * messages in the repository live on the branch the head previously pointed
+   * at — so we walk just that branch rather than the whole repository. Keeps a
+   * client→server id swap from leaving a phantom sibling, and drops off-branch
+   * placeholders.
+   */
+  private evictOffBranchOptimisticMessages(
+    previousHead: RepositoryMessage | null,
+    currentHead: RepositoryMessage | null,
+  ) {
+    if (!previousHead) return;
+
+    const onHeadBranch = new Set<string>();
+    for (let current = currentHead; current; current = current.prev) {
+      onHeadBranch.add(current.current.id);
+    }
+
+    const stale: string[] = [];
+    for (
+      let current: RepositoryMessage | null = previousHead;
+      current;
+      current = current.prev
+    ) {
+      // Stop at the first node shared with the current head branch: every
+      // ancestor above it is shared too, so nothing further can be off-branch.
+      if (onHeadBranch.has(current.current.id)) break;
+      if (current.current.metadata?.isOptimistic) {
+        stale.push(current.current.id);
+      }
+    }
+
+    for (const id of stale) {
+      // A prior deletion may have already removed this node.
+      if (this.messages.has(id)) this.deleteMessage(id);
+    }
+  }
+
   switchToBranch(messageId: string) {
     const message = this.messages.get(messageId);
     if (!message)
@@ -329,10 +354,13 @@ export class MessageRepository {
         "MessageRepository(switchToBranch): Branch not found. This is likely an internal bug in assistant-ui.",
       );
 
+    const previousHead = this.head;
     const prevOrRoot = message.prev ?? this.root;
     prevOrRoot.next = message;
 
     this.head = findHead(message);
+
+    this.evictOffBranchOptimisticMessages(previousHead, this.head);
 
     this._messages.dirty();
   }
@@ -348,6 +376,8 @@ export class MessageRepository {
       throw new Error(
         "MessageRepository(resetHead): Branch not found. This is likely an internal bug in assistant-ui.",
       );
+
+    const previousHead = this.head;
 
     if (message.children.length > 0) {
       const deleteDescendants = (msg: RepositoryMessage) => {
@@ -378,6 +408,8 @@ export class MessageRepository {
       }
     }
 
+    this.evictOffBranchOptimisticMessages(previousHead, this.head);
+
     this._messages.dirty();
   }
 
@@ -394,15 +426,24 @@ export class MessageRepository {
   export(): ExportedMessageRepository {
     const exportItems: ExportedMessageRepository["messages"] = [];
 
+    // Optimistic messages are ephemeral and never persisted. They're always
+    // leaf nodes, so skipping them can't orphan a persisted child.
     for (const [, message] of this.messages) {
+      if (message.current.metadata?.isOptimistic) continue;
       exportItems.push({
         message: message.current,
         parentId: message.prev?.current.id ?? null,
       });
     }
 
+    // The head may itself be optimistic; walk up to the nearest persisted ancestor.
+    let head = this.head;
+    while (head?.current.metadata?.isOptimistic) {
+      head = head.prev;
+    }
+
     return {
-      headId: this.head?.current.id ?? null,
+      headId: head?.current.id ?? null,
       messages: exportItems,
     };
   }

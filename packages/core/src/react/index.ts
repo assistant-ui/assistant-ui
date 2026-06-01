@@ -32,7 +32,14 @@ export {
   type AssistantDataUIProps,
 } from "./model-context/useAssistantDataUI";
 export { useInlineRender } from "./model-context/useInlineRender";
-export type { Toolkit, ToolDefinition } from "./model-context/toolbox";
+export {
+  type Toolkit,
+  type ToolDefinition,
+  type ToolkitDefinition,
+  type ToolkitDefinitionEntry,
+} from "./model-context/toolbox";
+export { defineToolkit } from "./model-context/define-toolkit";
+export { hitl } from "./model-context/hitl";
 export {
   useAssistantInteractable,
   type AssistantInteractableProps,

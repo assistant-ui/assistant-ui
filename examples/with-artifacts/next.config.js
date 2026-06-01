@@ -1,3 +1,4 @@
+import { withAui } from "@assistant-ui/next";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: [
@@ -7,4 +8,4 @@ const nextConfig = {
   ],
 };
 
-export default nextConfig;
+export default withAui(nextConfig);

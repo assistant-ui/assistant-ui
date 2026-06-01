@@ -51,7 +51,7 @@ export function AssistantMessage({
             if (part.type === "text") return <MarkdownText />;
             if (part.type === "reasoning") return <Reasoning {...part} />;
             if (part.type === "tool-call")
-              return <ToolCallComponent {...part} />;
+              return part.toolUI ?? <ToolCallComponent {...part} />;
             return null;
           }}
         </MessagePrimitive.Parts>

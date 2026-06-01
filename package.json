@@ -6,7 +6,7 @@
   },
   "scripts": {
     "cleanup": "bash scripts/cleanup-monorepo.sh",
-    "docs:dev": "pnpm --filter=@assistant-ui/docs dev",
+    "docs:dev": "turbo run dev --filter=@assistant-ui/docs",
     "ci:version": "changeset version && pnpm install --no-frozen-lockfile",
     "ci:publish": "turbo build --filter=\"./packages/*\" && changeset publish",
     "build": "turbo build",
@@ -27,12 +27,12 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.5",
-    "oxfmt": "^0.51.0",
-    "oxlint": "^1.66.0",
-    "turbo": "^2.9.14",
+    "oxfmt": "^0.52.0",
+    "oxlint": "^1.67.0",
+    "turbo": "^2.9.16",
     "typescript": "^6.0.3"
   },
-  "packageManager": "pnpm@11.3.0",
+  "packageManager": "pnpm@11.5.0",
   "lint-staged": {
     "*.{js,jsx,ts,tsx,cjs,mjs,cts,mts,json,jsonc}": [
       "oxlint --fix --no-error-on-unmatched-pattern",

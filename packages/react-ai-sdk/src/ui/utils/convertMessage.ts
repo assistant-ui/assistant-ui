@@ -24,6 +24,8 @@ export type AISDKMessageConverterMetadata =
     toolArgsKeyOrderCache?: Map<string, Map<string, string[]>>;
     toolLastInputCache?: Map<string, ReadonlyJSONObject>;
     mcpAppMetadataCache?: Map<string, McpAppMetadata>;
+    /** Id of the currently-streaming message, flagged optimistic (#4037). */
+    optimisticMessageId?: string | undefined;
   };
 
 function stripClosingDelimiters(json: string): string {
@@ -393,6 +395,9 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
       case "system":
       case "assistant": {
         const timing = metadata.messageTiming?.[message.id];
+        const isOptimistic =
+          message.role === "assistant" &&
+          message.id === metadata.optimisticMessageId;
         return {
           role: message.role,
           id: message.id,
@@ -401,6 +406,7 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           metadata: {
             ...(message.metadata as MessageMetadata),
             ...(timing && { timing }),
+            ...(isOptimistic && { isOptimistic: true }),
           },
         };
       }

@@ -117,6 +117,12 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
   const messageTiming = useStreamingTiming(chatHelpers.messages, isRunning);
 
+  // Flag the streaming message optimistic: its id can be swapped for a server
+  // id mid-run, and the repository then drops the orphaned pre-swap id (#4037).
+  const lastMessage = chatHelpers.messages.at(-1);
+  const optimisticMessageId =
+    isRunning && lastMessage?.role === "assistant" ? lastMessage.id : undefined;
+
   const messages = AISDKMessageConverter.useThreadMessages({
     isRunning,
     messages: chatHelpers.messages,
@@ -127,9 +133,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
         toolLastInputCache: toolLastInputCacheRef.current,
         mcpAppMetadataCache: mcpAppMetadataCacheRef.current,
+        ...(optimisticMessageId && { optimisticMessageId }),
         ...(chatHelpers.error && { error: chatHelpers.error.message }),
       }),
-      [toolStatuses, messageTiming, chatHelpers.error],
+      [toolStatuses, messageTiming, optimisticMessageId, chatHelpers.error],
     ),
   });
 

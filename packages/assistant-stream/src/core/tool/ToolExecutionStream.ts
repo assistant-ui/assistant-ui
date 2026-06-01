@@ -57,7 +57,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
         AssistantMetaStreamChunk,
         AssistantStreamChunk
       >({
-        transform(chunk, controller) {
+        async transform(chunk, controller) {
           // forward everything
           if (chunk.type !== "part-finish" || chunk.meta.type !== "tool-call") {
             controller.enqueue(chunk);
@@ -88,7 +88,9 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 const controller = toolCallControllers.get(toolCallId);
                 if (!controller)
                   throw new Error("No controller found for tool call");
-                controller.appendArgsTextDelta(chunk.textDelta);
+                // Awaited so the writer lock is released (and argsText updated)
+                // before the next chunk acquires the writer.
+                await controller.appendArgsTextDelta(chunk.textDelta);
               }
               break;
             }
@@ -116,6 +118,10 @@ export class ToolExecutionStream extends PipeableTransformStream<
               const streamController = toolCallControllers.get(toolCallId)!;
               if (!streamController)
                 throw new Error("No controller found for tool call");
+
+              // Args fully streamed: close the reader so awaited absent fields
+              // resolve. Awaited so the close settles before the writer is reused.
+              await streamController.finishArgsText();
 
               let isExecuting = false;
               const promise = withPromiseOrValue(

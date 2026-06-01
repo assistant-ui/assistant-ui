@@ -24,7 +24,7 @@ const toAISDKContent = (parts: readonly ToolModelContentPart[]) => ({
   }),
 });
 
-const defaultToModelOutput = ({ output }: { output: unknown }) => {
+export const defaultToModelOutput = ({ output }: { output: unknown }) => {
   const { modelContent } = unwrapModelContentEnvelope(output);
   if (modelContent !== undefined) {
     return toAISDKContent(modelContent);

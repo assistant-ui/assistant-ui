@@ -37,6 +37,7 @@ export type {
 
 export type {
   Tool,
+  ToolDeclaration,
   ToolModelContentPart,
   ToolModelOutputFunction,
 } from "./core/tool/tool-types";

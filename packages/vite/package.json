@@ -1,0 +1,60 @@
+{
+  "name": "@assistant-ui/vite",
+  "version": "0.0.2",
+  "description": "Vite plugin for assistant-ui: the \"use generative\" directive compiler that colocates a tool's schema, server-only execute, and client-only render in one file. Works with Vite apps and TanStack Start.",
+  "keywords": [
+    "assistant-ui",
+    "vite",
+    "tanstack-start",
+    "generative",
+    "use generative",
+    "plugin"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@assistant-ui/x-generative-compiler": "workspace:^"
+  },
+  "peerDependencies": {
+    "vite": ">=6"
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/node": "^25.9.1",
+    "vite": "^8.0.14",
+    "vitest": "^4.1.7"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/vite"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}

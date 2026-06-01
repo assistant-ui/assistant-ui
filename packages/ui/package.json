@@ -21,12 +21,12 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "date-fns": "^4.3.0",
+    "date-fns": "^4.4.0",
     "diff": "^9.0.0",
     "embla-carousel-react": "^8.6.0",
     "heat-graph": "workspace:*",
     "input-otp": "^1.4.2",
-    "lucide-react": "^1.16.0",
+    "lucide-react": "^1.17.0",
     "mermaid": "^11.15.0",
     "next-themes": "^0.4.6",
     "parse-diff": "^0.12.0",
@@ -42,7 +42,7 @@
     "tailwind-merge": "^3.6.0",
     "vaul": "^1.1.2",
     "zod": "^4.4.3",
-    "zustand": "^5.0.13"
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",

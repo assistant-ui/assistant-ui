@@ -7,20 +7,14 @@ import type { ThreadMessage } from "../types/message";
 import type { TextMessagePart } from "../types/message";
 import type { ThreadMessageLike } from "../runtime/utils/thread-message-like";
 
-// Mock generateId and generateOptimisticId to make tests deterministic
+// Mock generateId to make tests deterministic
 const mockGenerateId = vi.fn();
-const mockGenerateOptimisticId = vi.fn();
-const mockIsOptimisticId = vi.fn((id: string) =>
-  id.startsWith("__optimistic__"),
-);
 
 vi.mock("../utils/id", async (importOriginal) => {
   const original = await importOriginal<typeof import("../utils/id")>();
   return {
     ...original,
     generateId: () => mockGenerateId(),
-    generateOptimisticId: () => mockGenerateOptimisticId(),
-    isOptimisticId: (id: string) => mockIsOptimisticId(id),
   };
 });
 
@@ -58,23 +52,11 @@ describe("MessageRepository", () => {
     ...overrides,
   });
 
-  /**
-   * Creates a test CoreMessage with the given overrides.
-   */
-  const createThreadMessageLike = (overrides = {}): ThreadMessageLike => ({
-    role: "assistant",
-    content: [{ type: "text", text: "Test message" }],
-    ...overrides,
-  });
-
   beforeEach(() => {
     repository = new MessageRepository();
     // Reset mocks with predictable counter-based values
     nextMockId = 1;
     mockGenerateId.mockImplementation(() => `mock-id-${nextMockId++}`);
-    mockGenerateOptimisticId.mockImplementation(
-      () => `__optimistic__mock-id-${nextMockId++}`,
-    );
   });
 
   afterEach(() => {
@@ -297,53 +279,102 @@ describe("MessageRepository", () => {
   });
 
   describe("Optimistic messages", () => {
-    it("should create an optimistic message with a unique ID", () => {
-      mockGenerateOptimisticId.mockReturnValue("__optimistic__generated-id");
-
-      const coreMessage = createThreadMessageLike();
-      const optimisticId = repository.appendOptimisticMessage(
-        null,
-        coreMessage,
-      );
-
-      expect(optimisticId).toBe("__optimistic__generated-id");
-      expect(repository.getMessage(optimisticId).message.status?.type).toBe(
-        "running",
-      );
-    });
-
-    it("should create an optimistic message as a child of a specified parent", () => {
-      const parent = createTestMessage({ id: "parent-id" });
-      repository.addOrUpdateMessage(null, parent);
-
-      const coreMessage = createThreadMessageLike();
-      const optimisticId = repository.appendOptimisticMessage(
-        "parent-id",
-        coreMessage,
-      );
-
-      const result = repository.getMessage(optimisticId);
-      expect(result.parentId).toBe("parent-id");
-    });
-
-    it("should retry generating unique optimistic IDs if initial one exists", () => {
-      mockGenerateOptimisticId.mockReturnValueOnce("__optimistic__existing-id");
-
-      const existingMessage = createTestMessage({
-        id: "__optimistic__existing-id",
+    const optimistic = (overrides = {}) =>
+      createTestMessage({
+        status: { type: "running" },
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+          isOptimistic: true,
+        },
+        ...overrides,
       });
-      repository.addOrUpdateMessage(null, existingMessage);
 
-      mockGenerateOptimisticId.mockReturnValueOnce("__optimistic__unique-id");
+    it("excludes optimistic messages from export()", () => {
+      const parent = createTestMessage({ id: "u" });
+      repository.addOrUpdateMessage(null, parent);
+      repository.addOrUpdateMessage("u", optimistic({ id: "placeholder" }));
+      repository.resetHead("placeholder");
 
-      const coreMessage = createThreadMessageLike();
-      const optimisticId = repository.appendOptimisticMessage(
-        null,
-        coreMessage,
-      );
+      const exported = repository.export();
 
-      expect(optimisticId).toBe("__optimistic__unique-id");
-      expect(mockGenerateOptimisticId).toHaveBeenCalledTimes(2);
+      expect(exported.messages.map((m) => m.message.id)).toEqual(["u"]);
+      // head was the optimistic placeholder; the exported head must fall back
+      // to the nearest persisted ancestor so it always resolves on import.
+      expect(exported.headId).toBe("u");
+    });
+
+    it("round-trips through export/import without resurrecting the placeholder", () => {
+      const parent = createTestMessage({ id: "u" });
+      const real = createTestMessage({ id: "a" });
+      repository.addOrUpdateMessage(null, parent);
+      repository.addOrUpdateMessage("u", real);
+      repository.resetHead("a");
+
+      const restored = new MessageRepository();
+      restored.import(repository.export());
+
+      expect(restored.export().messages.map((m) => m.message.id)).toEqual([
+        "u",
+        "a",
+      ]);
+    });
+
+    describe("HEAD-branch invariant", () => {
+      it("evicts an off-branch optimistic sibling when resetHead moves the head", () => {
+        // u -> { client_id (optimistic), server_id (optimistic) }. When the
+        // head moves to server_id, the dangling client_id sibling is evicted.
+        const parent = createTestMessage({ id: "u" });
+        repository.addOrUpdateMessage(null, parent);
+        repository.addOrUpdateMessage("u", optimistic({ id: "client_id" }));
+        repository.addOrUpdateMessage("u", optimistic({ id: "server_id" }));
+
+        repository.resetHead("server_id");
+
+        expect(repository.getBranches("server_id")).toEqual(["server_id"]);
+        expect(() => repository.getMessage("client_id")).toThrow();
+      });
+
+      it("keeps the optimistic message that is on the head branch", () => {
+        const parent = createTestMessage({ id: "u" });
+        repository.addOrUpdateMessage(null, parent);
+        repository.addOrUpdateMessage("u", optimistic({ id: "a" }));
+
+        repository.resetHead("a");
+
+        expect(repository.getMessage("a").message.id).toBe("a");
+      });
+
+      it("never evicts real (non-optimistic) sibling branches", () => {
+        const parent = createTestMessage({ id: "u" });
+        repository.addOrUpdateMessage(null, parent);
+        repository.addOrUpdateMessage("u", createTestMessage({ id: "a1" }));
+        repository.addOrUpdateMessage("u", createTestMessage({ id: "a2" }));
+
+        repository.resetHead("a2");
+
+        // a1 is off the head branch but not optimistic, so it survives.
+        expect(repository.getBranches("a2")).toEqual(["a1", "a2"]);
+      });
+
+      it("evicts optimistic messages from the previous branch on switchToBranch", () => {
+        // Two real branches under u; the head branch (a2) carries an optimistic
+        // child. Switching to a1 must drop the optimistic message left on a2.
+        const parent = createTestMessage({ id: "u" });
+        repository.addOrUpdateMessage(null, parent);
+        repository.addOrUpdateMessage("u", createTestMessage({ id: "a1" }));
+        repository.addOrUpdateMessage("u", createTestMessage({ id: "a2" }));
+        repository.addOrUpdateMessage("a2", optimistic({ id: "opt" }));
+        repository.resetHead("opt");
+
+        repository.switchToBranch("a1");
+
+        expect(() => repository.getMessage("opt")).toThrow();
+        expect(repository.getBranches("a1")).toEqual(["a1", "a2"]);
+      });
     });
   });
 

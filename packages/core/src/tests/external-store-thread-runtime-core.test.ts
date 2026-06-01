@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/external-store-thread-runtime-core";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
 import type { ModelContextProvider } from "../model-context/types";
+import type { ThreadMessageLike } from "../runtime/utils/thread-message-like";
 
 const mockContextProvider: ModelContextProvider = {
   getModelContext: () => ({}),
@@ -151,6 +152,151 @@ describe("ExternalStoreThreadRuntimeCore - state reference stability", () => {
     expect(runtime.capabilities).toBe(capsBefore);
   });
 });
+describe("ExternalStoreThreadRuntimeCore - optimistic message reconciliation", () => {
+  type Raw = {
+    id: string;
+    role: "user" | "assistant";
+    text: string;
+    optimistic?: boolean;
+  };
+
+  const convertMessage = (m: Raw): ThreadMessageLike => ({
+    id: m.id,
+    role: m.role,
+    content: [{ type: "text", text: m.text }],
+    ...(m.optimistic && { metadata: { isOptimistic: true } }),
+  });
+
+  const childrenOf = (
+    runtime: ExternalStoreThreadRuntimeCore,
+    parentId: string,
+  ) =>
+    runtime
+      .export()
+      .messages.filter((m) => m.parentId === parentId)
+      .map((m) => m.message.id);
+
+  it("drops the orphaned placeholder when an optimistic id is swapped mid-run", () => {
+    const u: Raw = { id: "u", role: "user", text: "hi" };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [
+          u,
+          { id: "client_id", role: "assistant", text: "", optimistic: true },
+        ],
+        convertMessage,
+        isRunning: true,
+      }),
+    );
+
+    // AI SDK v6 swaps the client-generated id for the server-provided one.
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [
+          u,
+          {
+            id: "server_id",
+            role: "assistant",
+            text: "hello",
+            optimistic: true,
+          },
+        ],
+        convertMessage,
+        isRunning: true,
+      }),
+    );
+
+    // No phantom sibling in the live tree (what BranchPicker reads): the user
+    // message has a single child. export() omits the still-optimistic
+    // streaming message, so assert against the live getBranches instead.
+    expect(runtime.getBranches("server_id")).toEqual(["server_id"]);
+  });
+
+  it("clears the optimistic flag once the run settles", () => {
+    const u: Raw = { id: "u", role: "user", text: "hi" };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [
+          u,
+          { id: "a", role: "assistant", text: "...", optimistic: true },
+        ],
+        convertMessage,
+        isRunning: true,
+      }),
+    );
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [u, { id: "a", role: "assistant", text: "done" }],
+        convertMessage,
+        isRunning: false,
+      }),
+    );
+
+    const settled = runtime.export().messages.find((m) => m.message.id === "a");
+    expect(settled?.message.metadata.isOptimistic).toBeFalsy();
+    expect(childrenOf(runtime, "u")).toEqual(["a"]);
+  });
+
+  it("removes the runtime placeholder once the store provides the assistant message", () => {
+    const u: Raw = { id: "u", role: "user", text: "hi" };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages: [u], convertMessage, isRunning: true }),
+    );
+
+    // Running with a trailing user message: a placeholder is appended to the
+    // live tree. export() omits optimistic messages, so inspect the live
+    // messages (which include the placeholder on the head path). It's a plain
+    // assistant message flagged optimistic (no special id scheme).
+    const live = runtime.messages;
+    expect(live).toHaveLength(2);
+    expect(live[1]!.role).toBe("assistant");
+    expect(live[1]!.metadata.isOptimistic).toBe(true);
+
+    // The store now yields the real assistant message; the placeholder (whose
+    // synthetic id never appears in the snapshot) must be gone, leaving a
+    // single child under the user message.
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [u, { id: "a", role: "assistant", text: "done" }],
+        convertMessage,
+        isRunning: false,
+      }),
+    );
+
+    expect(runtime.export().messages.map((m) => m.message.id)).toEqual([
+      "u",
+      "a",
+    ]);
+    expect(runtime.getBranches("a")).toEqual(["a"]);
+  });
+
+  it("keeps real sibling branches that were never flagged optimistic", () => {
+    const u: Raw = { id: "u", role: "user", text: "hi" };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [u, { id: "a1", role: "assistant", text: "first" }],
+        convertMessage,
+      }),
+    );
+
+    // Simulates onEdit/onReload producing a new branch under the same parent;
+    // the prior branch must survive (regression guard for #4131).
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [u, { id: "a2", role: "assistant", text: "second" }],
+        convertMessage,
+      }),
+    );
+
+    expect(childrenOf(runtime, "u")).toEqual(["a1", "a2"]);
+  });
+});
+
 describe("ExternalStoreThreadRuntimeCore - initialize event replay", () => {
   const message = { id: "m", role: "assistant" as const, content: [] };
   const flushMicrotasks = () => Promise.resolve();

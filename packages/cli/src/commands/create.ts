@@ -14,6 +14,10 @@ import {
   transformProject,
 } from "../lib/create-project";
 import { runSpawn, SpawnExitError } from "../lib/run-spawn";
+import {
+  buildSkillsAddCommand,
+  resolveSkillsInstall,
+} from "../lib/agent-skill";
 
 export interface ProjectMetadata {
   name: string;
@@ -442,6 +446,8 @@ export const create = new Command()
   .option("--native", "create an Expo / React Native project")
   .option("--ink", "create a React Ink terminal project")
   .option("--skip-install", "skip installing packages")
+  .option("--skills", "add assistant-ui agent skills for AI coding assistants")
+  .option("--no-skills", "skip adding assistant-ui agent skills")
   .addOption(
     new Option(
       "--debug-source-root <path>",
@@ -530,6 +536,25 @@ export const create = new Command()
       process.exit(0);
     }
 
+    const stdinIsTTY = process.stdin.isTTY;
+    let installSkills = resolveSkillsInstall({
+      skills: opts.skills,
+      stdinIsTTY,
+    });
+    if (installSkills === undefined) {
+      const result = await p.confirm({
+        message: "Add assistant-ui agent skills for AI coding assistants?",
+        initialValue: true,
+      });
+
+      if (p.isCancel(result)) {
+        p.cancel("Project creation cancelled.");
+        process.exit(0);
+      }
+
+      installSkills = result;
+    }
+
     logger.info(`Creating project from ${project.category}: ${project.label}`);
     logger.break();
 
@@ -588,6 +613,20 @@ export const create = new Command()
           skipInstall: opts.skipInstall,
           packageManager: pm,
         });
+
+        if (installSkills) {
+          logger.step("Adding assistant-ui agent skills...");
+          const [skillsCmd, skillsArgs] = buildSkillsAddCommand(pm, {
+            stdinIsTTY,
+          });
+          try {
+            await runSpawn(skillsCmd, skillsArgs, absoluteProjectDir);
+          } catch {
+            logger.warn(
+              `Could not add assistant-ui agent skills. You can add them later with:\n  ${skillsCmd} ${skillsArgs.join(" ")}`,
+            );
+          }
+        }
       } catch (err) {
         // Clean up partially created project directory
         fs.rmSync(absoluteProjectDir, { recursive: true, force: true });

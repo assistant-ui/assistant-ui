@@ -13,6 +13,10 @@ export type {
   ResumableClientStorage,
 } from "./ui/resumable";
 export { frontendTools } from "./frontendTools";
+export {
+  generativeTools,
+  type GenerativeToolsOptions,
+} from "./generativeTools";
 export { injectQuoteContext } from "./injectQuoteContext";
 export type { ThreadTokenUsage, TokenUsageExtractableMessage } from "./usage";
 export { getThreadMessageTokenUsage, useThreadTokenUsage } from "./usage";

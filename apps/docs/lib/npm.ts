@@ -14,7 +14,10 @@ async function npmFetch(
   revalidate: number,
 ): Promise<NpmDailyDownloads[]> {
   try {
-    const res = await fetch(`${NPM_BASE}${path}`, { next: { revalidate } });
+    const res = await fetch(
+      `${NPM_BASE}${path}`,
+      revalidate === 0 ? { cache: "no-store" } : { next: { revalidate } },
+    );
     if (!res.ok) return [];
     const data = (await res.json()) as { downloads?: NpmDailyDownloads[] };
     return data.downloads ?? [];

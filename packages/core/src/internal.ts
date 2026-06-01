@@ -26,8 +26,6 @@ export type {
 // ID generation
 export {
   generateId,
-  generateOptimisticId,
-  isOptimisticId,
   generateErrorMessageId,
   isErrorMessageId,
 } from "./utils/id";

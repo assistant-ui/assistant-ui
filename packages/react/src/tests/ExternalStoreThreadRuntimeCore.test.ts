@@ -255,6 +255,68 @@ describe("ExternalStoreThreadRuntimeCore", () => {
         "Runtime does not support cancelling runs.",
       );
     });
+
+    it("keeps a partially-streamed optimistic message on cancel", async () => {
+      // Only empty optimistic heads are evicted; one with content survives.
+      const optimisticAssistant = {
+        ...createAssistantMessage("server-msg", "partial answer"),
+        status: { type: "running" as const },
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+          isOptimistic: true,
+        },
+      } as ThreadMessage;
+      const setMessages = vi.fn();
+      const adapter = createBaseAdapter({
+        messages: [createUserMessage("u1"), optimisticAssistant],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages,
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+
+      // cancelRun resyncs to the store via setTimeout(0); inspect the push.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
+      expect(lastCall.map((m) => m.id)).toContain("server-msg");
+    });
+
+    it("evicts an empty optimistic head on cancel", async () => {
+      // An empty optimistic head is dropped on cancel, falling back to its prev.
+      const optimisticAssistant = {
+        ...createAssistantMessage("server-msg", ""),
+        content: [],
+        status: { type: "running" as const },
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+          isOptimistic: true,
+        },
+      } as ThreadMessage;
+      const setMessages = vi.fn();
+      const adapter = createBaseAdapter({
+        messages: [createUserMessage("u1"), optimisticAssistant],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages,
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
+      expect(lastCall.map((m) => m.id)).not.toContain("server-msg");
+    });
   });
 
   describe("optimistic assistant message", () => {

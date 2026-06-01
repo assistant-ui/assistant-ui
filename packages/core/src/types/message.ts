@@ -314,6 +314,11 @@ export type ThreadAssistantMessage = MessageCommonProps & {
     readonly steps: readonly ThreadStep[];
     readonly submittedFeedback?: { readonly type: "positive" | "negative" };
     readonly timing?: MessageTiming;
+    /**
+     * Marks a client-side optimistic placeholder. Such messages are evicted
+     * once off the head branch and are never persisted.
+     */
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -327,6 +332,7 @@ type BaseThreadMessage = {
     readonly steps?: readonly ThreadStep[];
     readonly submittedFeedback?: { readonly type: "positive" | "negative" };
     readonly timing?: MessageTiming;
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
   readonly attachments?: ThreadUserMessage["attachments"];

@@ -81,6 +81,7 @@ export type ThreadMessageLike = {
         readonly steps?: readonly ThreadStep[] | undefined;
         readonly timing?: MessageTiming | undefined;
         readonly submittedFeedback?: { readonly type: "positive" | "negative" };
+        readonly isOptimistic?: boolean | undefined;
         readonly custom?: Record<string, unknown> | undefined;
       }
     | undefined;
@@ -210,6 +211,7 @@ export const fromThreadMessageLike = (
           ...(metadata?.submittedFeedback && {
             submittedFeedback: metadata.submittedFeedback,
           }),
+          ...(metadata?.isOptimistic && { isOptimistic: true }),
         },
       } satisfies ThreadAssistantMessage;
 

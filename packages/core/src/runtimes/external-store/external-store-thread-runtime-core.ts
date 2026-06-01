@@ -30,6 +30,7 @@ import {
   ExportedMessageRepository,
   MessageRepository,
 } from "../../runtime/utils/message-repository";
+import { generateId } from "../../utils/id";
 import { ToolInvocationTracker } from "../tool-invocations/ToolInvocationTracker";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
@@ -54,8 +55,6 @@ export class ExternalStoreThreadRuntimeCore
   extends BaseThreadRuntimeCore
   implements ThreadRuntimeCore
 {
-  private _assistantOptimisticId: string | null = null;
-
   private _capabilities: RuntimeCapabilities = {
     switchToBranch: false,
     switchBranchDuringRun: false,
@@ -175,9 +174,7 @@ export class ExternalStoreThreadRuntimeCore
         return;
       }
 
-      // Clear and import the message repository
       this.repository.clear();
-      this._assistantOptimisticId = null;
       this.repository.import(store.messageRepository);
 
       messages = this.repository.getMessages();
@@ -252,24 +249,23 @@ export class ExternalStoreThreadRuntimeCore
       }
     }
 
-    if (this._assistantOptimisticId) {
-      this.repository.deleteMessage(this._assistantOptimisticId);
-      this._assistantOptimisticId = null;
-    }
-
+    // Append an optimistic placeholder while running but before a trailing
+    // assistant message exists. resetHead evicts off-branch optimistic messages
+    // (prior placeholders, mid-run id-swap siblings); export() never persists them.
+    let optimisticId: string | null = null;
     if (hasUpcomingMessage(isRunning, messages)) {
-      this._assistantOptimisticId = this.repository.appendOptimisticMessage(
+      optimisticId = generateId();
+      this.repository.addOrUpdateMessage(
         messages.at(-1)?.id ?? null,
-        {
-          role: "assistant",
-          content: [],
-        },
+        fromThreadMessageLike(
+          { role: "assistant", content: [], metadata: { isOptimistic: true } },
+          optimisticId,
+          { type: "running" },
+        ),
       );
     }
 
-    this.repository.resetHead(
-      this._assistantOptimisticId ?? messages.at(-1)?.id ?? null,
-    );
+    this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
 
     this._messages = this.repository.getMessages();
 
@@ -468,9 +464,11 @@ export class ExternalStoreThreadRuntimeCore
 
     this._store.onCancel();
 
-    if (this._assistantOptimisticId) {
-      this.repository.deleteMessage(this._assistantOptimisticId);
-      this._assistantOptimisticId = null;
+    // Drop an empty optimistic head (placeholder or pre-stream message); a
+    // partially-streamed one is kept and re-supplied by the store on resync.
+    const head = this.repository.getMessages().at(-1);
+    if (head && head.metadata.isOptimistic && head.content.length === 0) {
+      this.repository.deleteMessage(head.id);
     }
 
     let messages = this.repository.getMessages();
@@ -534,8 +532,6 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public override import(data: ExportedMessageRepository) {
-    this._assistantOptimisticId = null;
-
     super.import(data);
 
     if (this._store.onImport) {

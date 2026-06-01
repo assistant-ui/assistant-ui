@@ -33,11 +33,14 @@ async function ghFetch(
   revalidate: number,
   init?: RequestInit & { headers?: Record<string, string> },
 ): Promise<Response> {
-  return fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: ghHeaders(init?.headers),
-    next: { revalidate, ...(init?.next ?? {}) },
-  });
+  const { next: initNext, ...rest } = init ?? {};
+  const common = { ...rest, headers: ghHeaders(init?.headers) };
+  return fetch(
+    `${API_BASE}${path}`,
+    revalidate === 0
+      ? { ...common, cache: "no-store" }
+      : { ...common, next: { revalidate, ...(initNext ?? {}) } },
+  );
 }
 
 function parseLastPage(linkHeader: string | null): number | null {
@@ -60,9 +63,11 @@ const REPO_FALLBACK: RepoStats = {
   watchers: 80,
 };
 
-export async function getRepo(): Promise<RepoStats> {
+export async function getRepo(
+  revalidate: number = REVALIDATE.WARM,
+): Promise<RepoStats> {
   try {
-    const res = await ghFetch("", REVALIDATE.WARM);
+    const res = await ghFetch("", revalidate);
     if (!res.ok) return REPO_FALLBACK;
     const data = await res.json();
     return {
@@ -86,13 +91,16 @@ export type GitHubRelease = {
   created_at: string;
 };
 
-export async function getReleases(maxPages = 5): Promise<GitHubRelease[]> {
+export async function getReleases(
+  maxPages = 5,
+  revalidate: number = REVALIDATE.WARM,
+): Promise<GitHubRelease[]> {
   const all: GitHubRelease[] = [];
   try {
     for (let page = 1; page <= maxPages; page++) {
       const res = await ghFetch(
         `/releases?per_page=100&page=${page}`,
-        REVALIDATE.WARM,
+        revalidate,
       );
       if (!res.ok) break;
       const batch = (await res.json()) as GitHubRelease[];
@@ -110,11 +118,11 @@ export type CommitActivityWeek = {
   week: number;
 };
 
-export async function getCommitActivityStats(): Promise<
-  CommitActivityWeek[] | null
-> {
+export async function getCommitActivityStats(
+  revalidate: number = REVALIDATE.COOL,
+): Promise<CommitActivityWeek[] | null> {
   try {
-    const res = await ghFetch("/stats/commit_activity", REVALIDATE.COOL);
+    const res = await ghFetch("/stats/commit_activity", revalidate);
     // 202 means GitHub is still computing; caller falls back to commit list.
     if (!res.ok || res.status === 202) return null;
     const data = (await res.json()) as CommitActivityWeek[];
@@ -134,13 +142,14 @@ export type CommitListItem = {
 export async function getCommitsSince(
   sinceIso: string,
   maxPages = 20,
+  revalidate: number = REVALIDATE.COOL,
 ): Promise<CommitListItem[]> {
   const all: CommitListItem[] = [];
   try {
     for (let page = 1; page <= maxPages; page++) {
       const res = await ghFetch(
         `/commits?since=${sinceIso}&per_page=100&page=${page}`,
-        REVALIDATE.COOL,
+        revalidate,
       );
       if (!res.ok) break;
       const batch = (await res.json()) as CommitListItem[];
@@ -162,13 +171,14 @@ export type GitHubContributor = {
 
 export async function getContributors(
   maxPages = 2,
+  revalidate: number = REVALIDATE.COOL,
 ): Promise<GitHubContributor[]> {
   const all: GitHubContributor[] = [];
   try {
     for (let page = 1; page <= maxPages; page++) {
       const res = await ghFetch(
         `/contributors?per_page=100&page=${page}`,
-        REVALIDATE.COOL,
+        revalidate,
       );
       if (!res.ok) break;
       const batch = (await res.json()) as GitHubContributor[];
@@ -182,14 +192,17 @@ export async function getContributors(
 
 export type StargazerEntry = { starred_at: string };
 
-export async function getStargazersPage(page: number): Promise<{
+export async function getStargazersPage(
+  page: number,
+  revalidate: number = REVALIDATE.COOL,
+): Promise<{
   data: StargazerEntry[];
   lastPage: number | null;
 }> {
   try {
     const res = await ghFetch(
       `/stargazers?per_page=100&page=${page}`,
-      REVALIDATE.COOL,
+      revalidate,
       { headers: { Accept: "application/vnd.github.star+json" } },
     );
     if (!res.ok) return { data: [], lastPage: null };
@@ -200,14 +213,18 @@ export async function getStargazersPage(page: number): Promise<{
   }
 }
 
-export async function getDependents(): Promise<{
+export async function getDependents(
+  revalidate: number = REVALIDATE.COOL,
+): Promise<{
   repos: number;
   packages: number;
 } | null> {
   try {
     const res = await fetch(`${HTML_BASE}/network/dependents`, {
       headers: { "User-Agent": "Mozilla/5.0 (assistant-ui-traction)" },
-      next: { revalidate: REVALIDATE.COOL },
+      ...(revalidate === 0
+        ? { cache: "no-store" as const }
+        : { next: { revalidate } }),
     });
     if (!res.ok) return null;
     const html = await res.text();

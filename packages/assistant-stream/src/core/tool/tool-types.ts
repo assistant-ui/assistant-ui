@@ -234,6 +234,34 @@ type BackendTool<
   providerOptions?: undefined;
 };
 
+/**
+ * Backend tool as *authored* (a {@link ToolDeclaration}), before the build
+ * splits it: it may declare a `description`, `parameters`, and a server-side
+ * `execute`. The canonical {@link BackendTool} keeps these `undefined` because,
+ * once split, the client never sees them and the server consumes them through a
+ * server adapter rather than the shared {@link Tool} shape.
+ */
+type BackendToolDeclaration<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
+> = ToolBase<TArgs, TResult> & {
+  type: "backend";
+
+  /** Natural-language description shown to the model when selecting tools. */
+  description?: string | undefined;
+  /** Schema for the arguments the model must provide when calling the tool. */
+  parameters?: StandardSchemaV1<TArgs> | JSONSchema7 | undefined;
+  /** Prevents the tool from being exposed to the model while true. */
+  disabled?: boolean;
+  /** Executes the tool on the server after the model provides valid arguments. */
+  execute?: ToolExecuteFunction<TArgs, TResult>;
+  /** Converts the execution result into model-visible output. */
+  toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
+  /** Handles invalid tool arguments when schema validation fails. */
+  experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
+  providerOptions?: ProviderOptions;
+};
+
 type FrontendTool<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
@@ -324,6 +352,21 @@ export type Tool<
 > =
   | FrontendTool<TArgs, TResult>
   | BackendTool<TArgs, TResult>
+  | HumanTool<TArgs, TResult>
+  | ToolWithoutType<TArgs, TResult>;
+
+/**
+ * A tool as *authored* — the permissive counterpart to {@link Tool}. Unlike
+ * {@link Tool}, a `backend` entry may declare `description`, `parameters`, and a
+ * server-side `execute`. Use this for the input of authoring helpers (e.g.
+ * `defineToolkit`); the canonical {@link Tool} is the output.
+ */
+export type ToolDeclaration<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
+> =
+  | FrontendTool<TArgs, TResult>
+  | BackendToolDeclaration<TArgs, TResult>
   | HumanTool<TArgs, TResult>
   | ToolWithoutType<TArgs, TResult>;
 

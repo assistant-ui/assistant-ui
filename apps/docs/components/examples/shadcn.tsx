@@ -441,6 +441,7 @@ const AssistantMessage: FC = () => {
           groupBy={groupPartByType({
             reasoning: ["group-chainOfThought", "group-reasoning"],
             "tool-call": ["group-chainOfThought", "group-tool"],
+            "standalone-tool-call": [],
           })}
         >
           {({ part, children }) => {

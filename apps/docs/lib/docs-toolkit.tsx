@@ -1,135 +1,198 @@
-"use client";
-import type { Toolkit } from "@assistant-ui/react";
+"use generative";
+
 import { cn } from "@/lib/utils";
 import { WeatherWidget } from "@/components/tool-ui/weather-widget/runtime";
 import {
   fetchWeatherWidgetFromOpenMeteo,
   geocodeLocationWithOpenMeteo,
 } from "@/lib/open-meteo-weather-adapter";
-import { MapPin, CloudSun, AlertCircle } from "lucide-react";
+import { MapPin, CloudSun, AlertCircle, ChevronRight } from "lucide-react";
 import { z } from "zod";
+import { defineToolkit, useAuiState } from "@assistant-ui/react";
+import {
+  JSONGenerativeUI,
+  defineGenerativeComponents,
+  generativeUIToJSX,
+} from "@assistant-ui/react-generative-ui";
 
-// Weather data powered by Open-Meteo (https://open-meteo.com/)
-const geocodeLocationTool = {
-  description: "Geocode a location using Open-Meteo's geocoding API",
-  parameters: z.object({
-    query: z.string(),
+// The user-facing component library the model renders through the `present`
+// tool. `Weather` shows the rich card for a `get_weather` result by `id`.
+const generative = new JSONGenerativeUI({
+  library: defineGenerativeComponents({
+    Weather: {
+      description:
+        "Show the user a rich weather card. Pass the `id` returned by " +
+        "`get_weather`; the card reads that result's payload.",
+      properties: z.object({ id: z.string() }),
+      render: (props: any) => <WeatherCard {...props} />,
+    },
   }),
-  execute: async (args: { query: string }) =>
-    geocodeLocationWithOpenMeteo(args.query),
-  render: ({ result }: any) => {
-    if (result?.error) {
-      return (
-        <ToolCard variant="error">
-          <ToolCardIcon>
-            <AlertCircle className="size-4" />
-          </ToolCardIcon>
-          <ToolCardContent>
-            <ToolCardTitle>Geocoding failed</ToolCardTitle>
-            <ToolCardDescription>
-              {result?.error || "Unknown error"}
-            </ToolCardDescription>
-          </ToolCardContent>
-        </ToolCard>
-      );
-    }
-    if (!result?.result) {
-      return (
-        <ToolCard>
-          <ToolCardIcon loading>
-            <MapPin className="size-4" />
-          </ToolCardIcon>
-          <ToolCardContent>
-            <ToolCardTitle>Finding location...</ToolCardTitle>
-          </ToolCardContent>
-        </ToolCard>
-      );
-    }
+});
 
-    const { name, latitude, longitude } = result.result;
+export default defineToolkit({
+  // Weather data powered by Open-Meteo (https://open-meteo.com/)
+  geocode_location: {
+    description:
+      "Geocode a location name into latitude/longitude (Open-Meteo). Pass the " +
+      "coordinates to `get_weather`.",
+    parameters: z.object({
+      query: z.string(),
+    }),
+    execute: async ({ query }: { query: string }) =>
+      geocodeLocationWithOpenMeteo(query),
+    render: ({ toolName, args, result }: any) => {
+      const signature = formatToolCall(toolName, args);
+      const icon = <MapPin className="size-4" />;
+
+      if (result?.success === false) {
+        return <ToolErrorCard signature={signature} error={result.error} />;
+      }
+      if (!result) {
+        return (
+          <ToolStatusCard
+            signature={signature}
+            icon={icon}
+            message="Finding location..."
+            loading
+          />
+        );
+      }
+
+      const { name, latitude, longitude } = result.result;
+      return (
+        <ToolTraceCard
+          icon={icon}
+          signature={signature}
+          description={`${name} · ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`}
+          result={result}
+        />
+      );
+    },
+  },
+  get_weather: {
+    description:
+      "Fetch the weather for coordinates from `geocode_location`. Returns an " +
+      '`id`; call `present` with `{ $type: "Weather", id }` to show the user a card.',
+    parameters: z.object({
+      location: z.string(),
+      latitude: z.number(),
+      longitude: z.number(),
+    }),
+    execute: async ({
+      location,
+      latitude,
+      longitude,
+    }: {
+      location: string;
+      latitude: number;
+      longitude: number;
+    }) => {
+      const weather = await fetchWeatherWidgetFromOpenMeteo({
+        query: location,
+        latitude,
+        longitude,
+      });
+      if (!weather.success) {
+        return { success: false as const, error: weather.error };
+      }
+
+      return {
+        success: true as const,
+        id: crypto.randomUUID().slice(0, 8),
+        location,
+        widget: weather.widget,
+      };
+    },
+    render: ({ toolName, args, result }: any) => {
+      const signature = formatToolCall(toolName, args);
+      const icon = <CloudSun className="size-4" />;
+
+      if (result?.success === false) {
+        return <ToolErrorCard signature={signature} error={result.error} />;
+      }
+      if (!result) {
+        return (
+          <ToolStatusCard
+            signature={signature}
+            icon={icon}
+            message="Fetching weather..."
+            loading
+          />
+        );
+      }
+
+      const current = result.widget?.current;
+      return (
+        <ToolTraceCard
+          icon={icon}
+          signature={signature}
+          description={
+            current
+              ? `${Math.round(current.temperature)}°F · ${current.conditionCode} in ${result.location}`
+              : "Weather ready"
+          }
+          result={result}
+        />
+      );
+    },
+  },
+  present: generative.present({ display: "standalone" }),
+});
+
+const WeatherCard = ({ id }: any) => {
+  // The payload lives on the `get_weather` result; the `Weather` component only
+  // carries the `id`. Scan the whole thread (the two calls usually land in
+  // separate assistant messages) for the matching result.
+  const source = useAuiState((s) => {
+    for (const message of s.thread.messages) {
+      for (const part of message.content) {
+        if (
+          part.type === "tool-call" &&
+          part.toolName === "get_weather" &&
+          (part.result as any)?.id === id
+        ) {
+          return part.result as any;
+        }
+      }
+    }
+    return undefined;
+  });
+
+  if (source?.success === false) {
     return (
-      <ToolCard>
+      <ToolCard variant="error">
         <ToolCardIcon>
-          <MapPin className="size-4" />
+          <AlertCircle className="size-4" />
         </ToolCardIcon>
         <ToolCardContent>
-          <ToolCardTitle>{name}</ToolCardTitle>
-          <ToolCardDescription>
-            {Math.abs(latitude).toFixed(2)}°{latitude >= 0 ? "N" : "S"},{" "}
-            {Math.abs(longitude).toFixed(2)}°{longitude >= 0 ? "E" : "W"}
-          </ToolCardDescription>
+          <ToolCardTitle>Weather unavailable</ToolCardTitle>
+          <ToolCardDescription>{source.error}</ToolCardDescription>
         </ToolCardContent>
       </ToolCard>
     );
-  },
-};
+  }
 
-const weatherSearchTool = {
-  description: "Find the weather in a location given a longitude and latitude",
-  parameters: z.object({
-    query: z.string(),
-    longitude: z.number(),
-    latitude: z.number(),
-  }),
-  execute: async (args: {
-    query: string;
-    longitude: number;
-    latitude: number;
-  }) => fetchWeatherWidgetFromOpenMeteo(args),
-  render: ({ args, result }: any) => {
-    const isLoading = !result;
-    const error = result?.success === false ? result.error : null;
+  if (!source?.widget) {
+    return (
+      <ToolCard>
+        <ToolCardIcon loading>
+          <CloudSun className="size-4" />
+        </ToolCardIcon>
+        <ToolCardContent>
+          <ToolCardTitle>Preparing weather...</ToolCardTitle>
+        </ToolCardContent>
+      </ToolCard>
+    );
+  }
 
-    if (error) {
-      return (
-        <ToolCard variant="error">
-          <ToolCardIcon>
-            <AlertCircle className="size-4" />
-          </ToolCardIcon>
-          <ToolCardContent>
-            <ToolCardTitle>Weather unavailable</ToolCardTitle>
-            <ToolCardDescription>{error}</ToolCardDescription>
-          </ToolCardContent>
-        </ToolCard>
-      );
-    }
-
-    if (isLoading) {
-      return (
-        <ToolCard>
-          <ToolCardIcon loading>
-            <CloudSun className="size-4" />
-          </ToolCardIcon>
-          <ToolCardContent>
-            <ToolCardTitle>Fetching weather...</ToolCardTitle>
-          </ToolCardContent>
-        </ToolCard>
-      );
-    }
-
-    if (!result?.widget) {
-      return (
-        <ToolCard variant="error">
-          <ToolCardIcon>
-            <AlertCircle className="size-4" />
-          </ToolCardIcon>
-          <ToolCardContent>
-            <ToolCardTitle>Weather unavailable</ToolCardTitle>
-            <ToolCardDescription>
-              Missing weather widget payload for {args?.query}
-            </ToolCardDescription>
-          </ToolCardContent>
-        </ToolCard>
-      );
-    }
-
-    return <WeatherWidget {...result.widget} className="my-2" />;
-  },
-};
-
-export const docsToolkit: Toolkit = {
-  geocode_location: geocodeLocationTool,
-  weather_search: weatherSearchTool,
+  return (
+    <div className="mt-2 mb-4 flex flex-col items-center">
+      <WeatherWidget {...source.widget} />
+      <p className="text-muted-foreground/70 mt-1.5 text-center font-mono text-xs">
+        present({generativeUIToJSX({ $type: "Weather", id })})
+      </p>
+    </div>
+  );
 };
 
 // Shared Tool Card Components
@@ -150,6 +213,76 @@ const ToolCard = ({
   >
     {children}
   </div>
+);
+
+/**
+ * A backend tool's trace: the call signature and a one-line summary, with the
+ * full JSON result tucked inside a collapsible.
+ */
+const ToolTraceCard = ({
+  icon,
+  signature,
+  description,
+  result,
+}: {
+  icon: React.ReactNode;
+  signature: string;
+  description: React.ReactNode;
+  result: unknown;
+}) => (
+  <details className="group bg-muted/30 my-2 overflow-hidden rounded-lg border">
+    <summary className="flex cursor-pointer list-none items-start gap-3 px-3 py-2.5 select-none">
+      <ToolCardIcon>{icon}</ToolCardIcon>
+      <ToolCardContent>
+        <ToolCardTitle mono>{signature}</ToolCardTitle>
+        <ToolCardDescription>{description}</ToolCardDescription>
+      </ToolCardContent>
+      <ChevronRight className="text-muted-foreground/70 mt-1.5 ml-auto size-4 shrink-0 transition-transform group-open:rotate-90" />
+    </summary>
+    <pre className="text-muted-foreground bg-muted/50 mx-3 mb-3 max-h-60 overflow-auto rounded-md p-2 text-[11px] leading-relaxed">
+      {JSON.stringify(result, null, 2)}
+    </pre>
+  </details>
+);
+
+/** A backend tool's pending/loading trace: the call signature with a spinner icon. */
+const ToolStatusCard = ({
+  icon,
+  signature,
+  message,
+  loading = false,
+}: {
+  icon: React.ReactNode;
+  signature: string;
+  message: string;
+  loading?: boolean;
+}) => (
+  <ToolCard>
+    <ToolCardIcon loading={loading}>{icon}</ToolCardIcon>
+    <ToolCardContent>
+      <ToolCardTitle mono>{signature}</ToolCardTitle>
+      <ToolCardDescription>{message}</ToolCardDescription>
+    </ToolCardContent>
+  </ToolCard>
+);
+
+/** A backend tool's error trace: the call signature with the error message. */
+const ToolErrorCard = ({
+  signature,
+  error,
+}: {
+  signature: string;
+  error?: string;
+}) => (
+  <ToolCard variant="error">
+    <ToolCardIcon>
+      <AlertCircle className="size-4" />
+    </ToolCardIcon>
+    <ToolCardContent>
+      <ToolCardTitle mono>{signature}</ToolCardTitle>
+      <ToolCardDescription>{error || "Unknown error"}</ToolCardDescription>
+    </ToolCardContent>
+  </ToolCard>
 );
 
 const ToolCardIcon = ({
@@ -173,10 +306,36 @@ const ToolCardContent = ({ children }: { children: React.ReactNode }) => (
   <div className="flex min-w-0 flex-col gap-0.5">{children}</div>
 );
 
-const ToolCardTitle = ({ children }: { children: React.ReactNode }) => (
-  <span className="truncate text-sm font-medium">{children}</span>
+const ToolCardTitle = ({
+  children,
+  mono = false,
+}: {
+  children: React.ReactNode;
+  mono?: boolean;
+}) => (
+  <span
+    className={cn(
+      "truncate text-sm font-medium",
+      mono && "font-mono text-[13px] font-normal",
+    )}
+  >
+    {children}
+  </span>
 );
 
 const ToolCardDescription = ({ children }: { children: React.ReactNode }) => (
   <span className="text-muted-foreground truncate text-xs">{children}</span>
 );
+
+/** Renders a tool call as a readable signature, e.g. `get_weather({ location: "SF" })`. */
+const formatToolCall = (
+  toolName: string,
+  args: Record<string, unknown> | undefined,
+): string => {
+  const entries = Object.entries(args ?? {});
+  if (entries.length === 0) return `${toolName}()`;
+  const body = entries
+    .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+    .join(", ");
+  return `${toolName}({ ${body} })`;
+};
