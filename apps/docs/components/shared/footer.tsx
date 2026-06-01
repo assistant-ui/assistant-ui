@@ -52,8 +52,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
     },
     {
       label: "Privacy Policy",
-      href: "https://docs.google.com/document/d/1rTuYeC2xJHWB5u42dSyWwp3vBx7Cms5b6sK971wraVY/view",
-      external: true,
+      href: "/privacy-policy",
     },
   ],
 };
