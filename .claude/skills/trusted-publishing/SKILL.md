@@ -5,13 +5,13 @@ description: Configure npm trusted publishing (OIDC) and lock down publishing ac
 
 # trusted-publishing
 
-Every public package in this monorepo publishes to npm through **trusted publishing (OIDC)** from the `npm-publish.yaml` GitHub Actions workflow — there are no long-lived npm tokens. Trusted publishing is configured **per package name** on the npm registry. Adding a new package to `packages/*` does **not** automatically grant it OIDC publish rights: until you configure it, the release run will fail that package with `not configured for npm trusted publishing`.
+Every public package in this monorepo publishes to npm through **trusted publishing (OIDC)** from the `npm-publish.yaml` GitHub Actions workflow — there are no long-lived npm tokens. Trusted publishing is configured **per package name** on the npm registry. Adding a new package to `packages/*` does **not** automatically grant it OIDC publish rights: until you configure it, the release run fails that package's publish with an OIDC authorization error from npm.
 
 So: whenever you add a new publishable package (or notice one missing its config), set up trusted publishing **and** harden its publishing access before the first release.
 
 ## When this applies
 
-A package needs this setup if its `package.json` has `"private": false` (or no `private` field) and ships to npm. The `private` field is the source of truth — skip any package marked `"private": true` (currently `@assistant-ui/ui`, `@assistant-ui/x-changelog`, `@assistant-ui/docs`, `@assistant-ui/shadcn-registry`); they never publish.
+The release workflow only scans `packages/*` and publishes each package there whose `package.json` is not `"private": true`. So a new package under `packages/` needs this setup unless you mark it `"private": true` (as `@assistant-ui/ui` and `@assistant-ui/x-changelog` are). Anything outside `packages/` is never published regardless — e.g. `@assistant-ui/docs` and `@assistant-ui/shadcn-registry` live under `apps/`, so they're excluded by location.
 
 ## The config values (identical for every package in this repo)
 
