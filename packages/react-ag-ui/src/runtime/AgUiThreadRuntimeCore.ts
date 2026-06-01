@@ -26,6 +26,7 @@ import {
   toAgUiTools,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
+import { applyJsonPatch } from "./json-patch";
 
 const optimisticPrefix = "__optimistic__";
 const generateOptimisticId = () => `${optimisticPrefix}${generateId()}`;
@@ -730,7 +731,15 @@ export class AgUiThreadRuntimeCore {
         return;
       }
       case "STATE_DELTA": {
-        this.logger.debug?.("[agui] state delta event ignored", event.delta);
+        try {
+          this.stateSnapshot = applyJsonPatch(
+            this.stateSnapshot,
+            event.delta,
+          ) as ReadonlyJSONValue;
+          this.notifyUpdate();
+        } catch (error) {
+          this.logger.error?.("[agui] failed to apply state delta", error);
+        }
         return;
       }
       case "MESSAGES_SNAPSHOT": {
