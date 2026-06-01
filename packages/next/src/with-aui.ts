@@ -1,4 +1,34 @@
+import { createRequire } from "node:module";
+import { statSync } from "node:fs";
+
 const LOADER = "@assistant-ui/next/loader";
+
+/**
+ * A token that changes whenever the `"use generative"` compiler this loader runs
+ * (`@assistant-ui/x-generative-compiler`) changes. Turbopack and webpack fold a
+ * loader's `options` into its cache key, so passing this invalidates cached
+ * transforms when the compiler's behavior changes — node_modules content isn't
+ * otherwise watched. The package version covers published upgrades (and is
+ * already part of the resolved module path); the dist mtime additionally covers
+ * in-place rebuilds in a monorepo, where the version stays the same. A stale or
+ * mismatched token only forces a recompile, never wrong output, so a failure to
+ * resolve falls back to a constant.
+ */
+function compilerCacheToken(): string {
+  try {
+    const require = createRequire(import.meta.url);
+    const {
+      version,
+    } = require("@assistant-ui/x-generative-compiler/package.json");
+    const entry = require.resolve("@assistant-ui/x-generative-compiler");
+    return `${version}:${statSync(entry).mtimeMs}`;
+  } catch {
+    return "unknown";
+  }
+}
+
+/** The loader plus the cache-busting token, in the `{ loader, options }` form both bundlers accept. */
+const LOADER_USE = { loader: LOADER, options: { v: compilerCacheToken() } };
 
 export interface WithAuiOptions {
   /**
@@ -43,7 +73,7 @@ export function withAui<T extends NextConfigLike>(
         : [];
     rules[glob] = {
       ...(existing as object),
-      loaders: [...existingLoaders, LOADER],
+      loaders: [...existingLoaders, LOADER_USE],
     };
   }
 
@@ -61,7 +91,7 @@ export function withAui<T extends NextConfigLike>(
       config.module.rules.push({
         test: /\.[jt]sx?$/,
         exclude: /node_modules/,
-        use: [LOADER],
+        use: [LOADER_USE],
       });
       return userWebpack ? userWebpack(config, context) : config;
     },
