@@ -7,7 +7,7 @@ import {
   buildStandardFilter,
   buildChromaticFilter,
   toDataUri,
-} from "../../../../../packages/tw-glass/scripts/filter-builder.mjs";
+} from "../../../../../../packages/tw-glass/scripts/filter-builder.mjs";
 import { PATTERNS, unsplash, PatternPicker } from "../(home)/pattern-picker";
 import { cn } from "@/lib/utils";
 
