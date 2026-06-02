@@ -135,7 +135,7 @@ export const Tools = resource(
             render: _render,
             renderText: _renderText,
             ...rest
-          } = tool;
+          } = tool as typeof tool & { renderText?: unknown };
           acc[name] = rest as Tool<any, any>;
           return acc;
         },
