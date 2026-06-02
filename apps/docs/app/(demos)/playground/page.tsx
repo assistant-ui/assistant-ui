@@ -365,6 +365,18 @@ function HeaderPortal({ children }: { children: ReactNode }) {
 
 export default function PlaygroundPage() {
   const [mode, setMode] = useState<"agent" | "builder">("agent");
+  const [visitedModes, setVisitedModes] = useState({
+    agent: true,
+    builder: false,
+  });
+
+  const handleModeChange = useCallback((nextMode: "agent" | "builder") => {
+    setMode(nextMode);
+    setVisitedModes((current) => ({
+      ...current,
+      [nextMode]: true,
+    }));
+  }, []);
 
   return (
     <>
@@ -372,7 +384,7 @@ export default function PlaygroundPage() {
         <div className="bg-muted/40 grid grid-cols-2 rounded-md border p-0.5 text-xs">
           <button
             type="button"
-            onClick={() => setMode("agent")}
+            onClick={() => handleModeChange("agent")}
             className={cn(
               "rounded px-2.5 py-1 font-medium transition-colors",
               mode === "agent"
@@ -384,7 +396,7 @@ export default function PlaygroundPage() {
           </button>
           <button
             type="button"
-            onClick={() => setMode("builder")}
+            onClick={() => handleModeChange("builder")}
             className={cn(
               "rounded px-2.5 py-1 font-medium transition-colors",
               mode === "builder"
@@ -398,7 +410,26 @@ export default function PlaygroundPage() {
       </HeaderPortal>
 
       <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
-        {mode === "agent" ? <XuluxApp /> : <BuilderPlayground />}
+        <div
+          className={cn(
+            "h-full min-h-0 w-full flex-col overflow-hidden",
+            mode === "agent" ? "flex" : "hidden",
+          )}
+          aria-hidden={mode !== "agent"}
+        >
+          <XuluxApp />
+        </div>
+        {visitedModes.builder && (
+          <div
+            className={cn(
+              "h-full min-h-0 w-full flex-col overflow-hidden",
+              mode === "builder" ? "flex" : "hidden",
+            )}
+            aria-hidden={mode !== "builder"}
+          >
+            <BuilderPlayground />
+          </div>
+        )}
       </div>
     </>
   );
