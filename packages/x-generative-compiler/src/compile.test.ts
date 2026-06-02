@@ -210,6 +210,67 @@ export default defineToolkit({
     expect(client).not.toContain("db.get");
     expect(client.trimStart().startsWith('"use client"')).toBe(true);
   });
+
+  it("routes renderText like a lightweight tool renderer", () => {
+    const src = `"use generative";
+import { z } from "zod";
+import { db } from "@/db";
+import { formatResult } from "@/ui/format";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  search: {
+    parameters: z.object({ query: z.string() }),
+    execute: async ({ query }) => db.search(query),
+    renderText: {
+      running: ({ args }) => \`Searching \${args.query}...\`,
+      complete: ({ args, result }) => formatResult(args.query, result),
+    },
+  },
+});`;
+
+    const server = compileGenerative(src, { target: "server" }).code;
+    expect(server).toContain("db.search");
+    expect(server).toContain('type: "backend"');
+    expect(server).not.toContain("renderText");
+    expect(server).not.toContain("@/ui/format");
+
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client.trimStart().startsWith('"use client"')).toBe(true);
+    expect(client).toContain("renderText");
+    expect(client).toContain("formatResult");
+    expect(client).toContain("@/ui/format");
+    expect(client).not.toContain("db.search");
+  });
+
+  it("allows frontend tools to use renderText instead of render", () => {
+    const src = `"use generative";
+import { z } from "zod";
+import { track } from "@/analytics";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  toast: {
+    parameters: z.object({ msg: z.string() }),
+    execute: async ({ msg }) => {
+      "use client";
+      return track(msg);
+    },
+    renderText: {
+      running: "Showing toast...",
+      complete: "Toast shown",
+    },
+  },
+});`;
+
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client).toContain("track(msg)");
+    expect(client).toContain("renderText");
+    expect(client).toContain('type: "frontend"');
+
+    const server = compileGenerative(src, { target: "server" }).code;
+    expect(server).not.toContain("track");
+    expect(server).not.toContain("renderText");
+    expect(server).toContain('type: "frontend"');
+  });
 });
 
 describe("compileGenerative — local dead-code elimination", () => {
@@ -344,6 +405,15 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
         { target: "client" },
       ),
     ).toThrow(/must declare a `render`/);
+  });
+
+  it("requires a render or renderText for frontend tools", () => {
+    expect(() =>
+      compileGenerative(
+        `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nexport default defineToolkit({ toast: { execute: async () => { "use client"; return 1; } } });`,
+        { target: "client" },
+      ),
+    ).toThrow(/must declare a `render` or `renderText`/);
   });
 
   it("requires every tool to declare an execute", () => {

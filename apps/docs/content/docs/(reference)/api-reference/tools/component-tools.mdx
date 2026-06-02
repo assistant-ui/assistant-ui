@@ -31,6 +31,8 @@ rather than calling [useAssistantTool](/docs/api-reference/tools/component-tools
 type AssistantToolProps = CoreAssistantToolProps<TArgs, TResult> & {
   /** Component used to render calls to this tool in assistant messages. */
   render?: ToolCallMessagePartComponent<TArgs, TResult> | undefined;
+  /** Lightweight text rendered while a tool call is running or complete. */
+  renderText?: ToolCallText<TArgs, TResult> | undefined;
 };
 
 const makeAssistantTool: <TArgs extends Record<string, unknown>, TResult>(tool: AssistantToolProps<TArgs, TResult>) => AssistantTool;
