@@ -17,6 +17,7 @@ import type { McpAppResourceOutput, ToolsState } from "../types/scopes/tools";
 import type { Tool } from "assistant-stream";
 import {
   isStandaloneToolDisplay,
+  makeToolCallTextComponent,
   type Toolkit,
 } from "../model-context/toolbox";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
@@ -106,22 +107,38 @@ export const Tools = resource(
 
       // Register tool UIs (exclude symbols)
       for (const [toolName, tool] of Object.entries(toolkit)) {
-        if (tool.render) {
+        const toolRender = "render" in tool ? tool.render : undefined;
+        const toolRenderText =
+          "renderText" in tool ? tool.renderText : undefined;
+        const render =
+          toolRender ??
+          (toolRenderText
+            ? makeToolCallTextComponent(toolRenderText)
+            : undefined);
+        if (render) {
           unsubscribes.push(
-            setToolUI(toolName, tool.render, {
+            setToolUI(toolName, render, {
               standalone: isStandaloneToolDisplay(tool),
             }),
           );
         }
       }
 
-      // Register tools with model context (exclude symbols). `render` and
-      // `display` are client-only presentation concerns and never reach the
-      // model.
+      // Register tools with model context (exclude symbols). `render`,
+      // `renderText`, and `display` are client-only presentation concerns and
+      // never reach the model.
       const toolsWithoutRender = Object.entries(toolkit).reduce(
         (acc, [name, tool]) => {
-          const { render, display, ...rest } = tool;
-          acc[name] = rest;
+          const {
+            display: _display,
+            render: _render,
+            renderText: _renderText,
+            ...rest
+          } = tool as typeof tool & {
+            render?: unknown;
+            renderText?: unknown;
+          };
+          acc[name] = rest as Tool<any, any>;
           return acc;
         },
         {} as Record<string, Tool<any, any>>,

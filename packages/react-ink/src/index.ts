@@ -193,6 +193,7 @@ export {
   useInlineRender,
   type Toolkit,
   type ToolDefinition,
+  type ToolCallText,
   defineToolkit,
   hitl,
   Tools,

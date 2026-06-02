@@ -1,8 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import type { AssistantToolProps as CoreAssistantToolProps } from "../..";
-import { isStandaloneToolDisplay } from "./toolbox";
+import {
+  isStandaloneToolDisplay,
+  makeToolCallTextComponent,
+  type ToolCallText,
+} from "./toolbox";
 
 /**
  * Props used to register a tool from React.
@@ -13,6 +17,8 @@ export type AssistantToolProps<
 > = CoreAssistantToolProps<TArgs, TResult> & {
   /** Component used to render calls to this tool in assistant messages. */
   render?: ToolCallMessagePartComponent<TArgs, TResult> | undefined;
+  /** Lightweight text rendered while a tool call is running or complete. */
+  renderText?: ToolCallText<TArgs, TResult> | undefined;
 };
 
 /**
@@ -54,16 +60,22 @@ export const useAssistantTool = <
   const aui = useAui();
 
   const standalone = isStandaloneToolDisplay(tool);
+  const renderTextComponent = useMemo(
+    () =>
+      tool.renderText ? makeToolCallTextComponent(tool.renderText) : undefined,
+    [tool.renderText],
+  );
+  const render = tool.render ?? renderTextComponent;
 
   useEffect(() => {
-    if (!tool.render) return undefined;
-    return aui.tools().setToolUI(tool.toolName, tool.render, { standalone });
-  }, [aui, tool.toolName, tool.render, standalone]);
+    if (!render) return undefined;
+    return aui.tools().setToolUI(tool.toolName, render, { standalone });
+  }, [aui, tool.toolName, render, standalone]);
 
   useEffect(() => {
-    // `render` and `display` are client-only presentation concerns and never
-    // reach the model.
-    const { toolName, render, display, ...rest } = tool;
+    // `render`, `renderText`, and `display` are client-only presentation
+    // concerns and never reach the model.
+    const { toolName, render, renderText, display, ...rest } = tool;
     const context = {
       tools: {
         [toolName]: rest,
