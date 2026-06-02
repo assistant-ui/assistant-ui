@@ -158,14 +158,19 @@ export function toToolsJSONSchema(
 
   const filter = options.filter ?? defaultToolFilter;
 
+  const isUploadableToolEntry = (
+    entry: [string, Tool],
+  ): entry is [
+    string,
+    Tool & { parameters: NonNullable<Tool["parameters"]> },
+  ] => {
+    const [name, tool] = entry;
+    return filter(name, tool) && toolHasUploadableParameters(tool);
+  };
+
   return Object.fromEntries(
     Object.entries(tools)
-      .filter(
-        ([name, tool]): tool is [
-          string,
-          Tool & { parameters: NonNullable<Tool["parameters"]> },
-        ] => filter(name, tool) && toolHasUploadableParameters(tool),
-      )
+      .filter(isUploadableToolEntry)
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([name, tool]) => [
         name,
