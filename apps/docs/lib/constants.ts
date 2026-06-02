@@ -3,6 +3,8 @@ export const BASE_URL = "https://www.assistant-ui.com";
 export const PLATFORMS = ["react", "rn", "ink"] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
+export const DEFAULT_PLATFORM: Platform = "react";
+
 export const PLATFORM_LABELS: Record<Platform, string> = {
   react: "React",
   rn: "React Native",

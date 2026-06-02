@@ -78,10 +78,10 @@ export async function InstallCommand(props: InstallCommandProps) {
 }
 
 // Every resolvable file is an assistant-ui component, sourced from packages/ui.
-const GITHUB_BLOB =
-  "https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src";
-const GITHUB_RAW =
-  "https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/packages/ui/src";
+const REPO = "assistant-ui/assistant-ui";
+const UI_SRC = "packages/ui/src";
+const GITHUB_BLOB = `https://github.com/${REPO}/blob/main/${UI_SRC}`;
+const GITHUB_RAW = `https://raw.githubusercontent.com/${REPO}/main/${UI_SRC}`;
 
 const CommandBlock = ({ command }: { command: string }) => (
   <pre>
@@ -96,8 +96,9 @@ function buildDownloadCommand(files: ResolvedFile[]): string {
   return `curl -sSL --create-dirs \\\n${args}`;
 }
 
-// Instead of dumping each component's full source (the visual Manual tab), keep
-// the CLI command and link the GitHub files plus one curl to fetch them all.
+// Instead of dumping each component's full source (the visual Manual tab), give
+// the CLI command plus a manual path: npm deps, shadcn components, and the
+// GitHub-linked aui files with one curl to fetch them all.
 export const InstallCommandLLM = async (props: InstallCommandProps) => {
   if ("npm" in props) {
     return <CommandBlock command={`npm install ${props.npm.join(" ")}`} />;
@@ -111,13 +112,33 @@ export const InstallCommandLLM = async (props: InstallCommandProps) => {
   const urls = props.shadcn.map((c) => `https://r.assistant-ui.com/${c}.json`);
   const resolved = await resolveAllComponents(props.shadcn);
   const files = [...resolved.main.files, ...resolved.auiDeps.files];
+  // npm packages the copied files import. shadcn deps (e.g. radix-ui) are
+  // omitted here — they install with the shadcn components below.
+  const npmDeps = [
+    ...new Set([
+      ...resolved.main.dependencies,
+      ...resolved.auiDeps.dependencies,
+    ]),
+  ];
+  // shadcn/ui components can't be GitHub-linked (not under packages/ui/src), so
+  // the manual path adds them via the shadcn CLI instead.
+  const shadcnComponents = resolved.shadcn.files.map((file) => file.name);
 
   return (
     <>
       <CommandBlock command={`npx shadcn@latest add ${urls.join(" ")}`} />
       {files.length > 0 && (
         <>
-          <p>Or copy the source files from GitHub:</p>
+          <p>Or install manually:</p>
+          {npmDeps.length > 0 && (
+            <CommandBlock command={`npm install ${npmDeps.join(" ")}`} />
+          )}
+          {shadcnComponents.length > 0 && (
+            <CommandBlock
+              command={`npx shadcn@latest add ${shadcnComponents.join(" ")}`}
+            />
+          )}
+          <p>Then copy these source files from GitHub:</p>
           <ul>
             {files.map((file) => (
               <li key={file.path}>

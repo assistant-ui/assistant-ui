@@ -9,9 +9,14 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
-import { PLATFORM_LABELS, PLATFORMS, type Platform } from "@/lib/constants";
+import {
+  DEFAULT_PLATFORM,
+  PLATFORM_LABELS,
+  PLATFORMS,
+  type Platform,
+} from "@/lib/constants";
 
-export { PLATFORM_LABELS, PLATFORMS, type Platform };
+export { DEFAULT_PLATFORM, PLATFORM_LABELS, PLATFORMS, type Platform };
 
 export const PLATFORM_DOC_BASE_PATHS: Record<Platform, string> = {
   react: "/docs",
@@ -21,7 +26,6 @@ export const PLATFORM_DOC_BASE_PATHS: Record<Platform, string> = {
 
 const STORAGE_KEY = "assistant-ui::docs:platform";
 const URL_PARAM = "platform";
-const DEFAULT_PLATFORM: Platform = "react";
 
 interface PlatformContextValue {
   platform: Platform;

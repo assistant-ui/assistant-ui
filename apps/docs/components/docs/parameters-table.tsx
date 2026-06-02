@@ -49,7 +49,7 @@ function renderLinkLabel(label: string): ReactNode {
   return label;
 }
 
-function renderDescription(description: string | ReactNode): ReactNode {
+export function renderDescription(description: string | ReactNode): ReactNode {
   if (typeof description !== "string") return description;
 
   const parts: ReactNode[] = [];
@@ -238,7 +238,7 @@ const ParameterItemLLM: FC<{ parameter: ParameterDef }> = ({
         <> — {renderDescription(parameter.description)}</>
       ) : null}
       {parameter.children?.map((child, i) => (
-        <ParameterListLLM key={child.type ?? i} parameters={child.parameters} />
+        <ParameterListLLM key={i} parameters={child.parameters} />
       ))}
     </li>
   );

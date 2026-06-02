@@ -1,8 +1,11 @@
 import { Children, isValidElement, type ReactNode } from "react";
-import { PLATFORM_LABELS, PLATFORMS, type Platform } from "@/lib/constants";
+import {
+  DEFAULT_PLATFORM,
+  PLATFORM_LABELS,
+  PLATFORMS,
+  type Platform,
+} from "@/lib/constants";
 import type { PlatformTabsProps } from "./mdx";
-
-const DEFAULT_PLATFORM: Platform = "react";
 
 // Emit only the React (default) tab — other platforms duplicate content and have
 // their own doc trees (/docs/react-native, /docs/ink). Label it so the code isn't

@@ -6,6 +6,7 @@ import {
   TypeTableClient,
   type TypeTableRow,
 } from "./primitives-type-table-client";
+import { renderDescription } from "./parameters-table";
 import { StatusBadge } from "./status-badge";
 
 type PropDef = {
@@ -176,9 +177,9 @@ const PropItemLLM: FC<{ prop: PropDef }> = ({ prop: rawProp }) => {
         </>
       ) : null}
       {prop.deprecated ? <> (deprecated: {prop.deprecated})</> : null}
-      {prop.description ? <> — {prop.description}</> : null}
+      {prop.description ? <> — {renderDescription(prop.description)}</> : null}
       {prop.children?.map((child, i) => (
-        <PropListLLM key={child.type ?? i} props={child.parameters} />
+        <PropListLLM key={i} props={child.parameters} />
       ))}
     </li>
   );

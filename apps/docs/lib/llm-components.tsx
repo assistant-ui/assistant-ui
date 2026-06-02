@@ -26,40 +26,42 @@ const Heading =
   (Tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") =>
   ({ children }: ComponentProps<"h1">) => <Tag>{children}</Tag>;
 
+const LLM_COMPONENTS: MDXComponents = {
+  ...getMDXComponents({}),
+  h1: Heading("h1"),
+  h2: Heading("h2"),
+  h3: Heading("h3"),
+  h4: Heading("h4"),
+  h5: Heading("h5"),
+  h6: Heading("h6"),
+  pre: ({ children }: ComponentProps<"pre">) => <pre>{children}</pre>,
+  // Static markdown images render via next/image (client), whose fallback drops
+  // src and leaks alt. A host <img> survives as `![alt](src)`; src may be a
+  // string or a StaticImageData object.
+  img: ({ src, alt }: ComponentProps<"img">) => {
+    const value = src as string | { src?: string } | undefined;
+    const url = typeof value === "string" ? value : value?.src;
+    return url ? <img src={url} alt={alt ?? ""} /> : null;
+  },
+  // The base map turns every blockquote into a Callout; keep plain quotes plain
+  // and reserve `[!type]` for real Callouts.
+  blockquote: ({ children }: ComponentProps<"blockquote">) => (
+    <blockquote>{children}</blockquote>
+  ),
+  Callout: CalloutLLM,
+  Tabs: TabsLLM,
+  Tab: TabLLM,
+  PlatformTabs: PlatformTabsLLM,
+  PlatformOnly: PlatformOnlyLLM,
+  Cards: CardsLLM,
+  Card: CardLLM,
+  Steps: StepsLLM,
+  Step: StepLLM,
+  InstallCommand: InstallCommandLLM,
+  ParametersTable: ParametersTableLLM,
+  PrimitivesTypeTable: PrimitivesTypeTableLLM,
+};
+
 export function getLLMComponents(): MDXComponents {
-  return {
-    ...getMDXComponents({}),
-    h1: Heading("h1"),
-    h2: Heading("h2"),
-    h3: Heading("h3"),
-    h4: Heading("h4"),
-    h5: Heading("h5"),
-    h6: Heading("h6"),
-    pre: ({ children }: ComponentProps<"pre">) => <pre>{children}</pre>,
-    // Static markdown images render via next/image (client), whose fallback drops
-    // src and leaks alt. A host <img> survives as `![alt](src)`; src may be a
-    // string or a StaticImageData object.
-    img: ({ src, alt }: ComponentProps<"img">) => {
-      const value = src as string | { src?: string } | undefined;
-      const url = typeof value === "string" ? value : value?.src;
-      return url ? <img src={url} alt={alt ?? ""} /> : null;
-    },
-    // The base map turns every blockquote into a Callout; keep plain quotes plain
-    // and reserve `[!type]` for real Callouts.
-    blockquote: ({ children }: ComponentProps<"blockquote">) => (
-      <blockquote>{children}</blockquote>
-    ),
-    Callout: CalloutLLM,
-    Tabs: TabsLLM,
-    Tab: TabLLM,
-    PlatformTabs: PlatformTabsLLM,
-    PlatformOnly: PlatformOnlyLLM,
-    Cards: CardsLLM,
-    Card: CardLLM,
-    Steps: StepsLLM,
-    Step: StepLLM,
-    InstallCommand: InstallCommandLLM,
-    ParametersTable: ParametersTableLLM,
-    PrimitivesTypeTable: PrimitivesTypeTableLLM,
-  };
+  return LLM_COMPONENTS;
 }
