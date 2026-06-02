@@ -24,6 +24,7 @@ import type {
 } from "../interfaces/composer-runtime-core";
 import type { DictationAdapter } from "../../adapters/speech";
 import { generateId } from "../../utils/id";
+import { applyModeToRunConfig } from "../utils/apply-mode-to-run-config";
 
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
   a.status.type === "complete";
@@ -201,13 +202,7 @@ export abstract class BaseComposerRuntimeCore
       role: this.role,
       content: text ? [{ type: "text", text }] : [],
       attachments: await attachments,
-      runConfig:
-        this._mode === undefined
-          ? this.runConfig
-          : {
-              ...this.runConfig,
-              custom: { ...this.runConfig.custom, mode: this._mode },
-            },
+      runConfig: applyModeToRunConfig(this.runConfig, this._mode),
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 

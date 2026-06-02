@@ -570,6 +570,8 @@ On the server, read the mode from the run config:
 const mode = runConfig?.custom?.mode as string | undefined;
 ```
 
+The active mode takes precedence over `runConfig.custom.mode`: if you also call `setRunConfig({ custom: { mode } })`, the value set via `setMode` wins on send.
+
 ### Custom Submit Behavior
 
 Use `onSubmit` on `Root` to intercept submission:

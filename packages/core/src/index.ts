@@ -262,6 +262,9 @@ export type {
 // ThreadMessageLike
 export type { ThreadMessageLike } from "./runtime/utils/thread-message-like";
 
+// Composer mode
+export { applyModeToRunConfig } from "./runtime/utils/apply-mode-to-run-config";
+
 // External Store Message Utilities
 export {
   getExternalStoreMessages,

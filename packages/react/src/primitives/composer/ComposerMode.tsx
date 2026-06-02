@@ -46,6 +46,7 @@ export const ComposerPrimitiveMode = forwardRef<
   return (
     <Primitive.button
       type="button"
+      aria-pressed={isActive}
       {...(isActive ? { "data-active": "true" } : {})}
       {...props}
       ref={forwardedRef}

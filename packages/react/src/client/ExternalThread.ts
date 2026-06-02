@@ -22,6 +22,7 @@ import type {
   ThreadUserMessagePart,
   ThreadMessage,
 } from "@assistant-ui/core";
+import { applyModeToRunConfig } from "@assistant-ui/core";
 import type { QueueItemState } from "@assistant-ui/core/store";
 import type { ComposerSendOptions } from "@assistant-ui/core/store";
 import { ModelContext, Suggestions } from "@assistant-ui/core/store";
@@ -441,18 +442,7 @@ const ComposerClientResource = resource(
           createdAt: new Date(),
           parentId: null,
           sourceId: null,
-          runConfig:
-            mode === undefined
-              ? runConfig
-              : {
-                  ...runConfig,
-                  custom: {
-                    ...(runConfig.custom as
-                      | Record<string, unknown>
-                      | undefined),
-                    mode,
-                  },
-                },
+          runConfig: applyModeToRunConfig(runConfig, mode),
           startRun: opts?.startRun,
           metadata: {
             custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
