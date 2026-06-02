@@ -37,6 +37,7 @@ export {
   type ToolDefinition,
   type ToolkitDefinition,
   type ToolkitDefinitionEntry,
+  type ToolCallText,
 } from "./model-context/toolbox";
 export { defineToolkit } from "./model-context/define-toolkit";
 export { hitl, hitlTool } from "./model-context/hitl";

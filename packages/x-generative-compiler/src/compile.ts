@@ -403,11 +403,12 @@ function compileToolkit(
     // `type`. The resolved type is written back below so the runtime keeps it.
     const type = inferToolType(value, filename);
     const hasRender = !!findMember(value, "render");
+    const hasRenderText = !!findMember(value, "renderText");
     const execute = findMember(value, "execute");
 
-    if (type === "frontend" && !hasRender) {
+    if (type === "frontend" && !hasRender && !hasRenderText) {
       throw new GenerativeCompileError(
-        "a frontend tool must declare a `render` " +
+        "a frontend tool must declare a `render` or `renderText` " +
           "(it has no server execute to show otherwise)",
         filename,
       );
@@ -429,10 +430,11 @@ function compileToolkit(
       // once the module is client); backend and sentinel executes are dropped.
       if (execute && type === "frontend") stripUseClient(execute);
       else if (execute) removeMember(value, "execute");
-      if (hasRender) flags.keptRender = true;
+      if (hasRender || hasRenderText) flags.keptRender = true;
     } else {
       // server: render is never needed; only a backend execute survives.
       if (hasRender) removeMember(value, "render");
+      if (hasRenderText) removeMember(value, "renderText");
       if (execute && type !== "backend") removeMember(value, "execute");
       if (execute && type === "backend") flags.keptBackendExecute = true;
     }

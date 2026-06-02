@@ -187,6 +187,7 @@ export {
   useInlineRender,
   type Toolkit,
   type ToolDefinition,
+  type ToolCallText,
   type ToolkitDefinition,
   type ToolkitDefinitionEntry,
   defineToolkit,

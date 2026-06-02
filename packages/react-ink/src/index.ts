@@ -195,6 +195,7 @@ export {
   type ToolDefinition,
   type ToolkitDefinition,
   type ToolkitDefinitionEntry,
+  type ToolCallText,
   defineToolkit,
   hitl,
   hitlTool,

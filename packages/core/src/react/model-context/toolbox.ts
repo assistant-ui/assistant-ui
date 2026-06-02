@@ -1,5 +1,9 @@
 import type { Tool, ToolDeclaration } from "assistant-stream";
-import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
+import type { ReactNode } from "react";
+import type {
+  ToolCallMessagePartComponent,
+  ToolCallMessagePartProps,
+} from "../types/MessagePartComponentTypes";
 
 /**
  * Resolves whether a tool's UI should be presented standalone (outside the
@@ -20,10 +24,61 @@ export const isStandaloneToolDisplay = (
 type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
   type: "frontend" | "human";
 }
-  ? T & { render: ToolCallMessagePartComponent<TArgs, TResult> }
+  ? T &
+      (T extends { type: "frontend" }
+        ?
+            | { render: ToolCallMessagePartComponent<TArgs, TResult> }
+            | {
+                render?: ToolCallMessagePartComponent<TArgs, TResult>;
+                renderText: ToolCallText<TArgs, TResult>;
+              }
+        : { render: ToolCallMessagePartComponent<TArgs, TResult> })
   : T & {
       render?: ToolCallMessagePartComponent<TArgs, TResult> | undefined;
+      renderText?: ToolCallText<TArgs, TResult> | undefined;
     };
+
+type ToolCallRunningText<TArgs extends Record<string, unknown>> =
+  | ReactNode
+  | ((options: { args: TArgs }) => ReactNode);
+
+type ToolCallCompleteText<TArgs extends Record<string, unknown>, TResult> =
+  | ReactNode
+  | ((options: { args: TArgs; result: TResult | undefined }) => ReactNode);
+
+export type ToolCallText<TArgs extends Record<string, unknown>, TResult> = {
+  running?: ToolCallRunningText<TArgs> | undefined;
+  complete?: ToolCallCompleteText<TArgs, TResult> | undefined;
+};
+
+const resolveToolCallText = <TArgs extends Record<string, unknown>, TResult>(
+  text: ToolCallText<TArgs, TResult>,
+  part: ToolCallMessagePartProps<TArgs, TResult>,
+): ReactNode => {
+  const isRunning =
+    part.status?.type === "running" || part.status?.type === "requires-action";
+
+  if (!isRunning) {
+    const value = text.complete;
+    if (typeof value !== "function") return value ?? null;
+    return value({ args: part.args, result: part.result });
+  }
+
+  const value = text.running;
+  if (typeof value !== "function") return value ?? null;
+  return value({ args: part.args });
+};
+
+export const makeToolCallTextComponent = <
+  TArgs extends Record<string, unknown>,
+  TResult,
+>(
+  text: ToolCallText<TArgs, TResult>,
+): ToolCallMessagePartComponent<TArgs, TResult> => {
+  return function ToolCallTextComponent(part) {
+    return resolveToolCallText(text, part);
+  };
+};
 
 /**
  * Tool definition accepted by the React tool registry.
