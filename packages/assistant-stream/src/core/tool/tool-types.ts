@@ -307,15 +307,8 @@ type HumanTool<
 
 export type McpServerConfig =
   | {
-      /** Connect to an MCP server over Streamable HTTP. */
-      type: "http";
-      url: string;
-      headers?: Record<string, string>;
-      redirect?: "follow" | "error";
-    }
-  | {
-      /** Connect to an MCP server over server-sent events. */
-      type: "sse";
+      /** Connect to an MCP server over Streamable HTTP or server-sent events. */
+      type: "http" | "sse";
       url: string;
       headers?: Record<string, string>;
       redirect?: "follow" | "error";

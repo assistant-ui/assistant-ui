@@ -184,6 +184,20 @@ export default defineToolkit({ present: other.present() });`;
     );
   });
 
+  it("does not treat nested JSONGenerativeUI instances as module-scope instances", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { JSONGenerativeUI } from "@assistant-ui/react-generative-ui";
+function create() {
+  const ui = new JSONGenerativeUI({ library: {} });
+  return ui;
+}
+export default defineToolkit({ present: ui.present() });`;
+    expect(() => compileGenerative(src, { target: "server" })).toThrow(
+      /inline object literal/,
+    );
+  });
+
   it("allows a generative tool alongside an inline tool", () => {
     const src = `"use generative";
 import { z } from "zod";
@@ -290,6 +304,27 @@ import { defineToolkit } from "@assistant-ui/react";
 import { backendTools } from "@/backend-tools";
 export default defineToolkit({
   ...backendTools,
+});`;
+
+    expect(() => compileGenerative(src, { target: "client" })).toThrow(
+      /compiler-visible toolkit spread/,
+    );
+  });
+
+  it("does not treat nested toolkit declarations as compiler-visible spreads", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+function createToolkit() {
+  const base = defineToolkit({
+    get_weather: {
+      execute: async () => 1,
+      render: () => null,
+    },
+  });
+  return base;
+}
+export default defineToolkit({
+  ...base,
 });`;
 
     expect(() => compileGenerative(src, { target: "client" })).toThrow(

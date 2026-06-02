@@ -116,9 +116,10 @@ export class AISDKToolkit {
     ];
     if (errors.length === 1) throw errors[0];
     if (errors.length > 1) {
-      const error = new Error("Failed to close one or more MCP clients");
-      (error as Error & { errors: unknown[] }).errors = errors;
-      throw error;
+      throw new AggregateError(
+        errors,
+        "Failed to close one or more MCP clients",
+      );
     }
   }
 

@@ -255,9 +255,10 @@ function unwrapToCall(node: t.Node, name: string): t.CallExpression | null {
  */
 function collectGenerativeInstances(ast: t.File): Set<string> {
   const names = new Set<string>();
-  traverse(ast, {
-    VariableDeclarator(path: NodePath<t.VariableDeclarator>) {
-      const { id, init } = path.node;
+  for (const statement of ast.program.body) {
+    if (!t.isVariableDeclaration(statement)) continue;
+    for (const declaration of statement.declarations) {
+      const { id, init } = declaration;
       if (
         t.isIdentifier(id) &&
         t.isNewExpression(init) &&
@@ -265,8 +266,8 @@ function collectGenerativeInstances(ast: t.File): Set<string> {
       ) {
         names.add(id.name);
       }
-    },
-  });
+    }
+  }
   return names;
 }
 
@@ -278,13 +279,14 @@ function collectGenerativeInstances(ast: t.File): Set<string> {
  */
 function collectSafeToolkitSpreads(ast: t.File): Set<string> {
   const names = new Set<string>();
-  traverse(ast, {
-    VariableDeclarator(path: NodePath<t.VariableDeclarator>) {
-      const { id, init } = path.node;
-      if (!t.isIdentifier(id) || !init) return;
+  for (const statement of ast.program.body) {
+    if (!t.isVariableDeclaration(statement)) continue;
+    for (const declaration of statement.declarations) {
+      const { id, init } = declaration;
+      if (!t.isIdentifier(id) || !init) continue;
       if (unwrapToToolkitCall(init)) names.add(id.name);
-    },
-  });
+    }
+  }
   return names;
 }
 
