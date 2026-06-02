@@ -274,6 +274,37 @@ Renders the interim transcript while dictation is active. Renders a `<span>` ele
 <ComposerPrimitive.DictationTranscript className="text-sm text-muted-foreground" />
 ```
 
+### Mode
+
+Unstyled button that selects a sticky composer mode (e.g. plan, debug). Render one per mode — the active control receives `data-active="true"` for styling. Clicking calls `setMode(value)`; the mode is sticky across sends and resets. On send, the active mode is delivered to the backend at `runConfig.custom.mode`. Renders a `<button>` element unless `asChild` is set.
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `value` | `string` | The mode id this button selects. |
+
+```tsx
+<div className="aui-composer-modes">
+  <ComposerPrimitive.Mode value="plan">Plan</ComposerPrimitive.Mode>
+  <ComposerPrimitive.Mode value="debug">Debug</ComposerPrimitive.Mode>
+</div>
+```
+
+Read the active mode from state or clear it:
+
+```tsx
+// read
+const mode = useAuiState((s) => s.composer.mode);
+
+// clear
+aui.composer().setMode(undefined);
+```
+
+On the server, read the mode off the run config:
+
+```ts
+const mode = runConfig?.custom?.mode as string | undefined;
+```
+
 ### If (deprecated)
 
 <Callout type="warn">
@@ -508,6 +539,36 @@ The dropzone sets `data-dragging` when a file is being dragged over it, so you c
 <Callout type="info">
 Voice input requires a `DictationAdapter` configured in your runtime. See [Dictation](/docs/guides/dictation) for setup.
 </Callout>
+
+### Composer Modes
+
+Modes let users switch between named contexts (e.g. plan / debug) that are delivered to the backend on every send. The active mode is sticky — it survives sends and `reset()`.
+
+```tsx
+<ComposerPrimitive.Root>
+  <div className="aui-composer-modes">
+    <ComposerPrimitive.Mode value="plan">Plan</ComposerPrimitive.Mode>
+    <ComposerPrimitive.Mode value="debug">Debug</ComposerPrimitive.Mode>
+  </div>
+  <ComposerPrimitive.Input placeholder="Ask anything..." />
+  <ComposerPrimitive.Send>Send</ComposerPrimitive.Send>
+</ComposerPrimitive.Root>
+```
+
+Style the active button via the `data-active` attribute:
+
+```css
+.aui-composer-modes button[data-active="true"] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+```
+
+On the server, read the mode from the run config:
+
+```ts
+const mode = runConfig?.custom?.mode as string | undefined;
+```
 
 ### Custom Submit Behavior
 

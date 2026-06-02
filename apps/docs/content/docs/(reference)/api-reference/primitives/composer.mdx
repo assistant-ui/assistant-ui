@@ -3,7 +3,7 @@ title: ComposerPrimitive
 description: Composable input primitives for assistant-ui prompts, send controls, cancellation, attachments, and composer state.
 ---
 
-import { ComposerPrimitiveAddAttachmentProps, ComposerPrimitiveAttachmentByIndexProps, ComposerPrimitiveAttachmentDropzoneProps, ComposerPrimitiveAttachmentsProps, ComposerPrimitiveCancelProps, ComposerPrimitiveDictateProps, ComposerPrimitiveDictationTranscriptProps, ComposerPrimitiveIfProps, ComposerPrimitiveInputProps, ComposerPrimitiveQueueProps, ComposerPrimitiveQuoteDismissProps, ComposerPrimitiveQuoteProps, ComposerPrimitiveQuoteTextProps, ComposerPrimitiveRootProps, ComposerPrimitiveSendProps, ComposerPrimitiveStopDictationProps, ComposerPrimitiveUnstable_TriggerPopoverBackProps, ComposerPrimitiveUnstable_TriggerPopoverCategoriesProps, ComposerPrimitiveUnstable_TriggerPopoverCategoryItemProps, ComposerPrimitiveUnstable_TriggerPopoverItemProps, ComposerPrimitiveUnstable_TriggerPopoverItemsProps, ComposerPrimitiveUnstable_TriggerPopoverProps, ComposerPrimitiveUnstable_TriggerPopoverRootProps } from "@/generated/typeDocs";
+import { ComposerPrimitiveAddAttachmentProps, ComposerPrimitiveAttachmentByIndexProps, ComposerPrimitiveAttachmentDropzoneProps, ComposerPrimitiveAttachmentsProps, ComposerPrimitiveCancelProps, ComposerPrimitiveDictateProps, ComposerPrimitiveDictationTranscriptProps, ComposerPrimitiveIfProps, ComposerPrimitiveInputProps, ComposerPrimitiveModeProps, ComposerPrimitiveQueueProps, ComposerPrimitiveQuoteDismissProps, ComposerPrimitiveQuoteProps, ComposerPrimitiveQuoteTextProps, ComposerPrimitiveRootProps, ComposerPrimitiveSendProps, ComposerPrimitiveStopDictationProps, ComposerPrimitiveUnstable_TriggerPopoverBackProps, ComposerPrimitiveUnstable_TriggerPopoverCategoriesProps, ComposerPrimitiveUnstable_TriggerPopoverCategoryItemProps, ComposerPrimitiveUnstable_TriggerPopoverItemProps, ComposerPrimitiveUnstable_TriggerPopoverItemsProps, ComposerPrimitiveUnstable_TriggerPopoverProps, ComposerPrimitiveUnstable_TriggerPopoverRootProps } from "@/generated/typeDocs";
 import { ComposerPrimitive as ComposerPrimitiveDocs } from "@/generated/primitiveDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
@@ -349,6 +349,22 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
 )}
 
 <ParametersTable {...ComposerPrimitiveQuoteDismissProps} />
+
+### Mode
+
+{ComposerPrimitiveDocs.Mode?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ComposerPrimitiveDocs.Mode.deprecated}
+  </Callout>
+)}
+
+{ComposerPrimitiveDocs.Mode?.description}
+
+{ComposerPrimitiveDocs.Mode?.element && (
+  <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.Mode?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+<ParametersTable {...ComposerPrimitiveModeProps} />
 
 ### Queue
 
