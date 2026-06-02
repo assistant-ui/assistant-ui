@@ -20,7 +20,7 @@ export type GalleryWidget = {
   description: string;
   category: GalleryWidgetCategory;
   api: "defineToolkit";
-  usage: string;
+  usage?: string;
   props: GalleryWidgetProp[];
 };
 
@@ -506,6 +506,138 @@ export default defineToolkit({
         name: "progress",
         type: "number",
         description: "Journey completion, from 0 to 1.",
+      },
+    ],
+  },
+  {
+    slug: "create-task",
+    title: "Create task",
+    description: "A task form with a title, description, and due date picker.",
+    category: "Scheduling",
+    api: "defineToolkit",
+    props: [
+      { name: "title", type: "string", description: "Initial task title." },
+      {
+        name: "description",
+        type: "string",
+        description: "Initial task description.",
+      },
+      {
+        name: "due",
+        type: "string",
+        description: "Initial due date, as an ISO date string.",
+      },
+    ],
+  },
+  {
+    slug: "software-purchase",
+    title: "Software purchase",
+    description:
+      "A purchase form with text input, plan and billing selects, and a date.",
+    category: "Commerce",
+    api: "defineToolkit",
+    props: [
+      { name: "vendor", type: "string", description: "Vendor or tool name." },
+      {
+        name: "plan",
+        type: "string",
+        description: "Selected plan tier.",
+      },
+      {
+        name: "billing",
+        type: "string",
+        description: "Billing frequency.",
+      },
+    ],
+  },
+  {
+    slug: "feedback",
+    title: "Feedback form",
+    description:
+      "A survey with a radio group, checkboxes, and a free-text comment.",
+    category: "Interaction",
+    api: "defineToolkit",
+    props: [
+      {
+        name: "rating",
+        type: "string",
+        description: "Pre-selected rating value.",
+      },
+      {
+        name: "channels",
+        type: "string[]",
+        description: "Pre-checked options.",
+      },
+    ],
+  },
+  {
+    slug: "comparison-table",
+    title: "Comparison table",
+    description: "Column-aligned rows with a heading row and aligned values.",
+    category: "Data",
+    api: "defineToolkit",
+    props: [
+      {
+        name: "columns",
+        type: "string[]",
+        description: "Heading row labels.",
+      },
+      {
+        name: "rows",
+        type: "string[][]",
+        description: "One array of cell values per row.",
+      },
+    ],
+  },
+  {
+    slug: "traffic-split",
+    title: "Stacked chart",
+    description: "A multi-series chart with stacked bars and a legend.",
+    category: "Data",
+    api: "defineToolkit",
+    props: [
+      {
+        name: "series",
+        type: "{ dataKey: string; name?: string; color?: string }[]",
+        description: "Series to stack, one per key.",
+      },
+      {
+        name: "data",
+        type: "Record<string, string | number>[]",
+        description: "Rows keyed by x label plus one value per series.",
+      },
+    ],
+  },
+  {
+    slug: "channel-message",
+    title: "Channel message",
+    description: "A chat message with a header and markdown-formatted body.",
+    category: "Content",
+    api: "defineToolkit",
+    props: [
+      { name: "channel", type: "string", description: "Channel name." },
+      { name: "author", type: "string", description: "Message author." },
+      {
+        name: "body",
+        type: "string",
+        description: "Message body, as markdown.",
+      },
+    ],
+  },
+  {
+    slug: "receipt",
+    title: "Purchase receipt",
+    description:
+      "An order confirmation with a thumbnail, delivery details, and total.",
+    category: "Commerce",
+    api: "defineToolkit",
+    props: [
+      { name: "item", type: "string", description: "Purchased item name." },
+      { name: "total", type: "string", description: "Formatted amount paid." },
+      {
+        name: "delivery",
+        type: "string",
+        description: "Estimated delivery date.",
       },
     ],
   },

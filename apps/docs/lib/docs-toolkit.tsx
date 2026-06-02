@@ -22,6 +22,8 @@ import {
 
 const RENDER_GENERATIVE_UI_TOOL_NAME = "render_generative_ui" as const;
 
+// Mirror of DEFAULT_REGISTRY keys, kept static on purpose: this module's top
+// level runs server-side, and reading the client registry here crashes it.
 const PRIMITIVE_TYPES = [
   "Card",
   "Box",
@@ -29,14 +31,26 @@ const PRIMITIVE_TYPES = [
   "Row",
   "Spacer",
   "Divider",
+  "Table",
+  "TableRow",
+  "TableCell",
   "Text",
   "Title",
   "Caption",
+  "Markdown",
   "Image",
   "Icon",
   "Chart",
   "Badge",
   "Button",
+  "Input",
+  "Textarea",
+  "Select",
+  "Checkbox",
+  "RadioGroup",
+  "DatePicker",
+  "Label",
+  "Form",
 ] as const;
 
 const PRIMITIVE_TYPES_LABEL = PRIMITIVE_TYPES.join(", ");
@@ -123,14 +137,15 @@ export default defineToolkit({
   [RENDER_GENERATIVE_UI_TOOL_NAME]: {
     display: "standalone",
     description:
-      "Render generative UI directly in the conversation using the assistant-ui gallery JSON UI primitives. " +
-      "Use this whenever the user asks for a visual comparison, dashboard, card, chart, or generated UI. " +
-      "The spec is a JSON UI node or array of nodes with the flat shape { type, ...props, children }. " +
-      "Do not use { root }, { component }, or a nested props object. " +
-      `Available types: ${PRIMITIVE_TYPES_LABEL}. ` +
-      "For comparison charts, build a Card containing Title/Caption/Text and a Chart primitive. " +
-      "The Chart primitive props are: variant ('bar', 'line', or 'sparkline'), data (array of objects), xKey, dataKey, color, and height. " +
-      "Example spec: { type: 'Card', children: [{ type: 'Col', gap: 2, children: [{ type: 'Title', value: 'Economic strength comparison' }, { type: 'Caption', value: 'GDP in USD trillions' }, { type: 'Chart', variant: 'bar', data: [{ label: 'United States', value: 29 }, { label: 'China', value: 18.7 }], xKey: 'label', dataKey: 'value', height: 220 }] }] }.",
+      "Render a rich UI inline from a JSON spec, using assistant-ui's generative UI primitives. " +
+      "Use it whenever a chart, table, dashboard, card, comparison, or other visual or structured layout answers better than prose.\n" +
+      "Output: the tool renders the spec by itself. Put the entire UI in the spec argument, and never repeat, paste, summarize, or restate the spec or its JSON in your text. Add at most one short sentence alongside it, or no text at all.\n" +
+      "Spec shape: a node, or an array of nodes, where each node is { type, ...props, children }. type is a primitive name, props are flat fields on the node, and children is an array of child nodes or strings. Never wrap props in a props object, and never wrap the tree in root or component.\n" +
+      `Available types: ${PRIMITIVE_TYPES_LABEL}.\n` +
+      "Layout: wrap related content in a Card, arrange it with Col and Row (set gap), use Title, Caption, and Text for copy, and Badge for status.\n" +
+      "Charts: use Chart with variant ('bar', 'line', or 'sparkline'), data (an array of objects), xKey, dataKey, color, and height.\n" +
+      "Tables: use a Table whose children are TableRow nodes (set header: true on the heading row), each holding TableCell nodes whose text is set with value (e.g. { type: 'TableCell', value: 'Q1' }). Never place a Table directly inside another Table.\n" +
+      "Example: { type: 'Card', children: [{ type: 'Col', gap: 2, children: [{ type: 'Title', value: 'Economic strength' }, { type: 'Caption', value: 'GDP in USD trillions' }, { type: 'Chart', variant: 'bar', data: [{ label: 'United States', value: 29 }, { label: 'China', value: 18.7 }], xKey: 'label', dataKey: 'value', height: 220 }] }] }.",
     parameters: renderGenerativeUIArgsSchema,
     execute: async () => {
       "use client";

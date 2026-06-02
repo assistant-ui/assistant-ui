@@ -64,9 +64,21 @@ export function DocsRuntimeProvider({
         prompt: "What's the weather in San Francisco?",
       },
       {
-        title: "Explain React hooks",
-        label: "like useState and useEffect",
-        prompt: "Explain React hooks like useState and useEffect",
+        title: "Compare GDP",
+        label: "of the US, China, and Japan",
+        prompt: "Compare the GDP of the United States, China, and Japan.",
+      },
+      {
+        title: "Compare frameworks",
+        label: "React, Vue, and Svelte in a table",
+        prompt:
+          "Show a side-by-side comparison table of React, Vue, and Svelte.",
+      },
+      {
+        title: "Build a dashboard",
+        label: "of last year's revenue by quarter",
+        prompt:
+          "Build a dashboard of last year's revenue, broken down by quarter.",
       },
     ]),
   });
