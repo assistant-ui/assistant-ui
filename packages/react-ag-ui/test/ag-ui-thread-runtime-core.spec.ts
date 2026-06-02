@@ -254,6 +254,30 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runInputs[1].state).toEqual({ foo: "bar" });
   });
 
+  it("applies state deltas after a null state snapshot", async () => {
+    const error = vi.fn();
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onStateSnapshotEvent?.({
+          event: { type: "STATE_SNAPSHOT", snapshot: null },
+        });
+        subscriber.onStateDeltaEvent?.({
+          event: {
+            type: "STATE_DELTA",
+            delta: [{ op: "add", path: "/foo", value: "bar" }],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent, { logger: makeLogger({ error }) });
+    await core.append(createAppendMessage());
+
+    expect(core.getState()).toEqual({ foo: "bar" });
+    expect(error).not.toHaveBeenCalled();
+  });
+
   it("isolates invalid state deltas and leaves state unchanged", async () => {
     const error = vi.fn();
     const agent = {

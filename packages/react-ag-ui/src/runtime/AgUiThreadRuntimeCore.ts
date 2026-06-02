@@ -733,13 +733,12 @@ export class AgUiThreadRuntimeCore {
       case "STATE_DELTA": {
         if (event.delta.length === 0) return;
         try {
-          const state =
-            this.stateSnapshot === undefined ? {} : this.stateSnapshot;
+          const state = this.stateSnapshot ?? {};
           const result = jsonpatch.applyPatch(
             state,
             event.delta as Operation[],
-            true,
-            false,
+            /* validateOperation */ true,
+            /* mutateDocument */ false,
           );
           this.stateSnapshot = result.newDocument as ReadonlyJSONValue;
           this.notifyUpdate();
