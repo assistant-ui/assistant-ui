@@ -1,5 +1,18 @@
 # @assistant-ui/react-langgraph
 
+## 0.14.6
+
+### Patch Changes
+
+- [#4178](https://github.com/assistant-ui/assistant-ui/pull/4178) [`70de5eb`](https://github.com/assistant-ui/assistant-ui/commit/70de5eb83a0543acd2f95d2a24f8d2f3a4f1e130) - fix: resolve type-check errors — `@assistant-ui/next` now extends the Node tsconfig so `node:path` resolves, and drop an unused import in `react-langgraph` ([@Yonom](https://github.com/Yonom))
+
+- [#4198](https://github.com/assistant-ui/assistant-ui/pull/4198) [`78ff336`](https://github.com/assistant-ui/assistant-ui/commit/78ff336028ce125608a4b716a93a2519ad6d9eab) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`cba2b42`](https://github.com/assistant-ui/assistant-ui/commit/cba2b42c26083e730ae07194186ab4473f9f4cf3), [`78ff336`](https://github.com/assistant-ui/assistant-ui/commit/78ff336028ce125608a4b716a93a2519ad6d9eab), [`5fe118d`](https://github.com/assistant-ui/assistant-ui/commit/5fe118d6e61fd661859ee0d6b5ef10a370992a84), [`dcd5897`](https://github.com/assistant-ui/assistant-ui/commit/dcd5897f6dd6ca6bfe6978c3c03371e070965eab), [`0558db2`](https://github.com/assistant-ui/assistant-ui/commit/0558db28952fcd1c05a2ea3f15020cf50ca52489), [`d9b3119`](https://github.com/assistant-ui/assistant-ui/commit/d9b311977759818fcdcea6037c938e7070276f47)]:
+  - assistant-stream@0.3.20
+  - assistant-cloud@0.1.31
+  - @assistant-ui/core@0.2.10
+
 ## 0.14.5
 
 ### Patch Changes

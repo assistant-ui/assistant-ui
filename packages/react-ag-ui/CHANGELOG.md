@@ -1,5 +1,17 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.35
+
+### Patch Changes
+
+- [#4198](https://github.com/assistant-ui/assistant-ui/pull/4198) [`78ff336`](https://github.com/assistant-ui/assistant-ui/commit/78ff336028ce125608a4b716a93a2519ad6d9eab) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4210](https://github.com/assistant-ui/assistant-ui/pull/4210) [`8dc2e0d`](https://github.com/assistant-ui/assistant-ui/commit/8dc2e0d295118f2b37bd14c854aeb4f092e59c60) - feat(react-ag-ui): apply AG-UI STATE_DELTA events ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`cba2b42`](https://github.com/assistant-ui/assistant-ui/commit/cba2b42c26083e730ae07194186ab4473f9f4cf3), [`5fe118d`](https://github.com/assistant-ui/assistant-ui/commit/5fe118d6e61fd661859ee0d6b5ef10a370992a84), [`dcd5897`](https://github.com/assistant-ui/assistant-ui/commit/dcd5897f6dd6ca6bfe6978c3c03371e070965eab), [`0558db2`](https://github.com/assistant-ui/assistant-ui/commit/0558db28952fcd1c05a2ea3f15020cf50ca52489), [`d9b3119`](https://github.com/assistant-ui/assistant-ui/commit/d9b311977759818fcdcea6037c938e7070276f47)]:
+  - assistant-stream@0.3.20
+  - @assistant-ui/core@0.2.10
+
 ## 0.0.34
 
 ### Patch Changes
