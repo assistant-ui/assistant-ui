@@ -44,6 +44,7 @@ import {
   type ViewportPreset,
 } from "@/lib/playground-url-state";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
+import { PlaygroundRuntimeProvider } from "@/contexts/PlaygroundRuntimeProvider";
 
 const XuluxApp = isAiPlaygroundEnabled
   ? dynamic(() =>
@@ -360,9 +361,11 @@ function BuilderPlayground() {
   );
 
   return (
-    <PlaygroundChatProvider config={config} setConfig={setConfig}>
-      {content}
-    </PlaygroundChatProvider>
+    <PlaygroundRuntimeProvider>
+      <PlaygroundChatProvider config={config} setConfig={setConfig}>
+        {content}
+      </PlaygroundChatProvider>
+    </PlaygroundRuntimeProvider>
   );
 }
 

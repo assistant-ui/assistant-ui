@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  AssistantRuntimeProvider,
+  useRemoteThreadListRuntime,
+} from "@assistant-ui/react";
 import {
   AssistantChatTransport,
   useChatRuntime,
@@ -9,6 +12,8 @@ import {
 import { AssistantPanelProvider } from "@/components/docs/assistant/context";
 import type { XuluxTemplate } from "./templates/types";
 import { XuluxShell } from "./shell/XuluxShell";
+import { createXuluxLocalThreadListAdapter } from "./runtime/xulux-thread-list-adapter";
+import { XuluxThreadStatusObserver } from "./runtime/XuluxThreadStatusObserver";
 
 export type SelectedTemplateContext = Pick<
   XuluxTemplate,
@@ -22,18 +27,17 @@ export function XuluxApp() {
 
   const resetSession = () => {
     setSelectedTemplateContext(null);
-    setSessionId(crypto.randomUUID());
   };
 
   return (
     <XuluxRuntimeProvider
-      key={sessionId}
       sessionId={sessionId}
       selectedTemplateContext={selectedTemplateContext}
     >
       <AssistantPanelProvider>
         <XuluxShell
           sessionId={sessionId}
+          onSetSessionId={setSessionId}
           onSetSelectedTemplateContext={setSelectedTemplateContext}
           onResetSession={resetSession}
         />
@@ -51,18 +55,35 @@ function XuluxRuntimeProvider({
   selectedTemplateContext: SelectedTemplateContext | null;
   children: ReactNode;
 }) {
-  const runtime = useChatRuntime({
-    transport: new AssistantChatTransport({
-      api: "/api/xulux/chat",
-      body: {
-        sessionId,
-        selectedTemplate: selectedTemplateContext,
-      },
-    }),
+  const sessionIdRef = useRef(sessionId);
+  sessionIdRef.current = sessionId;
+
+  const adapter = useMemo(
+    () =>
+      createXuluxLocalThreadListAdapter({
+        getCurrentSessionId: () => sessionIdRef.current,
+      }),
+    [],
+  );
+
+  const runtime = useRemoteThreadListRuntime({
+    adapter,
+    runtimeHook: function XuluxChatRuntimeHook() {
+      return useChatRuntime({
+        transport: new AssistantChatTransport({
+          api: "/api/xulux/chat",
+          body: {
+            sessionId,
+            selectedTemplate: selectedTemplateContext,
+          },
+        }),
+      });
+    },
   });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
+      <XuluxThreadStatusObserver />
       {children}
     </AssistantRuntimeProvider>
   );
