@@ -7,6 +7,7 @@ import { getModel, openai } from "@/lib/ai/provider";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { prismAISDK } from "@aui-x/prism";
 import { withTracing } from "@posthog/ai";
+import { NextResponse } from "next/server";
 import {
   convertToModelMessages,
   pruneMessages,
@@ -246,7 +247,7 @@ Use inline code (\`backticks\`) for:
 
 export async function POST(req: Request): Promise<Response> {
   if (!isAiPlaygroundEnabled) {
-    return new Response("Not found", { status: 404 });
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 
   try {
