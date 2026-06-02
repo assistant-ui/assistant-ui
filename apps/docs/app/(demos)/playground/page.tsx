@@ -45,9 +45,11 @@ import {
 } from "@/lib/playground-url-state";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 
-const XuluxApp = dynamic(() =>
-  import("@/components/xulux/XuluxApp").then((mod) => mod.XuluxApp),
-);
+const XuluxApp = isAiPlaygroundEnabled
+  ? dynamic(() =>
+      import("@/components/xulux/XuluxApp").then((mod) => mod.XuluxApp),
+    )
+  : null;
 
 const VIEWPORT_PRESETS = {
   desktop: { width: "100%" as const, label: "Desktop", icon: Monitor },
@@ -418,11 +420,7 @@ export default function PlaygroundPage() {
       )}
 
       <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
-        {isAiPlaygroundEnabled && mode === "agent" ? (
-          <XuluxApp />
-        ) : (
-          <BuilderPlayground />
-        )}
+        {XuluxApp && mode === "agent" ? <XuluxApp /> : <BuilderPlayground />}
       </div>
     </>
   );
