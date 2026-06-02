@@ -1,5 +1,27 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.3.32
+
+### Patch Changes
+
+- [#4196](https://github.com/assistant-ui/assistant-ui/pull/4196) [`b3655bc`](https://github.com/assistant-ui/assistant-ui/commit/b3655bcebf233d2de986d4f1f51ac0261ea3ea7a) - fix: strip stale approval object when cancelling a tool pending approval so the next request passes validateUIMessages ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4192](https://github.com/assistant-ui/assistant-ui/pull/4192) [`4f2e077`](https://github.com/assistant-ui/assistant-ui/commit/4f2e077e10840faf8748d9aa13b782dd828ea776) - fix: support data message parts in toCreateMessage instead of throwing ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4216](https://github.com/assistant-ui/assistant-ui/pull/4216) [`d440594`](https://github.com/assistant-ui/assistant-ui/commit/d44059483e366b4763328545754ff50b81fe110c) - fix: convert generative tool `toModelOutput` to AI SDK content shape ([@AVGVSTVS96](https://github.com/AVGVSTVS96))
+
+- [#4212](https://github.com/assistant-ui/assistant-ui/pull/4212) [`5fe118d`](https://github.com/assistant-ui/assistant-ui/commit/5fe118d6e61fd661859ee0d6b5ef10a370992a84) - feat: add MCP server support to generative toolkits ([@Yonom](https://github.com/Yonom))
+
+- [#4213](https://github.com/assistant-ui/assistant-ui/pull/4213) [`dcd5897`](https://github.com/assistant-ui/assistant-ui/commit/dcd5897f6dd6ca6bfe6978c3c03371e070965eab) - feat: add provider-executed tool support to generative toolkits ([@Yonom](https://github.com/Yonom))
+
+- [#4199](https://github.com/assistant-ui/assistant-ui/pull/4199) [`d9b3119`](https://github.com/assistant-ui/assistant-ui/commit/d9b311977759818fcdcea6037c938e7070276f47) - feat: a `defineToolkit` entry may now be an already-formed `ToolDefinition` (carrying its own `type`), not only an inline definition whose `type` the compiler infers. This is what lets a factory like `new JSONGenerativeUI({ library }).present()` be used directly as a tool. ([@Yonom](https://github.com/Yonom))
+
+  Renames the authoring types to match `defineToolkit`: `ToolkitDeclaration` → `ToolkitDefinition`, and adds `ToolkitDefinitionEntry` (the union of an inline tool definition and a pre-formed `ToolDefinition`). The per-tool inline type is now an internal `ToolkitDefinitionInput` and is no longer exported.
+
+- Updated dependencies [[`78ff336`](https://github.com/assistant-ui/assistant-ui/commit/78ff336028ce125608a4b716a93a2519ad6d9eab), [`5fe118d`](https://github.com/assistant-ui/assistant-ui/commit/5fe118d6e61fd661859ee0d6b5ef10a370992a84), [`dcd5897`](https://github.com/assistant-ui/assistant-ui/commit/dcd5897f6dd6ca6bfe6978c3c03371e070965eab), [`0558db2`](https://github.com/assistant-ui/assistant-ui/commit/0558db28952fcd1c05a2ea3f15020cf50ca52489), [`d9b3119`](https://github.com/assistant-ui/assistant-ui/commit/d9b311977759818fcdcea6037c938e7070276f47)]:
+  - assistant-cloud@0.1.31
+  - @assistant-ui/core@0.2.10
+
 ## 1.3.31
 
 ### Patch Changes
