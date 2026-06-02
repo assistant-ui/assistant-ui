@@ -299,6 +299,50 @@ describe("toToolsJSONSchema", () => {
       expect(result).toHaveProperty("humanTool");
     });
 
+    it("omits schemas for tools with backend parameter defaults", () => {
+      const tools: Record<string, Tool> = {
+        generatedFrontendTool: {
+          type: "frontend",
+          description: "A generated frontend tool",
+          parameters: { type: "object", properties: {} },
+          execute: async () => {},
+          unstable_backendDefault: { parameters: true },
+        },
+        generatedHumanTool: {
+          type: "human",
+          description: "A generated human tool",
+          parameters: { type: "object", properties: {} },
+          unstable_backendDefault: { parameters: true },
+        },
+        olderFrontendTool: {
+          type: "frontend",
+          description: "An older frontend tool",
+          parameters: { type: "object", properties: {} },
+          execute: async () => {},
+        },
+      };
+
+      const result = toToolsJSONSchema(tools);
+      expect(result).not.toHaveProperty("generatedFrontendTool");
+      expect(result).not.toHaveProperty("generatedHumanTool");
+      expect(result).toHaveProperty("olderFrontendTool");
+    });
+
+    it("omits tools that only have backend defaults with no client overrides", () => {
+      const tools: Record<string, Tool> = {
+        generatedFrontendTool: {
+          type: "frontend",
+          parameters: { type: "object", properties: {} },
+          execute: async () => {},
+          unstable_backendDefault: { parameters: true },
+        },
+      };
+
+      const result = toToolsJSONSchema(tools);
+
+      expect(result).not.toHaveProperty("generatedFrontendTool");
+    });
+
     it("excludes tools without parameters", () => {
       const tools: Record<string, Tool> = {
         withParams: {

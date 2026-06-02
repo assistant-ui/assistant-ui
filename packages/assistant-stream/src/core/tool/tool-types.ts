@@ -216,6 +216,14 @@ type ToolBase<
    * @see ToolDisplay
    */
   display?: ToolDisplay;
+
+  /**
+   * @internal Defaults already known by the backend for this tool. Client
+   * transports omit matching fields and only upload overrides.
+   */
+  unstable_backendDefault?: {
+    parameters?: true;
+  };
 };
 
 type BackendTool<

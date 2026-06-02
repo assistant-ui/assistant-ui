@@ -54,6 +54,10 @@ describe("compileGenerative — server target", () => {
     expect(code).toContain('type: "frontend"'); // toast: execute + "use client"
   });
 
+  it("does not mark server tools with backend defaults", () => {
+    expect(code).not.toContain("unstable_backendDefault");
+  });
+
   it("drops all render and its client imports", () => {
     expect(code).not.toContain("Chart");
     expect(code).not.toContain("<div");
@@ -96,6 +100,29 @@ describe("compileGenerative — client target", () => {
   it("writes the inferred type back onto each tool", () => {
     expect(code).toContain('type: "backend"'); // weather (schema-only on client)
     expect(code).toContain('type: "frontend"'); // toast
+  });
+
+  it("marks generated frontend tools with backend parameter defaults", () => {
+    expect(code).toContain("unstable_backendDefault: {");
+    expect(code).toContain("parameters: true");
+  });
+
+  it("marks generated human tools with backend parameter defaults", () => {
+    const src = `"use generative";
+import { defineToolkit, hitlTool } from "@assistant-ui/react";
+export default defineToolkit({
+  ask: {
+    parameters: { type: "object", properties: {} },
+    execute: hitlTool(),
+    render: () => null,
+  },
+});
+`;
+
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain('type: "human"');
+    expect(code).toContain("unstable_backendDefault: {");
+    expect(code).toContain("parameters: true");
   });
 
   it("drops a backend execute and its server-only imports", () => {

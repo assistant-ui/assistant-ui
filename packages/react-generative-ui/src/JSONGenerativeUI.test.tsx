@@ -34,6 +34,7 @@ describe("JSONGenerativeUI — client build", () => {
     expect(tool.type).toBe("frontend");
     expect(typeof tool.execute).toBe("function");
     expect(typeof tool.render).toBe("function");
+    expect(tool.unstable_backendDefault).toEqual({ parameters: true });
     expect((tool.parameters as any).properties.$type.enum).toEqual([
       "Card",
       "Button",
@@ -48,6 +49,7 @@ describe("JSONGenerativeUI — client build", () => {
   it("prompt_user is a human tool that renders the tree (no execute)", () => {
     const tool = ui.promptUser();
     expect(tool.type).toBe("human");
+    expect(tool.unstable_backendDefault).toEqual({ parameters: true });
     expect((tool as any).execute).toBeUndefined();
     const html = renderTool(tool, { $type: "Button", label: "ok" });
     expect(html).toBe("<button>ok</button>");

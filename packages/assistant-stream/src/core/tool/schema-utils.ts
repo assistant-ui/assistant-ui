@@ -133,6 +133,18 @@ function defaultToolFilter(_name: string, tool: Tool): boolean {
   return !tool.disabled && tool.type !== "backend";
 }
 
+function toolHasUploadableFields(tool: Tool): boolean {
+  return (
+    tool.parameters !== undefined && !tool.unstable_backendDefault?.parameters
+  );
+}
+
+function toolHasUploadableParameters(
+  tool: Tool,
+): tool is Tool & { parameters: NonNullable<Tool["parameters"]> } {
+  return toolHasUploadableFields(tool);
+}
+
 /**
  * Converts a record of tools to a record of tool definitions with JSON Schema parameters.
  * By default, filters out disabled tools and backend tools.
@@ -152,13 +164,21 @@ export function toToolsJSONSchema(
 
   return Object.fromEntries(
     Object.entries(tools)
-      .filter(([name, tool]) => filter(name, tool) && tool.parameters)
+      .filter(
+        (
+          entry,
+        ): entry is [
+          string,
+          Tool & { parameters: NonNullable<Tool["parameters"]> },
+        ] =>
+          filter(entry[0], entry[1]) && toolHasUploadableParameters(entry[1]),
+      )
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([name, tool]) => [
         name,
         {
           ...(tool.description && { description: tool.description }),
-          parameters: toJSONSchema(tool.parameters!),
+          parameters: toJSONSchema(tool.parameters),
           ...(tool.providerOptions && {
             providerOptions: tool.providerOptions,
           }),
