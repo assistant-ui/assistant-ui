@@ -299,7 +299,7 @@ const mode = useAuiState((s) => s.composer.mode);
 aui.composer().setMode(undefined);
 ```
 
-Mode selection is single-select: clicking a mode sets it, and there is no built-in deselect — clear with `setMode(undefined)`. The active control only exposes `data-active`; add the ARIA semantics that match your markup (e.g. `aria-pressed` for a toolbar of toggles, `aria-checked` within a `radiogroup`, or `aria-current`).
+Mode selection is single-select: clicking a mode sets it, and there is no built-in deselect — clear with `setMode(undefined)`. The active control only exposes `data-active`; add the ARIA that fits a single-select group — `role="radiogroup"` with `aria-checked` on each control, or `aria-current` for the active one.
 
 On the server, read the mode off the run config:
 
