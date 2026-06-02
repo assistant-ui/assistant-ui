@@ -9,7 +9,7 @@ await build({
   ],
   platform: "neutral",
   unbundle: true,
-  deps: { skipNodeModulesBundle: true },
+  deps: { neverBundle: /^node:/, skipNodeModulesBundle: true },
   dts: { sourcemap: true },
   sourcemap: true,
   plugins: [preserveReferenceDirectives()],
