@@ -316,7 +316,6 @@ export default defineToolkit({
     expect(client).toContain("render");
     expect(client).not.toContain("db.get");
   });
-
 });
 
 describe("compileGenerative — local dead-code elimination", () => {
