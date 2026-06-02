@@ -12,6 +12,22 @@ import { useAssistantTool } from "@/generated/typeDocs";
 `useAssistantTool` and `makeAssistantTool` register a single tool while a React component is mounted, and remove it on unmount.
 
 Use these APIs when a tool's availability should follow a specific UI surface — for example, a tool that operates on whatever is currently selected in a panel that may or may not be present. For tools that should be available throughout an assistant subtree regardless of which UI is mounted, see [Toolkits](/docs/api-reference/tools/toolkits).
+
+For simple tool-call displays, use `renderText` instead of a custom `render` component:
+
+```tsx
+useAssistantTool({
+  toolName: "search_docs",
+  type: "frontend",
+  description: "Search the docs.",
+  parameters: searchDocsSchema,
+  execute: async ({ query }) => searchDocs(query),
+  renderText: {
+    running: ({ args }) => `Searching for ${args.query}...`,
+    complete: "Search complete",
+  },
+});
+```
 {/* api-manual:end */}
 
 {/* api-reference:start */}
