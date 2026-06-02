@@ -88,11 +88,10 @@ export const makeToolCallTextComponent = <
 /**
  * Tool definition accepted by the React tool registry.
  *
- * Extends the core tool contract with a render component. Human tools rely on
- * the renderer to collect input from the user. Frontend tools execute in the
- * browser and require a UI surface for their progress and result. Backend
- * tools execute server-side and may omit a renderer. The `render` component is
- * required for frontend and human tools and optional for backend tools.
+ * Extends the core tool contract with tool-call display options. Human tools
+ * rely on `render` to collect input from the user. Frontend tools execute in
+ * the browser and require either `render` or `renderText` for their progress
+ * and result. Backend tools execute server-side and may omit a renderer.
  */
 export type ToolDefinition<
   TArgs extends Record<string, unknown>,
