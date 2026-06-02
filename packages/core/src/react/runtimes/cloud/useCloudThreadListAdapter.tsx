@@ -27,6 +27,9 @@ type CloudThreadListAdapterOptions = {
   delete?: ((threadId: string) => Promise<void>) | undefined;
 };
 
+const toCustom = (value: unknown): Record<string, unknown> | undefined =>
+  isRecord(value) ? value : undefined;
+
 const baseUrl =
   typeof process !== "undefined" &&
   process?.env?.NEXT_PUBLIC_ASSISTANT_BASE_URL;
@@ -92,7 +95,7 @@ export const useCloudThreadListAdapter = (
           remoteId: t.id,
           title: t.title,
           externalId: t.external_id ?? undefined,
-          custom: isRecord(t.metadata) ? t.metadata : undefined,
+          custom: toCustom(t.metadata),
         })),
       };
     },
@@ -151,7 +154,7 @@ export const useCloudThreadListAdapter = (
         remoteId: thread.id,
         title: thread.title,
         externalId: thread.external_id ?? undefined,
-        custom: isRecord(thread.metadata) ? thread.metadata : undefined,
+        custom: toCustom(thread.metadata),
       };
     },
 

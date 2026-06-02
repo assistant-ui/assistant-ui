@@ -516,9 +516,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (!data) throw new Error("Thread not found");
     if (data.status === "new") throw new Error("Thread is not yet initialized");
 
-    const adapter = this._options.adapter;
-    const updateCustom = adapter.updateCustom;
-    if (!updateCustom) {
+    if (!this._options.adapter.updateCustom) {
       throw new Error(
         "Remote thread list adapter does not support updating custom metadata",
       );
@@ -527,11 +525,17 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._state.optimisticUpdate({
       execute: async () => {
         const { remoteId } = await data.initializeTask;
-        return updateCustom.call(adapter, remoteId, custom);
+        const adapter = this._options.adapter;
+        if (!adapter.updateCustom) {
+          throw new Error(
+            "Remote thread list adapter does not support updating custom metadata",
+          );
+        }
+        return adapter.updateCustom(remoteId, custom);
       },
       optimistic: (state) => {
         const data = getThreadData(state, threadIdOrRemoteId);
-        if (!data || data.status === "new") return state;
+        if (!data) return state;
 
         return {
           ...state,
