@@ -288,6 +288,12 @@ A few invariants worth knowing when wiring a custom UI on top of `loadMore()`:
       required: true,
     },
     {
+      name: "updateCustom",
+      type: "(remoteId: string, custom: Record<string, unknown> | undefined) => Promise<void>",
+      description:
+        "Optional. Persist replacement custom metadata from `aui.threadListItem().updateCustom(custom)`.",
+    },
+    {
       name: "archive",
       type: "(remoteId: string) => Promise<void>",
       description: "Mark thread archived.",
@@ -355,7 +361,7 @@ function ThreadListItemMeta() {
 }
 ```
 
-`custom` is preserved across `rename`, `archive`, `unarchive`, and `generateTitle`. To mutate it, return updated values from a subsequent `fetch()` or call `runtime.threads.reload()`.
+`custom` is preserved across `rename`, `archive`, `unarchive`, and `generateTitle`. To replace it from your UI, implement `RemoteThreadListAdapter.updateCustom` and call `aui.threadListItem().updateCustom(custom)`. The cloud adapter persists this through `cloud.threads.update(threadId, { metadata })`. If your adapter mutates thread metadata through a separate application path, return the updated values from `fetch()` or call `aui.threads().reload()` to re-run `list()`.
 
 ## ExternalStoreThreadListAdapter
 

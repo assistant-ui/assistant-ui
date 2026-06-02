@@ -14,6 +14,7 @@ import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/
 import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
 import { RuntimeAdapterProvider } from "../RuntimeAdapterProvider";
 import { CloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
+import { isRecord } from "../../../utils/json/is-json";
 
 type ThreadData = {
   externalId: string | undefined;
@@ -91,6 +92,7 @@ export const useCloudThreadListAdapter = (
           remoteId: t.id,
           title: t.title,
           externalId: t.external_id ?? undefined,
+          custom: isRecord(t.metadata) ? t.metadata : undefined,
         })),
       };
     },
@@ -109,6 +111,9 @@ export const useCloudThreadListAdapter = (
 
     rename: async (threadId, newTitle) => {
       return cloud.threads.update(threadId, { title: newTitle });
+    },
+    updateCustom: async (threadId, custom) => {
+      return cloud.threads.update(threadId, { metadata: custom ?? null });
     },
     archive: async (threadId) => {
       return cloud.threads.update(threadId, { is_archived: true });
@@ -146,6 +151,7 @@ export const useCloudThreadListAdapter = (
         remoteId: thread.id,
         title: thread.title,
         externalId: thread.external_id ?? undefined,
+        custom: isRecord(thread.metadata) ? thread.metadata : undefined,
       };
     },
 

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { createCore, makeAdapter } from "./remote-thread-list-test-helpers";
+import {
+  createCore,
+  deferred,
+  makeAdapter,
+} from "./remote-thread-list-test-helpers";
 
 describe("RemoteThreadListThreadListRuntimeCore custom metadata", () => {
   it("preserves custom field from list() through to threadItems", async () => {
@@ -119,5 +123,69 @@ describe("RemoteThreadListThreadListRuntimeCore custom metadata", () => {
     expect(core.getItemById("thread-5")?.custom).toEqual({
       workspaceId: "ws-1",
     });
+  });
+
+  it("updates custom through the adapter with optimistic state", async () => {
+    const updateDeferred = deferred<void>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-6",
+            externalId: "ext-6",
+            title: "Test",
+            custom: { tag: "old" },
+          },
+        ],
+      })),
+      updateCustom: vi.fn(() => updateDeferred.promise),
+    });
+
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+
+    const updateTask = core.updateCustom("thread-6", { tag: "new" });
+
+    await Promise.resolve();
+
+    expect(adapter.updateCustom).toHaveBeenCalledWith("thread-6", {
+      tag: "new",
+    });
+    expect(core.getItemById("thread-6")?.custom).toEqual({ tag: "new" });
+
+    updateDeferred.resolve();
+    await updateTask;
+
+    expect(core.getItemById("thread-6")?.custom).toEqual({ tag: "new" });
+  });
+
+  it("rolls back custom when adapter update fails", async () => {
+    const updateDeferred = deferred<void>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-7",
+            externalId: "ext-7",
+            title: "Test",
+            custom: { tag: "old" },
+          },
+        ],
+      })),
+      updateCustom: vi.fn(() => updateDeferred.promise),
+    });
+
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+
+    const updateTask = core.updateCustom("thread-7", { tag: "new" });
+    expect(core.getItemById("thread-7")?.custom).toEqual({ tag: "new" });
+
+    updateDeferred.reject(new Error("update failed"));
+    await expect(updateTask).rejects.toThrow("update failed");
+
+    expect(core.getItemById("thread-7")?.custom).toEqual({ tag: "old" });
   });
 });

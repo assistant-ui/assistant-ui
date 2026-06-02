@@ -88,6 +88,10 @@ export class LocalThreadListRuntimeCore
     throw new Error("Method not implemented.");
   }
 
+  public updateCustom(): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
+
   public archive(): Promise<void> {
     throw new Error("Method not implemented.");
   }

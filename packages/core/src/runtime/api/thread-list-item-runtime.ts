@@ -38,6 +38,7 @@ export type ThreadListItemRuntime = {
 
   switchTo(options?: { unarchive?: boolean }): Promise<void>;
   rename(newTitle: string): Promise<void>;
+  updateCustom(custom: Record<string, unknown> | undefined): Promise<void>;
   archive(): Promise<void>;
   unarchive(): Promise<void>;
   delete(): Promise<void>;
@@ -74,6 +75,7 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
   protected __internal_bindMethods() {
     this.switchTo = this.switchTo.bind(this);
     this.rename = this.rename.bind(this);
+    this.updateCustom = this.updateCustom.bind(this);
     this.archive = this.archive.bind(this);
     this.unarchive = this.unarchive.bind(this);
     this.delete = this.delete.bind(this);
@@ -98,6 +100,19 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     const state = this._core.getState();
 
     return this._threadListBinding.rename(state.id, newTitle);
+  }
+
+  public updateCustom(
+    custom: Record<string, unknown> | undefined,
+  ): Promise<void> {
+    const state = this._core.getState();
+    if (!this._threadListBinding.updateCustom) {
+      throw new Error(
+        "Thread list runtime does not support updating custom metadata",
+      );
+    }
+
+    return this._threadListBinding.updateCustom(state.id, custom);
   }
 
   public archive(): Promise<void> {

@@ -197,6 +197,19 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
     await onRename(threadId, newTitle);
   }
 
+  public async updateCustom(
+    threadId: string,
+    custom: Record<string, unknown> | undefined,
+  ): Promise<void> {
+    const onUpdateCustom = this.adapter.onUpdateCustom;
+    if (!onUpdateCustom)
+      throw new Error(
+        "External store adapter does not support updating custom metadata",
+      );
+
+    await onUpdateCustom(threadId, custom);
+  }
+
   public async detach(): Promise<void> {
     // no-op
   }

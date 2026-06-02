@@ -17,6 +17,10 @@ export class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
     return Promise.resolve();
   }
 
+  updateCustom(): Promise<void> {
+    return Promise.resolve();
+  }
+
   archive(): Promise<void> {
     return Promise.resolve();
   }

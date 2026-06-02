@@ -44,6 +44,10 @@ export type ThreadListRuntimeCore = {
 
   detach(threadId: string): Promise<void>;
   rename(threadId: string, newTitle: string): Promise<void>;
+  updateCustom?(
+    threadId: string,
+    custom: Record<string, unknown> | undefined,
+  ): Promise<void>;
   archive(threadId: string): Promise<void>;
   unarchive(threadId: string): Promise<void>;
   delete(threadId: string): Promise<void>;

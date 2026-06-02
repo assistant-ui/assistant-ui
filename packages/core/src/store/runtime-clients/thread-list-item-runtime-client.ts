@@ -44,6 +44,7 @@ export const ThreadListItemClient = resource(
       getState: () => state,
       switchTo: runtime.switchTo,
       rename: runtime.rename,
+      updateCustom: runtime.updateCustom,
       archive: runtime.archive,
       unarchive: runtime.unarchive,
       delete: runtime.delete,

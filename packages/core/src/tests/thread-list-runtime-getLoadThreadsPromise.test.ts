@@ -41,6 +41,7 @@ const createMockCore = (
   getLoadThreadsPromise: () => loadPromise,
   detach: () => Promise.resolve(),
   rename: () => Promise.resolve(),
+  updateCustom: () => Promise.resolve(),
   archive: () => Promise.resolve(),
   unarchive: () => Promise.resolve(),
   delete: () => Promise.resolve(),

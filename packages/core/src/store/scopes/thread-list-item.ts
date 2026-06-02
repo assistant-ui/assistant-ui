@@ -14,6 +14,7 @@ export type ThreadListItemMethods = {
   getState(): ThreadListItemState;
   switchTo(options?: { unarchive?: boolean }): void;
   rename(newTitle: string): void;
+  updateCustom(custom: Record<string, unknown> | undefined): void;
   archive(): void;
   unarchive(): void;
   delete(): void;

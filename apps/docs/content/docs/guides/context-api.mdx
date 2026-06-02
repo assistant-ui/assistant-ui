@@ -219,6 +219,7 @@ aui.threads().getState();
 // ThreadListItem actions
 aui.threadListItem().switchTo();
 aui.threadListItem().rename(title);
+aui.threadListItem().updateCustom(custom);
 aui.threadListItem().archive();
 aui.threadListItem().unarchive();
 aui.threadListItem().delete();
@@ -517,7 +518,7 @@ The table below covers the most commonly used actions. For the full catalog, see
 | Scope          | Actions                                                                                                           | Use Cases                                  |
 | -------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
 | ThreadList     | `switchToNewThread()`, `switchToThread(id)`, `reload()`, `getLoadThreadsPromise()`, `item(selector)`, `thread("main")`, `getState()` | Thread navigation, creation, and sync |
-| ThreadListItem | `switchTo()`, `rename(title)`, `archive()`, `unarchive()`, `delete()`, `getState()`                              | Thread management operations               |
+| ThreadListItem | `switchTo()`, `rename(title)`, `updateCustom(custom)`, `archive()`, `unarchive()`, `delete()`, `getState()`      | Thread management operations               |
 | Thread         | `append(message)`, `startRun(config)`, `resumeRun(config)`, `cancelRun()`, `reset()`, `export()`, `import(repository)`, `message(selector)`, `composer()`, `getState()` | Message handling and conversation control |
 | Message        | `reload()`, `speak()`, `stopSpeaking()`, `submitFeedback(feedback)`, `switchToBranch(options)`, `getCopyText()`, `part(selector)`, `attachment(selector)`, `composer()`, `setIsCopied(value)`, `setIsHovering(value)`, `getState()` | Message interactions and regeneration |
 | Part           | `addToolResult(result)`, `resumeToolCall(result)`, `getState()`                                                   | Tool call result handling                  |

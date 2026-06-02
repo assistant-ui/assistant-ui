@@ -28,13 +28,12 @@ type LocalStorageAdapterOptions = {
   titleGenerator?: TitleGenerationAdapter | undefined;
 };
 
-// `RemoteThreadMetadata.custom` is intentionally not persisted; consumers that
-// need it across reloads should fork this adapter or use a remote backend.
 type StoredThreadMetadata = {
   remoteId: string;
   externalId?: string;
   status: "regular" | "archived";
   title?: string;
+  custom?: Record<string, unknown> | undefined;
 };
 
 class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
@@ -131,6 +130,7 @@ export const createLocalStorageAdapter = (
           externalId: t.externalId,
           status: t.status,
           title: t.title,
+          custom: t.custom,
         })),
       };
     },
@@ -158,6 +158,18 @@ export const createLocalStorageAdapter = (
       const thread = threads.find((t) => t.remoteId === remoteId);
       if (thread) {
         thread.title = newTitle;
+        await saveThreadMetadata(threads);
+      }
+    },
+
+    async updateCustom(
+      remoteId: string,
+      custom: Record<string, unknown> | undefined,
+    ): Promise<void> {
+      const threads = await loadThreadMetadata();
+      const thread = threads.find((t) => t.remoteId === remoteId);
+      if (thread) {
+        thread.custom = custom;
         await saveThreadMetadata(threads);
       }
     },
@@ -196,6 +208,7 @@ export const createLocalStorageAdapter = (
         externalId: thread.externalId,
         status: thread.status,
         title: thread.title,
+        custom: thread.custom,
       };
     },
 

@@ -24,6 +24,7 @@ export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
   remoteId?: string | undefined;
   externalId?: string | undefined;
   title?: string | undefined;
+  custom?: Record<string, unknown> | undefined;
 };
 
 export type ExternalStoreThreadListAdapter = {
@@ -46,6 +47,12 @@ export type ExternalStoreThreadListAdapter = {
     threadId: string,
     newTitle: string,
   ) => (Promise<void> | void) | undefined;
+  onUpdateCustom?:
+    | ((
+        threadId: string,
+        custom: Record<string, unknown> | undefined,
+      ) => Promise<void> | void)
+    | undefined;
   onArchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onUnarchive?: ((threadId: string) => Promise<void> | void) | undefined;
   onDelete?: ((threadId: string) => Promise<void> | void) | undefined;

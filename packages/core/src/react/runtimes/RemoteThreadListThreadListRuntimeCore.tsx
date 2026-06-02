@@ -508,6 +508,45 @@ export class RemoteThreadListThreadListRuntimeCore
     });
   }
 
+  public updateCustom(
+    threadIdOrRemoteId: string,
+    custom: Record<string, unknown> | undefined,
+  ): Promise<void> {
+    const data = this.getItemById(threadIdOrRemoteId);
+    if (!data) throw new Error("Thread not found");
+    if (data.status === "new") throw new Error("Thread is not yet initialized");
+
+    const adapter = this._options.adapter;
+    const updateCustom = adapter.updateCustom;
+    if (!updateCustom) {
+      throw new Error(
+        "Remote thread list adapter does not support updating custom metadata",
+      );
+    }
+
+    return this._state.optimisticUpdate({
+      execute: async () => {
+        const { remoteId } = await data.initializeTask;
+        return updateCustom.call(adapter, remoteId, custom);
+      },
+      optimistic: (state) => {
+        const data = getThreadData(state, threadIdOrRemoteId);
+        if (!data || data.status === "new") return state;
+
+        return {
+          ...state,
+          threadData: {
+            ...state.threadData,
+            [data.id]: {
+              ...data,
+              custom,
+            },
+          },
+        };
+      },
+    });
+  }
+
   private async _ensureThreadIsNotMain(threadId: string) {
     if (threadId === this.newThreadId)
       throw new Error("Cannot ensure new thread is not main");
