@@ -18,6 +18,7 @@ export const NoOpComposerClient = resource(
         type: type,
         dictation: undefined,
         quote: undefined,
+        mode: undefined,
         queue: [],
       };
     }, [type]);
@@ -61,6 +62,9 @@ export const NoOpComposerClient = resource(
         throw new Error("Not supported");
       },
       setQuote: () => {
+        throw new Error("Not supported");
+      },
+      setMode: () => {
         throw new Error("Not supported");
       },
       queueItem: () => {

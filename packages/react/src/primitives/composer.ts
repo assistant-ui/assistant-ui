@@ -13,6 +13,7 @@ export { ComposerPrimitiveIf as If } from "./composer/ComposerIf";
 export { ComposerPrimitiveQuote as Quote } from "./composer/ComposerQuote";
 export { ComposerPrimitiveQuoteText as QuoteText } from "./composer/ComposerQuote";
 export { ComposerPrimitiveQuoteDismiss as QuoteDismiss } from "./composer/ComposerQuote";
+export { ComposerPrimitiveMode as Mode } from "./composer/ComposerMode";
 export { ComposerPrimitiveQueue as Queue } from "./composer/ComposerQueue";
 
 export { ComposerPrimitiveTriggerPopover as Unstable_TriggerPopover } from "./composer/trigger";

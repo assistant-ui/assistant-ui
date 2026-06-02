@@ -66,6 +66,9 @@ export type ComposerRuntimeCore = Readonly<{
   role: MessageRole;
   setRole: (role: MessageRole) => void;
 
+  mode: string | undefined;
+  setMode: (mode: string | undefined) => void;
+
   runConfig: RunConfig;
   setRunConfig: (runConfig: RunConfig) => void;
 
