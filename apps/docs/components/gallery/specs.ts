@@ -1,71 +1,29 @@
-import type { UINode } from "./types";
-
-const owIcon = (code: string) =>
-  `https://openweathermap.org/img/wn/${code}@2x.png`;
-
-const forecastDay = (icon: string, temp: string): UINode => ({
-  type: "Col",
-  align: "center",
-  gap: 1,
-  children: [
-    { type: "Image", src: icon, size: 44, rounded: false },
-    { type: "Text", value: temp, size: "sm", color: "white-70" },
-  ],
-});
+import type { UINode } from "@/components/generative-ui";
 
 const weather: UINode = {
-  type: "Card",
-  padding: 20,
-  background: "linear-gradient(160deg, #1769C8 0%, #258AE3 55%, #31A3F8 100%)",
-  children: [
-    {
-      type: "Col",
-      align: "center",
-      gap: 3,
-      children: [
-        { type: "Image", src: owIcon("02d"), size: 72, rounded: false },
-        {
-          type: "Row",
-          align: "center",
-          gap: 2,
-          children: [
-            {
-              type: "Title",
-              value: "47°",
-              size: "3xl",
-              weight: "normal",
-              color: "white-70",
-            },
-            {
-              type: "Title",
-              value: "69°",
-              size: "3xl",
-              weight: "normal",
-              color: "white",
-            },
-          ],
-        },
-        { type: "Caption", value: "San Francisco, CA", color: "white" },
-        {
-          type: "Text",
-          value: "Partly sunny skies accompanied by some clouds",
-          textAlign: "center",
-          color: "white-70",
-        },
-        {
-          type: "Row",
-          gap: 5,
-          children: [
-            forecastDay(owIcon("01d"), "54°"),
-            forecastDay(owIcon("10d"), "54°"),
-            forecastDay(owIcon("02d"), "54°"),
-            forecastDay(owIcon("04d"), "54°"),
-            forecastDay(owIcon("01d"), "54°"),
-          ],
-        },
-      ],
-    },
+  type: "WeatherWidget",
+  version: "3.1",
+  id: "sample-sf",
+  location: { name: "San Francisco" },
+  units: { temperature: "fahrenheit" },
+  current: {
+    conditionCode: "partly-cloudy",
+    temperature: 72,
+    tempMin: 58,
+    tempMax: 74,
+    windSpeed: 8,
+    precipitationLevel: "none",
+    visibility: 16,
+  },
+  forecast: [
+    { label: "Mon", conditionCode: "clear", tempMin: 57, tempMax: 73 },
+    { label: "Tue", conditionCode: "partly-cloudy", tempMin: 56, tempMax: 71 },
+    { label: "Wed", conditionCode: "cloudy", tempMin: 55, tempMax: 68 },
+    { label: "Thu", conditionCode: "rain", tempMin: 54, tempMax: 64 },
+    { label: "Fri", conditionCode: "clear", tempMin: 56, tempMax: 70 },
   ],
+  time: { timeBucket: 5 },
+  updatedAt: "2026-04-25T16:00:00.000Z",
 };
 
 const chart: UINode = {

@@ -3,7 +3,7 @@ import type {
   PrecipitationLevel,
   WeatherConditionCode,
   WeatherWidgetPayload,
-} from "@/components/tool-ui/weather-widget/runtime";
+} from "@/components/generative-ui/weather-widget/runtime";
 
 export interface WeatherSearchArgs {
   query: string;

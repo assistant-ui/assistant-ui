@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
-import { JsonUiEditor } from "@/components/gallery/json-ui/editor";
-import { WEATHER_SPEC } from "@/components/gallery/json-ui/specs";
+import { GalleryJsonEditor } from "@/components/gallery/json-editor";
+import { WEATHER_SPEC } from "@/components/gallery/specs";
 
 const title = "JSON UI editor";
 const description = "Render a UI component directly from JSON.";
@@ -42,7 +42,7 @@ export default function GalleryEditorPage() {
         </p>
       </header>
 
-      <JsonUiEditor initialSpec={WEATHER_SPEC} />
+      <GalleryJsonEditor initialSpec={WEATHER_SPEC} />
     </main>
   );
 }

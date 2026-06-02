@@ -1,4 +1,4 @@
-import type { UINode } from "./types";
+import type { UINode } from "@/components/generative-ui";
 
 export type PrimitiveCategory = "Layout" | "Typography" | "Content" | "Actions";
 

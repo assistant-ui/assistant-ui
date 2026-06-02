@@ -9,7 +9,7 @@ import {
   Spacer,
   Badge,
   Chart,
-} from "../json-ui/primitives";
+} from "@/components/generative-ui";
 import type { ToolRenderProps } from "./types";
 
 export type StockArgs = {

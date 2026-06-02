@@ -1,12 +1,7 @@
 "use client";
 
-import { JsonUI } from "./json-ui/render";
-import { DEFAULT_REGISTRY } from "./json-ui/primitives";
-import {
-  PRIMITIVES,
-  PRIMITIVE_CATEGORIES,
-  type PrimitiveDoc,
-} from "./json-ui/catalog";
+import { JsonUI, DEFAULT_REGISTRY } from "@/components/generative-ui";
+import { PRIMITIVES, PRIMITIVE_CATEGORIES, type PrimitiveDoc } from "./catalog";
 import { CodeBlock } from "./code-block";
 import { PropsTable } from "./props-table";
 

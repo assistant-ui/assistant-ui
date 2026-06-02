@@ -2,7 +2,7 @@
 
 import { GALLERY_WIDGETS } from "@/lib/gallery";
 import { WIDGET_PREVIEWS } from "./previews";
-import { GALLERY_SPECS } from "./json-ui/specs";
+import { GALLERY_SPECS } from "./specs";
 import { GalleryCard } from "./gallery-card";
 
 export function GalleryGrid() {

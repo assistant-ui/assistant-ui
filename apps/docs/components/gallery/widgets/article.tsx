@@ -8,7 +8,7 @@ import {
   Text,
   Caption,
   Button,
-} from "../json-ui/primitives";
+} from "@/components/generative-ui";
 import type { ToolRenderProps } from "./types";
 
 export type ArticleArgs = {

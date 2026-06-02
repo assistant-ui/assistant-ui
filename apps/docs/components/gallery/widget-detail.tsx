@@ -8,10 +8,9 @@ import { getWidget } from "@/lib/gallery";
 import { WIDGET_PREVIEWS } from "./previews";
 import { CodeBlock } from "./code-block";
 import { PropsTable } from "./props-table";
-import { JsonUiEditor } from "./json-ui/editor";
-import { JsonUI } from "./json-ui/render";
-import { DEFAULT_REGISTRY } from "./json-ui/primitives";
-import { GALLERY_SPECS } from "./json-ui/specs";
+import { JsonUI, JsonUiEditor } from "@/components/generative-ui";
+import { GALLERY_REGISTRY } from "./registry";
+import { GALLERY_SPECS } from "./specs";
 
 type View = "preview" | "json";
 
@@ -65,14 +64,14 @@ export function WidgetDetail({
         )}
 
         {spec && view === "json" ? (
-          <JsonUiEditor initialSpec={spec} />
+          <JsonUiEditor initialSpec={spec} registry={GALLERY_REGISTRY} />
         ) : (
           <div className="border-border/60 bg-muted/30 flex min-h-[280px] items-center justify-center rounded-xl border p-8">
             {Preview ? (
               <Preview />
             ) : spec ? (
               <div className="w-full max-w-[320px]">
-                <JsonUI node={spec} registry={DEFAULT_REGISTRY} />
+                <JsonUI node={spec} registry={GALLERY_REGISTRY} />
               </div>
             ) : null}
           </div>

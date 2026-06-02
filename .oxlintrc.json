@@ -69,7 +69,7 @@
     "**/build/**",
     "**/.turbo/**",
     "**/coverage/**",
-    "apps/docs/components/tool-ui/weather-widget/generated/**"
+    "apps/docs/components/generative-ui/weather-widget/generated/**"
   ],
   "overrides": [
     {

@@ -4,7 +4,7 @@ import { CloudSun } from "lucide-react";
 import {
   WeatherWidget,
   type WeatherWidgetPayload,
-} from "@/components/tool-ui/weather-widget/runtime";
+} from "@/components/generative-ui/weather-widget/runtime";
 import type { ToolRenderProps } from "./types";
 
 export type WeatherArgs = { location: string };

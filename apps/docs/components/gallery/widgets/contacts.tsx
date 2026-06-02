@@ -9,7 +9,7 @@ import {
   Spacer,
   Icon,
   Button,
-} from "../json-ui/primitives";
+} from "@/components/generative-ui";
 import type { ToolRenderProps } from "./types";
 
 export type Contact = { name: string; role: string };

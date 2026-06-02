@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Col, Title, Caption, Chart } from "../json-ui/primitives";
+import { Card, Col, Title, Caption, Chart } from "@/components/generative-ui";
 import type { ToolRenderProps } from "./types";
 
 export type ChartArgs = {

@@ -3,9 +3,11 @@
 import Link from "next/link";
 import type { ComponentType } from "react";
 import type { GalleryWidget } from "@/lib/gallery";
-import { JsonUI } from "./json-ui/render";
-import { DEFAULT_REGISTRY } from "./json-ui/primitives";
-import type { UINode } from "./json-ui/types";
+import {
+  JsonUI,
+  DEFAULT_REGISTRY,
+  type UINode,
+} from "@/components/generative-ui";
 
 export function GalleryCard({
   widget,

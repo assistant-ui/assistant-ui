@@ -1,7 +1,7 @@
 "use generative";
 
 import { cn } from "@/lib/utils";
-import { WeatherWidget } from "@/components/tool-ui/weather-widget/runtime";
+import { WeatherWidget } from "@/components/generative-ui/weather-widget/runtime";
 import {
   fetchWeatherWidgetFromOpenMeteo,
   geocodeLocationWithOpenMeteo,
