@@ -64,8 +64,8 @@ describe("JSONGenerativeUI — server build", () => {
     expect(tool.type).toBe("frontend");
     expect(tool.render).toBeUndefined();
     expect(tool.execute).toBeUndefined();
+    expect(tool.unstable_backendDefault).toBeUndefined();
     expect(tool.parameters.properties.$type.enum).toEqual(["Card", "Button"]);
-    // schema is identical to the client's, so the model and the browser agree
     expect(tool.parameters).toEqual(
       new ClientGenUI({ library }).present().parameters,
     );
@@ -75,6 +75,7 @@ describe("JSONGenerativeUI — server build", () => {
     const tool = ui.promptUser() as any;
     expect(tool.type).toBe("human");
     expect(tool.render).toBeUndefined();
+    expect(tool.unstable_backendDefault).toBeUndefined();
     expect(tool.parameters.properties.$type.enum).toEqual(["Card", "Button"]);
   });
 });

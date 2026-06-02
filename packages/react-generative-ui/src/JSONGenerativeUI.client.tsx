@@ -50,6 +50,7 @@ export class JSONGenerativeUI {
   present(options?: PresentToolOptions): PresentTool {
     return {
       ...presentToolBase(this.parameters, options),
+      unstable_backendDefault: { parameters: true },
       execute: async () => ({}),
       render: this.render,
     };
@@ -58,6 +59,7 @@ export class JSONGenerativeUI {
   promptUser(): PromptUserTool {
     return {
       ...promptUserToolBase(this.parameters),
+      unstable_backendDefault: { parameters: true },
       render: this.render,
     };
   }

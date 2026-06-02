@@ -58,7 +58,6 @@ export function presentToolBase(
     description: PRESENT_DESCRIPTION,
     parameters,
     ...(options?.display !== undefined ? { display: options.display } : {}),
-    unstable_backendDefault: { parameters: true },
   };
 }
 
@@ -71,6 +70,5 @@ export function promptUserToolBase(parameters: PresentParameters) {
     type: "human" as const,
     description: PROMPT_USER_DESCRIPTION,
     parameters,
-    unstable_backendDefault: { parameters: true },
   };
 }

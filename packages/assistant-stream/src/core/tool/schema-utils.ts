@@ -133,16 +133,12 @@ function defaultToolFilter(_name: string, tool: Tool): boolean {
   return !tool.disabled && tool.type !== "backend";
 }
 
-function toolHasUploadableFields(tool: Tool): boolean {
-  return (
-    tool.parameters !== undefined && !tool.unstable_backendDefault?.parameters
-  );
-}
-
 function toolHasUploadableParameters(
   tool: Tool,
 ): tool is Tool & { parameters: NonNullable<Tool["parameters"]> } {
-  return toolHasUploadableFields(tool);
+  return (
+    tool.parameters !== undefined && !tool.unstable_backendDefault?.parameters
+  );
 }
 
 /**
