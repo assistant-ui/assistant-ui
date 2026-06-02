@@ -48,6 +48,16 @@ client. So it throws instead of silently leaking.
 
 <ParametersTable {...DevToolsHooks} />
 
+### hitl
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [hitlTool](/docs/api-reference/utilities/miscellaneous#hitltool).
+</Callout>
+
+```ts
+const hitl: typeof hitlTool;
+```
+
 ### hitlTool
 
 Marks a tool as **human-in-the-loop**: the agent pauses and the UI (`render`)
@@ -117,15 +127,5 @@ When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
 
 ```ts
 const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
-```
-
-### hitl
-
-<Callout type="warn">
-<strong>Deprecated.</strong> Use [hitlTool](/docs/api-reference/utilities/miscellaneous#hitltool).
-</Callout>
-
-```ts
-const hitl: typeof hitlTool;
 ```
 {/* api-reference:end */}
