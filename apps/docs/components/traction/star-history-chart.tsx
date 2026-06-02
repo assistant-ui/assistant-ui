@@ -13,6 +13,7 @@ import { formatCompact } from "@/lib/format";
 type Point = { date: string; value: number };
 type ChartPoint = {
   date: string;
+  ts: number;
   value: number | null;
   forecast: number | null;
 };
@@ -31,10 +32,8 @@ const config = {
 const FORECAST_WINDOW_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const formatTick = (iso: string) => {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-};
+const formatTick = (ms: number) =>
+  new Date(ms).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
 
 const formatTooltipLabel = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", {
@@ -46,6 +45,7 @@ const formatTooltipLabel = (iso: string) =>
 function buildChartData(data: Point[]): ChartPoint[] {
   const base: ChartPoint[] = data.map((p) => ({
     date: p.date,
+    ts: new Date(p.date).getTime(),
     value: p.value,
     forecast: null,
   }));
@@ -88,6 +88,7 @@ function buildChartData(data: Point[]): ChartPoint[] {
   base[base.length - 1] = { ...base[base.length - 1]!, forecast: last.value };
   base.push({
     date: new Date(monthEnd).toISOString(),
+    ts: monthEnd,
     value: null,
     forecast: projected,
   });
@@ -131,7 +132,10 @@ export function StarHistoryChart({ data }: { data: Point[] }) {
         </defs>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
         <XAxis
-          dataKey="date"
+          dataKey="ts"
+          type="number"
+          scale="time"
+          domain={["dataMin", "dataMax"]}
           tickFormatter={formatTick}
           tickLine={false}
           axisLine={false}
