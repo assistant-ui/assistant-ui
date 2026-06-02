@@ -5,7 +5,7 @@ import {
   getReleases,
   getStargazersPage,
 } from "./github";
-import { getDownloadsLastYear, getDownloadsRange } from "./npm";
+import { getDownloadsRange } from "./npm";
 
 export type PackageInfo = {
   name: string;
@@ -532,7 +532,16 @@ export async function fetchDownloadsTimeline(
   name: string,
   revalidate?: number,
 ): Promise<TimelinePoint[]> {
-  const downloads = await getDownloadsLastYear(name, revalidate);
+  // npm's last-year endpoint stops at the last complete day, so it omits the
+  // in-flight month entirely; an explicit range through today keeps it.
+  const today = new Date();
+  const end = today.toISOString().slice(0, 10);
+  const start = new Date(
+    Date.UTC(today.getUTCFullYear() - 1, today.getUTCMonth(), 1),
+  )
+    .toISOString()
+    .slice(0, 10);
+  const downloads = await getDownloadsRange(name, start, end, revalidate);
   if (!downloads.length) return [];
   const cutoff = currentMonthKey();
   type MonthBucket = {

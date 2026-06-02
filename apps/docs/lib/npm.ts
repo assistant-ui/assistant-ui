@@ -37,10 +37,3 @@ export function getDownloadsRange(
     revalidate,
   );
 }
-
-export function getDownloadsLastYear(
-  pkg: string,
-  revalidate: number = NPM_REVALIDATE.WARM,
-): Promise<NpmDailyDownloads[]> {
-  return npmFetch(`/downloads/range/last-year/${pkg}`, revalidate);
-}
