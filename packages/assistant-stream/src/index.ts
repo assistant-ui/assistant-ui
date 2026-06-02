@@ -38,6 +38,7 @@ export type {
 export type {
   Tool,
   ToolDeclaration,
+  McpServerConfig,
   ToolModelContentPart,
   ToolModelOutputFunction,
 } from "./core/tool/tool-types";

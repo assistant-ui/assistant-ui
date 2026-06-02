@@ -17,6 +17,8 @@ export type ToolType = "frontend" | "backend" | "human";
 
 /** The required wrapper around a toolkit's tools (stripped at build time). */
 const TOOLKIT_WRAPPER = "defineToolkit";
+/** The helper that produces MCP-only toolkit fragments. */
+const MCP_TOOLKIT_WRAPPER = "defineMcpToolkit";
 /** The required wrapper around a generative-UI library (stripped at build time). */
 const COMPONENTS_WRAPPER = "defineGenerativeComponents";
 /**
@@ -120,6 +122,7 @@ export function compileGenerative(
   // such entries pass through.
   ensureDefaultExport(ast, filename);
   const generativeInstances = collectGenerativeInstances(ast);
+  const safeToolkitSpreads = collectSafeToolkitSpreads(ast);
 
   const flags: TargetFlags = { keptRender: false, keptBackendExecute: false };
 
@@ -152,7 +155,14 @@ export function compileGenerative(
             filename,
           );
         }
-        compileToolkit(object, target, generativeInstances, flags, filename);
+        compileToolkit(
+          object,
+          target,
+          generativeInstances,
+          safeToolkitSpreads,
+          flags,
+          filename,
+        );
         path.replaceWith(object);
         path.skip();
       }
@@ -260,6 +270,45 @@ function collectGenerativeInstances(ast: t.File): Set<string> {
   return names;
 }
 
+/**
+ * Local toolkit variables whose initializer is visible to this compiler pass
+ * are safe to spread. `defineToolkit(...)` initializers are compiled in-place
+ * before a later spread reads them; `defineMcpToolkit(...)` entries cannot
+ * contain executable code.
+ */
+function collectSafeToolkitSpreads(ast: t.File): Set<string> {
+  const names = new Set<string>();
+  traverse(ast, {
+    VariableDeclarator(path: NodePath<t.VariableDeclarator>) {
+      const { id, init } = path.node;
+      if (!t.isIdentifier(id) || !init) return;
+      if (unwrapToToolkitCall(init)) names.add(id.name);
+    },
+  });
+  return names;
+}
+
+function unwrapToToolkitCall(node: t.Node): t.CallExpression | null {
+  return (
+    unwrapToCall(node, TOOLKIT_WRAPPER) ??
+    unwrapToCall(node, MCP_TOOLKIT_WRAPPER)
+  );
+}
+
+function isSafeToolkitSpread(
+  entry: t.SpreadElement,
+  safeToolkitSpreads: Set<string>,
+): boolean {
+  if (t.isIdentifier(entry.argument)) {
+    return safeToolkitSpreads.has(entry.argument.name);
+  }
+
+  const directMcpToolkit = unwrapToCall(entry.argument, MCP_TOOLKIT_WRAPPER);
+  return (
+    !!directMcpToolkit && t.isObjectExpression(directMcpToolkit.arguments[0])
+  );
+}
+
 /** The `JSONGenerativeUI` methods that produce a split-by-condition tool. */
 const GENERATIVE_TOOL_METHODS = new Set(["present", "promptUser"]);
 
@@ -320,22 +369,30 @@ function compileToolkit(
   object: t.ObjectExpression,
   target: Target,
   instances: Set<string>,
+  safeToolkitSpreads: Set<string>,
   flags: TargetFlags,
   filename: string | undefined,
 ): void {
   for (const entry of object.properties) {
     const value = entryValue(entry);
     if (!value) {
+      if (
+        t.isSpreadElement(entry) &&
+        isSafeToolkitSpread(entry, safeToolkitSpreads)
+      ) {
+        continue;
+      }
       // A generative tool (`generative.present()`) is split by the library's
       // export conditions, so it is safe to keep verbatim. Anything else — a
-      // spread, method, or opaque call like `makeTool()` — can't be analyzed,
-      // so its `execute` could reach the client unstripped.
+      // method or opaque call like `makeTool()` — can't be analyzed, so its
+      // `execute` could reach the client unstripped.
       const raw = entryRawValue(entry);
       if (raw && isGenerativeToolEntry(raw, instances)) continue;
       throw new GenerativeCompileError(
         "each tool must be an inline object literal (`name: { ... }`) or a " +
-          "generative tool (e.g. `generative.present()`) so its `execute` can " +
-          "be routed",
+          "compiler-visible toolkit spread / generative tool (e.g. " +
+          "`...defineMcpToolkit(...)`, `...baseToolkit`, or " +
+          "`generative.present()`) so its `execute` can be routed",
         filename,
       );
     }
@@ -346,17 +403,24 @@ function compileToolkit(
     const hasRender = !!findMember(value, "render");
     const execute = findMember(value, "execute");
 
-    if ((type === "frontend" || type === "human") && !hasRender) {
+    if (type === "frontend" && !hasRender) {
       throw new GenerativeCompileError(
-        `a ${type} tool must declare a \`render\` (it has no server execute to show otherwise)`,
+        "a frontend tool must declare a `render` " +
+          "(it has no server execute to show otherwise)",
+        filename,
+      );
+    }
+
+    if (type === "human" && !hasRender) {
+      throw new GenerativeCompileError(
+        "a human tool must declare a `render` so it can collect input",
         filename,
       );
     }
 
     if (target === "client") {
       // A frontend execute stays (its `"use client"` marker is no longer needed
-      // once the module is client); a backend execute and a human `hitl()`
-      // sentinel are both dropped.
+      // once the module is client); backend and sentinel executes are dropped.
       if (execute && type === "frontend") stripUseClient(execute);
       else if (execute) removeMember(value, "execute");
       if (hasRender) flags.keptRender = true;

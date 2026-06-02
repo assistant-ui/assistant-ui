@@ -210,6 +210,113 @@ export default defineToolkit({
     expect(client).not.toContain("db.get");
     expect(client.trimStart().startsWith('"use client"')).toBe(true);
   });
+
+  it("routes flat toolkit tools and preserves spread MCP config", () => {
+    const src = `"use generative";
+import { z } from "zod";
+import { db } from "@/db";
+import { defineMcpToolkit, defineToolkit } from "@assistant-ui/react";
+const mcp = defineMcpToolkit({
+  docs: { type: "http", url: "http://localhost:3001/mcp" },
+});
+export default defineToolkit({
+  ...mcp,
+  weather: {
+    parameters: z.object({ city: z.string() }),
+    execute: async ({ city }) => db.get(city),
+    render: () => null,
+  },
+});`;
+
+    const server = compileGenerative(src, { target: "server" }).code;
+    expect(server).toContain("...mcp");
+    expect(server).toContain("db.get");
+    expect(server).not.toContain("render");
+
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client).toContain("...mcp");
+    expect(client).toContain("render");
+    expect(client).not.toContain("db.get");
+  });
+
+  it("allows spreading a compiler-visible local toolkit", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { db } from "@/db";
+const base = defineToolkit({
+  get_weather: {
+    execute: async () => db.getWeather(),
+    render: () => null,
+  },
+});
+export default defineToolkit({
+  ...base,
+  get_time: {
+    execute: async () => db.getTime(),
+    render: () => null,
+  },
+});`;
+
+    const server = compileGenerative(src, { target: "server" }).code;
+    expect(server).toContain("...base");
+    expect(server).toContain("db.getWeather");
+    expect(server).toContain("db.getTime");
+    expect(server).not.toContain("render");
+
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client).toContain("...base");
+    expect(client).not.toContain("db.getWeather");
+    expect(client).not.toContain("db.getTime");
+    expect(client).toContain("render");
+  });
+
+  it("allows directly spreading an MCP toolkit fragment", () => {
+    const src = `"use generative";
+import { defineMcpToolkit, defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  ...defineMcpToolkit({
+    docs: { type: "http", url: "http://localhost:3001/mcp" },
+  }),
+});`;
+
+    const server = compileGenerative(src, { target: "server" }).code;
+    expect(server).toContain("defineMcpToolkit");
+    expect(server).toContain("docs");
+  });
+
+  it("rejects opaque toolkit spreads", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { backendTools } from "@/backend-tools";
+export default defineToolkit({
+  ...backendTools,
+});`;
+
+    expect(() => compileGenerative(src, { target: "client" })).toThrow(
+      /compiler-visible toolkit spread/,
+    );
+  });
+
+  it("still allows a flat toolkit tool named tools", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { db } from "@/db";
+export default defineToolkit({
+  tools: {
+    execute: async () => db.get(),
+    render: () => null,
+  },
+});`;
+
+    const server = compileGenerative(src, { target: "server" }).code;
+    expect(server).toContain("db.get");
+    expect(server).toContain('type: "backend"');
+
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client).toContain("render");
+    expect(client).not.toContain("db.get");
+  });
+
 });
 
 describe("compileGenerative — local dead-code elimination", () => {
@@ -337,7 +444,7 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
     ).toThrow(/inline object literal/);
   });
 
-  it("requires a render for human/frontend tools", () => {
+  it("requires a render for human tools", () => {
     expect(() =>
       compileGenerative(
         `"use generative";\nimport { defineToolkit, hitl } from "@assistant-ui/react";\nexport default defineToolkit({ ask: { execute: hitl() } });`,

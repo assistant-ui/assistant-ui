@@ -3329,6 +3329,9 @@ importers:
 
   packages/react-ai-sdk:
     dependencies:
+      '@ai-sdk/mcp':
+        specifier: ^1.0.45
+        version: 1.0.45(zod@4.4.3)
       '@ai-sdk/react':
         specifier: ^3.0.195
         version: 3.0.195(react@19.2.6)(zod@4.4.3)

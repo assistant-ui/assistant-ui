@@ -106,7 +106,7 @@ export const Tools = resource(
 
       // Register tool UIs (exclude symbols)
       for (const [toolName, tool] of Object.entries(toolkit)) {
-        if (tool.render) {
+        if ("render" in tool && tool.render) {
           unsubscribes.push(
             setToolUI(toolName, tool.render, {
               standalone: isStandaloneToolDisplay(tool),
@@ -120,8 +120,15 @@ export const Tools = resource(
       // model.
       const toolsWithoutRender = Object.entries(toolkit).reduce(
         (acc, [name, tool]) => {
-          const { render, display, ...rest } = tool;
-          acc[name] = rest;
+          if (tool.type === "mcp") return acc;
+          const {
+            display: _display,
+            render: _render,
+            ...rest
+          } = tool as typeof tool & {
+            render?: unknown;
+          };
+          acc[name] = rest as Tool<any, any>;
           return acc;
         },
         {} as Record<string, Tool<any, any>>,

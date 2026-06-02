@@ -3,7 +3,7 @@ title: Utilities
 description: Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.
 ---
 
-import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, SingleThreadList, defineToolkit } from "@/generated/typeDocs";
+import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, SingleThreadList, defineMcpToolkit, defineToolkit } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -21,6 +21,12 @@ import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList
 ### ChainOfThoughtClient
 
 <ParametersTable {...ChainOfThoughtClient} />
+
+### defineMcpToolkit
+
+Defines MCP server tools as a spreadable toolkit fragment.
+
+<ParametersTable {...defineMcpToolkit} />
 
 ### defineToolkit
 
@@ -105,4 +111,5 @@ When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
 ```ts
 const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
 ```
+
 {/* api-reference:end */}

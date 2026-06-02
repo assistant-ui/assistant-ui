@@ -35,6 +35,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@ai-sdk/mcp": "^1.0.45",
     "@ai-sdk/react": "^3.0.195",
     "@assistant-ui/core": "^0.2.9",
     "@assistant-ui/store": "^0.2.13",

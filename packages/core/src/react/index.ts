@@ -41,6 +41,10 @@ export {
 export { defineToolkit } from "./model-context/define-toolkit";
 export { hitl } from "./model-context/hitl";
 export {
+  defineMcpToolkit,
+  type McpToolkitDefinition,
+} from "./model-context/define-mcp-toolkit";
+export {
   useAssistantInteractable,
   type AssistantInteractableProps,
 } from "./model-context/useAssistantInteractable";

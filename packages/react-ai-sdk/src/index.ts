@@ -14,7 +14,10 @@ export type {
 } from "./ui/resumable";
 export { frontendTools } from "./frontendTools";
 export {
+  AISDKToolkit,
   generativeTools,
+  type AISDKToolkitOptions,
+  type AISDKToolkitToolsOptions,
   type GenerativeToolsOptions,
 } from "./generativeTools";
 export { injectQuoteContext } from "./injectQuoteContext";
