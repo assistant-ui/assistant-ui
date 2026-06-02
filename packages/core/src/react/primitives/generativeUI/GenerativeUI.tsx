@@ -22,6 +22,10 @@ import type {
  * present in the consumer-provided allowlist. The allowlist is the security
  * boundary in the same-realm rendering path — there is no fallback by
  * default. Pass `Fallback` to opt into a soft-fail UX.
+ *
+ * @deprecated Use model-driven tool UI with `defineToolkit` / `Tools({ toolkit })`
+ * and render generated JSON UI through a tool renderer instead. This error is
+ * only used by the legacy `generative-ui` message part renderer.
  */
 export class GenerativeUIRenderError extends Error {
   public readonly componentName: string;
@@ -98,6 +102,9 @@ const normalizeRoot = (
  * Internal renderer. Resolves a {@link GenerativeUISpec} against the consumer
  * allowlist. Used by `MessagePrimitive.GenerativeUI` and by
  * `MessagePrimitive.Parts` when handling a `generative-ui` part.
+ *
+ * @deprecated Use model-driven tool UI with `defineToolkit` / `Tools({ toolkit })`
+ * and render generated JSON UI through a tool renderer instead.
  */
 export const GenerativeUIRender: FC<GenerativeUIRenderProps> = ({
   spec,
@@ -140,6 +147,10 @@ export namespace MessagePrimitiveGenerativeUI {
 
 /**
  * Renders a generative-ui message part using a consumer-provided allowlist.
+ *
+ * @deprecated Use model-driven tool UI with `defineToolkit` / `Tools({ toolkit })`
+ * and render generated JSON UI through a tool renderer instead. The
+ * `generative-ui` message part path remains for backwards compatibility.
  *
  * The agent emits a `generative-ui` message part containing a JSON spec
  * (see {@link GenerativeUISpec}). This primitive walks the spec and resolves

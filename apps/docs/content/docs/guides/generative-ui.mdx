@@ -3,15 +3,19 @@ title: Generative UI
 description: Render agent-described React UI from a JSON spec with a consumer-provided component allowlist.
 ---
 
-`MessagePrimitive.GenerativeUI` is a first-class primitive for rendering UI
-described by the agent at runtime as a JSON spec. Instead of hard-coding a
-component per tool, the agent emits a `generative-ui` message part containing
-a tree of components by name. assistant-ui resolves each name against a
-**consumer-provided allowlist** and renders the result.
+`MessagePrimitive.GenerativeUI` is a legacy compatibility primitive for
+rendering UI described by the agent at runtime as a JSON spec. New assistant-ui
+apps should prefer model-driven Tool UI with `defineToolkit` and
+`Tools({ toolkit })`, where the model calls a named tool and that tool's
+renderer displays generated UI from its arguments.
 
 > The allowlist controls **which** components the agent may render: any name
 > not in it throws a typed `GenerativeUIRenderError` (no implicit fallback). It
 > does not constrain the props passed to those components; see [Security](#security).
+
+> **Deprecated:** `MessagePrimitive.GenerativeUI`, `GenerativeUIRender`, and the
+> `generative-ui` message part schema are kept for backwards compatibility.
+> Prefer `defineToolkit` tool renderers for new generated UI work.
 
 > **Opt-in feature:** The default shadcn `Thread` does **not** render
 > `generative-ui` parts. You must wire the primitive explicitly — see
@@ -24,14 +28,16 @@ matches your integration:
 
 | Pattern | API | Best for | Streaming |
 |---------|-----|----------|-----------|
-| **Generative UI primitive** | `MessagePrimitive.GenerativeUI` + allowlist | Composing dashboards, cards, and layouts from a component vocabulary you ship | Native `generative-ui` parts update progressively when the part spec changes incrementally |
-| **Tool UI** | `makeAssistantToolUI` | Interactive widgets tied to a known tool (forms, pickers, charts) | Tool **args** stream while the model fills them in |
+| **Tool UI** | `defineToolkit` / `Tools({ toolkit })` | Model-driven generated UI, dashboards, cards, comparisons, forms, pickers, charts | Tool **args** stream while the model fills them in |
+| **Legacy Generative UI primitive** | `MessagePrimitive.GenerativeUI` + allowlist | Existing integrations that already emit native `generative-ui` message parts | Native `generative-ui` parts update progressively when the part spec changes incrementally |
+| **Standalone Tool UI renderer** | `makeAssistantToolUI` / `useAssistantToolUI` | Rendering tools defined elsewhere (backend, MCP, LangGraph) | Tool **args** stream while the model fills them in |
 | **LangGraph data UI** | `makeAssistantDataUI` + `ui_message` | LangGraph agents emitting UI via the LangGraph stream | UI messages arrive on the LangGraph custom channel |
 
 See also: [Tool UI guide](/docs/guides/tool-ui), [LangGraph generative UI](/docs/runtimes/langgraph/generative-ui).
 
 ## When not to use the primitive
 
+- **New assistant-ui apps** → `defineToolkit` / `Tools({ toolkit })`
 - **User input and two-way interaction** → [Tool UI](/docs/guides/tool-ui) or [Interactables](/docs/guides/interactables)
 - **LangGraph `push_ui_message`** → [LangGraph data UI](/docs/runtimes/langgraph/generative-ui)
 - **Untrusted HTML or arbitrary code** → [Artifacts](/docs/guides/artifacts) with sandboxed frames

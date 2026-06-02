@@ -95,16 +95,23 @@ export type QuoteMessagePartComponent = ComponentType<QuoteMessagePartProps>;
  * permitted to render. Keys are the component names referenced in the spec
  * (e.g. `"Card"`, `"Button"`); values are the React components.
  *
+ * @deprecated Use model-driven tool UI with `defineToolkit` / `Tools({ toolkit })`
+ * and render generated JSON UI through a tool renderer instead. This registry
+ * type is only needed for the legacy `generative-ui` message part path.
+ *
  * This registry is the security boundary in the same-realm rendering path —
  * any name not present in the registry is rejected with a typed error.
  */
 export type GenerativeUIComponentRegistry = Record<string, ComponentType<any>>;
 
+/** @deprecated Use model-driven tool UI with `defineToolkit` / `Tools({ toolkit })` instead. */
 export type GenerativeUIMessagePartProps = MessagePartState &
   GenerativeUIMessagePart;
+/** @deprecated Use model-driven tool UI with `defineToolkit` / `Tools({ toolkit })` instead. */
 export type GenerativeUIMessagePartComponent =
   ComponentType<GenerativeUIMessagePartProps>;
 
+/** @deprecated Use model-driven tool UI with `defineToolkit` / `Tools({ toolkit })` instead. */
 export type GenerativeUIRenderProps = {
   /** The JSON spec to render. */
   spec: GenerativeUISpec;

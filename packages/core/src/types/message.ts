@@ -76,6 +76,10 @@ export type DataMessagePart<T = any> = {
 /**
  * A JSON spec describing a tree of UI components to render.
  *
+ * @deprecated Use model-driven tool UI with `defineToolkit` / `Tools({ toolkit })`
+ * and render generated JSON UI through a tool renderer instead. The
+ * `generative-ui` message part schema is kept for backwards compatibility.
+ *
  * The agent emits a {@link GenerativeUIMessagePart} containing this spec, and
  * the consumer-provided component allowlist is used to resolve `component`
  * names. Any component referenced that is not present in the allowlist is
@@ -97,6 +101,10 @@ export type GenerativeUINode =
 
 /**
  * The root spec for a generative UI tree.
+ *
+ * @deprecated Use model-driven tool UI with `defineToolkit` / `Tools({ toolkit })`
+ * and render generated JSON UI through a tool renderer instead. The
+ * `generative-ui` message part schema is kept for backwards compatibility.
  */
 export type GenerativeUISpec = {
   /** Root node(s) to render. */
@@ -105,6 +113,10 @@ export type GenerativeUISpec = {
 
 /**
  * A message part that carries a JSON spec describing UI to render.
+ *
+ * @deprecated Use model-driven tool UI with `defineToolkit` / `Tools({ toolkit })`
+ * and render generated JSON UI through a tool renderer instead. The
+ * `generative-ui` message part schema is kept for backwards compatibility.
  *
  * Render with `<MessagePrimitive.GenerativeUI components={...} />`. The
  * primitive resolves component names against the consumer-provided allowlist

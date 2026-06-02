@@ -16,6 +16,11 @@ import { GenerativeUIRender, GenerativeUIRenderError } from "@/generated/typeDoc
 
 ### GenerativeUIRender
 
+<Callout type="warn">
+<strong>Deprecated.</strong> Use model-driven tool UI with `defineToolkit` / `Tools({ toolkit })`
+and render generated JSON UI through a tool renderer instead.
+</Callout>
+
 Internal renderer. Resolves a [GenerativeUISpec](/docs/api-reference/generative-ui/spec#generativeuispec) against the consumer
 allowlist. Used by `MessagePrimitive.GenerativeUI` and by
 `MessagePrimitive.Parts` when handling a `generative-ui` part.
@@ -23,6 +28,12 @@ allowlist. Used by `MessagePrimitive.GenerativeUI` and by
 <ParametersTable {...GenerativeUIRender} />
 
 ### GenerativeUIRenderError
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use model-driven tool UI with `defineToolkit` / `Tools({ toolkit })`
+and render generated JSON UI through a tool renderer instead. This error is
+only used by the legacy `generative-ui` message part renderer.
+</Callout>
 
 Thrown when a generative-ui spec references a component name that is not
 present in the consumer-provided allowlist. The allowlist is the security

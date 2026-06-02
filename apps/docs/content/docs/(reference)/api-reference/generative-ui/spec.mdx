@@ -16,28 +16,35 @@ import { GenerativeUIMessagePart, GenerativeUINode, GenerativeUISpec } from "@/g
 
 ### GenerativeUIMessagePart
 
-A message part that carries a JSON spec describing UI to render.
+<Callout type="warn">
+<strong>Deprecated.</strong> Use model-driven tool UI with `defineToolkit` / `Tools({ toolkit })`
+and render generated JSON UI through a tool renderer instead. The
+`generative-ui` message part schema is kept for backwards compatibility.
+</Callout>
 
-Render with `<MessagePrimitive.GenerativeUI components={...} />`. The
-primitive resolves component names against the consumer-provided allowlist
-— any unknown name throws a typed error rather than rendering. Stream-
-friendly: a partially-streamed spec renders progressively.
+A message part that carries a JSON spec describing UI to render.
 
 <ParametersTable {...GenerativeUIMessagePart} />
 
 ### GenerativeUINode
 
-A JSON spec describing a tree of UI components to render.
+<Callout type="warn">
+<strong>Deprecated.</strong> Use model-driven tool UI with `defineToolkit` / `Tools({ toolkit })`
+and render generated JSON UI through a tool renderer instead. The
+`generative-ui` message part schema is kept for backwards compatibility.
+</Callout>
 
-The agent emits a [GenerativeUIMessagePart](/docs/api-reference/generative-ui/spec#generativeuimessagepart) containing this spec, and
-the consumer-provided component allowlist is used to resolve `component`
-names. Any component referenced that is not present in the allowlist is
-rejected with a typed error — the allowlist is the security boundary in the
-default same-realm rendering path.
+A JSON spec describing a tree of UI components to render.
 
 <ParametersTable {...GenerativeUINode} />
 
 ### GenerativeUISpec
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use model-driven tool UI with `defineToolkit` / `Tools({ toolkit })`
+and render generated JSON UI through a tool renderer instead. The
+`generative-ui` message part schema is kept for backwards compatibility.
+</Callout>
 
 The root spec for a generative UI tree.
 

@@ -1,5 +1,10 @@
 "use generative";
 
+import {
+  DEFAULT_REGISTRY,
+  JsonUI,
+  type UINode,
+} from "@/components/generative-ui";
 import { cn } from "@/lib/utils";
 import { WeatherWidget } from "@/components/generative-ui/weather-widget/runtime";
 import {
@@ -7,10 +12,133 @@ import {
   geocodeLocationWithOpenMeteo,
 } from "@/lib/open-meteo-weather-adapter";
 import { MapPin, CloudSun, AlertCircle, ChevronRight } from "lucide-react";
+import type { JSONSchema7 } from "json-schema";
 import { z } from "zod";
-import { defineToolkit, useAuiState } from "@assistant-ui/react";
+import {
+  defineToolkit,
+  type ToolCallMessagePartProps,
+  useAuiState,
+} from "@assistant-ui/react";
+
+const RENDER_GENERATIVE_UI_TOOL_NAME = "render_generative_ui" as const;
+
+const PRIMITIVE_TYPES = [
+  "Card",
+  "Box",
+  "Col",
+  "Row",
+  "Spacer",
+  "Divider",
+  "Text",
+  "Title",
+  "Caption",
+  "Image",
+  "Icon",
+  "Chart",
+  "Badge",
+  "Button",
+] as const;
+
+const PRIMITIVE_TYPES_LABEL = PRIMITIVE_TYPES.join(", ");
+
+type RenderGenerativeUIResult = {
+  rendered: true;
+};
+
+type RenderGenerativeUIArgs = Record<string, unknown> & {
+  spec: UINode | readonly UINode[];
+};
+
+const uiNodeObjectSchema: JSONSchema7 = {
+  type: "object",
+  required: ["type"],
+  additionalProperties: true,
+  not: {
+    anyOf: [
+      { required: ["root"] },
+      { required: ["component"] },
+      { required: ["props"] },
+    ],
+  },
+  properties: {
+    type: {
+      type: "string",
+      enum: [...PRIMITIVE_TYPES],
+      description:
+        "Registry component type. Props are flat fields on the same object.",
+    },
+    children: {
+      type: "array",
+      items: {
+        anyOf: [{ type: "string" }, { $ref: "#/definitions/uiNode" }],
+      },
+    },
+  },
+};
+
+const renderGenerativeUIArgsSchema = {
+  type: "object",
+  required: ["spec"],
+  additionalProperties: false,
+  properties: {
+    spec: {
+      description:
+        "JSON UI node or array of nodes. Shape: { type, ...props, children }. Do not wrap props in a props object and do not wrap the tree in root. Use Chart for quantitative comparisons.",
+      anyOf: [
+        { type: "string" },
+        { $ref: "#/definitions/uiNode" },
+        {
+          type: "array",
+          minItems: 1,
+          items: {
+            anyOf: [{ type: "string" }, { $ref: "#/definitions/uiNode" }],
+          },
+        },
+      ],
+    },
+  },
+  definitions: {
+    uiNode: uiNodeObjectSchema,
+  },
+} satisfies JSONSchema7;
+
+const RenderGenerativeUIToolCall = ({
+  args,
+}: ToolCallMessagePartProps<
+  RenderGenerativeUIArgs,
+  RenderGenerativeUIResult
+>) => {
+  const spec = args.spec;
+
+  if (!spec) return null;
+
+  return (
+    <div className="my-2 w-full max-w-full overflow-hidden">
+      <JsonUI node={spec} registry={DEFAULT_REGISTRY} />
+    </div>
+  );
+};
 
 export default defineToolkit({
+  [RENDER_GENERATIVE_UI_TOOL_NAME]: {
+    display: "standalone",
+    description:
+      "Render generative UI directly in the conversation using the assistant-ui gallery JSON UI primitives. " +
+      "Use this whenever the user asks for a visual comparison, dashboard, card, chart, or generated UI. " +
+      "The spec is a JSON UI node or array of nodes with the flat shape { type, ...props, children }. " +
+      "Do not use { root }, { component }, or a nested props object. " +
+      `Available types: ${PRIMITIVE_TYPES_LABEL}. ` +
+      "For comparison charts, build a Card containing Title/Caption/Text and a Chart primitive. " +
+      "The Chart primitive props are: variant ('bar', 'line', or 'sparkline'), data (array of objects), xKey, dataKey, color, and height. " +
+      "Example spec: { type: 'Card', children: [{ type: 'Col', gap: 2, children: [{ type: 'Title', value: 'Economic strength comparison' }, { type: 'Caption', value: 'GDP in USD trillions' }, { type: 'Chart', variant: 'bar', data: [{ label: 'United States', value: 29 }, { label: 'China', value: 18.7 }], xKey: 'label', dataKey: 'value', height: 220 }] }] }.",
+    parameters: renderGenerativeUIArgsSchema,
+    execute: async () => {
+      "use client";
+
+      return { rendered: true as const };
+    },
+    render: RenderGenerativeUIToolCall,
+  },
   // Weather data powered by Open-Meteo (https://open-meteo.com/)
   geocode_location: {
     description:

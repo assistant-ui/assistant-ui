@@ -183,6 +183,10 @@ export namespace MessagePrimitiveParts {
     /**
      * Configuration for generative-ui part rendering.
      *
+     * @deprecated Use model-driven tool UI with `defineToolkit` /
+     * `Tools({ toolkit })` and a tool renderer instead. This config only
+     * supports the legacy `generative-ui` message part schema.
+     *
      * `components` is the consumer-provided allowlist of React components
      * the agent's JSON spec is permitted to render. Any name not present in
      * the registry is rejected with a typed `GenerativeUIRenderError` —
