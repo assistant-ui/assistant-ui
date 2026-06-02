@@ -31,6 +31,12 @@ Tap hook dep tracking (`tapEffect` / `tapMemo` / `tapCallback` / `tapResources`)
 
 When you change code, delete any comment that only records its history.
 
+## GitButler
+
+If the current branch is `gitbutler/workspace`, the user uses GitButler, not Git, as version control. Do not create branches, stage files, commit, or rewrite history with Git commands unless the user explicitly asks.
+
+Assume other coding agents are working alongside you. Before editing, check the current worktree state and avoid overwriting changes you did not make. Keep your changes scoped so GitButler can separate concurrent work cleanly.
+
 ## Package boundaries
 
 `@assistant-ui/core` contains shared code. It has a `./react` sub-path that both `@assistant-ui/react` and `@assistant-ui/react-native` re-export from. Customers never install core directly — they use one of the three distribution packages (react, react-native, react-ink).
