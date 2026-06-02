@@ -89,6 +89,19 @@ export abstract class BaseComposerRuntimeCore
     this._notifySubscribers();
   }
 
+  private _mode: string | undefined = undefined;
+
+  get mode() {
+    return this._mode;
+  }
+
+  public setMode(mode: string | undefined) {
+    if (this._mode === mode) return;
+
+    this._mode = mode;
+    this._notifySubscribers();
+  }
+
   public setText(value: string) {
     if (this._text === value) return;
 
@@ -188,7 +201,13 @@ export abstract class BaseComposerRuntimeCore
       role: this.role,
       content: text ? [{ type: "text", text }] : [],
       attachments: await attachments,
-      runConfig: this.runConfig,
+      runConfig:
+        this._mode === undefined
+          ? this.runConfig
+          : {
+              ...this.runConfig,
+              custom: { ...this.runConfig.custom, mode: this._mode },
+            },
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 

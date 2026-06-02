@@ -52,6 +52,12 @@ export type ComposerState = {
   readonly quote: QuoteInfo | undefined;
 
   /**
+   * The currently selected composer mode (e.g. "plan", "debug").
+   * Undefined when no mode is selected.
+   */
+  readonly mode: string | undefined;
+
+  /**
    * The queue of messages waiting to be processed.
    * Empty when no messages are queued.
    */
@@ -86,6 +92,12 @@ export type ComposerMethods = {
    * Set a quote for the next message. Pass undefined to clear.
    */
   setQuote(quote: QuoteInfo | undefined): void;
+
+  /**
+   * Set the composer mode. Sticky across sends; delivered to the backend via
+   * `runConfig.custom.mode`. Pass undefined to clear.
+   */
+  setMode(mode: string | undefined): void;
 
   /**
    * Access a queue item by index.

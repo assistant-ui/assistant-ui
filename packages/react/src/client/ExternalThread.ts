@@ -295,6 +295,7 @@ const ComposerClientResource = resource(
     const [quote, setQuote] = tapState<
       { readonly text: string; readonly messageId: string } | undefined
     >(undefined);
+    const [mode, setMode] = tapState<string | undefined>(undefined);
 
     // Update composer values when editing begins
     const updateFromMessage = tapEffectEvent(() => {
@@ -366,6 +367,7 @@ const ComposerClientResource = resource(
         type,
         dictation: undefined,
         quote,
+        mode,
         queue: queueItems,
       };
     }, [
@@ -379,6 +381,7 @@ const ComposerClientResource = resource(
       type,
       attachments.length,
       quote,
+      mode,
       queueItems,
     ]);
 
@@ -438,7 +441,18 @@ const ComposerClientResource = resource(
           createdAt: new Date(),
           parentId: null,
           sourceId: null,
-          runConfig,
+          runConfig:
+            mode === undefined
+              ? runConfig
+              : {
+                  ...runConfig,
+                  custom: {
+                    ...(runConfig.custom as
+                      | Record<string, unknown>
+                      | undefined),
+                    mode,
+                  },
+                },
           startRun: opts?.startRun,
           metadata: {
             custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
@@ -460,6 +474,7 @@ const ComposerClientResource = resource(
       startDictation: () => {},
       stopDictation: () => {},
       setQuote,
+      setMode,
       queueItem: (selector: { index: number }) => {
         return queueItemClients.get(selector);
       },

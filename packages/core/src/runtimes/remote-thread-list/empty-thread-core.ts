@@ -155,6 +155,12 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
       throw EMPTY_THREAD_ERROR;
     },
 
+    mode: undefined,
+
+    setMode() {
+      throw EMPTY_THREAD_ERROR;
+    },
+
     subscribe() {
       return () => {};
     },

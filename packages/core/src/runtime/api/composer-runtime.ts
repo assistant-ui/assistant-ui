@@ -63,6 +63,13 @@ type BaseComposerState = {
    * Undefined when no quote is set.
    */
   readonly quote: QuoteInfo | undefined;
+
+  /**
+   * The currently selected composer mode (e.g. "plan", "debug").
+   * Undefined when no mode is selected. Delivered to the backend via
+   * `runConfig.custom.mode` on send.
+   */
+  readonly mode: string | undefined;
 };
 
 export type ThreadComposerState = BaseComposerState & {
@@ -97,6 +104,7 @@ const getThreadComposerState = (
     attachmentAccept: runtime?.attachmentAccept ?? "",
     dictation: runtime?.dictation,
     quote: runtime?.quote,
+    mode: runtime?.mode,
 
     value: runtime?.text ?? "",
   });
@@ -120,6 +128,7 @@ const getEditComposerState = (
     attachmentAccept: runtime?.attachmentAccept ?? "",
     dictation: runtime?.dictation,
     quote: runtime?.quote,
+    mode: runtime?.mode,
 
     parentId: runtime?.parentId ?? null,
     sourceId: runtime?.sourceId ?? null,
@@ -159,6 +168,13 @@ export type ComposerRuntime = {
    * @param role The role to set in the composer.
    */
   setRole(role: MessageRole): void;
+
+  /**
+   * Set the composer mode (e.g. "plan", "debug"). Sticky across sends and
+   * delivered to the backend via `runConfig.custom.mode`. Pass undefined to clear.
+   * @param mode The mode id to set, or undefined to clear.
+   */
+  setMode(mode: string | undefined): void;
 
   /**
    * Set the run config of the composer. This is used to send custom configuration data to the model.
@@ -252,6 +268,7 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     this.send = this.send.bind(this);
     this.cancel = this.cancel.bind(this);
     this.setRole = this.setRole.bind(this);
+    this.setMode = this.setMode.bind(this);
     this.getAttachmentByIndex = this.getAttachmentByIndex.bind(this);
     this.startDictation = this.startDictation.bind(this);
     this.stopDictation = this.stopDictation.bind(this);
@@ -307,6 +324,12 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     const core = this._core.getState();
     if (!core) throw new Error("Composer is not available");
     core.setRole(role);
+  }
+
+  public setMode(mode: string | undefined) {
+    const core = this._core.getState();
+    if (!core) throw new Error("Composer is not available");
+    core.setMode(mode);
   }
 
   public startDictation() {

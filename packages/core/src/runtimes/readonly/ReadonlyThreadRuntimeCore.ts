@@ -174,6 +174,12 @@ export class ReadonlyThreadRuntimeCore
       throw READONLY_THREAD_ERROR;
     },
 
+    mode: undefined,
+
+    setMode() {
+      throw READONLY_THREAD_ERROR;
+    },
+
     subscribe() {
       return () => {};
     },
