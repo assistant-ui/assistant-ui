@@ -1,11 +1,16 @@
 import { Readable } from "node:stream";
 import { NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { exportWorkspaceArchive } from "../blaxel-sandbox";
 
 export const maxDuration = 120;
 
 export async function POST(request: Request) {
+  if (!isAiPlaygroundEnabled) {
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
+
   let cleanup: (() => Promise<void>) | undefined;
   const runCleanup = () => {
     const current = cleanup;
