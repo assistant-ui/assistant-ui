@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type {
   AppendMessage,
+  ChatModelRunResult,
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
@@ -680,6 +681,227 @@ describe("AGUIThreadRuntimeCore", () => {
     });
 
     expect(runAgent).toHaveBeenCalledTimes(2);
+  });
+
+  it("replays the resume stream instead of re-running the agent", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    expect(runAgent).toHaveBeenCalledTimes(1);
+
+    const userId = core.getMessages()[0]!.id;
+    const stream = vi.fn(async function* (): AsyncGenerator<
+      ChatModelRunResult,
+      void,
+      unknown
+    > {
+      yield { content: [{ type: "text", text: "resumed" }] };
+      yield {
+        content: [{ type: "text", text: "resumed output" }],
+        status: { type: "complete", reason: "unknown" },
+      };
+    });
+
+    await core.resume({
+      parentId: userId,
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+      stream,
+    });
+
+    // The agent must NOT be re-invoked: the persisted stream is replayed.
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(stream).toHaveBeenCalledTimes(1);
+
+    const options = stream.mock.calls[0]?.[0];
+    expect(options?.messages?.[0]).toMatchObject({ id: userId, role: "user" });
+    expect(options?.unstable_assistantMessageId).toBeTruthy();
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.content.at(-1)).toMatchObject({
+      type: "text",
+      text: "resumed output",
+    });
+    expect(assistant.status).toMatchObject({
+      type: "complete",
+      reason: "unknown",
+    });
+    expect(core.isRunning()).toBe(false);
+  });
+
+  it("completes a resumed assistant when the stream omits a terminal status", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const userId = core.getMessages()[0]!.id;
+    const stream = async function* (): AsyncGenerator<
+      ChatModelRunResult,
+      void,
+      unknown
+    > {
+      yield { content: [{ type: "text", text: "partial" }] };
+    };
+
+    await core.resume({
+      parentId: userId,
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+      stream,
+    });
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.status).toMatchObject({
+      type: "complete",
+      reason: "unknown",
+    });
+  });
+
+  it("surfaces resume stream errors without wiping streamed content", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const onError = vi.fn();
+    const core = createCore(agent, { onError });
+    await core.append(createAppendMessage());
+
+    const userId = core.getMessages()[0]!.id;
+    const stream = async function* (): AsyncGenerator<
+      ChatModelRunResult,
+      void,
+      unknown
+    > {
+      yield { content: [{ type: "text", text: "before error" }] };
+      throw new Error("stream boom");
+    };
+
+    await expect(
+      core.resume({
+        parentId: userId,
+        sourceId: null,
+        runConfig: {} as TestRunConfig,
+        stream,
+      }),
+    ).rejects.toThrow("stream boom");
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.content.at(-1)).toMatchObject({
+      type: "text",
+      text: "before error",
+    });
+    expect(assistant.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+      error: "stream boom",
+    });
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a resume stream without wiping already-streamed content", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const onCancel = vi.fn();
+    const core = createCore(agent, { onCancel });
+    await core.append(createAppendMessage());
+
+    const userId = core.getMessages()[0]!.id;
+    let firstYielded!: () => void;
+    const firstYieldedPromise = new Promise<void>((resolve) => {
+      firstYielded = resolve;
+    });
+    const stream = async function* (options: {
+      abortSignal: AbortSignal;
+    }): AsyncGenerator<ChatModelRunResult, void, unknown> {
+      yield { content: [{ type: "text", text: "partial" }] };
+      firstYielded();
+      // Stay open until the run is cancelled, mimicking a live re-attached stream.
+      await new Promise<void>((resolve) => {
+        options.abortSignal.addEventListener("abort", () => resolve(), {
+          once: true,
+        });
+      });
+    };
+
+    const resumePromise = core.resume({
+      parentId: userId,
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+      stream,
+    });
+
+    await firstYieldedPromise;
+    await core.cancel();
+    await resumePromise;
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.content.at(-1)).toMatchObject({
+      type: "text",
+      text: "partial",
+    });
+    expect(assistant.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(core.isRunning()).toBe(false);
+  });
+
+  it("feeds history.resume() stream on unstable_resume instead of re-running", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const userMessage: ThreadMessage = {
+      id: "msg-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Hello" }],
+      metadata: { custom: {} },
+    };
+
+    const resume = vi.fn(async function* (): AsyncGenerator<
+      ChatModelRunResult,
+      void,
+      unknown
+    > {
+      yield {
+        content: [{ type: "text", text: "recovered" }],
+        status: { type: "complete", reason: "unknown" },
+      };
+    });
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: "msg-1",
+        messages: [{ message: userMessage, parentId: null }],
+        unstable_resume: true,
+      }),
+      resume,
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+    await core.__internal_load();
+
+    expect(resume).toHaveBeenCalledTimes(1);
+    expect(runAgent).not.toHaveBeenCalled();
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.content.at(-1)).toMatchObject({
+      type: "text",
+      text: "recovered",
+    });
+    expect(assistant.status).toMatchObject({ type: "complete" });
   });
 
   it("omits the placeholder assistant message from run input history", async () => {
