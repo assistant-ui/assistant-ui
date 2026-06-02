@@ -40,7 +40,7 @@ export default defineToolkit({
     }),
     execute: async ({ query }: { query: string }) =>
       geocodeLocationWithOpenMeteo(query),
-    render: ({ toolName, args, result }: any) => {
+    render: ({ toolName, args, result }) => {
       const signature = formatToolCall(toolName, args);
       const icon = <MapPin className="size-4" />;
 
@@ -77,20 +77,27 @@ export default defineToolkit({
       location: z.string(),
       latitude: z.number(),
       longitude: z.number(),
+      format: z
+        .enum(["fahrenheit", "celsius"])
+        .default("fahrenheit")
+        .describe("Temperature format to use for the weather card."),
     }),
     execute: async ({
       location,
       latitude,
       longitude,
+      format,
     }: {
       location: string;
       latitude: number;
       longitude: number;
+      format: "fahrenheit" | "celsius";
     }) => {
       const weather = await fetchWeatherWidgetFromOpenMeteo({
         query: location,
         latitude,
         longitude,
+        unit: format,
       });
       if (!weather.success) {
         return { success: false as const, error: weather.error };
@@ -122,13 +129,15 @@ export default defineToolkit({
       }
 
       const current = result.widget?.current;
+      const unitSymbol =
+        result.widget?.units.temperature === "celsius" ? "C" : "F";
       return (
         <ToolTraceCard
           icon={icon}
           signature={signature}
           description={
             current
-              ? `${Math.round(current.temperature)}°F · ${current.conditionCode} in ${result.location}`
+              ? `${Math.round(current.temperature)}°${unitSymbol} · ${current.conditionCode} in ${result.location}`
               : "Weather ready"
           }
           result={result}
