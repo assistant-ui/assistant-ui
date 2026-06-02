@@ -369,6 +369,27 @@ describe("toToolsJSONSchema", () => {
       expect(result).toHaveProperty("tool_c");
     });
 
+    it("always excludes backend-default parameters with a custom filter", () => {
+      const tools: Record<string, Tool> = {
+        backendDefaultTool: {
+          type: "frontend",
+          parameters: { type: "object", properties: {} },
+          execute: async () => {},
+          unstable_backendDefault: { parameters: true },
+        },
+        normalTool: {
+          parameters: { type: "object", properties: {} },
+        },
+      };
+
+      const result = toToolsJSONSchema(tools, {
+        filter: () => true,
+      });
+
+      expect(result).not.toHaveProperty("backendDefaultTool");
+      expect(result).toHaveProperty("normalTool");
+    });
+
     it("custom filter receives name and tool", () => {
       const tools: Record<string, Tool> = {
         prefixed_tool: {
