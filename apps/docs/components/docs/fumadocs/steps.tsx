@@ -23,3 +23,10 @@ export function Step({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+export const StepsLLM = ({ children }: { children: ReactNode }) => (
+  <ol>{children}</ol>
+);
+export const StepLLM = ({ children }: { children: ReactNode }) => (
+  <li>{children}</li>
+);

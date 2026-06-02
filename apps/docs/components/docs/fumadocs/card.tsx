@@ -61,3 +61,16 @@ export function Card({
 export function Cards({ children }: { children: ReactNode }) {
   return <div className="not-prose grid gap-3 sm:grid-cols-2">{children}</div>;
 }
+
+export const CardsLLM = ({ children }: { children: ReactNode }) => (
+  <ul>{children}</ul>
+);
+export const CardLLM = ({ title, description, href, children }: CardProps) => {
+  const blurb = description ?? children;
+  return (
+    <li>
+      {href ? <a href={href}>{title}</a> : title}
+      {blurb ? <> — {blurb}</> : null}
+    </li>
+  );
+};

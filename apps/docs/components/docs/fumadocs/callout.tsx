@@ -59,6 +59,24 @@ interface CalloutProps extends Omit<ComponentProps<"div">, "title"> {
   children?: ReactNode;
 }
 
+// Keep the authored fuma type in the `[!type]` marker — don't remap to GitHub's
+// smaller admonition set.
+export const CalloutLLM = ({
+  type = "info",
+  title,
+  children,
+}: CalloutProps) => (
+  <blockquote>
+    <p>{`[!${type}]`}</p>
+    {title ? (
+      <p>
+        <strong>{title}</strong>
+      </p>
+    ) : null}
+    {children}
+  </blockquote>
+);
+
 export function Callout({
   type: inputType = "info",
   title,

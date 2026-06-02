@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { highlight } from "fumadocs-core/highlight";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { FC, ReactNode } from "react";
 import {
   TypeTableClient,
   type TypeTableRow,
@@ -148,3 +148,55 @@ export async function PrimitivesTypeTable({
   const rows = await propsToRows(parameters);
   return <TypeTableClient id={type} rows={rows} />;
 }
+
+// Build from PropDef directly, skipping Shiki highlighting (it emitted stray
+// code fences) and the `highlighted*` fields meant for the client table.
+const PropItemLLM: FC<{ prop: PropDef }> = ({ prop: rawProp }) => {
+  const prop = { ...COMMON_PARAMS[rawProp.name], ...rawProp };
+  const isOptional = !prop.required && !prop.default;
+  const type = prop.type ? stripTrailingUndefined(prop.type) : undefined;
+
+  return (
+    <li>
+      <code>
+        {prop.name}
+        {isOptional ? "?" : ""}
+      </code>
+      {type ? (
+        <>
+          {": "}
+          <code>{type}</code>
+        </>
+      ) : null}
+      {prop.default ? (
+        <>
+          {" (default "}
+          <code>{prop.default}</code>
+          {")"}
+        </>
+      ) : null}
+      {prop.deprecated ? <> (deprecated: {prop.deprecated})</> : null}
+      {prop.description ? <> — {prop.description}</> : null}
+      {prop.children?.map((child, i) => (
+        <PropListLLM key={child.type ?? i} props={child.parameters} />
+      ))}
+    </li>
+  );
+};
+
+const PropListLLM: FC<{ props: PropDef[] }> = ({ props }) => {
+  return (
+    <ul>
+      {props.map((prop) => (
+        <PropItemLLM key={prop.name} prop={prop} />
+      ))}
+    </ul>
+  );
+};
+
+export const PrimitivesTypeTableLLM: FC<{
+  type?: string;
+  parameters: PropDef[];
+}> = ({ parameters }) => {
+  return <PropListLLM props={parameters} />;
+};

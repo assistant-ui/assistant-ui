@@ -204,3 +204,60 @@ export const ParametersTable: FC<ParametersTableProps> = ({
     </div>
   );
 };
+
+const ParameterItemLLM: FC<{ parameter: ParameterDef }> = ({
+  parameter: partialParameter,
+}) => {
+  const parameter = {
+    ...COMMON_PARAMS[partialParameter.name],
+    ...partialParameter,
+  };
+  const isOptional = !parameter.required && !parameter.default;
+
+  return (
+    <li>
+      <code>
+        {parameter.name}
+        {isOptional ? "?" : ""}
+      </code>
+      {parameter.type ? (
+        <>
+          {": "}
+          <code>{parameter.type}</code>
+        </>
+      ) : null}
+      {parameter.default ? (
+        <>
+          {" (default "}
+          <code>{parameter.default}</code>
+          {")"}
+        </>
+      ) : null}
+      {parameter.deprecated ? <> (deprecated: {parameter.deprecated})</> : null}
+      {parameter.description ? (
+        <> — {renderDescription(parameter.description)}</>
+      ) : null}
+      {parameter.children?.map((child, i) => (
+        <ParameterListLLM key={child.type ?? i} parameters={child.parameters} />
+      ))}
+    </li>
+  );
+};
+
+const ParameterListLLM: FC<{ parameters: ParameterDef[] }> = ({
+  parameters,
+}) => {
+  return (
+    <ul>
+      {parameters.map((parameter) => (
+        <ParameterItemLLM key={parameter.name} parameter={parameter} />
+      ))}
+    </ul>
+  );
+};
+
+export const ParametersTableLLM: FC<ParametersTableProps> = ({
+  parameters,
+}) => {
+  return <ParameterListLLM parameters={parameters} />;
+};
