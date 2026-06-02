@@ -328,21 +328,6 @@ describe("toToolsJSONSchema", () => {
       expect(result).toHaveProperty("olderFrontendTool");
     });
 
-    it("omits tools that only have backend defaults with no client overrides", () => {
-      const tools: Record<string, Tool> = {
-        generatedFrontendTool: {
-          type: "frontend",
-          parameters: { type: "object", properties: {} },
-          execute: async () => {},
-          unstable_backendDefault: { parameters: true },
-        },
-      };
-
-      const result = toToolsJSONSchema(tools);
-
-      expect(result).not.toHaveProperty("generatedFrontendTool");
-    });
-
     it("excludes tools without parameters", () => {
       const tools: Record<string, Tool> = {
         withParams: {

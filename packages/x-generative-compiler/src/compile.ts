@@ -634,6 +634,8 @@ function setBackendDefault(
   target: Target,
   type: ToolType,
 ): void {
+  // Always strip any hand-authored marker first; only re-add it for client
+  // frontend/human tools whose schema is already known by the backend.
   removeMember(object, "unstable_backendDefault");
   if (target !== "client" || (type !== "frontend" && type !== "human")) return;
 
