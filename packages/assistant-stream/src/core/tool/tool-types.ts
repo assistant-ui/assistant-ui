@@ -220,6 +220,8 @@ type ToolBase<
   /**
    * @internal Defaults already known by the backend for this tool. Client
    * transports omit matching fields and only upload overrides.
+   *
+   * This is only meaningful for frontend and human tools.
    */
   unstable_backendDefault?: {
     parameters?: boolean;
