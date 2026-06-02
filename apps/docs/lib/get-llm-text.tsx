@@ -10,7 +10,7 @@ import rehypeRemark from "rehype-remark";
 import remarkGfm from "remark-gfm";
 import remarkStringify from "remark-stringify";
 import { unified } from "unified";
-import { getMDXComponents } from "@/mdx-components";
+import { getLLMComponents } from "@/lib/llm-components";
 import type { examples, source } from "@/lib/source";
 import type { InferPageType } from "fumadocs-core/source";
 
@@ -23,8 +23,6 @@ const processor = unified()
     fences: true,
     rule: "-",
   });
-
-const MDX_COMPONENTS = getMDXComponents({});
 
 const OMITTED_STATIC_PROP_NAMES = new Set([
   "children",
@@ -61,6 +59,28 @@ function isClientReference(type: unknown): boolean {
     type !== null &&
     (type as { $$typeof?: symbol }).$$typeof === REACT_CLIENT_REFERENCE
   );
+}
+
+// Directly-imported MDX components (e.g. PreviewCode) bypass the LLM map, so they
+// carry their text rendering as a `.llm` static instead.
+function getLLMVariant(type: unknown): StaticFunctionComponent | undefined {
+  if (
+    (typeof type === "function" || typeof type === "object") &&
+    type !== null
+  ) {
+    const llm = (type as { llm?: unknown }).llm;
+    if (typeof llm === "function") return llm as StaticFunctionComponent;
+  }
+  return undefined;
+}
+
+function componentDisplayName(type: unknown): string {
+  if (type == null) return "";
+  const named = type as { displayName?: unknown; name?: unknown };
+  if (typeof named.displayName === "string" && named.displayName)
+    return named.displayName;
+  if (typeof named.name === "string" && named.name) return named.name;
+  return "";
 }
 
 // Safety net for server components that throw because of transitive
@@ -236,12 +256,28 @@ async function resolveStaticReactNode(node: ReactNode): Promise<ReactNode> {
     const resolvedChildren = await resolveStaticReactNode(
       children as ReactNode,
     );
-    return renderClientFallback(props, resolvedChildren);
+    // Turn links (e.g. next/link) into real anchors so they survive as markdown
+    // links, not a dumped `href` entry.
+    const href = props.href;
+    if (typeof href === "string" && href) {
+      return <a href={href}>{resolvedChildren}</a>;
+    }
+    const fallback = await renderClientFallback(props, resolvedChildren);
+    if (!isEmptyNode(fallback)) return fallback;
+    const name = componentDisplayName(element.type);
+    return (
+      <p>
+        {name
+          ? `[interactive preview component ${name} omitted]`
+          : "[interactive preview omitted]"}
+      </p>
+    );
   }
 
   if (typeof element.type === "function") {
+    const Component = (getLLMVariant(element.type) ??
+      element.type) as StaticFunctionComponent;
     try {
-      const Component = element.type as StaticFunctionComponent;
       const rendered = Component({ ...props, children: children as ReactNode });
       return resolveStaticReactNode(await rendered);
     } catch (error) {
@@ -279,11 +315,15 @@ export async function getLLMText(page: LLMPage) {
   // platform ("react"). If llms output should include React Native or Ink
   // variants, render once per platform or provide an explicit platform scope.
   const staticBody = await resolveStaticReactNode(
-    <Body components={MDX_COMPONENTS} />,
+    <Body components={getLLMComponents()} />,
   );
   const { renderToStaticMarkup } = await import("react-dom/server");
   const html = renderToStaticMarkup(staticBody);
-  const markdown = String(await processor.process(html)).trim();
+  // remark-stringify escapes the leading `[` of a callout admonition marker
+  // (`> [!info]` → `> \[!info]`); restore it so the GitHub syntax stays intact.
+  const markdown = String(await processor.process(html))
+    .replace(/^(\s*>\s*)\\\[!/gm, "$1[!")
+    .trim();
 
   return `# ${page.data.title}
 URL: ${page.url}

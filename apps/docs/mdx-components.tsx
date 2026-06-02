@@ -5,7 +5,6 @@ import { Callout } from "@/components/docs/fumadocs/callout";
 import { Card, Cards } from "@/components/docs/fumadocs/card";
 import { Step, Steps } from "@/components/docs/fumadocs/steps";
 import { Tab, Tabs } from "@/components/docs/fumadocs/tabs";
-import { TypeTable } from "fumadocs-ui/components/type-table";
 import defaultComponents from "fumadocs-ui/mdx";
 import {
   CodeBlock,
@@ -52,7 +51,6 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     Cards,
     Step,
     Steps,
-    TypeTable,
     Accordion,
     Accordions,
     Kbd,

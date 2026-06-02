@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import type { ReactNode } from "react";
 import { PreviewCodeClient } from "./preview-code";
 
 type PreviewCodeProps = {
@@ -195,15 +196,8 @@ function cleanupImports(imports: string[]): string[] {
     );
 }
 
-export async function PreviewCode({
-  file,
-  name,
-  children,
-  className,
-}: PreviewCodeProps) {
+function buildPreviewCode(file: string, name: string): string {
   const filePath = path.join(process.cwd(), `${file}.tsx`);
-
-  let code: string;
   try {
     const source = fs.readFileSync(filePath, "utf-8");
     const functionCode = extractFunctionCode(source, name);
@@ -213,13 +207,21 @@ export async function PreviewCode({
     const relevantImports = filterRelevantImports(allImports, cleanedCode);
     const cleanedImports = cleanupImports(relevantImports);
 
-    code =
-      cleanedImports.length > 0
-        ? `${cleanedImports.join("\n")}\n\n${cleanedCode}`
-        : cleanedCode;
+    return cleanedImports.length > 0
+      ? `${cleanedImports.join("\n")}\n\n${cleanedCode}`
+      : cleanedCode;
   } catch {
-    code = `// Error reading file: ${file}`;
+    return `// Error reading file: ${file}`;
   }
+}
+
+export async function PreviewCode({
+  file,
+  name,
+  children,
+  className,
+}: PreviewCodeProps) {
+  const code = buildPreviewCode(file, name);
 
   return (
     <PreviewCodeClient code={code} {...(className && { className })}>
@@ -227,3 +229,20 @@ export async function PreviewCode({
     </PreviewCodeClient>
   );
 }
+
+// PreviewCode is imported directly in MDX, so the LLM map can't swap it; it
+// carries its text variant as a `.llm` static instead. Drop the live preview,
+// keep the source.
+(
+  PreviewCode as typeof PreviewCode & {
+    llm: (props: PreviewCodeProps) => ReactNode;
+  }
+).llm = ({ file, name }: PreviewCodeProps) => (
+  <>
+    <p>{`[interactive preview component ${name} omitted]`}</p>
+    <p>{`Code for ${name} preview:`}</p>
+    <pre>
+      <code className="language-tsx">{buildPreviewCode(file, name)}</code>
+    </pre>
+  </>
+);
