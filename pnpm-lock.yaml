@@ -3307,6 +3307,9 @@ importers:
       assistant-stream:
         specifier: ^0.3.19
         version: link:../assistant-stream
+      fast-json-patch:
+        specifier: ^3.1.1
+        version: 3.1.1
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*

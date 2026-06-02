@@ -9,7 +9,7 @@ import type {
 } from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
 import { AgUiThreadRuntimeCore } from "../src/runtime/AgUiThreadRuntimeCore";
-import { makeLogger } from "../src/runtime/logger";
+import { makeLogger, type Logger } from "../src/runtime/logger";
 
 const createAppendMessage = (
   overrides: Partial<AppendMessage> = {},
@@ -33,11 +33,12 @@ const createCore = (
     onError?: (e: Error) => void;
     onCancel?: () => void;
     history?: ThreadHistoryAdapter;
+    logger?: Logger;
   } = {},
 ) =>
   new AgUiThreadRuntimeCore({
     agent,
-    logger: noopLogger,
+    logger: hooks.logger ?? noopLogger,
     showThinking: true,
     ...(hooks.onError ? { onError: hooks.onError } : {}),
     ...(hooks.onCancel ? { onCancel: hooks.onCancel } : {}),
@@ -196,6 +197,113 @@ describe("AGUIThreadRuntimeCore", () => {
         content: '{"temperature":"22C"}',
       }),
     );
+  });
+
+  it("applies state deltas to the current state snapshot", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onStateSnapshotEvent?.({
+          event: {
+            type: "STATE_SNAPSHOT",
+            snapshot: { count: 0, label: "initial" },
+          },
+        });
+        subscriber.onStateDeltaEvent?.({
+          event: {
+            type: "STATE_DELTA",
+            delta: [{ op: "replace", path: "/count", value: 1 }],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(core.getState()).toEqual({ count: 1, label: "initial" });
+  });
+
+  it("applies deltas before a snapshot from an empty state object", async () => {
+    const runInputs: any[] = [];
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        if (runInputs.length === 1) {
+          subscriber.onStateDeltaEvent?.({
+            event: {
+              type: "STATE_DELTA",
+              delta: [{ op: "add", path: "/foo", value: "bar" }],
+            },
+          });
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    expect(core.getState()).toEqual({ foo: "bar" });
+
+    await core.resume({
+      parentId: null,
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+    });
+
+    expect(runInputs[1].state).toEqual({ foo: "bar" });
+  });
+
+  it("isolates invalid state deltas and leaves state unchanged", async () => {
+    const error = vi.fn();
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onStateSnapshotEvent?.({
+          event: { type: "STATE_SNAPSHOT", snapshot: { count: 0 } },
+        });
+        subscriber.onStateDeltaEvent?.({
+          event: {
+            type: "STATE_DELTA",
+            delta: [{ op: "replace", path: "/missing", value: 1 }],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent, { logger: makeLogger({ error }) });
+    await core.append(createAppendMessage());
+
+    expect(core.getState()).toEqual({ count: 0 });
+    expect(error).toHaveBeenCalledWith(
+      "[agui] failed to apply state delta",
+      expect.any(Error),
+    );
+  });
+
+  it("does not allow state deltas to modify object prototypes", async () => {
+    const error = vi.fn();
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onStateSnapshotEvent?.({
+          event: { type: "STATE_SNAPSHOT", snapshot: {} },
+        });
+        subscriber.onStateDeltaEvent?.({
+          event: {
+            type: "STATE_DELTA",
+            delta: [{ op: "add", path: "/__proto__/polluted", value: true }],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent, { logger: makeLogger({ error }) });
+    await core.append(createAppendMessage());
+
+    expect(core.getState()).toEqual({});
+    expect(({} as any).polluted).toBeUndefined();
+    expect(error).toHaveBeenCalled();
   });
 
   it("marks runs as cancelled when aborting", async () => {

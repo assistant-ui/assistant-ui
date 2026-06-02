@@ -12,6 +12,7 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
+import jsonpatch, { type Operation } from "fast-json-patch";
 import type { Logger } from "./logger";
 import type { AgUiEvent, AgUiInterrupt, AgUiResumeEntry } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
@@ -730,7 +731,21 @@ export class AgUiThreadRuntimeCore {
         return;
       }
       case "STATE_DELTA": {
-        this.logger.debug?.("[agui] state delta event ignored", event.delta);
+        if (event.delta.length === 0) return;
+        try {
+          const state =
+            this.stateSnapshot === undefined ? {} : this.stateSnapshot;
+          const result = jsonpatch.applyPatch(
+            state,
+            event.delta as Operation[],
+            true,
+            false,
+          );
+          this.stateSnapshot = result.newDocument as ReadonlyJSONValue;
+          this.notifyUpdate();
+        } catch (error) {
+          this.logger.error?.("[agui] failed to apply state delta", error);
+        }
         return;
       }
       case "MESSAGES_SNAPSHOT": {

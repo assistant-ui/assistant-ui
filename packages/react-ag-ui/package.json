@@ -36,7 +36,8 @@
   "dependencies": {
     "@ag-ui/client": "^0.0.54",
     "@assistant-ui/core": "^0.2.9",
-    "assistant-stream": "^0.3.19"
+    "assistant-stream": "^0.3.19",
+    "fast-json-patch": "^3.1.1"
   },
   "peerDependencies": {
     "@types/react": "*",
