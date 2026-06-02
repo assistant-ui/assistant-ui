@@ -44,33 +44,27 @@ client. So it throws instead of silently leaking.
 
 <ParametersTable {...defineToolkit} />
 
-### providerTool
-
-Marks a tool as provider-executed inside a `"use generative"` toolkit.
-
-<ParametersTable {...providerTool} />
-
 ### DevToolsHooks
 
 <ParametersTable {...DevToolsHooks} />
 
-### hitl
+### hitlTool
 
 Marks a tool as **human-in-the-loop**: the agent pauses and the UI (`render`)
 supplies the result instead of code. Use it as the tool's `execute`:
 
 ```tsx
-confirm: { execute: hitl(), render: (props) => <Confirm {...props} /> }
+confirm: { execute: hitlTool(), render: (props) => <Confirm {...props} /> }
 ```
 
 Like [defineToolkit](/docs/api-reference/utilities/miscellaneous#definetoolkit), it has **no runtime implementation**: a
 `"use generative"` compiler (e.g. `@assistant-ui/next` or `@assistant-ui/vite`)
-detects `execute: hitl()`, drops it, and stamps the tool `type: "human"`.
+detects `execute: hitlTool()`, drops it, and stamps the tool `type: "human"`.
 Reaching it at runtime means the module wasn't compiled (used outside a
 `"use generative"` file), so it throws.
 
 ```ts
-function hitl(): never;
+function hitlTool(): never;
 ```
 
 ### InMemoryThreadList
@@ -82,6 +76,13 @@ function hitl(): never;
 ```ts
 const Interactables: () => ResourceElement<ClientOutput<"interactables">, undefined>;
 ```
+
+### providerTool
+
+Marks a tool as provider-executed. The use-generative compiler converts
+`execute: providerTool(...)` into a `type: "provider"` tool entry.
+
+<ParametersTable {...providerTool} />
 
 ### SingleThreadList
 
@@ -118,4 +119,13 @@ When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
 const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
 ```
 
+### hitl
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [hitlTool](/docs/api-reference/utilities/miscellaneous#hitltool).
+</Callout>
+
+```ts
+const hitl: typeof hitlTool;
+```
 {/* api-reference:end */}
