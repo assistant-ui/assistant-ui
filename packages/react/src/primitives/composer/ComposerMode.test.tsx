@@ -59,8 +59,6 @@ describe("ComposerPrimitive.Mode", () => {
 
     expect(planBtn.getAttribute("data-active")).toBe("true");
     expect(debugBtn.getAttribute("data-active")).toBeNull();
-    expect(planBtn.getAttribute("aria-pressed")).toBe("true");
-    expect(debugBtn.getAttribute("aria-pressed")).toBe("false");
 
     act(() => {
       debugBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));

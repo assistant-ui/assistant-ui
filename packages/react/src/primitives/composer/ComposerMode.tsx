@@ -46,8 +46,7 @@ export const ComposerPrimitiveMode = forwardRef<
   return (
     <Primitive.button
       type="button"
-      aria-pressed={isActive}
-      {...(isActive ? { "data-active": "true" } : {})}
+      {...(isActive ? { "data-active": "true" } : null)}
       {...props}
       ref={forwardedRef}
       onClick={composeEventHandlers(onClick, handleSetMode)}
