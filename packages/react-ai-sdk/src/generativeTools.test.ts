@@ -127,6 +127,23 @@ describe("generativeTools", () => {
     });
     expect(toolSet.web_search).toHaveProperty("inputSchema");
   });
+
+  it("forwards explicit false supportsDeferredResults", () => {
+    const toolSet = generativeTools({
+      toolkit: {
+        web_search: {
+          type: "provider",
+          providerId: "openai.web_search_preview",
+          args: { searchContextSize: "low" },
+          supportsDeferredResults: false,
+        },
+      },
+    });
+
+    expect(toolSet.web_search).toMatchObject({
+      supportsDeferredResults: false,
+    });
+  });
 });
 
 describe("AISDKToolkit", () => {
@@ -289,6 +306,7 @@ describe("AISDKToolkit", () => {
           type: "provider",
           providerId: "openai.web_search_preview",
           args: { searchContextSize: "low" },
+          supportsDeferredResults: false,
         },
       },
     });
@@ -299,6 +317,7 @@ describe("AISDKToolkit", () => {
         type: "provider",
         id: "openai.web_search_preview",
         args: { searchContextSize: "low" },
+        supportsDeferredResults: false,
       },
     });
   });

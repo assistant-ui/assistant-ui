@@ -263,18 +263,14 @@ const toProviderToolSet = (toolkit: Toolkit): ToolSet =>
             inputSchema: parametersToInputSchema(t.parameters),
           }),
           ...(t.providerOptions && { providerOptions: t.providerOptions }),
-          ...(t.supportsDeferredResults && {
+          ...(t.supportsDeferredResults !== undefined && {
             supportsDeferredResults: t.supportsDeferredResults,
           }),
         },
       ]),
   ) as ToolSet;
 
-type ProviderToolkitTool = Toolkit[string] & {
-  type: "provider";
-  providerId: `${string}.${string}`;
-  args: Record<string, unknown>;
-};
+type ProviderToolkitTool = Extract<Toolkit[string], { type: "provider" }>;
 
 const isProviderToolkitTool = (
   tool: Toolkit[string],

@@ -458,13 +458,45 @@ function applyProviderToolConfig(
     );
   }
 
+  const existingNames = new Set(
+    object.properties.flatMap((prop) => {
+      if (!t.isObjectProperty(prop) && !t.isObjectMethod(prop)) return [];
+      const name = memberName(prop.key, prop.computed);
+      return name ? [name] : [];
+    }),
+  );
+  const configNames = new Set<string>();
+
   for (const prop of execute.value.arguments[0].properties) {
-    if (t.isSpreadElement(prop) || t.isObjectMethod(prop)) {
+    if (!t.isObjectProperty(prop)) {
       throw new GenerativeCompileError(
         "`providerTool(...)` config can only contain object properties",
         filename,
       );
     }
+    const name = memberName(prop.key, prop.computed);
+    if (!name) {
+      throw new GenerativeCompileError(
+        "`providerTool(...)` config can only contain static property names",
+        filename,
+      );
+    }
+    if (
+      t.isFunctionExpression(prop.value) ||
+      t.isArrowFunctionExpression(prop.value)
+    ) {
+      throw new GenerativeCompileError(
+        "`providerTool(...)` config cannot contain function-valued properties",
+        filename,
+      );
+    }
+    if (existingNames.has(name) || configNames.has(name)) {
+      throw new GenerativeCompileError(
+        "`providerTool(...)` config cannot duplicate tool properties",
+        filename,
+      );
+    }
+    configNames.add(name);
     object.properties.push(prop);
   }
 }

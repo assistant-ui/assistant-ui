@@ -571,6 +571,43 @@ export default defineToolkit({
     );
   });
 
+  it("rejects function-valued properties in providerTool config", () => {
+    const src = `"use generative";
+import { defineToolkit, providerTool } from "@assistant-ui/react";
+export default defineToolkit({
+  web_search: {
+    execute: providerTool({
+      providerId: "openai.web_search_preview",
+      args: {},
+      providerOptions: () => ({}),
+    }),
+  },
+});`;
+
+    expect(() => compileGenerative(src, { target: "server" })).toThrow(
+      /cannot contain function-valued properties/,
+    );
+  });
+
+  it("rejects providerTool config properties that duplicate tool properties", () => {
+    const src = `"use generative";
+import { defineToolkit, providerTool } from "@assistant-ui/react";
+export default defineToolkit({
+  web_search: {
+    render: () => null,
+    execute: providerTool({
+      providerId: "openai.web_search_preview",
+      args: {},
+      render: "duplicate",
+    }),
+  },
+});`;
+
+    expect(() => compileGenerative(src, { target: "server" })).toThrow(
+      /cannot duplicate tool properties/,
+    );
+  });
+
   it("infers `frontend` from a `use client` execute and keeps it client-side", () => {
     const src = `"use generative";\nimport { defineToolkit } from "@assistant-ui/react";\nimport { track } from "@/a";\nexport default defineToolkit({ t: { execute: async () => { "use client"; return track(); }, render: () => null } });`;
     const server = compileGenerative(src, { target: "server" }).code;
