@@ -359,12 +359,10 @@ function BuilderPlayground() {
     </div>
   );
 
-  return isAiPlaygroundEnabled ? (
+  return (
     <PlaygroundChatProvider config={config} setConfig={setConfig}>
       {content}
     </PlaygroundChatProvider>
-  ) : (
-    content
   );
 }
 
