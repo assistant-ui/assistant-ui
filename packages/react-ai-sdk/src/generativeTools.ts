@@ -10,11 +10,8 @@ import {
   type ToolModelOutputFunction,
 } from "assistant-stream";
 import type { Toolkit, ToolkitDefinition } from "@assistant-ui/core/react";
-import {
-  frontendTools,
-  toAISDKContent,
-  toAISDKDefaultOutput,
-} from "./frontendTools";
+import { frontendTools } from "./frontendTools";
+import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
 import {
   unwrapModelContentEnvelope,
   type ModelContentEnvelope,

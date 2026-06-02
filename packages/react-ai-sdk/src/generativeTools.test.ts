@@ -387,4 +387,21 @@ describe("generativeTools toModelOutput", () => {
       value: { location: "San Francisco" },
     });
   });
+
+  it("uses stored model content envelopes when no custom projector is defined", async () => {
+    const tools = createWeatherTools();
+
+    const output = await tools.get_weather!.toModelOutput!({
+      toolCallId: "tc-weather",
+      input: {},
+      output: wrapModelContentEnvelope({ location: "San Francisco" }, [
+        { type: "text", text: "cached weather receipt" },
+      ]),
+    });
+
+    expect(output).toEqual({
+      type: "content",
+      value: [{ type: "text", text: "cached weather receipt" }],
+    });
+  });
 });
