@@ -46,10 +46,15 @@ type ToolCallCompleteText<TArgs extends Record<string, unknown>, TResult> =
   | ReactNode
   | ((options: { args: TArgs; result: TResult | undefined }) => ReactNode);
 
-export type ToolCallText<TArgs extends Record<string, unknown>, TResult> = {
-  running?: ToolCallRunningText<TArgs> | undefined;
-  complete?: ToolCallCompleteText<TArgs, TResult> | undefined;
-};
+export type ToolCallText<TArgs extends Record<string, unknown>, TResult> =
+  | {
+      running: ToolCallRunningText<TArgs>;
+      complete?: ToolCallCompleteText<TArgs, TResult> | undefined;
+    }
+  | {
+      running?: ToolCallRunningText<TArgs> | undefined;
+      complete: ToolCallCompleteText<TArgs, TResult>;
+    };
 
 const resolveToolCallText = <TArgs extends Record<string, unknown>, TResult>(
   text: ToolCallText<TArgs, TResult>,
