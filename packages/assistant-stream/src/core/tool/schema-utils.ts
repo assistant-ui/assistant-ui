@@ -15,6 +15,8 @@ export type ToToolsJSONSchemaOptions = {
   /**
    * Filter to determine which tools to include.
    * Defaults to excluding disabled tools and backend tools.
+   *
+   * Tools with backend-default parameters are always excluded.
    */
   filter?: (name: string, tool: Tool) => boolean;
 };
