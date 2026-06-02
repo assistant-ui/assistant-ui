@@ -1,5 +1,6 @@
 ---
 "@assistant-ui/core": patch
+"@assistant-ui/react": patch
 ---
 
-feat: add `updateCustom` to remote thread list runtimes and adapters
+feat: add `updateCustom` to thread list runtimes, adapters, and clients

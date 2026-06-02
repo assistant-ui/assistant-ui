@@ -24,6 +24,7 @@ type ThreadData = {
   id: string;
   title?: string;
   status: "regular" | "archived";
+  custom?: Record<string, unknown> | undefined;
 };
 
 // ThreadListItem Client
@@ -31,11 +32,19 @@ const ThreadListItemClient = resource(
   (props: {
     data: ThreadData;
     onSwitchTo: () => void;
+    onUpdateCustom: (custom: Record<string, unknown> | undefined) => void;
     onArchive: () => void;
     onUnarchive: () => void;
     onDelete: () => void;
   }): ClientOutput<"threadListItem"> => {
-    const { data, onSwitchTo, onArchive, onUnarchive, onDelete } = props;
+    const {
+      data,
+      onSwitchTo,
+      onUpdateCustom,
+      onArchive,
+      onUnarchive,
+      onDelete,
+    } = props;
     const state = tapMemo(
       () => ({
         id: data.id,
@@ -43,14 +52,16 @@ const ThreadListItemClient = resource(
         externalId: undefined,
         title: data.title,
         status: data.status,
+        custom: data.custom,
       }),
-      [data.id, data.title, data.status],
+      [data.id, data.title, data.status, data.custom],
     );
 
     return {
       getState: () => state,
       switchTo: onSwitchTo,
       rename: () => {},
+      updateCustom: onUpdateCustom,
       archive: onArchive,
       unarchive: onUnarchive,
       delete: onDelete,
@@ -96,6 +107,15 @@ export const InMemoryThreadList = resource(
       );
     };
 
+    const handleUpdateCustom = (
+      threadId: string,
+      custom: Record<string, unknown> | undefined,
+    ) => {
+      setThreads((prev) =>
+        prev.map((t) => (t.id === threadId ? { ...t, custom } : t)),
+      );
+    };
+
     const handleDelete = (threadId: string) => {
       setThreads((prev) => prev.filter((t) => t.id !== threadId));
       if (mainThreadId === threadId) {
@@ -122,6 +142,7 @@ export const InMemoryThreadList = resource(
             ThreadListItemClient({
               data: t,
               onSwitchTo: () => handleSwitchToThread(t.id),
+              onUpdateCustom: (custom) => handleUpdateCustom(t.id, custom),
               onArchive: () => handleArchive(t.id),
               onUnarchive: () => handleUnarchive(t.id),
               onDelete: () => handleDelete(t.id),

@@ -1,4 +1,4 @@
-import { resource, tapMemo } from "@assistant-ui/tap";
+import { resource, tapMemo, tapState } from "@assistant-ui/tap";
 import {
   type ClientElement,
   type ClientOutput,
@@ -9,6 +9,8 @@ const RESOLVED_PROMISE = Promise.resolve();
 const THREAD_ID = "default";
 
 const SingleThreadListItem = resource((): ClientOutput<"threadListItem"> => {
+  const [custom, setCustom] = tapState<Record<string, unknown> | undefined>();
+
   return {
     getState: () => ({
       id: THREAD_ID,
@@ -16,9 +18,11 @@ const SingleThreadListItem = resource((): ClientOutput<"threadListItem"> => {
       externalId: undefined,
       title: undefined,
       status: "regular",
+      custom,
     }),
     switchTo: () => {},
     rename: () => {},
+    updateCustom: setCustom,
     archive: () => {},
     unarchive: () => {},
     delete: () => {},
