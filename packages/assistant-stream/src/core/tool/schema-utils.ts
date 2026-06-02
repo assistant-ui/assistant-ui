@@ -161,13 +161,10 @@ export function toToolsJSONSchema(
   return Object.fromEntries(
     Object.entries(tools)
       .filter(
-        (
-          entry,
-        ): entry is [
+        ([name, tool]): tool is [
           string,
           Tool & { parameters: NonNullable<Tool["parameters"]> },
-        ] =>
-          filter(entry[0], entry[1]) && toolHasUploadableParameters(entry[1]),
+        ] => filter(name, tool) && toolHasUploadableParameters(tool),
       )
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([name, tool]) => [
