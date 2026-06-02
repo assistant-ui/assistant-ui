@@ -2,6 +2,7 @@ import { Tab, Tabs } from "@/components/docs/fumadocs/tabs";
 import {
   resolveAllComponents,
   ComponentSourceFromFile,
+  type ResolvedFile,
   type ResolvedGroup,
 } from "@/components/docs/fumadocs/install/component-source";
 import { SetupInstructions } from "@/components/docs/fumadocs/install/setup-instructions";
@@ -75,3 +76,58 @@ export async function InstallCommand(props: InstallCommandProps) {
     </Tabs>
   );
 }
+
+// Every resolvable file is an assistant-ui component, sourced from packages/ui.
+const GITHUB_BLOB =
+  "https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src";
+const GITHUB_RAW =
+  "https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/packages/ui/src";
+
+const CommandBlock = ({ command }: { command: string }) => (
+  <pre>
+    <code className="language-bash">{command}</code>
+  </pre>
+);
+
+function buildDownloadCommand(files: ResolvedFile[]): string {
+  const args = files
+    .map((file) => `  -o ${file.path} ${GITHUB_RAW}/${file.path}`)
+    .join(" \\\n");
+  return `curl -sSL --create-dirs \\\n${args}`;
+}
+
+// Instead of dumping each component's full source (the visual Manual tab), keep
+// the CLI command and link the GitHub files plus one curl to fetch them all.
+export const InstallCommandLLM = async (props: InstallCommandProps) => {
+  if ("npm" in props) {
+    return <CommandBlock command={`npm install ${props.npm.join(" ")}`} />;
+  }
+  if ("expo" in props) {
+    return (
+      <CommandBlock command={`npx expo install ${props.expo.join(" ")}`} />
+    );
+  }
+
+  const urls = props.shadcn.map((c) => `https://r.assistant-ui.com/${c}.json`);
+  const resolved = await resolveAllComponents(props.shadcn);
+  const files = [...resolved.main.files, ...resolved.auiDeps.files];
+
+  return (
+    <>
+      <CommandBlock command={`npx shadcn@latest add ${urls.join(" ")}`} />
+      {files.length > 0 && (
+        <>
+          <p>Or copy the source files from GitHub:</p>
+          <ul>
+            {files.map((file) => (
+              <li key={file.path}>
+                <a href={`${GITHUB_BLOB}/${file.path}`}>{file.path}</a>
+              </li>
+            ))}
+          </ul>
+          <CommandBlock command={buildDownloadCommand(files)} />
+        </>
+      )}
+    </>
+  );
+};

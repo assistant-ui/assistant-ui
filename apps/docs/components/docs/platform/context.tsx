@@ -9,15 +9,9 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
+import { PLATFORM_LABELS, PLATFORMS, type Platform } from "@/lib/constants";
 
-export const PLATFORMS = ["react", "rn", "ink"] as const;
-export type Platform = (typeof PLATFORMS)[number];
-
-export const PLATFORM_LABELS: Record<Platform, string> = {
-  react: "React",
-  rn: "React Native",
-  ink: "React Ink",
-};
+export { PLATFORM_LABELS, PLATFORMS, type Platform };
 
 export const PLATFORM_DOC_BASE_PATHS: Record<Platform, string> = {
   react: "/docs",
