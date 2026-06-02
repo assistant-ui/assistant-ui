@@ -4,6 +4,7 @@ import { createMCPClient } from "@ai-sdk/mcp";
 import { Experimental_StdioMCPTransport } from "@ai-sdk/mcp/mcp-stdio";
 import {
   toJSONSchema,
+  type Tool,
   type McpServerConfig,
   type ToolJSONSchema,
 } from "assistant-stream";
@@ -20,6 +21,9 @@ const humanNotSupported = (): never => {
 
 // AI SDK leaves `abortSignal` optional; assistant-ui's execute requires one.
 const neverAbort = new AbortController().signal;
+
+const parametersToInputSchema = (parameters: Tool["parameters"] | undefined) =>
+  jsonSchema(parameters ? toJSONSchema(parameters) : EMPTY_SCHEMA);
 
 export interface GenerativeToolsOptions {
   /**
@@ -76,6 +80,7 @@ export const generativeTools = (options: GenerativeToolsOptions): ToolSet => {
     // `toolkit` last so its server-side `execute` wins over an uploaded entry of
     // the same name. The cast recovers the declaration shape — the server build
     // carries `execute`, which the canonical `Toolkit` type erases.
+    ...toProviderToolSet(options.toolkit),
     ...toServerToolSet(options.toolkit as ToolkitDefinition),
   };
 };
@@ -92,6 +97,7 @@ export class AISDKToolkit {
     return {
       ...(options.frontend ? frontendTools(options.frontend) : {}),
       ...(await this.#mcpTools()),
+      ...toProviderToolSet(this.#toolkit),
       ...toServerToolSet(this.#toolkit as ToolkitDefinition),
     };
   }
@@ -213,16 +219,16 @@ const assertNoMcpToolkitTools = (toolkit: Toolkit): void => {
 const toServerToolSet = (toolkit: ToolkitDefinition): ToolSet =>
   Object.fromEntries(
     Object.entries(toolkit)
-      .filter(([, t]) => t.type !== "mcp" && !t.disabled)
+      .filter(
+        ([, t]) => t.type !== "mcp" && t.type !== "provider" && !t.disabled,
+      )
       .map(([name, t]) => {
         const execute = t.execute;
         return [
           name,
           {
             ...(t.description !== undefined && { description: t.description }),
-            inputSchema: jsonSchema(
-              t.parameters ? toJSONSchema(t.parameters) : EMPTY_SCHEMA,
-            ),
+            inputSchema: parametersToInputSchema(t.parameters),
             toModelOutput: t.toModelOutput ?? defaultToModelOutput,
             ...(t.providerOptions && { providerOptions: t.providerOptions }),
             ...(execute && {
@@ -240,3 +246,36 @@ const toServerToolSet = (toolkit: ToolkitDefinition): ToolSet =>
         ];
       }),
   ) as ToolSet;
+
+const toProviderToolSet = (toolkit: Toolkit): ToolSet =>
+  Object.fromEntries(
+    Object.entries(toolkit)
+      .filter((entry): entry is [string, ProviderToolkitTool] =>
+        isProviderToolkitTool(entry[1]),
+      )
+      .map(([name, t]) => [
+        name,
+        {
+          type: "provider",
+          id: t.providerId,
+          args: t.args,
+          ...(t.parameters && {
+            inputSchema: parametersToInputSchema(t.parameters),
+          }),
+          ...(t.providerOptions && { providerOptions: t.providerOptions }),
+          ...(t.supportsDeferredResults && {
+            supportsDeferredResults: t.supportsDeferredResults,
+          }),
+        },
+      ]),
+  ) as ToolSet;
+
+type ProviderToolkitTool = Toolkit[string] & {
+  type: "provider";
+  providerId: `${string}.${string}`;
+  args: Record<string, unknown>;
+};
+
+const isProviderToolkitTool = (
+  tool: Toolkit[string],
+): tool is ProviderToolkitTool => tool.type === "provider" && !tool.disabled;

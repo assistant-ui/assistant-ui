@@ -13,7 +13,7 @@ const generate = (
   typeof _generate === "function" ? _generate : (_generate as any).default
 ) as typeof _generate;
 
-export type ToolType = "frontend" | "backend" | "human";
+export type ToolType = "frontend" | "backend" | "human" | "provider";
 
 /** The required wrapper around a toolkit's tools (stripped at build time). */
 const TOOLKIT_WRAPPER = "defineToolkit";
@@ -420,6 +420,10 @@ function compileToolkit(
       );
     }
 
+    if (type === "provider" && execute) {
+      applyProviderToolConfig(value, execute, filename);
+    }
+
     if (target === "client") {
       // A frontend execute stays (its `"use client"` marker is no longer needed
       // once the module is client); backend and sentinel executes are dropped.
@@ -434,6 +438,34 @@ function compileToolkit(
     }
 
     setToolType(value, type);
+  }
+}
+
+function applyProviderToolConfig(
+  object: t.ObjectExpression,
+  execute: t.ObjectProperty | t.ObjectMethod,
+  filename: string | undefined,
+): void {
+  if (
+    !t.isObjectProperty(execute) ||
+    !t.isCallExpression(execute.value) ||
+    execute.value.arguments.length !== 1 ||
+    !t.isObjectExpression(execute.value.arguments[0])
+  ) {
+    throw new GenerativeCompileError(
+      "`providerTool(...)` must receive an inline object literal",
+      filename,
+    );
+  }
+
+  for (const prop of execute.value.arguments[0].properties) {
+    if (t.isSpreadElement(prop) || t.isObjectMethod(prop)) {
+      throw new GenerativeCompileError(
+        "`providerTool(...)` config can only contain object properties",
+        filename,
+      );
+    }
+    object.properties.push(prop);
   }
 }
 
@@ -498,12 +530,25 @@ function executeIsClient(member: t.ObjectProperty | t.ObjectMethod): boolean {
   );
 }
 
-/** Whether an `execute` is the `hitl()` human-in-the-loop sentinel. */
+/** Whether an `execute` is the human-in-the-loop sentinel. */
 function executeIsHitl(member: t.ObjectProperty | t.ObjectMethod): boolean {
   return (
     t.isObjectProperty(member) &&
     t.isCallExpression(member.value) &&
-    t.isIdentifier(member.value.callee, { name: "hitl" })
+    t.isIdentifier(member.value.callee) &&
+    (member.value.callee.name === "hitl" ||
+      member.value.callee.name === "hitlTool")
+  );
+}
+
+/** Whether an `execute` is the provider-tool sentinel. */
+function executeIsProviderTool(
+  member: t.ObjectProperty | t.ObjectMethod,
+): boolean {
+  return (
+    t.isObjectProperty(member) &&
+    t.isCallExpression(member.value) &&
+    t.isIdentifier(member.value.callee, { name: "providerTool" })
   );
 }
 
@@ -519,8 +564,8 @@ function stripUseClient(member: t.ObjectProperty | t.ObjectMethod): void {
 
 /**
  * The tool's nature, inferred from its (mandatory) `execute` rather than an
- * authored `type`: `hitl()` → `human`; `"use client"` → `frontend`; otherwise
- * `backend`. The loader writes the result back as a `type` field (see
+ * authored `type`: `hitlTool()` → `human`; `providerTool(...)` → `provider`;
+ * `"use client"` → `frontend`; otherwise `backend`. The loader writes the result back as a `type` field (see
  * {@link setToolType}) so the runtime keeps it.
  */
 function inferToolType(
@@ -530,12 +575,13 @@ function inferToolType(
   const execute = findMember(object, "execute");
   if (!execute) {
     throw new GenerativeCompileError(
-      "every tool must declare an `execute`; use `hitl()` for a " +
+      "every tool must declare an `execute`; use `hitlTool()` for a " +
         "human-in-the-loop tool",
       filename,
     );
   }
   if (executeIsHitl(execute)) return "human";
+  if (executeIsProviderTool(execute)) return "provider";
   return executeIsClient(execute) ? "frontend" : "backend";
 }
 

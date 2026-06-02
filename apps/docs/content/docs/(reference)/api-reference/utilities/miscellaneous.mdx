@@ -3,7 +3,7 @@ title: Utilities
 description: Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.
 ---
 
-import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, SingleThreadList, defineMcpToolkit, defineToolkit } from "@/generated/typeDocs";
+import { AssistantCloud, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, SingleThreadList, defineMcpToolkit, defineToolkit, providerTool } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -43,6 +43,12 @@ outside a `"use generative"` file — which would ship a backend `execute` to th
 client. So it throws instead of silently leaking.
 
 <ParametersTable {...defineToolkit} />
+
+### providerTool
+
+Marks a tool as provider-executed inside a `"use generative"` toolkit.
+
+<ParametersTable {...providerTool} />
 
 ### DevToolsHooks
 

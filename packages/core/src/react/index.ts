@@ -39,7 +39,11 @@ export {
   type ToolkitDefinitionEntry,
 } from "./model-context/toolbox";
 export { defineToolkit } from "./model-context/define-toolkit";
-export { hitl } from "./model-context/hitl";
+export { hitl, hitlTool } from "./model-context/hitl";
+export {
+  providerTool,
+  type ProviderToolConfig,
+} from "./model-context/provider-tool";
 export {
   defineMcpToolkit,
   type McpToolkitDefinition,

@@ -225,6 +225,33 @@ export default defineToolkit({
     expect(client.trimStart().startsWith('"use client"')).toBe(true);
   });
 
+  it("routes provider tool config", () => {
+    const src = `"use generative";
+import { defineToolkit, providerTool } from "@assistant-ui/react";
+export default defineToolkit({
+  web_search: {
+    execute: providerTool({
+      providerId: "openai.web_search_preview",
+      args: { searchContextSize: "low" },
+      providerOptions: { openai: { rankingOptions: { scoreThreshold: 0.5 } } },
+    }),
+  },
+});`;
+
+    const server = compileGenerative(src, { target: "server" }).code;
+    expect(server).toContain('type: "provider"');
+    expect(server).toContain("openai.web_search_preview");
+    expect(server).toContain("searchContextSize");
+    expect(server).toContain("providerOptions");
+    expect(server).not.toContain("providerTool");
+
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client).toContain('type: "provider"');
+    expect(client).toContain("openai.web_search_preview");
+    expect(client).toContain("providerOptions");
+    expect(client).not.toContain("providerTool");
+  });
+
   it("routes flat toolkit tools and preserves spread MCP config", () => {
     const src = `"use generative";
 import { z } from "zod";
@@ -505,6 +532,43 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
     expect(client).toContain('type: "human"');
     expect(client).not.toContain("hitl");
     expect(client).toContain("render");
+  });
+
+  it("rejects spread properties in providerTool config", () => {
+    const src = `"use generative";
+import { defineToolkit, providerTool } from "@assistant-ui/react";
+const config = { providerId: "openai.web_search_preview", args: {} };
+export default defineToolkit({
+  web_search: {
+    execute: providerTool({
+      ...config,
+    }),
+  },
+});`;
+
+    expect(() => compileGenerative(src, { target: "server" })).toThrow(
+      /can only contain object properties/,
+    );
+  });
+
+  it("rejects object methods in providerTool config", () => {
+    const src = `"use generative";
+import { defineToolkit, providerTool } from "@assistant-ui/react";
+export default defineToolkit({
+  web_search: {
+    execute: providerTool({
+      providerId: "openai.web_search_preview",
+      args: {},
+      get providerOptions() {
+        return {};
+      },
+    }),
+  },
+});`;
+
+    expect(() => compileGenerative(src, { target: "server" })).toThrow(
+      /can only contain object properties/,
+    );
   });
 
   it("infers `frontend` from a `use client` execute and keeps it client-side", () => {

@@ -305,6 +305,32 @@ type HumanTool<
   providerOptions?: ProviderOptions;
 };
 
+type ProviderTool<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
+> = ToolBase<TArgs, TResult> & {
+  /** Tool executed by the LLM provider rather than assistant-ui. */
+  type: "provider";
+
+  /** Provider-defined tool identifier, e.g. `openai.web_search_preview`. */
+  providerId: `${string}.${string}`;
+  /** Schema used by adapters for validation and type plumbing. */
+  parameters?: StandardSchemaV1<TArgs> | JSONSchema7 | undefined;
+  /** Provider-specific configuration for this tool. */
+  args: Record<string, unknown>;
+  /**
+   * Whether provider results may arrive after the originating response turn.
+   */
+  supportsDeferredResults?: boolean;
+
+  description?: undefined;
+  disabled?: boolean;
+  execute?: undefined;
+  toModelOutput?: undefined;
+  experimental_onSchemaValidationError?: undefined;
+  providerOptions?: ProviderOptions;
+};
+
 export type McpServerConfig =
   | {
       /** Connect to an MCP server over Streamable HTTP or server-sent events. */
@@ -384,6 +410,7 @@ export type Tool<
   | FrontendTool<TArgs, TResult>
   | BackendTool<TArgs, TResult>
   | HumanTool<TArgs, TResult>
+  | ProviderTool<TArgs, TResult>
   | McpTool
   | ToolWithoutType<TArgs, TResult>;
 
@@ -400,6 +427,7 @@ export type ToolDeclaration<
   | FrontendTool<TArgs, TResult>
   | BackendToolDeclaration<TArgs, TResult>
   | HumanTool<TArgs, TResult>
+  | ProviderTool<TArgs, TResult>
   | McpTool
   | ToolWithoutType<TArgs, TResult>;
 
@@ -413,4 +441,5 @@ export type ToolWithoutType<
   | Omit<FrontendTool<TArgs, TResult>, "type">
   | Omit<BackendTool<TArgs, TResult>, "type">
   | Omit<HumanTool<TArgs, TResult>, "type">
+  | Omit<ProviderTool<TArgs, TResult>, "type">
 ) & { type?: undefined };
