@@ -208,10 +208,11 @@ const WeatherCard = ({
   const widget = format
     ? convertWeatherWidgetFormat(source.widget, format)
     : source.widget;
-  const generativeNode =
-    format !== undefined
-      ? { $type: "Weather", id, format }
-      : { $type: "Weather", id };
+  const generativeNode = {
+    $type: "Weather",
+    id,
+    ...(format !== undefined && { format }),
+  };
 
   return (
     <div className="mt-2 mb-4 flex flex-col items-center">
