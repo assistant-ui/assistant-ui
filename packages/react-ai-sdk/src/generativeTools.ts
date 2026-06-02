@@ -7,9 +7,18 @@ import {
   type Tool,
   type McpServerConfig,
   type ToolJSONSchema,
+  type ToolModelOutputFunction,
 } from "assistant-stream";
 import type { Toolkit, ToolkitDefinition } from "@assistant-ui/core/react";
-import { defaultToModelOutput, frontendTools } from "./frontendTools";
+import {
+  frontendTools,
+  toAISDKContent,
+  toAISDKDefaultOutput,
+} from "./frontendTools";
+import {
+  unwrapModelContentEnvelope,
+  type ModelContentEnvelope,
+} from "./modelContentEnvelope";
 
 const EMPTY_SCHEMA = { type: "object" as const, properties: {} };
 
@@ -216,6 +225,33 @@ const assertNoMcpToolkitTools = (toolkit: Toolkit): void => {
   );
 };
 
+type AISDKToModelOutputOptions<TArgs, TResult> = Omit<
+  Parameters<ToolModelOutputFunction<TArgs, TResult>>[0],
+  "output"
+> & {
+  output: TResult | ModelContentEnvelope<TResult>;
+};
+
+const toAISDKToModelOutput =
+  <TArgs, TResult>(toModelOutput?: ToolModelOutputFunction<TArgs, TResult>) =>
+  async (options: AISDKToModelOutputOptions<TArgs, TResult>) => {
+    const { result, modelContent } = unwrapModelContentEnvelope(options.output);
+
+    if (modelContent !== undefined) {
+      return toAISDKContent(modelContent);
+    }
+
+    if (!toModelOutput) {
+      return toAISDKDefaultOutput(result);
+    }
+
+    const parts = await toModelOutput({
+      ...options,
+      output: result,
+    });
+    return toAISDKContent(parts);
+  };
+
 const toServerToolSet = (toolkit: ToolkitDefinition): ToolSet =>
   Object.fromEntries(
     Object.entries(toolkit)
@@ -229,7 +265,7 @@ const toServerToolSet = (toolkit: ToolkitDefinition): ToolSet =>
           {
             ...(t.description !== undefined && { description: t.description }),
             inputSchema: parametersToInputSchema(t.parameters),
-            toModelOutput: t.toModelOutput ?? defaultToModelOutput,
+            toModelOutput: toAISDKToModelOutput(t.toModelOutput),
             ...(t.providerOptions && { providerOptions: t.providerOptions }),
             ...(execute && {
               execute: (

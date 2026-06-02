@@ -2,7 +2,7 @@ import { jsonSchema, type ToolSet } from "ai";
 import type { ToolJSONSchema, ToolModelContentPart } from "assistant-stream";
 import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
 
-const toAISDKContent = (parts: readonly ToolModelContentPart[]) => ({
+export const toAISDKContent = (parts: readonly ToolModelContentPart[]) => ({
   type: "content" as const,
   value: parts.map((part) => {
     if (part.type === "text") {
@@ -24,14 +24,17 @@ const toAISDKContent = (parts: readonly ToolModelContentPart[]) => ({
   }),
 });
 
+export const toAISDKDefaultOutput = (output: unknown) =>
+  typeof output === "string"
+    ? { type: "text" as const, value: output }
+    : { type: "json" as const, value: (output ?? null) as any };
+
 export const defaultToModelOutput = ({ output }: { output: unknown }) => {
-  const { modelContent } = unwrapModelContentEnvelope(output);
+  const { result, modelContent } = unwrapModelContentEnvelope(output);
   if (modelContent !== undefined) {
     return toAISDKContent(modelContent);
   }
-  return typeof output === "string"
-    ? { type: "text" as const, value: output }
-    : { type: "json" as const, value: (output ?? null) as any };
+  return toAISDKDefaultOutput(result);
 };
 
 export const frontendTools = (tools: Record<string, ToolJSONSchema>): ToolSet =>

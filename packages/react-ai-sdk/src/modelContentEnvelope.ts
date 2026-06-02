@@ -7,9 +7,9 @@ export type ModelContentEnvelope<TResult = unknown> = {
   readonly value: TResult;
 };
 
-export function isModelContentEnvelope(
-  value: unknown,
-): value is ModelContentEnvelope {
+export function isModelContentEnvelope<TResult = unknown>(
+  value: TResult | ModelContentEnvelope<TResult>,
+): value is ModelContentEnvelope<TResult> {
   return (
     value != null &&
     typeof value === "object" &&
@@ -25,8 +25,10 @@ export function wrapModelContentEnvelope<TResult>(
   return { [ENVELOPE_KEY]: modelContent, value: result };
 }
 
-export function unwrapModelContentEnvelope(output: unknown): {
-  result: unknown;
+export function unwrapModelContentEnvelope<TResult>(
+  output: TResult | ModelContentEnvelope<TResult>,
+): {
+  result: TResult;
   modelContent?: readonly ToolModelContentPart[];
 } {
   if (isModelContentEnvelope(output)) {

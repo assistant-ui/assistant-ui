@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AISDKToolkit, generativeTools } from "./generativeTools";
+import { wrapModelContentEnvelope } from "./modelContentEnvelope";
 
 const mocks = vi.hoisted(() => ({
   close: vi.fn(),
@@ -319,6 +320,71 @@ describe("AISDKToolkit", () => {
         args: { searchContextSize: "low" },
         supportsDeferredResults: false,
       },
+    });
+  });
+});
+
+describe("generativeTools toModelOutput", () => {
+  const createWeatherTools = (toModelOutput?: any) =>
+    generativeTools({
+      toolkit: {
+        get_weather: {
+          ...(toModelOutput && { toModelOutput }),
+        },
+      } as any,
+    });
+
+  it("adapts assistant-ui model content parts to the AI SDK tool output shape", async () => {
+    const tools = createWeatherTools(({ output }: any) => [
+      { type: "text", text: `Weather card displayed: ${output.location}` },
+    ]);
+
+    const output = await tools.get_weather!.toModelOutput!({
+      toolCallId: "tc-weather",
+      input: {},
+      output: { location: "San Francisco" },
+    });
+
+    expect(output).toEqual({
+      type: "content",
+      value: [{ type: "text", text: "Weather card displayed: San Francisco" }],
+    });
+  });
+
+  it("uses stored model content envelopes without re-running the custom projector", async () => {
+    let called = false;
+    const tools = createWeatherTools(() => {
+      called = true;
+      return [{ type: "text", text: "recomputed" }];
+    });
+
+    const output = await tools.get_weather!.toModelOutput!({
+      toolCallId: "tc-weather",
+      input: {},
+      output: wrapModelContentEnvelope({ location: "San Francisco" }, [
+        { type: "text", text: "cached weather receipt" },
+      ]),
+    });
+
+    expect(called).toBe(false);
+    expect(output).toEqual({
+      type: "content",
+      value: [{ type: "text", text: "cached weather receipt" }],
+    });
+  });
+
+  it("falls back to default model output when no custom projector is defined", async () => {
+    const tools = createWeatherTools();
+
+    const output = await tools.get_weather!.toModelOutput!({
+      toolCallId: "tc-weather",
+      input: {},
+      output: { location: "San Francisco" },
+    });
+
+    expect(output).toEqual({
+      type: "json",
+      value: { location: "San Francisco" },
     });
   });
 });
