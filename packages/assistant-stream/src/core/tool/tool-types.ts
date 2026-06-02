@@ -222,7 +222,7 @@ type ToolBase<
    * transports omit matching fields and only upload overrides.
    */
   unstable_backendDefault?: {
-    parameters?: true;
+    parameters?: boolean;
   };
 };
 
