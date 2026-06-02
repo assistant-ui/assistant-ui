@@ -14,128 +14,6 @@ import { useAssistantRuntime, useAttachmentRuntime, useCloudThreadListAdapter, u
 
 ## API Reference
 
-### useCloudThreadListAdapter
-
-<ParametersTable {...useCloudThreadListAdapter} />
-
-### useEditComposerAttachment
-
-```ts
-const useEditComposerAttachment: { (): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }); <TSelected>(selector: (state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; })) => TSelected): TSelected; <TSelected>(selector: ((state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; })) => TSelected) | undefined): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | TSelected; (options: { optional?: false | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }); (options: { optional?: boolean | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | null; <TSelected>(options: { optional?: false | undefined; selector: (state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; })) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; })) => TSelected) | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; })) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; })) => TSelected) | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | TSelected | null; };
-```
-
-### useEditComposerAttachmentRuntime
-
-<ParametersTable {...useEditComposerAttachmentRuntime} />
-
-### useMessageAttachment
-
-```ts
-const useMessageAttachment: { (): { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }; <TSelected>(selector: (state: { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) => TSelected): TSelected; <TSelected>(selector: ((state: { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) => TSelected) | undefined): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) | TSelected; (options: { optional?: false | undefined; }): { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }; (options: { optional?: boolean | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) | null; <TSelected>(options: { optional?: false | undefined; selector: (state: { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) => TSelected) | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) => TSelected) | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) | TSelected | null; };
-```
-
-### useMessageAttachmentRuntime
-
-<ParametersTable {...useMessageAttachmentRuntime} />
-
-### useMessageQuote
-
-Hook that returns the quote info for the current message, if any.
-
-Reads from `message.metadata.custom.quote`.
-
-```tsx
-function QuoteBlock() {
-  const quote = useMessageQuote();
-  if (!quote) return null;
-  return <blockquote>{quote.text}</blockquote>;
-}
-```
-
-```ts
-const useMessageQuote: () => QuoteInfo;
-```
-
-### useMessageTiming
-
-Hook that returns timing information for the current assistant message.
-
-Reads from `message.metadata.timing`.
-
-```tsx
-function MessageStats() {
-  const timing = useMessageTiming();
-  if (!timing) return null;
-  return <span>{timing.tokensPerSecond?.toFixed(1)} tok/s</span>;
-}
-```
-
-```ts
-const useMessageTiming: () => MessageTiming;
-```
-
-### useRuntimeAdapters
-
-```ts
-type RuntimeAdapters = {
-  modelContext?: ModelContextProvider | undefined;
-  history?: ThreadHistoryAdapter | undefined;
-  attachments?: AttachmentAdapter | undefined;
-};
-
-const useRuntimeAdapters: () => RuntimeAdapters | null;
-```
-
-### useScrollLock
-
-Locks scroll position during collapsible/height animations and hides scrollbar.
-
-This utility prevents page jumps when content height changes during animations,
-providing a smooth user experience. It finds the nearest scrollable ancestor and
-temporarily locks its scroll position while the animation completes.
-
-- Prevents forced reflows: no layout reads, mutations scoped to scrollable parent only
-- Reactive: only intercepts scroll events when browser actually adjusts
-- Cleans up automatically after animation duration
-
-```tsx
-const collapsibleRef = useRef<HTMLDivElement>(null);
-const lockScroll = useScrollLock(collapsibleRef, 200);
-
-const handleCollapse = () => {
-  lockScroll(); // Lock scroll before collapsing
-  setIsOpen(false);
-};
-```
-
-<ParametersTable {...useScrollLock} />
-
-### useThreadComposerAttachment
-
-```ts
-const useThreadComposerAttachment: { (): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }); <TSelected>(selector: (state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; })) => TSelected): TSelected; <TSelected>(selector: ((state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; })) => TSelected) | undefined): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | TSelected; (options: { optional?: false | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }); (options: { optional?: boolean | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | null; <TSelected>(options: { optional?: false | undefined; selector: (state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; })) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; })) => TSelected) | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; })) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; })) => TSelected) | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | TSelected | null; };
-```
-
-### useThreadComposerAttachmentRuntime
-
-<ParametersTable {...useThreadComposerAttachmentRuntime} />
-
-### useThreadViewport
-
-```ts
-const useThreadViewport: { (): ThreadViewportState; <TSelected>(selector: (state: ThreadViewportState) => TSelected): TSelected; (options: { optional: true; }): ThreadViewportState | null; <TSelected>(options: { optional: true; selector?: (state: ThreadViewportState) => TSelected; }): TSelected | null; };
-```
-
-### useThreadViewportAutoScroll
-
-<ParametersTable {...useThreadViewportAutoScroll} />
-
-### useThreadViewportStore
-
-```ts
-const useThreadViewportStore: { (): ReadonlyStore<ThreadViewportState>; (options: { optional: true; }): ReadonlyStore<ThreadViewportState> | null; };
-```
-
 ### useAssistantRuntime
 
 <Callout type="warn">
@@ -186,6 +64,10 @@ const useAttachment: { (): AttachmentState & { source: "message" | "thread-compo
 </Callout>
 
 <ParametersTable {...useAttachmentRuntime} />
+
+### useCloudThreadListAdapter
+
+<ParametersTable {...useCloudThreadListAdapter} />
 
 ### useComposer
 
@@ -303,6 +185,16 @@ function ComposerActions() {
 const useEditComposer: { (): EditComposerState; <TSelected>(selector: (state: EditComposerState) => TSelected): TSelected; <TSelected>(selector: ((state: EditComposerState) => TSelected) | undefined): EditComposerState | TSelected; (options: { optional?: false | undefined; }): EditComposerState; (options: { optional?: boolean | undefined; }): EditComposerState | null; <TSelected>(options: { optional?: false | undefined; selector: (state: EditComposerState) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: EditComposerState) => TSelected) | undefined; }): EditComposerState | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: EditComposerState) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: EditComposerState) => TSelected) | undefined; }): EditComposerState | TSelected | null; };
 ```
 
+### useEditComposerAttachment
+
+```ts
+const useEditComposerAttachment: { (): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }); <TSelected>(selector: (state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; })) => TSelected): TSelected; <TSelected>(selector: ((state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; })) => TSelected) | undefined): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | TSelected; (options: { optional?: false | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }); (options: { optional?: boolean | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | null; <TSelected>(options: { optional?: false | undefined; selector: (state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; })) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; })) => TSelected) | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; })) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; })) => TSelected) | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "edit-composer"; } & { source: "edit-composer"; }) | TSelected | null; };
+```
+
+### useEditComposerAttachmentRuntime
+
+<ParametersTable {...useEditComposerAttachmentRuntime} />
+
 ### useMessage
 
 <Callout type="warn">
@@ -343,6 +235,16 @@ function MessageContent() {
 ```ts
 const useMessage: { (): MessageState; <TSelected>(selector: (state: MessageState) => TSelected): TSelected; <TSelected>(selector: ((state: MessageState) => TSelected) | undefined): MessageState | TSelected; (options: { optional?: false | undefined; }): MessageState; (options: { optional?: boolean | undefined; }): MessageState | null; <TSelected>(options: { optional?: false | undefined; selector: (state: MessageState) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: MessageState) => TSelected) | undefined; }): MessageState | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: MessageState) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: MessageState) => TSelected) | undefined; }): MessageState | TSelected | null; };
 ```
+
+### useMessageAttachment
+
+```ts
+const useMessageAttachment: { (): { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }; <TSelected>(selector: (state: { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) => TSelected): TSelected; <TSelected>(selector: ((state: { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) => TSelected) | undefined): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) | TSelected; (options: { optional?: false | undefined; }): { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }; (options: { optional?: boolean | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) | null; <TSelected>(options: { optional?: false | undefined; selector: (state: { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) => TSelected) | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: { id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) => TSelected) | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "message"; } & { source: "message"; }) | TSelected | null; };
+```
+
+### useMessageAttachmentRuntime
+
+<ParametersTable {...useMessageAttachmentRuntime} />
 
 ### useMessagePart
 
@@ -487,6 +389,24 @@ See the [migration guide](https://assistant-ui.com/docs/migrations/v0-12).
 const useMessagePartText: () => (TextMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; }) | (ReasoningMessagePart & { readonly status: MessagePartStatus | ToolCallMessagePartStatus; });
 ```
 
+### useMessageQuote
+
+Hook that returns the quote info for the current message, if any.
+
+Reads from `message.metadata.custom.quote`.
+
+```tsx
+function QuoteBlock() {
+  const quote = useMessageQuote();
+  if (!quote) return null;
+  return <blockquote>{quote.text}</blockquote>;
+}
+```
+
+```ts
+const useMessageQuote: () => QuoteInfo;
+```
+
 ### useMessageRuntime
 
 <Callout type="warn">
@@ -536,6 +456,60 @@ function MessageActions() {
 
 <ParametersTable {...useMessageRuntime} />
 
+### useMessageTiming
+
+Hook that returns timing information for the current assistant message.
+
+Reads from `message.metadata.timing`.
+
+```tsx
+function MessageStats() {
+  const timing = useMessageTiming();
+  if (!timing) return null;
+  return <span>{timing.tokensPerSecond?.toFixed(1)} tok/s</span>;
+}
+```
+
+```ts
+const useMessageTiming: () => MessageTiming;
+```
+
+### useRuntimeAdapters
+
+```ts
+type RuntimeAdapters = {
+  modelContext?: ModelContextProvider | undefined;
+  history?: ThreadHistoryAdapter | undefined;
+  attachments?: AttachmentAdapter | undefined;
+};
+
+const useRuntimeAdapters: () => RuntimeAdapters | null;
+```
+
+### useScrollLock
+
+Locks scroll position during collapsible/height animations and hides scrollbar.
+
+This utility prevents page jumps when content height changes during animations,
+providing a smooth user experience. It finds the nearest scrollable ancestor and
+temporarily locks its scroll position while the animation completes.
+
+- Prevents forced reflows: no layout reads, mutations scoped to scrollable parent only
+- Reactive: only intercepts scroll events when browser actually adjusts
+- Cleans up automatically after animation duration
+
+```tsx
+const collapsibleRef = useRef<HTMLDivElement>(null);
+const lockScroll = useScrollLock(collapsibleRef, 200);
+
+const handleCollapse = () => {
+  lockScroll(); // Lock scroll before collapsing
+  setIsOpen(false);
+};
+```
+
+<ParametersTable {...useScrollLock} />
+
 ### useThread
 
 <Callout type="warn">
@@ -576,6 +550,16 @@ const useThread: { (): ThreadState; <TSelected>(selector: (state: ThreadState) =
 ```ts
 const useThreadComposer: { (): ThreadComposerState; <TSelected>(selector: (state: ThreadComposerState) => TSelected): TSelected; <TSelected>(selector: ((state: ThreadComposerState) => TSelected) | undefined): ThreadComposerState | TSelected; (options: { optional?: false | undefined; }): ThreadComposerState; (options: { optional?: boolean | undefined; }): ThreadComposerState | null; <TSelected>(options: { optional?: false | undefined; selector: (state: ThreadComposerState) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: ThreadComposerState) => TSelected) | undefined; }): ThreadComposerState | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: ThreadComposerState) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: ThreadComposerState) => TSelected) | undefined; }): ThreadComposerState | TSelected | null; };
 ```
+
+### useThreadComposerAttachment
+
+```ts
+const useThreadComposerAttachment: { (): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }); <TSelected>(selector: (state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; })) => TSelected): TSelected; <TSelected>(selector: ((state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; })) => TSelected) | undefined): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | TSelected; (options: { optional?: false | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }); (options: { optional?: boolean | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | null; <TSelected>(options: { optional?: false | undefined; selector: (state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; })) => TSelected; }): TSelected; <TSelected>(options: { optional?: false | undefined; selector: ((state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; })) => TSelected) | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | TSelected; <TSelected>(options: { optional?: boolean | undefined; selector: (state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; })) => TSelected; }): TSelected | null; <TSelected>(options: { optional?: boolean | undefined; selector: ((state: ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; })) => TSelected) | undefined; }): ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: PendingAttachmentStatus; file: File; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | ({ id: string; type: "image" | "document" | "file" | (string & {}); name: string; contentType?: string | undefined; file?: File; content?: ThreadUserMessagePart[]; } & { status: CompleteAttachmentStatus; content: ThreadUserMessagePart[]; } & { readonly source: "thread-composer"; } & { source: "thread-composer"; }) | TSelected | null; };
+```
+
+### useThreadComposerAttachmentRuntime
+
+<ParametersTable {...useThreadComposerAttachmentRuntime} />
 
 ### useThreadList
 
@@ -637,4 +621,20 @@ function MyComponent() {
 ```
 
 <ParametersTable {...useThreadRuntime} />
+
+### useThreadViewport
+
+```ts
+const useThreadViewport: { (): ThreadViewportState; <TSelected>(selector: (state: ThreadViewportState) => TSelected): TSelected; (options: { optional: true; }): ThreadViewportState | null; <TSelected>(options: { optional: true; selector?: (state: ThreadViewportState) => TSelected; }): TSelected | null; };
+```
+
+### useThreadViewportAutoScroll
+
+<ParametersTable {...useThreadViewportAutoScroll} />
+
+### useThreadViewportStore
+
+```ts
+const useThreadViewportStore: { (): ReadonlyStore<ThreadViewportState>; (options: { optional: true; }): ReadonlyStore<ThreadViewportState> | null; };
+```
 {/* api-reference:end */}

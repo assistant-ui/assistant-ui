@@ -14,6 +14,20 @@ import { useExternalMessageConverter } from "@/generated/typeDocs";
 
 ## API Reference
 
+### bindExternalStoreMessage
+
+<Callout type="warn">
+<strong>Deprecated.</strong> This API is experimental and may change without notice.
+</Callout>
+
+Attach the original external store message(s) to a ThreadMessage or message part.
+This is a no-op if the target already has a bound message.
+Use `getExternalStoreMessages` to retrieve the bound messages later.
+
+```ts
+const bindExternalStoreMessage: <T>(target: object, message: T | T[]) => void;
+```
+
 ### getExternalStoreMessages
 
 ```ts
@@ -34,19 +48,5 @@ const unstable_convertExternalMessages: <T extends WeakKey>(messages: T[], callb
 
 ```ts
 const unstable_createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => { useThreadMessages: ({ messages, isRunning, joinStrategy, metadata, }: { messages: T[]; isRunning: boolean; joinStrategy?: "concat-content" | "none" | undefined; metadata?: useExternalMessageConverter.Metadata; }) => ThreadMessage[]; toThreadMessages: (messages: T[], isRunning?: boolean, metadata?: useExternalMessageConverter.Metadata) => ThreadMessage[]; toOriginalMessages: (input: ThreadState | ThreadMessage | ThreadMessage["content"][number]) => unknown[]; toOriginalMessage: (input: ThreadState | ThreadMessage | ThreadMessage["content"][number]) => {}; useOriginalMessage: () => {}; useOriginalMessages: () => unknown[]; };
-```
-
-### bindExternalStoreMessage
-
-<Callout type="warn">
-<strong>Deprecated.</strong> This API is experimental and may change without notice.
-</Callout>
-
-Attach the original external store message(s) to a ThreadMessage or message part.
-This is a no-op if the target already has a bound message.
-Use `getExternalStoreMessages` to retrieve the bound messages later.
-
-```ts
-const bindExternalStoreMessage: <T>(target: object, message: T | T[]) => void;
 ```
 {/* api-reference:end */}

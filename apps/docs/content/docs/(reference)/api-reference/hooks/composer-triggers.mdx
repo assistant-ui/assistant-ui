@@ -14,47 +14,6 @@ import { unstable_useMentionAdapter, unstable_useSlashCommandAdapter } from "@/g
 
 ## API Reference
 
-### unstable_useTriggerPopoverRootContext
-
-```ts
-const unstable_useTriggerPopoverRootContext: () => TriggerPopoverRootContextValue;
-```
-
-### unstable_useTriggerPopoverRootContextOptional
-
-```ts
-const unstable_useTriggerPopoverRootContextOptional: () => TriggerPopoverRootContextValue | null;
-```
-
-### unstable_useTriggerPopoverScopeContext
-
-```ts
-const unstable_useTriggerPopoverScopeContext: () => TriggerPopoverResourceOutput;
-```
-
-### unstable_useTriggerPopoverScopeContextOptional
-
-```ts
-const unstable_useTriggerPopoverScopeContextOptional: () => TriggerPopoverResourceOutput | null;
-```
-
-### unstable_useTriggerPopoverTriggers
-
-Live map of registered triggers, re-rendering on change. Prefer
-`subscribeLifecycle` for incremental add/remove handling.
-
-```ts
-const unstable_useTriggerPopoverTriggers: () => ReadonlyMap<string, RegisteredTrigger>;
-```
-
-### unstable_useTriggerPopoverTriggersOptional
-
-Like `useTriggerPopoverTriggers` but returns an empty map outside a root.
-
-```ts
-const unstable_useTriggerPopoverTriggersOptional: () => ReadonlyMap<string, RegisteredTrigger>;
-```
-
 ### unstable_useMentionAdapter
 
 <Callout type="warn">
@@ -95,4 +54,45 @@ const slash = unstable_useSlashCommandAdapter({
 ```
 
 <ParametersTable {...unstable_useSlashCommandAdapter} />
+
+### unstable_useTriggerPopoverRootContext
+
+```ts
+const unstable_useTriggerPopoverRootContext: () => TriggerPopoverRootContextValue;
+```
+
+### unstable_useTriggerPopoverRootContextOptional
+
+```ts
+const unstable_useTriggerPopoverRootContextOptional: () => TriggerPopoverRootContextValue | null;
+```
+
+### unstable_useTriggerPopoverScopeContext
+
+```ts
+const unstable_useTriggerPopoverScopeContext: () => TriggerPopoverResourceOutput;
+```
+
+### unstable_useTriggerPopoverScopeContextOptional
+
+```ts
+const unstable_useTriggerPopoverScopeContextOptional: () => TriggerPopoverResourceOutput | null;
+```
+
+### unstable_useTriggerPopoverTriggers
+
+Live map of registered triggers, re-rendering on change. Prefer
+`subscribeLifecycle` for incremental add/remove handling.
+
+```ts
+const unstable_useTriggerPopoverTriggers: () => ReadonlyMap<string, RegisteredTrigger>;
+```
+
+### unstable_useTriggerPopoverTriggersOptional
+
+Like `useTriggerPopoverTriggers` but returns an empty map outside a root.
+
+```ts
+const unstable_useTriggerPopoverTriggersOptional: () => ReadonlyMap<string, RegisteredTrigger>;
+```
 {/* api-reference:end */}

@@ -345,7 +345,6 @@ function isUnstableName(name: string): boolean {
 }
 
 function exportSortKey(item: ExportInfo): [number, string] {
-  if (item.deprecated) return [isUnstableName(item.name) ? 3 : 2, item.name];
   if (isUnstableName(item.name)) return [1, item.name];
   return [0, item.name];
 }

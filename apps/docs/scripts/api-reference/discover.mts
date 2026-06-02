@@ -179,6 +179,10 @@ type ApiReferenceLinkItem = Pick<ExportInfo, "name" | "section" | "page">;
 
 const MANUAL_API_REFERENCE_LINKS = new Map([
   [
+    "AISDKToolkit",
+    "/docs/api-reference/integrations/react-ai-sdk#aisdktoolkit",
+  ],
+  [
     "AssistantState",
     "/docs/api-reference/primitives/assistant-if#assistantstate",
   ],
