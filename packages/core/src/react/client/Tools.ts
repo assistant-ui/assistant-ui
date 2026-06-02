@@ -131,8 +131,8 @@ export const Tools = resource(
         (acc, [name, tool]) => {
           if (tool.type === "mcp") return acc;
           const rest = { ...tool };
-          delete rest.display;
-          delete rest.render;
+          if ("display" in rest) delete rest.display;
+          if ("render" in rest) delete rest.render;
           if ("renderText" in rest) delete rest.renderText;
           acc[name] = rest as Tool<any, any>;
           return acc;

@@ -139,4 +139,44 @@ describe("makeToolCallTextComponent", () => {
       }),
     ).toBe("Waiting for approval...");
   });
+
+  it("renders null for terminal status when only running text is provided", () => {
+    const Render = makeToolCallTextComponent({
+      running: "Searching...",
+    });
+
+    expect(
+      Render({
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "search",
+        args: {},
+        argsText: "{}",
+        status: { type: "complete" },
+        addResult: () => {},
+        resume: () => {},
+        respondToApproval: () => {},
+      }),
+    ).toBeNull();
+  });
+
+  it("renders null for running status when only complete text is provided", () => {
+    const Render = makeToolCallTextComponent({
+      complete: "Done",
+    });
+
+    expect(
+      Render({
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "search",
+        args: {},
+        argsText: "{}",
+        status: { type: "running" },
+        addResult: () => {},
+        resume: () => {},
+        respondToApproval: () => {},
+      }),
+    ).toBeNull();
+  });
 });
