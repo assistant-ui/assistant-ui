@@ -130,12 +130,10 @@ export const Tools = resource(
       const toolsWithoutRender = Object.entries(toolkit).reduce(
         (acc, [name, tool]) => {
           if (tool.type === "mcp") return acc;
-          const {
-            display: _display,
-            render: _render,
-            renderText: _renderText,
-            ...rest
-          } = tool;
+          const rest = { ...tool };
+          delete rest.display;
+          delete rest.render;
+          if ("renderText" in rest) delete rest.renderText;
           acc[name] = rest as Tool<any, any>;
           return acc;
         },
