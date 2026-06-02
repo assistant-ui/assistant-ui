@@ -20,7 +20,6 @@ import {
 } from "@assistant-ui/react-generative-ui";
 
 const weatherFormatSchema = z.enum(["fahrenheit", "celsius"]);
-type WeatherFormat = z.infer<typeof weatherFormatSchema>;
 
 // The user-facing component library the model renders through the `present`
 // tool. `Weather` shows the rich card for a `get_weather` result by `id`.
@@ -159,7 +158,7 @@ const WeatherCard = ({
   format,
 }: {
   id: string;
-  format?: WeatherFormat;
+  format?: TemperatureUnit;
 }) => {
   // The payload lives on the `get_weather` result; the `Weather` component only
   // carries the `id`. Scan the whole thread (the two calls usually land in
