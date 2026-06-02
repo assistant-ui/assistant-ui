@@ -205,59 +205,86 @@ export const ParametersTable: FC<ParametersTableProps> = ({
   );
 };
 
-const ParameterItemLLM: FC<{ parameter: ParameterDef }> = ({
-  parameter: partialParameter,
+// Shared bullet-list renderer for both ParametersTable and PrimitivesTypeTable
+// in LLM/markdown output. `normalizeType` is the only behavioral difference
+// between the two: PrimitivesTypeTable strips a trailing `| undefined`.
+export type DefLLM = {
+  name: string;
+  type?: string;
+  description?: string | ReactNode;
+  required?: boolean;
+  default?: string;
+  deprecated?: string;
+  children?: Array<{ parameters: DefLLM[] }>;
+};
+
+type DefListLLMProps = {
+  defs: DefLLM[];
+  commonParams?: Record<string, Partial<DefLLM>> | undefined;
+  normalizeType?: ((type: string) => string) | undefined;
+};
+
+export const DefListLLM: FC<DefListLLMProps> = ({
+  defs,
+  commonParams,
+  normalizeType,
 }) => {
-  const parameter = {
-    ...COMMON_PARAMS[partialParameter.name],
-    ...partialParameter,
-  };
-  const isOptional = !parameter.required && !parameter.default;
+  return (
+    <ul>
+      {defs.map((def) => (
+        <DefItemLLM
+          key={def.name}
+          def={def}
+          commonParams={commonParams}
+          normalizeType={normalizeType}
+        />
+      ))}
+    </ul>
+  );
+};
+
+const DefItemLLM: FC<
+  { def: DefLLM } & Pick<DefListLLMProps, "commonParams" | "normalizeType">
+> = ({ def: rawDef, commonParams, normalizeType }) => {
+  const def = { ...commonParams?.[rawDef.name], ...rawDef };
+  const isOptional = !def.required && !def.default;
+  const type = def.type && normalizeType ? normalizeType(def.type) : def.type;
 
   return (
     <li>
       <code>
-        {parameter.name}
+        {def.name}
         {isOptional ? "?" : ""}
       </code>
-      {parameter.type ? (
+      {type ? (
         <>
           {": "}
-          <code>{parameter.type}</code>
+          <code>{type}</code>
         </>
       ) : null}
-      {parameter.default ? (
+      {def.default ? (
         <>
           {" (default "}
-          <code>{parameter.default}</code>
+          <code>{def.default}</code>
           {")"}
         </>
       ) : null}
-      {parameter.deprecated ? <> (deprecated: {parameter.deprecated})</> : null}
-      {parameter.description ? (
-        <> — {renderDescription(parameter.description)}</>
-      ) : null}
-      {parameter.children?.map((child, i) => (
-        <ParameterListLLM key={i} parameters={child.parameters} />
+      {def.deprecated ? <> (deprecated: {def.deprecated})</> : null}
+      {def.description ? <> — {renderDescription(def.description)}</> : null}
+      {def.children?.map((child, i) => (
+        <DefListLLM
+          key={i}
+          defs={child.parameters}
+          commonParams={commonParams}
+          normalizeType={normalizeType}
+        />
       ))}
     </li>
-  );
-};
-
-const ParameterListLLM: FC<{ parameters: ParameterDef[] }> = ({
-  parameters,
-}) => {
-  return (
-    <ul>
-      {parameters.map((parameter) => (
-        <ParameterItemLLM key={parameter.name} parameter={parameter} />
-      ))}
-    </ul>
   );
 };
 
 export const ParametersTableLLM: FC<ParametersTableProps> = ({
   parameters,
 }) => {
-  return <ParameterListLLM parameters={parameters} />;
+  return <DefListLLM defs={parameters} commonParams={COMMON_PARAMS} />;
 };

@@ -26,7 +26,7 @@ const Heading =
   (Tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") =>
   ({ children }: ComponentProps<"h1">) => <Tag>{children}</Tag>;
 
-const LLM_COMPONENTS: MDXComponents = {
+export const LLM_COMPONENTS: MDXComponents = {
   ...getMDXComponents({}),
   h1: Heading("h1"),
   h2: Heading("h2"),
@@ -61,7 +61,3 @@ const LLM_COMPONENTS: MDXComponents = {
   ParametersTable: ParametersTableLLM,
   PrimitivesTypeTable: PrimitivesTypeTableLLM,
 };
-
-export function getLLMComponents(): MDXComponents {
-  return LLM_COMPONENTS;
-}

@@ -6,7 +6,7 @@ import {
   TypeTableClient,
   type TypeTableRow,
 } from "./primitives-type-table-client";
-import { renderDescription } from "./parameters-table";
+import { DefListLLM } from "./parameters-table";
 import { StatusBadge } from "./status-badge";
 
 type PropDef = {
@@ -152,52 +152,16 @@ export async function PrimitivesTypeTable({
 
 // Build from PropDef directly, skipping Shiki highlighting (it emitted stray
 // code fences) and the `highlighted*` fields meant for the client table.
-const PropItemLLM: FC<{ prop: PropDef }> = ({ prop: rawProp }) => {
-  const prop = { ...COMMON_PARAMS[rawProp.name], ...rawProp };
-  const isOptional = !prop.required && !prop.default;
-  const type = prop.type ? stripTrailingUndefined(prop.type) : undefined;
-
-  return (
-    <li>
-      <code>
-        {prop.name}
-        {isOptional ? "?" : ""}
-      </code>
-      {type ? (
-        <>
-          {": "}
-          <code>{type}</code>
-        </>
-      ) : null}
-      {prop.default ? (
-        <>
-          {" (default "}
-          <code>{prop.default}</code>
-          {")"}
-        </>
-      ) : null}
-      {prop.deprecated ? <> (deprecated: {prop.deprecated})</> : null}
-      {prop.description ? <> — {renderDescription(prop.description)}</> : null}
-      {prop.children?.map((child, i) => (
-        <PropListLLM key={i} props={child.parameters} />
-      ))}
-    </li>
-  );
-};
-
-const PropListLLM: FC<{ props: PropDef[] }> = ({ props }) => {
-  return (
-    <ul>
-      {props.map((prop) => (
-        <PropItemLLM key={prop.name} prop={prop} />
-      ))}
-    </ul>
-  );
-};
-
+// stripTrailingUndefined drops the `| undefined` the prop extractor leaves on.
 export const PrimitivesTypeTableLLM: FC<{
   type?: string;
   parameters: PropDef[];
 }> = ({ parameters }) => {
-  return <PropListLLM props={parameters} />;
+  return (
+    <DefListLLM
+      defs={parameters}
+      commonParams={COMMON_PARAMS}
+      normalizeType={stripTrailingUndefined}
+    />
+  );
 };

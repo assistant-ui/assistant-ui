@@ -10,7 +10,7 @@ import rehypeRemark from "rehype-remark";
 import remarkGfm from "remark-gfm";
 import remarkStringify from "remark-stringify";
 import { unified } from "unified";
-import { getLLMComponents } from "@/lib/llm-components";
+import { LLM_COMPONENTS } from "@/lib/llm-components";
 import type { examples, source } from "@/lib/source";
 import type { InferPageType } from "fumadocs-core/source";
 
@@ -315,7 +315,7 @@ export async function getLLMText(page: LLMPage) {
   // platform ("react"). If llms output should include React Native or Ink
   // variants, render once per platform or provide an explicit platform scope.
   const staticBody = await resolveStaticReactNode(
-    <Body components={getLLMComponents()} />,
+    <Body components={LLM_COMPONENTS} />,
   );
   const { renderToStaticMarkup } = await import("react-dom/server");
   const html = renderToStaticMarkup(staticBody);
