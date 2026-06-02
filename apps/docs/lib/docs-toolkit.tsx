@@ -1,7 +1,11 @@
 "use generative";
 
 import { cn } from "@/lib/utils";
-import { WeatherWidget } from "@/components/tool-ui/weather-widget/runtime";
+import {
+  WeatherWidget,
+  type TemperatureUnit,
+  type WeatherWidgetPayload,
+} from "@/components/tool-ui/weather-widget/runtime";
 import {
   fetchWeatherWidgetFromOpenMeteo,
   geocodeLocationWithOpenMeteo,
@@ -15,6 +19,9 @@ import {
   generativeUIToJSX,
 } from "@assistant-ui/react-generative-ui";
 
+const weatherFormatSchema = z.enum(["fahrenheit", "celsius"]);
+type WeatherFormat = z.infer<typeof weatherFormatSchema>;
+
 // The user-facing component library the model renders through the `present`
 // tool. `Weather` shows the rich card for a `get_weather` result by `id`.
 const generative = new JSONGenerativeUI({
@@ -22,9 +29,15 @@ const generative = new JSONGenerativeUI({
     Weather: {
       description:
         "Show the user a rich weather card. Pass the `id` returned by " +
-        "`get_weather`; the card reads that result's payload.",
-      properties: z.object({ id: z.string() }),
-      render: (props: any) => <WeatherCard {...props} />,
+        "`get_weather`; optionally pass `format` to display temperatures as " +
+        "fahrenheit or celsius.",
+      properties: z.object({
+        id: z.string(),
+        format: weatherFormatSchema
+          .optional()
+          .describe("Temperature format to display in the weather card."),
+      }),
+      render: (props) => <WeatherCard {...props} />,
     },
   }),
 });
@@ -77,27 +90,20 @@ export default defineToolkit({
       location: z.string(),
       latitude: z.number(),
       longitude: z.number(),
-      format: z
-        .enum(["fahrenheit", "celsius"])
-        .default("fahrenheit")
-        .describe("Temperature format to use for the weather card."),
     }),
     execute: async ({
       location,
       latitude,
       longitude,
-      format,
     }: {
       location: string;
       latitude: number;
       longitude: number;
-      format: "fahrenheit" | "celsius";
     }) => {
       const weather = await fetchWeatherWidgetFromOpenMeteo({
         query: location,
         latitude,
         longitude,
-        unit: format,
       });
       if (!weather.success) {
         return { success: false as const, error: weather.error };
@@ -148,7 +154,13 @@ export default defineToolkit({
   present: generative.present({ display: "standalone" }),
 });
 
-const WeatherCard = ({ id }: any) => {
+const WeatherCard = ({
+  id,
+  format,
+}: {
+  id: string;
+  format?: WeatherFormat;
+}) => {
   // The payload lives on the `get_weather` result; the `Weather` component only
   // carries the `id`. Scan the whole thread (the two calls usually land in
   // separate assistant messages) for the matching result.
@@ -194,14 +206,59 @@ const WeatherCard = ({ id }: any) => {
     );
   }
 
+  const widget = format
+    ? convertWeatherWidgetFormat(source.widget, format)
+    : source.widget;
+  const generativeNode =
+    format !== undefined
+      ? { $type: "Weather", id, format }
+      : { $type: "Weather", id };
+
   return (
     <div className="mt-2 mb-4 flex flex-col items-center">
-      <WeatherWidget {...source.widget} />
+      <WeatherWidget {...widget} />
       <p className="text-muted-foreground/70 mt-1.5 text-center font-mono text-xs">
-        present({generativeUIToJSX({ $type: "Weather", id })})
+        present({generativeUIToJSX(generativeNode)})
       </p>
     </div>
   );
+};
+
+const convertTemperature = (
+  value: number,
+  from: TemperatureUnit,
+  to: TemperatureUnit,
+) => {
+  if (from === to) return value;
+  return to === "celsius" ? ((value - 32) * 5) / 9 : (value * 9) / 5 + 32;
+};
+
+const convertWeatherWidgetFormat = (
+  widget: WeatherWidgetPayload,
+  format: TemperatureUnit,
+): WeatherWidgetPayload => {
+  const sourceFormat = widget.units.temperature;
+  if (sourceFormat === format) return widget;
+
+  return {
+    ...widget,
+    units: { ...widget.units, temperature: format },
+    current: {
+      ...widget.current,
+      temperature: convertTemperature(
+        widget.current.temperature,
+        sourceFormat,
+        format,
+      ),
+      tempMin: convertTemperature(widget.current.tempMin, sourceFormat, format),
+      tempMax: convertTemperature(widget.current.tempMax, sourceFormat, format),
+    },
+    forecast: widget.forecast.map((day) => ({
+      ...day,
+      tempMin: convertTemperature(day.tempMin, sourceFormat, format),
+      tempMax: convertTemperature(day.tempMax, sourceFormat, format),
+    })),
+  };
 };
 
 // Shared Tool Card Components

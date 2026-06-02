@@ -2,7 +2,6 @@ import type {
   ForecastDay,
   PrecipitationLevel,
   WeatherConditionCode,
-  TemperatureUnit,
   WeatherWidgetPayload,
 } from "@/components/tool-ui/weather-widget/runtime";
 
@@ -10,7 +9,6 @@ export interface WeatherSearchArgs {
   query: string;
   longitude: number;
   latitude: number;
-  unit?: TemperatureUnit;
 }
 
 type GeocodeResult =
@@ -155,11 +153,10 @@ export const fetchWeatherWidgetFromOpenMeteo = async ({
   query,
   longitude,
   latitude,
-  unit = "fahrenheit",
 }: WeatherSearchArgs): Promise<WeatherResult> => {
   try {
     const response = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&timezone=auto&temperature_unit=${unit}&current=temperature_2m,weather_code,wind_speed_10m,precipitation&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=5`,
+      `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&timezone=auto&temperature_unit=fahrenheit&current=temperature_2m,weather_code,wind_speed_10m,precipitation&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=5`,
     );
 
     if (!response.ok) {
@@ -201,7 +198,7 @@ export const fetchWeatherWidgetFromOpenMeteo = async ({
         version: "3.1",
         id: `docs-weather-${query.toLowerCase().replaceAll(/\W+/g, "-")}`,
         location: { name: query },
-        units: { temperature: unit },
+        units: { temperature: "fahrenheit" },
         current: {
           conditionCode: mapOpenMeteoCodeToCondition(
             current.weather_code,
