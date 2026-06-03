@@ -23,6 +23,7 @@ export const useReplayRenderWait = () => {
   }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
     resolveWaiters();
   });
 
