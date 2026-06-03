@@ -39,6 +39,10 @@ const createRenderWait = () => {
   );
 
   const releaseNext = async () => {
+    for (let i = 0; pending.length === 0 && i < 10; i++) {
+      await Promise.resolve();
+    }
+
     const resolve = pending.shift();
     expect(resolve).toBeDefined();
     resolve!();
@@ -66,14 +70,23 @@ describe("createReplayBoundaryStream", () => {
   it("short-circuits responses without a valid replay content length", async () => {
     const setReplaying = vi.fn();
     const waitForRender = vi.fn();
-    const body = await createReplayBoundaryStream(createResponse(["live"]), {
-      setReplaying,
-      waitForRender,
-    });
 
-    expect(await readText(body)).toBe("live");
-    expect(setReplaying).not.toHaveBeenCalled();
-    expect(waitForRender).not.toHaveBeenCalled();
+    for (const replayContentLength of [undefined, "abc", "3.5", "-1"]) {
+      setReplaying.mockClear();
+      waitForRender.mockClear();
+
+      const body = await createReplayBoundaryStream(
+        createResponse(["live"], replayContentLength),
+        {
+          setReplaying,
+          waitForRender,
+        },
+      );
+
+      expect(await readText(body)).toBe("live");
+      expect(setReplaying).not.toHaveBeenCalled();
+      expect(waitForRender).not.toHaveBeenCalled();
+    }
   });
 
   it("pauses at the replay boundary before releasing live bytes", async () => {
@@ -121,6 +134,52 @@ describe("createReplayBoundaryStream", () => {
       done: false,
       value: encoder.encode(liveSuffix),
     });
+  });
+
+  it("clears replaying when the stream ends before the boundary", async () => {
+    const { waitForRender, releaseNext } = createRenderWait();
+    const setReplaying = vi.fn();
+    const streamPromise = createReplayBoundaryStream(
+      createResponse(["hi"], 10),
+      {
+        setReplaying,
+        waitForRender,
+      },
+    );
+
+    await releaseNext();
+    const stream = await streamPromise;
+    const text = readText(stream);
+    await releaseNext();
+    await releaseNext();
+
+    await expect(text).resolves.toBe("hi");
+    expect(setReplaying).toHaveBeenLastCalledWith(false);
+  });
+
+  it("clears replaying when the gated stream is cancelled", async () => {
+    const { waitForRender, releaseNext } = createRenderWait();
+    const setReplaying = vi.fn();
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode("hi"));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const streamPromise = createReplayBoundaryStream(
+      new Response(body, { headers: { "Aui-Replay-Content-Length": "10" } }),
+      { setReplaying, waitForRender },
+    );
+
+    await releaseNext();
+    const stream = await streamPromise;
+    await stream.cancel("done");
+
+    expect(setReplaying).toHaveBeenLastCalledWith(false);
+    expect(cancelled).toBe(true);
   });
 
   it("lets data-stream parsing commit replayed text before live tool calls", async () => {

@@ -96,6 +96,7 @@ export const createReplayBoundaryStream = async (
     if (replayFinished) return;
     replayFinished = true;
 
+    // Let replay bytes drain before rendering live mode, then render live mode before releasing live bytes.
     await waitForReplayRender();
     setReplaying(false);
     await waitForReplayRender();
