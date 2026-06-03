@@ -155,13 +155,15 @@ type OverrideOptionalField<
   TKey extends keyof T,
   TValue,
 > = undefined extends T[TKey]
-  ? Exclude<T[TKey], undefined> extends never
+  ? // Preserve `?: undefined` fields (for variants that explicitly disallow a
+    // callback) instead of widening them to accept the override value.
+    Exclude<T[TKey], undefined> extends never
     ? { [K in TKey]?: undefined }
     : { [K in TKey]?: TValue | undefined }
   : { [K in TKey]: TValue };
 
 type OverrideToolDeclarationCallbacks<
-  T,
+  T extends { streamCall?: unknown },
   TArgs extends Record<string, unknown>,
   TResult,
 > = Omit<
@@ -193,13 +195,11 @@ type OverrideToolDeclarationCallbacks<
         ) => NoInfer<TResult> | Promise<NoInfer<TResult>>
       >
     : {}) &
-  ("streamCall" extends keyof T
-    ? OverrideOptionalField<
-        T,
-        "streamCall",
-        ToolStreamCall<TArgs, NoInfer<TResult>>
-      >
-    : {});
+  OverrideOptionalField<
+    T,
+    "streamCall",
+    ToolStreamCall<TArgs, NoInfer<TResult>>
+  >;
 
 // Keep the authored shape tied to ToolDeclaration's union variants while
 // overriding callback fields to avoid inference pollution.
@@ -208,7 +208,7 @@ type ToolkitDefinitionInput<
   TResult,
 > = WithRender<
   ToolDeclaration<TArgs, TResult> extends infer T
-    ? T extends unknown
+    ? T extends { streamCall?: unknown }
       ? OverrideToolDeclarationCallbacks<T, TArgs, TResult>
       : never
     : never,
