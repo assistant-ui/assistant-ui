@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { defineToolkit } from "./define-toolkit";
 import { hitl, hitlTool } from "./hitl";
 import { providerTool } from "./provider-tool";
+import type { ToolkitDefinition } from "./toolbox";
 
 const expectType = <T>(_value: T) => {};
 
@@ -54,6 +55,17 @@ const checkDefineToolkitTypes = () => {
   });
 };
 void checkDefineToolkitTypes;
+
+const checkToolkitDefinitionTypes = () => {
+  ({
+    invalidMcp: {
+      // @ts-expect-error MCP-shaped tools cannot also declare an execute callback
+      server: { type: "http", url: "https://example.com/mcp" },
+      execute: async () => "invalid",
+    },
+  }) satisfies ToolkitDefinition;
+};
+void checkToolkitDefinitionTypes;
 
 describe("use-generative markers", () => {
   it("defineToolkit throws at runtime — it must be stripped by the compiler, never called", () => {

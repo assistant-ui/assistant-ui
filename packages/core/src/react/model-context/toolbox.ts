@@ -1,6 +1,4 @@
 import type {
-  McpServerConfig,
-  ProviderOptions,
   Tool,
   ToolCallReader,
   ToolDeclaration,
@@ -152,33 +150,71 @@ export type Toolkit = Record<string, ToolDefinition<any, any>>;
  * directive → frontend; otherwise backend) and writes it back — so declaring it
  * here is a type error.
  */
-// Keep this authoring shape in sync with ToolDeclaration. It is spelled out so
-// callback fields can control inference while streamCall still infers from
-// schema-backed parameters.
-type ToolkitDefinitionInput<TArgs extends Record<string, unknown>, TResult> = {
+type OverrideOptionalField<
+  T,
+  TKey extends keyof T,
+  TValue,
+> = undefined extends T[TKey]
+  ? Exclude<T[TKey], undefined> extends never
+    ? { [K in TKey]?: undefined }
+    : { [K in TKey]?: TValue | undefined }
+  : { [K in TKey]: TValue };
+
+type OverrideToolDeclarationCallbacks<
+  T,
+  TArgs extends Record<string, unknown>,
+  TResult,
+> = Omit<
+  T,
+  | "type"
+  | "execute"
+  | "toModelOutput"
+  | "experimental_onSchemaValidationError"
+  | "streamCall"
+> & {
   type?: never;
-  description?: string | undefined;
-  parameters?: ToolParameters<TArgs>;
-  disabled?: boolean | undefined;
-  display?: "standalone" | "inline" | undefined;
-  execute?: ToolExecute<NoInfer<TArgs>, TResult>;
-  toModelOutput?: ToolModelOutputFunction<NoInfer<TArgs>, NoInfer<TResult>>;
-  experimental_onSchemaValidationError?: (
-    args: unknown,
-    context: ToolExecuteContext,
-  ) => NoInfer<TResult> | Promise<NoInfer<TResult>>;
-  providerOptions?: ProviderOptions | undefined;
-  streamCall?: ToolStreamCall<TArgs, NoInfer<TResult>>;
-  providerId?: `${string}.${string}` | undefined;
-  args?: Record<string, unknown> | undefined;
-  supportsDeferredResults?: boolean | undefined;
-  server?: McpServerConfig | undefined;
-  render?: ToolCallMessagePartComponent<NoInfer<TArgs>, NoInfer<TResult>>;
-  renderText?: ToolCallText<NoInfer<TArgs>, NoInfer<TResult>>;
-  unstable_backendDefault?: {
-    parameters?: boolean;
-  };
-};
+} & ("execute" extends keyof T
+    ? OverrideOptionalField<T, "execute", ToolExecute<NoInfer<TArgs>, TResult>>
+    : {}) &
+  ("toModelOutput" extends keyof T
+    ? OverrideOptionalField<
+        T,
+        "toModelOutput",
+        ToolModelOutputFunction<NoInfer<TArgs>, NoInfer<TResult>>
+      >
+    : {}) &
+  ("experimental_onSchemaValidationError" extends keyof T
+    ? OverrideOptionalField<
+        T,
+        "experimental_onSchemaValidationError",
+        (
+          args: unknown,
+          context: ToolExecuteContext,
+        ) => NoInfer<TResult> | Promise<NoInfer<TResult>>
+      >
+    : {}) &
+  ("streamCall" extends keyof T
+    ? OverrideOptionalField<
+        T,
+        "streamCall",
+        ToolStreamCall<TArgs, NoInfer<TResult>>
+      >
+    : {});
+
+// Keep the authored shape tied to ToolDeclaration's union variants while
+// overriding callback fields to avoid inference pollution.
+type ToolkitDefinitionInput<
+  TArgs extends Record<string, unknown>,
+  TResult,
+> = WithRender<
+  ToolDeclaration<TArgs, TResult> extends infer T
+    ? T extends unknown
+      ? OverrideToolDeclarationCallbacks<T, TArgs, TResult>
+      : never
+    : never,
+  TArgs,
+  TResult
+>;
 
 /**
  * A single entry in a {@link ToolkitDefinition}.
