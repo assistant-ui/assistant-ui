@@ -140,8 +140,6 @@ export class AgUiThreadRuntimeCore {
 
         if (repo.unstable_resume) {
           const parentId = repo.headId ?? messages.at(-1)?.id ?? null;
-          // Re-attach to the persisted stream when the history adapter can
-          // replay it; otherwise fall back to a fresh agent run.
           const resumeStream = this.history?.resume?.bind(this.history);
           await this.startRun(
             parentId,
@@ -458,14 +456,7 @@ export class AgUiThreadRuntimeCore {
     this.resetHead(parentId);
     const historicalMessages = [...this.messages];
 
-    const runId = generateId();
     this.pendingError = null;
-    const input = this.buildRunInput(
-      runId,
-      normalizedRunConfig,
-      historicalMessages,
-      resume,
-    );
     const assistantParentId = parentId ?? this.messages.at(-1)?.id ?? null;
     let assistantMessageId: string | undefined;
     const ensureAssistant = () => {
@@ -500,12 +491,7 @@ export class AgUiThreadRuntimeCore {
     const abortSignal = abortController.signal;
     this.abortController = abortController;
 
-    // A replayed resume stream owns the assistant content directly, so a cancel
-    // must flip only the status. Routing it through the aggregator (as the
-    // agent-run path does) would emit an empty content snapshot and wipe what
-    // the stream already produced.
     let cancelRun = () => dispatch({ type: "RUN_CANCELLED" });
-
     abortSignal.addEventListener(
       "abort",
       () => {
@@ -516,16 +502,16 @@ export class AgUiThreadRuntimeCore {
       { once: true },
     );
 
-    aggregator.handle({ type: "RUN_STARTED", runId });
     this.setRunning(true);
 
     try {
       if (resumeStream) {
+        // Cancel flips only the status; an aggregator RUN_CANCELLED would emit an empty snapshot and wipe the replayed content.
         cancelRun = () =>
           applyUpdate({ status: { type: "incomplete", reason: "cancelled" } });
         await this.consumeResumeStream(resumeStream, {
           runConfig: normalizedRunConfig,
-          threadId: input.threadId,
+          threadId: this.agent.threadId || "main",
           parentId: assistantParentId,
           historicalMessages,
           abortSignal,
@@ -534,6 +520,14 @@ export class AgUiThreadRuntimeCore {
           getAssistantMessageId: () => assistantMessageId,
         });
       } else {
+        const runId = generateId();
+        aggregator.handle({ type: "RUN_STARTED", runId });
+        const input = this.buildRunInput(
+          runId,
+          normalizedRunConfig,
+          historicalMessages,
+          resume,
+        );
         const subscriber = createAgUiSubscriber({
           dispatch,
           runId,
@@ -572,11 +566,7 @@ export class AgUiThreadRuntimeCore {
     }
   }
 
-  // Re-attach to a persisted run by replaying its `ChatModelRunResult` stream
-  // into the existing assistant message, instead of issuing a fresh
-  // `agent.runAgent(...)`. Each yielded result flows through the same update
-  // path the aggregator uses, so no new runId is generated and the agent is
-  // not re-invoked.
+  // Replays a persisted run's snapshots into the existing assistant message, bypassing agent.runAgent so it is not re-invoked.
   private async consumeResumeStream(
     stream: ResumeStream,
     ctx: {
@@ -591,6 +581,7 @@ export class AgUiThreadRuntimeCore {
     },
   ): Promise<void> {
     const assistantId = ctx.ensureAssistant();
+    const currentId = () => ctx.getAssistantMessageId() ?? assistantId;
     const options: ChatModelRunOptions = {
       messages: ctx.historicalMessages,
       runConfig: ctx.runConfig,
@@ -600,8 +591,7 @@ export class AgUiThreadRuntimeCore {
       unstable_threadId: ctx.threadId,
       unstable_parentId: ctx.parentId,
       unstable_getMessage: () => {
-        const id = ctx.getAssistantMessageId() ?? assistantId;
-        const message = this.messages.find((m) => m.id === id);
+        const message = this.messages.find((m) => m.id === currentId());
         if (!message) {
           throw new Error(
             "[agui] resume stream requested the assistant message before it existed",
@@ -628,9 +618,7 @@ export class AgUiThreadRuntimeCore {
     }
 
     if (ctx.abortSignal.aborted) return;
-    const current = this.messages.find(
-      (m) => m.id === (ctx.getAssistantMessageId() ?? assistantId),
-    );
+    const current = this.messages.find((m) => m.id === currentId());
     if (!current || current.status?.type === "running") {
       ctx.applyUpdate({ status: { type: "complete", reason: "unknown" } });
     }

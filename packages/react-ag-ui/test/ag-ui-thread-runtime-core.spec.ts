@@ -712,7 +712,6 @@ describe("AGUIThreadRuntimeCore", () => {
       stream,
     });
 
-    // The agent must NOT be re-invoked: the persisted stream is replayed.
     expect(runAgent).toHaveBeenCalledTimes(1);
     expect(stream).toHaveBeenCalledTimes(1);
 
@@ -823,7 +822,6 @@ describe("AGUIThreadRuntimeCore", () => {
     }): AsyncGenerator<ChatModelRunResult, void, unknown> {
       yield { content: [{ type: "text", text: "partial" }] };
       firstYielded();
-      // Stay open until the run is cancelled, mimicking a live re-attached stream.
       await new Promise<void>((resolve) => {
         options.abortSignal.addEventListener("abort", () => resolve(), {
           once: true,
