@@ -27,6 +27,10 @@ import type {
   SendCommandsRequestBody,
 } from "./types";
 import { useCommandQueue } from "./commandQueue";
+import {
+  createReplayBoundaryStream,
+  useReplayRenderWait,
+} from "./replayBoundaryStream";
 import { useRunManager } from "./runManager";
 import { useConvertedState } from "./useConvertedState";
 import type { ToolExecutionStatus } from "@assistant-ui/core";
@@ -64,52 +68,6 @@ const convertAppendMessageToCommand = (
     parentId: message.parentId,
     sourceId: message.sourceId,
   };
-};
-
-/**
- * Read `Aui-Replay-Content-Length` off the resume response and wrap
- * `response.body` in a byte-counting passthrough that flips
- * `setReplaying` to `false` once the consumed byte count crosses the
- * boundary. The paired sync server (assistant-ui-sync-server) emits the
- * header.
- *
- * Responses without (or with a malformed) header short-circuit — no
- * extra pipeline node, replay state stays `false`.
- */
-const wrapReplayCounting = (
-  response: Response,
-  setReplaying: (v: boolean) => void,
-): ReadableStream<Uint8Array> => {
-  const raw = response.headers.get("Aui-Replay-Content-Length");
-  const boundary = raw != null ? Number.parseInt(raw, 10) : 0;
-  if (!Number.isFinite(boundary) || boundary <= 0) {
-    return response.body as ReadableStream<Uint8Array>;
-  }
-
-  setReplaying(true);
-  let bytesConsumed = 0;
-  let flipped = false;
-  const clearReplaying = () => {
-    if (flipped) return;
-    flipped = true;
-    setReplaying(false);
-  };
-  return response.body!.pipeThrough(
-    new TransformStream<Uint8Array, Uint8Array>({
-      transform(chunk, controller) {
-        bytesConsumed += chunk.byteLength;
-        if (bytesConsumed > boundary) clearReplaying();
-        controller.enqueue(chunk);
-      },
-      // If the stream ends without crossing the boundary (server sent
-      // fewer bytes than advertised, body was exactly the replay length,
-      // etc.), still clear the flag so the next snapshot processed
-      // outside the run isn't suppressed.
-      flush() {
-        clearReplaying();
-      },
-    }),
-  );
 };
 
 const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
@@ -162,9 +120,10 @@ const useAssistantTransportThreadRuntime = <T>(
   const agentStateRef = useRef(options.initialState);
   const [, rerender] = useState(0);
   const resumeFlagRef = useRef(false);
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  // oxlint-disable-next-line react-hooks/rules-of-hooks -- intentional conditional/nested hook usage
   const [isReplaying, setIsReplaying] = useState(false);
-  // biome-ignore lint/correctness/useHookAtTopLevel: intentional conditional/nested hook usage
+  const waitForReplayRender = useReplayRenderWait();
+  // oxlint-disable-next-line react-hooks/rules-of-hooks -- intentional conditional/nested hook usage
   const parentIdRef = useRef<string | null | undefined>(undefined);
   const commandQueue = useCommandQueue({
     onQueue: () => runManager.schedule(),
@@ -232,12 +191,10 @@ const useAssistantTransportThreadRuntime = <T>(
         throw new Error("Response body is null");
       }
 
-      // Sync-server replay header: the first N body bytes were buffered
-      // before this resume started (historical), everything after is live.
-      // Surfaced to the embedded tool-invocations tracker via `isLoading`
-      // (set on the inner adapter store below), which gates streamCall /
-      // execute side effects.
-      const body = wrapReplayCounting(response, setIsReplaying);
+      const body = await createReplayBoundaryStream(response, {
+        setReplaying: setIsReplaying,
+        waitForRender: waitForReplayRender,
+      });
 
       // Select decoder based on protocol option
       const protocol = options.protocol ?? "data-stream";

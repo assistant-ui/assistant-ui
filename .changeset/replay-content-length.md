@@ -2,6 +2,6 @@
 "@assistant-ui/react": patch
 ---
 
-feat(assistant-transport): honour `Aui-Replay-Content-Length` to suppress side-effects during sync-server replay
+feat(assistant-transport): honour `Aui-Replay-Content-Length` to split sync-server replay from live bytes
 
-`useAssistantTransportRuntime` now reads the `Aui-Replay-Content-Length` response header on resume and reports `isLoading: true` to the embedded tool-invocations tracker while the consumed body byte count is within the replay window. Tool calls in the replayed portion of the stream are recorded as historical and skip `streamCall` / `execute`, so reconnecting to a buffered run no longer re-fires frontend side effects. Live bytes after the boundary fire normally. Responses without the header behave as today.
+`useAssistantTransportRuntime` now reads the `Aui-Replay-Content-Length` response header on resume and gates the body at that byte boundary. The replay prefix is decoded while `isLoading: true` has rendered through React, then the reader pauses until `isLoading: false` has rendered before releasing live bytes. Tool calls in the replayed portion are recorded as historical and skip `streamCall` / `execute`, while tool calls that begin after the replay boundary fire normally. Responses without the header behave as today.
