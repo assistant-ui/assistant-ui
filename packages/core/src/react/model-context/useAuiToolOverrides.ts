@@ -15,6 +15,8 @@ type AuiToolOverrides = Record<string, AuiToolOverride<any, any>>;
  * This is intended for dynamic local-state tools whose model-facing contract is
  * declared in a `"use generative"` toolkit file with `execute: stubTool()`, but
  * whose actual executor must close over React state in the mounted component.
+ *
+ * @deprecated Experimental, API may change.
  */
 export function useAuiToolOverrides(overrides: AuiToolOverrides): void {
   const aui = useAui();
@@ -23,10 +25,7 @@ export function useAuiToolOverrides(overrides: AuiToolOverrides): void {
       Object.fromEntries(
         Object.entries(overrides).map(([name, override]) => [
           name,
-          {
-            disabled: false,
-            ...override,
-          } as Tool<any, any>,
+          override as Tool<any, any>,
         ]),
       ),
     [overrides],

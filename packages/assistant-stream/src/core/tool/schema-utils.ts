@@ -132,7 +132,11 @@ export function toPartialJSONSchema(schema: JSONSchema7): JSONSchema7 {
 }
 
 function defaultToolFilter(_name: string, tool: Tool): boolean {
-  return !tool.disabled && tool.type !== "backend";
+  return (
+    !tool.disabled &&
+    tool.type !== "backend" &&
+    !(tool.type === "frontend" && tool.execute === undefined)
+  );
 }
 
 function toolHasUploadableParameters(

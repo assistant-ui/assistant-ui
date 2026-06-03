@@ -286,6 +286,19 @@ describe("toToolsJSONSchema", () => {
       });
     });
 
+    it("excludes frontend tools without execute by default", () => {
+      const tools: Record<string, Tool> = {
+        stubbedTool: {
+          type: "frontend",
+          description: "A frontend tool supplied by local overrides",
+          parameters: { type: "object", properties: {} },
+        },
+      };
+
+      const result = toToolsJSONSchema(tools);
+      expect(result).not.toHaveProperty("stubbedTool");
+    });
+
     it("includes human tools", () => {
       const tools: Record<string, Tool> = {
         humanTool: {

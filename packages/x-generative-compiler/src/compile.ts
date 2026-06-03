@@ -441,7 +441,6 @@ function compileToolkit(
     }
 
     setToolType(value, type);
-    if (isStub) setStubDisabled(value);
     setBackendDefault(value, target, type);
   }
 }
@@ -639,13 +638,6 @@ function setToolType(object: t.ObjectExpression, type: ToolType): void {
   // Append (not prepend) so the inferred type wins over any earlier spread.
   object.properties.push(
     t.objectProperty(t.identifier("type"), t.stringLiteral(type)),
-  );
-}
-
-function setStubDisabled(object: t.ObjectExpression): void {
-  removeMember(object, "disabled");
-  object.properties.push(
-    t.objectProperty(t.identifier("disabled"), t.booleanLiteral(true)),
   );
 }
 

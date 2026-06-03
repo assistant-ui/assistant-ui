@@ -286,7 +286,7 @@ type FrontendTool<
   /** Prevents the tool from being exposed to the model while true. */
   disabled?: boolean;
   /** Executes the tool after the model provides valid arguments. */
-  execute: ToolExecuteFunction<TArgs, TResult>;
+  execute?: ToolExecuteFunction<TArgs, TResult>;
   /** Converts the execution result into model-visible output. */
   toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
   /** Handles invalid tool arguments when schema validation fails. */

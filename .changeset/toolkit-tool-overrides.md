@@ -6,4 +6,4 @@
 "@assistant-ui/x-generative-compiler": patch
 ---
 
-feat: add `stubTool()` and `useAuiToolOverrides()` for locally executed generative toolkit tools
+feat: add `stubTool()` and experimental `useAuiToolOverrides()` for locally executed generative toolkit tools

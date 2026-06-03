@@ -120,7 +120,6 @@ describe("mergeModelContexts", () => {
               type: "frontend",
               description: "Add a task",
               parameters: { type: "object", properties: {} } as any,
-              disabled: true,
               renderText: { running: "Adding task" },
             } as Tool<any, any>,
           },
@@ -129,7 +128,6 @@ describe("mergeModelContexts", () => {
           priority: 1000,
           tools: {
             add_task: {
-              disabled: false,
               execute,
             } as unknown as Tool<any, any>,
           },
@@ -140,7 +138,6 @@ describe("mergeModelContexts", () => {
     expect(merged.tools?.add_task).toMatchObject({
       type: "frontend",
       description: "Add a task",
-      disabled: false,
     });
     expect(merged.tools?.add_task?.execute).toBe(execute);
     expect(merged.tools?.add_task?.parameters).toEqual({
