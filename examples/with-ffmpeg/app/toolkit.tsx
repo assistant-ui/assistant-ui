@@ -28,7 +28,7 @@ export function useFfmpegToolkit(
               .array()
               .describe("The ffmpeg command line arguments to provide"),
           }),
-          execute: async ({ command }: { command: string[] }) => {
+          execute: async ({ command }) => {
             const transcode = async () => {
               const ffmpeg = ffmpegRef.current;
 
@@ -111,17 +111,7 @@ export function useFfmpegToolkit(
                 "Output filename in ffmpeg filesystem, e.g. overlay.png",
               ),
           }),
-          execute: async ({
-            html,
-            width,
-            height,
-            fileName,
-          }: {
-            html: string;
-            width: number;
-            height: number;
-            fileName: string;
-          }) => {
+          execute: async ({ html, width, height, fileName }) => {
             const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
         <foreignObject width="100%" height="100%">
           <div xmlns="http://www.w3.org/1999/xhtml">${html}</div>
@@ -185,7 +175,7 @@ export function useFfmpegToolkit(
               .string()
               .describe("The mime type of the file, e.g. image/png, video/mp4"),
           }),
-          execute: async ({ fileName }: { fileName: string }) => {
+          execute: async ({ fileName }) => {
             const ffmpeg = ffmpegRef.current;
             try {
               const data = (await ffmpeg.readFile(

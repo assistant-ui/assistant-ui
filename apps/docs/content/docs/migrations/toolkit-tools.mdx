@@ -45,29 +45,39 @@ export function App() {
 
 ## After
 
-```tsx
-import {
-  AssistantRuntimeProvider,
-  Tools,
-  type Toolkit,
-  useAui,
-} from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+```tsx title="app/toolkit.tsx"
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
 import { z } from "zod";
 
-const toolkit = {
+export default defineToolkit({
   get_weather: {
-    type: "frontend",
     description: "Get the current weather for a city.",
     parameters: z.object({
       city: z.string(),
     }),
-    execute: async ({ city }) => fetchWeather(city),
+    execute: async ({ city }) => {
+      "use client";
+      return fetchWeather(city);
+    },
     render: ({ args, result }) => (
       <WeatherCard city={args.city} weather={result} />
     ),
   },
-} satisfies Toolkit;
+});
+```
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import {
+  AssistantRuntimeProvider,
+  Tools,
+  useAui,
+} from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import toolkit from "./toolkit";
 
 export function App() {
   const runtime = useChatRuntime({ api: "/api/chat" });
@@ -96,14 +106,19 @@ export function App() {
 If you used `makeAssistantToolUI` or `useAssistantToolUI` for a backend, MCP, or LangGraph tool, move the renderer onto a backend toolkit entry:
 
 ```tsx
-const toolkit = {
+// app/toolkit.tsx
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
+
+export default defineToolkit({
   web_search: {
     type: "backend",
     render: ({ args, result }) => (
       <SearchResults query={args.query} results={result?.results ?? []} />
     ),
   },
-} satisfies Toolkit;
+});
 ```
 
 Backend entries do not upload a schema or execute in the browser. They only attach UI for matching tool-call message parts.
@@ -112,74 +127,75 @@ For a one-off renderer that should only affect a particular message surface, use
 
 ## Dynamic Tools
 
-If a tool needs component state or props, keep the toolkit in its own file and expose a small hook for the component to register:
+If a tool needs component state or props, keep the toolkit contract in a `"use generative"` file and use `stubTool()` for the executor. The component that owns the state supplies the real executor with `useAuiToolOverrides(...)`:
 
-```tsx title="task-board-toolkit.ts"
-"use client";
+```tsx title="task-board-toolkit.tsx"
+"use generative";
 
-import type { Dispatch, MutableRefObject, SetStateAction } from "react";
-import { useMemo } from "react";
-import type { Toolkit } from "@assistant-ui/react";
+import { defineToolkit, stubTool } from "@assistant-ui/react";
 import { z } from "zod";
 
 export type Task = { id: string; title: string };
 
-export function useTaskBoardToolkit(
-  setTasksRef: MutableRefObject<Dispatch<SetStateAction<Task[]>>>,
-) {
-  return useMemo(
-    () =>
-      ({
-        add_task: {
-          type: "frontend",
-          description: "Add a task to the board.",
-          parameters: z.object({ title: z.string() }),
-          execute: async ({ title }) => {
-            setTasksRef.current((prev) => [
-              ...prev,
-              { id: crypto.randomUUID(), title },
-            ]);
-            return { ok: true };
-          },
-          renderText: {
-            running: "Adding task",
-            complete: "Task added",
-          },
-        },
-      }) satisfies Toolkit,
-    [setTasksRef],
-  );
-}
+export default defineToolkit({
+  add_task: {
+    description: "Add a task to the board.",
+    parameters: z.object({ title: z.string() }),
+    execute: stubTool(),
+    renderText: {
+      running: "Adding task",
+      complete: "Task added",
+    },
+  },
+});
 ```
 
 ```tsx title="TaskBoard.tsx"
-import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
-import { useRef, useState } from "react";
+import { AuiProvider, Tools, useAui, useAuiToolOverrides } from "@assistant-ui/react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import type { Task } from "./task-board-toolkit";
-import { useTaskBoardToolkit } from "./task-board-toolkit";
+import toolkit from "./task-board-toolkit";
 
 function TaskBoard() {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const setTasksRef = useRef(setTasks);
-  setTasksRef.current = setTasks;
-  const toolkit = useTaskBoardToolkit(setTasksRef);
+
   const aui = useAui({
     tools: Tools({ toolkit }),
   });
 
   return (
     <AuiProvider value={aui}>
+      <TaskBoardToolOverrides setTasks={setTasks} />
       <TaskList tasks={tasks} />
     </AuiProvider>
   );
 }
+
+function TaskBoardToolOverrides({
+  setTasks,
+}: {
+  setTasks: Dispatch<SetStateAction<Task[]>>;
+}) {
+  useAuiToolOverrides({
+    add_task: {
+      execute: async ({ title }) => {
+        setTasks((prev) => [
+          ...prev,
+          { id: crypto.randomUUID(), title },
+        ]);
+        return { ok: true };
+      },
+    },
+  });
+  return null;
+}
 ```
 
-Keep the toolkit object stable in the toolkit module when it closes over local state. This gives the same lifecycle behavior as the old hooks while keeping tool definitions easy to audit.
+This keeps the model-facing contract in the toolkit file while the component owns the stateful executor.
 
 ## Generative Toolkits
 
-For tools authored in a `"use generative"` file, export a toolkit with `defineToolkit(...)`. The compiler splits backend, frontend, and human tools for you:
+For tools authored in a `"use generative"` file, export a toolkit with `defineToolkit(...)`. The compiler splits backend, frontend, and human tools for you. This is the default shape to use for docs and copy-paste examples:
 
 ```tsx
 "use generative";

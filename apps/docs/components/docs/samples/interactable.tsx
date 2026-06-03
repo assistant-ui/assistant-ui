@@ -52,8 +52,6 @@ const taskBoardSchema = z.object({
 
 const taskBoardInitialState: TaskBoardState = { tasks: [] };
 
-let nextTaskId = 0;
-
 const TaskBoard: FC = () => {
   const id = useAssistantInteractable("taskBoard", {
     description:
@@ -75,6 +73,7 @@ const TaskBoard: FC = () => {
     () =>
       ({
         manage_tasks: {
+          type: "frontend",
           description:
             'Manage tasks on the task board. Actions: "add" (requires title), "toggle" (requires id), "remove" (requires id), "clear" (no extra fields).',
           parameters: z.object({
@@ -86,7 +85,7 @@ const TaskBoard: FC = () => {
             const set = setStateRef.current;
             switch (args.action) {
               case "add": {
-                const id = `task-${++nextTaskId}`;
+                const id = crypto.randomUUID();
                 set((prev) => ({
                   tasks: [
                     ...prev.tasks,
@@ -120,6 +119,11 @@ const TaskBoard: FC = () => {
               default:
                 return { success: false, error: "Unknown action" };
             }
+          },
+          renderText: {
+            running: ({ args }) => `Updating tasks: ${args.action}`,
+            complete: ({ result }) =>
+              result?.success ? "Tasks updated" : result?.error,
           },
         },
       }) satisfies Toolkit,

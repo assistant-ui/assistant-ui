@@ -38,14 +38,15 @@ The `Tools()` API is the recommended way to register tools in assistant-ui. It p
 
 ### Quick Start
 
-Create a toolkit object containing all your tools, then register it using `useAui()`:
+Create a toolkit file containing all your tools, then register it using `useAui()`:
 
-```tsx
-import { useAui, Tools, type Toolkit } from "@assistant-ui/react";
+```tsx title="app/toolkit.tsx"
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
 import { z } from "zod";
 
-// Define your toolkit
-const myToolkit: Toolkit = {
+export default defineToolkit({
   getWeather: {
     description: "Get current weather for a location",
     parameters: z.object({
@@ -53,6 +54,7 @@ const myToolkit: Toolkit = {
       unit: z.enum(["celsius", "fahrenheit"]).default("celsius"),
     }),
     execute: async ({ location, unit }) => {
+      "use client";
       const weather = await fetchWeatherAPI(location, unit);
       return weather;
     },
@@ -67,16 +69,21 @@ const myToolkit: Toolkit = {
       );
     },
   },
-  // Add more tools here
-};
+});
+```
 
-// Register tools in your runtime provider
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { AssistantRuntimeProvider, Tools, useAui } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import toolkit from "./toolkit";
+
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
 
-  // Register all tools
   const aui = useAui({
-    tools: Tools({ toolkit: myToolkit }),
+    tools: Tools({ toolkit }),
   });
 
   return (
@@ -129,23 +136,34 @@ type ToolDefinition =
 Toolkits are also where you express client-side knowledge about server-defined tools. If your backend already defines a tool's description, parameters, and executor, register a minimal backend entry and only add the client renderer:
 
 ```tsx
-const toolkit = {
+// app/toolkit.tsx
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
+
+export default defineToolkit({
   web_search: {
     type: "backend",
     render: WebSearchToolUI,
   },
-} satisfies Toolkit;
+});
 ```
 
 For frontend tools, put the schema and browser executor in the same entry:
 
 ```tsx
-const toolkit = {
+// app/toolkit.tsx
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+
+export default defineToolkit({
   copy_to_clipboard: {
-    type: "frontend",
     description: "Copy text to the user's clipboard.",
     parameters: z.object({ text: z.string() }),
     execute: async ({ text }) => {
+      "use client";
       await navigator.clipboard.writeText(text);
       return { copied: true };
     },
@@ -154,20 +172,26 @@ const toolkit = {
       complete: "Copied text to clipboard",
     },
   },
-} satisfies Toolkit;
+});
 ```
 
 Human tools use `type: "human"` and resume when the UI calls `addResult`:
 
 ```tsx
-const toolkit = {
+// app/toolkit.tsx
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+
+export default defineToolkit({
   request_approval: {
     type: "human",
     description: "Ask the user to approve an action.",
     parameters: z.object({ action: z.string() }),
     render: ApprovalToolUI,
   },
-} satisfies Toolkit;
+});
 ```
 
 Tools are enabled by default. Set `disabled: true` when a tool should remain known to the client but not be exposed to the model for the current scope.
@@ -237,35 +261,39 @@ If you skip the `{ tools: aiSDKTools }` argument, prior tool results will be sen
 For larger applications, split tools across multiple files:
 
 ```tsx
-// lib/tools/weather.tsx
-export const weatherTools: Toolkit = {
+// app/tools/weather.tsx
+export const weatherTools = {
   getWeather: { /* ... */ },
   getWeatherForecast: { /* ... */ },
 };
 
-// lib/tools/database.tsx
-export const databaseTools: Toolkit = {
+// app/tools/database.tsx
+export const databaseTools = {
   queryData: { /* ... */ },
   insertData: { /* ... */ },
 };
 
-// lib/toolkit.tsx
+// app/toolkit.tsx
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
 import { weatherTools } from "./tools/weather";
 import { databaseTools } from "./tools/database";
 
-export const appToolkit: Toolkit = {
+export default defineToolkit({
   ...weatherTools,
   ...databaseTools,
-};
+});
+```
 
-// App.tsx
-import { appToolkit } from "./lib/toolkit";
+```tsx title="app/MyRuntimeProvider.tsx"
+import toolkit from "./toolkit";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
 
   const aui = useAui({
-    tools: Tools({ toolkit: appToolkit }),
+    tools: Tools({ toolkit }),
   });
 
   return (
@@ -407,10 +435,12 @@ const confirmationToolkit: Toolkit = {
 
 While a tool is running, its arguments arrive as partial JSON. Use `useToolArgsStatus` inside a tool UI render function to react to each top-level field as it streams in. The hook is exported from `@assistant-ui/react`.
 
-```tsx
-import { useToolArgsStatus, type Toolkit } from "@assistant-ui/react";
+```tsx title="app/toolkit.tsx"
+"use generative";
 
-const toolkit = {
+import { defineToolkit, useToolArgsStatus } from "@assistant-ui/react";
+
+export default defineToolkit({
   search: {
     type: "backend",
     render: ({ args }) => {
@@ -433,7 +463,7 @@ const toolkit = {
       );
     },
   },
-} satisfies Toolkit;
+});
 ```
 
 `propStatus` maps each top-level key in the args object to `"streaming"` while it is still being parsed and to `"complete"` once that field is fully present.
@@ -562,17 +592,25 @@ export async function POST(req: Request) {
 Every tool definition accepts an optional `providerOptions` field. assistant-ui does not interpret the value; it serializes it under the tool entry verbatim, the AI SDK route handler forwards it via `frontendTools(...)`, and the provider SDK reads the keys it cares about. This is how you opt into provider-specific tool behaviors (such as Anthropic's `defer_loading` for progressive tool disclosure on large catalogs) without adding any provider-aware code to assistant-ui itself.
 
 ```tsx
-// Frontend: declare provider-specific metadata next to the tool.
-const toolkit = {
+// app/toolkit.tsx
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+
+export default defineToolkit({
   searchDocs: {
     description: "Search the documentation index.",
     parameters: z.object({ query: z.string() }),
     providerOptions: {
       anthropic: { deferLoading: true },
     },
-    execute: async ({ query }) => searchIndex(query),
+    execute: async ({ query }) => {
+      "use client";
+      return searchIndex(query);
+    },
   },
-} satisfies Toolkit;
+});
 ```
 
 The outer key is the provider name (`anthropic`, `openai`, ...); the inner object is whatever the provider's AI SDK package expects under `tool.providerOptions[<provider>]`. Refer to the provider's package docs for the exact shape and for any companion entries you may need in your route handler (for example, Anthropic exposes Tool Search Tool factories on the `anthropic.tools` namespace; see the [`@ai-sdk/anthropic` documentation](https://ai-sdk.dev/providers/ai-sdk-providers/anthropic) for the current API).

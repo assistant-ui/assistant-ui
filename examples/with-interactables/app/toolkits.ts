@@ -20,8 +20,6 @@ export const taskBoardSchema = z.object({
 
 export const taskBoardInitialState: TaskBoardState = { tasks: [] };
 
-let nextTaskId = 0;
-
 type TaskBoardSetterRef = MutableRefObject<
   Dispatch<SetStateAction<TaskBoardState>>
 >;
@@ -43,7 +41,7 @@ export function useTaskBoardToolkit(setStateRef: TaskBoardSetterRef) {
             const set = setStateRef.current;
             switch (args.action) {
               case "add": {
-                const id = `task-${++nextTaskId}`;
+                const id = crypto.randomUUID();
                 set((prev) => ({
                   tasks: [
                     ...prev.tasks,
