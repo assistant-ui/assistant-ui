@@ -454,6 +454,7 @@ Build complex workflows with human-in-the-loop patterns for multi-step user inte
 ```tsx
 const toolkit = {
   requestApproval: {
+    type: "frontend",
     description: "Request user approval for an action",
     parameters: z.object({
       action: z.string(),
@@ -918,36 +919,7 @@ function HeavyComputationToolProvider({ children }: { children: ReactNode }) {
 
 ## Per-Property Streaming Status
 
-When rendering a tool UI, you can track which arguments have finished streaming using `useToolArgsStatus`. This must be used inside a tool-call message part context.
-
-```tsx
-import { useToolArgsStatus } from "@assistant-ui/react";
-
-const toolkit = {
-  weather: {
-    type: "backend",
-    render: ({ args }) => {
-      const { status, propStatus } = useToolArgsStatus<{
-        location: string;
-        unit: string;
-      }>();
-
-      return (
-        <div>
-          <span
-            className={propStatus.location === "streaming" ? "animate-pulse" : ""}
-          >
-            {args.location ?? "..."}
-          </span>
-          {status === "complete" && <WeatherChart data={args} />}
-        </div>
-      );
-    },
-  },
-} satisfies Toolkit;
-```
-
-`propStatus` maps each key to `"streaming"` | `"complete"` once the key appears in the partial JSON. Keys not yet present in the stream are absent from `propStatus`.
+For the canonical `useToolArgsStatus` pattern, see [Field-Level Streaming State](#field-level-streaming-state). That section covers how `propStatus` tracks each streamed argument field and how to call the hook inside a tool-call message part context.
 
 ## Data-Part Generative UI
 
