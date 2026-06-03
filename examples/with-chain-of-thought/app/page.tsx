@@ -15,11 +15,12 @@ import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 
 const toolkit = {
   execute_js: {
+    type: "frontend",
     description: "Execute JavaScript code and return the result",
     parameters: z.object({
       code: z.string().describe("The JavaScript code to execute"),
     }),
-    execute: async ({ code }: { code: string }) => {
+    execute: async ({ code }) => {
       try {
         const result = eval(code);
         return { success: true, result: String(result) };

@@ -149,8 +149,7 @@ export default defineToolkit({
     parameters: z.object({
       query: z.string(),
     }),
-    execute: async ({ query }: { query: string }) =>
-      geocodeLocationWithOpenMeteo(query),
+    execute: async ({ query }) => geocodeLocationWithOpenMeteo(query),
     render: GeocodeLocationToolUI,
   },
   get_weather: {
@@ -162,15 +161,7 @@ export default defineToolkit({
       latitude: z.number(),
       longitude: z.number(),
     }),
-    execute: async ({
-      location,
-      latitude,
-      longitude,
-    }: {
-      location: string;
-      latitude: number;
-      longitude: number;
-    }) => {
+    execute: async ({ location, latitude, longitude }) => {
       const weather = await fetchWeatherWidgetFromOpenMeteo({
         query: location,
         latitude,
