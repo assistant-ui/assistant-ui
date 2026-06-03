@@ -17,6 +17,8 @@ type AuiToolOverrides = Record<string, AuiToolOverride<any, any>>;
  * whose actual executor must close over React state in the mounted component.
  * Keep the override keys stable after mount; dynamic key addition/removal is not
  * currently observed.
+ * Overrides are registered at priority 1000, above toolkit defaults. Only one
+ * mounted override provider may define a given tool name at a time.
  *
  * @deprecated Experimental, API may change.
  */

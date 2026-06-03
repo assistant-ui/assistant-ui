@@ -77,7 +77,6 @@ export const mergeModelContexts = (
             );
           }
 
-          if (!acc.tools) acc.tools = {};
           const higherPriorityTool =
             existingPriority > priority ? existing : tool;
           const lowerPriorityTool =
