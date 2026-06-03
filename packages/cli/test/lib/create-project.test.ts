@@ -348,15 +348,7 @@ describe("transformProject — hasLocalComponents: false", () => {
 
   // Component scanning tests
   describe("component scanning", () => {
-    function findSpawnCall(
-      predicate: (cmd: string, args: string[]) => boolean,
-    ) {
-      return (spawn as Mock).mock.calls.find(
-        ([cmd, args]: [string, string[]]) => predicate(cmd, args),
-      );
-    }
-
-    it("detects assistant-ui and shadcn component imports", async () => {
+    it("installs shadcn and assistant-ui components in a single shadcn add call", async () => {
       writeFile(
         "app/page.tsx",
         'import { Thread } from "@/components/assistant-ui/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
@@ -364,26 +356,19 @@ describe("transformProject — hasLocalComponents: false", () => {
 
       await run();
 
-      // assistant-ui components installed via shadcn registry
-      const auiCall = findSpawnCall(
-        (cmd, args) =>
+      const addCalls = (spawn as Mock).mock.calls.filter(
+        ([cmd, args]: [string, string[]]) =>
           cmd === TEST_DLX_CMD &&
           args.includes("shadcn@latest") &&
-          args.some((a) => a.includes("@assistant-ui/")),
+          args.includes("add"),
       );
-      expect(auiCall).toBeDefined();
-      expect(auiCall![1]).toContain("@assistant-ui/thread");
-      expect(auiCall![1]).not.toContain("@assistant-ui/thread.tsx");
+      expect(addCalls).toHaveLength(1);
 
-      // shadcn UI components installed separately
-      const shadcnCall = findSpawnCall(
-        (cmd, args) =>
-          cmd === TEST_DLX_CMD &&
-          args.includes("shadcn@latest") &&
-          args.includes("button"),
-      );
-      expect(shadcnCall).toBeDefined();
-      expect(shadcnCall![1]).not.toContain("button.tsx");
+      const args = addCalls[0]![1] as string[];
+      expect(args).toContain("button");
+      expect(args).toContain("@assistant-ui/thread");
+      expect(args).not.toContain("button.tsx");
+      expect(args).not.toContain("@assistant-ui/thread.tsx");
     });
   });
 });

@@ -219,16 +219,10 @@ export async function transformProject(
     const allShadcn = shadcnUI.includes("utils")
       ? shadcnUI
       : [...shadcnUI, "utils"];
-    logger.step(`Installing shadcn UI components: ${allShadcn.join(", ")}...`);
-    await installShadcnRegistry(projectDir, allShadcn, "shadcn components", pm);
-
-    if (assistantUI.length > 0) {
-      const auiComponents = assistantUI.map((c) => `@assistant-ui/${c}`);
-      logger.step(
-        `Installing assistant-ui components: ${assistantUI.join(", ")}...`,
-      );
-      await installShadcnRegistry(projectDir, auiComponents, "components", pm);
-    }
+    const auiComponents = assistantUI.map((c) => `@assistant-ui/${c}`);
+    const components = [...allShadcn, ...auiComponents];
+    logger.step(`Installing components: ${components.join(", ")}...`);
+    await installShadcnRegistry(projectDir, components, "components", pm);
   }
 }
 
