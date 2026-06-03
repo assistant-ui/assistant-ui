@@ -127,6 +127,40 @@ function parseDataUrl(
 
 const httpUrlPattern = /^https?:\/\//i;
 
+type InputContentSource =
+  | { type: "data"; value: string; mimeType: string }
+  | { type: "url"; value: string; mimeType?: string };
+
+type MediaInputType = "image" | "audio" | "video" | "document";
+
+function mediaTypeForMime(mimeType: string | undefined): MediaInputType {
+  if (mimeType?.startsWith("image/")) return "image";
+  if (mimeType?.startsWith("audio/")) return "audio";
+  if (mimeType?.startsWith("video/")) return "video";
+  return "document";
+}
+
+// Build an AG-UI multimodal source from a data URL, raw base64 payload, or an
+// http(s) URL. A `url` source may omit the mime type; a `data` source always
+// resolves one (falling back to application/octet-stream).
+function buildInputSource(
+  value: string,
+  declaredMimeType: string | undefined,
+): InputContentSource {
+  if (httpUrlPattern.test(value)) {
+    return declaredMimeType !== undefined
+      ? { type: "url", value, mimeType: declaredMimeType }
+      : { type: "url", value };
+  }
+  const parsed = parseDataUrl(value);
+  return {
+    type: "data",
+    value: parsed?.data ?? value,
+    mimeType:
+      parsed?.mimeType ?? declaredMimeType ?? "application/octet-stream",
+  };
+}
+
 function toInputContent(
   part: unknown,
   fallbackMimeType: string | undefined,
@@ -143,52 +177,26 @@ function toInputContent(
   if (type === "image") {
     const image = getString(part, "image");
     if (image === undefined) return null;
-    const parsed = parseDataUrl(image);
-    if (parsed) {
-      return {
-        type: "image",
-        source: {
-          type: "data",
-          value: parsed.data,
-          mimeType: parsed.mimeType,
-        },
-      };
-    }
-    return {
-      type: "image",
-      source: {
-        type: "url",
-        value: image,
-        ...(fallbackMimeType !== undefined
-          ? { mimeType: fallbackMimeType }
-          : {}),
-      },
-    };
+    return { type: "image", source: buildInputSource(image, fallbackMimeType) };
   }
 
   if (type === "file") {
     const data = getString(part, "data");
     if (data === undefined) return null;
-    const partMimeType = getString(part, "mimeType");
+    const declaredMimeType = getString(part, "mimeType") || fallbackMimeType;
     const filename = getString(part, "filename");
-    const mimeType =
-      partMimeType || fallbackMimeType || "application/octet-stream";
-
-    if (httpUrlPattern.test(data)) {
-      return {
-        type: "binary",
-        mimeType,
-        url: data,
-        ...(filename !== undefined ? { filename } : {}),
-      };
+    const source = buildInputSource(data, declaredMimeType);
+    const metadata = filename !== undefined ? { filename } : undefined;
+    switch (mediaTypeForMime(source.mimeType)) {
+      case "image":
+        return { type: "image", source, ...(metadata && { metadata }) };
+      case "audio":
+        return { type: "audio", source, ...(metadata && { metadata }) };
+      case "video":
+        return { type: "video", source, ...(metadata && { metadata }) };
+      default:
+        return { type: "document", source, ...(metadata && { metadata }) };
     }
-    const parsed = parseDataUrl(data);
-    return {
-      type: "binary",
-      mimeType: parsed?.mimeType ?? mimeType,
-      data: parsed?.data ?? data,
-      ...(filename !== undefined ? { filename } : {}),
-    };
   }
 
   return null;

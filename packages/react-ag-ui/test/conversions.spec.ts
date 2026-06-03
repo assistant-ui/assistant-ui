@@ -375,7 +375,7 @@ describe("adapter conversions", () => {
     expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
   });
 
-  it("converts file attachment to AG-UI binary with filename preserved", () => {
+  it("converts a file attachment to an AG-UI document part with filename in metadata", () => {
     const result = toAgUiMessages([
       {
         id: "u-1",
@@ -405,10 +405,107 @@ describe("adapter conversions", () => {
       content: [
         { type: "text", text: "review this" },
         {
-          type: "binary",
-          mimeType: "application/pdf",
-          data: "JVBERi0xLjQK",
-          filename: "spec.pdf",
+          type: "document",
+          source: {
+            type: "data",
+            value: "JVBERi0xLjQK",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "spec.pdf" },
+        },
+      ],
+    });
+    expect((result[0] as any).content[1]).not.toHaveProperty("filename");
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("classifies audio/video files into their own multimodal parts", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [],
+        attachments: [
+          {
+            id: "a-1",
+            type: "file",
+            name: "clip.mp3",
+            content: [
+              {
+                type: "file",
+                data: "data:audio/mpeg;base64,QUJD",
+                mimeType: "audio/mpeg",
+              },
+            ],
+          },
+          {
+            id: "a-2",
+            type: "file",
+            name: "clip.mp4",
+            content: [
+              {
+                type: "file",
+                data: "ZmFrZQ==",
+                mimeType: "video/mp4",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "audio",
+          source: { type: "data", value: "QUJD", mimeType: "audio/mpeg" },
+        },
+        {
+          type: "video",
+          source: { type: "data", value: "ZmFrZQ==", mimeType: "video/mp4" },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("converts an http(s) file attachment to a url source document part", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [],
+        attachments: [
+          {
+            id: "a-1",
+            type: "document",
+            name: "spec.pdf",
+            contentType: "application/pdf",
+            content: [
+              {
+                type: "file",
+                data: "https://example.com/spec.pdf",
+                mimeType: "application/pdf",
+                filename: "spec.pdf",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "document",
+          source: {
+            type: "url",
+            value: "https://example.com/spec.pdf",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "spec.pdf" },
         },
       ],
     });
@@ -559,7 +656,7 @@ describe("adapter conversions", () => {
     expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
   });
 
-  it("routes http file data to binary.url not binary.data", () => {
+  it("routes http file data to a url source, not an inline data source", () => {
     const result = toAgUiMessages([
       {
         id: "u-1",
@@ -587,14 +684,17 @@ describe("adapter conversions", () => {
       role: "user",
       content: [
         {
-          type: "binary",
-          mimeType: "application/pdf",
-          url: "https://cdn.example.com/report.pdf",
-          filename: "report.pdf",
+          type: "document",
+          source: {
+            type: "url",
+            value: "https://cdn.example.com/report.pdf",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "report.pdf" },
         },
       ],
     });
-    expect((result[0] as any).content[0]).not.toHaveProperty("data");
+    expect((result[0] as any).content[0].source).not.toHaveProperty("data");
     expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
   });
 });
