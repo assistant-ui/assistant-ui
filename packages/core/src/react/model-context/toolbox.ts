@@ -45,11 +45,10 @@ type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
       renderText?: ToolCallText<TArgs, TResult> | undefined;
     };
 
-type ToolParameters<
-  TArgs extends Record<string, unknown>,
-  _TResult = unknown,
-> = ToolDeclaration<TArgs, _TResult>["parameters"];
+type ToolParameters<TArgs extends Record<string, unknown>> =
+  ToolDeclaration<TArgs>["parameters"];
 
+// ToolExecutionContext is not re-exported from assistant-stream's public entry.
 type ToolExecuteContext = Parameters<
   NonNullable<ToolDeclaration["execute"]>
 >[1];
@@ -159,15 +158,15 @@ export type Toolkit = Record<string, ToolDefinition<any, any>>;
 type ToolkitDefinitionInput<TArgs extends Record<string, unknown>, TResult> = {
   type?: never;
   description?: string | undefined;
-  parameters?: ToolParameters<TArgs, TResult>;
+  parameters?: ToolParameters<TArgs>;
   disabled?: boolean | undefined;
   display?: "standalone" | "inline" | undefined;
   execute?: ToolExecute<NoInfer<TArgs>, TResult>;
   toModelOutput?: ToolModelOutputFunction<NoInfer<TArgs>, NoInfer<TResult>>;
-  experimental_onSchemaValidationError?: ToolExecute<
-    Record<string, unknown>,
-    NoInfer<TResult>
-  >;
+  experimental_onSchemaValidationError?: (
+    args: unknown,
+    context: ToolExecuteContext,
+  ) => NoInfer<TResult> | Promise<NoInfer<TResult>>;
   providerOptions?: ProviderOptions | undefined;
   streamCall?: ToolStreamCall<TArgs, NoInfer<TResult>>;
   providerId?: `${string}.${string}` | undefined;
@@ -199,7 +198,7 @@ export type ToolkitDefinitionEntryWithParameters<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
 > = ToolkitDefinitionInput<TArgs, TResult> & {
-  parameters: NonNullable<ToolParameters<TArgs, TResult>>;
+  parameters: NonNullable<ToolParameters<TArgs>>;
 };
 
 /**
