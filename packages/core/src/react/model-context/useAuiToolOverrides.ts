@@ -2,12 +2,12 @@ import { useEffect, useMemo } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { Tool } from "assistant-stream";
 
-export type AuiToolOverride<
+type AuiToolOverride<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
 > = Partial<Tool<TArgs, TResult>>;
 
-export type AuiToolOverrides = Record<string, AuiToolOverride<any, any>>;
+type AuiToolOverrides = Record<string, AuiToolOverride<any, any>>;
 
 /**
  * Overrides toolkit entries for the current assistant scope.

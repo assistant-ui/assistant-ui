@@ -199,8 +199,6 @@ export {
   defineToolkit,
   stubTool,
   useAuiToolOverrides,
-  type AuiToolOverride,
-  type AuiToolOverrides,
   hitl,
   hitlTool,
   providerTool,

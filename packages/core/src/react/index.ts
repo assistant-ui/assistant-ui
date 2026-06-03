@@ -41,11 +41,7 @@ export {
 } from "./model-context/toolbox";
 export { defineToolkit } from "./model-context/define-toolkit";
 export { stubTool } from "./model-context/stub-tool";
-export {
-  useAuiToolOverrides,
-  type AuiToolOverride,
-  type AuiToolOverrides,
-} from "./model-context/useAuiToolOverrides";
+export { useAuiToolOverrides } from "./model-context/useAuiToolOverrides";
 export { hitl, hitlTool } from "./model-context/hitl";
 export {
   providerTool,
