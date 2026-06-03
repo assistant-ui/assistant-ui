@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const REPLAY_CONTENT_LENGTH_HEADER = "Aui-Replay-Content-Length";
+export const REPLAY_CONTENT_LENGTH_HEADER = "Aui-Replay-Content-Length";
 
 type ReplayBoundaryStreamOptions = {
   setReplaying: (value: boolean) => void;
@@ -64,13 +64,7 @@ const parseReplayContentLength = (headers: Headers): number => {
   return Number.isSafeInteger(boundary) && boundary > 0 ? boundary : 0;
 };
 
-/**
- * Splits the response body at `Aui-Replay-Content-Length` without closing the
- * decoder pipeline. The replay prefix is delivered while `isReplaying` has
- * rendered, then the stream pauses until React has rendered `isReplaying:
- * false` before live bytes are released. The render wait also gives the
- * downstream decoder/accumulator pipeline a task to consume the replay prefix.
- */
+// Gates replay bytes until isReplaying:true renders, then releases live bytes after isReplaying:false renders.
 export const createReplayBoundaryStream = async (
   response: Response,
   {

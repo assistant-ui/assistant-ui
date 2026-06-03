@@ -3,7 +3,10 @@ import {
   DataStreamDecoder,
 } from "assistant-stream";
 import { describe, expect, it, vi } from "vitest";
-import { createReplayBoundaryStream } from "./replayBoundaryStream";
+import {
+  createReplayBoundaryStream,
+  REPLAY_CONTENT_LENGTH_HEADER,
+} from "./replayBoundaryStream";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -26,7 +29,7 @@ const createResponse = (
     headers:
       replayContentLength === undefined
         ? undefined
-        : { "Aui-Replay-Content-Length": String(replayContentLength) },
+        : { [REPLAY_CONTENT_LENGTH_HEADER]: String(replayContentLength) },
   });
 
 const createRenderWait = () => {
@@ -265,7 +268,7 @@ describe("createReplayBoundaryStream", () => {
       },
     });
     const streamPromise = createReplayBoundaryStream(
-      new Response(body, { headers: { "Aui-Replay-Content-Length": "10" } }),
+      new Response(body, { headers: { [REPLAY_CONTENT_LENGTH_HEADER]: "10" } }),
       { setReplaying, waitForRender },
     );
 
@@ -287,7 +290,7 @@ describe("createReplayBoundaryStream", () => {
       },
     });
     const streamPromise = createReplayBoundaryStream(
-      new Response(body, { headers: { "Aui-Replay-Content-Length": "10" } }),
+      new Response(body, { headers: { [REPLAY_CONTENT_LENGTH_HEADER]: "10" } }),
       { setReplaying, waitForRender },
     );
 

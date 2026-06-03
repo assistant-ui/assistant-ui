@@ -120,9 +120,7 @@ const useAssistantTransportThreadRuntime = <T>(
   const agentStateRef = useRef(options.initialState);
   const [, rerender] = useState(0);
   const resumeFlagRef = useRef(false);
-  // oxlint-disable-next-line react-hooks/rules-of-hooks -- intentional conditional/nested hook usage
   const [isReplaying, setIsReplaying] = useState(false);
-  // oxlint-disable-next-line react-hooks/rules-of-hooks -- intentional conditional/nested hook usage
   const waitForReplayRender = useReplayRenderWait();
   const parentIdRef = useRef<string | null | undefined>(undefined);
   const commandQueue = useCommandQueue({
