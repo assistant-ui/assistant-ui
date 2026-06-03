@@ -36,7 +36,7 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     description: "Default template with Vercel AI SDK",
     category: "template",
     path: "templates/default",
-    hasLocalComponents: false,
+    hasLocalComponents: true,
   },
   {
     name: "minimal",

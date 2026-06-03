@@ -260,6 +260,35 @@ describe("transformProject — hasLocalComponents: true", () => {
     expect(pkg.devDependencies.typescript).toBe("^5.0.0");
     expect(pkg.name).toBe(path.basename(testDir));
   });
+
+  it("does not invoke shadcn when local components are already present", async () => {
+    writeJSON("package.json", {
+      name: "old-name",
+      dependencies: {
+        "@assistant-ui/react": "workspace:*",
+      },
+    });
+
+    writeFile(
+      "components/assistant-ui/thread.tsx",
+      "export const Thread = () => null;\n",
+    );
+    writeFile(
+      "components/ui/button.tsx",
+      "export const Button = () => null;\n",
+    );
+
+    await transformProject(testDir, {
+      ...defaultOpts,
+      hasLocalComponents: true,
+    });
+
+    const shadcnCalls = (spawn as Mock).mock.calls.filter(
+      ([cmd, args]: [string, string[]]) =>
+        cmd === TEST_DLX_CMD && args.includes("shadcn@latest"),
+    );
+    expect(shadcnCalls).toHaveLength(0);
+  });
 });
 
 describe("transformProject — hasLocalComponents: false", () => {

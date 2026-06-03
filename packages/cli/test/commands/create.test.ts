@@ -291,11 +291,11 @@ describe("PROJECT_METADATA", () => {
     ]);
   });
 
-  it("only the minimal template ships local components", () => {
+  it("marks default and minimal templates as shipping local components", () => {
     const templates = PROJECT_METADATA.filter((m) => m.category === "template");
     expect(
       templates.filter((t) => t.hasLocalComponents).map((t) => t.name),
-    ).toEqual(["minimal"]);
+    ).toEqual(["default", "minimal"]);
   });
 
   it("examples have correct hasLocalComponents values", () => {
