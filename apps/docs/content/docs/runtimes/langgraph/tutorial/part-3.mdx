@@ -206,7 +206,8 @@ export function TransactionConfirmationPending(props: TransactionConfirmation) {
 
 ### Bind approval UI
 
-```tsx title="@/app/page.tsx" {1,8}
+```tsx title="@/app/page.tsx" {1-2,9}
+import { PriceSnapshotToolUI } from "@/components/tools/price-snapshot/PriceSnapshotTool";
 import { PurchaseStockToolUI } from "@/components/tools/purchase-stock/PurchaseStockTool";
 
 const toolkit = {

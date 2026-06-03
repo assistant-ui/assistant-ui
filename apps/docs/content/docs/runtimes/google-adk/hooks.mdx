@@ -387,6 +387,13 @@ Register the renderer with a backend toolkit entry inside `AssistantRuntimeProvi
 <Tab value="React">
 
 ```tsx
+import {
+  AssistantRuntimeProvider,
+  Tools,
+  type Toolkit,
+  useAui,
+} from "@assistant-ui/react";
+
 const toolkit = {
   adk_request_input: {
     type: "backend",
@@ -409,6 +416,12 @@ function App() {
 <Tab value="React Native">
 
 ```tsx
+import {
+  AssistantRuntimeProvider,
+  Tools,
+  type Toolkit,
+  useAui,
+} from "@assistant-ui/react-native";
 import { View } from "react-native";
 import { Thread } from "@/components/assistant-ui/thread";
 
@@ -436,6 +449,12 @@ function App() {
 <Tab value="React Ink">
 
 ```tsx
+import {
+  AssistantRuntimeProvider,
+  Tools,
+  type Toolkit,
+  useAui,
+} from "@assistant-ui/react-ink";
 import { Box } from "ink";
 import { Thread } from "./components/thread.js";
 
