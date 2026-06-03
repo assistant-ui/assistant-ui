@@ -6,13 +6,8 @@ export const REPLAY_CONTENT_LENGTH_HEADER = "Aui-Replay-Content-Length";
 
 type ReplayBoundaryStreamOptions = {
   setReplaying: (value: boolean) => void;
-  waitForRender?: () => Promise<void>;
+  waitForRender: () => Promise<void>;
 };
-
-const waitForRender = () =>
-  new Promise<void>((resolve) => {
-    setTimeout(resolve, 0);
-  });
 
 export const useReplayRenderWait = () => {
   const [, rerender] = useState(0);
@@ -69,7 +64,7 @@ export const createReplayBoundaryStream = async (
   response: Response,
   {
     setReplaying,
-    waitForRender: waitForReplayRender = waitForRender,
+    waitForRender: waitForReplayRender,
   }: ReplayBoundaryStreamOptions,
 ): Promise<ReadableStream<Uint8Array>> => {
   const body = response.body as ReadableStream<Uint8Array>;
