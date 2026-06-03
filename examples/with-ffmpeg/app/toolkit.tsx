@@ -92,9 +92,10 @@ export function useFfmpegToolkit(
     [ffmpegRef, file],
   );
 
-  const stableToolkit = useMemo(
+  return useMemo(
     () =>
       ({
+        ...fileToolkit,
         render_overlay: {
           type: "frontend",
           parameters: z.object({
@@ -294,15 +295,6 @@ export function useFfmpegToolkit(
           },
         },
       }) satisfies Toolkit,
-    [ffmpegRef],
-  );
-
-  return useMemo(
-    () =>
-      ({
-        ...fileToolkit,
-        ...stableToolkit,
-      }) satisfies Toolkit,
-    [fileToolkit, stableToolkit],
+    [ffmpegRef, fileToolkit],
   );
 }

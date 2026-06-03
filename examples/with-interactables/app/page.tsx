@@ -1,6 +1,13 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import {
+  useRef,
+  useState,
+  useCallback,
+  useEffect,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
@@ -9,6 +16,7 @@ import {
   Suggestions,
   Tools,
   useAui,
+  useAuiToolOverrides,
   useAssistantInteractable,
   useInteractableState,
 } from "@assistant-ui/react";
@@ -26,13 +34,14 @@ import {
 import {
   type NoteState,
   type TaskBoardState,
+  type ManageNotesArgs,
+  type ManageTasksArgs,
   noteInitialState,
   noteSchema,
   taskBoardInitialState,
   taskBoardSchema,
-  useNotesToolkit,
-  useTaskBoardToolkit,
-} from "./toolkits";
+} from "./state";
+import toolkit from "./toolkits";
 
 function TaskBoard() {
   const id = useAssistantInteractable("taskBoard", {
@@ -46,16 +55,13 @@ function TaskBoard() {
     taskBoardInitialState,
   );
 
-  const setStateRef = useRef(setState);
-  setStateRef.current = setState;
-
-  const toolkit = useTaskBoardToolkit(setStateRef);
   const aui = useAui({ tools: Tools({ toolkit }) });
 
   const doneCount = state.tasks.filter((t) => t.done).length;
 
   return (
     <AuiProvider value={aui}>
+      <TaskBoardToolOverrides setState={setState} />
       <div className="flex flex-col">
         <div className="flex items-center gap-2 border-b px-4 py-3">
           <ListTodoIcon className="text-muted-foreground size-4" />
@@ -122,6 +128,54 @@ function TaskBoard() {
       </div>
     </AuiProvider>
   );
+}
+
+function TaskBoardToolOverrides({
+  setState,
+}: {
+  setState: Dispatch<SetStateAction<TaskBoardState>>;
+}) {
+  useAuiToolOverrides({
+    manage_tasks: {
+      execute: async (args: ManageTasksArgs) => {
+        switch (args.action) {
+          case "add": {
+            const id = crypto.randomUUID();
+            setState((prev) => ({
+              tasks: [
+                ...prev.tasks,
+                { id, title: args.title ?? "Untitled", done: false },
+              ],
+            }));
+            return { success: true, id };
+          }
+          case "toggle": {
+            if (!args.id) return { success: false, error: "id is required" };
+            setState((prev) => ({
+              tasks: prev.tasks.map((t) =>
+                t.id === args.id ? { ...t, done: !t.done } : t,
+              ),
+            }));
+            return { success: true };
+          }
+          case "remove": {
+            if (!args.id) return { success: false, error: "id is required" };
+            setState((prev) => ({
+              tasks: prev.tasks.filter((t) => t.id !== args.id),
+            }));
+            return { success: true };
+          }
+          case "clear": {
+            setState({ tasks: [] });
+            return { success: true };
+          }
+          default:
+            return { success: false, error: "Unknown action" };
+        }
+      },
+    },
+  });
+  return null;
 }
 
 const COLORS: Record<string, string> = {
@@ -221,14 +275,6 @@ function NotesPanel() {
     localStorage.setItem(NOTE_IDS_KEY, JSON.stringify(noteIds));
   }, [noteIds]);
 
-  const noteIdsRef = useRef(noteIds);
-  noteIdsRef.current = noteIds;
-  const setNoteIdsRef = useRef(setNoteIds);
-  setNoteIdsRef.current = setNoteIds;
-  const setSelectedIdRef = useRef(setSelectedId);
-  setSelectedIdRef.current = setSelectedId;
-
-  const toolkit = useNotesToolkit(setNoteIdsRef, setSelectedIdRef);
   const aui = useAui({ tools: Tools({ toolkit }) });
 
   const handleSelect = useCallback((id: string) => {
@@ -242,6 +288,10 @@ function NotesPanel() {
 
   return (
     <AuiProvider value={aui}>
+      <NotesToolOverrides
+        setNoteIds={setNoteIds}
+        setSelectedId={setSelectedId}
+      />
       <div className="flex flex-col">
         <div className="flex items-center gap-2 border-b px-4 py-3">
           <StickyNoteIcon className="text-muted-foreground size-4" />
@@ -282,6 +332,42 @@ function NotesPanel() {
       </div>
     </AuiProvider>
   );
+}
+
+function NotesToolOverrides({
+  setNoteIds,
+  setSelectedId,
+}: {
+  setNoteIds: Dispatch<SetStateAction<string[]>>;
+  setSelectedId: Dispatch<SetStateAction<string | null>>;
+}) {
+  useAuiToolOverrides({
+    manage_notes: {
+      execute: async (args: ManageNotesArgs) => {
+        switch (args.action) {
+          case "add": {
+            const id = `note-${crypto.randomUUID()}`;
+            setNoteIds((prev) => [...prev, id]);
+            return { success: true, noteId: id };
+          }
+          case "remove": {
+            if (args.noteId) {
+              setNoteIds((prev) => prev.filter((id) => id !== args.noteId));
+            }
+            return { success: true };
+          }
+          case "clear": {
+            setNoteIds([]);
+            setSelectedId(null);
+            return { success: true };
+          }
+          default:
+            return { success: false, error: "Unknown action" };
+        }
+      },
+    },
+  });
+  return null;
 }
 
 const STORAGE_KEY = "interactables-example";
