@@ -153,6 +153,9 @@ export type Toolkit = Record<string, ToolDefinition<any, any>>;
  * directive → frontend; otherwise backend) and writes it back — so declaring it
  * here is a type error.
  */
+// Keep this authoring shape in sync with ToolDeclaration. It is spelled out so
+// callback fields can control inference while streamCall still infers from
+// schema-backed parameters.
 type ToolkitDefinitionInput<TArgs extends Record<string, unknown>, TResult> = {
   type?: never;
   description?: string | undefined;
@@ -196,7 +199,7 @@ export type ToolkitDefinitionEntryWithParameters<
   TArgs extends Record<string, unknown> = Record<string, unknown>,
   TResult = unknown,
 > = ToolkitDefinitionInput<TArgs, TResult> & {
-  parameters: ToolParameters<TArgs, TResult>;
+  parameters: NonNullable<ToolParameters<TArgs, TResult>>;
 };
 
 /**
