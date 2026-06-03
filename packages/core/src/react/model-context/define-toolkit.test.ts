@@ -1,10 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, expectTypeOf } from "vitest";
+import type { AsyncIterableStream } from "assistant-stream/utils";
 import { defineToolkit } from "./define-toolkit";
 import { hitl, hitlTool } from "./hitl";
 import { providerTool } from "./provider-tool";
 import type { ToolkitDefinition } from "./toolbox";
-
-const expectType = <T>(_value: T) => {};
 
 type TestStandardSchema<T> = {
   readonly "~standard": {
@@ -39,14 +38,20 @@ const checkDefineToolkitTypes = () => {
       }),
       streamCall: async (reader) => {
         const query = await reader.args.get("query");
-        expectType<string>(query);
+        expectTypeOf(query).toEqualTypeOf<string>();
 
-        expectType<AsyncIterable<string>>(reader.args.streamValues("query"));
-        expectType<AsyncIterable<unknown>>(reader.args.streamText("query"));
-        expectType<AsyncIterable<string>>(reader.args.forEach("tags"));
+        expectTypeOf(reader.args.streamValues("query")).toEqualTypeOf<
+          AsyncIterableStream<string>
+        >();
+        expectTypeOf(reader.args.streamText("query")).toEqualTypeOf<
+          AsyncIterableStream<unknown>
+        >();
+        expectTypeOf(reader.args.forEach("tags")).toEqualTypeOf<
+          AsyncIterableStream<string>
+        >();
 
         const response = await reader.response.get();
-        expectType<unknown>(response.result);
+        expectTypeOf(response.result).toEqualTypeOf<unknown>();
 
         // @ts-expect-error unknown argument paths should not be accepted
         reader.args.get("missing");
@@ -54,7 +59,7 @@ const checkDefineToolkitTypes = () => {
     },
   });
 };
-void checkDefineToolkitTypes;
+expectTypeOf(checkDefineToolkitTypes).toEqualTypeOf<() => void>();
 
 const checkToolkitDefinitionTypes = () => {
   ({
@@ -65,7 +70,7 @@ const checkToolkitDefinitionTypes = () => {
     },
   }) satisfies ToolkitDefinition;
 };
-void checkToolkitDefinitionTypes;
+expectTypeOf(checkToolkitDefinitionTypes).toEqualTypeOf<() => void>();
 
 describe("use-generative markers", () => {
   it("defineToolkit throws at runtime — it must be stripped by the compiler, never called", () => {
