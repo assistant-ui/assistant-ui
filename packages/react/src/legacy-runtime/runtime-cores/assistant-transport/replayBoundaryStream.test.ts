@@ -182,6 +182,36 @@ describe("createReplayBoundaryStream", () => {
     expect(cancelled).toBe(true);
   });
 
+  it("does not wait for replay completion after cancellation unblocks a read", async () => {
+    const { waitForRender, releaseNext } = createRenderWait();
+    const setReplaying = vi.fn();
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const streamPromise = createReplayBoundaryStream(
+      new Response(body, { headers: { "Aui-Replay-Content-Length": "10" } }),
+      { setReplaying, waitForRender },
+    );
+
+    await releaseNext();
+    const stream = await streamPromise;
+    const reader = stream.getReader();
+    const read = reader.read();
+
+    await Promise.resolve();
+    expect(waitForRender).toHaveBeenCalledTimes(1);
+
+    await reader.cancel("done");
+    await expect(read).resolves.toMatchObject({ done: true });
+
+    expect(waitForRender).toHaveBeenCalledTimes(1);
+    expect(setReplaying).toHaveBeenLastCalledWith(false);
+    expect(cancelled).toBe(true);
+  });
+
   it("lets data-stream parsing commit replayed text before live tool calls", async () => {
     const { waitForRender, releaseNext } = createRenderWait();
     const setReplaying = vi.fn();
