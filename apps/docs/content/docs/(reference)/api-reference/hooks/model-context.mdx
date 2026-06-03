@@ -3,7 +3,7 @@ title: Model Context Hooks
 description: React hooks for registering assistant-ui tools, data renderers, instructions, and model context providers.
 ---
 
-import { useAssistantInteractable, useInteractableState } from "@/generated/typeDocs";
+import { useAssistantInteractable, useAuiToolOverrides, useInteractableState } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -22,6 +22,16 @@ This hook handles registration only. To read and write the interactable's
 state, use [useInteractableState](/docs/api-reference/hooks/model-context#useinteractablestate) with the returned id.
 
 <ParametersTable {...useAssistantInteractable} />
+
+### useAuiToolOverrides
+
+Overrides toolkit entries for the current assistant scope.
+
+This is intended for dynamic local-state tools whose model-facing contract is
+declared in a `"use generative"` toolkit file with `execute: stubTool()`, but
+whose actual executor must close over React state in the mounted component.
+
+<ParametersTable {...useAuiToolOverrides} />
 
 ### useInteractableState
 
