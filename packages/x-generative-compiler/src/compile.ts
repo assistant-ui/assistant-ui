@@ -401,10 +401,11 @@ function compileToolkit(
 
     // Nature is inferred from `execute` (see inferToolType), not an authored
     // `type`. The resolved type is written back below so the runtime keeps it.
+    const execute = findMember(value, "execute");
+    const isStub = execute ? executeIsStubTool(execute) : false;
     const type = inferToolType(value, filename);
     const hasRender = !!findMember(value, "render");
     const hasRenderText = !!findMember(value, "renderText");
-    const execute = findMember(value, "execute");
 
     if (type === "frontend" && !hasRender && !hasRenderText) {
       throw new GenerativeCompileError(
@@ -428,7 +429,7 @@ function compileToolkit(
     if (target === "client") {
       // A frontend execute stays (its `"use client"` marker is no longer needed
       // once the module is client); backend and sentinel executes are dropped.
-      if (execute && type === "frontend") stripUseClient(execute);
+      if (execute && type === "frontend" && !isStub) stripUseClient(execute);
       else if (execute) removeMember(value, "execute");
       if (hasRender || hasRenderText) flags.keptRender = true;
     } else {
@@ -440,6 +441,7 @@ function compileToolkit(
     }
 
     setToolType(value, type);
+    if (isStub) setStubDisabled(value);
     setBackendDefault(value, target, type);
   }
 }
@@ -587,6 +589,15 @@ function executeIsProviderTool(
   );
 }
 
+/** Whether an `execute` is the local override sentinel. */
+function executeIsStubTool(member: t.ObjectProperty | t.ObjectMethod): boolean {
+  return (
+    t.isObjectProperty(member) &&
+    t.isCallExpression(member.value) &&
+    t.isIdentifier(member.value.callee, { name: "stubTool" })
+  );
+}
+
 /** Drops the `"use client"` directive from an `execute` body (kept frontend). */
 function stripUseClient(member: t.ObjectProperty | t.ObjectMethod): void {
   const body = executeBody(member);
@@ -600,8 +611,9 @@ function stripUseClient(member: t.ObjectProperty | t.ObjectMethod): void {
 /**
  * The tool's nature, inferred from its (mandatory) `execute` rather than an
  * authored `type`: `hitlTool()` → `human`; `providerTool(...)` → `provider`;
- * `"use client"` → `frontend`; otherwise `backend`. The loader writes the result back as a `type` field (see
- * {@link setToolType}) so the runtime keeps it.
+ * `stubTool()` → `frontend`; `"use client"` → `frontend`; otherwise `backend`.
+ * The loader writes the result back as a `type` field (see {@link setToolType})
+ * so the runtime keeps it.
  */
 function inferToolType(
   object: t.ObjectExpression,
@@ -617,6 +629,7 @@ function inferToolType(
   }
   if (executeIsHitl(execute)) return "human";
   if (executeIsProviderTool(execute)) return "provider";
+  if (executeIsStubTool(execute)) return "frontend";
   return executeIsClient(execute) ? "frontend" : "backend";
 }
 
@@ -626,6 +639,13 @@ function setToolType(object: t.ObjectExpression, type: ToolType): void {
   // Append (not prepend) so the inferred type wins over any earlier spread.
   object.properties.push(
     t.objectProperty(t.identifier("type"), t.stringLiteral(type)),
+  );
+}
+
+function setStubDisabled(object: t.ObjectExpression): void {
+  removeMember(object, "disabled");
+  object.properties.push(
+    t.objectProperty(t.identifier("disabled"), t.booleanLiteral(true)),
   );
 }
 

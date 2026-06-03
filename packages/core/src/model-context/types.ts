@@ -55,7 +55,10 @@ export const mergeModelContexts = (
     .map((c) => c.getModelContext())
     .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
+  const toolPriorities: Record<string, number> = {};
+
   return configs.reduce((acc, config) => {
+    const priority = config.priority ?? 0;
     if (config.system) {
       if (acc.system) {
         acc.system += `\n\n${config.system}`;
@@ -67,13 +70,29 @@ export const mergeModelContexts = (
       for (const [name, tool] of Object.entries(config.tools)) {
         const existing = acc.tools?.[name];
         if (existing && existing !== tool) {
-          throw new Error(
-            `You tried to define a tool with the name ${name}, but it already exists.`,
-          );
+          const existingPriority = toolPriorities[name] ?? 0;
+          if (existingPriority === priority) {
+            throw new Error(
+              `You tried to define a tool with the name ${name}, but it already exists.`,
+            );
+          }
+
+          if (!acc.tools) acc.tools = {};
+          const higherPriorityTool =
+            existingPriority > priority ? existing : tool;
+          const lowerPriorityTool =
+            existingPriority > priority ? tool : existing;
+          acc.tools[name] = {
+            ...lowerPriorityTool,
+            ...higherPriorityTool,
+          } as Tool<any, any>;
+          toolPriorities[name] = Math.max(existingPriority, priority);
+          continue;
         }
 
         if (!acc.tools) acc.tools = {};
         acc.tools[name] = tool;
+        toolPriorities[name] = priority;
       }
     }
     if (config.config) {

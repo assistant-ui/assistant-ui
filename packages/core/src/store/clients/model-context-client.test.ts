@@ -6,6 +6,7 @@ import type {
   ModelContext as ModelContextValue,
   ModelContextProvider,
 } from "../../model-context/types";
+import { mergeModelContexts } from "../../model-context/types";
 
 const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
@@ -104,5 +105,58 @@ describe("ModelContext", () => {
     } finally {
       unmount();
     }
+  });
+});
+
+describe("mergeModelContexts", () => {
+  it("merges a higher-priority tool override into an existing tool", () => {
+    const execute = async () => ({ ok: true });
+    const merged = mergeModelContexts(
+      new Set([
+        provider({
+          priority: 0,
+          tools: {
+            add_task: {
+              type: "frontend",
+              description: "Add a task",
+              parameters: { type: "object", properties: {} } as any,
+              disabled: true,
+              renderText: { running: "Adding task" },
+            } as Tool<any, any>,
+          },
+        }),
+        provider({
+          priority: 1000,
+          tools: {
+            add_task: {
+              disabled: false,
+              execute,
+            } as unknown as Tool<any, any>,
+          },
+        }),
+      ]),
+    );
+
+    expect(merged.tools?.add_task).toMatchObject({
+      type: "frontend",
+      description: "Add a task",
+      disabled: false,
+    });
+    expect(merged.tools?.add_task?.execute).toBe(execute);
+    expect(merged.tools?.add_task?.parameters).toEqual({
+      type: "object",
+      properties: {},
+    });
+  });
+
+  it("still rejects duplicate tools at the same priority", () => {
+    expect(() =>
+      mergeModelContexts(
+        new Set([
+          provider({ tools: { duplicate: stubTool() } }),
+          provider({ tools: { duplicate: stubTool() } }),
+        ]),
+      ),
+    ).toThrow(/already exists/);
   });
 });
