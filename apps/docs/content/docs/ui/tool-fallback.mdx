@@ -90,7 +90,7 @@ All sub-components are exported for custom layouts:
 | `ToolFallback.Args` | Displays tool arguments |
 | `ToolFallback.Result` | Displays tool execution result |
 | `ToolFallback.Error` | Displays error or cancellation messages |
-| `ToolFallback.Approval` | Renders Allow / Deny buttons for `requires-action` tools; wires `resume` / `addResult` |
+| `ToolFallback.Approval` | Renders Allow / Deny buttons for `requires-action` tools; wires `resume` / `addResult` / `respondToApproval` |
 
 ```tsx
 import {
@@ -114,6 +114,8 @@ import {
       addResult={addResult}
       resume={resume}
       interrupt={interrupt}
+      approval={approval}
+      respondToApproval={respondToApproval}
     />
     <ToolFallback.Result result={result} />
   </ToolFallback.Content>

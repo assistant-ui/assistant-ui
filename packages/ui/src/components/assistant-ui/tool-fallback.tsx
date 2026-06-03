@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import {
   useScrollLock,
+  type ToolCallMessagePart,
+  type ToolCallMessagePartProps,
   type ToolCallMessagePartStatus,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
@@ -269,30 +271,39 @@ function ToolFallbackError({
   );
 }
 
+const APPROVED_RESULT = "Approved by user";
+const DENIED_RESULT = "User denied tool execution";
+
 function ToolFallbackApproval({
   className,
   addResult,
   resume,
   interrupt,
+  approval,
+  respondToApproval,
   ...props
 }: React.ComponentProps<"div"> & {
   addResult?: (result: unknown) => void;
   resume?: (payload: unknown) => void;
-  interrupt?: { type: "human"; payload: unknown } | undefined;
+  interrupt?: ToolCallMessagePart["interrupt"];
+  approval?: ToolCallMessagePart["approval"];
+  respondToApproval?: ToolCallMessagePartProps["respondToApproval"];
 }) {
-  const handleAllow = () => {
-    if (interrupt) {
-      resume?.({ approved: true });
-    } else {
-      addResult?.("Approved by user");
-    }
-  };
+  const [submitted, setSubmitted] = useState(false);
 
-  const handleDeny = () => {
-    if (interrupt) {
-      resume?.({ approved: false });
+  const respond = (approved: boolean) => {
+    if (submitted) return;
+    setSubmitted(true);
+    if (
+      approval != null &&
+      approval.approved === undefined &&
+      respondToApproval
+    ) {
+      respondToApproval({ approved });
+    } else if (interrupt) {
+      resume?.({ approved });
     } else {
-      addResult?.("User denied tool execution");
+      addResult?.(approved ? APPROVED_RESULT : DENIED_RESULT);
     }
   };
 
@@ -305,10 +316,15 @@ function ToolFallbackApproval({
       )}
       {...props}
     >
-      <Button size="sm" onClick={handleAllow}>
+      <Button size="sm" onClick={() => respond(true)} disabled={submitted}>
         Allow
       </Button>
-      <Button size="sm" variant="outline" onClick={handleDeny}>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => respond(false)}
+        disabled={submitted}
+      >
         Deny
       </Button>
     </div>
@@ -323,14 +339,24 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   addResult,
   resume,
   interrupt,
+  approval,
+  respondToApproval,
 }) => {
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
   const isRequiresAction = status?.type === "requires-action";
 
+  const [open, setOpen] = useState(isRequiresAction);
+  const [wasRequiresAction, setWasRequiresAction] = useState(isRequiresAction);
+  if (isRequiresAction && !wasRequiresAction) {
+    setWasRequiresAction(true);
+    setOpen(true);
+  }
+
   return (
     <ToolFallbackRoot
-      defaultOpen={isRequiresAction}
+      open={open}
+      onOpenChange={setOpen}
       className={cn(isCancelled && "border-muted-foreground/30 bg-muted/30")}
     >
       <ToolFallbackTrigger toolName={toolName} status={status} />
@@ -345,6 +371,8 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
             addResult={addResult}
             resume={resume}
             interrupt={interrupt}
+            approval={approval}
+            respondToApproval={respondToApproval}
           />
         )}
         {!isCancelled && <ToolFallbackResult result={result} />}
