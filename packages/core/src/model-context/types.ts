@@ -70,7 +70,7 @@ export const mergeModelContexts = (
       for (const [name, tool] of Object.entries(config.tools)) {
         const existing = acc.tools?.[name];
         if (existing && existing !== tool) {
-          const existingPriority = toolPriorities[name] ?? 0;
+          const existingPriority = toolPriorities[name]!;
           if (existingPriority === priority) {
             throw new Error(
               `You tried to define a tool with the name ${name}, but it already exists.`,
@@ -81,8 +81,7 @@ export const mergeModelContexts = (
             existingPriority > priority ? existing : tool;
           const lowerPriorityTool =
             existingPriority > priority ? tool : existing;
-          const tools = acc.tools!;
-          tools[name] = {
+          acc.tools![name] = {
             ...lowerPriorityTool,
             ...higherPriorityTool,
           } as Tool<any, any>;

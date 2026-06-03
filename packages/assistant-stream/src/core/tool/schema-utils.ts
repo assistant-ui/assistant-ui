@@ -135,7 +135,7 @@ function defaultToolFilter(_name: string, tool: Tool): boolean {
   return (
     !tool.disabled &&
     tool.type !== "backend" &&
-    !(tool.type === "frontend" && tool.execute === undefined)
+    (tool.type !== "frontend" || tool.execute !== undefined)
   );
 }
 

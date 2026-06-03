@@ -427,8 +427,8 @@ function compileToolkit(
     }
 
     if (target === "client") {
-      // A frontend execute stays (its `"use client"` marker is no longer needed
-      // once the module is client); backend and sentinel executes are dropped.
+      // A non-stub frontend execute stays (its `"use client"` marker is no longer needed
+      // once the module is client); backend, sentinel, and stub executes are dropped.
       if (execute && type === "frontend" && !isStub) stripUseClient(execute);
       else if (execute) removeMember(value, "execute");
       if (hasRender || hasRenderText) flags.keptRender = true;
