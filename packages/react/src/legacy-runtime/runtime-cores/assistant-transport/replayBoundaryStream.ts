@@ -132,8 +132,9 @@ export const createReplayBoundaryStream = async (
       controller.enqueue(value.subarray(replayBytesInChunk));
     },
     async cancel(reason) {
+      const wasFinished = replayFinished;
       replayFinished = true;
-      setReplaying(false);
+      if (!wasFinished) setReplaying(false);
       await reader.cancel(reason);
     },
   });

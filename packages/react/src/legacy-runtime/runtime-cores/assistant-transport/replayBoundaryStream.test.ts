@@ -310,6 +310,40 @@ describe("createReplayBoundaryStream", () => {
     expect(cancelled).toBe(true);
   });
 
+  it("does not clear replaying twice when cancelled during replay completion", async () => {
+    const { waitForRender, releaseNext } = createRenderWait();
+    const setReplaying = vi.fn();
+    const replayStr = "replay";
+    const replayContentLength = encoder.encode(replayStr).byteLength;
+
+    const streamPromise = createReplayBoundaryStream(
+      createResponse([replayStr], replayContentLength),
+      { setReplaying, waitForRender },
+    );
+
+    await releaseNext();
+    const stream = await streamPromise;
+    const reader = stream.getReader();
+
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: encoder.encode(replayStr),
+    });
+    expect(waitForRender).toHaveBeenCalledTimes(2);
+
+    const cancel = reader.cancel("done");
+    await Promise.resolve();
+    expect(setReplaying).toHaveBeenCalledTimes(1);
+
+    await releaseNext();
+    expect(setReplaying).toHaveBeenCalledTimes(2);
+    expect(setReplaying).toHaveBeenLastCalledWith(false);
+
+    await releaseNext();
+    await cancel;
+    expect(setReplaying).toHaveBeenCalledTimes(2);
+  });
+
   it("lets data-stream parsing commit replayed text before live tool calls", async () => {
     const { waitForRender, releaseNext } = createRenderWait();
     const setReplaying = vi.fn();
