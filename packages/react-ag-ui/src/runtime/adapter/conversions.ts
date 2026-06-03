@@ -454,9 +454,23 @@ export function fromAgUiMessages(
       continue;
     }
 
+    if (role === "reasoning") {
+      // Convert plain-string reasoning content to a reasoning assistant part.
+      const text = extractText(rawMessage.content);
+      if (text.length === 0) continue;
+      converted.push({
+        id: getString(rawMessage, "id") ?? generateId(),
+        role: "assistant",
+        content: [{ type: "reasoning", text }],
+      });
+      continue;
+    }
+
     if (role === "user" || role === "system") {
       converted.push(toUserOrSystemSnapshotMessage(role, rawMessage));
     }
+    // Other AG-UI roles (e.g. `activity`, `developer`) have no assistant-ui
+    // message-part representation and are intentionally dropped.
   }
 
   return converted;

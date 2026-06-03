@@ -173,6 +173,68 @@ describe("adapter conversions", () => {
     });
   });
 
+  it("imports a reasoning snapshot message as a reasoning assistant part", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "reason-1",
+        role: "reasoning",
+        content: "Let me think about this step by step.",
+      },
+    ] as any);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      id: "reason-1",
+      role: "assistant",
+      content: [
+        { type: "reasoning", text: "Let me think about this step by step." },
+      ],
+    });
+  });
+
+  it("preserves cross-message order around reasoning messages", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "hi" },
+      { id: "r-1", role: "reasoning", content: "thinking" },
+      { id: "a-1", role: "assistant", content: "done" },
+    ] as any);
+
+    expect(result.map((m) => m.role)).toEqual([
+      "user",
+      "assistant",
+      "assistant",
+    ]);
+    expect((result[1] as any).content).toEqual([
+      { type: "reasoning", text: "thinking" },
+    ]);
+    expect((result[2] as any).content).toEqual([
+      { type: "text", text: "done" },
+    ]);
+  });
+
+  it("skips empty reasoning messages", () => {
+    const result = fromAgUiMessages([
+      { id: "r-1", role: "reasoning", content: "" },
+    ] as any);
+
+    expect(result).toHaveLength(0);
+  });
+
+  it("drops activity messages (no assistant-part equivalent)", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "hi" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "search",
+        content: { query: "weather" },
+      },
+    ] as any);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ role: "user" });
+  });
+
   it("filters disabled/back-end tools", () => {
     const tools = toAgUiTools({
       search: { description: "Search", parameters: { type: "object" } },
