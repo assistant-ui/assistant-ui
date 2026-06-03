@@ -393,6 +393,11 @@ import {
   type Toolkit,
   useAui,
 } from "@assistant-ui/react";
+import {
+  createAdkStream,
+  useAdkRuntime,
+} from "@assistant-ui/react-google-adk";
+import { Thread } from "@/components/assistant-ui/thread";
 
 const toolkit = {
   adk_request_input: {
@@ -402,6 +407,9 @@ const toolkit = {
 } satisfies Toolkit;
 
 function App() {
+  const runtime = useAdkRuntime({
+    stream: createAdkStream({ api: "/api/chat" }),
+  });
   const aui = useAui({ tools: Tools({ toolkit }) });
 
   return (
@@ -422,8 +430,14 @@ import {
   type Toolkit,
   useAui,
 } from "@assistant-ui/react-native";
+import {
+  createAdkStream,
+  useAdkRuntime,
+} from "@assistant-ui/react-google-adk";
 import { View } from "react-native";
 import { Thread } from "@/components/assistant-ui/thread";
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
 const toolkit = {
   adk_request_input: {
@@ -433,6 +447,9 @@ const toolkit = {
 } satisfies Toolkit;
 
 function App() {
+  const runtime = useAdkRuntime({
+    stream: createAdkStream({ api: `${API_URL}/api/chat` }),
+  });
   const aui = useAui({ tools: Tools({ toolkit }) });
 
   return (
@@ -455,6 +472,10 @@ import {
   type Toolkit,
   useAui,
 } from "@assistant-ui/react-ink";
+import {
+  createAdkStream,
+  useAdkRuntime,
+} from "@assistant-ui/react-google-adk";
 import { Box } from "ink";
 import { Thread } from "./components/thread.js";
 
@@ -466,6 +487,9 @@ const toolkit = {
 } satisfies Toolkit;
 
 function App() {
+  const runtime = useAdkRuntime({
+    stream: createAdkStream({ api: "http://localhost:3000/api/chat" }),
+  });
   const aui = useAui({ tools: Tools({ toolkit }) });
 
   return (

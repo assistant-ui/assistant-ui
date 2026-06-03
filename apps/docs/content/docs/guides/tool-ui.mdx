@@ -403,24 +403,24 @@ const toolkit = {
     description: "Ask the user to select a date.",
     parameters: z.object({ prompt: z.string() }),
     render: ({ args, result, addResult }) => {
-    if (result) {
+      if (result) {
+        return (
+          <div className="rounded bg-green-50 p-3">
+            ✅ Selected date: {new Date(result.date).toLocaleDateString()}
+          </div>
+        );
+      }
+
       return (
-        <div className="rounded bg-green-50 p-3">
-          ✅ Selected date: {new Date(result.date).toLocaleDateString()}
+        <div className="rounded border p-4">
+          <p className="mb-3">{args.prompt}</p>
+          <DatePicker
+            onChange={(date) => {
+              addResult({ date: date.toISOString() });
+            }}
+          />
         </div>
       );
-    }
-
-    return (
-      <div className="rounded border p-4">
-        <p className="mb-3">{args.prompt}</p>
-        <DatePicker
-          onChange={(date) => {
-            addResult({ date: date.toISOString() });
-          }}
-        />
-      </div>
-    );
     },
   },
 } satisfies Toolkit;
@@ -448,53 +448,53 @@ const toolkit = {
       };
     },
     render: ({ args, result, interrupt, resume }) => {
-    const [reason, setReason] = useState("");
+      const [reason, setReason] = useState("");
 
-    // Show result after approval/rejection
-    if (result) {
-      return (
-        <div className={result.approved ? "text-green-600" : "text-red-600"}>
-          {result.approved ? "✅ Approved" : `❌ Rejected: ${result.reason}`}
-        </div>
-      );
-    }
-
-    // Show approval UI when waiting for user input
-    if (interrupt) {
-      return (
-        <div className="rounded border-2 border-yellow-400 p-4">
-          <h4 className="font-bold">Approval Required</h4>
-          <p className="my-2">{interrupt.payload.action}</p>
-          <pre className="rounded bg-gray-100 p-2 text-sm">
-            {JSON.stringify(interrupt.payload.details, null, 2)}
-          </pre>
-
-          <div className="mt-4 flex gap-2">
-            <button
-              onClick={() => resume({ approved: true })}
-              className="rounded bg-green-500 px-4 py-2 text-white"
-            >
-              Approve
-            </button>
-            <button
-              onClick={() => resume({ approved: false, reason })}
-              className="rounded bg-red-500 px-4 py-2 text-white"
-            >
-              Reject
-            </button>
-            <input
-              type="text"
-              placeholder="Rejection reason..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="flex-1 rounded border px-2"
-            />
+      // Show result after approval/rejection
+      if (result) {
+        return (
+          <div className={result.approved ? "text-green-600" : "text-red-600"}>
+            {result.approved ? "✅ Approved" : `❌ Rejected: ${result.reason}`}
           </div>
-        </div>
-      );
-    }
+        );
+      }
 
-    return <div>Processing...</div>;
+      // Show approval UI when waiting for user input
+      if (interrupt) {
+        return (
+          <div className="rounded border-2 border-yellow-400 p-4">
+            <h4 className="font-bold">Approval Required</h4>
+            <p className="my-2">{interrupt.payload.action}</p>
+            <pre className="rounded bg-gray-100 p-2 text-sm">
+              {JSON.stringify(interrupt.payload.details, null, 2)}
+            </pre>
+
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => resume({ approved: true })}
+                className="rounded bg-green-500 px-4 py-2 text-white"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => resume({ approved: false, reason })}
+                className="rounded bg-red-500 px-4 py-2 text-white"
+              >
+                Reject
+              </button>
+              <input
+                type="text"
+                placeholder="Rejection reason..."
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="flex-1 rounded border px-2"
+              />
+            </div>
+          </div>
+        );
+      }
+
+      return <div>Processing...</div>;
     },
   },
 } satisfies Toolkit;
@@ -602,9 +602,9 @@ const toolkit = {
   renderChart: {
     type: "backend",
     render: ({ args, status }) => {
-    if (status.type !== "complete") return null;
-    return <Chart title={args.title} data={args.series} />;
-  },
+      if (status.type !== "complete") return null;
+      return <Chart title={args.title} data={args.series} />;
+    },
   },
 } satisfies Toolkit;
 ```
@@ -658,29 +658,32 @@ const toolkit = {
   submitForm: {
     type: "backend",
     render: ({ args }) => {
-    const { propStatus } = useToolArgsStatus<{ email: string; phone: string }>();
+      const { propStatus } = useToolArgsStatus<{
+        email: string;
+        phone: string;
+      }>();
 
-    return (
-      <form className="space-y-4">
-        <div>
-          <input
-            type="email"
-            value={args.email ?? ""}
-            className={propStatus.email === "streaming" ? "loading" : ""}
-            disabled
-          />
-        </div>
+      return (
+        <form className="space-y-4">
+          <div>
+            <input
+              type="email"
+              value={args.email ?? ""}
+              className={propStatus.email === "streaming" ? "loading" : ""}
+              disabled
+            />
+          </div>
 
-        <div>
-          <input
-            type="tel"
-            value={args.phone ?? ""}
-            className={propStatus.phone === "streaming" ? "loading" : ""}
-            disabled
-          />
-        </div>
-      </form>
-    );
+          <div>
+            <input
+              type="tel"
+              value={args.phone ?? ""}
+              className={propStatus.phone === "streaming" ? "loading" : ""}
+              disabled
+            />
+          </div>
+        </form>
+      );
     },
   },
 } satisfies Toolkit;
@@ -695,35 +698,35 @@ const toolkit = {
   analyzeData: {
     type: "backend",
     render: ({ result, status }) => {
-    const progress = result?.progress || 0;
-    const insights = result?.insights || [];
+      const progress = result?.progress || 0;
+      const insights = result?.insights || [];
 
-    return (
-      <div className="analysis-container">
-        {status.type === "running" && (
-          <div className="mb-4">
-            <div className="mb-1 flex justify-between">
-              <span>Analyzing...</span>
-              <span>{progress}%</span>
+      return (
+        <div className="analysis-container">
+          {status.type === "running" && (
+            <div className="mb-4">
+              <div className="mb-1 flex justify-between">
+                <span>Analyzing...</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="w-full rounded bg-gray-200">
+                <div
+                  className="h-2 rounded bg-blue-500"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
             </div>
-            <div className="w-full rounded bg-gray-200">
-              <div
-                className="h-2 rounded bg-blue-500"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+          )}
+
+          <div className="space-y-2">
+            {insights.map((insight, i) => (
+              <div key={i} className="rounded bg-gray-50 p-2">
+                {insight}
+              </div>
+            ))}
           </div>
-        )}
-
-        <div className="space-y-2">
-          {insights.map((insight, i) => (
-            <div key={i} className="rounded bg-gray-50 p-2">
-              {insight}
-            </div>
-          ))}
         </div>
-      </div>
-    );
+      );
     },
   },
 } satisfies Toolkit;
@@ -775,23 +778,23 @@ const toolkit = {
   confirmAction: {
     type: "backend",
     render: ({ args, result, interrupt, resume }) => {
-    // Tool is waiting for user input
-    if (interrupt) {
-      return (
-        <div className="confirmation-dialog">
-          <p>Confirm: {interrupt.payload.message}</p>
-          <button onClick={() => resume(true)}>Yes</button>
-          <button onClick={() => resume(false)}>No</button>
-        </div>
-      );
-    }
+      // Tool is waiting for user input
+      if (interrupt) {
+        return (
+          <div className="confirmation-dialog">
+            <p>Confirm: {interrupt.payload.message}</p>
+            <button onClick={() => resume(true)}>Yes</button>
+            <button onClick={() => resume(false)}>No</button>
+          </div>
+        );
+      }
 
-    // Tool completed
-    if (result) {
-      return <div>Action {result.confirmed ? "confirmed" : "cancelled"}</div>;
-    }
+      // Tool completed
+      if (result) {
+        return <div>Action {result.confirmed ? "confirmed" : "cancelled"}</div>;
+      }
 
-    return <div>Processing...</div>;
+      return <div>Processing...</div>;
     },
   },
 } satisfies Toolkit;
@@ -883,19 +886,21 @@ const toolkit = {
   weather: {
     type: "backend",
     render: ({ args }) => {
-    const { status, propStatus } = useToolArgsStatus<{
-      location: string;
-      unit: string;
-    }>();
+      const { status, propStatus } = useToolArgsStatus<{
+        location: string;
+        unit: string;
+      }>();
 
-    return (
-      <div>
-        <span className={propStatus.location === "streaming" ? "animate-pulse" : ""}>
-          {args.location ?? "..."}
-        </span>
-        {status === "complete" && <WeatherChart data={args} />}
-      </div>
-    );
+      return (
+        <div>
+          <span
+            className={propStatus.location === "streaming" ? "animate-pulse" : ""}
+          >
+            {args.location ?? "..."}
+          </span>
+          {status === "complete" && <WeatherChart data={args} />}
+        </div>
+      );
     },
   },
 } satisfies Toolkit;

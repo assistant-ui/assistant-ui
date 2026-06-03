@@ -38,13 +38,13 @@ const usePartMessages = (): readonly ThreadMessage[] | undefined => {
  *   invoke_sub_agent: {
  *     type: "backend",
  *     render: () => (
- *     <PartPrimitive.Messages>
- *       {({ message }) => {
- *         if (message.role === "user") return <MyUserMessage />;
- *         return <MyAssistantMessage />;
- *       }}
- *     </PartPrimitive.Messages>
- *   ),
+ *       <PartPrimitive.Messages>
+ *         {({ message }) => {
+ *           if (message.role === "user") return <MyUserMessage />;
+ *           return <MyAssistantMessage />;
+ *         }}
+ *       </PartPrimitive.Messages>
+ *     ),
  *   },
  * } satisfies Toolkit;
  * ```
