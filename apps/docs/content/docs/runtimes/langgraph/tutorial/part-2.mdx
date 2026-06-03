@@ -89,7 +89,10 @@ This simply displays the tool name and arguments passed to it, but not the resul
 
 ### Bind tool UI
 
-```tsx title="@/app/page.tsx" {1,8}
+```tsx title="@/app/page.tsx" {1-3,10}
+"use client";
+
+import { Thread } from "@/components/assistant-ui/thread";
 import { PriceSnapshotToolUI } from "@/components/tools/price-snapshot/PriceSnapshotTool";
 import { AuiProvider, Tools, type Toolkit, useAui } from "@assistant-ui/react";
 

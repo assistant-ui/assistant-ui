@@ -157,11 +157,11 @@ const runtime = useRemoteThreadListRuntime({
 
 Register tools with a toolkit. The tool definition is forwarded to the model, and when the model calls it, the `execute` function runs and the `render` component displays the result.
 
-```tsx
-import { AuiProvider, Tools, type Toolkit, useAui } from "@assistant-ui/react-ink";
+```tsx title="weather-toolkit.tsx"
+import type { Toolkit } from "@assistant-ui/react-ink";
 import { Text } from "ink";
 
-const toolkit = {
+export const toolkit = {
   get_weather: {
     type: "frontend",
     description: "Get the current weather for a city",
@@ -181,6 +181,11 @@ const toolkit = {
     ),
   },
 } satisfies Toolkit;
+```
+
+```tsx title="ToolProvider.tsx"
+import { AuiProvider, Tools, useAui } from "@assistant-ui/react-ink";
+import { toolkit } from "./weather-toolkit";
 
 function ToolProvider({ children }: { children: React.ReactNode }) {
   const aui = useAui({ tools: Tools({ toolkit }) });
@@ -240,24 +245,30 @@ const WeatherCardUI = makeAssistantDataUI({
 
 Wrap a render function component so that it always uses the latest version without re-creating a stable reference. Useful when passing a render prop inline and the function closes over changing state.
 
-```tsx
-import { useInlineRender } from "@assistant-ui/react-ink";
+```tsx title="weather-toolkit.tsx"
+import { type Toolkit, useInlineRender } from "@assistant-ui/react-ink";
+import { Text } from "ink";
+import { useMemo } from "react";
 
-const render = useInlineRender(({ args, result }) => (
-  <Text>{args.city}: {result?.temperature}°F</Text>
-));
+export function useWeatherToolkit() {
+  const render = useInlineRender(({ args, result }) => (
+    <Text>{args.city}: {result?.temperature}°F</Text>
+  ));
 
-const toolkit = useMemo(
-  () =>
-    ({
-      get_weather: {
-        type: "backend",
-        render,
-      },
-    }) satisfies Toolkit,
-  [render],
-);
+  return useMemo(
+    () =>
+      ({
+        get_weather: {
+          type: "backend",
+          render,
+        },
+      }) satisfies Toolkit,
+    [render],
+  );
+}
 ```
+
+Import the toolkit hook, pass its result to `useAui({ tools: Tools({ toolkit }) })`, and provide the returned `aui` with `AuiProvider`, as shown in the [Tools](#tools) section above.
 
 ## Runtime Providers
 

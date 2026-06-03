@@ -112,13 +112,22 @@ For a one-off renderer that should only affect a particular message surface, use
 
 ## Dynamic Tools
 
-If a tool needs component state or props, build the toolkit inside that component and wrap the relevant subtree with an `AuiProvider`:
+If a tool needs component state or props, keep the toolkit in its own file and expose a small hook for the component to register:
 
-```tsx
-function TaskBoard() {
-  const [tasks, setTasks] = useState<Task[]>([]);
+```tsx title="task-board-toolkit.ts"
+"use client";
 
-  const toolkit = useMemo(
+import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import { useMemo } from "react";
+import type { Toolkit } from "@assistant-ui/react";
+import { z } from "zod";
+
+export type Task = { id: string; title: string };
+
+export function useTaskBoardToolkit(
+  setTasksRef: MutableRefObject<Dispatch<SetStateAction<Task[]>>>,
+) {
+  return useMemo(
     () =>
       ({
         add_task: {
@@ -126,14 +135,34 @@ function TaskBoard() {
           description: "Add a task to the board.",
           parameters: z.object({ title: z.string() }),
           execute: async ({ title }) => {
-            setTasks((prev) => [...prev, { id: crypto.randomUUID(), title }]);
+            setTasksRef.current((prev) => [
+              ...prev,
+              { id: crypto.randomUUID(), title },
+            ]);
             return { ok: true };
+          },
+          renderText: {
+            running: "Adding task",
+            complete: "Task added",
           },
         },
       }) satisfies Toolkit,
-    [],
+    [setTasksRef],
   );
+}
+```
 
+```tsx title="TaskBoard.tsx"
+import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
+import { useRef, useState } from "react";
+import type { Task } from "./task-board-toolkit";
+import { useTaskBoardToolkit } from "./task-board-toolkit";
+
+function TaskBoard() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const setTasksRef = useRef(setTasks);
+  setTasksRef.current = setTasks;
+  const toolkit = useTaskBoardToolkit(setTasksRef);
   const aui = useAui({
     tools: Tools({ toolkit }),
   });
@@ -146,7 +175,7 @@ function TaskBoard() {
 }
 ```
 
-Keep the toolkit object stable with `useMemo` when it closes over local state. This gives the same lifecycle behavior as the old hooks while using the new registry shape.
+Keep the toolkit object stable in the toolkit module when it closes over local state. This gives the same lifecycle behavior as the old hooks while keeping tool definitions easy to audit.
 
 ## Generative Toolkits
 

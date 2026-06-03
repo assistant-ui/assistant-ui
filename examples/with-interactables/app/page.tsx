@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
@@ -8,14 +8,12 @@ import {
   Interactables,
   Suggestions,
   Tools,
-  type Toolkit,
   useAui,
   useAssistantInteractable,
   useInteractableState,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { z } from "zod";
 import {
   CheckCircle2Icon,
   CircleIcon,
@@ -25,23 +23,16 @@ import {
   Trash2Icon,
   PlusIcon,
 } from "lucide-react";
-
-type Task = { id: string; title: string; done: boolean };
-type TaskBoardState = { tasks: Task[] };
-
-const taskBoardSchema = z.object({
-  tasks: z.array(
-    z.object({
-      id: z.string(),
-      title: z.string(),
-      done: z.boolean(),
-    }),
-  ),
-});
-
-const taskBoardInitialState: TaskBoardState = { tasks: [] };
-
-let nextTaskId = 0;
+import {
+  type NoteState,
+  type TaskBoardState,
+  noteInitialState,
+  noteSchema,
+  taskBoardInitialState,
+  taskBoardSchema,
+  useNotesToolkit,
+  useTaskBoardToolkit,
+} from "./toolkits";
 
 function TaskBoard() {
   const id = useAssistantInteractable("taskBoard", {
@@ -58,61 +49,7 @@ function TaskBoard() {
   const setStateRef = useRef(setState);
   setStateRef.current = setState;
 
-  const toolkit = useMemo(
-    () =>
-      ({
-        manage_tasks: {
-          description:
-            'Manage tasks on the task board. Actions: "add" (requires title), "toggle" (requires id), "remove" (requires id), "clear" (no extra fields).',
-          parameters: z.object({
-            action: z.enum(["add", "toggle", "remove", "clear"]),
-            title: z.string().optional(),
-            id: z.string().optional(),
-          }),
-          execute: async (args) => {
-            const set = setStateRef.current;
-            switch (args.action) {
-              case "add": {
-                const id = `task-${++nextTaskId}`;
-                set((prev) => ({
-                  tasks: [
-                    ...prev.tasks,
-                    { id, title: args.title ?? "Untitled", done: false },
-                  ],
-                }));
-                return { success: true, id };
-              }
-              case "toggle": {
-                if (!args.id)
-                  return { success: false, error: "id is required" };
-                set((prev) => ({
-                  tasks: prev.tasks.map((t) =>
-                    t.id === args.id ? { ...t, done: !t.done } : t,
-                  ),
-                }));
-                return { success: true };
-              }
-              case "remove": {
-                if (!args.id)
-                  return { success: false, error: "id is required" };
-                set((prev) => ({
-                  tasks: prev.tasks.filter((t) => t.id !== args.id),
-                }));
-                return { success: true };
-              }
-              case "clear": {
-                set({ tasks: [] });
-                return { success: true };
-              }
-              default:
-                return { success: false, error: "Unknown action" };
-            }
-          },
-        },
-      }) satisfies Toolkit,
-    [],
-  );
-
+  const toolkit = useTaskBoardToolkit(setStateRef);
   const aui = useAui({ tools: Tools({ toolkit }) });
 
   const doneCount = state.tasks.filter((t) => t.done).length;
@@ -186,20 +123,6 @@ function TaskBoard() {
     </AuiProvider>
   );
 }
-
-type NoteState = { title: string; content: string; color: string };
-
-const noteSchema = z.object({
-  title: z.string(),
-  content: z.string(),
-  color: z.enum(["yellow", "blue", "green", "pink"]),
-});
-
-const noteInitialState: NoteState = {
-  title: "New Note",
-  content: "",
-  color: "yellow",
-};
 
 const COLORS: Record<string, string> = {
   yellow: "bg-yellow-100 border-yellow-300",
@@ -305,45 +228,7 @@ function NotesPanel() {
   const setSelectedIdRef = useRef(setSelectedId);
   setSelectedIdRef.current = setSelectedId;
 
-  const toolkit = useMemo(
-    () =>
-      ({
-        manage_notes: {
-          description:
-            'Manage sticky notes. Actions: "add" (creates a new note, returns its id), "remove" (requires noteId), "clear" (removes all notes). After adding, use the update_note_{id} tool to set its content.',
-          parameters: z.object({
-            action: z.enum(["add", "remove", "clear"]),
-            noteId: z.string().optional(),
-          }),
-          execute: async (args) => {
-            switch (args.action) {
-              case "add": {
-                const id = `note-${Date.now().toString(36)}`;
-                setNoteIdsRef.current((prev) => [...prev, id]);
-                return { success: true, noteId: id };
-              }
-              case "remove": {
-                if (args.noteId) {
-                  setNoteIdsRef.current((prev) =>
-                    prev.filter((id) => id !== args.noteId),
-                  );
-                }
-                return { success: true };
-              }
-              case "clear": {
-                setNoteIdsRef.current([]);
-                setSelectedIdRef.current(null);
-                return { success: true };
-              }
-              default:
-                return { success: false, error: "Unknown action" };
-            }
-          },
-        },
-      }) satisfies Toolkit,
-    [],
-  );
-
+  const toolkit = useNotesToolkit(setNoteIdsRef, setSelectedIdRef);
   const aui = useAui({ tools: Tools({ toolkit }) });
 
   const handleSelect = useCallback((id: string) => {

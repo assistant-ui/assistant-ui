@@ -295,15 +295,15 @@ const toolkit = {
 
 ### Dynamic Toolkit Pattern
 
-Use a local toolkit when the renderer needs component state:
+Use a toolkit hook in its own file when the renderer needs component state:
 
-```tsx
-import { useMemo, useState } from "react";
-import { AuiProvider, Tools, type Toolkit, useAui, useInlineRender } from "@assistant-ui/react";
+```tsx title="analyze-data-toolkit.tsx"
+"use client";
 
-function DynamicToolUI({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState("light");
+import { type Toolkit, useInlineRender } from "@assistant-ui/react";
+import { useMemo } from "react";
 
+export function useAnalyzeDataToolkit(theme: "light" | "dark") {
   const renderAnalyzeData = useInlineRender(({ result, status }) => {
     return (
       <DataVisualization
@@ -314,7 +314,7 @@ function DynamicToolUI({ children }: { children: React.ReactNode }) {
     );
   });
 
-  const toolkit = useMemo(
+  return useMemo(
     () =>
       ({
         analyzeData: {
@@ -324,6 +324,17 @@ function DynamicToolUI({ children }: { children: React.ReactNode }) {
       }) satisfies Toolkit,
     [renderAnalyzeData],
   );
+}
+```
+
+```tsx title="DynamicToolUI.tsx"
+import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
+import { useState } from "react";
+import { useAnalyzeDataToolkit } from "./analyze-data-toolkit";
+
+function DynamicToolUI({ children }: { children: React.ReactNode }) {
+  const [theme] = useState<"light" | "dark">("light");
+  const toolkit = useAnalyzeDataToolkit(theme);
 
   const aui = useAui({
     tools: Tools({ toolkit }),
@@ -343,13 +354,14 @@ For tools that need access to parent component props:
   props (for example, to pass in an `id` or other contextual data).
 </Callout>
 
-```tsx
-import { useMemo } from "react";
-import { AuiProvider, Tools, type Toolkit, useAui, useInlineRender } from "@assistant-ui/react";
+```tsx title="inventory-toolkit.tsx"
+"use client";
 
-function ProductPage({ productId, productName }) {
+import { type Toolkit, useInlineRender } from "@assistant-ui/react";
+import { useMemo } from "react";
+
+export function useInventoryToolkit(productId: string, productName: string) {
   const renderInventory = useInlineRender(({ result }) => {
-    // Access parent component props
     return (
       <div className="inventory-status">
         <h4>{productName} Inventory</h4>
@@ -361,7 +373,7 @@ function ProductPage({ productId, productName }) {
     );
   });
 
-  const toolkit = useMemo(
+  return useMemo(
     () =>
       ({
         checkInventory: {
@@ -371,6 +383,15 @@ function ProductPage({ productId, productName }) {
       }) satisfies Toolkit,
     [renderInventory],
   );
+}
+```
+
+```tsx title="ProductPage.tsx"
+import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
+import { useInventoryToolkit } from "./inventory-toolkit";
+
+function ProductPage({ productId, productName }) {
+  const toolkit = useInventoryToolkit(productId, productName);
 
   const aui = useAui({
     tools: Tools({ toolkit }),
@@ -851,27 +872,18 @@ Ensure keyboard navigation and screen reader support:
 
 Use `useInlineRender` to prevent unnecessary re-renders:
 
-```tsx
-import {
-  AuiProvider,
-  Tools,
-  type Toolkit,
-  useAui,
-  useInlineRender,
-} from "@assistant-ui/react";
-import type { ReactNode } from "react";
+```tsx title="heavy-computation-toolkit.tsx"
+"use client";
+
+import { type Toolkit, useInlineRender } from "@assistant-ui/react";
 import { useMemo } from "react";
 
-function HeavyComputationToolProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function useHeavyComputationToolkit() {
   const renderHeavyComputation = useInlineRender(({ result }) => {
     return <ComplexVisualization data={result} />;
   });
 
-  const toolkit = useMemo(
+  return useMemo(
     () =>
       ({
         heavyComputation: {
@@ -881,7 +893,16 @@ function HeavyComputationToolProvider({
       }) satisfies Toolkit,
     [renderHeavyComputation],
   );
+}
+```
 
+```tsx title="HeavyComputationToolProvider.tsx"
+import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
+import type { ReactNode } from "react";
+import { useHeavyComputationToolkit } from "./heavy-computation-toolkit";
+
+function HeavyComputationToolProvider({ children }: { children: ReactNode }) {
+  const toolkit = useHeavyComputationToolkit();
   const aui = useAui({ tools: Tools({ toolkit }) });
 
   return <AuiProvider value={aui}>{children}</AuiProvider>;
