@@ -320,6 +320,8 @@ export async function POST(req: Request) {
 On the client, configure `useChat` with `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses` so the response is sent back to the server when the user decides:
 
 ```tsx title="@/app/page.tsx"
+"use client";
+
 import { useChat } from "@ai-sdk/react";
 import {
   AssistantRuntimeProvider,
@@ -346,6 +348,8 @@ export default function Page() {
 Render the gate with a toolkit entry. The `approval` field carries the gate state, and `respondToApproval` is the only correct way to acknowledge it (it reads the approval id from the part):
 
 ```tsx title="@/app/page.tsx"
+"use client";
+
 import { useChat } from "@ai-sdk/react";
 import {
   AssistantRuntimeProvider,
