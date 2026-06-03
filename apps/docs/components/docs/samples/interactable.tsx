@@ -1,6 +1,6 @@
 "use client";
 
-import { type FC, useMemo, useRef } from "react";
+import { type Dispatch, type FC, type SetStateAction, useMemo } from "react";
 import {
   AssistantRuntimeProvider,
   AuiProvider,
@@ -9,7 +9,7 @@ import {
   Interactables,
   Suggestions,
   Tools,
-  type Toolkit,
+  useAuiToolOverrides,
   useAssistantInteractable,
   useInteractableState,
   ThreadPrimitive,
@@ -27,7 +27,6 @@ import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import remarkGfm from "remark-gfm";
-import { z } from "zod";
 import {
   ArrowUpIcon,
   CheckCircle2Icon,
@@ -36,21 +35,12 @@ import {
   Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type Task = { id: string; title: string; done: boolean };
-type TaskBoardState = { tasks: Task[] };
-
-const taskBoardSchema = z.object({
-  tasks: z.array(
-    z.object({
-      id: z.string(),
-      title: z.string(),
-      done: z.boolean(),
-    }),
-  ),
-});
-
-const taskBoardInitialState: TaskBoardState = { tasks: [] };
+import {
+  type TaskBoardState,
+  taskBoardInitialState,
+  taskBoardSchema,
+} from "./interactable-state";
+import toolkit from "./interactable-toolkit";
 
 const TaskBoard: FC = () => {
   const id = useAssistantInteractable("taskBoard", {
@@ -62,72 +52,6 @@ const TaskBoard: FC = () => {
   const [state, { setState }] = useInteractableState<TaskBoardState>(
     id,
     taskBoardInitialState,
-  );
-
-  // Register a custom frontend tool for incremental updates.
-  // This avoids full-state replacement, preserving user changes (e.g. toggles).
-  const setStateRef = useRef(setState);
-  setStateRef.current = setState;
-
-  const toolkit = useMemo(
-    () =>
-      ({
-        manage_tasks: {
-          type: "frontend",
-          description:
-            'Manage tasks on the task board. Actions: "add" (requires title), "toggle" (requires id), "remove" (requires id), "clear" (no extra fields).',
-          parameters: z.object({
-            action: z.enum(["add", "toggle", "remove", "clear"]),
-            title: z.string().optional(),
-            id: z.string().optional(),
-          }),
-          execute: async (args) => {
-            const set = setStateRef.current;
-            switch (args.action) {
-              case "add": {
-                const id = crypto.randomUUID();
-                set((prev) => ({
-                  tasks: [
-                    ...prev.tasks,
-                    { id, title: args.title ?? "Untitled", done: false },
-                  ],
-                }));
-                return { success: true, id };
-              }
-              case "toggle": {
-                if (!args.id)
-                  return { success: false, error: "id is required" };
-                set((prev) => ({
-                  tasks: prev.tasks.map((t) =>
-                    t.id === args.id ? { ...t, done: !t.done } : t,
-                  ),
-                }));
-                return { success: true };
-              }
-              case "remove": {
-                if (!args.id)
-                  return { success: false, error: "id is required" };
-                set((prev) => ({
-                  tasks: prev.tasks.filter((t) => t.id !== args.id),
-                }));
-                return { success: true };
-              }
-              case "clear": {
-                set({ tasks: [] });
-                return { success: true };
-              }
-              default:
-                return { success: false, error: "Unknown action" };
-            }
-          },
-          renderText: {
-            running: ({ args }) => `Updating tasks: ${args.action}`,
-            complete: ({ result }) =>
-              result?.success ? "Tasks updated" : result?.error,
-          },
-        },
-      }) satisfies Toolkit,
-    [],
   );
 
   const aui = useAui({ tools: Tools({ toolkit }) });
@@ -142,6 +66,7 @@ const TaskBoard: FC = () => {
 
   return (
     <AuiProvider value={aui}>
+      <TaskBoardToolOverrides setState={setState} />
       <div className="bg-muted/30 flex h-full flex-col border-s">
         <div className="flex items-center gap-2 border-b px-4 py-3">
           <ListTodoIcon className="text-muted-foreground size-4" />
@@ -190,6 +115,54 @@ const TaskBoard: FC = () => {
     </AuiProvider>
   );
 };
+
+function TaskBoardToolOverrides({
+  setState,
+}: {
+  setState: Dispatch<SetStateAction<TaskBoardState>>;
+}) {
+  useAuiToolOverrides({
+    manage_tasks: {
+      execute: async (args) => {
+        switch (args.action) {
+          case "add": {
+            const id = crypto.randomUUID();
+            setState((prev) => ({
+              tasks: [
+                ...prev.tasks,
+                { id, title: args.title ?? "Untitled", done: false },
+              ],
+            }));
+            return { success: true, id };
+          }
+          case "toggle": {
+            if (!args.id) return { success: false, error: "id is required" };
+            setState((prev) => ({
+              tasks: prev.tasks.map((t) =>
+                t.id === args.id ? { ...t, done: !t.done } : t,
+              ),
+            }));
+            return { success: true };
+          }
+          case "remove": {
+            if (!args.id) return { success: false, error: "id is required" };
+            setState((prev) => ({
+              tasks: prev.tasks.filter((t) => t.id !== args.id),
+            }));
+            return { success: true };
+          }
+          case "clear": {
+            setState({ tasks: [] });
+            return { success: true };
+          }
+          default:
+            return { success: false, error: "Unknown action" };
+        }
+      },
+    },
+  });
+  return null;
+}
 
 const MiniThread: FC = () => {
   return (

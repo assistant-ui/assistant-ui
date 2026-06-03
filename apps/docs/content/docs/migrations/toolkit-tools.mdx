@@ -129,6 +129,10 @@ For a one-off renderer that should only affect a particular message surface, use
 
 If a tool needs component state or props, keep the toolkit contract in a `"use generative"` file and use `stubTool()` for the executor. The component that owns the state supplies the real executor with `useAuiToolOverrides(...)`:
 
+<Callout type="warn">
+  `useAuiToolOverrides` is experimental and its API may change.
+</Callout>
+
 ```tsx title="task-board-toolkit.tsx"
 "use generative";
 

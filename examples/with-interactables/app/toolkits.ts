@@ -8,6 +8,7 @@ export default defineToolkit({
     description:
       'Manage tasks on the task board. Actions: "add" (requires title), "toggle" (requires id), "remove" (requires id), "clear" (no extra fields).',
     parameters: manageTasksParameters,
+    // The real executor is provided by TaskBoardToolOverrides via useAuiToolOverrides().
     execute: stubTool(),
     renderText: {
       running: ({ args }) => `Updating tasks: ${args.action}`,
@@ -18,6 +19,7 @@ export default defineToolkit({
     description:
       'Manage sticky notes. Actions: "add" (creates a new note, returns its id), "remove" (requires noteId), "clear" (removes all notes). After adding, use the update_note_{id} tool to set its content.',
     parameters: manageNotesParameters,
+    // The real executor is provided by NotesToolOverrides via useAuiToolOverrides().
     execute: stubTool(),
     renderText: {
       running: ({ args }) => `Updating notes: ${args.action}`,

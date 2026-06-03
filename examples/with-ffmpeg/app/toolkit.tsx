@@ -17,7 +17,7 @@ export function useFfmpegToolkit(
   file: File,
   ffmpegRef: MutableRefObject<FFmpeg>,
 ) {
-  const fileToolkit = useMemo(
+  return useMemo(
     () =>
       ({
         run_ffmpeg: {
@@ -29,26 +29,21 @@ export function useFfmpegToolkit(
               .describe("The ffmpeg command line arguments to provide"),
           }),
           execute: async ({ command }) => {
-            const transcode = async () => {
-              const ffmpeg = ffmpegRef.current;
+            const ffmpeg = ffmpegRef.current;
 
-              const logs: string[] = [];
-              const logger = ({ message }: { message: string }) => {
-                logs.push(message);
-              };
-              ffmpeg.on("log", logger);
-
-              await ffmpeg.writeFile(
-                file.name,
-                new Uint8Array(await file.arrayBuffer()),
-              );
-
-              const code = await ffmpeg.exec(command);
-              ffmpeg.off("log", logger);
-
-              return { code, logs };
+            const logs: string[] = [];
+            const logger = ({ message }: { message: string }) => {
+              logs.push(message);
             };
-            const { code, logs } = await transcode();
+            ffmpeg.on("log", logger);
+
+            await ffmpeg.writeFile(
+              file.name,
+              new Uint8Array(await file.arrayBuffer()),
+            );
+
+            const code = await ffmpeg.exec(command);
+            ffmpeg.off("log", logger);
 
             return {
               success: code === 0,
@@ -88,14 +83,6 @@ export function useFfmpegToolkit(
             );
           },
         },
-      }) satisfies Toolkit,
-    [ffmpegRef, file],
-  );
-
-  return useMemo(
-    () =>
-      ({
-        ...fileToolkit,
         render_overlay: {
           type: "frontend",
           parameters: z.object({
@@ -295,6 +282,6 @@ export function useFfmpegToolkit(
           },
         },
       }) satisfies Toolkit,
-    [ffmpegRef, fileToolkit],
+    [ffmpegRef, file],
   );
 }
