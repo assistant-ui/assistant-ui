@@ -1,4 +1,11 @@
-import type { Tool, ToolDeclaration } from "assistant-stream";
+import type {
+  McpServerConfig,
+  ProviderOptions,
+  Tool,
+  ToolCallReader,
+  ToolDeclaration,
+  ToolModelOutputFunction,
+} from "assistant-stream";
 import type { ReactNode } from "react";
 import type {
   ToolCallMessagePartComponent,
@@ -37,6 +44,33 @@ type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
       render?: ToolCallMessagePartComponent<TArgs, TResult> | undefined;
       renderText?: ToolCallText<TArgs, TResult> | undefined;
     };
+
+type ToolParameters<
+  TArgs extends Record<string, unknown>,
+  _TResult = unknown,
+> = ToolDeclaration<TArgs, _TResult>["parameters"];
+
+type ToolExecuteContext = Parameters<
+  NonNullable<ToolDeclaration["execute"]>
+>[1];
+
+type ToolExecute<TArgs extends Record<string, unknown>, TResult> = (
+  args: TArgs,
+  context: ToolExecuteContext,
+) => TResult | Promise<TResult>;
+
+type ToolStreamCallContext = Parameters<
+  NonNullable<ToolDeclaration["streamCall"]>
+>[1];
+
+type ToolStreamCall<TArgs extends Record<string, unknown>, TResult> = (
+  reader: {
+    args: ToolCallReader<TArgs, TResult>["args"];
+    response: ToolCallReader<TArgs, TResult>["response"];
+    result: ToolCallReader<TArgs, TResult>["result"];
+  },
+  context: ToolStreamCallContext,
+) => void;
 
 type ToolCallRunningText<TArgs extends Record<string, unknown>> =
   | ReactNode
@@ -79,10 +113,10 @@ export const makeToolCallTextComponent = <
   TResult,
 >(
   text: ToolCallText<TArgs, TResult>,
-): ToolCallMessagePartComponent<TArgs, TResult> => {
+) => {
   return function ToolCallTextComponent(part) {
     return resolveToolCallText(text, part);
-  };
+  } satisfies ToolCallMessagePartComponent<TArgs, TResult>;
 };
 
 /**
@@ -94,8 +128,8 @@ export const makeToolCallTextComponent = <
  * and result. Backend tools execute server-side and may omit a renderer.
  */
 export type ToolDefinition<
-  TArgs extends Record<string, unknown>,
-  TResult,
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
 > = WithRender<Tool<TArgs, TResult>, TArgs, TResult>;
 
 /**
@@ -127,15 +161,29 @@ export type Toolkit = Record<string, ToolDefinition<any, any>>;
  * directive → frontend; otherwise backend) and writes it back — so declaring it
  * here is a type error.
  */
-type ToolkitDefinitionInput<
-  TArgs extends Record<string, unknown>,
-  TResult,
-> = WithRender<
-  Omit<ToolDeclaration<TArgs, TResult>, "type">,
-  TArgs,
-  TResult
-> & {
+type ToolkitDefinitionInput<TArgs extends Record<string, unknown>, TResult> = {
   type?: never;
+  description?: string | undefined;
+  parameters?: ToolParameters<TArgs, TResult>;
+  disabled?: boolean | undefined;
+  display?: "standalone" | "inline" | undefined;
+  execute?: ToolExecute<NoInfer<TArgs>, TResult>;
+  toModelOutput?: ToolModelOutputFunction<NoInfer<TArgs>, NoInfer<TResult>>;
+  experimental_onSchemaValidationError?: ToolExecute<
+    Record<string, unknown>,
+    NoInfer<TResult>
+  >;
+  providerOptions?: ProviderOptions | undefined;
+  streamCall?: ToolStreamCall<TArgs, NoInfer<TResult>>;
+  providerId?: `${string}.${string}` | undefined;
+  args?: Record<string, unknown> | undefined;
+  supportsDeferredResults?: boolean | undefined;
+  server?: McpServerConfig | undefined;
+  render?: ToolCallMessagePartComponent<NoInfer<TArgs>, NoInfer<TResult>>;
+  renderText?: ToolCallText<NoInfer<TArgs>, NoInfer<TResult>>;
+  unstable_backendDefault?: {
+    parameters?: boolean;
+  };
 };
 
 /**
@@ -147,16 +195,36 @@ type ToolkitDefinitionInput<
  * carries a `type`, so it can only match the {@link ToolDefinition} arm of this
  * union.
  */
-export type ToolkitDefinitionEntry =
-  | ToolkitDefinitionInput<any, any>
-  | ToolDefinition<any, any>;
+export type ToolkitDefinitionEntry<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
+> = ToolkitDefinitionInput<TArgs, TResult> | ToolDefinition<any, any>;
+
+export type ToolkitDefinitionEntryWithParameters<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+  TResult = unknown,
+> = ToolkitDefinitionInput<TArgs, TResult> & {
+  parameters: ToolParameters<TArgs, TResult>;
+};
 
 /**
  * The permissive, authoring-time counterpart to {@link Toolkit} — the input to
  * {@link defineToolkit}. Backend entries may carry their server `execute` here;
  * the canonical {@link Toolkit} keeps those fields `undefined`.
  */
-export type ToolkitDefinition = Record<string, ToolkitDefinitionEntry>;
+export type ToolkitDefinition<
+  TArgsByName extends {
+    [K in keyof TArgsByName]: Record<string, unknown>;
+  } = Record<string, any>,
+  TResultByName extends { [K in keyof TArgsByName]: unknown } = {
+    [K in keyof TArgsByName]: any;
+  },
+> = {
+  [K in keyof TArgsByName]: ToolkitDefinitionEntry<
+    TArgsByName[K],
+    TResultByName[K]
+  >;
+};
 
 /** Configuration for the {@link Tools} resource. */
 export type ToolsConfig = {

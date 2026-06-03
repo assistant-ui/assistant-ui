@@ -1,4 +1,8 @@
-import type { Toolkit, ToolkitDefinition } from "./toolbox";
+import type {
+  Toolkit,
+  ToolkitDefinition,
+  ToolkitDefinitionEntryWithParameters,
+} from "./toolbox";
 
 /**
  * Authoring helper for a `"use generative"` toolkit. Accepts the permissive
@@ -13,6 +17,20 @@ import type { Toolkit, ToolkitDefinition } from "./toolbox";
  * outside a `"use generative"` file — which would ship a backend `execute` to the
  * client. So it throws instead of silently leaking.
  */
+export function defineToolkit<
+  TArgsByName extends {
+    [K in keyof TArgsByName]: Record<string, unknown>;
+  },
+  TResultByName extends { [K in keyof TArgsByName]: unknown } = {
+    [K in keyof TArgsByName]: unknown;
+  },
+>(_definition: {
+  [K in keyof TArgsByName]: ToolkitDefinitionEntryWithParameters<
+    TArgsByName[K],
+    TResultByName[K]
+  >;
+}): Toolkit;
+export function defineToolkit(_definition: ToolkitDefinition): Toolkit;
 export function defineToolkit(_definition: ToolkitDefinition): Toolkit {
   throw new Error(
     "[assistant-ui] defineToolkit() has no runtime implementation — it is " +
