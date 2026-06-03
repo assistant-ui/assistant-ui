@@ -82,11 +82,7 @@ const TaskBoard: FC = () => {
             title: z.string().optional(),
             id: z.string().optional(),
           }),
-          execute: async (args: {
-            action: "add" | "toggle" | "remove" | "clear";
-            title?: string;
-            id?: string;
-          }) => {
+          execute: async (args) => {
             const set = setStateRef.current;
             switch (args.action) {
               case "add": {
