@@ -81,7 +81,8 @@ export const mergeModelContexts = (
             existingPriority > priority ? existing : tool;
           const lowerPriorityTool =
             existingPriority > priority ? tool : existing;
-          acc.tools[name] = {
+          const tools = acc.tools!;
+          tools[name] = {
             ...lowerPriorityTool,
             ...higherPriorityTool,
           } as Tool<any, any>;
