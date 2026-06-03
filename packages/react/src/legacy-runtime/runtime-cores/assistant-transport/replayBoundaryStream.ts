@@ -126,14 +126,12 @@ export const createReplayBoundaryStream = async (
       }
 
       if (nextBytesForwarded === replayContentLength) {
-        bytesForwarded = nextBytesForwarded;
         controller.enqueue(value);
         await finishReplay();
         return;
       }
 
       const replayBytesInChunk = replayContentLength - bytesForwarded;
-      bytesForwarded = nextBytesForwarded;
 
       controller.enqueue(value.subarray(0, replayBytesInChunk));
       await finishReplay();

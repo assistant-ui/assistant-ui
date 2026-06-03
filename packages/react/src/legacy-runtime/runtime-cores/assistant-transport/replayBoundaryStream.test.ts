@@ -136,6 +136,101 @@ describe("createReplayBoundaryStream", () => {
     });
   });
 
+  it("pauses when a chunk ends exactly at the replay boundary", async () => {
+    const { waitForRender, releaseNext } = createRenderWait();
+    const setReplaying = vi.fn();
+    const replayPrefix = "replay";
+    const liveSuffix = "live";
+    const replayContentLength = encoder.encode(replayPrefix).byteLength;
+
+    const streamPromise = createReplayBoundaryStream(
+      createResponse([replayPrefix, liveSuffix], replayContentLength),
+      { setReplaying, waitForRender },
+    );
+
+    await releaseNext();
+    const stream = await streamPromise;
+    const reader = stream.getReader();
+
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: encoder.encode(replayPrefix),
+    });
+    expect(setReplaying).toHaveBeenCalledTimes(1);
+
+    let liveReadResolved = false;
+    const liveRead = reader.read().then((read) => {
+      liveReadResolved = true;
+      return read;
+    });
+    await Promise.resolve();
+    expect(liveReadResolved).toBe(false);
+
+    await releaseNext();
+    expect(setReplaying).toHaveBeenLastCalledWith(false);
+    await releaseNext();
+
+    await expect(liveRead).resolves.toMatchObject({
+      done: false,
+      value: encoder.encode(liveSuffix),
+    });
+  });
+
+  it("accumulates replay bytes across chunks before splitting live bytes", async () => {
+    const { waitForRender, releaseNext } = createRenderWait();
+    const setReplaying = vi.fn();
+    const firstReplayChunk = "part1";
+    const secondReplayChunk = "part2";
+    const firstLiveChunk = "live1";
+    const secondLiveChunk = "live2";
+    const replayContentLength = encoder.encode(
+      firstReplayChunk + secondReplayChunk,
+    ).byteLength;
+
+    const streamPromise = createReplayBoundaryStream(
+      createResponse(
+        [firstReplayChunk, secondReplayChunk + firstLiveChunk, secondLiveChunk],
+        replayContentLength,
+      ),
+      { setReplaying, waitForRender },
+    );
+
+    await releaseNext();
+    const stream = await streamPromise;
+    const reader = stream.getReader();
+
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: encoder.encode(firstReplayChunk),
+    });
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: encoder.encode(secondReplayChunk),
+    });
+    expect(setReplaying).toHaveBeenCalledTimes(1);
+
+    let liveReadResolved = false;
+    const liveRead = reader.read().then((read) => {
+      liveReadResolved = true;
+      return read;
+    });
+    await Promise.resolve();
+    expect(liveReadResolved).toBe(false);
+
+    await releaseNext();
+    expect(setReplaying).toHaveBeenLastCalledWith(false);
+    await releaseNext();
+
+    await expect(liveRead).resolves.toMatchObject({
+      done: false,
+      value: encoder.encode(firstLiveChunk),
+    });
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: encoder.encode(secondLiveChunk),
+    });
+  });
+
   it("clears replaying when the stream ends before the boundary", async () => {
     const { waitForRender, releaseNext } = createRenderWait();
     const setReplaying = vi.fn();
