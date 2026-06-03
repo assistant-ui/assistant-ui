@@ -394,11 +394,15 @@ const toolkit = {
   },
 } satisfies Toolkit;
 
-const aui = useAui({ tools: Tools({ toolkit }) });
+function App() {
+  const aui = useAui({ tools: Tools({ toolkit }) });
 
-<AssistantRuntimeProvider aui={aui} runtime={runtime}>
-  <Thread />
-</AssistantRuntimeProvider>
+  return (
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
 ```
 
 </Tab>
@@ -415,13 +419,17 @@ const toolkit = {
   },
 } satisfies Toolkit;
 
-const aui = useAui({ tools: Tools({ toolkit }) });
+function App() {
+  const aui = useAui({ tools: Tools({ toolkit }) });
 
-<AssistantRuntimeProvider aui={aui} runtime={runtime}>
-  <View style={{ flex: 1 }}>
-    <Thread />
-  </View>
-</AssistantRuntimeProvider>;
+  return (
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      <View style={{ flex: 1 }}>
+        <Thread />
+      </View>
+    </AssistantRuntimeProvider>
+  );
+}
 ```
 
 </Tab>
@@ -438,13 +446,17 @@ const toolkit = {
   },
 } satisfies Toolkit;
 
-const aui = useAui({ tools: Tools({ toolkit }) });
+function App() {
+  const aui = useAui({ tools: Tools({ toolkit }) });
 
-<AssistantRuntimeProvider aui={aui} runtime={runtime}>
-  <Box flexDirection="column">
-    <Thread />
-  </Box>
-</AssistantRuntimeProvider>;
+  return (
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      <Box flexDirection="column">
+        <Thread />
+      </Box>
+    </AssistantRuntimeProvider>
+  );
+}
 ```
 
 </Tab>

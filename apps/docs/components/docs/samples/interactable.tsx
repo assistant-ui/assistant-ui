@@ -3,6 +3,7 @@
 import { type FC, useMemo, useRef } from "react";
 import {
   AssistantRuntimeProvider,
+  AuiProvider,
   useAui,
   useAuiState,
   Interactables,
@@ -129,7 +130,7 @@ const TaskBoard: FC = () => {
     [],
   );
 
-  useAui({ tools: Tools({ toolkit }) });
+  const aui = useAui({ tools: Tools({ toolkit }) });
 
   const toggleTask = (id: string) => {
     setState((prev) => ({
@@ -140,51 +141,53 @@ const TaskBoard: FC = () => {
   const doneCount = state.tasks.filter((t) => t.done).length;
 
   return (
-    <div className="bg-muted/30 flex h-full flex-col border-s">
-      <div className="flex items-center gap-2 border-b px-4 py-3">
-        <ListTodoIcon className="text-muted-foreground size-4" />
-        <span className="text-sm font-medium">Task Board</span>
-        {state.tasks.length > 0 && (
-          <span className="text-muted-foreground ms-auto text-xs">
-            {doneCount}/{state.tasks.length}
-          </span>
-        )}
-      </div>
+    <AuiProvider value={aui}>
+      <div className="bg-muted/30 flex h-full flex-col border-s">
+        <div className="flex items-center gap-2 border-b px-4 py-3">
+          <ListTodoIcon className="text-muted-foreground size-4" />
+          <span className="text-sm font-medium">Task Board</span>
+          {state.tasks.length > 0 && (
+            <span className="text-muted-foreground ms-auto text-xs">
+              {doneCount}/{state.tasks.length}
+            </span>
+          )}
+        </div>
 
-      <div className="flex-1 overflow-y-auto p-3">
-        {state.tasks.length === 0 ? (
-          <div className="text-muted-foreground flex h-full flex-col items-center justify-center text-center text-xs">
-            <ListTodoIcon className="mb-2 size-8 opacity-30" />
-            <p>No tasks yet.</p>
-            <p className="mt-1 opacity-70">Ask the assistant to add some!</p>
-          </div>
-        ) : (
-          <ul className="space-y-1.5">
-            {state.tasks.map((task) => (
-              <li key={task.id}>
-                <button
-                  type="button"
-                  onClick={() => toggleTask(task.id)}
-                  className={cn(
-                    "hover:bg-muted flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-start text-sm transition-colors",
-                    task.done && "opacity-50",
-                  )}
-                >
-                  {task.done ? (
-                    <CheckCircle2Icon className="text-primary size-4 shrink-0" />
-                  ) : (
-                    <CircleIcon className="text-muted-foreground size-4 shrink-0" />
-                  )}
-                  <span className={cn("flex-1", task.done && "line-through")}>
-                    {task.title}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="flex-1 overflow-y-auto p-3">
+          {state.tasks.length === 0 ? (
+            <div className="text-muted-foreground flex h-full flex-col items-center justify-center text-center text-xs">
+              <ListTodoIcon className="mb-2 size-8 opacity-30" />
+              <p>No tasks yet.</p>
+              <p className="mt-1 opacity-70">Ask the assistant to add some!</p>
+            </div>
+          ) : (
+            <ul className="space-y-1.5">
+              {state.tasks.map((task) => (
+                <li key={task.id}>
+                  <button
+                    type="button"
+                    onClick={() => toggleTask(task.id)}
+                    className={cn(
+                      "hover:bg-muted flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-start text-sm transition-colors",
+                      task.done && "opacity-50",
+                    )}
+                  >
+                    {task.done ? (
+                      <CheckCircle2Icon className="text-primary size-4 shrink-0" />
+                    ) : (
+                      <CircleIcon className="text-muted-foreground size-4 shrink-0" />
+                    )}
+                    <span className={cn("flex-1", task.done && "line-through")}>
+                      {task.title}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
-    </div>
+    </AuiProvider>
   );
 };
 

@@ -4,6 +4,7 @@ import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
+  AuiProvider,
   Interactables,
   Suggestions,
   Tools,
@@ -116,75 +117,77 @@ function TaskBoard() {
     [],
   );
 
-  useAui({ tools: Tools({ toolkit }) });
+  const aui = useAui({ tools: Tools({ toolkit }) });
 
   const doneCount = state.tasks.filter((t) => t.done).length;
 
   return (
-    <div className="flex flex-col">
-      <div className="flex items-center gap-2 border-b px-4 py-3">
-        <ListTodoIcon className="text-muted-foreground size-4" />
-        <span className="text-sm font-semibold">Task Board</span>
-        {isPending && (
-          <Loader2Icon className="text-muted-foreground size-3 animate-spin" />
-        )}
-        {state.tasks.length > 0 && (
-          <span className="bg-primary/10 text-primary ml-auto rounded-full px-2 py-0.5 text-xs font-medium">
-            {doneCount}/{state.tasks.length}
-          </span>
-        )}
+    <AuiProvider value={aui}>
+      <div className="flex flex-col">
+        <div className="flex items-center gap-2 border-b px-4 py-3">
+          <ListTodoIcon className="text-muted-foreground size-4" />
+          <span className="text-sm font-semibold">Task Board</span>
+          {isPending && (
+            <Loader2Icon className="text-muted-foreground size-3 animate-spin" />
+          )}
+          {state.tasks.length > 0 && (
+            <span className="bg-primary/10 text-primary ml-auto rounded-full px-2 py-0.5 text-xs font-medium">
+              {doneCount}/{state.tasks.length}
+            </span>
+          )}
+        </div>
+        <div className="flex-1 overflow-y-auto p-3">
+          {state.tasks.length === 0 ? (
+            <p className="text-muted-foreground py-6 text-center text-xs">
+              No tasks yet. Ask the assistant!
+            </p>
+          ) : (
+            <ul className="space-y-1">
+              {state.tasks.map((task) => (
+                <li
+                  key={task.id}
+                  className="group hover:bg-muted flex items-center gap-2 rounded-lg px-3 py-2 transition-colors"
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setState((prev) => ({
+                        tasks: prev.tasks.map((t) =>
+                          t.id === task.id ? { ...t, done: !t.done } : t,
+                        ),
+                      }))
+                    }
+                    className="shrink-0"
+                  >
+                    {task.done ? (
+                      <CheckCircle2Icon className="text-primary size-4" />
+                    ) : (
+                      <CircleIcon className="text-muted-foreground size-4" />
+                    )}
+                  </button>
+                  <span
+                    className={`flex-1 text-sm ${task.done ? "text-muted-foreground line-through" : ""}`}
+                  >
+                    {task.title}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setState((prev) => ({
+                        tasks: prev.tasks.filter((t) => t.id !== task.id),
+                      }))
+                    }
+                    className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    <Trash2Icon className="text-muted-foreground hover:text-destructive size-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-3">
-        {state.tasks.length === 0 ? (
-          <p className="text-muted-foreground py-6 text-center text-xs">
-            No tasks yet. Ask the assistant!
-          </p>
-        ) : (
-          <ul className="space-y-1">
-            {state.tasks.map((task) => (
-              <li
-                key={task.id}
-                className="group hover:bg-muted flex items-center gap-2 rounded-lg px-3 py-2 transition-colors"
-              >
-                <button
-                  type="button"
-                  onClick={() =>
-                    setState((prev) => ({
-                      tasks: prev.tasks.map((t) =>
-                        t.id === task.id ? { ...t, done: !t.done } : t,
-                      ),
-                    }))
-                  }
-                  className="shrink-0"
-                >
-                  {task.done ? (
-                    <CheckCircle2Icon className="text-primary size-4" />
-                  ) : (
-                    <CircleIcon className="text-muted-foreground size-4" />
-                  )}
-                </button>
-                <span
-                  className={`flex-1 text-sm ${task.done ? "text-muted-foreground line-through" : ""}`}
-                >
-                  {task.title}
-                </span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setState((prev) => ({
-                      tasks: prev.tasks.filter((t) => t.id !== task.id),
-                    }))
-                  }
-                  className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                >
-                  <Trash2Icon className="text-muted-foreground hover:text-destructive size-3.5" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
+    </AuiProvider>
   );
 }
 
@@ -348,7 +351,7 @@ function NotesPanel() {
     [],
   );
 
-  useAui({ tools: Tools({ toolkit }) });
+  const aui = useAui({ tools: Tools({ toolkit }) });
 
   const handleSelect = useCallback((id: string) => {
     setSelectedId(id);
@@ -360,44 +363,46 @@ function NotesPanel() {
   }, []);
 
   return (
-    <div className="flex flex-col">
-      <div className="flex items-center gap-2 border-b px-4 py-3">
-        <StickyNoteIcon className="text-muted-foreground size-4" />
-        <span className="text-sm font-semibold">Notes</span>
-        <span className="text-muted-foreground ml-auto text-xs">
-          {noteIds.length}
-        </span>
-        <button
-          type="button"
-          onClick={() => {
-            const id = `note-${Date.now().toString(36)}`;
-            setNoteIds((prev) => [...prev, id]);
-          }}
-          className="hover:bg-muted rounded p-1 transition-colors"
-        >
-          <PlusIcon className="text-muted-foreground size-3.5" />
-        </button>
+    <AuiProvider value={aui}>
+      <div className="flex flex-col">
+        <div className="flex items-center gap-2 border-b px-4 py-3">
+          <StickyNoteIcon className="text-muted-foreground size-4" />
+          <span className="text-sm font-semibold">Notes</span>
+          <span className="text-muted-foreground ml-auto text-xs">
+            {noteIds.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              const id = `note-${Date.now().toString(36)}`;
+              setNoteIds((prev) => [...prev, id]);
+            }}
+            className="hover:bg-muted rounded p-1 transition-colors"
+          >
+            <PlusIcon className="text-muted-foreground size-3.5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-3">
+          {noteIds.length === 0 ? (
+            <p className="text-muted-foreground py-6 text-center text-xs">
+              No notes yet. Ask the assistant!
+            </p>
+          ) : (
+            <div className="grid gap-2">
+              {noteIds.map((noteId) => (
+                <NoteCard
+                  key={noteId}
+                  noteId={noteId}
+                  selectedId={selectedId}
+                  onSelect={handleSelect}
+                  onRemove={handleRemove}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-3">
-        {noteIds.length === 0 ? (
-          <p className="text-muted-foreground py-6 text-center text-xs">
-            No notes yet. Ask the assistant!
-          </p>
-        ) : (
-          <div className="grid gap-2">
-            {noteIds.map((noteId) => (
-              <NoteCard
-                key={noteId}
-                noteId={noteId}
-                selectedId={selectedId}
-                onSelect={handleSelect}
-                onRemove={handleRemove}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+    </AuiProvider>
   );
 }
 

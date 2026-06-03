@@ -12,7 +12,11 @@ import {
 } from "@/lib/open-meteo-weather-adapter";
 import { MapPin, CloudSun, AlertCircle, ChevronRight } from "lucide-react";
 import { z } from "zod";
-import { defineToolkit, useAuiState } from "@assistant-ui/react";
+import {
+  defineToolkit,
+  useAuiState,
+  type ToolCallMessagePartComponent,
+} from "@assistant-ui/react";
 import {
   JSONGenerativeUI,
   defineGenerativeComponents,
@@ -20,6 +24,101 @@ import {
 } from "@assistant-ui/react-generative-ui";
 
 const weatherFormatSchema = z.enum(["fahrenheit", "celsius"]);
+
+type GeocodeLocationArgs = {
+  query: string;
+};
+
+type GeocodeLocationResult = Awaited<
+  ReturnType<typeof geocodeLocationWithOpenMeteo>
+>;
+
+type GetWeatherArgs = {
+  location: string;
+  latitude: number;
+  longitude: number;
+};
+
+type GetWeatherResult =
+  | {
+      success: true;
+      id: string;
+      location: string;
+      widget: WeatherWidgetPayload;
+    }
+  | {
+      success: false;
+      error: string;
+    };
+
+const GeocodeLocationToolUI: ToolCallMessagePartComponent<
+  GeocodeLocationArgs,
+  GeocodeLocationResult
+> = ({ toolName, args, result }) => {
+  const signature = formatToolCall(toolName, args);
+  const icon = <MapPin className="size-4" />;
+
+  if (result?.success === false) {
+    return <ToolErrorCard signature={signature} error={result.error} />;
+  }
+  if (!result) {
+    return (
+      <ToolStatusCard
+        signature={signature}
+        icon={icon}
+        message="Finding location..."
+        loading
+      />
+    );
+  }
+
+  const { name, latitude, longitude } = result.result;
+  return (
+    <ToolTraceCard
+      icon={icon}
+      signature={signature}
+      description={`${name} · ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`}
+      result={result}
+    />
+  );
+};
+
+const GetWeatherToolUI: ToolCallMessagePartComponent<
+  GetWeatherArgs,
+  GetWeatherResult
+> = ({ toolName, args, result }) => {
+  const signature = formatToolCall(toolName, args);
+  const icon = <CloudSun className="size-4" />;
+
+  if (result?.success === false) {
+    return <ToolErrorCard signature={signature} error={result.error} />;
+  }
+  if (!result) {
+    return (
+      <ToolStatusCard
+        signature={signature}
+        icon={icon}
+        message="Fetching weather..."
+        loading
+      />
+    );
+  }
+
+  const current = result.widget?.current;
+  const unitSymbol = result.widget?.units.temperature === "celsius" ? "C" : "F";
+  return (
+    <ToolTraceCard
+      icon={icon}
+      signature={signature}
+      description={
+        current
+          ? `${Math.round(current.temperature)}°${unitSymbol} · ${current.conditionCode} in ${result.location}`
+          : "Weather ready"
+      }
+      result={result}
+    />
+  );
+};
 
 // The user-facing component library the model renders through the `present`
 // tool. `Weather` shows the rich card for a `get_weather` result by `id`.
@@ -52,34 +151,7 @@ export default defineToolkit({
     }),
     execute: async ({ query }: { query: string }) =>
       geocodeLocationWithOpenMeteo(query),
-    render: ({ toolName, args, result }: any) => {
-      const signature = formatToolCall(toolName, args);
-      const icon = <MapPin className="size-4" />;
-
-      if (result?.success === false) {
-        return <ToolErrorCard signature={signature} error={result.error} />;
-      }
-      if (!result) {
-        return (
-          <ToolStatusCard
-            signature={signature}
-            icon={icon}
-            message="Finding location..."
-            loading
-          />
-        );
-      }
-
-      const { name, latitude, longitude } = result.result;
-      return (
-        <ToolTraceCard
-          icon={icon}
-          signature={signature}
-          description={`${name} · ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`}
-          result={result}
-        />
-      );
-    },
+    render: GeocodeLocationToolUI,
   },
   get_weather: {
     description:
@@ -115,40 +187,7 @@ export default defineToolkit({
         widget: weather.widget,
       };
     },
-    render: ({ toolName, args, result }: any) => {
-      const signature = formatToolCall(toolName, args);
-      const icon = <CloudSun className="size-4" />;
-
-      if (result?.success === false) {
-        return <ToolErrorCard signature={signature} error={result.error} />;
-      }
-      if (!result) {
-        return (
-          <ToolStatusCard
-            signature={signature}
-            icon={icon}
-            message="Fetching weather..."
-            loading
-          />
-        );
-      }
-
-      const current = result.widget?.current;
-      const unitSymbol =
-        result.widget?.units.temperature === "celsius" ? "C" : "F";
-      return (
-        <ToolTraceCard
-          icon={icon}
-          signature={signature}
-          description={
-            current
-              ? `${Math.round(current.temperature)}°${unitSymbol} · ${current.conditionCode} in ${result.location}`
-              : "Weather ready"
-          }
-          result={result}
-        />
-      );
-    },
+    render: GetWeatherToolUI,
   },
   present: generative.present({ display: "standalone" }),
 });
