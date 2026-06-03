@@ -16,6 +16,7 @@ import {
   tapClientResource,
 } from "@assistant-ui/store";
 import { ComposerClient } from "./composer-runtime-client";
+import type { ComposerQueueController } from "./composer-runtime-client";
 import { MessageClient } from "./message-runtime-client";
 import { tapSubscribable } from "./tap-subscribable";
 import type { ThreadState } from "../scopes/thread";
@@ -78,10 +79,21 @@ export const ThreadClient = resource(
       [runtime],
     );
 
+    const threadIsRunning = runtimeState.isRunning;
+    const queueController = tapMemo<ComposerQueueController>(
+      () => ({
+        isRunning: threadIsRunning,
+        append: runtime.append,
+        cancelRun: runtime.cancelRun,
+      }),
+      [threadIsRunning, runtime],
+    );
+
     const composer = tapClientResource(
       ComposerClient({
         runtime: runtime.composer,
         threadIdRef,
+        queueController,
       }),
     );
     const messages = tapClientLookup(

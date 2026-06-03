@@ -4,14 +4,16 @@ import { Pressable, type PressableProps } from "../internal/Pressable";
 
 export type ComposerSendProps = Omit<PressableProps, "onPress"> & {
   children: ReactNode;
+  queueWhileRunning?: boolean;
 };
 
 export const ComposerSend = ({
   children,
   disabled,
+  queueWhileRunning,
   ...pressableProps
 }: ComposerSendProps) => {
-  const { send, disabled: hookDisabled } = useComposerSend();
+  const { send, disabled: hookDisabled } = useComposerSend(queueWhileRunning);
 
   return (
     <Pressable

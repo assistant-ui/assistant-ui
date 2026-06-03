@@ -8,8 +8,10 @@ import {
 } from "../../utils/createActionButton";
 import { useComposerSend as useComposerSendBehavior } from "@assistant-ui/core/react";
 
-export const useComposerSend = () => {
-  const { disabled, send } = useComposerSendBehavior();
+export const useComposerSend = ({
+  queueWhileRunning = false,
+}: { queueWhileRunning?: boolean } = {}) => {
+  const { disabled, send } = useComposerSendBehavior(queueWhileRunning);
   const callback = useCallback(() => send(), [send]);
   if (disabled) return null;
   return callback;
@@ -20,6 +22,9 @@ export namespace ComposerPrimitiveSend {
   /**
    * Props for the ComposerPrimitive.Send component.
    * Inherits all button element props and action button functionality.
+   *
+   * `queueWhileRunning` keeps the button enabled while the thread is running;
+   * the message is queued and sent when the run ends.
    */
   export type Props = ActionButtonProps<typeof useComposerSend>;
 }
@@ -41,4 +46,5 @@ export namespace ComposerPrimitiveSend {
 export const ComposerPrimitiveSend = createActionButton(
   "ComposerPrimitive.Send",
   useComposerSend,
+  ["queueWhileRunning"],
 );
