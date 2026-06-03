@@ -352,27 +352,27 @@ const toolkit = {
   deploy: {
     type: "backend",
     render: ({ args, approval, respondToApproval, result }) => {
-    if (approval?.approved === undefined) {
-      return (
-        <div>
-          <p>Approve deploy to {args.target}?</p>
-          <button onClick={() => respondToApproval({ approved: true })}>
-            Approve
-          </button>
-          <button
-            onClick={() =>
-              respondToApproval({ approved: false, reason: "user denied" })
-            }
-          >
-            Deny
-          </button>
-        </div>
-      );
-    }
-    if (approval?.approved === false) return <p>Denied</p>;
-    if (result === undefined) return <p>Approved, deploying…</p>;
-    return <p>Deployed {result.deployed}</p>;
-  },
+      if (approval?.approved === undefined) {
+        return (
+          <div>
+            <p>Approve deploy to {args.target}?</p>
+            <button onClick={() => respondToApproval({ approved: true })}>
+              Approve
+            </button>
+            <button
+              onClick={() =>
+                respondToApproval({ approved: false, reason: "user denied" })
+              }
+            >
+              Deny
+            </button>
+          </div>
+        );
+      }
+      if (approval?.approved === false) return <p>Denied</p>;
+      if (result === undefined) return <p>Approved, deploying…</p>;
+      return <p>Deployed {result.deployed}</p>;
+    },
   },
 } satisfies Toolkit;
 
