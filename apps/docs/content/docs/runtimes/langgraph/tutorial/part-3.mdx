@@ -94,30 +94,30 @@ export const PurchaseStockToolUI: ToolCallMessagePartComponent<
   PurchaseStockArgs,
   string
 > = function PurchaseStockUI({ args, result, status, addResult }) {
-      const handleReject = async () => {
-        addResult(JSON.stringify({ approve: false }));
-      };
+  const handleReject = async () => {
+    addResult(JSON.stringify({ approve: false }));
+  };
 
-      const handleConfirm = async () => {
-        addResult(JSON.stringify({ approve: true }));
-      };
+  const handleConfirm = async () => {
+    addResult(JSON.stringify({ approve: true }));
+  };
 
-      return (
-        <div className="mb-4 flex flex-col items-center gap-2">
-          <div>
-            <pre className="whitespace-pre-wrap break-all text-center">
-              purchase_stock({JSON.stringify(args)})
-            </pre>
-          </div>
-          {!result && status.type !== "running" && (
-            <TransactionConfirmationPending
-              {...args}
-              onConfirm={handleConfirm}
-              onReject={handleReject}
-            />
-          )}
-        </div>
-      );
+  return (
+    <div className="mb-4 flex flex-col items-center gap-2">
+      <div>
+        <pre className="whitespace-pre-wrap break-all text-center">
+          purchase_stock({JSON.stringify(args)})
+        </pre>
+      </div>
+      {!result && status.type !== "running" && (
+        <TransactionConfirmationPending
+          {...args}
+          onConfirm={handleConfirm}
+          onReject={handleReject}
+        />
+      )}
+    </div>
+  );
 };
 ```
 
@@ -336,44 +336,44 @@ export const PurchaseStockToolUI: ToolCallMessagePartComponent<
   PurchaseStockArgs,
   string
 > = function PurchaseStockUI({ args, result, status, addResult }) {
-      let resultObj: PurchaseStockResult;
-      try {
-        resultObj = result ? JSON.parse(result) : {};
-      } catch (e) {
-        resultObj = { error: result! };
-      }
+  let resultObj: PurchaseStockResult;
+  try {
+    resultObj = result ? JSON.parse(result) : {};
+  } catch (e) {
+    resultObj = { error: result! };
+  }
 
-      const handleReject = () => {
-        addResult(JSON.stringify({ approve: false }));
-      };
+  const handleReject = () => {
+    addResult(JSON.stringify({ approve: false }));
+  };
 
-      const handleConfirm = async () => {
-        addResult(JSON.stringify({ approve: true }));
-      };
+  const handleConfirm = async () => {
+    addResult(JSON.stringify({ approve: true }));
+  };
 
-      return (
-        <div className="mb-4 flex flex-col items-center gap-2">
-          <div>
-            <pre className="whitespace-pre-wrap break-all text-center">
-              purchase_stock({JSON.stringify(args)})
-            </pre>
-          </div>
-          {!result && status.type !== "running" && (
-            <TransactionConfirmationPending
-              {...args}
-              onConfirm={handleConfirm}
-              onReject={handleReject}
-            />
-          )}
-          {resultObj.approve && <TransactionConfirmationFinal {...args} />}
-          {resultObj.approve === false && (
-            <pre className="font-bold text-red-600">User rejected purchase</pre>
-          )}
-          {resultObj.cancelled && (
-            <pre className="font-bold text-red-600">Cancelled</pre>
-          )}
-        </div>
-      );
+  return (
+    <div className="mb-4 flex flex-col items-center gap-2">
+      <div>
+        <pre className="whitespace-pre-wrap break-all text-center">
+          purchase_stock({JSON.stringify(args)})
+        </pre>
+      </div>
+      {!result && status.type !== "running" && (
+        <TransactionConfirmationPending
+          {...args}
+          onConfirm={handleConfirm}
+          onReject={handleReject}
+        />
+      )}
+      {resultObj.approve && <TransactionConfirmationFinal {...args} />}
+      {resultObj.approve === false && (
+        <pre className="font-bold text-red-600">User rejected purchase</pre>
+      )}
+      {resultObj.cancelled && (
+        <pre className="font-bold text-red-600">Cancelled</pre>
+      )}
+    </div>
+  );
 };
 ```
 

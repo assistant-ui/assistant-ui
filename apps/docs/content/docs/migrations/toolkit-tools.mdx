@@ -122,6 +122,7 @@ function TaskBoard() {
     () =>
       ({
         add_task: {
+          type: "frontend",
           description: "Add a task to the board.",
           parameters: z.object({ title: z.string() }),
           execute: async ({ title }) => {

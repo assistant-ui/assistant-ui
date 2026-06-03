@@ -158,15 +158,15 @@ export const toolkit = {
   github_get_issue: {
     type: "backend",
     render: ({ args, result }: { args: Args; result?: Result }) => (
-    <div className="rounded border p-3">
-      <div className="font-mono text-sm">{args.repo}#{args.number}</div>
-      {result && (
-        <a href={result.url} className="underline">
-          {result.title} ({result.state})
-        </a>
-      )}
-    </div>
-  ),
+      <div className="rounded border p-3">
+        <div className="font-mono text-sm">{args.repo}#{args.number}</div>
+        {result && (
+          <a href={result.url} className="underline">
+            {result.title} ({result.state})
+          </a>
+        )}
+      </div>
+    ),
   },
 } satisfies Toolkit;
 ```
@@ -185,19 +185,19 @@ export const toolkit = {
   github_get_issue: {
     type: "backend",
     render: ({ args, result }: { args: Args; result?: Result }) => (
-    <View style={{ borderWidth: 1, borderRadius: 6, padding: 12 }}>
-      <Text style={{ fontFamily: "Menlo", fontSize: 13 }}>
-        {args.repo}#{args.number}
-      </Text>
-      {result && (
-        <Pressable onPress={() => Linking.openURL(result.url)}>
-          <Text style={{ textDecorationLine: "underline" }}>
-            {result.title} ({result.state})
-          </Text>
-        </Pressable>
-      )}
-    </View>
-  ),
+      <View style={{ borderWidth: 1, borderRadius: 6, padding: 12 }}>
+        <Text style={{ fontFamily: "Menlo", fontSize: 13 }}>
+          {args.repo}#{args.number}
+        </Text>
+        {result && (
+          <Pressable onPress={() => Linking.openURL(result.url)}>
+            <Text style={{ textDecorationLine: "underline" }}>
+              {result.title} ({result.state})
+            </Text>
+          </Pressable>
+        )}
+      </View>
+    ),
   },
 } satisfies Toolkit;
 ```
@@ -216,17 +216,17 @@ export const toolkit = {
   github_get_issue: {
     type: "backend",
     render: ({ args, result }: { args: Args; result?: Result }) => (
-    <Box borderStyle="round" paddingX={1} flexDirection="column">
-      <Text>
-        {args.repo}#{args.number}
-      </Text>
-      {result && (
+      <Box borderStyle="round" paddingX={1} flexDirection="column">
         <Text>
-          {result.title} ({result.state}) — {result.url}
+          {args.repo}#{args.number}
         </Text>
-      )}
-    </Box>
-  ),
+        {result && (
+          <Text>
+            {result.title} ({result.state}) — {result.url}
+          </Text>
+        )}
+      </Box>
+    ),
   },
 } satisfies Toolkit;
 ```
@@ -235,6 +235,27 @@ export const toolkit = {
 </PlatformTabs>
 
 Register the toolkit once with `Tools({ toolkit })`. The toolkit key must match the name your MCP server publishes.
+
+```tsx title="app/components/RuntimeProvider.tsx"
+"use client";
+
+import { AssistantRuntimeProvider, Tools, useAui } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import type { ReactNode } from "react";
+
+import { toolkit } from "./GitHubIssueToolUI";
+
+export function MyRuntimeProvider({ children }: { children: ReactNode }) {
+  const runtime = useChatRuntime({ api: "/api/chat" });
+  const aui = useAui({ tools: Tools({ toolkit }) });
+
+  return (
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
 
 </Step>
 <Step>

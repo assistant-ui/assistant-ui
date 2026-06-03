@@ -852,20 +852,40 @@ Ensure keyboard navigation and screen reader support:
 Use `useInlineRender` to prevent unnecessary re-renders:
 
 ```tsx
-const renderHeavyComputation = useInlineRender(({ result }) => {
-  return <ComplexVisualization data={result} />;
-});
+import {
+  AuiProvider,
+  Tools,
+  type Toolkit,
+  useAui,
+  useInlineRender,
+} from "@assistant-ui/react";
+import type { ReactNode } from "react";
+import { useMemo } from "react";
 
-const toolkit = useMemo(
-  () =>
-    ({
-      heavyComputation: {
-        type: "backend",
-        render: renderHeavyComputation,
-      },
-    }) satisfies Toolkit,
-  [renderHeavyComputation],
-);
+function HeavyComputationToolProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const renderHeavyComputation = useInlineRender(({ result }) => {
+    return <ComplexVisualization data={result} />;
+  });
+
+  const toolkit = useMemo(
+    () =>
+      ({
+        heavyComputation: {
+          type: "backend",
+          render: renderHeavyComputation,
+        },
+      }) satisfies Toolkit,
+    [renderHeavyComputation],
+  );
+
+  const aui = useAui({ tools: Tools({ toolkit }) });
+
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
+}
 ```
 
 <Callout>
