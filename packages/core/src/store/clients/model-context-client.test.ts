@@ -156,4 +156,36 @@ describe("mergeModelContexts", () => {
       ),
     ).toThrow(/already exists/);
   });
+
+  it("preserves the highest priority when a lower-priority provider reuses the same tool object", () => {
+    const shared = {
+      ...stubTool(),
+      description: "high priority",
+    } as Tool<any, any>;
+    const execute = async () => ({ ok: true });
+    const merged = mergeModelContexts(
+      new Set([
+        provider({
+          priority: 1000,
+          tools: { shared },
+        }),
+        provider({
+          priority: 0,
+          tools: { shared },
+        }),
+        provider({
+          priority: 500,
+          tools: {
+            shared: {
+              description: "medium priority",
+              execute,
+            } as unknown as Tool<any, any>,
+          },
+        }),
+      ]),
+    );
+
+    expect(merged.tools?.shared?.description).toBe("high priority");
+    expect(merged.tools?.shared?.execute).toBe(execute);
+  });
 });

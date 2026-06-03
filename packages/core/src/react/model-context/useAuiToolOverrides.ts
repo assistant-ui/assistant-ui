@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useRef } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { Tool } from "assistant-stream";
 
@@ -20,23 +20,20 @@ type AuiToolOverrides = Record<string, AuiToolOverride<any, any>>;
  */
 export function useAuiToolOverrides(overrides: AuiToolOverrides): void {
   const aui = useAui();
-  const tools = useMemo(
-    () =>
-      Object.fromEntries(
-        Object.entries(overrides).map(([name, override]) => [
-          name,
-          override as Tool<any, any>,
-        ]),
-      ),
-    [overrides],
-  );
+  const overridesRef = useRef(overrides);
+  overridesRef.current = overrides;
 
   useEffect(() => {
     return aui.modelContext().register({
       getModelContext: () => ({
         priority: 1000,
-        tools,
+        tools: Object.fromEntries(
+          Object.entries(overridesRef.current).map(([name, override]) => [
+            name,
+            override as Tool<any, any>,
+          ]),
+        ),
       }),
     });
-  }, [aui, tools]);
+  }, [aui]);
 }

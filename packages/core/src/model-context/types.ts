@@ -92,7 +92,7 @@ export const mergeModelContexts = (
 
         if (!acc.tools) acc.tools = {};
         acc.tools[name] = tool;
-        toolPriorities[name] = priority;
+        toolPriorities[name] ??= priority;
       }
     }
     if (config.config) {

@@ -4,6 +4,7 @@
 "@assistant-ui/react-native": patch
 "@assistant-ui/react-ink": patch
 "@assistant-ui/x-generative-compiler": patch
+"assistant-stream": patch
 ---
 
 feat: add `stubTool()` and experimental `useAuiToolOverrides()` for locally executed generative toolkit tools
