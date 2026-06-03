@@ -34,8 +34,6 @@ import {
 import {
   type NoteState,
   type TaskBoardState,
-  type ManageNotesArgs,
-  type ManageTasksArgs,
   noteInitialState,
   noteSchema,
   taskBoardInitialState,
@@ -137,7 +135,7 @@ function TaskBoardToolOverrides({
 }) {
   useAuiToolOverrides({
     manage_tasks: {
-      execute: async (args: ManageTasksArgs) => {
+      execute: async (args) => {
         switch (args.action) {
           case "add": {
             const id = crypto.randomUUID();
@@ -302,7 +300,7 @@ function NotesPanel() {
           <button
             type="button"
             onClick={() => {
-              const id = `note-${Date.now().toString(36)}`;
+              const id = `note-${crypto.randomUUID()}`;
               setNoteIds((prev) => [...prev, id]);
             }}
             className="hover:bg-muted rounded p-1 transition-colors"
@@ -343,7 +341,7 @@ function NotesToolOverrides({
 }) {
   useAuiToolOverrides({
     manage_notes: {
-      execute: async (args: ManageNotesArgs) => {
+      execute: async (args) => {
         switch (args.action) {
           case "add": {
             const id = `note-${crypto.randomUUID()}`;
