@@ -566,14 +566,21 @@ function executeIsClient(member: t.ObjectProperty | t.ObjectMethod): boolean {
   );
 }
 
-/** Whether an `execute` is the human-in-the-loop sentinel. */
-function executeIsHitl(member: t.ObjectProperty | t.ObjectMethod): boolean {
+function executeIsSentinel(
+  member: t.ObjectProperty | t.ObjectMethod,
+  name: string,
+): boolean {
   return (
     t.isObjectProperty(member) &&
     t.isCallExpression(member.value) &&
-    t.isIdentifier(member.value.callee) &&
-    (member.value.callee.name === "hitl" ||
-      member.value.callee.name === "hitlTool")
+    t.isIdentifier(member.value.callee, { name })
+  );
+}
+
+/** Whether an `execute` is the human-in-the-loop sentinel. */
+function executeIsHitl(member: t.ObjectProperty | t.ObjectMethod): boolean {
+  return (
+    executeIsSentinel(member, "hitl") || executeIsSentinel(member, "hitlTool")
   );
 }
 
@@ -581,20 +588,12 @@ function executeIsHitl(member: t.ObjectProperty | t.ObjectMethod): boolean {
 function executeIsProviderTool(
   member: t.ObjectProperty | t.ObjectMethod,
 ): boolean {
-  return (
-    t.isObjectProperty(member) &&
-    t.isCallExpression(member.value) &&
-    t.isIdentifier(member.value.callee, { name: "providerTool" })
-  );
+  return executeIsSentinel(member, "providerTool");
 }
 
 /** Whether an `execute` is the local override sentinel. */
 function executeIsStubTool(member: t.ObjectProperty | t.ObjectMethod): boolean {
-  return (
-    t.isObjectProperty(member) &&
-    t.isCallExpression(member.value) &&
-    t.isIdentifier(member.value.callee, { name: "stubTool" })
-  );
+  return executeIsSentinel(member, "stubTool");
 }
 
 /** Drops the `"use client"` directive from an `execute` body (kept frontend). */

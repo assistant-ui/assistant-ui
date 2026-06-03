@@ -14,7 +14,7 @@ const provider = (ctx: ModelContextValue): ModelContextProvider => ({
   getModelContext: () => ctx,
 });
 
-const stubTool = (): Tool<any, any> =>
+const toolFixture = (): Tool<any, any> =>
   ({ description: "", parameters: {} as any }) as unknown as Tool<any, any>;
 
 const render = () => {
@@ -52,7 +52,9 @@ describe("ModelContext", () => {
     try {
       sub
         .getValue()
-        .register(provider({ tools: { foo: stubTool(), bar: stubTool() } }));
+        .register(
+          provider({ tools: { foo: toolFixture(), bar: toolFixture() } }),
+        );
       await tick();
 
       expect(sub.getValue().getState().toolNames).toEqual(["bar", "foo"]);
@@ -150,8 +152,8 @@ describe("mergeModelContexts", () => {
     expect(() =>
       mergeModelContexts(
         new Set([
-          provider({ tools: { duplicate: stubTool() } }),
-          provider({ tools: { duplicate: stubTool() } }),
+          provider({ tools: { duplicate: toolFixture() } }),
+          provider({ tools: { duplicate: toolFixture() } }),
         ]),
       ),
     ).toThrow(/already exists/);
@@ -159,7 +161,7 @@ describe("mergeModelContexts", () => {
 
   it("preserves the highest priority when a lower-priority provider reuses the same tool object", () => {
     const shared = {
-      ...stubTool(),
+      ...toolFixture(),
       description: "high priority",
     } as Tool<any, any>;
     const execute = async () => ({ ok: true });
