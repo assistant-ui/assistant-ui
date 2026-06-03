@@ -220,6 +220,22 @@ describe("adapter conversions", () => {
     expect(result).toHaveLength(0);
   });
 
+  it("drops reasoning messages when showThinking is false", () => {
+    const result = fromAgUiMessages(
+      [
+        { id: "u-1", role: "user", content: "hi" },
+        { id: "r-1", role: "reasoning", content: "thinking" },
+        { id: "a-1", role: "assistant", content: "done" },
+      ] as any,
+      { showThinking: false },
+    );
+
+    expect(result.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect((result[1] as any).content).toEqual([
+      { type: "text", text: "done" },
+    ]);
+  });
+
   it("drops activity messages (no assistant-part equivalent)", () => {
     const result = fromAgUiMessages([
       { id: "u-1", role: "user", content: "hi" },

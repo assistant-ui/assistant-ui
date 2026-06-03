@@ -353,7 +353,9 @@ function toUserOrSystemSnapshotMessage(
 
 export function fromAgUiMessages(
   messages: readonly unknown[],
+  options?: { showThinking?: boolean },
 ): ThreadMessageLike[] {
+  const showThinking = options?.showThinking ?? true;
   const converted: ThreadMessageLike[] = [];
 
   for (const rawMessage of messages) {
@@ -455,6 +457,9 @@ export function fromAgUiMessages(
     }
 
     if (role === "reasoning") {
+      // Gate on showThinking so a cold reload matches the live run: the
+      // aggregator never stores reasoning parts when showThinking is false.
+      if (!showThinking) continue;
       // Convert plain-string reasoning content to a reasoning assistant part.
       const text = extractText(rawMessage.content);
       if (text.length === 0) continue;
