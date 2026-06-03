@@ -33,7 +33,13 @@ Tool UI is registered on toolkit entries. The same entry can define a browser-ex
 If you're creating tools on the client side, register them in a toolkit with `Tools({ toolkit })`.
 
 ```tsx
-import { Tools, type Toolkit, useAui } from "@assistant-ui/react";
+import {
+  AssistantRuntimeProvider,
+  Tools,
+  type Toolkit,
+  useAui,
+} from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { z } from "zod";
 
 const toolkit = {
@@ -67,8 +73,13 @@ const toolkit = {
 } satisfies Toolkit;
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime({ api: "/api/chat" });
   const aui = useAui({ tools: Tools({ toolkit }) });
-  return <AssistantRuntimeProvider aui={aui}>{children}</AssistantRuntimeProvider>;
+  return (
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
 }
 ```
 
