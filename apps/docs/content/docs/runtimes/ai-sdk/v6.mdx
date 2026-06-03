@@ -346,7 +346,16 @@ export default function Page() {
 Render the gate with a toolkit entry. The `approval` field carries the gate state, and `respondToApproval` is the only correct way to acknowledge it (it reads the approval id from the part):
 
 ```tsx title="@/app/page.tsx"
-import { AssistantRuntimeProvider, Tools, type Toolkit, useAui } from "@assistant-ui/react";
+import { useChat } from "@ai-sdk/react";
+import {
+  AssistantRuntimeProvider,
+  Tools,
+  type Toolkit,
+  useAui,
+} from "@assistant-ui/react";
+import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
+import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
+import { Thread } from "@/components/assistant-ui/thread";
 
 const toolkit = {
   deploy: {
@@ -377,7 +386,11 @@ const toolkit = {
 } satisfies Toolkit;
 
 export default function Page() {
-  const runtime = useMyRuntime();
+  const chat = useChat({
+    api: "/api/chat",
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+  });
+  const runtime = useAISDKRuntime(chat);
   const aui = useAui({ tools: Tools({ toolkit }) });
 
   return (

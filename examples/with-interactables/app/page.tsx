@@ -315,10 +315,7 @@ function NotesPanel() {
             action: z.enum(["add", "remove", "clear"]),
             noteId: z.string().optional(),
           }),
-          execute: async (args: {
-            action: "add" | "remove" | "clear";
-            noteId?: string;
-          }) => {
+          execute: async (args) => {
             switch (args.action) {
               case "add": {
                 const id = `note-${Date.now().toString(36)}`;

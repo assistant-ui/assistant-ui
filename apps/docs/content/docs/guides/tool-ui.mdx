@@ -298,19 +298,20 @@ const toolkit = {
 Use a local toolkit when the renderer needs component state:
 
 ```tsx
-import { AuiProvider, Tools, useAui, useInlineRender } from "@assistant-ui/react";
+import { useMemo, useState } from "react";
+import { AuiProvider, Tools, type Toolkit, useAui, useInlineRender } from "@assistant-ui/react";
 
 function DynamicToolUI({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState("light");
 
   const renderAnalyzeData = useInlineRender(({ result, status }) => {
-      return (
-        <DataVisualization
-          data={result}
-          theme={theme}
-          loading={status.type === "running"}
-        />
-      );
+    return (
+      <DataVisualization
+        data={result}
+        theme={theme}
+        loading={status.type === "running"}
+      />
+    );
   });
 
   const toolkit = useMemo(
@@ -343,20 +344,21 @@ For tools that need access to parent component props:
 </Callout>
 
 ```tsx
-import { AuiProvider, Tools, useAui, useInlineRender } from "@assistant-ui/react";
+import { useMemo } from "react";
+import { AuiProvider, Tools, type Toolkit, useAui, useInlineRender } from "@assistant-ui/react";
 
 function ProductPage({ productId, productName }) {
   const renderInventory = useInlineRender(({ result }) => {
-      // Access parent component props
-      return (
-        <div className="inventory-status">
-          <h4>{productName} Inventory</h4>
-          <p>
-            Stock for {productId}: {result.quantity} units
-          </p>
-          <p>Location: {result.warehouse}</p>
-        </div>
-      );
+    // Access parent component props
+    return (
+      <div className="inventory-status">
+        <h4>{productName} Inventory</h4>
+        <p>
+          Stock for {productId}: {result.quantity} units
+        </p>
+        <p>Location: {result.warehouse}</p>
+      </div>
+    );
   });
 
   const toolkit = useMemo(
