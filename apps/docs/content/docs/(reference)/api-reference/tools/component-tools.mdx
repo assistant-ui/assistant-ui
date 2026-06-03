@@ -9,24 +9,25 @@ import { useAssistantTool } from "@/generated/typeDocs";
 {/* Do not edit manually. */}
 
 {/* api-manual:start */}
-`useAssistantTool` and `makeAssistantTool` register a single tool while a React component is mounted, and remove it on unmount.
+`useAssistantTool` and `makeAssistantTool` are deprecated compatibility APIs. Prefer registering a `Toolkit` with `Tools({ toolkit })`.
 
-Use these APIs when a tool's availability should follow a specific UI surface — for example, a tool that operates on whatever is currently selected in a panel that may or may not be present. For tools that should be available throughout an assistant subtree regardless of which UI is mounted, see [Toolkits](/docs/api-reference/tools/toolkits).
+For tools whose availability should follow a specific UI surface, build a toolkit in that component with `useMemo` and provide it through `useAui({ tools: Tools({ toolkit }) })`. See [Migrating Tools to Toolkits](/docs/migrations/toolkit-tools).
 
 For simple tool-call displays, use `renderText` instead of a custom `render` component:
 
 ```tsx
-useAssistantTool({
-  toolName: "search_docs",
-  type: "frontend",
-  description: "Search the docs.",
-  parameters: searchDocsSchema,
-  execute: async ({ query }) => searchDocs(query),
-  renderText: {
-    running: ({ args }) => `Searching for ${args.query}...`,
-    complete: "Search complete",
+const toolkit = {
+  search_docs: {
+    type: "frontend",
+    description: "Search the docs.",
+    parameters: searchDocsSchema,
+    execute: async ({ query }) => searchDocs(query),
+    renderText: {
+      running: ({ args }) => `Searching for ${args.query}...`,
+      complete: "Search complete",
+    },
   },
-});
+} satisfies Toolkit;
 ```
 {/* api-manual:end */}
 
@@ -37,6 +38,12 @@ useAssistantTool({
 ## API Reference
 
 ### makeAssistantTool
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use a toolkit with `Tools({ toolkit })` and register it via
+`useAui({ tools: Tools({ toolkit }) })` instead. See
+https://assistant-ui.com/docs/migrations/toolkit-tools.
+</Callout>
 
 Creates a React component that registers an assistant tool when rendered.
 
@@ -55,6 +62,12 @@ const makeAssistantTool: <TArgs extends Record<string, unknown>, TResult>(tool: 
 ```
 
 ### useAssistantTool
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use a toolkit with `Tools({ toolkit })` and register it via
+`useAui({ tools: Tools({ toolkit }) })` instead. See
+https://assistant-ui.com/docs/migrations/toolkit-tools.
+</Callout>
 
 Registers a tool with the assistant model context while the component is
 mounted.

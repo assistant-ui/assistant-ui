@@ -1,0 +1,170 @@
+---
+title: Migrating Tools to Toolkits
+description: Move makeAssistantTool, useAssistantTool, makeAssistantToolUI, and useAssistantToolUI registrations to the toolkit API.
+---
+
+The component and hook based tool APIs are deprecated:
+
+- `makeAssistantTool`
+- `useAssistantTool`
+- `makeAssistantToolUI`
+- `useAssistantToolUI`
+
+Use a toolkit registered with `Tools({ toolkit })` instead. Toolkits keep the model contract, browser execution, and tool-call rendering in one named map, which avoids duplicate registrations and makes the client/backend split explicit.
+
+## Before
+
+```tsx
+import { makeAssistantTool } from "@assistant-ui/react";
+import { z } from "zod";
+
+const WeatherTool = makeAssistantTool({
+  toolName: "get_weather",
+  description: "Get the current weather for a city.",
+  parameters: z.object({
+    city: z.string(),
+  }),
+  execute: async ({ city }) => fetchWeather(city),
+  render: ({ args, result }) => (
+    <WeatherCard city={args.city} weather={result} />
+  ),
+});
+
+export function App() {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <WeatherTool />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## After
+
+```tsx
+import {
+  AssistantRuntimeProvider,
+  Tools,
+  type Toolkit,
+  useAui,
+} from "@assistant-ui/react";
+import { z } from "zod";
+
+const toolkit = {
+  get_weather: {
+    description: "Get the current weather for a city.",
+    parameters: z.object({
+      city: z.string(),
+    }),
+    execute: async ({ city }) => fetchWeather(city),
+    render: ({ args, result }) => (
+      <WeatherCard city={args.city} weather={result} />
+    ),
+  },
+} satisfies Toolkit;
+
+export function App() {
+  const aui = useAui({
+    tools: Tools({ toolkit }),
+  });
+
+  return (
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+## Mechanical Steps
+
+1. Create a `Toolkit` object.
+2. Move each `toolName` into the toolkit key.
+3. Move `description`, `parameters`, `execute`, `providerOptions`, `render`, `renderText`, and `display` onto the toolkit entry.
+4. Register the toolkit once with `useAui({ tools: Tools({ toolkit }) })`.
+5. Remove `<Tool />`, `<ToolUI />`, `useAssistantTool(...)`, and `useAssistantToolUI(...)` registrations.
+
+## UI-Only Tool Renderers
+
+If you used `makeAssistantToolUI` or `useAssistantToolUI` for a backend, MCP, or LangGraph tool, move the renderer onto a backend toolkit entry:
+
+```tsx
+const toolkit = {
+  web_search: {
+    type: "backend",
+    render: ({ args, result }) => (
+      <SearchResults query={args.query} results={result?.results ?? []} />
+    ),
+  },
+} satisfies Toolkit;
+```
+
+Backend entries do not upload a schema or execute in the browser. They only attach UI for matching tool-call message parts.
+
+For a one-off renderer that should only affect a particular message surface, use `MessagePrimitive.Parts` inline tool render overrides instead of a global registration.
+
+## Dynamic Tools
+
+If a tool needs component state or props, build the toolkit inside that component and wrap the relevant subtree with an `AuiProvider`:
+
+```tsx
+function TaskBoard() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  const toolkit = useMemo(
+    () =>
+      ({
+        add_task: {
+          description: "Add a task to the board.",
+          parameters: z.object({ title: z.string() }),
+          execute: async ({ title }) => {
+            setTasks((prev) => [...prev, { id: crypto.randomUUID(), title }]);
+            return { ok: true };
+          },
+        },
+      }) satisfies Toolkit,
+    [],
+  );
+
+  const aui = useAui({
+    tools: Tools({ toolkit }),
+  });
+
+  return (
+    <AuiProvider value={aui}>
+      <TaskList tasks={tasks} />
+    </AuiProvider>
+  );
+}
+```
+
+Keep the toolkit object stable with `useMemo` when it closes over local state. This gives the same lifecycle behavior as the old hooks while using the new registry shape.
+
+## Generative Toolkits
+
+For tools authored in a `"use generative"` file, export a toolkit with `defineToolkit(...)`. The compiler splits backend, frontend, and human tools for you:
+
+```tsx
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+
+export default defineToolkit({
+  create_chart: {
+    description: "Create a chart for the user.",
+    parameters: z.object({
+      title: z.string(),
+      values: z.array(z.number()),
+    }),
+    execute: async ({ title, values }) => {
+      "use client";
+      return renderChart(title, values);
+    },
+    render: ChartTool,
+  },
+});
+```
+
+Frontend and human tools produced by the generative compiler already have their schema defaults on the backend, so the client no longer re-uploads those schemas.

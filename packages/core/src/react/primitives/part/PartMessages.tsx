@@ -34,9 +34,10 @@ const usePartMessages = (): readonly ThreadMessage[] | undefined => {
  *
  * @example
  * ```tsx
- * const SubAgentToolUI = makeAssistantToolUI({
- *   toolName: "invoke_sub_agent",
- *   render: () => (
+ * const toolkit = {
+ *   invoke_sub_agent: {
+ *     type: "backend",
+ *     render: () => (
  *     <PartPrimitive.Messages>
  *       {({ message }) => {
  *         if (message.role === "user") return <MyUserMessage />;
@@ -44,7 +45,8 @@ const usePartMessages = (): readonly ThreadMessage[] | undefined => {
  *       }}
  *     </PartPrimitive.Messages>
  *   ),
- * });
+ *   },
+ * } satisfies Toolkit;
  * ```
  */
 export const PartPrimitiveMessagesImpl: FC<PartPrimitiveMessages.Props> = ({

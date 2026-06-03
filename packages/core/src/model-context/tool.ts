@@ -7,7 +7,7 @@ import type { Tool } from "assistant-stream";
  * optional model-output conversion.
  *
  * This helper keeps reusable tool definitions type-checked and convenient to
- * export for a {@link Toolkit}, {@link Tools}, or {@link useAssistantTool}.
+ * export for a {@link Toolkit} registered with {@link Tools}.
  * Inference from parameter schemas is currently limited, so provide generic
  * arguments when you need precise args or result types.
  *

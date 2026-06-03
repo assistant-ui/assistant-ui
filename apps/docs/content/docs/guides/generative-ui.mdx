@@ -25,7 +25,7 @@ matches your integration:
 | Pattern | API | Best for | Streaming |
 |---------|-----|----------|-----------|
 | **Generative UI primitive** | `MessagePrimitive.GenerativeUI` + allowlist | Composing dashboards, cards, and layouts from a component vocabulary you ship | Native `generative-ui` parts update progressively when the part spec changes incrementally |
-| **Tool UI** | `makeAssistantToolUI` | Interactive widgets tied to a known tool (forms, pickers, charts) | Tool **args** stream while the model fills them in |
+| **Tool UI** | `Tools({ toolkit })` with `render` | Interactive widgets tied to a known tool (forms, pickers, charts) | Tool **args** stream while the model fills them in |
 | **LangGraph data UI** | `makeAssistantDataUI` + `ui_message` | LangGraph agents emitting UI via the LangGraph stream | UI messages arrive on the LangGraph custom channel |
 
 See also: [Tool UI guide](/docs/guides/tool-ui), [LangGraph generative UI](/docs/runtimes/langgraph/generative-ui).

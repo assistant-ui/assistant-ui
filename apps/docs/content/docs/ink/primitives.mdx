@@ -475,7 +475,7 @@ Container `Box` for a single message.
 
 ### Parts
 
-Renders message content parts via a `components` prop. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to components provided here. Default terminal-safe renderers are provided for text, reasoning, source, image, file, and data parts.
+Renders message content parts via a `components` prop. Tool call and data parts automatically render registered toolkit renderers and data UIs (via `useAssistantDataUI`), falling back to components provided here. Default terminal-safe renderers are provided for text, reasoning, source, image, file, and data parts.
 
 ```tsx
 <MessagePrimitive.Parts>
@@ -509,7 +509,7 @@ Override part rendering with app-owned components when you need richer terminal 
   Deprecated. Use `MessagePrimitive.Parts` instead. See the [v0.11 migration guide](/docs/migrations/v0-11) for details.
 </Callout>
 
-Renders message content parts using render props. Tool call and data parts automatically render registered tool UIs (via `useAssistantTool` / `useAssistantDataUI`), falling back to render props if provided.
+Renders message content parts using render props. Tool call and data parts automatically render registered toolkit renderers and data UIs (via `useAssistantDataUI`), falling back to render props if provided.
 
 ```tsx
 <MessagePrimitive.Content

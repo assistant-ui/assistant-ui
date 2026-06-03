@@ -64,19 +64,17 @@ type PriceSnapshotToolResult = {
 };
 ```
 
-Then, we use `makeAssistantToolUI` to define the tool UI:
+Then, we define a tool UI renderer:
 
 ```tsx title="@/components/tools/price-snapshot/PriceSnapshotTool.tsx"
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 
-export const PriceSnapshotTool = makeAssistantToolUI<
+export const PriceSnapshotToolUI: ToolCallMessagePartComponent<
   PriceSnapshotToolArgs,
   string
->({
-  toolName: "price_snapshot",
-  render: function PriceSnapshotUI({ args, result }) {
+> = function PriceSnapshotUI({ args, result }) {
     return (
       <div className="mb-4 flex flex-col items-center">
         <pre className="whitespace-pre-wrap break-all text-center">
@@ -84,8 +82,7 @@ export const PriceSnapshotTool = makeAssistantToolUI<
         </pre>
       </div>
     );
-  },
-});
+};
 ```
 
 This simply displays the tool name and arguments passed to it, but not the result.
@@ -93,14 +90,23 @@ This simply displays the tool name and arguments passed to it, but not the resul
 ### Bind tool UI
 
 ```tsx title="@/app/page.tsx" {1,8}
-import { PriceSnapshotTool } from "@/components/tools/price-snapshot/PriceSnapshotTool";
+import { PriceSnapshotToolUI } from "@/components/tools/price-snapshot/PriceSnapshotTool";
+import { AuiProvider, Tools, type Toolkit, useAui } from "@assistant-ui/react";
+
+const toolkit = {
+  price_snapshot: {
+    type: "backend",
+    render: PriceSnapshotToolUI,
+  },
+} satisfies Toolkit;
 
 export default function Home() {
+  const aui = useAui({ tools: Tools({ toolkit }) });
+
   return (
-    <div className="flex h-full flex-col">
-      <PriceSnapshotTool />
+    <AuiProvider value={aui}>
       <Thread />
-    </div>
+    </AuiProvider>
   );
 }
 ```
@@ -201,7 +207,7 @@ We will import the new `<PriceSnapshot />` component and use it in the `render` 
 "use client";
 
 import { PriceSnapshot } from "./price-snapshot";
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 
 type PriceSnapshotToolArgs = {
   ticker: string;
@@ -216,12 +222,10 @@ type PriceSnapshotToolResult = {
   };
 };
 
-export const PriceSnapshotTool = makeAssistantToolUI<
+export const PriceSnapshotToolUI: ToolCallMessagePartComponent<
   PriceSnapshotToolArgs,
   string
->({
-  toolName: "price_snapshot",
-  render: function PriceSnapshotUI({ args, result }) {
+> = function PriceSnapshotUI({ args, result }) {
     let resultObj: PriceSnapshotToolResult | { error: string };
     try {
       resultObj = result ? JSON.parse(result) : {};
@@ -242,8 +246,7 @@ export const PriceSnapshotTool = makeAssistantToolUI<
         )}
       </div>
     );
-  },
-});
+};
 ```
 
 ### Try it out!
@@ -320,12 +323,20 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
 ### Bind fallback UI
 
 ```tsx title="@/app/page.tsx"
+const toolkit = {
+  price_snapshot: {
+    type: "backend",
+    render: PriceSnapshotToolUI,
+  },
+} satisfies Toolkit;
+
 export default function Home() {
+  const aui = useAui({ tools: Tools({ toolkit }) });
+
   return (
-    <div className="flex h-full flex-col">
-      <PriceSnapshotTool />
+    <AuiProvider value={aui}>
       <Thread />
-    </div>
+    </AuiProvider>
   );
 }
 ```

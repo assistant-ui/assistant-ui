@@ -9,16 +9,16 @@ description: Tool definitions, React renderers, status helpers, and toolkits for
 {/* api-manual:start */}
 Use these APIs when your assistant needs to call application code, render a custom tool result, or expose tool state inside a React UI.
 
-Tool **registration** has two scopes. Pick the one that matches the lifecycle you want for the tool. Tool **rendering** and **status** are independent of either choice and apply to both.
+Toolkits are the current registration API. Tool **rendering** and **status** are independent of the tool's execution location and apply to frontend, backend, human, and MCP tools.
 
-| | `Tools({ toolkit })` | `useAssistantTool` / `makeAssistantTool` |
-| --- | --- | --- |
-| Scope | Entire assistant subtree below the mount point | Only while the registering React component is mounted |
-| Lifecycle | Tied to the runtime / provider tree | Tied to a specific UI surface |
-| Typical use | App-wide tools, MCP merging, tools defined alongside the runtime | Tools whose availability depends on a UI being visible |
-| Stable reference | Pass a stable `toolkit` (module scope or `useMemo`) | Pass a stable tool object (module scope or `useMemo`) |
+| | `Tools({ toolkit })` |
+| --- | --- |
+| Scope | Entire assistant subtree below the mount point |
+| Lifecycle | Tied to the runtime / provider tree |
+| Typical use | App-wide tools, dynamic scoped tools, MCP merging, tools defined alongside the runtime |
+| Stable reference | Pass a stable `toolkit` (module scope or `useMemo`) |
 
-Both styles can coexist in the same app, and tools registered through either path participate in rendering and status APIs the same way.
+`useAssistantTool`, `makeAssistantTool`, `useAssistantToolUI`, and `makeAssistantToolUI` are deprecated compatibility APIs. See [Migrating Tools to Toolkits](/docs/migrations/toolkit-tools).
 {/* api-manual:end */}
 
 ## Pages

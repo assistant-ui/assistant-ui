@@ -27,7 +27,14 @@ When tools are executed, you can display custom generative UI components that pr
 
 ## Tools() API
 
-The `Tools()` API is the recommended starting point for registering tools in assistant-ui. It provides centralized tool registration that prevents duplicate registrations and works seamlessly with all runtimes. For tools whose availability depends on a specific part of your UI being mounted, see the [component-based APIs](#component-based-apis) below; both styles are supported and can be mixed in the same app.
+The `Tools()` API is the recommended way to register tools in assistant-ui. It provides centralized tool registration, keeps each tool's model schema and renderer together, and works across all runtimes.
+
+<Callout type="warn">
+  `makeAssistantTool`, `makeAssistantToolUI`, `useAssistantTool`, and
+  `useAssistantToolUI` are deprecated. See the
+  [toolkit migration guide](/docs/migrations/toolkit-tools) for the mechanical
+  migration.
+</Callout>
 
 ### Quick Start
 
@@ -90,7 +97,7 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 
 ### Tool Definition
 
-Each tool in the toolkit is a `ToolDefinition` object with these properties:
+Each key in a toolkit is the tool name the model sees. Each value is a `ToolDefinition` with the tool's model metadata, optional executor, and optional UI renderer:
 
 ```tsx
 type ToolDefinition =
@@ -116,6 +123,54 @@ type ToolDefinition =
       render?: (props) => React.ReactNode;
     };
 ```
+
+### Toolkit Defaults
+
+Toolkits are also where you express client-side knowledge about server-defined tools. If your backend already defines a tool's description, parameters, and executor, register a minimal backend entry and only add the client renderer:
+
+```tsx
+const toolkit = {
+  web_search: {
+    type: "backend",
+    render: WebSearchToolUI,
+  },
+} satisfies Toolkit;
+```
+
+For frontend tools, put the schema and browser executor in the same entry:
+
+```tsx
+const toolkit = {
+  copy_to_clipboard: {
+    type: "frontend",
+    description: "Copy text to the user's clipboard.",
+    parameters: z.object({ text: z.string() }),
+    execute: async ({ text }) => {
+      await navigator.clipboard.writeText(text);
+      return { copied: true };
+    },
+    renderText: {
+      running: "Copying text...",
+      complete: "Copied text to clipboard",
+    },
+  },
+} satisfies Toolkit;
+```
+
+Human tools use `type: "human"` and resume when the UI calls `addResult`:
+
+```tsx
+const toolkit = {
+  request_approval: {
+    type: "human",
+    description: "Ask the user to approve an action.",
+    parameters: z.object({ action: z.string() }),
+    render: ApprovalToolUI,
+  },
+} satisfies Toolkit;
+```
+
+Tools are enabled by default. Set `disabled: true` when a tool should remain known to the client but not be exposed to the model for the current scope.
 
 ### Multi-modal Tool Results
 
@@ -353,143 +408,46 @@ const confirmationToolkit: Toolkit = {
 While a tool is running, its arguments arrive as partial JSON. Use `useToolArgsStatus` inside a tool UI render function to react to each top-level field as it streams in. The hook is exported from `@assistant-ui/react`.
 
 ```tsx
-import { useToolArgsStatus } from "@assistant-ui/react";
+import { useToolArgsStatus, type Toolkit } from "@assistant-ui/react";
 
-const SearchToolUI = makeAssistantToolUI<{ query: string; limit: number }, unknown>({
-  toolName: "search",
-  render: ({ args }) => {
-    const { propStatus } = useToolArgsStatus<{ query: string; limit: number }>();
+const toolkit = {
+  search: {
+    type: "backend",
+    render: ({ args }) => {
+      const { propStatus } = useToolArgsStatus<{
+        query: string;
+        limit: number;
+      }>();
 
-    return (
-      <div>
-        <span className={propStatus.query === "streaming" ? "animate-pulse" : ""}>
-          {args.query ?? "..."}
-        </span>
-        {propStatus.limit === "complete" && <span> (limit: {args.limit})</span>}
-      </div>
-    );
+      return (
+        <div>
+          <span
+            className={propStatus.query === "streaming" ? "animate-pulse" : ""}
+          >
+            {args.query ?? "..."}
+          </span>
+          {propStatus.limit === "complete" && (
+            <span> (limit: {args.limit})</span>
+          )}
+        </div>
+      );
+    },
   },
-});
+} satisfies Toolkit;
 ```
 
 `propStatus` maps each top-level key in the args object to `"streaming"` while it is still being parsed and to `"complete"` once that field is fully present.
 
-## Component-Based APIs
+## Deprecated Component APIs
 
-`makeAssistantTool`, `useAssistantTool`, and `makeAssistantToolUI` are component-and-hook-based APIs that coexist with the [`Tools()`](#tools-api) toolkit pattern. They are fully supported and the natural fit for the [intelligent components](/docs/copilots/motivation) pattern, where each part of your UI registers the tools it owns when it is mounted, for example a product-specific tool that should only be exposed while that product's screen is open.
+The component and hook registration APIs are still exported for compatibility, but new code should use toolkits:
 
-<Callout type="info">
-  Be careful not to register the same tool from both APIs at once: each API
-  registers under `toolName`, and duplicate registrations will be rejected.
-</Callout>
+- `makeAssistantTool` -> toolkit entry with `execute`/`render`
+- `useAssistantTool` -> toolkit entry registered through `useAui({ tools: Tools({ toolkit }) })`
+- `makeAssistantToolUI` -> toolkit entry with `render`
+- `useAssistantToolUI` -> toolkit entry with `render`, or an inline `MessagePrimitive.Parts` override for one message tree
 
-<Callout type="warn">
-  Tool **execution** can be registered dynamically (when a component mounts),
-  but tool **UI** should generally be pre-registered. A `render` function that
-  is only registered while a specific component is mounted will not render
-  when chat history is replayed or during server-side rendering. Either
-  declare the tool's `render` in a `Tools()` toolkit, or mount
-  `makeAssistantToolUI` near the root of your tree.
-</Callout>
-
-### Using `makeAssistantTool`
-
-Register tools with the assistant context. Returns a React component that registers the tool when rendered:
-
-```tsx
-import { makeAssistantTool, tool } from "@assistant-ui/react";
-import { z } from "zod";
-
-const weatherTool = tool({
-  description: "Get current weather for a location",
-  parameters: z.object({
-    location: z.string(),
-  }),
-  execute: async ({ location }) => {
-    const weather = await fetchWeatherAPI(location);
-    return weather;
-  },
-});
-
-const WeatherTool = makeAssistantTool({
-  ...weatherTool,
-  toolName: "getWeather",
-});
-
-// Place inside AssistantRuntimeProvider
-function App() {
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <WeatherTool />
-      <Thread />
-    </AssistantRuntimeProvider>
-  );
-}
-```
-
-Tradeoff: component-based registration is tied to React lifecycle, so the tool is registered when the component mounts and unregistered when it unmounts. Take care not to remount it accidentally if you also register the same tool elsewhere.
-
-### Using the `useAssistantTool` Hook
-
-Register tools dynamically using React hooks:
-
-```tsx
-import { useAssistantTool } from "@assistant-ui/react";
-import { z } from "zod";
-
-function DynamicTools() {
-  useAssistantTool({
-    toolName: "searchData",
-    description: "Search through the data",
-    parameters: z.object({
-      query: z.string(),
-    }),
-    execute: async ({ query }) => {
-      return await searchDatabase(query);
-    },
-  });
-
-  return null;
-}
-```
-
-Tradeoff: like `makeAssistantTool`, the registration follows the component lifecycle. Useful for dynamic tools that depend on component state or props.
-
-### Using `makeAssistantToolUI`
-
-Create UI-only components for tools defined elsewhere:
-
-```tsx
-import { makeAssistantToolUI } from "@assistant-ui/react";
-
-const SearchResultsUI = makeAssistantToolUI<
-  { query: string },
-  { results: Array<any> }
->({
-  toolName: "webSearch",
-  render: ({ args, result }) => {
-    return (
-      <div>
-        <h3>Search: {args.query}</h3>
-        {result.results.map((item) => (
-          <div key={item.id}>{item.title}</div>
-        ))}
-      </div>
-    );
-  },
-});
-
-function App() {
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <SearchResultsUI />
-      <Thread />
-    </AssistantRuntimeProvider>
-  );
-}
-```
-
-Tradeoff: like the other component-based APIs, the UI is registered while the component is mounted. Useful when the tool UI needs access to surrounding component state or context.
+See [Migrating Tools to Toolkits](/docs/migrations/toolkit-tools) for before/after examples, including dynamic tools that depend on React state.
 
 ## Tool Paradigms
 
@@ -605,18 +563,19 @@ Every tool definition accepts an optional `providerOptions` field. assistant-ui 
 
 ```tsx
 // Frontend: declare provider-specific metadata next to the tool.
-useAssistantTool({
-  toolName: "searchDocs",
-  description: "Search the documentation index.",
-  parameters: z.object({ query: z.string() }),
-  providerOptions: {
-    anthropic: { deferLoading: true },
+const toolkit = {
+  searchDocs: {
+    description: "Search the documentation index.",
+    parameters: z.object({ query: z.string() }),
+    providerOptions: {
+      anthropic: { deferLoading: true },
+    },
+    execute: async ({ query }) => searchIndex(query),
   },
-  execute: async ({ query }) => searchIndex(query),
-});
+} satisfies Toolkit;
 ```
 
-The same field is available on toolkit entries used with `Tools({ toolkit })` and on `makeAssistantTool`. The outer key is the provider name (`anthropic`, `openai`, ...); the inner object is whatever the provider's AI SDK package expects under `tool.providerOptions[<provider>]`. Refer to the provider's package docs for the exact shape and for any companion entries you may need in your route handler (for example, Anthropic exposes Tool Search Tool factories on the `anthropic.tools` namespace; see the [`@ai-sdk/anthropic` documentation](https://ai-sdk.dev/providers/ai-sdk-providers/anthropic) for the current API).
+The outer key is the provider name (`anthropic`, `openai`, ...); the inner object is whatever the provider's AI SDK package expects under `tool.providerOptions[<provider>]`. Refer to the provider's package docs for the exact shape and for any companion entries you may need in your route handler (for example, Anthropic exposes Tool Search Tool factories on the `anthropic.tools` namespace; see the [`@ai-sdk/anthropic` documentation](https://ai-sdk.dev/providers/ai-sdk-providers/anthropic) for the current API).
 
 <Callout type="info">
   `toToolsJSONSchema` emits tool entries in alphabetical order by name. Two
@@ -697,7 +656,7 @@ The second argument is an optional default value. The hook re-renders whenever t
 
 ## Best Practices
 
-1. **Pick one registration style per tool**: avoid registering the same tool through both the `Tools()` toolkit and a component-based API; both routes will register, and duplicates are rejected
+1. **Use toolkits for new code**: keep a tool's schema, executor, disabled state, and renderer in the same `Tools({ toolkit })` registration
 2. **Centralize Definitions**: Keep all tools in a toolkit file for easy management
 3. **Clear Descriptions**: Write descriptive tool descriptions that help the LLM understand when to use each tool
 4. **Parameter Validation**: Use Zod schemas to ensure type safety
@@ -707,7 +666,7 @@ The second argument is an optional default value. The hook re-renders whenever t
 8. **Performance**: Use abort signals for cancellable operations
 9. **Testing**: Test tools in isolation and with the full assistant flow
 
-## Switching from Component-Based to Toolkit
+## Migrating from Component-Based APIs
 
 If you prefer the toolkit shape, switching is mechanical:
 

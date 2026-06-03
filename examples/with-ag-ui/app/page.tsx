@@ -1,17 +1,17 @@
 "use client";
 
 import {
-  useAssistantTool,
   useAui,
   AuiProvider,
   Suggestions,
+  Tools,
+  type Toolkit,
 } from "@assistant-ui/react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { PlusIcon } from "lucide-react";
 
-function BrowserAlertTool() {
-  useAssistantTool<{ message: string }, { status: string }>({
-    toolName: "browser_alert",
+const toolkit = {
+  browser_alert: {
     description: "Display a native browser alert dialog to the user.",
     parameters: {
       type: "object",
@@ -43,10 +43,8 @@ function BrowserAlertTool() {
         )}
       </div>
     ),
-  });
-
-  return null;
-}
+  },
+} satisfies Toolkit;
 
 function NewThreadButton() {
   const aui = useAui();
@@ -86,11 +84,16 @@ function ThreadWithSuggestions() {
 }
 
 export default function Home() {
+  const aui = useAui({
+    tools: Tools({ toolkit }),
+  });
+
   return (
-    <main className="relative h-dvh">
-      <NewThreadButton />
-      <ThreadWithSuggestions />
-      <BrowserAlertTool />
-    </main>
+    <AuiProvider value={aui}>
+      <main className="relative h-dvh">
+        <NewThreadButton />
+        <ThreadWithSuggestions />
+      </main>
+    </AuiProvider>
   );
 }

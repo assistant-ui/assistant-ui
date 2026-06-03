@@ -40,9 +40,11 @@ Tools are functions that the assistant can use to interact with your application
 
 ```tsx
 import {
+  AuiProvider,
   makeAssistantVisible,
-  makeAssistantTool,
-  tool,
+  Tools,
+  type Toolkit,
+  useAui,
 } from "@assistant-ui/react";
 import { z } from "zod";
 
@@ -51,30 +53,29 @@ const ClickableButton = makeAssistantVisible(Button, {
   clickable: true, // Provides a click tool
 });
 
-// Via makeAssistantTool
-const submitForm = tool({
-  parameters: z.object({
-    email: z.string().email(),
-    name: z.string(),
-  }),
-  execute: async ({ email, name }) => {
-    // Implementation
-    return { success: true };
+// Via toolkit
+const toolkit = {
+  submitForm: {
+    type: "frontend",
+    parameters: z.object({
+      email: z.string().email(),
+      name: z.string(),
+    }),
+    execute: async ({ email, name }) => {
+      // Implementation
+      return { success: true };
+    },
   },
-});
-
-const SubmitFormTool = makeAssistantTool({
-  ...submitForm,
-  toolName: "submitForm"
-});
+} satisfies Toolkit;
 
 // Use in your component
 function Form() {
+  const aui = useAui({ tools: Tools({ toolkit }) });
+
   return (
-    <div>
+    <AuiProvider value={aui}>
       <form>{/* form fields */}</form>
-      <SubmitFormTool />
-    </div>
+    </AuiProvider>
   );
 }
 ```
@@ -134,8 +135,8 @@ Multiple providers can be registered, and their contexts will be composed:
 
 2. **Tools**
 
-   - Use the tool() helper to define tool schemas and behavior
-   - Prefer makeAssistantTool for reusable tools
+   - Use toolkit entries to define tool schemas and behavior
+   - Prefer `Tools({ toolkit })` for reusable tools
    - Handle errors gracefully
    - Consider async operations and loading states
    - Use the built-in click tool when possible

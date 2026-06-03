@@ -153,52 +153,39 @@ const runtime = useRemoteThreadListRuntime({
 
 ## Model Context Hooks
 
-### useAssistantTool
+### Tools
 
-Register a tool with an optional UI renderer. The tool definition is forwarded to the model, and when the model calls it, the `execute` function runs and the `render` component displays the result.
+Register tools with a toolkit. The tool definition is forwarded to the model, and when the model calls it, the `execute` function runs and the `render` component displays the result.
 
 ```tsx
-import { useAssistantTool } from "@assistant-ui/react-ink";
+import { AuiProvider, Tools, type Toolkit, useAui } from "@assistant-ui/react-ink";
 import { Text } from "ink";
 
-useAssistantTool({
-  toolName: "get_weather",
-  description: "Get the current weather for a city",
-  parameters: {
-    type: "object",
-    properties: {
-      city: { type: "string" },
+const toolkit = {
+  get_weather: {
+    type: "frontend",
+    description: "Get the current weather for a city",
+    parameters: {
+      type: "object",
+      properties: {
+        city: { type: "string" },
+      },
+      required: ["city"],
     },
-    required: ["city"],
+    execute: async ({ city }) => {
+      const res = await fetch(`https://api.weather.example/${city}`);
+      return res.json();
+    },
+    render: ({ args, result }) => (
+      <Text>{args.city}: {result?.temperature}°F</Text>
+    ),
   },
-  execute: async ({ city }) => {
-    const res = await fetch(`https://api.weather.example/${city}`);
-    return res.json();
-  },
-  render: ({ args, result }) => (
-    <Text>{args.city}: {result?.temperature}°F</Text>
-  ),
-});
-```
+} satisfies Toolkit;
 
-### useAssistantToolUI
-
-Register only a UI renderer for a tool (without tool definition or execute function).
-
-```tsx
-import { useAssistantToolUI } from "@assistant-ui/react-ink";
-import { Text } from "ink";
-
-useAssistantToolUI({
-  toolName: "get_weather",
-  render: ({ args, result, status }) => (
-    <Text>
-      {status?.type === "running"
-        ? `Loading weather for ${args.city}...`
-        : `${args.city}: ${result?.temperature}°F`}
-    </Text>
-  ),
-});
+function ToolProvider({ children }: { children: React.ReactNode }) {
+  const aui = useAui({ tools: Tools({ toolkit }) });
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
+}
 ```
 
 ### useAssistantInstructions
@@ -226,48 +213,9 @@ useAssistantDataUI({
   ),
 });
 ```
-### makeAssistantTool
+### Dynamic Tool Renderers
 
-Create a component that registers a tool when mounted.
-
-```tsx
-import { makeAssistantTool } from "@assistant-ui/react-ink";
-import { Text } from "ink";
-
-const WeatherTool = makeAssistantTool({
-  toolName: "get_weather",
-  description: "Get weather",
-  parameters: { type: "object", properties: { city: { type: "string" } }, required: ["city"] },
-  execute: async ({ city }) => ({ temperature: 72 }),
-  render: ({ args, result }) => <Text>{args.city}: {result?.temperature}°F</Text>,
-});
-
-// Mount inside AssistantRuntimeProvider to register
-<WeatherTool />
-```
-
-### makeAssistantToolUI
-
-Create a component that registers only a tool UI renderer (no tool definition or execute) when mounted.
-
-```tsx
-import { makeAssistantToolUI } from "@assistant-ui/react-ink";
-import { Text } from "ink";
-
-const WeatherToolUI = makeAssistantToolUI({
-  toolName: "get_weather",
-  render: ({ args, result, status }) => (
-    <Text>
-      {status?.type === "running"
-        ? `Loading weather for ${args.city}...`
-        : `${args.city}: ${result?.temperature}°F`}
-    </Text>
-  ),
-});
-
-// Mount inside AssistantRuntimeProvider to register
-<WeatherToolUI />
-```
+Use a toolkit with `useInlineRender` when the renderer closes over changing props.
 
 ### makeAssistantDataUI
 
@@ -299,7 +247,16 @@ const render = useInlineRender(({ args, result }) => (
   <Text>{args.city}: {result?.temperature}°F</Text>
 ));
 
-useAssistantToolUI({ toolName: "get_weather", render });
+const toolkit = useMemo(
+  () =>
+    ({
+      get_weather: {
+        type: "backend",
+        render,
+      },
+    }) satisfies Toolkit,
+  [render],
+);
 ```
 
 ## Runtime Providers

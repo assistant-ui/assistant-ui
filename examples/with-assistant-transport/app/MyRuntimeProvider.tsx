@@ -2,9 +2,11 @@
 
 import {
   AssistantRuntimeProvider,
+  Tools,
   type AssistantTransportConnectionMetadata,
-  makeAssistantTool,
+  type Toolkit,
   unstable_createMessageConverter as createMessageConverter,
+  useAui,
   useAssistantTransportRuntime,
 } from "@assistant-ui/react";
 import {
@@ -14,48 +16,55 @@ import {
 import type { ReactNode } from "react";
 import { z } from "zod";
 
-// Frontend tool with execute function
-const WeatherTool = makeAssistantTool({
-  type: "frontend",
-  toolName: "get_weather",
-  description: "Get the current weather for a city",
-  parameters: z.object({
-    location: z.string().describe("The city to get weather for"),
-    unit: z
-      .enum(["celsius", "fahrenheit"])
-      .optional()
-      .describe("Temperature unit"),
-  }),
-  execute: async ({ location, unit = "celsius" }) => {
-    console.log(`Getting weather for ${location} in ${unit}`);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+const toolkit = {
+  get_weather: {
+    type: "frontend",
+    description: "Get the current weather for a city",
+    parameters: z.object({
+      location: z.string().describe("The city to get weather for"),
+      unit: z
+        .enum(["celsius", "fahrenheit"])
+        .optional()
+        .describe("Temperature unit"),
+    }),
+    execute: async ({ location, unit = "celsius" }) => {
+      console.log(`Getting weather for ${location} in ${unit}`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const temp = Math.floor(Math.random() * 30) + 10;
-    const conditions = ["sunny", "cloudy", "rainy", "partly cloudy"];
-    const condition = conditions[Math.floor(Math.random() * conditions.length)];
+      const temp = Math.floor(Math.random() * 30) + 10;
+      const conditions = ["sunny", "cloudy", "rainy", "partly cloudy"];
+      const condition =
+        conditions[Math.floor(Math.random() * conditions.length)];
 
-    return {
-      location,
-      temperature: temp,
-      unit,
-      condition,
-      humidity: Math.floor(Math.random() * 40) + 40,
-      windSpeed: Math.floor(Math.random() * 20) + 5,
-    };
+      return {
+        location,
+        temperature: temp,
+        unit,
+        condition,
+        humidity: Math.floor(Math.random() * 40) + 40,
+        windSpeed: Math.floor(Math.random() * 20) + 5,
+      };
+    },
+    streamCall: async (reader) => {
+      console.log("streamCall", reader);
+      const city = await reader.args.get("location");
+      console.log("location", city);
+
+      const args = await reader.args.get();
+      console.log("args", args);
+
+      const result = await reader.response.get();
+      console.log("result", result);
+    },
+    renderText: {
+      running: ({ args }) => `Getting weather for ${args.location ?? "..."}`,
+      complete: ({ args, result }) =>
+        result
+          ? `${args.location}: ${result.temperature}° ${result.unit}, ${result.condition}`
+          : "Weather lookup complete",
+    },
   },
-  streamCall: async (reader) => {
-    console.log("streamCall", reader);
-    const city = await reader.args.get("location");
-    console.log("location", city);
-
-    const args = await reader.args.get();
-    console.log("args", args);
-
-    const result = await reader.response.get();
-    console.log("result", result);
-  },
-});
+} satisfies Toolkit;
 
 type MyRuntimeProviderProps = {
   children: ReactNode;
@@ -127,11 +136,12 @@ export function MyRuntimeProvider({ children }: MyRuntimeProviderProps) {
       console.log("Request cancelled");
     },
   });
+  const aui = useAui({
+    tools: Tools({ toolkit }),
+  });
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <WeatherTool />
-
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
       {children}
     </AssistantRuntimeProvider>
   );

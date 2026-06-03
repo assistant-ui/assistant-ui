@@ -22,7 +22,7 @@ The React API reference is organized by how you build with assistant-ui:
 
 <Cards>
   <Card title="Tools" href="/docs/api-reference/tools">
-    Define toolkits, register component-scoped tools, and render tool or data parts.
+    Define toolkits, install tool resources, and render tool or data parts.
   </Card>
   <Card title="Model Context" href="/docs/api-reference/model-context/context">
     Provide instructions, merge model context, and register inline renderers for model-facing state.
@@ -124,12 +124,10 @@ Add system prompt instructions
 
 ### Tool UI
 
-Register tool UIs
+Register toolkits and tool UIs
 
-- [`makeAssistantTool`](/docs/api-reference/tools/component-tools#makeassistanttool)
-- [`makeAssistantToolUI`](/docs/api-reference/tools/rendering#makeassistanttoolui)
-- [`useAssistantTool`](/docs/api-reference/tools/component-tools#useassistanttool)
-- [`useAssistantToolUI`](/docs/api-reference/tools/rendering#useassistanttoolui)
+- [`Toolkit`](/docs/api-reference/tools/toolkits#toolkit)
+- [`Tools`](/docs/api-reference/tools/toolkits#tools)
 
 Programmatically access the list of registered tool UIs via `useAuiState((s) => s.tools)` and `useAui().tools()`.
 

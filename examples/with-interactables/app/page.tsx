@@ -1,15 +1,16 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
   Interactables,
   Suggestions,
+  Tools,
+  type Toolkit,
   useAui,
   useAssistantInteractable,
   useInteractableState,
-  useAssistantTool,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
@@ -56,53 +57,66 @@ function TaskBoard() {
   const setStateRef = useRef(setState);
   setStateRef.current = setState;
 
-  useAssistantTool({
-    toolName: "manage_tasks",
-    description:
-      'Manage tasks on the task board. Actions: "add" (requires title), "toggle" (requires id), "remove" (requires id), "clear" (no extra fields).',
-    parameters: z.object({
-      action: z.enum(["add", "toggle", "remove", "clear"]),
-      title: z.string().optional(),
-      id: z.string().optional(),
-    }),
-    execute: async (args) => {
-      const set = setStateRef.current;
-      switch (args.action) {
-        case "add": {
-          const id = `task-${++nextTaskId}`;
-          set((prev) => ({
-            tasks: [
-              ...prev.tasks,
-              { id, title: args.title ?? "Untitled", done: false },
-            ],
-          }));
-          return { success: true, id };
-        }
-        case "toggle": {
-          if (!args.id) return { success: false, error: "id is required" };
-          set((prev) => ({
-            tasks: prev.tasks.map((t) =>
-              t.id === args.id ? { ...t, done: !t.done } : t,
-            ),
-          }));
-          return { success: true };
-        }
-        case "remove": {
-          if (!args.id) return { success: false, error: "id is required" };
-          set((prev) => ({
-            tasks: prev.tasks.filter((t) => t.id !== args.id),
-          }));
-          return { success: true };
-        }
-        case "clear": {
-          set({ tasks: [] });
-          return { success: true };
-        }
-        default:
-          return { success: false, error: "Unknown action" };
-      }
-    },
-  });
+  const toolkit = useMemo(
+    () =>
+      ({
+        manage_tasks: {
+          description:
+            'Manage tasks on the task board. Actions: "add" (requires title), "toggle" (requires id), "remove" (requires id), "clear" (no extra fields).',
+          parameters: z.object({
+            action: z.enum(["add", "toggle", "remove", "clear"]),
+            title: z.string().optional(),
+            id: z.string().optional(),
+          }),
+          execute: async (args: {
+            action: "add" | "toggle" | "remove" | "clear";
+            title?: string;
+            id?: string;
+          }) => {
+            const set = setStateRef.current;
+            switch (args.action) {
+              case "add": {
+                const id = `task-${++nextTaskId}`;
+                set((prev) => ({
+                  tasks: [
+                    ...prev.tasks,
+                    { id, title: args.title ?? "Untitled", done: false },
+                  ],
+                }));
+                return { success: true, id };
+              }
+              case "toggle": {
+                if (!args.id)
+                  return { success: false, error: "id is required" };
+                set((prev) => ({
+                  tasks: prev.tasks.map((t) =>
+                    t.id === args.id ? { ...t, done: !t.done } : t,
+                  ),
+                }));
+                return { success: true };
+              }
+              case "remove": {
+                if (!args.id)
+                  return { success: false, error: "id is required" };
+                set((prev) => ({
+                  tasks: prev.tasks.filter((t) => t.id !== args.id),
+                }));
+                return { success: true };
+              }
+              case "clear": {
+                set({ tasks: [] });
+                return { success: true };
+              }
+              default:
+                return { success: false, error: "Unknown action" };
+            }
+          },
+        },
+      }) satisfies Toolkit,
+    [],
+  );
+
+  useAui({ tools: Tools({ toolkit }) });
 
   const doneCount = state.tasks.filter((t) => t.done).length;
 
@@ -292,39 +306,49 @@ function NotesPanel() {
   const setSelectedIdRef = useRef(setSelectedId);
   setSelectedIdRef.current = setSelectedId;
 
-  useAssistantTool({
-    toolName: "manage_notes",
-    description:
-      'Manage sticky notes. Actions: "add" (creates a new note, returns its id), "remove" (requires noteId), "clear" (removes all notes). After adding, use the update_note_{id} tool to set its content.',
-    parameters: z.object({
-      action: z.enum(["add", "remove", "clear"]),
-      noteId: z.string().optional(),
-    }),
-    execute: async (args) => {
-      switch (args.action) {
-        case "add": {
-          const id = `note-${Date.now().toString(36)}`;
-          setNoteIdsRef.current((prev) => [...prev, id]);
-          return { success: true, noteId: id };
-        }
-        case "remove": {
-          if (args.noteId) {
-            setNoteIdsRef.current((prev) =>
-              prev.filter((id) => id !== args.noteId),
-            );
-          }
-          return { success: true };
-        }
-        case "clear": {
-          setNoteIdsRef.current([]);
-          setSelectedIdRef.current(null);
-          return { success: true };
-        }
-        default:
-          return { success: false, error: "Unknown action" };
-      }
-    },
-  });
+  const toolkit = useMemo(
+    () =>
+      ({
+        manage_notes: {
+          description:
+            'Manage sticky notes. Actions: "add" (creates a new note, returns its id), "remove" (requires noteId), "clear" (removes all notes). After adding, use the update_note_{id} tool to set its content.',
+          parameters: z.object({
+            action: z.enum(["add", "remove", "clear"]),
+            noteId: z.string().optional(),
+          }),
+          execute: async (args: {
+            action: "add" | "remove" | "clear";
+            noteId?: string;
+          }) => {
+            switch (args.action) {
+              case "add": {
+                const id = `note-${Date.now().toString(36)}`;
+                setNoteIdsRef.current((prev) => [...prev, id]);
+                return { success: true, noteId: id };
+              }
+              case "remove": {
+                if (args.noteId) {
+                  setNoteIdsRef.current((prev) =>
+                    prev.filter((id) => id !== args.noteId),
+                  );
+                }
+                return { success: true };
+              }
+              case "clear": {
+                setNoteIdsRef.current([]);
+                setSelectedIdRef.current(null);
+                return { success: true };
+              }
+              default:
+                return { success: false, error: "Unknown action" };
+            }
+          },
+        },
+      }) satisfies Toolkit,
+    [],
+  );
+
+  useAui({ tools: Tools({ toolkit }) });
 
   const handleSelect = useCallback((id: string) => {
     setSelectedId(id);

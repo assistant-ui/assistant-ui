@@ -123,9 +123,10 @@ app = graph.compile(interrupt_before=["execute"], checkpointer=MemorySaver())
 ### Approval UI Component
 
 ```tsx
-const TradeApproval = makeAssistantToolUI({
-  toolName: "execute_trade",
-  render: ({ args, status, addResult }) => {
+const toolkit = {
+  execute_trade: {
+    type: "backend",
+    render: ({ args, status, addResult }) => {
     if (status.type === "requires-action") {
       return (
         <div className="rounded-lg border p-4">
@@ -144,7 +145,8 @@ const TradeApproval = makeAssistantToolUI({
     }
     return <p>Trade {status}...</p>;
   },
-});
+  },
+} satisfies Toolkit;
 ```
 
 ## Source

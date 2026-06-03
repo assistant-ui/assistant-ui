@@ -3,7 +3,8 @@
 import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
-  makeAssistantTool,
+  Tools,
+  type Toolkit,
   useAui,
   useAuiState,
   AuiProvider,
@@ -15,25 +16,26 @@ import { TerminalIcon, CodeIcon, EyeIcon } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 
-const RenderHTMLTool = makeAssistantTool({
-  toolName: "render_html",
-  description:
-    "Whenever the user asks for HTML code, call this function. The user will see the HTML code rendered in their browser.",
-  parameters: z.object({
-    code: z.string(),
-  }),
-  execute: async () => {
-    return {};
+const toolkit = {
+  render_html: {
+    description:
+      "Whenever the user asks for HTML code, call this function. The user will see the HTML code rendered in their browser.",
+    parameters: z.object({
+      code: z.string(),
+    }),
+    execute: async () => {
+      return {};
+    },
+    render: () => {
+      return (
+        <div className="bg-primary text-primary-foreground my-2 inline-flex items-center gap-2 rounded-full border px-4 py-2">
+          <TerminalIcon className="size-4" />
+          render_html(&#123; code: &quot;...&quot; &#125;)
+        </div>
+      );
+    },
   },
-  render: () => {
-    return (
-      <div className="bg-primary text-primary-foreground my-2 inline-flex items-center gap-2 rounded-full border px-4 py-2">
-        <TerminalIcon className="size-4" />
-        render_html(&#123; code: &quot;...&quot; &#125;)
-      </div>
-    );
-  },
-});
+} satisfies Toolkit;
 
 function ArtifactsView() {
   const [tab, setTab] = useState<"source" | "preview">("source");
@@ -131,14 +133,16 @@ function ThreadWithSuggestions() {
 
 export default function Home() {
   const runtime = useChatRuntime();
+  const aui = useAui({
+    tools: Tools({ toolkit }),
+  });
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
       <main className="flex h-full justify-stretch">
         <div className="flex-grow basis-full">
           <ThreadWithSuggestions />
         </div>
-        <RenderHTMLTool />
         <ArtifactsView />
       </main>
     </AssistantRuntimeProvider>

@@ -45,7 +45,7 @@ export type Unstable_UseMentionAdapterOptions = {
   /** Categorized mentions for drill-down navigation. */
   readonly categories?: readonly Unstable_MentionCategory[];
   /**
-   * How tools registered via `useAssistantTool` integrate.
+   * How tools registered in model context integrate.
    * - `false`: exclude.
    * - `true`: include (default when no `items`/`categories`; as a category
    *   if `categories` is set, flat otherwise).
@@ -75,7 +75,7 @@ export type Unstable_MentionDirective = {
  * @deprecated Under active development and might change without notice.
  *
  * Creates a spreadable `{ adapter, directive }` bundle for `@` mentions.
- * Supports tools registered via `useAssistantTool`, explicit items, or both —
+ * Supports tools registered in model context, explicit items, or both —
  * flat or categorized.
  *
  * @example

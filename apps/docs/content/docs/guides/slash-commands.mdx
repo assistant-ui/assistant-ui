@@ -24,7 +24,7 @@ By default `Action` leaves a directive chip in the composer — giving the user 
 
 ### 1. Define Commands with `unstable_useSlashCommandAdapter`
 
-Declare commands (data + `execute` bundled together, like `useAssistantTool`). The hook returns `{ adapter, action }` — wire both into a single `<TriggerPopover>`:
+Declare commands (data + `execute` bundled together, like a toolkit entry). The hook returns `{ adapter, action }` — wire both into a single `<TriggerPopover>`:
 
 ```tsx
 import {

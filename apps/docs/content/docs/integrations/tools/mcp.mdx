@@ -13,7 +13,7 @@ client  ──►  /api/chat  ──►  MCP client  ──►  MCP server (HTTP
                             └─ tools()  ──►  passed to streamText({ tools })
 ```
 
-The MCP client lives on the server inside your AI SDK route handler. It connects to one or more MCP servers, calls `tools()` to get a tool map, and hands that map to `streamText`. assistant-ui's existing tool-call UI (`ToolFallback`, `makeAssistantToolUI`) renders the results.
+The MCP client lives on the server inside your AI SDK route handler. It connects to one or more MCP servers, calls `tools()` to get a tool map, and hands that map to `streamText`. assistant-ui's existing tool-call UI (`ToolFallback`, or toolkit entries with `render`) renders the results.
 
 ## Setup
 
@@ -141,7 +141,7 @@ If two servers expose tools with the same name, the later spread wins. Rename or
 
 ### Render results in the UI
 
-Tool calls flow through the existing assistant-ui tool-call rendering. With no setup, the bundled `<ToolFallback>` component renders the call name, arguments, and result. To customize the appearance for a specific tool, use `makeAssistantToolUI`:
+Tool calls flow through the existing assistant-ui tool-call rendering. With no setup, the bundled `<ToolFallback>` component renders the call name, arguments, and result. To customize the appearance for a specific tool, add a backend entry to your toolkit:
 
 <PlatformTabs>
 <Tab value="React">
@@ -149,14 +149,15 @@ Tool calls flow through the existing assistant-ui tool-call rendering. With no s
 ```tsx title="app/components/GitHubIssueToolUI.tsx"
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { Toolkit } from "@assistant-ui/react";
 
 type Args = { repo: string; number: number };
 type Result = { title: string; state: string; url: string };
 
-export const GitHubIssueToolUI = makeAssistantToolUI<Args, Result>({
-  toolName: "github_get_issue",
-  render: ({ args, result }) => (
+export const toolkit = {
+  github_get_issue: {
+    type: "backend",
+    render: ({ args, result }: { args: Args; result?: Result }) => (
     <div className="rounded border p-3">
       <div className="font-mono text-sm">{args.repo}#{args.number}</div>
       {result && (
@@ -166,22 +167,24 @@ export const GitHubIssueToolUI = makeAssistantToolUI<Args, Result>({
       )}
     </div>
   ),
-});
+  },
+} satisfies Toolkit;
 ```
 
 </Tab>
 <Tab value="React Native">
 
 ```tsx title="components/GitHubIssueToolUI.tsx"
-import { makeAssistantToolUI } from "@assistant-ui/react-native";
+import type { Toolkit } from "@assistant-ui/react-native";
 import { Linking, Pressable, Text, View } from "react-native";
 
 type Args = { repo: string; number: number };
 type Result = { title: string; state: string; url: string };
 
-export const GitHubIssueToolUI = makeAssistantToolUI<Args, Result>({
-  toolName: "github_get_issue",
-  render: ({ args, result }) => (
+export const toolkit = {
+  github_get_issue: {
+    type: "backend",
+    render: ({ args, result }: { args: Args; result?: Result }) => (
     <View style={{ borderWidth: 1, borderRadius: 6, padding: 12 }}>
       <Text style={{ fontFamily: "Menlo", fontSize: 13 }}>
         {args.repo}#{args.number}
@@ -195,22 +198,24 @@ export const GitHubIssueToolUI = makeAssistantToolUI<Args, Result>({
       )}
     </View>
   ),
-});
+  },
+} satisfies Toolkit;
 ```
 
 </Tab>
 <Tab value="React Ink">
 
 ```tsx title="components/GitHubIssueToolUI.tsx"
-import { makeAssistantToolUI } from "@assistant-ui/react-ink";
+import type { Toolkit } from "@assistant-ui/react-ink";
 import { Box, Text } from "ink";
 
 type Args = { repo: string; number: number };
 type Result = { title: string; state: string; url: string };
 
-export const GitHubIssueToolUI = makeAssistantToolUI<Args, Result>({
-  toolName: "github_get_issue",
-  render: ({ args, result }) => (
+export const toolkit = {
+  github_get_issue: {
+    type: "backend",
+    render: ({ args, result }: { args: Args; result?: Result }) => (
     <Box borderStyle="round" paddingX={1} flexDirection="column">
       <Text>
         {args.repo}#{args.number}
@@ -222,13 +227,14 @@ export const GitHubIssueToolUI = makeAssistantToolUI<Args, Result>({
       )}
     </Box>
   ),
-});
+  },
+} satisfies Toolkit;
 ```
 
 </Tab>
 </PlatformTabs>
 
-Mount it once anywhere inside `<AssistantRuntimeProvider>`. The `toolName` must match the name your MCP server publishes.
+Register the toolkit once with `Tools({ toolkit })`. The toolkit key must match the name your MCP server publishes.
 
 </Step>
 <Step>

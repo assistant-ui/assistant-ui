@@ -98,44 +98,41 @@ function SmartTransactionHistory() {
 }
 ```
 
-### 3. Creating Tools (makeAssistantTool)
+### 3. Creating Tools
 
 Let's add transaction-specific tools for the assistant:
 
 ```tsx
-import { makeAssistantTool, tool } from "@assistant-ui/react";
+import { AuiProvider, Tools, type Toolkit, useAui } from "@assistant-ui/react";
 import { z } from "zod";
 
-// Define a tool to analyze transactions
-const analyzeTransaction = tool({
-  parameters: z.object({
-    transactionId: z.string(),
-    merchantName: z.string(),
-  }),
-  execute: async ({ transactionId, merchantName }) => {
-    // Analyze transaction patterns, merchant reputation, etc.
-    return {
-      isSuspicious: false,
-      merchantRating: 4.5,
-      similarTransactions: 3,
-      refundEligible: true,
-    };
+const toolkit = {
+  analyzeTransaction: {
+    type: "frontend",
+    parameters: z.object({
+      transactionId: z.string(),
+      merchantName: z.string(),
+    }),
+    execute: async ({ transactionId, merchantName }) => {
+      // Analyze transaction patterns, merchant reputation, etc.
+      return {
+        isSuspicious: false,
+        merchantRating: 4.5,
+        similarTransactions: 3,
+        refundEligible: true,
+      };
+    },
   },
-});
-
-// Create a tool component
-const TransactionAnalyzer = makeAssistantTool({
-  ...analyzeTransaction,
-  toolName: "analyzeTransaction",
-});
+} satisfies Toolkit;
 
 function SmartTransactionHistory() {
+  const aui = useAui({ tools: Tools({ toolkit }) });
+
   // Previous instructions...
   return (
-    <>
+    <AuiProvider value={aui}>
       <TransactionHistory transactions={transactions} />
-      <TransactionAnalyzer />
-    </>
+    </AuiProvider>
   );
 }
 ```
@@ -191,6 +188,6 @@ This creates a more intuitive and safer banking experience while maintaining the
 Learn more about each API:
 
 - [makeAssistantVisible](make-assistant-visible) for component understanding
-- [makeAssistantTool](make-assistant-tool) for transaction analysis
+- [Tools](/docs/guides/tools) for transaction analysis
 - [useAssistantInstructions](use-assistant-instructions) for behavior guidance
 - [Model Context](model-context) for dynamic context management

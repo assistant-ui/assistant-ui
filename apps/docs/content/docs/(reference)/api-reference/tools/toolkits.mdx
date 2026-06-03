@@ -11,7 +11,7 @@ import { ToolDefinition, Tools, tool } from "@/generated/typeDocs";
 {/* api-manual:start */}
 A `Toolkit` is a named map of model-facing tool definitions. The `Tools` resource installs a toolkit into an assistant subtree, registering each tool with the model context and each `render` component with the tool-call renderer scope.
 
-Use these APIs when you want a tool's availability to follow your runtime or provider tree rather than the mount state of a specific React component. For tools whose lifetime should follow a specific UI surface, see [Component Tools](/docs/api-reference/tools/component-tools).
+Use these APIs when you want a tool's availability to follow your runtime or provider tree. The older component-scoped registration APIs are deprecated; see [Migrating Tools to Toolkits](/docs/migrations/toolkit-tools).
 {/* api-manual:end */}
 
 {/* api-reference:start */}
@@ -26,7 +26,7 @@ Defines a model tool with its argument schema, execution behavior, and
 optional model-output conversion.
 
 This helper keeps reusable tool definitions type-checked and convenient to
-export for a [Toolkit](/docs/api-reference/tools/toolkits#toolkit), [Tools](/docs/api-reference/tools/toolkits#tools), or [useAssistantTool](/docs/api-reference/tools/component-tools#useassistanttool).
+export for a [Toolkit](/docs/api-reference/tools/toolkits#toolkit) registered with [Tools](/docs/api-reference/tools/toolkits#tools).
 Inference from parameter schemas is currently limited, so provide generic
 arguments when you need precise args or result types.
 
@@ -49,11 +49,10 @@ const getWeather = tool<{ city: string }, string>({
 
 Tool definition accepted by the React tool registry.
 
-Extends the core tool contract with a render component. Human tools rely on
-the renderer to collect input from the user. Frontend tools execute in the
-browser and require a UI surface for their progress and result. Backend
-tools execute server-side and may omit a renderer. The `render` component is
-required for frontend and human tools and optional for backend tools.
+Extends the core tool contract with tool-call display options. Human tools
+rely on `render` to collect input from the user. Frontend tools execute in
+the browser and require either `render` or `renderText` for their progress
+and result. Backend tools execute server-side and may omit a renderer.
 
 <ParametersTable {...ToolDefinition} />
 

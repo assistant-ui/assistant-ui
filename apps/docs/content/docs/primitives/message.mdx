@@ -117,7 +117,7 @@ For most new code, prefer `MessagePrimitive.Parts` with a `children` render func
 Tool call parts resolve in this order:
 
 1. **`tools.Override`**: if provided inline through the deprecated `components` prop, handles **all** tool calls
-2. **Globally registered tools**: tools registered via `makeAssistantTool` / `useAssistantToolUI`
+2. **Globally registered tools**: tools registered via `Tools({ toolkit })`
 3. **`tools.by_name[toolName]`**: per-`MessagePrimitive.Parts` inline overrides from the deprecated `components` prop
 4. **`tools.Fallback`**: catch-all for unmatched tool calls from the deprecated `components` prop
 5. **`part.toolUI`**: the resolved tool UI exposed directly in the children render function

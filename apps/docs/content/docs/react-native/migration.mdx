@@ -9,7 +9,7 @@ If you already have an assistant-ui web app, most of your code transfers directl
 
 - **Runtime setup** — `useChatRuntime`, `useLocalRuntime`, `ChatModelAdapter`, and all runtime options work identically.
 - **AI SDK integration** — `@assistant-ui/react-ai-sdk` works with React Native. Your `useChatRuntime` + `AssistantChatTransport` setup transfers directly.
-- **Tool definitions** — `useAssistantTool`, `makeAssistantTool`, and tool UI renderers use the same API.
+- **Tool definitions** — `Tools({ toolkit })` and toolkit renderers use the same API.
 - **State hooks** — `useAuiState`, `useAui`, and selector patterns are the same.
 - **Backend code** — Your API routes, streaming endpoints, and server-side logic need zero changes.
 

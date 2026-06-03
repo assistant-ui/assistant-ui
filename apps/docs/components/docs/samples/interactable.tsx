@@ -7,9 +7,10 @@ import {
   useAuiState,
   Interactables,
   Suggestions,
+  Tools,
+  type Toolkit,
   useAssistantInteractable,
   useInteractableState,
-  useAssistantTool,
   ThreadPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
@@ -69,53 +70,66 @@ const TaskBoard: FC = () => {
   const setStateRef = useRef(setState);
   setStateRef.current = setState;
 
-  useAssistantTool({
-    toolName: "manage_tasks",
-    description:
-      'Manage tasks on the task board. Actions: "add" (requires title), "toggle" (requires id), "remove" (requires id), "clear" (no extra fields).',
-    parameters: z.object({
-      action: z.enum(["add", "toggle", "remove", "clear"]),
-      title: z.string().optional(),
-      id: z.string().optional(),
-    }),
-    execute: async (args) => {
-      const set = setStateRef.current;
-      switch (args.action) {
-        case "add": {
-          const id = `task-${++nextTaskId}`;
-          set((prev) => ({
-            tasks: [
-              ...prev.tasks,
-              { id, title: args.title ?? "Untitled", done: false },
-            ],
-          }));
-          return { success: true, id };
-        }
-        case "toggle": {
-          if (!args.id) return { success: false, error: "id is required" };
-          set((prev) => ({
-            tasks: prev.tasks.map((t) =>
-              t.id === args.id ? { ...t, done: !t.done } : t,
-            ),
-          }));
-          return { success: true };
-        }
-        case "remove": {
-          if (!args.id) return { success: false, error: "id is required" };
-          set((prev) => ({
-            tasks: prev.tasks.filter((t) => t.id !== args.id),
-          }));
-          return { success: true };
-        }
-        case "clear": {
-          set({ tasks: [] });
-          return { success: true };
-        }
-        default:
-          return { success: false, error: "Unknown action" };
-      }
-    },
-  });
+  const toolkit = useMemo(
+    () =>
+      ({
+        manage_tasks: {
+          description:
+            'Manage tasks on the task board. Actions: "add" (requires title), "toggle" (requires id), "remove" (requires id), "clear" (no extra fields).',
+          parameters: z.object({
+            action: z.enum(["add", "toggle", "remove", "clear"]),
+            title: z.string().optional(),
+            id: z.string().optional(),
+          }),
+          execute: async (args: {
+            action: "add" | "toggle" | "remove" | "clear";
+            title?: string;
+            id?: string;
+          }) => {
+            const set = setStateRef.current;
+            switch (args.action) {
+              case "add": {
+                const id = `task-${++nextTaskId}`;
+                set((prev) => ({
+                  tasks: [
+                    ...prev.tasks,
+                    { id, title: args.title ?? "Untitled", done: false },
+                  ],
+                }));
+                return { success: true, id };
+              }
+              case "toggle": {
+                if (!args.id)
+                  return { success: false, error: "id is required" };
+                set((prev) => ({
+                  tasks: prev.tasks.map((t) =>
+                    t.id === args.id ? { ...t, done: !t.done } : t,
+                  ),
+                }));
+                return { success: true };
+              }
+              case "remove": {
+                if (!args.id)
+                  return { success: false, error: "id is required" };
+                set((prev) => ({
+                  tasks: prev.tasks.filter((t) => t.id !== args.id),
+                }));
+                return { success: true };
+              }
+              case "clear": {
+                set({ tasks: [] });
+                return { success: true };
+              }
+              default:
+                return { success: false, error: "Unknown action" };
+            }
+          },
+        },
+      }) satisfies Toolkit,
+    [],
+  );
+
+  useAui({ tools: Tools({ toolkit }) });
 
   const toggleTask = (id: string) => {
     setState((prev) => ({

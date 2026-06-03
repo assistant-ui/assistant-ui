@@ -343,17 +343,15 @@ export default function Page() {
 }
 ```
 
-Render the gate with a tool UI. The `approval` field carries the gate state, and `respondToApproval` is the only correct way to acknowledge it (it reads the approval id from the part):
+Render the gate with a toolkit entry. The `approval` field carries the gate state, and `respondToApproval` is the only correct way to acknowledge it (it reads the approval id from the part):
 
-```tsx title="@/components/DeployToolUI.tsx"
-import { makeAssistantToolUI } from "@assistant-ui/react";
+```tsx title="@/app/page.tsx"
+import { AssistantRuntimeProvider, Tools, type Toolkit, useAui } from "@assistant-ui/react";
 
-export const DeployToolUI = makeAssistantToolUI<
-  { target: string },
-  { deployed: string }
->({
-  toolName: "deploy",
-  render: ({ args, approval, respondToApproval, result }) => {
+const toolkit = {
+  deploy: {
+    type: "backend",
+    render: ({ args, approval, respondToApproval, result }) => {
     if (approval?.approved === undefined) {
       return (
         <div>
@@ -375,7 +373,19 @@ export const DeployToolUI = makeAssistantToolUI<
     if (result === undefined) return <p>Approved, deploying…</p>;
     return <p>Deployed {result.deployed}</p>;
   },
-});
+  },
+} satisfies Toolkit;
+
+export default function Page() {
+  const runtime = useMyRuntime();
+  const aui = useAui({ tools: Tools({ toolkit }) });
+
+  return (
+    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
 ```
 
 See the [tool UI guide](/docs/guides/tool-ui#server-side-approval-gates) for the full three-state semantics of `approval.approved` and the `isAutomatic` flag.

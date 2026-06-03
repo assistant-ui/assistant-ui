@@ -6,6 +6,10 @@ import { type AssistantToolProps, useAssistantTool } from "./useAssistantTool";
  *
  * Rendering the component registers its tool for the lifetime of that render
  * subtree.
+ *
+ * @deprecated Use a toolkit with `Tools({ toolkit })` and register it via
+ * `useAui({ tools: Tools({ toolkit }) })` instead. See
+ * https://assistant-ui.com/docs/migrations/toolkit-tools.
  */
 export type AssistantTool = FC & {
   /** Tool definition registered by this component. */
@@ -19,6 +23,10 @@ export type AssistantTool = FC & {
  * rather than calling {@link useAssistantTool} directly.
  *
  * @param tool - Tool definition and name to register.
+ *
+ * @deprecated Use a toolkit with `Tools({ toolkit })` and register it via
+ * `useAui({ tools: Tools({ toolkit }) })` instead. See
+ * https://assistant-ui.com/docs/migrations/toolkit-tools.
  */
 export const makeAssistantTool = <
   TArgs extends Record<string, unknown>,

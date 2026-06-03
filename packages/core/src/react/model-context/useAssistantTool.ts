@@ -10,6 +10,10 @@ import {
 
 /**
  * Props used to register a tool from React.
+ *
+ * @deprecated Use a toolkit with `Tools({ toolkit })` and register it via
+ * `useAui({ tools: Tools({ toolkit }) })` instead. See
+ * https://assistant-ui.com/docs/migrations/toolkit-tools.
  */
 export type AssistantToolProps<
   TArgs extends Record<string, unknown>,
@@ -33,6 +37,10 @@ export type AssistantToolProps<
  * scope or memoized with `useMemo`, to avoid re-registering on every render.
  *
  * @param tool - Tool definition and name to register.
+ *
+ * @deprecated Use a toolkit with `Tools({ toolkit })` and register it via
+ * `useAui({ tools: Tools({ toolkit }) })` instead. See
+ * https://assistant-ui.com/docs/migrations/toolkit-tools.
  *
  * @example
  * ```tsx

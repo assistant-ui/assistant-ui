@@ -81,19 +81,19 @@ type PurchaseStockResult = {
 };
 ```
 
-Then we use `makeAssistantToolUI` to define the tool UI:
+Then we define a tool UI renderer:
 
 ```tsx title="@/components/tools/purchase-stock/PurchaseStockTool.tsx"
 "use client";
 
 import { TransactionConfirmationPending } from "./transaction-confirmation-pending";
 import { TransactionConfirmationFinal } from "./transaction-confirmation-final";
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 
-export const PurchaseStockTool = makeAssistantToolUI<PurchaseStockArgs, string>(
-  {
-    toolName: "purchase_stock",
-    render: function PurchaseStockUI({ args, result, status, addResult }) {
+export const PurchaseStockToolUI: ToolCallMessagePartComponent<
+  PurchaseStockArgs,
+  string
+> = function PurchaseStockUI({ args, result, status, addResult }) {
       const handleReject = async () => {
         addResult(JSON.stringify({ approve: false }));
       };
@@ -118,9 +118,7 @@ export const PurchaseStockTool = makeAssistantToolUI<PurchaseStockArgs, string>(
           )}
         </div>
       );
-    },
-  },
-);
+};
 ```
 
 Finally, we add a `TransactionConfirmationPending` component to ask for approval.
@@ -209,15 +207,26 @@ export function TransactionConfirmationPending(props: TransactionConfirmation) {
 ### Bind approval UI
 
 ```tsx title="@/app/page.tsx" {1,8}
-import { PurchaseStockTool } from "@/components/tools/purchase-stock/PurchaseStockTool";
+import { PurchaseStockToolUI } from "@/components/tools/purchase-stock/PurchaseStockTool";
+
+const toolkit = {
+  price_snapshot: {
+    type: "backend",
+    render: PriceSnapshotToolUI,
+  },
+  purchase_stock: {
+    type: "backend",
+    render: PurchaseStockToolUI,
+  },
+} satisfies Toolkit;
 
 export default function Home() {
+  const aui = useAui({ tools: Tools({ toolkit }) });
+
   return (
-    <div className="flex h-full flex-col">
-      <PriceSnapshotTool />
-      <PurchaseStockTool />
+    <AuiProvider value={aui}>
       <Thread />
-    </div>
+    </AuiProvider>
   );
 }
 ```
@@ -305,7 +314,7 @@ We will import the new `<TransactionConfirmationFinal />` component and use it i
 
 import { TransactionConfirmationPending } from "./transaction-confirmation-pending";
 import { TransactionConfirmationFinal } from "./transaction-confirmation-final";
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 
 type PurchaseStockArgs = {
   ticker: string;
@@ -320,10 +329,10 @@ type PurchaseStockResult = {
   error?: string;
 };
 
-export const PurchaseStockTool = makeAssistantToolUI<PurchaseStockArgs, string>(
-  {
-    toolName: "purchase_stock",
-    render: function PurchaseStockUI({ args, result, status, addResult }) {
+export const PurchaseStockToolUI: ToolCallMessagePartComponent<
+  PurchaseStockArgs,
+  string
+> = function PurchaseStockUI({ args, result, status, addResult }) {
       let resultObj: PurchaseStockResult;
       try {
         resultObj = result ? JSON.parse(result) : {};
@@ -362,9 +371,7 @@ export const PurchaseStockTool = makeAssistantToolUI<PurchaseStockArgs, string>(
           )}
         </div>
       );
-    },
-  },
-);
+};
 ```
 
 ### Try it out!

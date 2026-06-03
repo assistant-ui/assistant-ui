@@ -6,7 +6,7 @@ Demonstrates **interactable components** — persistent UI components whose stat
 
 ### Task Board (single instance + custom tool)
 - `useInteractable("taskBoard", config)` — registers a single interactable
-- `useAssistantTool("manage_tasks")` — custom tool for incremental add/toggle/remove/clear
+- `Tools({ toolkit })` — custom tool for incremental add/toggle/remove/clear
 - Auto-generated `update_taskBoard` tool with **partial updates** (AI only sends changed fields)
 
 ### Sticky Notes (multi-instance + selection + partial updates)
@@ -38,5 +38,5 @@ Open [http://localhost:3000](http://localhost:3000) to see the example.
 - **Partial updates** — auto-generated tools use partial schemas; AI only sends changed fields
 - **Multi-instance** — same `name`, different `id`; tools named `update_{name}_{id}`
 - **Selection** — `setSelected(true)` marks a component as focused for the AI
-- **`useAssistantTool`** — custom frontend tools for fine-grained control
+- **`Tools({ toolkit })`** — custom frontend tools for fine-grained control
 - **`sendAutomaticallyWhen`** — auto-sends follow-up messages when tool calls complete

@@ -114,52 +114,40 @@ const runtime = useRemoteThreadListRuntime({
 
 ## Model Context Hooks
 
-### useAssistantTool
+### Tools
 
-Register a tool with an optional UI renderer. The tool definition is forwarded to the model, and when the model calls it, the `execute` function runs and the `render` component displays the result.
+Register tools with a toolkit. The tool definition is forwarded to the model, and when the model calls it, the `execute` function runs and the `render` component displays the result.
 
 ```tsx
-import { useAssistantTool } from "@assistant-ui/react-native";
+import { AuiProvider, Tools, type Toolkit, useAui } from "@assistant-ui/react-native";
 
-useAssistantTool({
-  toolName: "get_weather",
-  description: "Get the current weather for a city",
-  parameters: {
-    type: "object",
-    properties: {
-      city: { type: "string" },
+const toolkit = {
+  get_weather: {
+    type: "frontend",
+    description: "Get the current weather for a city",
+    parameters: {
+      type: "object",
+      properties: {
+        city: { type: "string" },
+      },
+      required: ["city"],
     },
-    required: ["city"],
+    execute: async ({ city }) => {
+      const res = await fetch(`https://api.weather.example/${city}`);
+      return res.json();
+    },
+    render: ({ args, result }) => (
+      <View>
+        <Text>{args.city}: {result?.temperature}°F</Text>
+      </View>
+    ),
   },
-  execute: async ({ city }) => {
-    const res = await fetch(`https://api.weather.example/${city}`);
-    return res.json();
-  },
-  render: ({ args, result }) => (
-    <View>
-      <Text>{args.city}: {result?.temperature}°F</Text>
-    </View>
-  ),
-});
-```
+} satisfies Toolkit;
 
-### useAssistantToolUI
-
-Register only a UI renderer for a tool (without tool definition or execute function).
-
-```tsx
-import { useAssistantToolUI } from "@assistant-ui/react-native";
-
-useAssistantToolUI({
-  toolName: "get_weather",
-  render: ({ args, result, status }) => (
-    <View>
-      {status?.type === "running"
-        ? <Text>Loading weather for {args.city}...</Text>
-        : <Text>{args.city}: {result?.temperature}°F</Text>}
-    </View>
-  ),
-});
+function ToolProvider({ children }: { children: React.ReactNode }) {
+  const aui = useAui({ tools: Tools({ toolkit }) });
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
+}
 ```
 
 ### useAssistantDataUI
@@ -200,41 +188,16 @@ const stableRender = useInlineRender(({ args, result }) => (
   <Text>{someOuterProp}: {result?.value}</Text>
 ));
 
-useAssistantToolUI({ toolName: "my_tool", render: stableRender });
-```
-
-### makeAssistantTool
-
-Create a component that registers a tool when mounted. Useful for declarative tool registration.
-
-```tsx
-import { makeAssistantTool } from "@assistant-ui/react-native";
-
-const WeatherTool = makeAssistantTool({
-  toolName: "get_weather",
-  description: "Get weather",
-  parameters: { type: "object", properties: { city: { type: "string" } }, required: ["city"] },
-  execute: async ({ city }) => ({ temperature: 72 }),
-  render: ({ args, result }) => <Text>{args.city}: {result?.temperature}°F</Text>,
-});
-
-// Mount inside AssistantRuntimeProvider to register
-<WeatherTool />
-```
-
-### makeAssistantToolUI
-
-Create a component that registers only a tool UI renderer when mounted.
-
-```tsx
-import { makeAssistantToolUI } from "@assistant-ui/react-native";
-
-const WeatherToolUI = makeAssistantToolUI({
-  toolName: "get_weather",
-  render: ({ args, result }) => <Text>{args.city}: {result?.temperature}°F</Text>,
-});
-
-<WeatherToolUI />
+const toolkit = useMemo(
+  () =>
+    ({
+      my_tool: {
+        type: "backend",
+        render: stableRender,
+      },
+    }) satisfies Toolkit,
+  [stableRender],
+);
 ```
 
 ### makeAssistantDataUI

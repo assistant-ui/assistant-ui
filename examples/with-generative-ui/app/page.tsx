@@ -4,8 +4,9 @@ import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
   Suggestions,
+  Tools,
+  type Toolkit,
   useAui,
-  useAssistantTool,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
@@ -16,10 +17,9 @@ import { ContactFormToolUI } from "@/components/contact-form-tool-ui";
 import { LocationToolUI } from "@/components/location-tool-ui";
 import { ExampleNav } from "@/components/example-nav";
 
-// Register frontend tool schemas (no execute — resolved via addResult in the UI)
-function FrontendTools() {
-  useAssistantTool({
-    toolName: "select_date",
+const toolkit = {
+  select_date: {
+    type: "human",
     description:
       "Ask the user to select a date. Use this when you need to collect a date (e.g. for scheduling, booking, deadlines).",
     parameters: z.object({
@@ -27,10 +27,10 @@ function FrontendTools() {
       minDate: z.string().optional().describe("Minimum date (ISO string)"),
       maxDate: z.string().optional().describe("Maximum date (ISO string)"),
     }),
-  });
-
-  useAssistantTool({
-    toolName: "collect_contact",
+    render: DatePickerToolUI,
+  },
+  collect_contact: {
+    type: "human",
     description:
       "Collect contact information from the user. Use this when you need the user's name, email, or phone number.",
     parameters: z.object({
@@ -39,10 +39,17 @@ function FrontendTools() {
         .array(z.enum(["name", "email", "phone"]))
         .describe("Which fields to collect"),
     }),
-  });
-
-  return null;
-}
+    render: ContactFormToolUI,
+  },
+  generate_chart: {
+    type: "backend",
+    render: ChartToolUI,
+  },
+  show_location: {
+    type: "backend",
+    render: LocationToolUI,
+  },
+} satisfies Toolkit;
 
 export default function Home() {
   const runtime = useChatRuntime({
@@ -50,6 +57,7 @@ export default function Home() {
   });
 
   const aui = useAui({
+    tools: Tools({ toolkit }),
     suggestions: Suggestions([
       {
         title: "Show a bar chart",
@@ -78,13 +86,6 @@ export default function Home() {
 
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
-      {/* Frontend tools: register schemas, resolved via addResult in UI */}
-      <FrontendTools />
-      {/* Tool UIs: render components for each tool call */}
-      <ChartToolUI />
-      <LocationToolUI />
-      <DatePickerToolUI />
-      <ContactFormToolUI />
       <div className="flex h-full flex-col">
         <ExampleNav />
         <main className="min-h-0 flex-1">

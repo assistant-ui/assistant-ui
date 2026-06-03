@@ -12,7 +12,7 @@ When a tool call includes a `messages` field (`ToolCallMessagePart.messages`), i
 
 Key behaviors:
 
-- **Scope inheritance** — Parent tool UI registrations are available in sub-agent messages. A `makeAssistantToolUI` registered at the top level works inside sub-agent conversations too.
+- **Scope inheritance** — Parent toolkit renderers are available in sub-agent messages. A `Tools({ toolkit })` registration at the top level works inside sub-agent conversations too.
 - **Recursive** — Sub-agent messages can contain tool calls that themselves have nested messages. Just use `MessagePartPrimitive.Messages` again.
 - **Read-only** — Sub-agent messages are rendered in a readonly context. No editing, branching, or composing.
 
@@ -25,13 +25,15 @@ Key behaviors:
 
 ```tsx
 import {
-  makeAssistantToolUI,
+  Tools,
+  type Toolkit,
   MessagePartPrimitive,
 } from "@assistant-ui/react";
 
-const ResearchAgentToolUI = makeAssistantToolUI({
-  toolName: "invoke_researcher",
-  render: ({ args, status }) => (
+const toolkit = {
+  invoke_researcher: {
+    type: "backend",
+    render: ({ args, status }) => (
     <div className="my-2 rounded-lg border p-4">
       <div className="mb-2 text-sm font-medium text-gray-500">
         Researcher Agent {status.type === "running" && "(working...)"}
@@ -44,7 +46,8 @@ const ResearchAgentToolUI = makeAssistantToolUI({
       </MessagePartPrimitive.Messages>
     </div>
   ),
-});
+  },
+} satisfies Toolkit;
 ```
 
   </Step>
@@ -158,9 +161,10 @@ The `namespace` value mirrors the pipe-separated suffix on the LangGraph event n
 If a sub-agent's tool calls also have nested messages, the same pattern applies recursively:
 
 ```tsx
-const OuterAgentToolUI = makeAssistantToolUI({
-  toolName: "invoke_planner",
-  render: () => (
+const toolkit = {
+  invoke_planner: {
+    type: "backend",
+    render: () => (
     <div className="rounded border p-3">
       <h4>Planner Agent</h4>
       <MessagePartPrimitive.Messages>
@@ -191,7 +195,8 @@ const OuterAgentToolUI = makeAssistantToolUI({
       </MessagePartPrimitive.Messages>
     </div>
   ),
-});
+  },
+} satisfies Toolkit;
 ```
 
 ## ReadonlyThreadProvider

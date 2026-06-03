@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import {
   BarChart,
   Bar,
@@ -38,9 +38,8 @@ const COLORS = [
   "oklch(0.769 0.188 70.08)",
 ];
 
-export const ChartToolUI = makeAssistantToolUI<ChartArgs, ChartResult>({
-  toolName: "generate_chart",
-  render: function ChartUI({ args, status }) {
+export const ChartToolUI: ToolCallMessagePartComponent<ChartArgs, ChartResult> =
+  function ChartUI({ args, status }) {
     if (status.type === "running" && !args.data?.length) {
       return (
         <div className="flex items-center gap-2 rounded-lg border p-4">
@@ -130,5 +129,4 @@ export const ChartToolUI = makeAssistantToolUI<ChartArgs, ChartResult>({
         </div>
       </div>
     );
-  },
-});
+  };

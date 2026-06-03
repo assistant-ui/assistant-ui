@@ -54,6 +54,12 @@ const makeAssistantDataUI: <T = any>(dataUI: AssistantDataUIProps<T>) => Assista
 
 ### makeAssistantToolUI
 
+<Callout type="warn">
+<strong>Deprecated.</strong> Put `render`/`renderText` on the matching toolkit entry, or use
+`MessagePrimitive.Parts` inline tool render overrides for per-message UI.
+See https://assistant-ui.com/docs/migrations/toolkit-tools.
+</Callout>
+
 Creates a React component that registers a tool-call renderer when rendered.
 
 Use this to package reusable display components for tools whose definitions
@@ -106,11 +112,16 @@ mounted.
 
 ### useAssistantToolUI
 
+<Callout type="warn">
+<strong>Deprecated.</strong> Put `render`/`renderText` on the matching toolkit entry, or use
+`MessagePrimitive.Parts` inline tool render overrides for per-message UI.
+See https://assistant-ui.com/docs/migrations/toolkit-tools.
+</Callout>
+
 Registers a tool-call renderer while the component is mounted.
 
-This only affects rendering. Pair it with [useAssistantTool](/docs/api-reference/tools/component-tools#useassistanttool),
-[Tools](/docs/api-reference/tools/toolkits#tools), or a backend tool registry to expose the actual tool
-definition to the model.
+This only affects rendering. Pair it with [Tools](/docs/api-reference/tools/toolkits#tools) or a backend tool
+registry to expose the actual tool definition to the model.
 
 <ParametersTable {...useAssistantToolUI} />
 {/* api-reference:end */}

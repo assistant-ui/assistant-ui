@@ -52,7 +52,7 @@ export default defineToolkit({
     }),
     execute: async ({ query }: { query: string }) =>
       geocodeLocationWithOpenMeteo(query),
-    render: ({ toolName, args, result }) => {
+    render: ({ toolName, args, result }: any) => {
       const signature = formatToolCall(toolName, args);
       const icon = <MapPin className="size-4" />;
 

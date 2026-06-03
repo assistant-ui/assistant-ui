@@ -1,13 +1,13 @@
 ---
 title: Generative UI Example (Tool UI)
-description: Live demo of makeAssistantToolUI patterns — charts, date pickers, contact forms, and maps. For the GenerativeUI JSON-spec primitive, see /gui-chat and /primitive in the same example app.
+description: Live demo of toolkit Tool UI patterns — charts, date pickers, contact forms, and maps. For the GenerativeUI JSON-spec primitive, see /gui-chat and /primitive in the same example app.
 ---
 
 ## Overview
 
 The main route (`examples/with-generative-ui`) demonstrates **Tool UI**
-patterns using `makeAssistantToolUI` — not the `MessagePrimitive.GenerativeUI`
-JSON-spec primitive.
+patterns using toolkit `render` entries — not the
+`MessagePrimitive.GenerativeUI` JSON-spec primitive.
 
 - **Chart Generation** — AI returns structured data, rendered as bar/line/pie charts via Recharts
 - **Date Picker** — AI requests a date selection, user picks via native input, result sent back with `addResult`
@@ -18,7 +18,7 @@ JSON-spec primitive.
 
 | Route | What it demonstrates |
 |-------|---------------------|
-| `/` | Tool UI (`makeAssistantToolUI`) — interactive widgets |
+| `/` | Tool UI (`Tools({ toolkit })`) — interactive widgets |
 | `/primitive` | Static `GenerativeUIRender` with a hand-written spec |
 | `/gui-chat` | End-to-end chat with `render_gui` tool → `MessagePrimitive.GenerativeUI` bridge |
 
@@ -28,17 +28,19 @@ See the [Generative UI primitive guide](/docs/guides/generative-ui) for opt-in w
 
 ### Backend-Rendered Tools (Chart, Location)
 
-These tools have both backend `execute` functions and frontend `makeAssistantToolUI` components. The AI generates the data, the backend confirms, and the frontend renders rich UI from `args`:
+These tools have backend `execute` functions and frontend toolkit renderers. The AI generates the data, the backend confirms, and the frontend renders rich UI from `args`:
 
 ```tsx
-export const ChartToolUI = makeAssistantToolUI<ChartArgs, ChartResult>({
-  toolName: "generate_chart",
-  render: ({ args, status }) => {
+const toolkit = {
+  generate_chart: {
+    type: "backend",
+    render: ({ args, status }) => {
     const { title, type, data, xKey, dataKeys } = args;
     // Render a Recharts BarChart/LineChart/PieChart based on args
     return <ChartContainer config={buildChartConfig(dataKeys)}>...</ChartContainer>;
   },
-});
+  },
+} satisfies Toolkit;
 ```
 
 ### Frontend-Only Tools (Date Picker, Contact Form)
@@ -46,9 +48,10 @@ export const ChartToolUI = makeAssistantToolUI<ChartArgs, ChartResult>({
 These tools have no backend `execute` — the AI triggers the tool call, and the user completes it through interactive UI. The `addResult` callback sends the user's input back to the AI:
 
 ```tsx
-export const DatePickerToolUI = makeAssistantToolUI<DatePickerArgs, DatePickerResult>({
-  toolName: "select_date",
-  render: ({ args, result, addResult }) => {
+const toolkit = {
+  select_date: {
+    type: "human",
+    render: ({ args, result, addResult }) => {
     if (result) return <div>Selected: {result.date}</div>;
 
     return (
@@ -59,14 +62,15 @@ export const DatePickerToolUI = makeAssistantToolUI<DatePickerArgs, DatePickerRe
       </div>
     );
   },
-});
+  },
+} satisfies Toolkit;
 ```
 
 ## Key Concepts
 
 | Concept | Used In | Description |
 |---------|---------|-------------|
-| `makeAssistantToolUI` | All 4 tools | Register a React component to render when a specific tool is called |
+| `Tools({ toolkit })` | All 4 tools | Register a React renderer for a specific tool call |
 | `addResult` | Date Picker, Contact Form | Send user input back to the AI as the tool result |
 | `status.type` | Chart, Location | Show loading states while the AI streams tool arguments |
 | `args` streaming | Chart | Render partial UI as tool arguments stream in |
