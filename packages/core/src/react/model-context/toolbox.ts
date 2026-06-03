@@ -59,17 +59,9 @@ type ToolExecute<TArgs extends Record<string, unknown>, TResult> = (
   context: ToolExecuteContext,
 ) => TResult | Promise<TResult>;
 
-type ToolStreamCallContext = Parameters<
-  NonNullable<ToolDeclaration["streamCall"]>
->[1];
-
 type ToolStreamCall<TArgs extends Record<string, unknown>, TResult> = (
-  reader: {
-    args: ToolCallReader<TArgs, TResult>["args"];
-    response: ToolCallReader<TArgs, TResult>["response"];
-    result: ToolCallReader<TArgs, TResult>["result"];
-  },
-  context: ToolStreamCallContext,
+  reader: ToolCallReader<TArgs, TResult>,
+  context: ToolExecuteContext,
 ) => void;
 
 type ToolCallRunningText<TArgs extends Record<string, unknown>> =
@@ -113,10 +105,10 @@ export const makeToolCallTextComponent = <
   TResult,
 >(
   text: ToolCallText<TArgs, TResult>,
-) => {
+): ToolCallMessagePartComponent<TArgs, TResult> => {
   return function ToolCallTextComponent(part) {
     return resolveToolCallText(text, part);
-  } satisfies ToolCallMessagePartComponent<TArgs, TResult>;
+  };
 };
 
 /**

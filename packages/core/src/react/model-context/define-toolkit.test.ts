@@ -23,14 +23,26 @@ const checkDefineToolkitTypes = () => {
       parameters: {} as TestStandardSchema<{
         query: string;
         limit?: number;
+        tags: string[];
       }>,
-      execute: async ({ query, limit }: { query: string; limit?: number }) => ({
+      execute: async ({
+        query,
+        limit,
+      }: {
+        query: string;
+        limit?: number;
+        tags: string[];
+      }) => ({
         ids: [query],
         count: limit ?? 0,
       }),
       streamCall: async (reader) => {
         const query = await reader.args.get("query");
         expectType<string>(query);
+
+        expectType<AsyncIterable<string>>(reader.args.streamValues("query"));
+        expectType<AsyncIterable<unknown>>(reader.args.streamText("query"));
+        expectType<AsyncIterable<string>>(reader.args.forEach("tags"));
 
         const response = await reader.response.get();
         expectType<unknown>(response.result);
