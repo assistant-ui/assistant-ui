@@ -18,7 +18,7 @@ export const LocationToolUI: ToolCallMessagePartComponent<
   LocationArgs,
   LocationResult
 > = function LocationUI({ args, status }) {
-  if (status.type === "running" && !args.lat) {
+  if (status.type === "running" && (args.lat == null || args.lng == null)) {
     return (
       <div className="flex items-center gap-2 rounded-lg border p-4">
         <Loader2Icon className="text-muted-foreground size-4 animate-spin" />
@@ -30,7 +30,7 @@ export const LocationToolUI: ToolCallMessagePartComponent<
   }
 
   const { name, address, lat, lng } = args;
-  if (!lat || !lng) return null;
+  if (lat == null || lng == null) return null;
 
   const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}&layer=mapnik&marker=${lat},${lng}`;
 
