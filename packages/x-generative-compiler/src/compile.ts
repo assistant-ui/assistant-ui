@@ -19,8 +19,6 @@ export type ToolType = "frontend" | "backend" | "human" | "provider";
 const TOOLKIT_WRAPPER = "defineToolkit";
 /** The helper that produces MCP-only toolkit fragments. */
 const MCP_TOOLKIT_WRAPPER = "defineMcpToolkit";
-/** The sentinel for tools whose schema/execution are defined elsewhere. */
-const EXTERNAL_TOOL_SENTINEL = "externalTool";
 /** The required wrapper around a generative-UI library (stripped at build time). */
 const COMPONENTS_WRAPPER = "defineGenerativeComponents";
 /**
@@ -616,7 +614,7 @@ function executeIsStubTool(member: t.ObjectProperty | t.ObjectMethod): boolean {
 function executeIsExternalTool(
   member: t.ObjectProperty | t.ObjectMethod,
 ): boolean {
-  return executeIsSentinel(member, EXTERNAL_TOOL_SENTINEL);
+  return executeIsSentinel(member, "externalTool");
 }
 
 /** Drops the `"use client"` directive from an `execute` body (kept frontend). */
