@@ -536,6 +536,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         void runUserMessageRef.current(message);
       },
     });
+  } else if (!unstable_enableMessageQueue && queueRef.current) {
+    queueRef.current.adapter.clear("cancel-run");
+    queueRef.current = null;
   }
   const queueController = unstable_enableMessageQueue ? queueRef.current : null;
 
