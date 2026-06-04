@@ -21,6 +21,7 @@ import type {
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
   ThreadMessage,
+  ExternalThreadQueueAdapter,
 } from "@assistant-ui/core";
 import type { QueueItemState } from "@assistant-ui/core/store";
 import type { ComposerSendOptions } from "@assistant-ui/core/store";
@@ -32,19 +33,6 @@ const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
 
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
-};
-
-export type ExternalThreadQueueAdapter = {
-  /** The current queue items. */
-  items: readonly QueueItemState[];
-  /** Called when a message is submitted via the composer. Receives the steer preference. */
-  enqueue: (message: AppendMessage, opts: { steer: boolean }) => void;
-  /** Called to promote an existing queue item (cancel current run, run this immediately). */
-  steer: (queueItemId: string) => void;
-  /** Called to remove an item from the queue. */
-  remove: (queueItemId: string) => void;
-  /** Called to clear all pending queue items, with the reason for clearing. */
-  clear: (reason: "edit" | "reload" | "cancel-run") => void;
 };
 
 export type ExternalThreadProps = {
