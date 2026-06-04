@@ -631,4 +631,148 @@ describe("useLangGraphRuntime", () => {
 
     expect(initResult?.externalId).toBe("lg-thread-xyz");
   });
+
+  describe("unstable_enableMessageQueue", () => {
+    it("queues a message sent while running and drains it once the run settles", async () => {
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        // hold the first run open so the second send is queued
+        if (streamMock.mock.calls.length === 1) {
+          await gate.promise;
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(
+        () =>
+          useLangGraphRuntime({
+            stream: streamMock,
+            unstable_enableMessageQueue: true,
+          }),
+        {},
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      const send = async (text: string) => {
+        await act(async () => {
+          auiResult.current.composer().setText(text);
+          auiResult.current.composer().send();
+        });
+      };
+
+      await send("first");
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(auiResult.current.thread().getState().isRunning).toBe(true),
+      );
+
+      // sending while running queues instead of starting a second run
+      await send("second");
+      expect(streamMock).toHaveBeenCalledTimes(1);
+      expect(
+        auiResult.current
+          .thread()
+          .composer()
+          .getState()
+          .queue.map((q) => q.prompt),
+      ).toEqual(["second"]);
+      expect(auiResult.current.thread().getState().capabilities.queue).toBe(
+        true,
+      );
+
+      // settling the first run drains the queued message
+      await act(async () => {
+        gate.resolve();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(auiResult.current.thread().composer().getState().queue).toEqual(
+        [],
+      );
+
+      const secondRun = streamMock.mock.calls[1]?.[0];
+      expect(secondRun).toMatchObject([{ type: "human", content: "second" }]);
+    });
+
+    it("drains two queued items in separate runs, not all at once", async () => {
+      const releases: Array<() => void> = [];
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        await new Promise<void>((resolve) => {
+          releases.push(resolve);
+        });
+      });
+
+      const { result: runtimeResult } = renderHook(
+        () =>
+          useLangGraphRuntime({
+            stream: streamMock,
+            unstable_enableMessageQueue: true,
+          }),
+        {},
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      const send = async (text: string) => {
+        await act(async () => {
+          auiResult.current.composer().setText(text);
+          auiResult.current.composer().send();
+          await new Promise((r) => setTimeout(r, 0));
+        });
+      };
+
+      await send("first");
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+
+      // queue two while the first run is held open
+      await send("a");
+      await send("b");
+      expect(
+        auiResult.current
+          .thread()
+          .composer()
+          .getState()
+          .queue.map((q) => q.prompt),
+      ).toEqual(["a", "b"]);
+
+      // releasing only the first run flushes "a" (run #2); "b" stays queued
+      await act(async () => {
+        releases[0]!();
+        await new Promise((r) => setTimeout(r, 0));
+        await new Promise((r) => setTimeout(r, 0));
+      });
+      expect(streamMock).toHaveBeenCalledTimes(2);
+      expect(
+        auiResult.current
+          .thread()
+          .composer()
+          .getState()
+          .queue.map((q) => q.prompt),
+      ).toEqual(["b"]);
+
+      // releasing the second run flushes "b" (run #3)
+      await act(async () => {
+        releases[1]!();
+        await new Promise((r) => setTimeout(r, 0));
+        await new Promise((r) => setTimeout(r, 0));
+      });
+      expect(streamMock).toHaveBeenCalledTimes(3);
+      expect(auiResult.current.thread().composer().getState().queue).toEqual(
+        [],
+      );
+    });
+
+    it("does not expose the queue capability when the flag is off", async () => {
+      const streamMock = vi.fn(async function* () {});
+      const { result: runtimeResult } = renderHook(
+        () => useLangGraphRuntime({ stream: streamMock }),
+        {},
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      expect(auiResult.current.thread().getState().capabilities.queue).toBe(
+        false,
+      );
+    });
+  });
 });
