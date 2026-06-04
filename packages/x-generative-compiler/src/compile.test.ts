@@ -104,7 +104,7 @@ const client = () => compileGenerative(source, { target: "client" }).code;
 
 describe("compileGenerative — core/compiler compatibility", () => {
   it("allows a compiler version that satisfies core's optionalDevDependencies range", () => {
-    const filename = createCompatibilityFixture("^0.0.3");
+    const filename = createCompatibilityFixture(">=0.0.0");
 
     expect(() =>
       compileGenerative(minimalSource, { target: "server", filename }),
@@ -125,6 +125,23 @@ describe("compileGenerative — core/compiler compatibility", () => {
     expect(() =>
       compileGenerative(minimalSource, { target: "server", filename }),
     ).not.toThrow();
+  });
+
+  it("wraps malformed package metadata in a compile error", () => {
+    const filename = createCompatibilityFixture(">=0.0.0");
+    const packageJsonPath = nodePath.join(
+      nodePath.dirname(filename),
+      "..",
+      "node_modules",
+      "@assistant-ui",
+      "react",
+      "package.json",
+    );
+    writeFileSync(packageJsonPath, "{");
+
+    expect(() =>
+      compileGenerative(minimalSource, { target: "server", filename }),
+    ).toThrow(GenerativeCompileError);
   });
 });
 

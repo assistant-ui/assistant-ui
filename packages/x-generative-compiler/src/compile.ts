@@ -414,7 +414,15 @@ function findPackageJsonFromNodeModules(
 
 function readPackageJson(packageJsonPath: string): PackageJson | null {
   if (!existsSync(packageJsonPath)) return null;
-  return JSON.parse(readFileSync(packageJsonPath, "utf8")) as PackageJson;
+  try {
+    return JSON.parse(readFileSync(packageJsonPath, "utf8")) as PackageJson;
+  } catch (error) {
+    throw new GenerativeCompileError(
+      `could not parse package metadata at ${packageJsonPath}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
 }
 
 /**
