@@ -4,6 +4,7 @@ import { defineToolkit } from "./define-toolkit";
 import { hitl, hitlTool } from "./hitl";
 import { providerTool } from "./provider-tool";
 import { stubTool } from "./stub-tool";
+import { externalTool } from "./external-tool";
 import type { ToolkitDefinition } from "./toolbox";
 
 type TestStandardSchema<T> = {
@@ -97,5 +98,9 @@ describe("use-generative markers", () => {
 
   it("stubTool throws at runtime — it must be stripped by the compiler, never called", () => {
     expect(() => stubTool()).toThrow(/no runtime implementation/);
+  });
+
+  it("externalTool throws at runtime — it must be stripped by the compiler, never called", () => {
+    expect(() => externalTool()).toThrow(/no runtime implementation/);
   });
 });

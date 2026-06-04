@@ -1,0 +1,71 @@
+---
+title: Tools
+description: Give the model callable capabilities with assistant-ui toolkits — define frontend, backend, human, and provider tools, render tool calls as interactive UI, and connect MCP servers.
+platforms: ["react"]
+---
+
+Tools are how the model takes action: fetch data, call an API, query a database, drive your UI, or run a workflow. In assistant-ui you declare tools in a **toolkit** — a named map where each key is the tool name the model sees and each value describes the tool's schema, where it runs, and how its call renders in the chat.
+
+## Start here
+
+<Cards>
+  <Card title="Defining Tools" href="/docs/tools/defining-tools">
+    Author a toolkit with the `"use generative"` directive — frontend, backend, human, and provider tools, with the schema, executor, and renderer in one file.
+  </Card>
+  <Card title="Backend Tools" href="/docs/tools/backend">
+    Wire a toolkit into your AI SDK route with `generativeTools` / `frontendTools`, mix client and server tools, and round-trip multi-modal results.
+  </Card>
+  <Card title="Tool UI" href="/docs/tools/tool-ui">
+    Render tool calls as custom components — loading and result states, human-in-the-loop, approvals, and streaming.
+  </Card>
+  <Card title="Dynamic Tools" href="/docs/tools/dynamic-tools">
+    Tools whose executor closes over React state, via `stubTool()` + `useAuiToolOverrides`.
+  </Card>
+</Cards>
+
+## Define tools with `"use generative"`
+
+<Callout type="info">
+  Use `"use generative"` + `defineToolkit` for toolkits. For tools that execute
+  elsewhere, spread `defineMcpToolkit({ ... })` for MCP servers or use
+  `execute: externalTool()` to attach a renderer to a non-MCP external tool.
+</Callout>
+
+In a `"use generative"` file every tool declares an `execute` and the kind is
+**inferred** from it (you never write `type`). See
+[Defining Tools](/docs/tools/defining-tools#define-tools-with-use-generative).
+
+## Rendering AI output as UI
+
+assistant-ui has a few ways to turn model output into React UI. Pick by **who decides what renders**:
+
+| You want… | Use | The decider |
+| --- | --- | --- |
+| A custom component for a known tool call (form, picker, chart, status) | [Tool UI](/docs/tools/tool-ui) — `render` on a toolkit entry | the **model**, by calling the tool |
+| Persistent, out-of-thread state the AI can read and write | [Interactables](/docs/tools/interactables) | the **model + the user**, bidirectionally |
+| UI composed from a component vocabulary you ship, described as a JSON spec | [Generative UI (JSON spec)](/docs/tools/generative-ui) — `MessagePrimitive.GenerativeUI` | the **model**, composing a tree |
+| UI pushed by a LangGraph node alongside messages | [LangGraph Generative UI](/docs/runtimes/langgraph/generative-ui) — `makeAssistantDataUI` | the **backend / orchestrator** |
+
+## Connect external tools
+
+<Cards>
+  <Card title="MCP (server-side)" href="/docs/tools/mcp">
+    Wire one or more MCP servers into your API route as a tool catalog.
+  </Card>
+  <Card title="User-managed MCP" href="/docs/tools/user-managed-mcp">
+    Let end users add and authenticate MCP servers from the browser.
+  </Card>
+  <Card title="MCP Apps" href="/docs/tools/mcp-apps">
+    Render MCP UI resources (`ui://`) inline in sandboxed frames.
+  </Card>
+  <Card title="Multi-Agent" href="/docs/tools/multi-agent">
+    Render sub-agent conversations inside a tool call.
+  </Card>
+</Cards>
+
+## Reference & components
+
+- [Tools API Reference](/docs/api-reference/tools) — `tool`, `Toolkit`, `Tools`, and the tool-status hooks.
+- [`ToolFallback`](/docs/ui/tool-fallback) — a default tool card for tools with no custom UI.
+- [`ToolGroup`](/docs/ui/tool-group) — collapse consecutive tool calls into one container.
+- [Migrating Tools to Toolkits](/docs/migrations/toolkit-tools) — move off the deprecated `makeAssistantTool` / `useAssistantToolUI` APIs.

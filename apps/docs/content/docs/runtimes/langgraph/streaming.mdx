@@ -102,7 +102,7 @@ function MyComponent() {
 
 ## Generative UI
 
-LangGraph can emit structured UI components alongside assistant messages via `push_ui_message` (Python) or `typedUi().push()` (TypeScript). The assistant-ui adapter translates these into [`DataMessagePart`s](/docs/guides/tool-ui) on the associated assistant message, which you render with the existing `makeAssistantDataUI` API.
+LangGraph can emit structured UI components alongside assistant messages via `push_ui_message` (Python) or `typedUi().push()` (TypeScript). The assistant-ui adapter translates these into [`DataMessagePart`s](/docs/tools/tool-ui) on the associated assistant message, which you render with the existing `makeAssistantDataUI` API.
 
 See [Generative UI](/docs/runtimes/langgraph/generative-ui) for full setup: enabling the `custom` stream channel, emitting UI messages, registering renderers, dynamic loading, and persisting UI state across thread switches.
 

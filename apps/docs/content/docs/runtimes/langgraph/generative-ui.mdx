@@ -1,9 +1,9 @@
 ---
-title: Generative UI
+title: LangGraph Generative UI
 description: Render structured UI components emitted by LangGraph alongside assistant messages.
 ---
 
-LangGraph's [Generative UI](https://docs.langchain.com/langsmith/generative-ui-react) lets your graph emit structured UI components alongside assistant messages via `push_ui_message` (Python) or `typedUi().push()` (TypeScript). The assistant-ui adapter translates these into [`DataMessagePart`s](/docs/guides/tool-ui) on the associated assistant message, which you render with the existing `makeAssistantDataUI` API.
+LangGraph's [Generative UI](https://docs.langchain.com/langsmith/generative-ui-react) lets your graph emit structured UI components alongside assistant messages via `push_ui_message` (Python) or `typedUi().push()` (TypeScript). The assistant-ui adapter translates these into [`DataMessagePart`s](/docs/tools/tool-ui) on the associated assistant message, which you render with the existing `makeAssistantDataUI` API.
 
 ## Enable the `custom` stream mode
 

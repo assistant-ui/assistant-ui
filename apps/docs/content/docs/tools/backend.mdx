@@ -1,0 +1,139 @@
+---
+title: Backend Tools
+description: Wire assistant-ui toolkits into your server with the AI SDK — generativeTools, frontendTools, mixing client and server tools, and multi-modal results.
+platforms: ["react"]
+---
+
+A tool is only callable if the **model** knows about it, and the model is configured on your server. This page covers wiring a toolkit into an AI SDK route handler: exposing your generative toolkit, receiving client-defined tools, mixing the two, and round-tripping multi-modal results.
+
+For authoring tools, see [Defining Tools](/docs/tools/defining-tools). For MCP servers, see [MCP](/docs/tools/mcp).
+
+## The request body
+
+`@assistant-ui/react-ai-sdk` posts `{ messages, system, tools }` to your route. `tools` is the map of **frontend** tools the client serialized for this request (the model needs their schemas to call them, even though they run in the browser):
+
+```ts
+const {
+  messages,
+  system,
+  tools,
+}: {
+  messages: UIMessage[];
+  system?: string;
+  tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
+} = await req.json();
+```
+
+## Generative toolkits: `generativeTools`
+
+When you author tools in a [`"use generative"` file](/docs/tools/defining-tools#quick-start-use-generative), the same import resolves to the **server build** inside a route handler — schema plus any backend `execute`, with renderers stripped. Pass it to `generativeTools` together with the uploaded `tools`:
+
+```ts title="app/api/chat/route.ts"
+import { generativeTools } from "@assistant-ui/react-ai-sdk";
+import { streamText, convertToModelMessages, type UIMessage } from "ai";
+import { openai } from "@ai-sdk/openai";
+import toolkit from "../../toolkit";
+
+export async function POST(req: Request) {
+  const { messages, system, tools } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-5.4-nano"),
+    system,
+    messages: await convertToModelMessages(messages),
+    tools: generativeTools({ toolkit, frontendTools: tools }),
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+`generativeTools` registers every toolkit tool with the model using its schema, wires the backend `execute` where the server build carries one, and merges in the uploaded `frontendTools`. A server `execute` wins over an uploaded entry of the same name. Frontend and human tools (no server `execute`) are exposed schema-only and left for the client and the user to fulfill.
+
+<Callout type="info">
+  If your toolkit spreads in MCP server tools (`defineMcpToolkit`), use
+  `new AISDKToolkit({ toolkit }).tools({ frontend })` instead of
+  `generativeTools` — it also opens the MCP connections. See [MCP](/docs/tools/mcp).
+</Callout>
+
+## Client-defined tools: `frontendTools`
+
+If a toolkit cannot go through the generative compiler, the AI SDK adapter still
+serializes browser-executed tools into the request `tools`. Convert them to the
+AI SDK shape with `frontendTools` and spread your own server tools alongside:
+
+```ts title="app/api/chat/route.ts"
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { streamText, convertToModelMessages, tool, zodSchema } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { z } from "zod";
+
+export async function POST(req: Request) {
+  const { messages, tools } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-5.4-nano"),
+    messages: await convertToModelMessages(messages),
+    tools: {
+      ...frontendTools(tools ?? {}),
+      query_database: tool({
+        description: "Query the application database.",
+        inputSchema: zodSchema(z.object({ query: z.string() })),
+        execute: async ({ query }) => db.query(query),
+      }),
+    },
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+`generativeTools` calls `frontendTools` for you under the hood; reach for
+`frontendTools` directly when you're not on the generative build.
+
+<Callout type="tip">
+  `toToolsJSONSchema` emits the uploaded tools in alphabetical order, so two
+  renders that register the same set produce byte-identical request bodies —
+  which keeps provider prompt caches stable across renders.
+</Callout>
+
+## Multi-modal results
+
+When a tool declares [`toModelOutput`](/docs/tools/defining-tools#multi-modal-tool-results), frontend tool results round-trip through the AI SDK chat protocol back to your route on the next turn. For `toModelOutput` to fire on those round-tripped results, pass the tool registry to `convertToModelMessages` as well — the [same pattern the AI SDK documents](https://ai-sdk.dev/docs/reference/ai-sdk-ui/convert-to-model-messages#multi-modal-tool-responses) for any multi-modal tool response:
+
+```ts
+const aiSDKTools = { ...frontendTools(tools ?? {}) };
+
+const result = streamText({
+  model,
+  // Pass tools to BOTH calls so prior results are projected via toModelOutput.
+  messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+  tools: aiSDKTools,
+});
+```
+
+Skip the `{ tools }` argument and prior results are sent as a plain JSON blob — `toModelOutput` is silently ignored. Tools without `toModelOutput` are unaffected either way.
+
+<Callout type="warn">
+  **Read/write compatibility for persisted threads.** When `toModelOutput` is
+  set, the runtime persists the AI SDK output as
+  `{ __aui_modelContent, value }`. Upgrade every reader before any writer starts
+  producing `toModelOutput`; older readers treat the whole envelope as the
+  `result` and break that tool's `render`. Don't return objects whose top-level
+  key is literally `__aui_modelContent` from any `execute`.
+</Callout>
+
+## Multi-step tool calls
+
+To let the model see a frontend tool's result and continue, configure the runtime to send back automatically when the last assistant message is complete with tool calls:
+
+```tsx
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+
+const runtime = useChatRuntime({
+  api: "/api/chat",
+  sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+});
+```
+
+For the full AI SDK v6 backend setup — history persistence, reasoning, server-side approvals — see the [AI SDK v6 guide](/docs/runtimes/ai-sdk/v6).

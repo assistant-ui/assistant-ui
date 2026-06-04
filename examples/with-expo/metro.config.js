@@ -1,4 +1,5 @@
 const { getDefaultConfig } = require("expo/metro-config");
+const { withAui } = require("@assistant-ui/metro");
 const path = require("node:path");
 
 const projectRoot = __dirname;
@@ -39,4 +40,4 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   return context.resolveRequest(context, moduleName, platform);
 };
 
-module.exports = config;
+module.exports = withAui(config);

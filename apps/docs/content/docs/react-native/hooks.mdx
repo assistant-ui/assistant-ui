@@ -116,39 +116,47 @@ const runtime = useRemoteThreadListRuntime({
 
 ### Tools
 
-Register tools with a toolkit. The tool definition is forwarded to the model, and when the model calls it, the `execute` function runs and the `render` component displays the result.
+Author tools in a `"use generative"` file with `defineToolkit`, the same API as on the web ([Defining Tools](/docs/tools/defining-tools)). The tool definition is forwarded to the model; when the model calls it, the `execute` function runs and the `render` component displays the result.
+
+Add the [`@assistant-ui/metro`](https://www.npmjs.com/package/@assistant-ui/metro) plugin so Metro compiles the `"use generative"` directive:
+
+```js title="metro.config.js"
+const { getDefaultConfig } = require("expo/metro-config");
+const { withAui } = require("@assistant-ui/metro");
+
+module.exports = withAui(getDefaultConfig(__dirname));
+```
 
 ```tsx title="weather-toolkit.tsx"
-import type { Toolkit } from "@assistant-ui/react-native";
-import { Text, View } from "react-native";
+"use generative";
 
-export const toolkit = {
+import { defineToolkit } from "@assistant-ui/react-native";
+import { Text, View } from "react-native";
+import { z } from "zod";
+
+export default defineToolkit({
   get_weather: {
-    type: "frontend",
     description: "Get the current weather for a city",
-    parameters: {
-      type: "object",
-      properties: {
-        city: { type: "string" },
-      },
-      required: ["city"],
-    },
+    parameters: z.object({ city: z.string() }),
     execute: async ({ city }) => {
+      "use client";
       const res = await fetch(`https://api.weather.example/${city}`);
       return res.json();
     },
     render: ({ args, result }) => (
       <View>
-        <Text>{args.city}: {result?.temperature}°F</Text>
+        <Text>
+          {args.city}: {result?.temperature}°F
+        </Text>
       </View>
     ),
   },
-} satisfies Toolkit;
+});
 ```
 
 ```tsx title="ToolProvider.tsx"
 import { AuiProvider, Tools, useAui } from "@assistant-ui/react-native";
-import { toolkit } from "./weather-toolkit";
+import toolkit from "./weather-toolkit";
 
 function ToolProvider({ children }: { children: React.ReactNode }) {
   const aui = useAui({ tools: Tools({ toolkit }) });

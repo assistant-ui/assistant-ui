@@ -666,6 +666,227 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runAgent).toHaveBeenCalledTimes(1);
   });
 
+  it("auto-resumes when a tool result is added before RUN_FINISHED", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    let core!: AgUiThreadRuntimeCore;
+
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        runCount++;
+
+        if (runCount === 1) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "call-1",
+              toolCallName: "get_weather",
+            },
+          });
+          subscriber.onToolCallArgsEvent?.({
+            event: {
+              type: "TOOL_CALL_ARGS",
+              toolCallId: "call-1",
+              delta: '{"city":"Paris"}',
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+          });
+          // Frontend tool resolves while the run is still streaming, before
+          // RUN_FINISHED transitions the message to requires-action.
+          const assistantMsg = core
+            .getMessages()
+            .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+          core.addToolResult({
+            messageId: assistantMsg.id,
+            toolCallId: "call-1",
+            toolName: "get_weather",
+            result: { temperature: "22C" },
+            isError: false,
+          });
+          subscriber.onRunFinalized?.();
+        } else {
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", delta: "It is sunny!" },
+          });
+          subscriber.onRunFinalized?.();
+        }
+      }),
+    } as unknown as HttpAgent;
+
+    core = createCore(agent);
+    await core.append(createAppendMessage());
+    // Let the deferred follow-up run (scheduled at startRun's tail) settle.
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(runCount).toBe(2);
+
+    // The result survives the RUN_FINISHED snapshot instead of being clobbered.
+    const assistant = core
+      .getMessages()
+      .find(
+        (m) =>
+          m.role === "assistant" &&
+          m.content.some((p) => p.type === "tool-call"),
+      ) as ThreadAssistantMessage;
+    const toolPart = assistant.content.find(
+      (p) => p.type === "tool-call",
+    ) as any;
+    expect(toolPart.result).toEqual({ temperature: "22C" });
+    expect(assistant.status).toMatchObject({ type: "complete" });
+
+    // The follow-up run carries the tool result back to the backend.
+    const run2Messages = runInputs[1]?.messages ?? [];
+    const toolResultMsg = run2Messages.find(
+      (m: { role: string }) => m.role === "tool",
+    );
+    expect(toolResultMsg).toBeTruthy();
+    expect(toolResultMsg.toolCallId).toBe("call-1");
+    expect(toolResultMsg.content).toContain("22C");
+  });
+
+  it("resumes once all parallel tool results arrive across the RUN_FINISHED boundary", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    let core!: AgUiThreadRuntimeCore;
+
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        runCount++;
+
+        if (runCount === 1) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "call-1",
+              toolCallName: "tool_a",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+          });
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "call-2",
+              toolCallName: "tool_b",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "call-2" },
+          });
+          // Only the first parallel call resolves before the run finishes.
+          const assistantMsg = core
+            .getMessages()
+            .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+          core.addToolResult({
+            messageId: assistantMsg.id,
+            toolCallId: "call-1",
+            toolName: "tool_a",
+            result: "ra",
+            isError: false,
+          });
+          subscriber.onRunFinalized?.();
+        } else {
+          subscriber.onRunFinalized?.();
+        }
+      }),
+    } as unknown as HttpAgent;
+
+    core = createCore(agent);
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    // call-2 is still pending, so no follow-up yet, and call-1's early result
+    // is preserved rather than wiped by RUN_FINISHED.
+    expect(runCount).toBe(1);
+    const pending = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(pending.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+    const call1 = pending.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "call-1",
+    ) as any;
+    expect(call1.result).toBe("ra");
+
+    // The remaining call resolves later; now the follow-up fires with both.
+    core.addToolResult({
+      messageId: pending.id,
+      toolCallId: "call-2",
+      toolName: "tool_b",
+      result: "rb",
+      isError: false,
+    });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(runCount).toBe(2);
+    const toolMsgs = (runInputs[1]?.messages ?? []).filter(
+      (m: { role: string }) => m.role === "tool",
+    );
+    expect(
+      toolMsgs.map((m: { toolCallId: string }) => m.toolCallId).sort(),
+    ).toEqual(["call-1", "call-2"]);
+  });
+
+  it("does not leak a deferred resume into a later run when the run errors", async () => {
+    let runCount = 0;
+    let core!: AgUiThreadRuntimeCore;
+    const onError = vi.fn();
+
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runCount++;
+        if (runCount === 1) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "call-1",
+              toolCallName: "tool_a",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+          });
+          const assistantMsg = core
+            .getMessages()
+            .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+          core.addToolResult({
+            messageId: assistantMsg.id,
+            toolCallId: "call-1",
+            toolName: "tool_a",
+            result: "ok",
+            isError: false,
+          });
+          // RUN_FINISHED defers the resume (the run is still draining)...
+          subscriber.onRunFinishedEvent?.({
+            event: { type: "RUN_FINISHED", runId: input.runId },
+          });
+          // ...then the run errors before the deferred resume can fire.
+          throw new Error("boom");
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    core = createCore(agent, { onError });
+
+    await expect(core.append(createAppendMessage())).rejects.toThrow("boom");
+    await new Promise((r) => setTimeout(r, 0));
+    // The errored run must not have scheduled a resume.
+    expect(runCount).toBe(1);
+
+    // A later run must not pick up the stale deferred resume.
+    await core.reload(null);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(runCount).toBe(2);
+  });
+
   it("resumes runs when requested", async () => {
     const runAgent = vi.fn(async (_input, subscriber) => {
       subscriber.onRunFinalized?.();

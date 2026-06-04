@@ -57,6 +57,7 @@ import {
 } from "./useLangGraphMessages";
 import { appendLangChainChunk } from "./appendLangChainChunk";
 import { useLangGraphStreamingTiming } from "./useLangGraphStreamingTiming";
+import { bufferToolResult } from "./bufferToolResults";
 
 const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
@@ -450,6 +451,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
+  // Buffers client tool results within a turn so parallel tool calls resume the
+  // graph in one run once every pending call has a result. See bufferToolResult.
+  const toolResultBufferRef = useRef<
+    Map<string, LangChainMessage & { type: "tool" }>
+  >(new Map());
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
@@ -496,6 +502,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   };
 
   const runUserMessage = async (msg: AppendMessage) => {
+    // A new turn abandons any half-collected parallel tool batch.
+    toolResultBufferRef.current.clear();
     const cancellations =
       autoCancelPendingToolCalls !== false
         ? getPendingToolCalls(messages).map(
@@ -592,24 +600,29 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       isError,
       artifact,
     }) => {
-      // TODO parallel human in the loop calls
-      await handleSendMessage(
-        [
-          {
-            type: "tool",
-            name: toolName,
-            tool_call_id: toolCallId,
-            content: JSON.stringify(result),
-            artifact,
-            status: isError ? "error" : "success",
-          },
-        ],
-        // TODO reuse runconfig here!
-        {},
+      // Buffer results until every pending tool call in the turn has one, then
+      // resume the graph with the full batch in a single run. Sending each
+      // result on its own would resume LangGraph while sibling tool calls of a
+      // parallel turn are still executing.
+      const batch = bufferToolResult(
+        toolResultBufferRef.current,
+        getPendingToolCalls(messages),
+        {
+          type: "tool",
+          name: toolName,
+          tool_call_id: toolCallId,
+          content: JSON.stringify(result),
+          artifact,
+          status: isError ? "error" : "success",
+        },
       );
+      if (!batch) return;
+      // TODO reuse runconfig here!
+      await handleSendMessage(batch, {});
     },
     onEdit: getCheckpointId
       ? async (msg) => {
+          toolResultBufferRef.current.clear();
           const truncated = truncateLangChainMessages(
             threadMessagesRef.current,
             msg.parentId,
@@ -634,6 +647,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       : undefined,
     onReload: getCheckpointId
       ? async (parentId, config) => {
+          toolResultBufferRef.current.clear();
           const truncated = truncateLangChainMessages(
             threadMessagesRef.current,
             parentId,
@@ -675,6 +689,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
 
       // drop stale callbacks and abort the pending load on thread switch/unmount
       const controller = new AbortController();
+      toolResultBufferRef.current.clear();
       setIsLoadingThread(true);
       load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {

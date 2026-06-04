@@ -1,0 +1,232 @@
+---
+title: Multi-Agent Chat UI
+description: Render sub-agent conversations and handoffs inside tool calls. Build supervisor and multi-agent patterns in a React chat UI with assistant-ui.
+platforms: ["react"]
+---
+
+In a multi-agent (orchestrator) architecture, a main agent invokes sub-agents via tool calls. Each sub-agent may produce its own conversation (user/assistant messages, tool calls, etc.). assistant-ui supports rendering these nested conversations using the `MessagePartPrimitive.Messages` primitive.
+
+## Overview
+
+When a tool call includes a `messages` field (`ToolCallMessagePart.messages`), it represents a sub-agent's conversation history. `MessagePartPrimitive.Messages` reads this field from the current tool call part and renders it as a nested thread.
+
+Key behaviors:
+
+- **Scope inheritance** — Parent toolkit renderers are available in sub-agent messages. A `Tools({ toolkit })` registration at the top level works inside sub-agent conversations too.
+- **Recursive** — Sub-agent messages can contain tool calls that themselves have nested messages. Just use `MessagePartPrimitive.Messages` again.
+- **Read-only** — Sub-agent messages are rendered in a readonly context. No editing, branching, or composing.
+
+## Quick Start
+
+<Steps>
+  <Step>
+
+### Register a Tool UI for the Sub-Agent
+
+```tsx
+import {
+  Tools,
+  type Toolkit,
+  MessagePartPrimitive,
+} from "@assistant-ui/react";
+
+const toolkit = {
+  invoke_researcher: {
+    type: "backend",
+    render: ({ args, status }) => (
+    <div className="my-2 rounded-lg border p-4">
+      <div className="mb-2 text-sm font-medium text-gray-500">
+        Researcher Agent {status.type === "running" && "(working...)"}
+      </div>
+      <MessagePartPrimitive.Messages>
+        {({ message }) => {
+          if (message.role === "user") return <MyUserMessage />;
+          return <MyAssistantMessage />;
+        }}
+      </MessagePartPrimitive.Messages>
+    </div>
+  ),
+  },
+} satisfies Toolkit;
+```
+
+  </Step>
+  <Step>
+
+### Provide the Messages from the Backend
+
+Your backend must populate the `messages` field on the tool call result.
+
+<Tabs items={["AI SDK", "LangGraph"]}>
+<Tab value="AI SDK">
+
+```ts title="api/chat/route.ts"
+tools: {
+  invoke_researcher: tool({
+    description: "Invoke the researcher sub-agent",
+    parameters: z.object({ query: z.string() }),
+    execute: async ({ query }) => {
+      const subAgentMessages = await runResearcherAgent(query);
+      return {
+        answer: subAgentMessages.at(-1)?.content,
+        messages: subAgentMessages,
+      };
+    },
+  }),
+},
+```
+
+</Tab>
+<Tab value="LangGraph">
+
+With `@assistant-ui/react-langgraph`, use `unstable_createLangGraphStream` and set `unstable_allowCancellation: true` to wire up the stop button. When your graph runs a subgraph, the subgraph's messages appear on `ToolCallMessagePart.messages` automatically once you handle the `onSubgraphValues` / `onSubgraphUpdates` events.
+
+```ts title="runtime.ts"
+import {
+  useLangGraphRuntime,
+  unstable_createLangGraphStream,
+} from "@assistant-ui/react-langgraph";
+
+const runtime = useLangGraphRuntime({
+  unstable_allowCancellation: true,
+  stream: unstable_createLangGraphStream({
+    client,
+    assistantId,
+    // "custom" is required for generative UI; "updates" for subgraph events
+    streamMode: ["messages", "updates", "custom"],
+    // abort the run server-side when the user clicks stop
+    onDisconnect: "cancel",
+  }),
+  eventHandlers: {
+    onSubgraphValues: (namespace, values) => {
+      // namespace = e.g. "tools:call_abc" — the sub-agent's node path
+      // values contains the subgraph state, including its messages array
+    },
+    onSubgraphUpdates: (namespace, updates) => {
+      // incremental state updates from the subgraph
+    },
+    onSubgraphError: (namespace, error) => {
+      // error scoped to the subgraph; does not mark the parent message failed
+    },
+    onMessageChunk: (chunk, metadata) => {
+      // metadata.namespace is set when the chunk originates from a subgraph
+      // use it to attribute the chunk to the correct sub-agent
+    },
+  },
+});
+```
+
+See [LangGraph Streaming](/docs/runtimes/langgraph/streaming) for the full event handler reference.
+
+</Tab>
+</Tabs>
+
+<Callout type="info">
+  The key requirement is that the tool result's corresponding
+  `ToolCallMessagePart` includes a `messages` array of `ThreadMessage` objects.
+</Callout>
+
+  </Step>
+  <Step>
+
+### Register the Tool UI Component
+
+```tsx
+function App() {
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+      <ResearchAgentToolUI />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+## Subgraph Namespace Events
+
+When using LangGraph, subgraph events (`onSubgraphValues` / `onSubgraphUpdates` / `onSubgraphError`, plus the `namespace` on `onMessageChunk`) carry a `namespace` that identifies which sub-agent emitted them, letting you attribute messages and state to specific sub-agents. See [LangGraph Streaming](/docs/runtimes/langgraph/streaming) for the full reference.
+
+## Recursive Sub-Agents
+
+If a sub-agent's tool calls also have nested messages, the same pattern applies recursively:
+
+```tsx
+const toolkit = {
+  invoke_planner: {
+    type: "backend",
+    render: () => (
+    <div className="rounded border p-3">
+      <h4>Planner Agent</h4>
+      <MessagePartPrimitive.Messages>
+        {({ message }) => {
+          if (message.role === "user") return <MyUserMessage />;
+          return (
+            <MessagePrimitive.Parts>
+              {({ part }) => {
+                if (part.type === "text") return <MyText />;
+                if (part.type === "tool-call" && part.toolName === "invoke_researcher") return (
+                  <div className="ml-4 rounded border p-3">
+                    <h5>Researcher Agent</h5>
+                    {/* Nested sub-agent renders recursively */}
+                    <MessagePartPrimitive.Messages>
+                      {({ message }) => {
+                        if (message.role === "user") return <MyUserMessage />;
+                        return <MyAssistantMessage />;
+                      }}
+                    </MessagePartPrimitive.Messages>
+                  </div>
+                );
+                if (part.type === "tool-call") return <MyToolFallback {...part} />;
+                return null;
+              }}
+            </MessagePrimitive.Parts>
+          );
+        }}
+      </MessagePartPrimitive.Messages>
+    </div>
+  ),
+  },
+} satisfies Toolkit;
+```
+
+## ReadonlyThreadProvider
+
+For advanced use cases where you have a `ThreadMessage[]` array and want to render it as a thread outside of a tool call context, use `ReadonlyThreadProvider` directly:
+
+```tsx
+import {
+  ReadonlyThreadProvider,
+  ThreadPrimitive,
+  type ThreadMessage,
+} from "@assistant-ui/react";
+
+function SubConversation({
+  messages,
+}: {
+  messages: readonly ThreadMessage[];
+}) {
+  return (
+    <ReadonlyThreadProvider messages={messages}>
+      <ThreadPrimitive.Messages>
+        {({ message }) => {
+          if (message.role === "user") return <MyUserMessage />;
+          return <MyAssistantMessage />;
+        }}
+      </ThreadPrimitive.Messages>
+    </ReadonlyThreadProvider>
+  );
+}
+```
+
+`ReadonlyThreadProvider` inherits the parent's tool UI registrations and model context through scope inheritance.
+
+## Related
+
+- [Generative UI](/docs/tools/tool-ui) — Creating tool call UIs
+- [MessagePartPrimitive](/docs/api-reference/primitives/message-part) — API reference for message part primitives
+- [Sub-Agent Model Tracking](/docs/cloud/ai-sdk#sub-agent-model-tracking) — Track delegated model usage and costs in the Cloud dashboard
+- [LangGraph Streaming](/docs/runtimes/langgraph/streaming) — Event handlers, subgraph events, and message metadata
+- [LangGraph Generative UI](/docs/runtimes/langgraph/generative-ui) — Structured UI components emitted by your graph

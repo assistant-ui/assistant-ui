@@ -199,6 +199,7 @@ export {
   type ToolkitDefinitionEntry,
   defineToolkit,
   stubTool,
+  externalTool,
   useAuiToolOverrides,
   hitl,
   hitlTool,

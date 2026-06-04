@@ -403,6 +403,7 @@ function compileToolkit(
     // `type`. The resolved type is written back below so the runtime keeps it.
     const execute = findMember(value, "execute");
     const isStub = execute ? executeIsStubTool(execute) : false;
+    const isExternal = execute ? executeIsExternalTool(execute) : false;
     const type = inferToolType(value, filename);
     const hasRender = !!findMember(value, "render");
     const hasRenderText = !!findMember(value, "renderText");
@@ -426,6 +427,17 @@ function compileToolkit(
       applyProviderToolConfig(value, execute, filename);
     }
 
+    if (isExternal) {
+      if (!hasRender && !hasRenderText) {
+        throw new GenerativeCompileError(
+          "an external tool must declare a `render` or `renderText` " +
+            "(assistant-ui only renders calls for tools defined elsewhere)",
+          filename,
+        );
+      }
+      stripExternalToolMetadata(value);
+    }
+
     if (target === "client") {
       // A non-stub frontend execute stays (its `"use client"` marker is no longer needed
       // once the module is client); backend, sentinel, and stub executes are dropped.
@@ -433,11 +445,13 @@ function compileToolkit(
       else if (execute) removeMember(value, "execute");
       if (hasRender || hasRenderText) flags.keptRender = true;
     } else {
-      // server: render is never needed; only a backend execute survives.
+      // server: render is never needed; only a non-external backend execute survives.
       if (hasRender) removeMember(value, "render");
       if (hasRenderText) removeMember(value, "renderText");
-      if (execute && type !== "backend") removeMember(value, "execute");
-      if (execute && type === "backend") flags.keptBackendExecute = true;
+      if (execute) {
+        if (type === "backend" && !isExternal) flags.keptBackendExecute = true;
+        else removeMember(value, "execute");
+      }
     }
 
     setToolType(value, type);
@@ -596,6 +610,13 @@ function executeIsStubTool(member: t.ObjectProperty | t.ObjectMethod): boolean {
   return executeIsSentinel(member, "stubTool");
 }
 
+/** Whether an `execute` is the externally-defined backend tool sentinel. */
+function executeIsExternalTool(
+  member: t.ObjectProperty | t.ObjectMethod,
+): boolean {
+  return executeIsSentinel(member, "externalTool");
+}
+
 /** Drops the `"use client"` directive from an `execute` body (kept frontend). */
 function stripUseClient(member: t.ObjectProperty | t.ObjectMethod): void {
   const body = executeBody(member);
@@ -609,7 +630,8 @@ function stripUseClient(member: t.ObjectProperty | t.ObjectMethod): void {
 /**
  * The tool's nature, inferred from its (mandatory) `execute` rather than an
  * authored `type`: `hitlTool()` → `human`; `providerTool(...)` → `provider`;
- * `stubTool()` → `frontend`; `"use client"` → `frontend`; otherwise `backend`.
+ * `stubTool()` → `frontend`; `externalTool()` → `backend`; `"use client"` →
+ * `frontend`; otherwise `backend`.
  * The loader writes the result back as a `type` field (see {@link setToolType})
  * so the runtime keeps it.
  */
@@ -628,7 +650,21 @@ function inferToolType(
   if (executeIsHitl(execute)) return "human";
   if (executeIsProviderTool(execute)) return "provider";
   if (executeIsStubTool(execute)) return "frontend";
+  if (executeIsExternalTool(execute)) return "backend";
   return executeIsClient(execute) ? "frontend" : "backend";
+}
+
+function stripExternalToolMetadata(object: t.ObjectExpression): void {
+  // Mirror BackendTool's forbidden metadata fields: execute is stripped by the
+  // main routing loop, while streamCall is also removed because there is no
+  // assistant-ui executor to stream from.
+  removeMember(object, "description");
+  removeMember(object, "parameters");
+  removeMember(object, "disabled");
+  removeMember(object, "toModelOutput");
+  removeMember(object, "experimental_onSchemaValidationError");
+  removeMember(object, "providerOptions");
+  removeMember(object, "streamCall");
 }
 
 /** Writes the resolved `type` back onto the tool object (replacing any author's). */

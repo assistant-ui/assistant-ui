@@ -4,7 +4,7 @@ description: Drop-in shadcn dialog that lists MCP connectors and custom servers,
 platforms: ["react"]
 ---
 
-`McpConfigDialog` is a shadcn template that wraps the [`@assistant-ui/react-mcp`](/docs/integrations/tools/react-mcp) primitives. Render it anywhere inside an `McpManagerResource`-mounted client and your users get a styled MCP server panel — no manual primitive composition.
+`McpConfigDialog` is a shadcn template that wraps the [`@assistant-ui/react-mcp`](/docs/tools/user-managed-mcp) primitives. Render it anywhere inside an `McpManagerResource`-mounted client and your users get a styled MCP server panel — no manual primitive composition.
 
 ## Getting Started
 
@@ -81,7 +81,7 @@ Pass children to swap the default button for your own:
 
 ### Wire up the OAuth callback
 
-Required for any OAuth-enabled connector or custom server. See the [OAuth callback section in the react-mcp guide](/docs/integrations/tools/react-mcp#handle-the-oauth-callback) for the route handler.
+Required for any OAuth-enabled connector or custom server. See the [OAuth callback section in the react-mcp guide](/docs/tools/user-managed-mcp#handle-the-oauth-callback) for the route handler.
 
   </Step>
 </Steps>
@@ -92,11 +92,11 @@ Required for any OAuth-enabled connector or custom server. See the [OAuth callba
   <Card
     title="User-managed MCP servers"
     description="Full @assistant-ui/react-mcp guide — connectors, custom servers, OAuth, storage, custom primitives."
-    href="/docs/integrations/tools/react-mcp"
+    href="/docs/tools/user-managed-mcp"
   />
   <Card
     title="Server-side MCP"
     description="App-developer-controlled MCP servers wired into the API route."
-    href="/docs/integrations/tools/mcp"
+    href="/docs/tools/mcp"
   />
 </Cards>
