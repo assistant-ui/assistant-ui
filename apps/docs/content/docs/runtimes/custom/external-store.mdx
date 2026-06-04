@@ -317,7 +317,7 @@ const runtime = useExternalStoreRuntime({
 
 By default, sending while the thread is running is disabled. Provide a `queue` adapter to buffer a message sent during a run and process it once the run settles. The pending message is exposed on `composer.queue` and renders through [`ComposerPrimitive.Queue`](/docs/api-reference/primitives/composer).
 
-The `createMessageQueue` helper owns the FIFO ordering and the in-flight guard. Supply a driver that runs a message, pass its `adapter` to the runtime, and call `notifyIdle()` on the run's falling edge.
+The `createMessageQueue` helper owns the FIFO ordering and the in-flight guard. Supply a driver that runs a message, pass its `adapter` to the runtime, and tell the queue when a run starts (`notifyBusy()`, so concurrent sends buffer) and ends (`notifyIdle()`).
 
 ```tsx
 import { useEffect, useRef, useState } from "react";
@@ -334,6 +334,7 @@ const runtime = useExternalStoreRuntime({
 
 const wasRunning = useRef(isRunning);
 useEffect(() => {
+  if (!wasRunning.current && isRunning) queue.notifyBusy();
   if (wasRunning.current && !isRunning) queue.notifyIdle();
   wasRunning.current = isRunning;
 }, [isRunning, queue]);

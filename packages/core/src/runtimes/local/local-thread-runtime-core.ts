@@ -286,6 +286,10 @@ export class LocalThreadRuntimeCore
   ): Promise<void> {
     this.ensureInitialized();
 
+    // runs started outside the queue (regenerate, resume) must still mark it
+    // busy so a concurrent send buffers instead of interrupting this run
+    this._queue?.notifyBusy();
+
     // add assistant message
     const id = generateId();
     let message: ThreadAssistantMessage = {

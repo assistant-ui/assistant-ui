@@ -183,6 +183,41 @@ describe("local runtime message queue", () => {
     expect(aui.thread().composer().getState().queue).toEqual([]);
   });
 
+  it("buffers a send during a regenerate instead of interrupting it", async () => {
+    const { adapter, releases, getRunCount } = createCountingAdapter();
+    const aui = renderWithRuntime(adapter, true);
+
+    await send(aui, "first");
+    await act(async () => {
+      releases[0]!();
+      await flush();
+    });
+    expect(getRunCount()).toBe(1);
+
+    // regenerate the assistant message: a run started outside the queue
+    await act(async () => {
+      aui.thread().message({ index: 1 }).reload();
+      await flush();
+    });
+    expect(getRunCount()).toBe(2);
+    expect(aui.thread().getState().isRunning).toBe(true);
+
+    // sending now must buffer, not interrupt the regenerate
+    await act(async () => {
+      aui.thread().composer().setText("Y");
+      aui.thread().composer().send();
+      await flush();
+    });
+    expect(getRunCount()).toBe(2);
+    expect(
+      aui
+        .thread()
+        .composer()
+        .getState()
+        .queue.map((q) => q.prompt),
+    ).toEqual(["Y"]);
+  });
+
   it("does not expose the queue capability when the flag is off", async () => {
     const { adapter } = createCountingAdapter();
     const aui = renderWithRuntime(adapter, false);

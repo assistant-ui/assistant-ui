@@ -151,4 +151,18 @@ describe("createMessageQueue", () => {
     adapter.enqueue(msg("a"), { steer: false }); // runs (1 setItems push + 1 pop)
     expect(cb).toHaveBeenCalled();
   });
+
+  it("buffers when a run started outside the queue is marked busy", () => {
+    const run = vi.fn();
+    const { adapter, notifyBusy, notifyIdle } = createMessageQueue({ run });
+
+    notifyBusy(); // e.g. a regenerate started without going through the queue
+    adapter.enqueue(msg("a"), { steer: false });
+    expect(run).not.toHaveBeenCalled();
+    expect(adapter.items.map((i) => i.prompt)).toEqual(["a"]);
+
+    notifyIdle(); // that run settled
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(adapter.items).toHaveLength(0);
+  });
 });

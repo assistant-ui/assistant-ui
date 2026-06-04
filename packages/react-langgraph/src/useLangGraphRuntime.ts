@@ -551,6 +551,10 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   // start while a client tool from the just-finished run is still executing.
   const wasRunningRef = useRef(effectiveIsRunning);
   useEffect(() => {
+    if (!wasRunningRef.current && effectiveIsRunning) {
+      // a run started (including reload/edit) so concurrent sends buffer
+      queueController?.notifyBusy();
+    }
     if (wasRunningRef.current && !effectiveIsRunning) {
       queueController?.notifyIdle();
     }

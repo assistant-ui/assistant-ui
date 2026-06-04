@@ -21,6 +21,8 @@ export type MessageQueueOptions = {
 
 export type MessageQueueController = {
   readonly adapter: ExternalThreadQueueAdapter;
+  /** Mark a run as in flight so concurrent sends buffer; call on the rising edge. */
+  notifyBusy: () => void;
   /** Advances to the next pending message; call on the run's falling edge. */
   notifyIdle: () => void;
   subscribe: (callback: () => void) => () => void;
@@ -117,6 +119,9 @@ export const createMessageQueue = (
 
   return {
     adapter,
+    notifyBusy: () => {
+      running = true;
+    },
     notifyIdle: () => {
       if (suppressIdle > 0) {
         suppressIdle--;
