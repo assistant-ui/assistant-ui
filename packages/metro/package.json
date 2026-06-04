@@ -42,6 +42,7 @@
     "@babel/types": "^7.29.7"
   },
   "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-generative-compiler": "workspace:^",
     "@types/node": "^25.9.1",
     "tsdown": "^0.22.1",
