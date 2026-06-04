@@ -11,6 +11,7 @@ import type {
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
+  ToolCallMessagePart,
 } from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
 import jsonpatch, { type Operation } from "fast-json-patch";
@@ -78,6 +79,7 @@ export class AgUiThreadRuntimeCore {
   private readonly recordedHistoryIds = new Set<string>();
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
+  private pendingResumeMessageId: string | null = null;
 
   constructor(options: CoreOptions) {
     this.agent = options.agent;
@@ -368,7 +370,6 @@ export class AgUiThreadRuntimeCore {
 
   addToolResult(options: AddToolResultOptions): void {
     let updated = false;
-    let shouldResume = false;
     this.messages = this.messages.map((message) => {
       if (message.id !== options.messageId || message.role !== "assistant")
         return message;
@@ -387,47 +388,60 @@ export class AgUiThreadRuntimeCore {
       });
       if (!matchedToolCall) return message;
       updated = true;
-
-      if (
-        assistant.status?.type === "requires-action" &&
-        assistant.status.reason === "tool-calls" &&
-        content.every(
-          (part) =>
-            part.type !== "tool-call" ||
-            ("result" in part && part.result !== undefined),
-        )
-      ) {
-        shouldResume = true;
-        return {
-          ...assistant,
-          content,
-          status: { type: "complete" as const, reason: "unknown" as const },
-        };
-      }
-
-      return {
-        ...assistant,
-        content,
-      };
+      return { ...assistant, content };
     });
 
-    if (updated) {
-      this.notifyUpdate();
+    if (!updated) return;
+    this.notifyUpdate();
+    this.maybeResumeAfterToolResults(options.messageId);
+  }
 
-      if (shouldResume) {
-        this.persistAssistantHistory(options.messageId);
-
-        if (!this.isRunningFlag) {
-          void this.startRun(options.messageId, this.lastRunConfig).catch(
-            (error) => {
-              this.onError?.(
-                error instanceof Error ? error : new Error(String(error)),
-              );
-            },
-          );
-        }
-      }
+  // Re-evaluate whether every tool call on the assistant message now has a
+  // result and, if so, drive the follow-up run. Centralizing this lets the
+  // continuation fire whether the frontend result lands before RUN_FINISHED
+  // (status flips to requires-action only later, while a run is still draining)
+  // or after it. Idempotent: once the message is marked complete it no-ops.
+  private maybeResumeAfterToolResults(messageId: string): void {
+    const message = this.messages.find((m) => m.id === messageId);
+    if (!message || message.role !== "assistant") return;
+    const assistant = message as ThreadAssistantMessage;
+    if (
+      assistant.status?.type !== "requires-action" ||
+      assistant.status.reason !== "tool-calls"
+    ) {
+      return;
     }
+    const allResolved = assistant.content.every(
+      (part) =>
+        part.type !== "tool-call" ||
+        ("result" in part && part.result !== undefined),
+    );
+    if (!allResolved) return;
+
+    this.messages = this.messages.map((m) =>
+      m.id === messageId && m.role === "assistant"
+        ? {
+            ...(m as ThreadAssistantMessage),
+            status: { type: "complete" as const, reason: "unknown" as const },
+          }
+        : m,
+    );
+    this.notifyUpdate();
+    this.persistAssistantHistory(messageId);
+
+    if (this.isRunningFlag) {
+      // A run is still draining (RUN_FINISHED arrived but the stream has not
+      // closed). Defer until startRun's tail so we never start two runs.
+      this.pendingResumeMessageId = messageId;
+      return;
+    }
+    this.startResumeRun(messageId);
+  }
+
+  private startResumeRun(messageId: string): void {
+    void this.startRun(messageId, this.lastRunConfig).catch((error) => {
+      this.onError?.(error instanceof Error ? error : new Error(String(error)));
+    });
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
@@ -563,6 +577,16 @@ export class AgUiThreadRuntimeCore {
       const err = this.pendingError;
       this.pendingError = null;
       throw err;
+    }
+
+    // A tool result that landed before the run settled deferred its
+    // continuation here so a second run never overlaps the first.
+    if (this.pendingResumeMessageId !== null) {
+      const resumeMessageId = this.pendingResumeMessageId;
+      this.pendingResumeMessageId = null;
+      if (!abortSignal.aborted) {
+        this.startResumeRun(resumeMessageId);
+      }
     }
   }
 
@@ -753,10 +777,16 @@ export class AgUiThreadRuntimeCore {
         ? this.mergeAssistantMetadata(assistant.metadata, update.metadata)
         : assistant.metadata;
       latestStatus = update.status ?? assistant.status;
+      const content =
+        update.content !== undefined
+          ? this.preserveToolResults(
+              assistant.content,
+              update.content as ThreadAssistantMessage["content"],
+            )
+          : assistant.content;
       return {
         ...assistant,
-        content: (update.content ??
-          assistant.content) as ThreadAssistantMessage["content"],
+        content,
         status: latestStatus,
         metadata,
       };
@@ -776,7 +806,45 @@ export class AgUiThreadRuntimeCore {
     if (this.isPersistableStatus(latestStatus)) {
       this.persistAssistantHistory(resolvedMessageId);
     }
+    this.maybeResumeAfterToolResults(resolvedMessageId);
     return resolvedMessageId;
+  }
+
+  // The RunAggregator rebuilds the assistant content from stream events only,
+  // so a fresh snapshot omits results injected via addToolResult (frontend tool
+  // execution). Carry those results forward so the aggregator never clobbers
+  // them. Results are only ever added in this flow, so preserving is safe.
+  private preserveToolResults(
+    previous: ThreadAssistantMessage["content"],
+    next: ThreadAssistantMessage["content"],
+  ): ThreadAssistantMessage["content"] {
+    const resolved = new Map<string, ToolCallMessagePart>();
+    for (const part of previous) {
+      if (
+        part.type === "tool-call" &&
+        "result" in part &&
+        part.result !== undefined
+      ) {
+        resolved.set(part.toolCallId, part);
+      }
+    }
+    if (resolved.size === 0) return next;
+
+    let changed = false;
+    const merged = next.map((part) => {
+      if (part.type !== "tool-call") return part;
+      if ("result" in part && part.result !== undefined) return part;
+      const prior = resolved.get(part.toolCallId);
+      if (!prior) return part;
+      changed = true;
+      return {
+        ...part,
+        result: prior.result,
+        ...(prior.artifact !== undefined ? { artifact: prior.artifact } : {}),
+        ...(prior.isError !== undefined ? { isError: prior.isError } : {}),
+      };
+    });
+    return changed ? (merged as ThreadAssistantMessage["content"]) : next;
   }
 
   private mergeAssistantMetadata(
