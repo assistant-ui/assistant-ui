@@ -140,7 +140,7 @@ export function compileGenerative(
   // such entries pass through.
   ensureDefaultExport(ast, filename);
   const generativeInstances = collectGenerativeInstances(ast);
-  const safeToolkitSpreads = collectSafeToolkitSpreads(ast);
+  const safeToolkitSpreads = collectSafeToolkitSpreads(ast, filename);
 
   const flags: TargetFlags = { keptRender: false, keptBackendExecute: false };
 
@@ -431,11 +431,12 @@ function ensureDefaultExport(ast: t.File, filename: string | undefined): void {
   if (!def) {
     throw new GenerativeCompileError("missing a default export", filename);
   }
-  if (!unwrapToCall(def.declaration, TOOLKIT_WRAPPER)) {
+  if (!unwrapToToolkitCall(def.declaration)) {
     throw new GenerativeCompileError(
-      `the default export must be ${TOOLKIT_WRAPPER}({ ... }) (imported from ` +
-        '"@assistant-ui/react"); wrapping is required so a backend `execute` ' +
-        "can't be authored in a way that reaches the client",
+      `the default export must be ${TOOLKIT_WRAPPER}({ ... }) or ` +
+        `${MCP_TOOLKIT_WRAPPER}({ ... }) (imported from "@assistant-ui/react"); ` +
+        "wrapping is required so a backend `execute` can't be authored in a way " +
+        "that reaches the client",
       filename,
     );
   }
@@ -483,22 +484,113 @@ function collectGenerativeInstances(ast: t.File): Set<string> {
 }
 
 /**
- * Local toolkit variables whose initializer is visible to this compiler pass
- * are safe to spread. `defineToolkit(...)` initializers are compiled in-place
- * before a later spread reads them; `defineMcpToolkit(...)` entries cannot
- * contain executable code.
+ * Toolkit identifiers that are safe to spread into a `defineToolkit({ ... })`.
+ *
+ * Two kinds qualify:
+ *
+ * - A local variable whose initializer is visible to this compiler pass: a
+ *   `defineToolkit(...)` binding is compiled in-place before a later spread
+ *   reads it, and `defineMcpToolkit(...)` entries can't contain executable code.
+ * - The default import of another `"use generative"` module: that module is
+ *   split per-target by its own compiler pass, so spreading its default-exported
+ *   toolkit can't leak a backend `execute` to the client. Only the default
+ *   export crosses the generative-module boundary, so named imports don't
+ *   qualify — they would be `undefined` once that module is build-split.
  */
-function collectSafeToolkitSpreads(ast: t.File): Set<string> {
+function collectSafeToolkitSpreads(
+  ast: t.File,
+  filename: string | undefined,
+): Set<string> {
   const names = new Set<string>();
+  const generativeBySource = new Map<string, boolean>();
+
   for (const statement of ast.program.body) {
-    if (!t.isVariableDeclaration(statement)) continue;
-    for (const declaration of statement.declarations) {
-      const { id, init } = declaration;
-      if (!t.isIdentifier(id) || !init) continue;
-      if (unwrapToToolkitCall(init)) names.add(id.name);
+    if (t.isVariableDeclaration(statement)) {
+      for (const declaration of statement.declarations) {
+        const { id, init } = declaration;
+        if (t.isIdentifier(id) && init && unwrapToToolkitCall(init)) {
+          names.add(id.name);
+        }
+      }
+      continue;
+    }
+
+    if (t.isImportDeclaration(statement)) {
+      const defaultSpecifier = statement.specifiers.find(
+        (specifier): specifier is t.ImportDefaultSpecifier =>
+          t.isImportDefaultSpecifier(specifier),
+      );
+      if (!defaultSpecifier) continue;
+
+      const source = statement.source.value;
+      let isGenerative = generativeBySource.get(source);
+      if (isGenerative === undefined) {
+        isGenerative = isGenerativeImport(source, filename);
+        generativeBySource.set(source, isGenerative);
+      }
+      if (isGenerative) names.add(defaultSpecifier.local.name);
     }
   }
+
   return names;
+}
+
+const MODULE_EXTENSIONS = [
+  ".ts",
+  ".tsx",
+  ".mts",
+  ".cts",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+] as const;
+
+/**
+ * Whether a relative import specifier resolves on disk to a `"use generative"`
+ * module. Only relative specifiers are resolved — a bundler alias (e.g.
+ * `@/tools`) can't be resolved without the bundler's config, so it's treated as
+ * non-generative, and thus an unsafe spread.
+ */
+function isGenerativeImport(
+  source: string,
+  filename: string | undefined,
+): boolean {
+  if (!filename || !source.startsWith(".")) return false;
+
+  const cleanFilename = filename.split(/[?#]/, 1)[0]!;
+  if (!nodePath.isAbsolute(cleanFilename)) return false;
+
+  const resolved = resolveRelativeModuleFile(
+    nodePath.dirname(cleanFilename),
+    source,
+  );
+  if (!resolved) return false;
+
+  try {
+    return isGenerativeModule(readFileSync(resolved, "utf8"));
+  } catch {
+    return false;
+  }
+}
+
+/** Resolves a relative specifier to a file, trying TS/JS extensions then index files. */
+function resolveRelativeModuleFile(
+  baseDir: string,
+  source: string,
+): string | null {
+  const base = nodePath.resolve(baseDir, source);
+
+  if (nodePath.extname(base) && existsSync(base)) return base;
+  for (const ext of MODULE_EXTENSIONS) {
+    const candidate = `${base}${ext}`;
+    if (existsSync(candidate)) return candidate;
+  }
+  for (const ext of MODULE_EXTENSIONS) {
+    const candidate = nodePath.join(base, `index${ext}`);
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
 }
 
 function unwrapToToolkitCall(node: t.Node): t.CallExpression | null {

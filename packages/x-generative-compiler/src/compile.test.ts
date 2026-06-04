@@ -73,6 +73,29 @@ function createCompatibilityFixture(range: string | null): string {
   return filename;
 }
 
+/**
+ * Writes a child module to disk next to a (not-yet-written) `toolkit.tsx` and
+ * returns the parent's filename, so a parent compiled from a string can resolve
+ * `./tools/child` relative to it. Used to exercise cross-file toolkit spreads.
+ */
+function createMergeFixture(childSource: string): string {
+  const appRoot = mkdtempSync(nodePath.join(tmpdir(), "aui-generative-merge-"));
+  const toolsRoot = nodePath.join(appRoot, "src", "tools");
+  mkdirSync(toolsRoot, { recursive: true });
+  writeFileSync(nodePath.join(toolsRoot, "weather.tsx"), childSource);
+  return nodePath.join(appRoot, "src", "toolkit.tsx");
+}
+
+const generativeChild = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+export default defineToolkit({
+  get_weather: {
+    execute: async () => 1,
+    render: () => null,
+  },
+});
+`;
+
 const source = `"use generative";
 import { z } from "zod";
 import { db } from "@/db";
@@ -495,6 +518,70 @@ export default defineToolkit({
     expect(() => compileGenerative(src, { target: "client" })).toThrow(
       /compiler-visible toolkit spread/,
     );
+  });
+
+  it("allows spreading the default import of a generative module", () => {
+    const filename = createMergeFixture(generativeChild);
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "./tools/weather";
+export default defineToolkit({
+  ...weatherTools,
+});`;
+
+    const server = compileGenerative(src, { target: "server", filename }).code;
+    expect(server).toContain("...weatherTools");
+    expect(server).toContain('from "./tools/weather"');
+
+    const client = compileGenerative(src, { target: "client", filename }).code;
+    expect(client).toContain("...weatherTools");
+    expect(client).toContain('from "./tools/weather"');
+  });
+
+  it("rejects spreading the default import of a non-generative module", () => {
+    const filename = createMergeFixture(
+      `export default { get_weather: { execute: async () => 1 } };\n`,
+    );
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "./tools/weather";
+export default defineToolkit({
+  ...weatherTools,
+});`;
+
+    expect(() =>
+      compileGenerative(src, { target: "client", filename }),
+    ).toThrow(/compiler-visible toolkit spread/);
+  });
+
+  it("rejects spreading a named import even from a generative module", () => {
+    const filename = createMergeFixture(generativeChild);
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { weatherTools } from "./tools/weather";
+export default defineToolkit({
+  ...weatherTools,
+});`;
+
+    expect(() =>
+      compileGenerative(src, { target: "client", filename }),
+    ).toThrow(/compiler-visible toolkit spread/);
+  });
+
+  it("allows defineMcpToolkit as the default export", () => {
+    const src = `"use generative";
+import { defineMcpToolkit } from "@assistant-ui/react";
+export default defineMcpToolkit({
+  docs: { type: "http", url: "https://mcp.example.com/mcp" },
+});`;
+
+    const server = compileGenerative(src, { target: "server" }).code;
+    expect(server).toContain("defineMcpToolkit");
+    expect(server).toContain("docs");
+
+    const client = compileGenerative(src, { target: "client" }).code;
+    expect(client).toContain("defineMcpToolkit");
+    expect(client).toContain("docs");
   });
 
   it("still allows a flat toolkit tool named tools", () => {
