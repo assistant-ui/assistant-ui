@@ -823,9 +823,11 @@ export default { weather: { execute: async () => 1, render: () => null } };`;
   it("keeps deprecated human-tool sentinels working", () => {
     for (const sentinel of ["hitl", "hitlTool"]) {
       const src = `"use generative";\nimport { defineToolkit, ${sentinel} } from "@assistant-ui/react";\nexport default defineToolkit({ ask: { execute: ${sentinel}(), render: () => null } });`;
-      const code = compileGenerative(src, { target: "client" }).code;
-      expect(code).toContain('type: "human"');
-      expect(code).not.toContain(sentinel);
+      for (const target of ["client", "server"] as const) {
+        const code = compileGenerative(src, { target }).code;
+        expect(code).toContain('type: "human"');
+        expect(code).not.toContain(sentinel);
+      }
     }
   });
 
