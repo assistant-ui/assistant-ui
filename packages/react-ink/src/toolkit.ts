@@ -71,6 +71,29 @@ const MARKER_TYPE = {
  * (for example a render-only entry or a factory output) is passed through
  * unchanged.
  */
+/**
+ * Mirrors the authoring checks the `"use generative"` compiler runs at build
+ * time, so a malformed tool fails loudly here instead of quietly producing a
+ * broken entry that only misbehaves later.
+ */
+function assertValid(name: string, tool: Record<string, unknown>): void {
+  const hasRender = tool["render"] != null;
+  const hasRenderText = tool["renderText"] != null;
+
+  if (tool["type"] === "frontend" && !hasRender && !hasRenderText) {
+    throw new Error(
+      `[assistant-ui] tool "${name}": a frontend tool must declare a ` +
+        `"render" or "renderText".`,
+    );
+  }
+  if (tool["type"] === "human" && !hasRender) {
+    throw new Error(
+      `[assistant-ui] tool "${name}": a human tool must declare a "render" ` +
+        `to collect input.`,
+    );
+  }
+}
+
 function defineToolkitRuntime(definition: ToolkitDefinition): Toolkit {
   const toolkit: Record<string, unknown> = {};
 
@@ -84,19 +107,27 @@ function defineToolkitRuntime(definition: ToolkitDefinition): Toolkit {
     }
 
     const mark = readMarker(tool["execute"]);
+    let resolved: Record<string, unknown>;
     if (mark) {
       const { execute: _execute, ...rest } = tool;
-      toolkit[name] = {
-        ...rest,
-        type: MARKER_TYPE[mark[MARKER]],
-        ...(mark.config ?? {}),
-      };
-      continue;
+      const config = mark.config ?? {};
+      for (const key of Object.keys(config)) {
+        if (key in rest) {
+          throw new Error(
+            `[assistant-ui] tool "${name}": providerTool() config key ` +
+              `"${key}" collides with a tool property.`,
+          );
+        }
+      }
+      resolved = { ...rest, type: MARKER_TYPE[mark[MARKER]], ...config };
+    } else {
+      // Plain function execute (or none): runs in-process, so it is a frontend
+      // tool. An inner `"use client"` directive in the body is inert at runtime.
+      resolved = { type: "frontend", ...tool };
     }
 
-    // Plain function execute (or none): runs in-process, so it is a frontend
-    // tool. An inner `"use client"` directive in the body is inert at runtime.
-    toolkit[name] = { type: "frontend", ...tool };
+    assertValid(name, resolved);
+    toolkit[name] = resolved;
   }
 
   return toolkit as Toolkit;

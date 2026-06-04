@@ -64,4 +64,36 @@ describe("defineToolkit (runtime)", () => {
     expect(tool["type"]).toBe("backend");
     expect(tool["render"]).toBe(render);
   });
+
+  it("throws when a frontend tool has no render or renderText", () => {
+    expect(() =>
+      defineToolkit({
+        no_ui: { description: "x", parameters: {}, execute } as never,
+      }),
+    ).toThrow(/must declare a "render" or "renderText"/);
+  });
+
+  it("throws when a human tool has no render", () => {
+    expect(() =>
+      defineToolkit({
+        ask: { description: "a", parameters: {}, execute: hitlTool() } as never,
+      }),
+    ).toThrow(/a human tool must declare a "render"/);
+  });
+
+  it("throws when a providerTool config key collides with a tool property", () => {
+    expect(() =>
+      defineToolkit({
+        web_search: {
+          render,
+          execute: providerTool({
+            providerId: "openai.web_search_preview",
+            args: {},
+            // @ts-expect-error - intentionally colliding with `render`
+            render: "duplicate",
+          }),
+        },
+      }),
+    ).toThrow(/collides with a tool property/);
+  });
 });
