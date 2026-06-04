@@ -86,6 +86,27 @@ function createMergeFixture(childSource: string): string {
   return nodePath.join(appRoot, "src", "toolkit.tsx");
 }
 
+/**
+ * Like {@link createMergeFixture}, but also writes a (JSONC) `tsconfig.json`
+ * with a `@/*` path alias so alias resolution can be exercised. The child lives
+ * at `src/tools/weather.tsx` and `@/*` maps to `./src/*`.
+ */
+function createAliasMergeFixture(childSource: string): string {
+  const filename = createMergeFixture(childSource);
+  const appRoot = nodePath.dirname(nodePath.dirname(filename));
+  writeFileSync(
+    nodePath.join(appRoot, "tsconfig.json"),
+    `{
+  // path aliases
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] },
+  }
+}`,
+  );
+  return filename;
+}
+
 const generativeChild = `"use generative";
 import { defineToolkit } from "@assistant-ui/react";
 export default defineToolkit({
@@ -566,6 +587,33 @@ export default defineToolkit({
     expect(() =>
       compileGenerative(src, { target: "client", filename }),
     ).toThrow(/compiler-visible toolkit spread/);
+  });
+
+  it("resolves a tsconfig path alias when spreading a generative module", () => {
+    const filename = createAliasMergeFixture(generativeChild);
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "@/tools/weather";
+export default defineToolkit({
+  ...weatherTools,
+});`;
+
+    const client = compileGenerative(src, { target: "client", filename }).code;
+    expect(client).toContain("...weatherTools");
+    expect(client).toContain('from "@/tools/weather"');
+  });
+
+  it("resolves a .js specifier to its .tsx source when spreading", () => {
+    const filename = createMergeFixture(generativeChild);
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "./tools/weather.js";
+export default defineToolkit({
+  ...weatherTools,
+});`;
+
+    const client = compileGenerative(src, { target: "client", filename }).code;
+    expect(client).toContain("...weatherTools");
   });
 
   it("allows defineMcpToolkit as the default export", () => {

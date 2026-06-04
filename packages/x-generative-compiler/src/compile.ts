@@ -348,11 +348,14 @@ function resolvePackageJson(
 }
 
 function normalizeRequirePath(filename: string | undefined): string {
-  if (filename) {
-    const cleanFilename = filename.split(/[?#]/, 1)[0]!;
-    if (nodePath.isAbsolute(cleanFilename)) return cleanFilename;
-  }
-  return import.meta.url;
+  return cleanAbsoluteFilename(filename) ?? import.meta.url;
+}
+
+/** Strips a `?query`/`#hash` suffix and returns the path only if it is absolute. */
+function cleanAbsoluteFilename(filename: string | undefined): string | null {
+  if (!filename) return null;
+  const clean = filename.split(/[?#]/, 1)[0]!;
+  return nodePath.isAbsolute(clean) ? clean : null;
 }
 
 function findPackageJson(
@@ -546,25 +549,23 @@ const MODULE_EXTENSIONS = [
   ".cjs",
 ] as const;
 
+/** Extensions a specifier may carry that actually map to a TS source file. */
+const REWRITABLE_JS_EXTENSIONS = new Set([".js", ".jsx", ".mjs", ".cjs"]);
+
 /**
- * Whether a relative import specifier resolves on disk to a `"use generative"`
- * module. Only relative specifiers are resolved — a bundler alias (e.g.
- * `@/tools`) can't be resolved without the bundler's config, so it's treated as
+ * Whether an import specifier resolves on disk to a `"use generative"` module.
+ * Relative specifiers and `tsconfig` path aliases (e.g. `@/tools`) are resolved;
+ * anything else (a bare package, an unresolvable alias) is treated as
  * non-generative, and thus an unsafe spread.
  */
 function isGenerativeImport(
   source: string,
   filename: string | undefined,
 ): boolean {
-  if (!filename || !source.startsWith(".")) return false;
+  const cleanFilename = cleanAbsoluteFilename(filename);
+  if (!cleanFilename) return false;
 
-  const cleanFilename = filename.split(/[?#]/, 1)[0]!;
-  if (!nodePath.isAbsolute(cleanFilename)) return false;
-
-  const resolved = resolveRelativeModuleFile(
-    nodePath.dirname(cleanFilename),
-    source,
-  );
+  const resolved = resolveImportedModuleFile(source, cleanFilename);
   if (!resolved) return false;
 
   try {
@@ -574,23 +575,176 @@ function isGenerativeImport(
   }
 }
 
-/** Resolves a relative specifier to a file, trying TS/JS extensions then index files. */
-function resolveRelativeModuleFile(
-  baseDir: string,
+/** Resolves an import specifier (relative or `tsconfig`-aliased) to a file on disk. */
+function resolveImportedModuleFile(
   source: string,
+  fromFilename: string,
 ): string | null {
-  const base = nodePath.resolve(baseDir, source);
+  if (source.startsWith(".")) {
+    const base = nodePath.resolve(nodePath.dirname(fromFilename), source);
+    return resolveModuleFileAtPath(base);
+  }
+  return resolveAliasImport(source, fromFilename);
+}
 
+/**
+ * Resolves a candidate module path, trying TS/JS extensions then index files. A
+ * specifier may carry a `.js`-family extension that maps to a `.ts`/`.tsx`
+ * source (TypeScript's `bundler`/`nodenext` resolution), so the extension is
+ * dropped before probing.
+ */
+function resolveModuleFileAtPath(base: string): string | null {
   if (nodePath.extname(base) && existsSync(base)) return base;
-  for (const ext of MODULE_EXTENSIONS) {
-    const candidate = `${base}${ext}`;
+
+  const ext = nodePath.extname(base);
+  const stem = REWRITABLE_JS_EXTENSIONS.has(ext)
+    ? base.slice(0, -ext.length)
+    : base;
+
+  for (const candidateExt of MODULE_EXTENSIONS) {
+    const candidate = `${stem}${candidateExt}`;
     if (existsSync(candidate)) return candidate;
   }
-  for (const ext of MODULE_EXTENSIONS) {
-    const candidate = nodePath.join(base, `index${ext}`);
+  for (const candidateExt of MODULE_EXTENSIONS) {
+    const candidate = nodePath.join(base, `index${candidateExt}`);
     if (existsSync(candidate)) return candidate;
   }
   return null;
+}
+
+interface TsconfigAliases {
+  /** Absolute directory that `paths` targets resolve against. */
+  baseDir: string;
+  paths: Record<string, string[]>;
+}
+
+/** Resolves a `tsconfig` path alias (e.g. `@/tools/x`) to a file on disk. */
+function resolveAliasImport(
+  source: string,
+  fromFilename: string,
+): string | null {
+  const tsconfig = loadTsconfigAliases(nodePath.dirname(fromFilename));
+  if (!tsconfig) return null;
+
+  for (const [pattern, targets] of Object.entries(tsconfig.paths)) {
+    const matched = matchAliasPattern(pattern, source);
+    if (matched === null) continue;
+
+    for (const target of targets) {
+      const specifier = target.includes("*")
+        ? target.replace("*", matched)
+        : target;
+      const file = resolveModuleFileAtPath(
+        nodePath.resolve(tsconfig.baseDir, specifier),
+      );
+      if (file) return file;
+    }
+  }
+  return null;
+}
+
+/**
+ * Matches an import specifier against a `tsconfig` `paths` key. Returns the text
+ * captured by the key's `*` (or `""` for an exact, wildcard-free key), or `null`
+ * when the specifier doesn't match.
+ */
+function matchAliasPattern(pattern: string, source: string): string | null {
+  const star = pattern.indexOf("*");
+  if (star === -1) return pattern === source ? "" : null;
+
+  const prefix = pattern.slice(0, star);
+  const suffix = pattern.slice(star + 1);
+  if (
+    source.length >= prefix.length + suffix.length &&
+    source.startsWith(prefix) &&
+    source.endsWith(suffix)
+  ) {
+    return source.slice(prefix.length, source.length - suffix.length);
+  }
+  return null;
+}
+
+/** Walks up from a directory to the nearest `tsconfig.json` that declares `paths`. */
+function loadTsconfigAliases(fromDir: string): TsconfigAliases | null {
+  let dir = fromDir;
+  for (;;) {
+    const tsconfigPath = nodePath.join(dir, "tsconfig.json");
+    if (existsSync(tsconfigPath)) {
+      const aliases = readTsconfigAliases(tsconfigPath, new Set());
+      if (aliases) return aliases;
+    }
+    const parent = nodePath.dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}
+
+/** Reads `baseUrl`/`paths` from a tsconfig, following a single `extends` chain. */
+function readTsconfigAliases(
+  tsconfigPath: string,
+  seen: Set<string>,
+): TsconfigAliases | null {
+  if (seen.has(tsconfigPath)) return null;
+  seen.add(tsconfigPath);
+
+  let config: {
+    extends?: string;
+    compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> };
+  } | null;
+  try {
+    config = parseJsonc(readFileSync(tsconfigPath, "utf8"));
+  } catch {
+    return null;
+  }
+  if (!config) return null;
+
+  const configDir = nodePath.dirname(tsconfigPath);
+  const { baseUrl, paths } = config.compilerOptions ?? {};
+
+  if (paths) {
+    return {
+      baseDir: baseUrl ? nodePath.resolve(configDir, baseUrl) : configDir,
+      paths,
+    };
+  }
+
+  if (config.extends) {
+    const extended = resolveExtendedTsconfig(config.extends, configDir);
+    if (extended) return readTsconfigAliases(extended, seen);
+  }
+  return null;
+}
+
+/** Resolves a tsconfig `extends` value (relative path or installed package). */
+function resolveExtendedTsconfig(
+  extendsValue: string,
+  configDir: string,
+): string | null {
+  if (extendsValue.startsWith(".")) {
+    const base = nodePath.resolve(configDir, extendsValue);
+    if (nodePath.extname(base) === ".json")
+      return existsSync(base) ? base : null;
+    const withJson = `${base}.json`;
+    if (existsSync(withJson)) return withJson;
+    return existsSync(base) ? base : null;
+  }
+  try {
+    return createRequire(nodePath.join(configDir, "package.json")).resolve(
+      extendsValue.endsWith(".json") ? extendsValue : `${extendsValue}.json`,
+    );
+  } catch {
+    return null;
+  }
+}
+
+/** Parses JSON with `//` and block comments and trailing commas stripped (tsconfig is JSONC). */
+function parseJsonc(text: string): any {
+  const withoutComments = text.replace(
+    /"(?:[^"\\]|\\.)*"|\/\/[^\n\r]*|\/\*[\s\S]*?\*\//g,
+    (match) => (match.startsWith('"') ? match : ""),
+  );
+  const withoutTrailingCommas = withoutComments.replace(/,(\s*[}\]])/g, "$1");
+  return JSON.parse(withoutTrailingCommas);
 }
 
 function unwrapToToolkitCall(node: t.Node): t.CallExpression | null {
