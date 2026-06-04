@@ -1,4 +1,6 @@
 import { createRequire } from "node:module";
+import { statSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import {
   compileGenerative,
   isGenerativeModule,
@@ -92,9 +94,23 @@ export function transform(
   return upstream.transform(props);
 }
 
+// The bundled compiler lives in this file, so its own mtime moves whenever the
+// transform output could change (a newly published version, or an in-place
+// monorepo rebuild). Deriving the token from it busts Metro's cache
+// automatically, rather than relying on a hand-bumped constant.
+let cachedSelfToken: string | undefined;
+function selfCacheToken(): string {
+  if (cachedSelfToken !== undefined) return cachedSelfToken;
+  try {
+    cachedSelfToken = String(statSync(fileURLToPath(import.meta.url)).mtimeMs);
+  } catch {
+    cachedSelfToken = "0";
+  }
+  return cachedSelfToken;
+}
+
 export function getCacheKey(): string {
   const upstream = upstreamTransformer();
   const base = upstream.getCacheKey ? upstream.getCacheKey() : "";
-  // Bust Metro's transform cache when this integration changes.
-  return `${base}$aui-metro-1`;
+  return `${base}$aui-metro:${selfCacheToken()}`;
 }
