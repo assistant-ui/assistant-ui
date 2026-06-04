@@ -52,7 +52,7 @@ Three versions of `ai` are supported. New projects should pick **v6**; v5 and v4
 AI SDK is the default choice for new projects on Next.js, Remix, or any framework with a Node-compatible API route. Pick it when:
 
 - You want a single direct path from the chat UI to your model with the smallest possible code surface.
-- You will compose with a framework like [Mastra](/docs/integrations/frameworks/mastra/overview), an [observability tool](/docs/integrations/observability/helicone), an [LLM gateway](/docs/integrations/gateways), or [tools through MCP](/docs/integrations/tools/mcp), all of which assume an AI SDK route.
+- You will compose with a framework like [Mastra](/docs/integrations/frameworks/mastra/overview), an [observability tool](/docs/integrations/observability/helicone), an [LLM gateway](/docs/integrations/gateways), or [tools through MCP](/docs/tools/mcp), all of which assume an AI SDK route.
 - You want first-party `frontendTools`, attachments, multi-step tool calls, token-usage metadata, and persisted history via `withFormat`.
 
 If you need streaming agent state (subgraph events, generative UI messages), look at [LangGraph](/docs/runtimes/langgraph) instead. If you have a different protocol-shaped backend (A2A, AG-UI, OpenCode), see [pick a runtime](/docs/runtimes/pick-a-runtime).

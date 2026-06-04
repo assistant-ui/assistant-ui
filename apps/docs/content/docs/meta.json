@@ -2,6 +2,7 @@
   "pages": [
     "(docs)",
     "guides",
+    "tools",
     "primitives",
     "ui",
     "runtimes",

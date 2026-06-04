@@ -4,6 +4,7 @@
   "root": true,
   "pages": [
     "deprecation-policy",
+    "toolkit-tools",
     "v0-11",
     "v0-12",
     "v0-14",

@@ -1,0 +1,110 @@
+---
+title: Dynamic Tools
+description: Tools whose executor closes over React state — declare the contract with stubTool() in a "use generative" file and supply the executor with useAuiToolOverrides.
+platforms: ["react"]
+---
+
+Most tools are static: their executor is fixed at build time. But some tools need to read or write **component state** — adding to a list the user can also edit, mutating a canvas, pre-filling a form. The executor for those has to close over a React setter, which can't live in a build-split `"use generative"` file.
+
+The pattern: declare the model-facing **contract** in the toolkit with `execute: stubTool()`, and supply the **real executor** at runtime in the component that owns the state with `useAuiToolOverrides`.
+
+<Callout type="warn">
+  `useAuiToolOverrides` is experimental and its API may change.
+</Callout>
+
+## 1. Declare the contract with `stubTool()`
+
+In your `"use generative"` file, give the tool its description, parameters, and renderer, and mark the executor as a stub. The compiler ships the schema to the backend and strips the stub — the model can call the tool, but nothing executes until the component supplies the real implementation. Keeping schemas in a separate non-directive module lets the component import the arg types too:
+
+```tsx title="app/task-board-toolkit.tsx"
+"use generative";
+
+import { defineToolkit, stubTool } from "@assistant-ui/react";
+import { manageTasksParameters } from "./state";
+
+export default defineToolkit({
+  manage_tasks: {
+    description:
+      'Manage tasks on the board. Actions: "add" (requires title), ' +
+      '"toggle" (requires id), "remove" (requires id), "clear".',
+    parameters: manageTasksParameters,
+    execute: stubTool(),
+    renderText: {
+      running: ({ args }) => `Updating tasks: ${args.action}`,
+      complete: "Tasks updated",
+    },
+  },
+});
+```
+
+## 2. Supply the executor with `useAuiToolOverrides`
+
+The component that owns the state registers the toolkit, then renders a small null-returning child that provides the executor closing over its `setState`:
+
+```tsx title="app/TaskBoard.tsx"
+import {
+  AuiProvider,
+  Tools,
+  useAui,
+  useAuiToolOverrides,
+} from "@assistant-ui/react";
+import { useState, type Dispatch, type SetStateAction } from "react";
+import type { Task } from "./state";
+import toolkit from "./task-board-toolkit";
+
+function TaskBoard() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const aui = useAui({ tools: Tools({ toolkit }) });
+
+  return (
+    <AuiProvider value={aui}>
+      <TaskBoardToolOverrides setTasks={setTasks} />
+      <TaskList tasks={tasks} />
+    </AuiProvider>
+  );
+}
+
+function TaskBoardToolOverrides({
+  setTasks,
+}: {
+  setTasks: Dispatch<SetStateAction<Task[]>>;
+}) {
+  useAuiToolOverrides({
+    manage_tasks: {
+      execute: async ({ action, id, title }) => {
+        switch (action) {
+          case "add":
+            setTasks((prev) => [
+              ...prev,
+              { id: crypto.randomUUID(), title: title ?? "Untitled", done: false },
+            ]);
+            return { success: true };
+          case "toggle":
+            setTasks((prev) =>
+              prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)),
+            );
+            return { success: true };
+          case "clear":
+            setTasks([]);
+            return { success: true };
+          default:
+            return { success: false, error: "Unknown action" };
+        }
+      },
+    },
+  });
+  return null;
+}
+```
+
+The override supplies **only** the `execute`; the description, parameters, and `renderText` stay in the toolkit file. An override registers above toolkit defaults, so it wins for that tool name — return a useful payload (e.g. a new item's `id`) and the model picks it up on the next turn.
+
+<Callout type="info">
+  Keep the override keys stable after mount, and let only one mounted provider
+  define a given tool name at a time. The null-returning overrides component
+  re-binds the executor whenever the setter changes, without re-running `useAui`.
+</Callout>
+
+## When to reach for this vs. Interactables
+
+If you mainly want the model to update a piece of component state with a partial-update tool generated for you, [Interactables](/docs/tools/interactables) does that out of the box — no `stubTool` needed. Use dynamic tools when you want full control over the tool's name, schema, executor logic, and return value. The two compose: the [with-interactables example](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-interactables) uses both side by side.

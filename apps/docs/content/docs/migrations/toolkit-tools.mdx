@@ -103,25 +103,25 @@ export function App() {
 
 ## UI-Only Tool Renderers
 
-If you used `makeAssistantToolUI` or `useAssistantToolUI` for a backend, MCP, or LangGraph tool, move the renderer onto a backend toolkit entry:
+If you used `makeAssistantToolUI` or `useAssistantToolUI` for a backend, MCP, or LangGraph tool, the tool executes elsewhere, so there is no `execute` to author. That makes it a **render-only** entry, which belongs in a plain `satisfies Toolkit` object — not a `"use generative"` file (a generative tool must declare an `execute`). Author an explicit `type: "backend"` with just a `render`:
 
 ```tsx
-// app/toolkit.tsx
-"use generative";
+// app/tool-ui.tsx
+"use client";
 
-import { defineToolkit } from "@assistant-ui/react";
+import type { Toolkit } from "@assistant-ui/react";
 
-export default defineToolkit({
+export const toolkit = {
   web_search: {
     type: "backend",
     render: ({ args, result }) => (
       <SearchResults query={args.query} results={result?.results ?? []} />
     ),
   },
-});
+} satisfies Toolkit;
 ```
 
-Backend entries do not upload a schema or execute in the browser. They only attach UI for matching tool-call message parts.
+Register it like any toolkit: `useAui({ tools: Tools({ toolkit }) })`. Render-only entries upload no schema and run no browser code — they only attach UI for matching tool-call message parts.
 
 For a one-off renderer that should only affect a particular message surface, use `MessagePrimitive.Parts` inline tool render overrides instead of a global registration.
 

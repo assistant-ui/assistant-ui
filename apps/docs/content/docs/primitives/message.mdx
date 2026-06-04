@@ -513,7 +513,7 @@ import { MessagePrimitive, AuiIf } from "@assistant-ui/react";
 </MessagePrimitive.Root>;
 ```
 
-`s.message.status` is a discriminated union of `running | requires-action | complete | incomplete`, defined only on assistant messages. The `role === "assistant"` guard keeps the predicate type-safe. For tool-call-driven generative UI that defers rendering inside the part itself, see [Deferred Rendering](/docs/guides/tool-ui#deferred-rendering) in the Generative UI guide.
+`s.message.status` is a discriminated union of `running | requires-action | complete | incomplete`, defined only on assistant messages. The `role === "assistant"` guard keeps the predicate type-safe. For tool-call-driven generative UI that defers rendering inside the part itself, see [Deferred Rendering](/docs/tools/tool-ui#deferred-rendering) in the Generative UI guide.
 
 ### Legacy and Unstable APIs
 

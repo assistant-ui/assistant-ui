@@ -1,5 +1,0 @@
-{
-  "title": "Tools",
-  "description": "Tool integration guides for connecting external tool catalogs and rendering tool activity in assistant-ui.",
-  "pages": ["mcp", "react-mcp"]
-}

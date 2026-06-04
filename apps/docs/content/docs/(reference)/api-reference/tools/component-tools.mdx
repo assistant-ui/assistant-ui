@@ -9,26 +9,12 @@ import { useAssistantTool } from "@/generated/typeDocs";
 {/* Do not edit manually. */}
 
 {/* api-manual:start */}
-`useAssistantTool` and `makeAssistantTool` are deprecated compatibility APIs. Prefer registering a `Toolkit` with `Tools({ toolkit })`.
-
-For tools whose availability should follow a specific UI surface, build a toolkit in that component with `useMemo` and provide it through `useAui({ tools: Tools({ toolkit }) })`. See [Migrating Tools to Toolkits](/docs/migrations/toolkit-tools).
-
-For simple tool-call displays, use `renderText` instead of a custom `render` component:
-
-```tsx
-const toolkit = {
-  search_docs: {
-    type: "frontend",
-    description: "Search the docs.",
-    parameters: searchDocsSchema,
-    execute: async ({ query }) => searchDocs(query),
-    renderText: {
-      running: ({ args }) => `Searching for ${args.query}...`,
-      complete: "Search complete",
-    },
-  },
-} satisfies Toolkit;
-```
+<Callout type="warn">
+  `makeAssistantTool` and `useAssistantTool` are **deprecated** compatibility
+  APIs, documented here for reference only. New code should define a toolkit —
+  see [Defining Tools](/docs/tools/defining-tools) and [Migrating Tools to
+  Toolkits](/docs/migrations/toolkit-tools).
+</Callout>
 {/* api-manual:end */}
 
 {/* api-reference:start */}

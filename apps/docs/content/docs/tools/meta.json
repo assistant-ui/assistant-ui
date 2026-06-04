@@ -1,0 +1,24 @@
+{
+  "title": "Tools",
+  "description": "Give the model callable capabilities with toolkits, render tool calls as interactive UI, and connect MCP servers.",
+  "icon": "Wrench",
+  "root": true,
+  "platforms": ["react"],
+  "pages": [
+    "index",
+    "---Defining tools---",
+    "defining-tools",
+    "backend",
+    "dynamic-tools",
+    "---Rendering tool calls---",
+    "tool-ui",
+    "generative-ui",
+    "interactables",
+    "---MCP---",
+    "mcp",
+    "user-managed-mcp",
+    "mcp-apps",
+    "---Advanced---",
+    "multi-agent"
+  ]
+}

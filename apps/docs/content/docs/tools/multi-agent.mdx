@@ -147,14 +147,7 @@ function App() {
 
 ## Subgraph Namespace Events
 
-When using LangGraph, subgraph events carry a `namespace` that identifies which sub-agent emitted them. This lets you attribute messages and state to specific sub-agents without polling or manual coordination.
-
-- `onSubgraphValues(namespace, values)` fires when a subgraph emits a full state snapshot. Use the `values.messages` array to populate `ToolCallMessagePart.messages` for that sub-agent.
-- `onSubgraphUpdates(namespace, updates)` fires for incremental state patches from a subgraph.
-- `onSubgraphError(namespace, error)` fires when a subgraph fails. The parent message is not marked incomplete; only top-level errors trigger that.
-- `onMessageChunk(chunk, metadata)` includes `metadata.namespace` when the chunk originates from a subgraph. Use this to display per-sub-agent streaming indicators.
-
-The `namespace` value mirrors the pipe-separated suffix on the LangGraph event name (e.g. `values|tools:call_abc` gives `"tools:call_abc"`).
+When using LangGraph, subgraph events (`onSubgraphValues` / `onSubgraphUpdates` / `onSubgraphError`, plus the `namespace` on `onMessageChunk`) carry a `namespace` that identifies which sub-agent emitted them, letting you attribute messages and state to specific sub-agents. See [LangGraph Streaming](/docs/runtimes/langgraph/streaming) for the full reference.
 
 ## Recursive Sub-Agents
 
@@ -232,7 +225,7 @@ function SubConversation({
 
 ## Related
 
-- [Generative UI](/docs/guides/tool-ui) — Creating tool call UIs
+- [Generative UI](/docs/tools/tool-ui) — Creating tool call UIs
 - [MessagePartPrimitive](/docs/api-reference/primitives/message-part) — API reference for message part primitives
 - [Sub-Agent Model Tracking](/docs/cloud/ai-sdk#sub-agent-model-tracking) — Track delegated model usage and costs in the Cloud dashboard
 - [LangGraph Streaming](/docs/runtimes/langgraph/streaming) — Event handlers, subgraph events, and message metadata
