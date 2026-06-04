@@ -3,7 +3,7 @@ title: Toolkits
 description: Define model-facing tools and compose them into named toolkits registered with an assistant-ui runtime scope.
 ---
 
-import { ToolDefinition, Tools, tool } from "@/generated/typeDocs";
+import { ToolDefinition, Tools, defineMcpToolkit, defineToolkit, providerTool, tool } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -88,4 +88,74 @@ context, while each tool renderer is registered with the tools scope for
 message rendering.
 
 <ParametersTable {...Tools} />
+
+### defineMcpToolkit
+
+Defines MCP server tools as a spreadable toolkit fragment.
+
+<ParametersTable {...defineMcpToolkit} />
+
+### defineToolkit
+
+Authoring helper for a `"use generative"` toolkit. Accepts the permissive
+ToolkitDefinition (a `backend` tool may carry its server `execute`)
+and types the result as the canonical [Toolkit](/docs/api-reference/tools/toolkits#toolkit).
+
+It has **no runtime implementation**. A `"use generative"` compiler (e.g.
+`@assistant-ui/next` or `@assistant-ui/vite`) strips the `defineToolkit(...)`
+wrapper (and its import) per build, so a correctly compiled
+`export default defineToolkit({...})` never calls this. If it *does* run, the
+module was not compiled by a use-generative loader — e.g. `defineToolkit` used
+outside a `"use generative"` file — which would ship a backend `execute` to the
+client. So it throws instead of silently leaking.
+
+<ParametersTable {...defineToolkit} />
+
+### hitl
+
+<Callout type="warn">
+<strong>Deprecated.</strong> Use [hitlTool](/docs/api-reference/tools/toolkits#hitltool).
+</Callout>
+
+```ts
+const hitl: typeof hitlTool;
+```
+
+### hitlTool
+
+Marks a tool as **human-in-the-loop**: the agent pauses and the UI (`render`)
+supplies the result instead of code. Use it as the tool's `execute`:
+
+```tsx
+confirm: { execute: hitlTool(), render: (props) => <Confirm {...props} /> }
+```
+
+Like [defineToolkit](/docs/api-reference/tools/toolkits#definetoolkit), it has **no runtime implementation**: a
+`"use generative"` compiler (e.g. `@assistant-ui/next` or `@assistant-ui/vite`)
+detects `execute: hitlTool()`, drops it, and stamps the tool `type: "human"`.
+Reaching it at runtime means the module wasn't compiled (used outside a
+`"use generative"` file), so it throws.
+
+```ts
+function hitlTool(): never;
+```
+
+### providerTool
+
+Marks a tool as provider-executed. The use-generative compiler converts
+`execute: providerTool(...)` into a `type: "provider"` tool entry.
+
+<ParametersTable {...providerTool} />
+
+### stubTool
+
+Marks a generative toolkit entry as a frontend tool whose executor will be
+supplied by `useAuiToolOverrides(...)`.
+
+`stubTool()` has no runtime implementation. It must be used inside a
+`"use generative"` toolkit file so the compiler can strip it.
+
+```ts
+function stubTool(): never;
+```
 {/* api-reference:end */}

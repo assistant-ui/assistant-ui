@@ -73,10 +73,22 @@ function kebabCase(value: string): string {
     .toLowerCase();
 }
 
-function supportingTypeRole(kind: ExportKind): ExportInfo["pageRole"] {
+export function supportingTypeRole(kind: ExportKind): ExportInfo["pageRole"] {
   return kind === "interface" || kind === "type"
     ? "supporting-type"
     : "primary";
+}
+
+// Like supportingTypeRole, but values render as "related" rather than "primary"
+// so a confidently-classified page's core APIs sort above them. Used for
+// loosely-placed exports (suffix fallback, co-location) that earned a spot on a
+// page but should not lead it.
+export function relatedOrSupportingRole(
+  kind: ExportKind,
+): ExportInfo["pageRole"] {
+  return kind === "interface" || kind === "type"
+    ? "supporting-type"
+    : "related";
 }
 
 export function pageForToolExport(name: string): string {
@@ -320,6 +332,19 @@ function kindRule(input: ClassificationInput): Classification | undefined {
 }
 
 function fallbackRule(input: ClassificationInput): Classification {
+  // Suffix match routes *Tool/*Toolkit helpers the exact-name list misses.
+  // Value helpers render as "related" so the page's core tool APIs (tool,
+  // Toolkit, ToolDefinition) sort above them; types stay supporting.
+  if (/Tool$/.test(input.name) || /Toolkit$/.test(input.name)) {
+    return classification(
+      "tools",
+      pageForToolExport(input.name),
+      relatedOrSupportingRole(input.kind),
+      "fallback:name",
+      "medium",
+      "name ends in Tool/Toolkit",
+    );
+  }
   return classification(
     "utilities",
     "miscellaneous",

@@ -6,7 +6,7 @@ import {
 } from "ts-morph";
 import * as path from "node:path";
 import { REACT_INDEX, REPO_ROOT } from "./paths.mts";
-import { classifyExport } from "./classify.mts";
+import { classifyExport, relatedOrSupportingRole } from "./classify.mts";
 import {
   chooseDeclaration,
   extractJsDoc,
@@ -254,16 +254,61 @@ function createKnownExportPredicate(
   return (target: string): boolean => known.has(cleanLinkTarget(target));
 }
 
+function isBetterDonor(
+  candidate: ClassifiedExportInput,
+  current: ClassifiedExportInput,
+): boolean {
+  const primary = (item: ClassifiedExportInput) =>
+    item.placement.role === "primary" ? 0 : 1;
+  if (primary(candidate) !== primary(current)) {
+    return primary(candidate) < primary(current);
+  }
+  const strong = (item: ClassifiedExportInput) =>
+    item.placement.confidence === "strong" ? 0 : 1;
+  if (strong(candidate) !== strong(current)) {
+    return strong(candidate) < strong(current);
+  }
+  return candidate.name.localeCompare(current.name) < 0;
+}
+
 function classifyExportInputs(
   inputs: DiscoveredExportInput[],
 ): ClassifiedExportInput[] {
-  return inputs.map((input) => {
+  const classified = inputs.map((input) => {
     const sourcePath = relativeToRepo(
       input.resolved?.getSourceFile().getFilePath(),
     );
     const kind = classifyKind(input.resolved, input.name);
     const placement = classifyExport({ name: input.name, kind, sourcePath });
     return { ...input, sourcePath, kind, placement };
+  });
+
+  // Unplaceable exports inherit a confidently-classified file-mate's location.
+  const donorBySource = new Map<string, ClassifiedExportInput>();
+  for (const item of classified) {
+    if (!item.sourcePath || item.placement.confidence === "fallback") continue;
+    const current = donorBySource.get(item.sourcePath);
+    if (!current || isBetterDonor(item, current)) {
+      donorBySource.set(item.sourcePath, item);
+    }
+  }
+
+  return classified.map((item) => {
+    if (item.placement.confidence !== "fallback" || !item.sourcePath) {
+      return item;
+    }
+    const donor = donorBySource.get(item.sourcePath);
+    if (!donor) return item;
+    return {
+      ...item,
+      placement: {
+        ...donor.placement,
+        role: relatedOrSupportingRole(item.kind),
+        rule: "fallback:co-location",
+        confidence: "medium",
+        reason: `inherited from co-located ${donor.name}`,
+      },
+    };
   });
 }
 
@@ -362,10 +407,18 @@ export function discoverIntegrationExports(
   const inputs = classifyExportInputs(collectExportInputs(entryPath)).filter(
     ({ kind }) => kind !== "interface" && kind !== "type",
   );
+  // Links resolve to where these exports render — their integration page — not
+  // to the raw placement buildExportInfo overrides below.
   const renderOptions: JsDocRenderOptions = {
     linkResolver: createApiReferenceLinkResolver([
       ...getReactApiLinkItems(),
-      ...linkItemsFor(inputs),
+      ...inputs
+        .filter((item) => item.placement.role !== "supporting-type")
+        .map((item) => ({
+          name: item.name,
+          section: "integrations" as const,
+          page,
+        })),
     ]),
     isKnownExport: createKnownExportPredicate(getAllExportedNames()),
   };
