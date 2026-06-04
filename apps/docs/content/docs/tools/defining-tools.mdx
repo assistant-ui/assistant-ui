@@ -288,9 +288,46 @@ the tool definition from the external system. The client build keeps only
 `type: "backend"` and the renderer (or `renderText`) for matching tool-call
 message parts.
 
-### Dynamic (stateful) tools
+### Tool stubs (supply the executor elsewhere)
 
-When a tool's executor must close over React state, declare its contract with `execute: stubTool()` and supply the real executor at runtime with `useAuiToolOverrides`. See [Dynamic tools](/docs/tools/dynamic-tools).
+Sometimes a tool's executor can't live in the build-split `"use generative"` file, usually because it has to close over React state (a `useState` setter, a ref). Declare the model-facing contract with `execute: stubTool()`, then supply the real executor at runtime with `useAuiToolOverrides` from the component that owns the state:
+
+```tsx title="app/toolkit.tsx"
+"use generative";
+
+import { defineToolkit, stubTool } from "@assistant-ui/react";
+import { manageTasksParameters } from "./state";
+
+export default defineToolkit({
+  manage_tasks: {
+    description: "Add, toggle, or clear tasks on the board.",
+    parameters: manageTasksParameters,
+    execute: stubTool(),
+    renderText: { running: "Updating tasks…", complete: "Tasks updated" },
+  },
+});
+```
+
+```tsx title="app/TaskBoard.tsx"
+import { useAuiToolOverrides } from "@assistant-ui/react";
+
+function TaskBoardToolOverrides({ setTasks }) {
+  useAuiToolOverrides({
+    manage_tasks: {
+      execute: async ({ action, title }) => {
+        // close over setTasks here, then return a payload for the model
+      },
+    },
+  });
+  return null;
+}
+```
+
+`stubTool()` has no runtime implementation: it marks the executor as supplied later, while the compiler still ships the schema to the backend so the model can call the tool. The override registers above the toolkit default, so its `execute` wins for that name. To turn a tool off at runtime instead, see [Disabling a tool](#disabling-a-tool). See [Dynamic tools](/docs/tools/dynamic-tools) for the full walkthrough.
+
+<Callout type="warn">
+  `useAuiToolOverrides` is experimental and its API may change.
+</Callout>
 
 ## Rendering a tool call
 
@@ -350,12 +387,28 @@ export type GetWeatherArgs = z.infer<typeof getWeatherParameters>;
 
 ### Split tools across files and merge them
 
+Each file you split into is its own `"use generative"` module that default-exports a `defineToolkit(...)`:
+
+```tsx title="app/tools/weather.tsx"
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
+
+export default defineToolkit({
+  get_weather: {
+    /* description, parameters, execute, render */
+  },
+});
+```
+
+Merge them by spreading their default imports into a parent toolkit:
+
 ```tsx title="app/toolkit.tsx"
 "use generative";
 
 import { defineToolkit } from "@assistant-ui/react";
-import { weatherTools } from "./tools/weather";
-import { databaseTools } from "./tools/database";
+import weatherTools from "./tools/weather";
+import databaseTools from "./tools/database";
 
 export default defineToolkit({
   ...weatherTools,
@@ -363,11 +416,26 @@ export default defineToolkit({
 });
 ```
 
-Only spreads the compiler can see through are allowed — a local `defineToolkit(...)` / `defineMcpToolkit(...)` binding, or an inline `...defineMcpToolkit({ … })`. Spreading an opaque import is rejected, because the compiler can't verify a backend `execute` won't leak to the client.
+The compiler splits each file across the client/server boundary on its own, then checks that the spread import resolves to a `"use generative"` module before allowing it, so a backend `execute` can't leak to the client. Two rules follow:
+
+- **Spread a default import** (`import weatherTools from "./tools/weather"`). Relative paths and `tsconfig` path aliases like `@/tools/weather` both resolve. Only the default export crosses the generative-module boundary, so a named import (or any opaque, non-generative import) is rejected.
+- You can also spread a local `defineToolkit(...)` or `defineMcpToolkit(...)` binding declared in the same file.
 
 ### Add MCP server tools
 
-Spread `defineMcpToolkit` to expose tools from an MCP server alongside your own:
+`defineMcpToolkit` exposes tools from an MCP server. For an MCP-only toolkit, export it directly:
+
+```tsx title="app/mcp-toolkit.tsx"
+"use generative";
+
+import { defineMcpToolkit } from "@assistant-ui/react";
+
+export default defineMcpToolkit({
+  docs: { type: "http", url: "https://mcp.example.com/mcp" },
+});
+```
+
+To expose MCP tools alongside your own, spread it into a `defineToolkit`:
 
 ```tsx
 "use generative";
@@ -378,6 +446,7 @@ export default defineToolkit({
   ...defineMcpToolkit({
     docs: { type: "http", url: "https://mcp.example.com/mcp" },
   }),
+  // ...your own tools
 });
 ```
 
@@ -446,6 +515,21 @@ While a tool runs, its arguments arrive as partial JSON. Use [`useToolArgsStatus
 ### Disabling a tool
 
 Set `disabled: true` to keep a tool known to the client but hidden from the model in the current scope.
+
+To toggle a tool off at runtime without editing the toolkit, register the same flag through `useAuiToolOverrides`:
+
+```tsx
+import { useAuiToolOverrides } from "@assistant-ui/react";
+
+function GuestModeTools() {
+  useAuiToolOverrides({
+    delete_account: { disabled: true },
+  });
+  return null;
+}
+```
+
+The override registers above the toolkit default, so the tool drops out of the set sent to the model. Mount the override only while the tool should be hidden (for example, for signed-out users); unmounting it restores the toolkit default.
 
 ## Migrating from the component APIs
 
