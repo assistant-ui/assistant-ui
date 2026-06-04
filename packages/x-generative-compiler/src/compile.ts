@@ -274,8 +274,8 @@ function ensureCompilerCompatibleWithCore(
     throw new GenerativeCompileError(
       `${CORE_PACKAGE}@${corePackageJson.version ?? "unknown"} requires ` +
         `${COMPILER_PACKAGE} ${range}, but the current compiler is ` +
-        `${COMPILER_VERSION}. Update @assistant-ui/next or @assistant-ui/vite ` +
-        "so their compiler satisfies the core package's " +
+        `${COMPILER_VERSION}. Update @assistant-ui/next, @assistant-ui/vite, ` +
+        "or @assistant-ui/metro so their compiler satisfies the core package's " +
         "optionalDevDependencies range.",
       filename,
     );
