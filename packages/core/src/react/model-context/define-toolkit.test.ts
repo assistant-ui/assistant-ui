@@ -1,7 +1,7 @@
 import { describe, it, expect, expectTypeOf } from "vitest";
 import type { AsyncIterableStream } from "assistant-stream/utils";
 import { defineToolkit } from "./define-toolkit";
-import { hitl, hitlTool, humanTool } from "./hitl";
+import { hitl, hitlTool, humanTool } from "./human-tool";
 import { providerTool } from "./provider-tool";
 import { stubTool } from "./stub-tool";
 import { externalTool } from "./external-tool";
