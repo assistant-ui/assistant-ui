@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AISDKToolkit, generativeTools } from "./generativeTools";
+import { AISDKToolkit } from "./generativeTools";
 import { wrapModelContentEnvelope } from "./modelContentEnvelope";
 
 const mocks = vi.hoisted(() => ({
@@ -19,20 +19,9 @@ vi.mock("@ai-sdk/mcp/mcp-stdio", () => ({
   })),
 }));
 
-describe("generativeTools", () => {
-  beforeEach(() => {
-    mocks.close.mockReset();
-    mocks.tools.mockReset();
-    mocks.createMCPClient.mockReset();
-  });
-
-  it("merges frontend tools with toolkit tools", () => {
-    const toolSet = generativeTools({
-      frontendTools: {
-        clientTool: {
-          parameters: { type: "object", properties: {} },
-        },
-      },
+describe("AISDKToolkit.tools()", () => {
+  it("merges frontend tools with toolkit tools", async () => {
+    const toolSet = await new AISDKToolkit({
       toolkit: {
         serverTool: {
           type: "backend",
@@ -41,6 +30,12 @@ describe("generativeTools", () => {
           execute: async () => "ok",
         } as never,
       },
+    }).tools({
+      frontend: {
+        clientTool: {
+          parameters: { type: "object", properties: {} },
+        },
+      },
     });
 
     expect(toolSet.clientTool).toBeDefined();
@@ -48,8 +43,8 @@ describe("generativeTools", () => {
     expect(toolSet.serverTool?.execute).toBeTypeOf("function");
   });
 
-  it("keeps a flat toolkit tool named tools", () => {
-    const toolSet = generativeTools({
+  it("keeps a flat toolkit tool named tools", async () => {
+    const toolSet = await new AISDKToolkit({
       toolkit: {
         tools: {
           type: "backend",
@@ -58,27 +53,14 @@ describe("generativeTools", () => {
           execute: async () => "ok",
         } as never,
       },
-    });
+    }).tools();
 
     expect(toolSet.tools?.description).toBe("Actually a tool, not config");
     expect(toolSet.tools?.execute).toBeTypeOf("function");
   });
 
-  it("rejects MCP entries because they require pooled clients", () => {
-    expect(() =>
-      generativeTools({
-        toolkit: {
-          docs: {
-            type: "mcp",
-            server: { type: "http", url: "http://localhost:3001/mcp" },
-          },
-        },
-      }),
-    ).toThrow(/requires AISDKToolkit/);
-  });
-
-  it("converts provider tools without an execute function", () => {
-    const toolSet = generativeTools({
+  it("converts provider tools without an execute function", async () => {
+    const toolSet = await new AISDKToolkit({
       toolkit: {
         web_search: {
           type: "provider",
@@ -86,7 +68,7 @@ describe("generativeTools", () => {
           args: { searchContextSize: "low" },
         },
       },
-    });
+    }).tools();
 
     expect(toolSet.web_search).toMatchObject({
       type: "provider",
@@ -97,8 +79,8 @@ describe("generativeTools", () => {
     expect(toolSet.web_search).not.toHaveProperty("execute");
   });
 
-  it("forwards provider tool parameters and providerOptions when present", () => {
-    const toolSet = generativeTools({
+  it("forwards provider tool parameters and providerOptions when present", async () => {
+    const toolSet = await new AISDKToolkit({
       toolkit: {
         web_search: {
           type: "provider",
@@ -116,7 +98,7 @@ describe("generativeTools", () => {
           },
         },
       },
-    });
+    }).tools();
 
     expect(toolSet.web_search).toMatchObject({
       type: "provider",
@@ -129,8 +111,8 @@ describe("generativeTools", () => {
     expect(toolSet.web_search).toHaveProperty("inputSchema");
   });
 
-  it("forwards explicit false supportsDeferredResults", () => {
-    const toolSet = generativeTools({
+  it("forwards explicit false supportsDeferredResults", async () => {
+    const toolSet = await new AISDKToolkit({
       toolkit: {
         web_search: {
           type: "provider",
@@ -139,7 +121,7 @@ describe("generativeTools", () => {
           supportsDeferredResults: false,
         },
       },
-    });
+    }).tools();
 
     expect(toolSet.web_search).toMatchObject({
       supportsDeferredResults: false,
@@ -324,18 +306,18 @@ describe("AISDKToolkit", () => {
   });
 });
 
-describe("generativeTools toModelOutput", () => {
+describe("AISDKToolkit toModelOutput", () => {
   const createWeatherTools = (toModelOutput?: any) =>
-    generativeTools({
+    new AISDKToolkit({
       toolkit: {
         get_weather: {
           ...(toModelOutput && { toModelOutput }),
         },
       } as any,
-    });
+    }).tools();
 
   it("adapts assistant-ui model content parts to the AI SDK tool output shape", async () => {
-    const tools = createWeatherTools(({ output }: any) => [
+    const tools = await createWeatherTools(({ output }: any) => [
       { type: "text", text: `Weather card displayed: ${output.location}` },
     ]);
 
@@ -353,7 +335,7 @@ describe("generativeTools toModelOutput", () => {
 
   it("uses stored model content envelopes without re-running the custom projector", async () => {
     let called = false;
-    const tools = createWeatherTools(() => {
+    const tools = await createWeatherTools(() => {
       called = true;
       return [{ type: "text", text: "recomputed" }];
     });
@@ -374,7 +356,7 @@ describe("generativeTools toModelOutput", () => {
   });
 
   it("falls back to default model output when no custom projector is defined", async () => {
-    const tools = createWeatherTools();
+    const tools = await createWeatherTools();
 
     const output = await tools.get_weather!.toModelOutput!({
       toolCallId: "tc-weather",
@@ -389,7 +371,7 @@ describe("generativeTools toModelOutput", () => {
   });
 
   it("uses stored model content envelopes when no custom projector is defined", async () => {
-    const tools = createWeatherTools();
+    const tools = await createWeatherTools();
 
     const output = await tools.get_weather!.toModelOutput!({
       toolCallId: "tc-weather",
