@@ -14,11 +14,6 @@ export type MessageQueueDriver = {
   cancel?: (() => void) | undefined;
 };
 
-export type MessageQueueOptions = {
-  deriveId?: ((message: AppendMessage) => string) | undefined;
-  derivePrompt?: ((message: AppendMessage) => string) | undefined;
-};
-
 export type MessageQueueController = {
   readonly adapter: ExternalThreadQueueAdapter;
   /** Mark a run as in flight so concurrent sends buffer; call on the rising edge. */
@@ -32,7 +27,6 @@ const EMPTY_ITEMS: readonly QueueItemState[] = Object.freeze([]);
 
 export const createMessageQueue = (
   driver: MessageQueueDriver,
-  options?: MessageQueueOptions,
 ): MessageQueueController => {
   let items: readonly QueueItemState[] = EMPTY_ITEMS;
   const messages = new Map<string, AppendMessage>();
@@ -66,9 +60,8 @@ export const createMessageQueue = (
   };
 
   const enqueue = (message: AppendMessage, { steer }: { steer: boolean }) => {
-    const id = options?.deriveId?.(message) ?? generateId();
-    const prompt =
-      options?.derivePrompt?.(message) ?? getThreadMessageText(message);
+    const id = generateId();
+    const prompt = getThreadMessageText(message);
     messages.set(id, message);
     setItems([...items, { id, prompt }]);
     if (steer) {

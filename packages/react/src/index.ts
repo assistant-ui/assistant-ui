@@ -139,7 +139,6 @@ export type {
 export {
   createMessageQueue,
   type MessageQueueDriver,
-  type MessageQueueOptions,
   type MessageQueueController,
   type ExternalThreadQueueAdapter,
 } from "@assistant-ui/core";

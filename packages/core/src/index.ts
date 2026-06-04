@@ -290,7 +290,6 @@ export type { ExternalThreadQueueAdapter } from "./runtime/queue/external-thread
 export {
   createMessageQueue,
   type MessageQueueDriver,
-  type MessageQueueOptions,
   type MessageQueueController,
 } from "./runtime/queue/message-queue";
 
