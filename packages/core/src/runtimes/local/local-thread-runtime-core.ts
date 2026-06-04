@@ -206,11 +206,14 @@ export class LocalThreadRuntimeCore
   }
 
   public async append(message: AppendMessage): Promise<void> {
+    const isTail = message.parentId === (this.messages.at(-1)?.id ?? null);
     const willRun = message.startRun ?? message.role === "user";
-    if (this._queue && willRun) {
+    if (this._queue && willRun && isTail) {
       this._queue.adapter.enqueue(message, { steer: message.steer ?? false });
       return;
     }
+    // an edit branches the thread, so drop anything queued for the old branch
+    if (this._queue && !isTail) this._queue.adapter.clear("edit");
     return this._runAppend(message);
   }
 
@@ -523,12 +526,14 @@ export class LocalThreadRuntimeCore
   }
 
   public detach() {
+    this._queue?.adapter.clear("cancel-run");
     const error = new AbortError(true);
     this.abortController?.abort(error);
     this.abortController = null;
   }
 
   public cancelRun() {
+    this._queue?.adapter.clear("cancel-run");
     const error = new AbortError(false);
     this.abortController?.abort(error);
     this.abortController = null;

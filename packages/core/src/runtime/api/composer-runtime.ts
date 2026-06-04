@@ -125,7 +125,7 @@ const getEditComposerState = (
     attachmentAccept: runtime?.attachmentAccept ?? "",
     dictation: runtime?.dictation,
     quote: runtime?.quote,
-    queue: EMPTY_ARRAY,
+    queue: runtime?.queue ?? EMPTY_ARRAY,
 
     parentId: runtime?.parentId ?? null,
     sourceId: runtime?.sourceId ?? null,

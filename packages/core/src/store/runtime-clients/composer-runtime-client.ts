@@ -18,10 +18,10 @@ import type {
 } from "../../runtime/api/composer-runtime";
 import type { ComposerState } from "../scopes/composer";
 import type { QueueItemState } from "../scopes/queue-item";
-
-const EMPTY_QUEUE: readonly QueueItemState[] = Object.freeze([]);
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 import { tapSubscribable } from "./tap-subscribable";
+
+const EMPTY_QUEUE: readonly QueueItemState[] = Object.freeze([]);
 
 const ComposerAttachmentClientByIndex = resource(
   ({ runtime, index }: { runtime: ComposerRuntime; index: number }) => {

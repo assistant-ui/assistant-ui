@@ -135,6 +135,54 @@ describe("local runtime message queue", () => {
     expect(queue[0]!.prompt).toBe("b");
   });
 
+  it("clears the queue when the run is cancelled, without flushing", async () => {
+    const { adapter, getRunCount } = createCountingAdapter();
+    const aui = renderWithRuntime(adapter, true);
+
+    await send(aui, "first");
+    await send(aui, "a");
+    await send(aui, "b");
+    expect(aui.thread().composer().getState().queue).toHaveLength(2);
+
+    await act(async () => {
+      aui.thread().cancelRun();
+      await flush();
+      await flush();
+    });
+
+    expect(aui.thread().composer().getState().queue).toEqual([]);
+    // cancelling must not start the next queued message
+    expect(getRunCount()).toBe(1);
+  });
+
+  it("applies an edit instead of queuing it, dropping pending items", async () => {
+    const { adapter, releases } = createCountingAdapter();
+    const aui = renderWithRuntime(adapter, true);
+
+    await send(aui, "first");
+    await act(async () => {
+      releases[0]!();
+      await flush();
+    });
+
+    // start a second run and queue a message behind it
+    await send(aui, "second");
+    await send(aui, "queued");
+    expect(aui.thread().composer().getState().queue).toHaveLength(1);
+
+    // edit the first message while the run is in progress
+    await act(async () => {
+      const message = aui.thread().message({ index: 0 });
+      message.composer().beginEdit();
+      message.composer().setText("edited");
+      message.composer().send();
+      await flush();
+    });
+
+    // the edit is applied (branches the thread) and the stale queue is cleared
+    expect(aui.thread().composer().getState().queue).toEqual([]);
+  });
+
   it("does not expose the queue capability when the flag is off", async () => {
     const { adapter } = createCountingAdapter();
     const aui = renderWithRuntime(adapter, false);
