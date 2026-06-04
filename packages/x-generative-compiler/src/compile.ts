@@ -7,6 +7,7 @@ import _generate from "@babel/generator";
 import * as t from "@babel/types";
 import { satisfies } from "semver";
 import { DIRECTIVE, type Target } from "./constants";
+import pkgJson from "../package.json" with { type: "json" };
 
 // @babel/traverse and @babel/generator are CJS; their default export is the
 // function itself under some interop and `{ default }` under others.
@@ -229,7 +230,12 @@ interface PackageJson {
 }
 
 const checkedCorePackageJsonPaths = new Set<string>();
-let compilerPackageVersion: string | undefined;
+
+// This compiler's own version, inlined from package.json at build time. Read via
+// an import (not by walking the filesystem at runtime) so the literal survives
+// being bundled into a host package like `@assistant-ui/metro`, where no
+// standalone `@assistant-ui/x-generative-compiler` sits on disk to walk up to.
+const COMPILER_VERSION = pkgJson.version;
 
 function ensureCompilerCompatibleWithCore(
   ast: t.File,
@@ -250,10 +256,9 @@ function ensureCompilerCompatibleWithCore(
     return;
   }
 
-  const compilerVersion = getCompilerPackageVersion();
   let compatible = false;
   try {
-    compatible = satisfies(compilerVersion, range, {
+    compatible = satisfies(COMPILER_VERSION, range, {
       includePrerelease: true,
     });
   } catch {
@@ -269,7 +274,7 @@ function ensureCompilerCompatibleWithCore(
     throw new GenerativeCompileError(
       `${CORE_PACKAGE}@${corePackageJson.version ?? "unknown"} requires ` +
         `${COMPILER_PACKAGE} ${range}, but the current compiler is ` +
-        `${compilerVersion}. Update @assistant-ui/next or @assistant-ui/vite ` +
+        `${COMPILER_VERSION}. Update @assistant-ui/next or @assistant-ui/vite ` +
         "so their compiler satisfies the core package's " +
         "optionalDevDependencies range.",
       filename,
@@ -277,20 +282,6 @@ function ensureCompilerCompatibleWithCore(
   }
 
   checkedCorePackageJsonPaths.add(corePackageJsonPath);
-}
-
-function getCompilerPackageVersion(): string {
-  if (compilerPackageVersion) return compilerPackageVersion;
-
-  const packageJsonPath = findPackageJson(import.meta.url, COMPILER_PACKAGE);
-  const packageJson = packageJsonPath ? readPackageJson(packageJsonPath) : null;
-  if (!packageJson?.version) {
-    throw new GenerativeCompileError(
-      `could not determine ${COMPILER_PACKAGE}'s package version`,
-    );
-  }
-  compilerPackageVersion = packageJson.version;
-  return compilerPackageVersion;
 }
 
 function resolveCorePackageJson(
