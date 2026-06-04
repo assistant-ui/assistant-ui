@@ -1,6 +1,6 @@
 ---
 title: Adapters
-description: Title generation and storage adapters for React Ink.
+description: Attachment, title generation, and storage adapters for React Ink.
 ---
 
 Adapters customize runtime behavior. They can be passed as options to `useLocalRuntime` or `useRemoteThreadListRuntime`.
@@ -14,6 +14,28 @@ import { createFileStorageAdapter } from "@assistant-ui/react-ink";
 
 const adapter = createFileStorageAdapter({
   dir: "/path/to/threads",
+});
+```
+
+## Attachment adapters
+
+`SimpleTextAttachmentAdapter` and `SimpleImageAttachmentAdapter` have the same API and behavior as their web and React Native counterparts, but are implemented terminal-safe: they read files with `file.text()` / `file.arrayBuffer()` instead of the browser-only `FileReader`, which does not exist in Node. Text contents are sent to the model wrapped in `<attachment name=...>` tags; images are sent as base64 data URLs.
+
+```ts
+import {
+  CompositeAttachmentAdapter,
+  SimpleImageAttachmentAdapter,
+  SimpleTextAttachmentAdapter,
+  useLocalRuntime,
+} from "@assistant-ui/react-ink";
+
+const runtime = useLocalRuntime(chatModelAdapter, {
+  adapters: {
+    attachments: new CompositeAttachmentAdapter([
+      new SimpleTextAttachmentAdapter(),
+      new SimpleImageAttachmentAdapter(),
+    ]),
+  },
 });
 ```
 
