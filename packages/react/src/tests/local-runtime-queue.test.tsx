@@ -218,6 +218,54 @@ describe("local runtime message queue", () => {
     ).toEqual(["Y"]);
   });
 
+  it("advances exactly once after a failed run, without deadlocking", async () => {
+    const releases: Array<() => void> = [];
+    let runCount = 0;
+    const adapter: ChatModelAdapter = {
+      async *run({ abortSignal }) {
+        runCount++;
+        if (runCount === 2) throw new Error("model boom");
+        await new Promise<void>((resolve) => {
+          releases.push(resolve);
+          abortSignal.addEventListener("abort", () => resolve(), {
+            once: true,
+          });
+        });
+        yield { content: [{ type: "text", text: "done" }] };
+      },
+    };
+    const aui = renderWithRuntime(adapter, true);
+
+    await send(aui, "first");
+    await send(aui, "a");
+    await send(aui, "b");
+    expect(aui.thread().composer().getState().queue).toHaveLength(2);
+
+    // run 1 settles -> "a" drains (run 2 throws) -> "b" drains (run 3)
+    await act(async () => {
+      releases[0]!();
+      await flush();
+      await flush();
+    });
+    expect(runCount).toBe(3);
+    expect(aui.thread().composer().getState().queue).toEqual([]);
+
+    // "b" is running; a new send must buffer behind it, not interrupt it
+    await act(async () => {
+      aui.thread().composer().setText("c");
+      aui.thread().composer().send();
+      await flush();
+    });
+    expect(runCount).toBe(3);
+    expect(
+      aui
+        .thread()
+        .composer()
+        .getState()
+        .queue.map((q) => q.prompt),
+    ).toEqual(["c"]);
+  });
+
   it("does not expose the queue capability when the flag is off", async () => {
     const { adapter } = createCountingAdapter();
     const aui = renderWithRuntime(adapter, false);

@@ -9,11 +9,7 @@ import type { ExternalThreadQueueAdapter } from "./external-thread-queue-adapter
 
 export type MessageQueueDriver = {
   run: (message: AppendMessage, options: { steer: boolean }) => void;
-  /**
-   * When omitted, `steer` degrades to "process next": the message moves to the
-   * front of the queue and runs once the current run settles, rather than
-   * interrupting it.
-   */
+  /** When omitted, `steer` degrades to "process next" instead of interrupting. */
   cancel?: (() => void) | undefined;
 };
 
@@ -34,9 +30,7 @@ export const createMessageQueue = (
   const subscribers = new Set<() => void>();
 
   let running = false;
-  // Number of upcoming idle notifications to swallow: when an in-flight run is
-  // cancelled to steer, its settle should not advance the queue (the steered
-  // run is already underway).
+  // swallow the cancelled run's settle when steering so it does not double-advance
   let suppressIdle = 0;
 
   const notify = () => {

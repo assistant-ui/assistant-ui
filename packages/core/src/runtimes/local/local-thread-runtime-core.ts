@@ -63,6 +63,7 @@ export class LocalThreadRuntimeCore
   private abortController: AbortController | null = null;
 
   private _queue: MessageQueueController | null = null;
+  private _queueRunInFlight = false;
 
   public readonly isDisabled = false;
   public readonly isSendDisabled = false;
@@ -153,7 +154,15 @@ export class LocalThreadRuntimeCore
     if (canQueue && !this._queue) {
       this._queue = createMessageQueue({
         run: (message) => {
-          void this._runAppend(message);
+          // release the queue when the dispatch settles, even if it rejects
+          // before reaching startRun's finally, so a failure can't deadlock it
+          this._queueRunInFlight = true;
+          void this._runAppend(message)
+            .finally(() => {
+              this._queueRunInFlight = false;
+              this._queue?.notifyIdle();
+            })
+            .catch(() => {});
         },
       });
       this._queue.subscribe(() => this._notifySubscribers());
@@ -216,7 +225,6 @@ export class LocalThreadRuntimeCore
       this._queue.adapter.enqueue(message, { steer: message.steer ?? false });
       return;
     }
-    // an edit branches the thread, so drop anything queued for the old branch
     if (this._queue && !isTail) this._queue.adapter.clear("edit");
     return this._runAppend(message);
   }
@@ -307,8 +315,7 @@ export class LocalThreadRuntimeCore
     this._notifyEventSubscribers("runStart", {});
 
     try {
-      // runs started outside the queue (regenerate, resume) mark it busy so a
-      // concurrent send buffers; inside try so the finally's notifyIdle pairs
+      // mark busy for runs not started through the queue (regenerate, resume)
       this._queue?.notifyBusy();
       this._suggestions = [];
       this._suggestionsController?.abort();
@@ -326,9 +333,11 @@ export class LocalThreadRuntimeCore
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
       this._notifyEventSubscribers("runEnd", {});
-      // Deferred so the finishing run fully unwinds before the next queued
-      // message starts, rather than re-entering startRun synchronously.
-      queueMicrotask(() => this._queue?.notifyIdle());
+      // queue-driven runs release from the driver settle handler; a direct
+      // run (regenerate, resume) releases here
+      if (!this._queueRunInFlight) {
+        queueMicrotask(() => this._queue?.notifyIdle());
+      }
     }
 
     this._suggestionsController = new AbortController();

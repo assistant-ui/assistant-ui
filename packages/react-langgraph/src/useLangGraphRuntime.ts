@@ -555,7 +555,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const wasRunningRef = useRef(effectiveIsRunning);
   useEffect(() => {
     if (!wasRunningRef.current && effectiveIsRunning) {
-      // a run started (including reload/edit) so concurrent sends buffer
       queueController?.notifyBusy();
     }
     if (wasRunningRef.current && !effectiveIsRunning) {
