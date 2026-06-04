@@ -105,8 +105,8 @@ export function App() {
 
 If you used `makeAssistantToolUI` or `useAssistantToolUI` for a backend, MCP, or
 LangGraph tool, the tool executes elsewhere. Prefer a `"use generative"` toolkit
-with `execute: externalTool()` so the compiler emits `type: "backend"` with no
-schema or executor, while the client keeps your renderer:
+with `execute: externalTool()` so the compiler omits the server entry, while the
+client keeps your renderer as `type: "backend"`:
 
 ```tsx
 // app/toolkit.tsx

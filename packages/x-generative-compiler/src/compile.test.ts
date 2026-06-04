@@ -514,7 +514,8 @@ export default defineToolkit({
 });`;
 
     const server = compileGenerative(src, { target: "server" }).code;
-    expect(server).toContain('type: "backend"');
+    expect(server).not.toContain("web_search");
+    expect(server).not.toContain('type: "backend"');
     expect(server).not.toContain("server-only");
     expect(server).not.toContain("description");
     expect(server).not.toContain("parameters");

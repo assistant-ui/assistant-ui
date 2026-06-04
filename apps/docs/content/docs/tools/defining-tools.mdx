@@ -26,7 +26,7 @@ client/server boundary for you.
 In a `"use generative"` file every tool declares an `execute`, and you never
 write `type` yourself — the compiler infers it. For render-only external tools,
 `externalTool()` is the escape hatch that satisfies the compiler without
-emitting schema or executable code.
+emitting schema or executable code on the server.
 
 ## Quick start (`"use generative"`)
 
@@ -180,7 +180,7 @@ The tool's **kind is inferred from its `execute`** and written back as a `type` 
 | `hitlTool()` | **human** | schema only | schema + `render` |
 | `stubTool()` | **frontend** (executor supplied at runtime) | schema only | schema + `render`/`renderText` |
 | `providerTool({ … })` | **provider** | schema + provider config | schema + provider config |
-| `externalTool()` | **backend** (defined elsewhere) | `type: "backend"` only | `type: "backend"` + `render`/`renderText` |
+| `externalTool()` | **backend** (defined elsewhere) | omitted | `type: "backend"` + `render`/`renderText` |
 
 The compiler also enforces, at build time:
 
@@ -283,10 +283,10 @@ web_search: {
 },
 ```
 
-The compiler emits `type: "backend"` with no schema, parameters, or executor on
-the server, so the model still gets the tool definition from the external
-system. The client build keeps only `type: "backend"` and the renderer (or
-`renderText`) for matching tool-call message parts.
+The compiler omits this entry from the server build, so the model still gets
+the tool definition from the external system. The client build keeps only
+`type: "backend"` and the renderer (or `renderText`) for matching tool-call
+message parts.
 
 ### Dynamic (stateful) tools
 

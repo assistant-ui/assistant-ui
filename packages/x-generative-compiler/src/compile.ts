@@ -375,6 +375,8 @@ function compileToolkit(
   flags: TargetFlags,
   filename: string | undefined,
 ): void {
+  const nextProperties: t.ObjectExpression["properties"] = [];
+
   for (const entry of object.properties) {
     const value = entryValue(entry);
     if (!value) {
@@ -382,6 +384,7 @@ function compileToolkit(
         t.isSpreadElement(entry) &&
         isSafeToolkitSpread(entry, safeToolkitSpreads)
       ) {
+        nextProperties.push(entry);
         continue;
       }
       // A generative tool (`generative.present()`) is split by the library's
@@ -389,7 +392,10 @@ function compileToolkit(
       // method or opaque call like `makeTool()` — can't be analyzed, so its
       // `execute` could reach the client unstripped.
       const raw = entryRawValue(entry);
-      if (raw && isGenerativeToolEntry(raw, instances)) continue;
+      if (raw && isGenerativeToolEntry(raw, instances)) {
+        nextProperties.push(entry);
+        continue;
+      }
       throw new GenerativeCompileError(
         "each tool must be an inline object literal (`name: { ... }`) or a " +
           "compiler-visible toolkit spread / generative tool (e.g. " +
@@ -435,6 +441,7 @@ function compileToolkit(
           filename,
         );
       }
+      if (target === "server") continue;
       stripExternalToolMetadata(value);
     }
 
@@ -456,7 +463,10 @@ function compileToolkit(
 
     setToolType(value, type);
     setBackendDefault(value, target, type);
+    nextProperties.push(entry);
   }
+
+  object.properties = nextProperties;
 }
 
 function applyProviderToolConfig(

@@ -1,27 +1,9 @@
 "use client";
 
 import { Thread } from "@/components/assistant-ui/thread";
-import { PriceSnapshotToolUI } from "@/components/tools/price-snapshot/PriceSnapshotTool";
-import { PurchaseStockToolUI } from "@/components/tools/purchase-stock/PurchaseStockTool";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
-import {
-  useAui,
-  AuiProvider,
-  Suggestions,
-  Tools,
-  type Toolkit,
-} from "@assistant-ui/react";
-
-const toolkit = {
-  price_snapshot: {
-    type: "backend",
-    render: PriceSnapshotToolUI,
-  },
-  purchase_stock: {
-    type: "backend",
-    render: PurchaseStockToolUI,
-  },
-} satisfies Toolkit;
+import { useAui, AuiProvider, Suggestions, Tools } from "@assistant-ui/react";
+import toolkit from "./toolkit";
 
 function ThreadWithSuggestions() {
   const aui = useAui({

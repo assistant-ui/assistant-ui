@@ -3,20 +3,23 @@ import {
   streamText,
   convertToModelMessages,
   stepCountIs,
-  jsonSchema,
   tool,
   zodSchema,
 } from "ai";
 import type { UIMessage } from "ai";
 import { z } from "zod";
+import { generativeTools } from "@assistant-ui/react-ai-sdk";
 import {
   renderGuiToolDescription,
   renderGuiToolInputSchema,
 } from "../../../lib/render-gui-tool";
+import toolkit from "../../toolkit";
 
 export const maxDuration = 30;
 
-type ToolDef = { description?: string; parameters: Record<string, unknown> };
+type FrontendToolDefs = NonNullable<
+  Parameters<typeof generativeTools>[0]["frontendTools"]
+>;
 
 export async function POST(req: Request) {
   const {
@@ -26,21 +29,8 @@ export async function POST(req: Request) {
   }: {
     messages: UIMessage[];
     system?: string;
-    tools?: Record<string, ToolDef>;
+    tools?: FrontendToolDefs;
   } = await req.json();
-
-  // Convert client-defined frontend tools to AI SDK format
-  const frontendToolDefs = clientTools
-    ? Object.fromEntries(
-        Object.entries(clientTools).map(([name, def]) => [
-          name,
-          {
-            description: def.description ?? "",
-            inputSchema: jsonSchema(def.parameters),
-          },
-        ]),
-      )
-    : {};
 
   const result = streamText({
     model: openai("gpt-5.4-nano"),
@@ -48,7 +38,10 @@ export async function POST(req: Request) {
     stopWhen: stepCountIs(10),
     ...(system ? { system } : {}),
     tools: {
-      ...frontendToolDefs,
+      ...generativeTools({
+        toolkit,
+        ...(clientTools && { frontendTools: clientTools }),
+      }),
 
       render_gui: tool({
         description: renderGuiToolDescription,

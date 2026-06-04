@@ -5,51 +5,12 @@ import {
   AssistantRuntimeProvider,
   Suggestions,
   Tools,
-  type Toolkit,
   useAui,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { z } from "zod";
-import { ChartToolUI } from "@/components/chart-tool-ui";
-import { DatePickerToolUI } from "@/components/date-picker-tool-ui";
-import { ContactFormToolUI } from "@/components/contact-form-tool-ui";
-import { LocationToolUI } from "@/components/location-tool-ui";
 import { ExampleNav } from "@/components/example-nav";
-
-const toolkit = {
-  select_date: {
-    type: "human",
-    description:
-      "Ask the user to select a date. Use this when you need to collect a date (e.g. for scheduling, booking, deadlines).",
-    parameters: z.object({
-      prompt: z.string().describe("Message to display to the user"),
-      minDate: z.string().optional().describe("Minimum date (ISO string)"),
-      maxDate: z.string().optional().describe("Maximum date (ISO string)"),
-    }),
-    render: DatePickerToolUI,
-  },
-  collect_contact: {
-    type: "human",
-    description:
-      "Collect contact information from the user. Use this when you need the user's name, email, or phone number.",
-    parameters: z.object({
-      prompt: z.string().describe("Message to display to the user"),
-      fields: z
-        .array(z.enum(["name", "email", "phone"]))
-        .describe("Which fields to collect"),
-    }),
-    render: ContactFormToolUI,
-  },
-  generate_chart: {
-    type: "backend",
-    render: ChartToolUI,
-  },
-  show_location: {
-    type: "backend",
-    render: LocationToolUI,
-  },
-} satisfies Toolkit;
+import toolkit from "./toolkit";
 
 export default function Home() {
   const runtime = useChatRuntime({

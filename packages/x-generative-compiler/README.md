@@ -11,7 +11,8 @@ colocates a tool's schema, its server-only `execute`, and its client-only
   drops backend `execute` and `hitl()` sentinels, and stamps each tool's inferred
   `type`.
 - **server** — keeps the backend `execute` (importing `server-only`), drops
-  `render`.
+  `render`, and omits externally-defined backend tools marked with
+  `externalTool()`.
 
 The marker functions a `"use generative"` file imports — `defineToolkit` and
 `hitl` — live in `@assistant-ui/core/react` (re-exported from `@assistant-ui/react`).

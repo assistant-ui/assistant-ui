@@ -9,8 +9,9 @@ import {
   JsonToSseTransformStream,
 } from "ai";
 import type { UIMessage, UIMessageStreamWriter } from "ai";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { generativeTools } from "@assistant-ui/react-ai-sdk";
 import { z } from "zod";
+import toolkit from "../../toolkit";
 
 export const maxDuration = 30;
 
@@ -113,7 +114,7 @@ async function streamModel(
     messages: await convertToModelMessages(messages),
     stopWhen: stepCountIs(10),
     tools: {
-      ...frontendTools(frontendToolDefs),
+      ...generativeTools({ toolkit, frontendTools: frontendToolDefs }),
       get_current_weather: tool({
         description: "Get the current weather for a city",
         inputSchema: zodSchema(z.object({ city: z.string() })),
