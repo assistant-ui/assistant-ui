@@ -251,6 +251,33 @@ describe("adapter conversions", () => {
     expect(result[0]).toMatchObject({ role: "user" });
   });
 
+  it("skips whitespace-only reasoning messages", () => {
+    const result = fromAgUiMessages([
+      { id: "r-1", role: "reasoning", content: "   " },
+    ] as any);
+
+    expect(result).toHaveLength(0);
+  });
+
+  it("does not re-emit an imported reasoning message as an empty assistant message", () => {
+    const imported = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "hi" },
+      { id: "r-1", role: "reasoning", content: "thinking" },
+      { id: "a-1", role: "assistant", content: "done" },
+    ] as any);
+
+    const roundTripped = toAgUiMessages(imported);
+
+    expect(roundTripped.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(
+      roundTripped.filter((m) => m.role === "assistant" && m.content === ""),
+    ).toHaveLength(0);
+    expect(roundTripped[1]).toMatchObject({
+      role: "assistant",
+      content: "done",
+    });
+  });
+
   it("filters disabled/back-end tools", () => {
     const tools = toAgUiTools({
       search: { description: "Search", parameters: { type: "object" } },

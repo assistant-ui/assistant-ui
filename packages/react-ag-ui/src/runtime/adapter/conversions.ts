@@ -460,9 +460,8 @@ export function fromAgUiMessages(
       // Gate on showThinking so a cold reload matches the live run: the
       // aggregator never stores reasoning parts when showThinking is false.
       if (!showThinking) continue;
-      // Convert plain-string reasoning content to a reasoning assistant part.
       const text = extractText(rawMessage.content);
-      if (text.length === 0) continue;
+      if (text.trim().length === 0) continue;
       converted.push({
         id: getString(rawMessage, "id") ?? generateId(),
         role: "assistant",
@@ -474,8 +473,6 @@ export function fromAgUiMessages(
     if (role === "user" || role === "system") {
       converted.push(toUserOrSystemSnapshotMessage(role, rawMessage));
     }
-    // Other AG-UI roles (e.g. `activity`, `developer`) have no assistant-ui
-    // message-part representation and are intentionally dropped.
   }
 
   return converted;
@@ -496,6 +493,12 @@ function convertAssistantMessage(
     ...normalizeToolCall(part),
     part,
   }));
+
+  // Drop assistant messages with no text or tool calls (e.g. an imported
+  // reasoning-only entry) so they are not re-sent as a blank assistant turn.
+  if (content.length === 0 && toolCalls.length === 0) {
+    return;
+  }
 
   const assistantMessage: AgUiMessage = {
     id: message.id,
