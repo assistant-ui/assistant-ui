@@ -21,8 +21,6 @@ import type { QueueItemState } from "../scopes/queue-item";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 import { tapSubscribable } from "./tap-subscribable";
 
-const EMPTY_QUEUE: readonly QueueItemState[] = Object.freeze([]);
-
 const ComposerAttachmentClientByIndex = resource(
   ({ runtime, index }: { runtime: ComposerRuntime; index: number }) => {
     const attachmentRuntime = tapMemo(
@@ -116,7 +114,7 @@ export const ComposerClient = resource(
       [runtimeState.attachments, runtime],
     );
 
-    const queue = runtimeState.queue ?? EMPTY_QUEUE;
+    const queue = runtimeState.queue;
     const queueItems = tapClientLookup(
       () =>
         queue.map((item) =>
