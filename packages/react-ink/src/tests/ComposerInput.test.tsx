@@ -139,6 +139,63 @@ describe("ComposerInput", () => {
         send,
         setText: vi.fn(),
       }),
+      thread: () => ({
+        getState: () => ({ isRunning: false, capabilities: { queue: false } }),
+      }),
+    });
+    mockUseFocus.mockReturnValue({ isFocused: true });
+
+    render(<ComposerInput submitOnEnter />);
+    await flush();
+
+    inputHandler?.("", { return: true });
+
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not send on enter while the thread is running without queue support", async () => {
+    const send = vi.fn(() => undefined);
+    const buffer = createBuffer("hello");
+
+    mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
+      selector({ composer: { text: "hello" } } as never),
+    );
+    mockUseTextBuffer.mockReturnValue(buffer);
+    mockUseAui.mockReturnValue({
+      composer: () => ({
+        send,
+        setText: vi.fn(),
+      }),
+      thread: () => ({
+        getState: () => ({ isRunning: true, capabilities: { queue: false } }),
+      }),
+    });
+    mockUseFocus.mockReturnValue({ isFocused: true });
+
+    render(<ComposerInput submitOnEnter />);
+    await flush();
+
+    inputHandler?.("", { return: true });
+
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("sends on enter while running when the runtime supports queueing", async () => {
+    const send = vi.fn(() => undefined);
+    const buffer = createBuffer("hello");
+
+    mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
+      selector({ composer: { text: "hello" } } as never),
+    );
+    mockUseTextBuffer.mockReturnValue(buffer);
+    mockUseAui.mockReturnValue({
+      composer: () => ({
+        send,
+        setText: vi.fn(),
+      }),
+      thread: () => ({
+        getState: () => ({ isRunning: true, capabilities: { queue: true } }),
+      }),
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
