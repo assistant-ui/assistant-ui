@@ -156,6 +156,9 @@ export class LocalThreadRuntimeCore
         },
       });
       this._queue.subscribe(() => this._notifySubscribers());
+    } else if (!canQueue && this._queue) {
+      this._queue.adapter.clear("cancel-run");
+      this._queue = null;
     }
     if (this.capabilities.queue !== canQueue) {
       this.capabilities.queue = canQueue;

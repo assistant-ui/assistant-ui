@@ -188,4 +188,35 @@ describe("local runtime message queue", () => {
     const aui = renderWithRuntime(adapter, false);
     expect(aui.thread().getState().capabilities.queue).toBe(false);
   });
+
+  it("tears the queue down when the flag is toggled off at runtime", async () => {
+    const { adapter } = createCountingAdapter();
+    const captured: { aui?: ReturnType<typeof useAui> } = {};
+    const Capture: FC = () => {
+      captured.aui = useAui();
+      return null;
+    };
+    const App: FC<{ enabled: boolean }> = ({ enabled }) => {
+      const runtime = useLocalRuntime(adapter, {
+        unstable_enableMessageQueue: enabled,
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Capture />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    const { rerender } = render(<App enabled={true} />);
+    await act(async () => {
+      await flush();
+    });
+    expect(captured.aui!.thread().getState().capabilities.queue).toBe(true);
+
+    await act(async () => {
+      rerender(<App enabled={false} />);
+      await flush();
+    });
+    expect(captured.aui!.thread().getState().capabilities.queue).toBe(false);
+  });
 });
