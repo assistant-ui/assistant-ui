@@ -32,8 +32,10 @@ import {
 } from "../../runtime/utils/message-repository";
 import { generateId } from "../../utils/id";
 import { ToolInvocationTracker } from "../tool-invocations/ToolInvocationTracker";
+import type { QueueItemState } from "../../store/scopes/queue-item";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
+const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
 
 const shallowEqual = (a: object, b: object): boolean => {
   const aKeys = Object.keys(a);
@@ -155,7 +157,7 @@ export class ExternalStoreThreadRuntimeCore
       unstable_copy: this._store.unstable_capabilities?.copy !== false,
       attachments: !!this._store.adapters?.attachments,
       feedback: !!this._store.adapters?.feedback,
-      queue: false,
+      queue: this._store.queue !== undefined,
     };
     if (!shallowEqual(this._capabilities, newCapabilities)) {
       this._capabilities = newCapabilities;
@@ -389,6 +391,15 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(message: AppendMessage): Promise<void> {
+    const isEdit = message.parentId !== (this.messages.at(-1)?.id ?? null);
+
+    // Buffering does not start a run, so the tool-abort below must wait until
+    // the queue flushes. By then the prior run (and its tools) has settled.
+    if (!isEdit && this._store.queue) {
+      this._store.queue.enqueue(message, { steer: message.steer ?? false });
+      return;
+    }
+
     // Auto-abort in-flight client-side tool executions when a new run is
     // about to start. Without this, a tool that finishes after the new turn
     // begins would feed a stale result into `onAddToolResult`, racing with
@@ -399,18 +410,35 @@ export class ExternalStoreThreadRuntimeCore
       await this._toolInvocations?.abort();
     }
 
-    if (message.parentId !== (this.messages.at(-1)?.id ?? null)) {
+    if (isEdit) {
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
+      this._store.queue?.clear("edit");
       await this._store.onEdit(message);
     } else {
       await this._store.onNew(message);
     }
   }
 
+  public getQueueItems() {
+    // The composer reads this during base-thread construction, before the
+    // constructor assigns `_store`, so guard against the unset field.
+    return this._store?.queue?.items ?? EMPTY_QUEUE_ITEMS;
+  }
+
+  public steerQueueItem(queueItemId: string) {
+    this._store?.queue?.steer(queueItemId);
+  }
+
+  public removeQueueItem(queueItemId: string) {
+    this._store?.queue?.remove(queueItemId);
+  }
+
   public async startRun(config: StartRunConfig): Promise<void> {
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
+
+    this._store.queue?.clear("reload");
 
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
@@ -456,6 +484,8 @@ export class ExternalStoreThreadRuntimeCore
   public cancelRun(): void {
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");
+
+    this._store.queue?.clear("cancel-run");
 
     // Abort any in-flight client-side tool executions. Fire-and-forget —
     // the abort resolves once executions settle, but we don't gate the

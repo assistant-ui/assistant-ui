@@ -71,6 +71,7 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
     maxSteps,
     adapters,
     unstable_humanToolNames,
+    unstable_enableMessageQueue,
     ...rest
   } = options;
 
@@ -81,6 +82,7 @@ export const splitLocalRuntimeOptions = <T extends LocalRuntimeOptions>(
       maxSteps,
       adapters,
       unstable_humanToolNames,
+      unstable_enableMessageQueue,
     },
     otherOptions: rest,
   };

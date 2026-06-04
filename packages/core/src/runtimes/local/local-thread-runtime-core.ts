@@ -22,6 +22,13 @@ import type {
 } from "../../types/message";
 import type { RunConfig } from "../../types/message";
 import type { ModelContextProvider } from "../../model-context/types";
+import {
+  createMessageQueue,
+  type MessageQueueController,
+} from "../../runtime/queue/message-queue";
+import type { QueueItemState } from "../../store/scopes/queue-item";
+
+const EMPTY_QUEUE: readonly QueueItemState[] = Object.freeze([]);
 
 class AbortError extends Error {
   override name = "AbortError";
@@ -53,6 +60,8 @@ export class LocalThreadRuntimeCore
   };
 
   private abortController: AbortController | null = null;
+
+  private _queue: MessageQueueController | null = null;
 
   public readonly isDisabled = false;
   public readonly isSendDisabled = false;
@@ -139,6 +148,20 @@ export class LocalThreadRuntimeCore
       hasUpdates = true;
     }
 
+    const canQueue = options.unstable_enableMessageQueue === true;
+    if (canQueue && !this._queue) {
+      this._queue = createMessageQueue({
+        run: (message) => {
+          void this._runAppend(message);
+        },
+      });
+      this._queue.subscribe(() => this._notifySubscribers());
+    }
+    if (this.capabilities.queue !== canQueue) {
+      this.capabilities.queue = canQueue;
+      hasUpdates = true;
+    }
+
     if (hasUpdates) this._notifySubscribers();
   }
 
@@ -183,6 +206,29 @@ export class LocalThreadRuntimeCore
   }
 
   public async append(message: AppendMessage): Promise<void> {
+    const willRun = message.startRun ?? message.role === "user";
+    if (this._queue && willRun) {
+      this._queue.adapter.enqueue(message, { steer: message.steer ?? false });
+      return;
+    }
+    return this._runAppend(message);
+  }
+
+  public getQueueItems(): readonly QueueItemState[] {
+    // Reads can arrive during base-thread construction, before the queue field
+    // is assigned, so guard against the unset field.
+    return this._queue?.adapter.items ?? EMPTY_QUEUE;
+  }
+
+  public steerQueueItem(queueItemId: string): void {
+    this._queue?.adapter.steer(queueItemId);
+  }
+
+  public removeQueueItem(queueItemId: string): void {
+    this._queue?.adapter.remove(queueItemId);
+  }
+
+  private async _runAppend(message: AppendMessage): Promise<void> {
     this.ensureInitialized();
 
     const initPromise = this._getInitializePromise?.();
@@ -270,6 +316,9 @@ export class LocalThreadRuntimeCore
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
       this._notifyEventSubscribers("runEnd", {});
+      // Deferred so the finishing run fully unwinds before the next queued
+      // message starts, rather than re-entering startRun synchronously.
+      queueMicrotask(() => this._queue?.notifyIdle());
     }
 
     this._suggestionsController = new AbortController();

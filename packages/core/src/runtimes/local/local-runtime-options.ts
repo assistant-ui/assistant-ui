@@ -26,4 +26,10 @@ export type LocalRuntimeOptionsBase = {
    * Names of tools that are allowed to interrupt the run in order to wait for human/external approval.
    */
   unstable_humanToolNames?: string[] | undefined;
+
+  /**
+   * Opt in to message queuing: a message sent during a run is held in
+   * `composer.queue` and sent once the run settles. Steering runs it next.
+   */
+  unstable_enableMessageQueue?: boolean | undefined;
 };
