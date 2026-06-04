@@ -25,7 +25,7 @@ type BabelTransformer = {
 };
 
 /**
- * The project's upstream babel transformer — what Metro would have used without
+ * The project's upstream babel transformer: what Metro would have used without
  * this wrapper. Taken from {@link UPSTREAM_TRANSFORMER_ENV} (set by `withAui`),
  * else auto-detected: Expo's transformer, then React Native's.
  */
@@ -52,7 +52,7 @@ function resolveUpstream(): BabelTransformer {
   );
 }
 
-// Resolved lazily on first use — by then Metro has loaded `metro.config` and
+// Resolved lazily on first use, by which point Metro has loaded `metro.config` and
 // `withAui` has populated the env var, and forked workers have inherited it.
 let cachedUpstream: BabelTransformer | undefined;
 function upstreamTransformer(): BabelTransformer {

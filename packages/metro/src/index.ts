@@ -26,7 +26,7 @@ export const UPSTREAM_TRANSFORMER_ENV = "AUI_METRO_UPSTREAM_TRANSFORMER";
 
 /**
  * Wraps a Metro (or Expo) config so assistant-ui `"use generative"` modules are
- * compiled — files that colocate a tool's schema, its `execute`, and its
+ * compiled. Such a file colocates a tool's schema, its `execute`, and its
  * `render` via {@link https://www.assistant-ui.com/docs/tools/defining-tools | defineToolkit}.
  *
  * It points Metro's `babelTransformerPath` at this package's transformer, which

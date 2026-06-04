@@ -116,7 +116,7 @@ const runtime = useRemoteThreadListRuntime({
 
 ### Tools
 
-Author tools in a `"use generative"` file with `defineToolkit` — the same API as on the web ([Defining Tools](/docs/tools/defining-tools)). The tool definition is forwarded to the model; when the model calls it, the `execute` function runs and the `render` component displays the result.
+Author tools in a `"use generative"` file with `defineToolkit`, the same API as on the web ([Defining Tools](/docs/tools/defining-tools)). The tool definition is forwarded to the model; when the model calls it, the `execute` function runs and the `render` component displays the result.
 
 Add the [`@assistant-ui/metro`](https://www.npmjs.com/package/@assistant-ui/metro) plugin so Metro compiles the `"use generative"` directive:
 

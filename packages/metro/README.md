@@ -3,8 +3,8 @@
 Metro / Expo integration for [assistant-ui](https://www.assistant-ui.com): the
 `"use generative"` directive compiler for React Native. It lets you author tools
 with the **same** [`defineToolkit`](https://www.assistant-ui.com/docs/tools/defining-tools)
-API as on the web — one file colocating a tool's schema, its `execute`, and its
-`render` — and compiles them for the device (and any Expo Router server route).
+API as on the web: one file colocating a tool's schema, its `execute`, and its
+`render`, then compiles them for the device (and any Expo Router server route).
 
 Works with **Expo** and **bare React Native** (both bundle with Metro).
 
@@ -81,7 +81,7 @@ existing transformer (Expo's or React Native's).
 
 The build target follows Metro's environment: the device app gets the **client**
 build (schema + `render` + frontend `execute`), while an Expo Router `+api`
-route — bundled for a server environment — gets the **server** build (schema +
+route (bundled for a server environment) gets the **server** build (schema +
 backend `execute`). This mirrors [`@assistant-ui/next`](https://www.assistant-ui.com/docs/tools/defining-tools)
 and `@assistant-ui/vite`.
 
