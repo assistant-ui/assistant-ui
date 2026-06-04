@@ -1,5 +1,23 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.35
+
+### Patch Changes
+
+- [#4241](https://github.com/assistant-ui/assistant-ui/pull/4241) [`b94f545`](https://github.com/assistant-ui/assistant-ui/commit/b94f545e688ae97ead230c75b82bc1b977487ffd) - fix: preserve frontend tool results and auto-continue when they resolve before RUN_FINISHED ([@Yonom](https://github.com/Yonom))
+
+- [#4224](https://github.com/assistant-ui/assistant-ui/pull/4224) [`f086497`](https://github.com/assistant-ui/assistant-ui/commit/f08649741273e9eb5a09d144feb3fccd8ec2aa71) - feat(react-ag-ui): honor `CreateResumeRunConfig.stream` in `AgUiThreadRuntimeCore` ([@dkachur1](https://github.com/dkachur1))
+
+  `resume()` previously logged `resume stream is not supported` and fell back to a fresh `agent.runAgent(...)`, re-running the agent on every resume. It now passes the resume generator into `startRun`, which replays each `ChatModelRunResult` into the existing assistant message (no new `runId`, no replayed `agent.runAgent`). On history `load()` with `unstable_resume`, the adapter now feeds `history.resume()` when present (falling back to a fresh run otherwise), and `ResumeRunConfig.stream` is typed as the real `(options: ChatModelRunOptions) => AsyncGenerator<ChatModelRunResult, void, unknown>` instead of `unknown`. This lets apps that persist their own AG-UI event stream re-attach and continue consuming on reload.
+
+- [#4198](https://github.com/assistant-ui/assistant-ui/pull/4198) [`78ff336`](https://github.com/assistant-ui/assistant-ui/commit/78ff336028ce125608a4b716a93a2519ad6d9eab) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4210](https://github.com/assistant-ui/assistant-ui/pull/4210) [`8dc2e0d`](https://github.com/assistant-ui/assistant-ui/commit/8dc2e0d295118f2b37bd14c854aeb4f092e59c60) - feat(react-ag-ui): apply AG-UI STATE_DELTA events ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`cba2b42`](https://github.com/assistant-ui/assistant-ui/commit/cba2b42c26083e730ae07194186ab4473f9f4cf3), [`4145caa`](https://github.com/assistant-ui/assistant-ui/commit/4145caaa23452f38c71366b55c03f8ec4da3fd54), [`58f80e0`](https://github.com/assistant-ui/assistant-ui/commit/58f80e09b51a9d025403f8692c3f41adc6d403e0), [`5fe118d`](https://github.com/assistant-ui/assistant-ui/commit/5fe118d6e61fd661859ee0d6b5ef10a370992a84), [`dcd5897`](https://github.com/assistant-ui/assistant-ui/commit/dcd5897f6dd6ca6bfe6978c3c03371e070965eab), [`0558db2`](https://github.com/assistant-ui/assistant-ui/commit/0558db28952fcd1c05a2ea3f15020cf50ca52489), [`69540af`](https://github.com/assistant-ui/assistant-ui/commit/69540af906f4301af0fd453b0ab425fd62703a46), [`d9b3119`](https://github.com/assistant-ui/assistant-ui/commit/d9b311977759818fcdcea6037c938e7070276f47), [`ae54c55`](https://github.com/assistant-ui/assistant-ui/commit/ae54c55c8c8b0f9e9ef455ced1498f37d998c6cb), [`7640b31`](https://github.com/assistant-ui/assistant-ui/commit/7640b319f704414bd5eb197f34e11ae0b2324a1d)]:
+  - assistant-stream@0.3.20
+  - @assistant-ui/core@0.2.10
+
 ## 0.0.34
 
 ### Patch Changes

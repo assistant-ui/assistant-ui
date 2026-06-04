@@ -1,5 +1,11 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.11
+
+### Patch Changes
+
+- [#4222](https://github.com/assistant-ui/assistant-ui/pull/4222) [`5f6946d`](https://github.com/assistant-ui/assistant-ui/commit/5f6946d9f1513aea26cb75d5b794a49244bc07a0) - fix: treat node built-ins as explicit externals during package builds ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.10
 
 ### Patch Changes

@@ -1,5 +1,21 @@
 # assistant-stream
 
+## 0.3.20
+
+### Patch Changes
+
+- [#4163](https://github.com/assistant-ui/assistant-ui/pull/4163) [`cba2b42`](https://github.com/assistant-ui/assistant-ui/commit/cba2b42c26083e730ae07194186ab4473f9f4cf3) - fix(assistant-stream): resolve `argsReader.get()` to `undefined` once args close ([@Yonom](https://github.com/Yonom))
+
+  Awaiting an optional arg that the model never produced (`reader.args.get("optional")`) previously hung forever, because the args stream was never closed and pending handles were never settled. The reader now closes when args streaming finishes, resolving outstanding `get()` calls to `undefined` for absent fields and closing open `streamValues`/`streamText`/`forEach` streams.
+
+- [#4226](https://github.com/assistant-ui/assistant-ui/pull/4226) [`58f80e0`](https://github.com/assistant-ui/assistant-ui/commit/58f80e09b51a9d025403f8692c3f41adc6d403e0) - fix: avoid uploading backend-default schemas for use-generative frontend and human tools ([@Yonom](https://github.com/Yonom))
+
+- [#4212](https://github.com/assistant-ui/assistant-ui/pull/4212) [`5fe118d`](https://github.com/assistant-ui/assistant-ui/commit/5fe118d6e61fd661859ee0d6b5ef10a370992a84) - feat: add MCP server support to generative toolkits ([@Yonom](https://github.com/Yonom))
+
+- [#4213](https://github.com/assistant-ui/assistant-ui/pull/4213) [`dcd5897`](https://github.com/assistant-ui/assistant-ui/commit/dcd5897f6dd6ca6bfe6978c3c03371e070965eab) - feat: add provider-executed tool support to generative toolkits ([@Yonom](https://github.com/Yonom))
+
+- [#4236](https://github.com/assistant-ui/assistant-ui/pull/4236) [`ae54c55`](https://github.com/assistant-ui/assistant-ui/commit/ae54c55c8c8b0f9e9ef455ced1498f37d998c6cb) - feat: add `stubTool()` and experimental `useAuiToolOverrides()` for locally executed generative toolkit tools ([@Yonom](https://github.com/Yonom))
+
 ## 0.3.19
 
 ### Patch Changes
