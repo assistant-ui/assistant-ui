@@ -659,6 +659,9 @@ function inferToolType(
 }
 
 function stripExternalToolMetadata(object: t.ObjectExpression): void {
+  // Mirror BackendTool's forbidden metadata fields: execute is stripped by the
+  // main routing loop, while streamCall is also removed because there is no
+  // assistant-ui executor to stream from.
   removeMember(object, "description");
   removeMember(object, "parameters");
   removeMember(object, "disabled");
