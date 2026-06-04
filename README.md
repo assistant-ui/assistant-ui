@@ -1,6 +1,7 @@
 <a href="https://www.assistant-ui.com">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/header-dark.svg" />
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/header.svg" />
     <img src="https://raw.githubusercontent.com/assistant-ui/assistant-ui/main/.github/assets/header.svg" alt="assistant-ui Header" width="100%" />
   </picture>
 </a>
