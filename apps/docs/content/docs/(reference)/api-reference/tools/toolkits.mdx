@@ -63,7 +63,7 @@ Named collection of tools exposed to the assistant model.
 Keys are the tool names the model receives and uses in tool calls.
 
 ```tsx
-const toolkit = {
+const toolkit = defineToolkit({
   get_weather: {
     type: "frontend",
     description: "Get the weather for a city.",
@@ -71,7 +71,7 @@ const toolkit = {
     execute: async ({ city }: { city: string }) => fetchWeather(city),
     render: WeatherToolUI,
   },
-} satisfies Toolkit;
+});
 ```
 
 ```ts

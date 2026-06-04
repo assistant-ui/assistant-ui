@@ -25,11 +25,12 @@ Key behaviors:
 
 ```tsx
 import {
+  defineToolkit,
   Tools,
   MessagePartPrimitive,
 } from "@assistant-ui/react";
 
-const toolkit = {
+const toolkit = defineToolkit({
   invoke_researcher: {
     type: "backend",
     render: ({ args, status }) => (
@@ -46,7 +47,7 @@ const toolkit = {
     </div>
   ),
   },
-};
+});
 ```
 
   </Step>
@@ -153,7 +154,7 @@ When using LangGraph, subgraph events (`onSubgraphValues` / `onSubgraphUpdates` 
 If a sub-agent's tool calls also have nested messages, the same pattern applies recursively:
 
 ```tsx
-const toolkit = {
+const toolkit = defineToolkit({
   invoke_planner: {
     type: "backend",
     render: () => (
@@ -188,7 +189,7 @@ const toolkit = {
     </div>
   ),
   },
-};
+});
 ```
 
 ## ReadonlyThreadProvider

@@ -96,14 +96,14 @@ Learn more about creating tools in the [Tools Guide](/docs/tools/defining-tools)
 If your tool is defined elsewhere (e.g., in your backend API, MCP server, or LangGraph), register a backend toolkit entry with just `render`:
 
 ```tsx
-const toolkit = {
+const toolkit = defineToolkit({
   getWeather: {
     type: "backend",
     render: ({ args, result, status }) => {
       // UI rendering logic only
     },
   },
-};
+});
 ```
 
 ## Quick Start Example
@@ -180,12 +180,12 @@ const WeatherToolUI: ToolCallMessagePartComponent<
 Put the renderer on the matching backend toolkit entry:
 
 ```tsx
-const toolkit = {
+const toolkit = defineToolkit({
   getWeather: {
     type: "backend",
     render: WeatherToolUI,
   },
-};
+});
 
 function App({ runtime }: { runtime: AssistantRuntime }) {
   const aui = useAui({ tools: Tools({ toolkit }) });
@@ -286,12 +286,12 @@ export const WebSearchToolUI: ToolCallMessagePartComponent<
 Register it on the toolkit:
 
 ```tsx
-const toolkit = {
+const toolkit = defineToolkit({
   webSearch: {
     type: "backend",
     render: WebSearchToolUI,
   },
-};
+});
 ```
 
 ### Dynamic Toolkit Pattern
@@ -301,7 +301,7 @@ Use a toolkit hook in its own file when the renderer needs component state:
 ```tsx title="analyze-data-toolkit.tsx"
 "use client";
 
-import { useInlineRender } from "@assistant-ui/react";
+import { defineToolkit, useInlineRender } from "@assistant-ui/react";
 import { useMemo } from "react";
 
 export function useAnalyzeDataToolkit(theme: "light" | "dark") {
@@ -317,7 +317,7 @@ export function useAnalyzeDataToolkit(theme: "light" | "dark") {
 
   return useMemo(
     () =>
-      ({
+      defineToolkit({
         analyzeData: {
           type: "backend",
           render: renderAnalyzeData,
@@ -358,7 +358,7 @@ For tools that need access to parent component props:
 ```tsx title="inventory-toolkit.tsx"
 "use client";
 
-import { useInlineRender } from "@assistant-ui/react";
+import { defineToolkit, useInlineRender } from "@assistant-ui/react";
 import { useMemo } from "react";
 
 export function useInventoryToolkit(productId: string, productName: string) {
@@ -376,7 +376,7 @@ export function useInventoryToolkit(productId: string, productName: string) {
 
   return useMemo(
     () =>
-      ({
+      defineToolkit({
         checkInventory: {
           type: "backend",
           render: renderInventory,
@@ -419,7 +419,7 @@ Create tools that collect user input during execution:
 </Callout>
 
 ```tsx
-const toolkit = {
+const toolkit = defineToolkit({
   selectDate: {
     type: "human",
     description: "Ask the user to select a date.",
@@ -445,7 +445,7 @@ const toolkit = {
       );
     },
   },
-};
+});
 ```
 
 ### Multi-Step Interactions
@@ -540,7 +540,7 @@ export default defineToolkit({
 Some runtimes (notably AI SDK v6's `needsApproval` tools) pause on the server and emit an approval request that the client must acknowledge before the tool runs. assistant-ui surfaces this on the tool part as `approval` and exposes `respondToApproval({ approved, reason? })` on the renderer:
 
 ```tsx
-const toolkit = {
+const toolkit = defineToolkit({
   deploy: {
     type: "backend",
     render: ({ args, approval, respondToApproval, result }) => {
@@ -570,7 +570,7 @@ const toolkit = {
       return <p>Deployed</p>;
     },
   },
-};
+});
 ```
 
 `approval.approved` is a three-state signal:
@@ -626,7 +626,7 @@ Sometimes you want to capture a tool call's streaming arguments but only render 
 Return `null` from the tool UI's `render` until `status.type === "complete"`. The streaming args still arrive in `args` as the model emits them, you just ignore them until the call is done:
 
 ```tsx
-const toolkit = {
+const toolkit = defineToolkit({
   renderChart: {
     type: "backend",
     render: ({ args, status }) => {
@@ -634,7 +634,7 @@ const toolkit = {
       return <Chart title={args.title} data={args.series} />;
     },
   },
-};
+});
 ```
 
 The chart mounts once, with the final args, after streaming finishes. No re-renders during the stream.
@@ -682,7 +682,7 @@ Use `useToolArgsStatus` to react to per-field streaming state. The hook returns 
 ```tsx
 import { useToolArgsStatus } from "@assistant-ui/react";
 
-const toolkit = {
+const toolkit = defineToolkit({
   submitForm: {
     type: "backend",
     render: ({ args }) => {
@@ -714,7 +714,7 @@ const toolkit = {
       );
     },
   },
-};
+});
 ```
 
 ### Partial Results & Streaming
@@ -722,7 +722,7 @@ const toolkit = {
 Display results as they stream in:
 
 ```tsx
-const toolkit = {
+const toolkit = defineToolkit({
   analyzeData: {
     type: "backend",
     render: ({ result, status }) => {
@@ -757,7 +757,7 @@ const toolkit = {
       );
     },
   },
-};
+});
 ```
 
 ### Custom Tool Fallback
@@ -802,7 +802,7 @@ type ToolCallMessagePartProps<TArgs, TResult> = {
 When a tool calls `human()` during execution, the payload becomes available in the render function as `interrupt.payload`:
 
 ```tsx
-const toolkit = {
+const toolkit = defineToolkit({
   confirmAction: {
     type: "backend",
     render: ({ args, result, interrupt, resume }) => {
@@ -825,7 +825,7 @@ const toolkit = {
       return <div>Processing...</div>;
     },
   },
-};
+});
 ```
 
 Learn more about tool human input in the [Tools Guide](/docs/tools/defining-tools#human-tools).
@@ -882,7 +882,7 @@ Use `useInlineRender` to prevent unnecessary re-renders:
 ```tsx title="heavy-computation-toolkit.tsx"
 "use client";
 
-import { useInlineRender } from "@assistant-ui/react";
+import { defineToolkit, useInlineRender } from "@assistant-ui/react";
 import { useMemo } from "react";
 
 export function useHeavyComputationToolkit() {
@@ -892,7 +892,7 @@ export function useHeavyComputationToolkit() {
 
   return useMemo(
     () =>
-      ({
+      defineToolkit({
         heavyComputation: {
           type: "backend",
           render: renderHeavyComputation,

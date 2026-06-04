@@ -2,9 +2,9 @@
 
 import {
   AssistantRuntimeProvider,
+  defineToolkit,
   Tools,
   type AssistantTransportConnectionMetadata,
-  type Toolkit,
   unstable_createMessageConverter as createMessageConverter,
   useAui,
   useAssistantTransportRuntime,
@@ -16,7 +16,7 @@ import {
 import type { ReactNode } from "react";
 import { z } from "zod";
 
-const toolkit = {
+const toolkit = defineToolkit({
   get_weather: {
     type: "frontend",
     description: "Get the current weather for a city",
@@ -64,7 +64,7 @@ const toolkit = {
           : "Weather lookup complete",
     },
   },
-} satisfies Toolkit;
+});
 
 type MyRuntimeProviderProps = {
   children: ReactNode;

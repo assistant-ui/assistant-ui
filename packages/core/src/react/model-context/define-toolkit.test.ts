@@ -75,8 +75,9 @@ const checkToolkitDefinitionTypes = () => {
 expectTypeOf(checkToolkitDefinitionTypes).toEqualTypeOf<() => void>();
 
 describe("use-generative markers", () => {
-  it("defineToolkit throws at runtime — it must be stripped by the compiler, never called", () => {
-    expect(() => defineToolkit({})).toThrow(/no runtime implementation/);
+  it("defineToolkit returns the toolkit at runtime", () => {
+    const toolkit = {};
+    expect(defineToolkit(toolkit)).toBe(toolkit);
   });
 
   it("humanTool throws at runtime — it must be stripped by the compiler, never called", () => {

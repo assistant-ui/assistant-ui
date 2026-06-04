@@ -212,9 +212,9 @@ export function TransactionConfirmationPending(props: TransactionConfirmation) {
 import { Thread } from "@/components/assistant-ui/thread";
 import { PriceSnapshotToolUI } from "@/components/tools/price-snapshot/PriceSnapshotTool";
 import { PurchaseStockToolUI } from "@/components/tools/purchase-stock/PurchaseStockTool";
-import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
+import { AuiProvider, defineToolkit, Tools, useAui } from "@assistant-ui/react";
 
-const toolkit = {
+const toolkit = defineToolkit({
   price_snapshot: {
     type: "backend",
     render: PriceSnapshotToolUI,
@@ -223,7 +223,7 @@ const toolkit = {
     type: "backend",
     render: PurchaseStockToolUI,
   },
-};
+});
 
 export default function Home() {
   const aui = useAui({ tools: Tools({ toolkit }) });

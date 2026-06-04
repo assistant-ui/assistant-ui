@@ -123,7 +123,7 @@ app = graph.compile(interrupt_before=["execute"], checkpointer=MemorySaver())
 ### Approval UI Component
 
 ```tsx
-const toolkit = {
+const toolkit = defineToolkit({
   execute_trade: {
     type: "backend",
     render: ({ args, status, addResult }) => {
@@ -146,7 +146,7 @@ const toolkit = {
     return <p>Trade {status}...</p>;
   },
   },
-};
+});
 ```
 
 ## Source

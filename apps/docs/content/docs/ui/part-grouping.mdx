@@ -213,7 +213,7 @@ Tool UIs fall into three buckets: prompting the user (human-in-the-loop), inform
 Mark a tool with `display: "standalone"` to keep its UI out of the grouped trace. `human` tools and MCP apps are standalone automatically; every other tool defaults to `"inline"` and opts in explicitly:
 
 ```tsx
-const toolkit = {
+const toolkit = defineToolkit({
   ask_user: { type: "human", render: AskUI }, // standalone (forced)
   search_web: { type: "frontend", render: SearchUI }, // inline trace (default)
   checkout: {
@@ -221,7 +221,7 @@ const toolkit = {
     render: CheckoutUI,
     display: "standalone", // opt in
   },
-};
+});
 ```
 
 The synthetic `"standalone-tool-call"` key on `groupPartByType` matches all of these. `MessagePrimitive.GroupedParts` passes the live tool-UI registry to `groupBy` as a second `context` argument, and the helper reads it to resolve the registry-driven cases — MCP-app calls are detected from the part alone, so nothing is threaded in:

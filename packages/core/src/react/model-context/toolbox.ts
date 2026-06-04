@@ -128,7 +128,7 @@ export type ToolDefinition<
  *
  * @example
  * ```tsx
- * const toolkit = {
+ * const toolkit = defineToolkit({
  *   get_weather: {
  *     type: "frontend",
  *     description: "Get the weather for a city.",
@@ -136,7 +136,7 @@ export type ToolDefinition<
  *     execute: async ({ city }: { city: string }) => fetchWeather(city),
  *     render: WeatherToolUI,
  *   },
- * } satisfies Toolkit;
+ * });
  * ```
  */
 export type Toolkit = Record<string, ToolDefinition<any, any>>;

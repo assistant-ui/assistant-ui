@@ -315,14 +315,16 @@ compiler, declare a `"use client"` toolkit object with an explicit
 ```tsx title="app/tool-ui.tsx"
 "use client";
 
-export const toolkit = {
+import { defineToolkit } from "@assistant-ui/react";
+
+export const toolkit = defineToolkit({
   web_search: {
     type: "backend",
     render: ({ args, result }) => (
       <SearchResults query={args.query} results={result?.results ?? []} />
     ),
   },
-};
+});
 ```
 
 Register it exactly like a generative toolkit: `useAui({ tools: Tools({ toolkit }) })`. The key must match the tool name your backend or MCP server publishes. Render-only entries upload no schema and run no browser code — they only attach UI to matching tool-call message parts.

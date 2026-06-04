@@ -389,6 +389,7 @@ Register the renderer with a backend toolkit entry inside `AssistantRuntimeProvi
 ```tsx
 import {
   AssistantRuntimeProvider,
+  defineToolkit,
   Tools,
   useAui,
 } from "@assistant-ui/react";
@@ -398,12 +399,12 @@ import {
 } from "@assistant-ui/react-google-adk";
 import { Thread } from "@/components/assistant-ui/thread";
 
-const toolkit = {
+const toolkit = defineToolkit({
   adk_request_input: {
     type: "backend",
     render: RequestInputToolUI,
   },
-};
+});
 
 function App() {
   const runtime = useAdkRuntime({
@@ -425,6 +426,7 @@ function App() {
 ```tsx
 import {
   AssistantRuntimeProvider,
+  defineToolkit,
   Tools,
   useAui,
 } from "@assistant-ui/react-native";
@@ -437,12 +439,12 @@ import { Thread } from "@/components/assistant-ui/thread";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
-const toolkit = {
+const toolkit = defineToolkit({
   adk_request_input: {
     type: "backend",
     render: RequestInputToolUI,
   },
-};
+});
 
 function App() {
   const runtime = useAdkRuntime({
@@ -466,6 +468,7 @@ function App() {
 ```tsx
 import {
   AssistantRuntimeProvider,
+  defineToolkit,
   Tools,
   useAui,
 } from "@assistant-ui/react-ink";
@@ -476,12 +479,12 @@ import {
 import { Box } from "ink";
 import { Thread } from "./components/thread.js";
 
-const toolkit = {
+const toolkit = defineToolkit({
   adk_request_input: {
     type: "backend",
     render: RequestInputToolUI,
   },
-};
+});
 
 function App() {
   const runtime = useAdkRuntime({

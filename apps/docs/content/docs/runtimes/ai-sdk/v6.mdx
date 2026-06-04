@@ -353,6 +353,7 @@ Render the gate with a toolkit entry. The `approval` field carries the gate stat
 import { useChat } from "@ai-sdk/react";
 import {
   AssistantRuntimeProvider,
+  defineToolkit,
   Tools,
   useAui,
 } from "@assistant-ui/react";
@@ -360,7 +361,7 @@ import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { Thread } from "@/components/assistant-ui/thread";
 
-const toolkit = {
+const toolkit = defineToolkit({
   deploy: {
     type: "backend",
     render: ({ args, approval, respondToApproval, result }) => {
@@ -386,7 +387,7 @@ const toolkit = {
       return <p>Deployed {result.deployed}</p>;
     },
   },
-};
+});
 
 export default function Page() {
   const chat = useChat({

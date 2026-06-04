@@ -6,7 +6,7 @@
  * confirm: { execute: humanTool(), render: (props) => <Confirm {...props} /> }
  * ```
  *
- * Like {@link defineToolkit}, it has **no runtime implementation**: a
+ * Unlike {@link defineToolkit}, it has **no runtime implementation**: a
  * `"use generative"` compiler (e.g. `@assistant-ui/next` or `@assistant-ui/vite`)
  * detects `execute: humanTool()`, drops it, and stamps the tool `type: "human"`.
  * Reaching it at runtime means the module wasn't compiled (used outside a

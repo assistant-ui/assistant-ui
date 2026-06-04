@@ -1,16 +1,16 @@
 "use client";
 
 import {
+  defineToolkit,
   useAui,
   AuiProvider,
   Suggestions,
   Tools,
-  type Toolkit,
 } from "@assistant-ui/react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { PlusIcon } from "lucide-react";
 
-const toolkit = {
+const toolkit = defineToolkit({
   browser_alert: {
     description: "Display a native browser alert dialog to the user.",
     parameters: {
@@ -44,7 +44,7 @@ const toolkit = {
       </div>
     ),
   },
-} satisfies Toolkit;
+});
 
 function NewThreadButton() {
   const aui = useAui();

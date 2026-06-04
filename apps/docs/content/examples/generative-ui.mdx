@@ -31,7 +31,7 @@ See the [Generative UI primitive guide](/docs/guides/generative-ui) for opt-in w
 These tools have backend `execute` functions and frontend toolkit renderers. The AI generates the data, the backend confirms, and the frontend renders rich UI from `args`:
 
 ```tsx
-const toolkit = {
+const toolkit = defineToolkit({
   generate_chart: {
     type: "backend",
     render: ({ args, status }) => {
@@ -40,7 +40,7 @@ const toolkit = {
     return <ChartContainer config={buildChartConfig(dataKeys)}>...</ChartContainer>;
   },
   },
-};
+});
 ```
 
 ### Frontend-Only Tools (Date Picker, Contact Form)
@@ -48,7 +48,7 @@ const toolkit = {
 These tools have no backend `execute` — the AI triggers the tool call, and the user completes it through interactive UI. The `addResult` callback sends the user's input back to the AI:
 
 ```tsx
-const toolkit = {
+const toolkit = defineToolkit({
   select_date: {
     type: "human",
     render: ({ args, result, addResult }) => {
@@ -63,7 +63,7 @@ const toolkit = {
     );
   },
   },
-};
+});
 ```
 
 ## Key Concepts

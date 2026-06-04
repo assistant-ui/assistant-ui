@@ -242,12 +242,13 @@ export default defineToolkit({
 <Tab value="React Native">
 
 ```tsx title="components/GitHubIssueToolUI.tsx"
+import { defineToolkit } from "@assistant-ui/react-native";
 import { Linking, Pressable, Text, View } from "react-native";
 
 type Args = { repo: string; number: number };
 type Result = { title: string; state: string; url: string };
 
-export const toolkit = {
+export const toolkit = defineToolkit({
   github_get_issue: {
     type: "backend",
     render: ({ args, result }: { args: Args; result?: Result }) => (
@@ -265,19 +266,20 @@ export const toolkit = {
       </View>
     ),
   },
-};
+});
 ```
 
 </Tab>
 <Tab value="React Ink">
 
 ```tsx title="components/GitHubIssueToolUI.tsx"
+import { defineToolkit } from "@assistant-ui/react-ink";
 import { Box, Text } from "ink";
 
 type Args = { repo: string; number: number };
 type Result = { title: string; state: string; url: string };
 
-export const toolkit = {
+export const toolkit = defineToolkit({
   github_get_issue: {
     type: "backend",
     render: ({ args, result }: { args: Args; result?: Result }) => (
@@ -293,7 +295,7 @@ export const toolkit = {
       </Box>
     ),
   },
-};
+});
 ```
 
 </Tab>

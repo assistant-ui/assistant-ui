@@ -158,8 +158,8 @@ export function compileGenerative(
           );
         }
         compileComponents(object, target, flags, filename);
-        // Unwrap the marker (it has no runtime implementation) to the bare
-        // library object so its import can be pruned.
+        // Unwrap the authoring helper to the bare library object so its import
+        // can be pruned.
         path.replaceWith(object);
         path.skip();
         return;
@@ -452,7 +452,7 @@ function ensureDefaultExport(ast: t.File, filename: string | undefined): void {
 
 /**
  * Unwraps a node through `satisfies`/`as`/parens to a call of the named function,
- * or returns `null`. Used to recognize `defineToolkit({...}) satisfies Toolkit`.
+ * or returns `null`.
  */
 function unwrapToCall(node: t.Node, name: string): t.CallExpression | null {
   if (t.isTSSatisfiesExpression(node) || t.isTSAsExpression(node)) {

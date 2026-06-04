@@ -19,7 +19,7 @@ import type { GenerativeUILibrary } from "./types";
  * });
  * ```
  *
- * Like {@link defineToolkit}, it has **no runtime implementation**. A
+ * Unlike {@link defineToolkit}, it has **no runtime implementation**. A
  * `"use generative"` compiler unwraps the `defineGenerativeComponents(...)` call
  * per build, dropping each `render` (and its client-only imports) from the server
  * build. Reaching it at runtime means the module wasn't compiled (the directive

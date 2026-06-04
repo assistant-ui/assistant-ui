@@ -34,7 +34,7 @@ const usePartMessages = (): readonly ThreadMessage[] | undefined => {
  *
  * @example
  * ```tsx
- * const toolkit = {
+ * const toolkit = defineToolkit({
  *   invoke_sub_agent: {
  *     type: "backend",
  *     render: () => (
@@ -46,7 +46,7 @@ const usePartMessages = (): readonly ThreadMessage[] | undefined => {
  *       </PartPrimitive.Messages>
  *     ),
  *   },
- * } satisfies Toolkit;
+ * });
  * ```
  */
 export const PartPrimitiveMessagesImpl: FC<PartPrimitiveMessages.Props> = ({

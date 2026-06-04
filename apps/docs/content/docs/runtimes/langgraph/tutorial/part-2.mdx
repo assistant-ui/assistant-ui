@@ -94,14 +94,14 @@ This simply displays the tool name and arguments passed to it, but not the resul
 
 import { Thread } from "@/components/assistant-ui/thread";
 import { PriceSnapshotToolUI } from "@/components/tools/price-snapshot/PriceSnapshotTool";
-import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
+import { AuiProvider, defineToolkit, Tools, useAui } from "@assistant-ui/react";
 
-const toolkit = {
+const toolkit = defineToolkit({
   price_snapshot: {
     type: "backend",
     render: PriceSnapshotToolUI,
   },
-};
+});
 
 export default function Home() {
   const aui = useAui({ tools: Tools({ toolkit }) });
@@ -326,12 +326,12 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
 ### Bind fallback UI
 
 ```tsx title="@/app/page.tsx"
-const toolkit = {
+const toolkit = defineToolkit({
   price_snapshot: {
     type: "backend",
     render: PriceSnapshotToolUI,
   },
-};
+});
 
 export default function Home() {
   const aui = useAui({ tools: Tools({ toolkit }) });

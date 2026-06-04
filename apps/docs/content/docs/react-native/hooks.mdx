@@ -196,7 +196,7 @@ useAssistantInstructions("You are a helpful weather assistant.");
 Wrap a tool UI component so that inline state updates (from a parent component's render) are reflected without remounting. Use this when the render function closes over props that change over time.
 
 ```tsx title="my-tool-toolkit.tsx"
-import { useInlineRender } from "@assistant-ui/react-native";
+import { defineToolkit, useInlineRender } from "@assistant-ui/react-native";
 import { Text } from "react-native";
 import { useMemo } from "react";
 
@@ -207,7 +207,7 @@ export function useMyToolToolkit(someOuterProp: string) {
 
   return useMemo(
     () =>
-      ({
+      defineToolkit({
         my_tool: {
           type: "backend",
           render: stableRender,

@@ -2,7 +2,7 @@
 
 import type { MutableRefObject } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Toolkit } from "@assistant-ui/react";
+import { defineToolkit } from "@assistant-ui/react";
 import type { FFmpeg } from "@ffmpeg/ffmpeg";
 import {
   CircleCheckIcon,
@@ -19,7 +19,7 @@ export function useFfmpegToolkit(
 ) {
   return useMemo(
     () =>
-      ({
+      defineToolkit({
         run_ffmpeg: {
           type: "frontend",
           parameters: z.object({
@@ -281,7 +281,7 @@ export function useFfmpegToolkit(
             );
           },
         },
-      }) satisfies Toolkit,
+      }),
     [ffmpegRef, file],
   );
 }
