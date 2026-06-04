@@ -16,6 +16,7 @@ import type {
   EditComposerRuntimeCore,
   ThreadComposerRuntimeCore,
 } from "./composer-runtime-core";
+import type { QueueItemState } from "../../store/scopes/queue-item";
 
 export type RuntimeCapabilities = {
   readonly switchToBranch: boolean;
@@ -168,6 +169,10 @@ export type ThreadRuntimeCore = Readonly<{
   composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
   beginEdit: (messageId: string) => void;
+
+  getQueueItems?: () => readonly QueueItemState[];
+  steerQueueItem?: (queueItemId: string) => void;
+  removeQueueItem?: (queueItemId: string) => void;
 
   speech: SpeechState | undefined;
   voice: VoiceSessionState | undefined;

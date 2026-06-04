@@ -354,4 +354,6 @@ export type AppendMessage = Omit<ThreadMessage, "id"> & {
   sourceId: string | null;
   runConfig: RunConfig | undefined;
   startRun?: boolean | undefined;
+  /** Process this message next; only meaningful for queue-capable runtimes. */
+  steer?: boolean | undefined;
 };

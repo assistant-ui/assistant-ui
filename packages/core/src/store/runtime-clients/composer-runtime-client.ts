@@ -17,6 +17,9 @@ import type {
   EditComposerRuntime,
 } from "../../runtime/api/composer-runtime";
 import type { ComposerState } from "../scopes/composer";
+import type { QueueItemState } from "../scopes/queue-item";
+
+const EMPTY_QUEUE: readonly QueueItemState[] = Object.freeze([]);
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 import { tapSubscribable } from "./tap-subscribable";
 
@@ -32,6 +35,24 @@ const ComposerAttachmentClientByIndex = resource(
         runtime: attachmentRuntime,
       }),
     );
+  },
+);
+
+const QueueItemClient = resource(
+  ({
+    item,
+    onSteer,
+    onRemove,
+  }: {
+    item: QueueItemState;
+    onSteer: () => void;
+    onRemove: () => void;
+  }): ClientOutput<"queueItem"> => {
+    return {
+      getState: () => item,
+      steer: onSteer,
+      remove: onRemove,
+    };
   },
 );
 
@@ -95,6 +116,22 @@ export const ComposerClient = resource(
       [runtimeState.attachments, runtime],
     );
 
+    const queue = runtimeState.queue ?? EMPTY_QUEUE;
+    const queueItems = tapClientLookup(
+      () =>
+        queue.map((item) =>
+          withKey(
+            item.id,
+            QueueItemClient({
+              item,
+              onSteer: () => runtime.steerQueueItem(item.id),
+              onRemove: () => runtime.removeQueueItem(item.id),
+            }),
+          ),
+        ),
+      [queue, runtime],
+    );
+
     const state = tapMemo<ComposerState>(() => {
       return {
         text: runtimeState.text,
@@ -109,9 +146,9 @@ export const ComposerClient = resource(
         type: runtimeState.type ?? "thread",
         dictation: runtimeState.dictation,
         quote: runtimeState.quote,
-        queue: [],
+        queue,
       };
-    }, [runtimeState, attachments.state]);
+    }, [runtimeState, attachments.state, queue]);
 
     return {
       getState: () => state,
@@ -138,9 +175,7 @@ export const ComposerClient = resource(
           return attachments.get(selector);
         }
       },
-      queueItem: () => {
-        throw new Error("Queue is not supported in this runtime");
-      },
+      queueItem: (selector) => queueItems.get(selector),
       __internal_getRuntime: () => runtime,
     };
   },

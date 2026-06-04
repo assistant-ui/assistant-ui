@@ -6,7 +6,10 @@ import type {
   ThreadComposerRuntimeCore,
 } from "../interfaces/composer-runtime-core";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
+import type { QueueItemState } from "../../store/scopes/queue-item";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
+
+const EMPTY_QUEUE: readonly QueueItemState[] = Object.freeze([]);
 
 export class DefaultThreadComposerRuntimeCore
   extends BaseComposerRuntimeCore
@@ -19,6 +22,18 @@ export class DefaultThreadComposerRuntimeCore
 
   public get canSend() {
     return !this.isEmpty && !this.runtime.isSendDisabled;
+  }
+
+  public override get queue(): readonly QueueItemState[] {
+    return this.runtime.getQueueItems?.() ?? EMPTY_QUEUE;
+  }
+
+  public override steerQueueItem(queueItemId: string): void {
+    this.runtime.steerQueueItem?.(queueItemId);
+  }
+
+  public override removeQueueItem(queueItemId: string): void {
+    this.runtime.removeQueueItem?.(queueItemId);
   }
 
   protected getAttachmentAdapter() {
@@ -45,6 +60,7 @@ export class DefaultThreadComposerRuntimeCore
 
   public connect() {
     let lastIsSendDisabled = this.runtime.isSendDisabled;
+    let lastQueue = this.queue;
     return this.runtime.subscribe(() => {
       let changed = false;
       if (this.canCancel !== this.runtime.capabilities.cancel) {
@@ -53,6 +69,10 @@ export class DefaultThreadComposerRuntimeCore
       }
       if (lastIsSendDisabled !== this.runtime.isSendDisabled) {
         lastIsSendDisabled = this.runtime.isSendDisabled;
+        changed = true;
+      }
+      if (lastQueue !== this.queue) {
+        lastQueue = this.queue;
         changed = true;
       }
       if (changed) this._notifySubscribers();
@@ -68,6 +88,7 @@ export class DefaultThreadComposerRuntimeCore
       parentId: this.runtime.messages.at(-1)?.id ?? null,
       sourceId: null,
       startRun: options?.startRun,
+      steer: options?.steer,
     });
   }
 

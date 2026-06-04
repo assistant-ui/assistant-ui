@@ -285,6 +285,15 @@ export type {
 export type { ExternalStoreSharedOptions } from "./runtimes/external-store/external-store-shared-options";
 export { pickExternalStoreSharedOptions } from "./runtimes/external-store/external-store-shared-options";
 
+// Message queue
+export type { ExternalThreadQueueAdapter } from "./runtime/queue/external-thread-queue-adapter";
+export {
+  createMessageQueue,
+  type MessageQueueDriver,
+  type MessageQueueOptions,
+  type MessageQueueController,
+} from "./runtime/queue/message-queue";
+
 // Remote Thread List (user-facing)
 export type {
   RemoteThreadListAdapter,

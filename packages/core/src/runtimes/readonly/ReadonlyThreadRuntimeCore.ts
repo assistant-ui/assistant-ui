@@ -158,6 +158,10 @@ export class ReadonlyThreadRuntimeCore
       // noop
     },
 
+    queue: [] as never[],
+    steerQueueItem() {},
+    removeQueueItem() {},
+
     dictation: undefined,
 
     startDictation() {

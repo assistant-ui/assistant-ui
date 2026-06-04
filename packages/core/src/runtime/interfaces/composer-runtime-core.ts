@@ -4,6 +4,7 @@ import type { Attachment, CreateAttachment } from "../../types/attachment";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
 import type { DictationAdapter } from "../../adapters/speech";
+import type { QueueItemState } from "../../store/scopes/queue-item";
 
 export type AttachmentAddErrorReason =
   | "no-adapter"
@@ -45,6 +46,8 @@ export type DictationState = {
 
 export type SendOptions = {
   startRun?: boolean;
+  /** Process this message next; only meaningful with the `queue` capability. */
+  steer?: boolean;
 };
 
 export type ComposerRuntimeCore = Readonly<{
@@ -77,6 +80,10 @@ export type ComposerRuntimeCore = Readonly<{
 
   send: (options?: SendOptions) => void;
   cancel: () => void;
+
+  queue: readonly QueueItemState[];
+  steerQueueItem: (queueItemId: string) => void;
+  removeQueueItem: (queueItemId: string) => void;
 
   dictation: DictationState | undefined;
   startDictation: () => void;

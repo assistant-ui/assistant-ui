@@ -3,6 +3,7 @@ import type { MessageRole } from "../../types/message";
 import type { QuoteInfo } from "../../types/quote";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
+import type { QueueItemState } from "../../store/scopes/queue-item";
 import {
   LazyMemoizeSubject,
   EventSubscriptionSubject,
@@ -63,6 +64,9 @@ type BaseComposerState = {
    * Undefined when no quote is set.
    */
   readonly quote: QuoteInfo | undefined;
+
+  /** Messages waiting to be processed. Empty unless the `queue` capability is set. */
+  readonly queue: readonly QueueItemState[];
 };
 
 export type ThreadComposerState = BaseComposerState & {
@@ -97,6 +101,7 @@ const getThreadComposerState = (
     attachmentAccept: runtime?.attachmentAccept ?? "",
     dictation: runtime?.dictation,
     quote: runtime?.quote,
+    queue: runtime?.queue ?? EMPTY_ARRAY,
 
     value: runtime?.text ?? "",
   });
@@ -120,6 +125,7 @@ const getEditComposerState = (
     attachmentAccept: runtime?.attachmentAccept ?? "",
     dictation: runtime?.dictation,
     quote: runtime?.quote,
+    queue: EMPTY_ARRAY,
 
     parentId: runtime?.parentId ?? null,
     sourceId: runtime?.sourceId ?? null,
@@ -194,6 +200,12 @@ export type ComposerRuntime = {
    */
   cancel(): void;
 
+  /** Promote a queued message so it processes next. */
+  steerQueueItem(queueItemId: string): void;
+
+  /** Remove a queued message. */
+  removeQueueItem(queueItemId: string): void;
+
   /**
    * Listens for changes to the composer state.
    * @param callback The callback to call when the composer state changes.
@@ -251,6 +263,8 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     this.clearAttachments = this.clearAttachments.bind(this);
     this.send = this.send.bind(this);
     this.cancel = this.cancel.bind(this);
+    this.steerQueueItem = this.steerQueueItem.bind(this);
+    this.removeQueueItem = this.removeQueueItem.bind(this);
     this.setRole = this.setRole.bind(this);
     this.getAttachmentByIndex = this.getAttachmentByIndex.bind(this);
     this.startDictation = this.startDictation.bind(this);
@@ -301,6 +315,18 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     const core = this._core.getState();
     if (!core) throw new Error("Composer is not available");
     core.cancel();
+  }
+
+  public steerQueueItem(queueItemId: string) {
+    const core = this._core.getState();
+    if (!core) throw new Error("Composer is not available");
+    core.steerQueueItem(queueItemId);
+  }
+
+  public removeQueueItem(queueItemId: string) {
+    const core = this._core.getState();
+    if (!core) throw new Error("Composer is not available");
+    core.removeQueueItem(queueItemId);
   }
 
   public setRole(role: MessageRole) {

@@ -139,6 +139,10 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
       // noop
     },
 
+    queue: [] as never[],
+    steerQueueItem() {},
+    removeQueueItem() {},
+
     dictation: undefined,
 
     startDictation() {

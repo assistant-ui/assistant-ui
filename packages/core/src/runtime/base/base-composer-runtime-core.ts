@@ -23,10 +23,13 @@ import type {
   SendOptions,
 } from "../interfaces/composer-runtime-core";
 import type { DictationAdapter } from "../../adapters/speech";
+import type { QueueItemState } from "../../store/scopes/queue-item";
 import { generateId } from "../../utils/id";
 
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
   a.status.type === "complete";
+
+const EMPTY_QUEUE: readonly QueueItemState[] = Object.freeze([]);
 
 export abstract class BaseComposerRuntimeCore
   extends BaseSubscribable
@@ -199,6 +202,13 @@ export abstract class BaseComposerRuntimeCore
   public cancel() {
     this.handleCancel();
   }
+
+  public get queue(): readonly QueueItemState[] {
+    return EMPTY_QUEUE;
+  }
+
+  public steerQueueItem(_queueItemId: string): void {}
+  public removeQueueItem(_queueItemId: string): void {}
 
   protected abstract handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
