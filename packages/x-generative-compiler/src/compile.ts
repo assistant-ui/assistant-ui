@@ -447,14 +447,12 @@ function compileToolkit(
       else if (execute) removeMember(value, "execute");
       if (hasRender || hasRenderText) flags.keptRender = true;
     } else {
-      // server: render is never needed; only a backend execute survives.
+      // server: render is never needed; only a non-external backend execute survives.
       if (hasRender) removeMember(value, "render");
       if (hasRenderText) removeMember(value, "renderText");
-      if (execute && (type !== "backend" || isExternal)) {
-        removeMember(value, "execute");
-      }
-      if (execute && type === "backend" && !isExternal) {
-        flags.keptBackendExecute = true;
+      if (execute) {
+        if (type === "backend" && !isExternal) flags.keptBackendExecute = true;
+        else removeMember(value, "execute");
       }
     }
 
